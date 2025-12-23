@@ -20,12 +20,13 @@ You own your data. Your data is encrypted, end-to-end, so nobody can access it b
 
 ## :couple: Manage shared finances
 
-Track ownership of spending if you share your accounts with someone you :heart:
+Track ownership of spending if you share your accounts with people you :heart: (multi-party cost allocation across several accounts, with periodic net settlement)
 
 ## :inbox_tray: Simple data import
 
 Data import is designed to be painless without comprimising your security. Visit your bank's online banking website
 as you normally would, then either:
+
 1. Copy and paste straight out of the web page.
 2. Download CSV files of your transactions and upload them to MoneyFlow.
 3. In the future, a desktop app will do this for you automatically
@@ -33,44 +34,7 @@ as you normally would, then either:
 
 ## Getting started
 
-Clone this repository then:
-
-- `dotnet user-secrets -p MoneyFlow.sln set "StorageConnectionString" ""`
-
-For dev:
-- `bin/make run server` (watch run server)
-- `bin/make run ui` (watch run client)
-- `bin/make test server` (watch test server)
-
-Or if you're using nix shell and tmux:
-- `nix-shell`
-- `tmux source tmux.conf`
-
-To build for production:
-- `m build` (same build that CI runs to prepare for deployment)
-
-To format the C# files:
-- Run `dotnet format`
-- In rider:
-  - File type: C# file
-  - Scope: Current file
-  - Program: dotnet
-  - Arguments: format $SolutionPath$ --include $FilePathRelativeToProjectRoot$
-  - Output paths to refresh: $FilePath$
-  - Advanced options: Untick all
-
-To update outdated nuget packages:
-- `dotnet outdated`
-
-To update outdated npm packages:
-- `bin/make ui yarn upgrade-interactive --latest`
-
 ## Resources
-
-- [App](https://moneyflow.azurewebsites.net/)
-- [Build Server Management](https://dev.azure.com/btefay/MoneyFlow/_build)
-- [Prod Server Management](https://portal.azure.com)
-- [Project Management](https://github.com/bentefay/MoneyFlow/projects/1)
 
 ## Features
 
