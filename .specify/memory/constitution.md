@@ -179,10 +179,10 @@ Code MUST be clear, readable, and self-documenting. Clarity is not optional—it
   universally understood (e.g., `id`, `url`, `html`); `transaction` not `tx` or `txn`;
   `encrypted` not `enc`; `calculate` not `calc`; longer names are fine—clarity beats brevity
 - **Comments**: Use comments ONLY when:
-  1. The intent is not clear from the code itself (explain *why*, not *what*)
+  1. The intent is not clear from the code itself (explain _why_, not _what_)
   2. The comment will help an LLM agent make better changes in the future
   3. There's a non-obvious edge case, security consideration, or performance reason
-  - If you need a comment to explain *what* code does, rewrite the code to be clearer instead
+  - If you need a comment to explain _what_ code does, rewrite the code to be clearer instead
 - **Structure**: Small, focused functions; early returns over nested conditionals; vertical
   whitespace to group related logic; consistent formatting (Prettier handles this)
 

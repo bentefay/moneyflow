@@ -1,5 +1,5 @@
 {
-  description = "MoneyFlow development environment with spec-kit dependencies";
+  description = "MoneyFlow development environment";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -14,6 +14,11 @@
       {
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
+            # Node.js for Next.js development
+            nodejs_22
+            pnpm
+            
+            # Python for spec-kit
             python312
             uv
           ];

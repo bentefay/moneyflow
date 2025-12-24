@@ -58,7 +58,10 @@ setState((draft) => {
 // ❌ WRONG: Returning new object - loro-mirror can't see what changed
 setState((state) => ({
   ...state,
-  transactions: { ...state.transactions, [id]: { ...state.transactions[id], amount: newAmount } }
+  transactions: {
+    ...state.transactions,
+    [id]: { ...state.transactions[id], amount: newAmount },
+  },
 }));
 ```
 
@@ -399,14 +402,14 @@ A user can be a member of **multiple vaults**. Each vault is a completely indepe
 
 ### What Lives Where
 
-| Data | Location | Scope |
-|------|----------|-------|
-| Vault list + wrapped keys | `user_data.encrypted_data` | Global (user-level) |
-| Active vault selection | `user_data.encrypted_data.globalSettings` | Global (user-level) |
-| Theme, notifications | `user_data.encrypted_data.globalSettings` | Global (user-level) |
-| Financial data (transactions, accounts, etc.) | Vault LoroDoc | Per-vault |
-| Automation creation preference | Vault LoroDoc `preferences` | Per-vault |
-| Presence awareness | Vault EphemeralStore | Per-vault (ephemeral) |
+| Data                                          | Location                                  | Scope                 |
+| --------------------------------------------- | ----------------------------------------- | --------------------- |
+| Vault list + wrapped keys                     | `user_data.encrypted_data`                | Global (user-level)   |
+| Active vault selection                        | `user_data.encrypted_data.globalSettings` | Global (user-level)   |
+| Theme, notifications                          | `user_data.encrypted_data.globalSettings` | Global (user-level)   |
+| Financial data (transactions, accounts, etc.) | Vault LoroDoc                             | Per-vault             |
+| Automation creation preference                | Vault LoroDoc `preferences`               | Per-vault             |
+| Presence awareness                            | Vault EphemeralStore                      | Per-vault (ephemeral) |
 
 ### TypeScript Interface for User Data
 
@@ -418,13 +421,13 @@ interface UserData {
 }
 
 interface VaultReference {
-  id: string;           // Vault UUID
-  wrappedKey: string;   // Vault encryption key, wrapped with user's X25519 pubkey
-  name?: string;        // Cached vault name for selector UI (convenience)
+  id: string; // Vault UUID
+  wrappedKey: string; // Vault encryption key, wrapped with user's X25519 pubkey
+  name?: string; // Cached vault name for selector UI (convenience)
 }
 
 interface GlobalSettings {
-  activeVaultId: string | null;  // Currently selected vault
+  activeVaultId: string | null; // Currently selected vault
   theme: "light" | "dark" | "system";
   // Future: notification preferences, etc.
 }
@@ -1142,13 +1145,13 @@ import { EphemeralStore } from "loro-crdt";
 
 // Presence payload broadcast by each client
 interface PresenceData {
-  personId: string;    // Person ID in vault (links to people collection)
-  name: string;        // Display name for avatar tooltip
-  initials: string;    // 2-char initials for avatar circle
-  color: string;       // Unique hex color per user (derived from pubkeyHash)
-  activeRow?: string;  // Transaction ID currently focused (optional)
+  personId: string; // Person ID in vault (links to people collection)
+  name: string; // Display name for avatar tooltip
+  initials: string; // 2-char initials for avatar circle
+  color: string; // Unique hex color per user (derived from pubkeyHash)
+  activeRow?: string; // Transaction ID currently focused (optional)
   activeCell?: string; // Column name being edited (optional)
-  lastSeen: number;    // Unix timestamp (ms)
+  lastSeen: number; // Unix timestamp (ms)
 }
 
 // EphemeralStore key format: pubkeyHash (unique per session)
@@ -1214,7 +1217,10 @@ supabaseChannel.on("broadcast", { event: "presence" }, (msg) => {
 presence.subscribe((event) => {
   const allStates = presence.getAllStates();
   const activePeers = Object.entries(allStates)
-    .map(([key, value]) => ({ key, ...JSON.parse(value as string) as PresenceData }))
+    .map(([key, value]) => ({
+      key,
+      ...(JSON.parse(value as string) as PresenceData),
+    }))
     .filter((p) => p.key !== session.pubkeyHash); // Exclude self
   updatePresenceUI(activePeers);
 });
@@ -1241,14 +1247,14 @@ function getInitials(name: string): string {
 
 #### Presence Update Triggers
 
-| Event | Update |
-|-------|--------|
-| User focuses transaction row | `activeRow = transactionId` |
-| User starts editing cell | `activeCell = columnName` |
-| User finishes editing | `activeCell = undefined` |
-| User navigates away | `activeRow = undefined` |
-| Heartbeat (every 10s) | Refresh `lastSeen` timestamp |
-| Tab/window blur | Clear `activeRow` and `activeCell` |
+| Event                        | Update                             |
+| ---------------------------- | ---------------------------------- |
+| User focuses transaction row | `activeRow = transactionId`        |
+| User starts editing cell     | `activeCell = columnName`          |
+| User finishes editing        | `activeCell = undefined`           |
+| User navigates away          | `activeRow = undefined`            |
+| Heartbeat (every 10s)        | Refresh `lastSeen` timestamp       |
+| Tab/window blur              | Clear `activeRow` and `activeCell` |
 
 ---
 

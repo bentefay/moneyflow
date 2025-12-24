@@ -27,15 +27,15 @@ Build the MoneyFlow Core MVP: a client-side encrypted, real-time collaborative h
 
 _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
-| Principle                               | Status  | Implementation                                                                                      |
-| --------------------------------------- | ------- | --------------------------------------------------------------------------------------------------- |
+| Principle                               | Status  | Implementation                                                                                             |
+| --------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------- |
 | **I. Security & Privacy First**         | ✅ PASS | XChaCha20-Poly1305 client-side encryption; BIP39 seed phrase identity; server sees only opaque pubkey_hash |
-| **II. Multi-Party Financial Integrity** | ✅ PASS | Property-based tests for allocation math; Loro version vectors; field-level CRDT                    |
-| **III. Data Portability**               | ✅ PASS | CSV/OFX import; JSON export always available; no vendor lock-in                                     |
-| **IV. Auditability & Transparency**     | ✅ PASS | Loro operation log provides audit trail; automation changes tracked for undo                        |
-| **V. User-Owned Data**                  | ✅ PASS | Full export in JSON/CSV; offline-capable; encryption keys user-derived                              |
-| **VI. Performance, Beauty & Craft**     | ✅ PASS | <100ms target; shadcn/ui for polish; Linear-inspired UX                                             |
-| **VII. Robustness & Reliability**       | ✅ PASS | Comprehensive testing strategy; property-based tests; graceful degradation                          |
+| **II. Multi-Party Financial Integrity** | ✅ PASS | Property-based tests for allocation math; Loro version vectors; field-level CRDT                           |
+| **III. Data Portability**               | ✅ PASS | CSV/OFX import; JSON export always available; no vendor lock-in                                            |
+| **IV. Auditability & Transparency**     | ✅ PASS | Loro operation log provides audit trail; automation changes tracked for undo                               |
+| **V. User-Owned Data**                  | ✅ PASS | Full export in JSON/CSV; offline-capable; encryption keys user-derived                                     |
+| **VI. Performance, Beauty & Craft**     | ✅ PASS | <100ms target; shadcn/ui for polish; Linear-inspired UX                                                    |
+| **VII. Robustness & Reliability**       | ✅ PASS | Comprehensive testing strategy; property-based tests; graceful degradation                                 |
 
 **Security Requirements Check**:
 

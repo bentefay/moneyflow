@@ -25,14 +25,14 @@ Based on plan.md structure:
 
 **Purpose**: Project initialization, tooling, and base configuration
 
-- [ ] T001 Initialize Next.js 15 project with TypeScript, App Router, and Tailwind CSS in repository root
-- [ ] T002 [P] Install and configure shadcn/ui with dark mode support in src/components/ui/
-- [ ] T003 [P] Install core dependencies: libsodium-wrappers, @scure/bip39, @noble/hashes, loro-crdt, loro-mirror, loro-mirror-react, zod, remeda
-- [ ] T004 [P] Install tRPC v11 dependencies: @trpc/server, @trpc/client, @trpc/react-query, @tanstack/react-query, superjson
-- [ ] T005 [P] Configure ESLint, Prettier, and TypeScript strict mode in root config files
-- [ ] T006 [P] Install Supabase client (@supabase/supabase-js) and configure environment variables in .env.local.example
-- [ ] T007 [P] Install testing dependencies: vitest, @testing-library/react, playwright, fast-check
-- [ ] T008 Create base TypeScript types and Zod schemas in src/types/index.ts
+- [x] T001 Initialize Next.js 15 project with TypeScript, App Router, and Tailwind CSS in repository root
+- [x] T002 [P] Install and configure shadcn/ui with dark mode support in src/components/ui/
+- [x] T003 [P] Install core dependencies: libsodium-wrappers, @scure/bip39, @noble/hashes, loro-crdt, loro-mirror, loro-mirror-react, zod, remeda
+- [x] T004 [P] Install tRPC v11 dependencies: @trpc/server, @trpc/client, @trpc/react-query, @tanstack/react-query, superjson
+- [x] T005 [P] Configure ESLint, Prettier, and TypeScript strict mode in root config files
+- [x] T006 [P] Install Supabase client (@supabase/supabase-js) and configure environment variables in .env.local.example
+- [x] T007 [P] Install testing dependencies: vitest, @testing-library/react, playwright, fast-check
+- [x] T008 Create base TypeScript types and Zod schemas in src/types/index.ts
 
 ---
 
@@ -44,55 +44,55 @@ Based on plan.md structure:
 
 ### Crypto Foundation
 
-- [ ] T009 Implement BIP39 seed phrase generation (12 words, 128-bit) in src/lib/crypto/seed.ts
-- [ ] T010 Implement Ed25519 keypair derivation from seed in src/lib/crypto/keypair.ts
-- [ ] T011 Implement pubkeyHash (BLAKE2b) computation in src/lib/crypto/identity.ts
-- [ ] T012 [P] Implement sessionStorage helpers for keypair in src/lib/crypto/session.ts
-- [ ] T013 [P] Implement XChaCha20-Poly1305 encrypt/decrypt functions in src/lib/crypto/encryption.ts
-- [ ] T014 [P] Implement X25519 key wrapping for vault key sharing in src/lib/crypto/keywrap.ts
-- [ ] T015 Implement Ed25519 request signing (timestamp, method, path, body hash) in src/lib/crypto/signing.ts
+- [x] T009 Implement BIP39 seed phrase generation (12 words, 128-bit) in src/lib/crypto/seed.ts
+- [x] T010 Implement Ed25519 keypair derivation from seed in src/lib/crypto/keypair.ts
+- [x] T011 Implement pubkeyHash (BLAKE2b) computation in src/lib/crypto/identity.ts
+- [x] T012 [P] Implement sessionStorage helpers for keypair in src/lib/crypto/session.ts
+- [x] T013 [P] Implement XChaCha20-Poly1305 encrypt/decrypt functions in src/lib/crypto/encryption.ts
+- [x] T014 [P] Implement X25519 key wrapping for vault key sharing in src/lib/crypto/keywrap.ts
+- [x] T015 Implement Ed25519 request signing (timestamp, method, path, body hash) in src/lib/crypto/signing.ts
 
 ### CRDT Foundation
 
-- [ ] T016 Define Loro schema for Vault document (accounts, people, tags, transactions, etc.) in src/lib/crdt/schema.ts
-- [ ] T017 Create loro-mirror Mirror instance with schema validation in src/lib/crdt/mirror.ts
-- [ ] T018 Create loro-mirror-react context with createLoroContext in src/lib/crdt/context.tsx
-- [ ] T019 [P] Implement binary export/import helpers for Loro updates in src/lib/crdt/sync.ts
-- [ ] T020 [P] Implement encrypted snapshot serialization in src/lib/crdt/snapshot.ts
+- [x] T016 Define Loro schema for Vault document (accounts, people, tags, transactions, etc.) in src/lib/crdt/schema.ts
+- [x] T017 Create loro-mirror Mirror instance with schema validation in src/lib/crdt/mirror.ts
+- [x] T018 Create loro-mirror-react context with createLoroContext in src/lib/crdt/context.tsx
+- [x] T019 [P] Implement binary export/import helpers for Loro updates in src/lib/crdt/sync.ts
+- [x] T020 [P] Implement encrypted snapshot serialization in src/lib/crdt/snapshot.ts
 
 ### Database & API Foundation
 
-- [ ] T021 Create Supabase database schema (user_data, vaults, vault_memberships, vault_invites, vault_snapshots, vault_updates) in supabase/migrations/001_initial.sql
-- [ ] T022 Create RLS policies for pubkey_hash-based access control in supabase/migrations/002_rls_policies.sql
-- [ ] T023 Create tRPC instance with context and Ed25519 signature verification middleware in src/server/trpc.ts
-- [ ] T024 Create root tRPC router merging all sub-routers in src/server/routers/\_app.ts
-- [ ] T025 [P] Create tRPC client configuration for React in src/lib/trpc/client.ts
-- [ ] T026 [P] Create Next.js API route handler for tRPC in src/app/api/trpc/[trpc]/route.ts
-- [ ] T027 Create TRPCProvider wrapper with QueryClientProvider in src/components/providers/trpc-provider.tsx
+- [x] T021 Create Supabase database schema (user_data, vaults, vault_memberships, vault_invites, vault_snapshots, vault_updates) in supabase/migrations/001_initial.sql
+- [x] T022 Create RLS policies for pubkey_hash-based access control in supabase/migrations/002_rls_policies.sql
+- [x] T023 Create tRPC instance with context and Ed25519 signature verification middleware in src/server/trpc.ts
+- [x] T024 Create root tRPC router merging all sub-routers in src/server/routers/\_app.ts
+- [x] T025 [P] Create tRPC client configuration for React in src/lib/trpc/client.ts
+- [x] T026 [P] Create Next.js API route handler for tRPC in src/app/api/trpc/[trpc]/route.ts
+- [x] T027 Create TRPCProvider wrapper with QueryClientProvider in src/components/providers/trpc-provider.tsx
 
 ### Supabase Realtime Foundation
 
-- [ ] T028 Implement Supabase Realtime subscription for vault_updates channel in src/lib/sync/realtime.ts
-- [ ] T029 Implement sync manager (send/receive encrypted updates) in src/lib/sync/manager.ts
+- [x] T028 Implement Supabase Realtime subscription for vault_updates channel in src/lib/supabase/realtime.ts
+- [x] T029 Implement sync manager (send/receive encrypted updates) in src/lib/sync/manager.ts
 
 ### Vault Selector & Presence Awareness
 
-- [ ] T029a Create useActiveVault hook with localStorage persistence in src/hooks/useActiveVault.ts
-- [ ] T029b Create VaultSelector dropdown component (top-right header) in src/components/features/vault/VaultSelector.tsx
-- [ ] T029c Create EphemeralStore presence manager in src/lib/sync/presence.ts
-- [ ] T029d [P] Create PresenceAvatar component (circular, initials, colored border) in src/components/features/presence/PresenceAvatar.tsx
-- [ ] T029e [P] Create PresenceAvatarGroup component (stacked avatars with tooltip) in src/components/features/presence/PresenceAvatarGroup.tsx
-- [ ] T029f Create usePresence hook (broadcast own presence, subscribe to peers) in src/hooks/usePresence.ts
-- [ ] T029g Integrate presence highlighting into TransactionRow (colored left border, cursor indicator) in src/components/features/transactions/TransactionRow.tsx
-- [ ] T029h Create hashToColor utility for deterministic avatar colors in src/lib/utils/color.ts
-- [ ] T029i Add VaultSelector and PresenceAvatarGroup to app header in src/app/(app)/layout.tsx
+- [x] T029a Create useActiveVault hook with localStorage persistence in src/hooks/use-active-vault.ts
+- [x] T029b Create VaultSelector dropdown component (top-right header) in src/components/features/vault/VaultSelector.tsx
+- [x] T029c Create EphemeralStore presence manager in src/lib/sync/presence.ts
+- [x] T029d [P] Create PresenceAvatar component (circular, initials, colored border) in src/components/features/presence/PresenceAvatar.tsx
+- [x] T029e [P] Create PresenceAvatarGroup component (stacked avatars with tooltip) in src/components/features/presence/PresenceAvatarGroup.tsx
+- [x] T029f Create usePresence hook (broadcast own presence, subscribe to peers) in src/hooks/use-vault-presence.ts
+- [x] T029g Integrate presence highlighting into TransactionRow (colored left border, cursor indicator) in src/components/features/transactions/TransactionRow.tsx
+- [x] T029h Create hashToColor utility for deterministic avatar colors in src/lib/utils/color.ts
+- [x] T029i Add VaultSelector and PresenceAvatarGroup to app header in src/app/(app)/layout.tsx
 
 ### Layout Foundation
 
-- [ ] T030 Create root layout with providers (tRPC, Loro context) in src/app/layout.tsx
-- [ ] T031 [P] Create app shell layout with sidebar navigation in src/app/(app)/layout.tsx
-- [ ] T032 [P] Create marketing layout (no auth required) in src/app/(marketing)/layout.tsx
-- [ ] T033 [P] Create onboarding layout in src/app/(onboarding)/layout.tsx
+- [x] T030 Create root layout with providers (tRPC, Loro context) in src/app/layout.tsx
+- [x] T031 [P] Create app shell layout with sidebar navigation in src/app/(app)/layout.tsx
+- [x] T032 [P] Create marketing layout (no auth required) in src/app/(marketing)/layout.tsx
+- [x] T033 [P] Create onboarding layout in src/app/(onboarding)/layout.tsx
 
 **Checkpoint**: Foundation ready - user story implementation can now begin
 
