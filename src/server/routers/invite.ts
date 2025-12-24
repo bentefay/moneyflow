@@ -2,7 +2,7 @@
  * Invite Router
  *
  * Handles vault invitation creation and acceptance using zero-knowledge design.
- * 
+ *
  * How invites work:
  * 1. Owner creates invite with ephemeral pubkey (derived from invite secret)
  * 2. Invite secret is shared via URL fragment (never sent to server)

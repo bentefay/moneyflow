@@ -2,7 +2,7 @@
  * Sync Router
  *
  * Handles CRDT synchronization - snapshots and incremental updates.
- * 
+ *
  * Schema uses:
  * - vault_snapshots: version (integer), hlc_timestamp (HLC for ordering)
  * - vault_updates: base_snapshot_version, hlc_timestamp, author_pubkey_hash
@@ -157,7 +157,9 @@ export const syncRouter = router({
       // Build query - get updates ordered by HLC timestamp
       let query = supabase
         .from("vault_updates")
-        .select("id, encrypted_data, base_snapshot_version, hlc_timestamp, author_pubkey_hash, created_at")
+        .select(
+          "id, encrypted_data, base_snapshot_version, hlc_timestamp, author_pubkey_hash, created_at"
+        )
         .eq("vault_id", input.vaultId)
         .order("hlc_timestamp", { ascending: true })
         .limit(input.limit);

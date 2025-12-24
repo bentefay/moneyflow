@@ -2,7 +2,7 @@
  * Vault Router
  *
  * Handles vault CRUD operations and membership management.
- * 
+ *
  * Zero-Knowledge Design:
  * - Vaults table only has id and created_at (no user-identifiable data)
  * - Ownership is tracked via 'owner' role in vault_memberships

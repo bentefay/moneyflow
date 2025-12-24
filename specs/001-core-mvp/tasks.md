@@ -137,13 +137,13 @@ Based on plan.md structure:
 
 ### Implementation for User Story 8
 
-- [ ] T049 [P] [US8] Create HeroSection component (headline, subheadline, CTA buttons) in src/components/features/landing/HeroSection.tsx
-- [ ] T050 [P] [US8] Create FeaturesSection component (feature grid with icons) in src/components/features/landing/FeaturesSection.tsx
-- [ ] T051 [P] [US8] Create SecuritySection component (privacy messaging, encryption badge) in src/components/features/landing/SecuritySection.tsx
-- [ ] T052 [P] [US8] Create CTASection component (final call-to-action) in src/components/features/landing/CTASection.tsx
-- [ ] T053 [P] [US8] Create Header component (logo, Unlock/Get Started buttons) in src/components/features/landing/Header.tsx
-- [ ] T054 [P] [US8] Create Footer component (links, copyright) in src/components/features/landing/Footer.tsx
-- [ ] T055 [US8] Create landing page assembling all sections in src/app/(marketing)/page.tsx
+- [x] T049 [P] [US8] Create HeroSection component (headline, subheadline, CTA buttons) in src/components/features/landing/HeroSection.tsx
+- [x] T050 [P] [US8] Create FeaturesSection component (feature grid with icons) in src/components/features/landing/FeaturesSection.tsx
+- [x] T051 [P] [US8] Create SecuritySection component (privacy messaging, encryption badge) in src/components/features/landing/SecuritySection.tsx
+- [x] T052 [P] [US8] Create CTASection component (final call-to-action) in src/components/features/landing/CTASection.tsx
+- [x] T053 [P] [US8] Create Header component (logo, Unlock/Get Started buttons) in src/components/features/landing/Header.tsx
+- [x] T054 [P] [US8] Create Footer component (links, copyright) in src/components/features/landing/Footer.tsx
+- [x] T055 [US8] Create landing page assembling all sections in src/app/(marketing)/page.tsx
 
 **Checkpoint**: Marketing landing page is live. Lighthouse score 90+.
 
