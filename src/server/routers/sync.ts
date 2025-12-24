@@ -2,6 +2,10 @@
  * Sync Router
  *
  * Handles CRDT synchronization - snapshots and incremental updates.
+ * 
+ * Schema uses:
+ * - vault_snapshots: version (integer), hlc_timestamp (HLC for ordering)
+ * - vault_updates: base_snapshot_version, hlc_timestamp, author_pubkey_hash
  */
 
 import { z } from "zod";
@@ -35,12 +39,12 @@ export const syncRouter = router({
         });
       }
 
-      // Get latest snapshot
+      // Get latest snapshot by version (highest version = latest)
       const { data: snapshot, error: snapshotError } = await supabase
         .from("vault_snapshots")
-        .select("id, encrypted_data, version_vector, created_at")
+        .select("id, version, hlc_timestamp, encrypted_data, created_at")
         .eq("vault_id", input.vaultId)
-        .order("created_at", { ascending: false })
+        .order("version", { ascending: false })
         .limit(1)
         .single();
 
@@ -52,7 +56,13 @@ export const syncRouter = router({
         throw new Error(`Failed to get snapshot: ${snapshotError.message}`);
       }
 
-      return snapshot;
+      return {
+        id: snapshot.id,
+        version: snapshot.version,
+        hlcTimestamp: snapshot.hlc_timestamp,
+        encryptedData: snapshot.encrypted_data,
+        createdAt: snapshot.created_at,
+      };
     }),
 
   /**
@@ -65,7 +75,8 @@ export const syncRouter = router({
       z.object({
         vaultId: z.string().uuid(),
         encryptedData: z.string(), // Base64 encrypted CRDT export
-        versionVector: z.string(), // Base64 encoded version vector
+        version: z.number().int().positive(), // Snapshot version number
+        hlcTimestamp: z.string(), // HLC timestamp for ordering
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -92,13 +103,20 @@ export const syncRouter = router({
         .insert({
           vault_id: input.vaultId,
           encrypted_data: input.encryptedData,
-          version_vector: input.versionVector,
-          created_by: ctx.pubkeyHash,
+          version: input.version,
+          hlc_timestamp: input.hlcTimestamp,
         })
         .select("id")
         .single();
 
       if (insertError) {
+        // Version conflict - snapshot with this version already exists
+        if (insertError.code === "23505") {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "Snapshot version already exists",
+          });
+        }
         throw new Error(`Failed to save snapshot: ${insertError.message}`);
       }
 
@@ -106,7 +124,7 @@ export const syncRouter = router({
     }),
 
   /**
-   * Get incremental updates since a version.
+   * Get incremental updates since a snapshot version.
    *
    * Used for syncing changes between clients.
    */
@@ -114,7 +132,7 @@ export const syncRouter = router({
     .input(
       z.object({
         vaultId: z.string().uuid(),
-        sinceVersion: z.string().optional(), // Base64 version vector
+        sinceSnapshotVersion: z.number().int().optional(), // Get updates since this snapshot
         limit: z.number().min(1).max(1000).default(100),
       })
     )
@@ -136,20 +154,17 @@ export const syncRouter = router({
         });
       }
 
-      // Build query - get updates ordered by sequence
+      // Build query - get updates ordered by HLC timestamp
       let query = supabase
         .from("vault_updates")
-        .select("id, encrypted_data, version_vector, seq, created_at, created_by")
+        .select("id, encrypted_data, base_snapshot_version, hlc_timestamp, author_pubkey_hash, created_at")
         .eq("vault_id", input.vaultId)
-        .order("seq", { ascending: true })
+        .order("hlc_timestamp", { ascending: true })
         .limit(input.limit);
 
-      // If we have a version, get updates after it
-      // Note: This is a simplified approach. In production, you'd compare
-      // version vectors properly to only get truly new updates.
-      if (input.sinceVersion) {
-        // For now, we use sequence numbers which are monotonic
-        // A more sophisticated approach would decode and compare version vectors
+      // Filter by base snapshot version if provided
+      if (input.sinceSnapshotVersion !== undefined) {
+        query = query.gte("base_snapshot_version", input.sinceSnapshotVersion);
       }
 
       const { data: updates, error: updatesError } = await query;
@@ -158,7 +173,14 @@ export const syncRouter = router({
         throw new Error(`Failed to get updates: ${updatesError.message}`);
       }
 
-      return updates;
+      return (updates ?? []).map((update) => ({
+        id: update.id,
+        encryptedData: update.encrypted_data,
+        baseSnapshotVersion: update.base_snapshot_version,
+        hlcTimestamp: update.hlc_timestamp,
+        authorPubkeyHash: update.author_pubkey_hash,
+        createdAt: update.created_at,
+      }));
     }),
 
   /**
@@ -171,7 +193,8 @@ export const syncRouter = router({
       z.object({
         vaultId: z.string().uuid(),
         encryptedData: z.string(), // Base64 encrypted CRDT update
-        versionVector: z.string(), // Base64 encoded version vector
+        baseSnapshotVersion: z.number().int(), // The snapshot this update is based on
+        hlcTimestamp: z.string(), // HLC timestamp for ordering
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -192,23 +215,24 @@ export const syncRouter = router({
         });
       }
 
-      // Insert update (seq is auto-generated)
+      // Insert update
       const { data: update, error: insertError } = await supabase
         .from("vault_updates")
         .insert({
           vault_id: input.vaultId,
           encrypted_data: input.encryptedData,
-          version_vector: input.versionVector,
-          created_by: ctx.pubkeyHash,
+          base_snapshot_version: input.baseSnapshotVersion,
+          hlc_timestamp: input.hlcTimestamp,
+          author_pubkey_hash: ctx.pubkeyHash,
         })
-        .select("id, seq")
+        .select("id")
         .single();
 
       if (insertError) {
         throw new Error(`Failed to push update: ${insertError.message}`);
       }
 
-      return { updateId: update.id, seq: update.seq };
+      return { updateId: update.id };
     }),
 
   /**
@@ -239,9 +263,9 @@ export const syncRouter = router({
       // Get latest snapshot info
       const { data: snapshot } = await supabase
         .from("vault_snapshots")
-        .select("id, version_vector, created_at")
+        .select("id, version, hlc_timestamp, created_at")
         .eq("vault_id", input.vaultId)
-        .order("created_at", { ascending: false })
+        .order("version", { ascending: false })
         .limit(1)
         .single();
 
@@ -252,7 +276,7 @@ export const syncRouter = router({
           .from("vault_updates")
           .select("*", { count: "exact", head: true })
           .eq("vault_id", input.vaultId)
-          .gt("created_at", snapshot.created_at);
+          .gte("base_snapshot_version", snapshot.version);
         updateCount = count ?? 0;
       } else {
         const { count } = await supabase
@@ -265,7 +289,8 @@ export const syncRouter = router({
       return {
         hasSnapshot: !!snapshot,
         latestSnapshotId: snapshot?.id ?? null,
-        latestSnapshotVersion: snapshot?.version_vector ?? null,
+        latestSnapshotVersion: snapshot?.version ?? null,
+        latestSnapshotHlc: snapshot?.hlc_timestamp ?? null,
         latestSnapshotAt: snapshot?.created_at ?? null,
         pendingUpdateCount: updateCount,
       };

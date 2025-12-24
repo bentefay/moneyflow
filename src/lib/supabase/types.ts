@@ -2,13 +2,13 @@
  * Supabase Database Types
  *
  * Type definitions for the Supabase database schema.
- * This should match the migrations in supabase/migrations/.
+ * This should match the migrations in supabase/migrations/001_initial.sql
  */
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
-export type VaultRole = "owner" | "admin" | "member";
-export type InviteRole = "admin" | "member";
+export type VaultRole = "owner" | "member";
+export type InviteRole = "owner" | "member";
 
 export interface Database {
   public: {
@@ -16,23 +16,17 @@ export interface Database {
       user_data: {
         Row: {
           pubkey_hash: string;
-          encrypted_keypair: string;
-          device_fingerprint: string;
-          created_at: string;
+          encrypted_data: string;
           updated_at: string;
         };
         Insert: {
           pubkey_hash: string;
-          encrypted_keypair: string;
-          device_fingerprint: string;
-          created_at?: string;
+          encrypted_data: string;
           updated_at?: string;
         };
         Update: {
           pubkey_hash?: string;
-          encrypted_keypair?: string;
-          device_fingerprint?: string;
-          created_at?: string;
+          encrypted_data?: string;
           updated_at?: string;
         };
         Relationships: [];
@@ -40,45 +34,42 @@ export interface Database {
       vaults: {
         Row: {
           id: string;
-          owner_pubkey_hash: string;
-          name_encrypted: string;
           created_at: string;
         };
         Insert: {
           id?: string;
-          owner_pubkey_hash: string;
-          name_encrypted: string;
           created_at?: string;
         };
         Update: {
           id?: string;
-          owner_pubkey_hash?: string;
-          name_encrypted?: string;
           created_at?: string;
         };
         Relationships: [];
       };
       vault_memberships: {
         Row: {
+          id: string;
           vault_id: string;
           pubkey_hash: string;
-          role: VaultRole;
           encrypted_vault_key: string;
-          joined_at: string;
+          role: VaultRole;
+          created_at: string;
         };
         Insert: {
+          id?: string;
           vault_id: string;
           pubkey_hash: string;
-          role: VaultRole;
           encrypted_vault_key: string;
-          joined_at?: string;
+          role: VaultRole;
+          created_at?: string;
         };
         Update: {
+          id?: string;
           vault_id?: string;
           pubkey_hash?: string;
-          role?: VaultRole;
           encrypted_vault_key?: string;
-          joined_at?: string;
+          role?: VaultRole;
+          created_at?: string;
         };
         Relationships: [
           {
@@ -94,35 +85,32 @@ export interface Database {
         Row: {
           id: string;
           vault_id: string;
-          code: string;
+          invite_pubkey: string;
+          encrypted_vault_key: string;
           role: InviteRole;
           created_by: string;
           created_at: string;
           expires_at: string;
-          used_at: string | null;
-          used_by: string | null;
         };
         Insert: {
           id?: string;
           vault_id: string;
-          code: string;
+          invite_pubkey: string;
+          encrypted_vault_key: string;
           role: InviteRole;
           created_by: string;
           created_at?: string;
           expires_at: string;
-          used_at?: string | null;
-          used_by?: string | null;
         };
         Update: {
           id?: string;
           vault_id?: string;
-          code?: string;
+          invite_pubkey?: string;
+          encrypted_vault_key?: string;
           role?: InviteRole;
           created_by?: string;
           created_at?: string;
           expires_at?: string;
-          used_at?: string | null;
-          used_by?: string | null;
         };
         Relationships: [
           {
@@ -138,25 +126,25 @@ export interface Database {
         Row: {
           id: string;
           vault_id: string;
+          version: number;
+          hlc_timestamp: string;
           encrypted_data: string;
-          version_vector: string;
-          created_by: string;
           created_at: string;
         };
         Insert: {
           id?: string;
           vault_id: string;
+          version: number;
+          hlc_timestamp: string;
           encrypted_data: string;
-          version_vector: string;
-          created_by: string;
           created_at?: string;
         };
         Update: {
           id?: string;
           vault_id?: string;
+          version?: number;
+          hlc_timestamp?: string;
           encrypted_data?: string;
-          version_vector?: string;
-          created_by?: string;
           created_at?: string;
         };
         Relationships: [
@@ -173,28 +161,28 @@ export interface Database {
         Row: {
           id: string;
           vault_id: string;
+          base_snapshot_version: number;
+          hlc_timestamp: string;
           encrypted_data: string;
-          version_vector: string;
-          seq: number;
-          created_by: string;
+          author_pubkey_hash: string;
           created_at: string;
         };
         Insert: {
           id?: string;
           vault_id: string;
+          base_snapshot_version: number;
+          hlc_timestamp: string;
           encrypted_data: string;
-          version_vector: string;
-          seq?: number;
-          created_by: string;
+          author_pubkey_hash: string;
           created_at?: string;
         };
         Update: {
           id?: string;
           vault_id?: string;
+          base_snapshot_version?: number;
+          hlc_timestamp?: string;
           encrypted_data?: string;
-          version_vector?: string;
-          seq?: number;
-          created_by?: string;
+          author_pubkey_hash?: string;
           created_at?: string;
         };
         Relationships: [

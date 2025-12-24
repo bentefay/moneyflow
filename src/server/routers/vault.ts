@@ -2,6 +2,11 @@
  * Vault Router
  *
  * Handles vault CRUD operations and membership management.
+ * 
+ * Zero-Knowledge Design:
+ * - Vaults table only has id and created_at (no user-identifiable data)
+ * - Ownership is tracked via 'owner' role in vault_memberships
+ * - Vault names and other metadata are stored encrypted in CRDT snapshots/updates
  */
 
 import { z } from "zod";
@@ -18,20 +23,16 @@ export const vaultRouter = router({
   create: protectedProcedure
     .input(
       z.object({
-        nameEncrypted: z.string(), // Vault name encrypted with vault key
         encryptedVaultKey: z.string(), // Vault key wrapped for creator's pubkey
       })
     )
     .mutation(async ({ ctx, input }) => {
       const supabase = await createSupabaseServer();
 
-      // Create vault
+      // Create vault (just id and created_at - zero knowledge)
       const { data: vault, error: vaultError } = await supabase
         .from("vaults")
-        .insert({
-          owner_pubkey_hash: ctx.pubkeyHash,
-          name_encrypted: input.nameEncrypted,
-        })
+        .insert({})
         .select("id")
         .single();
 
@@ -60,6 +61,7 @@ export const vaultRouter = router({
    * Get vault details.
    *
    * Only accessible to vault members.
+   * Returns the encrypted vault key for this user (to decrypt CRDT data).
    */
   get: protectedProcedure
     .input(z.object({ vaultId: z.string().uuid() }))
@@ -75,8 +77,6 @@ export const vaultRouter = router({
           encrypted_vault_key,
           vaults:vault_id (
             id,
-            name_encrypted,
-            owner_pubkey_hash,
             created_at
           )
         `
@@ -127,7 +127,7 @@ export const vaultRouter = router({
       // Get all members
       const { data: members, error: membersError } = await supabase
         .from("vault_memberships")
-        .select("pubkey_hash, role, joined_at")
+        .select("pubkey_hash, role, created_at")
         .eq("vault_id", input.vaultId);
 
       if (membersError) {
@@ -135,54 +135,6 @@ export const vaultRouter = router({
       }
 
       return members;
-    }),
-
-  /**
-   * Update vault name.
-   *
-   * Only accessible to vault owner.
-   */
-  updateName: protectedProcedure
-    .input(
-      z.object({
-        vaultId: z.string().uuid(),
-        nameEncrypted: z.string(),
-      })
-    )
-    .mutation(async ({ ctx, input }) => {
-      const supabase = await createSupabaseServer();
-
-      // Verify ownership
-      const { data: vault, error: vaultError } = await supabase
-        .from("vaults")
-        .select("owner_pubkey_hash")
-        .eq("id", input.vaultId)
-        .single();
-
-      if (vaultError || !vault) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Vault not found",
-        });
-      }
-
-      if (vault.owner_pubkey_hash !== ctx.pubkeyHash) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Only the owner can update the vault name",
-        });
-      }
-
-      const { error: updateError } = await supabase
-        .from("vaults")
-        .update({ name_encrypted: input.nameEncrypted })
-        .eq("id", input.vaultId);
-
-      if (updateError) {
-        throw new Error(`Failed to update vault: ${updateError.message}`);
-      }
-
-      return { success: true };
     }),
 
   /**
@@ -195,21 +147,22 @@ export const vaultRouter = router({
     .mutation(async ({ ctx, input }) => {
       const supabase = await createSupabaseServer();
 
-      // Verify ownership
-      const { data: vault, error: vaultError } = await supabase
-        .from("vaults")
-        .select("owner_pubkey_hash")
-        .eq("id", input.vaultId)
+      // Verify ownership via membership role
+      const { data: membership, error: memberError } = await supabase
+        .from("vault_memberships")
+        .select("role")
+        .eq("vault_id", input.vaultId)
+        .eq("pubkey_hash", ctx.pubkeyHash)
         .single();
 
-      if (vaultError || !vault) {
+      if (memberError || !membership) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Vault not found",
+          message: "Vault not found or access denied",
         });
       }
 
-      if (vault.owner_pubkey_hash !== ctx.pubkeyHash) {
+      if (membership.role !== "owner") {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Only the owner can delete the vault",
@@ -235,21 +188,22 @@ export const vaultRouter = router({
     .mutation(async ({ ctx, input }) => {
       const supabase = await createSupabaseServer();
 
-      // Check if user is owner
-      const { data: vault, error: vaultError } = await supabase
-        .from("vaults")
-        .select("owner_pubkey_hash")
-        .eq("id", input.vaultId)
+      // Check user's role
+      const { data: membership, error: memberError } = await supabase
+        .from("vault_memberships")
+        .select("role")
+        .eq("vault_id", input.vaultId)
+        .eq("pubkey_hash", ctx.pubkeyHash)
         .single();
 
-      if (vaultError || !vault) {
+      if (memberError || !membership) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Vault not found",
+          message: "Vault not found or you are not a member",
         });
       }
 
-      if (vault.owner_pubkey_hash === ctx.pubkeyHash) {
+      if (membership.role === "owner") {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Owner cannot leave vault. Transfer ownership or delete the vault.",

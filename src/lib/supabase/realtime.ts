@@ -17,9 +17,9 @@ type VaultUpdateRow = Database["public"]["Tables"]["vault_updates"]["Row"];
 export type OnUpdateCallback = (update: {
   id: string;
   encryptedData: string;
-  versionVector: string;
-  seq: number;
-  createdBy: string;
+  baseSnapshotVersion: number;
+  hlcTimestamp: string;
+  authorPubkeyHash: string;
   createdAt: string;
 }) => void;
 
@@ -89,9 +89,9 @@ export class VaultRealtimeSync {
             this.onUpdate({
               id: row.id,
               encryptedData: row.encrypted_data,
-              versionVector: row.version_vector,
-              seq: row.seq,
-              createdBy: row.created_by,
+              baseSnapshotVersion: row.base_snapshot_version,
+              hlcTimestamp: row.hlc_timestamp,
+              authorPubkeyHash: row.author_pubkey_hash,
               createdAt: row.created_at,
             });
           }

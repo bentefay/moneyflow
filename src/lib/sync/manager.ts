@@ -85,7 +85,7 @@ export class SyncManager {
       this.realtime.subscribe({
         onUpdate: async (update) => {
           // Skip our own updates
-          if (update.createdBy === this.pubkeyHash) {
+          if (update.authorPubkeyHash === this.pubkeyHash) {
             return;
           }
 

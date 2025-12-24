@@ -4,13 +4,14 @@
  * App Shell Layout
  *
  * Authenticated app layout with sidebar navigation.
- * Requires the user to be unlocked (have a session).
+ * Protected by AuthGuard - redirects unauthenticated users to /unlock.
  */
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import Link from "next/link";
-import { getSession } from "@/lib/crypto/session";
+import { useRouter } from "next/navigation";
+import { clearSession } from "@/lib/crypto/session";
+import { AuthGuard, useAuthGuard } from "@/lib/auth";
 import { useVaultPresence } from "@/hooks/use-vault-presence";
 import { useActiveVault } from "@/hooks/use-active-vault";
 import { VaultSelector } from "@/components/features/vault/VaultSelector";
@@ -51,35 +52,27 @@ const mainNavItems: NavItem[] = [
 const bottomNavItems: NavItem[] = [{ href: "/settings", label: "Settings", icon: Settings }];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [pubkeyHash, setPubkeyHash] = useState<string | null>(null);
-  const { activeVault } = useActiveVault();
+  return (
+    <AuthGuard
+      fallback={
+        <div className="flex h-screen items-center justify-center">
+          <div className="border-primary h-8 w-8 animate-spin rounded-full border-4 border-t-transparent" />
+        </div>
+      }
+    >
+      <AppLayoutContent>{children}</AppLayoutContent>
+    </AuthGuard>
+  );
+}
 
-  // Check for session on mount
-  useEffect(() => {
-    const session = getSession();
-    if (!session) {
-      // No session, redirect to unlock
-      router.replace("/unlock");
-    } else {
-      setPubkeyHash(session.pubkeyHash);
-      setIsLoading(false);
-    }
-  }, [router]);
+function AppLayoutContent({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const { pubkeyHash } = useAuthGuard({ redirect: false });
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const { activeVault } = useActiveVault();
 
   // Track presence in active vault
   const { onlineUsers, isConnected } = useVaultPresence(activeVault?.id ?? null, pubkeyHash);
-
-  // Show nothing while checking session
-  if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="border-primary h-8 w-8 animate-spin rounded-full border-4 border-t-transparent" />
-      </div>
-    );
-  }
 
   // Mock vaults for now - will be fetched from tRPC
   const mockVaults = activeVault
@@ -130,7 +123,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <button
             onClick={() => {
               // Clear session and redirect to unlock
-              sessionStorage.removeItem("moneyflow_session");
+              clearSession();
               router.replace("/unlock");
             }}
             className={cn(

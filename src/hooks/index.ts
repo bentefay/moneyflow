@@ -3,3 +3,11 @@ export type { VaultPresence, UseVaultPresenceOptions } from "./use-vault-presenc
 
 export { useActiveVault } from "./use-active-vault";
 export type { ActiveVault } from "./use-active-vault";
+
+export { useIdentity, useIsAuthenticated, usePubkeyHash } from "./use-identity";
+export type {
+  IdentityStatus,
+  IdentityState,
+  IdentityActions,
+  UseIdentityReturn,
+} from "./use-identity";

@@ -32,9 +32,9 @@ export interface UseVaultPresenceOptions {
   onUpdate?: (update: {
     id: string;
     encryptedData: string;
-    versionVector: string;
-    seq: number;
-    createdBy: string;
+    baseSnapshotVersion: number;
+    hlcTimestamp: string;
+    authorPubkeyHash: string;
     createdAt: string;
   }) => void;
 }

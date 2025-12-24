@@ -1,164 +1,168 @@
 /**
  * Invite Router
  *
- * Handles vault invitation creation and acceptance.
+ * Handles vault invitation creation and acceptance using zero-knowledge design.
+ * 
+ * How invites work:
+ * 1. Owner creates invite with ephemeral pubkey (derived from invite secret)
+ * 2. Invite secret is shared via URL fragment (never sent to server)
+ * 3. Recipient derives pubkey from secret and looks up invite
+ * 4. Recipient uses invite secret to unwrap vault key and joins vault
  */
 
 import { z } from "zod";
-import { router, protectedProcedure } from "../trpc";
+import { router, protectedProcedure, publicProcedure } from "../trpc";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { TRPCError } from "@trpc/server";
+import type { VaultRole } from "@/lib/supabase/types";
 
 export const inviteRouter = router({
   /**
    * Create an invite for a vault.
    *
    * Only vault owner can create invites.
+   * Client generates ephemeral keypair from invite secret and provides:
+   * - invitePubkey: public key for looking up the invite
+   * - encryptedVaultKey: vault key wrapped with invite pubkey
    */
   create: protectedProcedure
     .input(
       z.object({
         vaultId: z.string().uuid(),
-        role: z.enum(["admin", "member"]).default("member"),
+        invitePubkey: z.string(), // Ephemeral pubkey from invite secret
+        encryptedVaultKey: z.string(), // Vault key wrapped with invite pubkey
+        role: z.enum(["owner", "member"]).default("member"),
         expiresInHours: z.number().min(1).max(168).default(48), // Max 1 week
       })
     )
     .mutation(async ({ ctx, input }) => {
       const supabase = await createSupabaseServer();
 
-      // Verify ownership
-      const { data: vault, error: vaultError } = await supabase
-        .from("vaults")
-        .select("owner_pubkey_hash")
-        .eq("id", input.vaultId)
+      // Verify user is vault owner via membership
+      const { data: membership, error: memberError } = await supabase
+        .from("vault_memberships")
+        .select("role")
+        .eq("vault_id", input.vaultId)
+        .eq("pubkey_hash", ctx.pubkeyHash)
         .single();
 
-      if (vaultError || !vault) {
+      if (memberError || !membership) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Vault not found",
+          message: "Vault not found or access denied",
         });
       }
 
-      if (vault.owner_pubkey_hash !== ctx.pubkeyHash) {
+      if (membership.role !== "owner") {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Only the owner can create invites",
         });
       }
 
-      // Generate secure invite code
-      const inviteCode = generateInviteCode();
       const expiresAt = new Date(Date.now() + input.expiresInHours * 60 * 60 * 1000).toISOString();
 
-      // Create invite
+      // Create invite with ephemeral pubkey
       const { data: invite, error: insertError } = await supabase
         .from("vault_invites")
         .insert({
           vault_id: input.vaultId,
-          code: inviteCode,
-          role: input.role,
+          invite_pubkey: input.invitePubkey,
+          encrypted_vault_key: input.encryptedVaultKey,
+          role: input.role as VaultRole,
           created_by: ctx.pubkeyHash,
           expires_at: expiresAt,
         })
-        .select("id, code, expires_at")
+        .select("id, expires_at")
         .single();
 
       if (insertError) {
+        // Duplicate pubkey means duplicate invite secret (very unlikely)
+        if (insertError.code === "23505") {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "Invite already exists (regenerate secret)",
+          });
+        }
         throw new Error(`Failed to create invite: ${insertError.message}`);
       }
 
       return {
         inviteId: invite.id,
-        code: invite.code,
         expiresAt: invite.expires_at,
       };
     }),
 
   /**
-   * Get invite details by code.
+   * Get invite details by pubkey.
    *
-   * Public endpoint (no auth required in terms of vault membership).
+   * Client derives pubkey from invite secret and looks up the invite.
+   * Returns encrypted vault key that can be unwrapped with invite secret.
    */
-  getByCode: protectedProcedure.input(z.object({ code: z.string() })).query(async ({ input }) => {
-    const supabase = await createSupabaseServer();
+  getByPubkey: publicProcedure
+    .input(z.object({ invitePubkey: z.string() }))
+    .query(async ({ input }) => {
+      const supabase = await createSupabaseServer();
 
-    const { data: invite, error } = await supabase
-      .from("vault_invites")
-      .select(
-        `
-          id,
-          vault_id,
-          role,
-          expires_at,
-          used_at,
-          vaults:vault_id (
-            name_encrypted
-          )
-        `
-      )
-      .eq("code", input.code)
-      .single();
+      const { data: invite, error } = await supabase
+        .from("vault_invites")
+        .select("id, vault_id, encrypted_vault_key, role, expires_at")
+        .eq("invite_pubkey", input.invitePubkey)
+        .single();
 
-    if (error) {
-      if (error.code === "PGRST116") {
+      if (error) {
+        if (error.code === "PGRST116") {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Invalid invite",
+          });
+        }
+        throw new Error(`Failed to get invite: ${error.message}`);
+      }
+
+      // Check if expired
+      if (new Date(invite.expires_at) < new Date()) {
         throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Invalid invite code",
+          code: "BAD_REQUEST",
+          message: "Invite has expired",
         });
       }
-      throw new Error(`Failed to get invite: ${error.message}`);
-    }
 
-    // Check if expired
-    if (new Date(invite.expires_at) < new Date()) {
-      throw new TRPCError({
-        code: "BAD_REQUEST",
-        message: "Invite has expired",
-      });
-    }
-
-    // Check if already used
-    if (invite.used_at) {
-      throw new TRPCError({
-        code: "BAD_REQUEST",
-        message: "Invite has already been used",
-      });
-    }
-
-    return {
-      inviteId: invite.id,
-      vaultId: invite.vault_id,
-      role: invite.role,
-      expiresAt: invite.expires_at,
-      vaultNameEncrypted: invite.vaults?.name_encrypted,
-    };
-  }),
+      return {
+        inviteId: invite.id,
+        vaultId: invite.vault_id,
+        encryptedVaultKey: invite.encrypted_vault_key,
+        role: invite.role,
+        expiresAt: invite.expires_at,
+      };
+    }),
 
   /**
    * Accept an invite to join a vault.
+   *
+   * Client unwraps vault key using invite secret and re-wraps for their pubkey.
    */
   accept: protectedProcedure
     .input(
       z.object({
-        code: z.string(),
-        encryptedVaultKey: z.string(), // Vault key wrapped for user's pubkey
+        invitePubkey: z.string(), // To identify the invite
+        encryptedVaultKey: z.string(), // Vault key re-wrapped for user's pubkey
       })
     )
     .mutation(async ({ ctx, input }) => {
       const supabase = await createSupabaseServer();
 
-      // Get and validate invite
+      // Get invite
       const { data: invite, error: inviteError } = await supabase
         .from("vault_invites")
-        .select("id, vault_id, role, expires_at, used_at")
-        .eq("code", input.code)
+        .select("id, vault_id, role, expires_at")
+        .eq("invite_pubkey", input.invitePubkey)
         .single();
 
       if (inviteError || !invite) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Invalid invite code",
+          message: "Invalid invite",
         });
       }
 
@@ -169,17 +173,10 @@ export const inviteRouter = router({
         });
       }
 
-      if (invite.used_at) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Invite has already been used",
-        });
-      }
-
       // Check if already a member
       const { data: existingMembership } = await supabase
         .from("vault_memberships")
-        .select("vault_id")
+        .select("id")
         .eq("vault_id", invite.vault_id)
         .eq("pubkey_hash", ctx.pubkeyHash)
         .single();
@@ -191,7 +188,7 @@ export const inviteRouter = router({
         });
       }
 
-      // Add membership
+      // Add membership with vault key wrapped for user's pubkey
       const { error: memberError } = await supabase.from("vault_memberships").insert({
         vault_id: invite.vault_id,
         pubkey_hash: ctx.pubkeyHash,
@@ -203,14 +200,8 @@ export const inviteRouter = router({
         throw new Error(`Failed to join vault: ${memberError.message}`);
       }
 
-      // Mark invite as used
-      await supabase
-        .from("vault_invites")
-        .update({
-          used_at: new Date().toISOString(),
-          used_by: ctx.pubkeyHash,
-        })
-        .eq("id", invite.id);
+      // Delete the invite (single use)
+      await supabase.from("vault_invites").delete().eq("id", invite.id);
 
       return {
         vaultId: invite.vault_id,
@@ -219,7 +210,7 @@ export const inviteRouter = router({
     }),
 
   /**
-   * List invites for a vault.
+   * List active invites for a vault.
    *
    * Only vault owner can see invites.
    */
@@ -228,21 +219,22 @@ export const inviteRouter = router({
     .query(async ({ ctx, input }) => {
       const supabase = await createSupabaseServer();
 
-      // Verify ownership
-      const { data: vault, error: vaultError } = await supabase
-        .from("vaults")
-        .select("owner_pubkey_hash")
-        .eq("id", input.vaultId)
+      // Verify ownership via membership
+      const { data: membership, error: memberError } = await supabase
+        .from("vault_memberships")
+        .select("role")
+        .eq("vault_id", input.vaultId)
+        .eq("pubkey_hash", ctx.pubkeyHash)
         .single();
 
-      if (vaultError || !vault) {
+      if (memberError || !membership) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Vault not found",
+          message: "Vault not found or access denied",
         });
       }
 
-      if (vault.owner_pubkey_hash !== ctx.pubkeyHash) {
+      if (membership.role !== "owner") {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Only the owner can view invites",
@@ -251,7 +243,7 @@ export const inviteRouter = router({
 
       const { data: invites, error: listError } = await supabase
         .from("vault_invites")
-        .select("id, code, role, expires_at, used_at, created_at")
+        .select("id, role, expires_at, created_at")
         .eq("vault_id", input.vaultId)
         .order("created_at", { ascending: false });
 
@@ -259,10 +251,12 @@ export const inviteRouter = router({
         throw new Error(`Failed to list invites: ${listError.message}`);
       }
 
-      return invites.map((invite) => ({
-        ...invite,
+      return (invites ?? []).map((invite) => ({
+        id: invite.id,
+        role: invite.role,
+        expiresAt: invite.expires_at,
+        createdAt: invite.created_at,
         isExpired: new Date(invite.expires_at) < new Date(),
-        isUsed: !!invite.used_at,
       }));
     }),
 
@@ -276,10 +270,10 @@ export const inviteRouter = router({
     .mutation(async ({ ctx, input }) => {
       const supabase = await createSupabaseServer();
 
-      // Get invite and verify ownership
+      // Get invite to find vault
       const { data: invite, error: inviteError } = await supabase
         .from("vault_invites")
-        .select("vault_id, used_at")
+        .select("vault_id")
         .eq("id", input.inviteId)
         .single();
 
@@ -290,27 +284,15 @@ export const inviteRouter = router({
         });
       }
 
-      if (invite.used_at) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Cannot revoke a used invite",
-        });
-      }
-
-      const { data: vault, error: vaultError } = await supabase
-        .from("vaults")
-        .select("owner_pubkey_hash")
-        .eq("id", invite.vault_id)
+      // Verify ownership
+      const { data: membership, error: memberError } = await supabase
+        .from("vault_memberships")
+        .select("role")
+        .eq("vault_id", invite.vault_id)
+        .eq("pubkey_hash", ctx.pubkeyHash)
         .single();
 
-      if (vaultError || !vault) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Vault not found",
-        });
-      }
-
-      if (vault.owner_pubkey_hash !== ctx.pubkeyHash) {
+      if (memberError || !membership || membership.role !== "owner") {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Only the owner can revoke invites",
@@ -329,15 +311,3 @@ export const inviteRouter = router({
       return { success: true };
     }),
 });
-
-/**
- * Generate a secure invite code.
- *
- * Uses crypto.randomUUID for uniqueness and takes first segment.
- * Results in 8-char hex codes like "a1b2c3d4".
- */
-function generateInviteCode(): string {
-  // Use crypto API for secure random generation
-  const uuid = crypto.randomUUID();
-  return uuid.split("-").slice(0, 2).join("");
-}

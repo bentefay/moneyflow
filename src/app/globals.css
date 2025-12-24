@@ -123,3 +123,116 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Aurora animation keyframes */
+@keyframes aurora-1 {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+  }
+  25% {
+    transform: translate(10%, 5%) rotate(3deg) scale(1.05);
+  }
+  50% {
+    transform: translate(-5%, 10%) rotate(-2deg) scale(0.95);
+  }
+  75% {
+    transform: translate(-10%, -5%) rotate(2deg) scale(1.02);
+  }
+}
+
+@keyframes aurora-2 {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+  }
+  25% {
+    transform: translate(-8%, 8%) rotate(-4deg) scale(0.98);
+  }
+  50% {
+    transform: translate(8%, -5%) rotate(3deg) scale(1.03);
+  }
+  75% {
+    transform: translate(5%, 10%) rotate(-2deg) scale(0.97);
+  }
+}
+
+@keyframes aurora-3 {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+  }
+  25% {
+    transform: translate(5%, -8%) rotate(2deg) scale(1.02);
+  }
+  50% {
+    transform: translate(-10%, 5%) rotate(-3deg) scale(0.98);
+  }
+  75% {
+    transform: translate(8%, 8%) rotate(4deg) scale(1.04);
+  }
+}
+
+/* Unlock circle expansion animation */
+@keyframes unlock-expand {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(3);
+    opacity: 0;
+  }
+}
+
+/* Aurora intensity pulse on unlock */
+@keyframes aurora-pulse {
+  0% {
+    opacity: 0.7;
+    filter: brightness(1);
+  }
+  50% {
+    opacity: 1;
+    filter: brightness(1.3);
+  }
+  100% {
+    opacity: 0.7;
+    filter: brightness(1);
+  }
+}
+
+/* Animation utility classes */
+.animate-aurora-1 {
+  animation: aurora-1 20s ease-in-out infinite;
+}
+
+.animate-aurora-2 {
+  animation: aurora-2 26s ease-in-out infinite;
+}
+
+.animate-aurora-3 {
+  animation: aurora-3 18s ease-in-out infinite;
+}
+
+.animate-unlock-expand {
+  animation: unlock-expand 1s ease-out forwards;
+}
+
+.animate-aurora-pulse {
+  animation: aurora-pulse 2s ease-in-out infinite;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .animate-aurora-1,
+  .animate-aurora-2,
+  .animate-aurora-3,
+  .animate-unlock-expand,
+  .animate-aurora-pulse {
+    animation: none;
+  }
+}

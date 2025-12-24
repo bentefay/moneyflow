@@ -1,21 +1,114 @@
 /**
  * Unlock Page
  *
- * Users enter their seed phrase to unlock the app.
+ * Unlock flow for returning users:
+ * 1. Show aurora background with unlock circle
+ * 2. User enters seed phrase
+ * 3. Validate and derive keys
+ * 4. Play unlock animation
+ * 5. Redirect to dashboard
  */
 
-export default function UnlockPage() {
-  return (
-    <div className="space-y-6">
-      <div className="space-y-2 text-center">
-        <h1 className="text-2xl font-bold">Welcome back</h1>
-        <p className="text-muted-foreground">Enter your recovery phrase to unlock your vault.</p>
-      </div>
+"use client";
 
-      {/* Placeholder - will be implemented in user stories */}
-      <div className="text-muted-foreground rounded-lg border p-8 text-center">
-        <p>Unlock form will be implemented in US-001</p>
+import { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { AuroraBackground, UnlockCircle, UnlockAnimation } from "@/components/features/identity";
+import { useIdentity } from "@/hooks";
+
+// ============================================================================
+// Component
+// ============================================================================
+
+export default function UnlockPage() {
+  const router = useRouter();
+  const { status, unlock, error, clearError } = useIdentity();
+
+  const [isUnlocking, setIsUnlocking] = useState(false);
+  const [showAnimation, setShowAnimation] = useState(false);
+
+  // -------------------------------------------------------------------------
+  // Redirect if already unlocked
+  // -------------------------------------------------------------------------
+
+  useEffect(() => {
+    if (status === "unlocked" && !showAnimation) {
+      router.replace("/dashboard");
+    }
+  }, [status, showAnimation, router]);
+
+  // -------------------------------------------------------------------------
+  // Handle unlock
+  // -------------------------------------------------------------------------
+
+  const handleUnlock = useCallback(
+    async (phrase: string) => {
+      setIsUnlocking(true);
+      clearError();
+
+      try {
+        await unlock(phrase);
+        // Start unlock animation
+        setShowAnimation(true);
+      } catch {
+        // Error is handled by useIdentity hook
+        setIsUnlocking(false);
+      }
+    },
+    [unlock, clearError]
+  );
+
+  // -------------------------------------------------------------------------
+  // Handle animation complete
+  // -------------------------------------------------------------------------
+
+  const handleAnimationComplete = useCallback(() => {
+    router.push("/dashboard");
+  }, [router]);
+
+  // -------------------------------------------------------------------------
+  // Render
+  // -------------------------------------------------------------------------
+
+  // Show loading while checking session
+  if (status === "loading") {
+    return (
+      <AuroraBackground intensity={0.5}>
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="border-primary h-8 w-8 animate-spin rounded-full border-4 border-t-transparent" />
+        </div>
+      </AuroraBackground>
+    );
+  }
+
+  return (
+    <AuroraBackground
+      intensity={showAnimation ? 1 : 0.6}
+      variant={showAnimation ? "success" : "default"}
+    >
+      <div className="flex min-h-screen items-center justify-center p-4">
+        {/* Unlock animation overlay */}
+        <UnlockAnimation
+          isUnlocking={showAnimation}
+          onComplete={handleAnimationComplete}
+          stageDurations={{
+            fading: 400,
+            expanding: 800,
+            revealing: 500,
+          }}
+        >
+          <UnlockCircle
+            onUnlock={handleUnlock}
+            isUnlocking={isUnlocking && !showAnimation}
+            error={error}
+          />
+        </UnlockAnimation>
+
+        {/* Main unlock circle (when not animating) */}
+        {!showAnimation && (
+          <UnlockCircle onUnlock={handleUnlock} isUnlocking={isUnlocking} error={error} />
+        )}
       </div>
-    </div>
+    </AuroraBackground>
   );
 }
