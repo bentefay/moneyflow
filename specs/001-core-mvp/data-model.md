@@ -156,6 +156,8 @@ function deriveKeys(masterSeed: Uint8Array): {
 }
 
 // === FIRST TIME SETUP (generates new identity) ===
+// Note: createIdentity() only generates keys. Session is stored and
+// server registration happens after user confirms they saved the phrase.
 async function createIdentity(): Promise<{
   mnemonic: string;
   signingKeypair: sodium.KeyPair;
@@ -174,20 +176,28 @@ async function createIdentity(): Promise<{
   // 3. Hash public key for server identity (signing key is the identity)
   const pubkeyHash = sodium.to_base64(sodium.crypto_generichash(32, signingKeypair.publicKey));
 
-  // 4. Store keypairs in session (NOT the mnemonic - user must save it)
+  // 4. Return identity for display - DO NOT store yet!
+  // Session storage and server registration happen only after
+  // user confirms they've written down the seed phrase.
+  return { mnemonic, signingKeypair, encryptionKeypair, pubkeyHash };
+}
+
+// === STORE SESSION (after user confirms seed phrase) ===
+function storeIdentitySession(identity: {
+  signingKeypair: sodium.KeyPair;
+  encryptionKeypair: { publicKey: Uint8Array; privateKey: Uint8Array };
+  pubkeyHash: string;
+}): void {
   sessionStorage.setItem(
     "moneyflow_session",
     JSON.stringify({
-      publicKey: sodium.to_base64(signingKeypair.publicKey),
-      secretKey: sodium.to_base64(signingKeypair.privateKey),
-      encPublicKey: sodium.to_base64(encryptionKeypair.publicKey),
-      encSecretKey: sodium.to_base64(encryptionKeypair.privateKey),
-      pubkeyHash,
+      publicKey: sodium.to_base64(identity.signingKeypair.publicKey),
+      secretKey: sodium.to_base64(identity.signingKeypair.privateKey),
+      encPublicKey: sodium.to_base64(identity.encryptionKeypair.publicKey),
+      encSecretKey: sodium.to_base64(identity.encryptionKeypair.privateKey),
+      pubkeyHash: identity.pubkeyHash,
     })
   );
-
-  // Return mnemonic for user to write down - we don't store it
-  return { mnemonic, signingKeypair, encryptionKeypair, pubkeyHash };
 }
 
 // === EACH SESSION (enter seed phrase) ===

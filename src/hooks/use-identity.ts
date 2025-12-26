@@ -18,6 +18,7 @@ import { getSession, hasSession, clearSession, type SessionData } from "@/lib/cr
 import {
   createIdentity,
   unlockWithSeed,
+  storeIdentitySession,
   type NewIdentity,
   type UnlockedIdentity,
 } from "@/lib/crypto/identity";
@@ -33,6 +34,14 @@ export type IdentityStatus =
   | "unlocking" // Unlock in progress
   | "unlocked"; // Session active
 
+export interface IdentityError {
+  /** User-friendly error message */
+  message: string;
+
+  /** Technical details for debugging */
+  details?: string;
+}
+
 export interface IdentityState {
   /** Current identity status */
   status: IdentityStatus;
@@ -46,19 +55,37 @@ export interface IdentityState {
   /** Whether this is a new user (just created identity) */
   isNewUser: boolean;
 
-  /** Error message if unlock failed */
-  error: string | null;
+  /** Error info if unlock failed */
+  error: IdentityError | null;
 }
 
 export interface IdentityActions {
   /**
-   * Create a new identity (new user flow).
+   * Generate a new identity (step 1 of new user flow).
    * Returns the mnemonic that user must write down.
+   * Does NOT register with server or store session.
    *
    * Flow:
    * 1. Generate seed phrase and keys
-   * 2. Register with server
-   * 3. Store session
+   * 2. Return identity for display
+   *
+   * Call registerIdentity() after user confirms they've saved the phrase.
+   */
+  generateNew: () => Promise<NewIdentity>;
+
+  /**
+   * Register a generated identity with the server (step 2 of new user flow).
+   * Call this after user confirms they've written down their seed phrase.
+   *
+   * Flow:
+   * 1. Register with server
+   * 2. Store session
+   */
+  registerIdentity: (identity: NewIdentity) => Promise<void>;
+
+  /**
+   * Legacy: Create and immediately register a new identity.
+   * @deprecated Use generateNew() + registerIdentity() for proper consent flow.
    */
   createNew: () => Promise<NewIdentity>;
 
@@ -88,6 +115,48 @@ export interface IdentityActions {
 export interface UseIdentityReturn extends IdentityState, IdentityActions {}
 
 // ============================================================================
+// Error Parsing Helper
+// ============================================================================
+
+/**
+ * Parse an error into a user-friendly format with technical details.
+ */
+function parseError(err: unknown): IdentityError {
+  const rawMessage = err instanceof Error ? err.message : String(err);
+  const stack = err instanceof Error ? err.stack : undefined;
+
+  // Connection errors - server returns sanitized message
+  if (rawMessage.includes("Unable to connect to database")) {
+    return {
+      message: "Unable to connect to the database. Please make sure the server is running.",
+      details: stack || rawMessage,
+    };
+  }
+
+  // Generic database errors
+  if (rawMessage.includes("Database operation failed")) {
+    return {
+      message: "A database error occurred. Please try again.",
+      details: stack || rawMessage,
+    };
+  }
+
+  // Generic server errors
+  if (rawMessage.includes("500") || rawMessage.includes("Internal Server Error")) {
+    return {
+      message: "The server encountered an error. Please try again later.",
+      details: stack || rawMessage,
+    };
+  }
+
+  // Default: show the raw message
+  return {
+    message: rawMessage,
+    details: stack,
+  };
+}
+
+// ============================================================================
 // Hook Implementation
 // ============================================================================
 
@@ -95,7 +164,7 @@ export function useIdentity(): UseIdentityReturn {
   const [status, setStatus] = useState<IdentityStatus>("loading");
   const [session, setSession] = useState<SessionData | null>(null);
   const [isNewUser, setIsNewUser] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<IdentityError | null>(null);
 
   // tRPC mutations for server registration
   const registerMutation = trpc.user.register.useMutation();
@@ -116,7 +185,60 @@ export function useIdentity(): UseIdentityReturn {
   }, []);
 
   // -------------------------------------------------------------------------
-  // Create new identity
+  // Generate new identity (without registration)
+  // -------------------------------------------------------------------------
+
+  const generateNew = useCallback(async (): Promise<NewIdentity> => {
+    setError(null);
+
+    try {
+      // Generate new identity (does NOT store session)
+      const identity = await createIdentity();
+      return identity;
+    } catch (err) {
+      setError(parseError(err));
+      throw err;
+    }
+  }, []);
+
+  // -------------------------------------------------------------------------
+  // Register identity with server (after user confirms)
+  // -------------------------------------------------------------------------
+
+  const registerIdentity = useCallback(
+    async (identity: NewIdentity): Promise<void> => {
+      setStatus("unlocking");
+      setError(null);
+
+      try {
+        // Register with server
+        const result = await registerMutation.mutateAsync({
+          pubkeyHash: identity.pubkeyHash,
+        });
+
+        // Store session now that user has confirmed
+        storeIdentitySession(identity);
+
+        // Update state
+        const newSession = getSession();
+        if (!newSession) {
+          throw new Error("Session storage failed");
+        }
+
+        setSession(newSession);
+        setIsNewUser(result.isNew);
+        setStatus("unlocked");
+      } catch (err) {
+        setStatus("locked");
+        setError(parseError(err));
+        throw err;
+      }
+    },
+    [registerMutation]
+  );
+
+  // -------------------------------------------------------------------------
+  // Create new identity (legacy - generates and registers immediately)
   // -------------------------------------------------------------------------
 
   const createNew = useCallback(async (): Promise<NewIdentity> => {
@@ -124,13 +246,16 @@ export function useIdentity(): UseIdentityReturn {
     setError(null);
 
     try {
-      // Generate new identity (stores session automatically)
+      // Generate new identity (does NOT store session)
       const identity = await createIdentity();
 
       // Register with server
       const result = await registerMutation.mutateAsync({
         pubkeyHash: identity.pubkeyHash,
       });
+
+      // Store session
+      storeIdentitySession(identity);
 
       // Update state
       const newSession = getSession();
@@ -145,8 +270,7 @@ export function useIdentity(): UseIdentityReturn {
       return identity;
     } catch (err) {
       setStatus("locked");
-      const message = err instanceof Error ? err.message : "Failed to create identity";
-      setError(message);
+      setError(parseError(err));
       throw err;
     }
   }, [registerMutation]);
@@ -182,8 +306,7 @@ export function useIdentity(): UseIdentityReturn {
         return identity;
       } catch (err) {
         setStatus("locked");
-        const message = err instanceof Error ? err.message : "Invalid recovery phrase";
-        setError(message);
+        setError(parseError(err));
         throw err;
       }
     },
@@ -226,6 +349,8 @@ export function useIdentity(): UseIdentityReturn {
     pubkeyHash,
     isNewUser,
     error,
+    generateNew,
+    registerIdentity,
     createNew,
     unlock,
     lock,

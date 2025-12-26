@@ -7,16 +7,16 @@
 
 ## Source Code Locations
 
-| Component           | File                           | Description                             |
-| ------------------- | ------------------------------ | --------------------------------------- |
-| Seed phrase         | `src/lib/crypto/seed.ts`       | BIP39 generation and validation         |
-| Keypair derivation  | `src/lib/crypto/keypair.ts`    | HKDF + Ed25519/X25519 key generation    |
-| Identity management | `src/lib/crypto/identity.ts`   | createIdentity(), unlockWithSeed()      |
-| Session storage     | `src/lib/crypto/session.ts`    | Store/retrieve keys from sessionStorage |
-| Request signing     | `src/lib/crypto/signing.ts`    | Ed25519 signatures for API auth         |
-| Data encryption     | `src/lib/crypto/encryption.ts` | XChaCha20-Poly1305 encrypt/decrypt      |
-| Key wrapping        | `src/lib/crypto/keywrap.ts`    | X25519 key exchange for multi-user      |
-| Re-keying           | `src/lib/crypto/rekey.ts`      | Vault re-keying on member removal       |
+| Component           | File                           | Description                                    |
+| ------------------- | ------------------------------ | ---------------------------------------------- |
+| Seed phrase         | `src/lib/crypto/seed.ts`       | BIP39 generation and validation                |
+| Keypair derivation  | `src/lib/crypto/keypair.ts`    | HKDF + Ed25519/X25519 key generation           |
+| Identity management | `src/lib/crypto/identity.ts`   | createIdentity(), storeIdentitySession(), unlockWithSeed() |
+| Session storage     | `src/lib/crypto/session.ts`    | Store/retrieve keys from sessionStorage        |
+| Request signing     | `src/lib/crypto/signing.ts`    | Ed25519 signatures for API auth                |
+| Data encryption     | `src/lib/crypto/encryption.ts` | XChaCha20-Poly1305 encrypt/decrypt             |
+| Key wrapping        | `src/lib/crypto/keywrap.ts`    | X25519 key exchange for multi-user             |
+| Re-keying           | `src/lib/crypto/rekey.ts`      | Vault re-keying on member removal              |
 
 ---
 

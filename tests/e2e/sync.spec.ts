@@ -19,8 +19,19 @@ import { test, expect, type Page, type BrowserContext } from "@playwright/test";
  */
 async function createIdentity(page: Page): Promise<string[]> {
   await page.goto("/new-user");
-  await page.getByRole("button", { name: /Generate Recovery Phrase/i }).click();
+
+  // Generate seed phrase
+  const generateButton = page
+    .locator('[data-testid="generate-button"]')
+    .or(page.getByRole("button").filter({ hasText: /generate|create|start/i }));
+  await generateButton.click();
+
+  // Wait for seed phrase and reveal if hidden
   await page.waitForSelector('[data-testid="seed-phrase-word"]', { timeout: 10000 });
+  const revealButton = page.getByRole("button", { name: /reveal/i }).first();
+  if (await revealButton.isVisible()) {
+    await revealButton.click();
+  }
 
   // Extract seed phrase
   const wordElements = await page.$$('[data-testid="seed-phrase-word"]');
@@ -34,9 +45,15 @@ async function createIdentity(page: Page): Promise<string[]> {
     }
   }
 
-  // Complete setup
-  await page.getByLabel(/I have written down my recovery phrase/i).check();
-  await page.getByRole("button", { name: /Continue to Dashboard/i }).click();
+  // Confirm and continue
+  const checkbox = page.locator('[data-testid="confirm-checkbox"]').or(page.getByRole("checkbox"));
+  await checkbox.check();
+
+  const continueButton = page
+    .locator('[data-testid="continue-button"]')
+    .or(page.getByRole("button").filter({ hasText: /continue|next|dashboard/i }));
+  await continueButton.click();
+
   await page.waitForURL("**/dashboard", { timeout: 10000 });
 
   return words;
@@ -56,7 +73,10 @@ async function unlockWithPhrase(page: Page, words: string[]): Promise<void> {
   }
 
   // Unlock
-  await page.getByRole("button", { name: /unlock/i }).click();
+  const unlockButton = page
+    .locator('[data-testid="unlock-button"]')
+    .or(page.getByRole("button").filter({ hasText: /unlock/i }));
+  await unlockButton.click();
   await page.waitForURL("**/dashboard", { timeout: 10000 });
 }
 

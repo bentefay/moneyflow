@@ -98,20 +98,6 @@ export function SeedPhraseDisplay({
 
   return (
     <div className={cn("space-y-4", className)}>
-      {/* Security warning */}
-      {showWarning && (
-        <div className="flex items-start gap-3 rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm text-yellow-600 dark:text-yellow-400">
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
-          <div className="space-y-1">
-            <p className="font-medium">Write down your recovery phrase</p>
-            <p className="text-yellow-600/80 dark:text-yellow-400/80">
-              This is the only way to recover your account. Store it somewhere safe and never share
-              it with anyone. Anyone with these words can access your vault.
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* Seed phrase grid */}
       <div className="relative">
         <div
@@ -140,32 +126,45 @@ export function SeedPhraseDisplay({
 
         {/* Blur overlay when hidden */}
         {!isRevealed && (
-          <div className="bg-background/80 absolute inset-0 flex items-center justify-center rounded-lg backdrop-blur-sm">
-            <Button variant="outline" size="sm" onClick={toggleReveal} className="gap-2">
+          <button
+            className="bg-background/20 absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-4 rounded-lg text-sm backdrop-blur-xs hover:bg-teal-100/20"
+            onClick={toggleReveal}
+          >
+            <div className="flex items-center gap-2 font-bold">
               <Eye className="h-4 w-4" />
-              Click to reveal
-            </Button>
-          </div>
+              Click to reveal your recovery phrase
+            </div>
+
+            <div>or copy to clipboard below...</div>
+          </button>
         )}
       </div>
 
       {/* Action buttons */}
       <div className="flex items-center justify-between">
-        {showRevealToggle && isRevealed && (
-          <Button variant="ghost" size="sm" onClick={toggleReveal} className="gap-2">
-            <EyeOff className="h-4 w-4" />
-            Hide words
+        {!isRevealed ? (
+          <Button variant="outline" size="sm" onClick={toggleReveal} className="gap-2">
+            <Eye className="h-4 w-4" />
+            Click to reveal
           </Button>
+        ) : (
+          showRevealToggle &&
+          isRevealed && (
+            <Button variant="ghost" size="sm" onClick={toggleReveal} className="gap-2">
+              <EyeOff className="h-4 w-4" />
+              Hide words
+            </Button>
+          )
         )}
         {!showRevealToggle && <div />}
 
         {showCopyButton && (
           <Button
+            data-testid="copy-button"
             variant="outline"
             size="sm"
             onClick={handleCopy}
             className="gap-2"
-            disabled={!isRevealed}
           >
             {isCopied ? (
               <>
@@ -181,6 +180,20 @@ export function SeedPhraseDisplay({
           </Button>
         )}
       </div>
+
+      {/* Security warning */}
+      {showWarning && (
+        <div className="flex items-start gap-3 rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm text-yellow-600 dark:text-yellow-400">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+          <div className="space-y-1">
+            <p className="font-medium">Save your recovery phrase</p>
+            <p className="text-yellow-600 dark:text-yellow-400">
+              If you lose this we can't recover your account. Store it somewhere safe and never
+              share it with anyone. Anyone with these words can access your vault.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

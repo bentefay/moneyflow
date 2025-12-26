@@ -11,6 +11,7 @@ import {
   createIdentity,
   unlockWithSeed,
   computePubkeyHash,
+  storeIdentitySession,
   type NewIdentity,
   type UnlockedIdentity,
 } from "@/lib/crypto/identity";
@@ -107,8 +108,16 @@ describe("createIdentity", () => {
     expect(identity.pubkeyHash.length).toBeGreaterThan(0);
   });
 
-  it("stores session data", async () => {
+  it("does NOT store session data (requires explicit storeIdentitySession call)", async () => {
     await createIdentity();
+
+    const stored = mockSessionStorage.get("moneyflow_session");
+    expect(stored).toBeUndefined();
+  });
+
+  it("stores session data when storeIdentitySession is called", async () => {
+    const identity = await createIdentity();
+    storeIdentitySession(identity);
 
     const stored = mockSessionStorage.get("moneyflow_session");
     expect(stored).toBeDefined();

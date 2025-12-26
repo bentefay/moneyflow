@@ -115,6 +115,12 @@ Based on plan.md structure:
 
 **Independent Test**: Generate identity → write down seed → close tab → reopen → enter seed → vault unlocks. Aurora animation plays on successful unlock.
 
+**Important**: Server registration only happens AFTER user confirms they've written down their seed phrase. The flow is:
+1. Click "Generate Recovery Phrase" → generates keys locally (no server call)
+2. User writes down seed phrase
+3. User checks confirmation checkbox
+4. Click "Continue to Dashboard" → registers with server and stores session
+
 ### API for User Story 1
 
 - [x] T034 Create Zod schemas for user procedures in src/server/schemas/user.ts
@@ -123,15 +129,16 @@ Based on plan.md structure:
 
 ### Implementation for User Story 1
 
-- [x] T037 Create createIdentity() function combining seed generation + keypair derivation in src/lib/crypto/identity.ts
+- [x] T037 Create createIdentity() function (generates keys WITHOUT storing session) in src/lib/crypto/identity.ts
+- [x] T037a Create storeIdentitySession() function (stores session after user confirms) in src/lib/crypto/identity.ts
 - [x] T038 Create unlockWithSeed() function for returning users in src/lib/crypto/identity.ts
-- [x] T039 Create useIdentity hook for session state management in src/hooks/use-identity.ts
+- [x] T039 Create useIdentity hook (generateNew, registerIdentity, unlock) in src/hooks/use-identity.ts
 - [x] T040 [P] Create SeedPhraseDisplay component (12-word grid with copy button) in src/components/features/identity/SeedPhraseDisplay.tsx
 - [x] T041 [P] Create SeedPhraseInput component (12 input fields with validation) in src/components/features/identity/SeedPhraseInput.tsx
 - [x] T042 [P] Create AuroraBackground component (animated aurora borealis gradient wrapping around the unlock circle, emanating outward) in src/components/features/identity/AuroraBackground.tsx
 - [x] T043 Create UnlockCircle component (centered circle with input, instructions, button) in src/components/features/identity/UnlockCircle.tsx
 - [x] T044 Create unlock animation (fade inner circle via mask, aurora ring expands outward from circle to reveal app) in src/components/features/identity/UnlockAnimation.tsx
-- [x] T045 Create /new-user page (generate seed, confirm checkbox, create identity) in src/app/(onboarding)/new-user/page.tsx
+- [x] T045 Create /new-user page (generate seed, confirm checkbox, register on continue) in src/app/(onboarding)/new-user/page.tsx
 - [x] T046 Create /unlock page (aurora background + unlock circle + animation) in src/app/(onboarding)/unlock/page.tsx
 - [x] T047 Create auth guard HOC/middleware redirecting unauthenticated users to /unlock in src/lib/auth/guard.tsx
 - [x] T048 [US1] Integrate auth guard with app layout in src/app/(app)/layout.tsx

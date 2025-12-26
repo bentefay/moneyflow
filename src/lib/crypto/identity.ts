@@ -54,15 +54,14 @@ export function computePubkeyHash(publicKey: Uint8Array): string {
 }
 
 /**
- * Creates a new user identity.
+ * Generates a new user identity WITHOUT storing session.
  *
  * 1. Generates a random 12-word BIP39 seed phrase
  * 2. Derives Ed25519 (signing) and X25519 (encryption) keypairs
  * 3. Computes pubkeyHash for server identification
- * 4. Stores session data in sessionStorage
  *
  * ⚠️ The returned mnemonic must be shown to the user to write down.
- * We never store or persist the mnemonic.
+ * ⚠️ Does NOT store session - call storeIdentitySession() after user confirms.
  *
  * @returns New identity with mnemonic, keys, and pubkeyHash
  */
@@ -81,17 +80,27 @@ export async function createIdentity(): Promise<NewIdentity> {
   // 4. Compute pubkeyHash
   const pubkeyHash = computePubkeyHash(keys.signing.publicKey);
 
-  // 5. Store session (not the mnemonic!)
+  return { mnemonic, keys, pubkeyHash };
+}
+
+/**
+ * Stores session data for an identity.
+ * Call this after user confirms they've written down their seed phrase.
+ *
+ * @param identity - The identity to store session for
+ */
+export function storeIdentitySession(identity: NewIdentity | UnlockedIdentity): void {
   const sessionData: SessionData = {
-    publicKey: publicKeyToBase64(keys.signing.publicKey),
-    secretKey: sodium.to_base64(keys.signing.privateKey, sodium.base64_variants.ORIGINAL),
-    encPublicKey: publicKeyToBase64(keys.encryption.publicKey),
-    encSecretKey: sodium.to_base64(keys.encryption.privateKey, sodium.base64_variants.ORIGINAL),
-    pubkeyHash,
+    publicKey: publicKeyToBase64(identity.keys.signing.publicKey),
+    secretKey: sodium.to_base64(identity.keys.signing.privateKey, sodium.base64_variants.ORIGINAL),
+    encPublicKey: publicKeyToBase64(identity.keys.encryption.publicKey),
+    encSecretKey: sodium.to_base64(
+      identity.keys.encryption.privateKey,
+      sodium.base64_variants.ORIGINAL
+    ),
+    pubkeyHash: identity.pubkeyHash,
   };
   storeSession(sessionData);
-
-  return { mnemonic, keys, pubkeyHash };
 }
 
 /**
@@ -126,15 +135,8 @@ export async function unlockWithSeed(mnemonic: string): Promise<UnlockedIdentity
   // Compute pubkeyHash
   const pubkeyHash = computePubkeyHash(keys.signing.publicKey);
 
-  // Store session
-  const sessionData: SessionData = {
-    publicKey: publicKeyToBase64(keys.signing.publicKey),
-    secretKey: sodium.to_base64(keys.signing.privateKey, sodium.base64_variants.ORIGINAL),
-    encPublicKey: publicKeyToBase64(keys.encryption.publicKey),
-    encSecretKey: sodium.to_base64(keys.encryption.privateKey, sodium.base64_variants.ORIGINAL),
-    pubkeyHash,
-  };
-  storeSession(sessionData);
+  // Store session (unlock always stores - user already has account)
+  storeIdentitySession({ keys, pubkeyHash });
 
   return { keys, pubkeyHash };
 }

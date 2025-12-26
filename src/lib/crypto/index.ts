@@ -39,6 +39,7 @@ export {
   createIdentity,
   unlockWithSeed,
   computePubkeyHash,
+  storeIdentitySession,
   type NewIdentity,
   type UnlockedIdentity,
 } from "./identity";

@@ -17,12 +17,18 @@
 import { useState, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import { SeedPhraseInput } from "./SeedPhraseInput";
-import { Loader2, Lock, Unlock, AlertCircle } from "lucide-react";
+import { Loader2, Lock, Unlock } from "lucide-react";
 
 // ============================================================================
 // Types
 // ============================================================================
+
+export interface UnlockError {
+  message: string;
+  details?: string;
+}
 
 export interface UnlockCircleProps {
   /** Called when unlock is attempted with a valid phrase */
@@ -31,8 +37,8 @@ export interface UnlockCircleProps {
   /** Whether unlock is currently in progress */
   isUnlocking?: boolean;
 
-  /** Error message to display */
-  error?: string | null;
+  /** Error to display */
+  error?: UnlockError | null;
 
   /** Additional className for the circle */
   className?: string;
@@ -132,10 +138,12 @@ export function UnlockCircle({
 
         {/* Error message */}
         {error && (
-          <div className="flex w-full items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-400">
-            <AlertCircle className="h-4 w-4 shrink-0" />
-            {error}
-          </div>
+          <ErrorAlert
+            title="Unable to unlock"
+            message={error.message}
+            details={error.details}
+            className="w-full"
+          />
         )}
 
         {/* Seed phrase input - simplified for circle */}
@@ -152,6 +160,7 @@ export function UnlockCircle({
 
         {/* Unlock button */}
         <Button
+          data-testid="unlock-button"
           onClick={handleUnlock}
           disabled={!isValid || isUnlocking}
           size="lg"

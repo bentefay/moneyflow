@@ -20,13 +20,31 @@ import { test, expect, type Page } from "@playwright/test";
  * Authenticate and navigate to transactions page.
  */
 async function setupAuthenticatedSession(page: Page): Promise<void> {
-  // For E2E tests, we'll mock the authentication
-  // In a real scenario, this would go through the full unlock flow
+  // Go through the full new user flow
   await page.goto("/new-user");
-  await page.getByRole("button", { name: /Generate Recovery Phrase/i }).click();
+
+  // Generate seed phrase
+  const generateButton = page
+    .locator('[data-testid="generate-button"]')
+    .or(page.getByRole("button").filter({ hasText: /generate|create|start/i }));
+  await generateButton.click();
+
+  // Wait for seed phrase and reveal if hidden
   await page.waitForSelector('[data-testid="seed-phrase-word"]', { timeout: 10000 });
-  await page.getByLabel(/I have written down my recovery phrase/i).check();
-  await page.getByRole("button", { name: /Continue to Dashboard/i }).click();
+  const revealButton = page.getByRole("button", { name: /reveal/i }).first();
+  if (await revealButton.isVisible()) {
+    await revealButton.click();
+  }
+
+  // Confirm and continue
+  const checkbox = page.locator('[data-testid="confirm-checkbox"]').or(page.getByRole("checkbox"));
+  await checkbox.check();
+
+  const continueButton = page
+    .locator('[data-testid="continue-button"]')
+    .or(page.getByRole("button").filter({ hasText: /continue|next|dashboard/i }));
+  await continueButton.click();
+
   await page.waitForURL("**/dashboard", { timeout: 10000 });
 }
 

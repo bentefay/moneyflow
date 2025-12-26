@@ -2,23 +2,25 @@
  * New User Page
  *
  * Onboarding flow for creating a new identity:
- * 1. Generate seed phrase
+ * 1. Generate seed phrase (no server call)
  * 2. Display seed phrase with warning
  * 3. User confirms they've written it down
- * 4. Register with server
+ * 4. Register with server (only after consent)
  * 5. Redirect to dashboard
  */
 
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import { AuroraBackground, SeedPhraseDisplay } from "@/components/features/identity";
 import { useIdentity } from "@/hooks";
+import type { NewIdentity } from "@/lib/crypto/identity";
 import { Sparkles, ArrowRight, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
 
 // ============================================================================
@@ -33,21 +35,26 @@ type Step = "intro" | "generate" | "confirm" | "complete";
 
 export default function NewUserPage() {
   const router = useRouter();
-  const { createNew, error } = useIdentity();
+  const { generateNew, registerIdentity, error } = useIdentity();
 
   const [step, setStep] = useState<Step>("intro");
   const [mnemonic, setMnemonic] = useState<string | null>(null);
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+
+  // Store the generated identity so we can register it later
+  const pendingIdentity = useRef<NewIdentity | null>(null);
 
   // -------------------------------------------------------------------------
-  // Generate seed phrase
+  // Generate seed phrase (no server call yet)
   // -------------------------------------------------------------------------
 
   const handleGenerate = useCallback(async () => {
     setIsCreating(true);
     try {
-      const identity = await createNew();
+      const identity = await generateNew();
+      pendingIdentity.current = identity;
       setMnemonic(identity.mnemonic);
       setStep("generate");
     } catch {
@@ -55,19 +62,29 @@ export default function NewUserPage() {
     } finally {
       setIsCreating(false);
     }
-  }, [createNew]);
+  }, [generateNew]);
 
   // -------------------------------------------------------------------------
-  // Complete registration
+  // Complete registration (only after user consents)
   // -------------------------------------------------------------------------
 
-  const handleComplete = useCallback(() => {
-    setStep("complete");
-    // Small delay before redirect for visual feedback
-    setTimeout(() => {
-      router.push("/dashboard");
-    }, 1500);
-  }, [router]);
+  const handleComplete = useCallback(async () => {
+    if (!pendingIdentity.current) return;
+
+    setIsRegistering(true);
+    try {
+      // Register with server only after user confirms they saved the phrase
+      await registerIdentity(pendingIdentity.current);
+      setStep("complete");
+      // Small delay before redirect for visual feedback
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 1500);
+    } catch {
+      // Error is handled by useIdentity hook
+      setIsRegistering(false);
+    }
+  }, [registerIdentity, router]);
 
   // -------------------------------------------------------------------------
   // Render step content
@@ -79,16 +96,17 @@ export default function NewUserPage() {
         return (
           <div className="flex flex-col items-center gap-8 text-center">
             {/* Icon */}
-            <div className="bg-primary/10 flex h-20 w-20 items-center justify-center rounded-full">
-              <Sparkles className="text-primary h-10 w-10" />
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-linear-to-bl from-cyan-500 to-teal-500 shadow-lg shadow-cyan-500/20">
+              <Sparkles className="h-10 w-10 text-violet-50" />
             </div>
 
             {/* Title */}
             <div>
-              <h1 className="text-3xl font-bold">Create Your Identity</h1>
+              <h1 className="text-3xl font-bold">Create Your Account</h1>
               <p className="text-muted-foreground mt-2 max-w-md">
-                MoneyFlow uses a recovery phrase to secure your account. This is the only way to
-                access your vaults - there&apos;s no password reset.
+                We're going to create a recovery phrase for you. It's a very secure password that
+                secures your account. It is the only way to access your data - there&apos;s no
+                password reset. This means:
               </p>
             </div>
 
@@ -106,7 +124,7 @@ export default function NewUserPage() {
               <div className="bg-card flex items-start gap-3 rounded-lg border p-4 text-left">
                 <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-yellow-500" />
                 <div>
-                  <p className="font-medium">Write down your phrase</p>
+                  <p className="font-medium">You must save your recovery phrase</p>
                   <p className="text-muted-foreground text-sm">
                     You&apos;ll need it to unlock your account on new devices or after closing your
                     browser.
@@ -117,13 +135,22 @@ export default function NewUserPage() {
 
             {/* Error message */}
             {error && (
-              <div className="w-full max-w-lg rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-400">
-                {error}
-              </div>
+              <ErrorAlert
+                title="Unable to create identity"
+                message={error.message}
+                details={error.details}
+                className="w-full max-w-lg"
+              />
             )}
 
             {/* Action button */}
-            <Button size="lg" onClick={handleGenerate} disabled={isCreating} className="gap-2">
+            <Button
+              data-testid="generate-button"
+              size="lg"
+              onClick={handleGenerate}
+              disabled={isCreating}
+              className="gap-2"
+            >
               {isCreating ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -157,16 +184,16 @@ export default function NewUserPage() {
             <div className="text-center">
               <h1 className="text-2xl font-bold">Your Recovery Phrase</h1>
               <p className="text-muted-foreground mt-1">
-                Write these 12 words down in order. Store them somewhere safe.
+                Save these 12 words somewhere safe. We recommend a password manager.
               </p>
             </div>
 
             {/* Seed phrase display */}
             {mnemonic && (
-              <div className="w-full max-w-xl">
+              <div className="w-full">
                 <SeedPhraseDisplay
                   mnemonic={mnemonic}
-                  initiallyRevealed={true}
+                  initiallyRevealed={false}
                   layout="3x4"
                   showCopyButton={true}
                   showRevealToggle={true}
@@ -179,19 +206,45 @@ export default function NewUserPage() {
             <div className="bg-card flex items-start gap-3 rounded-lg border p-4">
               <Checkbox
                 id="confirm"
+                data-testid="confirm-checkbox"
                 checked={isConfirmed}
                 onCheckedChange={(checked) => setIsConfirmed(checked === true)}
               />
               <Label htmlFor="confirm" className="cursor-pointer text-sm">
-                I have written down my recovery phrase and understand that losing it means losing
+                I have saved down my recovery phrase and understand that losing it means losing
                 access to my account.
               </Label>
             </div>
 
+            {/* Error message */}
+            {error && (
+              <ErrorAlert
+                title="Unable to create account"
+                message={error.message}
+                details={error.details}
+                className="w-full max-w-lg"
+              />
+            )}
+
             {/* Continue button */}
-            <Button size="lg" onClick={handleComplete} disabled={!isConfirmed} className="gap-2">
-              Continue to Dashboard
-              <ArrowRight className="h-4 w-4" />
+            <Button
+              data-testid="continue-button"
+              size="lg"
+              onClick={handleComplete}
+              disabled={!isConfirmed || isRegistering}
+              className="gap-2"
+            >
+              {isRegistering ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Creating Account...
+                </>
+              ) : (
+                <>
+                  Continue to Dashboard
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
             </Button>
           </div>
         );
