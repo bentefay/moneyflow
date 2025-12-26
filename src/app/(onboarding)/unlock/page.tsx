@@ -70,42 +70,30 @@ export default function UnlockPage() {
   // Render
   // -------------------------------------------------------------------------
 
-  // Show loading while checking session
-  if (status === "loading") {
-    return (
-      <AuroraBackground intensity={0.5}>
-        <div className="flex min-h-screen items-center justify-center">
-          <div className="border-primary h-8 w-8 animate-spin rounded-full border-4 border-t-transparent" />
-        </div>
-      </AuroraBackground>
-    );
-  }
-
   return (
     <AuroraBackground
       intensity={showAnimation ? 1 : 0.6}
       variant={showAnimation ? "success" : "default"}
     >
       <div className="flex min-h-screen items-center justify-center p-4">
-        {/* Unlock animation overlay */}
-        <UnlockAnimation
-          isUnlocking={showAnimation}
-          onComplete={handleAnimationComplete}
-          stageDurations={{
-            fading: 400,
-            expanding: 800,
-            revealing: 500,
-          }}
-        >
-          <UnlockCircle
-            onUnlock={handleUnlock}
-            isUnlocking={isUnlocking && !showAnimation}
-            error={error}
-          />
-        </UnlockAnimation>
-
-        {/* Main unlock circle (when not animating) */}
-        {!showAnimation && (
+        {/* Unlock animation overlay - wraps the unlock circle when animating */}
+        {showAnimation ? (
+          <UnlockAnimation
+            isUnlocking={showAnimation}
+            onComplete={handleAnimationComplete}
+            stageDurations={{
+              fading: 400,
+              expanding: 800,
+              revealing: 500,
+            }}
+          >
+            <UnlockCircle
+              onUnlock={handleUnlock}
+              isUnlocking={isUnlocking && !showAnimation}
+              error={error}
+            />
+          </UnlockAnimation>
+        ) : (
           <UnlockCircle onUnlock={handleUnlock} isUnlocking={isUnlocking} error={error} />
         )}
       </div>

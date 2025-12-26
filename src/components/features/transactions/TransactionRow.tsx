@@ -111,11 +111,13 @@ export function TransactionRow({
       onClick={(e) => onClick?.(e)}
       onFocus={onFocus}
       tabIndex={0}
+      data-testid="transaction-row"
       className={cn(
         "group relative flex items-center gap-4 border-b px-4 py-3",
         "hover:bg-accent/50 focus:bg-accent/50 focus:outline-none",
         "cursor-pointer transition-colors",
         isSelected && "bg-accent",
+        isSelected && "focused selected",
         isDuplicate && "bg-yellow-50/50 dark:bg-yellow-950/20",
         className
       )}
@@ -201,6 +203,7 @@ export function TransactionRow({
         <button
           type="button"
           onClick={handleDelete}
+          data-testid="delete-button"
           className={cn(
             "shrink-0 rounded p-1.5 transition-colors",
             showDeleteConfirm

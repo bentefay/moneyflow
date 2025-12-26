@@ -7,16 +7,16 @@
 
 ## Source Code Locations
 
-| Component | File | Description |
-|-----------|------|-------------|
-| Seed phrase | `src/lib/crypto/seed.ts` | BIP39 generation and validation |
-| Keypair derivation | `src/lib/crypto/keypair.ts` | HKDF + Ed25519/X25519 key generation |
-| Identity management | `src/lib/crypto/identity.ts` | createIdentity(), unlockWithSeed() |
-| Session storage | `src/lib/crypto/session.ts` | Store/retrieve keys from sessionStorage |
-| Request signing | `src/lib/crypto/signing.ts` | Ed25519 signatures for API auth |
-| Data encryption | `src/lib/crypto/encryption.ts` | XChaCha20-Poly1305 encrypt/decrypt |
-| Key wrapping | `src/lib/crypto/keywrap.ts` | X25519 key exchange for multi-user |
-| Re-keying | `src/lib/crypto/rekey.ts` | Vault re-keying on member removal |
+| Component           | File                           | Description                             |
+| ------------------- | ------------------------------ | --------------------------------------- |
+| Seed phrase         | `src/lib/crypto/seed.ts`       | BIP39 generation and validation         |
+| Keypair derivation  | `src/lib/crypto/keypair.ts`    | HKDF + Ed25519/X25519 key generation    |
+| Identity management | `src/lib/crypto/identity.ts`   | createIdentity(), unlockWithSeed()      |
+| Session storage     | `src/lib/crypto/session.ts`    | Store/retrieve keys from sessionStorage |
+| Request signing     | `src/lib/crypto/signing.ts`    | Ed25519 signatures for API auth         |
+| Data encryption     | `src/lib/crypto/encryption.ts` | XChaCha20-Poly1305 encrypt/decrypt      |
+| Key wrapping        | `src/lib/crypto/keywrap.ts`    | X25519 key exchange for multi-user      |
+| Re-keying           | `src/lib/crypto/rekey.ts`      | Vault re-keying on member removal       |
 
 ---
 
@@ -24,15 +24,15 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                         IDENTITY CREATION                                    │
+│                         IDENTITY CREATION                                   │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
+│                                                                             │
 │  ┌──────────────────────────────────────────────────────────────────────┐   │
 │  │  128 bits of randomness (crypto.getRandomValues)                     │   │
 │  │  └── "Flip a perfectly fair coin 128 times"                          │   │
 │  └──────────────────────────────────────────────────────────────────────┘   │
-│                              │                                               │
-│                              ▼                                               │
+│                              │                                              │
+│                              ▼                                              │
 │  ┌──────────────────────────────────────────────────────────────────────┐   │
 │  │  BIP39 ENCODING (Bitcoin Improvement Proposal 39)                    │   │
 │  │                                                                      │   │
@@ -41,19 +41,19 @@
 │  │  into human-readable words. Now used widely in crypto.               │   │
 │  │                                                                      │   │
 │  │  Steps:                                                              │   │
-│  │  ├── Add 4-bit checksum (SHA-256 of entropy, first 4 bits)          │   │
-│  │  ├── Split 132 bits into 12 groups of 11 bits                       │   │
-│  │  └── Map each 11-bit number (0-2047) to word in 2048-word list      │   │
+│  │  ├── Add 4-bit checksum (SHA-256 of entropy, first 4 bits)           │   │
+│  │  ├── Split 132 bits into 12 groups of 11 bits                        │   │
+│  │  └── Map each 11-bit number (0-2047) to word in 2048-word list       │   │
 │  │                                                                      │   │
 │  │  Output: 12 English words                                            │   │
 │  │  Example: "abandon typical forest ocean bright museum grape..."      │   │
 │  │                                                                      │   │
 │  │  Source: src/lib/crypto/seed.ts → generateSeedPhrase()               │   │
 │  └──────────────────────────────────────────────────────────────────────┘   │
-│                              │                                               │
+│                              │                                              │
 │                              │  User writes down these 12 words             │
 │                              │  (This IS their identity - nothing else)     │
-│                              ▼                                               │
+│                              ▼                                              │
 │  ┌──────────────────────────────────────────────────────────────────────┐   │
 │  │  PBKDF2 (Password-Based Key Derivation Function 2)                   │   │
 │  │                                                                      │   │
@@ -62,21 +62,21 @@
 │  │                                                                      │   │
 │  │  What it does:                                                       │   │
 │  │  • Takes the mnemonic words as a "password"                          │   │
-│  │  • Runs HMAC-SHA512 in a loop 2048 times                            │   │
+│  │  • Runs HMAC-SHA512 in a loop 2048 times                             │   │
 │  │  • Each iteration feeds into the next (key stretching)               │   │
 │  │                                                                      │   │
 │  │  Why 2048 iterations?                                                │   │
-│  │  • Makes brute-forcing slow (can't try billions of guesses/sec)     │   │
+│  │  • Makes brute-forcing slow (can't try billions of guesses/sec)      │   │
 │  │  • BIP39 standard - ensures compatibility with Bitcoin wallets       │   │
 │  │                                                                      │   │
-│  │  Output: 64-byte MASTER SEED (512 bits of keying material)          │   │
-│  │  ⚠️  This is NOT a private key - just raw bytes for deriving keys   │   │
+│  │  Output: 64-byte MASTER SEED (512 bits of keying material)           │   │
+│  │  ⚠️  This is NOT a private key - just raw bytes for deriving keys    │   │
 │  │                                                                      │   │
 │  │  Source: src/lib/crypto/seed.ts → mnemonicToMasterSeed()             │   │
 │  └──────────────────────────────────────────────────────────────────────┘   │
-│                              │                                               │
+│                              │                                              │
 │              ┌───────────────┴───────────────┐                              │
-│              ▼                               ▼                               │
+│              ▼                               ▼                              │
 │  ┌─────────────────────────┐    ┌─────────────────────────┐                 │
 │  │  HKDF (Extract-Expand)  │    │  HKDF (Extract-Expand)  │                 │
 │  │                         │    │                         │                 │
@@ -537,52 +537,52 @@
 
 ## Algorithm Summary Table
 
-| Algorithm | Full Name | Type | Purpose in MoneyFlow | Source File |
-|-----------|-----------|------|---------------------|-------------|
-| **BIP39** | Bitcoin Improvement Proposal 39 | Encoding | Convert random bytes to memorable words | `seed.ts` |
-| **PBKDF2** | Password-Based Key Derivation Function 2 | KDF (slow) | Stretch mnemonic into master seed | `seed.ts` |
-| **HKDF** | HMAC-based Key Derivation Function | KDF (fast) | Derive multiple independent keys from one seed | `keypair.ts` |
-| **Ed25519** | Edwards-curve Digital Signature Algorithm | Signature | Sign API requests, prove identity | `signing.ts` |
-| **X25519** | Curve25519 Diffie-Hellman | Key Exchange | Compute shared secrets for key wrapping | `keywrap.ts` |
-| **XChaCha20-Poly1305** | eXtended ChaCha20 + Polynomial MAC | AEAD | Encrypt vault data with authentication | `encryption.ts` |
-| **XSalsa20-Poly1305** | eXtended Salsa20 + Polynomial MAC | AEAD | Encrypt wrapped keys (via crypto_box) | `keywrap.ts` |
-| **BLAKE2b** | BLAKE2 optimized for 64-bit | Hash | Create pubkeyHash for server identity | `identity.ts` |
+| Algorithm              | Full Name                                 | Type         | Purpose in MoneyFlow                           | Source File     |
+| ---------------------- | ----------------------------------------- | ------------ | ---------------------------------------------- | --------------- |
+| **BIP39**              | Bitcoin Improvement Proposal 39           | Encoding     | Convert random bytes to memorable words        | `seed.ts`       |
+| **PBKDF2**             | Password-Based Key Derivation Function 2  | KDF (slow)   | Stretch mnemonic into master seed              | `seed.ts`       |
+| **HKDF**               | HMAC-based Key Derivation Function        | KDF (fast)   | Derive multiple independent keys from one seed | `keypair.ts`    |
+| **Ed25519**            | Edwards-curve Digital Signature Algorithm | Signature    | Sign API requests, prove identity              | `signing.ts`    |
+| **X25519**             | Curve25519 Diffie-Hellman                 | Key Exchange | Compute shared secrets for key wrapping        | `keywrap.ts`    |
+| **XChaCha20-Poly1305** | eXtended ChaCha20 + Polynomial MAC        | AEAD         | Encrypt vault data with authentication         | `encryption.ts` |
+| **XSalsa20-Poly1305**  | eXtended Salsa20 + Polynomial MAC         | AEAD         | Encrypt wrapped keys (via crypto_box)          | `keywrap.ts`    |
+| **BLAKE2b**            | BLAKE2 optimized for 64-bit               | Hash         | Create pubkeyHash for server identity          | `identity.ts`   |
 
 ---
 
 ## Key Storage Summary
 
-| Key | Size | Generated From | Stored Where | File |
-|-----|------|---------------|--------------|------|
-| **Master Seed** | 64 B | PBKDF2(mnemonic) | Nowhere (derived each session) | `seed.ts` |
-| **Ed25519 Private** | 64 B | HKDF(master, "signing") | `sessionStorage` only | `session.ts` |
-| **Ed25519 Public** | 32 B | Ed25519(private) | Sent in headers, NOT stored on server | `signing.ts` |
-| **X25519 Private** | 32 B | HKDF(master, "encryption") | `sessionStorage` only | `session.ts` |
-| **X25519 Public** | 32 B | X25519(private) | `vault_memberships.enc_public_key` | `keywrap.ts` |
-| **pubkeyHash** | 32 B | BLAKE2b(Ed25519 public) | `vault_memberships.pubkey_hash` | `identity.ts` |
-| **Vault Key** | 32 B | Random generation | Wrapped in `encrypted_vault_key` | `encryption.ts` |
+| Key                 | Size | Generated From             | Stored Where                          | File            |
+| ------------------- | ---- | -------------------------- | ------------------------------------- | --------------- |
+| **Master Seed**     | 64 B | PBKDF2(mnemonic)           | Nowhere (derived each session)        | `seed.ts`       |
+| **Ed25519 Private** | 64 B | HKDF(master, "signing")    | `sessionStorage` only                 | `session.ts`    |
+| **Ed25519 Public**  | 32 B | Ed25519(private)           | Sent in headers, NOT stored on server | `signing.ts`    |
+| **X25519 Private**  | 32 B | HKDF(master, "encryption") | `sessionStorage` only                 | `session.ts`    |
+| **X25519 Public**   | 32 B | X25519(private)            | `vault_memberships.enc_public_key`    | `keywrap.ts`    |
+| **pubkeyHash**      | 32 B | BLAKE2b(Ed25519 public)    | `vault_memberships.pubkey_hash`       | `identity.ts`   |
+| **Vault Key**       | 32 B | Random generation          | Wrapped in `encrypted_vault_key`      | `encryption.ts` |
 
 ---
 
 ## Security Properties
 
-| Property | How It's Achieved |
-|----------|-------------------|
-| **Zero-knowledge server** | All data encrypted client-side; server stores only ciphertext and hashes |
-| **No stored secrets** | Keys derived from seed phrase each session; sessionStorage cleared on tab close |
-| **Forward secrecy on removal** | Re-keying generates new vault key; removed users can't decrypt new data |
-| **Replay attack prevention** | Request signatures include timestamp; rejected if >5 minutes old |
-| **Tampering detection** | Poly1305 auth tag fails if any bit of ciphertext is modified |
-| **Key independence** | HKDF domain separation ensures signing key compromise doesn't leak encryption key |
-| **Safe random nonces** | 192-bit nonces allow random generation without collision risk |
+| Property                       | How It's Achieved                                                                 |
+| ------------------------------ | --------------------------------------------------------------------------------- |
+| **Zero-knowledge server**      | All data encrypted client-side; server stores only ciphertext and hashes          |
+| **No stored secrets**          | Keys derived from seed phrase each session; sessionStorage cleared on tab close   |
+| **Forward secrecy on removal** | Re-keying generates new vault key; removed users can't decrypt new data           |
+| **Replay attack prevention**   | Request signatures include timestamp; rejected if >5 minutes old                  |
+| **Tampering detection**        | Poly1305 auth tag fails if any bit of ciphertext is modified                      |
+| **Key independence**           | HKDF domain separation ensures signing key compromise doesn't leak encryption key |
+| **Safe random nonces**         | 192-bit nonces allow random generation without collision risk                     |
 
 ---
 
 ## What Each Party Knows
 
-| Entity | Knows | Doesn't Know |
-|--------|-------|--------------|
-| **User** | Seed phrase, all keys, plaintext data | Other users' private keys |
-| **Server** | pubkeyHash, encrypted blobs, X25519 public keys | Plaintext data, Ed25519 public key (only hashed), seed phrases |
-| **Other vault members** | Shared vault key, each other's X25519 public keys | Each other's private keys, seed phrases |
-| **Attacker with database access** | All encrypted blobs, all hashes, all public keys | Any plaintext, any private keys |
+| Entity                            | Knows                                             | Doesn't Know                                                   |
+| --------------------------------- | ------------------------------------------------- | -------------------------------------------------------------- |
+| **User**                          | Seed phrase, all keys, plaintext data             | Other users' private keys                                      |
+| **Server**                        | pubkeyHash, encrypted blobs, X25519 public keys   | Plaintext data, Ed25519 public key (only hashed), seed phrases |
+| **Other vault members**           | Shared vault key, each other's X25519 public keys | Each other's private keys, seed phrases                        |
+| **Attacker with database access** | All encrypted blobs, all hashes, all public keys  | Any plaintext, any private keys                                |

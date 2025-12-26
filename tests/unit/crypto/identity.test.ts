@@ -38,7 +38,7 @@ beforeEach(() => {
 });
 
 describe("computePubkeyHash", () => {
-  it("produces 32-byte hash encoded as base64", async () => {
+  it("produces 32-byte hash encoded as hex (64 chars)", async () => {
     const mnemonic = generateSeedPhrase();
     const masterSeed = await mnemonicToMasterSeed(mnemonic);
     const keys = deriveKeysFromSeed(masterSeed);
@@ -46,9 +46,10 @@ describe("computePubkeyHash", () => {
     const hash = computePubkeyHash(keys.signing.publicKey);
 
     expect(typeof hash).toBe("string");
-    // Base64 of 32 bytes should be ~44 characters
-    expect(hash.length).toBeLessThanOrEqual(48);
-    expect(hash.length).toBeGreaterThan(0);
+    // Hex of 32 bytes = 64 characters
+    expect(hash.length).toBe(64);
+    // Should be valid hex
+    expect(hash).toMatch(/^[a-f0-9]+$/i);
   });
 
   it("is deterministic", async () => {

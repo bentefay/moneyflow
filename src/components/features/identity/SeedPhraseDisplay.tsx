@@ -124,6 +124,7 @@ export function SeedPhraseDisplay({
           {words.map((word, index) => (
             <div
               key={index}
+              data-testid="seed-phrase-word"
               className={cn(
                 "bg-background flex items-center gap-2 rounded-md border px-3 py-2",
                 "transition-all duration-200"

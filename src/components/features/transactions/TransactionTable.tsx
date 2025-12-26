@@ -291,6 +291,7 @@ export function TransactionTable({
       className={cn("flex h-full flex-col overflow-auto", className)}
       role="grid"
       aria-label="Transactions"
+      data-testid="transaction-table"
     >
       <TransactionTableHeader />
       <div className="flex-1" role="rowgroup">

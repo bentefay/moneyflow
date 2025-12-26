@@ -204,6 +204,7 @@ export function TransactionFilters({
         <button
           type="button"
           onClick={() => updateFilter("showDuplicatesOnly", !filters.showDuplicatesOnly)}
+          data-testid="duplicates-filter"
           className={cn(
             "flex items-center gap-2 rounded-md border px-3 py-2 text-sm",
             "hover:bg-accent focus:ring-primary focus:ring-2 focus:outline-none",

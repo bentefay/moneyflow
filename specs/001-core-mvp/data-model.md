@@ -145,23 +145,11 @@ function deriveKeys(masterSeed: Uint8Array): {
   encryptionKeypair: { publicKey: Uint8Array; privateKey: Uint8Array };
 } {
   // Ed25519 signing key (for request authentication)
-  const signingSeed = hkdf(
-    sha256,
-    masterSeed,
-    undefined,
-    DOMAIN_ED25519_SIGNING,
-    32
-  );
+  const signingSeed = hkdf(sha256, masterSeed, undefined, DOMAIN_ED25519_SIGNING, 32);
   const signingKeypair = sodium.crypto_sign_seed_keypair(signingSeed);
 
   // X25519 encryption key (for vault key wrapping)
-  const encryptionSeed = hkdf(
-    sha256,
-    masterSeed,
-    undefined,
-    DOMAIN_X25519_ENCRYPTION,
-    32
-  );
+  const encryptionSeed = hkdf(sha256, masterSeed, undefined, DOMAIN_X25519_ENCRYPTION, 32);
   const encryptionKeypair = sodium.crypto_box_seed_keypair(encryptionSeed);
 
   return { signingKeypair, encryptionKeypair };
@@ -181,14 +169,10 @@ async function createIdentity(): Promise<{
 
   // 2. Derive master seed and domain-separated keys
   const masterSeed = await bip39.mnemonicToSeed(mnemonic);
-  const { signingKeypair, encryptionKeypair } = deriveKeys(
-    new Uint8Array(masterSeed)
-  );
+  const { signingKeypair, encryptionKeypair } = deriveKeys(new Uint8Array(masterSeed));
 
   // 3. Hash public key for server identity (signing key is the identity)
-  const pubkeyHash = sodium.to_base64(
-    sodium.crypto_generichash(32, signingKeypair.publicKey)
-  );
+  const pubkeyHash = sodium.to_base64(sodium.crypto_generichash(32, signingKeypair.publicKey));
 
   // 4. Store keypairs in session (NOT the mnemonic - user must save it)
   sessionStorage.setItem(
@@ -221,13 +205,9 @@ async function unlockWithSeed(mnemonic: string): Promise<{
 
   // Derive master seed and domain-separated keys
   const masterSeed = await bip39.mnemonicToSeed(mnemonic);
-  const { signingKeypair, encryptionKeypair } = deriveKeys(
-    new Uint8Array(masterSeed)
-  );
+  const { signingKeypair, encryptionKeypair } = deriveKeys(new Uint8Array(masterSeed));
 
-  const pubkeyHash = sodium.to_base64(
-    sodium.crypto_generichash(32, signingKeypair.publicKey)
-  );
+  const pubkeyHash = sodium.to_base64(sodium.crypto_generichash(32, signingKeypair.publicKey));
 
   // Store in session only
   sessionStorage.setItem(
@@ -279,11 +259,7 @@ function decryptVaultData(
   nonce: Uint8Array,
   vaultKey: Uint8Array
 ): Uint8Array {
-  const plaintext = sodium.crypto_secretbox_open_easy(
-    ciphertext,
-    nonce,
-    vaultKey
-  );
+  const plaintext = sodium.crypto_secretbox_open_easy(ciphertext, nonce, vaultKey);
   if (!plaintext) {
     throw new Error("Decryption failed - invalid key or corrupted data");
   }
@@ -291,10 +267,7 @@ function decryptVaultData(
 }
 
 // Storage format: nonce || ciphertext (nonce prepended for self-describing blobs)
-function encryptForStorage(
-  plaintext: Uint8Array,
-  vaultKey: Uint8Array
-): Uint8Array {
+function encryptForStorage(plaintext: Uint8Array, vaultKey: Uint8Array): Uint8Array {
   const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
   const ciphertext = sodium.crypto_secretbox_easy(plaintext, nonce, vaultKey);
 
@@ -305,10 +278,7 @@ function encryptForStorage(
   return result;
 }
 
-function decryptFromStorage(
-  blob: Uint8Array,
-  vaultKey: Uint8Array
-): Uint8Array {
+function decryptFromStorage(blob: Uint8Array, vaultKey: Uint8Array): Uint8Array {
   const nonce = blob.slice(0, sodium.crypto_secretbox_NONCEBYTES);
   const ciphertext = blob.slice(sodium.crypto_secretbox_NONCEBYTES);
   return decryptVaultData(ciphertext, nonce, vaultKey);
@@ -342,10 +312,7 @@ async function signRequest(
     : "";
 
   const message = `${method}\n${path}\n${timestamp}\n${bodyHash}`;
-  const signature = sodium.crypto_sign_detached(
-    sodium.from_string(message),
-    secretKey
-  );
+  const signature = sodium.crypto_sign_detached(sodium.from_string(message), secretKey);
 
   return {
     headers: {

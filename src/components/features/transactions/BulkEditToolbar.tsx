@@ -78,6 +78,7 @@ export function BulkEditToolbar({
         "bg-background/95 fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-lg border shadow-lg backdrop-blur-sm",
         className
       )}
+      data-testid="bulk-edit-toolbar"
     >
       <div className="flex items-center gap-2 px-4 py-3">
         {/* Selection count */}
@@ -219,6 +220,7 @@ export function BulkEditToolbar({
           <button
             type="button"
             onClick={handleDelete}
+            data-testid="bulk-delete"
             className={cn(
               "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm",
               "hover:bg-destructive/10 focus:ring-destructive focus:ring-2 focus:outline-none",
@@ -246,6 +248,7 @@ export function BulkEditToolbar({
             onClearSelection();
             closeDropdowns();
           }}
+          data-testid="clear-selection"
           className="text-muted-foreground hover:text-foreground text-sm"
         >
           Clear

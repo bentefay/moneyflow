@@ -224,7 +224,7 @@ export default function NewUserPage() {
       <div className="flex min-h-screen items-center justify-center p-4">
         <div
           className={cn(
-            "bg-background/80 w-full max-w-2xl rounded-2xl border p-8 shadow-xl backdrop-blur-sm",
+            "bg-background/90 w-full max-w-2xl rounded-2xl border p-8 shadow-xl backdrop-blur-sm",
             "transition-all duration-300"
           )}
         >

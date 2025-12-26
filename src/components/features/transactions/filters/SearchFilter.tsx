@@ -107,6 +107,7 @@ export function SearchFilter({
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
+        data-testid="search-filter"
         className={cn(
           "w-full rounded-md border py-2 pr-8 pl-9 text-sm",
           "focus:ring-primary focus:border-primary focus:ring-2 focus:outline-none",

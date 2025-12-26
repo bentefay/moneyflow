@@ -281,10 +281,11 @@ export function SeedPhraseInput({
                 onPaste={(e) => handlePaste(e, index)}
                 onKeyDown={(e) => handleKeyDown(e, index)}
                 disabled={disabled}
-                placeholder={`Word ${index + 1}`}
+                placeholder={`${index + 1}`}
+                data-testid={`seed-word-input-${index}`}
                 className={cn(
-                  "pr-8 font-mono text-sm",
-                  showError && "border-red-500 focus-visible:ring-red-500",
+                  "bg-background/80 font-mono",
+                  showError && "border-destructive focus-visible:ring-destructive",
                   showValid && "border-green-500 focus-visible:ring-green-500"
                 )}
                 autoComplete="off"

@@ -66,9 +66,7 @@ export interface Context {
   headers: Headers;
 }
 
-export async function createContext(opts: {
-  headers: Headers;
-}): Promise<Context> {
+export async function createContext(opts: { headers: Headers }): Promise<Context> {
   await sodium.ready;
 
   const supabase = createClient(
@@ -312,19 +310,17 @@ export const userRouter = router({
   /**
    * Create or update user's encrypted data
    */
-  upsertData: authedProcedure
-    .input(upsertUserDataInput)
-    .mutation(async ({ ctx, input }) => {
-      const { error } = await ctx.supabase.from("user_data").upsert({
-        pubkey_hash: ctx.pubkeyHash,
-        encrypted_data: input.encryptedData,
-        updated_at: new Date().toISOString(),
-      });
+  upsertData: authedProcedure.input(upsertUserDataInput).mutation(async ({ ctx, input }) => {
+    const { error } = await ctx.supabase.from("user_data").upsert({
+      pubkey_hash: ctx.pubkeyHash,
+      encrypted_data: input.encryptedData,
+      updated_at: new Date().toISOString(),
+    });
 
-      if (error) throw error;
+    if (error) throw error;
 
-      return { success: true };
-    }),
+    return { success: true };
+  }),
 });
 ```
 
@@ -342,37 +338,33 @@ export const vaultRouter = router({
    * - Creates vault and owner membership atomically
    * - Stores enc_public_key for future re-keying operations
    */
-  create: authedProcedure
-    .input(createVaultInput)
-    .mutation(async ({ ctx, input }) => {
-      // Create vault
-      const { data: vault, error: vaultError } = await ctx.supabase
-        .from("vaults")
-        .insert({})
-        .select()
-        .single();
+  create: authedProcedure.input(createVaultInput).mutation(async ({ ctx, input }) => {
+    // Create vault
+    const { data: vault, error: vaultError } = await ctx.supabase
+      .from("vaults")
+      .insert({})
+      .select()
+      .single();
 
-      if (vaultError) throw vaultError;
+    if (vaultError) throw vaultError;
 
-      // Create owner membership with enc_public_key for re-keying
-      const { error: memberError } = await ctx.supabase
-        .from("vault_memberships")
-        .insert({
-          vault_id: vault.id,
-          pubkey_hash: ctx.pubkeyHash,
-          role: "owner",
-          encrypted_vault_key: input.encryptedVaultKey,
-          enc_public_key: input.encPublicKey,
-        });
+    // Create owner membership with enc_public_key for re-keying
+    const { error: memberError } = await ctx.supabase.from("vault_memberships").insert({
+      vault_id: vault.id,
+      pubkey_hash: ctx.pubkeyHash,
+      role: "owner",
+      encrypted_vault_key: input.encryptedVaultKey,
+      enc_public_key: input.encPublicKey,
+    });
 
-      if (memberError) {
-        // Rollback vault creation
-        await ctx.supabase.from("vaults").delete().eq("id", vault.id);
-        throw memberError;
-      }
+    if (memberError) {
+      // Rollback vault creation
+      await ctx.supabase.from("vaults").delete().eq("id", vault.id);
+      throw memberError;
+    }
 
-      return { vault: { id: vault.id, createdAt: vault.created_at } };
-    }),
+    return { vault: { id: vault.id, createdAt: vault.created_at } };
+  }),
 
   /**
    * Get vault details (requires membership)
@@ -419,111 +411,103 @@ export const syncRouter = router({
   /**
    * Get the latest snapshot for a vault
    */
-  getLatestSnapshot: vaultProcedure
-    .input(vaultIdInput)
-    .query(async ({ ctx, input }) => {
-      const { data: snapshot } = await ctx.supabase
-        .from("vault_snapshots")
-        .select("*")
-        .eq("vault_id", input.vaultId)
-        .order("version", { ascending: false })
-        .limit(1)
-        .single();
+  getLatestSnapshot: vaultProcedure.input(vaultIdInput).query(async ({ ctx, input }) => {
+    const { data: snapshot } = await ctx.supabase
+      .from("vault_snapshots")
+      .select("*")
+      .eq("vault_id", input.vaultId)
+      .order("version", { ascending: false })
+      .limit(1)
+      .single();
 
-      if (!snapshot) return { snapshot: null };
+    if (!snapshot) return { snapshot: null };
 
-      return {
-        snapshot: {
-          id: snapshot.id,
-          version: snapshot.version,
-          hlcTimestamp: snapshot.hlc_timestamp,
-          encryptedData: snapshot.encrypted_data,
-          createdAt: snapshot.created_at,
-        },
-      };
-    }),
+    return {
+      snapshot: {
+        id: snapshot.id,
+        version: snapshot.version,
+        hlcTimestamp: snapshot.hlc_timestamp,
+        encryptedData: snapshot.encrypted_data,
+        createdAt: snapshot.created_at,
+      },
+    };
+  }),
 
   /**
    * Create a new snapshot (periodic compaction)
    */
-  createSnapshot: vaultProcedure
-    .input(createSnapshotInput)
-    .mutation(async ({ ctx, input }) => {
-      const { data, error } = await ctx.supabase
-        .from("vault_snapshots")
-        .insert({
-          vault_id: input.vaultId,
-          version: input.version,
-          hlc_timestamp: input.hlcTimestamp,
-          encrypted_data: input.encryptedData,
-        })
-        .select()
-        .single();
+  createSnapshot: vaultProcedure.input(createSnapshotInput).mutation(async ({ ctx, input }) => {
+    const { data, error } = await ctx.supabase
+      .from("vault_snapshots")
+      .insert({
+        vault_id: input.vaultId,
+        version: input.version,
+        hlc_timestamp: input.hlcTimestamp,
+        encrypted_data: input.encryptedData,
+      })
+      .select()
+      .single();
 
-      if (error?.code === "23505") {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: "Snapshot version already exists",
-        });
-      }
-      if (error) throw error;
+    if (error?.code === "23505") {
+      throw new TRPCError({
+        code: "CONFLICT",
+        message: "Snapshot version already exists",
+      });
+    }
+    if (error) throw error;
 
-      return {
-        snapshot: {
-          id: data.id,
-          version: data.version,
-          createdAt: data.created_at,
-        },
-      };
-    }),
+    return {
+      snapshot: {
+        id: data.id,
+        version: data.version,
+        createdAt: data.created_at,
+      },
+    };
+  }),
 
   /**
    * Get updates since a snapshot version
    */
-  getUpdates: vaultProcedure
-    .input(getUpdatesInput)
-    .query(async ({ ctx, input }) => {
-      const { data: updates } = await ctx.supabase
-        .from("vault_updates")
-        .select("*")
-        .eq("vault_id", input.vaultId)
-        .gt("base_snapshot_version", input.afterSnapshotVersion)
-        .order("created_at", { ascending: true });
+  getUpdates: vaultProcedure.input(getUpdatesInput).query(async ({ ctx, input }) => {
+    const { data: updates } = await ctx.supabase
+      .from("vault_updates")
+      .select("*")
+      .eq("vault_id", input.vaultId)
+      .gt("base_snapshot_version", input.afterSnapshotVersion)
+      .order("created_at", { ascending: true });
 
-      return {
-        updates:
-          updates?.map((u) => ({
-            id: u.id,
-            baseSnapshotVersion: u.base_snapshot_version,
-            hlcTimestamp: u.hlc_timestamp,
-            encryptedData: u.encrypted_data,
-            createdAt: u.created_at,
-          })) ?? [],
-      };
-    }),
+    return {
+      updates:
+        updates?.map((u) => ({
+          id: u.id,
+          baseSnapshotVersion: u.base_snapshot_version,
+          hlcTimestamp: u.hlc_timestamp,
+          encryptedData: u.encrypted_data,
+          createdAt: u.created_at,
+        })) ?? [],
+    };
+  }),
 
   /**
    * Push an update (triggers Realtime broadcast)
    */
-  pushUpdate: vaultProcedure
-    .input(createUpdateInput)
-    .mutation(async ({ ctx, input }) => {
-      const { data, error } = await ctx.supabase
-        .from("vault_updates")
-        .insert({
-          vault_id: input.vaultId,
-          base_snapshot_version: input.baseSnapshotVersion,
-          hlc_timestamp: input.hlcTimestamp,
-          encrypted_data: input.encryptedData,
-          author_pubkey_hash: ctx.pubkeyHash,
-        })
-        .select()
-        .single();
+  pushUpdate: vaultProcedure.input(createUpdateInput).mutation(async ({ ctx, input }) => {
+    const { data, error } = await ctx.supabase
+      .from("vault_updates")
+      .insert({
+        vault_id: input.vaultId,
+        base_snapshot_version: input.baseSnapshotVersion,
+        hlc_timestamp: input.hlcTimestamp,
+        encrypted_data: input.encryptedData,
+        author_pubkey_hash: ctx.pubkeyHash,
+      })
+      .select()
+      .single();
 
-      if (error) throw error;
+    if (error) throw error;
 
-      return { update: { id: data.id, createdAt: data.created_at } };
-    }),
+    return { update: { id: data.id, createdAt: data.created_at } };
+  }),
 });
 ```
 
@@ -531,17 +515,8 @@ export const syncRouter = router({
 
 ```typescript
 // server/routers/invite.ts
-import {
-  router,
-  publicProcedure,
-  authedProcedure,
-  ownerProcedure,
-} from "../trpc";
-import {
-  createInviteInput,
-  getInviteInput,
-  redeemInviteInput,
-} from "../schemas/invite";
+import { router, publicProcedure, authedProcedure, ownerProcedure } from "../trpc";
+import { createInviteInput, getInviteInput, redeemInviteInput } from "../schemas/invite";
 import { TRPCError } from "@trpc/server";
 
 export const inviteRouter = router({
@@ -550,41 +525,39 @@ export const inviteRouter = router({
    * - Client generates invite_secret, derives invite_keypair
    * - Wraps vault key with invite_pubkey
    */
-  create: ownerProcedure
-    .input(createInviteInput)
-    .mutation(async ({ ctx, input }) => {
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + input.expiresInDays);
+  create: ownerProcedure.input(createInviteInput).mutation(async ({ ctx, input }) => {
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + input.expiresInDays);
 
-      const { data, error } = await ctx.supabase
-        .from("vault_invites")
-        .insert({
-          vault_id: input.vaultId,
-          invite_pubkey: input.invitePubkey,
-          encrypted_vault_key: input.encryptedVaultKey,
-          role: input.role,
-          created_by: ctx.pubkeyHash,
-          expires_at: expiresAt.toISOString(),
-        })
-        .select()
-        .single();
+    const { data, error } = await ctx.supabase
+      .from("vault_invites")
+      .insert({
+        vault_id: input.vaultId,
+        invite_pubkey: input.invitePubkey,
+        encrypted_vault_key: input.encryptedVaultKey,
+        role: input.role,
+        created_by: ctx.pubkeyHash,
+        expires_at: expiresAt.toISOString(),
+      })
+      .select()
+      .single();
 
-      if (error?.code === "23505") {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: "Invite already exists",
-        });
-      }
-      if (error) throw error;
+    if (error?.code === "23505") {
+      throw new TRPCError({
+        code: "CONFLICT",
+        message: "Invite already exists",
+      });
+    }
+    if (error) throw error;
 
-      return {
-        invite: {
-          id: data.id,
-          vaultId: data.vault_id,
-          expiresAt: data.expires_at,
-        },
-      };
-    }),
+    return {
+      invite: {
+        id: data.id,
+        vaultId: data.vault_id,
+        expiresAt: data.expires_at,
+      },
+    };
+  }),
 
   /**
    * Get invite details (public - anyone with invite_pubkey can fetch)
@@ -621,61 +594,57 @@ export const inviteRouter = router({
    * - Re-wraps with their own X25519 pubkey
    * - Creates membership and deletes invite
    */
-  redeem: authedProcedure
-    .input(redeemInviteInput)
-    .mutation(async ({ ctx, input }) => {
-      // Fetch invite
-      const { data: invite } = await ctx.supabase
-        .from("vault_invites")
-        .select("*")
-        .eq("invite_pubkey", input.invitePubkey)
-        .gt("expires_at", new Date().toISOString())
-        .single();
+  redeem: authedProcedure.input(redeemInviteInput).mutation(async ({ ctx, input }) => {
+    // Fetch invite
+    const { data: invite } = await ctx.supabase
+      .from("vault_invites")
+      .select("*")
+      .eq("invite_pubkey", input.invitePubkey)
+      .gt("expires_at", new Date().toISOString())
+      .single();
 
-      if (!invite) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Invite not found or expired",
-        });
-      }
+    if (!invite) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "Invite not found or expired",
+      });
+    }
 
-      // Check if already a member
-      const { data: existing } = await ctx.supabase
-        .from("vault_memberships")
-        .select("id")
-        .eq("vault_id", invite.vault_id)
-        .eq("pubkey_hash", ctx.pubkeyHash)
-        .single();
+    // Check if already a member
+    const { data: existing } = await ctx.supabase
+      .from("vault_memberships")
+      .select("id")
+      .eq("vault_id", invite.vault_id)
+      .eq("pubkey_hash", ctx.pubkeyHash)
+      .single();
 
-      if (existing) {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: "Already a member of this vault",
-        });
-      }
+    if (existing) {
+      throw new TRPCError({
+        code: "CONFLICT",
+        message: "Already a member of this vault",
+      });
+    }
 
-      // Create membership
-      const { error: memberError } = await ctx.supabase
-        .from("vault_memberships")
-        .insert({
-          vault_id: invite.vault_id,
-          pubkey_hash: ctx.pubkeyHash,
-          role: invite.role,
-          encrypted_vault_key: input.encryptedVaultKey,
-        });
+    // Create membership
+    const { error: memberError } = await ctx.supabase.from("vault_memberships").insert({
+      vault_id: invite.vault_id,
+      pubkey_hash: ctx.pubkeyHash,
+      role: invite.role,
+      encrypted_vault_key: input.encryptedVaultKey,
+    });
 
-      if (memberError) throw memberError;
+    if (memberError) throw memberError;
 
-      // Delete invite (single-use)
-      await ctx.supabase.from("vault_invites").delete().eq("id", invite.id);
+    // Delete invite (single-use)
+    await ctx.supabase.from("vault_invites").delete().eq("id", invite.id);
 
-      return {
-        membership: {
-          vaultId: invite.vault_id,
-          role: invite.role,
-        },
-      };
-    }),
+    return {
+      membership: {
+        vaultId: invite.vault_id,
+        role: invite.role,
+      },
+    };
+  }),
 });
 ```
 
@@ -711,52 +680,50 @@ export const membershipRouter = router({
 
   /**
    * Remove a member (owner only, or self-removal)
-   * 
+   *
    * IMPORTANT: After removing a member, the client MUST perform vault re-keying:
    * 1. Generate a new vault key
    * 2. Re-encrypt all vault data with new key
    * 3. Wrap new key for each remaining member using their enc_public_key
    * 4. Update all encrypted_vault_key values via sync.rekey procedure
-   * 
+   *
    * This ensures the removed member cannot decrypt future vault data.
    */
-  remove: vaultProcedure
-    .input(removeMemberInput)
-    .mutation(async ({ ctx, input }) => {
-      // Self-removal is always allowed
-      const isSelfRemoval = input.pubkeyHash === ctx.pubkeyHash;
+  remove: vaultProcedure.input(removeMemberInput).mutation(async ({ ctx, input }) => {
+    // Self-removal is always allowed
+    const isSelfRemoval = input.pubkeyHash === ctx.pubkeyHash;
 
-      if (!isSelfRemoval && ctx.vaultRole !== "owner") {
+    if (!isSelfRemoval && ctx.vaultRole !== "owner") {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Only owners can remove other members",
+      });
+    }
+
+    // Can't remove the last owner
+    if (ctx.vaultRole === "owner") {
+      const { count } = await ctx.supabase
+        .from("vault_memberships")
+        .select("id", { count: "exact" })
+        .eq("vault_id", input.vaultId)
+        .eq("role", "owner");
+
+      if (count === 1 && isSelfRemoval) {
         throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Only owners can remove other members",
+          code: "BAD_REQUEST",
+          message: "Cannot remove the only owner. Transfer ownership first.",
         });
       }
+    }
 
-      // Can't remove the last owner
-      if (ctx.vaultRole === "owner") {
-        const { count } = await ctx.supabase
-          .from("vault_memberships")
-          .select("id", { count: "exact" })
-          .eq("vault_id", input.vaultId)
-          .eq("role", "owner");
+    await ctx.supabase
+      .from("vault_memberships")
+      .delete()
+      .eq("vault_id", input.vaultId)
+      .eq("pubkey_hash", input.pubkeyHash);
 
-        if (count === 1 && isSelfRemoval) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Cannot remove the only owner. Transfer ownership first.",
-          });
-        }
-      }
-
-      await ctx.supabase
-        .from("vault_memberships")
-        .delete()
-        .eq("vault_id", input.vaultId)
-        .eq("pubkey_hash", input.pubkeyHash);
-
-      return { success: true };
-    }),
+    return { success: true };
+  }),
 });
 ```
 
@@ -814,16 +781,11 @@ export function createTRPCClient(getSession: () => SessionData | null) {
           const method = op.type === "query" ? "GET" : "POST";
           const path = `/api/trpc/${op.path}`;
           const bodyHash = op.input
-            ? sodium.to_base64(
-                sodium.crypto_generichash(32, JSON.stringify(op.input))
-              )
+            ? sodium.to_base64(sodium.crypto_generichash(32, JSON.stringify(op.input)))
             : "";
 
           const message = `${method}\n${path}\n${timestamp}\n${bodyHash}`;
-          const signature = sodium.crypto_sign_detached(
-            sodium.from_string(message),
-            secretKey
-          );
+          const signature = sodium.crypto_sign_detached(sodium.from_string(message), secretKey);
 
           return {
             "X-Pubkey": sodium.to_base64(publicKey),
@@ -920,10 +882,7 @@ Real-time sync uses **Supabase Realtime** directly (not tRPC) for WebSocket effi
 import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 
-export function useVaultSync(
-  vaultId: string,
-  onUpdate: (update: EncryptedUpdate) => void
-) {
+export function useVaultSync(vaultId: string, onUpdate: (update: EncryptedUpdate) => void) {
   useEffect(() => {
     const channel = supabase
       .channel(`vault:${vaultId}`)
@@ -986,8 +945,7 @@ const ratelimit = new Ratelimit({
 });
 
 const rateLimited = t.middleware(async ({ ctx, next, path }) => {
-  const identifier =
-    ctx.pubkeyHash ?? ctx.headers.get("x-forwarded-for") ?? "anonymous";
+  const identifier = ctx.pubkeyHash ?? ctx.headers.get("x-forwarded-for") ?? "anonymous";
   const { success } = await ratelimit.limit(`${path}:${identifier}`);
 
   if (!success) {

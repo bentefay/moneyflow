@@ -133,6 +133,7 @@ export function AddTransactionRow({
     return (
       <div
         onClick={handleActivate}
+        data-testid="add-transaction-row"
         className={cn(
           "flex cursor-pointer items-center gap-4 border-b border-dashed px-4 py-3",
           "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
@@ -154,6 +155,7 @@ export function AddTransactionRow({
   return (
     <div
       ref={containerRef}
+      data-testid="add-transaction-row"
       className={cn("bg-accent/50 flex items-center gap-2 border-b px-4 py-2", className)}
       onKeyDown={handleKeyDown}
     >
@@ -162,6 +164,7 @@ export function AddTransactionRow({
         type="date"
         value={date}
         onChange={(e) => setDate(e.target.value)}
+        data-testid="new-transaction-date"
         className="w-32 rounded border bg-transparent px-2 py-1 text-sm"
       />
 
@@ -172,6 +175,7 @@ export function AddTransactionRow({
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         placeholder="Description"
+        data-testid="new-transaction-merchant"
         className="min-w-0 flex-1 rounded border bg-transparent px-2 py-1 text-sm"
       />
 
@@ -196,6 +200,7 @@ export function AddTransactionRow({
         value={amount}
         onChange={(e) => setAmount(e.target.value)}
         placeholder="0.00"
+        data-testid="new-transaction-amount"
         className="w-24 rounded border bg-transparent px-2 py-1 text-right text-sm tabular-nums"
       />
 

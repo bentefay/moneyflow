@@ -94,7 +94,7 @@ export function UnlockCircle({
         "relative flex max-h-[90vh] max-w-[90vw] flex-col items-center justify-center",
         "aspect-square w-full max-w-xl",
         // Glassmorphism effect
-        "bg-background/60 rounded-full border border-white/10 backdrop-blur-xl",
+        "bg-background/90 rounded-full border border-white/10 backdrop-blur-xl",
         // Shadow for depth
         "shadow-2xl shadow-black/20",
         // Smooth transitions

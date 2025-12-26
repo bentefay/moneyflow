@@ -46,11 +46,11 @@ export interface UnlockedIdentity {
  * The server never sees the actual public key.
  *
  * @param publicKey - Ed25519 signing public key (32 bytes)
- * @returns Base64-encoded BLAKE2b-256 hash
+ * @returns Hex-encoded BLAKE2b-256 hash (64 characters)
  */
 export function computePubkeyHash(publicKey: Uint8Array): string {
   const hash = sodium.crypto_generichash(32, publicKey);
-  return sodium.to_base64(hash, sodium.base64_variants.ORIGINAL);
+  return sodium.to_hex(hash);
 }
 
 /**

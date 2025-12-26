@@ -1,15 +1,8 @@
 /**
  * AuroraBackground Component
  *
- * Animated aurora borealis gradient background.
- * Used as the unlock screen background with ethereal, flowing colors.
- *
- * Features:
- * - Multi-layer gradient animation
- * - Smooth color transitions (greens, blues, purples)
- * - Subtle movement that doesn't distract
- * - Respects reduced-motion preferences
- * - Can wrap content or be absolute positioned
+ * Animated aurora background with multiple rotating oval gradients.
+ * Creates organic, flowing aurora effect around the central unlock circle.
  */
 
 "use client";
@@ -22,58 +15,35 @@ import { cn } from "@/lib/utils";
 // ============================================================================
 
 export interface AuroraBackgroundProps {
-  /** Children to render on top of the aurora */
   children?: React.ReactNode;
-
-  /** Whether the aurora is actively animating */
   isAnimating?: boolean;
-
-  /** Intensity of the animation (0-1) */
   intensity?: number;
-
-  /** Color scheme variant */
   variant?: "default" | "success" | "unlocking";
-
-  /** Additional className */
   className?: string;
-
-  /** Container className (the wrapper div) */
   containerClassName?: string;
 }
 
 // ============================================================================
-// Color schemes
+// Ribbon configurations - deterministic to avoid hydration errors
 // ============================================================================
 
-const colorSchemes = {
-  default: {
-    // Calm aurora: greens and blues
-    colors: [
-      "from-emerald-500/30 via-teal-500/20 to-cyan-500/30",
-      "from-cyan-500/20 via-blue-500/25 to-indigo-500/20",
-      "from-teal-500/25 via-emerald-500/30 to-green-500/20",
-    ],
-    blurAmount: "blur-3xl",
-  },
-  success: {
-    // Success: brighter greens
-    colors: [
-      "from-green-400/40 via-emerald-400/35 to-teal-400/40",
-      "from-emerald-400/35 via-green-500/40 to-lime-400/30",
-      "from-teal-400/30 via-cyan-400/25 to-emerald-400/35",
-    ],
-    blurAmount: "blur-3xl",
-  },
-  unlocking: {
-    // Unlocking: transitioning to brighter
-    colors: [
-      "from-emerald-400/35 via-teal-500/30 to-cyan-400/35",
-      "from-cyan-400/30 via-blue-400/35 to-indigo-400/30",
-      "from-teal-400/35 via-emerald-400/40 to-green-400/35",
-    ],
-    blurAmount: "blur-2xl",
-  },
-};
+const ribbons = Array.from({ length: 36 }, (_, i) => {
+  const isHorizontal = i % 2 === 0;
+  // Use simple deterministic math based on index
+  const variation = ((i * 7) % 20) / 20; // 0-1 range, deterministic
+  const w = isHorizontal ? 35 + variation * 20 : 5 + variation * 6;
+  const h = isHorizontal ? 5 + variation * 6 : 35 + variation * 20;
+
+  return {
+    w: w * 0.8,
+    h: h * 0.8,
+    duration: 50 + ((i * 13) % 50), // 50-100 seconds
+    breathe: 2 + ((i * 3) % 5), // 2-7 seconds
+    delay: -(i / 36) * 17, // Evenly spaced
+    opacity: 0.45 + ((i * 11) % 25) / 100, // 0.45-0.7
+    reverse: (i * 17) % 3 === 0, // ~1/3 rotate in opposite direction
+  };
+});
 
 // ============================================================================
 // Component
@@ -89,87 +59,108 @@ export function AuroraBackground({
 }: AuroraBackgroundProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Get color scheme
-  const scheme = colorSchemes[variant];
-
-  // Animation duration based on intensity
-  const animationDuration = useMemo(() => {
-    const base = 20; // seconds
-    return base / Math.max(intensity, 0.1);
-  }, [intensity]);
+  // Colors based on variant - 30 colors for ribbons
+  const colors = useMemo(() => {
+    const base = (() => {
+      switch (variant) {
+        case "success":
+          return [
+            "#22c55e",
+            "#10b981",
+            "#14b8a6",
+            "#06b6d4",
+            "#22d3ee",
+            "#34d399",
+            "#4ade80",
+            "#2dd4bf",
+            "#a7f3d0",
+            "#6ee7b7",
+          ];
+        case "unlocking":
+          return [
+            "#10b981",
+            "#14b8a6",
+            "#06b6d4",
+            "#22c55e",
+            "#0ea5e9",
+            "#2dd4bf",
+            "#34d399",
+            "#22d3ee",
+            "#5eead4",
+            "#99f6e4",
+          ];
+        default:
+          return [
+            "#14b8a6",
+            "#06b6d4",
+            "#10b981",
+            "#0ea5e9",
+            "#22d3ee",
+            "#2dd4bf",
+            "#34d399",
+            "#0891b2",
+            "#5eead4",
+            "#67e8f9",
+          ];
+      }
+    })();
+    // Triple the colors array for 30 ribbons
+    return [...base, ...base, ...base];
+  }, [variant]);
 
   // Check for reduced motion preference
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     if (mediaQuery.matches && containerRef.current) {
-      // Disable animations for users who prefer reduced motion
-      containerRef.current.style.setProperty("--aurora-animation", "none");
+      const divs = containerRef.current.querySelectorAll("[data-aurora-oval]");
+      divs.forEach((div) => {
+        (div as HTMLElement).style.animationPlayState = "paused";
+      });
     }
   }, []);
 
   return (
     <div
       ref={containerRef}
-      className={cn(
-        "bg-background relative min-h-screen w-full overflow-hidden",
-        containerClassName
-      )}
+      className={cn("relative min-h-screen w-full overflow-hidden", containerClassName)}
     >
-      {/* Aurora layers */}
+      {/* Base background */}
+      <div className="absolute inset-0 bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900" />
+
+      {/* Aurora ribbons container - reduced blur for distinct bands */}
       <div
-        className={cn("pointer-events-none absolute inset-0 overflow-hidden", className)}
+        className={cn(
+          "pointer-events-none absolute inset-0 flex items-center justify-center",
+          className
+        )}
         aria-hidden="true"
+        style={{ filter: "blur(30px)" }}
       >
-        {/* Layer 1: Primary aurora wave */}
-        <div
-          className={cn(
-            "absolute -top-1/4 -left-1/4 h-[150%] w-[150%]",
-            "bg-gradient-to-br",
-            scheme.colors[0],
-            scheme.blurAmount,
-            isAnimating && "animate-aurora-1"
-          )}
-          style={{
-            animationDuration: `${animationDuration}s`,
-            opacity: intensity,
-          }}
-        />
+        {ribbons.map((ribbon, i) => (
+          <div
+            key={i}
+            data-aurora-oval
+            className="absolute"
+            style={{
+              width: `${Math.round(ribbon.w * 100) / 100}%`,
+              height: `${Math.round(ribbon.h * 100) / 100}%`,
+              background: `linear-gradient(${ribbon.w > ribbon.h ? "90deg" : "0deg"}, transparent 0%, ${colors[i % colors.length]} 20%, ${colors[i % colors.length]} 80%, transparent 100%)`,
+              opacity: ribbon.opacity * intensity,
+              animation: isAnimating
+                ? `${ribbon.reverse ? "aurora-spin-reverse" : "aurora-spin"} ${ribbon.duration}s linear infinite, aurora-breathe ${ribbon.breathe}s ease-in-out infinite`
+                : "none",
+              animationDelay: `${ribbon.delay}s, ${ribbon.delay * 0.7}s`,
+              transformOrigin: "center center",
+            }}
+          />
+        ))}
 
-        {/* Layer 2: Secondary aurora wave (offset timing) */}
+        {/* Center glow */}
         <div
-          className={cn(
-            "absolute -top-1/4 -right-1/4 h-[150%] w-[150%]",
-            "bg-gradient-to-bl",
-            scheme.colors[1],
-            scheme.blurAmount,
-            isAnimating && "animate-aurora-2"
-          )}
+          className="absolute top-1/2 left-1/2 h-[60%] w-[60%] -translate-x-1/2 -translate-y-1/2"
           style={{
-            animationDuration: `${animationDuration * 1.3}s`,
-            opacity: intensity * 0.8,
-          }}
-        />
-
-        {/* Layer 3: Tertiary aurora wave (different direction) */}
-        <div
-          className={cn(
-            "absolute -bottom-1/4 -left-1/4 h-[150%] w-[150%]",
-            "bg-gradient-to-tr",
-            scheme.colors[2],
-            scheme.blurAmount,
-            isAnimating && "animate-aurora-3"
-          )}
-          style={{
-            animationDuration: `${animationDuration * 0.9}s`,
+            background: `radial-gradient(circle at center, ${colors[0]}50 0%, transparent 50%)`,
             opacity: intensity * 0.6,
-          }}
-        />
-
-        {/* Subtle noise overlay for texture */}
-        <div
-          className="absolute inset-0 opacity-[0.015]"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
           }}
         />
       </div>

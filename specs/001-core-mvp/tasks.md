@@ -414,10 +414,10 @@ Based on plan.md structure:
 - [ ] T154 [P] Property-based tests for balance calculations in tests/unit/domain/balance.test.ts
 - [ ] T155 [P] Integration tests for import processor in tests/integration/import.test.ts
 - [ ] T156 [P] Integration tests for automation engine in tests/integration/automation.test.ts
-- [ ] T157 E2E test: identity creation flow in tests/e2e/identity.spec.ts
-- [ ] T158 E2E test: transaction CRUD flow in tests/e2e/transactions.spec.ts
-- [ ] T159 E2E test: import wizard flow in tests/e2e/import.spec.ts
-- [ ] T160 E2E test: multi-user sync in tests/e2e/sync.spec.ts
+- [x] T157 E2E test: identity creation flow in tests/e2e/identity.spec.ts
+- [x] T158 E2E test: transaction CRUD flow in tests/e2e/transactions.spec.ts
+- [x] T159 E2E test: import wizard flow in tests/e2e/import.spec.ts
+- [x] T160 E2E test: multi-user sync in tests/e2e/sync.spec.ts
 
 ### Documentation & Validation
 
