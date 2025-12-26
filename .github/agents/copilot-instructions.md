@@ -1,29 +1,85 @@
 # MoneyFlow Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2025-12-23
+Auto-generated from all feature plans. Last updated: 2025-12-26
+
+## Quick Reference
+
+- **Constitution**: `.specify/memory/constitution.md` - Non-negotiable principles
+- **Feature Specs**: `specs/001-core-mvp/` - Current MVP specification
+- **Path-Specific Guides**: `.github/instructions/` - Domain-specific instructions
 
 ## Active Technologies
 
-- TypeScript 5.x, Node.js 20.x + Next.js 15, React 19, Supabase, shadcn/ui, Remeda, libsodium (001-core-mvp)
+- TypeScript 5.x, Node.js 20.x
+- Next.js 15 (App Router), React 19
+- Supabase (Postgres, Auth, Realtime)
+- loro-crdt + loro-mirror (CRDT state management)
+- shadcn/ui + Tailwind CSS
+- tRPC v11 + Zod
+- libsodium (client-side crypto)
+- Vitest + fast-check + Playwright
 
 ## Project Structure
 
 ```text
 src/
+├── app/              # Next.js App Router pages
+│   ├── (app)/        # Authenticated app pages
+│   ├── (marketing)/  # Public landing pages
+│   └── (onboarding)/ # Identity creation/unlock
+├── components/
+│   ├── ui/           # shadcn/ui primitives
+│   ├── features/     # Feature-specific components
+│   └── providers/    # React context providers
+├── lib/
+│   ├── crypto/       # Encryption, signing, keys
+│   ├── crdt/         # Loro document, schema, sync
+│   ├── import/       # CSV/OFX parsing, duplicates
+│   ├── sync/         # Real-time sync manager
+│   └── supabase/     # Supabase client utilities
+├── server/
+│   ├── routers/      # tRPC routers
+│   └── schemas/      # Zod validation schemas
+└── hooks/            # React hooks
 tests/
+├── unit/             # Unit tests (Vitest)
+├── integration/      # Integration tests
+└── e2e/              # E2E tests (Playwright)
+specs/
+└── 001-core-mvp/     # Current feature spec
 ```
 
 ## Commands
 
-npm test && npm run lint
+```bash
+pnpm dev          # Start dev server
+pnpm build        # Production build
+pnpm test         # Run all tests
+pnpm lint         # ESLint check
+pnpm tsc --noEmit # Type check
+```
 
-## Code Style
+## Key Architecture Decisions
 
-TypeScript 5.x, Node.js 20.x: Follow standard conventions
+### 1. Client-Side Encryption
+All financial data is encrypted on the client before storage. The server never sees plaintext.
+See: `.github/instructions/crypto.instructions.md`
+
+### 2. CRDT State Management
+Vault state is a Loro CRDT document. Use loro-mirror's draft-style mutations.
+See: `.github/instructions/crdt.instructions.md`
+
+### 3. Real-Time Sync
+Changes sync via Supabase Realtime with encrypted CRDT updates.
+See: `.github/instructions/sync.instructions.md`
+
+### 4. Ed25519 Authentication
+API requests are signed with Ed25519 keys derived from seed phrase. No passwords.
+See: `.github/instructions/trpc.instructions.md`
 
 ## Recent Changes
 
-- 001-core-mvp: Added TypeScript 5.x, Node.js 20.x + Next.js 15, React 19, Supabase, shadcn/ui, Remeda, libsodium
+- 001-core-mvp: Phase 5 & 6 complete (transactions, import, duplicate detection)
 
 <!-- MANUAL ADDITIONS START -->
 
