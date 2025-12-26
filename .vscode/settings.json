@@ -11,6 +11,8 @@
     ".specify/scripts/powershell/": true,
     "pnpm vitest": true,
     "pnpm typecheck": true,
-    "pnpm tsc": true
+    "pnpm tsc": true,
+    "pnpm test:e2e": true,
+    "pnpm playwright test": true
   }
 }

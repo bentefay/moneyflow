@@ -34,6 +34,41 @@ as you normally would, then either:
 
 ## Getting started
 
+### Prerequisites
+
+- Node.js 20.x LTS
+- pnpm 8.x+
+- Docker (for local Supabase)
+- Supabase CLI (`brew install supabase/tap/supabase`)
+
+### Development Setup
+
+```bash
+# Install dependencies
+pnpm install
+
+# Start local Supabase (requires Docker)
+supabase start
+
+# Start Next.js dev server
+pnpm dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+### Running Tests
+
+```bash
+# Unit tests
+pnpm test
+
+# E2E tests (requires Supabase running)
+supabase start
+pnpm test:e2e
+```
+
+See [specs/001-core-mvp/quickstart.md](specs/001-core-mvp/quickstart.md) for detailed setup instructions.
+
 ## Resources
 
 ## Features
