@@ -44,11 +44,15 @@ export async function encrypt(
     throw new Error(`Key must be ${KEY_BYTES} bytes`);
   }
 
+  // Ensure we have native Uint8Arrays (needed for libsodium in jsdom environments)
+  const plaintextNative = Uint8Array.from(plaintext);
+  const keyNative = Uint8Array.from(key);
+
   // Generate random 24-byte nonce (192-bit)
   const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
 
   // Encrypt with authentication
-  const ciphertext = sodium.crypto_secretbox_easy(plaintext, nonce, key);
+  const ciphertext = sodium.crypto_secretbox_easy(plaintextNative, nonce, keyNative);
 
   return { ciphertext, nonce };
 }
@@ -77,8 +81,13 @@ export async function decrypt(
     throw new Error(`Nonce must be ${NONCE_BYTES} bytes`);
   }
 
+  // Ensure we have native Uint8Arrays (needed for libsodium in jsdom environments)
+  const ciphertextNative = Uint8Array.from(ciphertext);
+  const nonceNative = Uint8Array.from(nonce);
+  const keyNative = Uint8Array.from(key);
+
   try {
-    return sodium.crypto_secretbox_open_easy(ciphertext, nonce, key);
+    return sodium.crypto_secretbox_open_easy(ciphertextNative, nonceNative, keyNative);
   } catch {
     throw new Error("Decryption failed - invalid key or corrupted data");
   }
@@ -136,7 +145,7 @@ export async function decryptFromStorage(blob: Uint8Array, key: Uint8Array): Pro
  */
 export async function encryptString(text: string, key: Uint8Array): Promise<string> {
   await initCrypto();
-  const plaintext = sodium.from_string(text);
+  const plaintext = new TextEncoder().encode(text);
   const blob = await encryptForStorage(plaintext, key);
   return sodium.to_base64(blob, sodium.base64_variants.ORIGINAL);
 }
@@ -152,7 +161,7 @@ export async function decryptString(base64Blob: string, key: Uint8Array): Promis
   await initCrypto();
   const blob = sodium.from_base64(base64Blob, sodium.base64_variants.ORIGINAL);
   const plaintext = await decryptFromStorage(blob, key);
-  return sodium.to_string(plaintext);
+  return new TextDecoder().decode(plaintext);
 }
 
 /**

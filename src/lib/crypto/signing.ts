@@ -60,7 +60,10 @@ export async function signRequest(
   const message = `${method}\n${path}\n${timestamp}\n${bodyHash}`;
 
   // Sign with Ed25519
-  const signature = sodium.crypto_sign_detached(sodium.from_string(message), secretKey);
+  // Ensure we have native Uint8Arrays (needed for libsodium in jsdom environments)
+  const messageBytes = Uint8Array.from(new TextEncoder().encode(message));
+  const secretKeyNative = Uint8Array.from(secretKey);
+  const signature = sodium.crypto_sign_detached(messageBytes, secretKeyNative);
 
   return {
     "X-Pubkey": session.publicKey,
@@ -126,11 +129,11 @@ export async function verifyRequest(
     const message = `${method}\n${path}\n${timestamp}\n${bodyHash}`;
 
     // Verify signature
-    const verified = sodium.crypto_sign_verify_detached(
-      sig,
-      sodium.from_string(message),
-      publicKey
-    );
+    // Ensure we have native Uint8Arrays (needed for libsodium in jsdom environments)
+    const sigNative = Uint8Array.from(sig);
+    const messageBytes = Uint8Array.from(new TextEncoder().encode(message));
+    const publicKeyNative = Uint8Array.from(publicKey);
+    const verified = sodium.crypto_sign_verify_detached(sigNative, messageBytes, publicKeyNative);
 
     if (!verified) {
       return { verified: false, error: "Invalid signature" };
@@ -166,7 +169,11 @@ export async function signData(data: Uint8Array): Promise<Uint8Array> {
 
   const secretKey = sodium.from_base64(session.secretKey, sodium.base64_variants.ORIGINAL);
 
-  return sodium.crypto_sign_detached(data, secretKey);
+  // Ensure we have native Uint8Arrays (needed for libsodium in jsdom environments)
+  const dataNative = Uint8Array.from(data);
+  const secretKeyNative = Uint8Array.from(secretKey);
+
+  return sodium.crypto_sign_detached(dataNative, secretKeyNative);
 }
 
 /**
@@ -186,7 +193,11 @@ export async function verifySignature(
 
   try {
     const publicKey = sodium.from_base64(publicKeyBase64, sodium.base64_variants.ORIGINAL);
-    return sodium.crypto_sign_verify_detached(signature, data, publicKey);
+    // Ensure we have native Uint8Arrays (needed for libsodium in jsdom environments)
+    const signatureNative = Uint8Array.from(signature);
+    const dataNative = Uint8Array.from(data);
+    const publicKeyNative = Uint8Array.from(publicKey);
+    return sodium.crypto_sign_verify_detached(signatureNative, dataNative, publicKeyNative);
   } catch {
     return false;
   }
@@ -200,7 +211,7 @@ export async function verifySignature(
  */
 export async function signString(text: string): Promise<string> {
   await initCrypto();
-  const data = sodium.from_string(text);
+  const data = new TextEncoder().encode(text);
   const signature = await signData(data);
   return sodium.to_base64(signature, sodium.base64_variants.ORIGINAL);
 }
@@ -221,7 +232,7 @@ export async function verifyStringSignature(
   await initCrypto();
 
   try {
-    const data = sodium.from_string(text);
+    const data = new TextEncoder().encode(text);
     const signature = sodium.from_base64(signatureBase64, sodium.base64_variants.ORIGINAL);
     return verifySignature(data, signature, publicKeyBase64);
   } catch {

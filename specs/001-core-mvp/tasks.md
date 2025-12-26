@@ -94,6 +94,16 @@ Based on plan.md structure:
 - [x] T032 [P] Create marketing layout (no auth required) in src/app/(marketing)/layout.tsx
 - [x] T033 [P] Create onboarding layout in src/app/(onboarding)/layout.tsx
 
+### Unit Tests for Phases 1-2
+
+- [x] T033a [P] Unit tests for seed phrase generation in tests/unit/crypto/seed.test.ts
+- [x] T033b [P] Unit tests for keypair derivation in tests/unit/crypto/keypair.test.ts
+- [x] T033c [P] Unit tests for encryption functions in tests/unit/crypto/encryption.test.ts
+- [x] T033d [P] Unit tests for key wrapping in tests/unit/crypto/keywrap.test.ts
+- [x] T033e [P] Unit tests for request signing in tests/unit/crypto/signing.test.ts
+- [x] T033f [P] Unit tests for identity management in tests/unit/crypto/identity.test.ts
+- [x] T033g [P] Unit tests for CRDT sync utilities in tests/unit/crdt/sync.test.ts
+
 **Checkpoint**: Foundation ready - user story implementation can now begin
 
 ---
