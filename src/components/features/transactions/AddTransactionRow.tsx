@@ -50,7 +50,7 @@ export function AddTransactionRow({
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [accountId, setAccountId] = useState(defaultAccountId ?? "");
-  
+
   const descriptionRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -154,10 +154,7 @@ export function AddTransactionRow({
   return (
     <div
       ref={containerRef}
-      className={cn(
-        "bg-accent/50 flex items-center gap-2 border-b px-4 py-2",
-        className
-      )}
+      className={cn("bg-accent/50 flex items-center gap-2 border-b px-4 py-2", className)}
       onKeyDown={handleKeyDown}
     >
       {/* Date */}
@@ -210,7 +207,7 @@ export function AddTransactionRow({
           disabled={!description.trim() || !amount || !accountId}
           className={cn(
             "rounded p-1.5",
-            "hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed",
+            "hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50",
             "text-primary"
           )}
           aria-label="Add transaction"
@@ -226,7 +223,12 @@ export function AddTransactionRow({
           aria-label="Cancel"
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
           </svg>
         </button>
       </div>

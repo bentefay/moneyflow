@@ -70,9 +70,7 @@ export function PreviewStep({
     <div className={cn("space-y-4", className)}>
       <div>
         <h3 className="text-lg font-semibold">Preview Import</h3>
-        <p className="text-muted-foreground text-sm">
-          Review transactions before importing
-        </p>
+        <p className="text-muted-foreground text-sm">Review transactions before importing</p>
       </div>
 
       {/* Summary */}
@@ -98,8 +96,8 @@ export function PreviewStep({
       {duplicateCount > 0 && (
         <div className="rounded-lg border border-yellow-500/50 bg-yellow-50 p-3 dark:bg-yellow-950/20">
           <p className="text-sm text-yellow-700 dark:text-yellow-400">
-            <strong>{duplicateCount}</strong> potential duplicate{duplicateCount !== 1 ? "s" : ""} detected.
-            These will be imported but flagged for review.
+            <strong>{duplicateCount}</strong> potential duplicate{duplicateCount !== 1 ? "s" : ""}{" "}
+            detected. These will be imported but flagged for review.
           </p>
         </div>
       )}
@@ -107,8 +105,8 @@ export function PreviewStep({
       {errorCount > 0 && (
         <div className="rounded-lg border border-red-500/50 bg-red-50 p-3 dark:bg-red-950/20">
           <p className="text-sm text-red-700 dark:text-red-400">
-            <strong>{errorCount}</strong> row{errorCount !== 1 ? "s" : ""} will be skipped due to errors.
-            Check the formatting settings if this is unexpected.
+            <strong>{errorCount}</strong> row{errorCount !== 1 ? "s" : ""} will be skipped due to
+            errors. Check the formatting settings if this is unexpected.
           </p>
         </div>
       )}
@@ -164,8 +162,18 @@ export function PreviewStep({
                       className="inline-flex cursor-help items-center text-red-500"
                       title={tx.errors.join(", ")}
                     >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      <svg
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
                       </svg>
                     </span>
                   ) : tx.isDuplicate ? (
@@ -175,14 +183,34 @@ export function PreviewStep({
                       className="inline-flex items-center text-yellow-600 hover:text-yellow-700"
                       title="Potential duplicate - click to toggle"
                     >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      <svg
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                        />
                       </svg>
                     </button>
                   ) : (
                     <span className="inline-flex items-center text-green-500">
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      <svg
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
                       </svg>
                     </span>
                   )}

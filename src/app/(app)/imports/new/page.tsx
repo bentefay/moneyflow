@@ -8,18 +8,14 @@
 
 import { useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import {
-  ImportWizard,
-  type ParsedTransaction,
-} from "@/components/features/import/ImportWizard";
+import { ImportWizard, type ParsedTransaction } from "@/components/features/import/ImportWizard";
 import type { ColumnMapping } from "@/components/features/import/ColumnMappingStep";
 import type { ImportFormatting } from "@/components/features/import/FormattingStep";
-import { mappingsToTemplateFormat, type ImportTemplate } from "@/components/features/import/TemplateSelector";
 import {
-  useActiveTransactions,
-  useImportTemplates,
-  useVaultAction,
-} from "@/lib/crdt/context";
+  mappingsToTemplateFormat,
+  type ImportTemplate,
+} from "@/components/features/import/TemplateSelector";
+import { useActiveTransactions, useImportTemplates, useVaultAction } from "@/lib/crdt/context";
 import type {
   Transaction,
   Import as ImportRecord,
@@ -42,38 +38,31 @@ export default function NewImportPage() {
   const importTemplates = useImportTemplates();
 
   // Actions
-  const addTransaction = useVaultAction(
-    (state, data: Transaction) => {
-      state.transactions[data.id] = data as typeof state.transactions[string];
-    }
-  );
+  const addTransaction = useVaultAction((state, data: Transaction) => {
+    state.transactions[data.id] = data as (typeof state.transactions)[string];
+  });
 
-  const addImport = useVaultAction(
-    (state, data: ImportRecord) => {
-      state.imports[data.id] = data as typeof state.imports[string];
-    }
-  );
+  const addImport = useVaultAction((state, data: ImportRecord) => {
+    state.imports[data.id] = data as (typeof state.imports)[string];
+  });
 
-  const addImportTemplate = useVaultAction(
-    (state, data: ImportTemplateRecord) => {
-      state.importTemplates[data.id] = data as typeof state.importTemplates[string];
-    }
-  );
+  const addImportTemplate = useVaultAction((state, data: ImportTemplateRecord) => {
+    state.importTemplates[data.id] = data as (typeof state.importTemplates)[string];
+  });
 
-  const deleteImportTemplate = useVaultAction(
-    (state, id: string) => {
-      const template = state.importTemplates[id];
-      if (template && typeof template === "object") {
-        template.deletedAt = Date.now();
-      }
+  const deleteImportTemplate = useVaultAction((state, id: string) => {
+    const template = state.importTemplates[id];
+    if (template && typeof template === "object") {
+      template.deletedAt = Date.now();
     }
-  );
+  });
 
   // Convert CRDT templates to component format
   const templates = useMemo((): ImportTemplate[] => {
     return Object.values(importTemplates)
-      .filter((t): t is ImportTemplateRecord & { $cid: string } =>
-        typeof t === "object" && t !== null && !t.deletedAt
+      .filter(
+        (t): t is ImportTemplateRecord & { $cid: string } =>
+          typeof t === "object" && t !== null && !t.deletedAt
       )
       .map((t) => ({
         id: t.id,
@@ -97,9 +86,7 @@ export default function NewImportPage() {
   // Existing transactions for duplicate detection
   const existingTransactions = useMemo(() => {
     return Object.values(transactions)
-      .filter((t): t is Transaction & { $cid: string } =>
-        typeof t === "object" && t !== null
-      )
+      .filter((t): t is Transaction & { $cid: string } => typeof t === "object" && t !== null)
       .map((t) => ({
         date: t.date,
         amount: t.amount,

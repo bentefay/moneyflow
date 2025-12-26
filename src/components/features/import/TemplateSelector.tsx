@@ -97,7 +97,7 @@ export function TemplateSelector({
           type="button"
           onClick={handleSave}
           disabled={!newTemplateName.trim()}
-          className="rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
+          className="bg-primary text-primary-foreground rounded px-3 py-1.5 text-sm font-medium disabled:opacity-50"
         >
           Save
         </button>
@@ -132,9 +132,7 @@ export function TemplateSelector({
             </optgroup>
           </>
         )}
-        {onSave && (
-          <option value="__new__">+ Save current as template...</option>
-        )}
+        {onSave && <option value="__new__">+ Save current as template...</option>}
       </select>
       {selectedTemplateId && onDelete && (
         <button
@@ -148,7 +146,12 @@ export function TemplateSelector({
           title="Delete template"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+            />
           </svg>
         </button>
       )}
@@ -159,9 +162,7 @@ export function TemplateSelector({
 /**
  * Convert column mappings to template format.
  */
-export function mappingsToTemplateFormat(
-  mappings: ColumnMapping[]
-): Record<string, string> {
+export function mappingsToTemplateFormat(mappings: ColumnMapping[]): Record<string, string> {
   const result: Record<string, string> = {};
   for (const mapping of mappings) {
     if (mapping.targetField) {

@@ -72,10 +72,7 @@ export function FormattingStep({
   sampleAmounts = [],
   className,
 }: FormattingStepProps) {
-  const handleChange = <K extends keyof ImportFormatting>(
-    key: K,
-    value: ImportFormatting[K]
-  ) => {
+  const handleChange = <K extends keyof ImportFormatting>(key: K, value: ImportFormatting[K]) => {
     onFormattingChange({
       ...formatting,
       [key]: value,
@@ -89,7 +86,7 @@ export function FormattingStep({
     // Detect date format from samples
     if (sampleDates.length > 0) {
       const sample = sampleDates[0];
-      
+
       if (/^\d{4}-\d{2}-\d{2}/.test(sample)) {
         detected.dateFormat = "yyyy-MM-dd";
       } else if (/^\d{2}\/\d{2}\/\d{4}/.test(sample)) {
@@ -105,7 +102,7 @@ export function FormattingStep({
     // Detect number format from samples
     if (sampleAmounts.length > 0) {
       const sample = sampleAmounts[0].replace(/[^0-9.,]/g, "");
-      
+
       // Check for European format (1.234,56)
       if (/\d+\.\d{3}/.test(sample) && sample.includes(",")) {
         detected.thousandSeparator = ".";
@@ -126,9 +123,7 @@ export function FormattingStep({
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold">Format Options</h3>
-          <p className="text-muted-foreground text-sm">
-            Configure how to parse dates and numbers
-          </p>
+          <p className="text-muted-foreground text-sm">Configure how to parse dates and numbers</p>
         </div>
         <button
           type="button"
@@ -198,7 +193,7 @@ export function FormattingStep({
       {/* Amount Options */}
       <div className="space-y-3">
         <label className="text-sm font-medium">Amount Options</label>
-        
+
         <label className="flex cursor-pointer items-center gap-3">
           <input
             type="checkbox"

@@ -42,11 +42,7 @@ export function DuplicateBadge({
 
   const confidencePercent = Math.round(confidence * 100);
   const confidenceLabel =
-    confidencePercent >= 90
-      ? "High"
-      : confidencePercent >= 70
-        ? "Medium"
-        : "Low";
+    confidencePercent >= 90 ? "High" : confidencePercent >= 70 ? "Medium" : "Low";
 
   return (
     <div className={cn("relative inline-flex", className)}>
@@ -62,12 +58,7 @@ export function DuplicateBadge({
           "transition-colors"
         )}
       >
-        <svg
-          className="h-3 w-3"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
+        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -83,7 +74,7 @@ export function DuplicateBadge({
         <div
           className={cn(
             "absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2",
-            "w-64 rounded-lg border bg-popover p-3 shadow-lg",
+            "bg-popover w-64 rounded-lg border p-3 shadow-lg",
             "animate-in fade-in-0 zoom-in-95"
           )}
         >
@@ -97,18 +88,15 @@ export function DuplicateBadge({
               <div className="mt-2 space-y-1 border-t pt-2">
                 <p className="text-xs font-medium">Original transaction:</p>
                 {originalDate && (
-                  <p className="text-muted-foreground text-xs">
-                    Date: {originalDate}
-                  </p>
+                  <p className="text-muted-foreground text-xs">Date: {originalDate}</p>
                 )}
                 {originalDescription && (
-                  <p className="text-muted-foreground truncate text-xs">
-                    {originalDescription}
-                  </p>
+                  <p className="text-muted-foreground truncate text-xs">{originalDescription}</p>
                 )}
                 {originalAmount !== undefined && (
                   <p className="text-muted-foreground text-xs">
-                    Amount: {originalAmount.toLocaleString(undefined, {
+                    Amount:{" "}
+                    {originalAmount.toLocaleString(undefined, {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
                     })}
@@ -144,7 +132,7 @@ export function DuplicateBadge({
           </div>
 
           {/* Arrow */}
-          <div className="bg-popover absolute left-1/2 top-full -translate-x-1/2 -translate-y-1 rotate-45 border-b border-r h-2 w-2" />
+          <div className="bg-popover absolute top-full left-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1 rotate-45 border-r border-b" />
         </div>
       )}
     </div>
@@ -154,11 +142,7 @@ export function DuplicateBadge({
 /**
  * Compact duplicate indicator (just the icon).
  */
-export function DuplicateIndicator({
-  className,
-}: {
-  className?: string;
-}) {
+export function DuplicateIndicator({ className }: { className?: string }) {
   return (
     <span
       className={cn(
@@ -168,12 +152,7 @@ export function DuplicateIndicator({
       )}
       title="Potential duplicate"
     >
-      <svg
-        className="h-3 w-3"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
+      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"

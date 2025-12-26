@@ -60,9 +60,7 @@ export function calculateRunningBalances(
   // Calculate running balance for each account
   for (const [accountId, accountTransactions] of transactionsByAccount) {
     // Sort by date ascending for cumulative calculation
-    const sorted = [...accountTransactions].sort((a, b) =>
-      a.date.localeCompare(b.date)
-    );
+    const sorted = [...accountTransactions].sort((a, b) => a.date.localeCompare(b.date));
 
     let balance = accountStartingBalances[accountId] ?? 0;
 

@@ -27,13 +27,7 @@ import {
   useActivePeople,
   useVaultAction,
 } from "@/lib/crdt/context";
-import type {
-  Transaction,
-  Account,
-  Tag,
-  Status,
-  Person,
-} from "@/lib/crdt/schema";
+import type { Transaction, Account, Tag, Status, Person } from "@/lib/crdt/schema";
 import { useActiveVault } from "@/hooks/use-active-vault";
 import { useIdentity } from "@/hooks/use-identity";
 import { useVaultPresence } from "@/hooks/use-vault-presence";
@@ -62,38 +56,29 @@ export default function TransactionsPage() {
   const { pubkeyHash } = useIdentity();
 
   // Presence (only active when vault & identity are available)
-  useVaultPresence(
-    activeVault?.id ?? null,
-    pubkeyHash ?? null
-  );
+  useVaultPresence(activeVault?.id ?? null, pubkeyHash ?? null);
 
   // Vault actions for mutations
-  const setTransaction = useVaultAction(
-    (state, id: string, data: Partial<Transaction>) => {
-      const existing = state.transactions[id];
-      if (existing) {
-        Object.assign(existing, data);
+  const setTransaction = useVaultAction((state, id: string, data: Partial<Transaction>) => {
+    const existing = state.transactions[id];
+    if (existing) {
+      Object.assign(existing, data);
+    }
+  });
+
+  const addTransaction = useVaultAction((state, data: Transaction) => {
+    state.transactions[data.id] = data as (typeof state.transactions)[string];
+  });
+
+  const deleteTransactions = useVaultAction((state, ids: string[]) => {
+    const now = Date.now();
+    for (const id of ids) {
+      const tx = state.transactions[id];
+      if (tx) {
+        tx.deletedAt = now;
       }
     }
-  );
-
-  const addTransaction = useVaultAction(
-    (state, data: Transaction) => {
-      state.transactions[data.id] = data as typeof state.transactions[string];
-    }
-  );
-
-  const deleteTransactions = useVaultAction(
-    (state, ids: string[]) => {
-      const now = Date.now();
-      for (const id of ids) {
-        const tx = state.transactions[id];
-        if (tx) {
-          tx.deletedAt = now;
-        }
-      }
-    }
-  );
+  });
 
   // Filter state
   const [filters, setFilters] = useState<TransactionFiltersState>(createEmptyFilters());
@@ -102,16 +87,10 @@ export default function TransactionsPage() {
   const [displayCount, setDisplayCount] = useState(PAGE_SIZE);
 
   // Selection state
-  const transactionIds = useMemo(
-    () => Object.keys(transactions),
-    [transactions]
-  );
-  const {
-    selectedIds,
-    clearSelection,
-    selectedCount,
-    setSelection,
-  } = useTransactionSelection({ transactionIds });
+  const transactionIds = useMemo(() => Object.keys(transactions), [transactions]);
+  const { selectedIds, clearSelection, selectedCount, setSelection } = useTransactionSelection({
+    transactionIds,
+  });
 
   // Convert presence list to presence by transaction ID
   // For now, we don't have transaction-level presence tracking
@@ -132,17 +111,13 @@ export default function TransactionsPage() {
     }
 
     if (filters.tagIds.length > 0) {
-      txList = txList.filter((tx) =>
-        tx.tagIds?.some((tagId) => filters.tagIds.includes(tagId))
-      );
+      txList = txList.filter((tx) => tx.tagIds?.some((tagId) => filters.tagIds.includes(tagId)));
     }
 
     if (filters.personIds.length > 0) {
       txList = txList.filter((tx) => {
         const allocations = tx.allocations ?? {};
-        return Object.keys(allocations).some((personId) =>
-          filters.personIds.includes(personId)
-        );
+        return Object.keys(allocations).some((personId) => filters.personIds.includes(personId));
       });
     }
 

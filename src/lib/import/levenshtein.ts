@@ -68,11 +68,7 @@ export function levenshtein(a: string, b: string): number {
  * @param maxDistance - Maximum distance to calculate before returning
  * @returns Distance, or maxDistance + 1 if threshold exceeded
  */
-export function levenshteinWithThreshold(
-  a: string,
-  b: string,
-  maxDistance: number
-): number {
+export function levenshteinWithThreshold(a: string, b: string, maxDistance: number): number {
   if (a.length === 0) return Math.min(b.length, maxDistance + 1);
   if (b.length === 0) return Math.min(a.length, maxDistance + 1);
 
@@ -93,11 +89,7 @@ export function levenshteinWithThreshold(
       if (a[i - 1] === b[j - 1]) {
         currentRow[j] = prevRow[j - 1];
       } else {
-        currentRow[j] = Math.min(
-          prevRow[j - 1] + 1,
-          currentRow[j - 1] + 1,
-          prevRow[j] + 1
-        );
+        currentRow[j] = Math.min(prevRow[j - 1] + 1, currentRow[j - 1] + 1, prevRow[j] + 1);
       }
       minInRow = Math.min(minInRow, currentRow[j]);
     }

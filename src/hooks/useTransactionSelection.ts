@@ -71,14 +71,12 @@ export function useTransactionSelection({
     return visible;
   }, [selectedIds, transactionIdSet]);
 
-  const allSelected = visibleSelectedIds.size === transactionIds.length && transactionIds.length > 0;
+  const allSelected =
+    visibleSelectedIds.size === transactionIds.length && transactionIds.length > 0;
   const someSelected = visibleSelectedIds.size > 0 && !allSelected;
   const selectedCount = visibleSelectedIds.size;
 
-  const isSelected = useCallback(
-    (id: string) => selectedIds.has(id),
-    [selectedIds]
-  );
+  const isSelected = useCallback((id: string) => selectedIds.has(id), [selectedIds]);
 
   const toggleSelection = useCallback((id: string) => {
     setSelectedIds((prev) => {

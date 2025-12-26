@@ -62,18 +62,22 @@ pnpm tsc --noEmit # Type check
 ## Key Architecture Decisions
 
 ### 1. Client-Side Encryption
+
 All financial data is encrypted on the client before storage. The server never sees plaintext.
 See: `.github/instructions/crypto.instructions.md`
 
 ### 2. CRDT State Management
+
 Vault state is a Loro CRDT document. Use loro-mirror's draft-style mutations.
 See: `.github/instructions/crdt.instructions.md`
 
 ### 3. Real-Time Sync
+
 Changes sync via Supabase Realtime with encrypted CRDT updates.
 See: `.github/instructions/sync.instructions.md`
 
 ### 4. Ed25519 Authentication
+
 API requests are signed with Ed25519 keys derived from seed phrase. No passwords.
 See: `.github/instructions/trpc.instructions.md`
 

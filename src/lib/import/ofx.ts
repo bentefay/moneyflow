@@ -216,7 +216,9 @@ function parseTransaction(content: string, warnings: string[]): OFXTransaction |
   const type = extractValue(content, "TRNTYPE") || "OTHER";
   const datePosted = extractValue(content, "DTPOSTED");
   const amountStr = extractValue(content, "TRNAMT");
-  const fitid = extractValue(content, "FITID") || `gen-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+  const fitid =
+    extractValue(content, "FITID") ||
+    `gen-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
   const name = extractValue(content, "NAME") || extractValue(content, "PAYEE") || "";
   const memo = extractValue(content, "MEMO") || "";
   const checkNum = extractValue(content, "CHECKNUM") || undefined;

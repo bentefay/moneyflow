@@ -15,11 +15,7 @@ import {
   validateColumnMappings,
   type ColumnMapping,
 } from "./ColumnMappingStep";
-import {
-  FormattingStep,
-  DEFAULT_FORMATTING,
-  type ImportFormatting,
-} from "./FormattingStep";
+import { FormattingStep, DEFAULT_FORMATTING, type ImportFormatting } from "./FormattingStep";
 import {
   TemplateSelector,
   mappingsToTemplateFormat,
@@ -124,7 +120,7 @@ export function ImportWizard({
       if (isOFXFormat(content)) {
         setIsOFX(true);
         const result = parseOFX(content);
-        
+
         if (result.transactions.length === 0) {
           setError("No transactions found in the OFX file.");
           return;
@@ -162,18 +158,21 @@ export function ImportWizard({
   }, []);
 
   // Generate preview from OFX transactions
-  const generateOFXPreview = useCallback((transactions: OFXTransaction[]) => {
-    const preview: PreviewTransaction[] = transactions.map((tx, idx) => ({
-      rowIndex: idx,
-      date: tx.date,
-      amount: tx.amount,
-      description: tx.name || tx.memo,
-      errors: [],
-      isDuplicate: checkDuplicate(tx.date, tx.amount, tx.name || tx.memo),
-      originalRow: [tx.date, tx.name, tx.memo, String(tx.amount)],
-    }));
-    setPreviewTransactions(preview);
-  }, [existingTransactions]);
+  const generateOFXPreview = useCallback(
+    (transactions: OFXTransaction[]) => {
+      const preview: PreviewTransaction[] = transactions.map((tx, idx) => ({
+        rowIndex: idx,
+        date: tx.date,
+        amount: tx.amount,
+        description: tx.name || tx.memo,
+        errors: [],
+        isDuplicate: checkDuplicate(tx.date, tx.amount, tx.name || tx.memo),
+        originalRow: [tx.date, tx.name, tx.memo, String(tx.amount)],
+      }));
+      setPreviewTransactions(preview);
+    },
+    [existingTransactions]
+  );
 
   // Check for duplicate
   const checkDuplicate = useCallback(
@@ -182,7 +181,9 @@ export function ImportWizard({
         (existing) =>
           existing.date === date &&
           Math.abs(existing.amount - amount) < 0.01 &&
-          (existing.description.toLowerCase().includes(description.toLowerCase().substring(0, 10)) ||
+          (existing.description
+            .toLowerCase()
+            .includes(description.toLowerCase().substring(0, 10)) ||
             description.toLowerCase().includes(existing.description.toLowerCase().substring(0, 10)))
       );
     },
@@ -235,15 +236,11 @@ export function ImportWizard({
 
       // Get description
       const description =
-        (merchantIdx >= 0 ? row[merchantIdx] : "") ||
-        (descIdx >= 0 ? row[descIdx] : "") ||
-        "";
+        (merchantIdx >= 0 ? row[merchantIdx] : "") || (descIdx >= 0 ? row[descIdx] : "") || "";
 
       // Check for duplicate
       const isDuplicate =
-        date && amount !== null && description
-          ? checkDuplicate(date, amount, description)
-          : false;
+        date && amount !== null && description ? checkDuplicate(date, amount, description) : false;
 
       return {
         rowIndex: idx,
@@ -399,7 +396,7 @@ export function ImportWizard({
       case "complete":
         return (
           <div className="py-12 text-center">
-            <div className="bg-green-100 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full dark:bg-green-900/30">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
               <svg
                 className="h-8 w-8 text-green-600"
                 fill="none"
@@ -465,7 +462,12 @@ export function ImportWizard({
             >
               {idx < currentStepIndex ? (
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
                 </svg>
               ) : (
                 idx + 1
@@ -479,9 +481,7 @@ export function ImportWizard({
             >
               {s.label}
             </span>
-            {idx < steps.length - 1 && (
-              <div className="bg-muted h-px w-8" />
-            )}
+            {idx < steps.length - 1 && <div className="bg-muted h-px w-8" />}
           </div>
         ))}
       </div>
@@ -505,9 +505,7 @@ export function ImportWizard({
             disabled={step === "file"}
             className={cn(
               "rounded px-4 py-2 text-sm font-medium transition-colors",
-              step === "file"
-                ? "invisible"
-                : "hover:bg-accent"
+              step === "file" ? "invisible" : "hover:bg-accent"
             )}
           >
             Back

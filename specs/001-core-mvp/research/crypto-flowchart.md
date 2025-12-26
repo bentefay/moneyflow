@@ -5,6 +5,21 @@
 
 ---
 
+## Source Code Locations
+
+| Component | File | Description |
+|-----------|------|-------------|
+| Seed phrase | `src/lib/crypto/seed.ts` | BIP39 generation and validation |
+| Keypair derivation | `src/lib/crypto/keypair.ts` | HKDF + Ed25519/X25519 key generation |
+| Identity management | `src/lib/crypto/identity.ts` | createIdentity(), unlockWithSeed() |
+| Session storage | `src/lib/crypto/session.ts` | Store/retrieve keys from sessionStorage |
+| Request signing | `src/lib/crypto/signing.ts` | Ed25519 signatures for API auth |
+| Data encryption | `src/lib/crypto/encryption.ts` | XChaCha20-Poly1305 encrypt/decrypt |
+| Key wrapping | `src/lib/crypto/keywrap.ts` | X25519 key exchange for multi-user |
+| Re-keying | `src/lib/crypto/rekey.ts` | Vault re-keying on member removal |
+
+---
+
 ## Master Flowchart: From Seed Phrase to Encrypted Data
 
 ```
@@ -19,13 +34,21 @@
 │                              │                                               │
 │                              ▼                                               │
 │  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │  BIP39 ENCODING                                                      │   │
+│  │  BIP39 ENCODING (Bitcoin Improvement Proposal 39)                    │   │
+│  │                                                                      │   │
+│  │  What is BIP39?                                                      │   │
+│  │  A standard created for Bitcoin wallets to convert random bytes      │   │
+│  │  into human-readable words. Now used widely in crypto.               │   │
+│  │                                                                      │   │
+│  │  Steps:                                                              │   │
 │  │  ├── Add 4-bit checksum (SHA-256 of entropy, first 4 bits)          │   │
 │  │  ├── Split 132 bits into 12 groups of 11 bits                       │   │
 │  │  └── Map each 11-bit number (0-2047) to word in 2048-word list      │   │
 │  │                                                                      │   │
 │  │  Output: 12 English words                                            │   │
 │  │  Example: "abandon typical forest ocean bright museum grape..."      │   │
+│  │                                                                      │   │
+│  │  Source: src/lib/crypto/seed.ts → generateSeedPhrase()               │   │
 │  └──────────────────────────────────────────────────────────────────────┘   │
 │                              │                                               │
 │                              │  User writes down these 12 words             │
@@ -34,10 +57,13 @@
 │  ┌──────────────────────────────────────────────────────────────────────┐   │
 │  │  PBKDF2 (Password-Based Key Derivation Function 2)                   │   │
 │  │                                                                      │   │
+│  │  Full name: Password-Based Key Derivation Function version 2         │   │
+│  │  Defined in: RFC 8018 (PKCS #5 v2.1)                                 │   │
+│  │                                                                      │   │
 │  │  What it does:                                                       │   │
 │  │  • Takes the mnemonic words as a "password"                          │   │
 │  │  • Runs HMAC-SHA512 in a loop 2048 times                            │   │
-│  │  • Each iteration feeds into the next                                │   │
+│  │  • Each iteration feeds into the next (key stretching)               │   │
 │  │                                                                      │   │
 │  │  Why 2048 iterations?                                                │   │
 │  │  • Makes brute-forcing slow (can't try billions of guesses/sec)     │   │
@@ -45,12 +71,18 @@
 │  │                                                                      │   │
 │  │  Output: 64-byte MASTER SEED (512 bits of keying material)          │   │
 │  │  ⚠️  This is NOT a private key - just raw bytes for deriving keys   │   │
+│  │                                                                      │   │
+│  │  Source: src/lib/crypto/seed.ts → mnemonicToMasterSeed()             │   │
 │  └──────────────────────────────────────────────────────────────────────┘   │
 │                              │                                               │
 │              ┌───────────────┴───────────────┐                              │
 │              ▼                               ▼                               │
 │  ┌─────────────────────────┐    ┌─────────────────────────┐                 │
 │  │  HKDF (Extract-Expand)  │    │  HKDF (Extract-Expand)  │                 │
+│  │                         │    │                         │                 │
+│  │  Full name: HMAC-based  │    │  Full name: HMAC-based  │                 │
+│  │  Key Derivation Function│    │  Key Derivation Function│                 │
+│  │  Defined in: RFC 5869   │    │  Defined in: RFC 5869   │                 │
 │  │                         │    │                         │                 │
 │  │  Input:                 │    │  Input:                 │                 │
 │  │  • Master seed          │    │  • Master seed          │                 │
@@ -61,23 +93,44 @@
 │  │  • SHA-256 based        │    │  • SHA-256 based        │                 │
 │  │  • Domain string ensures│    │  • Domain string ensures│                 │
 │  │    output is unique     │    │    output is unique     │                 │
+│  │  • "Domain separation"  │    │  • "Domain separation"  │                 │
+│  │    means one key can't  │    │    means one key can't  │                 │
+│  │    be used to derive    │    │    be used to derive    │                 │
+│  │    another              │    │    another              │                 │
 │  │                         │    │                         │                 │
 │  │  Output: 32-byte seed   │    │  Output: 32-byte seed   │                 │
 │  │  for Ed25519            │    │  for X25519             │                 │
+│  │                         │    │                         │                 │
+│  │  Source:                │    │  Source:                │                 │
+│  │  src/lib/crypto/        │    │  src/lib/crypto/        │                 │
+│  │  keypair.ts             │    │  keypair.ts             │                 │
 │  └─────────────────────────┘    └─────────────────────────┘                 │
 │              │                               │                               │
 │              ▼                               ▼                               │
 │  ┌─────────────────────────┐    ┌─────────────────────────┐                 │
 │  │  Ed25519 Key Generation │    │  X25519 Key Generation  │                 │
 │  │                         │    │                         │                 │
+│  │  Full name: Edwards-    │    │  Full name: X25519      │                 │
+│  │  curve Digital Signature│    │  (Montgomery curve for  │                 │
+│  │  Algorithm              │    │  Diffie-Hellman)        │                 │
+│  │                         │    │                         │                 │
+│  │  Named after: Daniel J. │    │  Named after: The       │                 │
+│  │  Bernstein (djb) &      │    │  underlying Curve25519  │                 │
+│  │  Harold Edwards (curve) │    │  by djb                 │                 │
+│  │                         │    │                         │                 │
 │  │  • Elliptic curve math  │    │  • Elliptic curve math  │                 │
 │  │  • Same Curve25519 base │    │  • Same Curve25519 base │                 │
 │  │  • Optimized for signing│    │  • Optimized for ECDH   │                 │
-│  │                         │    │    (key exchange)       │                 │
-│  │  Output:                │    │                         │                 │
-│  │  • Private key (64 B)   │    │  Output:                │                 │
-│  │  • Public key (32 B)    │    │  • Private key (32 B)   │                 │
-│  │                         │    │  • Public key (32 B)    │                 │
+│  │    (fast verify)        │    │    (key exchange)       │                 │
+│  │                         │    │                         │                 │
+│  │  Output:                │    │  Output:                │                 │
+│  │  • Private key (64 B)   │    │  • Private key (32 B)   │                 │
+│  │  • Public key (32 B)    │    │  • Public key (32 B)    │                 │
+│  │                         │    │                         │                 │
+│  │  Source:                │    │  Source:                │                 │
+│  │  src/lib/crypto/        │    │  src/lib/crypto/        │                 │
+│  │  keypair.ts             │    │  keypair.ts             │                 │
+│  │  deriveKeysFromSeed()   │    │  deriveKeysFromSeed()   │                 │
 │  └─────────────────────────┘    └─────────────────────────┘                 │
 │              │                               │                               │
 │              │                               │                               │
@@ -101,12 +154,23 @@
 │  ┌──────────────────────────────────────────────────────────────────────┐   │
 │  │  BLAKE2b HASH                                                        │   │
 │  │                                                                      │   │
+│  │  Full name: BLAKE2b (successor to BLAKE, SHA-3 finalist)             │   │
+│  │  Defined in: RFC 7693                                                │   │
+│  │                                                                      │   │
 │  │  What it does:                                                       │   │
 │  │  • Modern hash function (faster than SHA-256, equally secure)        │   │
 │  │  • One-way: cannot reverse hash to get public key                    │   │
 │  │  • Deterministic: same input always gives same output                │   │
+│  │  • "b" suffix = optimized for 64-bit platforms                       │   │
+│  │                                                                      │   │
+│  │  Why not SHA-256?                                                    │   │
+│  │  • BLAKE2b is faster in software                                     │   │
+│  │  • Same security level (256-bit)                                     │   │
+│  │  • libsodium uses BLAKE2b throughout                                 │   │
 │  │                                                                      │   │
 │  │  Output: 32-byte hash (base64 encoded for storage)                   │   │
+│  │                                                                      │   │
+│  │  Source: src/lib/crypto/identity.ts → computePubkeyHash()            │   │
 │  └──────────────────────────────────────────────────────────────────────┘   │
 │              │                                                               │
 │              ▼                                                               │
@@ -136,7 +200,7 @@
 │              │                                                               │
 │              ▼                                                               │
 │  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │  Ed25519 SIGNATURE                                                   │   │
+│  │  Ed25519 SIGNATURE (Edwards-curve Digital Signature Algorithm)       │   │
 │  │                                                                      │   │
 │  │  What it does:                                                       │   │
 │  │  • Uses your Ed25519 private key                                     │   │
@@ -147,6 +211,9 @@
 │  │  • Change one bit of message → completely different signature        │   │
 │  │  • Cannot create valid signature without private key                 │   │
 │  │  • Signature + public key + message = proof you signed it            │   │
+│  │  • ~15,000 signatures/second on modern CPU                           │   │
+│  │                                                                      │   │
+│  │  Source: src/lib/crypto/signing.ts → signRequest()                   │   │
 │  └──────────────────────────────────────────────────────────────────────┘   │
 │              │                                                               │
 │              ▼                                                               │
@@ -188,7 +255,15 @@
 │              │                                                               │
 │              ▼                                                               │
 │  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │  XChaCha20-Poly1305 ENCRYPTION                                       │   │
+│  │  XChaCha20-Poly1305 ENCRYPTION (Authenticated Encryption)            │   │
+│  │                                                                      │   │
+│  │  Full names:                                                         │   │
+│  │  • XChaCha20: eXtended ChaCha20 stream cipher                        │   │
+│  │  • Poly1305: Polynomial MAC (Message Authentication Code)            │   │
+│  │  • Together: AEAD (Authenticated Encryption with Associated Data)    │   │
+│  │                                                                      │   │
+│  │  ChaCha20 named after: The Cha-Cha dance (fast quarter-round ops)    │   │
+│  │  "X" prefix: Extended nonce version (192-bit vs 96-bit)              │   │
 │  │                                                                      │   │
 │  │  Components:                                                         │   │
 │  │  ┌────────────────────────────────────────────────────────────────┐  │   │
@@ -211,6 +286,8 @@
 │  │  Output:                                                             │   │
 │  │  • Ciphertext (same length as plaintext)                             │   │
 │  │  • Auth tag (16 bytes, appended automatically)                       │   │
+│  │                                                                      │   │
+│  │  Source: src/lib/crypto/encryption.ts → encrypt(), decrypt()         │   │
 │  └──────────────────────────────────────────────────────────────────────┘   │
 │              │                                                               │
 │              ▼                                                               │
@@ -244,7 +321,11 @@
 │  SCENARIO: Alice wants to share vault with Bob                              │
 │                                                                              │
 │  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │  X25519 ECDH (Elliptic Curve Diffie-Hellman)                         │   │
+│  │  X25519 ECDH (Elliptic Curve Diffie-Hellman Key Exchange)            │   │
+│  │                                                                      │   │
+│  │  Full name: X25519 Elliptic Curve Diffie-Hellman                     │   │
+│  │  Named after: Curve25519 by Daniel J. Bernstein                      │   │
+│  │  Diffie-Hellman: Named after Whitfield Diffie & Martin Hellman (1976)│   │
 │  │                                                                      │   │
 │  │  Alice has: Alice_private, Alice_public                              │   │
 │  │  Bob has:   Bob_private, Bob_public                                  │   │
@@ -254,11 +335,18 @@
 │  │                                                                      │   │
 │  │  Both compute the SAME shared secret without ever sending private    │   │
 │  │  keys! This is the Diffie-Hellman key exchange.                      │   │
+│  │                                                                      │   │
+│  │  Source: src/lib/crypto/keywrap.ts → wrapKey(), unwrapKey()          │   │
 │  └──────────────────────────────────────────────────────────────────────┘   │
 │              │                                                               │
 │              ▼                                                               │
 │  ┌──────────────────────────────────────────────────────────────────────┐   │
 │  │  crypto_box (X25519 + XSalsa20-Poly1305)                             │   │
+│  │                                                                      │   │
+│  │  Full names:                                                         │   │
+│  │  • XSalsa20: eXtended Salsa20 stream cipher (predecessor to ChaCha)  │   │
+│  │  • Poly1305: Polynomial MAC (same as in XChaCha20-Poly1305)          │   │
+│  │  • crypto_box: libsodium's public-key authenticated encryption       │   │
 │  │                                                                      │   │
 │  │  What it does:                                                       │   │
 │  │  1. Compute shared secret via X25519 ECDH                            │   │
@@ -267,6 +355,8 @@
 │  │                                                                      │   │
 │  │  Input: 32-byte vault key                                            │   │
 │  │  Output: Wrapped key blob (nonce || ciphertext)                      │   │
+│  │                                                                      │   │
+│  │  Source: src/lib/crypto/keywrap.ts                                   │   │
 │  └──────────────────────────────────────────────────────────────────────┘   │
 │              │                                                               │
 │              ▼                                                               │
@@ -288,6 +378,113 @@
 │  │                                                                      │   │
 │  │  Each row has the SAME vault key, wrapped differently for each user. │   │
 │  │  enc_public_key is stored so anyone can wrap new keys for that user. │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         ADD PERSON TO VAULT (Invite Flow)                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  SCENARIO: Alice invites Bob to her vault                                   │
+│                                                                              │
+│  ═══════════════════════════════════════════════════════════════════════    │
+│  STEP 1: Alice creates invite (src/server/routers/invite.ts)                │
+│  ═══════════════════════════════════════════════════════════════════════    │
+│                                                                              │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │  1. Generate random invite_secret (32 bytes)                         │   │
+│  │     invite_secret = crypto.getRandomValues(new Uint8Array(32))       │   │
+│  │                                                                      │   │
+│  │  2. Derive ephemeral keypair from invite_secret                      │   │
+│  │     invite_seed = BLAKE2b(invite_secret)                             │   │
+│  │     invite_keypair = X25519(invite_seed)                             │   │
+│  │                                                                      │   │
+│  │  3. Wrap vault key for the invite (not for Bob yet - we don't know   │   │
+│  │     Bob's keys!)                                                     │   │
+│  │     wrapped_for_invite = crypto_box(                                 │   │
+│  │       vault_key,                                                     │   │
+│  │       invite_keypair.publicKey,    ← ephemeral public key            │   │
+│  │       Alice_private_key                                              │   │
+│  │     )                                                                │   │
+│  │                                                                      │   │
+│  │  4. Store invite in database:                                        │   │
+│  │     vault_invites: {                                                 │   │
+│  │       vault_id,                                                      │   │
+│  │       invite_pubkey: invite_keypair.publicKey,                       │   │
+│  │       encrypted_vault_key: wrapped_for_invite,                       │   │
+│  │       expires_at: now + 24 hours,                                    │   │
+│  │       created_by: Alice_pubkey_hash                                  │   │
+│  │     }                                                                │   │
+│  │                                                                      │   │
+│  │  5. Generate invite URL (SECRET IN FRAGMENT - never sent to server!) │   │
+│  │     https://app.com/join#secret=<base64(invite_secret)>              │   │
+│  │                        ↑                                             │   │
+│  │                        URL fragment (#) is NOT sent in HTTP requests │   │
+│  │                                                                      │   │
+│  │  6. Send URL to Bob out-of-band (email, Signal, text, etc.)          │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│  ═══════════════════════════════════════════════════════════════════════    │
+│  STEP 2: Bob redeems invite (src/server/routers/invite.ts)                  │
+│  ═══════════════════════════════════════════════════════════════════════    │
+│                                                                              │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │  1. Bob clicks link, app extracts invite_secret from URL fragment    │   │
+│  │     (Server never sees the secret!)                                  │   │
+│  │                                                                      │   │
+│  │  2. If Bob is new: Generate seed phrase, derive keypairs             │   │
+│  │     If Bob exists: Enter seed phrase, derive keypairs                │   │
+│  │     → Bob now has: Bob_signing_keypair, Bob_encryption_keypair       │   │
+│  │                                                                      │   │
+│  │  3. Derive the SAME ephemeral keypair Alice created:                 │   │
+│  │     invite_seed = BLAKE2b(invite_secret)                             │   │
+│  │     invite_keypair = X25519(invite_seed)                             │   │
+│  │     (Same secret → same keypair!)                                    │   │
+│  │                                                                      │   │
+│  │  4. Fetch invite from database by invite_pubkey                      │   │
+│  │     SELECT * FROM vault_invites WHERE invite_pubkey = ?              │   │
+│  │                                                                      │   │
+│  │  5. Unwrap vault key using invite_private_key:                       │   │
+│  │     vault_key = crypto_box_open(                                     │   │
+│  │       encrypted_vault_key,                                           │   │
+│  │       Alice_enc_public_key,     ← need to fetch this                 │   │
+│  │       invite_keypair.privateKey  ← derived from secret               │   │
+│  │     )                                                                │   │
+│  │                                                                      │   │
+│  │  6. Re-wrap vault key for Bob's own keypair:                         │   │
+│  │     bob_wrapped = crypto_box(                                        │   │
+│  │       vault_key,                                                     │   │
+│  │       Bob_enc_public_key,                                            │   │
+│  │       Bob_enc_private_key                                            │   │
+│  │     )                                                                │   │
+│  │                                                                      │   │
+│  │  7. Create membership record:                                        │   │
+│  │     INSERT INTO vault_memberships (                                  │   │
+│  │       vault_id,                                                      │   │
+│  │       pubkey_hash: Bob_pubkey_hash,                                  │   │
+│  │       enc_public_key: Bob_enc_public_key,  ← stored for re-keying!   │   │
+│  │       encrypted_vault_key: bob_wrapped,                              │   │
+│  │       role: 'member'                                                 │   │
+│  │     )                                                                │   │
+│  │                                                                      │   │
+│  │  8. Delete the invite (single-use)                                   │   │
+│  │     DELETE FROM vault_invites WHERE id = ?                           │   │
+│  │                                                                      │   │
+│  │  9. Bob can now access the vault!                                    │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │  SECURITY PROPERTIES:                                                │   │
+│  │                                                                      │   │
+│  │  • invite_secret in URL fragment = never sent to server              │   │
+│  │  • Server only sees invite_pubkey (ephemeral, unlinkable to Bob)     │   │
+│  │  • Bob's real pubkey_hash only revealed when he redeems              │   │
+│  │  • Single-use: invite deleted after redemption                       │   │
+│  │  • Time-limited: expires after 24 hours                              │   │
+│  │  • Alice cannot see Bob's seed phrase or private keys                │   │
+│  │  • Bob's enc_public_key stored for future re-keying operations       │   │
 │  └──────────────────────────────────────────────────────────────────────┘   │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -340,30 +537,30 @@
 
 ## Algorithm Summary Table
 
-| Algorithm | Type | Purpose in MoneyFlow | Input → Output |
-|-----------|------|---------------------|----------------|
-| **BIP39** | Encoding | Convert random bytes to memorable words | 128 bits → 12 words |
-| **PBKDF2** | KDF (slow) | Stretch mnemonic into master seed | Mnemonic → 64-byte seed |
-| **HKDF** | KDF (fast) | Derive multiple independent keys from one seed | Seed + domain → 32-byte key |
-| **Ed25519** | Signature | Sign API requests, prove identity | Message + private key → 64-byte signature |
-| **X25519** | Key Exchange | Compute shared secrets for key wrapping | Private + public → shared secret |
-| **XChaCha20-Poly1305** | AEAD | Encrypt vault data with authentication | Plaintext + key + nonce → ciphertext + tag |
-| **XSalsa20-Poly1305** | AEAD | Encrypt wrapped keys (via crypto_box) | Vault key + shared secret → wrapped key |
-| **BLAKE2b** | Hash | Create pubkeyHash for server identity | Public key → 32-byte hash |
+| Algorithm | Full Name | Type | Purpose in MoneyFlow | Source File |
+|-----------|-----------|------|---------------------|-------------|
+| **BIP39** | Bitcoin Improvement Proposal 39 | Encoding | Convert random bytes to memorable words | `seed.ts` |
+| **PBKDF2** | Password-Based Key Derivation Function 2 | KDF (slow) | Stretch mnemonic into master seed | `seed.ts` |
+| **HKDF** | HMAC-based Key Derivation Function | KDF (fast) | Derive multiple independent keys from one seed | `keypair.ts` |
+| **Ed25519** | Edwards-curve Digital Signature Algorithm | Signature | Sign API requests, prove identity | `signing.ts` |
+| **X25519** | Curve25519 Diffie-Hellman | Key Exchange | Compute shared secrets for key wrapping | `keywrap.ts` |
+| **XChaCha20-Poly1305** | eXtended ChaCha20 + Polynomial MAC | AEAD | Encrypt vault data with authentication | `encryption.ts` |
+| **XSalsa20-Poly1305** | eXtended Salsa20 + Polynomial MAC | AEAD | Encrypt wrapped keys (via crypto_box) | `keywrap.ts` |
+| **BLAKE2b** | BLAKE2 optimized for 64-bit | Hash | Create pubkeyHash for server identity | `identity.ts` |
 
 ---
 
-## Key Types Summary
+## Key Storage Summary
 
-| Key | Size | Generated From | Stored Where | Purpose |
-|-----|------|---------------|--------------|---------|
-| **Master Seed** | 64 bytes | PBKDF2(mnemonic) | Nowhere (derived each session) | Source for all other keys |
-| **Ed25519 Private** | 64 bytes | HKDF(master, "signing") | sessionStorage only | Sign requests |
-| **Ed25519 Public** | 32 bytes | Ed25519(private) | Sent in headers, NOT stored on server | Verify signatures |
-| **X25519 Private** | 32 bytes | HKDF(master, "encryption") | sessionStorage only | Unwrap vault keys |
-| **X25519 Public** | 32 bytes | X25519(private) | `vault_memberships.enc_public_key` | Let others wrap keys for you |
-| **pubkeyHash** | 32 bytes | BLAKE2b(Ed25519 public) | `vault_memberships.pubkey_hash` | Server-side identity |
-| **Vault Key** | 32 bytes | Random generation | Wrapped in `encrypted_vault_key` | Encrypt all vault data |
+| Key | Size | Generated From | Stored Where | File |
+|-----|------|---------------|--------------|------|
+| **Master Seed** | 64 B | PBKDF2(mnemonic) | Nowhere (derived each session) | `seed.ts` |
+| **Ed25519 Private** | 64 B | HKDF(master, "signing") | `sessionStorage` only | `session.ts` |
+| **Ed25519 Public** | 32 B | Ed25519(private) | Sent in headers, NOT stored on server | `signing.ts` |
+| **X25519 Private** | 32 B | HKDF(master, "encryption") | `sessionStorage` only | `session.ts` |
+| **X25519 Public** | 32 B | X25519(private) | `vault_memberships.enc_public_key` | `keywrap.ts` |
+| **pubkeyHash** | 32 B | BLAKE2b(Ed25519 public) | `vault_memberships.pubkey_hash` | `identity.ts` |
+| **Vault Key** | 32 B | Random generation | Wrapped in `encrypted_vault_key` | `encryption.ts` |
 
 ---
 

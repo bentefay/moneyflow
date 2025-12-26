@@ -9,7 +9,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { TransactionRow, type TransactionRowData, type TransactionRowPresence } from "./TransactionRow";
+import {
+  TransactionRow,
+  type TransactionRowData,
+  type TransactionRowPresence,
+} from "./TransactionRow";
 
 export interface TransactionTableProps {
   /** Array of transactions to display */
@@ -186,7 +190,14 @@ export function TransactionTable({
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [focusedId, selectedIds, transactions, onResolveDuplicate, onTransactionDelete, onSelectionChange]);
+  }, [
+    focusedId,
+    selectedIds,
+    transactions,
+    onResolveDuplicate,
+    onTransactionDelete,
+    onSelectionChange,
+  ]);
 
   // Handle single row click
   const handleRowClick = useCallback(
@@ -286,9 +297,7 @@ export function TransactionTable({
         {transactionRows}
         {isLoading && <LoadingIndicator />}
         {!isLoading && hasMore && (
-          <div className="text-muted-foreground py-4 text-center text-sm">
-            Scroll to load more
-          </div>
+          <div className="text-muted-foreground py-4 text-center text-sm">Scroll to load more</div>
         )}
       </div>
     </div>

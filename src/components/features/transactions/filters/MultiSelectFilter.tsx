@@ -77,17 +77,14 @@ export function MultiSelectFilter({
   );
 
   // Group options if they have groups
-  const groupedOptions = filteredOptions.reduce<Record<string, FilterOption[]>>(
-    (acc, option) => {
-      const group = option.group ?? "";
-      if (!acc[group]) {
-        acc[group] = [];
-      }
-      acc[group].push(option);
-      return acc;
-    },
-    {}
-  );
+  const groupedOptions = filteredOptions.reduce<Record<string, FilterOption[]>>((acc, option) => {
+    const group = option.group ?? "";
+    if (!acc[group]) {
+      acc[group] = [];
+    }
+    acc[group].push(option);
+    return acc;
+  }, {});
 
   const toggleOption = (optionId: string) => {
     if (selectedIds.includes(optionId)) {
@@ -114,8 +111,8 @@ export function MultiSelectFilter({
     selectedLabels.length === 0
       ? placeholder
       : selectedLabels.length <= 2
-      ? selectedLabels.join(", ")
-      : `${selectedLabels[0]}, +${selectedLabels.length - 1}`;
+        ? selectedLabels.join(", ")
+        : `${selectedLabels[0]}, +${selectedLabels.length - 1}`;
 
   return (
     <div ref={containerRef} className={cn("relative", className)}>
@@ -125,7 +122,7 @@ export function MultiSelectFilter({
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           "flex items-center gap-2 rounded-md border px-3 py-2 text-sm",
-          "hover:bg-accent focus:ring-primary focus:outline-none focus:ring-2",
+          "hover:bg-accent focus:ring-primary focus:ring-2 focus:outline-none",
           selectedIds.length > 0 && "border-primary",
           isOpen && "ring-primary ring-2"
         )}
@@ -161,7 +158,7 @@ export function MultiSelectFilter({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search..."
-                className="bg-transparent w-full text-sm outline-none placeholder:text-muted-foreground"
+                className="placeholder:text-muted-foreground w-full bg-transparent text-sm outline-none"
               />
             </div>
           )}
@@ -189,7 +186,7 @@ export function MultiSelectFilter({
             {Object.entries(groupedOptions).map(([group, groupOptions]) => (
               <div key={group}>
                 {group && (
-                  <div className="text-muted-foreground px-2 py-1 text-xs font-medium uppercase tracking-wide">
+                  <div className="text-muted-foreground px-2 py-1 text-xs font-medium tracking-wide uppercase">
                     {group}
                   </div>
                 )}

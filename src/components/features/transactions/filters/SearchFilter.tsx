@@ -109,7 +109,7 @@ export function SearchFilter({
         placeholder={placeholder}
         className={cn(
           "w-full rounded-md border py-2 pr-8 pl-9 text-sm",
-          "focus:ring-primary focus:border-primary focus:outline-none focus:ring-2",
+          "focus:ring-primary focus:border-primary focus:ring-2 focus:outline-none",
           "placeholder:text-muted-foreground"
         )}
       />

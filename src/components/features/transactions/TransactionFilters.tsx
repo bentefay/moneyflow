@@ -206,7 +206,7 @@ export function TransactionFilters({
           onClick={() => updateFilter("showDuplicatesOnly", !filters.showDuplicatesOnly)}
           className={cn(
             "flex items-center gap-2 rounded-md border px-3 py-2 text-sm",
-            "hover:bg-accent focus:ring-primary focus:outline-none focus:ring-2",
+            "hover:bg-accent focus:ring-primary focus:ring-2 focus:outline-none",
             filters.showDuplicatesOnly && "border-primary bg-primary/10"
           )}
         >

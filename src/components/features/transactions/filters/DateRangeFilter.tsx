@@ -40,7 +40,7 @@ function formatDate(date: Date): string {
  */
 function getPresets(): DateRangePreset[] {
   const today = new Date();
-  
+
   return [
     {
       label: "Last 14 days",
@@ -106,11 +106,7 @@ function getPresets(): DateRangePreset[] {
 /**
  * Date range filter component.
  */
-export function DateRangeFilter({
-  value,
-  onChange,
-  className,
-}: DateRangeFilterProps) {
+export function DateRangeFilter({ value, onChange, className }: DateRangeFilterProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [customStart, setCustomStart] = useState(value.start ?? "");
   const [customEnd, setCustomEnd] = useState(value.end ?? "");
@@ -125,9 +121,10 @@ export function DateRangeFilter({
   })?.label;
 
   // Format display text
-  const displayText = currentPresetLabel ?? 
-    (value.start && value.end 
-      ? `${value.start} - ${value.end}` 
+  const displayText =
+    currentPresetLabel ??
+    (value.start && value.end
+      ? `${value.start} - ${value.end}`
       : value.start || value.end || "All time");
 
   // Sync custom inputs with value
@@ -171,7 +168,7 @@ export function DateRangeFilter({
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           "flex items-center gap-2 rounded-md border px-3 py-2 text-sm",
-          "hover:bg-accent focus:ring-primary focus:outline-none focus:ring-2",
+          "hover:bg-accent focus:ring-primary focus:ring-2 focus:outline-none",
           isOpen && "ring-primary ring-2"
         )}
       >
@@ -199,7 +196,7 @@ export function DateRangeFilter({
         <div className="bg-popover text-popover-foreground absolute top-full left-0 z-50 mt-1 w-72 rounded-lg border shadow-lg">
           {/* Presets */}
           <div className="border-b p-2">
-            <div className="mb-2 text-xs font-medium text-muted-foreground">Quick Select</div>
+            <div className="text-muted-foreground mb-2 text-xs font-medium">Quick Select</div>
             <div className="grid grid-cols-2 gap-1">
               {presets.map((preset) => (
                 <button
@@ -220,7 +217,7 @@ export function DateRangeFilter({
 
           {/* Custom range */}
           <div className="p-2">
-            <div className="mb-2 text-xs font-medium text-muted-foreground">Custom Range</div>
+            <div className="text-muted-foreground mb-2 text-xs font-medium">Custom Range</div>
             <div className="flex gap-2">
               <div className="flex-1">
                 <label className="text-muted-foreground mb-1 block text-xs">From</label>

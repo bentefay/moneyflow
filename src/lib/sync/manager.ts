@@ -32,10 +32,35 @@ export interface SyncManagerOptions {
   /** tRPC client for server communication */
   trpc?: {
     sync: {
-      getSnapshot: { query: (input: { vaultId: string }) => Promise<{ encryptedData: string; version: number } | null> };
-      saveSnapshot: { mutate: (input: { vaultId: string; encryptedData: string; versionVector: string; version: number }) => Promise<void> };
-      getUpdates: { query: (input: { vaultId: string; afterVersion?: number; limit?: number }) => Promise<{ id: string; encryptedData: string }[]> };
-      pushUpdate: { mutate: (input: { vaultId: string; encryptedData: string; baseSnapshotVersion: number; hlcTimestamp: string; versionVector: string }) => Promise<void> };
+      getSnapshot: {
+        query: (input: {
+          vaultId: string;
+        }) => Promise<{ encryptedData: string; version: number } | null>;
+      };
+      saveSnapshot: {
+        mutate: (input: {
+          vaultId: string;
+          encryptedData: string;
+          versionVector: string;
+          version: number;
+        }) => Promise<void>;
+      };
+      getUpdates: {
+        query: (input: {
+          vaultId: string;
+          afterVersion?: number;
+          limit?: number;
+        }) => Promise<{ id: string; encryptedData: string }[]>;
+      };
+      pushUpdate: {
+        mutate: (input: {
+          vaultId: string;
+          encryptedData: string;
+          baseSnapshotVersion: number;
+          hlcTimestamp: string;
+          versionVector: string;
+        }) => Promise<void>;
+      };
     };
   };
   /** Called when remote updates are applied */

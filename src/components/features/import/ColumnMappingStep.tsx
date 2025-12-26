@@ -64,18 +64,14 @@ export function ColumnMappingStep({
 }: ColumnMappingStepProps) {
   // Compute which target fields are already mapped
   const usedTargetFields = useMemo(() => {
-    return new Set(
-      mappings
-        .map((m) => m.targetField)
-        .filter((f) => f && f !== "ignore")
-    );
+    return new Set(mappings.map((m) => m.targetField).filter((f) => f && f !== "ignore"));
   }, [mappings]);
 
   // Check if required fields are mapped
   const missingRequired = useMemo(() => {
-    return TARGET_FIELDS.filter(
-      (f) => f.required && !usedTargetFields.has(f.id)
-    ).map((f) => f.label);
+    return TARGET_FIELDS.filter((f) => f.required && !usedTargetFields.has(f.id)).map(
+      (f) => f.label
+    );
   }, [usedTargetFields]);
 
   const handleMappingChange = (index: number, targetField: TargetFieldId | "") => {
@@ -112,10 +108,7 @@ export function ColumnMappingStep({
         targetField = "merchant";
       } else if (headerLower.includes("account")) {
         targetField = "account";
-      } else if (
-        headerLower.includes("category") ||
-        headerLower.includes("type")
-      ) {
+      } else if (headerLower.includes("category") || headerLower.includes("type")) {
         targetField = "category";
       } else if (headerLower.includes("memo") || headerLower.includes("note")) {
         targetField = "memo";
@@ -204,9 +197,7 @@ export function ColumnMappingStep({
                 <td className="px-4 py-3">
                   <select
                     value={mapping.targetField}
-                    onChange={(e) =>
-                      handleMappingChange(idx, e.target.value as TargetFieldId | "")
-                    }
+                    onChange={(e) => handleMappingChange(idx, e.target.value as TargetFieldId | "")}
                     className={cn(
                       "w-full rounded border bg-transparent px-2 py-1.5 text-sm",
                       !mapping.targetField && "text-muted-foreground"
@@ -214,7 +205,8 @@ export function ColumnMappingStep({
                   >
                     <option value="">-- Select --</option>
                     {TARGET_FIELDS.map((field) => {
-                      const isUsed = usedTargetFields.has(field.id) && mapping.targetField !== field.id;
+                      const isUsed =
+                        usedTargetFields.has(field.id) && mapping.targetField !== field.id;
                       return (
                         <option
                           key={field.id}
@@ -235,9 +227,7 @@ export function ColumnMappingStep({
         </table>
       </div>
 
-      <p className="text-muted-foreground text-xs">
-        * Required fields
-      </p>
+      <p className="text-muted-foreground text-xs">* Required fields</p>
     </div>
   );
 }
@@ -264,9 +254,9 @@ export function validateColumnMappings(mappings: ColumnMapping[]): {
   missingFields: string[];
 } {
   const mappedFields = new Set(mappings.map((m) => m.targetField));
-  const missingFields = TARGET_FIELDS.filter(
-    (f) => f.required && !mappedFields.has(f.id)
-  ).map((f) => f.label);
+  const missingFields = TARGET_FIELDS.filter((f) => f.required && !mappedFields.has(f.id)).map(
+    (f) => f.label
+  );
 
   return {
     valid: missingFields.length === 0,

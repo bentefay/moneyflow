@@ -124,9 +124,7 @@ export function parseCSV(content: string, options: CSVParseOptions = {}): CSVPar
   const expectedColumns = headers.length;
   dataRows.forEach((row, idx) => {
     if (row.length !== expectedColumns) {
-      warnings.push(
-        `Row ${idx + 1} has ${row.length} columns, expected ${expectedColumns}`
-      );
+      warnings.push(`Row ${idx + 1} has ${row.length} columns, expected ${expectedColumns}`);
     }
   });
 
@@ -360,7 +358,10 @@ export function detectSeparator(content: string): string {
  * @returns True if first row appears to be headers
  */
 export function detectHeaders(content: string, separator = ","): boolean {
-  const lines = content.split("\n").slice(0, 5).filter((l) => l.trim());
+  const lines = content
+    .split("\n")
+    .slice(0, 5)
+    .filter((l) => l.trim());
   if (lines.length < 2) return true;
 
   const firstRow = parseLine(lines[0], separator, '"');
@@ -374,7 +375,15 @@ export function detectHeaders(content: string, separator = ","): boolean {
   if (!firstHasNumbers && secondHasNumbers) return true;
 
   // Check if first row has common header keywords
-  const headerKeywords = ["date", "amount", "description", "merchant", "name", "balance", "account"];
+  const headerKeywords = [
+    "date",
+    "amount",
+    "description",
+    "merchant",
+    "name",
+    "balance",
+    "account",
+  ];
   const firstHasKeywords = firstRow.some((f) =>
     headerKeywords.some((k) => f.toLowerCase().includes(k))
   );

@@ -151,9 +151,9 @@ export function processCSVImport(
     const checkNumberIdx = columnMap.get("checkNumber");
     const categoryIdx = columnMap.get("category");
 
-    const merchant = merchantIdx !== undefined ? (row[merchantIdx] || "") : "";
-    const description = descriptionIdx !== undefined ? (row[descriptionIdx] || "") : "";
-    const memo = memoIdx !== undefined ? (row[memoIdx] || "") : "";
+    const merchant = merchantIdx !== undefined ? row[merchantIdx] || "" : "";
+    const description = descriptionIdx !== undefined ? row[descriptionIdx] || "" : "";
+    const memo = memoIdx !== undefined ? row[memoIdx] || "" : "";
     const checkNumber = checkNumberIdx !== undefined ? row[checkNumberIdx] : undefined;
     const categoryHint = categoryIdx !== undefined ? row[categoryIdx] : undefined;
 

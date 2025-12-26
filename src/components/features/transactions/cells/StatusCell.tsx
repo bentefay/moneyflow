@@ -42,7 +42,7 @@ function getStatusStyle(status: StatusData | null): string {
   }
 
   const name = status.name.toLowerCase();
-  
+
   // Check for specific behaviors
   if (status.behavior === "treatAsPaid") {
     return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
@@ -139,7 +139,7 @@ export function StatusCell({
           onKeyDown={handleKeyDown}
           className={cn(
             "w-full rounded border px-2 py-1 text-sm",
-            "focus:ring-primary focus:border-primary focus:outline-none focus:ring-2"
+            "focus:ring-primary focus:border-primary focus:ring-2 focus:outline-none"
           )}
         >
           <option value="">Select status...</option>
@@ -158,7 +158,7 @@ export function StatusCell({
       onDoubleClick={handleDoubleClick}
       className={cn(
         "w-24 shrink-0 cursor-pointer",
-        "hover:opacity-80 transition-opacity",
+        "transition-opacity hover:opacity-80",
         className
       )}
     >

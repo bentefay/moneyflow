@@ -110,7 +110,7 @@ export function AccountCell({
           onKeyDown={handleKeyDown}
           className={cn(
             "w-full rounded border px-2 py-1 text-sm",
-            "focus:ring-primary focus:border-primary focus:outline-none focus:ring-2"
+            "focus:ring-primary focus:border-primary focus:ring-2 focus:outline-none"
           )}
         >
           <option value="">Select account...</option>

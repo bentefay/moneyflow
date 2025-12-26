@@ -42,11 +42,11 @@ All authenticated procedures verify Ed25519 signatures:
 // In trpc.ts
 export const authedProcedure = publicProcedure.use(async ({ ctx, next }) => {
   const { pubkeyHash, signature, timestamp, message } = ctx.auth;
-  
+
   // Verify signature matches pubkeyHash
   // Verify timestamp is recent (prevent replay)
   // Verify message matches request
-  
+
   return next({ ctx: { ...ctx, pubkeyHash } });
 });
 ```
@@ -60,16 +60,13 @@ import { router, authedProcedure } from "../trpc";
 import { createVaultSchema, updateVaultSchema } from "../schemas/vault";
 
 export const vaultRouter = router({
-  create: authedProcedure
-    .input(createVaultSchema)
-    .mutation(async ({ ctx, input }) => {
-      // Implementation
-    }),
-    
-  list: authedProcedure
-    .query(async ({ ctx }) => {
-      // Implementation
-    }),
+  create: authedProcedure.input(createVaultSchema).mutation(async ({ ctx, input }) => {
+    // Implementation
+  }),
+
+  list: authedProcedure.query(async ({ ctx }) => {
+    // Implementation
+  }),
 });
 ```
 

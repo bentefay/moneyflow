@@ -90,7 +90,7 @@ function calculateConfidence(
   const weights = {
     date: 0.25,
     amount: 0.35,
-    description: 0.40,
+    description: 0.4,
   };
 
   let score = 0;
@@ -135,10 +135,7 @@ export function checkDuplicate(
   const amountMatch = amountDiff <= config.maxAmountDiff;
 
   // Check description similarity
-  const descriptionSimilarity = normalizedSimilarity(
-    newTx.description,
-    existingTx.description
-  );
+  const descriptionSimilarity = normalizedSimilarity(newTx.description, existingTx.description);
 
   // Calculate confidence
   const confidence = calculateConfidence(dateMatch, amountMatch, descriptionSimilarity);

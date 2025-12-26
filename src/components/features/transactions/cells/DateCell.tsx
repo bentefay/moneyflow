@@ -106,7 +106,7 @@ export function DateCell({
         onKeyDown={handleKeyDown}
         className={cn(
           "w-32 rounded border px-2 py-1 text-sm",
-          "focus:ring-primary focus:border-primary focus:outline-none focus:ring-2",
+          "focus:ring-primary focus:border-primary focus:ring-2 focus:outline-none",
           className
         )}
       />

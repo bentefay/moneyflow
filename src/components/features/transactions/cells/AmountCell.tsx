@@ -118,7 +118,7 @@ export function AmountCell({
         onKeyDown={handleKeyDown}
         className={cn(
           "w-28 rounded border px-2 py-1 text-right text-sm tabular-nums",
-          "focus:ring-primary focus:border-primary focus:outline-none focus:ring-2",
+          "focus:ring-primary focus:border-primary focus:ring-2 focus:outline-none",
           className
         )}
         placeholder="0.00"
@@ -132,7 +132,7 @@ export function AmountCell({
       className={cn(
         "w-28 shrink-0 cursor-pointer text-right font-medium tabular-nums",
         value < 0 ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400",
-        "hover:opacity-80 transition-opacity",
+        "transition-opacity hover:opacity-80",
         className
       )}
     >

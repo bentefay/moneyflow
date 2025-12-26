@@ -81,9 +81,7 @@ export function BulkEditToolbar({
     >
       <div className="flex items-center gap-2 px-4 py-3">
         {/* Selection count */}
-        <span className="text-sm font-medium">
-          {selectedCount} selected
-        </span>
+        <span className="text-sm font-medium">{selectedCount} selected</span>
 
         <div className="bg-border mx-2 h-6 w-px" />
 
@@ -95,7 +93,7 @@ export function BulkEditToolbar({
               onClick={() => setActiveDropdown(activeDropdown === "tags" ? null : "tags")}
               className={cn(
                 "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm",
-                "hover:bg-accent focus:ring-primary focus:outline-none focus:ring-2",
+                "hover:bg-accent focus:ring-primary focus:ring-2 focus:outline-none",
                 activeDropdown === "tags" && "bg-accent"
               )}
             >
@@ -138,7 +136,7 @@ export function BulkEditToolbar({
               onClick={() => setActiveDropdown(activeDropdown === "status" ? null : "status")}
               className={cn(
                 "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm",
-                "hover:bg-accent focus:ring-primary focus:outline-none focus:ring-2",
+                "hover:bg-accent focus:ring-primary focus:ring-2 focus:outline-none",
                 activeDropdown === "status" && "bg-accent"
               )}
             >
@@ -181,7 +179,7 @@ export function BulkEditToolbar({
               onClick={() => setActiveDropdown(activeDropdown === "account" ? null : "account")}
               className={cn(
                 "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm",
-                "hover:bg-accent focus:ring-primary focus:outline-none focus:ring-2",
+                "hover:bg-accent focus:ring-primary focus:ring-2 focus:outline-none",
                 activeDropdown === "account" && "bg-accent"
               )}
             >
@@ -223,10 +221,8 @@ export function BulkEditToolbar({
             onClick={handleDelete}
             className={cn(
               "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm",
-              "hover:bg-destructive/10 focus:ring-destructive focus:outline-none focus:ring-2",
-              confirmDelete
-                ? "bg-destructive text-destructive-foreground"
-                : "text-destructive"
+              "hover:bg-destructive/10 focus:ring-destructive focus:ring-2 focus:outline-none",
+              confirmDelete ? "bg-destructive text-destructive-foreground" : "text-destructive"
             )}
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

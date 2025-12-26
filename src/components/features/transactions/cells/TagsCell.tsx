@@ -67,7 +67,12 @@ function TagPill({
           aria-label={`Remove ${tag.name}`}
         >
           <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
           </svg>
         </button>
       )}
@@ -159,8 +164,7 @@ export function TagsCell({
   // Filter available tags based on search
   const filteredTags = availableTags.filter(
     (tag) =>
-      tag.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-      !selectedTagIds.includes(tag.id)
+      tag.name.toLowerCase().includes(searchQuery.toLowerCase()) && !selectedTagIds.includes(tag.id)
   );
 
   if (isEditing) {
@@ -200,22 +204,23 @@ export function TagsCell({
                   {tag.name}
                 </button>
               ))}
-              {searchQuery.trim() && !availableTags.some((t) => t.name.toLowerCase() === searchQuery.toLowerCase()) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (onCreateTag) {
-                      onCreateTag(searchQuery.trim()).then((newTag) => {
-                        setSelectedTagIds((prev) => [...prev, newTag.id]);
-                        setSearchQuery("");
-                      });
-                    }
-                  }}
-                  className="hover:bg-muted text-primary block w-full rounded px-2 py-1 text-left text-sm"
-                >
-                  Create "{searchQuery}"
-                </button>
-              )}
+              {searchQuery.trim() &&
+                !availableTags.some((t) => t.name.toLowerCase() === searchQuery.toLowerCase()) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onCreateTag) {
+                        onCreateTag(searchQuery.trim()).then((newTag) => {
+                          setSelectedTagIds((prev) => [...prev, newTag.id]);
+                          setSearchQuery("");
+                        });
+                      }
+                    }}
+                    className="hover:bg-muted text-primary block w-full rounded px-2 py-1 text-left text-sm"
+                  >
+                    Create "{searchQuery}"
+                  </button>
+                )}
             </div>
           )}
         </div>
@@ -230,11 +235,7 @@ export function TagsCell({
   return (
     <div
       onDoubleClick={handleDoubleClick}
-      className={cn(
-        "flex cursor-pointer gap-1",
-        "hover:opacity-80 transition-opacity",
-        className
-      )}
+      className={cn("flex cursor-pointer gap-1", "transition-opacity hover:opacity-80", className)}
     >
       {displayTags.length > 0 ? (
         <>

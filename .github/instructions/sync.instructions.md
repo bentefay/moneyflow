@@ -33,6 +33,7 @@ Client A                    Supabase                    Client B
 ## SyncManager
 
 The SyncManager handles:
+
 1. Subscribing to Supabase Realtime channels
 2. Encrypting/decrypting CRDT updates
 3. Broadcasting local changes
@@ -82,15 +83,16 @@ Each update has an HLC timestamp for ordering:
 
 ```typescript
 interface HLCTimestamp {
-  wallTime: number;  // Unix timestamp
-  logical: number;   // Logical counter
-  nodeId: string;    // Unique node identifier
+  wallTime: number; // Unix timestamp
+  logical: number; // Logical counter
+  nodeId: string; // Unique node identifier
 }
 ```
 
 ## Conflict Resolution
 
 Loro CRDT handles conflicts automatically:
+
 - Last-Write-Wins for scalar values (same field edited by two users)
 - Set union for arrays (tags added by two users = both tags present)
 - No conflicts for independent edits (different fields)
@@ -117,13 +119,13 @@ Test sync with two simulated clients:
 it("syncs changes between clients", async () => {
   const clientA = new SyncManager({ ... });
   const clientB = new SyncManager({ ... });
-  
+
   await clientA.start();
   await clientB.start();
-  
+
   // Client A makes a change
   clientA.doc.getMap("transactions").set("tx1", { amount: 100 });
-  
+
   // Wait for sync
   await waitFor(() => {
     const tx = clientB.doc.getMap("transactions").get("tx1");

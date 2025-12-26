@@ -5,10 +5,7 @@ export {
   type TransactionRowPresence,
 } from "./TransactionRow";
 
-export {
-  TransactionTable,
-  type TransactionTableProps,
-} from "./TransactionTable";
+export { TransactionTable, type TransactionTableProps } from "./TransactionTable";
 
 export {
   AddTransactionRow,
@@ -25,15 +22,9 @@ export {
   hasActiveFilters,
 } from "./TransactionFilters";
 
-export {
-  InlineTagEditor,
-  type InlineTagEditorProps,
-} from "./InlineTagEditor";
+export { InlineTagEditor, type InlineTagEditorProps } from "./InlineTagEditor";
 
-export {
-  BulkEditToolbar,
-  type BulkEditToolbarProps,
-} from "./BulkEditToolbar";
+export { BulkEditToolbar, type BulkEditToolbarProps } from "./BulkEditToolbar";
 
 export * from "./cells";
 export * from "./filters";

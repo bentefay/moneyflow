@@ -29,6 +29,7 @@ Duplicate Detection:
 ## CSV Parser
 
 The CSV parser auto-detects:
+
 - Separator (comma, semicolon, tab, pipe)
 - Whether headers are present
 - Date and number formats
@@ -60,8 +61,8 @@ Uses Levenshtein distance for fuzzy matching:
 
 ```typescript
 const config: DuplicateDetectionConfig = {
-  dateWindowDays: 3,        // ±3 days
-  amountTolerance: 0.01,    // 1 cent
+  dateWindowDays: 3, // ±3 days
+  amountTolerance: 0.01, // 1 cent
   descriptionThreshold: 0.8, // 80% similarity
 };
 
@@ -95,6 +96,7 @@ interface ParseResult {
 ## Testing
 
 Test with real bank exports (anonymized) covering:
+
 - Different date formats (US, EU, ISO)
 - Different number formats (1,234.56 vs 1.234,56)
 - Edge cases (empty fields, special characters, unicode)

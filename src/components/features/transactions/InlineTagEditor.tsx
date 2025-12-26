@@ -36,13 +36,7 @@ export interface InlineTagEditorProps {
 /**
  * Tag pill component with remove button.
  */
-function TagPill({
-  tag,
-  onRemove,
-}: {
-  tag: TagData;
-  onRemove: () => void;
-}) {
+function TagPill({ tag, onRemove }: { tag: TagData; onRemove: () => void }) {
   return (
     <span className="bg-primary/10 text-primary inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-sm">
       {tag.name}
@@ -56,7 +50,12 @@ function TagPill({
         aria-label={`Remove ${tag.name}`}
       >
         <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M6 18L18 6M6 6l12 12"
+          />
         </svg>
       </button>
     </span>
@@ -253,7 +252,7 @@ export function InlineTagEditor({
           onChange={(e) => setSearchQuery(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Search or create tag..."
-          className="bg-transparent w-full text-sm outline-none placeholder:text-muted-foreground"
+          className="placeholder:text-muted-foreground w-full bg-transparent text-sm outline-none"
         />
       </div>
 
@@ -284,7 +283,12 @@ export function InlineTagEditor({
               )}
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
               </svg>
               <span>Create "{searchQuery}"</span>
             </button>

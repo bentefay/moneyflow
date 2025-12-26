@@ -33,11 +33,7 @@ function formatCurrency(amount: number, currency: string = "USD"): string {
 /**
  * Balance cell component (read-only).
  */
-export function BalanceCell({
-  balance,
-  currency = "USD",
-  className,
-}: BalanceCellProps) {
+export function BalanceCell({ balance, currency = "USD", className }: BalanceCellProps) {
   return (
     <div
       className={cn(

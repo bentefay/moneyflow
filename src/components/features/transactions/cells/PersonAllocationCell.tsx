@@ -136,11 +136,8 @@ export function PersonAllocationCell({
 
     return (
       <div ref={containerRef} className={cn("w-64", className)}>
-        <div
-          className="bg-background rounded-md border p-3 shadow-lg"
-          onKeyDown={handleKeyDown}
-        >
-          <h4 className="mb-2 text-xs font-medium uppercase tracking-wide">Allocations</h4>
+        <div className="bg-background rounded-md border p-3 shadow-lg" onKeyDown={handleKeyDown}>
+          <h4 className="mb-2 text-xs font-medium tracking-wide uppercase">Allocations</h4>
 
           {/* Current allocations */}
           <div className="space-y-2">
@@ -148,7 +145,9 @@ export function PersonAllocationCell({
               const person = availablePeople.find((p) => p.id === allocation.personId);
               return (
                 <div key={allocation.personId} className="flex items-center gap-2">
-                  <span className="min-w-0 flex-1 truncate text-sm">{person?.name ?? "Unknown"}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm">
+                    {person?.name ?? "Unknown"}
+                  </span>
                   <div className="flex items-center gap-1">
                     <input
                       type="number"
@@ -167,8 +166,18 @@ export function PersonAllocationCell({
                       className="text-muted-foreground hover:text-foreground ml-1"
                       aria-label={`Remove ${person?.name}`}
                     >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      <svg
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
                       </svg>
                     </button>
                   </div>
@@ -239,22 +248,18 @@ export function PersonAllocationCell({
   }
 
   // Show condensed view
-  const primaryAllocation = allocations.reduce((max, a) => (a.percentage > max.percentage ? a : max));
+  const primaryAllocation = allocations.reduce((max, a) =>
+    a.percentage > max.percentage ? a : max
+  );
   const otherCount = allocations.length - 1;
 
   return (
     <div
       onDoubleClick={handleDoubleClick}
-      className={cn(
-        "cursor-pointer text-sm",
-        "hover:opacity-80 transition-opacity",
-        className
-      )}
+      className={cn("cursor-pointer text-sm", "transition-opacity hover:opacity-80", className)}
     >
       <span>{formatAllocation(primaryAllocation, availablePeople)}</span>
-      {otherCount > 0 && (
-        <span className="text-muted-foreground ml-1">+{otherCount}</span>
-      )}
+      {otherCount > 0 && <span className="text-muted-foreground ml-1">+{otherCount}</span>}
     </div>
   );
 }

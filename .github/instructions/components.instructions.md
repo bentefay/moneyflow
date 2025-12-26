@@ -24,6 +24,7 @@ src/components/
 ## Component Patterns
 
 ### File Structure
+
 ```typescript
 "use client"; // Only if using hooks/interactivity
 
@@ -53,11 +54,13 @@ export function ComponentName({ propName, className }: ComponentNameProps) {
 ```
 
 ### Naming Conventions
+
 - PascalCase for component files: `TransactionRow.tsx`
 - camelCase for utility files: `useTransactionSelection.ts`
 - index.ts for barrel exports from feature folders
 
 ### Props Interface
+
 - Export interface with `Props` suffix: `TransactionRowProps`
 - Document all props with JSDoc comments
 - Always include optional `className` for styling flexibility
@@ -94,6 +97,7 @@ export function ComponentName({ propName, className }: ComponentNameProps) {
 ## Testing
 
 Component tests use @testing-library/react:
+
 ```typescript
 import { render, screen } from "@testing-library/react";
 import { TransactionRow } from "./TransactionRow";

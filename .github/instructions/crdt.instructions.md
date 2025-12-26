@@ -34,16 +34,17 @@ Sync Flow:
 ## Critical Rules
 
 1. **Draft-style mutations ONLY** with loro-mirror setState():
+
    ```typescript
    // ✅ CORRECT - mutate in place
    setState((state) => {
      state.transactions[id] = transaction;
    });
-   
+
    // ❌ WRONG - returning new objects breaks change tracking
    setState((state) => ({
      ...state,
-     transactions: { ...state.transactions, [id]: transaction }
+     transactions: { ...state.transactions, [id]: transaction },
    }));
    ```
 
@@ -58,6 +59,7 @@ Sync Flow:
 ## Schema Patterns
 
 Entities follow this pattern:
+
 ```typescript
 export const entitySchema = schema.LoroMap({
   id: schema.String({ required: true }),
@@ -67,6 +69,7 @@ export const entitySchema = schema.LoroMap({
 ```
 
 Use `LoroMapRecord` for dynamic key-value maps:
+
 ```typescript
 allocations: schema.LoroMapRecord(schema.Number()), // personId -> percentage
 ```
@@ -74,6 +77,7 @@ allocations: schema.LoroMapRecord(schema.Number()), // personId -> percentage
 ## React Integration
 
 Use the provided hooks from context.tsx:
+
 ```typescript
 // Read data
 const transactions = useActiveTransactions(); // excludes soft-deleted
