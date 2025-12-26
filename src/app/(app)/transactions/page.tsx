@@ -1,0 +1,428 @@
+"use client";
+
+/**
+ * Transactions Page
+ *
+ * Main transactions view with filtering, inline editing, bulk edit,
+ * and real-time collaborative sync.
+ */
+
+import { useState, useMemo, useCallback } from "react";
+import {
+  TransactionTable,
+  TransactionFilters,
+  AddTransactionRow,
+  BulkEditToolbar,
+  createEmptyFilters,
+  hasActiveFilters,
+  type TransactionFiltersState,
+  type NewTransactionData,
+} from "@/components/features/transactions";
+import { useTransactionSelection } from "@/hooks/useTransactionSelection";
+import {
+  useActiveTransactions,
+  useActiveAccounts,
+  useActiveTags,
+  useStatuses,
+  useActivePeople,
+  useVaultAction,
+} from "@/lib/crdt/context";
+import type {
+  Transaction,
+  Account,
+  Tag,
+  Status,
+  Person,
+} from "@/lib/crdt/schema";
+import { useActiveVault } from "@/hooks/use-active-vault";
+import { useIdentity } from "@/hooks/use-identity";
+import { useVaultPresence } from "@/hooks/use-vault-presence";
+
+// Number of transactions to load per page
+const PAGE_SIZE = 50;
+
+/** Generate unique ID */
+function generateId(): string {
+  return crypto.randomUUID();
+}
+
+/**
+ * Transactions page component.
+ */
+export default function TransactionsPage() {
+  // CRDT state
+  const transactions = useActiveTransactions();
+  const accounts = useActiveAccounts();
+  const tags = useActiveTags();
+  const statuses = useStatuses();
+  const people = useActivePeople();
+
+  // Vault & identity for presence
+  const { activeVault } = useActiveVault();
+  const { pubkeyHash } = useIdentity();
+
+  // Presence (only active when vault & identity are available)
+  useVaultPresence(
+    activeVault?.id ?? null,
+    pubkeyHash ?? null
+  );
+
+  // Vault actions for mutations
+  const setTransaction = useVaultAction(
+    (state, id: string, data: Partial<Transaction>) => {
+      const existing = state.transactions[id];
+      if (existing) {
+        Object.assign(existing, data);
+      }
+    }
+  );
+
+  const addTransaction = useVaultAction(
+    (state, data: Transaction) => {
+      state.transactions[data.id] = data as typeof state.transactions[string];
+    }
+  );
+
+  const deleteTransactions = useVaultAction(
+    (state, ids: string[]) => {
+      const now = Date.now();
+      for (const id of ids) {
+        const tx = state.transactions[id];
+        if (tx) {
+          tx.deletedAt = now;
+        }
+      }
+    }
+  );
+
+  // Filter state
+  const [filters, setFilters] = useState<TransactionFiltersState>(createEmptyFilters());
+
+  // Pagination state
+  const [displayCount, setDisplayCount] = useState(PAGE_SIZE);
+
+  // Selection state
+  const transactionIds = useMemo(
+    () => Object.keys(transactions),
+    [transactions]
+  );
+  const {
+    selectedIds,
+    clearSelection,
+    selectedCount,
+    setSelection,
+  } = useTransactionSelection({ transactionIds });
+
+  // Convert presence list to presence by transaction ID
+  // For now, we don't have transaction-level presence tracking
+  // This would require extending the presence system
+  const presenceByTransactionId = useMemo(() => ({}), []);
+
+  // Filter and sort transactions
+  const filteredTransactions = useMemo(() => {
+    let txList = Object.values(transactions) as Transaction[];
+
+    // Apply filters
+    if (filters.dateRange.start || filters.dateRange.end) {
+      txList = txList.filter((tx) => {
+        if (filters.dateRange.start && tx.date < filters.dateRange.start) return false;
+        if (filters.dateRange.end && tx.date > filters.dateRange.end) return false;
+        return true;
+      });
+    }
+
+    if (filters.tagIds.length > 0) {
+      txList = txList.filter((tx) =>
+        tx.tagIds?.some((tagId) => filters.tagIds.includes(tagId))
+      );
+    }
+
+    if (filters.personIds.length > 0) {
+      txList = txList.filter((tx) => {
+        const allocations = tx.allocations ?? {};
+        return Object.keys(allocations).some((personId) =>
+          filters.personIds.includes(personId)
+        );
+      });
+    }
+
+    if (filters.accountIds.length > 0) {
+      txList = txList.filter((tx) => filters.accountIds.includes(tx.accountId));
+    }
+
+    if (filters.statusIds.length > 0) {
+      txList = txList.filter((tx) => filters.statusIds.includes(tx.statusId));
+    }
+
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase();
+      txList = txList.filter(
+        (tx) =>
+          tx.merchant?.toLowerCase().includes(searchLower) ||
+          tx.description?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    if (filters.showDuplicatesOnly) {
+      txList = txList.filter((tx) => tx.duplicateOf);
+    }
+
+    // Sort by date descending
+    txList.sort((a, b) => b.date.localeCompare(a.date));
+
+    return txList;
+  }, [transactions, filters]);
+
+  // Paginate
+  const displayedTransactions = useMemo(
+    () => filteredTransactions.slice(0, displayCount),
+    [filteredTransactions, displayCount]
+  );
+  const hasMore = displayCount < filteredTransactions.length;
+
+  // Load more handler
+  const handleLoadMore = useCallback(() => {
+    setDisplayCount((prev) => prev + PAGE_SIZE);
+  }, []);
+
+  // Convert to row data format
+  const tableData = useMemo(
+    () =>
+      displayedTransactions.map((tx) => {
+        const acc = accounts[tx.accountId];
+        const stat = statuses[tx.statusId];
+        return {
+          id: tx.id,
+          date: tx.date,
+          description: tx.merchant || tx.description || "",
+          amount: tx.amount,
+          account: typeof acc === "object" ? acc.name : "Unknown",
+          accountId: tx.accountId,
+          status: typeof stat === "object" ? stat.name : "Unknown",
+          statusId: tx.statusId,
+          tags: (tx.tagIds ?? []).map((id) => {
+            const tag = tags[id];
+            return {
+              id,
+              name: typeof tag === "object" ? tag.name : "Unknown",
+            };
+          }),
+          balance: 0, // Will be calculated separately
+          possibleDuplicateOf: tx.duplicateOf,
+        };
+      }),
+    [displayedTransactions, accounts, statuses, tags]
+  );
+
+  // Account options for AddTransactionRow
+  const accountOptions = useMemo(
+    () =>
+      Object.values(accounts)
+        .filter((acc): acc is Account & { $cid: string } => typeof acc === "object")
+        .map((acc) => ({
+          id: acc.id,
+          name: acc.name,
+        })),
+    [accounts]
+  );
+
+  // Get default status ID
+  const defaultStatusId = useMemo(() => {
+    const defaultStatus = Object.values(statuses).find(
+      (s): s is Status & { $cid: string } => typeof s === "object" && s.isDefault
+    );
+    return defaultStatus?.id ?? Object.keys(statuses)[0] ?? "";
+  }, [statuses]);
+
+  // Handle add transaction
+  const handleAddTransaction = useCallback(
+    (data: NewTransactionData) => {
+      // Create new transaction with minimal required fields
+      // The CRDT layer will handle $cid internally
+      const newTx = {
+        id: generateId(),
+        date: data.date,
+        merchant: data.description,
+        description: "",
+        amount: data.amount,
+        accountId: data.accountId,
+        tagIds: [] as string[],
+        statusId: defaultStatusId,
+        allocations: {} as Record<string, number>,
+        importId: "",
+        duplicateOf: "",
+        deletedAt: 0,
+      };
+      addTransaction(newTx as Transaction);
+    },
+    [addTransaction, defaultStatusId]
+  );
+
+  // Handle bulk delete
+  const handleBulkDelete = useCallback(() => {
+    const ids = Array.from(selectedIds);
+    deleteTransactions(ids);
+    clearSelection();
+  }, [selectedIds, deleteTransactions, clearSelection]);
+
+  // Handle bulk set tags
+  const handleBulkSetTags = useCallback(
+    (tagIds: string[]) => {
+      for (const id of selectedIds) {
+        setTransaction(id, { tagIds });
+      }
+    },
+    [selectedIds, setTransaction]
+  );
+
+  // Handle bulk set status
+  const handleBulkSetStatus = useCallback(
+    (statusId: string) => {
+      for (const id of selectedIds) {
+        setTransaction(id, { statusId });
+      }
+    },
+    [selectedIds, setTransaction]
+  );
+
+  // Handle bulk set account
+  const handleBulkSetAccount = useCallback(
+    (accountId: string) => {
+      for (const id of selectedIds) {
+        setTransaction(id, { accountId });
+      }
+    },
+    [selectedIds, setTransaction]
+  );
+
+  // Handle single transaction delete
+  const handleSingleDelete = useCallback(
+    (id: string) => {
+      deleteTransactions([id]);
+      // Clear selection if the deleted transaction was selected
+      if (selectedIds.has(id)) {
+        const newSelection = new Set(selectedIds);
+        newSelection.delete(id);
+        setSelection(newSelection);
+      }
+    },
+    [deleteTransactions, selectedIds, setSelection]
+  );
+
+  // Handle resolve duplicate (mark as not a duplicate)
+  const handleResolveDuplicate = useCallback(
+    (id: string) => {
+      setTransaction(id, { duplicateOf: undefined });
+    },
+    [setTransaction]
+  );
+
+  // Tag options for filter/bulk edit (with label for FilterOption)
+  const tagOptions = useMemo(
+    () =>
+      Object.values(tags)
+        .filter((t): t is Tag & { $cid: string } => typeof t === "object")
+        .map((t) => ({
+          id: t.id,
+          label: t.name,
+        })),
+    [tags]
+  );
+
+  // Status options for filter/bulk edit (with label for FilterOption)
+  const statusOptions = useMemo(
+    () =>
+      Object.values(statuses)
+        .filter((s): s is Status & { $cid: string } => typeof s === "object")
+        .map((s) => ({
+          id: s.id,
+          label: s.name,
+        })),
+    [statuses]
+  );
+
+  // Account options for filter/bulk edit (with label for FilterOption)
+  const accountOptionsForFilter = useMemo(
+    () =>
+      accountOptions.map((acc) => ({
+        id: acc.id,
+        label: acc.name,
+      })),
+    [accountOptions]
+  );
+
+  // People options for filter (with label for FilterOption)
+  const peopleOptions = useMemo(
+    () =>
+      Object.values(people)
+        .filter((p): p is Person & { $cid: string } => typeof p === "object")
+        .map((p) => ({
+          id: p.id,
+          label: p.name,
+        })),
+    [people]
+  );
+
+  return (
+    <div className="flex h-full flex-col space-y-4">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold">Transactions</h1>
+        <p className="text-muted-foreground">
+          {filteredTransactions.length} transaction{filteredTransactions.length !== 1 ? "s" : ""}
+          {hasActiveFilters(filters) && " (filtered)"}
+        </p>
+      </div>
+
+      {/* Filters */}
+      <TransactionFilters
+        filters={filters}
+        onChange={setFilters}
+        availableTags={tagOptions}
+        availablePeople={peopleOptions}
+        availableAccounts={accountOptionsForFilter}
+        availableStatuses={statusOptions}
+      />
+
+      {/* Transaction Table */}
+      <div className="flex-1 overflow-hidden rounded-lg border">
+        {/* Add Transaction Row */}
+        <AddTransactionRow
+          availableAccounts={accountOptions}
+          onAdd={handleAddTransaction}
+          defaultAccountId={accountOptions[0]?.id}
+        />
+
+        {/* Table */}
+        <TransactionTable
+          transactions={tableData}
+          presenceByTransactionId={presenceByTransactionId}
+          selectedIds={selectedIds}
+          onSelectionChange={(ids) => {
+            // When TransactionTable changes selection, sync with our selection state
+            setSelection(ids);
+          }}
+          onLoadMore={handleLoadMore}
+          hasMore={hasMore}
+          onTransactionDelete={handleSingleDelete}
+          onResolveDuplicate={handleResolveDuplicate}
+        />
+      </div>
+
+      {/* Bulk Edit Toolbar */}
+      {selectedCount > 0 && (
+        <BulkEditToolbar
+          selectedCount={selectedCount}
+          onClearSelection={clearSelection}
+          onDelete={handleBulkDelete}
+          onSetTags={handleBulkSetTags}
+          onSetStatus={handleBulkSetStatus}
+          onSetAccount={handleBulkSetAccount}
+          availableTags={tagOptions}
+          availableStatuses={statusOptions}
+          availableAccounts={accountOptionsForFilter}
+        />
+      )}
+    </div>
+  );
+}

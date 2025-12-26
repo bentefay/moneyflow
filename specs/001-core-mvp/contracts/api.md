@@ -208,6 +208,7 @@ export const upsertUserDataInput = z.object({
 // server/schemas/vault.ts
 export const createVaultInput = z.object({
   encryptedVaultKey: z.string(), // Vault key wrapped with user's X25519 pubkey
+  encPublicKey: z.string(), // User's X25519 public key (base64) for re-keying operations
 });
 
 export const vaultIdInput = z.object({
@@ -250,6 +251,7 @@ export const getInviteInput = z.object({
 export const redeemInviteInput = z.object({
   invitePubkey: z.string(),
   encryptedVaultKey: z.string(), // Re-wrapped with user's own pubkey
+  encPublicKey: z.string(), // User's X25519 public key (base64) for re-keying operations
 });
 
 // server/schemas/membership.ts
@@ -338,6 +340,7 @@ export const vaultRouter = router({
    * Create a new vault
    * - Client generates vault key, wraps with their X25519 pubkey
    * - Creates vault and owner membership atomically
+   * - Stores enc_public_key for future re-keying operations
    */
   create: authedProcedure
     .input(createVaultInput)
@@ -351,7 +354,7 @@ export const vaultRouter = router({
 
       if (vaultError) throw vaultError;
 
-      // Create owner membership
+      // Create owner membership with enc_public_key for re-keying
       const { error: memberError } = await ctx.supabase
         .from("vault_memberships")
         .insert({
@@ -359,6 +362,7 @@ export const vaultRouter = router({
           pubkey_hash: ctx.pubkeyHash,
           role: "owner",
           encrypted_vault_key: input.encryptedVaultKey,
+          enc_public_key: input.encPublicKey,
         });
 
       if (memberError) {
@@ -686,17 +690,19 @@ import { TRPCError } from "@trpc/server";
 export const membershipRouter = router({
   /**
    * List members of a vault
+   * Returns enc_public_key for each member to enable re-keying operations
    */
   list: vaultProcedure.input(vaultIdInput).query(async ({ ctx, input }) => {
     const { data: members } = await ctx.supabase
       .from("vault_memberships")
-      .select("pubkey_hash, role, created_at")
+      .select("pubkey_hash, enc_public_key, role, created_at")
       .eq("vault_id", input.vaultId);
 
     return {
       members:
         members?.map((m) => ({
           pubkeyHash: m.pubkey_hash,
+          encPublicKey: m.enc_public_key, // X25519 key for re-keying
           role: m.role,
           joinedAt: m.created_at,
         })) ?? [],
@@ -705,6 +711,14 @@ export const membershipRouter = router({
 
   /**
    * Remove a member (owner only, or self-removal)
+   * 
+   * IMPORTANT: After removing a member, the client MUST perform vault re-keying:
+   * 1. Generate a new vault key
+   * 2. Re-encrypt all vault data with new key
+   * 3. Wrap new key for each remaining member using their enc_public_key
+   * 4. Update all encrypted_vault_key values via sync.rekey procedure
+   * 
+   * This ensures the removed member cannot decrypt future vault data.
    */
   remove: vaultProcedure
     .input(removeMemberInput)

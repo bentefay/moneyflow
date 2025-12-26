@@ -477,7 +477,8 @@ interface DbVault {
 interface DbVaultMembership {
   id: string; // UUID, primary key
   vault_id: string; // FK to Vault
-  pubkey_hash: string; // User identity (hash of their public key)
+  pubkey_hash: string; // User identity (hash of their signing public key)
+  enc_public_key: string; // User's X25519 encryption public key (for re-keying)
   encrypted_vault_key: string; // Vault key wrapped with user's X25519 public key
   role: "owner" | "member";
   created_at: Date;
@@ -487,7 +488,8 @@ interface DbVaultMembership {
 **Notes**:
 
 - Each user gets the vault key encrypted specifically for them
-- Revoking access = removing membership + re-keying vault
+- `enc_public_key` is stored so other members can wrap new keys for this user during re-keying
+- Revoking access = removing membership + re-keying vault (generate new vault key, re-encrypt all data, wrap new key for each remaining member using their stored `enc_public_key`)
 
 ### 2.4 VaultInvite (Pending Invitations)
 
@@ -608,7 +610,8 @@ CREATE TABLE public.vaults (
 CREATE TABLE public.vault_memberships (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   vault_id UUID NOT NULL REFERENCES public.vaults(id) ON DELETE CASCADE,
-  pubkey_hash TEXT NOT NULL,              -- User identity (hash of public key)
+  pubkey_hash TEXT NOT NULL,              -- User identity (hash of signing public key)
+  enc_public_key TEXT NOT NULL,           -- X25519 public key for re-keying operations
   encrypted_vault_key TEXT NOT NULL,      -- Vault key wrapped with user's X25519 pubkey
   role TEXT NOT NULL CHECK (role IN ('owner', 'member')),
   created_at TIMESTAMPTZ DEFAULT NOW(),

@@ -64,6 +64,7 @@ Based on plan.md structure:
 
 - [x] T021 Create Supabase database schema (user_data, vaults, vault_memberships, vault_invites, vault_snapshots, vault_updates) in supabase/migrations/001_initial.sql
 - [x] T022 Create RLS policies for pubkey_hash-based access control in supabase/migrations/002_rls_policies.sql
+- [ ] T022a Add enc_public_key column to vault_memberships table (X25519 public key for re-keying operations) in supabase/migrations/003_enc_public_key.sql
 - [x] T023 Create tRPC instance with context and Ed25519 signature verification middleware in src/server/trpc.ts
 - [x] T024 Create root tRPC router merging all sub-routers in src/server/routers/\_app.ts
 - [x] T025 [P] Create tRPC client configuration for React in src/lib/trpc/client.ts
@@ -167,55 +168,56 @@ Based on plan.md structure:
 
 ### API for User Story 5
 
-- [ ] T056 Create Zod schemas for vault procedures in src/server/schemas/vault.ts
-- [ ] T057 Implement vault.create procedure in src/server/routers/vault.ts
-- [ ] T058 Implement vault.list procedure (returns user's vaults) in src/server/routers/vault.ts
-- [ ] T059 Create Zod schemas for sync procedures in src/server/schemas/sync.ts
-- [ ] T060 Implement sync.getSnapshot procedure (returns encrypted snapshot) in src/server/routers/sync.ts
-- [ ] T061 Implement sync.pushUpdate procedure (stores encrypted update) in src/server/routers/sync.ts
-- [ ] T062 Implement sync.getUpdates procedure (returns updates since version) in src/server/routers/sync.ts
+- [x] T056 Create Zod schemas for vault procedures in src/server/schemas/vault.ts
+- [x] T057 Implement vault.create procedure in src/server/routers/vault.ts
+- [ ] T057a Update vault.create to accept and store enc_public_key (X25519 public key for re-keying) in src/server/routers/vault.ts
+- [x] T058 Implement vault.list procedure (returns user's vaults) in src/server/routers/vault.ts
+- [x] T059 Create Zod schemas for sync procedures in src/server/schemas/sync.ts
+- [x] T060 Implement sync.getSnapshot procedure (returns encrypted snapshot) in src/server/routers/sync.ts
+- [x] T061 Implement sync.pushUpdate procedure (stores encrypted update) in src/server/routers/sync.ts
+- [x] T062 Implement sync.getUpdates procedure (returns updates since version) in src/server/routers/sync.ts
 
 ### CRDT Domain Models
 
-- [ ] T063 [P] Define Transaction type in Loro schema (date, merchant, description, amount, tags, account, status, allocations) in src/lib/crdt/schema.ts
-- [ ] T064 [P] Define Account type in Loro schema (name, number, currency, type, balance, owners) in src/lib/crdt/schema.ts
-- [ ] T065 [P] Define Person type in Loro schema (name, linkedIdentity) in src/lib/crdt/schema.ts
-- [ ] T066 [P] Define Tag type in Loro schema (name, parent, isTransfer) in src/lib/crdt/schema.ts
-- [ ] T067 [P] Define Status type in Loro schema (name, treatAsPaid) in src/lib/crdt/schema.ts
-- [ ] T068 Define Allocation type in Loro schema (personId, percentage) in src/lib/crdt/schema.ts
+- [x] T063 [P] Define Transaction type in Loro schema (date, merchant, description, amount, tags, account, status, allocations) in src/lib/crdt/schema.ts
+- [x] T064 [P] Define Account type in Loro schema (name, number, currency, type, balance, owners) in src/lib/crdt/schema.ts
+- [x] T065 [P] Define Person type in Loro schema (name, linkedIdentity) in src/lib/crdt/schema.ts
+- [x] T066 [P] Define Tag type in Loro schema (name, parent, isTransfer) in src/lib/crdt/schema.ts
+- [x] T067 [P] Define Status type in Loro schema (name, treatAsPaid) in src/lib/crdt/schema.ts
+- [x] T068 Define Allocation type in Loro schema (personId, percentage) in src/lib/crdt/schema.ts
 
 ### Transaction Table Components
 
-- [ ] T069 Create TransactionTable container with infinite scroll in src/components/features/transactions/TransactionTable.tsx
-- [ ] T070 [P] Create TransactionRow component with inline editing in src/components/features/transactions/TransactionRow.tsx
-- [ ] T071 [P] Create DateCell component (date picker on edit) in src/components/features/transactions/cells/DateCell.tsx
-- [ ] T072 [P] Create AmountCell component (red/green coloring) in src/components/features/transactions/cells/AmountCell.tsx
-- [ ] T073 [P] Create TagsCell component with inline tag editor in src/components/features/transactions/cells/TagsCell.tsx
-- [ ] T074 [P] Create AccountCell component (dropdown) in src/components/features/transactions/cells/AccountCell.tsx
-- [ ] T075 [P] Create StatusCell component (dropdown) in src/components/features/transactions/cells/StatusCell.tsx
-- [ ] T076 [P] Create BalanceCell component (running balance display) in src/components/features/transactions/cells/BalanceCell.tsx
-- [ ] T077 [P] Create PersonAllocationCell component (percentage input) in src/components/features/transactions/cells/PersonAllocationCell.tsx
-- [ ] T078 Create InlineTagEditor component (pills, search, create button) in src/components/features/transactions/InlineTagEditor.tsx
+- [x] T069 Create TransactionTable container with infinite scroll in src/components/features/transactions/TransactionTable.tsx
+- [x] T070 [P] Create TransactionRow component with inline editing in src/components/features/transactions/TransactionRow.tsx
+- [x] T071 [P] Create DateCell component (date picker on edit) in src/components/features/transactions/cells/DateCell.tsx
+- [x] T072 [P] Create AmountCell component (red/green coloring) in src/components/features/transactions/cells/AmountCell.tsx
+- [x] T073 [P] Create TagsCell component with inline tag editor in src/components/features/transactions/cells/TagsCell.tsx
+- [x] T074 [P] Create AccountCell component (dropdown) in src/components/features/transactions/cells/AccountCell.tsx
+- [x] T075 [P] Create StatusCell component (dropdown) in src/components/features/transactions/cells/StatusCell.tsx
+- [x] T076 [P] Create BalanceCell component (running balance display) in src/components/features/transactions/cells/BalanceCell.tsx
+- [x] T077 [P] Create PersonAllocationCell component (percentage input) in src/components/features/transactions/cells/PersonAllocationCell.tsx
+- [x] T078 Create InlineTagEditor component (pills, search, create button) in src/components/features/transactions/InlineTagEditor.tsx
 
 ### Transaction Filtering
 
-- [ ] T079 Create TransactionFilters component (tags, date, people, accounts, status, search) in src/components/features/transactions/TransactionFilters.tsx
-- [ ] T080 [P] Create DateRangeFilter with presets (last 14/30/90 days, MTD, etc.) in src/components/features/transactions/filters/DateRangeFilter.tsx
-- [ ] T081 [P] Create MultiSelectFilter (reusable for tags, people, accounts, status) in src/components/features/transactions/filters/MultiSelectFilter.tsx
-- [ ] T082 [P] Create SearchFilter (free-text merchant/description search) in src/components/features/transactions/filters/SearchFilter.tsx
+- [x] T079 Create TransactionFilters component (tags, date, people, accounts, status, search) in src/components/features/transactions/TransactionFilters.tsx
+- [x] T080 [P] Create DateRangeFilter with presets (last 14/30/90 days, MTD, etc.) in src/components/features/transactions/filters/DateRangeFilter.tsx
+- [x] T081 [P] Create MultiSelectFilter (reusable for tags, people, accounts, status) in src/components/features/transactions/filters/MultiSelectFilter.tsx
+- [x] T082 [P] Create SearchFilter (free-text merchant/description search) in src/components/features/transactions/filters/SearchFilter.tsx
 
 ### Transaction Selection & Bulk Edit
 
-- [ ] T083 Create useTransactionSelection hook (checkboxes, shift-click, select all visible) in src/hooks/useTransactionSelection.ts
-- [ ] T084 Create BulkEditToolbar component (appears when multiple selected) in src/components/features/transactions/BulkEditToolbar.tsx
-- [ ] T085 Create AddTransactionRow component (empty row at top) in src/components/features/transactions/AddTransactionRow.tsx
+- [x] T083 Create useTransactionSelection hook (checkboxes, shift-click, select all visible) in src/hooks/useTransactionSelection.ts
+- [x] T084 Create BulkEditToolbar component (appears when multiple selected) in src/components/features/transactions/BulkEditToolbar.tsx
+- [x] T085 Create AddTransactionRow component (empty row at top) in src/components/features/transactions/AddTransactionRow.tsx
 
 ### Page & Integration
 
-- [ ] T086 Create /transactions page integrating table, filters, bulk edit in src/app/(app)/transactions/page.tsx
-- [ ] T087 [US5] Connect TransactionTable to Loro state via useLoroSelector in src/components/features/transactions/TransactionTable.tsx
-- [ ] T088 [US5] Implement running balance calculation (cumulative per account) in src/lib/domain/balance.ts
-- [ ] T089 [US5] Integrate real-time sync (Supabase Realtime → Loro updates) in src/lib/sync/manager.ts
+- [x] T086 Create /transactions page integrating table, filters, bulk edit in src/app/(app)/transactions/page.tsx
+- [x] T087 [US5] Connect TransactionTable to Loro state via useLoroSelector in src/components/features/transactions/TransactionTable.tsx
+- [x] T088 [US5] Implement running balance calculation (cumulative per account) in src/lib/domain/balance.ts
+- [x] T089 [US5] Integrate real-time sync (Supabase Realtime → Loro updates) in src/lib/sync/manager.ts
 
 **Checkpoint**: Transaction table is functional with filtering, inline edit, and real-time sync.
 
@@ -229,34 +231,34 @@ Based on plan.md structure:
 
 ### Implementation for User Story 6
 
-- [ ] T090 [P] [US6] Create CSV parser utility in src/lib/import/csv.ts
-- [ ] T091 [P] [US6] Create OFX parser utility (using existing library) in src/lib/import/ofx.ts
-- [ ] T092 [US6] Create Import type in Loro schema (id, filename, timestamp, transactionIds) in src/lib/crdt/schema.ts
-- [ ] T093 [US6] Create ImportTemplate type in Loro schema (name, columnMappings, formatting) in src/lib/crdt/schema.ts
-- [ ] T094 [P] [US6] Create FileDropzone component (drag-and-drop + file picker) in src/components/features/import/FileDropzone.tsx
-- [ ] T095 [P] [US6] Create ColumnMappingStep component (source → target mapping with examples) in src/components/features/import/ColumnMappingStep.tsx
-- [ ] T096 [P] [US6] Create FormattingStep component (separators, date format) in src/components/features/import/FormattingStep.tsx
-- [ ] T097 [P] [US6] Create TemplateSelector component (saved templates dropdown) in src/components/features/import/TemplateSelector.tsx
-- [ ] T098 [P] [US6] Create PreviewStep component (table preview of parsed transactions) in src/components/features/import/PreviewStep.tsx
-- [ ] T099 [US6] Create ImportWizard component (steps: File → Config → Preview → Done) in src/components/features/import/ImportWizard.tsx
-- [ ] T100 [US6] Create /imports/new page hosting the ImportWizard in src/app/(app)/imports/new/page.tsx
-- [ ] T101 [US6] Implement import transaction creator (parse → validate → create transactions → link to import) in src/lib/import/processor.ts
+- [x] T090 [P] [US6] Create CSV parser utility in src/lib/import/csv.ts
+- [x] T091 [P] [US6] Create OFX parser utility (using existing library) in src/lib/import/ofx.ts
+- [x] T092 [US6] Create Import type in Loro schema (id, filename, timestamp, transactionIds) in src/lib/crdt/schema.ts
+- [x] T093 [US6] Create ImportTemplate type in Loro schema (name, columnMappings, formatting) in src/lib/crdt/schema.ts
+- [x] T094 [P] [US6] Create FileDropzone component (drag-and-drop + file picker) in src/components/features/import/FileDropzone.tsx
+- [x] T095 [P] [US6] Create ColumnMappingStep component (source → target mapping with examples) in src/components/features/import/ColumnMappingStep.tsx
+- [x] T096 [P] [US6] Create FormattingStep component (separators, date format) in src/components/features/import/FormattingStep.tsx
+- [x] T097 [P] [US6] Create TemplateSelector component (saved templates dropdown) in src/components/features/import/TemplateSelector.tsx
+- [x] T098 [P] [US6] Create PreviewStep component (table preview of parsed transactions) in src/components/features/import/PreviewStep.tsx
+- [x] T099 [US6] Create ImportWizard component (steps: File → Config → Preview → Done) in src/components/features/import/ImportWizard.tsx
+- [x] T100 [US6] Create /imports/new page hosting the ImportWizard in src/app/(app)/imports/new/page.tsx
+- [x] T101 [US6] Implement import transaction creator (parse → validate → create transactions → link to import) in src/lib/import/processor.ts
 
 ### Duplicate Detection (Part of Import)
 
-- [ ] T101a [US6] Implement Levenshtein distance utility for merchant/description comparison in src/lib/import/levenshtein.ts
-- [ ] T101b [US6] Implement duplicate detection logic (same amount + date + description similarity) in src/lib/import/duplicates.ts
-- [ ] T101c [US6] Integrate duplicate detection into import processor (flag duplicateOf on matches) in src/lib/import/processor.ts
-- [ ] T101d [P] [US6] Create DuplicateBadge component ("Dup?" with hover tooltip) in src/components/features/transactions/DuplicateBadge.tsx
-- [ ] T101e [US6] Add duplicate resolution actions (Keep/Delete) to TransactionRow in src/components/features/transactions/TransactionRow.tsx
-- [ ] T101f [US6] Add keyboard shortcuts for duplicate resolution (k=keep, d=delete) in src/components/features/transactions/TransactionTable.tsx
-- [ ] T101g [US6] Add "Show duplicates only" filter option in src/components/features/transactions/TransactionFilters.tsx
+- [x] T101a [US6] Implement Levenshtein distance utility for merchant/description comparison in src/lib/import/levenshtein.ts
+- [x] T101b [US6] Implement duplicate detection logic (same amount + date + description similarity) in src/lib/import/duplicates.ts
+- [x] T101c [US6] Integrate duplicate detection into import processor (flag duplicateOf on matches) in src/lib/import/processor.ts
+- [x] T101d [P] [US6] Create DuplicateBadge component ("Dup?" with hover tooltip) in src/components/features/transactions/DuplicateBadge.tsx
+- [x] T101e [US6] Add duplicate resolution actions (Keep/Delete) to TransactionRow in src/components/features/transactions/TransactionRow.tsx
+- [x] T101f [US6] Add keyboard shortcuts for duplicate resolution (k=keep, d=delete) in src/components/features/transactions/TransactionTable.tsx
+- [x] T101g [US6] Add "Show duplicates only" filter option in src/components/features/transactions/TransactionFilters.tsx
 
 ### Transaction Deletion
 
-- [ ] T101h [US5] Implement single transaction deletion with confirmation in src/components/features/transactions/TransactionRow.tsx
-- [ ] T101i [US5] Implement bulk transaction deletion in BulkEditToolbar in src/components/features/transactions/BulkEditToolbar.tsx
-- [ ] T101j [US5] Add delete keyboard shortcut (d or Delete key) for selected transactions in src/components/features/transactions/TransactionTable.tsx
+- [x] T101h [US5] Implement single transaction deletion with confirmation in src/components/features/transactions/TransactionRow.tsx
+- [x] T101i [US5] Implement bulk transaction deletion in BulkEditToolbar in src/components/features/transactions/BulkEditToolbar.tsx
+- [x] T101j [US5] Add delete keyboard shortcut (d or Delete key) for selected transactions in src/components/features/transactions/TransactionTable.tsx
 
 **Checkpoint**: Users can import CSV/OFX files. Duplicates detected and flagged. Templates saved automatically.
 
@@ -290,9 +292,11 @@ Based on plan.md structure:
 
 - [ ] T107 Create Zod schemas for invite procedures in src/server/schemas/invite.ts
 - [ ] T108 Implement invite.create procedure (generates ephemeral keypair, 24h expiry) in src/server/routers/invite.ts
-- [ ] T109 Implement invite.redeem procedure (key exchange, create membership) in src/server/routers/invite.ts
+- [ ] T109 Implement invite.redeem procedure (key exchange, create membership, store enc_public_key) in src/server/routers/invite.ts
 - [ ] T110 Create Zod schemas for membership procedures in src/server/schemas/membership.ts
-- [ ] T111 Implement membership.list procedure in src/server/routers/membership.ts
+- [ ] T111 Implement membership.list procedure (returns members with enc_public_key for re-keying) in src/server/routers/membership.ts
+- [ ] T111a Implement membership.remove procedure (owner only, triggers re-keying) in src/server/routers/membership.ts
+- [ ] T111b Implement vault re-keying logic (generate new vault key, re-encrypt all data, wrap for remaining members using stored enc_public_key) in src/lib/crypto/rekey.ts
 
 ### Implementation for User Story 3
 

@@ -13,49 +13,94 @@ import { z } from "zod";
 import { router, protectedProcedure } from "../trpc";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { TRPCError } from "@trpc/server";
+import {
+  vaultCreateInput,
+  vaultGetInput,
+  vaultMembersInput,
+  vaultDeleteInput,
+  vaultLeaveInput,
+} from "../schemas/vault";
 
 export const vaultRouter = router({
+  /**
+   * List all vaults the user is a member of.
+   *
+   * Returns vault IDs and encrypted vault keys for decryption.
+   */
+  list: protectedProcedure.query(async ({ ctx }) => {
+    const supabase = await createSupabaseServer();
+
+    // Get all vault memberships for this user
+    const { data: memberships, error: memberError } = await supabase
+      .from("vault_memberships")
+      .select(
+        `
+        role,
+        encrypted_vault_key,
+        created_at,
+        vaults:vault_id (
+          id,
+          created_at
+        )
+      `
+      )
+      .eq("pubkey_hash", ctx.pubkeyHash);
+
+    if (memberError) {
+      throw new Error(`Failed to list vaults: ${memberError.message}`);
+    }
+
+    // Transform to output format
+    const vaults = (memberships ?? [])
+      .map((m) => {
+        const vault = m.vaults as { id: string; created_at: string } | null;
+        return {
+          id: vault?.id ?? "",
+          role: m.role as "owner" | "member",
+          encryptedVaultKey: m.encrypted_vault_key,
+          createdAt: vault?.created_at ?? m.created_at,
+        };
+      })
+      .filter((v) => v.id); // Filter out any with missing vault
+
+    return { vaults };
+  }),
+
   /**
    * Create a new vault.
    *
    * The creator automatically becomes the owner with the vault key.
    */
-  create: protectedProcedure
-    .input(
-      z.object({
-        encryptedVaultKey: z.string(), // Vault key wrapped for creator's pubkey
-      })
-    )
-    .mutation(async ({ ctx, input }) => {
-      const supabase = await createSupabaseServer();
+  create: protectedProcedure.input(vaultCreateInput).mutation(async ({ ctx, input }) => {
+    const supabase = await createSupabaseServer();
 
-      // Create vault (just id and created_at - zero knowledge)
-      const { data: vault, error: vaultError } = await supabase
-        .from("vaults")
-        .insert({})
-        .select("id")
-        .single();
+    // Create vault (just id and created_at - zero knowledge)
+    const { data: vault, error: vaultError } = await supabase
+      .from("vaults")
+      .insert({})
+      .select("id")
+      .single();
 
-      if (vaultError) {
-        throw new Error(`Failed to create vault: ${vaultError.message}`);
-      }
+    if (vaultError) {
+      throw new Error(`Failed to create vault: ${vaultError.message}`);
+    }
 
-      // Add creator as owner member
-      const { error: memberError } = await supabase.from("vault_memberships").insert({
-        vault_id: vault.id,
-        pubkey_hash: ctx.pubkeyHash,
-        role: "owner",
-        encrypted_vault_key: input.encryptedVaultKey,
-      });
+    // Add creator as owner member
+    const { error: memberError } = await supabase.from("vault_memberships").insert({
+      vault_id: vault.id,
+      pubkey_hash: ctx.pubkeyHash,
+      role: "owner",
+      encrypted_vault_key: input.encryptedVaultKey,
+    });
 
-      if (memberError) {
-        // Rollback vault creation
-        await supabase.from("vaults").delete().eq("id", vault.id);
-        throw new Error(`Failed to add membership: ${memberError.message}`);
-      }
+    if (memberError) {
+      // Rollback vault creation
+      await supabase.from("vaults").delete().eq("id", vault.id);
+      throw new Error(`Failed to add membership: ${memberError.message}`);
+    }
 
-      return { vaultId: vault.id };
-    }),
+    return { vaultId: vault.id };
+  }),
 
   /**
    * Get vault details.
@@ -63,16 +108,14 @@ export const vaultRouter = router({
    * Only accessible to vault members.
    * Returns the encrypted vault key for this user (to decrypt CRDT data).
    */
-  get: protectedProcedure
-    .input(z.object({ vaultId: z.string().uuid() }))
-    .query(async ({ ctx, input }) => {
-      const supabase = await createSupabaseServer();
+  get: protectedProcedure.input(vaultGetInput).query(async ({ ctx, input }) => {
+    const supabase = await createSupabaseServer();
 
-      // Check membership and get vault
-      const { data: membership, error: memberError } = await supabase
-        .from("vault_memberships")
-        .select(
-          `
+    // Check membership and get vault
+    const { data: membership, error: memberError } = await supabase
+      .from("vault_memberships")
+      .select(
+        `
           role,
           encrypted_vault_key,
           vaults:vault_id (
@@ -80,146 +123,140 @@ export const vaultRouter = router({
             created_at
           )
         `
-        )
-        .eq("vault_id", input.vaultId)
-        .eq("pubkey_hash", ctx.pubkeyHash)
-        .single();
+      )
+      .eq("vault_id", input.vaultId)
+      .eq("pubkey_hash", ctx.pubkeyHash)
+      .single();
 
-      if (memberError || !membership) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Vault not found or access denied",
-        });
-      }
+    if (memberError || !membership) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "Vault not found or access denied",
+      });
+    }
 
-      return {
-        vault: membership.vaults,
-        role: membership.role,
-        encryptedVaultKey: membership.encrypted_vault_key,
-      };
-    }),
+    return {
+      vault: membership.vaults,
+      role: membership.role,
+      encryptedVaultKey: membership.encrypted_vault_key,
+    };
+  }),
 
   /**
    * Get all members of a vault.
    *
    * Only accessible to vault members.
    */
-  members: protectedProcedure
-    .input(z.object({ vaultId: z.string().uuid() }))
-    .query(async ({ ctx, input }) => {
-      const supabase = await createSupabaseServer();
+  members: protectedProcedure.input(vaultMembersInput).query(async ({ ctx, input }) => {
+    const supabase = await createSupabaseServer();
 
-      // Verify caller is a member
-      const { data: callerMembership, error: callerError } = await supabase
-        .from("vault_memberships")
-        .select("role")
-        .eq("vault_id", input.vaultId)
-        .eq("pubkey_hash", ctx.pubkeyHash)
-        .single();
+    // Verify caller is a member
+    const { data: callerMembership, error: callerError } = await supabase
+      .from("vault_memberships")
+      .select("role")
+      .eq("vault_id", input.vaultId)
+      .eq("pubkey_hash", ctx.pubkeyHash)
+      .single();
 
-      if (callerError || !callerMembership) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Vault not found or access denied",
-        });
-      }
+    if (callerError || !callerMembership) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "Vault not found or access denied",
+      });
+    }
 
-      // Get all members
-      const { data: members, error: membersError } = await supabase
-        .from("vault_memberships")
-        .select("pubkey_hash, role, created_at")
-        .eq("vault_id", input.vaultId);
+    // Get all members
+    const { data: members, error: membersError } = await supabase
+      .from("vault_memberships")
+      .select("pubkey_hash, role, created_at")
+      .eq("vault_id", input.vaultId);
 
-      if (membersError) {
-        throw new Error(`Failed to get members: ${membersError.message}`);
-      }
+    if (membersError) {
+      throw new Error(`Failed to get members: ${membersError.message}`);
+    }
 
-      return members;
-    }),
+    return members;
+  }),
 
   /**
    * Delete a vault.
    *
    * Only accessible to vault owner. Cascades to memberships, snapshots, updates.
    */
-  delete: protectedProcedure
-    .input(z.object({ vaultId: z.string().uuid() }))
-    .mutation(async ({ ctx, input }) => {
-      const supabase = await createSupabaseServer();
+  delete: protectedProcedure.input(vaultDeleteInput).mutation(async ({ ctx, input }) => {
+    const supabase = await createSupabaseServer();
 
-      // Verify ownership via membership role
-      const { data: membership, error: memberError } = await supabase
-        .from("vault_memberships")
-        .select("role")
-        .eq("vault_id", input.vaultId)
-        .eq("pubkey_hash", ctx.pubkeyHash)
-        .single();
+    // Verify ownership via membership role
+    const { data: membership, error: memberError } = await supabase
+      .from("vault_memberships")
+      .select("role")
+      .eq("vault_id", input.vaultId)
+      .eq("pubkey_hash", ctx.pubkeyHash)
+      .single();
 
-      if (memberError || !membership) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Vault not found or access denied",
-        });
-      }
+    if (memberError || !membership) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "Vault not found or access denied",
+      });
+    }
 
-      if (membership.role !== "owner") {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Only the owner can delete the vault",
-        });
-      }
+    if (membership.role !== "owner") {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Only the owner can delete the vault",
+      });
+    }
 
-      const { error: deleteError } = await supabase.from("vaults").delete().eq("id", input.vaultId);
+    const { error: deleteError } = await supabase.from("vaults").delete().eq("id", input.vaultId);
 
-      if (deleteError) {
-        throw new Error(`Failed to delete vault: ${deleteError.message}`);
-      }
+    if (deleteError) {
+      throw new Error(`Failed to delete vault: ${deleteError.message}`);
+    }
 
-      return { success: true };
-    }),
+    return { success: true };
+  }),
 
   /**
    * Leave a vault.
    *
    * Members can leave, but owners must transfer ownership first.
    */
-  leave: protectedProcedure
-    .input(z.object({ vaultId: z.string().uuid() }))
-    .mutation(async ({ ctx, input }) => {
-      const supabase = await createSupabaseServer();
+  leave: protectedProcedure.input(vaultLeaveInput).mutation(async ({ ctx, input }) => {
+    const supabase = await createSupabaseServer();
 
-      // Check user's role
-      const { data: membership, error: memberError } = await supabase
-        .from("vault_memberships")
-        .select("role")
-        .eq("vault_id", input.vaultId)
-        .eq("pubkey_hash", ctx.pubkeyHash)
-        .single();
+    // Check user's role
+    const { data: membership, error: memberError } = await supabase
+      .from("vault_memberships")
+      .select("role")
+      .eq("vault_id", input.vaultId)
+      .eq("pubkey_hash", ctx.pubkeyHash)
+      .single();
 
-      if (memberError || !membership) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Vault not found or you are not a member",
-        });
-      }
+    if (memberError || !membership) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "Vault not found or you are not a member",
+      });
+    }
 
-      if (membership.role === "owner") {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Owner cannot leave vault. Transfer ownership or delete the vault.",
-        });
-      }
+    if (membership.role === "owner") {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Owner cannot leave vault. Transfer ownership or delete the vault.",
+      });
+    }
 
-      const { error: deleteError } = await supabase
-        .from("vault_memberships")
-        .delete()
-        .eq("vault_id", input.vaultId)
-        .eq("pubkey_hash", ctx.pubkeyHash);
+    const { error: deleteError } = await supabase
+      .from("vault_memberships")
+      .delete()
+      .eq("vault_id", input.vaultId)
+      .eq("pubkey_hash", ctx.pubkeyHash);
 
-      if (deleteError) {
-        throw new Error(`Failed to leave vault: ${deleteError.message}`);
-      }
+    if (deleteError) {
+      throw new Error(`Failed to leave vault: ${deleteError.message}`);
+    }
 
-      return { success: true };
-    }),
+    return { success: true };
+  }),
 });

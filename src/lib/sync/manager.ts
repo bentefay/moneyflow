@@ -10,6 +10,7 @@ import {
   createEncryptedUpdate,
   createEncryptedSnapshot,
   loadEncryptedSnapshot,
+  decryptUpdate,
   type EncryptedUpdate,
   type EncryptedSnapshot,
 } from "@/lib/crdt/snapshot";
@@ -28,10 +29,21 @@ export interface SyncManagerOptions {
   vaultKey: Uint8Array;
   /** The Loro document to sync */
   doc: LoroDoc;
+  /** tRPC client for server communication */
+  trpc?: {
+    sync: {
+      getSnapshot: { query: (input: { vaultId: string }) => Promise<{ encryptedData: string; version: number } | null> };
+      saveSnapshot: { mutate: (input: { vaultId: string; encryptedData: string; versionVector: string; version: number }) => Promise<void> };
+      getUpdates: { query: (input: { vaultId: string; afterVersion?: number; limit?: number }) => Promise<{ id: string; encryptedData: string }[]> };
+      pushUpdate: { mutate: (input: { vaultId: string; encryptedData: string; baseSnapshotVersion: number; hlcTimestamp: string; versionVector: string }) => Promise<void> };
+    };
+  };
   /** Called when remote updates are applied */
   onRemoteUpdate?: () => void;
   /** Called when sync state changes */
   onSyncStateChange?: (state: SyncState) => void;
+  /** Called on sync error */
+  onError?: (error: Error) => void;
 }
 
 /**
@@ -47,22 +59,28 @@ export class SyncManager {
   private pubkeyHash: string;
   private vaultKey: Uint8Array;
   private doc: LoroDoc;
+  private trpc: SyncManagerOptions["trpc"];
   private realtime: VaultRealtimeSync | null = null;
   private onRemoteUpdate: (() => void) | undefined;
   private onSyncStateChange: ((state: SyncState) => void) | undefined;
+  private onError: ((error: Error) => void) | undefined;
   private lastSyncedVersion: VersionVector | null = null;
   private snapshotVersion = 0;
   private pendingUpdates: EncryptedUpdate[] = [];
   private isSyncing = false;
   private isInitialized = false;
+  private syncDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private autoSyncEnabled = true;
 
   constructor(options: SyncManagerOptions) {
     this.vaultId = options.vaultId;
     this.pubkeyHash = options.pubkeyHash;
     this.vaultKey = options.vaultKey;
     this.doc = options.doc;
+    this.trpc = options.trpc;
     this.onRemoteUpdate = options.onRemoteUpdate;
     this.onSyncStateChange = options.onSyncStateChange;
+    this.onError = options.onError;
   }
 
   /**
@@ -94,22 +112,89 @@ export class SyncManager {
         },
       });
 
+      // Set up document change listener for auto-sync
+      this.setupAutoSync();
+
       this.isInitialized = true;
       this.setSyncState("idle");
     } catch (error) {
       this.setSyncState("error");
+      this.onError?.(error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
+  }
+
+  /**
+   * Set up automatic sync on document changes.
+   */
+  private setupAutoSync(): void {
+    // Subscribe to document changes
+    this.doc.subscribe((event) => {
+      if (!this.autoSyncEnabled) return;
+      if (event.by === "import") return; // Don't sync imported changes (they came from remote)
+
+      // Debounce sync to batch rapid changes
+      if (this.syncDebounceTimer) {
+        clearTimeout(this.syncDebounceTimer);
+      }
+
+      this.syncDebounceTimer = setTimeout(() => {
+        this.pushChanges().catch((error) => {
+          console.error("Auto-sync failed:", error);
+          this.onError?.(error instanceof Error ? error : new Error(String(error)));
+        });
+      }, 500);
+    });
   }
 
   /**
    * Load initial state from the server.
    */
   private async loadInitialState(): Promise<void> {
-    // This would use tRPC in a real implementation
-    // For now, we'll load from the sync.getSnapshot endpoint
-    // Note: This requires the tRPC client to be available
-    console.log("SyncManager: Loading initial state...");
+    if (!this.trpc) {
+      console.log("SyncManager: No tRPC client, skipping initial load");
+      return;
+    }
+
+    try {
+      // Get the latest snapshot
+      const snapshot = await this.trpc.sync.getSnapshot.query({ vaultId: this.vaultId });
+
+      if (snapshot) {
+        // Decrypt and load the snapshot
+        const decryptedDoc = await loadEncryptedSnapshot(
+          {
+            encryptedData: snapshot.encryptedData,
+            version: snapshot.version,
+          },
+          this.vaultKey
+        );
+
+        // Import the snapshot into our document
+        const snapshotBytes = decryptedDoc.export({ mode: "snapshot" });
+        this.doc.import(snapshotBytes);
+        this.snapshotVersion = snapshot.version;
+
+        // Get any updates after the snapshot
+        const updates = await this.trpc.sync.getUpdates.query({
+          vaultId: this.vaultId,
+          afterVersion: snapshot.version,
+        });
+
+        // Apply each update
+        for (const update of updates) {
+          await this.applyRemoteUpdate(update.encryptedData);
+        }
+      }
+
+      // Store current version as last synced
+      this.lastSyncedVersion = this.doc.version();
+
+      console.log("SyncManager: Initial state loaded successfully");
+    } catch (error) {
+      console.error("Failed to load initial state:", error);
+      throw error;
+    }
   }
 
   /**
@@ -117,19 +202,26 @@ export class SyncManager {
    */
   private async applyRemoteUpdate(encryptedData: string): Promise<void> {
     try {
-      // Decrypt the update
-      const encryptedBytes = Uint8Array.from(atob(encryptedData), (c) => c.charCodeAt(0));
+      // Temporarily disable auto-sync to prevent echo
+      this.autoSyncEnabled = false;
 
-      // The encrypted data includes nonce (24 bytes) + ciphertext
-      // We need to decrypt and import
-      // For now, this is a placeholder - actual decryption happens in snapshot.ts
+      // Decrypt the update
+      const decryptedUpdate = await decryptUpdate(
+        { encryptedData, baseSnapshotVersion: this.snapshotVersion },
+        this.vaultKey
+      );
 
       // Import the update into the document
-      // importUpdates(this.doc, decryptedUpdate);
+      importUpdates(this.doc, decryptedUpdate);
+
+      // Re-enable auto-sync
+      this.autoSyncEnabled = true;
 
       this.onRemoteUpdate?.();
     } catch (error) {
+      this.autoSyncEnabled = true;
       console.error("Failed to apply remote update:", error);
+      this.onError?.(error instanceof Error ? error : new Error(String(error)));
     }
   }
 
@@ -137,7 +229,7 @@ export class SyncManager {
    * Push local changes to the server.
    */
   async pushChanges(): Promise<void> {
-    if (this.isSyncing) {
+    if (this.isSyncing || !this.trpc) {
       return;
     }
 
@@ -167,11 +259,16 @@ export class SyncManager {
       // Get version vector
       const versionVector = btoa(String.fromCharCode(...getVersionEncoded(this.doc)));
 
+      // Generate HLC timestamp
+      const hlcTimestamp = generateHlcTimestamp();
+
       // Push to server
-      // This would use tRPC: await trpc.sync.pushUpdate.mutate(...)
-      console.log("SyncManager: Pushing changes...", {
+      await this.trpc.sync.pushUpdate.mutate({
         vaultId: this.vaultId,
-        encryptedLength: encryptedUpdate.encryptedData.length,
+        encryptedData: encryptedUpdate.encryptedData,
+        baseSnapshotVersion: this.snapshotVersion,
+        hlcTimestamp,
+        versionVector,
       });
 
       // Update last synced version
@@ -180,6 +277,7 @@ export class SyncManager {
       this.setSyncState("idle");
     } catch (error) {
       this.setSyncState("error");
+      this.onError?.(error instanceof Error ? error : new Error(String(error)));
       throw error;
     } finally {
       this.isSyncing = false;
@@ -191,6 +289,11 @@ export class SyncManager {
    * Used periodically to compact updates.
    */
   async saveSnapshot(): Promise<void> {
+    if (!this.trpc) {
+      console.log("SyncManager: No tRPC client, skipping snapshot save");
+      return;
+    }
+
     this.setSyncState("syncing");
 
     try {
@@ -204,26 +307,45 @@ export class SyncManager {
       const versionVector = btoa(String.fromCharCode(...getVersionEncoded(this.doc)));
 
       // Push to server
-      // This would use tRPC: await trpc.sync.saveSnapshot.mutate(...)
-      console.log("SyncManager: Saving snapshot...", {
+      await this.trpc.sync.saveSnapshot.mutate({
         vaultId: this.vaultId,
-        encryptedLength: encryptedSnapshot.encryptedData.length,
+        encryptedData: encryptedSnapshot.encryptedData,
+        versionVector,
+        version: this.snapshotVersion,
       });
 
+      console.log("SyncManager: Snapshot saved successfully");
       this.setSyncState("idle");
     } catch (error) {
+      this.snapshotVersion--; // Rollback version on error
       this.setSyncState("error");
+      this.onError?.(error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
+  }
+
+  /**
+   * Force a full sync with the server.
+   * Useful for recovering from sync issues.
+   */
+  async forceSync(): Promise<void> {
+    this.lastSyncedVersion = null;
+    await this.pushChanges();
   }
 
   /**
    * Disconnect and cleanup.
    */
   async disconnect(): Promise<void> {
+    if (this.syncDebounceTimer) {
+      clearTimeout(this.syncDebounceTimer);
+      this.syncDebounceTimer = null;
+    }
+
     await this.realtime?.unsubscribe();
     this.realtime = null;
     this.isInitialized = false;
+    this.autoSyncEnabled = false;
   }
 
   /**
@@ -246,6 +368,24 @@ export class SyncManager {
   get syncing(): boolean {
     return this.isSyncing;
   }
+
+  /**
+   * Get current sync state.
+   */
+  get state(): SyncState {
+    if (this.isSyncing) return "syncing";
+    return "idle";
+  }
+}
+
+/**
+ * Generate a Hybrid Logical Clock timestamp.
+ * Format: ISO timestamp with a counter suffix for ordering.
+ */
+function generateHlcTimestamp(): string {
+  const now = Date.now();
+  const counter = Math.floor(Math.random() * 10000);
+  return `${new Date(now).toISOString()}-${counter.toString().padStart(4, "0")}`;
 }
 
 /**

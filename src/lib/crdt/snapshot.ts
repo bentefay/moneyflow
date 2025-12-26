@@ -143,6 +143,24 @@ export async function createEncryptedUpdate(
 }
 
 /**
+ * Decrypts an encrypted update and returns the raw bytes.
+ *
+ * @param encryptedUpdate - Encrypted update from server (can have minimal fields)
+ * @param vaultKey - 32-byte vault encryption key
+ * @returns Decrypted update bytes
+ */
+export async function decryptUpdate(
+  encryptedUpdate: Pick<EncryptedUpdate, "encryptedData">,
+  vaultKey: Uint8Array
+): Promise<Uint8Array> {
+  // Decode base64
+  const encrypted = Uint8Array.from(atob(encryptedUpdate.encryptedData), (c) => c.charCodeAt(0));
+
+  // Decrypt and return raw bytes
+  return decryptFromStorage(encrypted, vaultKey);
+}
+
+/**
  * Decrypts and imports an update into an existing LoroDoc.
  *
  * @param doc - The LoroDoc to update
