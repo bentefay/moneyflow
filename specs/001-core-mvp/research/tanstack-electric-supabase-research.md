@@ -159,9 +159,7 @@ const vaultCollection = createCollection(
 
 // Use in components with live queries
 const { data } = useLiveQuery((q) =>
-  q
-    .from({ vault: vaultCollection })
-    .where(({ vault }) => eq(vault.active, true))
+  q.from({ vault: vaultCollection }).where(({ vault }) => eq(vault.active, true))
 );
 ```
 
@@ -201,11 +199,7 @@ function useDecryptedVaults() {
   useEffect(() => {
     Promise.all(
       encryptedVaults.map(async (row) => {
-        const plaintext = await decryptWithKey(
-          row.ciphertext,
-          row.iv,
-          vaultKey
-        );
+        const plaintext = await decryptWithKey(row.ciphertext, row.iv, vaultKey);
         return JSON.parse(plaintext);
       })
     ).then(setDecrypted);

@@ -312,10 +312,7 @@ Example from PowerSync E2EE chat app:
 // Encrypted data syncs to SQLite
 // Decrypt to local-only table for querying
 const decrypted = await decrypt(row.ciphertext, vaultKey);
-await db.execute("INSERT INTO local_messages (id, content) VALUES (?, ?)", [
-  row.id,
-  decrypted,
-]);
+await db.execute("INSERT INTO local_messages (id, content) VALUES (?, ?)", [row.id, decrypted]);
 ```
 
 **Offline Support**: ✅ **Excellent**

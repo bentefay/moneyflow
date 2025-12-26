@@ -229,19 +229,15 @@ saveLastSyncedVersion(doc.version());
 // 1. Receive encrypted update from server (via Realtime)
 supabase
   .channel(`vault:${vaultId}`)
-  .on(
-    "postgres_changes",
-    { event: "INSERT", table: "vault_updates" },
-    async (payload) => {
-      // 2. Decrypt
-      const decrypted = await decrypt(payload.new.encrypted_data, vaultKey);
+  .on("postgres_changes", { event: "INSERT", table: "vault_updates" }, async (payload) => {
+    // 2. Decrypt
+    const decrypted = await decrypt(payload.new.encrypted_data, vaultKey);
 
-      // 3. Import into local doc (Loro handles merge)
-      doc.import(decrypted);
+    // 3. Import into local doc (Loro handles merge)
+    doc.import(decrypted);
 
-      // 4. UI updates automatically via subscriptions
-    }
-  )
+    // 4. UI updates automatically via subscriptions
+  })
   .subscribe();
 ```
 
@@ -894,10 +890,7 @@ async function loadVaultFromServer(): Promise<void> {
     .single();
 
   if (snapshot) {
-    const decrypted = await decrypt(
-      base64ToBytes(snapshot.encrypted_data),
-      key
-    );
+    const decrypted = await decrypt(base64ToBytes(snapshot.encrypted_data), key);
     vault.import(decrypted);
   }
 

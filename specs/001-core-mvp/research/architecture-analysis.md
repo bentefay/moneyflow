@@ -221,10 +221,7 @@ For client-side (browser), use `argon2-browser` or `hash-wasm`:
 ```typescript
 import { argon2id } from "hash-wasm";
 
-async function deriveKey(
-  password: string,
-  salt: Uint8Array
-): Promise<Uint8Array> {
+async function deriveKey(password: string, salt: Uint8Array): Promise<Uint8Array> {
   const hash = await argon2id({
     password,
     salt,
@@ -418,10 +415,7 @@ async function registerUser(email: string, password: string) {
   const kek = await deriveKEK(password, salt);
 
   // 3. Encrypt private key with KEK (so it can be stored on server)
-  const exportedPrivateKey = await crypto.subtle.exportKey(
-    "pkcs8",
-    keyPair.privateKey
-  );
+  const exportedPrivateKey = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
   const encryptedPrivateKey = await encryptAES(exportedPrivateKey, kek);
 
   // 4. Export public key (stored unencrypted, it's public)
@@ -811,15 +805,11 @@ async function syncVault(vaultId: string) {
   subscribeToEvents(vaultId, (event) => applyEvent(event));
 }
 
-function shouldUseSnapshot(
-  localHLC: HLCTimestamp | null,
-  snapshotHLC: HLCTimestamp
-): boolean {
+function shouldUseSnapshot(localHLC: HLCTimestamp | null, snapshotHLC: HLCTimestamp): boolean {
   if (!localHLC) return true; // First sync
 
   // Use snapshot if we're very far behind (heuristic)
-  const hoursBehind =
-    (snapshotHLC.wallTime - localHLC.wallTime) / (1000 * 60 * 60);
+  const hoursBehind = (snapshotHLC.wallTime - localHLC.wallTime) / (1000 * 60 * 60);
   return hoursBehind > 24; // More than 24 hours behind
 }
 ```
@@ -848,13 +838,11 @@ const compactionTriggers = {
 ### 🔴 Critical Issues
 
 1. **Password Strength Enforcement**
-
    - 20-character minimum mentioned in spec is good
    - Consider: passphrase suggestions, breached password checking
    - Recommendation: Use zxcvbn for strength estimation
 
 2. **Authentication Key Separation**
-
    - Never use the same key for auth and encryption
    - Server should only see authentication proof, never KEK
    - Recommendation: Derive auth key and KEK separately from password
@@ -867,13 +855,11 @@ const compactionTriggers = {
 ### 🟡 Important Considerations
 
 4. **Metadata Leakage**
-
    - Server can see: when users sync, document sizes, access patterns
    - Timestamps reveal activity patterns
    - Recommendation: Consider padding documents, batching queries
 
 5. **Nonce/IV Reuse**
-
    - AES-GCM requires unique nonce per encryption
    - Reusing nonce = catastrophic key recovery
    - Recommendation: Use random 12-byte nonce, never counter-based
@@ -886,7 +872,6 @@ const compactionTriggers = {
 ### 🟢 Good Practices to Maintain
 
 7. **Server Knows Nothing**
-
    - Server stores only encrypted blobs
    - No server-side queries on plaintext
    - RLS based on vault membership, not data content
@@ -902,13 +887,11 @@ const compactionTriggers = {
 ### Architecture Improvements
 
 1. **Use Supabase Realtime (not Vercel Blob)**
-
    - Real-time WebSocket is essential for collaboration
    - Vercel Blob's 60s cache makes it unsuitable
    - Supabase's free tier is generous
 
 2. **Consider PowerSync as Alternative**
-
    - Documented E2EE support
    - Better offline handling
    - More batteries-included
