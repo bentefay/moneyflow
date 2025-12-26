@@ -92,7 +92,7 @@ export class VaultRealtimeSync {
               baseSnapshotVersion: row.base_snapshot_version,
               hlcTimestamp: row.hlc_timestamp,
               authorPubkeyHash: row.author_pubkey_hash,
-              createdAt: row.created_at,
+              createdAt: row.created_at ?? new Date().toISOString(),
             });
           }
         }

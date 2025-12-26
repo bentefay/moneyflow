@@ -15,26 +15,10 @@ let supabaseServer: SupabaseClient<Database> | null = null;
  *
  * Uses service role key for server-side operations with full access.
  */
-export async function createSupabaseServer(): Promise<SupabaseClient<Database>> {
-  if (supabaseServer) {
-    return supabaseServer;
+export async function createSupabaseClient(): Promise<SupabaseClient<Database>> {
+  if (!supabaseServer) {
+    supabaseServer = createSupabaseClientFresh();
   }
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error(
-      "Missing Supabase environment variables. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY."
-    );
-  }
-
-  supabaseServer = createClient<Database>(supabaseUrl, supabaseServiceKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
 
   return supabaseServer;
 }
@@ -44,7 +28,7 @@ export async function createSupabaseServer(): Promise<SupabaseClient<Database>> 
  *
  * Useful for operations that need isolated connections.
  */
-export function createSupabaseServerFresh(): SupabaseClient<Database> {
+export function createSupabaseClientFresh(): SupabaseClient<Database> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
