@@ -9,7 +9,7 @@
  */
 
 import { router, protectedProcedure } from "../trpc";
-import { createSupabaseServer } from "@/lib/supabase/server";
+import { createSupabaseClient } from "@/lib/supabase/server";
 import { TRPCError } from "@trpc/server";
 import {
   getSnapshotInput,
@@ -26,7 +26,7 @@ export const syncRouter = router({
    * Returns the full encrypted CRDT state.
    */
   getSnapshot: protectedProcedure.input(getSnapshotInput).query(async ({ ctx, input }) => {
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseClient();
 
     // Verify membership
     const { data: membership, error: memberError } = await supabase
@@ -75,7 +75,7 @@ export const syncRouter = router({
    * Called periodically to compact incremental updates.
    */
   saveSnapshot: protectedProcedure.input(saveSnapshotInput).mutation(async ({ ctx, input }) => {
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseClient();
 
     // Verify membership
     const { data: membership, error: memberError } = await supabase
@@ -124,7 +124,7 @@ export const syncRouter = router({
    * Used for syncing changes between clients.
    */
   getUpdates: protectedProcedure.input(getUpdatesInput).query(async ({ ctx, input }) => {
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseClient();
 
     // Verify membership
     const { data: membership, error: memberError } = await supabase
@@ -178,7 +178,7 @@ export const syncRouter = router({
    * Called when a client makes local changes.
    */
   pushUpdate: protectedProcedure.input(pushUpdateInput).mutation(async ({ ctx, input }) => {
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseClient();
 
     // Verify membership
     const { data: membership, error: memberError } = await supabase
@@ -221,7 +221,7 @@ export const syncRouter = router({
    * Returns info about latest snapshot and update count.
    */
   status: protectedProcedure.input(syncStatusInput).query(async ({ ctx, input }) => {
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseClient();
 
     // Verify membership
     const { data: membership, error: memberError } = await supabase

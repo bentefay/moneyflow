@@ -22,7 +22,58 @@ import {
   userGetOrCreateInput,
   upsertUserDataInput,
 } from "../schemas/user";
-import { createSupabaseServer } from "@/lib/supabase/server";
+import { createSupabaseClient } from "@/lib/supabase/server";
+
+// ============================================================================
+// Error Handling Helpers
+// ============================================================================
+
+/**
+ * Determine if an error is a connection/infrastructure issue.
+ */
+function isConnectionError(error: unknown): boolean {
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    return (
+      message.includes("fetch failed") ||
+      message.includes("econnrefused") ||
+      message.includes("network") ||
+      message.includes("timeout") ||
+      message.includes("connection")
+    );
+  }
+  return false;
+}
+
+/**
+ * Handle database errors by logging details and throwing sanitized errors.
+ * This prevents leaking internal implementation details to clients.
+ */
+function handleDatabaseError(error: unknown, operation: string): never {
+  // Log full error details server-side
+  console.error(`[${operation}] Database error:`, error);
+
+  // Determine error category and throw sanitized error
+  if (isConnectionError(error)) {
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Unable to connect to database",
+      // Attach cause for server-side logging but it won't be sent to client
+      cause: error,
+    });
+  }
+
+  // Generic database error
+  throw new TRPCError({
+    code: "INTERNAL_SERVER_ERROR",
+    message: "Database operation failed",
+    cause: error,
+  });
+}
+
+// ============================================================================
+// Router
+// ============================================================================
 
 export const userRouter = router({
   /**
@@ -35,7 +86,12 @@ export const userRouter = router({
    * Public procedure - no signature required (checking before user has identity loaded).
    */
   exists: publicProcedure.input(userExistsInput).query(async ({ input }) => {
-    const supabase = await createSupabaseServer();
+    let supabase;
+    try {
+      supabase = await createSupabaseClient();
+    } catch (error) {
+      handleDatabaseError(error, "user.exists:connect");
+    }
 
     const { data, error } = await supabase
       .from("user_data")
@@ -44,10 +100,7 @@ export const userRouter = router({
       .maybeSingle();
 
     if (error) {
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: `Database error: ${error.message}`,
-      });
+      handleDatabaseError(error, "user.exists:query");
     }
 
     return { exists: !!data };
@@ -65,14 +118,23 @@ export const userRouter = router({
    * Note: This is idempotent - calling with same pubkey_hash is safe.
    */
   register: publicProcedure.input(userRegisterInput).mutation(async ({ input }) => {
-    const supabase = await createSupabaseServer();
+    let supabase;
+    try {
+      supabase = await createSupabaseClient();
+    } catch (error) {
+      handleDatabaseError(error, "user.register:connect");
+    }
 
     // Check if user already exists
-    const { data: existing } = await supabase
+    const { data: existing, error: selectError } = await supabase
       .from("user_data")
       .select("pubkey_hash")
       .eq("pubkey_hash", input.pubkeyHash)
       .maybeSingle();
+
+    if (selectError) {
+      handleDatabaseError(selectError, "user.register:check");
+    }
 
     if (existing) {
       return { success: true, isNew: false };
@@ -91,10 +153,7 @@ export const userRouter = router({
         return { success: true, isNew: false };
       }
 
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: `Failed to register: ${error.message}`,
-      });
+      handleDatabaseError(error, "user.register:insert");
     }
 
     return { success: true, isNew: true };
@@ -114,7 +173,12 @@ export const userRouter = router({
    * Public procedure - same reason as register.
    */
   getOrCreate: publicProcedure.input(userGetOrCreateInput).mutation(async ({ input }) => {
-    const supabase = await createSupabaseServer();
+    let supabase;
+    try {
+      supabase = await createSupabaseClient();
+    } catch (error) {
+      handleDatabaseError(error, "user.getOrCreate:connect");
+    }
 
     // Try to get existing user
     const { data: existing, error: selectError } = await supabase
@@ -124,10 +188,7 @@ export const userRouter = router({
       .maybeSingle();
 
     if (selectError) {
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: `Database error: ${selectError.message}`,
-      });
+      handleDatabaseError(selectError, "user.getOrCreate:select");
     }
 
     if (existing) {
@@ -160,10 +221,10 @@ export const userRouter = router({
           .single();
 
         if (raceError || !raceUser) {
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
-            message: "Failed to resolve race condition",
-          });
+          handleDatabaseError(
+            raceError ?? new Error("User not found after race"),
+            "user.getOrCreate:race"
+          );
         }
 
         return {
@@ -173,10 +234,7 @@ export const userRouter = router({
         };
       }
 
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: `Failed to create user: ${insertError.message}`,
-      });
+      handleDatabaseError(insertError, "user.getOrCreate:insert");
     }
 
     return {
@@ -193,7 +251,12 @@ export const userRouter = router({
    * Requires valid signature (authenticated procedure).
    */
   getData: protectedProcedure.query(async ({ ctx }) => {
-    const supabase = await createSupabaseServer();
+    let supabase;
+    try {
+      supabase = await createSupabaseClient();
+    } catch (error) {
+      handleDatabaseError(error, "user.getData:connect");
+    }
 
     const { data, error } = await supabase
       .from("user_data")
@@ -202,10 +265,7 @@ export const userRouter = router({
       .maybeSingle();
 
     if (error) {
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: `Database error: ${error.message}`,
-      });
+      handleDatabaseError(error, "user.getData:query");
     }
 
     if (!data) {
@@ -228,7 +288,12 @@ export const userRouter = router({
    * Requires valid signature.
    */
   upsertData: protectedProcedure.input(upsertUserDataInput).mutation(async ({ ctx, input }) => {
-    const supabase = await createSupabaseServer();
+    let supabase;
+    try {
+      supabase = await createSupabaseClient();
+    } catch (error) {
+      handleDatabaseError(error, "user.upsertData:connect");
+    }
 
     const { error } = await supabase.from("user_data").upsert(
       {
@@ -240,10 +305,7 @@ export const userRouter = router({
     );
 
     if (error) {
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: `Failed to update: ${error.message}`,
-      });
+      handleDatabaseError(error, "user.upsertData:upsert");
     }
 
     return { success: true };
@@ -256,7 +318,12 @@ export const userRouter = router({
    * including their role and encrypted vault key.
    */
   myVaults: protectedProcedure.query(async ({ ctx }) => {
-    const supabase = await createSupabaseServer();
+    let supabase;
+    try {
+      supabase = await createSupabaseClient();
+    } catch (error) {
+      handleDatabaseError(error, "user.myVaults:connect");
+    }
 
     const { data, error } = await supabase
       .from("vault_memberships")
@@ -274,10 +341,7 @@ export const userRouter = router({
       .eq("pubkey_hash", ctx.pubkeyHash);
 
     if (error) {
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: `Failed to get vaults: ${error.message}`,
-      });
+      handleDatabaseError(error, "user.myVaults:query");
     }
 
     return data ?? [];

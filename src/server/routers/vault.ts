@@ -11,7 +11,7 @@
 
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc";
-import { createSupabaseServer } from "@/lib/supabase/server";
+import { createSupabaseClient } from "@/lib/supabase/server";
 import { TRPCError } from "@trpc/server";
 import {
   vaultCreateInput,
@@ -28,7 +28,7 @@ export const vaultRouter = router({
    * Returns vault IDs and encrypted vault keys for decryption.
    */
   list: protectedProcedure.query(async ({ ctx }) => {
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseClient();
 
     // Get all vault memberships for this user
     const { data: memberships, error: memberError } = await supabase
@@ -72,7 +72,7 @@ export const vaultRouter = router({
    * The creator automatically becomes the owner with the vault key.
    */
   create: protectedProcedure.input(vaultCreateInput).mutation(async ({ ctx, input }) => {
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseClient();
 
     // Create vault (just id and created_at - zero knowledge)
     const { data: vault, error: vaultError } = await supabase
@@ -109,7 +109,7 @@ export const vaultRouter = router({
    * Returns the encrypted vault key for this user (to decrypt CRDT data).
    */
   get: protectedProcedure.input(vaultGetInput).query(async ({ ctx, input }) => {
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseClient();
 
     // Check membership and get vault
     const { data: membership, error: memberError } = await supabase
@@ -148,7 +148,7 @@ export const vaultRouter = router({
    * Only accessible to vault members.
    */
   members: protectedProcedure.input(vaultMembersInput).query(async ({ ctx, input }) => {
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseClient();
 
     // Verify caller is a member
     const { data: callerMembership, error: callerError } = await supabase
@@ -184,7 +184,7 @@ export const vaultRouter = router({
    * Only accessible to vault owner. Cascades to memberships, snapshots, updates.
    */
   delete: protectedProcedure.input(vaultDeleteInput).mutation(async ({ ctx, input }) => {
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseClient();
 
     // Verify ownership via membership role
     const { data: membership, error: memberError } = await supabase
@@ -223,7 +223,7 @@ export const vaultRouter = router({
    * Members can leave, but owners must transfer ownership first.
    */
   leave: protectedProcedure.input(vaultLeaveInput).mutation(async ({ ctx, input }) => {
-    const supabase = await createSupabaseServer();
+    const supabase = await createSupabaseClient();
 
     // Check user's role
     const { data: membership, error: memberError } = await supabase

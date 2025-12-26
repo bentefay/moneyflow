@@ -190,7 +190,11 @@ export class SyncManager {
         const decryptedDoc = await loadEncryptedSnapshot(
           {
             encryptedData: snapshot.encryptedData,
-            version: snapshot.version,
+            metadata: {
+              version: snapshot.version,
+              versionVector: "", // Not needed for loading
+              createdAt: 0, // Not needed for loading
+            },
           },
           this.vaultKey
         );
@@ -231,13 +235,10 @@ export class SyncManager {
       this.autoSyncEnabled = false;
 
       // Decrypt the update
-      const decryptedUpdate = await decryptUpdate(
-        { encryptedData, baseSnapshotVersion: this.snapshotVersion },
-        this.vaultKey
-      );
+      const decryptedUpdate = await decryptUpdate({ encryptedData }, this.vaultKey);
 
       // Import the update into the document
-      importUpdates(this.doc, decryptedUpdate);
+      this.doc.import(decryptedUpdate);
 
       // Re-enable auto-sync
       this.autoSyncEnabled = true;

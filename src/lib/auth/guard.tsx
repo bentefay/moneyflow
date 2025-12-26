@@ -22,12 +22,7 @@ import { hasSession, getSession } from "@/lib/crypto/session";
 // ============================================================================
 
 /** Routes that don't require authentication */
-export const PUBLIC_ROUTES = [
-  "/",
-  "/unlock",
-  "/new-user",
-  "/invite",
-] as const;
+export const PUBLIC_ROUTES = ["/", "/unlock", "/new-user", "/invite"] as const;
 
 /** Route to redirect unauthenticated users to */
 export const UNLOCK_ROUTE = "/unlock";
@@ -92,9 +87,7 @@ export interface UseAuthGuardReturn {
 /**
  * Hook to check authentication status and optionally redirect.
  */
-export function useAuthGuard(
-  options: UseAuthGuardOptions = {}
-): UseAuthGuardReturn {
+export function useAuthGuard(options: UseAuthGuardOptions = {}): UseAuthGuardReturn {
   const { redirect = true, redirectTo = UNLOCK_ROUTE } = options;
   const router = useRouter();
   const pathname = usePathname();
@@ -142,10 +135,7 @@ export function withAuthGuard<P extends object>(
   WrappedComponent: ComponentType<P>,
   options: WithAuthGuardOptions = {}
 ): ComponentType<P> {
-  const {
-    LoadingComponent = DefaultLoadingComponent,
-    redirectTo = UNLOCK_ROUTE,
-  } = options;
+  const { LoadingComponent = DefaultLoadingComponent, redirectTo = UNLOCK_ROUTE } = options;
 
   function AuthGuardedComponent(props: P) {
     const { isAuthenticated, isLoading } = useAuthGuard({
@@ -219,8 +209,8 @@ function DefaultLoadingComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center">
       <div className="flex flex-col items-center gap-4">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        <p className="text-sm text-muted-foreground">Loading...</p>
+        <div className="border-primary h-8 w-8 animate-spin rounded-full border-4 border-t-transparent" />
+        <p className="text-muted-foreground text-sm">Loading...</p>
       </div>
     </div>
   );

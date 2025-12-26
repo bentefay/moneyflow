@@ -12,7 +12,7 @@
 
 import { z } from "zod";
 import { router, protectedProcedure, publicProcedure } from "../trpc";
-import { createSupabaseServer } from "@/lib/supabase/server";
+import { createSupabaseClient } from "@/lib/supabase/server";
 import { TRPCError } from "@trpc/server";
 import type { VaultRole } from "@/lib/supabase/types";
 
@@ -36,7 +36,7 @@ export const inviteRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const supabase = await createSupabaseServer();
+      const supabase = await createSupabaseClient();
 
       // Verify user is vault owner via membership
       const { data: membership, error: memberError } = await supabase
@@ -102,7 +102,7 @@ export const inviteRouter = router({
   getByPubkey: publicProcedure
     .input(z.object({ invitePubkey: z.string() }))
     .query(async ({ input }) => {
-      const supabase = await createSupabaseServer();
+      const supabase = await createSupabaseClient();
 
       const { data: invite, error } = await supabase
         .from("vault_invites")
@@ -150,7 +150,7 @@ export const inviteRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const supabase = await createSupabaseServer();
+      const supabase = await createSupabaseClient();
 
       // Get invite
       const { data: invite, error: inviteError } = await supabase
@@ -217,7 +217,7 @@ export const inviteRouter = router({
   list: protectedProcedure
     .input(z.object({ vaultId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const supabase = await createSupabaseServer();
+      const supabase = await createSupabaseClient();
 
       // Verify ownership via membership
       const { data: membership, error: memberError } = await supabase
@@ -268,7 +268,7 @@ export const inviteRouter = router({
   revoke: protectedProcedure
     .input(z.object({ inviteId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const supabase = await createSupabaseServer();
+      const supabase = await createSupabaseClient();
 
       // Get invite to find vault
       const { data: invite, error: inviteError } = await supabase
