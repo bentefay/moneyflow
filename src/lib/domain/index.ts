@@ -14,3 +14,15 @@ export {
   type TransactionWithBalance,
   type BalanceCalculationOptions,
 } from "./balance";
+
+export {
+  sumOwnerships,
+  validateOwnerships,
+  isValidOwnership,
+  normalizeOwnerships,
+  createEqualOwnerships,
+  addOwner,
+  removeOwner,
+  updateOwnerPercentage,
+  OWNERSHIP_TOLERANCE,
+} from "./ownership";

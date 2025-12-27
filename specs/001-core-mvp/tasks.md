@@ -298,15 +298,15 @@ Based on plan.md structure:
 
 ### Implementation for User Story 2
 
-- [ ] T102 [P] [US2] Create AccountRow component with inline editing in src/components/features/accounts/AccountRow.tsx
-- [ ] T103 [P] [US2] Create OwnershipEditor component (person + percentage pairs) in src/components/features/accounts/OwnershipEditor.tsx
-- [ ] T104 [US2] Create AccountsTable component in src/components/features/accounts/AccountsTable.tsx
-- [ ] T105 [US2] Create /accounts page in src/app/(app)/accounts/page.tsx
-- [ ] T106 [US2] Connect AccountsTable to Loro state via useLoroSelector/useLoroAction
+- [x] T102 [P] [US2] Create AccountRow component with inline editing in src/components/features/accounts/AccountRow.tsx
+- [x] T103 [P] [US2] Create OwnershipEditor component (person + percentage pairs) in src/components/features/accounts/OwnershipEditor.tsx
+- [x] T104 [US2] Create AccountsTable component in src/components/features/accounts/AccountsTable.tsx
+- [x] T105 [US2] Create /accounts page in src/app/(app)/accounts/page.tsx
+- [x] T106 [US2] Connect AccountsTable to Loro state via useLoroSelector/useLoroAction
 
 ### Tests for Phase 7
 
-- [ ] T106a [T] [US2] Unit tests for ownership percentage validation (must sum to 100%) in tests/unit/domain/ownership.test.ts
+- [x] T106a [T] [US2] Unit tests for ownership percentage validation (must sum to 100%) in tests/unit/domain/ownership.test.ts
 
 **Checkpoint**: Accounts page functional with inline editing and real-time sync. **Tests passing.**
 
