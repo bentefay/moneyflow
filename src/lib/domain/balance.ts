@@ -2,9 +2,14 @@
  * Balance Calculations
  *
  * Functions for calculating running balances and account balances.
+ *
+ * All amounts are MoneyMinorUnits (integer cents). These functions perform
+ * arithmetic on the integer values directly - no conversion needed.
+ * Convert to/from display values at the UI boundary.
  */
 
 import type { Transaction, Account } from "@/lib/crdt/schema";
+import type { MoneyMinorUnits } from "@/lib/domain/currency";
 
 /**
  * Transaction with calculated running balance.
@@ -12,17 +17,19 @@ import type { Transaction, Account } from "@/lib/crdt/schema";
 export interface TransactionWithBalance {
   id: string;
   date: string;
-  amount: number;
+  /** Amount in minor units (cents) */
+  amount: MoneyMinorUnits;
   accountId: string;
-  runningBalance: number;
+  /** Running balance in minor units (cents) */
+  runningBalance: MoneyMinorUnits;
 }
 
 /**
  * Options for balance calculation.
  */
 export interface BalanceCalculationOptions {
-  /** Starting balance for the account (e.g., from account settings) */
-  startingBalance?: number;
+  /** Starting balance for the account in minor units (e.g., cents) */
+  startingBalance?: MoneyMinorUnits;
   /** Whether to calculate balance from newest to oldest (default: true) */
   reverseOrder?: boolean;
 }

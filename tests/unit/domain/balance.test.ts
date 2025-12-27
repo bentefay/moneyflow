@@ -27,7 +27,11 @@ type TestAccount = Pick<Account, "id" | "name" | "ownerships">;
 type TestSettlementTransaction = Pick<Transaction, "amount" | "accountId" | "allocations">;
 
 /** Helper to create test accounts with proper typing */
-function testAccount(data: { id: string; name: string; ownerships: Record<string, number> }): Account {
+function testAccount(data: {
+  id: string;
+  name: string;
+  ownerships: Record<string, number>;
+}): Account {
   return data as unknown as Account;
 }
 
@@ -359,7 +363,11 @@ describe("calculateSettlementBalances", () => {
       },
     ]);
     const accounts = {
-      "acc-1": testAccount({ id: "acc-1", name: "Joint", ownerships: { personA: 50, personB: 50 } }),
+      "acc-1": testAccount({
+        id: "acc-1",
+        name: "Joint",
+        ownerships: { personA: 50, personB: 50 },
+      }),
     };
 
     const result = calculateSettlementBalances(transactions, accounts);
@@ -403,8 +411,16 @@ describe("calculateSettlementBalances", () => {
     fc.assert(
       fc.property(fc.array(transactionWithAllocationsArb, { maxLength: 20 }), (transactions) => {
         const accounts = {
-          "acc-1": testAccount({ id: "acc-1", name: "A", ownerships: { personA: 70, personB: 30 } }),
-          "acc-2": testAccount({ id: "acc-2", name: "B", ownerships: { personA: 50, personB: 50 } }),
+          "acc-1": testAccount({
+            id: "acc-1",
+            name: "A",
+            ownerships: { personA: 70, personB: 30 },
+          }),
+          "acc-2": testAccount({
+            id: "acc-2",
+            name: "B",
+            ownerships: { personA: 50, personB: 50 },
+          }),
         };
 
         const result = calculateSettlementBalances(testSettlementTxs(transactions), accounts);

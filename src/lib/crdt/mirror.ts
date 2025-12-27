@@ -38,6 +38,7 @@ export const DEFAULT_VAULT_STATE = {
   automations: {},
   preferences: {
     automationCreationPreference: "manual",
+    defaultCurrency: "USD",
   },
 } as const;
 

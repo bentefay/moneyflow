@@ -354,6 +354,7 @@ A user can be a member of **multiple vaults**. Each vault is a completely indepe
 │  │  ├── globalSettings: {                                            │  │
 │  │  │    activeVaultId: "vault-1",   ← last selected vault           │  │
 │  │  │    theme: "dark",              ← app-wide settings             │  │
+│  │  │    defaultCurrency: "USD",     ← fallback for imports          │  │
 │  │  │  }                                                             │  │
 │  │  └── (future: notification prefs, etc.)                           │  │
 │  └───────────────────────────────────────────────────────────────────┘  │
@@ -384,8 +385,10 @@ A user can be a member of **multiple vaults**. Each vault is a completely indepe
 | Vault list + wrapped keys                     | `user_data.encrypted_data`                | Global (user-level)   |
 | Active vault selection                        | `user_data.encrypted_data.globalSettings` | Global (user-level)   |
 | Theme, notifications                          | `user_data.encrypted_data.globalSettings` | Global (user-level)   |
+| Default currency                              | `user_data.encrypted_data.globalSettings` | Global (user-level)   |
 | Financial data (transactions, accounts, etc.) | Vault LoroDoc                             | Per-vault             |
 | Automation creation preference                | Vault LoroDoc `preferences`               | Per-vault             |
+| Account currency                              | Vault LoroDoc `accounts[].currency`       | Per-account           |
 | Presence awareness                            | Vault EphemeralStore                      | Per-vault (ephemeral) |
 
 ### TypeScript Interface for User Data
@@ -406,6 +409,7 @@ interface VaultReference {
 interface GlobalSettings {
   activeVaultId: string | null; // Currently selected vault
   theme: "light" | "dark" | "system";
+  defaultCurrency: string; // ISO 4217 code (e.g., "USD", "EUR") - used as fallback for imports
   // Future: notification preferences, etc.
 }
 ```

@@ -15,6 +15,12 @@ import { parseNumber } from "@/lib/import/csv";
 import type { ColumnMapping } from "@/components/features/import/ColumnMappingStep";
 import type { ImportFormatting } from "@/components/features/import/FormattingStep";
 import { type ISODateString } from "@/types";
+import { type MoneyMinorUnits, asMinorUnits } from "@/lib/domain/currency";
+
+/** Helper to create MoneyMinorUnits from an integer */
+function cents(value: number): MoneyMinorUnits {
+  return asMinorUnits(value);
+}
 
 /** Create a branded ISODateString for tests (bypasses runtime validation) */
 function isoDate(date: string): ISODateString {
@@ -135,9 +141,10 @@ describe("processCSVImport", () => {
     it("extracts amount correctly", () => {
       const result = processCSVImport(SIMPLE_CSV, STANDARD_MAPPINGS, DEFAULT_FORMATTING);
 
-      expect(result.transactions[0].amount).toBe(-5.5);
-      expect(result.transactions[1].amount).toBe(-45);
-      expect(result.transactions[2].amount).toBe(2500);
+      // Amounts are returned in cents (MoneyMinorUnits)
+      expect(result.transactions[0].amount).toBe(-550); // -$5.50
+      expect(result.transactions[1].amount).toBe(-4500); // -$45.00
+      expect(result.transactions[2].amount).toBe(250000); // $2500.00
     });
 
     it("extracts description as merchant when no merchant column", () => {
@@ -166,7 +173,7 @@ describe("processCSVImport", () => {
       expect(firstTx.date).toBe("2024-01-15");
       expect(firstTx.merchant).toBe("AMAZON");
       expect(firstTx.description).toBe("Order #12345");
-      expect(firstTx.amount).toBe(-25.99);
+      expect(firstTx.amount).toBe(-2599); // -$25.99 in cents
       expect(firstTx.categoryHint).toBe("Shopping");
     });
   });
@@ -208,8 +215,8 @@ describe("processCSVImport", () => {
         negateAmounts: true,
       });
 
-      expect(result.transactions[0].amount).toBe(5.5); // Was -5.50, now positive
-      expect(result.transactions[2].amount).toBe(-2500); // Was 2500, now negative
+      expect(result.transactions[0].amount).toBe(550); // Was -550, now positive
+      expect(result.transactions[2].amount).toBe(-250000); // Was 250000, now negative
     });
 
     it("handles amounts in cents", () => {
@@ -221,7 +228,8 @@ describe("processCSVImport", () => {
         amountInCents: true,
       });
 
-      expect(result.transactions[0].amount).toBe(-5.5);
+      // When amountInCents is true, we don't multiply by 100
+      expect(result.transactions[0].amount).toBe(-550); // Already cents
     });
   });
 
@@ -278,7 +286,7 @@ bad-date,COFFEE,-5.50`;
         {
           id: "existing-1",
           date: isoDate("2024-01-15"),
-          amount: -5.5,
+          amount: cents(-550), // -$5.50 in cents
           description: "COFFEE SHOP",
         },
       ];
@@ -346,7 +354,7 @@ describe("processOFXImport", () => {
 
     const firstTx = data.transactions[0];
     expect(firstTx.date).toBe("2024-01-15");
-    expect(firstTx.amount).toBe(-5.5);
+    expect(firstTx.amount).toBe(-550); // -$5.50 in cents
     expect(firstTx.merchant).toBe("COFFEE SHOP");
     expect(firstTx.description).toBe("PURCHASE");
   });
@@ -364,12 +372,12 @@ describe("processOFXImport", () => {
       {
         id: "existing-1",
         date: isoDate("2024-01-15"),
-        amount: -5.5,
+        amount: cents(-550), // -$5.50 in cents
         description: "PURCHASE", // OFX uses MEMO as description for duplicate matching
       },
     ];
 
-    const result = processOFXImport(SIMPLE_OFX, existingTransactions);
+    const result = processOFXImport(SIMPLE_OFX, { existingTransactions });
     const data = expectSuccess(result);
 
     expect(data.stats.duplicateCount).toBe(1);
@@ -382,6 +390,36 @@ describe("processOFXImport", () => {
     expect(data.stats.totalRows).toBe(2);
     expect(data.stats.validRows).toBe(2);
     expect(data.stats.errorRows).toBe(0);
+  });
+
+  describe("currency validation", () => {
+    it("succeeds when expectedCurrency matches OFX currency", () => {
+      const result = processOFXImport(SIMPLE_OFX, { expectedCurrency: "USD" });
+      expect(result.ok).toBe(true);
+    });
+
+    it("succeeds with case-insensitive currency match", () => {
+      const result = processOFXImport(SIMPLE_OFX, { expectedCurrency: "usd" });
+      expect(result.ok).toBe(true);
+    });
+
+    it("fails when expectedCurrency mismatches OFX currency", () => {
+      const result = processOFXImport(SIMPLE_OFX, { expectedCurrency: "EUR" });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error).toContain("Currency mismatch");
+        expect(result.error).toContain("USD");
+        expect(result.error).toContain("EUR");
+      }
+    });
+
+    it("returns detected currency in result", () => {
+      const result = processOFXImport(SIMPLE_OFX);
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.currency).toBe("USD");
+      }
+    });
   });
 });
 
@@ -419,7 +457,7 @@ describe("processImport", () => {
       {
         id: "existing-1",
         date: isoDate("2024-01-15"),
-        amount: -5.5,
+        amount: cents(-550), // -$5.50 in cents
         description: "COFFEE SHOP",
       },
     ];
@@ -429,7 +467,7 @@ describe("processImport", () => {
       {
         id: "existing-1",
         date: isoDate("2024-01-15"),
-        amount: -5.5,
+        amount: cents(-550), // -$5.50 in cents
         description: "PURCHASE", // OFX MEMO field
       },
     ];
@@ -473,7 +511,7 @@ describe("real-world bank exports", () => {
     expect(result.transactions).toHaveLength(2);
     expect(result.transactions[0].date).toBe("2024-01-15");
     expect(result.transactions[0].merchant).toBe("COFFEE SHOP");
-    expect(result.transactions[0].amount).toBe(-5.5);
+    expect(result.transactions[0].amount).toBe(-550); // -$5.50 in cents
     expect(result.transactions[0].categoryHint).toBe("Food & Drink");
   });
 
@@ -497,7 +535,7 @@ describe("real-world bank exports", () => {
 
     expect(result.transactions).toHaveLength(2);
     expect(result.transactions[0].merchant).toBe("AMAZON.COM*AMZN.COM/BI, WA");
-    expect(result.transactions[0].amount).toBe(-25.99);
+    expect(result.transactions[0].amount).toBe(-2599); // -$25.99 in cents
   });
 
   it("handles large import batch", () => {

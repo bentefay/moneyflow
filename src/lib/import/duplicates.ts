@@ -3,11 +3,14 @@
  *
  * Detects potential duplicate transactions based on
  * date, amount, and description similarity.
+ *
+ * Amounts are MoneyMinorUnits (integer cents) - comparison is exact integer match.
  */
 
 import { Temporal } from "temporal-polyfill";
 import { normalizedSimilarity } from "./levenshtein";
 import { type ISODateString, fromISODateString } from "@/types";
+import type { MoneyMinorUnits } from "@/lib/domain/currency";
 
 /**
  * Transaction for duplicate detection.
@@ -17,7 +20,8 @@ export interface DuplicateCheckTransaction {
   id: string;
   /** Branded ISO date string (YYYY-MM-DD) */
   date: ISODateString;
-  amount: number;
+  /** Amount in minor units (cents) */
+  amount: MoneyMinorUnits;
   description: string;
 }
 
@@ -45,8 +49,8 @@ export interface DuplicateMatch {
 export interface DuplicateDetectionConfig {
   /** Maximum date difference in days to consider a match */
   maxDateDiffDays: number;
-  /** Maximum amount difference (absolute) to consider a match */
-  maxAmountDiff: number;
+  /** Maximum amount difference in minor units (cents) to consider a match */
+  maxAmountDiff: MoneyMinorUnits;
   /** Minimum description similarity (0-1) to consider a match */
   minDescriptionSimilarity: number;
   /** Minimum overall confidence to flag as duplicate */
@@ -58,7 +62,7 @@ export interface DuplicateDetectionConfig {
  */
 export const DEFAULT_DUPLICATE_CONFIG: DuplicateDetectionConfig = {
   maxDateDiffDays: 3, // Allow 3 days difference for posting delays
-  maxAmountDiff: 0.01, // Allow 1 cent difference for rounding
+  maxAmountDiff: 1 as MoneyMinorUnits, // Allow 1 cent difference for rounding
   minDescriptionSimilarity: 0.6, // 60% similar descriptions
   minConfidence: 0.7, // Overall 70% confidence
 };

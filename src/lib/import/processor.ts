@@ -3,6 +3,15 @@
  *
  * Core logic for processing imported transactions.
  * Handles parsing, validation, and duplicate detection.
+ *
+ * All amounts are converted to MoneyMinorUnits (integer minor units) during processing.
+ * The conversion is currency-aware: USD uses cents (×100), JPY stays as-is (×1), etc.
+ *
+ * Currency resolution order:
+ * 1. Embedded in file (OFX CURDEF)
+ * 2. Account's configured currency (passed to processor)
+ * 3. User's default currency (passed to processor)
+ * 4. Fallback to USD
  */
 
 import { parseCSV, parseNumber, parseDate, type CSVParseOptions } from "./csv";
@@ -12,6 +21,7 @@ import type { ImportFormatting } from "@/components/features/import/FormattingSt
 import { detectDuplicates, type DuplicateMatch } from "./duplicates";
 import { Temporal } from "temporal-polyfill";
 import { type ISODateString, toISODateString } from "@/types";
+import { type MoneyMinorUnits, asMinorUnits, toMinorUnitsForCurrency } from "@/lib/domain/currency";
 
 /**
  * Processed transaction ready for import.
@@ -21,8 +31,8 @@ export interface ProcessedTransaction {
   id: string;
   /** Transaction date (branded ISO string for CRDT storage) */
   date: ISODateString;
-  /** Amount (positive = income, negative = expense) */
-  amount: number;
+  /** Amount in minor units/cents (positive = income, negative = expense) */
+  amount: MoneyMinorUnits;
   /** Merchant name */
   merchant: string;
   /** Description/memo */
@@ -66,7 +76,8 @@ export interface ProcessImportResult {
 export interface ExistingTransaction {
   id: string;
   date: ISODateString;
-  amount: number;
+  /** Amount in minor units (cents) */
+  amount: MoneyMinorUnits;
   description: string;
 }
 
@@ -77,13 +88,15 @@ export interface ExistingTransaction {
  * @param mappings - Column mappings
  * @param formatting - Formatting options
  * @param existingTransactions - Existing transactions for duplicate detection
+ * @param currencyCode - ISO 4217 currency code (default: "USD")
  * @returns Processing result
  */
 export function processCSVImport(
   content: string,
   mappings: ColumnMapping[],
   formatting: ImportFormatting,
-  existingTransactions: ExistingTransaction[] = []
+  existingTransactions: ExistingTransaction[] = [],
+  currencyCode: string = "USD"
 ): ProcessImportResult {
   // Parse CSV
   const csvOptions: CSVParseOptions = {
@@ -127,24 +140,28 @@ export function processCSVImport(
       rowErrors.push("Missing date");
     }
 
-    // Extract amount
+    // Extract amount - convert to MoneyMinorUnits (currency-aware)
     const amountIdx = columnMap.get("amount");
-    let amount: number | null = null;
+    let amount: MoneyMinorUnits | null = null;
     if (amountIdx !== undefined && row[amountIdx]) {
-      amount = parseNumber(
+      let parsedAmount = parseNumber(
         row[amountIdx],
         formatting.thousandSeparator,
         formatting.decimalSeparator
       );
-      if (isNaN(amount)) {
+      if (isNaN(parsedAmount)) {
         rowErrors.push(`Invalid amount: ${row[amountIdx]}`);
-        amount = null;
       } else {
-        if (formatting.amountInCents) {
-          amount = amount / 100;
-        }
+        // Negate if requested
         if (formatting.negateAmounts) {
-          amount = -amount;
+          parsedAmount = -parsedAmount;
+        }
+        // Convert to minor units using currency's decimal places
+        // If amountInCents is true, the value is already in minor units
+        if (formatting.amountInCents) {
+          amount = asMinorUnits(Math.round(parsedAmount));
+        } else {
+          amount = toMinorUnitsForCurrency(parsedAmount, currencyCode);
         }
       }
     } else {
@@ -216,20 +233,38 @@ export function processCSVImport(
 
 /** Result type for OFX import processing */
 export type ProcessOFXImportResult =
-  | { readonly ok: true; readonly data: ProcessImportResult }
+  | { readonly ok: true; readonly data: ProcessImportResult; readonly currency: string }
   | { readonly ok: false; readonly error: string };
+
+/**
+ * Options for OFX import processing.
+ */
+export interface ProcessOFXImportOptions {
+  /** Existing transactions for duplicate detection */
+  existingTransactions?: ExistingTransaction[];
+  /** Currency to use if not specified in OFX (default: "USD") */
+  fallbackCurrency?: string;
+  /**
+   * Expected currency for the target account.
+   * If provided and OFX declares a different currency, import will fail.
+   * This prevents importing USD transactions into a EUR account.
+   */
+  expectedCurrency?: string;
+}
 
 /**
  * Process an OFX file for import.
  *
  * @param content - Raw OFX content
- * @param existingTransactions - Existing transactions for duplicate detection
- * @returns Processing result (Result type)
+ * @param options - Import options including duplicate detection and currency validation
+ * @returns Processing result (Result type) with detected currency
  */
 export function processOFXImport(
   content: string,
-  existingTransactions: ExistingTransaction[] = []
+  options: ProcessOFXImportOptions = {}
 ): ProcessOFXImportResult {
+  const { existingTransactions = [], fallbackCurrency = "USD", expectedCurrency } = options;
+
   const parseResult = parseOFX(content);
 
   // Handle parse errors
@@ -242,16 +277,40 @@ export function processOFXImport(
     };
   }
 
+  // Use the currency from the first statement, or fallback
+  const detectedCurrency = parseResult.data.statements[0]?.currency || fallbackCurrency;
+
+  // Validate currency matches expected account currency
+  if (expectedCurrency && detectedCurrency.toUpperCase() !== expectedCurrency.toUpperCase()) {
+    return {
+      ok: false,
+      error: `Currency mismatch: OFX file contains ${detectedCurrency} transactions, but the target account uses ${expectedCurrency}. Import to an account with matching currency.`,
+    };
+  }
+
   // Flatten transactions from all statements
   const allTransactions: ProcessedTransaction[] = [];
   let transactionIndex = 0;
 
   for (const statement of parseResult.data.statements) {
+    // Use statement's currency (OFX files can have multiple accounts with different currencies)
+    const statementCurrency = statement.currency || fallbackCurrency;
+
+    // Check each statement's currency matches (multi-statement OFX files)
+    if (expectedCurrency && statementCurrency.toUpperCase() !== expectedCurrency.toUpperCase()) {
+      return {
+        ok: false,
+        error: `Currency mismatch: OFX statement contains ${statementCurrency} transactions, but the target account uses ${expectedCurrency}. Import to an account with matching currency.`,
+      };
+    }
+
     for (const tx of statement.transactions) {
+      // Convert OFX amount (major units) to MoneyMinorUnits using currency's decimal places
+      const amountInMinorUnits = toMinorUnitsForCurrency(tx.amount, statementCurrency);
       allTransactions.push({
         id: tx.fitId || `import-${Temporal.Now.instant().epochMilliseconds}-${transactionIndex}`,
         date: toISODateString(tx.datePosted),
-        amount: tx.amount,
+        amount: amountInMinorUnits,
         merchant: tx.name,
         description: tx.memo,
         checkNumber: tx.checkNumber,
@@ -288,12 +347,13 @@ export function processOFXImport(
         duplicateCount,
       },
     },
+    currency: detectedCurrency,
   };
 }
 
 /** Result type for import processing */
 export type ProcessImportResultType =
-  | { readonly ok: true; readonly data: ProcessImportResult }
+  | { readonly ok: true; readonly data: ProcessImportResult; readonly currency?: string }
   | { readonly ok: false; readonly error: string };
 
 /**
@@ -303,19 +363,28 @@ export type ProcessImportResultType =
  * @param mappings - Column mappings (for CSV)
  * @param formatting - Formatting options (for CSV)
  * @param existingTransactions - Existing transactions for duplicate detection
- * @returns Processing result (Result type)
+ * @param currencyCode - ISO 4217 currency code for CSV imports (default: "USD")
+ * @param expectedCurrency - For OFX: expected currency of target account (validates against OFX CURDEF)
+ * @returns Processing result (Result type) with currency for OFX imports
  */
 export function processImport(
   content: string,
   mappings: ColumnMapping[],
   formatting: ImportFormatting,
-  existingTransactions: ExistingTransaction[] = []
+  existingTransactions: ExistingTransaction[] = [],
+  currencyCode: string = "USD",
+  expectedCurrency?: string
 ): ProcessImportResultType {
   if (isOFXFormat(content)) {
-    return processOFXImport(content, existingTransactions);
+    // OFX files contain their own currency - pass fallback in case not specified
+    return processOFXImport(content, {
+      existingTransactions,
+      fallbackCurrency: currencyCode,
+      expectedCurrency,
+    });
   }
   return {
     ok: true,
-    data: processCSVImport(content, mappings, formatting, existingTransactions),
+    data: processCSVImport(content, mappings, formatting, existingTransactions, currencyCode),
   };
 }

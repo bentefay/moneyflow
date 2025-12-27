@@ -396,22 +396,22 @@ A user wants to create automation rules that automatically categorize and alloca
 ### Key Entities
 
 - **Identity**: A user's cryptographic identity. Derived from BIP39 seed phrase → Ed25519 keypair. Server knows only `pubkey_hash` (BLAKE2b hash of public key).
-- **UserData**: Encrypted per-user storage containing: vault references (IDs + wrapped keys), global settings (active vault, theme). Stored server-side but only decryptable by user.
-- **GlobalSettings**: App-wide user preferences stored in UserData: active vault selection, theme, future notification prefs. NOT vault-specific.
+- **UserData**: Encrypted per-user storage containing: vault references (IDs + wrapped keys), global settings (active vault, theme, default currency). Stored server-side but only decryptable by user.
+- **GlobalSettings**: App-wide user preferences stored in UserData: active vault selection, theme, default currency (ISO 4217 code for import fallback), future notification prefs. NOT vault-specific.
 - **Vault**: An encrypted container for all financial data. Acts as a **tenant**—the entire app UI is scoped to the active vault. A user can belong to multiple vaults. Contains Accounts, People, Tags, Transactions, Imports, Automations, and vault-specific preferences.
 - **VaultMembership**: Links an Identity to a Vault with a role (owner/member) and wrapped vault key.
 - **VaultInvite**: A pending invitation to join a vault. Contains ephemeral public key for key exchange.
 - **Person**: An individual for expense allocation within a vault. Has name. May be linked to an Identity for vault access.
-- **Account**: A financial account. Has name, account number (optional), currency, type, balance, associated People with default ownership percentages (must sum to 100%).
+- **Account**: A financial account. Has name, account number (optional), currency (ISO 4217, required), type, balance (in account's currency minor units), associated People with default ownership percentages (must sum to 100%). Each account has exactly one currency.
 - **Tag**: A category for transactions. Has name, parent Tag (optional), transfer flag.
-- **Transaction**: A financial event. Has date, merchant, description, amount, Tags, Account, Status, allocations, Import reference, applied Automations, excluded Automations, duplicateOf (optional reference to suspected original).
+- **Transaction**: A financial event. Has date, merchant, description, amount (in account's currency minor units), Tags, Account, Status, allocations, Import reference, applied Automations, excluded Automations, duplicateOf (optional reference to suspected original).
 - **Allocation**: A percentage split of a Transaction to a Person.
 - **Import**: A batch import event. Has timestamp, filename, unique ID. References many Transactions.
 - **ImportTemplate**: Saved import configuration. Has name, column mappings, formatting settings.
 - **Status**: A transaction state. Has name, behavior (e.g., "Treat as Paid" or none). Default statuses: "For Review", "Paid".
 - **Automation**: A rule for automatic transaction processing. Has name, conditions (column, operator, value, case-sensitive), actions (column values to set), order/priority.
 - **AutomationApplication**: A record of an automation applied to a transaction. Tracks what was changed for undo capability.
-- **VaultPreferences**: Per-vault settings stored in the vault CRDT. Includes automation creation preference ("Create automatically" vs "Manual").
+- **VaultPreferences**: Per-vault settings stored in the vault CRDT. Includes automation creation preference ("Create automatically" vs "Manual"), default currency for new accounts.
 
 ## Success Criteria _(mandatory)_
 
@@ -436,6 +436,8 @@ A user wants to create automation rules that automatically categorize and alloca
 - **A-002**: Real-time sync will use WebSockets or similar persistent connection technology.
 - **A-003**: "Near real-time" means <500ms propagation under normal conditions.
 - **A-004**: Initial launch will support single currency per account; multi-currency conversion is out of scope.
+- **A-004a**: Settlement calculations assume all accounts use the same currency. Multi-currency vaults will show settlement per person, but users must manually handle cross-currency reconciliation.
+- **A-004b**: OFX imports will validate that the file's currency (CURDEF) matches the target account's currency, rejecting mismatches with a clear error message.
 - **A-005**: The landing page will use placeholder testimonials initially.
 - **A-006**: OFX parsing will use an existing library rather than custom implementation.
 - **A-007**: BIP39 12-word seed phrases provide sufficient entropy (128 bits) for collision resistance.
@@ -445,6 +447,7 @@ A user wants to create automation rules that automatically categorize and alloca
 
 - Bank API integrations (automatic transaction fetching)
 - Multi-currency conversion between accounts
+- Multi-currency settlement tracking (settlement is per-currency; future: track net position per currency pair)
 - Settlement payment tracking and recording (marking debts as settled) - balance viewing IS in scope
 - Mobile native apps (web-responsive only for MVP)
 - Reports and analytics dashboards (future feature)

@@ -34,6 +34,7 @@
     "@trpc/server": "^11.8.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "currency.js": "^2.0.4",
     "libsodium-wrappers": "^0.7.15",
     "loro-crdt": "^1.10.3",
     "loro-mirror": "^1.2.1",

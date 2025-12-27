@@ -101,7 +101,14 @@ See: `.github/instructions/sync.instructions.md`
 API requests are signed with Ed25519 keys derived from seed phrase. No passwords.
 See: `.github/instructions/trpc.instructions.md`
 
-### 5. Use Established Libraries
+### 5. Money as Integer Minor Units
+
+All monetary amounts are stored as integers in minor units (cents for USD, yen for JPY).
+Use `toMinorUnitsForCurrency()` for conversion based on currency's decimal places.
+Currency resolution: OFX CURDEF → Account currency → User default → Vault default → USD.
+See: `src/lib/domain/currency.ts`
+
+### 6. Use Established Libraries
 
 Do NOT write custom implementations of well-known algorithms. Use battle-tested npm packages:
 

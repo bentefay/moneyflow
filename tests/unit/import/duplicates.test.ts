@@ -15,6 +15,7 @@ import {
   type DuplicateDetectionConfig,
 } from "@/lib/import/duplicates";
 import { type ISODateString } from "@/types";
+import { type MoneyMinorUnits, asMinorUnits } from "@/lib/domain/currency";
 
 // ============================================================================
 // Test Helpers
@@ -25,13 +26,18 @@ function isoDate(date: string): ISODateString {
   return date as ISODateString;
 }
 
+/** Create a MoneyMinorUnits value for tests */
+function cents(value: number): MoneyMinorUnits {
+  return asMinorUnits(value);
+}
+
 function createTransaction(
   overrides: Partial<DuplicateCheckTransaction> = {}
 ): DuplicateCheckTransaction {
   return {
     id: `tx-${Math.random().toString(36).substring(7)}`,
     date: isoDate("2024-01-15"),
-    amount: -50.0,
+    amount: cents(-5000), // -$50.00 in cents
     description: "COFFEE SHOP",
     ...overrides,
   };
@@ -85,24 +91,24 @@ describe("checkDuplicate", () => {
 
   describe("amount matching", () => {
     it("matches exact amounts", () => {
-      const tx1 = createTransaction({ id: "tx-1", amount: -50.0 });
-      const tx2 = createTransaction({ id: "tx-2", amount: -50.0 });
+      const tx1 = createTransaction({ id: "tx-1", amount: cents(-5000) });
+      const tx2 = createTransaction({ id: "tx-2", amount: cents(-5000) });
 
       const match = checkDuplicate(tx1, tx2);
       expect(match?.matchDetails.amountMatch).toBe(true);
     });
 
     it("matches amounts within 1 cent tolerance", () => {
-      const tx1 = createTransaction({ id: "tx-1", amount: -50.0 });
-      const tx2 = createTransaction({ id: "tx-2", amount: -50.01 });
+      const tx1 = createTransaction({ id: "tx-1", amount: cents(-5000) });
+      const tx2 = createTransaction({ id: "tx-2", amount: cents(-5001) });
 
       const match = checkDuplicate(tx1, tx2);
       expect(match?.matchDetails.amountMatch).toBe(true);
     });
 
     it("reduces confidence when amounts differ significantly", () => {
-      const tx1 = createTransaction({ id: "tx-1", amount: -50.0 });
-      const tx2 = createTransaction({ id: "tx-2", amount: -55.0 });
+      const tx1 = createTransaction({ id: "tx-1", amount: cents(-5000) });
+      const tx2 = createTransaction({ id: "tx-2", amount: cents(-5500) });
 
       const match = checkDuplicate(tx1, tx2);
       // Even with different amounts, might still match if description is very similar
@@ -147,13 +153,13 @@ describe("checkDuplicate", () => {
       const tx1 = createTransaction({
         id: "tx-1",
         date: isoDate("2024-01-15"),
-        amount: -50.0,
+        amount: cents(-5000),
         description: "COFFEE SHOP DOWNTOWN",
       });
       const tx2 = createTransaction({
         id: "tx-2",
         date: isoDate("2024-01-20"), // Too far
-        amount: -75.0, // Different amount
+        amount: cents(-7500), // Different amount
         description: "DIFFERENT MERCHANT", // Different description
       });
 
@@ -177,12 +183,12 @@ describe("checkDuplicate", () => {
     });
 
     it("respects custom amount tolerance", () => {
-      const tx1 = createTransaction({ id: "tx-1", amount: -50.0 });
-      const tx2 = createTransaction({ id: "tx-2", amount: -51.0 });
+      const tx1 = createTransaction({ id: "tx-1", amount: cents(-5000) });
+      const tx2 = createTransaction({ id: "tx-2", amount: cents(-5100) });
 
       const config: DuplicateDetectionConfig = {
         ...DEFAULT_DUPLICATE_CONFIG,
-        maxAmountDiff: 5.0,
+        maxAmountDiff: cents(500), // 500 cents = $5.00 tolerance
       };
 
       const match = checkDuplicate(tx1, tx2, config);
@@ -318,19 +324,19 @@ describe("detectInternalDuplicates", () => {
       createTransaction({
         id: "tx-1",
         date: isoDate("2024-01-15"),
-        amount: -50.0,
+        amount: cents(-5000),
         description: "COFFEE SHOP DOWNTOWN",
       }),
       createTransaction({
         id: "tx-2",
         date: isoDate("2024-02-20"),
-        amount: -125.0,
+        amount: cents(-12500),
         description: "GROCERY STORE MAIN ST",
       }),
       createTransaction({
         id: "tx-3",
         date: isoDate("2024-03-10"),
-        amount: -300.0,
+        amount: cents(-30000),
         description: "AUTO SERVICE CENTER",
       }),
     ];
@@ -383,7 +389,7 @@ describe("detectInternalDuplicates", () => {
 describe("DEFAULT_DUPLICATE_CONFIG", () => {
   it("has sensible defaults", () => {
     expect(DEFAULT_DUPLICATE_CONFIG.maxDateDiffDays).toBe(3);
-    expect(DEFAULT_DUPLICATE_CONFIG.maxAmountDiff).toBe(0.01);
+    expect(DEFAULT_DUPLICATE_CONFIG.maxAmountDiff).toBe(1); // 1 cent tolerance
     expect(DEFAULT_DUPLICATE_CONFIG.minDescriptionSimilarity).toBe(0.6);
     expect(DEFAULT_DUPLICATE_CONFIG.minConfidence).toBe(0.7);
   });
@@ -401,7 +407,8 @@ describe("duplicate detection properties", () => {
       const d = new Date(2024, 0, day);
       return isoDate(d.toISOString().split("T")[0]);
     }),
-    amount: fc.double({ min: -10000, max: 10000, noNaN: true }),
+    // Generate integer cents (-$100.00 to $100.00)
+    amount: fc.integer({ min: -10000, max: 10000 }).map((n) => cents(n)),
     description: fc.string({ minLength: 3, maxLength: 30 }),
   });
 

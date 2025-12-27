@@ -15,6 +15,13 @@ Import Flow:
 Duplicate Detection:
   New Transaction → Check existing by (date + amount + description similarity)
                  → Flag as duplicateOf if match found
+
+Currency Resolution (for amount conversion to minor units):
+  1. OFX files: Use CURDEF from file
+  2. Account currency: Use target account's currency
+  3. User default: Fall back to user's globalSettings.defaultCurrency
+  4. Vault default: Fall back to vault preferences.defaultCurrency
+  5. Ultimate fallback: USD
 ```
 
 ## Key Files
@@ -25,6 +32,23 @@ Duplicate Detection:
 - `duplicates.ts` - Duplicate detection logic
 - `processor.ts` - Main import processing pipeline
 - `index.ts` - Public API exports
+
+## Money Handling
+
+**All amounts are stored as integers in minor units** (cents for USD, yen for JPY, etc.):
+
+```typescript
+import { toMinorUnitsForCurrency } from "@/lib/domain/currency";
+
+// Convert $12.34 USD to cents
+const cents = toMinorUnitsForCurrency(12.34, "USD"); // 1234
+
+// Convert ¥1234 JPY (0 decimal places)
+const yen = toMinorUnitsForCurrency(1234, "JPY"); // 1234
+
+// Convert 1.234 KWD (3 decimal places)
+const fils = toMinorUnitsForCurrency(1.234, "KWD"); // 1234
+```
 
 ## CSV Parser
 

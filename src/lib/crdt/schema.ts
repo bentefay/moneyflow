@@ -4,6 +4,21 @@
  * Defines the complete schema for a Vault CRDT document using loro-mirror.
  * This schema enables type-safe, reactive state management with automatic
  * CRDT sync to Loro's internal representation.
+ *
+ * ## Money Representation
+ *
+ * All monetary amounts are stored as integers in minor units (e.g., cents for USD).
+ * This avoids floating-point precision issues. Use the currency module for conversion:
+ *
+ * ```ts
+ * import { USD, toMinorUnits, fromMinorUnits } from "@/lib/domain/currency";
+ *
+ * // Store: $12.34 → 1234 cents
+ * transaction.amount = toMinorUnits(USD(12.34));
+ *
+ * // Display: 1234 cents → "$12.34"
+ * fromMinorUnits(transaction.amount, USD).format();
+ * ```
  */
 
 import { schema } from "loro-mirror";
@@ -24,13 +39,18 @@ export const personSchema = schema.LoroMap({
 
 /**
  * Account schema - bank accounts, credit cards, cash accounts
+ *
+ * Each account has exactly one currency. Amounts (balance, transactions) are stored
+ * in that currency's minor units (e.g., cents for USD, yen for JPY).
  */
 export const accountSchema = schema.LoroMap({
   id: schema.String({ required: true }),
   name: schema.String({ required: true }),
   accountNumber: schema.String(),
+  /** ISO 4217 currency code (e.g., "USD", "EUR", "JPY"). Each account has exactly one currency. */
   currency: schema.String({ defaultValue: "USD" }),
   accountType: schema.String({ defaultValue: "checking" }), // checking, savings, credit, cash, loan
+  /** Balance in minor units for this account's currency (e.g., cents for USD, yen for JPY) */
   balance: schema.Number({ defaultValue: 0 }),
   ownerships: schema.LoroMapRecord(schema.Number()), // personId -> ownership percentage
   deletedAt: schema.Number(),
@@ -66,7 +86,7 @@ export const transactionSchema = schema.LoroMap({
   date: schema.String({ required: true }), // ISO date string
   merchant: schema.String({ defaultValue: "" }),
   description: schema.String({ defaultValue: "" }),
-  amount: schema.Number({ required: true }), // Positive = income, negative = expense
+  amount: schema.Number({ required: true }), // MoneyMinorUnits: integer cents (positive = income, negative = expense)
   accountId: schema.String({ required: true }),
   tagIds: schema.LoroList(schema.String(), (id) => id), // Tag IDs as LoroList for concurrent adds
   statusId: schema.String({ required: true }),
@@ -140,7 +160,10 @@ export const automationSchema = schema.LoroMap({
  * Vault preferences schema - vault-scoped settings synced across members
  */
 export const vaultPreferencesSchema = schema.LoroMap({
+  /** Automation creation preference */
   automationCreationPreference: schema.String({ defaultValue: "manual" }), // "createAutomatically" | "manual"
+  /** Default currency for new accounts and imports (ISO 4217 code) */
+  defaultCurrency: schema.String({ defaultValue: "USD" }),
 });
 
 // ============================================

@@ -179,6 +179,48 @@ export const ThemeSchema = z.enum(["light", "dark", "system"]);
 export type Theme = z.infer<typeof ThemeSchema>;
 
 // ============================================
+// Global Settings Types (User-level preferences)
+// ============================================
+
+/**
+ * User's global settings stored in encrypted user_data.
+ * These are NOT vault-specific - they apply across all vaults.
+ */
+export const GlobalSettingsSchema = z.object({
+  /** Currently active vault ID (null if none selected) */
+  activeVaultId: z.string().uuid().nullable(),
+  /** UI theme preference */
+  theme: ThemeSchema,
+  /** Default currency for imports when not specified by account or file (ISO 4217) */
+  defaultCurrency: CurrencyCodeSchema.default("USD"),
+});
+export type GlobalSettings = z.infer<typeof GlobalSettingsSchema>;
+
+/**
+ * Reference to a vault stored in user's encrypted data.
+ */
+export const VaultReferenceSchema = z.object({
+  /** Vault UUID */
+  id: z.string().uuid(),
+  /** Vault encryption key wrapped with user's X25519 public key */
+  wrappedKey: z.string().min(1),
+  /** Cached vault name for UI (convenience, may be stale) */
+  name: z.string().optional(),
+});
+export type VaultReference = z.infer<typeof VaultReferenceSchema>;
+
+/**
+ * Decrypted contents of user_data.encrypted_data
+ */
+export const UserDataSchema = z.object({
+  /** User's vault memberships with wrapped keys */
+  vaults: z.array(VaultReferenceSchema),
+  /** Global (user-level) settings */
+  globalSettings: GlobalSettingsSchema,
+});
+export type UserData = z.infer<typeof UserDataSchema>;
+
+// ============================================
 // Result Types (for error handling)
 // ============================================
 
