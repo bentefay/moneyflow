@@ -56,6 +56,8 @@ Sync Flow:
 
 5. **Timestamps** - Use `Date.now()` for createdAt/updatedAt/deletedAt
 
+6. **Write tests** - Schema changes and CRDT operations need unit tests in `tests/unit/crdt/`
+
 ## Schema Patterns
 
 Entities follow this pattern:

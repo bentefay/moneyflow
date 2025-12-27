@@ -92,6 +92,7 @@ export type CreateVaultInput = z.infer<typeof createVaultSchema>;
 3. **Verify signatures** - Every mutation must be signed
 4. **Check permissions** - Verify user has access to vault
 5. **Use transactions** - Wrap multi-step operations in DB transactions
+6. **Write tests** - Every router needs integration tests for happy path + error cases
 
 ## Error Handling
 

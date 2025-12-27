@@ -96,7 +96,7 @@ export function ComponentName({ propName, className }: ComponentNameProps) {
 
 ## Testing
 
-Component tests use @testing-library/react. Assert behaviour and roles, not text:
+**Write tests for components with logic.** Use @testing-library/react, assert behaviour and roles:
 
 ```typescript
 import { render, screen } from "@testing-library/react";
@@ -106,3 +106,5 @@ it("renders transaction row with amount cell", () => {
   expect(screen.getByRole("cell", { name: /amount/i })).toBeInTheDocument();
 });
 ```
+
+For user flows (identity, import wizard), add E2E tests in `tests/e2e/`.

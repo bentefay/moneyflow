@@ -7,7 +7,10 @@
 
 - **[P]**: Can run in parallel (different files, no dependencies)
 - **[Story]**: Which user story this task belongs to (US1, US2, etc.)
+- **[T]**: Test task - must be completed before phase checkpoint
 - Includes exact file paths in descriptions
+
+**⚠️ Tests are not optional.** Each phase includes test tasks. A phase is not complete until its tests pass.
 
 ## Path Conventions
 
@@ -226,7 +229,13 @@ Based on plan.md structure:
 - [x] T088 [US5] Implement running balance calculation (cumulative per account) in src/lib/domain/balance.ts
 - [x] T089 [US5] Integrate real-time sync (Supabase Realtime → Loro updates) in src/lib/sync/manager.ts
 
-**Checkpoint**: Transaction table is functional with filtering, inline edit, and real-time sync.
+### Tests for Phase 5
+
+- [ ] T089a [T] [US5] Property-based tests for balance calculations in tests/unit/domain/balance.test.ts
+- [ ] T089b [T] [US5] Property-based tests for allocation math (fast-check) in tests/unit/domain/allocation.test.ts
+- [x] T089c [T] [US5] E2E test: transaction CRUD flow in tests/e2e/transactions.spec.ts
+
+**Checkpoint**: Transaction table functional with filtering, inline edit, real-time sync. **Tests passing.**
 
 ---
 
@@ -267,7 +276,16 @@ Based on plan.md structure:
 - [x] T101i [US5] Implement bulk transaction deletion in BulkEditToolbar in src/components/features/transactions/BulkEditToolbar.tsx
 - [x] T101j [US5] Add delete keyboard shortcut (d or Delete key) for selected transactions in src/components/features/transactions/TransactionTable.tsx
 
-**Checkpoint**: Users can import CSV/OFX files. Duplicates detected and flagged. Templates saved automatically.
+### Tests for Phase 6
+
+- [ ] T101k [T] [US6] Unit tests for CSV parser (table-driven, real bank exports) in tests/unit/import/csv.test.ts
+- [ ] T101l [T] [US6] Unit tests for OFX parser in tests/unit/import/ofx.test.ts
+- [ ] T101m [T] [US6] Unit tests for Levenshtein distance in tests/unit/import/levenshtein.test.ts
+- [ ] T101n [T] [US6] Unit tests for duplicate detection in tests/unit/import/duplicates.test.ts
+- [ ] T101o [T] [US6] Integration tests for import processor in tests/integration/import.test.ts
+- [x] T101p [T] [US6] E2E test: import wizard flow in tests/e2e/import.spec.ts
+
+**Checkpoint**: Import CSV/OFX works. Duplicates detected. Templates saved. **Tests passing.**
 
 ---
 
@@ -285,7 +303,11 @@ Based on plan.md structure:
 - [ ] T105 [US2] Create /accounts page in src/app/(app)/accounts/page.tsx
 - [ ] T106 [US2] Connect AccountsTable to Loro state via useLoroSelector/useLoroAction
 
-**Checkpoint**: Accounts page is functional with inline editing and real-time sync.
+### Tests for Phase 7
+
+- [ ] T106a [T] [US2] Unit tests for ownership percentage validation (must sum to 100%) in tests/unit/domain/ownership.test.ts
+
+**Checkpoint**: Accounts page functional with inline editing and real-time sync. **Tests passing.**
 
 ---
 
@@ -315,7 +337,13 @@ Based on plan.md structure:
 - [ ] T117 [US3] Create /invite/[token] page (redeem invite flow) in src/app/(onboarding)/invite/[token]/page.tsx
 - [ ] T118 [US3] Implement settlement balance calculation (transactions with "Treat as Paid" status) in src/lib/domain/settlement.ts
 
-**Checkpoint**: People page with invite links and balance summary. Multi-user vault sharing works.
+### Tests for Phase 8
+
+- [ ] T118a [T] [US3] Property-based tests for settlement calculations in tests/unit/domain/settlement.test.ts
+- [ ] T118b [T] [US3] Integration tests for invite/redeem flow in tests/integration/invite.test.ts
+- [ ] T118c [T] [US3] E2E test: multi-user sync in tests/e2e/sync.spec.ts
+
+**Checkpoint**: People page with invite links and balance summary. Multi-user sharing works. **Tests passing.**
 
 ---
 
@@ -332,7 +360,11 @@ Based on plan.md structure:
 - [ ] T121 [US4] Create TagsTable component (shows hierarchy) in src/components/features/tags/TagsTable.tsx
 - [ ] T122 [US4] Create /tags page in src/app/(app)/tags/page.tsx
 
-**Checkpoint**: Tags page with hierarchy and transfer flag.
+### Tests for Phase 9
+
+- [ ] T122a [T] [US4] Unit tests for tag hierarchy traversal in tests/unit/domain/tags.test.ts
+
+**Checkpoint**: Tags page with hierarchy and transfer flag. **Tests passing.**
 
 ---
 
@@ -399,7 +431,13 @@ Based on plan.md structure:
 - [ ] T146 [US10] Implement auto-create automation from transaction (when "Create automatically" preference) in src/lib/domain/automation.ts
 - [ ] T147 [US10] Store user automation preference in UserPreferences in Loro schema in src/lib/crdt/schema.ts
 
-**Checkpoint**: Automation rules work. Auto-creation from transactions. Undo capability. <2s for 10k transactions.
+### Tests for Phase 12
+
+- [ ] T147a [T] [US10] Unit tests for automation condition matching in tests/unit/domain/automation.test.ts
+- [ ] T147b [T] [US10] Integration tests for automation engine in tests/integration/automation.test.ts
+- [ ] T147c [T] [US10] Performance test: automation eval <2s for 10k transactions in tests/integration/automation-perf.test.ts
+
+**Checkpoint**: Automation rules work. Auto-creation from transactions. Undo capability. **Tests passing, <2s for 10k txns.**
 
 ---
 
@@ -413,18 +451,14 @@ Based on plan.md structure:
 - [ ] T149 [P] Implement transaction pagination in Loro queries in src/lib/crdt/queries.ts
 - [ ] T150 [P] Add loading states and skeletons to all pages in src/components/ui/skeleton.tsx
 
-### Testing
+### E2E Tests (Cross-Cutting)
 
-- [ ] T151 [P] Unit tests for crypto functions (seed, keypair, encryption, signing) in tests/unit/crypto/
-- [ ] T152 [P] Unit tests for Loro schema operations in tests/unit/crdt/
-- [ ] T153 [P] Property-based tests for allocation math (fast-check) in tests/unit/domain/allocation.test.ts
-- [ ] T154 [P] Property-based tests for balance calculations in tests/unit/domain/balance.test.ts
-- [ ] T155 [P] Integration tests for import processor in tests/integration/import.test.ts
-- [ ] T156 [P] Integration tests for automation engine in tests/integration/automation.test.ts
+_Note: Most tests are now embedded in their respective phases. These are cross-cutting E2E tests._
+
 - [x] T157 E2E test: identity creation flow in tests/e2e/identity.spec.ts
-- [x] T158 E2E test: transaction CRUD flow in tests/e2e/transactions.spec.ts
-- [x] T159 E2E test: import wizard flow in tests/e2e/import.spec.ts
-- [x] T160 E2E test: multi-user sync in tests/e2e/sync.spec.ts
+- [x] T158 E2E test: transaction CRUD flow in tests/e2e/transactions.spec.ts (→ moved to Phase 5)
+- [x] T159 E2E test: import wizard flow in tests/e2e/import.spec.ts (→ moved to Phase 6)
+- [x] T160 E2E test: multi-user sync in tests/e2e/sync.spec.ts (→ moved to Phase 8)
 
 ### Documentation & Validation
 
@@ -561,22 +595,22 @@ With 2+ developers after Phase 2:
 
 ## Task Summary
 
-| Phase | User Story        | Task Count | Parallelizable |
+| Phase | User Story        | Task Count | Tests Included |
 | ----- | ----------------- | ---------- | -------------- |
-| 1     | Setup             | 8          | 6              |
-| 2     | Foundational      | 34         | 14             |
-| 3     | US1: Identity     | 15         | 4              |
-| 4     | US8: Landing      | 7          | 6              |
-| 5     | US5: Transactions | 37         | 17             |
-| 6     | US6: Import       | 22         | 9              |
-| 7     | US2: Accounts     | 5          | 2              |
-| 8     | US3: People       | 12         | 4              |
-| 9     | US4: Tags         | 4          | 2              |
-| 10    | US7: Imports      | 5          | 2              |
-| 11    | US9: Statuses     | 5          | 2              |
-| 12    | US10: Automations | 15         | 3              |
-| 13    | Polish            | 18         | 14             |
+| 1     | Setup             | 8          | -              |
+| 2     | Foundational      | 34         | 7 (T033a-g)    |
+| 3     | US1: Identity     | 15         | 1 (E2E)        |
+| 4     | US8: Landing      | 7          | -              |
+| 5     | US5: Transactions | 40         | 3 (T089a-c)    |
+| 6     | US6: Import       | 28         | 6 (T101k-p)    |
+| 7     | US2: Accounts     | 6          | 1 (T106a)      |
+| 8     | US3: People       | 15         | 3 (T118a-c)    |
+| 9     | US4: Tags         | 5          | 1 (T122a)      |
+| 10    | US7: Imports      | 5          | -              |
+| 11    | US9: Statuses     | 5          | -              |
+| 12    | US10: Automations | 18         | 3 (T147a-c)    |
+| 13    | Polish            | 7          | -              |
 
-**Total**: 187 tasks  
-**MVP (P1 only)**: 123 tasks (Phases 1-6 including duplicate detection, deletion & presence)  
-**Parallelizable**: ~85 tasks (45%)
+**Total**: ~193 tasks (including embedded test tasks)  
+**MVP (P1 only)**: ~132 tasks (Phases 1-6 with tests)  
+**Test tasks**: 25 (embedded in phases, not deferred)

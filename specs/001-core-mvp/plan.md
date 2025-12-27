@@ -118,15 +118,15 @@ tests/
 
 _Re-evaluated after Phase 1 design completion._
 
-| Principle                     | Status  | Evidence                                                                                                                                                                                   |
-| ----------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Principle                     | Status  | Evidence                                                                                                                                                                                          |
+| ----------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **I. Security & Privacy**     | ✅ PASS | [data-model.md](data-model.md) defines key-only auth (BIP39 → Ed25519), encryption at rest (XChaCha20-Poly1305), key hierarchy, X25519 key wrapping for multi-user. Server sees only pubkey_hash. |
-| **II. Multi-Party Integrity** | ✅ PASS | [data-model.md](data-model.md) §6.1 defines invariants (account ownerships sum to 100%). Event types track allocations with field-level CRDT for deterministic conflict resolution.        |
-| **III. Data Portability**     | ✅ PASS | [contracts/api.md](contracts/api.md) defines encrypted blob endpoints. Full state can be exported (decrypt snapshot). No proprietary formats.                                              |
-| **IV. Auditability**          | ✅ PASS | Event-sourced model in [data-model.md](data-model.md) provides complete audit trail. Every change is an event with HLC timestamp.                                                          |
-| **V. User-Owned Data**        | ✅ PASS | All data decryptable only by user. Keys derived from BIP39 seed phrase. Offline-capable via local state + event batching.                                                                  |
-| **VI. Performance/Beauty**    | ✅ PASS | [quickstart.md](quickstart.md) specifies shadcn/ui. Performance targets in spec (<100ms latency, <500ms sync).                                                                             |
-| **VII. Robustness**           | ✅ PASS | [quickstart.md](quickstart.md) §9 defines testing strategy: Vitest unit tests, property-based tests (fast-check), Playwright e2e.                                                          |
+| **II. Multi-Party Integrity** | ✅ PASS | [data-model.md](data-model.md) §6.1 defines invariants (account ownerships sum to 100%). Event types track allocations with field-level CRDT for deterministic conflict resolution.               |
+| **III. Data Portability**     | ✅ PASS | [contracts/api.md](contracts/api.md) defines encrypted blob endpoints. Full state can be exported (decrypt snapshot). No proprietary formats.                                                     |
+| **IV. Auditability**          | ✅ PASS | Event-sourced model in [data-model.md](data-model.md) provides complete audit trail. Every change is an event with HLC timestamp.                                                                 |
+| **V. User-Owned Data**        | ✅ PASS | All data decryptable only by user. Keys derived from BIP39 seed phrase. Offline-capable via local state + event batching.                                                                         |
+| **VI. Performance/Beauty**    | ✅ PASS | [quickstart.md](quickstart.md) specifies shadcn/ui. Performance targets in spec (<100ms latency, <500ms sync).                                                                                    |
+| **VII. Robustness**           | ✅ PASS | [quickstart.md](quickstart.md) §9 defines testing strategy: Vitest unit tests, property-based tests (fast-check), Playwright e2e.                                                                 |
 
 **Security Requirements (Post-Design)**:
 

@@ -3,9 +3,9 @@
 ## Critical Points
 
 - Favour a functional programming style with pure functions and immutable data structures.
+- **Tests are not optional**: Write unit tests for pure functions, E2E tests for user flows. A feature is not complete without tests.
 - .github/agents/copilot-instructions.md must be updated alongside code changes to keep instructions current.
 - .github/instructions/\* must be created/updated as new folders/domains are added.
-- Integration and e2e tests must be written and passing before marking a feature as complete.
 
 ## Quick Reference
 
@@ -94,8 +94,8 @@ See: `.github/instructions/trpc.instructions.md`
 
 Tests MUST be written alongside features. See Constitution VII for philosophy.
 
-| Type | Location | Style |
-|------|----------|-------|
-| Unit | `tests/unit/{module}/` | Table-driven for pure functions; property-based (fast-check) for invariants |
-| Integration | `tests/integration/` | Happy path + error cases |
-| E2E | `tests/e2e/` | Harness functions, assert behaviour not text |
+| Type        | Location               | Style                                                                       |
+| ----------- | ---------------------- | --------------------------------------------------------------------------- |
+| Unit        | `tests/unit/{module}/` | Table-driven for pure functions; property-based (fast-check) for invariants |
+| Integration | `tests/integration/`   | Happy path + error cases                                                    |
+| E2E         | `tests/e2e/`           | Harness functions, assert behaviour not text                                |

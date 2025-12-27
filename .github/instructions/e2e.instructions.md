@@ -62,7 +62,9 @@ const sampleData = `Date,Description,Amount\n2024-01-15,"Coffee",-5.50`;
 // ============================================================================
 
 /** Authenticate and reach dashboard. */
-async function setupAuthenticatedSession(page: Page): Promise<void> { /* ... */ }
+async function setupAuthenticatedSession(page: Page): Promise<void> {
+  /* ... */
+}
 
 /** Upload file and wait for processing. */
 async function uploadFile(page: Page, path: string): Promise<void> {
@@ -87,9 +89,9 @@ test.describe("Feature", () => {
 
 ## Quick Reference
 
-| Do | Don't |
-|----|-------|
-| `await expect(elem).toBeEnabled()` | `await page.waitForTimeout(2000)` |
-| `getByRole("button", { name: /submit/i })` | `getByText("Submit Button")` |
-| Harness helpers with waits encapsulated | Raw locator chains in tests |
-| Independent tests with `beforeEach` setup | Tests that depend on prior test state |
+| Do                                         | Don't                                 |
+| ------------------------------------------ | ------------------------------------- |
+| `await expect(elem).toBeEnabled()`         | `await page.waitForTimeout(2000)`     |
+| `getByRole("button", { name: /submit/i })` | `getByText("Submit Button")`          |
+| Harness helpers with waits encapsulated    | Raw locator chains in tests           |
+| Independent tests with `beforeEach` setup  | Tests that depend on prior test state |

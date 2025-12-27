@@ -8,13 +8,13 @@
 
 After evaluating multiple sync technologies and CRDT libraries, the **recommended approach** is:
 
-| Component         | Choice                           | Rationale                                     |
-| ----------------- | -------------------------------- | --------------------------------------------- |
-| **Framework**     | Next.js 15 on Vercel             | User specified; excellent DX                  |
-| **CRDT Library**  | Loro v1.0+                       | Tested algorithms, TypeScript support, ~150KB |
-| **Sync/Realtime** | Supabase Realtime                | WebSocket, perfect for encrypted blob relay   |
-| **Storage**       | Supabase (Postgres + Storage)    | Real-time subscriptions, free tier            |
-| **Encryption**    | Client-side XChaCha20-Poly1305   | Server never sees plaintext; 192-bit nonces   |
+| Component         | Choice                         | Rationale                                     |
+| ----------------- | ------------------------------ | --------------------------------------------- |
+| **Framework**     | Next.js 15 on Vercel           | User specified; excellent DX                  |
+| **CRDT Library**  | Loro v1.0+                     | Tested algorithms, TypeScript support, ~150KB |
+| **Sync/Realtime** | Supabase Realtime              | WebSocket, perfect for encrypted blob relay   |
+| **Storage**       | Supabase (Postgres + Storage)  | Real-time subscriptions, free tier            |
+| **Encryption**    | Client-side XChaCha20-Poly1305 | Server never sees plaintext; 192-bit nonces   |
 
 See [crdt-research.md](research/crdt-research.md) for detailed CRDT analysis.
 

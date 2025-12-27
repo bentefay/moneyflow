@@ -76,6 +76,7 @@ interface VaultPresence {
 3. **Handle offline** - Queue updates when offline, sync when back
 4. **Idempotent applies** - Same update applied twice = no change (CRDT property)
 5. **Order by HLC** - Use Hybrid Logical Clocks for causality
+6. **Write tests** - Sync logic needs integration tests with simulated multi-client scenarios
 
 ## Version Ordering
 

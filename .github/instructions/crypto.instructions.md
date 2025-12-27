@@ -41,6 +41,7 @@ Authentication:
 4. **Constant-time comparisons** - Use sodium.compare for secrets
 5. **Zeroize secrets** - Use sodium.memzero when done with sensitive data
 6. **Type-safe keys** - Use branded types (VaultKey, SigningKey) to prevent misuse
+7. **Write tests** - Every crypto function needs roundtrip and property-based tests in `tests/unit/crypto/`
 
 ## Testing Patterns
 

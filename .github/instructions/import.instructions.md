@@ -76,6 +76,7 @@ const matches = detectDuplicates(newTransactions, existingTransactions, config);
 3. **Preserve original data** - Keep `originalRow` for debugging
 4. **Validate dates** - Reject invalid dates, handle timezone carefully
 5. **Validate amounts** - Parse carefully, handle negative formats like `(123.45)`
+6. **Write tests** - Parsers need table-driven tests with real bank exports in `tests/unit/import/`
 
 ## Error Handling
 
