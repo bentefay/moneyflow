@@ -1,6 +1,11 @@
 # MoneyFlow Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2025-12-26
+## Critical Points
+
+- Favour a functional programming style with pure functions and immutable data structures.
+- .github/agents/copilot-instructions.md must be updated alongside code changes to keep instructions current.
+- .github/instructions/\* must be created/updated as new folders/domains are added.
+- Integration and e2e tests must be written and passing before marking a feature as complete.
 
 ## Quick Reference
 
@@ -85,11 +90,9 @@ See: `.github/instructions/trpc.instructions.md`
 
 - 001-core-mvp: Phase 5 & 6 complete (transactions, import, duplicate detection)
 
-<!-- MANUAL ADDITIONS START -->
-
 ## Testing Requirements
 
-Tests MUST be written alongside or immediately after each feature. Do not defer tests to a later phase.
+Integration and e2e tests MUST be written alongside or immediately after each feature. Do not defer tests to a later phase.
 
 ### Test Philosophy (from Constitution)
 
@@ -115,7 +118,6 @@ describe("functionName", () => {
   const cases = [
     { name: "handles empty input", input: "", expected: "" },
     { name: "trims whitespace", input: "  hello  ", expected: "hello" },
-    { name: "handles unicode", input: "über", expected: "über" },
   ] as const;
 
   cases.forEach(({ name, input, expected }) => {
@@ -126,32 +128,11 @@ describe("functionName", () => {
 });
 ```
 
-For async crypto functions, use `it.each` or similar patterns:
-
-```typescript
-import { describe, it, expect } from "vitest";
-import * as fc from "fast-check";
-
-describe("encrypt/decrypt roundtrip", () => {
-  it("roundtrips arbitrary data", async () => {
-    await fc.assert(
-      fc.asyncProperty(fc.uint8Array({ minLength: 0, maxLength: 1000 }), async (data) => {
-        const key = await generateVaultKey();
-        const encrypted = await encryptForStorage(data, key);
-        const decrypted = await decryptFromStorage(encrypted, key);
-        expect(decrypted).toEqual(data);
-      })
-    );
-  });
-});
-```
-
 ### When Writing Features
 
-1. **Pure functions**: Add table-driven unit tests in `tests/unit/`
-2. **Crypto operations**: Add roundtrip tests and property-based tests
-3. **API endpoints**: Add integration tests for happy path + error cases
-4. **User flows**: Add E2E tests for critical paths (identity, transactions, sync)
+1. **Pure functions**: Add table-driven, roundtrip and property-based tests in `tests/unit/` (where relevant)
+2. **API endpoints**: Add integration tests for happy path + error cases
+3. **User flows**: Add E2E tests for critical paths (identity, transactions, sync)
 
 ### Testing Stack
 
@@ -159,5 +140,3 @@ describe("encrypt/decrypt roundtrip", () => {
 - **fast-check**: Property-based testing for invariants
 - **Playwright**: E2E browser tests
 - **@testing-library/react**: Component tests (when needed)
-
-<!-- MANUAL ADDITIONS END -->

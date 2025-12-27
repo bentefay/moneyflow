@@ -77,17 +77,11 @@ interface VaultPresence {
 4. **Idempotent applies** - Same update applied twice = no change (CRDT property)
 5. **Order by HLC** - Use Hybrid Logical Clocks for causality
 
-## HLC (Hybrid Logical Clock)
+## Version Ordering
 
-Each update has an HLC timestamp for ordering:
+Loro CRDT handles versioning internally via version vectors. You don't need to implement HLC yourself—Loro tracks causality automatically when you import/export updates.
 
-```typescript
-interface HLCTimestamp {
-  wallTime: number; // Unix timestamp
-  logical: number; // Logical counter
-  nodeId: string; // Unique node identifier
-}
-```
+For debugging or UI purposes (e.g., showing "last edited"), you can access Loro's internal frontiers, but this is rarely needed.
 
 ## Conflict Resolution
 

@@ -962,7 +962,7 @@ src/
       supabase.ts      # Realtime subscriptions
       push.ts          # Push changes to server
       pull.ts          # Initial load from server
-      encryption.ts    # AES-256-GCM wrapper
+      encryption.ts    # XChaCha20-Poly1305 wrapper
 ```
 
 ### Implementation Order
@@ -970,7 +970,7 @@ src/
 1. [ ] Install packages: `loro-mirror`, `loro-mirror-react`, `loro-crdt`
 2. [ ] Define vault schema (schema.ts)
 3. [ ] Create VaultProvider with createLoroContext (vault-context.tsx)
-4. [ ] Implement encryption.ts (AES-256-GCM)
+4. [ ] Implement encryption.ts (XChaCha20-Poly1305)
 5. [ ] Create use-transactions.ts and use-transaction-actions.ts as template
 6. [ ] Implement sync-service.ts for push/pull
 7. [ ] Implement Supabase Realtime subscription

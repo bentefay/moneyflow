@@ -120,7 +120,7 @@ _Re-evaluated after Phase 1 design completion._
 
 | Principle                     | Status  | Evidence                                                                                                                                                                                   |
 | ----------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **I. Security & Privacy**     | ✅ PASS | [data-model.md](data-model.md) defines key-only auth (BIP39 → Ed25519), encryption at rest (AES-256-GCM), key hierarchy, X25519 key wrapping for multi-user. Server sees only pubkey_hash. |
+| **I. Security & Privacy**     | ✅ PASS | [data-model.md](data-model.md) defines key-only auth (BIP39 → Ed25519), encryption at rest (XChaCha20-Poly1305), key hierarchy, X25519 key wrapping for multi-user. Server sees only pubkey_hash. |
 | **II. Multi-Party Integrity** | ✅ PASS | [data-model.md](data-model.md) §6.1 defines invariants (account ownerships sum to 100%). Event types track allocations with field-level CRDT for deterministic conflict resolution.        |
 | **III. Data Portability**     | ✅ PASS | [contracts/api.md](contracts/api.md) defines encrypted blob endpoints. Full state can be exported (decrypt snapshot). No proprietary formats.                                              |
 | **IV. Auditability**          | ✅ PASS | Event-sourced model in [data-model.md](data-model.md) provides complete audit trail. Every change is an event with HLC timestamp.                                                          |
@@ -130,7 +130,7 @@ _Re-evaluated after Phase 1 design completion._
 
 **Security Requirements (Post-Design)**:
 
-- ✅ AES-256-GCM: Specified in [data-model.md](data-model.md) §2, [research.md](research.md) §3
+- ✅ XChaCha20-Poly1305: Specified in [data-model.md](data-model.md) §2
 - ✅ TLS 1.3: Vercel/Supabase default
 - ✅ X25519 key wrapping: [data-model.md](data-model.md) §1.3
 - ✅ Key-only auth: BIP39 seed → Ed25519 keypair; request signing [data-model.md](data-model.md) §1

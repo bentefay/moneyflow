@@ -8,13 +8,13 @@
 
 After evaluating multiple sync technologies and CRDT libraries, the **recommended approach** is:
 
-| Component         | Choice                        | Rationale                                     |
-| ----------------- | ----------------------------- | --------------------------------------------- |
-| **Framework**     | Next.js 15 on Vercel          | User specified; excellent DX                  |
-| **CRDT Library**  | Loro v1.0+                    | Tested algorithms, TypeScript support, ~150KB |
-| **Sync/Realtime** | Supabase Realtime             | WebSocket, perfect for encrypted blob relay   |
-| **Storage**       | Supabase (Postgres + Storage) | Real-time subscriptions, free tier            |
-| **Encryption**    | Client-side AES-256-GCM       | Server never sees plaintext                   |
+| Component         | Choice                           | Rationale                                     |
+| ----------------- | -------------------------------- | --------------------------------------------- |
+| **Framework**     | Next.js 15 on Vercel             | User specified; excellent DX                  |
+| **CRDT Library**  | Loro v1.0+                       | Tested algorithms, TypeScript support, ~150KB |
+| **Sync/Realtime** | Supabase Realtime                | WebSocket, perfect for encrypted blob relay   |
+| **Storage**       | Supabase (Postgres + Storage)    | Real-time subscriptions, free tier            |
+| **Encryption**    | Client-side XChaCha20-Poly1305   | Server never sees plaintext; 192-bit nonces   |
 
 See [crdt-research.md](research/crdt-research.md) for detailed CRDT analysis.
 
@@ -235,11 +235,11 @@ interface EventBatch {
 
 ```typescript
 const encryptionSpec = {
-  algorithm: "AES-256-GCM",
+  algorithm: "XChaCha20-Poly1305",
   keySize: 256,
-  nonceSize: 96, // 12 bytes
+  nonceSize: 192, // 24 bytes - safe for random generation
   tagSize: 128, // 16 bytes
-  kdf: "Argon2id",
+  kdf: "HKDF-SHA256", // Domain-separated key derivation from BIP39 seed
   keyWrapping: "X25519 + XSalsa20-Poly1305", // libsodium sealed box
 };
 ```
