@@ -8,6 +8,7 @@ import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { TRPCError } from "@trpc/server";
 import { appRouter } from "@/server/routers/_app";
 import { createContext } from "@/server/trpc";
+import { Temporal } from "temporal-polyfill";
 
 /**
  * Categorize errors for logging and monitoring.
@@ -52,7 +53,7 @@ function categorizeError(error: TRPCError): {
  */
 function logError(path: string | undefined, error: TRPCError) {
   const { level, category, isOperational } = categorizeError(error);
-  const timestamp = new Date().toISOString();
+  const timestamp = Temporal.Now.instant().toString();
 
   const logData = {
     timestamp,

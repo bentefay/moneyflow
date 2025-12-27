@@ -13,6 +13,7 @@ import {
   decryptJSON,
 } from "../crypto/encryption";
 import { exportSnapshot, exportUpdates, getVersionEncoded } from "./sync";
+import { Temporal } from "temporal-polyfill";
 
 /**
  * Metadata stored alongside encrypted snapshots
@@ -79,7 +80,7 @@ export async function createEncryptedSnapshot(
     metadata: {
       version,
       versionVector: versionVectorBase64,
-      createdAt: Date.now(),
+      createdAt: Temporal.Now.instant().epochMilliseconds,
     },
   };
 }
@@ -133,7 +134,7 @@ export async function createEncryptedUpdate(
   const encryptedData = btoa(String.fromCharCode(...encrypted));
 
   // Create HLC timestamp (simplified - just using wall clock + counter)
-  const hlcTimestamp = `${Date.now()}-0`;
+  const hlcTimestamp = `${Temporal.Now.instant().epochMilliseconds}-0`;
 
   return {
     encryptedData,

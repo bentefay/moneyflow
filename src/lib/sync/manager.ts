@@ -16,6 +16,7 @@ import {
 } from "@/lib/crdt/snapshot";
 import { exportSnapshot, exportUpdates, importUpdates, getVersionEncoded } from "@/lib/crdt/sync";
 import { VaultRealtimeSync, createVaultRealtimeSync } from "@/lib/supabase/realtime";
+import { Temporal } from "temporal-polyfill";
 
 /**
  * Options for creating a sync manager.
@@ -409,9 +410,9 @@ export class SyncManager {
  * Format: ISO timestamp with a counter suffix for ordering.
  */
 function generateHlcTimestamp(): string {
-  const now = Date.now();
+  const now = Temporal.Now.instant();
   const counter = Math.floor(Math.random() * 10000);
-  return `${new Date(now).toISOString()}-${counter.toString().padStart(4, "0")}`;
+  return `${now.toString()}-${counter.toString().padStart(4, "0")}`;
 }
 
 /**

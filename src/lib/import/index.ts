@@ -17,9 +17,15 @@ export {
 export {
   parseOFX,
   isOFXFormat,
-  type OFXTransaction,
-  type OFXAccountInfo,
+  type ParsedOFXTransaction,
+  type ParsedOFXAccount,
+  type ParsedOFXBalance,
+  type ParsedOFXStatement,
+  type ParsedOFXData,
   type OFXParseResult,
+  type OFXParseError,
+  type OFXTransactionType,
+  type OFXAccountType,
 } from "./ofx";
 
 export {
@@ -28,12 +34,13 @@ export {
   processImport,
   type ProcessedTransaction,
   type ProcessImportResult,
+  type ProcessOFXImportResult,
+  type ProcessImportResultType,
   type ExistingTransaction,
 } from "./processor";
 
 export {
   levenshtein,
-  levenshteinWithThreshold,
   similarity,
   isSimilar,
   normalizeForComparison,

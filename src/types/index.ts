@@ -6,6 +6,89 @@
  */
 
 import { z } from "zod";
+import { Temporal } from "temporal-polyfill";
+
+// ============================================
+// Branded Temporal Types
+// ============================================
+// These branded types provide compile-time safety for date/time strings
+// stored in the CRDT (loro-mirror only supports string/number/boolean primitives).
+// Use the conversion functions to safely create and consume these values.
+
+/**
+ * Branded ISO date string (YYYY-MM-DD).
+ * Represents a calendar date without time, stored as string for CRDT compatibility.
+ * Convert to Temporal.PlainDate for date arithmetic.
+ */
+export type ISODateString = string & { readonly __brand: "ISODateString" };
+
+/**
+ * Branded ISO instant string (full ISO-8601 timestamp).
+ * Represents an exact moment in time, stored as string for CRDT compatibility.
+ * Convert to Temporal.Instant for time arithmetic.
+ */
+export type ISOInstantString = string & { readonly __brand: "ISOInstantString" };
+
+/** Zod schema for ISO date string validation */
+export const ISODateStringSchema = z.iso.date().transform((s) => s as ISODateString);
+
+/** Zod schema for ISO instant string validation */
+export const ISOInstantStringSchema = z.iso.datetime().transform((s) => s as ISOInstantString);
+
+// ============================================
+// Temporal Conversion Functions
+// ============================================
+
+/**
+ * Convert a Temporal.PlainDate to an ISODateString for storage.
+ */
+export function toISODateString(date: Temporal.PlainDate): ISODateString {
+  return date.toString() as ISODateString;
+}
+
+/**
+ * Convert an ISODateString to a Temporal.PlainDate for computation.
+ */
+export function fromISODateString(s: ISODateString): Temporal.PlainDate {
+  return Temporal.PlainDate.from(s);
+}
+
+/**
+ * Convert a Temporal.Instant to an ISOInstantString for storage.
+ */
+export function toISOInstantString(instant: Temporal.Instant): ISOInstantString {
+  return instant.toString() as ISOInstantString;
+}
+
+/**
+ * Convert an ISOInstantString to a Temporal.Instant for computation.
+ */
+export function fromISOInstantString(s: ISOInstantString): Temporal.Instant {
+  return Temporal.Instant.from(s);
+}
+
+/**
+ * Get the current instant as an ISOInstantString.
+ */
+export function nowISOInstantString(): ISOInstantString {
+  return Temporal.Now.instant().toString() as ISOInstantString;
+}
+
+/**
+ * Get today's date as an ISODateString.
+ */
+export function todayISODateString(): ISODateString {
+  return Temporal.Now.plainDateISO().toString() as ISODateString;
+}
+
+// ============================================
+// Legacy Types (deprecated, use branded types)
+// ============================================
+
+/** @deprecated Use ISODateString instead */
+export const ISODateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+/** @deprecated Use ISODateString instead */
+export type ISODate = z.infer<typeof ISODateSchema>;
 
 // ============================================
 // Core Primitives
@@ -14,10 +97,6 @@ import { z } from "zod";
 /** UUID v4 string */
 export const UUIDSchema = z.string().uuid();
 export type UUID = z.infer<typeof UUIDSchema>;
-
-/** ISO date string (YYYY-MM-DD) */
-export const ISODateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
-export type ISODate = z.infer<typeof ISODateSchema>;
 
 /** Unix timestamp in milliseconds */
 export const TimestampSchema = z.number().int().positive();

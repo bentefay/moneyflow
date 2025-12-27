@@ -85,12 +85,13 @@ export const vaultRouter = router({
       throw new Error(`Failed to create vault: ${vaultError.message}`);
     }
 
-    // Add creator as owner member
+    // Add creator as owner member with enc_public_key for re-keying
     const { error: memberError } = await supabase.from("vault_memberships").insert({
       vault_id: vault.id,
       pubkey_hash: ctx.pubkeyHash,
       role: "owner",
       encrypted_vault_key: input.encryptedVaultKey,
+      enc_public_key: input.encPublicKey,
     });
 
     if (memberError) {

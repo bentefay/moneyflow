@@ -23,6 +23,7 @@ import {
   upsertUserDataInput,
 } from "../schemas/user";
 import { createSupabaseClient } from "@/lib/supabase/server";
+import { Temporal } from "temporal-polyfill";
 
 // ============================================================================
 // Error Handling Helpers
@@ -144,7 +145,7 @@ export const userRouter = router({
     const { error } = await supabase.from("user_data").insert({
       pubkey_hash: input.pubkeyHash,
       encrypted_data: input.encryptedData ?? "",
-      updated_at: new Date().toISOString(),
+      updated_at: Temporal.Now.instant().toString(),
     });
 
     if (error) {
@@ -200,7 +201,7 @@ export const userRouter = router({
     }
 
     // Create new user
-    const now = new Date().toISOString();
+    const now = Temporal.Now.instant().toString();
     const { data: newUser, error: insertError } = await supabase
       .from("user_data")
       .insert({
@@ -299,7 +300,7 @@ export const userRouter = router({
       {
         pubkey_hash: ctx.pubkeyHash,
         encrypted_data: input.encryptedData,
-        updated_at: new Date().toISOString(),
+        updated_at: Temporal.Now.instant().toString(),
       },
       { onConflict: "pubkey_hash" }
     );

@@ -8,6 +8,7 @@
 import sodium from "libsodium-wrappers";
 import { initCrypto } from "./keypair";
 import { getSession } from "./session";
+import { Temporal } from "temporal-polyfill";
 
 /**
  * Headers required for signed requests.
@@ -46,7 +47,7 @@ export async function signRequest(
 
   const secretKey = sodium.from_base64(session.secretKey, sodium.base64_variants.ORIGINAL);
 
-  const timestamp = Date.now().toString();
+  const timestamp = Temporal.Now.instant().epochMilliseconds.toString();
 
   // Hash the body if present
   const bodyHash = body
@@ -108,7 +109,7 @@ export async function verifyRequest(
     return { verified: false, error: "Invalid timestamp" };
   }
 
-  const now = Date.now();
+  const now = Temporal.Now.instant().epochMilliseconds;
   if (Math.abs(now - requestTime) > maxAgeMs) {
     return { verified: false, error: "Request expired" };
   }

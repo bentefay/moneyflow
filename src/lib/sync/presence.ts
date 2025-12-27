@@ -7,6 +7,7 @@
 
 import { createSupabaseClientForBrowser } from "@/lib/supabase/client";
 import { RealtimeChannel } from "@supabase/supabase-js";
+import { Temporal } from "temporal-polyfill";
 
 /**
  * Presence data broadcasted by each user.
@@ -116,7 +117,7 @@ export class EphemeralPresenceManager {
         focusedTransactionId: latest.focusedTransactionId as string | undefined,
         editingField: latest.editingField as PresenceData["editingField"],
         cursor: latest.cursor as PresenceData["cursor"],
-        updatedAt: (latest.updatedAt as number) ?? Date.now(),
+        updatedAt: (latest.updatedAt as number) ?? Temporal.Now.instant().epochMilliseconds,
       });
     }
 
@@ -183,7 +184,7 @@ export class EphemeralPresenceManager {
 
     await this.channel.track({
       ...this.localPresence,
-      updatedAt: Date.now(),
+      updatedAt: Temporal.Now.instant().epochMilliseconds,
     });
   }
 

@@ -24,7 +24,7 @@ import {
 } from "./TemplateSelector";
 import { PreviewStep, type PreviewTransaction } from "./PreviewStep";
 import { parseCSV, detectSeparator, detectHeaders, parseNumber, parseDate } from "@/lib/import/csv";
-import { parseOFX, isOFXFormat, type OFXTransaction } from "@/lib/import/ofx";
+import { parseOFX, isOFXFormat, type ParsedOFXTransaction } from "@/lib/import/ofx";
 
 /**
  * Import wizard steps.
@@ -102,7 +102,7 @@ export function ImportWizard({
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | undefined>();
 
   // OFX parsing state
-  const [ofxTransactions, setOfxTransactions] = useState<OFXTransaction[]>([]);
+  const [ofxTransactions, setOfxTransactions] = useState<ParsedOFXTransaction[]>([]);
 
   // Preview state
   const [previewTransactions, setPreviewTransactions] = useState<PreviewTransaction[]>([]);
@@ -121,14 +121,25 @@ export function ImportWizard({
         setIsOFX(true);
         const result = parseOFX(content);
 
-        if (result.transactions.length === 0) {
+        // Handle parse errors
+        if (!result.ok) {
+          const details =
+            result.error.details.length > 0 ? `: ${result.error.details.join(", ")}` : "";
+          setError(`${result.error.message}${details}`);
+          return;
+        }
+
+        // Flatten transactions from all statements
+        const allTransactions = result.data.statements.flatMap((s) => [...s.transactions]);
+
+        if (allTransactions.length === 0) {
           setError("No transactions found in the OFX file.");
           return;
         }
 
-        setOfxTransactions(result.transactions);
+        setOfxTransactions(allTransactions);
         // Skip to preview for OFX (no mapping needed)
-        generateOFXPreview(result.transactions);
+        generateOFXPreview(allTransactions);
         setStep("preview");
       } else {
         setIsOFX(false);
@@ -159,16 +170,19 @@ export function ImportWizard({
 
   // Generate preview from OFX transactions
   const generateOFXPreview = useCallback(
-    (transactions: OFXTransaction[]) => {
-      const preview: PreviewTransaction[] = transactions.map((tx, idx) => ({
-        rowIndex: idx,
-        date: tx.date,
-        amount: tx.amount,
-        description: tx.name || tx.memo,
-        errors: [],
-        isDuplicate: checkDuplicate(tx.date, tx.amount, tx.name || tx.memo),
-        originalRow: [tx.date, tx.name, tx.memo, String(tx.amount)],
-      }));
+    (transactions: readonly ParsedOFXTransaction[]) => {
+      const preview: PreviewTransaction[] = transactions.map((tx, idx) => {
+        const dateStr = tx.datePosted.toString();
+        return {
+          rowIndex: idx,
+          date: dateStr,
+          amount: tx.amount,
+          description: tx.name || tx.memo,
+          errors: [],
+          isDuplicate: checkDuplicate(dateStr, tx.amount, tx.name || tx.memo),
+          originalRow: [dateStr, tx.name, tx.memo, String(tx.amount)],
+        };
+      });
       setPreviewTransactions(preview);
     },
     [existingTransactions]
@@ -203,9 +217,11 @@ export function ImportWizard({
       // Parse date
       let date: string | null = null;
       if (dateIdx >= 0 && row[dateIdx]) {
-        date = parseDate(row[dateIdx], formatting.dateFormat);
-        if (!date) {
+        const parsedDate = parseDate(row[dateIdx], formatting.dateFormat);
+        if (!parsedDate) {
           errors.push(`Invalid date: ${row[dateIdx]}`);
+        } else {
+          date = parsedDate.toString();
         }
       } else {
         errors.push("Missing date");

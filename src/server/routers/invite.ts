@@ -15,6 +15,7 @@ import { router, protectedProcedure, publicProcedure } from "../trpc";
 import { createSupabaseClient } from "@/lib/supabase/server";
 import { TRPCError } from "@trpc/server";
 import type { VaultRole } from "@/lib/supabase/types";
+import { Temporal } from "temporal-polyfill";
 
 export const inviteRouter = router({
   /**
@@ -60,7 +61,7 @@ export const inviteRouter = router({
         });
       }
 
-      const expiresAt = new Date(Date.now() + input.expiresInHours * 60 * 60 * 1000).toISOString();
+      const expiresAt = Temporal.Now.instant().add({ hours: input.expiresInHours }).toString();
 
       // Create invite with ephemeral pubkey
       const { data: invite, error: insertError } = await supabase
@@ -121,7 +122,10 @@ export const inviteRouter = router({
       }
 
       // Check if expired
-      if (new Date(invite.expires_at) < new Date()) {
+      if (
+        Temporal.Instant.compare(Temporal.Instant.from(invite.expires_at), Temporal.Now.instant()) <
+        0
+      ) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Invite has expired",
@@ -166,7 +170,10 @@ export const inviteRouter = router({
         });
       }
 
-      if (new Date(invite.expires_at) < new Date()) {
+      if (
+        Temporal.Instant.compare(Temporal.Instant.from(invite.expires_at), Temporal.Now.instant()) <
+        0
+      ) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Invite has expired",
@@ -256,7 +263,11 @@ export const inviteRouter = router({
         role: invite.role,
         expiresAt: invite.expires_at,
         createdAt: invite.created_at,
-        isExpired: new Date(invite.expires_at) < new Date(),
+        isExpired:
+          Temporal.Instant.compare(
+            Temporal.Instant.from(invite.expires_at),
+            Temporal.Now.instant()
+          ) < 0,
       }));
     }),
 

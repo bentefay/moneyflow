@@ -9,6 +9,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { VaultRealtimeSync, createVaultRealtimeSync } from "@/lib/supabase/realtime";
 import type { OnPresenceCallback } from "@/lib/supabase/realtime";
+import { Temporal } from "temporal-polyfill";
 
 /**
  * Presence state for a user in a vault.
@@ -68,10 +69,12 @@ export function useVaultPresence(
   // Handle presence updates with online status
   const handlePresence: OnPresenceCallback = useCallback(
     (presenceList) => {
-      const now = Date.now();
+      const now = Temporal.Now.instant();
       const withOnlineStatus = presenceList.map((p) => ({
         ...p,
-        isOnline: now - new Date(p.lastSeen).getTime() < offlineThreshold,
+        isOnline:
+          now.epochMilliseconds - Temporal.Instant.from(p.lastSeen).epochMilliseconds <
+          offlineThreshold,
       }));
       setPresence(withOnlineStatus);
     },

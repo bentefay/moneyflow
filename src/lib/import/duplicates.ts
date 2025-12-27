@@ -5,14 +5,18 @@
  * date, amount, and description similarity.
  */
 
-import { normalizedSimilarity, isSimilar } from "./levenshtein";
+import { Temporal } from "temporal-polyfill";
+import { normalizedSimilarity } from "./levenshtein";
+import { type ISODateString, fromISODateString } from "@/types";
 
 /**
  * Transaction for duplicate detection.
+ * Dates use branded ISODateString for type safety.
  */
 export interface DuplicateCheckTransaction {
   id: string;
-  date: string;
+  /** Branded ISO date string (YYYY-MM-DD) */
+  date: ISODateString;
   amount: number;
   description: string;
 }
@@ -60,17 +64,12 @@ export const DEFAULT_DUPLICATE_CONFIG: DuplicateDetectionConfig = {
 };
 
 /**
- * Calculate the number of days between two dates.
- *
- * @param date1 - First date (ISO string)
- * @param date2 - Second date (ISO string)
- * @returns Absolute number of days between dates
+ * Calculate the number of days between two ISODateStrings.
  */
-function daysBetween(date1: string, date2: string): number {
-  const d1 = new Date(date1);
-  const d2 = new Date(date2);
-  const diffMs = Math.abs(d1.getTime() - d2.getTime());
-  return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+function daysBetween(date1: ISODateString, date2: ISODateString): number {
+  const d1 = fromISODateString(date1);
+  const d2 = fromISODateString(date2);
+  return Math.abs(d1.until(d2, { largestUnit: "day" }).days);
 }
 
 /**
@@ -175,7 +174,7 @@ export function detectDuplicates(
   // Pre-group existing transactions by approximate date for faster lookup
   const existingByMonth = new Map<string, DuplicateCheckTransaction[]>();
   for (const tx of existingTransactions) {
-    const monthKey = tx.date.substring(0, 7); // "YYYY-MM"
+    const monthKey = tx.date.substring(0, 7); // YYYY-MM
     const list = existingByMonth.get(monthKey) ?? [];
     list.push(tx);
     existingByMonth.set(monthKey, list);
@@ -183,12 +182,11 @@ export function detectDuplicates(
 
   // Also add to adjacent months for transactions near month boundaries
   for (const tx of existingTransactions) {
-    const date = new Date(tx.date);
+    const date = Temporal.PlainDate.from(tx.date);
 
     // Previous month
-    const prevMonth = new Date(date);
-    prevMonth.setMonth(prevMonth.getMonth() - 1);
-    const prevKey = prevMonth.toISOString().substring(0, 7);
+    const prev = date.add({ months: -1 });
+    const prevKey = `${prev.year}-${String(prev.month).padStart(2, "0")}`;
     const prevList = existingByMonth.get(prevKey) ?? [];
     if (!prevList.includes(tx)) {
       prevList.push(tx);
@@ -196,9 +194,8 @@ export function detectDuplicates(
     }
 
     // Next month
-    const nextMonth = new Date(date);
-    nextMonth.setMonth(nextMonth.getMonth() + 1);
-    const nextKey = nextMonth.toISOString().substring(0, 7);
+    const next = date.add({ months: 1 });
+    const nextKey = `${next.year}-${String(next.month).padStart(2, "0")}`;
     const nextList = existingByMonth.get(nextKey) ?? [];
     if (!nextList.includes(tx)) {
       nextList.push(tx);

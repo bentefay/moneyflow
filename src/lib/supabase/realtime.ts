@@ -8,6 +8,7 @@
 import { createSupabaseClientForBrowser } from "./client";
 import { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import type { Database } from "./types";
+import { Temporal } from "temporal-polyfill";
 
 type VaultUpdateRow = Database["public"]["Tables"]["vault_updates"]["Row"];
 
@@ -92,7 +93,7 @@ export class VaultRealtimeSync {
               baseSnapshotVersion: row.base_snapshot_version,
               hlcTimestamp: row.hlc_timestamp,
               authorPubkeyHash: row.author_pubkey_hash,
-              createdAt: row.created_at ?? new Date().toISOString(),
+              createdAt: row.created_at ?? Temporal.Now.instant().toString(),
             });
           }
         }
@@ -108,8 +109,8 @@ export class VaultRealtimeSync {
             };
             return {
               userId: key,
-              joinedAt: latest.joined_at ?? new Date().toISOString(),
-              lastSeen: latest.last_seen ?? new Date().toISOString(),
+              joinedAt: latest.joined_at ?? Temporal.Now.instant().toString(),
+              lastSeen: latest.last_seen ?? Temporal.Now.instant().toString(),
             };
           });
           this.onPresence(presenceList);
@@ -120,8 +121,8 @@ export class VaultRealtimeSync {
           this.isSubscribed = true;
           // Track this user's presence
           await this.channel?.track({
-            joined_at: new Date().toISOString(),
-            last_seen: new Date().toISOString(),
+            joined_at: Temporal.Now.instant().toString(),
+            last_seen: Temporal.Now.instant().toString(),
           });
         }
       });
@@ -133,8 +134,8 @@ export class VaultRealtimeSync {
   async updatePresence(): Promise<void> {
     if (this.channel && this.isSubscribed) {
       await this.channel.track({
-        joined_at: new Date().toISOString(),
-        last_seen: new Date().toISOString(),
+        joined_at: Temporal.Now.instant().toString(),
+        last_seen: Temporal.Now.instant().toString(),
       });
     }
   }

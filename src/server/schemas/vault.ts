@@ -49,6 +49,24 @@ export type VaultRole = z.infer<typeof vaultRoleSchema>;
 // ============================================================================
 
 /**
+ * Base64-encoded X25519 public key
+ */
+export const encPublicKeySchema = z
+  .string()
+  .min(1, "Encryption public key cannot be empty")
+  .refine(
+    (val) => {
+      try {
+        atob(val);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    { message: "Must be valid base64" }
+  );
+
+/**
  * Create a new vault.
  *
  * The encrypted_vault_key is the vault's symmetric key wrapped with
@@ -60,6 +78,12 @@ export const vaultCreateInput = z.object({
    * This key is used to encrypt/decrypt all vault CRDT data.
    */
   encryptedVaultKey: encryptedVaultKeySchema,
+  /**
+   * Creator's X25519 public key for vault re-keying operations.
+   * When a member is removed, the vault key can be re-encrypted
+   * for all remaining members using their stored enc_public_key.
+   */
+  encPublicKey: encPublicKeySchema,
 });
 
 export type VaultCreateInput = z.infer<typeof vaultCreateInput>;

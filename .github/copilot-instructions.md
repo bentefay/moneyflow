@@ -2,9 +2,10 @@
 
 ## Critical Points
 
-- When running a command fails
+- **Read "Terminal Command Notes" before running shell commands** - Environment-specific gotchas that cause hangs.
 - Favour a functional programming style with pure functions and immutable data structures.
 - **Tests are not optional**: Write unit tests for pure functions, E2E tests for user flows. A feature is not complete without tests.
+- **Don't reinvent the wheel**: Use established libraries for well-known algorithms (e.g., Levenshtein distance, CSV parsing, date handling). Custom implementations are bugs waiting to happen.
 - .github/agents/copilot-instructions.md must be updated alongside code changes to keep instructions current.
 - .github/instructions/\* must be created/updated as new folders/domains are added.
 
@@ -76,7 +77,7 @@ The following commands can be run without user confirmation:
 
 Keep this section updated with commands for this environment:
 
-- `cat` - Aliased to `bat`. Will block for large files by defeault. Use `bat -P` to disable pager.
+- `cat` - Aliased to `bat`. Will block for large files by default. Use `bat -P` to disable pager.
 
 ## Key Architecture Decisions
 
@@ -99,6 +100,18 @@ See: `.github/instructions/sync.instructions.md`
 
 API requests are signed with Ed25519 keys derived from seed phrase. No passwords.
 See: `.github/instructions/trpc.instructions.md`
+
+### 5. Use Established Libraries
+
+Do NOT write custom implementations of well-known algorithms. Use battle-tested npm packages:
+
+- **String distance**: `fastest-levenshtein`, `string-similarity`
+- **CSV parsing**: `papaparse` (sync), `csv-parse` (stream)
+- **OFX parsing**: `@f-o-t/ofx`
+- **Date handling**: `date-fns` or native `Temporal` (when available)
+- **UUID generation**: `crypto.randomUUID()` (native)
+
+Custom algorithm implementations introduce subtle bugs, lack edge case handling, and waste time on solved problems. If you need functionality that seems algorithmic, search npm first.
 
 ## Recent Changes
 

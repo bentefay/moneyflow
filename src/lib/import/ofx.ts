@@ -3,290 +3,385 @@
  *
  * Parses OFX (Open Financial Exchange) and QFX (Quicken) files
  * which are common bank export formats.
+ *
+ * Uses @f-o-t/ofx library for robust parsing of both OFX 1.x (SGML)
+ * and OFX 2.x (XML) formats.
  */
 
-/**
- * Parsed OFX transaction.
- */
-export interface OFXTransaction {
-  /** Transaction ID (FITID) */
-  id: string;
-  /** Transaction type (DEBIT, CREDIT, etc.) */
-  type: string;
-  /** Date posted (ISO string) */
-  date: string;
-  /** Transaction amount */
-  amount: number;
+import {
+  parse,
+  getTransactions,
+  getAccountInfo,
+  getBalance,
+  type OFXTransaction as LibOFXTransaction,
+  type OFXBankAccount,
+  type OFXCreditCardAccount,
+  type OFXDocument,
+  type BalanceInfo,
+} from "@f-o-t/ofx";
+import { Temporal } from "temporal-polyfill";
+
+// ============================================================================
+// Transaction Types
+// ============================================================================
+
+/** Valid OFX transaction types */
+export type OFXTransactionType =
+  | "CREDIT"
+  | "DEBIT"
+  | "INT"
+  | "DIV"
+  | "FEE"
+  | "SRVCHG"
+  | "DEP"
+  | "ATM"
+  | "POS"
+  | "XFER"
+  | "CHECK"
+  | "PAYMENT"
+  | "CASH"
+  | "DIRECTDEP"
+  | "DIRECTDEBIT"
+  | "REPEATPMT"
+  | "HOLD"
+  | "OTHER";
+
+/** Valid OFX account types */
+export type OFXAccountType =
+  | "CHECKING"
+  | "SAVINGS"
+  | "MONEYMRKT"
+  | "CREDITLINE"
+  | "CD"
+  | "CREDITCARD";
+
+// ============================================================================
+// Parsed Data Types
+// ============================================================================
+
+/** Parsed OFX transaction */
+export interface ParsedOFXTransaction {
+  /** Transaction ID (FITID) - generated if not present */
+  readonly fitId: string;
+  /** Transaction type */
+  readonly type: OFXTransactionType;
+  /** Date posted */
+  readonly datePosted: Temporal.PlainDate;
+  /** Transaction amount (negative for debits) */
+  readonly amount: number;
   /** Payee/merchant name */
-  name: string;
+  readonly name: string;
   /** Memo/description */
-  memo: string;
+  readonly memo: string;
   /** Check number if applicable */
-  checkNumber?: string;
+  readonly checkNumber?: string;
+  /** Reference number if available */
+  readonly refNumber?: string;
 }
 
-/**
- * Parsed OFX account info.
- */
-export interface OFXAccountInfo {
+/** Parsed OFX account info */
+export interface ParsedOFXAccount {
   /** Account ID */
-  accountId: string;
-  /** Account type (CHECKING, SAVINGS, CREDITCARD, etc.) */
-  accountType: string;
-  /** Bank ID (routing number) */
-  bankId?: string;
-  /** Currency code */
-  currency: string;
+  readonly accountId: string;
+  /** Account type */
+  readonly accountType: OFXAccountType;
+  /** Bank ID (routing number) - only for bank accounts */
+  readonly bankId?: string;
+  /** Branch ID - only for bank accounts */
+  readonly branchId?: string;
 }
 
-/**
- * OFX parse result.
- */
-export interface OFXParseResult {
-  /** Account information */
-  account: OFXAccountInfo | null;
-  /** Parsed transactions */
-  transactions: OFXTransaction[];
-  /** Statement date range */
-  dateRange: {
-    start: string | null;
-    end: string | null;
+/** Parsed balance information */
+export interface ParsedOFXBalance {
+  /** Ledger balance amount */
+  readonly ledgerBalance?: {
+    readonly amount: number;
+    readonly asOfDate: string;
   };
-  /** Current balance if available */
-  balance?: number;
-  /** Any warnings during parsing */
-  warnings: string[];
+  /** Available balance amount */
+  readonly availableBalance?: {
+    readonly amount: number;
+    readonly asOfDate: string;
+  };
 }
+
+/** Statement for a single account */
+export interface ParsedOFXStatement {
+  /** Account information */
+  readonly account: ParsedOFXAccount;
+  /** Currency code (e.g., "USD") */
+  readonly currency: string;
+  /** Statement date range */
+  readonly dateRange: {
+    readonly start: string;
+    readonly end: string;
+  } | null;
+  /** Transactions in this statement */
+  readonly transactions: readonly ParsedOFXTransaction[];
+  /** Balance information */
+  readonly balance: ParsedOFXBalance;
+}
+
+/** Successfully parsed OFX data */
+export interface ParsedOFXData {
+  /** All statements (one per account) */
+  readonly statements: readonly ParsedOFXStatement[];
+  /** Server date from signon response */
+  readonly serverDate?: string;
+  /** Financial institution info */
+  readonly financialInstitution?: {
+    readonly org?: string;
+    readonly fid?: string;
+  };
+}
+
+/** OFX parse error */
+export interface OFXParseError {
+  /** Error message */
+  readonly message: string;
+  /** Detailed error information */
+  readonly details: readonly string[];
+}
+
+/** Result type for OFX parsing */
+export type OFXParseResult =
+  | { readonly ok: true; readonly data: ParsedOFXData }
+  | { readonly ok: false; readonly error: OFXParseError };
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/** Convert a Date object to Temporal.PlainDate */
+function toPlainDate(date: Date): Temporal.PlainDate {
+  // Extract local date parts to avoid UTC shift issues
+  return Temporal.PlainDate.from({
+    year: date.getFullYear(),
+    month: date.getMonth() + 1,
+    day: date.getDate(),
+  });
+}
+
+/** Format a Date object to ISO date string (YYYY-MM-DD) - for metadata strings */
+function formatDateToISO(date: Date): string {
+  const pd = toPlainDate(date);
+  return pd.toString();
+}
+
+/** Generate a unique ID for transactions without FITID */
+function generateFitId(): string {
+  return `gen-${Temporal.Now.instant().epochMilliseconds}-${Math.random().toString(36).substring(2, 9)}`;
+}
+
+/** Convert library transaction to our format */
+function convertTransaction(trn: LibOFXTransaction): ParsedOFXTransaction {
+  return {
+    fitId: trn.FITID ?? generateFitId(),
+    type: trn.TRNTYPE,
+    datePosted: toPlainDate(trn.DTPOSTED.toDate()),
+    amount: trn.TRNAMT,
+    name: trn.NAME ?? "",
+    memo: trn.MEMO ?? "",
+    checkNumber: trn.CHECKNUM,
+    refNumber: trn.REFNUM,
+  };
+}
+
+/** Convert library account to our format */
+function convertAccount(account: OFXBankAccount | OFXCreditCardAccount): ParsedOFXAccount {
+  if ("BANKID" in account) {
+    return {
+      accountId: account.ACCTID,
+      accountType: account.ACCTTYPE,
+      bankId: account.BANKID,
+      branchId: account.BRANCHID,
+    };
+  }
+  return {
+    accountId: account.ACCTID,
+    accountType: "CREDITCARD",
+  };
+}
+
+/** Convert library balance info to our format */
+function convertBalance(balanceInfo: BalanceInfo | undefined): ParsedOFXBalance {
+  if (!balanceInfo) return {};
+
+  return {
+    ledgerBalance: balanceInfo.ledger
+      ? {
+          amount: balanceInfo.ledger.BALAMT,
+          asOfDate: formatDateToISO(balanceInfo.ledger.DTASOF.toDate()),
+        }
+      : undefined,
+    availableBalance: balanceInfo.available
+      ? {
+          amount: balanceInfo.available.BALAMT,
+          asOfDate: formatDateToISO(balanceInfo.available.DTASOF.toDate()),
+        }
+      : undefined,
+  };
+}
+
+/** Normalize STMTTRNRS which can be a single object or array */
+function normalizeToArray<T>(value: T | T[] | undefined): T[] {
+  if (value === undefined) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+/** Extract statements from parsed OFX document */
+function extractStatements(doc: OFXDocument): ParsedOFXStatement[] {
+  const statements: ParsedOFXStatement[] = [];
+  const accounts = getAccountInfo(doc);
+  const balances = getBalance(doc);
+  const allTransactions = getTransactions(doc);
+
+  // Process bank statements (could be single or array)
+  const bankStmtTrnrs = normalizeToArray(doc.OFX.BANKMSGSRSV1?.STMTTRNRS);
+  for (const trnrs of bankStmtTrnrs) {
+    const bankStmt = trnrs.STMTRS;
+    if (!bankStmt) continue;
+
+    const account = accounts.find(
+      (a) => "BANKID" in a && a.ACCTID === bankStmt.BANKACCTFROM.ACCTID
+    );
+    const balance = balances.find(
+      (b) => b.ledger?.BALAMT !== undefined || b.available?.BALAMT !== undefined
+    );
+
+    const tranList = bankStmt.BANKTRANLIST;
+    const stmtTransactions = tranList?.STMTTRN ?? [];
+
+    statements.push({
+      account: account ? convertAccount(account) : convertAccount(bankStmt.BANKACCTFROM),
+      currency: bankStmt.CURDEF ?? "USD",
+      dateRange: tranList
+        ? {
+            start: formatDateToISO(tranList.DTSTART.toDate()),
+            end: formatDateToISO(tranList.DTEND.toDate()),
+          }
+        : null,
+      transactions: stmtTransactions.map(convertTransaction),
+      balance: convertBalance(balance),
+    });
+  }
+
+  // Process credit card statements (could be single or array)
+  const ccStmtTrnrs = normalizeToArray(doc.OFX.CREDITCARDMSGSRSV1?.CCSTMTTRNRS);
+  for (const trnrs of ccStmtTrnrs) {
+    const ccStmt = trnrs.CCSTMTRS;
+    if (!ccStmt || !ccStmt.CCACCTFROM) continue;
+
+    const ccAcctFrom = ccStmt.CCACCTFROM;
+    const account = accounts.find((a) => !("BANKID" in a) && a.ACCTID === ccAcctFrom.ACCTID);
+    const balance = balances.find(
+      (b) => b.ledger?.BALAMT !== undefined || b.available?.BALAMT !== undefined
+    );
+
+    const tranList = ccStmt.BANKTRANLIST;
+    const stmtTransactions = tranList?.STMTTRN ?? [];
+
+    statements.push({
+      account: account ? convertAccount(account) : convertAccount(ccAcctFrom),
+      currency: ccStmt.CURDEF ?? "USD",
+      dateRange: tranList
+        ? {
+            start: formatDateToISO(tranList.DTSTART.toDate()),
+            end: formatDateToISO(tranList.DTEND.toDate()),
+          }
+        : null,
+      transactions: stmtTransactions.map(convertTransaction),
+      balance: convertBalance(balance),
+    });
+  }
+
+  // If we have transactions but no statements extracted, create a generic one
+  if (statements.length === 0 && allTransactions.length > 0) {
+    const account = accounts[0];
+    const balance = balances[0];
+
+    statements.push({
+      account: account
+        ? convertAccount(account)
+        : { accountId: "unknown", accountType: "CHECKING" },
+      currency: "USD",
+      dateRange: null,
+      transactions: allTransactions.map(convertTransaction),
+      balance: convertBalance(balance),
+    });
+  }
+
+  return statements;
+}
+
+// ============================================================================
+// Public API
+// ============================================================================
 
 /**
  * Parse an OFX/QFX file content.
  *
  * @param content - Raw OFX/QFX content
- * @returns Parsed result
+ * @returns Result with parsed data or error
  *
  * @example
  * ```ts
  * const result = parseOFX(ofxContent);
- * // result.transactions = [{ id: "123", date: "2024-01-15", amount: -45.00, name: "Coffee Shop" }]
+ * if (result.ok) {
+ *   for (const statement of result.data.statements) {
+ *     console.log(`Account: ${statement.account.accountId}`);
+ *     console.log(`Transactions: ${statement.transactions.length}`);
+ *   }
+ * } else {
+ *   console.error(`Parse error: ${result.error.message}`);
+ * }
  * ```
  */
 export function parseOFX(content: string): OFXParseResult {
-  const warnings: string[] = [];
-  const transactions: OFXTransaction[] = [];
+  const libResult = parse(content);
 
-  // Normalize content - OFX can have various formats
-  const normalized = normalizeOFX(content);
+  if (!libResult.success) {
+    const zodError = libResult.error;
+    const details = zodError.issues?.map((e) => `${e.path.join(".")}: ${e.message}`) ?? [];
 
-  // Extract account info
-  const account = extractAccountInfo(normalized, warnings);
-
-  // Extract transactions
-  const stmttrns = extractAllBetween(normalized, "<STMTTRN>", "</STMTTRN>");
-
-  for (const trn of stmttrns) {
-    const transaction = parseTransaction(trn, warnings);
-    if (transaction) {
-      transactions.push(transaction);
-    }
+    return {
+      ok: false,
+      error: {
+        message: "Failed to parse OFX content",
+        details: details.length > 0 ? details : [zodError.message ?? "Unknown parse error"],
+      },
+    };
   }
 
-  // Extract date range
-  const dateRange = extractDateRange(normalized);
+  const doc = libResult.data;
+  const statements = extractStatements(doc);
 
-  // Extract balance
-  const balance = extractBalance(normalized);
+  if (statements.length === 0) {
+    return {
+      ok: false,
+      error: {
+        message: "No account statements found in OFX content",
+        details: ["The OFX file was parsed but contained no bank or credit card statements"],
+      },
+    };
+  }
+
+  // Extract signon info
+  const sonrs = doc.OFX.SIGNONMSGSRSV1?.SONRS;
 
   return {
-    account,
-    transactions,
-    dateRange,
-    balance,
-    warnings,
+    ok: true,
+    data: {
+      statements,
+      serverDate: sonrs?.DTSERVER ? formatDateToISO(sonrs.DTSERVER.toDate()) : undefined,
+      financialInstitution: sonrs?.FI
+        ? {
+            org: sonrs.FI.ORG,
+            fid: sonrs.FI.FID,
+          }
+        : undefined,
+    },
   };
-}
-
-/**
- * Normalize OFX content by removing SGML headers and cleaning up format.
- */
-function normalizeOFX(content: string): string {
-  // Remove SGML headers (everything before <?OFX or <OFX)
-  let normalized = content;
-
-  const xmlStart = content.indexOf("<?xml");
-  const ofxStart = content.indexOf("<OFX");
-
-  if (xmlStart >= 0 || ofxStart >= 0) {
-    const start = Math.min(
-      xmlStart >= 0 ? xmlStart : Infinity,
-      ofxStart >= 0 ? ofxStart : Infinity
-    );
-    normalized = content.substring(start);
-  }
-
-  // Convert SGML-style tags to have proper closing tags
-  // OFX 1.x uses SGML without closing tags for simple elements
-  normalized = normalized.replace(/<(\w+)>([^<]*?)(?=<(?!\/))/g, "<$1>$2</$1>");
-
-  return normalized;
-}
-
-/**
- * Extract content between tags (non-greedy).
- */
-function extractBetween(content: string, startTag: string, endTag: string): string | null {
-  const startIdx = content.indexOf(startTag);
-  if (startIdx === -1) return null;
-
-  const endIdx = content.indexOf(endTag, startIdx);
-  if (endIdx === -1) return null;
-
-  return content.substring(startIdx + startTag.length, endIdx).trim();
-}
-
-/**
- * Extract all occurrences between tags.
- */
-function extractAllBetween(content: string, startTag: string, endTag: string): string[] {
-  const results: string[] = [];
-  let searchStart = 0;
-
-  while (true) {
-    const startIdx = content.indexOf(startTag, searchStart);
-    if (startIdx === -1) break;
-
-    const endIdx = content.indexOf(endTag, startIdx);
-    if (endIdx === -1) break;
-
-    results.push(content.substring(startIdx + startTag.length, endIdx));
-    searchStart = endIdx + endTag.length;
-  }
-
-  return results;
-}
-
-/**
- * Extract a simple value from an OFX tag.
- */
-function extractValue(content: string, tag: string): string | null {
-  // Try XML-style first: <TAG>value</TAG>
-  const xmlRegex = new RegExp(`<${tag}>([^<]*)</${tag}>`, "i");
-  const xmlMatch = content.match(xmlRegex);
-  if (xmlMatch) return xmlMatch[1].trim();
-
-  // Try SGML-style: <TAG>value
-  const sgmlRegex = new RegExp(`<${tag}>([^<\\n]*)`, "i");
-  const sgmlMatch = content.match(sgmlRegex);
-  if (sgmlMatch) return sgmlMatch[1].trim();
-
-  return null;
-}
-
-/**
- * Extract account info from OFX content.
- */
-function extractAccountInfo(content: string, warnings: string[]): OFXAccountInfo | null {
-  const bankAcct = extractBetween(content, "<BANKACCTFROM>", "</BANKACCTFROM>");
-  const ccAcct = extractBetween(content, "<CCACCTFROM>", "</CCACCTFROM>");
-
-  const acctBlock = bankAcct || ccAcct;
-  if (!acctBlock) {
-    warnings.push("No account information found");
-    return null;
-  }
-
-  const accountId = extractValue(acctBlock, "ACCTID") || extractValue(acctBlock, "ACCTKEY") || "";
-  const accountType = extractValue(acctBlock, "ACCTTYPE") || (ccAcct ? "CREDITCARD" : "CHECKING");
-  const bankId = extractValue(acctBlock, "BANKID") || undefined;
-
-  // Get currency from statement
-  const currency = extractValue(content, "CURDEF") || "USD";
-
-  return {
-    accountId,
-    accountType,
-    bankId,
-    currency,
-  };
-}
-
-/**
- * Parse a single transaction block.
- */
-function parseTransaction(content: string, warnings: string[]): OFXTransaction | null {
-  const type = extractValue(content, "TRNTYPE") || "OTHER";
-  const datePosted = extractValue(content, "DTPOSTED");
-  const amountStr = extractValue(content, "TRNAMT");
-  const fitid =
-    extractValue(content, "FITID") ||
-    `gen-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-  const name = extractValue(content, "NAME") || extractValue(content, "PAYEE") || "";
-  const memo = extractValue(content, "MEMO") || "";
-  const checkNum = extractValue(content, "CHECKNUM") || undefined;
-
-  if (!datePosted) {
-    warnings.push("Transaction missing date");
-    return null;
-  }
-
-  if (!amountStr) {
-    warnings.push("Transaction missing amount");
-    return null;
-  }
-
-  const amount = parseFloat(amountStr);
-  if (isNaN(amount)) {
-    warnings.push(`Invalid amount: ${amountStr}`);
-    return null;
-  }
-
-  return {
-    id: fitid,
-    type,
-    date: parseOFXDate(datePosted),
-    amount,
-    name,
-    memo,
-    checkNumber: checkNum,
-  };
-}
-
-/**
- * Parse OFX date format (YYYYMMDDHHMMSS or YYYYMMDD).
- */
-function parseOFXDate(dateStr: string): string {
-  // Remove timezone info if present
-  const cleaned = dateStr.replace(/\[.*\]$/, "").trim();
-
-  // Extract date parts
-  const year = cleaned.substring(0, 4);
-  const month = cleaned.substring(4, 6);
-  const day = cleaned.substring(6, 8);
-
-  return `${year}-${month}-${day}`;
-}
-
-/**
- * Extract statement date range.
- */
-function extractDateRange(content: string): { start: string | null; end: string | null } {
-  const start = extractValue(content, "DTSTART");
-  const end = extractValue(content, "DTEND");
-
-  return {
-    start: start ? parseOFXDate(start) : null,
-    end: end ? parseOFXDate(end) : null,
-  };
-}
-
-/**
- * Extract current balance from statement.
- */
-function extractBalance(content: string): number | undefined {
-  const balAmt = extractValue(content, "BALAMT");
-  if (!balAmt) return undefined;
-
-  const balance = parseFloat(balAmt);
-  return isNaN(balance) ? undefined : balance;
 }
 
 /**

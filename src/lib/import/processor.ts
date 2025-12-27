@@ -6,10 +6,12 @@
  */
 
 import { parseCSV, parseNumber, parseDate, type CSVParseOptions } from "./csv";
-import { parseOFX, isOFXFormat, type OFXTransaction } from "./ofx";
+import { parseOFX, isOFXFormat } from "./ofx";
 import type { ColumnMapping, TargetFieldId } from "@/components/features/import/ColumnMappingStep";
 import type { ImportFormatting } from "@/components/features/import/FormattingStep";
 import { detectDuplicates, type DuplicateMatch } from "./duplicates";
+import { Temporal } from "temporal-polyfill";
+import { type ISODateString, toISODateString } from "@/types";
 
 /**
  * Processed transaction ready for import.
@@ -17,8 +19,8 @@ import { detectDuplicates, type DuplicateMatch } from "./duplicates";
 export interface ProcessedTransaction {
   /** Unique ID for this transaction */
   id: string;
-  /** Transaction date (ISO string) */
-  date: string;
+  /** Transaction date (branded ISO string for CRDT storage) */
+  date: ISODateString;
   /** Amount (positive = income, negative = expense) */
   amount: number;
   /** Merchant name */
@@ -63,7 +65,7 @@ export interface ProcessImportResult {
  */
 export interface ExistingTransaction {
   id: string;
-  date: string;
+  date: ISODateString;
   amount: number;
   description: string;
 }
@@ -92,13 +94,16 @@ export function processCSVImport(
   };
   const parseResult = parseCSV(content, csvOptions);
 
-  // Build column index map
+  // Build column index map - look up source column name in CSV headers
   const columnMap = new Map<TargetFieldId, number>();
-  mappings.forEach((mapping, idx) => {
+  for (const mapping of mappings) {
     if (mapping.targetField && mapping.targetField !== "ignore") {
-      columnMap.set(mapping.targetField, idx);
+      const columnIndex = parseResult.headers.indexOf(mapping.sourceColumn);
+      if (columnIndex !== -1) {
+        columnMap.set(mapping.targetField, columnIndex);
+      }
     }
-  });
+  }
 
   // Process each row
   const transactions: ProcessedTransaction[] = [];
@@ -110,11 +115,13 @@ export function processCSVImport(
 
     // Extract date
     const dateIdx = columnMap.get("date");
-    let date: string | null = null;
+    let date: ISODateString | null = null;
     if (dateIdx !== undefined && row[dateIdx]) {
-      date = parseDate(row[dateIdx], formatting.dateFormat);
-      if (!date) {
+      const parsedDate = parseDate(row[dateIdx], formatting.dateFormat);
+      if (!parsedDate) {
         rowErrors.push(`Invalid date: ${row[dateIdx]}`);
+      } else {
+        date = toISODateString(parsedDate);
       }
     } else {
       rowErrors.push("Missing date");
@@ -169,7 +176,7 @@ export function processCSVImport(
 
     // Create transaction
     transactions.push({
-      id: `import-${Date.now()}-${i}`,
+      id: `import-${Temporal.Now.instant().epochMilliseconds}-${i}`,
       date,
       amount,
       merchant: merchant || description,
@@ -207,38 +214,59 @@ export function processCSVImport(
   };
 }
 
+/** Result type for OFX import processing */
+export type ProcessOFXImportResult =
+  | { readonly ok: true; readonly data: ProcessImportResult }
+  | { readonly ok: false; readonly error: string };
+
 /**
  * Process an OFX file for import.
  *
  * @param content - Raw OFX content
  * @param existingTransactions - Existing transactions for duplicate detection
- * @returns Processing result
+ * @returns Processing result (Result type)
  */
 export function processOFXImport(
   content: string,
   existingTransactions: ExistingTransaction[] = []
-): ProcessImportResult {
+): ProcessOFXImportResult {
   const parseResult = parseOFX(content);
 
-  // Convert OFX transactions to our format
-  const transactions: ProcessedTransaction[] = parseResult.transactions.map(
-    (tx, i): ProcessedTransaction => ({
-      id: tx.id || `import-${Date.now()}-${i}`,
-      date: tx.date,
-      amount: tx.amount,
-      merchant: tx.name,
-      description: tx.memo,
-      checkNumber: tx.checkNumber,
-      isDuplicate: false,
-    })
-  );
+  // Handle parse errors
+  if (!parseResult.ok) {
+    const errorDetails =
+      parseResult.error.details.length > 0 ? `: ${parseResult.error.details.join(", ")}` : "";
+    return {
+      ok: false,
+      error: `${parseResult.error.message}${errorDetails}`,
+    };
+  }
+
+  // Flatten transactions from all statements
+  const allTransactions: ProcessedTransaction[] = [];
+  let transactionIndex = 0;
+
+  for (const statement of parseResult.data.statements) {
+    for (const tx of statement.transactions) {
+      allTransactions.push({
+        id: tx.fitId || `import-${Temporal.Now.instant().epochMilliseconds}-${transactionIndex}`,
+        date: toISODateString(tx.datePosted),
+        amount: tx.amount,
+        merchant: tx.name,
+        description: tx.memo,
+        checkNumber: tx.checkNumber,
+        isDuplicate: false,
+      });
+      transactionIndex++;
+    }
+  }
 
   // Detect duplicates
-  const duplicateMatches = detectDuplicates(transactions, existingTransactions);
+  const duplicateMatches = detectDuplicates(allTransactions, existingTransactions);
 
   // Mark duplicates
   for (const match of duplicateMatches) {
-    const tx = transactions.find((t) => t.id === match.newTransactionId);
+    const tx = allTransactions.find((t) => t.id === match.newTransactionId);
     if (tx) {
       tx.isDuplicate = true;
       tx.duplicateOfId = match.existingTransactionId;
@@ -246,19 +274,27 @@ export function processOFXImport(
     }
   }
 
-  const duplicateCount = transactions.filter((t) => t.isDuplicate).length;
+  const duplicateCount = allTransactions.filter((t) => t.isDuplicate).length;
 
   return {
-    transactions,
-    errors: [], // OFX parsing handles errors internally
-    stats: {
-      totalRows: transactions.length,
-      validRows: transactions.length,
-      errorRows: 0,
-      duplicateCount,
+    ok: true,
+    data: {
+      transactions: allTransactions,
+      errors: [],
+      stats: {
+        totalRows: allTransactions.length,
+        validRows: allTransactions.length,
+        errorRows: 0,
+        duplicateCount,
+      },
     },
   };
 }
+
+/** Result type for import processing */
+export type ProcessImportResultType =
+  | { readonly ok: true; readonly data: ProcessImportResult }
+  | { readonly ok: false; readonly error: string };
 
 /**
  * Process a file for import (auto-detect format).
@@ -267,16 +303,19 @@ export function processOFXImport(
  * @param mappings - Column mappings (for CSV)
  * @param formatting - Formatting options (for CSV)
  * @param existingTransactions - Existing transactions for duplicate detection
- * @returns Processing result
+ * @returns Processing result (Result type)
  */
 export function processImport(
   content: string,
   mappings: ColumnMapping[],
   formatting: ImportFormatting,
   existingTransactions: ExistingTransaction[] = []
-): ProcessImportResult {
+): ProcessImportResultType {
   if (isOFXFormat(content)) {
     return processOFXImport(content, existingTransactions);
   }
-  return processCSVImport(content, mappings, formatting, existingTransactions);
+  return {
+    ok: true,
+    data: processCSVImport(content, mappings, formatting, existingTransactions),
+  };
 }

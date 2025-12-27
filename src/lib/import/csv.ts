@@ -1,9 +1,12 @@
 /**
  * CSV Parser
  *
- * Parses CSV files with configurable separators and formats.
- * Handles common edge cases like quoted fields, escaped quotes, etc.
+ * Parses CSV files using papaparse library.
+ * Provides utilities for number and date parsing with configurable formats.
  */
+
+import Papa from "papaparse";
+import { Temporal } from "temporal-polyfill";
 
 /**
  * CSV parsing options.
@@ -72,13 +75,7 @@ export function parseCSV(content: string, options: CSVParseOptions = {}): CSVPar
   const opts = { ...DEFAULT_OPTIONS, ...options };
   const warnings: string[] = [];
 
-  // Normalize line endings
-  const normalized = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-
-  // Split into lines (handling quoted newlines)
-  const lines = splitLines(normalized, opts.quoteChar);
-
-  if (lines.length === 0) {
+  if (!content || content.trim() === "") {
     return {
       headers: [],
       rows: [],
@@ -88,15 +85,22 @@ export function parseCSV(content: string, options: CSVParseOptions = {}): CSVPar
     };
   }
 
-  // Parse each line into fields
-  const allRows: string[][] = [];
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (line === "") continue;
+  // Parse with papaparse
+  const result = Papa.parse<string[]>(content, {
+    delimiter: opts.separator,
+    quoteChar: opts.quoteChar,
+    header: false, // We handle headers ourselves for more control
+    skipEmptyLines: true,
+    preview: opts.maxRows !== Infinity ? opts.maxRows + (opts.hasHeaders ? 1 : 0) : 0,
+  });
 
-    const fields = parseLine(line, opts.separator, opts.quoteChar);
-    allRows.push(fields);
+  // Collect errors as warnings
+  for (const error of result.errors) {
+    warnings.push(`Row ${error.row}: ${error.message}`);
   }
+
+  const allRows = result.data;
+  const truncated = result.meta.truncated ?? false;
 
   if (allRows.length === 0) {
     return {
@@ -104,33 +108,40 @@ export function parseCSV(content: string, options: CSVParseOptions = {}): CSVPar
       rows: [],
       rowCount: 0,
       truncated: false,
-      warnings: ["No data rows found"],
+      warnings,
     };
   }
 
   // Extract headers
   let headers: string[];
   let dataRows: string[][];
+  let headerColumnCount: number;
 
   if (opts.hasHeaders) {
-    headers = allRows[0].map((h, i) => h.trim() || `Column ${i + 1}`);
+    const headerRow = allRows[0];
+    headerColumnCount = headerRow.length;
+    headers = headerRow.map((h, i) => {
+      const trimmed = h?.trim() ?? "";
+      return trimmed === "" ? `Column ${i + 1}` : trimmed;
+    });
     dataRows = allRows.slice(1);
   } else {
-    headers = allRows[0].map((_, i) => `Column ${i + 1}`);
+    // Generate column names
+    headerColumnCount = allRows[0]?.length ?? 0;
+    headers = Array.from({ length: headerColumnCount }, (_, i) => `Column ${i + 1}`);
     dataRows = allRows;
   }
 
-  // Check for consistent column counts
-  const expectedColumns = headers.length;
-  dataRows.forEach((row, idx) => {
-    if (row.length !== expectedColumns) {
-      warnings.push(`Row ${idx + 1} has ${row.length} columns, expected ${expectedColumns}`);
+  // Validate row lengths and trim values
+  const rows: string[][] = [];
+  for (let i = 0; i < dataRows.length; i++) {
+    const row = dataRows[i];
+    if (row.length !== headerColumnCount) {
+      warnings.push(`Row ${i + 1} has ${row.length} columns, expected ${headerColumnCount}`);
     }
-  });
-
-  // Apply maxRows limit
-  const truncated = dataRows.length > opts.maxRows;
-  const rows = dataRows.slice(0, opts.maxRows);
+    // Trim all values
+    rows.push(row.map((v) => v?.trim() ?? ""));
+  }
 
   return {
     headers,
@@ -139,76 +150,6 @@ export function parseCSV(content: string, options: CSVParseOptions = {}): CSVPar
     truncated,
     warnings,
   };
-}
-
-/**
- * Split content into lines, respecting quoted fields that may contain newlines.
- */
-function splitLines(content: string, quoteChar: string): string[] {
-  const lines: string[] = [];
-  let currentLine = "";
-  let inQuotes = false;
-
-  for (let i = 0; i < content.length; i++) {
-    const char = content[i];
-
-    if (char === quoteChar) {
-      // Check for escaped quote
-      if (i + 1 < content.length && content[i + 1] === quoteChar) {
-        currentLine += char + quoteChar;
-        i++;
-        continue;
-      }
-      inQuotes = !inQuotes;
-    }
-
-    if (char === "\n" && !inQuotes) {
-      lines.push(currentLine);
-      currentLine = "";
-    } else {
-      currentLine += char;
-    }
-  }
-
-  if (currentLine) {
-    lines.push(currentLine);
-  }
-
-  return lines;
-}
-
-/**
- * Parse a single CSV line into fields.
- */
-function parseLine(line: string, separator: string, quoteChar: string): string[] {
-  const fields: string[] = [];
-  let currentField = "";
-  let inQuotes = false;
-
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-
-    if (char === quoteChar) {
-      // Check for escaped quote
-      if (i + 1 < line.length && line[i + 1] === quoteChar) {
-        currentField += quoteChar;
-        i++;
-        continue;
-      }
-      inQuotes = !inQuotes;
-      continue;
-    }
-
-    if (char === separator && !inQuotes) {
-      fields.push(currentField.trim());
-      currentField = "";
-    } else {
-      currentField += char;
-    }
-  }
-
-  fields.push(currentField.trim());
-  return fields;
 }
 
 /**
@@ -260,13 +201,13 @@ export function parseNumber(
 /**
  * Date format tokens for parsing.
  */
-const DATE_FORMAT_REGEX: Record<string, string> = {
-  yyyy: "(\\d{4})",
-  yy: "(\\d{2})",
-  MM: "(\\d{2})",
-  M: "(\\d{1,2})",
-  dd: "(\\d{2})",
-  d: "(\\d{1,2})",
+const DATE_FORMAT_TOKENS: Record<string, { regex: string; extract: string }> = {
+  yyyy: { regex: "(\\d{4})", extract: "year4" },
+  yy: { regex: "(\\d{2})", extract: "year2" },
+  MM: { regex: "(\\d{2})", extract: "month" },
+  M: { regex: "(\\d{1,2})", extract: "month" },
+  dd: { regex: "(\\d{2})", extract: "day" },
+  d: { regex: "(\\d{1,2})", extract: "day" },
 };
 
 /**
@@ -274,51 +215,73 @@ const DATE_FORMAT_REGEX: Record<string, string> = {
  *
  * @param value - The date string to parse
  * @param format - The date format (e.g., "yyyy-MM-dd", "MM/dd/yyyy")
- * @returns ISO date string (yyyy-MM-dd) or null if invalid
+ * @returns Temporal.PlainDate or null if invalid
  */
-export function parseDate(value: string, format = "yyyy-MM-dd"): string | null {
+export function parseDate(value: string, format = "yyyy-MM-dd"): Temporal.PlainDate | null {
   if (!value || value.trim() === "") return null;
 
   const cleaned = value.trim();
 
-  // Build regex from format
+  // Build regex from format using placeholders to avoid escaping issues
   let regexStr = format;
-  const tokens: string[] = [];
 
-  for (const [token, regex] of Object.entries(DATE_FORMAT_REGEX)) {
+  // Sort tokens by length (longest first) to avoid partial matches (e.g., yyyy before yy)
+  const sortedTokens = Object.entries(DATE_FORMAT_TOKENS).sort(([a], [b]) => b.length - a.length);
+
+  // Replace tokens with numbered placeholders, tracking what each placeholder extracts
+  const placeholderMap: { placeholder: string; regex: string; extract: string }[] = [];
+  let placeholderNum = 0;
+
+  for (const [token, { regex, extract }] of sortedTokens) {
     if (regexStr.includes(token)) {
-      regexStr = regexStr.replace(token, regex);
-      tokens.push(token);
+      const placeholder = `__${placeholderNum}__`;
+      regexStr = regexStr.replace(token, placeholder);
+      placeholderMap.push({ placeholder, regex, extract });
+      placeholderNum++;
     }
   }
 
-  // Escape special regex characters
+  // Escape regex special characters in separators
   regexStr = regexStr.replace(/[/.\-\\]/g, "\\$&");
+
+  // Sort placeholders by their position in the string to determine capture group order
+  const sortedByPosition = [...placeholderMap].sort((a, b) => {
+    return regexStr.indexOf(a.placeholder) - regexStr.indexOf(b.placeholder);
+  });
+
+  // Replace placeholders with actual regex patterns
+  for (const { placeholder, regex } of placeholderMap) {
+    regexStr = regexStr.replace(placeholder, regex);
+  }
 
   const regex = new RegExp(`^${regexStr}$`);
   const match = cleaned.match(regex);
 
   if (!match) return null;
 
-  // Extract values based on token positions
-  const values: Record<string, number> = {};
-  tokens.forEach((token, i) => {
-    const val = parseInt(match[i + 1], 10);
+  // Extract values based on capture group order (sorted by position)
+  const values: { year?: number; month?: number; day?: number } = {};
 
-    if (token.startsWith("y")) {
-      values.year = token === "yy" ? (val < 50 ? 2000 + val : 1900 + val) : val;
-    } else if (token.startsWith("M")) {
+  for (let i = 0; i < sortedByPosition.length; i++) {
+    const val = parseInt(match[i + 1], 10);
+    const extractor = sortedByPosition[i].extract;
+
+    if (extractor === "year4") {
+      values.year = val;
+    } else if (extractor === "year2") {
+      values.year = val < 50 ? 2000 + val : 1900 + val;
+    } else if (extractor === "month") {
       values.month = val;
-    } else if (token.startsWith("d")) {
+    } else if (extractor === "day") {
       values.day = val;
     }
-  });
+  }
 
   // Validate values
   if (
-    !values.year ||
-    !values.month ||
-    !values.day ||
+    values.year === undefined ||
+    values.month === undefined ||
+    values.day === undefined ||
     values.month < 1 ||
     values.month > 12 ||
     values.day < 1 ||
@@ -327,8 +290,16 @@ export function parseDate(value: string, format = "yyyy-MM-dd"): string | null {
     return null;
   }
 
-  // Return ISO format
-  return `${values.year}-${String(values.month).padStart(2, "0")}-${String(values.day).padStart(2, "0")}`;
+  // Return as Temporal.PlainDate (validates the date is real, e.g., no Feb 30)
+  try {
+    return Temporal.PlainDate.from({
+      year: values.year,
+      month: values.month,
+      day: values.day,
+    });
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -358,14 +329,17 @@ export function detectSeparator(content: string): string {
  * @returns True if first row appears to be headers
  */
 export function detectHeaders(content: string, separator = ","): boolean {
-  const lines = content
-    .split("\n")
-    .slice(0, 5)
-    .filter((l) => l.trim());
+  const result = Papa.parse<string[]>(content, {
+    delimiter: separator,
+    header: false,
+    preview: 2,
+  });
+
+  const lines = result.data;
   if (lines.length < 2) return true;
 
-  const firstRow = parseLine(lines[0], separator, '"');
-  const secondRow = parseLine(lines[1], separator, '"');
+  const firstRow = lines[0];
+  const secondRow = lines[1];
 
   // Check if first row has different characteristics than second
   // Headers are usually text-only, data rows often have numbers
