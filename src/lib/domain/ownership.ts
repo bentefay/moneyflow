@@ -95,9 +95,7 @@ export function isValidOwnership(ownerships: Record<string, number>): boolean {
  * @param ownerships - Map of personId to ownership percentage
  * @returns Normalized ownerships that sum to 100%
  */
-export function normalizeOwnerships(
-  ownerships: Record<string, number>
-): Record<string, number> {
+export function normalizeOwnerships(ownerships: Record<string, number>): Record<string, number> {
   const sum = sumOwnerships(ownerships);
 
   if (sum === 0) {

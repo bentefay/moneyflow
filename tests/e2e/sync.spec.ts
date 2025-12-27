@@ -8,7 +8,7 @@
  * - Offline changes sync when reconnecting
  */
 
-import { test, expect, type Page, type BrowserContext } from "@playwright/test";
+import { test, expect, type Page, type BrowserContext, type Browser } from "@playwright/test";
 
 // ============================================================================
 // Test Fixtures
@@ -676,6 +676,195 @@ test.describe.skip("Session Persistence", () => {
       await expect(page2.getByText("Session Restore Test")).toBeVisible({ timeout: 15000 });
     } finally {
       await context2.close();
+    }
+  });
+});
+
+// ============================================================================
+// Multi-User Vault Sharing via Invite (US3)
+// ============================================================================
+
+test.describe("Multi-User Vault Sharing", () => {
+  /**
+   * Create a new user and return their seed phrase and page.
+   */
+  async function createNewUser(browser: Browser) {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    const seedPhrase = await createIdentity(page);
+    return { context, page, seedPhrase };
+  }
+
+  // TODO: Enable when invite flow is fully implemented
+  test.skip("should allow vault owner to generate invite link", async ({ page }) => {
+    // Create identity and go to dashboard
+    const seedPhrase = await createIdentity(page);
+
+    // Navigate to people page
+    await page.goto("/people");
+    await page.waitForLoadState("networkidle");
+
+    // Click create invite button
+    const createInviteButton = page.getByRole("button", {
+      name: /create invite|generate invite|invite/i,
+    });
+    await expect(createInviteButton).toBeVisible({ timeout: 5000 });
+    await createInviteButton.click();
+
+    // Should show invite dialog/modal
+    const inviteDialog = page
+      .locator('[data-testid="invite-dialog"]')
+      .or(page.getByRole("dialog").filter({ hasText: /invite/i }));
+    await expect(inviteDialog).toBeVisible({ timeout: 5000 });
+
+    // Should have invite link visible
+    const inviteLink = page
+      .locator('[data-testid="invite-link"]')
+      .or(page.getByRole("textbox", { name: /link/i }));
+    await expect(inviteLink).toBeVisible();
+
+    // Link should contain expected format
+    const linkValue = (await inviteLink.inputValue()) || (await inviteLink.textContent());
+    expect(linkValue).toContain("/invite/");
+    expect(linkValue).toContain("#"); // Should have fragment for secret
+  });
+
+  // TODO: Enable when invite flow is fully implemented
+  test.skip("should allow invited user to join vault", async ({ browser }) => {
+    // User 1: Create identity and generate invite
+    const owner = await createNewUser(browser);
+
+    await owner.page.goto("/people");
+    await owner.page.waitForLoadState("networkidle");
+
+    const createInviteButton = owner.page.getByRole("button", {
+      name: /create invite|generate invite|invite/i,
+    });
+    await createInviteButton.click();
+
+    // Get invite link
+    const inviteLink = owner.page
+      .locator('[data-testid="invite-link"]')
+      .or(owner.page.getByRole("textbox", { name: /link/i }));
+    const linkValue = (await inviteLink.inputValue()) || (await inviteLink.textContent()) || "";
+
+    // User 2: Create new identity
+    const invitee = await createNewUser(browser);
+
+    try {
+      // Navigate to invite link
+      await invitee.page.goto(linkValue);
+      await invitee.page.waitForLoadState("networkidle");
+
+      // Should show invite acceptance page
+      await expect(invitee.page.getByText(/join|accept|vault/i)).toBeVisible({ timeout: 5000 });
+
+      // Accept invite
+      const acceptButton = invitee.page.getByRole("button", { name: /accept|join|continue/i });
+      await acceptButton.click();
+
+      // Should redirect to dashboard
+      await invitee.page.waitForURL("**/dashboard", { timeout: 10000 });
+
+      // Invitee should now have access to vault
+      await invitee.page.goto("/transactions");
+      await expect(invitee.page).toHaveURL(/transactions/);
+    } finally {
+      await owner.context.close();
+      await invitee.context.close();
+    }
+  });
+
+  // TODO: Enable when invite flow and sync are fully implemented
+  test.skip("should sync transactions between owner and invited member", async ({ browser }) => {
+    // Setup: Owner creates vault and invites member
+    const owner = await createNewUser(browser);
+    const invitee = await createNewUser(browser);
+
+    try {
+      // Owner generates invite
+      await owner.page.goto("/people");
+      const createInviteButton = owner.page.getByRole("button", { name: /create invite|invite/i });
+      await createInviteButton.click();
+
+      const inviteLink = owner.page.locator('[data-testid="invite-link"]');
+      const linkValue = (await inviteLink.inputValue()) || "";
+
+      // Invitee accepts
+      await invitee.page.goto(linkValue);
+      await invitee.page.getByRole("button", { name: /accept|join/i }).click();
+      await invitee.page.waitForURL("**/dashboard", { timeout: 10000 });
+
+      // Both navigate to transactions
+      await owner.page.goto("/transactions");
+      await invitee.page.goto("/transactions");
+      await owner.page.waitForLoadState("networkidle");
+      await invitee.page.waitForLoadState("networkidle");
+
+      // Owner creates transaction
+      await createTransaction(owner.page, {
+        merchant: "Multi-User Sync Test",
+        amount: "-150.00",
+      });
+
+      // Transaction should appear on owner's page
+      await expect(owner.page.getByText("Multi-User Sync Test")).toBeVisible({ timeout: 5000 });
+
+      // Transaction should sync to invitee's page
+      await expect(invitee.page.getByText("Multi-User Sync Test")).toBeVisible({ timeout: 15000 });
+
+      // Invitee creates transaction
+      await createTransaction(invitee.page, {
+        merchant: "Invitee Transaction",
+        amount: "-75.00",
+      });
+
+      // Should appear on both
+      await expect(invitee.page.getByText("Invitee Transaction")).toBeVisible({ timeout: 5000 });
+      await expect(owner.page.getByText("Invitee Transaction")).toBeVisible({ timeout: 15000 });
+    } finally {
+      await owner.context.close();
+      await invitee.context.close();
+    }
+  });
+
+  // TODO: Enable when presence feature is fully implemented
+  test.skip("should show both users in presence indicator", async ({ browser }) => {
+    const owner = await createNewUser(browser);
+    const invitee = await createNewUser(browser);
+
+    try {
+      // Setup: invite and accept (same as above)
+      await owner.page.goto("/people");
+      const createInviteButton = owner.page.getByRole("button", { name: /invite/i });
+      await createInviteButton.click();
+
+      const inviteLink = owner.page.locator('[data-testid="invite-link"]');
+      const linkValue = (await inviteLink.inputValue()) || "";
+
+      await invitee.page.goto(linkValue);
+      await invitee.page.getByRole("button", { name: /accept|join/i }).click();
+      await invitee.page.waitForURL("**/dashboard", { timeout: 10000 });
+
+      // Both on same page
+      await owner.page.goto("/transactions");
+      await invitee.page.goto("/transactions");
+      await owner.page.waitForLoadState("networkidle");
+      await invitee.page.waitForLoadState("networkidle");
+
+      // Wait for presence to establish
+      await owner.page.waitForTimeout(3000);
+
+      // Owner should see 2 users in presence
+      const presenceCount = owner.page
+        .locator('[data-testid="presence-count"]')
+        .or(owner.page.locator('[data-testid="presence-avatar-group"]'));
+
+      // Should show multiple users
+      await expect(presenceCount).toBeVisible({ timeout: 10000 });
+    } finally {
+      await owner.context.close();
+      await invitee.context.close();
     }
   });
 });

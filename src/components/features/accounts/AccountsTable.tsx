@@ -12,11 +12,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AccountRow } from "./AccountRow";
-import {
-  useActiveAccounts,
-  useActivePeople,
-  useVaultAction,
-} from "@/lib/crdt/context";
+import { useActiveAccounts, useActivePeople, useVaultAction } from "@/lib/crdt/context";
 import type { Account, AccountInput, Person } from "@/lib/crdt/schema";
 import { createEqualOwnerships } from "@/lib/domain/ownership";
 
@@ -37,14 +33,12 @@ export function AccountsTable({ className }: AccountsTableProps) {
   const [newAccountName, setNewAccountName] = useState("");
 
   // Vault actions for mutations
-  const updateAccount = useVaultAction(
-    (state, id: string, data: Partial<Account>) => {
-      const existing = state.accounts[id];
-      if (existing) {
-        Object.assign(existing, data);
-      }
+  const updateAccount = useVaultAction((state, id: string, data: Partial<Account>) => {
+    const existing = state.accounts[id];
+    if (existing) {
+      Object.assign(existing, data);
     }
-  );
+  });
 
   const addAccount = useVaultAction((state, data: AccountInput) => {
     state.accounts[data.id] = data as (typeof state.accounts)[string];
@@ -95,9 +89,7 @@ export function AccountsTable({ className }: AccountsTableProps) {
 
     // Filter out $cid property from people keys (loro-mirror injects it)
     const personIds = Object.keys(people).filter((k) => k !== "$cid");
-    const defaultOwnerships = personIds.length > 0
-      ? createEqualOwnerships(personIds)
-      : {};
+    const defaultOwnerships = personIds.length > 0 ? createEqualOwnerships(personIds) : {};
 
     const newAccount = {
       id: crypto.randomUUID(),
@@ -122,7 +114,7 @@ export function AccountsTable({ className }: AccountsTableProps) {
   return (
     <div className={cn("flex flex-col", className)}>
       {/* Header */}
-      <div className="flex items-center gap-4 border-b bg-muted/50 px-4 py-2 text-sm font-medium">
+      <div className="bg-muted/50 flex items-center gap-4 border-b px-4 py-2 text-sm font-medium">
         <div className="w-5 shrink-0" /> {/* Expand indicator space */}
         <div className="flex-1">Account</div>
         <div className="w-28 shrink-0">Type</div>
@@ -175,15 +167,10 @@ export function AccountsTable({ className }: AccountsTableProps) {
         <button
           type="button"
           onClick={() => setIsAddingAccount(true)}
-          className="flex items-center gap-2 px-4 py-3 text-sm text-muted-foreground hover:bg-accent/50 transition-colors"
+          className="text-muted-foreground hover:bg-accent/50 flex items-center gap-2 px-4 py-3 text-sm transition-colors"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
           Add account
         </button>
@@ -194,7 +181,7 @@ export function AccountsTable({ className }: AccountsTableProps) {
         <div className="py-12 text-center">
           <div className="text-muted-foreground">
             <svg
-              className="mx-auto h-12 w-12 text-muted-foreground/50"
+              className="text-muted-foreground/50 mx-auto h-12 w-12"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -209,10 +196,7 @@ export function AccountsTable({ className }: AccountsTableProps) {
             <h3 className="mt-4 text-lg font-medium">No accounts yet</h3>
             <p className="mt-1">Add your first account to start tracking transactions.</p>
           </div>
-          <Button
-            className="mt-6"
-            onClick={() => setIsAddingAccount(true)}
-          >
+          <Button className="mt-6" onClick={() => setIsAddingAccount(true)}>
             <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
                 strokeLinecap="round"

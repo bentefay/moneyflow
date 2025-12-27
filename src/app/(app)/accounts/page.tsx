@@ -24,11 +24,11 @@ export default function AccountsPage() {
   useVaultPresence(activeVault?.id ?? null, pubkeyHash ?? null);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full flex-col">
       {/* Page header */}
       <div className="border-b px-6 py-4">
         <h1 className="text-2xl font-semibold">Accounts</h1>
-        <p className="text-muted-foreground text-sm mt-1">
+        <p className="text-muted-foreground mt-1 text-sm">
           Manage your financial accounts and ownership percentages.
         </p>
       </div>

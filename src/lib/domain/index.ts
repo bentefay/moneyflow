@@ -9,7 +9,7 @@ export {
   calculateTableRunningBalances,
   calculateAccountBalance,
   calculateAllAccountBalances,
-  calculateSettlementBalances,
+  calculateSettlementBalances as calculateSimpleSettlementBalances,
   useRunningBalances,
   type TransactionWithBalance,
   type BalanceCalculationOptions,
@@ -26,3 +26,10 @@ export {
   updateOwnerPercentage,
   OWNERSHIP_TOLERANCE,
 } from "./ownership";
+
+export {
+  calculateSettlementBalances,
+  getNetBalanceForPerson,
+  getBalancesForPerson,
+  type SettlementBalance,
+} from "./settlement";

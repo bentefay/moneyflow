@@ -154,20 +154,12 @@ export function AccountRow({
         {/* Expand/collapse indicator */}
         <div className="text-muted-foreground w-5 shrink-0">
           <svg
-            className={cn(
-              "h-4 w-4 transition-transform",
-              isExpanded && "rotate-90"
-            )}
+            className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-90")}
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 5l7 7-7 7"
-            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </div>
 
@@ -230,18 +222,14 @@ export function AccountRow({
 
         {/* Owners */}
         <div className="text-muted-foreground hidden w-40 shrink-0 truncate text-sm md:block">
-          {ownerNames || (
-            <span className="italic text-amber-500">No owners</span>
-          )}
+          {ownerNames || <span className="text-amber-500 italic">No owners</span>}
         </div>
 
         {/* Balance */}
         <div
           className={cn(
             "w-28 shrink-0 text-right font-medium tabular-nums",
-            balance < 0
-              ? "text-red-600 dark:text-red-400"
-              : "text-foreground"
+            balance < 0 ? "text-red-600 dark:text-red-400" : "text-foreground"
           )}
         >
           {formatter.format(balance)}
@@ -331,7 +319,7 @@ export function AccountRow({
 
       {/* Expanded ownership editor */}
       {isExpanded && (
-        <div className="border-t bg-accent/20 px-4 py-4">
+        <div className="bg-accent/20 border-t px-4 py-4">
           <div className="mx-auto max-w-md">
             <h4 className="mb-3 text-sm font-medium">Ownership</h4>
             <OwnershipEditor

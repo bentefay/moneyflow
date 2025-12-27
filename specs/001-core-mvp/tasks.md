@@ -320,29 +320,29 @@ Based on plan.md structure:
 
 ### API for User Story 3
 
-- [ ] T107 Create Zod schemas for invite procedures in src/server/schemas/invite.ts
-- [ ] T108 Implement invite.create procedure (generates ephemeral keypair, 24h expiry) in src/server/routers/invite.ts
-- [ ] T109 Implement invite.redeem procedure (key exchange, create membership, store enc_public_key) in src/server/routers/invite.ts
-- [ ] T110 Create Zod schemas for membership procedures in src/server/schemas/membership.ts
-- [ ] T111 Implement membership.list procedure (returns members with enc_public_key for re-keying) in src/server/routers/membership.ts
-- [ ] T111a Implement membership.remove procedure (owner only, triggers re-keying) in src/server/routers/membership.ts
-- [ ] T111b Implement vault re-keying logic (generate new vault key, re-encrypt all data, wrap for remaining members using stored enc_public_key) in src/lib/crypto/rekey.ts
+- [x] T107 Create Zod schemas for invite procedures in src/server/schemas/invite.ts
+- [x] T108 Implement invite.create procedure (generates ephemeral keypair, 24h expiry) in src/server/routers/invite.ts
+- [x] T109 Implement invite.redeem procedure (key exchange, create membership, store enc_public_key) in src/server/routers/invite.ts
+- [x] T110 Create Zod schemas for membership procedures in src/server/schemas/membership.ts
+- [x] T111 Implement membership.list procedure (returns members with enc_public_key for re-keying) in src/server/routers/membership.ts
+- [x] T111a Implement membership.remove procedure (owner only, triggers re-keying) in src/server/routers/membership.ts
+- [x] T111b Implement vault re-keying logic (generate new vault key, re-encrypt all data, wrap for remaining members using stored enc_public_key) in src/lib/crypto/rekey.ts
 
 ### Implementation for User Story 3
 
-- [ ] T112 [P] [US3] Create PersonRow component with inline editing in src/components/features/people/PersonRow.tsx
-- [ ] T113 [P] [US3] Create InviteLinkGenerator component (creates link, shows expiry) in src/components/features/people/InviteLinkGenerator.tsx
-- [ ] T114 [P] [US3] Create BalanceSummary component (who owes whom) in src/components/features/people/BalanceSummary.tsx
-- [ ] T115 [US3] Create PeopleTable component in src/components/features/people/PeopleTable.tsx
-- [ ] T116 [US3] Create /people page in src/app/(app)/people/page.tsx
-- [ ] T117 [US3] Create /invite/[token] page (redeem invite flow) in src/app/(onboarding)/invite/[token]/page.tsx
-- [ ] T118 [US3] Implement settlement balance calculation (transactions with "Treat as Paid" status) in src/lib/domain/settlement.ts
+- [x] T112 [P] [US3] Create PersonRow component with inline editing in src/components/features/people/PersonRow.tsx
+- [x] T113 [P] [US3] Create InviteLinkGenerator component (creates link, shows expiry) in src/components/features/people/InviteLinkGenerator.tsx
+- [x] T114 [P] [US3] Create BalanceSummary component (who owes whom) in src/components/features/people/BalanceSummary.tsx
+- [x] T115 [US3] Create PeopleTable component in src/components/features/people/PeopleTable.tsx
+- [x] T116 [US3] Create /people page in src/app/(app)/people/page.tsx
+- [x] T117 [US3] Create /invite/[token] page (redeem invite flow) in src/app/(onboarding)/invite/[token]/page.tsx
+- [x] T118 [US3] Implement settlement balance calculation (transactions with "Treat as Paid" status) in src/lib/domain/settlement.ts
 
 ### Tests for Phase 8
 
-- [ ] T118a [T] [US3] Property-based tests for settlement calculations in tests/unit/domain/settlement.test.ts
-- [ ] T118b [T] [US3] Integration tests for invite/redeem flow in tests/integration/invite.test.ts
-- [ ] T118c [T] [US3] E2E test: multi-user sync in tests/e2e/sync.spec.ts
+- [x] T118a [T] [US3] Property-based tests for settlement calculations in tests/unit/domain/settlement.test.ts
+- [x] T118b [T] [US3] Integration tests for invite/redeem flow in tests/integration/invite.test.ts
+- [x] T118c [T] [US3] E2E test: multi-user sync in tests/e2e/sync.spec.ts
 
 **Checkpoint**: People page with invite links and balance summary. Multi-user sharing works. **Tests passing.**
 

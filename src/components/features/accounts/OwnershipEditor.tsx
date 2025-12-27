@@ -240,7 +240,9 @@ export function OwnershipEditor({
         <div
           className={cn(
             "font-medium",
-            validation.valid ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400"
+            validation.valid
+              ? "text-green-600 dark:text-green-400"
+              : "text-amber-600 dark:text-amber-400"
           )}
         >
           Total: {sum.toFixed(2)}%
@@ -260,9 +262,7 @@ export function OwnershipEditor({
       </div>
 
       {/* Error message */}
-      {!validation.valid && (
-        <div className="text-destructive text-sm">{validation.error}</div>
-      )}
+      {!validation.valid && <div className="text-destructive text-sm">{validation.error}</div>}
     </div>
   );
 }

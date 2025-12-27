@@ -37,25 +37,23 @@ const percentageArb = fc.float({ min: Math.fround(0), max: Math.fround(100), noN
  * Generate an ownership map with n owners that sums to exactly 100%
  */
 const validOwnershipsArb = (minOwners = 1, maxOwners = 5) =>
-  fc
-    .array(personIdArb, { minLength: minOwners, maxLength: maxOwners })
-    .chain((personIds) =>
-      fc
-        .array(fc.float({ min: Math.fround(0.01), max: Math.fround(100), noNaN: true }), {
-          minLength: personIds.length,
-          maxLength: personIds.length,
-        })
-        .map((rawPcts) => {
-          // Normalize to sum to 100
-          const sum = rawPcts.reduce((a, b) => a + b, 0);
-          const normalized = rawPcts.map((p) => (p / sum) * 100);
-          const result: Record<string, number> = {};
-          personIds.forEach((id, i) => {
-            result[id] = normalized[i];
-          });
-          return result;
-        })
-    );
+  fc.array(personIdArb, { minLength: minOwners, maxLength: maxOwners }).chain((personIds) =>
+    fc
+      .array(fc.float({ min: Math.fround(0.01), max: Math.fround(100), noNaN: true }), {
+        minLength: personIds.length,
+        maxLength: personIds.length,
+      })
+      .map((rawPcts) => {
+        // Normalize to sum to 100
+        const sum = rawPcts.reduce((a, b) => a + b, 0);
+        const normalized = rawPcts.map((p) => (p / sum) * 100);
+        const result: Record<string, number> = {};
+        personIds.forEach((id, i) => {
+          result[id] = normalized[i];
+        });
+        return result;
+      })
+  );
 
 /**
  * Generate an ownership map that may not sum to 100%
@@ -216,10 +214,16 @@ describe("normalizeOwnerships", () => {
     fc.assert(
       fc.property(
         fc
-          .array(fc.tuple(personIdArb, fc.float({ min: Math.fround(0.01), max: Math.fround(100), noNaN: true })), {
-            minLength: 1,
-            maxLength: 5,
-          })
+          .array(
+            fc.tuple(
+              personIdArb,
+              fc.float({ min: Math.fround(0.01), max: Math.fround(100), noNaN: true })
+            ),
+            {
+              minLength: 1,
+              maxLength: 5,
+            }
+          )
           .map((entries) => Object.fromEntries(entries)),
         (ownerships) => {
           const normalized = normalizeOwnerships(ownerships);

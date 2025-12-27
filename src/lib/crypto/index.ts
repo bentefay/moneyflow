@@ -95,3 +95,12 @@ export {
   verifyStringSignature,
   type SignedRequestHeaders,
 } from "./signing";
+
+// Vault re-keying
+export {
+  rekeyVault,
+  reencryptSnapshot,
+  performCompleteRekey,
+  type RemainingMember,
+  type RekeyResult,
+} from "./rekey";

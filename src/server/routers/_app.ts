@@ -9,6 +9,7 @@ import { router } from "../trpc";
 import { vaultRouter } from "./vault";
 import { syncRouter } from "./sync";
 import { inviteRouter } from "./invite";
+import { membershipRouter } from "./membership";
 import { userRouter } from "./user";
 
 /**
@@ -19,6 +20,8 @@ export const appRouter = router({
   user: userRouter,
   /** Vault CRUD and membership */
   vault: vaultRouter,
+  /** Vault membership management */
+  membership: membershipRouter,
   /** CRDT sync operations */
   sync: syncRouter,
   /** Vault invitations */

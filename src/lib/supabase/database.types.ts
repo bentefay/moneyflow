@@ -90,6 +90,7 @@ export type Database = {
       vault_memberships: {
         Row: {
           created_at: string | null;
+          enc_public_key: string | null;
           encrypted_vault_key: string;
           id: string;
           pubkey_hash: string;
@@ -98,6 +99,7 @@ export type Database = {
         };
         Insert: {
           created_at?: string | null;
+          enc_public_key?: string | null;
           encrypted_vault_key: string;
           id?: string;
           pubkey_hash: string;
@@ -106,6 +108,7 @@ export type Database = {
         };
         Update: {
           created_at?: string | null;
+          enc_public_key?: string | null;
           encrypted_vault_key?: string;
           id?: string;
           pubkey_hash?: string;
