@@ -15,7 +15,7 @@ let supabaseClient: SupabaseClient<Database> | null = null;
  *
  * Uses anon key for client-side operations with RLS.
  */
-export function createSupabaseBrowser(): SupabaseClient<Database> {
+export function createSupabaseClientForBrowser(): SupabaseClient<Database> {
   if (supabaseClient) {
     return supabaseClient;
   }

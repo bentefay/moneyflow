@@ -214,10 +214,8 @@ test.describe("Identity Creation Flow", () => {
     await generateButton.click();
     await page.waitForSelector('[data-testid="seed-phrase-word"]', { timeout: 10000 });
 
-    // Click copy button
-    const copyButton = page
-      .locator('[data-testid="copy-button"]')
-      .or(page.getByRole("button").filter({ hasText: /copy/i }));
+    // Click copy button (use specific test id to avoid matching reveal overlay)
+    const copyButton = page.locator('[data-testid="copy-button"]');
     await copyButton.click();
 
     // Verify clipboard content (12 space-separated words)

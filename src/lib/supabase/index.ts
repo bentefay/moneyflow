@@ -1,4 +1,4 @@
-export { createSupabaseBrowser } from "./client";
+export { createSupabaseClientForBrowser as createSupabaseBrowser } from "./client";
 export {
   createSupabaseClient as createSupabaseServer,
   createSupabaseClientFresh as createSupabaseServerFresh,

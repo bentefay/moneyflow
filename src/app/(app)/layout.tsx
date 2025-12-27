@@ -16,6 +16,7 @@ import { useVaultPresence } from "@/hooks/use-vault-presence";
 import { useActiveVault } from "@/hooks/use-active-vault";
 import { VaultSelector } from "@/components/features/vault/VaultSelector";
 import { PresenceAvatarGroup } from "@/components/features/presence/PresenceAvatarGroup";
+import { VaultProvider } from "@/components/providers/vault-provider";
 import {
   LayoutDashboard,
   Receipt,
@@ -60,7 +61,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       }
     >
-      <AppLayoutContent>{children}</AppLayoutContent>
+      <VaultProvider>
+        <AppLayoutContent>{children}</AppLayoutContent>
+      </VaultProvider>
     </AuthGuard>
   );
 }

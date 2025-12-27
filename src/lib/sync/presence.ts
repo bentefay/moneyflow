@@ -5,7 +5,7 @@
  * that doesn't need persistence but requires real-time sync.
  */
 
-import { createSupabaseBrowser } from "@/lib/supabase/client";
+import { createSupabaseClientForBrowser } from "@/lib/supabase/client";
 import { RealtimeChannel } from "@supabase/supabase-js";
 
 /**
@@ -65,7 +65,7 @@ export class EphemeralPresenceManager {
     }
 
     this.onStateChange = onStateChange;
-    const supabase = createSupabaseBrowser();
+    const supabase = createSupabaseClientForBrowser();
 
     // Create presence channel
     this.channel = supabase.channel(`presence:${this.vaultId}`, {

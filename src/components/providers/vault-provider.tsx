@@ -1,0 +1,55 @@
+"use client";
+
+/**
+ * Vault Provider
+ *
+ * Wraps the app with the CRDT vault context, initializing the LoroDoc
+ * and providing state management to all children.
+ */
+
+import { useState, useEffect, useMemo } from "react";
+import { LoroDoc } from "loro-crdt";
+import { VaultProvider as BaseVaultProvider } from "@/lib/crdt/context";
+import { DEFAULT_VAULT_STATE } from "@/lib/crdt/mirror";
+
+interface VaultProviderProps {
+  children: React.ReactNode;
+}
+
+/**
+ * Provider component that initializes the vault LoroDoc and provides
+ * CRDT state management to the app.
+ */
+export function VaultProvider({ children }: VaultProviderProps) {
+  // Track client-side hydration
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Create LoroDoc instance - stable across renders
+  const doc = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    return new LoroDoc();
+  }, []);
+
+  // Loading state during SSR or while initializing
+  if (!isClient || !doc) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="border-primary h-8 w-8 animate-spin rounded-full border-4 border-t-transparent" />
+      </div>
+    );
+  }
+
+  return (
+    <BaseVaultProvider 
+      doc={doc} 
+      initialState={DEFAULT_VAULT_STATE}
+      debug={process.env.NODE_ENV === "development"}
+    >
+      {children}
+    </BaseVaultProvider>
+  );
+}

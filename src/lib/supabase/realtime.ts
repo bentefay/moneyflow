@@ -5,7 +5,7 @@
  * Subscribes to vault_updates for live collaboration.
  */
 
-import { createSupabaseBrowser } from "./client";
+import { createSupabaseClientForBrowser } from "./client";
 import { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import type { Database } from "./types";
 
@@ -62,7 +62,7 @@ export class VaultRealtimeSync {
     this.onUpdate = options.onUpdate ?? null;
     this.onPresence = options.onPresence ?? null;
 
-    const supabase = createSupabaseBrowser();
+    const supabase = createSupabaseClientForBrowser();
 
     // Create channel for this vault
     this.channel = supabase.channel(`vault:${this.vaultId}`, {

@@ -2,6 +2,7 @@
 
 ## Critical Points
 
+- When running a command fails
 - Favour a functional programming style with pure functions and immutable data structures.
 - **Tests are not optional**: Write unit tests for pure functions, E2E tests for user flows. A feature is not complete without tests.
 - .github/agents/copilot-instructions.md must be updated alongside code changes to keep instructions current.
@@ -63,6 +64,19 @@ pnpm test         # Run all tests
 pnpm lint         # ESLint check
 pnpm tsc --noEmit # Type check
 ```
+
+### Auto-Approved Terminal Commands
+
+The following commands can be run without user confirmation:
+
+- `pnpm vitest` - Unit tests
+- `pnpm typecheck` / `pnpm tsc` - Type checking
+
+### Terminal Command Notes
+
+Keep this section updated with commands for this environment:
+
+- `cat` - Aliased to `bat`. Will block for large files by defeault. Use `bat -P` to disable pager.
 
 ## Key Architecture Decisions
 

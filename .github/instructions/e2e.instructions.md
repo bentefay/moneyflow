@@ -6,6 +6,13 @@ applyTo: "tests/e2e/**"
 
 Playwright tests implementing Constitution VII: high-level tests with harnesses over excessive mocking.
 
+## Auto-Approved Terminal Commands
+
+The following commands can be run without user confirmation:
+
+- `pnpm test:e2e` - Run all E2E tests
+- `pnpm playwright test` - Run Playwright tests (with optional grep/filter args)
+
 ## Core Principles
 
 ### 1. Assert Behaviour, Not Text
