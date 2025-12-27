@@ -119,6 +119,7 @@ Based on plan.md structure:
 **Independent Test**: Generate identity → write down seed → close tab → reopen → enter seed → vault unlocks. Aurora animation plays on successful unlock.
 
 **Important**: Server registration only happens AFTER user confirms they've written down their seed phrase. The flow is:
+
 1. Click "Generate Recovery Phrase" → generates keys locally (no server call)
 2. User writes down seed phrase
 3. User checks confirmation checkbox

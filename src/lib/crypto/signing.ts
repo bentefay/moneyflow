@@ -139,11 +139,8 @@ export async function verifyRequest(
       return { verified: false, error: "Invalid signature" };
     }
 
-    // Compute pubkeyHash
-    const pubkeyHash = sodium.to_base64(
-      sodium.crypto_generichash(32, publicKey),
-      sodium.base64_variants.ORIGINAL
-    );
+    // Compute pubkeyHash (hex-encoded to match computePubkeyHash in identity.ts)
+    const pubkeyHash = sodium.to_hex(sodium.crypto_generichash(32, publicKey));
 
     return { verified: true, pubkeyHash };
   } catch (e) {
