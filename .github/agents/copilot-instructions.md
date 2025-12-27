@@ -92,51 +92,10 @@ See: `.github/instructions/trpc.instructions.md`
 
 ## Testing Requirements
 
-Integration and e2e tests MUST be written alongside or immediately after each feature. Do not defer tests to a later phase.
+Tests MUST be written alongside features. See Constitution VII for philosophy.
 
-### Test Philosophy (from Constitution)
-
-- **High-level, concise tests** over thousands of unit tests with excessive mocking
-- **Table-driven tests** for pure functions—declarative, immediately obvious which cases are covered
-- **Property-based tests** (fast-check) for calculations where invariants matter
-- **Test harnesses** that make tests easy to understand
-
-### Test File Locations
-
-- Unit tests: `tests/unit/{module}/{file}.test.ts`
-- Integration tests: `tests/integration/{feature}.test.ts`
-- E2E tests: `tests/e2e/{flow}.spec.ts`
-
-### Test Style
-
-For pure functions, use table-driven tests with descriptive case names:
-
-```typescript
-import { describe, it, expect } from "vitest";
-
-describe("functionName", () => {
-  const cases = [
-    { name: "handles empty input", input: "", expected: "" },
-    { name: "trims whitespace", input: "  hello  ", expected: "hello" },
-  ] as const;
-
-  cases.forEach(({ name, input, expected }) => {
-    it(name, () => {
-      expect(functionName(input)).toBe(expected);
-    });
-  });
-});
-```
-
-### When Writing Features
-
-1. **Pure functions**: Add table-driven, roundtrip and property-based tests in `tests/unit/` (where relevant)
-2. **API endpoints**: Add integration tests for happy path + error cases
-3. **User flows**: Add E2E tests for critical paths (identity, transactions, sync)
-
-### Testing Stack
-
-- **Vitest**: Unit and integration tests
-- **fast-check**: Property-based testing for invariants
-- **Playwright**: E2E browser tests
-- **@testing-library/react**: Component tests (when needed)
+| Type | Location | Style |
+|------|----------|-------|
+| Unit | `tests/unit/{module}/` | Table-driven for pure functions; property-based (fast-check) for invariants |
+| Integration | `tests/integration/` | Happy path + error cases |
+| E2E | `tests/e2e/` | Harness functions, assert behaviour not text |

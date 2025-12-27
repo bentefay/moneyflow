@@ -59,7 +59,7 @@ Track which users are online and what they're viewing/editing:
 
 ```typescript
 interface VaultPresence {
-  odinal: string;
+  ordinal: string;
   joinedAt: string;
   lastSeen: string;
   isOnline: boolean;

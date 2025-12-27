@@ -92,6 +92,5 @@ const setTransaction = useVaultAction((state, id, data) => {
 ## Sync Considerations
 
 - Updates are encrypted before leaving the client
-- Each update has an HLC timestamp for ordering
-- Snapshot versions track sync progress
-- Conflicts are resolved by Loro's CRDT semantics (last-write-wins per field)
+- Loro handles versioning internally via version vectors
+- Conflicts resolved by Loro's CRDT semantics (last-write-wins per field)

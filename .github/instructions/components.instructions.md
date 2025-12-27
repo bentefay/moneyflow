@@ -96,14 +96,13 @@ export function ComponentName({ propName, className }: ComponentNameProps) {
 
 ## Testing
 
-Component tests use @testing-library/react:
+Component tests use @testing-library/react. Assert behaviour and roles, not text:
 
 ```typescript
 import { render, screen } from "@testing-library/react";
-import { TransactionRow } from "./TransactionRow";
 
-it("displays transaction amount", () => {
+it("renders transaction row with amount cell", () => {
   render(<TransactionRow transaction={mockTransaction} />);
-  expect(screen.getByText("$123.45")).toBeInTheDocument();
+  expect(screen.getByRole("cell", { name: /amount/i })).toBeInTheDocument();
 });
 ```
