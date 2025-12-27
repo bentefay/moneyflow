@@ -67,7 +67,7 @@ Based on plan.md structure:
 
 - [x] T021 Create Supabase database schema (user_data, vaults, vault_memberships, vault_invites, vault_snapshots, vault_updates) in supabase/migrations/001_initial.sql
 - [x] T022 Create RLS policies for pubkey_hash-based access control in supabase/migrations/002_rls_policies.sql
-- [ ] T022a Add enc_public_key column to vault_memberships table (X25519 public key for re-keying operations) in supabase/migrations/003_enc_public_key.sql
+- [x] T022a Add enc_public_key column to vault_memberships table (X25519 public key for re-keying operations) in supabase/migrations/004_enc_public_key.sql
 - [x] T023 Create tRPC instance with context and Ed25519 signature verification middleware in src/server/trpc.ts
 - [x] T024 Create root tRPC router merging all sub-routers in src/server/routers/\_app.ts
 - [x] T025 [P] Create tRPC client configuration for React in src/lib/trpc/client.ts
@@ -181,7 +181,7 @@ Based on plan.md structure:
 
 - [x] T056 Create Zod schemas for vault procedures in src/server/schemas/vault.ts
 - [x] T057 Implement vault.create procedure in src/server/routers/vault.ts
-- [ ] T057a Update vault.create to accept and store enc_public_key (X25519 public key for re-keying) in src/server/routers/vault.ts
+- [x] T057a Update vault.create to accept and store enc_public_key (X25519 public key for re-keying) in src/server/routers/vault.ts
 - [x] T058 Implement vault.list procedure (returns user's vaults) in src/server/routers/vault.ts
 - [x] T059 Create Zod schemas for sync procedures in src/server/schemas/sync.ts
 - [x] T060 Implement sync.getSnapshot procedure (returns encrypted snapshot) in src/server/routers/sync.ts
@@ -232,8 +232,8 @@ Based on plan.md structure:
 
 ### Tests for Phase 5
 
-- [ ] T089a [T] [US5] Property-based tests for balance calculations in tests/unit/domain/balance.test.ts
-- [ ] T089b [T] [US5] Property-based tests for allocation math (fast-check) in tests/unit/domain/allocation.test.ts
+- [x] T089a [T] [US5] Property-based tests for balance calculations in tests/unit/domain/balance.test.ts
+- [x] T089b [T] [US5] Property-based tests for allocation math (fast-check) in tests/unit/domain/allocation.test.ts
 - [x] T089c [T] [US5] E2E test: transaction CRUD flow in tests/e2e/transactions.spec.ts
 
 **Checkpoint**: Transaction table functional with filtering, inline edit, real-time sync. **Tests passing.**
@@ -279,11 +279,11 @@ Based on plan.md structure:
 
 ### Tests for Phase 6
 
-- [ ] T101k [T] [US6] Unit tests for CSV parser (table-driven, real bank exports) in tests/unit/import/csv.test.ts
-- [ ] T101l [T] [US6] Unit tests for OFX parser in tests/unit/import/ofx.test.ts
-- [ ] T101m [T] [US6] Unit tests for Levenshtein distance in tests/unit/import/levenshtein.test.ts
-- [ ] T101n [T] [US6] Unit tests for duplicate detection in tests/unit/import/duplicates.test.ts
-- [ ] T101o [T] [US6] Integration tests for import processor in tests/integration/import.test.ts
+- [x] T101k [T] [US6] Unit tests for CSV parser (table-driven, real bank exports) in tests/unit/import/csv.test.ts
+- [x] T101l [T] [US6] Unit tests for OFX parser in tests/unit/import/ofx.test.ts
+- [x] T101m [T] [US6] Unit tests for Levenshtein distance in tests/unit/import/levenshtein.test.ts
+- [x] T101n [T] [US6] Unit tests for duplicate detection in tests/unit/import/duplicates.test.ts
+- [x] T101o [T] [US6] Integration tests for import processor in tests/integration/import.test.ts
 - [x] T101p [T] [US6] E2E test: import wizard flow in tests/e2e/import.spec.ts
 
 **Checkpoint**: Import CSV/OFX works. Duplicates detected. Templates saved. **Tests passing.**
