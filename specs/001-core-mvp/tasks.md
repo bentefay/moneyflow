@@ -493,21 +493,21 @@ Based on plan.md structure:
 - [x] T139 [US10] Create /automations page in src/app/(app)/automations/page.tsx
 - [x] T140 [US10] Implement automation engine (evaluate conditions, apply actions) in src/lib/domain/automation.ts
 - [x] T141 [US10] Implement regex validation for automation conditions in src/lib/domain/automation.ts
-- [ ] T142 [US10] Integrate automation execution on transaction create/import in src/lib/import/processor.ts
-- [ ] T143 [US10] Implement automation undo capability (revert changes tracked in AutomationApplication) in src/lib/domain/automation.ts
+- [x] T142 [US10] Integrate automation execution on transaction create/import in src/app/(app)/imports/new/page.tsx
+- [x] T143 [US10] Implement automation undo capability (revert changes tracked in AutomationApplication) in src/lib/domain/automation.ts
 
 ### Transaction Automation Integration (from US5)
 
-- [ ] T144 [US10] Create AutomationCell component (shows applied rules, update button) in src/components/features/transactions/cells/AutomationCell.tsx
-- [ ] T145 [US10] Create AutomationDropdown component ("Create automatically" / "Manual") in src/components/features/transactions/AutomationDropdown.tsx
+- [x] T144 [US10] Create AutomationCell component (shows applied rules, update button) in src/components/features/transactions/cells/AutomationCell.tsx
+- [x] T145 [US10] Create AutomationDropdown component ("Create automatically" / "Manual") in src/components/features/transactions/AutomationDropdown.tsx
 - [x] T146 [US10] Implement auto-create automation from transaction (when "Create automatically" preference) in src/lib/domain/automation.ts
 - [x] T147 [US10] Store user automation preference in UserPreferences in Loro schema in src/lib/crdt/schema.ts (already in vaultPreferencesSchema)
 
 ### Tests for Phase 12
 
-- [ ] T147a [T] [US10] Unit tests for automation condition matching in tests/unit/domain/automation.test.ts
-- [ ] T147b [T] [US10] Integration tests for automation engine in tests/integration/automation.test.ts
-- [ ] T147c [T] [US10] Performance test: automation eval <2s for 10k transactions in tests/integration/automation-perf.test.ts
+- [x] T147a [T] [US10] Unit tests for automation condition matching in tests/unit/domain/automation.test.ts
+- [x] T147b [T] [US10] Integration tests for automation engine in tests/integration/automation.test.ts
+- [x] T147c [T] [US10] Performance test: automation eval <2s for 10k transactions in tests/integration/automation-perf.test.ts
 
 **Checkpoint**: Automation rules work. Auto-creation from transactions. Undo capability. **Tests passing, <2s for 10k txns.**
 

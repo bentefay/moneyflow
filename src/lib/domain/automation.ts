@@ -296,3 +296,121 @@ export function createAutomationFromTransaction(
     excludedTransactionIds: [],
   };
 }
+
+/**
+ * Data for tracking automation application (for undo)
+ */
+export interface AutomationApplicationData {
+  id: string;
+  transactionId: string;
+  automationId: string;
+  appliedAt: number;
+  previousValues: {
+    tagIds?: string[];
+    statusId?: string;
+    allocations?: Record<string, number>;
+  };
+}
+
+/**
+ * Create an automation application record for undo capability.
+ * Captures the previous values before applying automation changes.
+ */
+export function createAutomationApplication(
+  transactionId: string,
+  automationId: string,
+  transaction: Transaction,
+  changes: TransactionChanges
+): AutomationApplicationData {
+  const previousValues: AutomationApplicationData["previousValues"] = {};
+
+  // Only capture previous values for fields that will be changed
+  if (changes.tagIds !== undefined) {
+    const tagIds = transaction.tagIds;
+    previousValues.tagIds = Array.isArray(tagIds) ? [...tagIds] : [];
+  }
+
+  if (changes.statusId !== undefined) {
+    previousValues.statusId = transaction.statusId;
+  }
+
+  if (changes.allocations !== undefined) {
+    const allocations = transaction.allocations;
+    previousValues.allocations =
+      allocations && typeof allocations === "object" ? { ...allocations } : {};
+  }
+
+  return {
+    id: crypto.randomUUID(),
+    transactionId,
+    automationId,
+    appliedAt: Date.now(),
+    previousValues,
+  };
+}
+
+/**
+ * Get the changes needed to undo an automation application.
+ * Returns the previous values that should be restored.
+ */
+export function getUndoChanges(application: AutomationApplicationData): TransactionChanges {
+  const changes: TransactionChanges = {};
+
+  if (application.previousValues.tagIds !== undefined) {
+    changes.tagIds = application.previousValues.tagIds;
+  }
+
+  if (application.previousValues.statusId !== undefined) {
+    changes.statusId = application.previousValues.statusId;
+  }
+
+  if (application.previousValues.allocations !== undefined) {
+    changes.allocations = application.previousValues.allocations;
+  }
+
+  return changes;
+}
+
+/**
+ * Result of applying automations to transactions during import.
+ */
+export interface ApplyAutomationsResult {
+  /** Map of transaction ID to the changes applied */
+  appliedChanges: Map<string, TransactionChanges>;
+  /** Automation application records for undo capability */
+  applications: AutomationApplicationData[];
+}
+
+/**
+ * Apply automations to transactions and create application records.
+ * Used during import to track what was changed for undo.
+ */
+export function applyAutomationsWithTracking(
+  automations: Automation[],
+  transactions: Transaction[]
+): ApplyAutomationsResult {
+  const appliedChanges = new Map<string, TransactionChanges>();
+  const applications: AutomationApplicationData[] = [];
+
+  // Sort automations by order
+  const sortedAutomations = [...automations]
+    .filter((a) => !a.deletedAt)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  for (const transaction of transactions) {
+    const result = evaluateAutomations(sortedAutomations, transaction);
+    if (result.matched && result.automationId) {
+      // Record the application for undo
+      const application = createAutomationApplication(
+        transaction.id,
+        result.automationId,
+        transaction,
+        result.changes
+      );
+      applications.push(application);
+      appliedChanges.set(transaction.id, result.changes);
+    }
+  }
+
+  return { appliedChanges, applications };
+}

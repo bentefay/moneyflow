@@ -16,3 +16,4 @@ export {
   type PersonData,
   type AllocationData,
 } from "./PersonAllocationCell";
+export { AutomationCell, type AutomationCellProps } from "./AutomationCell";

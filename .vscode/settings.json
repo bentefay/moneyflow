@@ -13,7 +13,10 @@
     "pnpm typecheck": true,
     "pnpm tsc": true,
     "pnpm test:e2e": true,
+    "pnpm test": true,
     "pnpm playwright test": true,
+    "pnpm lint": true,
+    "pnpm format": true,
     "bat": true,
     "playwright test": true,
     "jq": true

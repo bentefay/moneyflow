@@ -15,12 +15,20 @@ import {
   mappingsToTemplateFormat,
   type ImportTemplate,
 } from "@/components/features/import/TemplateSelector";
-import { useActiveTransactions, useImportTemplates, useVaultAction } from "@/lib/crdt/context";
+import {
+  useActiveTransactions,
+  useAutomations,
+  useImportTemplates,
+  useVaultAction,
+} from "@/lib/crdt/context";
 import type {
   Transaction,
+  Automation,
   Import as ImportRecord,
   ImportTemplate as ImportTemplateRecord,
+  AutomationApplication,
 } from "@/lib/crdt/schema";
+import { applyAutomationsWithTracking, type TransactionChanges } from "@/lib/domain/automation";
 
 /** Generate unique ID */
 function generateId(): string {
@@ -36,6 +44,7 @@ export default function NewImportPage() {
   // Get existing transactions for duplicate detection
   const transactions = useActiveTransactions();
   const importTemplates = useImportTemplates();
+  const automations = useAutomations();
 
   // Actions
   const addTransaction = useVaultAction((state, data: Transaction) => {
@@ -55,6 +64,10 @@ export default function NewImportPage() {
     if (template && typeof template === "object") {
       template.deletedAt = Date.now();
     }
+  });
+
+  const addAutomationApplication = useVaultAction((state, data: AutomationApplication) => {
+    state.automationApplications[data.id] = data as (typeof state.automationApplications)[string];
   });
 
   // Convert CRDT templates to component format
@@ -94,6 +107,28 @@ export default function NewImportPage() {
       }));
   }, [transactions]);
 
+  /**
+   * Apply automation changes to a transaction.
+   */
+  function applyChangesToTransaction(
+    transaction: Transaction,
+    changes: TransactionChanges
+  ): Transaction {
+    const result = { ...transaction } as Transaction;
+
+    if (changes.tagIds !== undefined) {
+      (result as { tagIds: string[] }).tagIds = changes.tagIds;
+    }
+    if (changes.statusId !== undefined) {
+      (result as { statusId: string }).statusId = changes.statusId;
+    }
+    if (changes.allocations !== undefined) {
+      (result as { allocations: Record<string, number> }).allocations = changes.allocations;
+    }
+
+    return result;
+  }
+
   // Handle import complete
   const handleImportComplete = useCallback(
     (parsedTransactions: ParsedTransaction[], importId: string) => {
@@ -110,29 +145,49 @@ export default function NewImportPage() {
       // For now we'll use a placeholder - this should come from vault state
       const defaultStatusId = "default";
 
-      // Create transactions
-      for (const tx of parsedTransactions) {
-        const transactionId = generateId();
-        addTransaction({
-          id: transactionId,
-          date: tx.date,
-          merchant: tx.merchant,
-          description: tx.memo || tx.description,
-          amount: tx.amount,
-          accountId: "", // TODO: Allow account selection in wizard
-          tagIds: [] as string[],
-          statusId: defaultStatusId,
-          importId,
-          allocations: {} as Record<string, number>,
-          duplicateOf: tx.isDuplicate ? "suspected" : "",
-          deletedAt: 0,
-        } as Transaction);
+      // Convert automations to array for processing
+      const automationList = Object.values(automations).filter(
+        (a): a is NonNullable<typeof a> => typeof a === "object" && a !== null && !a.deletedAt
+      ) as Automation[];
+
+      // Create base transactions first (we need them for automation evaluation)
+      const newTransactions = parsedTransactions.map((tx) => ({
+        id: generateId(),
+        date: tx.date,
+        merchant: tx.merchant,
+        description: tx.memo || tx.description,
+        amount: tx.amount,
+        accountId: "", // TODO: Allow account selection in wizard
+        tagIds: [] as string[],
+        statusId: defaultStatusId,
+        importId,
+        allocations: {} as Record<string, number>,
+        duplicateOf: tx.isDuplicate ? "suspected" : "",
+        deletedAt: 0,
+      })) as unknown as Transaction[];
+
+      // Apply automations and track changes for undo
+      const { appliedChanges, applications } = applyAutomationsWithTracking(
+        automationList,
+        newTransactions
+      );
+
+      // Create transactions with automation changes applied
+      for (const tx of newTransactions) {
+        const changes = appliedChanges.get(tx.id);
+        const finalTransaction = changes ? applyChangesToTransaction(tx, changes) : tx;
+        addTransaction(finalTransaction);
+      }
+
+      // Store automation applications for undo capability
+      for (const application of applications) {
+        addAutomationApplication(application as AutomationApplication);
       }
 
       // Navigate to transactions page
       router.push("/transactions");
     },
-    [addImport, addTransaction, router]
+    [addImport, addTransaction, addAutomationApplication, router, automations]
   );
 
   // Handle save template

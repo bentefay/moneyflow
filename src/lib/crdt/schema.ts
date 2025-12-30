@@ -157,6 +157,23 @@ export const automationSchema = schema.LoroMap({
 });
 
 /**
+ * Automation application schema - tracks when an automation was applied to a transaction
+ * Used for undo capability
+ */
+export const automationApplicationSchema = schema.LoroMap({
+  id: schema.String({ required: true }),
+  transactionId: schema.String({ required: true }),
+  automationId: schema.String({ required: true }),
+  appliedAt: schema.Number({ required: true }), // Timestamp
+  /** Previous values before automation was applied (for undo) */
+  previousValues: schema.LoroMap({
+    tagIds: schema.LoroList(schema.String(), (id) => id),
+    statusId: schema.String(),
+    allocations: schema.LoroMapRecord(schema.Number()),
+  }),
+});
+
+/**
  * Vault preferences schema - vault-scoped settings synced across members
  */
 export const vaultPreferencesSchema = schema.LoroMap({
@@ -185,6 +202,7 @@ export const vaultSchema = schema({
   imports: schema.LoroMapRecord(importSchema),
   importTemplates: schema.LoroMapRecord(importTemplateSchema),
   automations: schema.LoroMapRecord(automationSchema),
+  automationApplications: schema.LoroMapRecord(automationApplicationSchema),
   preferences: vaultPreferencesSchema,
 });
 
@@ -211,6 +229,7 @@ export type ImportTemplate = InferType<typeof importTemplateSchema>;
 export type Automation = InferType<typeof automationSchema>;
 export type AutomationCondition = InferType<typeof automationConditionSchema>;
 export type AutomationAction = InferType<typeof automationActionSchema>;
+export type AutomationApplication = InferType<typeof automationApplicationSchema>;
 export type VaultPreferences = InferType<typeof vaultPreferencesSchema>;
 
 /** Input types for mutations */
@@ -222,3 +241,4 @@ export type TransactionInput = InferInputType<typeof transactionSchema>;
 export type ImportInput = InferInputType<typeof importSchema>;
 export type ImportTemplateInput = InferInputType<typeof importTemplateSchema>;
 export type AutomationInput = InferInputType<typeof automationSchema>;
+export type AutomationApplicationInput = InferInputType<typeof automationApplicationSchema>;

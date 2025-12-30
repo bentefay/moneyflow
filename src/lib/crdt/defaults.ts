@@ -61,6 +61,7 @@ export function getDefaultVaultState(): VaultInput {
     imports: {},
     importTemplates: {},
     automations: {},
+    automationApplications: {},
     preferences: {
       automationCreationPreference: "manual",
       defaultCurrency: "USD",
