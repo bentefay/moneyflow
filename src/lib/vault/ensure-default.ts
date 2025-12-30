@@ -130,13 +130,13 @@ export async function ensureDefaultVault(
   const vaultKey = await generateVaultKey();
 
   // 2. Wrap key for the user (wrap with own public key)
-  const encPublicKey = sodium.from_base64(session.encPublicKey);
-  const encSecretKey = sodium.from_base64(session.encSecretKey);
+  const encPublicKey = sodium.from_base64(session.encPublicKey, sodium.base64_variants.ORIGINAL);
+  const encSecretKey = sodium.from_base64(session.encSecretKey, sodium.base64_variants.ORIGINAL);
   const wrappedKey = await wrapKey(vaultKey, encPublicKey, encSecretKey);
 
   // 3. Create vault on server
   const { vaultId } = await api.createVault({
-    encryptedVaultKey: sodium.to_base64(wrappedKey),
+    encryptedVaultKey: sodium.to_base64(wrappedKey, sodium.base64_variants.ORIGINAL),
     encPublicKey: session.encPublicKey,
   });
 
@@ -182,7 +182,7 @@ export async function ensureDefaultVault(
     vaultId,
     version: 1,
     hlcTimestamp: generateHlcTimestamp(),
-    encryptedData: sodium.to_base64(encryptedData),
+    encryptedData: sodium.to_base64(encryptedData, sodium.base64_variants.ORIGINAL),
   });
 
   console.log(`Created default vault: ${vaultId}`);
@@ -195,24 +195,5 @@ export async function ensureDefaultVault(
   };
 }
 
-/**
- * Sets the active vault in localStorage.
- * This is a helper to avoid importing the hook.
- */
-export function setActiveVaultStorage(vault: { id: string; name?: string } | null): void {
-  const STORAGE_KEY = "moneyflow_active_vault";
-
-  if (typeof window === "undefined" || typeof localStorage === "undefined") {
-    return;
-  }
-
-  try {
-    if (vault) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(vault));
-    } else {
-      localStorage.removeItem(STORAGE_KEY);
-    }
-  } catch (error) {
-    console.error("Failed to persist active vault:", error);
-  }
-}
+// Re-export setActiveVaultStorage from the provider for backwards compatibility
+export { setActiveVaultStorage } from "@/components/providers/active-vault-provider";

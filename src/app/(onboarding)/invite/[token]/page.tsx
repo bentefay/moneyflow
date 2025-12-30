@@ -182,10 +182,7 @@ export default function InvitePage() {
 
       setState("success");
 
-      // Redirect to the vault after a short delay
-      setTimeout(() => {
-        router.push("/dashboard");
-      }, 2000);
+      router.push("/dashboard");
     } catch (err) {
       setState("error");
       setError(err instanceof Error ? err.message : "Failed to accept invite");

@@ -237,23 +237,17 @@ export function useIdentity(): UseIdentityReturn {
         setIsNewUser(result.isNew);
 
         // Ensure user has a default vault (creates one if none exist)
-        try {
-          const vaultResult = await ensureDefaultVault({
-            api: {
-              listVaults: () => utils.vault.list.fetch(),
-              createVault: (input) => createVaultMutation.mutateAsync(input),
-              saveSnapshot: (input) => saveSnapshotMutation.mutateAsync(input),
-            },
-          });
-          // Set the vault as active
-          setActiveVaultStorage({ id: vaultResult.vaultId, name: vaultResult.name });
-          if (vaultResult.created) {
-            console.log(`Created default vault: ${vaultResult.vaultId}`);
-          }
-        } catch (vaultErr) {
-          // Log but don't fail the registration - vault can be created later
-          console.error("Failed to ensure default vault:", vaultErr);
-        }
+        // This is required for the authenticated app experience.
+        const vaultResult = await ensureDefaultVault({
+          api: {
+            listVaults: () => utils.vault.list.fetch(),
+            createVault: (input) => createVaultMutation.mutateAsync(input),
+            saveSnapshot: (input) => saveSnapshotMutation.mutateAsync(input),
+          },
+        });
+
+        // Set the vault as active
+        setActiveVaultStorage({ id: vaultResult.vaultId, name: vaultResult.name });
 
         setStatus("unlocked");
       } catch (err) {
@@ -295,18 +289,14 @@ export function useIdentity(): UseIdentityReturn {
       setIsNewUser(result.isNew);
 
       // Ensure user has a default vault
-      try {
-        const vaultResult = await ensureDefaultVault({
-          api: {
-            listVaults: () => utils.vault.list.fetch(),
-            createVault: (input) => createVaultMutation.mutateAsync(input),
-            saveSnapshot: (input) => saveSnapshotMutation.mutateAsync(input),
-          },
-        });
-        setActiveVaultStorage({ id: vaultResult.vaultId, name: vaultResult.name });
-      } catch (vaultErr) {
-        console.error("Failed to ensure default vault:", vaultErr);
-      }
+      const vaultResult = await ensureDefaultVault({
+        api: {
+          listVaults: () => utils.vault.list.fetch(),
+          createVault: (input) => createVaultMutation.mutateAsync(input),
+          saveSnapshot: (input) => saveSnapshotMutation.mutateAsync(input),
+        },
+      });
+      setActiveVaultStorage({ id: vaultResult.vaultId, name: vaultResult.name });
 
       setStatus("unlocked");
 
@@ -346,22 +336,18 @@ export function useIdentity(): UseIdentityReturn {
         setIsNewUser(result.isNew);
 
         // Ensure user has a default vault (edge case: returning user with no vaults)
-        try {
-          const vaultResult = await ensureDefaultVault({
-            api: {
-              listVaults: () => utils.vault.list.fetch(),
-              createVault: (input) => createVaultMutation.mutateAsync(input),
-              saveSnapshot: (input) => saveSnapshotMutation.mutateAsync(input),
-            },
-          });
-          // Set the vault as active
-          setActiveVaultStorage({ id: vaultResult.vaultId, name: vaultResult.name });
-          if (vaultResult.created) {
-            console.log(`Created default vault for returning user: ${vaultResult.vaultId}`);
-          }
-        } catch (vaultErr) {
-          // Log but don't fail the unlock - vault can be created later
-          console.error("Failed to ensure default vault:", vaultErr);
+        const vaultResult = await ensureDefaultVault({
+          api: {
+            listVaults: () => utils.vault.list.fetch(),
+            createVault: (input) => createVaultMutation.mutateAsync(input),
+            saveSnapshot: (input) => saveSnapshotMutation.mutateAsync(input),
+          },
+        });
+
+        // Set the vault as active
+        setActiveVaultStorage({ id: vaultResult.vaultId, name: vaultResult.name });
+        if (vaultResult.created) {
+          console.log(`Created default vault for returning user: ${vaultResult.vaultId}`);
         }
 
         setStatus("unlocked");

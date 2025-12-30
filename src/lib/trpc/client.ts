@@ -49,20 +49,23 @@ export function createTRPCClient() {
             return {};
           }
 
-          // For batched requests, sign the batch
-          // Use POST method and the batch path
-          const method = "POST";
+          // Determine if this will be a GET or POST request
+          // tRPC uses GET for queries, POST for mutations
+          // A batch with any mutations becomes POST
+          const hasMutations = opList.some((op) => op.type === "mutation");
+          const method = hasMutations ? "POST" : "GET";
           const path = "/api/trpc";
 
           // Create a simplified body for signing
           // This represents the batch of operations
+          // For GET requests, the body will be empty on the server side
           const body = opList.map((op) => ({
             path: op.path,
             input: op.input,
           }));
 
           // signRequest returns headers directly and gets session internally
-          const signedHeaders = await signRequest(method, path, body);
+          const signedHeaders = await signRequest(method, path, method === "GET" ? undefined : body);
 
           return signedHeaders;
         },

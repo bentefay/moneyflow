@@ -6,11 +6,16 @@ applyTo: "tests/e2e/**"
 
 Playwright tests implementing Constitution VII: high-level tests with harnesses over excessive mocking.
 
+Favour creating journey style e2e tests that cover critical user flows end-to-end, including backend integration, over
+e2e tests that repetitively run slow initialization flows to test small units of functionality.
+
+Use Playwright's test.step() to break complex flows into logical sections for readability and debugging.
+
 ## Auto-Approved Terminal Commands
 
-- `pnpm playwright test` - Run Playwright tests
-- `pnpm playwright test --max-failures=1` - Run with fail-fast
-- `pnpm playwright test -g "test name"` - Run specific test by name
+- `pnpm playwright test --reporter=line --max-failures=1 2>&1` - Run with fail-fast
+- `pnpm playwright test --reporter=json --max-failures=1 2>&1` - Use json reporter if you need structured output
+- `pnpm playwright test --workers=4 --repeat-each=5 --reporter=line 2>&1 ` - Use --repeat-each for flaky tests
 
 ## Shared Helpers
 
@@ -113,7 +118,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { createNewIdentity, goToFeature } from "./helpers";
 
 // ============================================================================
-// Feature-Specific Helpers (if complex flows are reused within this file)
+// Feature-Specific Helpers (if complex flows are reused within this file - or in helpers if reused across files)
 // ============================================================================
 
 async function createItem(page: Page, data: { name: string }): Promise<void> {

@@ -71,6 +71,9 @@ function buildHierarchicalList(tags: Tag[]): TagWithDepth[] {
   return result;
 }
 
+// Sentinel value for "no parent" since SelectItem doesn't allow empty string
+const NO_PARENT = "__none__";
+
 /**
  * Parent tag selector with hierarchy display.
  */
@@ -86,15 +89,21 @@ export function ParentTagSelector({
   // Find selected tag name for display
   const selectedTag = availableTags.find((t) => t.id === value);
 
+  // Convert between external value (empty string) and internal value (sentinel)
+  const internalValue = value === "" ? NO_PARENT : value;
+  const handleChange = (newValue: string) => {
+    onChange(newValue === NO_PARENT ? "" : newValue);
+  };
+
   return (
-    <Select value={value} onValueChange={onChange}>
+    <Select value={internalValue} onValueChange={handleChange}>
       <SelectTrigger className={cn("h-8", className)}>
         <SelectValue placeholder="None (top level)">
           {selectedTag?.name ?? "None (top level)"}
         </SelectValue>
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="">None (top level)</SelectItem>
+        <SelectItem value={NO_PARENT}>None (top level)</SelectItem>
         {hierarchicalTags.map(({ tag, depth }) => (
           <SelectItem key={tag.id} value={tag.id}>
             <span style={{ paddingLeft: depth * 12 }}>{tag.name}</span>

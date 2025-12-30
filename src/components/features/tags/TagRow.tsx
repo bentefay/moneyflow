@@ -153,6 +153,8 @@ export function TagRow({
 
   return (
     <div
+      data-testid={`tag-row-${tag.id}`}
+      data-tag-name={tag.name}
       className={cn(
         "group bg-card flex items-center gap-3 rounded-lg border p-4 transition-colors",
         "hover:bg-accent/50",

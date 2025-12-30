@@ -13,6 +13,9 @@
     "pnpm typecheck": true,
     "pnpm tsc": true,
     "pnpm test:e2e": true,
-    "pnpm playwright test": true
+    "pnpm playwright test": true,
+    "bat": true,
+    "playwright test": true,
+    "jq": true
   }
 }

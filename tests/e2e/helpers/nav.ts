@@ -19,6 +19,8 @@ export async function goToTransactions(page: Page): Promise<void> {
 export async function goToTags(page: Page): Promise<void> {
   await page.goto("/tags");
   await page.getByRole("heading", { name: "Tags", level: 1 }).waitFor({ timeout: 15000 });
+  // Tags table only renders once a vault is selected.
+  await page.getByRole("button", { name: /add tag/i }).waitFor({ timeout: 15000 });
 }
 
 export async function goToAccounts(page: Page): Promise<void> {

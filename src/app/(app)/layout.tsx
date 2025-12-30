@@ -7,16 +7,18 @@
  * Protected by AuthGuard - redirects unauthenticated users to /unlock.
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { clearSession } from "@/lib/crypto/session";
 import { AuthGuard, useAuthGuard } from "@/lib/auth";
 import { useVaultPresence } from "@/hooks/use-vault-presence";
 import { useActiveVault } from "@/hooks/use-active-vault";
+import { trpc } from "@/lib/trpc";
 import { VaultSelector } from "@/components/features/vault/VaultSelector";
 import { PresenceAvatarGroup } from "@/components/features/presence/PresenceAvatarGroup";
 import { VaultProvider } from "@/components/providers/vault-provider";
+import { ActiveVaultProvider } from "@/components/providers/active-vault-provider";
 import {
   LayoutDashboard,
   Receipt,
@@ -61,9 +63,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       }
     >
-      <VaultProvider>
-        <AppLayoutContent>{children}</AppLayoutContent>
-      </VaultProvider>
+      <ActiveVaultProvider>
+        <VaultProvider>
+          <AppLayoutContent>{children}</AppLayoutContent>
+        </VaultProvider>
+      </ActiveVaultProvider>
     </AuthGuard>
   );
 }
@@ -74,13 +78,26 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { activeVault } = useActiveVault();
 
+  const vaultListQuery = trpc.vault.list.useQuery();
+
+  const vaultOptions = useMemo(() => {
+    const vaults = vaultListQuery.data?.vaults ?? [];
+    return vaults.map((v) => {
+      const shortId = v.id.slice(0, 6);
+      const name = activeVault?.id === v.id ? activeVault.name ?? `Vault ${shortId}` : `Vault ${shortId}`;
+
+      return {
+        id: v.id,
+        name,
+        role: v.role,
+      };
+    });
+  }, [vaultListQuery.data, activeVault]);
+
   // Track presence in active vault
   const { onlineUsers, isConnected } = useVaultPresence(activeVault?.id ?? null, pubkeyHash);
 
-  // Mock vaults for now - will be fetched from tRPC
-  const mockVaults = activeVault
-    ? [{ id: activeVault.id, name: activeVault.name ?? "My Vault", role: "owner" as const }]
-    : [];
+  const isVaultsLoading = vaultListQuery.isLoading;
 
   return (
     <div className="flex h-screen">
@@ -158,7 +175,8 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
             )}
             {/* Vault selector */}
             <VaultSelector
-              vaults={mockVaults}
+              vaults={vaultOptions}
+              isLoading={isVaultsLoading}
               onCreateVault={() => {
                 // TODO: Open create vault dialog
                 console.log("Create vault");

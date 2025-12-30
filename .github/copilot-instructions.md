@@ -2,7 +2,7 @@
 
 ## Critical Points
 
-- **Read "Terminal Command Notes" before running shell commands** - Environment-specific gotchas that cause hangs.
+- **Read "Commands" before running shell commands** - Environment-specific gotchas that cause hangs.
 - Favour a functional programming style with pure functions and immutable data structures.
 - **Tests are not optional**: Write unit tests for pure functions, E2E tests for user flows. A feature is not complete without tests.
 - **Don't reinvent the wheel**: Use established libraries for well-known algorithms (e.g., Levenshtein distance, CSV parsing, date handling). Custom implementations are bugs waiting to happen.
@@ -58,21 +58,19 @@ specs/
 
 ## Commands
 
+Keep this section updated with commands for this environment:
+
 ```bash
 pnpm dev          # Start dev server
 pnpm build        # Production build
 pnpm test         # Run all tests
 pnpm lint         # ESLint check
 pnpm tsc --noEmit # Type check
+bat -P            # DO NOT USE cat. Always use `bat -P` (otherwise will use bat with pager for large files).
+pnpm vitest       # Unit tests
+pnpm typecheck    # Type checking
+pnpm tsc          # TypeScript compiler
 ```
-
-### Terminal Command Notes
-
-Keep this section updated with commands for this environment:
-
-- `cat` - always use `bat -P` (otherwise will use bat with pager for large files).
-- `pnpm vitest` - Unit tests
-- `pnpm typecheck` / `pnpm tsc` - Type checking
 
 ## Key Architecture Decisions
 
@@ -124,10 +122,6 @@ Do NOT write custom implementations of well-known algorithms. Use battle-tested 
 - **UUID generation**: `crypto.randomUUID()` (native)
 
 Custom algorithm implementations introduce subtle bugs, lack edge case handling, and waste time on solved problems. If you need functionality that seems algorithmic, search npm first.
-
-## Recent Changes
-
-- 001-core-mvp: Phase 5 & 6 complete (transactions, import, duplicate detection)
 
 ## Testing Requirements
 
