@@ -519,9 +519,9 @@ Based on plan.md structure:
 
 ### Performance
 
-- [ ] T148 [P] Optimize transaction list virtualization for 10k+ rows in src/components/features/transactions/TransactionTable.tsx
-- [ ] T149 [P] Implement transaction pagination in Loro queries in src/lib/crdt/queries.ts
-- [ ] T150 [P] Add loading states and skeletons to all pages in src/components/ui/skeleton.tsx
+- [x] T148 [P] Optimize transaction list virtualization for 10k+ rows in src/components/features/transactions/TransactionTable.tsx
+- [x] T149 [P] Implement transaction pagination in Loro queries in src/lib/crdt/queries.ts
+- [x] T150 [P] Add loading states and skeletons to all pages in src/components/ui/skeleton.tsx
 
 ### E2E Tests (Cross-Cutting)
 
@@ -534,11 +534,13 @@ _Note: Most tests are now embedded in their respective phases. These are cross-c
 
 ### Documentation & Validation
 
-- [ ] T161 [P] Create README.md with setup instructions at repository root
-- [ ] T162 [P] Document environment variables in .env.local.example
-- [ ] T163 Run quickstart.md validation checklist
-- [ ] T164 Lighthouse audit for landing page (target 90+)
-- [ ] T165 Final security review (no secrets in code, proper key handling)
+- [x] T161 [P] Create README.md with setup instructions at repository root
+- [x] T162 [P] Document environment variables in .env.local.example
+- [x] T163 Run quickstart.md validation checklist
+- [x] T164 Lighthouse audit for landing page (target 90+)
+- [x] T165 Final security review (no secrets in code, proper key handling)
+
+**Checkpoint**: Phase 13 complete. All polish tasks done.
 
 ---
 

@@ -4,10 +4,11 @@
  * Transaction Table
  *
  * Container component for the transaction list with infinite scroll.
- * Uses virtualization for performance with large datasets.
+ * Uses TanStack Virtual for performance with 10k+ rows.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
 	TransactionRow,
@@ -238,47 +239,33 @@ export function TransactionTable({
 		[transactions, selectedIds, lastSelectedId, onSelectionChange, onTransactionClick]
 	);
 
-	// Handle scroll for infinite loading
-	const handleScroll = useCallback(() => {
-		if (!containerRef.current || !onLoadMore || !hasMore || isLoading) return;
+	// Row height for virtualization (approximately 44px per row)
+	const ROW_HEIGHT = 44;
+	const OVERSCAN = 5;
 
-		const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
-		// Load more when within 200px of the bottom
-		if (scrollHeight - scrollTop - clientHeight < 200) {
+	// Setup virtualizer for efficient rendering of large lists
+	const virtualizer = useVirtualizer({
+		count: transactions.length,
+		getScrollElement: () => containerRef.current,
+		estimateSize: () => ROW_HEIGHT,
+		overscan: OVERSCAN,
+	});
+
+	// Get virtual items for rendering
+	const virtualItems = virtualizer.getVirtualItems();
+
+	// Load more when approaching the end of the list
+	useEffect(() => {
+		if (!onLoadMore || !hasMore || isLoading) return;
+
+		const lastItem = virtualItems.at(-1);
+		if (!lastItem) return;
+
+		// Trigger load when within last 10 items
+		if (lastItem.index >= transactions.length - 10) {
 			onLoadMore();
 		}
-	}, [onLoadMore, hasMore, isLoading]);
-
-	// Memoize the transaction rows
-	const transactionRows = useMemo(() => {
-		return transactions.map((transaction) => (
-			<TransactionRow
-				key={transaction.id}
-				transaction={transaction}
-				presence={presenceByTransactionId[transaction.id]}
-				currentUserId={currentUserId}
-				isSelected={selectedIds.has(transaction.id)}
-				onClick={(e?: React.MouseEvent) => handleRowClick(transaction.id, e as React.MouseEvent)}
-				onFocus={() => {
-					setFocusedId(transaction.id);
-					onTransactionFocus?.(transaction.id);
-				}}
-				onDelete={onTransactionDelete ? () => onTransactionDelete(transaction.id) : undefined}
-				onResolveDuplicate={
-					onResolveDuplicate ? () => onResolveDuplicate(transaction.id) : undefined
-				}
-			/>
-		));
-	}, [
-		transactions,
-		presenceByTransactionId,
-		currentUserId,
-		selectedIds,
-		handleRowClick,
-		onTransactionFocus,
-		onTransactionDelete,
-		onResolveDuplicate,
-	]);
+	}, [virtualItems, onLoadMore, hasMore, isLoading, transactions.length]);
 
 	if (transactions.length === 0 && !isLoading) {
 		return <EmptyState />;
@@ -287,20 +274,56 @@ export function TransactionTable({
 	return (
 		<div
 			ref={containerRef}
-			onScroll={handleScroll}
 			className={cn("flex h-full flex-col overflow-auto", className)}
 			role="grid"
 			aria-label="Transactions"
 			data-testid="transaction-table"
 		>
 			<TransactionTableHeader />
-			<div className="flex-1" role="rowgroup">
-				{transactionRows}
-				{isLoading && <LoadingIndicator />}
-				{!isLoading && hasMore && (
-					<div className="py-4 text-center text-muted-foreground text-sm">Scroll to load more</div>
-				)}
+			<div
+				className="relative flex-1"
+				role="rowgroup"
+				style={{ height: `${virtualizer.getTotalSize()}px` }}
+			>
+				{virtualItems.map((virtualRow) => {
+					const transaction = transactions[virtualRow.index];
+					return (
+						<div
+							key={transaction.id}
+							data-index={virtualRow.index}
+							ref={virtualizer.measureElement}
+							className="absolute top-0 left-0 w-full"
+							style={{
+								transform: `translateY(${virtualRow.start}px)`,
+							}}
+						>
+							<TransactionRow
+								transaction={transaction}
+								presence={presenceByTransactionId[transaction.id]}
+								currentUserId={currentUserId}
+								isSelected={selectedIds.has(transaction.id)}
+								onClick={(e?: React.MouseEvent) =>
+									handleRowClick(transaction.id, e as React.MouseEvent)
+								}
+								onFocus={() => {
+									setFocusedId(transaction.id);
+									onTransactionFocus?.(transaction.id);
+								}}
+								onDelete={
+									onTransactionDelete ? () => onTransactionDelete(transaction.id) : undefined
+								}
+								onResolveDuplicate={
+									onResolveDuplicate ? () => onResolveDuplicate(transaction.id) : undefined
+								}
+							/>
+						</div>
+					);
+				})}
 			</div>
+			{isLoading && <LoadingIndicator />}
+			{!isLoading && hasMore && transactions.length > 0 && (
+				<div className="py-4 text-center text-muted-foreground text-sm">Scroll to load more</div>
+			)}
 		</div>
 	);
 }
