@@ -147,7 +147,15 @@ Based on plan.md structure:
 - [x] T047 Create auth guard HOC/middleware redirecting unauthenticated users to /unlock in src/lib/auth/guard.tsx
 - [x] T048 [US1] Integrate auth guard with app layout in src/app/(app)/layout.tsx
 
-**Checkpoint**: Users can create identity and unlock vault. Aurora animation works.
+### Automatic Vault Creation on First Login
+
+- [x] T048a [US1] Create ensureDefaultVault() function (checks for vaults, creates "My Vault" if none exist) in src/lib/vault/ensure-default.ts
+- [x] T048b [US1] Create initializeVaultDefaults() helper (creates default statuses in LoroDoc) in src/lib/crdt/defaults.ts
+- [x] T048c [US1] Update registerIdentity() in useIdentity hook to call ensureDefaultVault() after server registration in src/hooks/use-identity.ts
+- [x] T048d [US1] Update unlock() in useIdentity hook to call ensureDefaultVault() for edge case of returning user with no vaults in src/hooks/use-identity.ts
+- [x] T048e [US1] Update VaultProvider to auto-initialize from activeVault (no empty state) in src/components/providers/vault-provider.tsx
+
+**Checkpoint**: Users can create identity and unlock vault. Aurora animation works. Default vault is automatically created.
 
 ---
 
@@ -356,14 +364,14 @@ Based on plan.md structure:
 
 ### Implementation for User Story 4
 
-- [ ] T119 [P] [US4] Create TagRow component with inline editing in src/components/features/tags/TagRow.tsx
-- [ ] T120 [P] [US4] Create ParentTagSelector component (dropdown with hierarchy) in src/components/features/tags/ParentTagSelector.tsx
-- [ ] T121 [US4] Create TagsTable component (shows hierarchy) in src/components/features/tags/TagsTable.tsx
-- [ ] T122 [US4] Create /tags page in src/app/(app)/tags/page.tsx
+- [x] T119 [P] [US4] Create TagRow component with inline editing in src/components/features/tags/TagRow.tsx
+- [x] T120 [P] [US4] Create ParentTagSelector component (dropdown with hierarchy) in src/components/features/tags/ParentTagSelector.tsx
+- [x] T121 [US4] Create TagsTable component (shows hierarchy) in src/components/features/tags/TagsTable.tsx
+- [x] T122 [US4] Create /tags page in src/app/(app)/tags/page.tsx
 
 ### Tests for Phase 9
 
-- [ ] T122a [T] [US4] Unit tests for tag hierarchy traversal in tests/unit/domain/tags.test.ts
+- [x] T122a [T] [US4] Unit tests for tag hierarchy traversal in tests/unit/domain/tags.test.ts
 
 **Checkpoint**: Tags page with hierarchy and transfer flag. **Tests passing.**
 
@@ -399,7 +407,7 @@ Based on plan.md structure:
 - [ ] T129 [P] [US9] Create BehaviorSelector component (checkbox for "Treat as Paid") in src/components/features/statuses/BehaviorSelector.tsx
 - [ ] T130 [US9] Create StatusesTable component in src/components/features/statuses/StatusesTable.tsx
 - [ ] T131 [US9] Create /statuses page in src/app/(app)/statuses/page.tsx
-- [ ] T132 [US9] Ensure default statuses ("For Review", "Paid") exist on vault creation in src/lib/crdt/defaults.ts
+- [ ] T132 [US9] Add status management UI and validation (default statuses created by T048b) in src/components/features/statuses/StatusesTable.tsx
 
 **Checkpoint**: Statuses page with behaviors. Settlement calculation uses "Treat as Paid" flag.
 

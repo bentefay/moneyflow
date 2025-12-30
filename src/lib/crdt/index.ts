@@ -51,6 +51,15 @@ export {
   type VaultMirror,
 } from "./mirror";
 
+// Vault defaults initialization
+export {
+  DEFAULT_STATUS_IDS,
+  DEFAULT_STATUSES,
+  getDefaultVaultState,
+  initializeVaultDefaults,
+  hasVaultDefaults,
+} from "./defaults";
+
 // React context and hooks
 export {
   VaultContext,

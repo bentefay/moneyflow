@@ -14,9 +14,10 @@ import { test, expect, type Page } from "@playwright/test";
 import * as path from "path";
 import * as fs from "fs";
 import * as os from "os";
+import { createNewIdentity, goToImportNew, goToImports } from "./helpers";
 
 // ============================================================================
-// Test Fixtures
+// Import-Specific Helpers
 // ============================================================================
 
 /**
@@ -53,57 +54,17 @@ async function createCustomFormatCSV(): Promise<string> {
   return createTestCSV(content);
 }
 
-/**
- * Authenticate and navigate to import page.
- */
-async function setupAuthenticatedSession(page: Page): Promise<void> {
-  await page.goto("/new-user");
-
-  // Generate seed phrase
-  const generateButton = page
-    .locator('[data-testid="generate-button"]')
-    .or(page.getByRole("button").filter({ hasText: /generate|create|start/i }));
-  await generateButton.click();
-
-  // Wait for seed phrase and reveal if hidden
-  await page.waitForSelector('[data-testid="seed-phrase-word"]', { timeout: 10000 });
-  const revealButton = page.getByRole("button", { name: /reveal/i }).first();
-  if (await revealButton.isVisible()) {
-    await revealButton.click();
-  }
-
-  // Confirm and continue
-  const checkbox = page.locator('[data-testid="confirm-checkbox"]').or(page.getByRole("checkbox"));
-  await checkbox.check();
-
-  const continueButton = page
-    .locator('[data-testid="continue-button"]')
-    .or(page.getByRole("button").filter({ hasText: /continue|next|dashboard/i }));
-  await continueButton.click();
-
-  await page.waitForURL("**/dashboard", { timeout: 10000 });
-}
-
-/**
- * Navigate to import page (assumes authenticated).
- */
-async function goToImports(page: Page): Promise<void> {
-  await page.goto("/imports/new");
-  // Wait for the page title to appear (ensures page has compiled and loaded)
-  await page.getByRole("heading", { name: /Import Transactions/i }).waitFor({ timeout: 15000 });
-}
-
 // ============================================================================
 // Tests
 // ============================================================================
 
 test.describe("Import Page", () => {
   test.beforeEach(async ({ page }) => {
-    await setupAuthenticatedSession(page);
+    await createNewIdentity(page);
   });
 
   test("should display import page with file dropzone", async ({ page }) => {
-    await goToImports(page);
+    await goToImportNew(page);
 
     // Page title
     await expect(page.getByRole("heading", { name: /Import Transactions/i })).toBeVisible();
@@ -123,7 +84,7 @@ test.describe("Import Page", () => {
 
 test.describe("CSV Import", () => {
   test.beforeEach(async ({ page }) => {
-    await setupAuthenticatedSession(page);
+    await createNewIdentity(page);
     await goToImports(page);
   });
 
@@ -135,7 +96,7 @@ test.describe("CSV Import", () => {
     await fileInput.setInputFiles(csvPath);
 
     // Should proceed to column mapping step
-    await expect(page.getByRole('heading', { name: 'Map Columns' })).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole("heading", { name: "Map Columns" })).toBeVisible({ timeout: 5000 });
 
     // Cleanup
     fs.unlinkSync(csvPath);
@@ -149,10 +110,10 @@ test.describe("CSV Import", () => {
     await fileInput.setInputFiles(csvPath);
 
     // Wait for mapping step to appear (indicates columns were detected)
-    await expect(page.getByRole('heading', { name: 'Map Columns' })).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole("heading", { name: "Map Columns" })).toBeVisible({ timeout: 5000 });
 
     // Should show detected columns in the table
-    await expect(page.getByText('Date', { exact: true })).toBeVisible();
+    await expect(page.getByText("Date", { exact: true })).toBeVisible();
 
     // Cleanup
     fs.unlinkSync(csvPath);
@@ -165,7 +126,7 @@ test.describe("CSV Import", () => {
     await fileInput.setInputFiles(csvPath);
 
     // Wait for mapping step
-    await expect(page.getByRole('heading', { name: 'Map Columns' })).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole("heading", { name: "Map Columns" })).toBeVisible({ timeout: 5000 });
 
     // Should have mapping dropdowns or selectors
     const mappingSelectors = page
@@ -182,7 +143,7 @@ test.describe("CSV Import", () => {
     const fileInput = page.locator('input[type="file"]');
     await fileInput.setInputFiles(csvPath);
 
-    await expect(page.getByRole('heading', { name: 'Map Columns' })).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole("heading", { name: "Map Columns" })).toBeVisible({ timeout: 5000 });
 
     // Find a mapping selector and change it
     const dateMapping = page.locator('[data-testid="mapping-date"]').or(page.getByLabel(/date/i));
@@ -203,10 +164,10 @@ test.describe("CSV Import", () => {
     await fileInput.setInputFiles(csvPath);
 
     // Wait for mapping step
-    await expect(page.getByRole('heading', { name: 'Map Columns' })).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole("heading", { name: "Map Columns" })).toBeVisible({ timeout: 5000 });
 
     // Click next/continue
-    const nextButton = page.getByRole('button', { name: 'Next', exact: true });
+    const nextButton = page.getByRole("button", { name: "Next", exact: true });
     await nextButton.click();
 
     // Should show preview
@@ -223,8 +184,8 @@ test.describe("CSV Import", () => {
     await fileInput.setInputFiles(csvPath);
 
     // Navigate to preview
-    await expect(page.getByRole('heading', { name: 'Map Columns' })).toBeVisible({ timeout: 5000 });
-    await page.getByRole('button', { name: 'Next', exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Map Columns" })).toBeVisible({ timeout: 5000 });
+    await page.getByRole("button", { name: "Next", exact: true }).click();
 
     // Should show parsed transactions
     await expect(page.getByText("Coffee Shop")).toBeVisible({ timeout: 5000 });
@@ -242,7 +203,7 @@ test.describe("CSV Import", () => {
     await fileInput.setInputFiles(csvPath);
 
     // Go through wizard steps
-    await expect(page.getByRole('heading', { name: 'Map Columns' })).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole("heading", { name: "Map Columns" })).toBeVisible({ timeout: 5000 });
     await page.getByRole("button", { name: /next|continue/i }).click();
 
     await expect(page.getByText(/preview|review/i)).toBeVisible({ timeout: 5000 });
@@ -261,7 +222,7 @@ test.describe("CSV Import", () => {
 // TODO: Formatting options tests need full wizard flow with account setup
 test.describe.skip("Formatting Options", () => {
   test.beforeEach(async ({ page }) => {
-    await setupAuthenticatedSession(page);
+    await createNewIdentity(page);
     await goToImports(page);
   });
 
@@ -327,7 +288,7 @@ test.describe.skip("Formatting Options", () => {
 // TODO: Import Templates tests need full wizard flow with account setup
 test.describe.skip("Import Templates", () => {
   test.beforeEach(async ({ page }) => {
-    await setupAuthenticatedSession(page);
+    await createNewIdentity(page);
     await goToImports(page);
   });
 
@@ -345,7 +306,7 @@ test.describe.skip("Import Templates", () => {
     await fileInput.setInputFiles(csvPath);
 
     // Navigate through wizard
-    await expect(page.getByRole('heading', { name: 'Map Columns' })).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole("heading", { name: "Map Columns" })).toBeVisible({ timeout: 5000 });
 
     // Look for save template option
     const saveTemplateOption = page
@@ -375,7 +336,7 @@ test.describe.skip("Import Templates", () => {
     await fileInput.setInputFiles(csvPath);
 
     // Complete import with template save
-    await expect(page.getByRole('heading', { name: 'Map Columns' })).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole("heading", { name: "Map Columns" })).toBeVisible({ timeout: 5000 });
     await page.getByRole("button", { name: /next|continue/i }).click();
     await expect(page.getByText(/preview|review/i)).toBeVisible({ timeout: 5000 });
     await page.getByRole("button", { name: /import|complete/i }).click();
@@ -402,7 +363,7 @@ test.describe.skip("Import Templates", () => {
 // TODO: Duplicate Detection tests need to import transactions first (requires account setup)
 test.describe.skip("Duplicate Detection", () => {
   test.beforeEach(async ({ page }) => {
-    await setupAuthenticatedSession(page);
+    await createNewIdentity(page);
 
     // First import some transactions
     await goToImports(page);
@@ -411,7 +372,7 @@ test.describe.skip("Duplicate Detection", () => {
     const fileInput = page.locator('input[type="file"]');
     await fileInput.setInputFiles(csvPath);
 
-    await expect(page.getByRole('heading', { name: 'Map Columns' })).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole("heading", { name: "Map Columns" })).toBeVisible({ timeout: 5000 });
     await page.getByRole("button", { name: /next|continue/i }).click();
     await expect(page.getByText(/preview/i)).toBeVisible({ timeout: 5000 });
     await page.getByRole("button", { name: /import|complete/i }).click();
@@ -429,7 +390,7 @@ test.describe.skip("Duplicate Detection", () => {
     await fileInput.setInputFiles(csvPath);
 
     // Navigate to preview
-    await expect(page.getByRole('heading', { name: 'Map Columns' })).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole("heading", { name: "Map Columns" })).toBeVisible({ timeout: 5000 });
     await page.getByRole("button", { name: /next|continue/i }).click();
 
     // Should show duplicate warnings
@@ -447,7 +408,7 @@ test.describe.skip("Duplicate Detection", () => {
     const fileInput = page.locator('input[type="file"]');
     await fileInput.setInputFiles(csvPath);
 
-    await expect(page.getByRole('heading', { name: 'Map Columns' })).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole("heading", { name: "Map Columns" })).toBeVisible({ timeout: 5000 });
     await page.getByRole("button", { name: /next|continue/i }).click();
     await expect(page.getByText(/preview/i)).toBeVisible({ timeout: 5000 });
 
@@ -467,7 +428,7 @@ test.describe.skip("Duplicate Detection", () => {
     const fileInput = page.locator('input[type="file"]');
     await fileInput.setInputFiles(csvPath);
 
-    await expect(page.getByRole('heading', { name: 'Map Columns' })).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole("heading", { name: "Map Columns" })).toBeVisible({ timeout: 5000 });
     await page.getByRole("button", { name: /next|continue/i }).click();
     await expect(page.getByText(/preview/i)).toBeVisible({ timeout: 5000 });
 
@@ -486,7 +447,7 @@ test.describe.skip("Duplicate Detection", () => {
 // TODO: OFX Import tests need implementation verification
 test.describe.skip("OFX Import", () => {
   test.beforeEach(async ({ page }) => {
-    await setupAuthenticatedSession(page);
+    await createNewIdentity(page);
     await goToImports(page);
   });
 
@@ -555,7 +516,7 @@ NEWFILEUID:NONE
 // TODO: Error Handling tests need careful validation of error messages
 test.describe.skip("Error Handling", () => {
   test.beforeEach(async ({ page }) => {
-    await setupAuthenticatedSession(page);
+    await createNewIdentity(page);
     await goToImports(page);
   });
 
@@ -613,7 +574,7 @@ test.describe.skip("Error Handling", () => {
     await fileInput.setInputFiles(csvPath);
 
     // Wait for wizard to load
-    await expect(page.getByRole('heading', { name: 'Map Columns' })).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole("heading", { name: "Map Columns" })).toBeVisible({ timeout: 5000 });
 
     // Cancel button should be available
     const cancelButton = page.getByRole("button", { name: /cancel|back|close/i });

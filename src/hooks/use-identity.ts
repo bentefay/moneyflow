@@ -23,6 +23,7 @@ import {
   type UnlockedIdentity,
 } from "@/lib/crypto/identity";
 import { trpc } from "@/lib/trpc";
+import { ensureDefaultVault, setActiveVaultStorage } from "@/lib/vault";
 
 // ============================================================================
 // Types
@@ -170,6 +171,13 @@ export function useIdentity(): UseIdentityReturn {
   const registerMutation = trpc.user.register.useMutation();
   const getOrCreateMutation = trpc.user.getOrCreate.useMutation();
 
+  // tRPC utils for imperative query access
+  const utils = trpc.useUtils();
+
+  // tRPC mutations for vault operations (used by ensureDefaultVault)
+  const createVaultMutation = trpc.vault.create.useMutation();
+  const saveSnapshotMutation = trpc.sync.saveSnapshot.useMutation();
+
   // -------------------------------------------------------------------------
   // Check existing session on mount
   // -------------------------------------------------------------------------
@@ -227,6 +235,26 @@ export function useIdentity(): UseIdentityReturn {
 
         setSession(newSession);
         setIsNewUser(result.isNew);
+
+        // Ensure user has a default vault (creates one if none exist)
+        try {
+          const vaultResult = await ensureDefaultVault({
+            api: {
+              listVaults: () => utils.vault.list.fetch(),
+              createVault: (input) => createVaultMutation.mutateAsync(input),
+              saveSnapshot: (input) => saveSnapshotMutation.mutateAsync(input),
+            },
+          });
+          // Set the vault as active
+          setActiveVaultStorage({ id: vaultResult.vaultId, name: vaultResult.name });
+          if (vaultResult.created) {
+            console.log(`Created default vault: ${vaultResult.vaultId}`);
+          }
+        } catch (vaultErr) {
+          // Log but don't fail the registration - vault can be created later
+          console.error("Failed to ensure default vault:", vaultErr);
+        }
+
         setStatus("unlocked");
       } catch (err) {
         setStatus("locked");
@@ -234,7 +262,7 @@ export function useIdentity(): UseIdentityReturn {
         throw err;
       }
     },
-    [registerMutation]
+    [registerMutation, utils, createVaultMutation, saveSnapshotMutation]
   );
 
   // -------------------------------------------------------------------------
@@ -265,6 +293,21 @@ export function useIdentity(): UseIdentityReturn {
 
       setSession(newSession);
       setIsNewUser(result.isNew);
+
+      // Ensure user has a default vault
+      try {
+        const vaultResult = await ensureDefaultVault({
+          api: {
+            listVaults: () => utils.vault.list.fetch(),
+            createVault: (input) => createVaultMutation.mutateAsync(input),
+            saveSnapshot: (input) => saveSnapshotMutation.mutateAsync(input),
+          },
+        });
+        setActiveVaultStorage({ id: vaultResult.vaultId, name: vaultResult.name });
+      } catch (vaultErr) {
+        console.error("Failed to ensure default vault:", vaultErr);
+      }
+
       setStatus("unlocked");
 
       return identity;
@@ -273,7 +316,7 @@ export function useIdentity(): UseIdentityReturn {
       setError(parseError(err));
       throw err;
     }
-  }, [registerMutation]);
+  }, [registerMutation, utils, createVaultMutation, saveSnapshotMutation]);
 
   // -------------------------------------------------------------------------
   // Unlock with existing seed phrase
@@ -301,6 +344,26 @@ export function useIdentity(): UseIdentityReturn {
 
         setSession(newSession);
         setIsNewUser(result.isNew);
+
+        // Ensure user has a default vault (edge case: returning user with no vaults)
+        try {
+          const vaultResult = await ensureDefaultVault({
+            api: {
+              listVaults: () => utils.vault.list.fetch(),
+              createVault: (input) => createVaultMutation.mutateAsync(input),
+              saveSnapshot: (input) => saveSnapshotMutation.mutateAsync(input),
+            },
+          });
+          // Set the vault as active
+          setActiveVaultStorage({ id: vaultResult.vaultId, name: vaultResult.name });
+          if (vaultResult.created) {
+            console.log(`Created default vault for returning user: ${vaultResult.vaultId}`);
+          }
+        } catch (vaultErr) {
+          // Log but don't fail the unlock - vault can be created later
+          console.error("Failed to ensure default vault:", vaultErr);
+        }
+
         setStatus("unlocked");
 
         return identity;
@@ -310,7 +373,7 @@ export function useIdentity(): UseIdentityReturn {
         throw err;
       }
     },
-    [getOrCreateMutation]
+    [getOrCreateMutation, utils, createVaultMutation, saveSnapshotMutation]
   );
 
   // -------------------------------------------------------------------------

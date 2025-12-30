@@ -418,8 +418,57 @@ interface GlobalSettings {
 
 1. **Vault Selector** (top-right header) - Reads `globalSettings.activeVaultId`, lists `vaults[]`
 2. **Vault Context Provider** - Wraps all `/app/(app)/*` routes, provides active vault's LoroDoc
-3. **Route Guards** - If no vaults exist, redirect to vault creation; if no active vault, select first
+3. **Automatic Vault Creation** - If no vaults exist after authentication, automatically create a default "My Vault"
 4. **Presence** - Scoped to active vault; switching vaults clears presence from old vault
+
+### Automatic Vault Creation on First Login
+
+When a user creates their identity or unlocks with a seed phrase for the first time, the system **automatically creates a default vault** so they don't land on an empty state:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    FIRST-TIME USER FLOW                                  │
+├─────────────────────────────────────────────────────────────────────────┤
+│  1. User generates seed phrase on /new-user                              │
+│  2. User confirms they saved the phrase (checkbox + continue)            │
+│  3. System:                                                              │
+│     a. Derives keypair from seed phrase                                  │
+│     b. Stores session in sessionStorage                                  │
+│     c. Checks server for existing user_data (none for new user)          │
+│     d. Creates default vault:                                            │
+│        - Generate vault encryption key                                   │
+│        - Create vault record in DB                                       │
+│        - Create membership record (owner role)                           │
+│        - Initialize LoroDoc with default statuses                        │
+│        - Store wrapped key in user_data.vaults[]                         │
+│        - Set as activeVaultId                                            │
+│  4. Redirect to /transactions (not empty dashboard)                      │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    RETURNING USER FLOW                                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│  1. User enters seed phrase on /unlock                                   │
+│  2. System:                                                              │
+│     a. Derives keypair from seed phrase                                  │
+│     b. Stores session in sessionStorage                                  │
+│     c. Fetches user_data from server                                     │
+│     d. IF vaults[] is empty (edge case - data loss):                     │
+│        - Create default vault (same as first-time flow)                  │
+│     e. ELSE: Select activeVaultId or first vault if none set             │
+│  3. Redirect to /transactions                                            │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**Default vault initialization**:
+
+- **Name**: "My Vault"
+- **Role**: User is owner
+- **Default statuses**: "For Review", "Paid" (with "Treat as Paid" behavior)
+- **Empty collections**: accounts, people, tags, transactions, etc.
+- **Active vault**: Set as activeVaultId immediately
+
+This ensures users never see "No vault selected" after authentication - they always land in a usable state.
 
 ---
 

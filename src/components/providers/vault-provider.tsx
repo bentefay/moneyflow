@@ -5,12 +5,17 @@
  *
  * Wraps the app with the CRDT vault context, initializing the LoroDoc
  * and providing state management to all children.
+ *
+ * The provider initializes with default vault state including:
+ * - Default statuses ("For Review", "Paid")
+ * - Empty collections for all entities
+ * - Default preferences
  */
 
 import { useState, useEffect, useMemo } from "react";
 import { LoroDoc } from "loro-crdt";
 import { VaultProvider as BaseVaultProvider } from "@/lib/crdt/context";
-import { DEFAULT_VAULT_STATE } from "@/lib/crdt/mirror";
+import { getDefaultVaultState } from "@/lib/crdt/defaults";
 
 interface VaultProviderProps {
   children: React.ReactNode;
@@ -44,9 +49,9 @@ export function VaultProvider({ children }: VaultProviderProps) {
   }
 
   return (
-    <BaseVaultProvider 
-      doc={doc} 
-      initialState={DEFAULT_VAULT_STATE}
+    <BaseVaultProvider
+      doc={doc}
+      initialState={getDefaultVaultState()}
       debug={process.env.NODE_ENV === "development"}
     >
       {children}

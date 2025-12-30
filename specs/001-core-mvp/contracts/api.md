@@ -869,9 +869,87 @@ function ShareVaultButton({
 
   return <button onClick={handleShare}>Share Vault</button>;
 }
+
+// Example: First-time user onboarding (automatic vault creation)
+async function completeOnboarding(identity: {
+  signingKeypair: sodium.KeyPair;
+  encryptionKeypair: { publicKey: Uint8Array; privateKey: Uint8Array };
+  pubkeyHash: string;
+}) {
+  // 1. Store session
+  storeIdentitySession(identity);
+
+  // 2. Check if user already exists (returning user on new device)
+  const existsResult = await trpc.user.exists.query({ pubkeyHash: identity.pubkeyHash });
+
+  if (existsResult.exists) {
+    // Returning user - fetch their data
+    const userData = await trpc.user.getData.query();
+    if (userData.data) {
+      const decrypted = decryptUserData(userData.data.encryptedData);
+      if (decrypted.vaults.length > 0) {
+        // User has vaults, select the active one or first
+        setActiveVault(decrypted.globalSettings.activeVaultId ?? decrypted.vaults[0].id);
+        return;
+      }
+    }
+  }
+
+  // 3. New user OR user with no vaults - create default vault
+  const vaultKey = sodium.crypto_secretbox_keygen();
+
+  // Wrap vault key with user's X25519 public key
+  const encryptedVaultKey = wrapKeyForUser(vaultKey, identity.encryptionKeypair.publicKey);
+
+  // Create vault on server
+  const result = await trpc.vault.create.mutate({
+    encryptedVaultKey: sodium.to_base64(encryptedVaultKey),
+    encPublicKey: sodium.to_base64(identity.encryptionKeypair.publicKey),
+  });
+
+  // 4. Initialize local LoroDoc with default state
+  const doc = new LoroDoc();
+  initializeVaultDefaults(doc); // Creates default statuses, empty collections
+
+  // 5. Store user data with new vault reference
+  const userData: UserData = {
+    vaults: [{
+      id: result.vault.id,
+      wrappedKey: sodium.to_base64(encryptedVaultKey),
+      name: "My Vault",
+    }],
+    globalSettings: {
+      activeVaultId: result.vault.id,
+      theme: "system",
+      defaultCurrency: "USD",
+    },
+  };
+
+  const encryptedUserData = encryptUserData(userData, identity);
+  await trpc.user.upsertData.mutate({ encryptedData: encryptedUserData });
+
+  // 6. Create initial snapshot
+  const snapshot = doc.export({ mode: "snapshot" });
+  const encryptedSnapshot = encryptVaultData(snapshot, vaultKey);
+  await trpc.sync.createSnapshot.mutate({
+    vaultId: result.vault.id,
+    version: 1,
+    hlcTimestamp: generateHlc(),
+    encryptedData: sodium.to_base64(encryptedSnapshot),
+  });
+
+  // 7. Set active vault and navigate
+  setActiveVault(result.vault.id);
+}
 ```
 
----
+**Key points for automatic vault creation**:
+
+1. **Always check first** - User might be returning on a new device
+2. **Atomic creation** - Vault + membership + snapshot created together
+3. **Default initialization** - LoroDoc initialized with default statuses
+4. **User data updated** - Vault reference stored in encrypted user_data
+5. **No empty states** - User never sees "No vault selected" after onboarding
 
 ## 5. Real-time Subscriptions (Supabase Realtime)
 

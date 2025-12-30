@@ -11,51 +11,11 @@
  */
 
 import { test, expect, type Page } from "@playwright/test";
+import { createNewIdentity, goToTransactions } from "./helpers";
 
 // ============================================================================
-// Test Fixtures
+// Transaction-Specific Helpers
 // ============================================================================
-
-/**
- * Authenticate and navigate to transactions page.
- */
-async function setupAuthenticatedSession(page: Page): Promise<void> {
-  // Go through the full new user flow
-  await page.goto("/new-user");
-
-  // Generate seed phrase
-  const generateButton = page
-    .locator('[data-testid="generate-button"]')
-    .or(page.getByRole("button").filter({ hasText: /generate|create|start/i }));
-  await generateButton.click();
-
-  // Wait for seed phrase and reveal if hidden
-  await page.waitForSelector('[data-testid="seed-phrase-word"]', { timeout: 10000 });
-  const revealButton = page.getByRole("button", { name: /reveal/i }).first();
-  if (await revealButton.isVisible()) {
-    await revealButton.click();
-  }
-
-  // Confirm and continue
-  const checkbox = page.locator('[data-testid="confirm-checkbox"]').or(page.getByRole("checkbox"));
-  await checkbox.check();
-
-  const continueButton = page
-    .locator('[data-testid="continue-button"]')
-    .or(page.getByRole("button").filter({ hasText: /continue|next|dashboard/i }));
-  await continueButton.click();
-
-  await page.waitForURL("**/dashboard", { timeout: 10000 });
-}
-
-/**
- * Navigate to transactions page (assumes authenticated).
- */
-async function goToTransactions(page: Page): Promise<void> {
-  await page.goto("/transactions");
-  // Wait for the page title to appear (ensures page has compiled and loaded)
-  await page.getByRole("heading", { name: "Transactions", level: 1 }).waitFor({ timeout: 15000 });
-}
 
 /**
  * Create a test transaction using the add row.
@@ -107,7 +67,7 @@ async function createTransaction(
 
 test.describe("Transaction List", () => {
   test.beforeEach(async ({ page }) => {
-    await setupAuthenticatedSession(page);
+    await createNewIdentity(page);
   });
 
   test("should display transactions page with heading", async ({ page }) => {
@@ -147,7 +107,7 @@ test.describe("Transaction List", () => {
 
 test.describe("Create Transaction", () => {
   test.beforeEach(async ({ page }) => {
-    await setupAuthenticatedSession(page);
+    await createNewIdentity(page);
     await goToTransactions(page);
   });
 
@@ -205,7 +165,7 @@ test.describe("Create Transaction", () => {
 // TODO: All Edit/Delete/Filter/Bulk tests require accounts feature for creating transactions
 test.describe.skip("Edit Transaction", () => {
   test.beforeEach(async ({ page }) => {
-    await setupAuthenticatedSession(page);
+    await createNewIdentity(page);
     await goToTransactions(page);
 
     // Create a transaction to edit
@@ -275,7 +235,7 @@ test.describe.skip("Edit Transaction", () => {
 
 test.describe.skip("Delete Transaction", () => {
   test.beforeEach(async ({ page }) => {
-    await setupAuthenticatedSession(page);
+    await createNewIdentity(page);
     await goToTransactions(page);
 
     // Create a transaction to delete
@@ -355,7 +315,7 @@ test.describe.skip("Delete Transaction", () => {
 
 test.describe.skip("Filter Transactions", () => {
   test.beforeEach(async ({ page }) => {
-    await setupAuthenticatedSession(page);
+    await createNewIdentity(page);
     await goToTransactions(page);
 
     // Create multiple transactions
@@ -458,7 +418,7 @@ test.describe.skip("Filter Transactions", () => {
 
 test.describe.skip("Bulk Edit", () => {
   test.beforeEach(async ({ page }) => {
-    await setupAuthenticatedSession(page);
+    await createNewIdentity(page);
     await goToTransactions(page);
 
     // Create multiple transactions
@@ -564,7 +524,7 @@ test.describe.skip("Bulk Edit", () => {
 
 test.describe.skip("Keyboard Navigation", () => {
   test.beforeEach(async ({ page }) => {
-    await setupAuthenticatedSession(page);
+    await createNewIdentity(page);
     await goToTransactions(page);
 
     // Create transactions for navigation

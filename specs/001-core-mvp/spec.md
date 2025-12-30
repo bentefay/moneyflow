@@ -23,13 +23,13 @@ A new user discovers MoneyFlow via the marketing landing page and wants to creat
 
 **Why this priority**: Without identity creation, no other features can be used. This is the entry point for all users.
 
-**Independent Test**: Can be fully tested by generating an identity, closing the tab, and unlocking with seed phrase. Delivers immediate value by securing the user's vault.
+**Independent Test**: Can be fully tested by generating an identity (which creates a default vault), closing the tab, and unlocking with seed phrase. Delivers immediate value by providing an immediately usable vault.
 
 **Acceptance Scenarios**:
 
 1. **Given** a visitor on the landing page, **When** they click "Get Started", **Then** they see a screen that generates a 12-word BIP39 seed phrase and instructs them to write it down.
-2. **Given** a user viewing their seed phrase, **When** they confirm they've saved it (checkbox + button), **Then** their identity is created and they enter an empty vault.
-3. **Given** a returning user on the landing page, **When** they click "Unlock" and enter their 12-word seed phrase, **Then** they are authenticated and see their vault.
+2. **Given** a user viewing their seed phrase, **When** they confirm they've saved it (checkbox + button), **Then** their identity is created, a default vault named "My Vault" is automatically created with them as the sole member, and they enter the transactions view.
+3. **Given** a returning user on the landing page, **When** they click "Unlock" and enter their 12-word seed phrase, **Then** they are authenticated and see their vault (creating a default vault if none exists).
 4. **Given** a user entering an invalid seed phrase, **When** they submit the form, **Then** they see "Invalid recovery phrase" error.
 5. **Given** a user closing their browser tab, **When** they return later, **Then** they must re-enter their seed phrase (no local storage of secrets).
 6. **Given** a user on the unlock screen, **When** they view the UI, **Then** they see a centered circle containing the seed phrase input field, clear instructions, and an "Unlock" button, with an animated aurora borealis gradient effect on the outer area.

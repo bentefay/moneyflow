@@ -11,3 +11,5 @@ export type {
   IdentityActions,
   UseIdentityReturn,
 } from "./use-identity";
+
+export { useIsHydrated } from "./use-is-hydrated";

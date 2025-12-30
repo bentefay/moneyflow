@@ -8,10 +8,60 @@ Playwright tests implementing Constitution VII: high-level tests with harnesses 
 
 ## Auto-Approved Terminal Commands
 
-The following commands can be run without user confirmation:
+- `pnpm playwright test` - Run Playwright tests
+- `pnpm playwright test --max-failures=1` - Run with fail-fast
+- `pnpm playwright test -g "test name"` - Run specific test by name
 
-- `pnpm test:e2e` - Run all E2E tests
-- `pnpm playwright test` - Run Playwright tests (with optional grep/filter args)
+## Shared Helpers
+
+Domain-specific helpers live in `tests/e2e/helpers/`:
+
+```
+tests/e2e/helpers/
+├── index.ts      # Re-exports all helpers
+├── auth.ts       # Identity creation, unlock, session management
+└── nav.ts        # Page navigation helpers
+```
+
+Import from the barrel:
+
+```typescript
+import { createNewIdentity, goToTags } from "./helpers";
+```
+
+### Available Helpers
+
+**Auth (`helpers/auth.ts`)**:
+
+- `createNewIdentity(page)` - Full new user flow, returns seed phrase
+- `extractSeedPhrase(page)` - Get words from seed display
+- `enterSeedPhrase(page, words)` - Fill unlock inputs
+- `clearSession(page)` - Clear storage
+
+**Nav (`helpers/nav.ts`)**:
+
+- `goToDashboard(page)`, `goToTransactions(page)`, `goToTags(page)`
+- `goToAccounts(page)`, `goToPeople(page)`, `goToImports(page)`
+
+### When to Create Helpers
+
+Create helpers for **multi-step flows** that are reused across tests:
+
+- Authentication flows
+- Complex form submissions with file uploads
+- Navigation with loading waits
+
+**Do NOT create helpers** that just wrap Playwright's API:
+
+```typescript
+// ❌ Bad: Unnecessary indirection
+async function clickButton(page, name) {
+  await page.getByRole("button", { name }).click();
+}
+
+// ✅ Good: Just use Playwright directly
+await page.getByRole("button", { name: /submit/i }).click();
+```
 
 ## Core Principles
 
@@ -30,23 +80,26 @@ await expect(page.getByRole("alert")).toBeVisible(); // error state
 
 **Selector priority**: `getByRole()` > `getByTestId()` > `getByLabel()` > `getByText(/regex/i)`
 
-### 2. Functional Style with Harnesses
+### 2. Composable Test Setup
 
-Extract page interactions into helper functions. Tests should read like specifications.
+Tests should read like specifications using shared helpers.
 
 ```typescript
-// ❌ Bad: Imperative steps repeated across tests
-test("import flow", async ({ page }) => {
-  await page.goto("/new-user");
-  await page.locator('[data-testid="generate-button"]').click();
-  // ... 10 more lines of setup
-});
+import { createNewIdentity, goToTags } from "./helpers";
 
-// ✅ Good: Composable helpers
-test("import flow", async ({ page }) => {
-  await setupAuthenticatedSession(page);
-  await uploadFile(page, await createTestCSV(sampleData));
-  await expectImportSuccess(page);
+test.describe("Tags", () => {
+  test.beforeEach(async ({ page }) => {
+    await createNewIdentity(page);
+    await goToTags(page);
+  });
+
+  test("should create a tag", async ({ page }) => {
+    await page.getByRole("button", { name: /add tag/i }).click();
+    await page.getByPlaceholder(/tag name/i).fill("Food");
+    await page.getByRole("button", { name: /^add tag$/i }).click();
+
+    await expect(page.getByText("Food", { exact: true })).toBeVisible();
+  });
 });
 ```
 
@@ -57,26 +110,16 @@ test("import flow", async ({ page }) => {
  * E2E Test: [Feature Name]
  */
 import { test, expect, type Page } from "@playwright/test";
+import { createNewIdentity, goToFeature } from "./helpers";
 
 // ============================================================================
-// Test Fixtures & Data
+// Feature-Specific Helpers (if complex flows are reused within this file)
 // ============================================================================
 
-const sampleData = `Date,Description,Amount\n2024-01-15,"Coffee",-5.50`;
-
-// ============================================================================
-// Page Helpers (Harness)
-// ============================================================================
-
-/** Authenticate and reach dashboard. */
-async function setupAuthenticatedSession(page: Page): Promise<void> {
-  /* ... */
-}
-
-/** Upload file and wait for processing. */
-async function uploadFile(page: Page, path: string): Promise<void> {
-  await page.locator('input[type="file"]').setInputFiles(path);
-  await page.waitForLoadState("networkidle");
+async function createItem(page: Page, data: { name: string }): Promise<void> {
+  await page.getByRole("button", { name: /add/i }).click();
+  await page.getByPlaceholder(/name/i).fill(data.name);
+  await page.getByRole("button", { name: /save/i }).click();
 }
 
 // ============================================================================
@@ -85,7 +128,8 @@ async function uploadFile(page: Page, path: string): Promise<void> {
 
 test.describe("Feature", () => {
   test.beforeEach(async ({ page }) => {
-    await setupAuthenticatedSession(page);
+    await createNewIdentity(page);
+    await goToFeature(page);
   });
 
   test("should [behaviour]", async ({ page }) => {

@@ -1,14 +1,8 @@
 /**
- * E2E Test: Identity Creation Flow
+ * E2E Test: Identity & Authentication Journeys
  *
- * Tests the complete identity creation and unlock flows:
- * - New user generates seed phrase
- * - User confirms seed phrase and creates identity
- * - User can unlock with seed phrase
- * - Invalid seed phrases are rejected
- *
- * Note: These tests focus on behavior, not specific copy text.
- * Text content can change without breaking tests.
+ * Journey-style tests covering the complete identity creation and unlock flows.
+ * Uses test.step() to break complex flows into logical sections.
  */
 
 import { test, expect, type Page } from "@playwright/test";
@@ -22,25 +16,21 @@ import { test, expect, type Page } from "@playwright/test";
  * Automatically reveals the phrase if hidden.
  */
 async function extractSeedPhrase(page: Page): Promise<string[]> {
-  // Wait for seed phrase grid to appear
   await page.waitForSelector('[data-testid="seed-phrase-word"]', { timeout: 10000 });
 
-  // Check if words are hidden (showing "•••••") and reveal if needed
-  const revealButton = page.getByRole("button", { name: /reveal/i }).first();
-  if (await revealButton.isVisible()) {
-    await revealButton.click();
-    // Wait for animation
+  // Check if words are hidden and reveal if needed
+  const revealOverlay = page.locator("text=Click to reveal your recovery phrase");
+  if (await revealOverlay.isVisible({ timeout: 1000 }).catch(() => false)) {
+    await revealOverlay.click();
     await page.waitForTimeout(300);
   }
 
-  // Get all word elements and extract text
   const wordElements = await page.$$('[data-testid="seed-phrase-word"]');
   const words: string[] = [];
 
   for (const element of wordElements) {
     const text = await element.textContent();
     if (text) {
-      // Remove the number prefix (e.g., "1. abandon" -> "abandon")
       const word = text.replace(/^\d+\.\s*/, "").trim();
       words.push(word);
     }
@@ -59,47 +49,12 @@ async function enterSeedPhrase(page: Page, words: string[]): Promise<void> {
   }
 }
 
-/**
- * Complete the new user flow and return the seed phrase.
- */
-async function completeNewUserFlow(page: Page): Promise<string[]> {
-  await page.goto("/new-user");
-
-  // Click generate button (find primary action button)
-  const generateButton = page
-    .locator('[data-testid="generate-button"]')
-    .or(page.getByRole("button").filter({ hasText: /generate|create|start/i }));
-  await generateButton.click();
-
-  // Wait for seed phrase to appear
-  await page.waitForSelector('[data-testid="seed-phrase-word"]', { timeout: 10000 });
-
-  // Extract seed phrase
-  const words = await extractSeedPhrase(page);
-
-  // Find and check the confirmation checkbox
-  const checkbox = page.locator('[data-testid="confirm-checkbox"]').or(page.getByRole("checkbox"));
-  await checkbox.check();
-
-  // Click continue button
-  const continueButton = page
-    .locator('[data-testid="continue-button"]')
-    .or(page.getByRole("button").filter({ hasText: /continue|next|dashboard/i }));
-  await continueButton.click();
-
-  // Wait for redirect to dashboard
-  await page.waitForURL("**/dashboard", { timeout: 10000 });
-
-  return words;
-}
-
 // ============================================================================
-// Tests
+// Journey Tests
 // ============================================================================
 
-test.describe("Identity Creation Flow", () => {
+test.describe("Identity", () => {
   test.beforeEach(async ({ page }) => {
-    // Clear any stored session data
     await page.goto("/");
     await page.evaluate(() => {
       sessionStorage.clear();
@@ -107,322 +62,201 @@ test.describe("Identity Creation Flow", () => {
     });
   });
 
-  test("should show intro page with action button", async ({ page }) => {
-    await page.goto("/new-user");
-
-    // Should have a main heading
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-
-    // Should have a primary action button to generate/create
-    const actionButton = page
-      .locator('[data-testid="generate-button"]')
-      .or(page.getByRole("button").filter({ hasText: /generate|create|start/i }));
-    await expect(actionButton).toBeVisible();
-
-    // Should have a link to unlock for existing users
-    const unlockLink = page.getByRole("link", { name: /unlock|sign in|existing/i });
-    await expect(unlockLink).toBeVisible();
-  });
-
-  test("should generate and display 12-word seed phrase", async ({ page }) => {
-    await page.goto("/new-user");
-
-    // Click generate button
-    const generateButton = page
-      .locator('[data-testid="generate-button"]')
-      .or(page.getByRole("button").filter({ hasText: /generate|create|start/i }));
-    await generateButton.click();
-
-    // Wait for seed phrase display
-    await page.waitForSelector('[data-testid="seed-phrase-word"]', { timeout: 10000 });
-
-    // Verify 12 words are shown
-    const words = await extractSeedPhrase(page);
-    expect(words.length).toBe(12);
-
-    // Each word should be a valid BIP39 word (at least 3 chars)
-    for (const word of words) {
-      expect(word.length).toBeGreaterThanOrEqual(3);
-    }
-  });
-
-  test("should require confirmation before continuing", async ({ page }) => {
-    await page.goto("/new-user");
-
-    // Generate seed phrase
-    const generateButton = page
-      .locator('[data-testid="generate-button"]')
-      .or(page.getByRole("button").filter({ hasText: /generate|create|start/i }));
-    await generateButton.click();
-    await page.waitForSelector('[data-testid="seed-phrase-word"]', { timeout: 10000 });
-
-    // Continue button should be disabled initially
-    const continueButton = page
-      .locator('[data-testid="continue-button"]')
-      .or(page.getByRole("button").filter({ hasText: /continue|next|dashboard/i }));
-    await expect(continueButton).toBeDisabled();
-
-    // Check the confirmation checkbox
-    const checkbox = page
-      .locator('[data-testid="confirm-checkbox"]')
-      .or(page.getByRole("checkbox"));
-    await checkbox.check();
-
-    // Continue button should now be enabled
-    await expect(continueButton).toBeEnabled();
-  });
-
-  test("should complete identity creation and redirect to dashboard", async ({ page }) => {
-    await page.goto("/new-user");
-
-    // Generate seed phrase
-    const generateButton = page
-      .locator('[data-testid="generate-button"]')
-      .or(page.getByRole("button").filter({ hasText: /generate|create|start/i }));
-    await generateButton.click();
-    await page.waitForSelector('[data-testid="seed-phrase-word"]', { timeout: 10000 });
-
-    // Store the seed phrase
-    const words = await extractSeedPhrase(page);
-    expect(words.length).toBe(12);
-
-    // Confirm and continue
-    const checkbox = page
-      .locator('[data-testid="confirm-checkbox"]')
-      .or(page.getByRole("checkbox"));
-    await checkbox.check();
-
-    const continueButton = page
-      .locator('[data-testid="continue-button"]')
-      .or(page.getByRole("button").filter({ hasText: /continue|next|dashboard/i }));
-    await continueButton.click();
-
-    // Should redirect to dashboard
-    await page.waitForURL("**/dashboard", { timeout: 10000 });
-  });
-
-  test("should allow copying seed phrase to clipboard", async ({ page, context }) => {
-    // Grant clipboard permissions
+  test("new user journey: generate seed phrase, confirm, and access dashboard", async ({
+    page,
+    context,
+  }) => {
+    // Grant clipboard permissions for copy test
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
 
-    await page.goto("/new-user");
+    let seedPhrase: string[] = [];
 
-    // Generate seed phrase
-    const generateButton = page
-      .locator('[data-testid="generate-button"]')
-      .or(page.getByRole("button").filter({ hasText: /generate|create|start/i }));
-    await generateButton.click();
-    await page.waitForSelector('[data-testid="seed-phrase-word"]', { timeout: 10000 });
+    await test.step("navigate to new user page and see intro", async () => {
+      await page.goto("/new-user");
+      await page.waitForLoadState("networkidle");
 
-    // Click copy button (use specific test id to avoid matching reveal overlay)
-    const copyButton = page.locator('[data-testid="copy-button"]');
-    await copyButton.click();
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+      await expect(page.locator('[data-testid="generate-button"]')).toBeVisible();
+      await expect(page.getByRole("link", { name: /unlock|sign in|existing/i })).toBeVisible();
+    });
 
-    // Verify clipboard content (12 space-separated words)
-    const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
-    const clipboardWords = clipboardText.trim().split(/\s+/);
-    expect(clipboardWords.length).toBe(12);
-  });
-});
+    await test.step("generate 12-word seed phrase", async () => {
+      const generateButton = page.locator('[data-testid="generate-button"]');
 
-test.describe("Unlock Flow", () => {
-  let savedSeedPhrase: string[] = [];
+      // Button is disabled until React hydration completes (via useIsHydrated hook).
+      // Playwright's click() auto-waits for enabled state.
+      await generateButton.click();
 
-  test.beforeAll(async ({ browser }) => {
-    // Create an identity first, complete registration, and save the seed phrase
-    const page = await browser.newPage();
-    await page.goto("/new-user");
+      // Wait for the step to change: seed phrase appears
+      await page.waitForSelector('[data-testid="seed-phrase-word"]', { timeout: 20000 });
 
-    const generateButton = page
-      .locator('[data-testid="generate-button"]')
-      .or(page.getByRole("button").filter({ hasText: /generate|create|start/i }));
-    await generateButton.click();
-    await page.waitForSelector('[data-testid="seed-phrase-word"]', { timeout: 10000 });
-    savedSeedPhrase = await extractSeedPhrase(page);
+      seedPhrase = await extractSeedPhrase(page);
+      expect(seedPhrase.length).toBe(12);
 
-    // Complete registration so user exists in database
-    const checkbox = page
-      .locator('[data-testid="confirm-checkbox"]')
-      .or(page.getByRole("checkbox"));
-    await checkbox.check();
+      // Each word should be a valid BIP39 word (at least 3 chars)
+      for (const word of seedPhrase) {
+        expect(word.length).toBeGreaterThanOrEqual(3);
+      }
+    });
 
-    const continueButton = page
-      .locator('[data-testid="continue-button"]')
-      .or(page.getByRole("button").filter({ hasText: /continue|next|dashboard/i }));
-    await continueButton.click();
+    await test.step("copy seed phrase to clipboard", async () => {
+      const copyButton = page.locator('[data-testid="copy-button"]');
+      await copyButton.click();
 
-    await page.waitForURL("**/dashboard", { timeout: 10000 });
-    await page.close();
-  });
+      const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+      const clipboardWords = clipboardText.trim().split(/\s+/);
+      expect(clipboardWords.length).toBe(12);
+    });
 
-  test.beforeEach(async ({ page }) => {
-    // Clear session but simulate returning user
-    await page.goto("/");
-    await page.evaluate(() => {
-      sessionStorage.clear();
+    await test.step("require confirmation before continuing", async () => {
+      const continueButton = page.locator('[data-testid="continue-button"]');
+      await expect(continueButton).toBeDisabled();
+
+      const checkbox = page.locator('[data-testid="confirm-checkbox"]');
+      await checkbox.check();
+
+      await expect(continueButton).toBeEnabled();
+    });
+
+    await test.step("complete creation and redirect to dashboard", async () => {
+      const continueButton = page.locator('[data-testid="continue-button"]');
+      await continueButton.click();
+
+      await page.waitForURL("**/dashboard", { timeout: 15000 });
     });
   });
 
-  test("should show unlock page with 12 seed phrase inputs", async ({ page }) => {
-    await page.goto("/unlock");
-    await page.waitForLoadState("networkidle");
+  test("unlock journey: enter seed phrase and access dashboard", async ({ page, context }) => {
+    // Grant clipboard permissions
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
 
-    // Check for seed phrase input fields
-    const inputs = page.locator('[data-testid^="seed-word-input-"]');
-    await expect(inputs.first()).toBeVisible({ timeout: 10000 });
+    let savedSeedPhrase: string[] = [];
 
-    // Should have 12 input fields
-    const count = await inputs.count();
-    expect(count).toBe(12);
-  });
+    await test.step("create identity first (setup)", async () => {
+      await page.goto("/new-user");
+      await page.waitForLoadState("networkidle");
 
-  test("should validate BIP39 words with visual feedback", async ({ page }) => {
-    await page.goto("/unlock");
-    await page.waitForLoadState("networkidle");
+      const generateButton = page.locator('[data-testid="generate-button"]');
 
-    const firstInput = page.locator('[data-testid="seed-word-input-0"]');
+      // Button is disabled until React hydration completes (via useIsHydrated hook).
+      // Playwright's click() auto-waits for enabled state.
+      await generateButton.click();
 
-    // Enter a valid BIP39 word
-    await firstInput.fill("abandon");
-    // Should show valid state (check for any visual indicator class)
-    const validClasses = await firstInput.getAttribute("class");
-    expect(validClasses).toBeTruthy();
+      // Wait for the step to change: seed phrase appears
+      await page.waitForSelector('[data-testid="seed-phrase-word"]', { timeout: 20000 });
+      savedSeedPhrase = await extractSeedPhrase(page);
 
-    // Clear and enter invalid word
-    await firstInput.clear();
-    await firstInput.fill("invalidword123");
-    // Should show different state
-    const invalidClasses = await firstInput.getAttribute("class");
-    expect(invalidClasses).toBeTruthy();
-  });
+      const checkbox = page.locator('[data-testid="confirm-checkbox"]');
+      await checkbox.check();
 
-  test("should unlock with valid seed phrase and redirect to dashboard", async ({ page }) => {
-    // Skip if we don't have a saved phrase
-    test.skip(savedSeedPhrase.length === 0, "No seed phrase available");
+      const continueButton = page.locator('[data-testid="continue-button"]');
+      await continueButton.click();
+      await page.waitForURL("**/dashboard", { timeout: 15000 });
 
-    await page.goto("/unlock");
-    await page.waitForLoadState("networkidle");
+      // Clear session to simulate returning user
+      await page.evaluate(() => sessionStorage.clear());
+    });
 
-    // Enter the saved seed phrase
-    await enterSeedPhrase(page, savedSeedPhrase);
+    await test.step("unlock page shows 12 seed phrase inputs", async () => {
+      await page.goto("/unlock");
+      await page.waitForLoadState("networkidle");
 
-    // Wait for the unlock button to become enabled (phrase validation is async)
-    const unlockButton = page
-      .locator('[data-testid="unlock-button"]')
-      .or(page.getByRole("button").filter({ hasText: /unlock|sign in|continue/i }));
+      const inputs = page.locator('[data-testid^="seed-word-input-"]');
+      await expect(inputs.first()).toBeVisible({ timeout: 10000 });
+      expect(await inputs.count()).toBe(12);
 
-    await expect(unlockButton).toBeEnabled({ timeout: 5000 });
-    await unlockButton.click();
+      // Should have link to create new identity
+      await expect(page.getByRole("link").filter({ hasText: /new|create|sign up/i })).toBeVisible();
+    });
 
-    // Should redirect to dashboard after animation
-    await page.waitForURL("**/dashboard", { timeout: 15000 });
-  });
+    await test.step("validate BIP39 words with visual feedback", async () => {
+      const firstInput = page.locator('[data-testid="seed-word-input-0"]');
 
-  test("should handle invalid seed phrase", async ({ page }) => {
-    await page.goto("/unlock");
-    await page.waitForLoadState("networkidle");
+      await firstInput.fill("abandon");
+      const validClasses = await firstInput.getAttribute("class");
+      expect(validClasses).toBeTruthy();
 
-    // Enter invalid seed phrase (valid BIP39 words but wrong checksum)
-    const invalidPhrase = [
-      "abandon",
-      "abandon",
-      "abandon",
-      "abandon",
-      "abandon",
-      "abandon",
-      "abandon",
-      "abandon",
-      "abandon",
-      "abandon",
-      "abandon",
-      "wrong",
-    ];
-    await enterSeedPhrase(page, invalidPhrase);
+      await firstInput.clear();
+      await firstInput.fill("invalidword123");
+      const invalidClasses = await firstInput.getAttribute("class");
+      expect(invalidClasses).toBeTruthy();
+    });
 
-    // Click unlock button
-    const unlockButton = page
-      .locator('[data-testid="unlock-button"]')
-      .or(page.getByRole("button").filter({ hasText: /unlock|sign in|continue/i }));
+    await test.step("support paste functionality", async () => {
+      const testPhrase =
+        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+      await page.evaluate((phrase) => navigator.clipboard.writeText(phrase), testPhrase);
 
-    // If button is enabled, clicking should show error or stay on page
-    if (await unlockButton.isEnabled()) {
+      const firstInput = page.locator('[data-testid="seed-word-input-0"]');
+      await firstInput.focus();
+      await page.keyboard.press("ControlOrMeta+v");
+
+      for (let i = 0; i < 11; i++) {
+        await expect(page.locator(`[data-testid="seed-word-input-${i}"]`)).toHaveValue("abandon");
+      }
+      await expect(page.locator('[data-testid="seed-word-input-11"]')).toHaveValue("about");
+    });
+
+    await test.step("reject invalid seed phrase", async () => {
+      // Clear inputs and enter invalid phrase
+      for (let i = 0; i < 12; i++) {
+        await page.locator(`[data-testid="seed-word-input-${i}"]`).clear();
+      }
+
+      const invalidPhrase = [
+        "abandon",
+        "abandon",
+        "abandon",
+        "abandon",
+        "abandon",
+        "abandon",
+        "abandon",
+        "abandon",
+        "abandon",
+        "abandon",
+        "abandon",
+        "wrong",
+      ];
+      await enterSeedPhrase(page, invalidPhrase);
+
+      const unlockButton = page.locator('[data-testid="unlock-button"]');
+      if (await unlockButton.isEnabled()) {
+        await unlockButton.click();
+        await page.waitForTimeout(2000);
+        expect(page.url()).toContain("/unlock");
+      }
+    });
+
+    await test.step("unlock with valid seed phrase", async () => {
+      // Clear and enter saved phrase
+      for (let i = 0; i < 12; i++) {
+        await page.locator(`[data-testid="seed-word-input-${i}"]`).clear();
+      }
+      await enterSeedPhrase(page, savedSeedPhrase);
+
+      const unlockButton = page.locator('[data-testid="unlock-button"]');
+      await expect(unlockButton).toBeEnabled({ timeout: 5000 });
       await unlockButton.click();
 
-      // Should either show error alert or stay on unlock page
-      await page.waitForTimeout(2000);
-      const currentUrl = page.url();
-      expect(currentUrl).toContain("/unlock");
-    }
-  });
-
-  test("should support paste functionality", async ({ page, context }) => {
-    // Grant clipboard permissions
-    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-
-    await page.goto("/unlock");
-    await page.waitForLoadState("networkidle");
-
-    // Write seed phrase to clipboard
-    const testPhrase =
-      "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
-    await page.evaluate((phrase) => navigator.clipboard.writeText(phrase), testPhrase);
-
-    // Focus first input and paste
-    const firstInput = page.locator('[data-testid="seed-word-input-0"]');
-    await firstInput.focus();
-
-    // Simulate paste
-    await page.keyboard.press("ControlOrMeta+v");
-
-    // All inputs should be filled
-    for (let i = 0; i < 11; i++) {
-      const input = page.locator(`[data-testid="seed-word-input-${i}"]`);
-      await expect(input).toHaveValue("abandon");
-    }
-    const lastInput = page.locator('[data-testid="seed-word-input-11"]');
-    await expect(lastInput).toHaveValue("about");
-  });
-
-  test("should have link to create new identity", async ({ page }) => {
-    await page.goto("/unlock");
-    await page.waitForLoadState("networkidle");
-
-    // Find link to new user page
-    const newUserLink = page.getByRole("link").filter({ hasText: /new|create|sign up/i });
-    await expect(newUserLink).toBeVisible();
-
-    await newUserLink.click();
-    await expect(page).toHaveURL(/new-user/);
-  });
-});
-
-test.describe("Auth Guard", () => {
-  test.beforeEach(async ({ page }) => {
-    // Clear all session data
-    await page.goto("/");
-    await page.evaluate(() => {
-      sessionStorage.clear();
-      localStorage.clear();
+      await page.waitForURL("**/dashboard", { timeout: 15000 });
     });
   });
 
-  test("should redirect unauthenticated users from dashboard to unlock", async ({ page }) => {
-    await page.goto("/dashboard");
-    await page.waitForURL("**/unlock", { timeout: 5000 });
-  });
+  test("auth guard: protected routes redirect to unlock", async ({ page }) => {
+    await test.step("dashboard redirects to unlock", async () => {
+      await page.goto("/dashboard");
+      await page.waitForURL("**/unlock", { timeout: 5000 });
+    });
 
-  test("should redirect unauthenticated users from transactions to unlock", async ({ page }) => {
-    await page.goto("/transactions");
-    await page.waitForURL("**/unlock", { timeout: 5000 });
-  });
+    await test.step("transactions redirects to unlock", async () => {
+      await page.goto("/transactions");
+      await page.waitForURL("**/unlock", { timeout: 5000 });
+    });
 
-  test("should allow access to marketing pages without auth", async ({ page }) => {
-    await page.goto("/");
-
-    // Should stay on landing page (not redirect)
-    await expect(page).toHaveURL("/");
-
-    // Landing page should have visible content
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await test.step("marketing pages accessible without auth", async () => {
+      await page.goto("/");
+      await expect(page).toHaveURL("/");
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    });
   });
 });

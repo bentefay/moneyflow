@@ -66,18 +66,13 @@ pnpm lint         # ESLint check
 pnpm tsc --noEmit # Type check
 ```
 
-### Auto-Approved Terminal Commands
-
-The following commands can be run without user confirmation:
-
-- `pnpm vitest` - Unit tests
-- `pnpm typecheck` / `pnpm tsc` - Type checking
-
 ### Terminal Command Notes
 
 Keep this section updated with commands for this environment:
 
-- `cat` - Aliased to `bat`. Will block for large files by default. Use `bat -P` to disable pager.
+- `cat` - always use `bat -P` (otherwise will use bat with pager for large files).
+- `pnpm vitest` - Unit tests
+- `pnpm typecheck` / `pnpm tsc` - Type checking
 
 ## Key Architecture Decisions
 
@@ -101,14 +96,24 @@ See: `.github/instructions/sync.instructions.md`
 API requests are signed with Ed25519 keys derived from seed phrase. No passwords.
 See: `.github/instructions/trpc.instructions.md`
 
-### 5. Money as Integer Minor Units
+### 5. Automatic Vault Creation on First Login
+
+When a user creates their identity or unlocks for the first time, the system **automatically creates a default "My Vault"** so they never see an empty state. This happens:
+
+- After confirming seed phrase on `/new-user`
+- After unlocking on `/unlock` if user has no vaults (edge case)
+
+The vault is initialized with default statuses ("For Review", "Paid") and empty collections.
+See: `src/lib/vault/ensure-default.ts`, `src/lib/crdt/defaults.ts`
+
+### 6. Money as Integer Minor Units
 
 All monetary amounts are stored as integers in minor units (cents for USD, yen for JPY).
 Use `toMinorUnitsForCurrency()` for conversion based on currency's decimal places.
 Currency resolution: OFX CURDEF → Account currency → User default → Vault default → USD.
 See: `src/lib/domain/currency.ts`
 
-### 6. Use Established Libraries
+### 7. Use Established Libraries
 
 Do NOT write custom implementations of well-known algorithms. Use battle-tested npm packages:
 
