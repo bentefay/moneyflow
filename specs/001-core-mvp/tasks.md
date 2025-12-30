@@ -669,25 +669,47 @@ With 2+ developers after Phase 2:
 
 ---
 
+---
+
+## Phase 14: Investigation & Future Improvements
+
+**Purpose**: Research and evaluate potential library/framework upgrades and enhancements
+
+### Library Investigations
+
+- [ ] T201 [P] Investigate Uppy 5.0 (https://uppy.io/blog/uppy-5.0/) as replacement for custom FileDropzone component
+  - Current: Custom HTML5 drag-and-drop implementation in src/components/features/import/FileDropzone.tsx
+  - Evaluate: Bundle size impact, features (progress, resumable uploads, file previews), integration complexity
+  - Document findings in specs/001-core-mvp/research/uppy-evaluation.md
+
+- [ ] T202 [P] Investigate animate-ui shadcn registry components (https://animate-ui.com/docs/components)
+  - Focus on /radix/ components: Dialog, Alert Dialog, Dropdown Menu, Tooltip, etc.
+  - Evaluate: Animation quality, accessibility, bundle size, compatibility with existing shadcn/ui setup
+  - Compare with current @radix-ui/* primitives + tw-animate-css setup
+  - Document findings in specs/001-core-mvp/research/animate-ui-evaluation.md
+
+---
+
 ## Task Summary
 
-| Phase | User Story        | Task Count | Tests Included |
-| ----- | ----------------- | ---------- | -------------- |
-| 1     | Setup             | 8          | -              |
-| 2     | Foundational      | 34         | 7 (T033a-g)    |
-| 3     | US1: Identity     | 15         | 1 (E2E)        |
-| 4     | US8: Landing      | 7          | -              |
-| 5     | US5: Transactions | 40         | 3 (T089a-c)    |
-| 6     | US6: Import       | 28         | 6 (T101k-p)    |
-| 6a    | Vault Persistence | 31         | 4 (T197-200)   |
-| 7     | US2: Accounts     | 6          | 1 (T106a)      |
-| 8     | US3: People       | 15         | 3 (T118a-c)    |
-| 9     | US4: Tags         | 5          | 1 (T122a)      |
-| 10    | US7: Imports      | 5          | -              |
-| 11    | US9: Statuses     | 5          | -              |
-| 12    | US10: Automations | 18         | 3 (T147a-c)    |
-| 13    | Polish            | 7          | -              |
+| Phase | User Story           | Task Count | Tests Included |
+| ----- | -------------------- | ---------- | -------------- |
+| 1     | Setup                | 8          | -              |
+| 2     | Foundational         | 34         | 7 (T033a-g)    |
+| 3     | US1: Identity        | 15         | 1 (E2E)        |
+| 4     | US8: Landing         | 7          | -              |
+| 5     | US5: Transactions    | 40         | 3 (T089a-c)    |
+| 6     | US6: Import          | 28         | 6 (T101k-p)    |
+| 6a    | Vault Persistence    | 31         | 4 (T197-200)   |
+| 7     | US2: Accounts        | 6          | 1 (T106a)      |
+| 8     | US3: People          | 15         | 3 (T118a-c)    |
+| 9     | US4: Tags            | 5          | 1 (T122a)      |
+| 10    | US7: Imports         | 5          | -              |
+| 11    | US9: Statuses        | 5          | -              |
+| 12    | US10: Automations    | 18         | 3 (T147a-c)    |
+| 13    | Polish               | 7          | -              |
+| 14    | Investigation        | 2          | -              |
 
-**Total**: ~224 tasks (including embedded test tasks)  
+**Total**: ~226 tasks (including embedded test tasks)  
 **MVP (P1 only)**: ~163 tasks (Phases 1-6a with tests)  
 **Test tasks**: 29 (embedded in phases, not deferred)
