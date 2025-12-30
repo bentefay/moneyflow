@@ -89,6 +89,29 @@ See: `.github/instructions/crdt.instructions.md`
 Changes sync via Supabase Realtime with encrypted CRDT updates.
 See: `.github/instructions/sync.instructions.md`
 
+### 3a. Persistence Architecture (Phase 6a)
+
+Vault sync uses a tiered persistence model for reliability and performance:
+
+1. **IndexedDB (Immediate)**: Every local change is immediately encrypted and stored in IndexedDB with `pushed: 0`. This provides crash safety.
+
+2. **Server Sync (Throttled)**: A 2-second throttled sync pushes unpushed ops to `vault_ops` table. Uses `lodash-es` throttle with `{ leading: false, trailing: true }`.
+
+3. **Shallow Snapshots**: When op count exceeds 500 or bytes exceed 5MB, a shallow snapshot is created and pushed. Shallow snapshots contain only current state (no history) for fast cold starts.
+
+4. **Browser Handlers**: `visibilitychange` flushes pending sync, `beforeunload` warns if unpushed ops exist.
+
+Key files:
+- `src/lib/sync/persistence.ts` - IndexedDB operations
+- `src/lib/sync/manager.ts` - SyncManager orchestration
+- `src/components/ui/sync-status.tsx` - UI indicator
+
+Database tables:
+- `vault_ops` - Encrypted ops stored forever (immutable append-only)
+- `vault_snapshots` - Latest shallow snapshot per vault
+
+See: `specs/001-core-mvp/plan.md` Phase 6a
+
 ### 4. Ed25519 Authentication
 
 API requests are signed with Ed25519 keys derived from seed phrase. No passwords.

@@ -12,7 +12,7 @@ import {
   encryptJSON,
   decryptJSON,
 } from "../crypto/encryption";
-import { exportSnapshot, exportUpdates, getVersionEncoded } from "./sync";
+import { exportSnapshot, exportShallowSnapshot, exportUpdates, getVersionEncoded } from "./sync";
 import { Temporal } from "temporal-polyfill";
 
 /**
@@ -69,6 +69,46 @@ export async function createEncryptedSnapshot(
   const encrypted = await encryptForStorage(snapshot, vaultKey);
 
   // Get version vector for metadata (encoded as bytes for storage)
+  const versionVectorBytes = getVersionEncoded(doc);
+
+  // Convert to base64 for JSON storage
+  const encryptedData = btoa(String.fromCharCode(...encrypted));
+  const versionVectorBase64 = btoa(String.fromCharCode(...versionVectorBytes));
+
+  return {
+    encryptedData,
+    metadata: {
+      version,
+      versionVector: versionVectorBase64,
+      createdAt: Temporal.Now.instant().epochMilliseconds,
+    },
+  };
+}
+
+/**
+ * Exports and encrypts a Loro document as a shallow snapshot.
+ *
+ * Shallow snapshots are smaller as they don't include historical
+ * operations. Used for fast cold start - new clients download the
+ * snapshot then apply ops newer than its version vector.
+ *
+ * @param doc - The LoroDoc to snapshot
+ * @param vaultKey - 32-byte vault encryption key
+ * @param version - Snapshot version number
+ * @returns Encrypted shallow snapshot with metadata
+ */
+export async function createEncryptedShallowSnapshot(
+  doc: LoroDoc,
+  vaultKey: Uint8Array,
+  version: number
+): Promise<EncryptedSnapshot> {
+  // Export shallow snapshot (current state only, no history)
+  const snapshot = exportShallowSnapshot(doc);
+
+  // Encrypt snapshot bytes
+  const encrypted = await encryptForStorage(snapshot, vaultKey);
+
+  // Get version vector for metadata
   const versionVectorBytes = getVersionEncoded(doc);
 
   // Convert to base64 for JSON storage

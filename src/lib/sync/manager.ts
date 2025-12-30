@@ -2,13 +2,24 @@
  * Sync Manager
  *
  * Coordinates sending and receiving encrypted CRDT updates.
- * Manages local state, remote sync, and conflict resolution.
+ * Uses the new persistence architecture (Phase 6a):
+ *
+ * - IndexedDB: Immediate writes on every change, ops tracked with `pushed` flag
+ * - Server sync: Throttled (2s via lodash-es), batch push of unpushed ops
+ * - Snapshots: Client creates when threshold exceeded (500 ops or 5MB)
+ *
+ * Flow:
+ * 1. subscribeLocalUpdates fires after each loro-mirror commit
+ * 2. Op encrypted & saved to IndexedDB immediately
+ * 3. Throttled server sync pushes all unpushed ops
+ * 4. On visibilitychange/beforeunload, flush pending sync
  */
 
 import { LoroDoc, VersionVector } from "loro-crdt";
+import { throttle } from "lodash-es";
 import {
   createEncryptedUpdate,
-  createEncryptedSnapshot,
+  createEncryptedShallowSnapshot,
   loadEncryptedSnapshot,
   decryptUpdate,
   type EncryptedUpdate,
@@ -17,6 +28,25 @@ import {
 import { exportSnapshot, exportUpdates, importUpdates, getVersionEncoded } from "@/lib/crdt/sync";
 import { VaultRealtimeSync, createVaultRealtimeSync } from "@/lib/supabase/realtime";
 import { Temporal } from "temporal-polyfill";
+import {
+  appendOp,
+  getUnpushedOps,
+  hasUnpushedOps,
+  markOpsPushed,
+  countOpsSinceSnapshot,
+  saveLocalSnapshot,
+  loadLocalSnapshot,
+  clearVaultData,
+  type LocalOp,
+  type LocalSnapshot,
+} from "./persistence";
+
+/** Ops count threshold for creating snapshot */
+const SNAPSHOT_OP_THRESHOLD = 500;
+/** Bytes threshold for creating snapshot (5MB) */
+const SNAPSHOT_BYTE_THRESHOLD = 5 * 1024 * 1024;
+/** Server sync throttle interval (ms) */
+const SERVER_SYNC_THROTTLE_MS = 2000;
 
 /**
  * Options for creating a sync manager.
@@ -36,9 +66,37 @@ export interface SyncManagerOptions {
       getSnapshot: {
         query: (input: {
           vaultId: string;
-        }) => Promise<{ encryptedData: string; version: number } | null>;
+        }) => Promise<{
+          encryptedData: string;
+          versionVector: string;
+          version?: number;
+        } | null>;
       };
-      saveSnapshot: {
+      getUpdates: {
+        query: (input: {
+          vaultId: string;
+          versionVector: string;
+          hasUnpushed: boolean;
+        }) => Promise<
+          | { type: "ops"; ops: Array<{ id: string; encryptedData: string; versionVector: string }> }
+          | { type: "use_snapshot"; snapshotVersionVector: string }
+        >;
+      };
+      pushOps: {
+        mutate: (input: {
+          vaultId: string;
+          ops: Array<{ id: string; encryptedData: string; versionVector: string }>;
+        }) => Promise<{ insertedIds: string[] }>;
+      };
+      pushSnapshot: {
+        mutate: (input: {
+          vaultId: string;
+          encryptedData: string;
+          versionVector: string;
+        }) => Promise<{ success: boolean }>;
+      };
+      // Legacy methods (deprecated)
+      saveSnapshot?: {
         mutate: (input: {
           vaultId: string;
           encryptedData: string;
@@ -46,14 +104,7 @@ export interface SyncManagerOptions {
           version: number;
         }) => Promise<void>;
       };
-      getUpdates: {
-        query: (input: {
-          vaultId: string;
-          afterVersion?: number;
-          limit?: number;
-        }) => Promise<{ id: string; encryptedData: string }[]>;
-      };
-      pushUpdate: {
+      pushUpdate?: {
         mutate: (input: {
           vaultId: string;
           encryptedData: string;
@@ -75,7 +126,7 @@ export interface SyncManagerOptions {
 /**
  * Sync state.
  */
-export type SyncState = "idle" | "syncing" | "error";
+export type SyncState = "idle" | "syncing" | "saving" | "error";
 
 /**
  * Manages synchronization of a Loro document with the server.
@@ -95,8 +146,11 @@ export class SyncManager {
   private pendingUpdates: EncryptedUpdate[] = [];
   private isSyncing = false;
   private isInitialized = false;
-  private syncDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   private autoSyncEnabled = true;
+  private unsubscribeLocalUpdates: (() => void) | null = null;
+  private throttledServerSync: ReturnType<typeof throttle> | null = null;
+  private visibilityHandler: (() => void) | null = null;
+  private beforeUnloadHandler: ((e: BeforeUnloadEvent) => void) | null = null;
 
   constructor(options: SyncManagerOptions) {
     this.vaultId = options.vaultId;
@@ -107,11 +161,18 @@ export class SyncManager {
     this.onRemoteUpdate = options.onRemoteUpdate;
     this.onSyncStateChange = options.onSyncStateChange;
     this.onError = options.onError;
+
+    // Create throttled server sync
+    this.throttledServerSync = throttle(
+      () => this.pushToServer(),
+      SERVER_SYNC_THROTTLE_MS,
+      { leading: false, trailing: true }
+    );
   }
 
   /**
    * Initialize the sync manager.
-   * Loads initial state from server and subscribes to updates.
+   * Loads initial state from IndexedDB/server and subscribes to updates.
    */
   async initialize(): Promise<void> {
     if (this.isInitialized) {
@@ -121,7 +182,7 @@ export class SyncManager {
     this.setSyncState("syncing");
 
     try {
-      // Load initial snapshot from server
+      // Load initial state (IndexedDB first, then server)
       await this.loadInitialState();
 
       // Subscribe to realtime updates
@@ -141,6 +202,9 @@ export class SyncManager {
       // Set up document change listener for auto-sync
       this.setupAutoSync();
 
+      // Set up visibility and beforeunload handlers
+      this.setupBrowserHandlers();
+
       this.isInitialized = true;
       this.setSyncState("idle");
     } catch (error) {
@@ -152,78 +216,177 @@ export class SyncManager {
 
   /**
    * Set up automatic sync on document changes.
+   * Uses subscribeLocalUpdates which fires after each loro-mirror commit.
    */
   private setupAutoSync(): void {
-    // Subscribe to document changes
-    this.doc.subscribe((event) => {
+    // Subscribe to local updates from the document
+    this.unsubscribeLocalUpdates = this.doc.subscribeLocalUpdates(async (update: Uint8Array) => {
       if (!this.autoSyncEnabled) return;
-      if (event.by === "import") return; // Don't sync imported changes (they came from remote)
 
-      // Debounce sync to batch rapid changes
-      if (this.syncDebounceTimer) {
-        clearTimeout(this.syncDebounceTimer);
-      }
+      try {
+        // 1. Encrypt the update immediately
+        const encryptedData = await this.encryptUpdate(update);
+        const versionVector = this.getVersionVectorString();
+        const opId = crypto.randomUUID();
 
-      this.syncDebounceTimer = setTimeout(() => {
-        this.pushChanges().catch((error) => {
-          console.error("Auto-sync failed:", error);
-          this.onError?.(error instanceof Error ? error : new Error(String(error)));
+        // 2. Save to IndexedDB immediately (with pushed=false)
+        await appendOp({
+          id: opId,
+          vault_id: this.vaultId,
+          encrypted_data: encryptedData,
+          version_vector: versionVector,
+          pushed: false,
         });
-      }, 500);
+
+        // 3. Update UI to show "saving" state
+        this.setSyncState("saving");
+
+        // 4. Schedule throttled server sync
+        this.throttledServerSync?.();
+      } catch (error) {
+        console.error("Failed to save local update:", error);
+        this.onError?.(error instanceof Error ? error : new Error(String(error)));
+      }
     });
   }
 
   /**
-   * Load initial state from the server.
+   * Set up browser handlers for visibility change and beforeunload.
+   */
+  private setupBrowserHandlers(): void {
+    if (typeof window === "undefined") return;
+
+    // Flush on visibility change (user switches tabs)
+    this.visibilityHandler = () => {
+      if (document.visibilityState === "hidden") {
+        this.throttledServerSync?.flush();
+      }
+    };
+    document.addEventListener("visibilitychange", this.visibilityHandler);
+
+    // Warn on beforeunload if there are unpushed changes
+    this.beforeUnloadHandler = async (e: BeforeUnloadEvent) => {
+      const hasUnpushed = await hasUnpushedOps(this.vaultId);
+      if (hasUnpushed) {
+        // Attempt to flush
+        this.throttledServerSync?.flush();
+        // Show browser warning
+        e.preventDefault();
+        e.returnValue = "You have unsaved changes.";
+      }
+    };
+    window.addEventListener("beforeunload", this.beforeUnloadHandler);
+  }
+
+  /**
+   * Encrypt a CRDT update using the vault key.
+   */
+  private async encryptUpdate(update: Uint8Array): Promise<string> {
+    const { encryptForStorage } = await import("@/lib/crypto/encryption");
+    const encrypted = await encryptForStorage(update, this.vaultKey);
+    return btoa(String.fromCharCode(...encrypted));
+  }
+
+  /**
+   * Get the current version vector as a base64 string.
+   */
+  private getVersionVectorString(): string {
+    const versionBytes = getVersionEncoded(this.doc);
+    return btoa(String.fromCharCode(...versionBytes));
+  }
+
+  /**
+   * Load initial state from IndexedDB and/or server.
    */
   private async loadInitialState(): Promise<void> {
+    // Try to load from IndexedDB first
+    const localSnapshot = await loadLocalSnapshot(this.vaultId);
+    const localUnpushed = await getUnpushedOps(this.vaultId);
+    const hasLocal = localSnapshot !== null || localUnpushed.length > 0;
+
+    if (localSnapshot) {
+      // Load local snapshot
+      await this.applySnapshot(localSnapshot.encrypted_data);
+      console.log("SyncManager: Loaded snapshot from IndexedDB");
+    }
+
+    // Apply any locally cached ops (including unpushed)
+    // This would require storing all ops locally, which we can add later
+    // For now, we only track unpushed ops
+
     if (!this.trpc) {
-      console.log("SyncManager: No tRPC client, skipping initial load");
+      console.log("SyncManager: No tRPC client, using local state only");
       return;
     }
 
     try {
-      // Get the latest snapshot
-      const snapshot = await this.trpc.sync.getSnapshot.query({ vaultId: this.vaultId });
+      // Check if we have unpushed ops
+      const hasUnpushed = await hasUnpushedOps(this.vaultId);
+      const versionVector = this.getVersionVectorString();
 
-      if (snapshot) {
-        // Decrypt and load the snapshot
-        const decryptedDoc = await loadEncryptedSnapshot(
-          {
-            encryptedData: snapshot.encryptedData,
-            metadata: {
-              version: snapshot.version,
-              versionVector: "", // Not needed for loading
-              createdAt: 0, // Not needed for loading
-            },
-          },
-          this.vaultKey
-        );
+      // Get updates from server
+      const response = await this.trpc.sync.getUpdates.query({
+        vaultId: this.vaultId,
+        versionVector,
+        hasUnpushed,
+      });
 
-        // Import the snapshot into our document
-        const snapshotBytes = decryptedDoc.export({ mode: "snapshot" });
-        this.doc.import(snapshotBytes);
-        this.snapshotVersion = snapshot.version;
-
-        // Get any updates after the snapshot
-        const updates = await this.trpc.sync.getUpdates.query({
-          vaultId: this.vaultId,
-          afterVersion: snapshot.version,
-        });
-
-        // Apply each update
-        for (const update of updates) {
-          await this.applyRemoteUpdate(update.encryptedData);
+      if (response.type === "use_snapshot") {
+        // Server says to use snapshot (too many ops)
+        const snapshot = await this.trpc.sync.getSnapshot.query({ vaultId: this.vaultId });
+        if (snapshot) {
+          await this.applySnapshot(snapshot.encryptedData);
+          // Save to local IndexedDB
+          await saveLocalSnapshot({
+            vault_id: this.vaultId,
+            encrypted_data: snapshot.encryptedData,
+            version_vector: snapshot.versionVector,
+          });
+          console.log("SyncManager: Loaded snapshot from server");
         }
+      } else if (response.type === "ops") {
+        // Apply ops from server
+        for (const op of response.ops) {
+          await this.applyRemoteUpdate(op.encryptedData);
+        }
+        console.log(`SyncManager: Applied ${response.ops.length} ops from server`);
       }
 
-      // Store current version as last synced
+      // Push any unpushed local ops to server
+      if (hasUnpushed) {
+        await this.pushToServer();
+      }
+
+      // Update last synced version
       this.lastSyncedVersion = this.doc.version();
 
       console.log("SyncManager: Initial state loaded successfully");
     } catch (error) {
-      console.error("Failed to load initial state:", error);
-      throw error;
+      console.error("Failed to load initial state from server:", error);
+      // Continue with local state if available
+      if (!hasLocal) {
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * Apply an encrypted snapshot to the document.
+   */
+  private async applySnapshot(encryptedData: string): Promise<void> {
+    this.autoSyncEnabled = false;
+    try {
+      const decryptedDoc = await loadEncryptedSnapshot(
+        {
+          encryptedData,
+          metadata: { version: 0, versionVector: "", createdAt: 0 },
+        },
+        this.vaultKey
+      );
+      const snapshotBytes = decryptedDoc.export({ mode: "snapshot" });
+      this.doc.import(snapshotBytes);
+    } finally {
+      this.autoSyncEnabled = true;
     }
   }
 
@@ -253,9 +416,9 @@ export class SyncManager {
   }
 
   /**
-   * Push local changes to the server.
+   * Push unpushed ops to server.
    */
-  async pushChanges(): Promise<void> {
+  private async pushToServer(): Promise<void> {
     if (this.isSyncing || !this.trpc) {
       return;
     }
@@ -264,39 +427,31 @@ export class SyncManager {
     this.setSyncState("syncing");
 
     try {
-      // Export updates since last sync
-      const updates = this.lastSyncedVersion
-        ? exportUpdates(this.doc, this.lastSyncedVersion)
-        : exportSnapshot(this.doc);
+      // Get unpushed ops from IndexedDB
+      const unpushedOps = await getUnpushedOps(this.vaultId);
 
-      if (updates.byteLength === 0) {
-        // No changes
+      if (unpushedOps.length === 0) {
         this.setSyncState("idle");
         return;
       }
 
-      // Encrypt the update
-      const encryptedUpdate = await createEncryptedUpdate(
-        this.doc,
-        this.vaultKey,
-        this.snapshotVersion,
-        this.lastSyncedVersion ?? undefined
-      );
-
-      // Get version vector
-      const versionVector = btoa(String.fromCharCode(...getVersionEncoded(this.doc)));
-
-      // Generate HLC timestamp
-      const hlcTimestamp = generateHlcTimestamp();
-
       // Push to server
-      await this.trpc.sync.pushUpdate.mutate({
+      const result = await this.trpc.sync.pushOps.mutate({
         vaultId: this.vaultId,
-        encryptedData: encryptedUpdate.encryptedData,
-        baseSnapshotVersion: this.snapshotVersion,
-        hlcTimestamp,
-        versionVector,
+        ops: unpushedOps.map((op) => ({
+          id: op.id,
+          encryptedData: op.encrypted_data,
+          versionVector: op.version_vector,
+        })),
       });
+
+      // Mark as pushed in IndexedDB
+      if (result.insertedIds.length > 0) {
+        await markOpsPushed(result.insertedIds);
+      }
+
+      // Check if we should create a snapshot
+      await this.maybeCreateSnapshot();
 
       // Update last synced version
       this.lastSyncedVersion = this.doc.version();
@@ -305,50 +460,79 @@ export class SyncManager {
     } catch (error) {
       this.setSyncState("error");
       this.onError?.(error instanceof Error ? error : new Error(String(error)));
-      throw error;
+      // Don't throw - let throttled sync retry
+      console.error("Failed to push to server:", error);
     } finally {
       this.isSyncing = false;
     }
   }
 
   /**
-   * Save a full snapshot to the server.
-   * Used periodically to compact updates.
+   * Check if we should create a snapshot and do so if thresholds exceeded.
    */
-  async saveSnapshot(): Promise<void> {
-    if (!this.trpc) {
-      console.log("SyncManager: No tRPC client, skipping snapshot save");
-      return;
-    }
+  private async maybeCreateSnapshot(): Promise<void> {
+    if (!this.trpc) return;
 
-    this.setSyncState("syncing");
+    const { count, bytes } = await countOpsSinceSnapshot(this.vaultId);
+
+    if (count >= SNAPSHOT_OP_THRESHOLD || bytes >= SNAPSHOT_BYTE_THRESHOLD) {
+      await this.createAndPushSnapshot();
+    }
+  }
+
+  /**
+   * Create a snapshot and push to server.
+   */
+  private async createAndPushSnapshot(): Promise<void> {
+    if (!this.trpc) return;
 
     try {
       this.snapshotVersion++;
-      const encryptedSnapshot = await createEncryptedSnapshot(
+      // Use shallow snapshot - smaller, contains only current state
+      const encryptedSnapshot = await createEncryptedShallowSnapshot(
         this.doc,
         this.vaultKey,
         this.snapshotVersion
       );
 
-      const versionVector = btoa(String.fromCharCode(...getVersionEncoded(this.doc)));
+      const versionVector = this.getVersionVectorString();
 
       // Push to server
-      await this.trpc.sync.saveSnapshot.mutate({
+      await this.trpc.sync.pushSnapshot.mutate({
         vaultId: this.vaultId,
         encryptedData: encryptedSnapshot.encryptedData,
         versionVector,
-        version: this.snapshotVersion,
       });
 
-      console.log("SyncManager: Snapshot saved successfully");
-      this.setSyncState("idle");
+      // Save locally
+      await saveLocalSnapshot({
+        vault_id: this.vaultId,
+        encrypted_data: encryptedSnapshot.encryptedData,
+        version_vector: versionVector,
+      });
+
+      console.log("SyncManager: Snapshot created and pushed");
     } catch (error) {
-      this.snapshotVersion--; // Rollback version on error
-      this.setSyncState("error");
-      this.onError?.(error instanceof Error ? error : new Error(String(error)));
-      throw error;
+      this.snapshotVersion--; // Rollback
+      console.error("Failed to create snapshot:", error);
+      // Don't throw - snapshots are optimization, not critical
     }
+  }
+
+  /**
+   * Push local changes to the server (legacy method for compatibility).
+   * @deprecated Use the automatic sync instead
+   */
+  async pushChanges(): Promise<void> {
+    await this.pushToServer();
+  }
+
+  /**
+   * Save a full snapshot to the server (legacy method for compatibility).
+   * @deprecated Snapshots are now created automatically when thresholds are exceeded
+   */
+  async saveSnapshot(): Promise<void> {
+    await this.createAndPushSnapshot();
   }
 
   /**
@@ -357,20 +541,44 @@ export class SyncManager {
    */
   async forceSync(): Promise<void> {
     this.lastSyncedVersion = null;
-    await this.pushChanges();
+    await this.pushToServer();
+  }
+
+  /**
+   * Check if there are unpushed changes.
+   */
+  async hasUnsavedChanges(): Promise<boolean> {
+    return hasUnpushedOps(this.vaultId);
   }
 
   /**
    * Disconnect and cleanup.
    */
   async disconnect(): Promise<void> {
-    if (this.syncDebounceTimer) {
-      clearTimeout(this.syncDebounceTimer);
-      this.syncDebounceTimer = null;
+    // Cancel throttled sync
+    this.throttledServerSync?.cancel();
+    this.throttledServerSync = null;
+
+    // Unsubscribe from local updates
+    this.unsubscribeLocalUpdates?.();
+    this.unsubscribeLocalUpdates = null;
+
+    // Remove browser handlers
+    if (typeof window !== "undefined") {
+      if (this.visibilityHandler) {
+        document.removeEventListener("visibilitychange", this.visibilityHandler);
+        this.visibilityHandler = null;
+      }
+      if (this.beforeUnloadHandler) {
+        window.removeEventListener("beforeunload", this.beforeUnloadHandler);
+        this.beforeUnloadHandler = null;
+      }
     }
 
+    // Disconnect realtime
     await this.realtime?.unsubscribe();
     this.realtime = null;
+
     this.isInitialized = false;
     this.autoSyncEnabled = false;
   }

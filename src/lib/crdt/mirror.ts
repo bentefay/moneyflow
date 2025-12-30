@@ -79,6 +79,10 @@ export function createVaultMirror(options: CreateVaultMirrorOptions = {}): {
     checkStateConsistency = false,
   } = options;
 
+  // Enable timestamp recording for version vectors
+  // This allows server-side filtering of ops by timestamp
+  doc.setRecordTimestamp(true);
+
   const mirror = new Mirror({
     doc,
     schema: vaultSchema,
@@ -106,6 +110,10 @@ export function createVaultMirrorFromSnapshot(
 ): { mirror: Mirror<typeof vaultSchema>; doc: LoroDoc } {
   const doc = new LoroDoc();
   doc.import(snapshot);
+
+  // Enable timestamp recording for version vectors
+  // This allows server-side filtering of ops by timestamp
+  doc.setRecordTimestamp(true);
 
   const mirror = new Mirror({
     doc,

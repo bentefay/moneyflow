@@ -375,6 +375,24 @@ A user wants to create automation rules that automatically categorize and alloca
 - **FR-072**: System MUST support multiple users/tabs editing the same vault simultaneously.
 - **FR-073**: System MUST propagate changes to all connected clients in near real-time (target: <500ms).
 
+**Vault Persistence & Sync**
+
+- **FR-073a**: System MUST store all vault operations (ops) forever in `vault_ops` table.
+- **FR-073b**: System MUST store version vector (plaintext) alongside encrypted op data for server-side filtering.
+- **FR-073c**: System MUST store latest shallow snapshot in `vault_snapshots` for fast cold start.
+- **FR-073d**: System MUST refresh server snapshot when ops count since last snapshot exceeds threshold (e.g., 1000) OR total bytes exceed threshold (e.g., 1MB).
+- **FR-073e**: Client MUST persist ops to IndexedDB immediately on each local change (crash safety).
+- **FR-073f**: Client MUST throttle server pushes (e.g., every 2s during activity) using lodash-es throttle.
+- **FR-073g**: Client MUST flush pending ops to server on `visibilitychange` (hidden) and `beforeunload`.
+- **FR-073h**: On cold start, client MUST load local snapshot and become immediately usable, then sync in background.
+- **FR-073i**: When syncing, server MUST decide whether to return ops or redirect to snapshot based on: op count, total bytes, and whether client has unpushed local changes.
+- **FR-073j**: If client has no unpushed ops and server snapshot is newer, client MUST download fresh snapshot instead of applying many ops.
+- **FR-073k**: Client MUST track `pushed: boolean` flag on local ops in IndexedDB.
+- **FR-073l**: System MUST display saving indicator: "Saved" (all ops pushed), "Saving..." (pending ops), or "Offline" (cannot reach server).
+- **FR-073m**: System MUST warn before tab close if unpushed local changes exist (beforeunload confirmation).
+- **FR-073n**: Loro MUST be configured with timestamp mode enabled for wall-clock ordering.
+- **FR-073o**: Shallow snapshots MUST exclude historical ops, include only current state and minimal metadata.
+
 **Vault Selection**
 
 - **FR-074**: System MUST display a vault selector in the top-right header area.

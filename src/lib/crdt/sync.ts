@@ -30,6 +30,24 @@ export function exportSnapshot(doc: LoroDoc): Uint8Array {
 }
 
 /**
+ * Exports a shallow snapshot of the document.
+ *
+ * Shallow snapshots contain only the current state without
+ * historical operations. They're smaller but can't be used
+ * for incremental sync (must use full updates).
+ *
+ * Used for fast cold start - client downloads snapshot,
+ * then applies any ops newer than snapshot's version vector.
+ *
+ * @param doc - The LoroDoc to export
+ * @returns Shallow snapshot bytes
+ */
+export function exportShallowSnapshot(doc: LoroDoc): Uint8Array {
+  // Shallow snapshot requires frontiers - use oplogFrontiers for the full history cutoff
+  return doc.export({ mode: "shallow-snapshot", frontiers: doc.oplogFrontiers() });
+}
+
+/**
  * Exports only the updates since a given version.
  *
  * Used for incremental sync - sends only changes since

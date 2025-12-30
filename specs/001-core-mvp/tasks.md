@@ -298,6 +298,69 @@ Based on plan.md structure:
 
 ---
 
+## Phase 6a: Vault Persistence & Sync Architecture (Priority: P1) 🎯 MVP
+
+**Goal**: Implement robust local-first persistence with IndexedDB caching, throttled server sync, and fast cold start
+
+**Independent Test**: Make edits → see "Saving..." → wait → see "Saved" → close tab → reopen → see all changes instantly from local cache → background sync completes
+
+### Database Schema Updates
+
+- [ ] T170 Create vault_ops table migration (stores ALL ops forever) in supabase/migrations/005_vault_ops.sql
+- [ ] T171 Update vault_snapshots schema (add version_vector column, remove version/hlc_timestamp) in supabase/migrations/005_vault_ops.sql
+- [ ] T172 Create RLS policies for vault_ops table in supabase/migrations/005_vault_ops.sql
+
+### IndexedDB Persistence Layer
+
+- [ ] T173 Add idb dependency for IndexedDB wrapper
+- [ ] T174 Create IndexedDB schema (ops store, snapshots store) in src/lib/sync/persistence.ts
+- [ ] T175 Implement appendOp() - immediate write with pushed flag in src/lib/sync/persistence.ts
+- [ ] T176 Implement getUnpushedOps() - query ops where pushed=false in src/lib/sync/persistence.ts
+- [ ] T177 Implement markOpsPushed() - update pushed flag after server confirm in src/lib/sync/persistence.ts
+- [ ] T178 Implement saveLocalSnapshot() / loadLocalSnapshot() in src/lib/sync/persistence.ts
+- [ ] T179 Implement hasUnpushedOps() for sync decisions in src/lib/sync/persistence.ts
+
+### Server Sync Routes
+
+- [ ] T180 Update sync.pushUpdate to insert into vault_ops instead of vault_updates in src/server/routers/sync.ts
+- [ ] T181 Implement sync.getUpdates with ops-vs-snapshot decision logic in src/server/routers/sync.ts
+- [ ] T182 Implement sync.pushOps (batch insert ops) in src/server/routers/sync.ts
+- [ ] T183 Implement sync.pushSnapshot (client uploads new snapshot when threshold reached) in src/server/routers/sync.ts
+- [ ] T184 Update sync.getSnapshot to use new schema with version_vector in src/server/routers/sync.ts
+
+### SyncManager Updates
+
+- [ ] T185 Add lodash-es dependency for throttle
+- [ ] T186 Refactor SyncManager to use subscribeLocalUpdates in src/lib/sync/manager.ts
+- [ ] T187 Implement throttled server push (2s, trailing) with lodash throttle in src/lib/sync/manager.ts
+- [ ] T188 Implement immediate IndexedDB persistence on local change in src/lib/sync/manager.ts
+- [ ] T189 Implement cold start flow (local snapshot → background sync) in src/lib/sync/manager.ts
+- [ ] T190 Add visibilitychange flush handler in src/lib/sync/manager.ts
+- [ ] T191 Add beforeunload flush + confirmation in src/lib/sync/manager.ts
+- [ ] T191a Implement background snapshot refresh (client creates and uploads when ops/bytes threshold exceeded) in src/lib/sync/manager.ts
+
+### Loro Configuration
+
+- [ ] T192 Enable timestamp mode (setRecordTimestamp) in src/lib/crdt/mirror.ts
+- [ ] T193 Update snapshot export to use shallow-snapshot mode in src/lib/crdt/snapshot.ts
+
+### UI Components
+
+- [ ] T194 Create SyncStatus component (Saved/Saving.../Offline indicator) in src/components/features/sync/SyncStatus.tsx
+- [ ] T195 Create useSyncStatus hook exposing sync state in src/hooks/use-sync-status.ts
+- [ ] T196 Add SyncStatus to app header layout in src/app/(app)/layout.tsx
+
+### Tests for Phase 6a
+
+- [ ] T197 [T] Unit tests for IndexedDB persistence layer in tests/unit/sync/persistence.test.ts
+- [ ] T198 [T] Integration tests for cold start flow in tests/integration/sync-coldstart.test.ts
+- [ ] T199 [T] Integration tests for offline/online sync in tests/integration/sync-offline.test.ts
+- [ ] T200 [T] E2E test: saving indicator and persistence in tests/e2e/sync-persistence.spec.ts
+
+**Checkpoint**: Local-first persistence works. Cold start is instant. Saving indicator accurate. beforeunload warns on unsaved. **Tests passing.**
+
+---
+
 ## Phase 7: User Story 2 - Configure Accounts (Priority: P2)
 
 **Goal**: Users can create and manage financial accounts with ownership percentages
@@ -494,6 +557,7 @@ Phase 2 (Foundational) ← BLOCKS ALL USER STORIES
 │  Phase 4 (US8: Landing) ← Can run parallel with US1           │
 │  Phase 5 (US5: Transactions) ← Core feature, enables most others
 │  Phase 6 (US6: Import) ← Depends on US5 transaction schema    │
+│  Phase 6a (Vault Persistence) ← Local-first sync architecture │
 │      ↓                                                        │
 │  Phase 7-12 (US2,3,4,7,9,10) ← Can run in parallel after US5  │
 └───────────────────────────────────────────────────────────────┘
@@ -572,9 +636,10 @@ T094, T095, T096, T097, T098
 4. ✅ Phase 4: US8 - Marketing Landing Page
 5. ✅ Phase 5: US5 - View & Edit Transactions
 6. ✅ Phase 6: US6 - Import Transactions
-7. **STOP**: MVP is complete and deployable
+7. 🔄 Phase 6a: Vault Persistence & Sync Architecture
+8. **STOP**: MVP is complete and deployable
 
-**MVP Scope**: 123 tasks (T001-T101j including T029a-T029i)
+**MVP Scope**: 163 tasks (T001-T200, Phases 1-6a)
 
 ### Incremental Delivery
 
@@ -612,6 +677,7 @@ With 2+ developers after Phase 2:
 | 4     | US8: Landing      | 7          | -              |
 | 5     | US5: Transactions | 40         | 3 (T089a-c)    |
 | 6     | US6: Import       | 28         | 6 (T101k-p)    |
+| 6a    | Vault Persistence | 31         | 4 (T197-200)   |
 | 7     | US2: Accounts     | 6          | 1 (T106a)      |
 | 8     | US3: People       | 15         | 3 (T118a-c)    |
 | 9     | US4: Tags         | 5          | 1 (T122a)      |
@@ -620,6 +686,6 @@ With 2+ developers after Phase 2:
 | 12    | US10: Automations | 18         | 3 (T147a-c)    |
 | 13    | Polish            | 7          | -              |
 
-**Total**: ~193 tasks (including embedded test tasks)  
-**MVP (P1 only)**: ~132 tasks (Phases 1-6 with tests)  
-**Test tasks**: 25 (embedded in phases, not deferred)
+**Total**: ~224 tasks (including embedded test tasks)  
+**MVP (P1 only)**: ~163 tasks (Phases 1-6a with tests)  
+**Test tasks**: 29 (embedded in phases, not deferred)
