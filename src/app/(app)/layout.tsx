@@ -84,7 +84,8 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
     const vaults = vaultListQuery.data?.vaults ?? [];
     return vaults.map((v) => {
       const shortId = v.id.slice(0, 6);
-      const name = activeVault?.id === v.id ? activeVault.name ?? `Vault ${shortId}` : `Vault ${shortId}`;
+      const name =
+        activeVault?.id === v.id ? (activeVault.name ?? `Vault ${shortId}`) : `Vault ${shortId}`;
 
       return {
         id: v.id,

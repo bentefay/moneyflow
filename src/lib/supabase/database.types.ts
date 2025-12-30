@@ -50,6 +50,7 @@ export type Database = {
         Row: {
           created_at: string | null;
           created_by: string;
+          enc_public_key: string | null;
           encrypted_vault_key: string;
           expires_at: string;
           id: string;
@@ -60,6 +61,7 @@ export type Database = {
         Insert: {
           created_at?: string | null;
           created_by: string;
+          enc_public_key?: string | null;
           encrypted_vault_key: string;
           expires_at: string;
           id?: string;
@@ -70,6 +72,7 @@ export type Database = {
         Update: {
           created_at?: string | null;
           created_by?: string;
+          enc_public_key?: string | null;
           encrypted_vault_key?: string;
           expires_at?: string;
           id?: string;

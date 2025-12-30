@@ -10,7 +10,7 @@
  * - Server is source of truth; this is a cache
  */
 
-import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
+import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 
 // ============================================
 // Types
@@ -60,9 +60,9 @@ interface VaultDBSchema extends DBSchema {
     key: string; // op id
     value: LocalOp;
     indexes: {
-      'by-vault': string;
-      'by-vault-pushed': [string, number]; // [vault_id, pushed ? 1 : 0]
-      'by-vault-created': [string, number]; // [vault_id, created_at]
+      "by-vault": string;
+      "by-vault-pushed": [string, number]; // [vault_id, pushed ? 1 : 0]
+      "by-vault-created": [string, number]; // [vault_id, created_at]
     };
   };
   snapshots: {
@@ -79,7 +79,7 @@ interface VaultDBSchema extends DBSchema {
 // Database Instance
 // ============================================
 
-const DB_NAME = 'moneyflow-vault';
+const DB_NAME = "moneyflow-vault";
 const DB_VERSION = 1;
 
 let dbInstance: IDBPDatabase<VaultDBSchema> | null = null;
@@ -95,21 +95,21 @@ export async function getDB(): Promise<IDBPDatabase<VaultDBSchema>> {
   dbInstance = await openDB<VaultDBSchema>(DB_NAME, DB_VERSION, {
     upgrade(db) {
       // Ops store
-      if (!db.objectStoreNames.contains('ops')) {
-        const opsStore = db.createObjectStore('ops', { keyPath: 'id' });
-        opsStore.createIndex('by-vault', 'vault_id');
-        opsStore.createIndex('by-vault-pushed', ['vault_id', 'pushed']);
-        opsStore.createIndex('by-vault-created', ['vault_id', 'created_at']);
+      if (!db.objectStoreNames.contains("ops")) {
+        const opsStore = db.createObjectStore("ops", { keyPath: "id" });
+        opsStore.createIndex("by-vault", "vault_id");
+        opsStore.createIndex("by-vault-pushed", ["vault_id", "pushed"]);
+        opsStore.createIndex("by-vault-created", ["vault_id", "created_at"]);
       }
 
       // Snapshots store (one per vault)
-      if (!db.objectStoreNames.contains('snapshots')) {
-        db.createObjectStore('snapshots', { keyPath: 'vault_id' });
+      if (!db.objectStoreNames.contains("snapshots")) {
+        db.createObjectStore("snapshots", { keyPath: "vault_id" });
       }
 
       // Sync metadata store
-      if (!db.objectStoreNames.contains('sync_meta')) {
-        db.createObjectStore('sync_meta', { keyPath: 'key' });
+      if (!db.objectStoreNames.contains("sync_meta")) {
+        db.createObjectStore("sync_meta", { keyPath: "key" });
       }
     },
   });
@@ -147,7 +147,7 @@ export async function deleteDB(): Promise<void> {
  * Append a new op to IndexedDB (immediate write for crash safety)
  */
 export async function appendOp(
-  op: Omit<LocalOp, 'pushed' | 'created_at'> & { pushed?: boolean }
+  op: Omit<LocalOp, "pushed" | "created_at"> & { pushed?: boolean }
 ): Promise<void> {
   const db = await getDB();
   const fullOp: LocalOp = {
@@ -155,7 +155,7 @@ export async function appendOp(
     pushed: op.pushed ? 1 : 0,
     created_at: Date.now(),
   };
-  await db.put('ops', fullOp);
+  await db.put("ops", fullOp);
 }
 
 /**
@@ -164,7 +164,7 @@ export async function appendOp(
 export async function getUnpushedOps(vaultId: string): Promise<LocalOp[]> {
   const db = await getDB();
   // Query by compound index [vault_id, pushed=false]
-  return db.getAllFromIndex('ops', 'by-vault-pushed', [vaultId, 0]);
+  return db.getAllFromIndex("ops", "by-vault-pushed", [vaultId, 0]);
 }
 
 /**
@@ -172,7 +172,7 @@ export async function getUnpushedOps(vaultId: string): Promise<LocalOp[]> {
  */
 export async function hasUnpushedOps(vaultId: string): Promise<boolean> {
   const db = await getDB();
-  const count = await db.countFromIndex('ops', 'by-vault-pushed', [vaultId, 0]);
+  const count = await db.countFromIndex("ops", "by-vault-pushed", [vaultId, 0]);
   return count > 0;
 }
 
@@ -181,7 +181,7 @@ export async function hasUnpushedOps(vaultId: string): Promise<boolean> {
  */
 export async function markOpsPushed(opIds: string[]): Promise<void> {
   const db = await getDB();
-  const tx = db.transaction('ops', 'readwrite');
+  const tx = db.transaction("ops", "readwrite");
 
   await Promise.all(
     opIds.map(async (id) => {
@@ -201,22 +201,16 @@ export async function markOpsPushed(opIds: string[]): Promise<void> {
  */
 export async function getAllOps(vaultId: string): Promise<LocalOp[]> {
   const db = await getDB();
-  return db.getAllFromIndex('ops', 'by-vault', vaultId);
+  return db.getAllFromIndex("ops", "by-vault", vaultId);
 }
 
 /**
  * Get ops created after a certain timestamp
  */
-export async function getOpsSince(
-  vaultId: string,
-  sinceTimestamp: number
-): Promise<LocalOp[]> {
+export async function getOpsSince(vaultId: string, sinceTimestamp: number): Promise<LocalOp[]> {
   const db = await getDB();
-  const range = IDBKeyRange.bound(
-    [vaultId, sinceTimestamp],
-    [vaultId, Infinity]
-  );
-  return db.getAllFromIndex('ops', 'by-vault-created', range);
+  const range = IDBKeyRange.bound([vaultId, sinceTimestamp], [vaultId, Infinity]);
+  return db.getAllFromIndex("ops", "by-vault-created", range);
 }
 
 /**
@@ -227,7 +221,7 @@ export async function countOpsSinceSnapshot(vaultId: string): Promise<{
   bytes: number;
 }> {
   const db = await getDB();
-  const snapshot = await db.get('snapshots', vaultId);
+  const snapshot = await db.get("snapshots", vaultId);
   const sinceTimestamp = snapshot?.updated_at ?? 0;
 
   const ops = await getOpsSince(vaultId, sinceTimestamp);
@@ -243,8 +237,8 @@ export async function countOpsSinceSnapshot(vaultId: string): Promise<{
  */
 export async function clearOps(vaultId: string): Promise<void> {
   const db = await getDB();
-  const tx = db.transaction('ops', 'readwrite');
-  const index = tx.store.index('by-vault');
+  const tx = db.transaction("ops", "readwrite");
+  const index = tx.store.index("by-vault");
 
   let cursor = await index.openCursor(vaultId);
   while (cursor) {
@@ -263,24 +257,22 @@ export async function clearOps(vaultId: string): Promise<void> {
  * Save or update local snapshot for a vault
  */
 export async function saveLocalSnapshot(
-  snapshot: Omit<LocalSnapshot, 'updated_at'>
+  snapshot: Omit<LocalSnapshot, "updated_at">
 ): Promise<void> {
   const db = await getDB();
   const fullSnapshot: LocalSnapshot = {
     ...snapshot,
     updated_at: Date.now(),
   };
-  await db.put('snapshots', fullSnapshot);
+  await db.put("snapshots", fullSnapshot);
 }
 
 /**
  * Load local snapshot for a vault
  */
-export async function loadLocalSnapshot(
-  vaultId: string
-): Promise<LocalSnapshot | undefined> {
+export async function loadLocalSnapshot(vaultId: string): Promise<LocalSnapshot | undefined> {
   const db = await getDB();
-  return db.get('snapshots', vaultId);
+  return db.get("snapshots", vaultId);
 }
 
 /**
@@ -288,7 +280,7 @@ export async function loadLocalSnapshot(
  */
 export async function deleteLocalSnapshot(vaultId: string): Promise<void> {
   const db = await getDB();
-  await db.delete('snapshots', vaultId);
+  await db.delete("snapshots", vaultId);
 }
 
 // ============================================
@@ -304,7 +296,7 @@ export async function setSyncMeta(
   value: string | number | boolean
 ): Promise<void> {
   const db = await getDB();
-  await db.put('sync_meta', {
+  await db.put("sync_meta", {
     key: `${vaultId}:${key}`,
     vault_id: vaultId,
     value,
@@ -319,7 +311,7 @@ export async function getSyncMeta(
   key: string
 ): Promise<string | number | boolean | undefined> {
   const db = await getDB();
-  const meta = await db.get('sync_meta', `${vaultId}:${key}`);
+  const meta = await db.get("sync_meta", `${vaultId}:${key}`);
   return meta?.value;
 }
 
@@ -328,7 +320,7 @@ export async function getSyncMeta(
  */
 export async function clearSyncMeta(vaultId: string): Promise<void> {
   const db = await getDB();
-  const tx = db.transaction('sync_meta', 'readwrite');
+  const tx = db.transaction("sync_meta", "readwrite");
 
   let cursor = await tx.store.openCursor();
   while (cursor) {
@@ -349,9 +341,5 @@ export async function clearSyncMeta(vaultId: string): Promise<void> {
  * Clear all local data for a vault
  */
 export async function clearVaultData(vaultId: string): Promise<void> {
-  await Promise.all([
-    clearOps(vaultId),
-    deleteLocalSnapshot(vaultId),
-    clearSyncMeta(vaultId),
-  ]);
+  await Promise.all([clearOps(vaultId), deleteLocalSnapshot(vaultId), clearSyncMeta(vaultId)]);
 }

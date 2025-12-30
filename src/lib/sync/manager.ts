@@ -64,21 +64,18 @@ export interface SyncManagerOptions {
   trpc?: {
     sync: {
       getSnapshot: {
-        query: (input: {
-          vaultId: string;
-        }) => Promise<{
+        query: (input: { vaultId: string }) => Promise<{
           encryptedData: string;
           versionVector: string;
           version?: number;
         } | null>;
       };
       getUpdates: {
-        query: (input: {
-          vaultId: string;
-          versionVector: string;
-          hasUnpushed: boolean;
-        }) => Promise<
-          | { type: "ops"; ops: Array<{ id: string; encryptedData: string; versionVector: string }> }
+        query: (input: { vaultId: string; versionVector: string; hasUnpushed: boolean }) => Promise<
+          | {
+              type: "ops";
+              ops: Array<{ id: string; encryptedData: string; versionVector: string }>;
+            }
           | { type: "use_snapshot"; snapshotVersionVector: string }
         >;
       };
@@ -163,11 +160,10 @@ export class SyncManager {
     this.onError = options.onError;
 
     // Create throttled server sync
-    this.throttledServerSync = throttle(
-      () => this.pushToServer(),
-      SERVER_SYNC_THROTTLE_MS,
-      { leading: false, trailing: true }
-    );
+    this.throttledServerSync = throttle(() => this.pushToServer(), SERVER_SYNC_THROTTLE_MS, {
+      leading: false,
+      trailing: true,
+    });
   }
 
   /**

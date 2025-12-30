@@ -25,10 +25,7 @@ export interface SyncStatusProps {
   showLabel?: boolean;
 }
 
-const stateConfig: Record<
-  SyncState,
-  { label: string; dotColor: string; showSpinner: boolean }
-> = {
+const stateConfig: Record<SyncState, { label: string; dotColor: string; showSpinner: boolean }> = {
   idle: {
     label: "Saved",
     dotColor: "bg-green-500",
@@ -65,13 +62,11 @@ export function SyncStatus({
   // Override label if we have unsaved changes but state is idle
   // (this happens when IndexedDB write succeeded but server sync hasn't run yet)
   const displayState =
-    hasUnsavedChanges && state === "idle"
-      ? { ...stateConfig.saving, label: "Saving..." }
-      : config;
+    hasUnsavedChanges && state === "idle" ? { ...stateConfig.saving, label: "Saving..." } : config;
 
   return (
     <div
-      className={cn("flex items-center gap-2 text-sm text-muted-foreground", className)}
+      className={cn("text-muted-foreground flex items-center gap-2 text-sm", className)}
       role="status"
       aria-live="polite"
     >
@@ -81,24 +76,17 @@ export function SyncStatus({
         {displayState.showSpinner && (
           <span
             className={cn(
-              "absolute h-3 w-3 rounded-full opacity-75 animate-ping",
+              "absolute h-3 w-3 animate-ping rounded-full opacity-75",
               displayState.dotColor
             )}
           />
         )}
         {/* Solid dot */}
-        <span
-          className={cn(
-            "relative h-2 w-2 rounded-full",
-            displayState.dotColor
-          )}
-        />
+        <span className={cn("relative h-2 w-2 rounded-full", displayState.dotColor)} />
       </div>
 
       {/* Text label */}
-      {showLabel && (
-        <span className="select-none">{displayState.label}</span>
-      )}
+      {showLabel && <span className="select-none">{displayState.label}</span>}
     </div>
   );
 }

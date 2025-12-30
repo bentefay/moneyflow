@@ -162,10 +162,7 @@ export const syncRouter = router({
     const ops = (opsRaw ?? []) as VaultOp[];
 
     // Calculate total bytes
-    const totalBytes = ops.reduce(
-      (sum, op) => sum + (op.encrypted_data?.length ?? 0),
-      0
-    );
+    const totalBytes = ops.reduce((sum, op) => sum + (op.encrypted_data?.length ?? 0), 0);
 
     // Decision: if client has unpushed changes, MUST return ops
     if (input.hasUnpushed) {
@@ -193,10 +190,7 @@ export const syncRouter = router({
     const snapshot = snapshotRaw as VaultSnapshotExtended | null;
 
     // Decision: if too many ops or too many bytes, tell client to use snapshot
-    if (
-      ops.length > SERVER_OP_COUNT_THRESHOLD ||
-      totalBytes > SERVER_BYTE_THRESHOLD
-    ) {
+    if (ops.length > SERVER_OP_COUNT_THRESHOLD || totalBytes > SERVER_BYTE_THRESHOLD) {
       if (snapshot?.version_vector) {
         return {
           type: "use_snapshot" as const,
@@ -297,31 +291,27 @@ export const syncRouter = router({
 
     // For now, insert a new snapshot with the existing schema
     // Once migration runs, we can use upsert with vault_id as conflict
-    const { error: insertError } = await supabase
-      .from("vault_snapshots")
-      .insert({
-        vault_id: input.vaultId,
-        encrypted_data: input.encryptedData,
-        version: 1, // Use version 1 for new architecture
-        hlc_timestamp: new Date().toISOString(),
-      });
+    const { error: insertError } = await supabase.from("vault_snapshots").insert({
+      vault_id: input.vaultId,
+      encrypted_data: input.encryptedData,
+      version: 1, // Use version 1 for new architecture
+      hlc_timestamp: new Date().toISOString(),
+    });
 
     if (insertError) {
       // Try upsert if insert fails (might be unique constraint on vault_id after migration)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error: upsertError } = await (supabase as any)
-        .from("vault_snapshots")
-        .upsert(
-          {
-            vault_id: input.vaultId,
-            encrypted_data: input.encryptedData,
-            version_vector: input.versionVector,
-            updated_at: new Date().toISOString(),
-            version: 1,
-            hlc_timestamp: new Date().toISOString(),
-          },
-          { onConflict: "vault_id" }
-        );
+      const { error: upsertError } = await (supabase as any).from("vault_snapshots").upsert(
+        {
+          vault_id: input.vaultId,
+          encrypted_data: input.encryptedData,
+          version_vector: input.versionVector,
+          updated_at: new Date().toISOString(),
+          version: 1,
+          hlc_timestamp: new Date().toISOString(),
+        },
+        { onConflict: "vault_id" }
+      );
 
       if (upsertError) {
         throw new Error(`Failed to save snapshot: ${upsertError.message}`);
@@ -378,10 +368,7 @@ export const syncRouter = router({
 
       const ops = (opsData ?? []) as { encrypted_data: string }[];
       opsSinceSnapshot = ops.length;
-      bytesSinceSnapshot = ops.reduce(
-        (sum, op) => sum + (op.encrypted_data?.length ?? 0),
-        0
-      );
+      bytesSinceSnapshot = ops.reduce((sum, op) => sum + (op.encrypted_data?.length ?? 0), 0);
     } catch {
       // vault_ops doesn't exist yet
     }

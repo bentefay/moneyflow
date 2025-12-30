@@ -306,53 +306,53 @@ Based on plan.md structure:
 
 ### Database Schema Updates
 
-- [ ] T170 Create vault_ops table migration (stores ALL ops forever) in supabase/migrations/005_vault_ops.sql
-- [ ] T171 Update vault_snapshots schema (add version_vector column, remove version/hlc_timestamp) in supabase/migrations/005_vault_ops.sql
-- [ ] T172 Create RLS policies for vault_ops table in supabase/migrations/005_vault_ops.sql
+- [x] T170 Create vault_ops table migration (stores ALL ops forever) in supabase/migrations/005_vault_ops.sql
+- [x] T171 Update vault_snapshots schema (add version_vector column, remove version/hlc_timestamp) in supabase/migrations/005_vault_ops.sql
+- [x] T172 Create RLS policies for vault_ops table in supabase/migrations/005_vault_ops.sql
 
 ### IndexedDB Persistence Layer
 
-- [ ] T173 Add idb dependency for IndexedDB wrapper
-- [ ] T174 Create IndexedDB schema (ops store, snapshots store) in src/lib/sync/persistence.ts
-- [ ] T175 Implement appendOp() - immediate write with pushed flag in src/lib/sync/persistence.ts
-- [ ] T176 Implement getUnpushedOps() - query ops where pushed=false in src/lib/sync/persistence.ts
-- [ ] T177 Implement markOpsPushed() - update pushed flag after server confirm in src/lib/sync/persistence.ts
-- [ ] T178 Implement saveLocalSnapshot() / loadLocalSnapshot() in src/lib/sync/persistence.ts
-- [ ] T179 Implement hasUnpushedOps() for sync decisions in src/lib/sync/persistence.ts
+- [x] T173 Add idb dependency for IndexedDB wrapper
+- [x] T174 Create IndexedDB schema (ops store, snapshots store) in src/lib/sync/persistence.ts
+- [x] T175 Implement appendOp() - immediate write with pushed flag in src/lib/sync/persistence.ts
+- [x] T176 Implement getUnpushedOps() - query ops where pushed=false in src/lib/sync/persistence.ts
+- [x] T177 Implement markOpsPushed() - update pushed flag after server confirm in src/lib/sync/persistence.ts
+- [x] T178 Implement saveLocalSnapshot() / loadLocalSnapshot() in src/lib/sync/persistence.ts
+- [x] T179 Implement hasUnpushedOps() for sync decisions in src/lib/sync/persistence.ts
 
 ### Server Sync Routes
 
-- [ ] T180 Update sync.pushUpdate to insert into vault_ops instead of vault_updates in src/server/routers/sync.ts
-- [ ] T181 Implement sync.getUpdates with ops-vs-snapshot decision logic in src/server/routers/sync.ts
-- [ ] T182 Implement sync.pushOps (batch insert ops) in src/server/routers/sync.ts
-- [ ] T183 Implement sync.pushSnapshot (client uploads new snapshot when threshold reached) in src/server/routers/sync.ts
-- [ ] T184 Update sync.getSnapshot to use new schema with version_vector in src/server/routers/sync.ts
+- [x] T180 Update sync.pushUpdate to insert into vault_ops instead of vault_updates in src/server/routers/sync.ts
+- [x] T181 Implement sync.getUpdates with ops-vs-snapshot decision logic in src/server/routers/sync.ts
+- [x] T182 Implement sync.pushOps (batch insert ops) in src/server/routers/sync.ts
+- [x] T183 Implement sync.pushSnapshot (client uploads new snapshot when threshold reached) in src/server/routers/sync.ts
+- [x] T184 Update sync.getSnapshot to use new schema with version_vector in src/server/routers/sync.ts
 
 ### SyncManager Updates
 
-- [ ] T185 Add lodash-es dependency for throttle
-- [ ] T186 Refactor SyncManager to use subscribeLocalUpdates in src/lib/sync/manager.ts
-- [ ] T187 Implement throttled server push (2s, trailing) with lodash throttle in src/lib/sync/manager.ts
-- [ ] T188 Implement immediate IndexedDB persistence on local change in src/lib/sync/manager.ts
-- [ ] T189 Implement cold start flow (local snapshot → background sync) in src/lib/sync/manager.ts
-- [ ] T190 Add visibilitychange flush handler in src/lib/sync/manager.ts
-- [ ] T191 Add beforeunload flush + confirmation in src/lib/sync/manager.ts
-- [ ] T191a Implement background snapshot refresh (client creates and uploads when ops/bytes threshold exceeded) in src/lib/sync/manager.ts
+- [x] T185 Add lodash-es dependency for throttle
+- [x] T186 Refactor SyncManager to use subscribeLocalUpdates in src/lib/sync/manager.ts
+- [x] T187 Implement throttled server push (2s, trailing) with lodash throttle in src/lib/sync/manager.ts
+- [x] T188 Implement immediate IndexedDB persistence on local change in src/lib/sync/manager.ts
+- [x] T189 Implement cold start flow (local snapshot → background sync) in src/lib/sync/manager.ts
+- [x] T190 Add visibilitychange flush handler in src/lib/sync/manager.ts
+- [x] T191 Add beforeunload flush + confirmation in src/lib/sync/manager.ts
+- [x] T191a Implement background snapshot refresh (client creates and uploads when ops/bytes threshold exceeded) in src/lib/sync/manager.ts
 
 ### Loro Configuration
 
-- [ ] T192 Enable timestamp mode (setRecordTimestamp) in src/lib/crdt/mirror.ts
-- [ ] T193 Update snapshot export to use shallow-snapshot mode in src/lib/crdt/snapshot.ts
+- [x] T192 Enable timestamp mode (setRecordTimestamp) in src/lib/crdt/mirror.ts
+- [x] T193 Update snapshot export to use shallow-snapshot mode in src/lib/crdt/snapshot.ts
 
 ### UI Components
 
-- [ ] T194 Create SyncStatus component (Saved/Saving.../Offline indicator) in src/components/features/sync/SyncStatus.tsx
+- [x] T194 Create SyncStatus component (Saved/Saving.../Offline indicator) in src/components/ui/sync-status.tsx
 - [ ] T195 Create useSyncStatus hook exposing sync state in src/hooks/use-sync-status.ts
 - [ ] T196 Add SyncStatus to app header layout in src/app/(app)/layout.tsx
 
 ### Tests for Phase 6a
 
-- [ ] T197 [T] Unit tests for IndexedDB persistence layer in tests/unit/sync/persistence.test.ts
+- [x] T197 [T] Unit tests for IndexedDB persistence layer in tests/unit/sync/persistence.test.ts
 - [ ] T198 [T] Integration tests for cold start flow in tests/integration/sync-coldstart.test.ts
 - [ ] T199 [T] Integration tests for offline/online sync in tests/integration/sync-offline.test.ts
 - [ ] T200 [T] E2E test: saving indicator and persistence in tests/e2e/sync-persistence.spec.ts

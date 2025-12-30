@@ -14,13 +14,7 @@
  * - Components use useActiveVaultContext() instead of the old hook
  */
 
-import {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 
 // ============================================================================
 // Constants
@@ -91,10 +85,7 @@ interface ActiveVaultProviderProps {
   initialVault?: ActiveVault | null;
 }
 
-export function ActiveVaultProvider({
-  children,
-  initialVault,
-}: ActiveVaultProviderProps) {
+export function ActiveVaultProvider({ children, initialVault }: ActiveVaultProviderProps) {
   // Read from localStorage synchronously on first render (client-side only)
   // This avoids the flash of "no vault selected" on navigation
   const [activeVault, setActiveVaultState] = useState<ActiveVault | null>(() => {
@@ -131,11 +122,7 @@ export function ActiveVaultProvider({
     hasActiveVault: activeVault !== null,
   };
 
-  return (
-    <ActiveVaultContext.Provider value={value}>
-      {children}
-    </ActiveVaultContext.Provider>
-  );
+  return <ActiveVaultContext.Provider value={value}>{children}</ActiveVaultContext.Provider>;
 }
 
 // ============================================================================
@@ -149,9 +136,7 @@ export function ActiveVaultProvider({
 export function useActiveVaultContext(): ActiveVaultContextValue {
   const context = useContext(ActiveVaultContext);
   if (!context) {
-    throw new Error(
-      "useActiveVaultContext must be used within an ActiveVaultProvider"
-    );
+    throw new Error("useActiveVaultContext must be used within an ActiveVaultProvider");
   }
   return context;
 }
@@ -165,9 +150,7 @@ export function useActiveVaultContext(): ActiveVaultContextValue {
  * Use this from non-React code (e.g., identity registration flow).
  * React components should use useActiveVaultContext().setActiveVault() instead.
  */
-export function setActiveVaultStorage(
-  vault: { id: string; name?: string } | null
-): void {
+export function setActiveVaultStorage(vault: { id: string; name?: string } | null): void {
   if (typeof window === "undefined" || typeof localStorage === "undefined") {
     return;
   }

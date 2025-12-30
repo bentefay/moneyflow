@@ -9,4 +9,3 @@
 
 export { useActiveVaultContext as useActiveVault } from "@/components/providers/active-vault-provider";
 export type { ActiveVault } from "@/components/providers/active-vault-provider";
-

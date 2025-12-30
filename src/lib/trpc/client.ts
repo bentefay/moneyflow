@@ -65,7 +65,11 @@ export function createTRPCClient() {
           }));
 
           // signRequest returns headers directly and gets session internally
-          const signedHeaders = await signRequest(method, path, method === "GET" ? undefined : body);
+          const signedHeaders = await signRequest(
+            method,
+            path,
+            method === "GET" ? undefined : body
+          );
 
           return signedHeaders;
         },

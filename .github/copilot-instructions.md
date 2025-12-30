@@ -8,6 +8,7 @@
 - **Don't reinvent the wheel**: Use established libraries for well-known algorithms (e.g., Levenshtein distance, CSV parsing, date handling). Custom implementations are bugs waiting to happen.
 - .github/agents/copilot-instructions.md must be updated alongside code changes to keep instructions current.
 - .github/instructions/\* must be created/updated as new folders/domains are added.
+- Always run pnpm db:types/lint/format/typecheck/lint/test/test:e2e before commiting
 
 ## Quick Reference
 
@@ -102,11 +103,13 @@ Vault sync uses a tiered persistence model for reliability and performance:
 4. **Browser Handlers**: `visibilitychange` flushes pending sync, `beforeunload` warns if unpushed ops exist.
 
 Key files:
+
 - `src/lib/sync/persistence.ts` - IndexedDB operations
 - `src/lib/sync/manager.ts` - SyncManager orchestration
 - `src/components/ui/sync-status.tsx` - UI indicator
 
 Database tables:
+
 - `vault_ops` - Encrypted ops stored forever (immutable append-only)
 - `vault_snapshots` - Latest shallow snapshot per vault
 
