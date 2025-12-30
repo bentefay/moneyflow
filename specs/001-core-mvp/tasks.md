@@ -347,15 +347,15 @@ Based on plan.md structure:
 ### UI Components
 
 - [x] T194 Create SyncStatus component (Saved/Saving.../Offline indicator) in src/components/ui/sync-status.tsx
-- [ ] T195 Create useSyncStatus hook exposing sync state in src/hooks/use-sync-status.ts
-- [ ] T196 Add SyncStatus to app header layout in src/app/(app)/layout.tsx
+- [x] T195 Create useSyncStatus hook exposing sync state in src/hooks/use-sync-status.tsx
+- [x] T196 Add SyncStatus to app header layout in src/app/(app)/layout.tsx
 
 ### Tests for Phase 6a
 
 - [x] T197 [T] Unit tests for IndexedDB persistence layer in tests/unit/sync/persistence.test.ts
-- [ ] T198 [T] Integration tests for cold start flow in tests/integration/sync-coldstart.test.ts
-- [ ] T199 [T] Integration tests for offline/online sync in tests/integration/sync-offline.test.ts
-- [ ] T200 [T] E2E test: saving indicator and persistence in tests/e2e/sync-persistence.spec.ts
+- [x] T198 [T] Integration tests for cold start flow in tests/integration/sync-coldstart.test.ts
+- [x] T199 [T] Integration tests for offline/online sync in tests/integration/sync-offline.test.ts
+- [x] T200 [T] E2E test: saving indicator and persistence in tests/e2e/sync-persistence.spec.ts
 
 **Checkpoint**: Local-first persistence works. Cold start is instant. Saving indicator accurate. beforeunload warns on unsaved. **Tests passing.**
 
@@ -448,11 +448,11 @@ Based on plan.md structure:
 
 ### Implementation for User Story 7
 
-- [ ] T123 [P] [US7] Create ImportRow component (date, filename, count, delete button) in src/components/features/imports/ImportRow.tsx
-- [ ] T124 [P] [US7] Create DeleteImportDialog component (confirmation with transaction count) in src/components/features/imports/DeleteImportDialog.tsx
-- [ ] T125 [US7] Create ImportsTable component in src/components/features/imports/ImportsTable.tsx
-- [ ] T126 [US7] Create /imports page in src/app/(app)/imports/page.tsx
-- [ ] T127 [US7] Implement import deletion (cascade delete linked transactions) in src/lib/domain/import.ts
+- [x] T123 [P] [US7] Create ImportRow component (date, filename, count, delete button) in src/components/features/import/ImportRow.tsx
+- [x] T124 [P] [US7] Create DeleteImportDialog component (confirmation with transaction count) in src/components/features/import/DeleteImportDialog.tsx
+- [x] T125 [US7] Create ImportsTable component in src/components/features/import/ImportsTable.tsx
+- [x] T126 [US7] Create /imports page in src/app/(app)/imports/page.tsx
+- [x] T127 [US7] Implement import deletion (cascade delete linked transactions) in src/app/(app)/imports/page.tsx
 
 **Checkpoint**: Imports management page functional.
 
@@ -466,11 +466,11 @@ Based on plan.md structure:
 
 ### Implementation for User Story 9
 
-- [ ] T128 [P] [US9] Create StatusRow component with inline editing in src/components/features/statuses/StatusRow.tsx
-- [ ] T129 [P] [US9] Create BehaviorSelector component (checkbox for "Treat as Paid") in src/components/features/statuses/BehaviorSelector.tsx
-- [ ] T130 [US9] Create StatusesTable component in src/components/features/statuses/StatusesTable.tsx
-- [ ] T131 [US9] Create /statuses page in src/app/(app)/statuses/page.tsx
-- [ ] T132 [US9] Add status management UI and validation (default statuses created by T048b) in src/components/features/statuses/StatusesTable.tsx
+- [x] T128 [P] [US9] Create StatusRow component with inline editing in src/components/features/statuses/StatusRow.tsx
+- [x] T129 [P] [US9] Create BehaviorSelector component (checkbox for "Treat as Paid") in src/components/features/statuses/BehaviorSelector.tsx
+- [x] T130 [US9] Create StatusesTable component in src/components/features/statuses/StatusesTable.tsx
+- [x] T131 [US9] Create /statuses page in src/app/(app)/statuses/page.tsx
+- [x] T132 [US9] Add status management UI and validation (default statuses created by T048b) in src/components/features/statuses/StatusesTable.tsx
 
 **Checkpoint**: Statuses page with behaviors. Settlement calculation uses "Treat as Paid" flag.
 
@@ -484,15 +484,15 @@ Based on plan.md structure:
 
 ### Implementation for User Story 10
 
-- [ ] T133 [US10] Create Automation type in Loro schema (name, conditions, actions, order) in src/lib/crdt/schema.ts
-- [ ] T134 [US10] Create AutomationApplication type (tracks what was changed for undo) in src/lib/crdt/schema.ts
-- [ ] T135 [P] [US10] Create ConditionEditor component (column, operator, value, case-sensitive) in src/components/features/automations/ConditionEditor.tsx
-- [ ] T136 [P] [US10] Create ActionEditor component (column → value) in src/components/features/automations/ActionEditor.tsx
-- [ ] T137 [P] [US10] Create AutomationRow component with inline editing in src/components/features/automations/AutomationRow.tsx
-- [ ] T138 [US10] Create AutomationsTable component (ordered, drag-to-reorder) in src/components/features/automations/AutomationsTable.tsx
-- [ ] T139 [US10] Create /automations page in src/app/(app)/automations/page.tsx
-- [ ] T140 [US10] Implement automation engine (evaluate conditions, apply actions) in src/lib/domain/automation.ts
-- [ ] T141 [US10] Implement regex validation for automation conditions in src/lib/domain/automation.ts
+- [x] T133 [US10] Create Automation type in Loro schema (name, conditions, actions, order) in src/lib/crdt/schema.ts
+- [x] T134 [US10] Create AutomationApplication type (tracks what was changed for undo) in src/lib/crdt/schema.ts
+- [x] T135 [P] [US10] Create ConditionEditor component (column, operator, value, case-sensitive) in src/components/features/automations/ConditionEditor.tsx
+- [x] T136 [P] [US10] Create ActionEditor component (column → value) in src/components/features/automations/ActionEditor.tsx
+- [x] T137 [P] [US10] Create AutomationRow component with inline editing in src/components/features/automations/AutomationRow.tsx
+- [x] T138 [US10] Create AutomationsTable component (ordered, drag-to-reorder) in src/components/features/automations/AutomationsTable.tsx
+- [x] T139 [US10] Create /automations page in src/app/(app)/automations/page.tsx
+- [x] T140 [US10] Implement automation engine (evaluate conditions, apply actions) in src/lib/domain/automation.ts
+- [x] T141 [US10] Implement regex validation for automation conditions in src/lib/domain/automation.ts
 - [ ] T142 [US10] Integrate automation execution on transaction create/import in src/lib/import/processor.ts
 - [ ] T143 [US10] Implement automation undo capability (revert changes tracked in AutomationApplication) in src/lib/domain/automation.ts
 
@@ -500,8 +500,8 @@ Based on plan.md structure:
 
 - [ ] T144 [US10] Create AutomationCell component (shows applied rules, update button) in src/components/features/transactions/cells/AutomationCell.tsx
 - [ ] T145 [US10] Create AutomationDropdown component ("Create automatically" / "Manual") in src/components/features/transactions/AutomationDropdown.tsx
-- [ ] T146 [US10] Implement auto-create automation from transaction (when "Create automatically" preference) in src/lib/domain/automation.ts
-- [ ] T147 [US10] Store user automation preference in UserPreferences in Loro schema in src/lib/crdt/schema.ts
+- [x] T146 [US10] Implement auto-create automation from transaction (when "Create automatically" preference) in src/lib/domain/automation.ts
+- [x] T147 [US10] Store user automation preference in UserPreferences in Loro schema in src/lib/crdt/schema.ts (already in vaultPreferencesSchema)
 
 ### Tests for Phase 12
 

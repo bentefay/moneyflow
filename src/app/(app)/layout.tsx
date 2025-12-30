@@ -14,9 +14,11 @@ import { clearSession } from "@/lib/crypto/session";
 import { AuthGuard, useAuthGuard } from "@/lib/auth";
 import { useVaultPresence } from "@/hooks/use-vault-presence";
 import { useActiveVault } from "@/hooks/use-active-vault";
+import { useSyncStatus, SyncStatusProvider, usePollUnsavedChanges } from "@/hooks/use-sync-status";
 import { trpc } from "@/lib/trpc";
 import { VaultSelector } from "@/components/features/vault/VaultSelector";
 import { PresenceAvatarGroup } from "@/components/features/presence/PresenceAvatarGroup";
+import { SyncStatus } from "@/components/ui/sync-status";
 import { VaultProvider } from "@/components/providers/vault-provider";
 import { ActiveVaultProvider } from "@/components/providers/active-vault-provider";
 import {
@@ -65,7 +67,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     >
       <ActiveVaultProvider>
         <VaultProvider>
-          <AppLayoutContent>{children}</AppLayoutContent>
+          <SyncStatusProvider>
+            <AppLayoutContent>{children}</AppLayoutContent>
+          </SyncStatusProvider>
         </VaultProvider>
       </ActiveVaultProvider>
     </AuthGuard>
@@ -97,6 +101,12 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 
   // Track presence in active vault
   const { onlineUsers, isConnected } = useVaultPresence(activeVault?.id ?? null, pubkeyHash);
+
+  // Get sync status from context
+  const { state: syncState } = useSyncStatus();
+
+  // Poll for unsaved changes (until SyncManager is fully integrated)
+  const hasUnsavedChanges = usePollUnsavedChanges(activeVault?.id ?? null, 2000);
 
   const isVaultsLoading = vaultListQuery.isLoading;
 
@@ -164,6 +174,8 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
         <header className="flex h-16 items-center justify-between border-b px-6">
           <div>{/* Breadcrumb or page title goes here */}</div>
           <div className="flex items-center gap-4">
+            {/* Sync status indicator */}
+            <SyncStatus state={syncState} hasUnsavedChanges={hasUnsavedChanges} showLabel />
             {/* Online users */}
             {isConnected && onlineUsers.length > 0 && (
               <PresenceAvatarGroup

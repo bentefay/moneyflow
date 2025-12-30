@@ -176,3 +176,25 @@ export function useActiveTransactions() {
     )
   );
 }
+
+/**
+ * Hook to get active (non-deleted) imports
+ */
+export function useActiveImports() {
+  return useVaultSelector((state) =>
+    Object.fromEntries(
+      Object.entries(state.imports).filter(([, i]) => typeof i === "object" && !i.deletedAt)
+    )
+  );
+}
+
+/**
+ * Hook to get active (non-deleted) statuses
+ */
+export function useActiveStatuses() {
+  return useVaultSelector((state) =>
+    Object.fromEntries(
+      Object.entries(state.statuses).filter(([, s]) => typeof s === "object" && !s.deletedAt)
+    )
+  );
+}

@@ -13,3 +13,11 @@ export type {
 } from "./use-identity";
 
 export { useIsHydrated } from "./use-is-hydrated";
+
+export {
+  useSyncStatus,
+  useSyncStatusManager,
+  usePollUnsavedChanges,
+  SyncStatusProvider,
+} from "./use-sync-status";
+export type { SyncStatus, SyncStatusContextValue } from "./use-sync-status";
