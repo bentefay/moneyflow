@@ -11,10 +11,10 @@
 
 import { z } from "zod";
 import {
-  vaultIdSchema,
-  vaultRoleSchema,
-  encryptedVaultKeySchema,
-  encPublicKeySchema,
+	encPublicKeySchema,
+	encryptedVaultKeySchema,
+	vaultIdSchema,
+	vaultRoleSchema,
 } from "./vault";
 
 // ============================================================================
@@ -25,14 +25,14 @@ import {
  * Vault member details
  */
 export const memberSchema = z.object({
-  /** User's pubkey hash (opaque identifier) */
-  pubkeyHash: z.string(),
-  /** Role in the vault */
-  role: vaultRoleSchema,
-  /** X25519 public key for re-keying (needed when removing other members) */
-  encPublicKey: encPublicKeySchema.nullable(),
-  /** When this member joined */
-  createdAt: z.string(),
+	/** User's pubkey hash (opaque identifier) */
+	pubkeyHash: z.string(),
+	/** Role in the vault */
+	role: vaultRoleSchema,
+	/** X25519 public key for re-keying (needed when removing other members) */
+	encPublicKey: encPublicKeySchema.nullable(),
+	/** When this member joined */
+	createdAt: z.string(),
 });
 
 export type Member = z.infer<typeof memberSchema>;
@@ -45,13 +45,13 @@ export type Member = z.infer<typeof memberSchema>;
  * List all members of a vault.
  */
 export const membershipListInput = z.object({
-  vaultId: vaultIdSchema,
+	vaultId: vaultIdSchema,
 });
 
 export type MembershipListInput = z.infer<typeof membershipListInput>;
 
 export const membershipListOutput = z.object({
-  members: z.array(memberSchema),
+	members: z.array(memberSchema),
 });
 
 export type MembershipListOutput = z.infer<typeof membershipListOutput>;
@@ -71,22 +71,22 @@ export type MembershipListOutput = z.infer<typeof membershipListOutput>;
  * 4. Push re-key update to server
  */
 export const membershipRemoveInput = z.object({
-  vaultId: vaultIdSchema,
-  /** pubkey_hash of the member to remove */
-  pubkeyHash: z.string().min(1, "pubkeyHash is required"),
+	vaultId: vaultIdSchema,
+	/** pubkey_hash of the member to remove */
+	pubkeyHash: z.string().min(1, "pubkeyHash is required"),
 });
 
 export type MembershipRemoveInput = z.infer<typeof membershipRemoveInput>;
 
 export const membershipRemoveOutput = z.object({
-  success: z.boolean(),
-  /** Remaining members who need new vault keys */
-  remainingMembers: z.array(
-    z.object({
-      pubkeyHash: z.string(),
-      encPublicKey: z.string(),
-    })
-  ),
+	success: z.boolean(),
+	/** Remaining members who need new vault keys */
+	remainingMembers: z.array(
+		z.object({
+			pubkeyHash: z.string(),
+			encPublicKey: z.string(),
+		})
+	),
 });
 
 export type MembershipRemoveOutput = z.infer<typeof membershipRemoveOutput>;
@@ -105,20 +105,20 @@ export type MembershipRemoveOutput = z.infer<typeof membershipRemoveOutput>;
  * 4. Submit wrapped keys via this procedure
  */
 export const membershipRekeyInput = z.object({
-  vaultId: vaultIdSchema,
-  /** New wrapped vault keys for each remaining member */
-  memberKeys: z.array(
-    z.object({
-      pubkeyHash: z.string(),
-      encryptedVaultKey: encryptedVaultKeySchema,
-    })
-  ),
+	vaultId: vaultIdSchema,
+	/** New wrapped vault keys for each remaining member */
+	memberKeys: z.array(
+		z.object({
+			pubkeyHash: z.string(),
+			encryptedVaultKey: encryptedVaultKeySchema,
+		})
+	),
 });
 
 export type MembershipRekeyInput = z.infer<typeof membershipRekeyInput>;
 
 export const membershipRekeyOutput = z.object({
-  success: z.boolean(),
+	success: z.boolean(),
 });
 
 export type MembershipRekeyOutput = z.infer<typeof membershipRekeyOutput>;

@@ -4,10 +4,9 @@
  * Components for managing hierarchical transaction categories.
  */
 
-export { TagRow } from "./TagRow";
-export { ParentTagSelector } from "./ParentTagSelector";
-export { TagsTable } from "./TagsTable";
-
-export type { TagRowProps } from "./TagRow";
 export type { ParentTagSelectorProps } from "./ParentTagSelector";
+export { ParentTagSelector } from "./ParentTagSelector";
+export type { TagRowProps } from "./TagRow";
+export { TagRow } from "./TagRow";
 export type { TagsTableProps } from "./TagsTable";
+export { TagsTable } from "./TagsTable";

@@ -6,47 +6,47 @@
  */
 
 import type { LoroDoc, VersionVector } from "loro-crdt";
-import {
-  encryptForStorage,
-  decryptFromStorage,
-  encryptJSON,
-  decryptJSON,
-} from "../crypto/encryption";
-import { exportSnapshot, exportShallowSnapshot, exportUpdates, getVersionEncoded } from "./sync";
 import { Temporal } from "temporal-polyfill";
+import {
+	decryptFromStorage,
+	decryptJSON,
+	encryptForStorage,
+	encryptJSON,
+} from "../crypto/encryption";
+import { exportShallowSnapshot, exportSnapshot, exportUpdates, getVersionEncoded } from "./sync";
 
 /**
  * Metadata stored alongside encrypted snapshots
  */
 export interface SnapshotMetadata {
-  /** Version number (monotonic) */
-  version: number;
-  /** Encoded version vector from Loro */
-  versionVector: string; // base64
-  /** Timestamp when snapshot was created */
-  createdAt: number;
+	/** Version number (monotonic) */
+	version: number;
+	/** Encoded version vector from Loro */
+	versionVector: string; // base64
+	/** Timestamp when snapshot was created */
+	createdAt: number;
 }
 
 /**
  * Encrypted snapshot ready for server storage
  */
 export interface EncryptedSnapshot {
-  /** Encrypted Loro snapshot bytes (base64) */
-  encryptedData: string;
-  /** Snapshot metadata */
-  metadata: SnapshotMetadata;
+	/** Encrypted Loro snapshot bytes (base64) */
+	encryptedData: string;
+	/** Snapshot metadata */
+	metadata: SnapshotMetadata;
 }
 
 /**
  * Encrypted update ready for server storage
  */
 export interface EncryptedUpdate {
-  /** Encrypted Loro update bytes (base64) */
-  encryptedData: string;
-  /** Base snapshot version this update applies to */
-  baseSnapshotVersion: number;
-  /** HLC timestamp for ordering */
-  hlcTimestamp: string;
+	/** Encrypted Loro update bytes (base64) */
+	encryptedData: string;
+	/** Base snapshot version this update applies to */
+	baseSnapshotVersion: number;
+	/** HLC timestamp for ordering */
+	hlcTimestamp: string;
 }
 
 /**
@@ -58,31 +58,31 @@ export interface EncryptedUpdate {
  * @returns Encrypted snapshot with metadata
  */
 export async function createEncryptedSnapshot(
-  doc: LoroDoc,
-  vaultKey: Uint8Array,
-  version: number
+	doc: LoroDoc,
+	vaultKey: Uint8Array,
+	version: number
 ): Promise<EncryptedSnapshot> {
-  // Export full snapshot
-  const snapshot = exportSnapshot(doc);
+	// Export full snapshot
+	const snapshot = exportSnapshot(doc);
 
-  // Encrypt snapshot bytes
-  const encrypted = await encryptForStorage(snapshot, vaultKey);
+	// Encrypt snapshot bytes
+	const encrypted = await encryptForStorage(snapshot, vaultKey);
 
-  // Get version vector for metadata (encoded as bytes for storage)
-  const versionVectorBytes = getVersionEncoded(doc);
+	// Get version vector for metadata (encoded as bytes for storage)
+	const versionVectorBytes = getVersionEncoded(doc);
 
-  // Convert to base64 for JSON storage
-  const encryptedData = btoa(String.fromCharCode(...encrypted));
-  const versionVectorBase64 = btoa(String.fromCharCode(...versionVectorBytes));
+	// Convert to base64 for JSON storage
+	const encryptedData = btoa(String.fromCharCode(...encrypted));
+	const versionVectorBase64 = btoa(String.fromCharCode(...versionVectorBytes));
 
-  return {
-    encryptedData,
-    metadata: {
-      version,
-      versionVector: versionVectorBase64,
-      createdAt: Temporal.Now.instant().epochMilliseconds,
-    },
-  };
+	return {
+		encryptedData,
+		metadata: {
+			version,
+			versionVector: versionVectorBase64,
+			createdAt: Temporal.Now.instant().epochMilliseconds,
+		},
+	};
 }
 
 /**
@@ -98,31 +98,31 @@ export async function createEncryptedSnapshot(
  * @returns Encrypted shallow snapshot with metadata
  */
 export async function createEncryptedShallowSnapshot(
-  doc: LoroDoc,
-  vaultKey: Uint8Array,
-  version: number
+	doc: LoroDoc,
+	vaultKey: Uint8Array,
+	version: number
 ): Promise<EncryptedSnapshot> {
-  // Export shallow snapshot (current state only, no history)
-  const snapshot = exportShallowSnapshot(doc);
+	// Export shallow snapshot (current state only, no history)
+	const snapshot = exportShallowSnapshot(doc);
 
-  // Encrypt snapshot bytes
-  const encrypted = await encryptForStorage(snapshot, vaultKey);
+	// Encrypt snapshot bytes
+	const encrypted = await encryptForStorage(snapshot, vaultKey);
 
-  // Get version vector for metadata
-  const versionVectorBytes = getVersionEncoded(doc);
+	// Get version vector for metadata
+	const versionVectorBytes = getVersionEncoded(doc);
 
-  // Convert to base64 for JSON storage
-  const encryptedData = btoa(String.fromCharCode(...encrypted));
-  const versionVectorBase64 = btoa(String.fromCharCode(...versionVectorBytes));
+	// Convert to base64 for JSON storage
+	const encryptedData = btoa(String.fromCharCode(...encrypted));
+	const versionVectorBase64 = btoa(String.fromCharCode(...versionVectorBytes));
 
-  return {
-    encryptedData,
-    metadata: {
-      version,
-      versionVector: versionVectorBase64,
-      createdAt: Temporal.Now.instant().epochMilliseconds,
-    },
-  };
+	return {
+		encryptedData,
+		metadata: {
+			version,
+			versionVector: versionVectorBase64,
+			createdAt: Temporal.Now.instant().epochMilliseconds,
+		},
+	};
 }
 
 /**
@@ -133,22 +133,22 @@ export async function createEncryptedShallowSnapshot(
  * @returns New LoroDoc with imported snapshot
  */
 export async function loadEncryptedSnapshot(
-  encryptedSnapshot: EncryptedSnapshot,
-  vaultKey: Uint8Array
+	encryptedSnapshot: EncryptedSnapshot,
+	vaultKey: Uint8Array
 ): Promise<LoroDoc> {
-  const { LoroDoc } = await import("loro-crdt");
+	const { LoroDoc } = await import("loro-crdt");
 
-  // Decode base64
-  const encrypted = Uint8Array.from(atob(encryptedSnapshot.encryptedData), (c) => c.charCodeAt(0));
+	// Decode base64
+	const encrypted = Uint8Array.from(atob(encryptedSnapshot.encryptedData), (c) => c.charCodeAt(0));
 
-  // Decrypt
-  const snapshot = await decryptFromStorage(encrypted, vaultKey);
+	// Decrypt
+	const snapshot = await decryptFromStorage(encrypted, vaultKey);
 
-  // Create new doc and import
-  const doc = new LoroDoc();
-  doc.import(snapshot);
+	// Create new doc and import
+	const doc = new LoroDoc();
+	doc.import(snapshot);
 
-  return doc;
+	return doc;
 }
 
 /**
@@ -161,26 +161,26 @@ export async function loadEncryptedSnapshot(
  * @returns Encrypted update
  */
 export async function createEncryptedUpdate(
-  doc: LoroDoc,
-  vaultKey: Uint8Array,
-  baseSnapshotVersion: number,
-  since?: VersionVector
+	doc: LoroDoc,
+	vaultKey: Uint8Array,
+	baseSnapshotVersion: number,
+	since?: VersionVector
 ): Promise<EncryptedUpdate> {
-  // Export updates
-  const updates = exportUpdates(doc, since);
+	// Export updates
+	const updates = exportUpdates(doc, since);
 
-  // Encrypt
-  const encrypted = await encryptForStorage(updates, vaultKey);
-  const encryptedData = btoa(String.fromCharCode(...encrypted));
+	// Encrypt
+	const encrypted = await encryptForStorage(updates, vaultKey);
+	const encryptedData = btoa(String.fromCharCode(...encrypted));
 
-  // Create HLC timestamp (simplified - just using wall clock + counter)
-  const hlcTimestamp = `${Temporal.Now.instant().epochMilliseconds}-0`;
+	// Create HLC timestamp (simplified - just using wall clock + counter)
+	const hlcTimestamp = `${Temporal.Now.instant().epochMilliseconds}-0`;
 
-  return {
-    encryptedData,
-    baseSnapshotVersion,
-    hlcTimestamp,
-  };
+	return {
+		encryptedData,
+		baseSnapshotVersion,
+		hlcTimestamp,
+	};
 }
 
 /**
@@ -191,14 +191,14 @@ export async function createEncryptedUpdate(
  * @returns Decrypted update bytes
  */
 export async function decryptUpdate(
-  encryptedUpdate: Pick<EncryptedUpdate, "encryptedData">,
-  vaultKey: Uint8Array
+	encryptedUpdate: Pick<EncryptedUpdate, "encryptedData">,
+	vaultKey: Uint8Array
 ): Promise<Uint8Array> {
-  // Decode base64
-  const encrypted = Uint8Array.from(atob(encryptedUpdate.encryptedData), (c) => c.charCodeAt(0));
+	// Decode base64
+	const encrypted = Uint8Array.from(atob(encryptedUpdate.encryptedData), (c) => c.charCodeAt(0));
 
-  // Decrypt and return raw bytes
-  return decryptFromStorage(encrypted, vaultKey);
+	// Decrypt and return raw bytes
+	return decryptFromStorage(encrypted, vaultKey);
 }
 
 /**
@@ -209,18 +209,18 @@ export async function decryptUpdate(
  * @param vaultKey - 32-byte vault encryption key
  */
 export async function applyEncryptedUpdate(
-  doc: LoroDoc,
-  encryptedUpdate: EncryptedUpdate,
-  vaultKey: Uint8Array
+	doc: LoroDoc,
+	encryptedUpdate: EncryptedUpdate,
+	vaultKey: Uint8Array
 ): Promise<void> {
-  // Decode base64
-  const encrypted = Uint8Array.from(atob(encryptedUpdate.encryptedData), (c) => c.charCodeAt(0));
+	// Decode base64
+	const encrypted = Uint8Array.from(atob(encryptedUpdate.encryptedData), (c) => c.charCodeAt(0));
 
-  // Decrypt
-  const updates = await decryptFromStorage(encrypted, vaultKey);
+	// Decrypt
+	const updates = await decryptFromStorage(encrypted, vaultKey);
 
-  // Import
-  doc.import(updates);
+	// Import
+	doc.import(updates);
 }
 
 /**
@@ -231,16 +231,16 @@ export async function applyEncryptedUpdate(
  * @param vaultKey - 32-byte vault encryption key
  */
 export async function applyEncryptedUpdates(
-  doc: LoroDoc,
-  encryptedUpdates: EncryptedUpdate[],
-  vaultKey: Uint8Array
+	doc: LoroDoc,
+	encryptedUpdates: EncryptedUpdate[],
+	vaultKey: Uint8Array
 ): Promise<void> {
-  // Sort by HLC timestamp to ensure correct order
-  const sorted = [...encryptedUpdates].sort((a, b) => a.hlcTimestamp.localeCompare(b.hlcTimestamp));
+	// Sort by HLC timestamp to ensure correct order
+	const sorted = [...encryptedUpdates].sort((a, b) => a.hlcTimestamp.localeCompare(b.hlcTimestamp));
 
-  for (const update of sorted) {
-    await applyEncryptedUpdate(doc, update, vaultKey);
-  }
+	for (const update of sorted) {
+		await applyEncryptedUpdate(doc, update, vaultKey);
+	}
 }
 
 /**
@@ -254,7 +254,7 @@ export async function applyEncryptedUpdates(
  * @returns Base64-encoded encrypted data
  */
 export async function encryptUserData<T>(userData: T, userKey: Uint8Array): Promise<string> {
-  return encryptJSON(userData, userKey);
+	return encryptJSON(userData, userKey);
 }
 
 /**
@@ -265,5 +265,5 @@ export async function encryptUserData<T>(userData: T, userKey: Uint8Array): Prom
  * @returns Decrypted user data
  */
 export async function decryptUserData<T>(encryptedData: string, userKey: Uint8Array): Promise<T> {
-  return decryptJSON<T>(encryptedData, userKey);
+	return decryptJSON<T>(encryptedData, userKey);
 }

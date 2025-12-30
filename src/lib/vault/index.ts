@@ -5,10 +5,10 @@
  */
 
 export {
-  ensureDefaultVault,
-  setActiveVaultStorage,
-  DEFAULT_VAULT_NAME,
-  type EnsureVaultResult,
-  type EnsureDefaultVaultOptions,
-  type VaultApiMethods,
+	DEFAULT_VAULT_NAME,
+	type EnsureDefaultVaultOptions,
+	type EnsureVaultResult,
+	ensureDefaultVault,
+	setActiveVaultStorage,
+	type VaultApiMethods,
 } from "./ensure-default";

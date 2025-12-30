@@ -1,1 +1,1 @@
-export { VaultSelector, type VaultSelectorProps, type VaultOption } from "./VaultSelector";
+export { type VaultOption, VaultSelector, type VaultSelectorProps } from "./VaultSelector";

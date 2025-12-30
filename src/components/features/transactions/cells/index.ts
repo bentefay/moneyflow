@@ -4,16 +4,16 @@
  * Re-exports all cell components for transaction table.
  */
 
-export { DateCell, type DateCellProps } from "./DateCell";
-export { AmountCell, type AmountCellProps } from "./AmountCell";
-export { TagsCell, type TagsCellProps, type TagData } from "./TagsCell";
 export { AccountCell, type AccountCellProps, type AccountData } from "./AccountCell";
-export { StatusCell, type StatusCellProps, type StatusData } from "./StatusCell";
-export { BalanceCell, type BalanceCellProps } from "./BalanceCell";
-export {
-  PersonAllocationCell,
-  type PersonAllocationCellProps,
-  type PersonData,
-  type AllocationData,
-} from "./PersonAllocationCell";
+export { AmountCell, type AmountCellProps } from "./AmountCell";
 export { AutomationCell, type AutomationCellProps } from "./AutomationCell";
+export { BalanceCell, type BalanceCellProps } from "./BalanceCell";
+export { DateCell, type DateCellProps } from "./DateCell";
+export {
+	type AllocationData,
+	PersonAllocationCell,
+	type PersonAllocationCellProps,
+	type PersonData,
+} from "./PersonAllocationCell";
+export { StatusCell, type StatusCellProps, type StatusData } from "./StatusCell";
+export { type TagData, TagsCell, type TagsCellProps } from "./TagsCell";

@@ -65,12 +65,11 @@ Keep this section updated with commands for this environment:
 pnpm dev          # Start dev server
 pnpm build        # Production build
 pnpm test         # Run all tests
-pnpm lint         # ESLint check
-pnpm tsc --noEmit # Type check
-bat -P            # DO NOT USE cat. Always use `bat -P` (otherwise will use bat with pager for large files).
-pnpm vitest       # Unit tests
+pnpm lint         # ESLint (Next.js rules)
+pnpm format       # Biome format + class sorting
+pnpm format:check # Check formatting (CI)
 pnpm typecheck    # Type checking
-pnpm tsc          # TypeScript compiler
+bat -P            # DO NOT USE cat. Always use `bat -P` (otherwise will use bat with pager for large files).
 ```
 
 ## Key Architecture Decisions

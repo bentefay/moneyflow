@@ -5,31 +5,31 @@
  */
 
 export {
-  calculateRunningBalances,
-  calculateTableRunningBalances,
-  calculateAccountBalance,
-  calculateAllAccountBalances,
-  calculateSettlementBalances as calculateSimpleSettlementBalances,
-  useRunningBalances,
-  type TransactionWithBalance,
-  type BalanceCalculationOptions,
+	type BalanceCalculationOptions,
+	calculateAccountBalance,
+	calculateAllAccountBalances,
+	calculateRunningBalances,
+	calculateSettlementBalances as calculateSimpleSettlementBalances,
+	calculateTableRunningBalances,
+	type TransactionWithBalance,
+	useRunningBalances,
 } from "./balance";
 
 export {
-  sumOwnerships,
-  validateOwnerships,
-  isValidOwnership,
-  normalizeOwnerships,
-  createEqualOwnerships,
-  addOwner,
-  removeOwner,
-  updateOwnerPercentage,
-  OWNERSHIP_TOLERANCE,
+	addOwner,
+	createEqualOwnerships,
+	isValidOwnership,
+	normalizeOwnerships,
+	OWNERSHIP_TOLERANCE,
+	removeOwner,
+	sumOwnerships,
+	updateOwnerPercentage,
+	validateOwnerships,
 } from "./ownership";
 
 export {
-  calculateSettlementBalances,
-  getNetBalanceForPerson,
-  getBalancesForPerson,
-  type SettlementBalance,
+	calculateSettlementBalances,
+	getBalancesForPerson,
+	getNetBalanceForPerson,
+	type SettlementBalance,
 } from "./settlement";

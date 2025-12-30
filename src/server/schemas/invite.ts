@@ -12,7 +12,7 @@
  */
 
 import { z } from "zod";
-import { vaultRoleSchema, encryptedVaultKeySchema, encPublicKeySchema } from "./vault";
+import { encPublicKeySchema, encryptedVaultKeySchema, vaultRoleSchema } from "./vault";
 
 // ============================================================================
 // Base Schemas
@@ -28,29 +28,29 @@ export const inviteIdSchema = z.string().uuid("Must be a valid UUID");
  * Base64-encoded X25519 public key
  */
 export const invitePubkeySchema = z
-  .string()
-  .min(1, "Invite public key cannot be empty")
-  .refine(
-    (val) => {
-      try {
-        atob(val);
-        return true;
-      } catch {
-        return false;
-      }
-    },
-    { message: "Must be valid base64" }
-  );
+	.string()
+	.min(1, "Invite public key cannot be empty")
+	.refine(
+		(val) => {
+			try {
+				atob(val);
+				return true;
+			} catch {
+				return false;
+			}
+		},
+		{ message: "Must be valid base64" }
+	);
 
 /**
  * Expiry duration in hours (1-168, i.e., 1 hour to 1 week)
  */
 export const expiryHoursSchema = z
-  .number()
-  .int()
-  .min(1, "Minimum expiry is 1 hour")
-  .max(168, "Maximum expiry is 1 week (168 hours)")
-  .default(48);
+	.number()
+	.int()
+	.min(1, "Minimum expiry is 1 hour")
+	.max(168, "Maximum expiry is 1 week (168 hours)")
+	.default(48);
 
 // ============================================================================
 // Invite Create
@@ -66,25 +66,25 @@ export const expiryHoursSchema = z
  * The invite secret is shared via URL fragment and never sent to server.
  */
 export const inviteCreateInput = z.object({
-  /** Vault to invite to */
-  vaultId: z.string().uuid(),
-  /** Ephemeral X25519 public key (derived from invite secret) */
-  invitePubkey: invitePubkeySchema,
-  /** Vault key wrapped with ephemeral invite pubkey */
-  encryptedVaultKey: encryptedVaultKeySchema,
-  /** Role to grant the invitee */
-  role: vaultRoleSchema.default("member"),
-  /** Hours until invite expires (default 48) */
-  expiresInHours: expiryHoursSchema,
+	/** Vault to invite to */
+	vaultId: z.string().uuid(),
+	/** Ephemeral X25519 public key (derived from invite secret) */
+	invitePubkey: invitePubkeySchema,
+	/** Vault key wrapped with ephemeral invite pubkey */
+	encryptedVaultKey: encryptedVaultKeySchema,
+	/** Role to grant the invitee */
+	role: vaultRoleSchema.default("member"),
+	/** Hours until invite expires (default 48) */
+	expiresInHours: expiryHoursSchema,
 });
 
 export type InviteCreateInput = z.infer<typeof inviteCreateInput>;
 
 export const inviteCreateOutput = z.object({
-  /** ID of the created invite */
-  inviteId: inviteIdSchema,
-  /** When the invite expires */
-  expiresAt: z.string(),
+	/** ID of the created invite */
+	inviteId: inviteIdSchema,
+	/** When the invite expires */
+	expiresAt: z.string(),
 });
 
 export type InviteCreateOutput = z.infer<typeof inviteCreateOutput>;
@@ -100,23 +100,23 @@ export type InviteCreateOutput = z.infer<typeof inviteCreateOutput>;
  * the pubkey and look up the invite details.
  */
 export const inviteGetByPubkeyInput = z.object({
-  /** Ephemeral X25519 public key (derived from invite secret) */
-  invitePubkey: invitePubkeySchema,
+	/** Ephemeral X25519 public key (derived from invite secret) */
+	invitePubkey: invitePubkeySchema,
 });
 
 export type InviteGetByPubkeyInput = z.infer<typeof inviteGetByPubkeyInput>;
 
 export const inviteGetByPubkeyOutput = z.object({
-  /** Invite ID */
-  inviteId: inviteIdSchema,
-  /** Vault being invited to */
-  vaultId: z.string().uuid(),
-  /** Vault key wrapped with ephemeral pubkey (recipient unwraps with secret) */
-  encryptedVaultKey: encryptedVaultKeySchema,
-  /** Role that will be granted */
-  role: vaultRoleSchema,
-  /** When the invite expires */
-  expiresAt: z.string(),
+	/** Invite ID */
+	inviteId: inviteIdSchema,
+	/** Vault being invited to */
+	vaultId: z.string().uuid(),
+	/** Vault key wrapped with ephemeral pubkey (recipient unwraps with secret) */
+	encryptedVaultKey: encryptedVaultKeySchema,
+	/** Role that will be granted */
+	role: vaultRoleSchema,
+	/** When the invite expires */
+	expiresAt: z.string(),
 });
 
 export type InviteGetByPubkeyOutput = z.infer<typeof inviteGetByPubkeyOutput>;
@@ -135,21 +135,21 @@ export type InviteGetByPubkeyOutput = z.infer<typeof inviteGetByPubkeyOutput>;
  * 4. Submits re-wrapped key + their enc_public_key
  */
 export const inviteAcceptInput = z.object({
-  /** Ephemeral pubkey to identify the invite */
-  invitePubkey: invitePubkeySchema,
-  /** Vault key re-wrapped for user's X25519 public key */
-  encryptedVaultKey: encryptedVaultKeySchema,
-  /** User's X25519 public key for future vault re-keying operations */
-  encPublicKey: encPublicKeySchema,
+	/** Ephemeral pubkey to identify the invite */
+	invitePubkey: invitePubkeySchema,
+	/** Vault key re-wrapped for user's X25519 public key */
+	encryptedVaultKey: encryptedVaultKeySchema,
+	/** User's X25519 public key for future vault re-keying operations */
+	encPublicKey: encPublicKeySchema,
 });
 
 export type InviteAcceptInput = z.infer<typeof inviteAcceptInput>;
 
 export const inviteAcceptOutput = z.object({
-  /** Vault that was joined */
-  vaultId: z.string().uuid(),
-  /** Role granted to the user */
-  role: vaultRoleSchema,
+	/** Vault that was joined */
+	vaultId: z.string().uuid(),
+	/** Role granted to the user */
+	role: vaultRoleSchema,
 });
 
 export type InviteAcceptOutput = z.infer<typeof inviteAcceptOutput>;
@@ -162,17 +162,17 @@ export type InviteAcceptOutput = z.infer<typeof inviteAcceptOutput>;
  * List active invites for a vault (owner only).
  */
 export const inviteListInput = z.object({
-  vaultId: z.string().uuid(),
+	vaultId: z.string().uuid(),
 });
 
 export type InviteListInput = z.infer<typeof inviteListInput>;
 
 export const inviteListItemSchema = z.object({
-  id: inviteIdSchema,
-  role: vaultRoleSchema,
-  expiresAt: z.string(),
-  createdAt: z.string(),
-  isExpired: z.boolean(),
+	id: inviteIdSchema,
+	role: vaultRoleSchema,
+	expiresAt: z.string(),
+	createdAt: z.string(),
+	isExpired: z.boolean(),
 });
 
 export type InviteListItem = z.infer<typeof inviteListItemSchema>;
@@ -189,13 +189,13 @@ export type InviteListOutput = z.infer<typeof inviteListOutput>;
  * Revoke an invite (owner only).
  */
 export const inviteRevokeInput = z.object({
-  inviteId: inviteIdSchema,
+	inviteId: inviteIdSchema,
 });
 
 export type InviteRevokeInput = z.infer<typeof inviteRevokeInput>;
 
 export const inviteRevokeOutput = z.object({
-  success: z.boolean(),
+	success: z.boolean(),
 });
 
 export type InviteRevokeOutput = z.infer<typeof inviteRevokeOutput>;

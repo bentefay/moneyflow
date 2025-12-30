@@ -5,9 +5,9 @@
  * Uses HKDF with domain separation to ensure key independence.
  */
 
-import sodium from "libsodium-wrappers";
 import { hkdf } from "@noble/hashes/hkdf.js";
 import { sha256 } from "@noble/hashes/sha2.js";
+import sodium from "libsodium-wrappers";
 
 // Domain separation constants - NEVER change these after launch
 // These ensure that different key types are cryptographically independent
@@ -23,26 +23,26 @@ const DOMAIN_X25519_ENCRYPTION_BYTES = textEncoder.encode(DOMAIN_X25519_ENCRYPTI
  * Ed25519 signing keypair for request authentication and identity.
  */
 export interface SigningKeypair {
-  publicKey: Uint8Array; // 32 bytes
-  privateKey: Uint8Array; // 64 bytes (seed + public key)
-  keyType: "Ed25519";
+	publicKey: Uint8Array; // 32 bytes
+	privateKey: Uint8Array; // 64 bytes (seed + public key)
+	keyType: "Ed25519";
 }
 
 /**
  * X25519 encryption keypair for vault key wrapping.
  */
 export interface EncryptionKeypair {
-  publicKey: Uint8Array; // 32 bytes
-  privateKey: Uint8Array; // 32 bytes
-  keyType: "X25519";
+	publicKey: Uint8Array; // 32 bytes
+	privateKey: Uint8Array; // 32 bytes
+	keyType: "X25519";
 }
 
 /**
  * Complete set of derived keys for a user identity.
  */
 export interface DerivedKeys {
-  signing: SigningKeypair;
-  encryption: EncryptionKeypair;
+	signing: SigningKeypair;
+	encryption: EncryptionKeypair;
 }
 
 /**
@@ -50,7 +50,7 @@ export interface DerivedKeys {
  * Must be called before any crypto operations.
  */
 export async function initCrypto(): Promise<void> {
-  await sodium.ready;
+	await sodium.ready;
 }
 
 /**
@@ -64,42 +64,42 @@ export async function initCrypto(): Promise<void> {
  * @returns Both signing and encryption keypairs
  */
 export function deriveKeysFromSeed(masterSeed: Uint8Array): DerivedKeys {
-  // Derive Ed25519 signing seed (32 bytes) using HKDF
-  const signingSeed = hkdf(
-    sha256,
-    masterSeed,
-    undefined, // no salt (deterministic derivation)
-    DOMAIN_ED25519_SIGNING_BYTES,
-    32 // Ed25519 seed size
-  );
+	// Derive Ed25519 signing seed (32 bytes) using HKDF
+	const signingSeed = hkdf(
+		sha256,
+		masterSeed,
+		undefined, // no salt (deterministic derivation)
+		DOMAIN_ED25519_SIGNING_BYTES,
+		32 // Ed25519 seed size
+	);
 
-  // Generate Ed25519 keypair from seed
-  const signingKeypairRaw = sodium.crypto_sign_seed_keypair(signingSeed);
+	// Generate Ed25519 keypair from seed
+	const signingKeypairRaw = sodium.crypto_sign_seed_keypair(signingSeed);
 
-  // Derive X25519 encryption seed (32 bytes) using HKDF
-  const encryptionSeed = hkdf(
-    sha256,
-    masterSeed,
-    undefined,
-    DOMAIN_X25519_ENCRYPTION_BYTES,
-    32 // X25519 seed size
-  );
+	// Derive X25519 encryption seed (32 bytes) using HKDF
+	const encryptionSeed = hkdf(
+		sha256,
+		masterSeed,
+		undefined,
+		DOMAIN_X25519_ENCRYPTION_BYTES,
+		32 // X25519 seed size
+	);
 
-  // Generate X25519 keypair from seed
-  const encryptionKeypairRaw = sodium.crypto_box_seed_keypair(encryptionSeed);
+	// Generate X25519 keypair from seed
+	const encryptionKeypairRaw = sodium.crypto_box_seed_keypair(encryptionSeed);
 
-  return {
-    signing: {
-      publicKey: signingKeypairRaw.publicKey,
-      privateKey: signingKeypairRaw.privateKey,
-      keyType: "Ed25519",
-    },
-    encryption: {
-      publicKey: encryptionKeypairRaw.publicKey,
-      privateKey: encryptionKeypairRaw.privateKey,
-      keyType: "X25519",
-    },
-  };
+	return {
+		signing: {
+			publicKey: signingKeypairRaw.publicKey,
+			privateKey: signingKeypairRaw.privateKey,
+			keyType: "Ed25519",
+		},
+		encryption: {
+			publicKey: encryptionKeypairRaw.publicKey,
+			privateKey: encryptionKeypairRaw.privateKey,
+			keyType: "X25519",
+		},
+	};
 }
 
 /**
@@ -110,7 +110,7 @@ export function deriveKeysFromSeed(masterSeed: Uint8Array): DerivedKeys {
  * @returns Base64-encoded public key
  */
 export function publicKeyToBase64(publicKey: Uint8Array): string {
-  return sodium.to_base64(publicKey, sodium.base64_variants.ORIGINAL);
+	return sodium.to_base64(publicKey, sodium.base64_variants.ORIGINAL);
 }
 
 /**
@@ -120,7 +120,7 @@ export function publicKeyToBase64(publicKey: Uint8Array): string {
  * @returns Raw public key bytes
  */
 export function base64ToPublicKey(base64Key: string): Uint8Array {
-  return sodium.from_base64(base64Key, sodium.base64_variants.ORIGINAL);
+	return sodium.from_base64(base64Key, sodium.base64_variants.ORIGINAL);
 }
 
 /**
@@ -131,7 +131,7 @@ export function base64ToPublicKey(base64Key: string): Uint8Array {
  * @returns Base64-encoded private key
  */
 export function privateKeyToBase64(privateKey: Uint8Array): string {
-  return sodium.to_base64(privateKey, sodium.base64_variants.ORIGINAL);
+	return sodium.to_base64(privateKey, sodium.base64_variants.ORIGINAL);
 }
 
 /**
@@ -142,5 +142,5 @@ export function privateKeyToBase64(privateKey: Uint8Array): string {
  * @returns Raw private key bytes
  */
 export function base64ToPrivateKey(base64Key: string): Uint8Array {
-  return sodium.from_base64(base64Key, sodium.base64_variants.ORIGINAL);
+	return sodium.from_base64(base64Key, sodium.base64_variants.ORIGINAL);
 }

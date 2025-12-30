@@ -9,12 +9,12 @@
 
 import { createLoroContext } from "loro-mirror-react";
 import {
-  vaultSchema,
-  type VaultState,
-  type Person,
-  type Account,
-  type Tag,
-  type Transaction,
+	type Account,
+	type Person,
+	type Tag,
+	type Transaction,
+	type VaultState,
+	vaultSchema,
 } from "./schema";
 
 /**
@@ -46,155 +46,155 @@ export const useVaultAction = loroContext.useLoroAction;
  * ```
  */
 export function usePeople() {
-  return useVaultSelector((state) => state.people);
+	return useVaultSelector((state) => state.people);
 }
 
 /**
  * Hook to get all accounts in the vault
  */
 export function useAccounts() {
-  return useVaultSelector((state) => state.accounts);
+	return useVaultSelector((state) => state.accounts);
 }
 
 /**
  * Hook to get all tags in the vault
  */
 export function useTags() {
-  return useVaultSelector((state) => state.tags);
+	return useVaultSelector((state) => state.tags);
 }
 
 /**
  * Hook to get all statuses in the vault
  */
 export function useStatuses() {
-  return useVaultSelector((state) => state.statuses);
+	return useVaultSelector((state) => state.statuses);
 }
 
 /**
  * Hook to get all transactions in the vault
  */
 export function useTransactions() {
-  return useVaultSelector((state) => state.transactions);
+	return useVaultSelector((state) => state.transactions);
 }
 
 /**
  * Hook to get all imports in the vault
  */
 export function useImports() {
-  return useVaultSelector((state) => state.imports);
+	return useVaultSelector((state) => state.imports);
 }
 
 /**
  * Hook to get all import templates in the vault
  */
 export function useImportTemplates() {
-  return useVaultSelector((state) => state.importTemplates);
+	return useVaultSelector((state) => state.importTemplates);
 }
 
 /**
  * Hook to get all automations in the vault
  */
 export function useAutomations() {
-  return useVaultSelector((state) => state.automations);
+	return useVaultSelector((state) => state.automations);
 }
 
 /**
  * Hook to get vault preferences
  */
 export function useVaultPreferences() {
-  return useVaultSelector((state) => state.preferences);
+	return useVaultSelector((state) => state.preferences);
 }
 
 /**
  * Hook to get a specific person by ID
  */
 export function usePerson(personId: string) {
-  return useVaultSelector((state) => state.people[personId]);
+	return useVaultSelector((state) => state.people[personId]);
 }
 
 /**
  * Hook to get a specific account by ID
  */
 export function useAccount(accountId: string) {
-  return useVaultSelector((state) => state.accounts[accountId]);
+	return useVaultSelector((state) => state.accounts[accountId]);
 }
 
 /**
  * Hook to get a specific tag by ID
  */
 export function useTag(tagId: string) {
-  return useVaultSelector((state) => state.tags[tagId]);
+	return useVaultSelector((state) => state.tags[tagId]);
 }
 
 /**
  * Hook to get a specific transaction by ID
  */
 export function useTransaction(transactionId: string) {
-  return useVaultSelector((state) => state.transactions[transactionId]);
+	return useVaultSelector((state) => state.transactions[transactionId]);
 }
 
 /**
  * Hook to get active (non-deleted) people
  */
 export function useActivePeople() {
-  return useVaultSelector((state) =>
-    Object.fromEntries(
-      Object.entries(state.people).filter(([, p]) => typeof p === "object" && !p.deletedAt)
-    )
-  );
+	return useVaultSelector((state) =>
+		Object.fromEntries(
+			Object.entries(state.people).filter(([, p]) => typeof p === "object" && !p.deletedAt)
+		)
+	);
 }
 
 /**
  * Hook to get active (non-deleted) accounts
  */
 export function useActiveAccounts() {
-  return useVaultSelector((state) =>
-    Object.fromEntries(
-      Object.entries(state.accounts).filter(([, a]) => typeof a === "object" && !a.deletedAt)
-    )
-  );
+	return useVaultSelector((state) =>
+		Object.fromEntries(
+			Object.entries(state.accounts).filter(([, a]) => typeof a === "object" && !a.deletedAt)
+		)
+	);
 }
 
 /**
  * Hook to get active (non-deleted) tags
  */
 export function useActiveTags() {
-  return useVaultSelector((state) =>
-    Object.fromEntries(
-      Object.entries(state.tags).filter(([, t]) => typeof t === "object" && !t.deletedAt)
-    )
-  );
+	return useVaultSelector((state) =>
+		Object.fromEntries(
+			Object.entries(state.tags).filter(([, t]) => typeof t === "object" && !t.deletedAt)
+		)
+	);
 }
 
 /**
  * Hook to get active (non-deleted) transactions
  */
 export function useActiveTransactions() {
-  return useVaultSelector((state) =>
-    Object.fromEntries(
-      Object.entries(state.transactions).filter(([, t]) => typeof t === "object" && !t.deletedAt)
-    )
-  );
+	return useVaultSelector((state) =>
+		Object.fromEntries(
+			Object.entries(state.transactions).filter(([, t]) => typeof t === "object" && !t.deletedAt)
+		)
+	);
 }
 
 /**
  * Hook to get active (non-deleted) imports
  */
 export function useActiveImports() {
-  return useVaultSelector((state) =>
-    Object.fromEntries(
-      Object.entries(state.imports).filter(([, i]) => typeof i === "object" && !i.deletedAt)
-    )
-  );
+	return useVaultSelector((state) =>
+		Object.fromEntries(
+			Object.entries(state.imports).filter(([, i]) => typeof i === "object" && !i.deletedAt)
+		)
+	);
 }
 
 /**
  * Hook to get active (non-deleted) statuses
  */
 export function useActiveStatuses() {
-  return useVaultSelector((state) =>
-    Object.fromEntries(
-      Object.entries(state.statuses).filter(([, s]) => typeof s === "object" && !s.deletedAt)
-    )
-  );
+	return useVaultSelector((state) =>
+		Object.fromEntries(
+			Object.entries(state.statuses).filter(([, s]) => typeof s === "object" && !s.deletedAt)
+		)
+	);
 }

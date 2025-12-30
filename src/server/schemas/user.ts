@@ -18,40 +18,40 @@ import { z } from "zod";
  * 64-character hex string representing BLAKE2b hash of Ed25519 public key
  */
 export const pubkeyHashSchema = z
-  .string()
-  .length(64)
-  .regex(/^[a-f0-9]+$/i, "Must be a valid hex string");
+	.string()
+	.length(64)
+	.regex(/^[a-f0-9]+$/i, "Must be a valid hex string");
 
 /**
  * Base64-encoded encrypted data blob
  */
 export const encryptedDataSchema = z
-  .string()
-  .min(1, "Encrypted data cannot be empty")
-  .refine(
-    (val) => {
-      try {
-        atob(val);
-        return true;
-      } catch {
-        return false;
-      }
-    },
-    { message: "Must be valid base64" }
-  );
+	.string()
+	.min(1, "Encrypted data cannot be empty")
+	.refine(
+		(val) => {
+			try {
+				atob(val);
+				return true;
+			} catch {
+				return false;
+			}
+		},
+		{ message: "Must be valid base64" }
+	);
 
 // ============================================================================
 // User Existence Check (Public - before auth)
 // ============================================================================
 
 export const userExistsInput = z.object({
-  pubkeyHash: pubkeyHashSchema,
+	pubkeyHash: pubkeyHashSchema,
 });
 
 export type UserExistsInput = z.infer<typeof userExistsInput>;
 
 export const userExistsOutput = z.object({
-  exists: z.boolean(),
+	exists: z.boolean(),
 });
 
 export type UserExistsOutput = z.infer<typeof userExistsOutput>;
@@ -67,24 +67,24 @@ export type UserExistsOutput = z.infer<typeof userExistsOutput>;
  * The pubkey_hash becomes the user's immutable identity.
  */
 export const userRegisterInput = z.object({
-  /**
-   * BLAKE2b hash of Ed25519 public key (hex, 64 chars).
-   * This is the user's permanent identity.
-   */
-  pubkeyHash: pubkeyHashSchema,
+	/**
+	 * BLAKE2b hash of Ed25519 public key (hex, 64 chars).
+	 * This is the user's permanent identity.
+	 */
+	pubkeyHash: pubkeyHashSchema,
 
-  /**
-   * Optional encrypted data to store immediately.
-   * Usually empty on first registration; populated later.
-   */
-  encryptedData: encryptedDataSchema.optional(),
+	/**
+	 * Optional encrypted data to store immediately.
+	 * Usually empty on first registration; populated later.
+	 */
+	encryptedData: encryptedDataSchema.optional(),
 });
 
 export type UserRegisterInput = z.infer<typeof userRegisterInput>;
 
 export const userRegisterOutput = z.object({
-  success: z.boolean(),
-  isNew: z.boolean().describe("True if a new user was created, false if already existed"),
+	success: z.boolean(),
+	isNew: z.boolean().describe("True if a new user was created, false if already existed"),
 });
 
 export type UserRegisterOutput = z.infer<typeof userRegisterOutput>;
@@ -100,16 +100,16 @@ export type UserRegisterOutput = z.infer<typeof userRegisterOutput>;
  * Returns user data if exists, creates and returns if not.
  */
 export const userGetOrCreateInput = z.object({
-  pubkeyHash: pubkeyHashSchema,
+	pubkeyHash: pubkeyHashSchema,
 });
 
 export type UserGetOrCreateInput = z.infer<typeof userGetOrCreateInput>;
 
 export const userGetOrCreateOutput = z.object({
-  isNew: z.boolean(),
-  encryptedData: encryptedDataSchema.nullable(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
+	isNew: z.boolean(),
+	encryptedData: encryptedDataSchema.nullable(),
+	createdAt: z.string().datetime(),
+	updatedAt: z.string().datetime(),
 });
 
 export type UserGetOrCreateOutput = z.infer<typeof userGetOrCreateOutput>;
@@ -126,12 +126,12 @@ export const getUserDataInput = z.object({});
 export type GetUserDataInput = z.infer<typeof getUserDataInput>;
 
 export const getUserDataOutput = z.object({
-  data: z
-    .object({
-      encryptedData: encryptedDataSchema.nullable(),
-      updatedAt: z.string().datetime(),
-    })
-    .nullable(),
+	data: z
+		.object({
+			encryptedData: encryptedDataSchema.nullable(),
+			updatedAt: z.string().datetime(),
+		})
+		.nullable(),
 });
 
 export type GetUserDataOutput = z.infer<typeof getUserDataOutput>;
@@ -151,13 +151,13 @@ export type GetUserDataOutput = z.infer<typeof getUserDataOutput>;
  * All decryption happens client-side.
  */
 export const upsertUserDataInput = z.object({
-  encryptedData: encryptedDataSchema,
+	encryptedData: encryptedDataSchema,
 });
 
 export type UpsertUserDataInput = z.infer<typeof upsertUserDataInput>;
 
 export const upsertUserDataOutput = z.object({
-  success: z.boolean(),
+	success: z.boolean(),
 });
 
 export type UpsertUserDataOutput = z.infer<typeof upsertUserDataOutput>;

@@ -4,13 +4,13 @@
  * Re-exports all helper modules for convenience.
  */
 
-export { createNewIdentity, extractSeedPhrase, enterSeedPhrase, clearSession } from "./auth";
+export { clearSession, createNewIdentity, enterSeedPhrase, extractSeedPhrase } from "./auth";
 export {
-  goToDashboard,
-  goToTransactions,
-  goToTags,
-  goToAccounts,
-  goToPeople,
-  goToImports,
-  goToImportNew,
+	goToAccounts,
+	goToDashboard,
+	goToImportNew,
+	goToImports,
+	goToPeople,
+	goToTags,
+	goToTransactions,
 } from "./nav";

@@ -12,8 +12,8 @@ import { LoroDoc, type VersionVector } from "loro-crdt";
  * for use with export operations.
  */
 export interface VersionState {
-  /** The VersionVector object from Loro */
-  versionVector: VersionVector;
+	/** The VersionVector object from Loro */
+	versionVector: VersionVector;
 }
 
 /**
@@ -26,7 +26,7 @@ export interface VersionState {
  * @returns Snapshot bytes
  */
 export function exportSnapshot(doc: LoroDoc): Uint8Array {
-  return doc.export({ mode: "snapshot" });
+	return doc.export({ mode: "snapshot" });
 }
 
 /**
@@ -43,8 +43,8 @@ export function exportSnapshot(doc: LoroDoc): Uint8Array {
  * @returns Shallow snapshot bytes
  */
 export function exportShallowSnapshot(doc: LoroDoc): Uint8Array {
-  // Shallow snapshot requires frontiers - use oplogFrontiers for the full history cutoff
-  return doc.export({ mode: "shallow-snapshot", frontiers: doc.oplogFrontiers() });
+	// Shallow snapshot requires frontiers - use oplogFrontiers for the full history cutoff
+	return doc.export({ mode: "shallow-snapshot", frontiers: doc.oplogFrontiers() });
 }
 
 /**
@@ -58,10 +58,10 @@ export function exportShallowSnapshot(doc: LoroDoc): Uint8Array {
  * @returns Update bytes (may be empty if no changes)
  */
 export function exportUpdates(doc: LoroDoc, since?: VersionVector): Uint8Array {
-  if (since) {
-    return doc.export({ mode: "update", from: since });
-  }
-  return doc.export({ mode: "update" });
+	if (since) {
+		return doc.export({ mode: "update", from: since });
+	}
+	return doc.export({ mode: "update" });
 }
 
 /**
@@ -73,29 +73,29 @@ export function exportUpdates(doc: LoroDoc, since?: VersionVector): Uint8Array {
  * @returns Object with either updates or snapshot
  */
 export function exportUpdatesSafe(
-  doc: LoroDoc,
-  since?: VersionVector
+	doc: LoroDoc,
+	since?: VersionVector
 ): { type: "updates"; data: Uint8Array } | { type: "snapshot"; data: Uint8Array } {
-  if (!since) {
-    // No version provided, send snapshot
-    return { type: "snapshot", data: exportSnapshot(doc) };
-  }
+	if (!since) {
+		// No version provided, send snapshot
+		return { type: "snapshot", data: exportSnapshot(doc) };
+	}
 
-  try {
-    const updates = doc.export({ mode: "update", from: since });
-    // If updates are very large (>100KB), consider sending snapshot instead
-    if (updates.length > 100_000) {
-      const snapshot = exportSnapshot(doc);
-      // Only use snapshot if it's smaller
-      if (snapshot.length < updates.length) {
-        return { type: "snapshot", data: snapshot };
-      }
-    }
-    return { type: "updates", data: updates };
-  } catch {
-    // If the version is too old, fall back to snapshot
-    return { type: "snapshot", data: exportSnapshot(doc) };
-  }
+	try {
+		const updates = doc.export({ mode: "update", from: since });
+		// If updates are very large (>100KB), consider sending snapshot instead
+		if (updates.length > 100_000) {
+			const snapshot = exportSnapshot(doc);
+			// Only use snapshot if it's smaller
+			if (snapshot.length < updates.length) {
+				return { type: "snapshot", data: snapshot };
+			}
+		}
+		return { type: "updates", data: updates };
+	} catch {
+		// If the version is too old, fall back to snapshot
+		return { type: "snapshot", data: exportSnapshot(doc) };
+	}
 }
 
 /**
@@ -105,7 +105,7 @@ export function exportUpdatesSafe(
  * @param data - Snapshot or update bytes
  */
 export function importData(doc: LoroDoc, data: Uint8Array): void {
-  doc.import(data);
+	doc.import(data);
 }
 
 /**
@@ -115,9 +115,9 @@ export function importData(doc: LoroDoc, data: Uint8Array): void {
  * @param updates - Array of update bytes
  */
 export function importUpdates(doc: LoroDoc, updates: Uint8Array[]): void {
-  for (const update of updates) {
-    doc.import(update);
-  }
+	for (const update of updates) {
+		doc.import(update);
+	}
 }
 
 /**
@@ -129,7 +129,7 @@ export function importUpdates(doc: LoroDoc, updates: Uint8Array[]): void {
  * @returns Encoded version vector bytes
  */
 export function getVersionEncoded(doc: LoroDoc): Uint8Array {
-  return doc.version().encode();
+	return doc.version().encode();
 }
 
 /**
@@ -141,7 +141,7 @@ export function getVersionEncoded(doc: LoroDoc): Uint8Array {
  * @returns VersionVector object
  */
 export function getVersion(doc: LoroDoc): VersionVector {
-  return doc.version();
+	return doc.version();
 }
 
 /**
@@ -154,7 +154,7 @@ export function getVersion(doc: LoroDoc): VersionVector {
  * @returns VersionVector object
  */
 export function getOplogVersion(doc: LoroDoc): VersionVector {
-  return doc.oplogVersion();
+	return doc.oplogVersion();
 }
 
 /**
@@ -165,9 +165,9 @@ export function getOplogVersion(doc: LoroDoc): VersionVector {
  * @returns true if there are changes
  */
 export function hasChangesSince(doc: LoroDoc, since: VersionVector): boolean {
-  const updates = doc.export({ mode: "update", from: since });
-  // Empty updates have minimal size (just header)
-  return updates.length > 10;
+	const updates = doc.export({ mode: "update", from: since });
+	// Empty updates have minimal size (just header)
+	return updates.length > 10;
 }
 
 // Re-export LoroDoc and VersionVector for convenience

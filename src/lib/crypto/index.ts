@@ -9,98 +9,91 @@
  * - Ed25519 request signing
  */
 
-// Seed phrase utilities
-export {
-  generateSeedPhrase,
-  validateSeedPhrase,
-  mnemonicToMasterSeed,
-  normalizeMnemonic,
-  splitMnemonic,
-  joinMnemonic,
-} from "./seed";
-
-// Keypair derivation
-export {
-  initCrypto,
-  deriveKeysFromSeed,
-  publicKeyToBase64,
-  base64ToPublicKey,
-  privateKeyToBase64,
-  base64ToPrivateKey,
-  DOMAIN_ED25519_SIGNING,
-  DOMAIN_X25519_ENCRYPTION,
-  type SigningKeypair,
-  type EncryptionKeypair,
-  type DerivedKeys,
-} from "./keypair";
-
-// Identity management
-export {
-  createIdentity,
-  unlockWithSeed,
-  computePubkeyHash,
-  storeIdentitySession,
-  type NewIdentity,
-  type UnlockedIdentity,
-} from "./identity";
-
-// Session storage
-export {
-  storeSession,
-  getSession,
-  hasSession,
-  clearSession,
-  getSessionPubkeyHash,
-  getSessionPublicKey,
-  getSessionSecretKey,
-  getSessionEncPublicKey,
-  getSessionEncSecretKey,
-  type SessionData,
-} from "./session";
-
 // Symmetric encryption
 export {
-  generateVaultKey,
-  encrypt,
-  decrypt,
-  encryptForStorage,
-  decryptFromStorage,
-  encryptString,
-  decryptString,
-  encryptJSON,
-  decryptJSON,
-  NONCE_BYTES,
-  KEY_BYTES,
+	decrypt,
+	decryptFromStorage,
+	decryptJSON,
+	decryptString,
+	encrypt,
+	encryptForStorage,
+	encryptJSON,
+	encryptString,
+	generateVaultKey,
+	KEY_BYTES,
+	NONCE_BYTES,
 } from "./encryption";
-
+// Identity management
+export {
+	computePubkeyHash,
+	createIdentity,
+	type NewIdentity,
+	storeIdentitySession,
+	type UnlockedIdentity,
+	unlockWithSeed,
+} from "./identity";
+// Keypair derivation
+export {
+	base64ToPrivateKey,
+	base64ToPublicKey,
+	type DerivedKeys,
+	DOMAIN_ED25519_SIGNING,
+	DOMAIN_X25519_ENCRYPTION,
+	deriveKeysFromSeed,
+	type EncryptionKeypair,
+	initCrypto,
+	privateKeyToBase64,
+	publicKeyToBase64,
+	type SigningKeypair,
+} from "./keypair";
 // Asymmetric key wrapping
 export {
-  wrapKey,
-  unwrapKey,
-  wrapKeyToBase64,
-  unwrapKeyFromBase64,
-  sealKey,
-  unsealKey,
-  sealKeyToBase64,
-  unsealKeyFromBase64,
+	sealKey,
+	sealKeyToBase64,
+	unsealKey,
+	unsealKeyFromBase64,
+	unwrapKey,
+	unwrapKeyFromBase64,
+	wrapKey,
+	wrapKeyToBase64,
 } from "./keywrap";
-
-// Request signing
-export {
-  signRequest,
-  verifyRequest,
-  signData,
-  verifySignature,
-  signString,
-  verifyStringSignature,
-  type SignedRequestHeaders,
-} from "./signing";
-
 // Vault re-keying
 export {
-  rekeyVault,
-  reencryptSnapshot,
-  performCompleteRekey,
-  type RemainingMember,
-  type RekeyResult,
+	performCompleteRekey,
+	type RekeyResult,
+	type RemainingMember,
+	reencryptSnapshot,
+	rekeyVault,
 } from "./rekey";
+// Seed phrase utilities
+export {
+	generateSeedPhrase,
+	joinMnemonic,
+	mnemonicToMasterSeed,
+	normalizeMnemonic,
+	splitMnemonic,
+	validateSeedPhrase,
+} from "./seed";
+// Session storage
+export {
+	clearSession,
+	getSession,
+	getSessionEncPublicKey,
+	getSessionEncSecretKey,
+	getSessionPubkeyHash,
+	getSessionPublicKey,
+	getSessionSecretKey,
+	hasSession,
+	type SessionData,
+	storeSession,
+} from "./session";
+// Request signing
+export {
+	type SignedRequestHeaders,
+	signData,
+	signRequest,
+	signString,
+	verifyRequest,
+	verifySignature,
+	verifyStringSignature,
+} from "./signing";

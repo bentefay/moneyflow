@@ -5,8 +5,8 @@
  * Domain-specific types live closer to their usage (e.g., CRDT schema, API schemas).
  */
 
-import { z } from "zod";
 import { Temporal } from "temporal-polyfill";
+import { z } from "zod";
 
 // ============================================
 // Branded Temporal Types
@@ -43,42 +43,42 @@ export const ISOInstantStringSchema = z.iso.datetime().transform((s) => s as ISO
  * Convert a Temporal.PlainDate to an ISODateString for storage.
  */
 export function toISODateString(date: Temporal.PlainDate): ISODateString {
-  return date.toString() as ISODateString;
+	return date.toString() as ISODateString;
 }
 
 /**
  * Convert an ISODateString to a Temporal.PlainDate for computation.
  */
 export function fromISODateString(s: ISODateString): Temporal.PlainDate {
-  return Temporal.PlainDate.from(s);
+	return Temporal.PlainDate.from(s);
 }
 
 /**
  * Convert a Temporal.Instant to an ISOInstantString for storage.
  */
 export function toISOInstantString(instant: Temporal.Instant): ISOInstantString {
-  return instant.toString() as ISOInstantString;
+	return instant.toString() as ISOInstantString;
 }
 
 /**
  * Convert an ISOInstantString to a Temporal.Instant for computation.
  */
 export function fromISOInstantString(s: ISOInstantString): Temporal.Instant {
-  return Temporal.Instant.from(s);
+	return Temporal.Instant.from(s);
 }
 
 /**
  * Get the current instant as an ISOInstantString.
  */
 export function nowISOInstantString(): ISOInstantString {
-  return Temporal.Now.instant().toString() as ISOInstantString;
+	return Temporal.Now.instant().toString() as ISOInstantString;
 }
 
 /**
  * Get today's date as an ISODateString.
  */
 export function todayISODateString(): ISODateString {
-  return Temporal.Now.plainDateISO().toString() as ISODateString;
+	return Temporal.Now.plainDateISO().toString() as ISODateString;
 }
 
 // ============================================
@@ -187,12 +187,12 @@ export type Theme = z.infer<typeof ThemeSchema>;
  * These are NOT vault-specific - they apply across all vaults.
  */
 export const GlobalSettingsSchema = z.object({
-  /** Currently active vault ID (null if none selected) */
-  activeVaultId: z.string().uuid().nullable(),
-  /** UI theme preference */
-  theme: ThemeSchema,
-  /** Default currency for imports when not specified by account or file (ISO 4217) */
-  defaultCurrency: CurrencyCodeSchema.default("USD"),
+	/** Currently active vault ID (null if none selected) */
+	activeVaultId: z.string().uuid().nullable(),
+	/** UI theme preference */
+	theme: ThemeSchema,
+	/** Default currency for imports when not specified by account or file (ISO 4217) */
+	defaultCurrency: CurrencyCodeSchema.default("USD"),
 });
 export type GlobalSettings = z.infer<typeof GlobalSettingsSchema>;
 
@@ -200,12 +200,12 @@ export type GlobalSettings = z.infer<typeof GlobalSettingsSchema>;
  * Reference to a vault stored in user's encrypted data.
  */
 export const VaultReferenceSchema = z.object({
-  /** Vault UUID */
-  id: z.string().uuid(),
-  /** Vault encryption key wrapped with user's X25519 public key */
-  wrappedKey: z.string().min(1),
-  /** Cached vault name for UI (convenience, may be stale) */
-  name: z.string().optional(),
+	/** Vault UUID */
+	id: z.string().uuid(),
+	/** Vault encryption key wrapped with user's X25519 public key */
+	wrappedKey: z.string().min(1),
+	/** Cached vault name for UI (convenience, may be stale) */
+	name: z.string().optional(),
 });
 export type VaultReference = z.infer<typeof VaultReferenceSchema>;
 
@@ -213,10 +213,10 @@ export type VaultReference = z.infer<typeof VaultReferenceSchema>;
  * Decrypted contents of user_data.encrypted_data
  */
 export const UserDataSchema = z.object({
-  /** User's vault memberships with wrapped keys */
-  vaults: z.array(VaultReferenceSchema),
-  /** Global (user-level) settings */
-  globalSettings: GlobalSettingsSchema,
+	/** User's vault memberships with wrapped keys */
+	vaults: z.array(VaultReferenceSchema),
+	/** Global (user-level) settings */
+	globalSettings: GlobalSettingsSchema,
 });
 export type UserData = z.infer<typeof UserDataSchema>;
 
@@ -227,9 +227,9 @@ export type UserData = z.infer<typeof UserDataSchema>;
 export type Result<T, E = Error> = { success: true; data: T } | { success: false; error: E };
 
 export function ok<T>(data: T): Result<T, never> {
-  return { success: true, data };
+	return { success: true, data };
 }
 
 export function err<E>(error: E): Result<never, E> {
-  return { success: false, error };
+	return { success: false, error };
 }

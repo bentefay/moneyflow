@@ -26,7 +26,7 @@ const SHORT_STRING_THRESHOLD = 10;
  * @returns Number of edits required (after normalization)
  */
 export function levenshtein(a: string, b: string): number {
-  return levenshteinLib.distance(a, b);
+	return levenshteinLib.distance(a, b);
 }
 
 /**
@@ -42,19 +42,19 @@ export function levenshtein(a: string, b: string): number {
  * @returns Similarity ratio (1 = identical, 0 = completely different)
  */
 export function similarity(a: string, b: string): number {
-  if (a === b) return 1;
-  if (a.length === 0 && b.length === 0) return 1;
-  if (a.length === 0 || b.length === 0) return 0;
+	if (a === b) return 1;
+	if (a.length === 0 && b.length === 0) return 1;
+	if (a.length === 0 || b.length === 0) return 0;
 
-  const maxLen = Math.max(a.length, b.length);
+	const maxLen = Math.max(a.length, b.length);
 
-  // Use Levenshtein-based similarity for short strings
-  if (maxLen < SHORT_STRING_THRESHOLD) {
-    return levenshteinLib.similarity(a, b);
-  }
+	// Use Levenshtein-based similarity for short strings
+	if (maxLen < SHORT_STRING_THRESHOLD) {
+		return levenshteinLib.similarity(a, b);
+	}
 
-  // Use Dice coefficient for longer strings
-  return diceCoefficient.similarity(a, b);
+	// Use Dice coefficient for longer strings
+	return diceCoefficient.similarity(a, b);
 }
 
 /**
@@ -66,7 +66,7 @@ export function similarity(a: string, b: string): number {
  * @returns True if strings are at least minSimilarity similar
  */
 export function isSimilar(a: string, b: string, minSimilarity: number): boolean {
-  return similarity(a, b) >= minSimilarity;
+	return similarity(a, b) >= minSimilarity;
 }
 
 /**
@@ -78,11 +78,11 @@ export function isSimilar(a: string, b: string, minSimilarity: number): boolean 
  * @returns Normalized string
  */
 export function normalizeForComparison(str: string): string {
-  return str
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ") // Replace punctuation (including underscore) with spaces
-    .replace(/\s+/g, " ") // Collapse multiple spaces
-    .trim();
+	return str
+		.toLowerCase()
+		.replace(/[^a-z0-9\s]/g, " ") // Replace punctuation (including underscore) with spaces
+		.replace(/\s+/g, " ") // Collapse multiple spaces
+		.trim();
 }
 
 /**
@@ -93,5 +93,5 @@ export function normalizeForComparison(str: string): string {
  * @returns Similarity ratio after normalization
  */
 export function normalizedSimilarity(a: string, b: string): number {
-  return similarity(normalizeForComparison(a), normalizeForComparison(b));
+	return similarity(normalizeForComparison(a), normalizeForComparison(b));
 }

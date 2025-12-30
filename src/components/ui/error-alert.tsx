@@ -7,26 +7,26 @@
 
 "use client";
 
+import { AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 
 // ============================================================================
 // Types
 // ============================================================================
 
 export interface ErrorAlertProps {
-  /** User-friendly error title */
-  title?: string;
+	/** User-friendly error title */
+	title?: string;
 
-  /** User-friendly error message */
-  message: string;
+	/** User-friendly error message */
+	message: string;
 
-  /** Technical error details (shown in collapsible section) */
-  details?: string;
+	/** Technical error details (shown in collapsible section) */
+	details?: string;
 
-  /** Additional CSS classes */
-  className?: string;
+	/** Additional CSS classes */
+	className?: string;
 }
 
 // ============================================================================
@@ -34,50 +34,50 @@ export interface ErrorAlertProps {
 // ============================================================================
 
 export function ErrorAlert({
-  title = "Something went wrong",
-  message,
-  details,
-  className,
+	title = "Something went wrong",
+	message,
+	details,
+	className,
 }: ErrorAlertProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+	const [isExpanded, setIsExpanded] = useState(false);
 
-  return (
-    <div
-      className={cn("w-full rounded-lg border border-red-500/30 bg-red-500/10", className)}
-      role="alert"
-    >
-      {/* Main error message */}
-      <div className="flex items-start gap-3 p-4">
-        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-500" />
-        <div className="flex-1 space-y-1">
-          <p className="font-medium text-red-600 dark:text-red-400">{title}</p>
-          <p className="text-sm text-red-600/80 dark:text-red-400/80">{message}</p>
-        </div>
-      </div>
+	return (
+		<div
+			className={cn("w-full rounded-lg border border-red-500/30 bg-red-500/10", className)}
+			role="alert"
+		>
+			{/* Main error message */}
+			<div className="flex items-start gap-3 p-4">
+				<AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-500" />
+				<div className="flex-1 space-y-1">
+					<p className="font-medium text-red-600 dark:text-red-400">{title}</p>
+					<p className="text-red-600/80 text-sm dark:text-red-400/80">{message}</p>
+				</div>
+			</div>
 
-      {/* Collapsible technical details */}
-      {details && (
-        <>
-          <button
-            type="button"
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex w-full items-center justify-between border-t border-red-500/20 px-4 py-2 text-xs text-red-500/70 transition-colors hover:bg-red-500/5 hover:text-red-500"
-            aria-expanded={isExpanded}
-            aria-controls="error-details"
-          >
-            <span>Technical details</span>
-            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
+			{/* Collapsible technical details */}
+			{details && (
+				<>
+					<button
+						type="button"
+						onClick={() => setIsExpanded(!isExpanded)}
+						className="flex w-full items-center justify-between border-red-500/20 border-t px-4 py-2 text-red-500/70 text-xs transition-colors hover:bg-red-500/5 hover:text-red-500"
+						aria-expanded={isExpanded}
+						aria-controls="error-details"
+					>
+						<span>Technical details</span>
+						{isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+					</button>
 
-          {isExpanded && (
-            <div id="error-details" className="border-t border-red-500/20 bg-red-500/5 p-4">
-              <pre className="overflow-x-auto font-mono text-xs break-all whitespace-pre-wrap text-red-600/70 dark:text-red-400/70">
-                {details}
-              </pre>
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
+					{isExpanded && (
+						<div id="error-details" className="border-red-500/20 border-t bg-red-500/5 p-4">
+							<pre className="overflow-x-auto whitespace-pre-wrap break-all font-mono text-red-600/70 text-xs dark:text-red-400/70">
+								{details}
+							</pre>
+						</div>
+					)}
+				</>
+			)}
+		</div>
+	);
 }

@@ -1,18 +1,17 @@
-export {
-  AuthGuard,
-  withAuthGuard,
-  useAuthGuard,
-  isPublicRoute,
-  isAuthenticated,
-  getCurrentPubkeyHash,
-  PUBLIC_ROUTES,
-  UNLOCK_ROUTE,
-  DASHBOARD_ROUTE,
-} from "./guard";
-
 export type {
-  UseAuthGuardOptions,
-  UseAuthGuardReturn,
-  WithAuthGuardOptions,
-  AuthGuardProps,
+	AuthGuardProps,
+	UseAuthGuardOptions,
+	UseAuthGuardReturn,
+	WithAuthGuardOptions,
+} from "./guard";
+export {
+	AuthGuard,
+	DASHBOARD_ROUTE,
+	getCurrentPubkeyHash,
+	isAuthenticated,
+	isPublicRoute,
+	PUBLIC_ROUTES,
+	UNLOCK_ROUTE,
+	useAuthGuard,
+	withAuthGuard,
 } from "./guard";

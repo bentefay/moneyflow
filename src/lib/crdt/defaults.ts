@@ -7,14 +7,14 @@
  * This is called when creating a new vault to ensure users never see an empty state.
  */
 
-import type { VaultInput, StatusInput } from "./schema";
+import type { StatusInput, VaultInput } from "./schema";
 
 /**
  * Default status IDs (stable for reference in code)
  */
 export const DEFAULT_STATUS_IDS = {
-  FOR_REVIEW: "status-for-review",
-  PAID: "status-paid",
+	FOR_REVIEW: "status-for-review",
+	PAID: "status-paid",
 } as const;
 
 /**
@@ -27,20 +27,20 @@ export const DEFAULT_STATUS_IDS = {
  * Note: deletedAt of 0 means "not deleted"
  */
 export const DEFAULT_STATUSES: Record<string, StatusInput> = {
-  [DEFAULT_STATUS_IDS.FOR_REVIEW]: {
-    id: DEFAULT_STATUS_IDS.FOR_REVIEW,
-    name: "For Review",
-    behavior: "", // No special behavior
-    isDefault: true,
-    deletedAt: 0, // Not deleted
-  },
-  [DEFAULT_STATUS_IDS.PAID]: {
-    id: DEFAULT_STATUS_IDS.PAID,
-    name: "Paid",
-    behavior: "treatAsPaid",
-    isDefault: true,
-    deletedAt: 0, // Not deleted
-  },
+	[DEFAULT_STATUS_IDS.FOR_REVIEW]: {
+		id: DEFAULT_STATUS_IDS.FOR_REVIEW,
+		name: "For Review",
+		behavior: "", // No special behavior
+		isDefault: true,
+		deletedAt: 0, // Not deleted
+	},
+	[DEFAULT_STATUS_IDS.PAID]: {
+		id: DEFAULT_STATUS_IDS.PAID,
+		name: "Paid",
+		behavior: "treatAsPaid",
+		isDefault: true,
+		deletedAt: 0, // Not deleted
+	},
 };
 
 /**
@@ -52,21 +52,21 @@ export const DEFAULT_STATUSES: Record<string, StatusInput> = {
  * - Default preferences
  */
 export function getDefaultVaultState(): VaultInput {
-  return {
-    people: {},
-    accounts: {},
-    tags: {},
-    statuses: { ...DEFAULT_STATUSES },
-    transactions: {},
-    imports: {},
-    importTemplates: {},
-    automations: {},
-    automationApplications: {},
-    preferences: {
-      automationCreationPreference: "manual",
-      defaultCurrency: "USD",
-    },
-  };
+	return {
+		people: {},
+		accounts: {},
+		tags: {},
+		statuses: { ...DEFAULT_STATUSES },
+		transactions: {},
+		imports: {},
+		importTemplates: {},
+		automations: {},
+		automationApplications: {},
+		preferences: {
+			automationCreationPreference: "manual",
+			defaultCurrency: "USD",
+		},
+	};
 }
 
 /**
@@ -83,20 +83,20 @@ export function getDefaultVaultState(): VaultInput {
  * @param draft - The vault draft to initialize (from loro-mirror setState)
  */
 export function initializeVaultDefaults(draft: VaultInput): void {
-  // Add default statuses if they don't exist
-  for (const [id, status] of Object.entries(DEFAULT_STATUSES)) {
-    if (!draft.statuses[id]) {
-      draft.statuses[id] = status;
-    }
-  }
+	// Add default statuses if they don't exist
+	for (const [id, status] of Object.entries(DEFAULT_STATUSES)) {
+		if (!draft.statuses[id]) {
+			draft.statuses[id] = status;
+		}
+	}
 
-  // Ensure preferences exist with defaults
-  if (!draft.preferences) {
-    draft.preferences = {
-      automationCreationPreference: "manual",
-      defaultCurrency: "USD",
-    };
-  }
+	// Ensure preferences exist with defaults
+	if (!draft.preferences) {
+		draft.preferences = {
+			automationCreationPreference: "manual",
+			defaultCurrency: "USD",
+		};
+	}
 }
 
 /**
@@ -106,7 +106,7 @@ export function initializeVaultDefaults(draft: VaultInput): void {
  * @returns true if default statuses exist
  */
 export function hasVaultDefaults(state: { statuses: Record<string, unknown> }): boolean {
-  return (
-    DEFAULT_STATUS_IDS.FOR_REVIEW in state.statuses && DEFAULT_STATUS_IDS.PAID in state.statuses
-  );
+	return (
+		DEFAULT_STATUS_IDS.FOR_REVIEW in state.statuses && DEFAULT_STATUS_IDS.PAID in state.statuses
+	);
 }

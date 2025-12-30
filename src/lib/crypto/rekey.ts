@@ -18,23 +18,23 @@
  */
 
 import sodium from "libsodium-wrappers";
+import { decrypt, encrypt, generateVaultKey } from "./encryption";
 import { initCrypto } from "./keypair";
-import { generateVaultKey, encrypt, decrypt } from "./encryption";
 import { sealKeyToBase64 } from "./keywrap";
 
 export interface RemainingMember {
-  pubkeyHash: string;
-  encPublicKey: string; // Base64-encoded X25519 public key
+	pubkeyHash: string;
+	encPublicKey: string; // Base64-encoded X25519 public key
 }
 
 export interface RekeyResult {
-  /** New vault key (32 bytes) */
-  newVaultKey: Uint8Array;
-  /** New wrapped keys for each remaining member */
-  memberKeys: Array<{
-    pubkeyHash: string;
-    encryptedVaultKey: string; // Base64-encoded wrapped key
-  }>;
+	/** New vault key (32 bytes) */
+	newVaultKey: Uint8Array;
+	/** New wrapped keys for each remaining member */
+	memberKeys: Array<{
+		pubkeyHash: string;
+		encryptedVaultKey: string; // Base64-encoded wrapped key
+	}>;
 }
 
 /**
@@ -47,23 +47,23 @@ export interface RekeyResult {
  * @returns New vault key and wrapped keys for each member
  */
 export async function rekeyVault(remainingMembers: RemainingMember[]): Promise<RekeyResult> {
-  await initCrypto();
+	await initCrypto();
 
-  // Generate new vault key
-  const newVaultKey = await generateVaultKey();
+	// Generate new vault key
+	const newVaultKey = await generateVaultKey();
 
-  // Wrap new key for each remaining member using sealed box
-  const memberKeys = await Promise.all(
-    remainingMembers.map(async (member) => ({
-      pubkeyHash: member.pubkeyHash,
-      encryptedVaultKey: await sealKeyToBase64(newVaultKey, member.encPublicKey),
-    }))
-  );
+	// Wrap new key for each remaining member using sealed box
+	const memberKeys = await Promise.all(
+		remainingMembers.map(async (member) => ({
+			pubkeyHash: member.pubkeyHash,
+			encryptedVaultKey: await sealKeyToBase64(newVaultKey, member.encPublicKey),
+		}))
+	);
 
-  return {
-    newVaultKey,
-    memberKeys,
-  };
+	return {
+		newVaultKey,
+		memberKeys,
+	};
 }
 
 /**
@@ -75,32 +75,32 @@ export async function rekeyVault(remainingMembers: RemainingMember[]): Promise<R
  * @returns Base64-encoded encrypted snapshot (new key)
  */
 export async function reencryptSnapshot(
-  encryptedSnapshot: string,
-  oldVaultKey: Uint8Array,
-  newVaultKey: Uint8Array
+	encryptedSnapshot: string,
+	oldVaultKey: Uint8Array,
+	newVaultKey: Uint8Array
 ): Promise<string> {
-  await initCrypto();
+	await initCrypto();
 
-  // Decode the encrypted snapshot
-  const encryptedData = sodium.from_base64(encryptedSnapshot, sodium.base64_variants.ORIGINAL);
+	// Decode the encrypted snapshot
+	const encryptedData = sodium.from_base64(encryptedSnapshot, sodium.base64_variants.ORIGINAL);
 
-  // The snapshot format is: nonce (24 bytes) || ciphertext
-  const nonceLength = 24;
-  const nonce = encryptedData.slice(0, nonceLength);
-  const ciphertext = encryptedData.slice(nonceLength);
+	// The snapshot format is: nonce (24 bytes) || ciphertext
+	const nonceLength = 24;
+	const nonce = encryptedData.slice(0, nonceLength);
+	const ciphertext = encryptedData.slice(nonceLength);
 
-  // Decrypt with old key
-  const plaintext = await decrypt(ciphertext, nonce, oldVaultKey);
+	// Decrypt with old key
+	const plaintext = await decrypt(ciphertext, nonce, oldVaultKey);
 
-  // Re-encrypt with new key
-  const { ciphertext: newCiphertext, nonce: newNonce } = await encrypt(plaintext, newVaultKey);
+	// Re-encrypt with new key
+	const { ciphertext: newCiphertext, nonce: newNonce } = await encrypt(plaintext, newVaultKey);
 
-  // Combine new nonce and ciphertext
-  const result = new Uint8Array(newNonce.length + newCiphertext.length);
-  result.set(newNonce);
-  result.set(newCiphertext, newNonce.length);
+	// Combine new nonce and ciphertext
+	const result = new Uint8Array(newNonce.length + newCiphertext.length);
+	result.set(newNonce);
+	result.set(newCiphertext, newNonce.length);
 
-  return sodium.to_base64(result, sodium.base64_variants.ORIGINAL);
+	return sodium.to_base64(result, sodium.base64_variants.ORIGINAL);
 }
 
 /**
@@ -117,24 +117,24 @@ export async function reencryptSnapshot(
  * @returns Re-key result with new key, member keys, and optionally re-encrypted snapshot
  */
 export async function performCompleteRekey(
-  remainingMembers: RemainingMember[],
-  encryptedSnapshot?: string,
-  oldVaultKey?: Uint8Array
+	remainingMembers: RemainingMember[],
+	encryptedSnapshot?: string,
+	oldVaultKey?: Uint8Array
 ): Promise<RekeyResult & { newEncryptedSnapshot?: string }> {
-  const result = await rekeyVault(remainingMembers);
+	const result = await rekeyVault(remainingMembers);
 
-  // If snapshot and old key provided, re-encrypt
-  let newEncryptedSnapshot: string | undefined;
-  if (encryptedSnapshot && oldVaultKey) {
-    newEncryptedSnapshot = await reencryptSnapshot(
-      encryptedSnapshot,
-      oldVaultKey,
-      result.newVaultKey
-    );
-  }
+	// If snapshot and old key provided, re-encrypt
+	let newEncryptedSnapshot: string | undefined;
+	if (encryptedSnapshot && oldVaultKey) {
+		newEncryptedSnapshot = await reencryptSnapshot(
+			encryptedSnapshot,
+			oldVaultKey,
+			result.newVaultKey
+		);
+	}
 
-  return {
-    ...result,
-    newEncryptedSnapshot,
-  };
+	return {
+		...result,
+		newEncryptedSnapshot,
+	};
 }

@@ -6,19 +6,19 @@
  */
 
 import {
-  HeroSection,
-  FeaturesSection,
-  SecuritySection,
-  CTASection,
+	CTASection,
+	FeaturesSection,
+	HeroSection,
+	SecuritySection,
 } from "@/components/features/landing";
 
 export default function LandingPage() {
-  return (
-    <>
-      <HeroSection />
-      <FeaturesSection />
-      <SecuritySection />
-      <CTASection />
-    </>
-  );
+	return (
+		<>
+			<HeroSection />
+			<FeaturesSection />
+			<SecuritySection />
+			<CTASection />
+		</>
+	);
 }

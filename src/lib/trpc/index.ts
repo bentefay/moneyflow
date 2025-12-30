@@ -1,1 +1,1 @@
-export { trpc, createTRPCClient } from "./client";
+export { createTRPCClient, trpc } from "./client";

@@ -5,7 +5,7 @@
  * is pending the account creation feature.
  */
 
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { createNewIdentity, goToTransactions } from "./helpers";
 
 // ============================================================================
@@ -13,20 +13,20 @@ import { createNewIdentity, goToTransactions } from "./helpers";
 // ============================================================================
 
 test.describe("Transactions", () => {
-  test("page displays correctly with empty state", async ({ page }) => {
-    await createNewIdentity(page);
+	test("page displays correctly with empty state", async ({ page }) => {
+		await createNewIdentity(page);
 
-    await test.step("navigate to transactions page", async () => {
-      await goToTransactions(page);
+		await test.step("navigate to transactions page", async () => {
+			await goToTransactions(page);
 
-      // Page title (h1 level to avoid matching 'No transactions yet')
-      await expect(page.getByRole("heading", { name: "Transactions", level: 1 })).toBeVisible();
-    });
+			// Page title (h1 level to avoid matching 'No transactions yet')
+			await expect(page.getByRole("heading", { name: "Transactions", level: 1 })).toBeVisible();
+		});
 
-    await test.step("show add transaction row in empty state", async () => {
-      // The add transaction row should always be visible
-      const addRow = page.locator('[data-testid="add-transaction-row"]');
-      await expect(addRow).toBeVisible();
-    });
-  });
+		await test.step("show add transaction row in empty state", async () => {
+			// The add transaction row should always be visible
+			const addRow = page.locator('[data-testid="add-transaction-row"]');
+			await expect(addRow).toBeVisible();
+		});
+	});
 });

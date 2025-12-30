@@ -23,7 +23,7 @@ export type CurrencyCode = keyof typeof Currencies;
  * Type guard to check if a string is a valid currency code.
  */
 export function isValidCurrencyCode(code: string): code is CurrencyCode {
-  return code.toUpperCase() in Currencies;
+	return code.toUpperCase() in Currencies;
 }
 
 // ============================================================================
@@ -35,20 +35,20 @@ export function isValidCurrencyCode(code: string): code is CurrencyCode {
  * Data sourced from ts-money project.
  */
 export interface Currency {
-  /** ISO 4217 currency code (e.g., "USD", "EUR", "JPY") */
-  code: string;
-  /** Currency symbol for display (e.g., "$", "€", "¥") */
-  symbol: string;
-  /** Native symbol used in the currency's home region */
-  symbol_native: string;
-  /** Currency name in English */
-  name: string;
-  /** Plural form of currency name */
-  name_plural: string;
-  /** Number of decimal places (e.g., 2 for USD, 0 for JPY, 3 for KWD) */
-  decimal_digits: number;
-  /** Rounding increment (e.g., 0.05 for CHF) */
-  rounding: number;
+	/** ISO 4217 currency code (e.g., "USD", "EUR", "JPY") */
+	code: string;
+	/** Currency symbol for display (e.g., "$", "€", "¥") */
+	symbol: string;
+	/** Native symbol used in the currency's home region */
+	symbol_native: string;
+	/** Currency name in English */
+	name: string;
+	/** Plural form of currency name */
+	name_plural: string;
+	/** Number of decimal places (e.g., 2 for USD, 0 for JPY, 3 for KWD) */
+	decimal_digits: number;
+	/** Rounding increment (e.g., 0.05 for CHF) */
+	rounding: number;
 }
 
 // ============================================================================
@@ -78,10 +78,10 @@ export type MoneyMinorUnits = number & { readonly [MoneyMinorUnitsBrand]: true }
  * Use this when loading values from the CRDT or database.
  */
 export function asMinorUnits(value: number): MoneyMinorUnits {
-  if (!Number.isInteger(value)) {
-    throw new Error(`MoneyMinorUnits must be an integer, got ${value}`);
-  }
-  return value as MoneyMinorUnits;
+	if (!Number.isInteger(value)) {
+		throw new Error(`MoneyMinorUnits must be an integer, got ${value}`);
+	}
+	return value as MoneyMinorUnits;
 }
 
 // ============================================================================
@@ -100,29 +100,29 @@ export function asMinorUnits(value: number): MoneyMinorUnits {
  * ```
  */
 export function createCurrencyFactory(currency: Currency) {
-  const { code, symbol, decimal_digits, rounding } = currency;
+	const { code, symbol, decimal_digits, rounding } = currency;
 
-  const factory = (
-    value: number | string | currencyJs,
-    opts?: { fromCents?: boolean }
-  ): currencyJs => {
-    return currencyJs(value, {
-      symbol,
-      precision: decimal_digits,
-      decimal: ".",
-      separator: ",",
-      increment: rounding > 0 ? rounding : undefined,
-      fromCents: opts?.fromCents ?? false,
-      errorOnInvalid: true,
-    });
-  };
+	const factory = (
+		value: number | string | currencyJs,
+		opts?: { fromCents?: boolean }
+	): currencyJs => {
+		return currencyJs(value, {
+			symbol,
+			precision: decimal_digits,
+			decimal: ".",
+			separator: ",",
+			increment: rounding > 0 ? rounding : undefined,
+			fromCents: opts?.fromCents ?? false,
+			errorOnInvalid: true,
+		});
+	};
 
-  // Attach metadata to the factory
-  factory.code = code;
-  factory.symbol = symbol;
-  factory.precision = decimal_digits;
+	// Attach metadata to the factory
+	factory.code = code;
+	factory.symbol = symbol;
+	factory.precision = decimal_digits;
 
-  return factory;
+	return factory;
 }
 
 // ============================================================================
@@ -139,7 +139,7 @@ export function createCurrencyFactory(currency: Currency) {
  * ```
  */
 export function toMinorUnits(value: currencyJs): MoneyMinorUnits {
-  return value.intValue as MoneyMinorUnits;
+	return value.intValue as MoneyMinorUnits;
 }
 
 /**
@@ -153,10 +153,10 @@ export function toMinorUnits(value: currencyJs): MoneyMinorUnits {
  * ```
  */
 export function fromMinorUnits(
-  value: MoneyMinorUnits,
-  factory: ReturnType<typeof createCurrencyFactory>
+	value: MoneyMinorUnits,
+	factory: ReturnType<typeof createCurrencyFactory>
 ): currencyJs {
-  return factory(value, { fromCents: true });
+	return factory(value, { fromCents: true });
 }
 
 /**
@@ -171,12 +171,12 @@ export function fromMinorUnits(
  * ```
  */
 export function getMinorUnitMultiplier(currencyCode: string): number {
-  const currency = Currencies[currencyCode.toUpperCase()];
-  if (!currency) {
-    // Default to 2 decimal places if unknown currency
-    return 100;
-  }
-  return Math.pow(10, currency.decimal_digits);
+	const currency = Currencies[currencyCode.toUpperCase()];
+	if (!currency) {
+		// Default to 2 decimal places if unknown currency
+		return 100;
+	}
+	return Math.pow(10, currency.decimal_digits);
 }
 
 /**
@@ -195,8 +195,8 @@ export function getMinorUnitMultiplier(currencyCode: string): number {
  * ```
  */
 export function toMinorUnitsForCurrency(amount: number, currencyCode: string): MoneyMinorUnits {
-  const multiplier = getMinorUnitMultiplier(currencyCode);
-  return asMinorUnits(Math.round(amount * multiplier));
+	const multiplier = getMinorUnitMultiplier(currencyCode);
+	return asMinorUnits(Math.round(amount * multiplier));
 }
 
 /**
@@ -204,7 +204,7 @@ export function toMinorUnitsForCurrency(amount: number, currencyCode: string): M
  * Returns undefined if currency code is not found.
  */
 export function getCurrency(currencyCode: string): Currency | undefined {
-  return Currencies[currencyCode.toUpperCase()];
+	return Currencies[currencyCode.toUpperCase()];
 }
 
 // ============================================================================
@@ -215,51 +215,51 @@ export function getCurrency(currencyCode: string): Currency | undefined {
  * Options for creating a currency formatter.
  */
 export interface CurrencyFormatterOptions {
-  /**
-   * How to display the currency.
-   * - "symbol": Use currency symbol (e.g., "$", "€")
-   * - "narrowSymbol": Use narrow symbol (e.g., "$" vs "US$")
-   * - "code": Use ISO code (e.g., "USD")
-   * - "name": Use localized name (e.g., "US dollars")
-   * @default "symbol"
-   */
-  currencyDisplay?: "symbol" | "narrowSymbol" | "code" | "name";
+	/**
+	 * How to display the currency.
+	 * - "symbol": Use currency symbol (e.g., "$", "€")
+	 * - "narrowSymbol": Use narrow symbol (e.g., "$" vs "US$")
+	 * - "code": Use ISO code (e.g., "USD")
+	 * - "name": Use localized name (e.g., "US dollars")
+	 * @default "symbol"
+	 */
+	currencyDisplay?: "symbol" | "narrowSymbol" | "code" | "name";
 
-  /**
-   * Whether to use grouping separators (e.g., 1,234.56 vs 1234.56).
-   * @default true
-   */
-  useGrouping?: boolean;
+	/**
+	 * Whether to use grouping separators (e.g., 1,234.56 vs 1234.56).
+	 * @default true
+	 */
+	useGrouping?: boolean;
 
-  /**
-   * How to display the sign for the number.
-   * - "auto": Sign for negative only (default)
-   * - "never": Never show sign
-   * - "always": Always show sign
-   * - "exceptZero": Sign for non-zero values
-   * @default "auto"
-   */
-  signDisplay?: "auto" | "never" | "always" | "exceptZero";
+	/**
+	 * How to display the sign for the number.
+	 * - "auto": Sign for negative only (default)
+	 * - "never": Never show sign
+	 * - "always": Always show sign
+	 * - "exceptZero": Sign for non-zero values
+	 * @default "auto"
+	 */
+	signDisplay?: "auto" | "never" | "always" | "exceptZero";
 }
 
 /**
  * A currency formatter that handles MoneyMinorUnits conversion internally.
  */
 export interface CurrencyFormatter {
-  /** The currency this formatter is configured for */
-  readonly currency: Currency;
-  /** The underlying Intl.NumberFormat instance */
-  readonly numberFormat: Intl.NumberFormat;
-  /**
-   * Format a MoneyMinorUnits value for display.
-   * Automatically converts from minor units (e.g., cents) to major units (e.g., dollars).
-   */
-  format(amount: MoneyMinorUnits): string;
-  /**
-   * Format a raw number (in major units) for display.
-   * Use this when you already have a value in major units.
-   */
-  formatMajorUnits(amount: number): string;
+	/** The currency this formatter is configured for */
+	readonly currency: Currency;
+	/** The underlying Intl.NumberFormat instance */
+	readonly numberFormat: Intl.NumberFormat;
+	/**
+	 * Format a MoneyMinorUnits value for display.
+	 * Automatically converts from minor units (e.g., cents) to major units (e.g., dollars).
+	 */
+	format(amount: MoneyMinorUnits): string;
+	/**
+	 * Format a raw number (in major units) for display.
+	 * Use this when you already have a value in major units.
+	 */
+	formatMajorUnits(amount: number): string;
 }
 
 /**
@@ -298,32 +298,32 @@ export interface CurrencyFormatter {
  * ```
  */
 export function createCurrencyFormatter(
-  currency: Currency,
-  locale: Intl.LocalesArgument,
-  options: CurrencyFormatterOptions = {}
+	currency: Currency,
+	locale: Intl.LocalesArgument,
+	options: CurrencyFormatterOptions = {}
 ): CurrencyFormatter {
-  const { currencyDisplay = "symbol", useGrouping = true, signDisplay = "auto" } = options;
+	const { currencyDisplay = "symbol", useGrouping = true, signDisplay = "auto" } = options;
 
-  const numberFormat = new Intl.NumberFormat(locale, {
-    style: "currency",
-    currency: currency.code,
-    currencyDisplay,
-    useGrouping,
-    signDisplay,
-  });
+	const numberFormat = new Intl.NumberFormat(locale, {
+		style: "currency",
+		currency: currency.code,
+		currencyDisplay,
+		useGrouping,
+		signDisplay,
+	});
 
-  const multiplier = Math.pow(10, currency.decimal_digits);
+	const multiplier = Math.pow(10, currency.decimal_digits);
 
-  return {
-    currency,
-    numberFormat,
-    format(amount: MoneyMinorUnits): string {
-      return numberFormat.format(amount / multiplier);
-    },
-    formatMajorUnits(amount: number): string {
-      return numberFormat.format(amount);
-    },
-  };
+	return {
+		currency,
+		numberFormat,
+		format(amount: MoneyMinorUnits): string {
+			return numberFormat.format(amount / multiplier);
+		},
+		formatMajorUnits(amount: number): string {
+			return numberFormat.format(amount);
+		},
+	};
 }
 
 /**
@@ -343,8 +343,8 @@ export function createCurrencyFormatter(
  * ```
  */
 export function toMajorUnits(amount: MoneyMinorUnits, currencyCode: CurrencyCode | string): number {
-  const multiplier = getMinorUnitMultiplier(currencyCode);
-  return amount / multiplier;
+	const multiplier = getMinorUnitMultiplier(currencyCode);
+	return amount / multiplier;
 }
 
 // ============================================================================

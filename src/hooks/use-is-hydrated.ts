@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 /**
  * Returns true after the component has hydrated on the client.
@@ -11,11 +11,11 @@ import { useState, useEffect } from "react";
  * return <Button disabled={!isHydrated}>Click me</Button>;
  */
 export function useIsHydrated(): boolean {
-  const [isHydrated, setIsHydrated] = useState(false);
+	const [isHydrated, setIsHydrated] = useState(false);
 
-  useEffect(() => {
-    setIsHydrated(true);
-  }, []);
+	useEffect(() => {
+		setIsHydrated(true);
+	}, []);
 
-  return isHydrated;
+	return isHydrated;
 }

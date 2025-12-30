@@ -5,54 +5,50 @@
  */
 
 export {
-  parseCSV,
-  parseNumber,
-  parseDate,
-  detectSeparator,
-  detectHeaders,
-  type CSVParseOptions,
-  type CSVParseResult,
+	type CSVParseOptions,
+	type CSVParseResult,
+	detectHeaders,
+	detectSeparator,
+	parseCSV,
+	parseDate,
+	parseNumber,
 } from "./csv";
-
 export {
-  parseOFX,
-  isOFXFormat,
-  type ParsedOFXTransaction,
-  type ParsedOFXAccount,
-  type ParsedOFXBalance,
-  type ParsedOFXStatement,
-  type ParsedOFXData,
-  type OFXParseResult,
-  type OFXParseError,
-  type OFXTransactionType,
-  type OFXAccountType,
-} from "./ofx";
-
-export {
-  processCSVImport,
-  processOFXImport,
-  processImport,
-  type ProcessedTransaction,
-  type ProcessImportResult,
-  type ProcessOFXImportResult,
-  type ProcessImportResultType,
-  type ExistingTransaction,
-} from "./processor";
-
-export {
-  levenshtein,
-  similarity,
-  isSimilar,
-  normalizeForComparison,
-  normalizedSimilarity,
-} from "./levenshtein";
-
-export {
-  checkDuplicate,
-  detectDuplicates,
-  detectInternalDuplicates,
-  DEFAULT_DUPLICATE_CONFIG,
-  type DuplicateCheckTransaction,
-  type DuplicateMatch,
-  type DuplicateDetectionConfig,
+	checkDuplicate,
+	DEFAULT_DUPLICATE_CONFIG,
+	type DuplicateCheckTransaction,
+	type DuplicateDetectionConfig,
+	type DuplicateMatch,
+	detectDuplicates,
+	detectInternalDuplicates,
 } from "./duplicates";
+export {
+	isSimilar,
+	levenshtein,
+	normalizedSimilarity,
+	normalizeForComparison,
+	similarity,
+} from "./levenshtein";
+export {
+	isOFXFormat,
+	type OFXAccountType,
+	type OFXParseError,
+	type OFXParseResult,
+	type OFXTransactionType,
+	type ParsedOFXAccount,
+	type ParsedOFXBalance,
+	type ParsedOFXData,
+	type ParsedOFXStatement,
+	type ParsedOFXTransaction,
+	parseOFX,
+} from "./ofx";
+export {
+	type ExistingTransaction,
+	type ProcessedTransaction,
+	type ProcessImportResult,
+	type ProcessImportResultType,
+	type ProcessOFXImportResult,
+	processCSVImport,
+	processImport,
+	processOFXImport,
+} from "./processor";
