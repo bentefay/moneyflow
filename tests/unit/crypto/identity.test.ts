@@ -10,9 +10,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	computePubkeyHash,
 	createIdentity,
-	type NewIdentity,
 	storeIdentitySession,
-	type UnlockedIdentity,
 	unlockWithSeed,
 } from "@/lib/crypto/identity";
 import { deriveKeysFromSeed, initCrypto } from "@/lib/crypto/keypair";

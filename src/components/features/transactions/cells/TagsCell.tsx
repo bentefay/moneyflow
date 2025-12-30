@@ -7,7 +7,7 @@
  * Clicking opens an inline tag editor.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export interface TagData {
@@ -99,8 +99,9 @@ export function TagsCell({
 	const inputRef = useRef<HTMLInputElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
 
-	// Sync selected tags with prop
+	// Sync selected tags with prop when tags change from parent
 	useEffect(() => {
+		// eslint-disable-next-line react-hooks/set-state-in-effect -- Sync controlled value with prop
 		setSelectedTagIds(tags.map((t) => t.id));
 	}, [tags]);
 
@@ -110,6 +111,18 @@ export function TagsCell({
 			inputRef.current.focus();
 		}
 	}, [isEditing]);
+
+	const handleDoubleClick = () => {
+		onEditStart?.();
+	};
+
+	const handleSave = useCallback(() => {
+		if (JSON.stringify(selectedTagIds) !== JSON.stringify(tags.map((t) => t.id))) {
+			onChange?.(selectedTagIds);
+		}
+		setSearchQuery("");
+		onEditEnd?.();
+	}, [selectedTagIds, tags, onChange, onEditEnd]);
 
 	// Handle click outside to close
 	useEffect(() => {
@@ -123,19 +136,7 @@ export function TagsCell({
 
 		document.addEventListener("mousedown", handleClickOutside);
 		return () => document.removeEventListener("mousedown", handleClickOutside);
-	}, [isEditing, selectedTagIds]);
-
-	const handleDoubleClick = () => {
-		onEditStart?.();
-	};
-
-	const handleSave = () => {
-		if (JSON.stringify(selectedTagIds) !== JSON.stringify(tags.map((t) => t.id))) {
-			onChange?.(selectedTagIds);
-		}
-		setSearchQuery("");
-		onEditEnd?.();
-	};
+	}, [isEditing, handleSave]);
 
 	const handleKeyDown = (e: React.KeyboardEvent) => {
 		if (e.key === "Enter" && searchQuery.trim() && onCreateTag) {

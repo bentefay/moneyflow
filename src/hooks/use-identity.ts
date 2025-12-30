@@ -419,6 +419,7 @@ export function useIsAuthenticated(): boolean {
 	const [isAuthenticated, setIsAuthenticated] = useState(false);
 
 	useEffect(() => {
+		// eslint-disable-next-line react-hooks/set-state-in-effect -- SSR hydration pattern
 		setIsAuthenticated(hasSession());
 	}, []);
 
@@ -434,6 +435,7 @@ export function usePubkeyHash(): string | null {
 
 	useEffect(() => {
 		const session = getSession();
+		// eslint-disable-next-line react-hooks/set-state-in-effect -- SSR hydration pattern
 		setPubkeyHash(session?.pubkeyHash ?? null);
 	}, []);
 

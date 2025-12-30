@@ -10,7 +10,6 @@
  */
 
 import { TRPCError } from "@trpc/server";
-import { z } from "zod";
 import { createSupabaseClient } from "@/lib/supabase/server";
 import {
 	vaultCreateInput,

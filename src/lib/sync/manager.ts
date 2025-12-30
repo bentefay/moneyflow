@@ -17,25 +17,18 @@
 
 import { throttle } from "lodash-es";
 import { LoroDoc, VersionVector } from "loro-crdt";
-import { Temporal } from "temporal-polyfill";
 import {
 	createEncryptedShallowSnapshot,
-	createEncryptedUpdate,
 	decryptUpdate,
-	type EncryptedSnapshot,
-	type EncryptedUpdate,
 	loadEncryptedSnapshot,
 } from "@/lib/crdt/snapshot";
-import { exportSnapshot, exportUpdates, getVersionEncoded, importUpdates } from "@/lib/crdt/sync";
+import { getVersionEncoded } from "@/lib/crdt/sync";
 import { createVaultRealtimeSync, VaultRealtimeSync } from "@/lib/supabase/realtime";
 import {
 	appendOp,
-	clearVaultData,
 	countOpsSinceSnapshot,
 	getUnpushedOps,
 	hasUnpushedOps,
-	type LocalOp,
-	type LocalSnapshot,
 	loadLocalSnapshot,
 	markOpsPushed,
 	saveLocalSnapshot,
@@ -140,7 +133,6 @@ export class SyncManager {
 	private onError: ((error: Error) => void) | undefined;
 	private lastSyncedVersion: VersionVector | null = null;
 	private snapshotVersion = 0;
-	private pendingUpdates: EncryptedUpdate[] = [];
 	private isSyncing = false;
 	private isInitialized = false;
 	private autoSyncEnabled = true;
@@ -609,15 +601,12 @@ export class SyncManager {
 	}
 }
 
-/**
- * Generate a Hybrid Logical Clock timestamp.
- * Format: ISO timestamp with a counter suffix for ordering.
- */
-function generateHlcTimestamp(): string {
-	const now = Temporal.Now.instant();
-	const counter = Math.floor(Math.random() * 10000);
-	return `${now.toString()}-${counter.toString().padStart(4, "0")}`;
-}
+// Reserved for future HLC-based ordering
+// function generateHlcTimestamp(): string {
+// 	const now = Temporal.Now.instant();
+// 	const counter = Math.floor(Math.random() * 10000);
+// 	return `${now.toString()}-${counter.toString().padStart(4, "0")}`;
+// }
 
 /**
  * Create a sync manager for a vault.

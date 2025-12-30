@@ -7,7 +7,7 @@
  */
 
 import sodium from "libsodium-wrappers";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { computePubkeyHash } from "@/lib/crypto/identity";
 import { deriveKeysFromSeed, initCrypto, publicKeyToBase64 } from "@/lib/crypto/keypair";
 import { generateSeedPhrase, mnemonicToMasterSeed } from "@/lib/crypto/seed";

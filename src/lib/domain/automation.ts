@@ -109,8 +109,13 @@ export function evaluateConditions(conditions: ConditionData[], transaction: Tra
 
 /**
  * Apply actions to a transaction and return the changes.
+ * Note: Second parameter reserved for future action types that may reference transaction data.
  */
-export function applyActions(actions: ActionData[], _transaction: Transaction): TransactionChanges {
+export function applyActions(
+	actions: ActionData[],
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	transaction: Transaction
+): TransactionChanges {
 	const changes: TransactionChanges = {};
 
 	for (const action of actions) {

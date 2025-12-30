@@ -7,7 +7,7 @@
  * Shows dropdown for status selection with color-coded pills.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export interface StatusData {
@@ -78,8 +78,9 @@ export function StatusCell({
 	const selectRef = useRef<HTMLSelectElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
 
-	// Sync selected ID with prop
+	// Sync selected ID with prop when status changes from parent
 	useEffect(() => {
+		// eslint-disable-next-line react-hooks/set-state-in-effect -- Sync controlled value with prop
 		setSelectedId(status?.id ?? "");
 	}, [status]);
 
@@ -89,6 +90,17 @@ export function StatusCell({
 			selectRef.current.focus();
 		}
 	}, [isEditing]);
+
+	const handleDoubleClick = () => {
+		onEditStart?.();
+	};
+
+	const handleSave = useCallback(() => {
+		if (selectedId !== status?.id) {
+			onChange?.(selectedId);
+		}
+		onEditEnd?.();
+	}, [selectedId, status?.id, onChange, onEditEnd]);
 
 	// Handle click outside to close
 	useEffect(() => {
@@ -102,18 +114,7 @@ export function StatusCell({
 
 		document.addEventListener("mousedown", handleClickOutside);
 		return () => document.removeEventListener("mousedown", handleClickOutside);
-	}, [isEditing, selectedId]);
-
-	const handleDoubleClick = () => {
-		onEditStart?.();
-	};
-
-	const handleSave = () => {
-		if (selectedId !== status?.id) {
-			onChange?.(selectedId);
-		}
-		onEditEnd?.();
-	};
+	}, [isEditing, handleSave]);
 
 	const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
 		setSelectedId(e.target.value);

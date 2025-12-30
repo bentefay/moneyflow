@@ -8,7 +8,7 @@
 
 import { Check, ChevronDown, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { type ActiveVault, useActiveVault } from "@/hooks/use-active-vault";
+import { useActiveVault } from "@/hooks/use-active-vault";
 import { cn } from "@/lib/utils";
 
 export interface VaultOption {

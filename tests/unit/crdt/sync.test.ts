@@ -4,7 +4,7 @@
  * Tests export/import functionality for CRDT sync.
  */
 
-import { LoroDoc, LoroList, LoroMap } from "loro-crdt";
+import { LoroDoc } from "loro-crdt";
 import { describe, expect, it } from "vitest";
 import {
 	exportShallowSnapshot,

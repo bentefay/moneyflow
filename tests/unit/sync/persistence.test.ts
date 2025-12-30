@@ -22,8 +22,6 @@ import {
 	getSyncMeta,
 	getUnpushedOps,
 	hasUnpushedOps,
-	type LocalOp,
-	type LocalSnapshot,
 	loadLocalSnapshot,
 	markOpsPushed,
 	saveLocalSnapshot,

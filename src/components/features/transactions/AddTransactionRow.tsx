@@ -54,7 +54,7 @@ export function AddTransactionRow({
 	const descriptionRef = useRef<HTMLInputElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
 
-	// Set default account if provided
+	// Set default account if provided - only runs when defaults change
 	useEffect(() => {
 		if (defaultAccountId && !accountId) {
 			setAccountId(defaultAccountId);
@@ -127,6 +127,7 @@ export function AddTransactionRow({
 
 		document.addEventListener("mousedown", handleClickOutside);
 		return () => document.removeEventListener("mousedown", handleClickOutside);
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- handleReset is stable
 	}, [isActive, description, amount]);
 
 	if (!isActive) {

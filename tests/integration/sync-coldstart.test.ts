@@ -15,7 +15,7 @@ import {
 	appendOp,
 	clearVaultData,
 	closeDB,
-	deleteDB,
+	// deleteDB - reserved for full reset scenarios
 	getUnpushedOps,
 	hasUnpushedOps,
 	loadLocalSnapshot,

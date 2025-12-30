@@ -18,7 +18,6 @@ import {
 	getTagPath,
 	getTagPathString,
 	isTagDescendant,
-	type TagLike,
 	validateTagHierarchy,
 	wouldCreateCircularReference,
 } from "@/lib/domain/tags";

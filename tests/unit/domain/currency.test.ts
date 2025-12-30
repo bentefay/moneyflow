@@ -17,7 +17,6 @@ import {
 	getMinorUnitMultiplier,
 	isValidCurrencyCode,
 	JPY,
-	toMajorUnits,
 	toMinorUnits,
 	toMinorUnitsForCurrency,
 	USD,

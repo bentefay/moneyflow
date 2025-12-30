@@ -20,7 +20,7 @@ import type { ImportFormatting } from "@/components/features/import/FormattingSt
 import { asMinorUnits, type MoneyMinorUnits, toMinorUnitsForCurrency } from "@/lib/domain/currency";
 import { type ISODateString, toISODateString } from "@/types";
 import { type CSVParseOptions, parseCSV, parseDate, parseNumber } from "./csv";
-import { type DuplicateMatch, detectDuplicates } from "./duplicates";
+import { detectDuplicates } from "./duplicates";
 import { isOFXFormat, parseOFX } from "./ofx";
 
 /**

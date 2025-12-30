@@ -127,9 +127,11 @@ export function DateRangeFilter({ value, onChange, className }: DateRangeFilterP
 			? `${value.start} - ${value.end}`
 			: value.start || value.end || "All time");
 
-	// Sync custom inputs with value
+	// Sync custom inputs with value - derived state from controlled prop
 	useEffect(() => {
+		// eslint-disable-next-line react-hooks/set-state-in-effect -- Sync controlled input with parent
 		setCustomStart(value.start ?? "");
+
 		setCustomEnd(value.end ?? "");
 	}, [value]);
 

@@ -5,7 +5,6 @@
  */
 
 import * as fc from "fast-check";
-import sodium from "libsodium-wrappers";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
 	decrypt,

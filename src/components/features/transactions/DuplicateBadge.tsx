@@ -31,6 +31,8 @@ export interface DuplicateBadgeProps {
  */
 export function DuplicateBadge({
 	confidence = 0.7,
+	// Reserved for future navigation to original transaction
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	duplicateOfId,
 	originalDescription,
 	originalDate,

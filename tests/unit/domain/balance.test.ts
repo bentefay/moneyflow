@@ -20,12 +20,6 @@ import {
 // Test Helpers
 // ============================================================================
 
-/** Minimal account for testing - casted to full Account type */
-type TestAccount = Pick<Account, "id" | "name" | "ownerships">;
-
-/** Minimal transaction for settlement testing */
-type TestSettlementTransaction = Pick<Transaction, "amount" | "accountId" | "allocations">;
-
 /** Helper to create test accounts with proper typing */
 function testAccount(data: {
 	id: string;

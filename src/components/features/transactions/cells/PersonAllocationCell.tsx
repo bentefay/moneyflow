@@ -7,7 +7,7 @@
  * Shows percentage input for each person.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export interface PersonData {
@@ -66,25 +66,11 @@ export function PersonAllocationCell({
 		setLocalAllocations(allocations);
 	}, [allocations]);
 
-	// Handle click outside to close
-	useEffect(() => {
-		if (!isEditing) return;
-
-		const handleClickOutside = (e: MouseEvent) => {
-			if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-				handleSave();
-			}
-		};
-
-		document.addEventListener("mousedown", handleClickOutside);
-		return () => document.removeEventListener("mousedown", handleClickOutside);
-	}, [isEditing, localAllocations]);
-
 	const handleDoubleClick = () => {
 		onEditStart?.();
 	};
 
-	const handleSave = () => {
+	const handleSave = useCallback(() => {
 		// Validate allocations sum to 100%
 		const total = localAllocations.reduce((sum, a) => sum + a.percentage, 0);
 		if (total !== 100 && localAllocations.length > 0) {
@@ -104,7 +90,21 @@ export function PersonAllocationCell({
 			onChange?.(localAllocations);
 		}
 		onEditEnd?.();
-	};
+	}, [localAllocations, onChange, onEditEnd]);
+
+	// Handle click outside to close
+	useEffect(() => {
+		if (!isEditing) return;
+
+		const handleClickOutside = (e: MouseEvent) => {
+			if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+				handleSave();
+			}
+		};
+
+		document.addEventListener("mousedown", handleClickOutside);
+		return () => document.removeEventListener("mousedown", handleClickOutside);
+	}, [isEditing, handleSave]);
 
 	const handlePercentageChange = (personId: string, percentage: number) => {
 		setLocalAllocations((prev) => {

@@ -93,7 +93,9 @@ export function useVaultPresence(
 				clearInterval(heartbeatRef.current);
 				heartbeatRef.current = null;
 			}
+			// eslint-disable-next-line react-hooks/set-state-in-effect -- Cleanup state on unmount/disconnect
 			setIsConnected(false);
+
 			setPresence([]);
 			return;
 		}

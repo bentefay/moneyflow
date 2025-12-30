@@ -9,7 +9,6 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "fake-indexeddb/auto";
-import { LoroDoc } from "loro-crdt";
 import {
 	appendOp,
 	closeDB,
@@ -40,9 +39,10 @@ afterEach(async () => {
 // Test Helpers
 // ============================================
 
-function createTestDoc(): LoroDoc {
-	return new LoroDoc();
-}
+// Reserved for tests that need a fresh Loro document
+// function createTestDoc(): LoroDoc {
+// 	return new LoroDoc();
+// }
 
 function createEncryptedData(data: string): string {
 	return btoa(data);

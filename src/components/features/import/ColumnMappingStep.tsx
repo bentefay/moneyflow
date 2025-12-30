@@ -6,7 +6,7 @@
  * Step in import wizard for mapping CSV columns to transaction fields.
  */
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 
 /**

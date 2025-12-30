@@ -15,7 +15,7 @@
 
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 // ============================================================================
@@ -74,10 +74,13 @@ export function UnlockAnimation({
 	const [stage, setStage] = useState<UnlockAnimationStage>("idle");
 	const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-	const durations = {
-		...defaultDurations,
-		...stageDurations,
-	};
+	const durations = useMemo(
+		() => ({
+			...defaultDurations,
+			...stageDurations,
+		}),
+		[stageDurations]
+	);
 
 	// -------------------------------------------------------------------------
 	// Animation sequence
@@ -107,6 +110,7 @@ export function UnlockAnimation({
 	// Start animation when isUnlocking becomes true
 	useEffect(() => {
 		if (isUnlocking && stage === "idle") {
+			// eslint-disable-next-line react-hooks/set-state-in-effect -- Animation trigger
 			runAnimation();
 		}
 	}, [isUnlocking, stage, runAnimation]);

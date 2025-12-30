@@ -92,7 +92,7 @@ export function ActiveVaultProvider({ children, initialVault }: ActiveVaultProvi
 		if (initialVault) return initialVault;
 		return getActiveVaultFromStorage();
 	});
-	const [isLoading, setIsLoading] = useState(false); // No longer needed with sync init
+	// Reserved: const [_isLoading, _setIsLoading] = useState(false);
 
 	// Set active vault and persist to localStorage
 	const setActiveVault = useCallback((vault: ActiveVault | null) => {
@@ -116,7 +116,7 @@ export function ActiveVaultProvider({ children, initialVault }: ActiveVaultProvi
 
 	const value: ActiveVaultContextValue = {
 		activeVault,
-		isLoading,
+		isLoading: false, // Reserved for future async loading
 		setActiveVault,
 		clearActiveVault,
 		hasActiveVault: activeVault !== null,

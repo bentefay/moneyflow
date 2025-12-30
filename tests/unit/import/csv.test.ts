@@ -7,14 +7,7 @@
 import * as fc from "fast-check";
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
-import {
-	type CSVParseOptions,
-	detectHeaders,
-	detectSeparator,
-	parseCSV,
-	parseDate,
-	parseNumber,
-} from "@/lib/import/csv";
+import { detectHeaders, detectSeparator, parseCSV, parseDate, parseNumber } from "@/lib/import/csv";
 
 // ============================================================================
 // parseCSV tests

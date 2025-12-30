@@ -181,9 +181,10 @@ describe("processCSVImport", () => {
 	describe("formatting options", () => {
 		it("handles European format (comma decimal)", () => {
 			// European CSV uses semicolon separator to avoid confusion with comma decimal
-			const europeanCSV = `Date;Amount
-2024-01-15;-5,50
-2024-01-14;-45,00`;
+			// Example format (not yet used, but parsing is tested via parseNumber):
+			// Date;Amount
+			// 2024-01-15;-5,50
+			// 2024-01-14;-45,00
 
 			// For now, we test parseNumber directly since CSV separator is not yet configurable
 			// in processCSVImport. This test verifies the number parsing handles European format.

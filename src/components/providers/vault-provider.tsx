@@ -30,6 +30,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
 	const [isClient, setIsClient] = useState(false);
 
 	useEffect(() => {
+		// eslint-disable-next-line react-hooks/set-state-in-effect -- SSR hydration pattern
 		setIsClient(true);
 	}, []);
 

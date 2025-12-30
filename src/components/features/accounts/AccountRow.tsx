@@ -12,12 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Account, Person } from "@/lib/crdt/schema";
 import { Currencies } from "@/lib/domain/currencies";
-import {
-	asMinorUnits,
-	createCurrencyFormatter,
-	getCurrency,
-	type MoneyMinorUnits,
-} from "@/lib/domain/currency";
+import { createCurrencyFormatter, getCurrency, type MoneyMinorUnits } from "@/lib/domain/currency";
 import { isValidOwnership } from "@/lib/domain/ownership";
 import { cn } from "@/lib/utils";
 import { OwnershipEditor } from "./OwnershipEditor";
@@ -101,17 +96,18 @@ export function AccountRow({
 		setEditedAccountNumber(account.accountNumber || "");
 		setEditedType(account.accountType || "checking");
 		setIsEditing(false);
-	}, [account.name, account.accountNumber, account.accountType]);
+	}, [account]);
 
 	// Handle ownership change - filter out $cid from loro-mirror
 	const handleOwnershipChange = useCallback(
 		(newOwnerships: Record<string, number>) => {
-			// Filter out $cid property that loro-mirror injects
+			// Filter out $cid property that loro-mirror injects, then cast back to expected type
 			const filtered = Object.fromEntries(
 				Object.entries(newOwnerships).filter(([key]) => key !== "$cid")
 			);
-			onUpdate(account.id, { ownerships: filtered as typeof account.ownerships });
+			onUpdate(account.id, { ownerships: filtered as unknown as typeof account.ownerships });
 		},
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- typeof account.ownerships is a type reference, not runtime dependency
 		[account.id, onUpdate]
 	);
 

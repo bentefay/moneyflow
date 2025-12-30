@@ -88,8 +88,6 @@ export function calculateSettlementBalances(
 		for (const [personId, percentage] of allocationEntries) {
 			if (percentage === 0) continue;
 
-			const personShare = Math.round((amount * percentage) / 100);
-
 			// Find other people who should split with this person
 			for (const [otherPersonId, otherPercentage] of allocationEntries) {
 				if (otherPersonId === personId) continue;

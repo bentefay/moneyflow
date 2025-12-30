@@ -175,7 +175,8 @@ export function removeOwner(
 	ownerships: Record<string, number>,
 	personId: string
 ): Record<string, number> {
-	const { [personId]: _removed, ...remaining } = ownerships;
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Destructure to remove
+	const { [personId]: _, ...remaining } = ownerships;
 
 	// If no owners left, return empty
 	if (Object.keys(remaining).length === 0) {

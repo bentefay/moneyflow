@@ -8,14 +8,7 @@
  */
 
 import { createLoroContext } from "loro-mirror-react";
-import {
-	type Account,
-	type Person,
-	type Tag,
-	type Transaction,
-	type VaultState,
-	vaultSchema,
-} from "./schema";
+import { vaultSchema } from "./schema";
 
 /**
  * Create typed context and hooks for vault state management.

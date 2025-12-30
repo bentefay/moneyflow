@@ -67,11 +67,12 @@ function isValidBip39Word(word: string): boolean {
 	return bip39WordSet.has(word.toLowerCase());
 }
 
-function getWordSuggestions(partial: string): string[] {
-	if (partial.length < 2) return [];
-	const lower = partial.toLowerCase();
-	return wordlist.filter((w) => w.startsWith(lower)).slice(0, 5);
-}
+// Reserved for future autocomplete feature
+// function getWordSuggestions(partial: string): string[] {
+// 	if (partial.length < 2) return [];
+// 	const lower = partial.toLowerCase();
+// 	return wordlist.filter((w) => w.startsWith(lower)).slice(0, 5);
+// }
 
 // ============================================================================
 // Component
@@ -95,10 +96,11 @@ export function SeedPhraseInput({
 	const [words, setWords] = useState<string[]>(initialWords);
 	const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-	// Sync external value changes
+	// Sync external value changes - intentional controlled input pattern
 	useEffect(() => {
 		const parts = value.trim().split(/\s+/);
 		const newWords = Array.from({ length: 12 }, (_, i) => parts[i] || "");
+		// eslint-disable-next-line react-hooks/set-state-in-effect -- Syncing controlled input value
 		setWords(newWords);
 	}, [value]);
 

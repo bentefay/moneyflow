@@ -19,12 +19,7 @@ import {
 import { FileDropzone } from "./FileDropzone";
 import { DEFAULT_FORMATTING, FormattingStep, type ImportFormatting } from "./FormattingStep";
 import { PreviewStep, type PreviewTransaction } from "./PreviewStep";
-import {
-	applyTemplateToMappings,
-	type ImportTemplate,
-	mappingsToTemplateFormat,
-	TemplateSelector,
-} from "./TemplateSelector";
+import { applyTemplateToMappings, type ImportTemplate, TemplateSelector } from "./TemplateSelector";
 
 /**
  * Import wizard steps.
@@ -91,7 +86,8 @@ export function ImportWizard({
 
 	// File state
 	const [selectedFile, setSelectedFile] = useState<File | null>(null);
-	const [fileContent, setFileContent] = useState<string>("");
+	// setFileContent used to update state, getter currently unused but kept for debugging
+	const [, setFileContent] = useState<string>("");
 	const [isOFX, setIsOFX] = useState(false);
 
 	// CSV parsing state
@@ -101,74 +97,29 @@ export function ImportWizard({
 	const [formatting, setFormatting] = useState<ImportFormatting>(DEFAULT_FORMATTING);
 	const [selectedTemplateId, setSelectedTemplateId] = useState<string | undefined>();
 
-	// OFX parsing state
-	const [ofxTransactions, setOfxTransactions] = useState<ParsedOFXTransaction[]>([]);
+	// OFX parsing state - setOfxTransactions used to update state, getter reserved for future use
+	const [, setOfxTransactions] = useState<ParsedOFXTransaction[]>([]);
 
 	// Preview state
 	const [previewTransactions, setPreviewTransactions] = useState<PreviewTransaction[]>([]);
 
-	// Read file and determine format
-	const handleFileSelect = useCallback(async (file: File) => {
-		setSelectedFile(file);
-		setError(null);
+	// Check for duplicate - declared before use in generateOFXPreview
+	const checkDuplicate = useCallback(
+		(date: string, amount: number, description: string): boolean => {
+			return existingTransactions.some(
+				(existing) =>
+					existing.date === date &&
+					Math.abs(existing.amount - amount) < 0.01 &&
+					(existing.description
+						.toLowerCase()
+						.includes(description.toLowerCase().substring(0, 10)) ||
+						description.toLowerCase().includes(existing.description.toLowerCase().substring(0, 10)))
+			);
+		},
+		[existingTransactions]
+	);
 
-		try {
-			const content = await file.text();
-			setFileContent(content);
-
-			// Check if OFX format
-			if (isOFXFormat(content)) {
-				setIsOFX(true);
-				const result = parseOFX(content);
-
-				// Handle parse errors
-				if (!result.ok) {
-					const details =
-						result.error.details.length > 0 ? `: ${result.error.details.join(", ")}` : "";
-					setError(`${result.error.message}${details}`);
-					return;
-				}
-
-				// Flatten transactions from all statements
-				const allTransactions = result.data.statements.flatMap((s) => [...s.transactions]);
-
-				if (allTransactions.length === 0) {
-					setError("No transactions found in the OFX file.");
-					return;
-				}
-
-				setOfxTransactions(allTransactions);
-				// Skip to preview for OFX (no mapping needed)
-				generateOFXPreview(allTransactions);
-				setStep("preview");
-			} else {
-				setIsOFX(false);
-				// Parse as CSV
-				const separator = detectSeparator(content);
-				const hasHeaders = detectHeaders(content, separator);
-				const result = parseCSV(content, {
-					separator,
-					hasHeaders,
-					maxRows: 1000,
-				});
-
-				if (result.rows.length === 0) {
-					setError("No data rows found in the CSV file.");
-					return;
-				}
-
-				setCsvHeaders(result.headers);
-				setCsvRows(result.rows);
-				setMappings(initializeColumnMappings(result.headers, result.rows));
-				setStep("mapping");
-			}
-		} catch (err) {
-			setError("Failed to read file. Please try again.");
-			console.error("File read error:", err);
-		}
-	}, []);
-
-	// Generate preview from OFX transactions
+	// Generate preview from OFX transactions - declared before use in handleFileSelect
 	const generateOFXPreview = useCallback(
 		(transactions: readonly ParsedOFXTransaction[]) => {
 			const preview: PreviewTransaction[] = transactions.map((tx, idx) => {
@@ -185,23 +136,71 @@ export function ImportWizard({
 			});
 			setPreviewTransactions(preview);
 		},
-		[existingTransactions]
+		[checkDuplicate]
 	);
 
-	// Check for duplicate
-	const checkDuplicate = useCallback(
-		(date: string, amount: number, description: string): boolean => {
-			return existingTransactions.some(
-				(existing) =>
-					existing.date === date &&
-					Math.abs(existing.amount - amount) < 0.01 &&
-					(existing.description
-						.toLowerCase()
-						.includes(description.toLowerCase().substring(0, 10)) ||
-						description.toLowerCase().includes(existing.description.toLowerCase().substring(0, 10)))
-			);
+	// Read file and determine format
+	const handleFileSelect = useCallback(
+		async (file: File) => {
+			setSelectedFile(file);
+			setError(null);
+
+			try {
+				const content = await file.text();
+				setFileContent(content);
+
+				// Check if OFX format
+				if (isOFXFormat(content)) {
+					setIsOFX(true);
+					const result = parseOFX(content);
+
+					// Handle parse errors
+					if (!result.ok) {
+						const details =
+							result.error.details.length > 0 ? `: ${result.error.details.join(", ")}` : "";
+						setError(`${result.error.message}${details}`);
+						return;
+					}
+
+					// Flatten transactions from all statements
+					const allTransactions = result.data.statements.flatMap((s) => [...s.transactions]);
+
+					if (allTransactions.length === 0) {
+						setError("No transactions found in the OFX file.");
+						return;
+					}
+
+					setOfxTransactions(allTransactions);
+					// Skip to preview for OFX (no mapping needed)
+					generateOFXPreview(allTransactions);
+					setStep("preview");
+				} else {
+					setIsOFX(false);
+					// Parse as CSV
+					const separator = detectSeparator(content);
+					const hasHeaders = detectHeaders(content, separator);
+					const result = parseCSV(content, {
+						separator,
+						hasHeaders,
+						maxRows: 1000,
+					});
+
+					if (result.rows.length === 0) {
+						setError("No data rows found in the CSV file.");
+						return;
+					}
+
+					setCsvHeaders(result.headers);
+					setCsvRows(result.rows);
+					setMappings(initializeColumnMappings(result.headers, result.rows));
+					setStep("mapping");
+				}
+			} catch (err) {
+				setError("Failed to read file. Please try again.");
+				console.error("File read error:", err);
+			}
 		},
-		[existingTransactions]
+		[generateOFXPreview]
 	);
 
 	// Generate preview from CSV

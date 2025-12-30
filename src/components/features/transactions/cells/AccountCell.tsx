@@ -7,7 +7,7 @@
  * Shows dropdown for account selection.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export interface AccountData {
@@ -49,8 +49,9 @@ export function AccountCell({
 	const selectRef = useRef<HTMLSelectElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
 
-	// Sync selected ID with prop
+	// Sync selected ID with prop when account changes from parent
 	useEffect(() => {
+		// eslint-disable-next-line react-hooks/set-state-in-effect -- Sync controlled value with prop
 		setSelectedId(account?.id ?? "");
 	}, [account]);
 
@@ -60,6 +61,17 @@ export function AccountCell({
 			selectRef.current.focus();
 		}
 	}, [isEditing]);
+
+	const handleDoubleClick = () => {
+		onEditStart?.();
+	};
+
+	const handleSave = useCallback(() => {
+		if (selectedId !== account?.id) {
+			onChange?.(selectedId);
+		}
+		onEditEnd?.();
+	}, [selectedId, account?.id, onChange, onEditEnd]);
 
 	// Handle click outside to close
 	useEffect(() => {
@@ -73,18 +85,7 @@ export function AccountCell({
 
 		document.addEventListener("mousedown", handleClickOutside);
 		return () => document.removeEventListener("mousedown", handleClickOutside);
-	}, [isEditing, selectedId]);
-
-	const handleDoubleClick = () => {
-		onEditStart?.();
-	};
-
-	const handleSave = () => {
-		if (selectedId !== account?.id) {
-			onChange?.(selectedId);
-		}
-		onEditEnd?.();
-	};
+	}, [isEditing, handleSave]);
 
 	const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
 		setSelectedId(e.target.value);

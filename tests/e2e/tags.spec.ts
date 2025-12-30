@@ -99,17 +99,14 @@ async function editTag(
 	await saveButton.click();
 }
 
-/**
- * Delete a tag (double-click to confirm).
- */
-async function deleteTag(page: Page, tagName: string): Promise<void> {
-	const tagRow = page.locator(`[data-tag-name="${tagName}"]`);
-	await tagRow.hover();
-
-	const deleteButton = tagRow.getByRole("button", { name: /delete/i });
-	await deleteButton.click();
-	await deleteButton.click(); // Confirm
-}
+// Reserved helper for future delete tag tests
+// async function deleteTag(page: Page, tagName: string): Promise<void> {
+// 	const tagRow = page.locator(`[data-tag-name="${tagName}"]`);
+// 	await tagRow.hover();
+// 	const deleteButton = tagRow.getByRole("button", { name: /delete/i });
+// 	await deleteButton.click();
+// 	await deleteButton.click(); // Confirm
+// }
 
 // ============================================================================
 // Journey Tests

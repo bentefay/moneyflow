@@ -126,6 +126,7 @@ export function usePollUnsavedChanges(vaultId: string | null, pollInterval = 100
 
 	useEffect(() => {
 		if (!vaultId) {
+			// eslint-disable-next-line react-hooks/set-state-in-effect -- Reset state on vault change
 			setHasUnsaved(false);
 			return;
 		}
