@@ -52,6 +52,7 @@ export interface VaultApiMethods {
 		version: number;
 		hlcTimestamp: string;
 		encryptedData: string;
+		versionVector: string;
 	}) => Promise<{ snapshotId: string }>;
 }
 
@@ -178,11 +179,15 @@ export async function ensureDefaultVault(
 	encryptedData.set(ciphertext, nonce.length);
 
 	// 6. Save initial snapshot
+	// Get version vector from doc for server-side filtering
+	const versionVector = JSON.stringify(doc.version().toJSON());
+
 	await api.saveSnapshot({
 		vaultId,
 		version: 1,
 		hlcTimestamp: generateHlcTimestamp(),
 		encryptedData: sodium.to_base64(encryptedData, sodium.base64_variants.ORIGINAL),
+		versionVector,
 	});
 
 	console.log(`Created default vault: ${vaultId}`);

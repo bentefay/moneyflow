@@ -111,6 +111,7 @@ export const saveSnapshotInput = z.object({
 	encryptedData: encryptedDataSchema,
 	version: z.number().int().positive(),
 	hlcTimestamp: hlcTimestampSchema,
+	versionVector: versionVectorSchema,
 });
 
 export type SaveSnapshotInput = z.infer<typeof saveSnapshotInput>;

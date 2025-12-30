@@ -101,6 +101,9 @@ test.describe("Sync Persistence", () => {
 
 				await goToTags(page);
 
+				// Wait a bit for sync manager to initialize
+				await page.waitForTimeout(2000);
+
 				// Look for the tag we created
 				// Note: Tag might be in a table row or list item
 				const tagName = page.getByText("TestPersistenceTag");

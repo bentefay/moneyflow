@@ -428,6 +428,7 @@ export const syncRouter = router({
 				encrypted_data: input.encryptedData,
 				version: input.version,
 				hlc_timestamp: input.hlcTimestamp,
+				version_vector: input.versionVector,
 			})
 			.select("id")
 			.single();

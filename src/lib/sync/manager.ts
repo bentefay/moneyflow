@@ -298,9 +298,25 @@ export class SyncManager {
 			console.log("SyncManager: Loaded snapshot from IndexedDB");
 		}
 
-		// Apply any locally cached ops (including unpushed)
-		// This would require storing all ops locally, which we can add later
-		// For now, we only track unpushed ops
+		// Apply any locally cached unpushed ops
+		// These are ops created locally but not yet pushed to server
+		if (localUnpushed.length > 0) {
+			// Sort by created_at to apply in order
+			const sortedOps = [...localUnpushed].sort((a, b) => a.created_at - b.created_at);
+			this.autoSyncEnabled = false;
+			try {
+				for (const op of sortedOps) {
+					const decryptedUpdate = await decryptUpdate(
+						{ encryptedData: op.encrypted_data },
+						this.vaultKey
+					);
+					this.doc.import(decryptedUpdate);
+				}
+				console.log(`SyncManager: Applied ${sortedOps.length} unpushed ops from IndexedDB`);
+			} finally {
+				this.autoSyncEnabled = true;
+			}
+		}
 
 		if (!this.trpc) {
 			console.log("SyncManager: No tRPC client, using local state only");
