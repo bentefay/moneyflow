@@ -51,7 +51,11 @@ function normalizeBodyForSigning(
       let input: unknown = item?.json;
       if (item?.meta && item?.json) {
         try {
-          input = superjson.deserialize({ json: item.json, meta: item.meta as never });
+          // Cast to SuperJSONResult - superjson expects specific shape
+          input = superjson.deserialize({
+            json: item.json as Parameters<typeof superjson.deserialize>[0]["json"],
+            meta: item.meta as Parameters<typeof superjson.deserialize>[0]["meta"],
+          });
         } catch {
           input = item.json;
         }
@@ -67,7 +71,11 @@ function normalizeBodyForSigning(
     let input: unknown = body.json;
     if (body.meta && body.json) {
       try {
-        input = superjson.deserialize({ json: body.json, meta: body.meta as never });
+        // Cast to SuperJSONResult - superjson expects specific shape
+        input = superjson.deserialize({
+          json: body.json as Parameters<typeof superjson.deserialize>[0]["json"],
+          meta: body.meta as Parameters<typeof superjson.deserialize>[0]["meta"],
+        });
       } catch {
         input = body.json;
       }
