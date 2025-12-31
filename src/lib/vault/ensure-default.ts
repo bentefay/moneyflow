@@ -12,8 +12,8 @@
 import sodium from "libsodium-wrappers";
 import { LoroDoc } from "loro-crdt";
 import { Mirror } from "loro-mirror";
-import { DEFAULT_ACCOUNT_ID, DEFAULT_STATUS_IDS, getDefaultVaultState } from "@/lib/crdt/defaults";
-import { type VaultInput, vaultSchema } from "@/lib/crdt/schema";
+import { getDefaultVaultState } from "@/lib/crdt/defaults";
+import { vaultSchema } from "@/lib/crdt/schema";
 import { generateVaultKey } from "@/lib/crypto/encryption";
 import { initCrypto } from "@/lib/crypto/keypair";
 import { wrapKey } from "@/lib/crypto/keywrap";

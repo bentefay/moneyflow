@@ -8,7 +8,25 @@
  * This is called when creating a new vault to ensure users never see an empty state.
  */
 
-import type { AccountInput, StatusInput, VaultInput } from "./schema";
+import type { AccountInput, PersonInput, StatusInput, VaultInput } from "./schema";
+
+/**
+ * Default person ID (stable for reference in code)
+ */
+export const DEFAULT_PERSON_ID = "person-default-me";
+
+/**
+ * Default person for a new vault.
+ *
+ * Every new vault starts with a "Me" person so the default account
+ * can have valid 100% ownership.
+ */
+export const DEFAULT_PERSON: PersonInput = {
+	id: DEFAULT_PERSON_ID,
+	name: "Me",
+	linkedUserId: "", // Empty string for optional field
+	deletedAt: 0,
+};
 
 /**
  * Default account ID (stable for reference in code)
@@ -20,15 +38,17 @@ export const DEFAULT_ACCOUNT_ID = "account-default";
  *
  * Users can rename or edit this account later.
  * It serves as a starting point so new vaults aren't empty.
+ * Currency is undefined to inherit from vault default.
+ * Ownership is assigned to the default "Me" person.
  */
 export const DEFAULT_ACCOUNT: AccountInput = {
 	id: DEFAULT_ACCOUNT_ID,
 	name: "Default",
 	accountNumber: "",
-	currency: "USD",
+	currency: "", // Empty string = inherit from vault default (resolved at display time)
 	accountType: "checking",
 	balance: 0,
-	ownerships: {},
+	ownerships: { [DEFAULT_PERSON_ID]: 100 }, // Me owns 100%
 	deletedAt: 0,
 };
 
@@ -76,7 +96,7 @@ export const DEFAULT_STATUSES: Record<string, StatusInput> = {
  */
 export function getDefaultVaultState(): VaultInput {
 	return {
-		people: {},
+		people: { [DEFAULT_PERSON_ID]: { ...DEFAULT_PERSON } },
 		accounts: { [DEFAULT_ACCOUNT_ID]: { ...DEFAULT_ACCOUNT } },
 		tags: {},
 		statuses: { ...DEFAULT_STATUSES },
@@ -107,6 +127,11 @@ export function getDefaultVaultState(): VaultInput {
  * @param draft - The vault draft to initialize (from loro-mirror setState)
  */
 export function initializeVaultDefaults(draft: VaultInput): void {
+	// Add default person if it doesn't exist
+	if (!draft.people[DEFAULT_PERSON_ID]) {
+		draft.people[DEFAULT_PERSON_ID] = { ...DEFAULT_PERSON };
+	}
+
 	// Add default account if it doesn't exist
 	if (!draft.accounts[DEFAULT_ACCOUNT_ID]) {
 		draft.accounts[DEFAULT_ACCOUNT_ID] = { ...DEFAULT_ACCOUNT };

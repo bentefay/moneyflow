@@ -47,8 +47,8 @@ export const accountSchema = schema.LoroMap({
 	id: schema.String({ required: true }),
 	name: schema.String({ required: true }),
 	accountNumber: schema.String(),
-	/** ISO 4217 currency code (e.g., "USD", "EUR", "JPY"). Each account has exactly one currency. */
-	currency: schema.String({ defaultValue: "USD" }),
+	/** ISO 4217 currency code (e.g., "USD", "EUR", "JPY"). Optional - falls back to vault default if undefined. */
+	currency: schema.String(),
 	accountType: schema.String({ defaultValue: "checking" }), // checking, savings, credit, cash, loan
 	/** Balance in minor units for this account's currency (e.g., cents for USD, yen for JPY) */
 	balance: schema.Number({ defaultValue: 0 }),

@@ -126,7 +126,11 @@ When a user creates their identity or unlocks for the first time, the system **a
 - After confirming seed phrase on `/new-user`
 - After unlocking on `/unlock` if user has no vaults (edge case)
 
-The vault is initialized with default statuses ("For Review", "Paid") and empty collections.
+The vault is initialized with:
+- Default statuses ("For Review", "Paid")
+- Default "Me" person with 100% ownership of the default account
+- Default account with currency inherited from vault settings
+
 See: `src/lib/vault/ensure-default.ts`, `src/lib/crdt/defaults.ts`
 
 ### 6. Money as Integer Minor Units

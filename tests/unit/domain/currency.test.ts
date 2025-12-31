@@ -406,3 +406,109 @@ describe("Intl.NumberFormat helpers", () => {
 		});
 	});
 });
+
+// ============================================================================
+// resolveAccountCurrency Tests (T008)
+// ============================================================================
+
+import { resolveAccountCurrency } from "@/lib/domain/currency";
+
+describe("resolveAccountCurrency", () => {
+	describe("explicit account currency", () => {
+		it("returns account currency when explicitly set", () => {
+			const result = resolveAccountCurrency("EUR", "USD");
+			expect(result).toEqual({ code: "EUR", isInherited: false });
+		});
+
+		it("returns account currency even when vault default is undefined", () => {
+			const result = resolveAccountCurrency("GBP", undefined);
+			expect(result).toEqual({ code: "GBP", isInherited: false });
+		});
+
+		it("returns account currency regardless of vault default", () => {
+			const result = resolveAccountCurrency("JPY", "AUD");
+			expect(result).toEqual({ code: "JPY", isInherited: false });
+		});
+	});
+
+	describe("inherited from vault default", () => {
+		it("returns vault default when account currency is undefined", () => {
+			const result = resolveAccountCurrency(undefined, "EUR");
+			expect(result).toEqual({ code: "EUR", isInherited: true });
+		});
+
+		it("returns vault default when account currency is empty string", () => {
+			// Empty string is falsy, so falls through to vault default
+			const result = resolveAccountCurrency("", "GBP");
+			expect(result).toEqual({ code: "GBP", isInherited: true });
+		});
+	});
+
+	describe("fallback to USD", () => {
+		it("returns USD when both account and vault currencies are undefined", () => {
+			const result = resolveAccountCurrency(undefined, undefined);
+			expect(result).toEqual({ code: "USD", isInherited: true });
+		});
+
+		it("returns USD when account currency is undefined and vault default is empty", () => {
+			const result = resolveAccountCurrency(undefined, "");
+			expect(result).toEqual({ code: "USD", isInherited: true });
+		});
+	});
+
+	describe("table-driven tests", () => {
+		const cases: Array<{
+			name: string;
+			account: string | undefined;
+			vault: string | undefined;
+			expected: { code: string; isInherited: boolean };
+		}> = [
+			{
+				name: "explicit EUR, vault USD",
+				account: "EUR",
+				vault: "USD",
+				expected: { code: "EUR", isInherited: false },
+			},
+			{
+				name: "explicit JPY, vault undefined",
+				account: "JPY",
+				vault: undefined,
+				expected: { code: "JPY", isInherited: false },
+			},
+			{
+				name: "undefined account, vault GBP",
+				account: undefined,
+				vault: "GBP",
+				expected: { code: "GBP", isInherited: true },
+			},
+			{
+				name: "undefined account, vault AUD",
+				account: undefined,
+				vault: "AUD",
+				expected: { code: "AUD", isInherited: true },
+			},
+			{
+				name: "both undefined",
+				account: undefined,
+				vault: undefined,
+				expected: { code: "USD", isInherited: true },
+			},
+			{
+				name: "empty account, vault CAD",
+				account: "",
+				vault: "CAD",
+				expected: { code: "CAD", isInherited: true },
+			},
+			{
+				name: "empty account, empty vault",
+				account: "",
+				vault: "",
+				expected: { code: "USD", isInherited: true },
+			},
+		];
+
+		it.each(cases)("$name", ({ account, vault, expected }) => {
+			expect(resolveAccountCurrency(account, vault)).toEqual(expected);
+		});
+	});
+});
