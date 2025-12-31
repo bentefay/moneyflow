@@ -5,7 +5,7 @@
  * These are used before encryption for server sync.
  */
 
-import { LoroDoc, type VersionVector } from "loro-crdt";
+import type { LoroDoc, VersionVector } from "loro-crdt";
 
 /**
  * Version state from a LoroDoc - stores the raw VersionVector

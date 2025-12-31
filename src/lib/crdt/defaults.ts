@@ -2,12 +2,35 @@
  * Vault Default Initialization
  *
  * Provides functions to initialize a new vault with default entities:
+ * - Default account: "Default" (user can rename/edit later)
  * - Default statuses: "For Review", "Paid" (with "Treat as Paid" behavior)
  *
  * This is called when creating a new vault to ensure users never see an empty state.
  */
 
-import type { StatusInput, VaultInput } from "./schema";
+import type { AccountInput, StatusInput, VaultInput } from "./schema";
+
+/**
+ * Default account ID (stable for reference in code)
+ */
+export const DEFAULT_ACCOUNT_ID = "account-default";
+
+/**
+ * Default account for a new vault.
+ *
+ * Users can rename or edit this account later.
+ * It serves as a starting point so new vaults aren't empty.
+ */
+export const DEFAULT_ACCOUNT: AccountInput = {
+	id: DEFAULT_ACCOUNT_ID,
+	name: "Default",
+	accountNumber: "",
+	currency: "USD",
+	accountType: "checking",
+	balance: 0,
+	ownerships: {},
+	deletedAt: 0,
+};
 
 /**
  * Default status IDs (stable for reference in code)
@@ -54,7 +77,7 @@ export const DEFAULT_STATUSES: Record<string, StatusInput> = {
 export function getDefaultVaultState(): VaultInput {
 	return {
 		people: {},
-		accounts: {},
+		accounts: { [DEFAULT_ACCOUNT_ID]: { ...DEFAULT_ACCOUNT } },
 		tags: {},
 		statuses: { ...DEFAULT_STATUSES },
 		transactions: {},
@@ -83,6 +106,11 @@ export function getDefaultVaultState(): VaultInput {
  * @param draft - The vault draft to initialize (from loro-mirror setState)
  */
 export function initializeVaultDefaults(draft: VaultInput): void {
+	// Add default account if it doesn't exist
+	if (!draft.accounts[DEFAULT_ACCOUNT_ID]) {
+		draft.accounts[DEFAULT_ACCOUNT_ID] = { ...DEFAULT_ACCOUNT };
+	}
+
 	// Add default statuses if they don't exist
 	for (const [id, status] of Object.entries(DEFAULT_STATUSES)) {
 		if (!draft.statuses[id]) {
@@ -103,10 +131,15 @@ export function initializeVaultDefaults(draft: VaultInput): void {
  * Checks if a vault has been initialized with defaults.
  *
  * @param state - The vault state to check
- * @returns true if default statuses exist
+ * @returns true if default account and statuses exist
  */
-export function hasVaultDefaults(state: { statuses: Record<string, unknown> }): boolean {
+export function hasVaultDefaults(state: {
+	accounts: Record<string, unknown>;
+	statuses: Record<string, unknown>;
+}): boolean {
 	return (
-		DEFAULT_STATUS_IDS.FOR_REVIEW in state.statuses && DEFAULT_STATUS_IDS.PAID in state.statuses
+		DEFAULT_ACCOUNT_ID in state.accounts &&
+		DEFAULT_STATUS_IDS.FOR_REVIEW in state.statuses &&
+		DEFAULT_STATUS_IDS.PAID in state.statuses
 	);
 }

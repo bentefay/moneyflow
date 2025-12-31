@@ -249,6 +249,12 @@ export function useIdentity(): UseIdentityReturn {
 				// Set the vault as active
 				setActiveVaultStorage({ id: vaultResult.vaultId, name: vaultResult.name });
 
+				// Invalidate vault.list cache so dashboard will fetch fresh data
+				// This is critical because the cache may have empty list from before vault creation
+				if (vaultResult.created) {
+					await utils.vault.list.invalidate();
+				}
+
 				setStatus("unlocked");
 			} catch (err) {
 				setStatus("locked");
@@ -298,6 +304,11 @@ export function useIdentity(): UseIdentityReturn {
 			});
 			setActiveVaultStorage({ id: vaultResult.vaultId, name: vaultResult.name });
 
+			// Invalidate vault.list cache so dashboard will fetch fresh data
+			if (vaultResult.created) {
+				await utils.vault.list.invalidate();
+			}
+
 			setStatus("unlocked");
 
 			return identity;
@@ -346,8 +357,11 @@ export function useIdentity(): UseIdentityReturn {
 
 				// Set the vault as active
 				setActiveVaultStorage({ id: vaultResult.vaultId, name: vaultResult.name });
+
+				// Invalidate vault.list cache so dashboard will fetch fresh data
 				if (vaultResult.created) {
 					console.log(`Created default vault for returning user: ${vaultResult.vaultId}`);
+					await utils.vault.list.invalidate();
 				}
 
 				setStatus("unlocked");

@@ -64,9 +64,15 @@ export default function ImportsPage() {
 	};
 
 	return (
-		<div className="container py-6">
-			<div className="mb-6 flex items-center justify-between">
-				<h1 className="font-bold text-3xl">Imports</h1>
+		<div className="flex h-full flex-col">
+			{/* Page header */}
+			<div className="flex items-center justify-between border-b px-6 py-4">
+				<div>
+					<h1 className="font-semibold text-2xl">Imports</h1>
+					<p className="mt-1 text-muted-foreground text-sm">
+						Import transactions from your bank statements.
+					</p>
+				</div>
 				<Button asChild>
 					<Link href="/imports/new">
 						<Plus className="mr-2 h-4 w-4" />
@@ -75,14 +81,17 @@ export default function ImportsPage() {
 				</Button>
 			</div>
 
-			<Card>
-				<CardHeader>
-					<CardTitle>Import History</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<ImportsTable imports={imports} onDeleteImport={handleDeleteImport} />
-				</CardContent>
-			</Card>
+			{/* Imports table */}
+			<div className="flex-1 overflow-auto p-6">
+				<Card>
+					<CardHeader>
+						<CardTitle>Import History</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<ImportsTable imports={imports} onDeleteImport={handleDeleteImport} />
+					</CardContent>
+				</Card>
+			</div>
 		</div>
 	);
 }

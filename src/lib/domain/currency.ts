@@ -176,7 +176,7 @@ export function getMinorUnitMultiplier(currencyCode: string): number {
 		// Default to 2 decimal places if unknown currency
 		return 100;
 	}
-	return Math.pow(10, currency.decimal_digits);
+	return 10 ** currency.decimal_digits;
 }
 
 /**
@@ -312,7 +312,7 @@ export function createCurrencyFormatter(
 		signDisplay,
 	});
 
-	const multiplier = Math.pow(10, currency.decimal_digits);
+	const multiplier = 10 ** currency.decimal_digits;
 
 	return {
 		currency,

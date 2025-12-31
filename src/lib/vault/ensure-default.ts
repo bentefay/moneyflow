@@ -12,7 +12,7 @@
 import sodium from "libsodium-wrappers";
 import { LoroDoc } from "loro-crdt";
 import { Mirror } from "loro-mirror";
-import { DEFAULT_STATUS_IDS, getDefaultVaultState } from "@/lib/crdt/defaults";
+import { DEFAULT_ACCOUNT_ID, DEFAULT_STATUS_IDS, getDefaultVaultState } from "@/lib/crdt/defaults";
 import { type VaultInput, vaultSchema } from "@/lib/crdt/schema";
 import { generateVaultKey } from "@/lib/crypto/encryption";
 import { initCrypto } from "@/lib/crypto/keypair";
@@ -148,23 +148,16 @@ export async function ensureDefaultVault(
 	const mirror = new Mirror({
 		doc,
 		schema: vaultSchema,
-		initialState: defaultState,
 		validateUpdates: true,
 		throwOnValidationError: true,
 	});
 
-	// The mirror.getState() will have the initial state
-	// We need to commit it to the doc
-	mirror.setState((draft: VaultInput) => {
-		// Ensure statuses are set (should already be from initialState)
-		if (!draft.statuses[DEFAULT_STATUS_IDS.FOR_REVIEW]) {
-			draft.statuses[DEFAULT_STATUS_IDS.FOR_REVIEW] =
-				defaultState.statuses[DEFAULT_STATUS_IDS.FOR_REVIEW];
-		}
-		if (!draft.statuses[DEFAULT_STATUS_IDS.PAID]) {
-			draft.statuses[DEFAULT_STATUS_IDS.PAID] = defaultState.statuses[DEFAULT_STATUS_IDS.PAID];
-		}
+	// new Mirror({ initialState }) doesn't appear to sync to the doc, so we use setState
+	mirror.setState(() => {
+		return defaultState;
 	});
+
+	console.log(doc.toJSON());
 
 	// 5. Export snapshot and encrypt
 	const snapshot = doc.export({ mode: "snapshot" });

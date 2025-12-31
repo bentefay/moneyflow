@@ -15,7 +15,7 @@ import {
 	detectDuplicates,
 	detectInternalDuplicates,
 } from "@/lib/import/duplicates";
-import { type ISODateString } from "@/types";
+import type { ISODateString } from "@/types";
 
 // ============================================================================
 // Test Helpers

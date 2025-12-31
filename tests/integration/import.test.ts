@@ -15,7 +15,7 @@ import {
 	processImport,
 	processOFXImport,
 } from "@/lib/import/processor";
-import { type ISODateString } from "@/types";
+import type { ISODateString } from "@/types";
 
 /** Helper to create MoneyMinorUnits from an integer */
 function cents(value: number): MoneyMinorUnits {

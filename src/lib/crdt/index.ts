@@ -34,6 +34,8 @@ export {
 } from "./context";
 // Vault defaults initialization
 export {
+	DEFAULT_ACCOUNT,
+	DEFAULT_ACCOUNT_ID,
 	DEFAULT_STATUS_IDS,
 	DEFAULT_STATUSES,
 	getDefaultVaultState,

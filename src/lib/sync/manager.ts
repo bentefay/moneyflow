@@ -16,14 +16,14 @@
  */
 
 import { throttle } from "lodash-es";
-import { LoroDoc, VersionVector } from "loro-crdt";
+import type { LoroDoc, VersionVector } from "loro-crdt";
 import {
 	createEncryptedShallowSnapshot,
 	decryptUpdate,
 	loadEncryptedSnapshot,
 } from "@/lib/crdt/snapshot";
 import { getVersionEncoded } from "@/lib/crdt/sync";
-import { createVaultRealtimeSync, VaultRealtimeSync } from "@/lib/supabase/realtime";
+import { createVaultRealtimeSync, type VaultRealtimeSync } from "@/lib/supabase/realtime";
 import {
 	appendOp,
 	countOpsSinceSnapshot,

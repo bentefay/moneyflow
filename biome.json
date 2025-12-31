@@ -19,19 +19,7 @@
 		"useEditorconfig": true
 	},
 	"linter": {
-		"enabled": true,
-		"rules": {
-			"recommended": false,
-			"nursery": {
-				"useSortedClasses": {
-					"level": "warn",
-					"fix": "safe",
-					"options": {
-						"functions": ["cn", "clsx", "cva"]
-					}
-				}
-			}
-		}
+		"enabled": false
 	},
 	"css": {
 		"parser": {

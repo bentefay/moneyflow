@@ -189,6 +189,18 @@ export const syncRouter = router({
 
 		const snapshot = snapshotRaw as VaultSnapshotExtended | null;
 
+		// Decision: if client has empty version vector (fresh state), use snapshot if available
+		// This handles the case where a vault was just created with initial snapshot but no ops yet
+		const clientVersionVector = input.versionVector ?? "";
+		const isClientFresh = clientVersionVector === "" || clientVersionVector === "AA=="; // empty base64
+
+		if (isClientFresh && snapshot?.encrypted_data) {
+			return {
+				type: "use_snapshot" as const,
+				snapshotVersionVector: snapshot.version_vector ?? "",
+			};
+		}
+
 		// Decision: if too many ops or too many bytes, tell client to use snapshot
 		if (ops.length > SERVER_OP_COUNT_THRESHOLD || totalBytes > SERVER_BYTE_THRESHOLD) {
 			if (snapshot?.version_vector) {

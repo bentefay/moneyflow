@@ -115,7 +115,7 @@ export function ActionEditor({
 
 	const renderValueEditor = () => {
 		switch (action.type) {
-			case "setTags":
+			case "setTags": {
 				const selectedTags = Array.isArray(action.value) ? action.value : [];
 				return (
 					<div className="flex flex-wrap gap-1">
@@ -135,6 +135,7 @@ export function ActionEditor({
 						)}
 					</div>
 				);
+			}
 
 			case "setStatus":
 				return (
@@ -152,7 +153,7 @@ export function ActionEditor({
 					</Select>
 				);
 
-			case "setAllocation":
+			case "setAllocation": {
 				const currentAlloc =
 					typeof action.value === "object" && action.value !== null
 						? (action.value as Record<string, number>)
@@ -184,6 +185,7 @@ export function ActionEditor({
 						)}
 					</div>
 				);
+			}
 
 			default:
 				return null;

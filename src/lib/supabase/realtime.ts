@@ -5,7 +5,7 @@
  * Subscribes to vault_updates for live collaboration.
  */
 
-import { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { Temporal } from "temporal-polyfill";
 import { createSupabaseClientForBrowser } from "./client";
 import type { Database } from "./types";

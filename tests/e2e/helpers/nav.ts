@@ -4,7 +4,7 @@
  * Helpers for navigating to app pages and waiting for them to load.
  */
 
-import { type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
 export async function goToDashboard(page: Page): Promise<void> {
 	await page.goto("/dashboard");

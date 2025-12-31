@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { AccountCombobox, type AccountOption } from "@/components/features/accounts";
 import { cn } from "@/lib/utils";
 
 export interface NewTransactionData {
@@ -17,10 +18,8 @@ export interface NewTransactionData {
 	accountId: string;
 }
 
-export interface AccountOption {
-	id: string;
-	name: string;
-}
+// Re-export AccountOption for consumers
+export type { AccountOption };
 
 export interface AddTransactionRowProps {
 	/** Available accounts for selection */
@@ -181,18 +180,13 @@ export function AddTransactionRow({
 			/>
 
 			{/* Account */}
-			<select
+			<AccountCombobox
 				value={accountId}
-				onChange={(e) => setAccountId(e.target.value)}
-				className="w-32 rounded border bg-transparent px-2 py-1 text-sm"
-			>
-				<option value="">Account...</option>
-				{availableAccounts.map((account) => (
-					<option key={account.id} value={account.id}>
-						{account.name}
-					</option>
-				))}
-			</select>
+				onChange={setAccountId}
+				accounts={availableAccounts}
+				placeholder="Account..."
+				className="w-40"
+			/>
 
 			{/* Amount */}
 			<input

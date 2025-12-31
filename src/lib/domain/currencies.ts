@@ -1,4 +1,4 @@
-import { Currency } from "./currency";
+import type { Currency } from "./currency";
 
 export const Currencies: Record<string, Currency> = {
 	USD: {

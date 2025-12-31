@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-	title: "MoneyFlow - Household Expense Tracker",
+	title: "MoneyFlow",
 	description:
 		"Track shared household expenses with real-time collaboration and end-to-end encryption.",
 };

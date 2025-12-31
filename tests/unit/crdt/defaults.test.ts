@@ -8,6 +8,8 @@ import { LoroDoc } from "loro-crdt";
 import { Mirror } from "loro-mirror";
 import { describe, expect, it } from "vitest";
 import {
+	DEFAULT_ACCOUNT,
+	DEFAULT_ACCOUNT_ID,
 	DEFAULT_STATUS_IDS,
 	DEFAULT_STATUSES,
 	getDefaultVaultState,
@@ -15,6 +17,27 @@ import {
 	initializeVaultDefaults,
 } from "@/lib/crdt/defaults";
 import { type VaultInput, vaultSchema } from "@/lib/crdt/schema";
+
+describe("DEFAULT_ACCOUNT_ID", () => {
+	it("defines the default account ID", () => {
+		expect(DEFAULT_ACCOUNT_ID).toBe("account-default");
+	});
+});
+
+describe("DEFAULT_ACCOUNT", () => {
+	it("has correct default properties", () => {
+		expect(DEFAULT_ACCOUNT).toEqual({
+			id: "account-default",
+			name: "Default",
+			accountNumber: "",
+			currency: "USD",
+			accountType: "checking",
+			balance: 0,
+			ownerships: {},
+			deletedAt: 0,
+		});
+	});
+});
 
 describe("DEFAULT_STATUS_IDS", () => {
 	it("defines FOR_REVIEW status ID", () => {
@@ -76,11 +99,19 @@ describe("getDefaultVaultState", () => {
 		expect(state.statuses[DEFAULT_STATUS_IDS.PAID]).toBeDefined();
 	});
 
-	it("has empty collections for entities", () => {
+	it("includes default account", () => {
+		const state = getDefaultVaultState();
+
+		expect(state.accounts[DEFAULT_ACCOUNT_ID]).toBeDefined();
+		expect(state.accounts[DEFAULT_ACCOUNT_ID].name).toBe("Default");
+	});
+
+	it("has empty collections for other entities", () => {
 		const state = getDefaultVaultState();
 
 		expect(Object.keys(state.people)).toHaveLength(0);
-		expect(Object.keys(state.accounts)).toHaveLength(0);
+		// accounts has 1 default account
+		expect(Object.keys(state.accounts)).toHaveLength(1);
 		expect(Object.keys(state.tags)).toHaveLength(0);
 		expect(Object.keys(state.transactions)).toHaveLength(0);
 		expect(Object.keys(state.imports)).toHaveLength(0);
@@ -97,7 +128,7 @@ describe("getDefaultVaultState", () => {
 });
 
 describe("initializeVaultDefaults", () => {
-	it("adds default statuses to an empty draft", () => {
+	it("adds default account and statuses to an empty draft", () => {
 		const doc = new LoroDoc();
 		const mirror = new Mirror({
 			doc,
@@ -125,6 +156,8 @@ describe("initializeVaultDefaults", () => {
 		});
 
 		const state = mirror.getState();
+		expect(state.accounts[DEFAULT_ACCOUNT_ID]).toBeDefined();
+		expect(state.accounts[DEFAULT_ACCOUNT_ID].name).toBe("Default");
 		expect(state.statuses[DEFAULT_STATUS_IDS.FOR_REVIEW]).toBeDefined();
 		expect(state.statuses[DEFAULT_STATUS_IDS.PAID]).toBeDefined();
 	});
@@ -220,9 +253,15 @@ describe("initializeVaultDefaults", () => {
 });
 
 describe("hasVaultDefaults", () => {
-	it("returns true when vault has all default statuses", () => {
+	it("returns true when vault has all default account and statuses", () => {
 		const state = getDefaultVaultState();
 		expect(hasVaultDefaults(state)).toBe(true);
+	});
+
+	it("returns false when default account is missing", () => {
+		const state = getDefaultVaultState();
+		delete state.accounts[DEFAULT_ACCOUNT_ID];
+		expect(hasVaultDefaults(state)).toBe(false);
 	});
 
 	it("returns false when FOR_REVIEW status is missing", () => {
@@ -237,8 +276,9 @@ describe("hasVaultDefaults", () => {
 		expect(hasVaultDefaults(state)).toBe(false);
 	});
 
-	it("returns false for empty statuses", () => {
+	it("returns false for empty statuses and accounts", () => {
 		const state = getDefaultVaultState();
+		state.accounts = {};
 		state.statuses = {};
 		expect(hasVaultDefaults(state)).toBe(false);
 	});

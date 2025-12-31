@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Temporal } from "temporal-polyfill";
 import type { OnPresenceCallback } from "@/lib/supabase/realtime";
-import { createVaultRealtimeSync, VaultRealtimeSync } from "@/lib/supabase/realtime";
+import { createVaultRealtimeSync, type VaultRealtimeSync } from "@/lib/supabase/realtime";
 
 /**
  * Presence state for a user in a vault.

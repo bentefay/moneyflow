@@ -5,7 +5,7 @@
  * that doesn't need persistence but requires real-time sync.
  */
 
-import { RealtimeChannel } from "@supabase/supabase-js";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { Temporal } from "temporal-polyfill";
 import { createSupabaseClientForBrowser } from "@/lib/supabase/client";
 

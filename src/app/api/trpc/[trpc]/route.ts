@@ -4,7 +4,7 @@
  * Next.js App Router handler for tRPC requests.
  */
 
-import { TRPCError } from "@trpc/server";
+import type { TRPCError } from "@trpc/server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import superjson from "superjson";
 import { Temporal } from "temporal-polyfill";
@@ -165,8 +165,8 @@ async function handler(req: Request) {
 	const url = new URL(req.url);
 
 	// Parse request body for context
-	let body: unknown = undefined;
-	let normalizedBody: unknown = undefined;
+	let body: unknown;
+	let normalizedBody: unknown;
 	if (req.method === "POST") {
 		try {
 			body = await req.clone().json();

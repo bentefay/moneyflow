@@ -19,10 +19,6 @@ build/
 .idea/
 *.swp
 *.swo
-.vscode/*
-!.vscode/settings.json
-!.vscode/extensions.json
-!.vscode/launch.json
 
 # OS
 .DS_Store
@@ -59,5 +55,4 @@ test-results/
 __pycache__/
 *.pyc
 .venv/
-*.egg-info/
-.playwright-mcp/
+*.egg-info/ 

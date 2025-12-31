@@ -156,7 +156,7 @@ export function TransactionTable({
 						onTransactionDelete(targetId);
 					}
 					break;
-				case "arrowdown":
+				case "arrowdown": {
 					// Navigate to next transaction
 					event.preventDefault();
 					const currentIdx = transactions.findIndex((t) => t.id === targetId);
@@ -168,7 +168,8 @@ export function TransactionTable({
 						}
 					}
 					break;
-				case "arrowup":
+				}
+				case "arrowup": {
 					// Navigate to previous transaction
 					event.preventDefault();
 					const currIdx = transactions.findIndex((t) => t.id === targetId);
@@ -180,6 +181,7 @@ export function TransactionTable({
 						}
 					}
 					break;
+				}
 				case "escape":
 					// Clear selection
 					event.preventDefault();

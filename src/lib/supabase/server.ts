@@ -5,7 +5,7 @@
  * Uses service role key for full database access.
  */
 
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
 
 let supabaseServer: SupabaseClient<Database> | null = null;

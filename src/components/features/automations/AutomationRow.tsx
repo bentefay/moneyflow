@@ -65,15 +65,17 @@ function summarizeActions(actions: ActionData[], tags: Tag[], statuses: Status[]
 
 	const summaries = actions.map((a) => {
 		switch (a.type) {
-			case "setTags":
+			case "setTags": {
 				const tagIds = Array.isArray(a.value) ? a.value : [];
 				const tagNames = tagIds
 					.map((id: string) => tags.find((t) => t.id === id)?.name)
 					.filter(Boolean);
 				return tagNames.length > 0 ? `Tags: ${tagNames.join(", ")}` : "Set tags";
-			case "setStatus":
+			}
+			case "setStatus": {
 				const status = statuses.find((s) => s.id === a.value);
 				return status ? `Status: ${status.name}` : "Set status";
+			}
 			case "setAllocation":
 				return "Set allocation";
 			default:

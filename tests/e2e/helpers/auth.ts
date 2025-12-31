@@ -4,7 +4,7 @@
  * Helpers for identity creation, unlock, and session management.
  */
 
-import { type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
 /**
  * Complete the new user flow: generate seed phrase, confirm, and continue to dashboard.

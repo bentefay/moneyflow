@@ -339,65 +339,68 @@ export default function TransactionsPage() {
 	);
 
 	return (
-		<div className="flex h-full flex-col space-y-4">
-			{/* Header */}
-			<div>
-				<h1 className="font-bold text-2xl">Transactions</h1>
-				<p className="text-muted-foreground">
+		<div className="flex h-full flex-col">
+			{/* Page header */}
+			<div className="border-b px-6 py-4">
+				<h1 className="font-semibold text-2xl">Transactions</h1>
+				<p className="mt-1 text-muted-foreground text-sm">
 					{filteredTransactions.length} transaction{filteredTransactions.length !== 1 ? "s" : ""}
 					{hasActiveFilters(filters) && " (filtered)"}
 				</p>
 			</div>
 
-			{/* Filters */}
-			<TransactionFilters
-				filters={filters}
-				onChange={setFilters}
-				availableTags={tagOptions}
-				availablePeople={peopleOptions}
-				availableAccounts={accountOptionsForFilter}
-				availableStatuses={statusOptions}
-			/>
-
-			{/* Transaction Table */}
-			<div className="flex-1 overflow-hidden rounded-lg border">
-				{/* Add Transaction Row */}
-				<AddTransactionRow
-					availableAccounts={accountOptions}
-					onAdd={handleAddTransaction}
-					defaultAccountId={accountOptions[0]?.id}
-				/>
-
-				{/* Table */}
-				<TransactionTable
-					transactions={tableData}
-					presenceByTransactionId={presenceByTransactionId}
-					selectedIds={selectedIds}
-					onSelectionChange={(ids) => {
-						// When TransactionTable changes selection, sync with our selection state
-						setSelection(ids);
-					}}
-					onLoadMore={handleLoadMore}
-					hasMore={hasMore}
-					onTransactionDelete={handleSingleDelete}
-					onResolveDuplicate={handleResolveDuplicate}
-				/>
-			</div>
-
-			{/* Bulk Edit Toolbar */}
-			{selectedCount > 0 && (
-				<BulkEditToolbar
-					selectedCount={selectedCount}
-					onClearSelection={clearSelection}
-					onDelete={handleBulkDelete}
-					onSetTags={handleBulkSetTags}
-					onSetStatus={handleBulkSetStatus}
-					onSetAccount={handleBulkSetAccount}
+			{/* Transactions content */}
+			<div className="flex flex-1 flex-col gap-4 overflow-auto p-6">
+				{/* Filters */}
+				<TransactionFilters
+					filters={filters}
+					onChange={setFilters}
 					availableTags={tagOptions}
-					availableStatuses={statusOptions}
+					availablePeople={peopleOptions}
 					availableAccounts={accountOptionsForFilter}
+					availableStatuses={statusOptions}
 				/>
-			)}
+
+				{/* Transaction Table */}
+				<div className="flex-1 overflow-hidden rounded-lg border">
+					{/* Add Transaction Row */}
+					<AddTransactionRow
+						availableAccounts={accountOptions}
+						onAdd={handleAddTransaction}
+						defaultAccountId={accountOptions[0]?.id}
+					/>
+
+					{/* Table */}
+					<TransactionTable
+						transactions={tableData}
+						presenceByTransactionId={presenceByTransactionId}
+						selectedIds={selectedIds}
+						onSelectionChange={(ids) => {
+							// When TransactionTable changes selection, sync with our selection state
+							setSelection(ids);
+						}}
+						onLoadMore={handleLoadMore}
+						hasMore={hasMore}
+						onTransactionDelete={handleSingleDelete}
+						onResolveDuplicate={handleResolveDuplicate}
+					/>
+				</div>
+
+				{/* Bulk Edit Toolbar */}
+				{selectedCount > 0 && (
+					<BulkEditToolbar
+						selectedCount={selectedCount}
+						onClearSelection={clearSelection}
+						onDelete={handleBulkDelete}
+						onSetTags={handleBulkSetTags}
+						onSetStatus={handleBulkSetStatus}
+						onSetAccount={handleBulkSetAccount}
+						availableTags={tagOptions}
+						availableStatuses={statusOptions}
+						availableAccounts={accountOptionsForFilter}
+					/>
+				)}
+			</div>
 		</div>
 	);
 }
