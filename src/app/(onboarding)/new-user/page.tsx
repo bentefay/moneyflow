@@ -76,10 +76,7 @@ export default function NewUserPage() {
 			// Register with server only after user confirms they saved the phrase
 			await registerIdentity(pendingIdentity.current);
 			setStep("complete");
-			// Small delay before redirect for visual feedback
-			setTimeout(() => {
-				router.push("/dashboard");
-			}, 1500);
+			router.push("/dashboard");
 		} catch {
 			// Error is handled by useIdentity hook
 			setIsRegistering(false);
