@@ -18,7 +18,7 @@ import { LoroDoc } from "loro-crdt";
 import { useEffect, useRef, useState } from "react";
 import { useActiveVault } from "@/hooks/use-active-vault";
 import { useSyncStatusManager } from "@/hooks/use-sync-status";
-import { VaultProvider as BaseVaultProvider } from "@/lib/crdt/context";
+import { VaultProvider as BaseVaultProvider, useVaultPreferences } from "@/lib/crdt/context";
 import { getDefaultVaultState } from "@/lib/crdt/defaults";
 import { base64ToPrivateKey, initCrypto } from "@/lib/crypto";
 import { unwrapKeyFromBase64 } from "@/lib/crypto/keywrap";
@@ -28,6 +28,25 @@ import { trpc } from "@/lib/trpc";
 
 interface VaultProviderProps {
 	children: React.ReactNode;
+}
+
+/**
+ * Component that syncs the vault name from CRDT preferences to the activeVault context.
+ * This ensures the header vault selector stays in sync when the name is edited.
+ */
+function VaultNameSync({ children }: { children: React.ReactNode }) {
+	const preferences = useVaultPreferences();
+	const { activeVault, setActiveVault } = useActiveVault();
+
+	// Sync vault name from CRDT to activeVault context
+	useEffect(() => {
+		const crdtName = preferences?.name;
+		if (crdtName && activeVault && crdtName !== activeVault.name) {
+			setActiveVault({ ...activeVault, name: crdtName });
+		}
+	}, [preferences?.name, activeVault, setActiveVault]);
+
+	return <>{children}</>;
 }
 
 /**
@@ -218,7 +237,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
 			initialState={getDefaultVaultState()}
 			debug={process.env.NODE_ENV === "development"}
 		>
-			{children}
+			<VaultNameSync>{children}</VaultNameSync>
 		</BaseVaultProvider>
 	);
 }

@@ -151,6 +151,42 @@ test.describe("Vault Settings", () => {
 		});
 	});
 
+	test.describe("Vault Name", () => {
+		test("should update vault name in header when renamed in settings", async ({ page }) => {
+			await createNewIdentity(page);
+
+			// Verify initial vault name in header vault selector
+			const vaultSelector = page.locator("button").filter({ hasText: "My Vault" }).first();
+			await expect(vaultSelector).toBeVisible();
+
+			// Find and update the vault name input
+			const vaultNameInput = page.getByLabel(/vault name/i);
+			await expect(vaultNameInput).toBeVisible();
+			await expect(vaultNameInput).toHaveValue("My Vault");
+
+			// Clear and type new name
+			await vaultNameInput.clear();
+			await vaultNameInput.fill("Personal Finance");
+
+			// Verify the header vault selector updates with the new name
+			await expect(
+				page.locator("button").filter({ hasText: "Personal Finance" }).first()
+			).toBeVisible({ timeout: 3000 });
+
+			// Verify persistence after refresh
+			await page.reload();
+			await page
+				.getByRole("heading", { name: "Vault Settings", level: 1 })
+				.waitFor({ timeout: 10000 });
+
+			// Both the input and header should show the new name
+			await expect(page.getByLabel(/vault name/i)).toHaveValue("Personal Finance");
+			await expect(
+				page.locator("button").filter({ hasText: "Personal Finance" }).first()
+			).toBeVisible();
+		});
+	});
+
 	test.describe("Navigation", () => {
 		test("should access settings via sidebar navigation", async ({ page }) => {
 			await createNewIdentity(page);
