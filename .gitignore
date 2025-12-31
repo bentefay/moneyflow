@@ -1,10 +1,63 @@
-**/node_modules/**
-data/
-*/**/bin/
-obj/
-.vscode/
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+.next/
+out/
+dist/
+build/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
 .idea/
-artifacts/
-**/Client/dist/
-**/Client/.cache/
-wwwroot/
+*.swp
+*.swo
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Testing
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# TypeScript
+*.tsbuildinfo
+
+# Vercel
+.vercel/
+
+# Supabase
+.supabase/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Python (from existing setup)
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.playwright-mcp/

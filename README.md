@@ -1,77 +1,166 @@
 # MoneyFlow
 
-[MoneyFlow](https://moneyflow.azurewebsites.net/) tracks your money and how it flows in and out of your various banks and accounts.
+A client-side encrypted, real-time collaborative household expense tracker. All financial data is encrypted on your device before storage—the server never sees your plaintext data.
 
-[![Build Status](https://dev.azure.com/btefay/MoneyFlow/_apis/build/status/MoneyFlow)](https://dev.azure.com/btefay/MoneyFlow/_build/latest?definitionId=1)
+## ✨ Features
 
-## :page_facing_up: Single view of all your finances
+- **🔒 Zero-Knowledge Security**: End-to-end encryption using XChaCha20-Poly1305. Your data is encrypted locally before it leaves your device.
+- **📊 Single View of All Finances**: Consolidate transactions from multiple banks and accounts in one place.
+- **🏷️ Smart Categorization**: Tag and filter transactions with hierarchical categories. Automation rules learn to categorize for you.
+- **👥 Shared Finance Management**: Track ownership and split expenses with household members. Real-time collaboration via CRDT sync.
+- **📥 Easy Data Import**: Import CSV or OFX files from any bank. Duplicate detection included.
+- **🔑 Key-Only Authentication**: No passwords to remember or reset. Your 12-word recovery phrase IS your identity.
 
-View all your transactions in a single view, consolidating many banks and accounts.
-Tag and filter to your hearts content.
-Get the benefits of a modern, beautiful spend tracking app without being tied to a particular bank.
+## 🚀 Quick Start
 
-## :ledger: Know what you're spending money on
+### Prerequisites
 
-Categorise and visualize your spending, and MoneyFlow will learn over time to do this for you automatically.
+| Tool         | Version  | Installation                                      |
+| ------------ | -------- | ------------------------------------------------- |
+| Node.js      | 20.x LTS | [nodejs.org](https://nodejs.org) or `nvm install 20` |
+| pnpm         | 8.x+     | `npm install -g pnpm`                             |
+| Docker       | Latest   | [docker.com](https://www.docker.com/get-started)  |
+| Supabase CLI | Latest   | `brew install supabase/tap/supabase`              |
 
-## :lock: Safe and secure by design
+### Development Setup
 
-You own your data. Your data is encrypted, end-to-end, so nobody can access it but you.
+```bash
+# Clone repository
+git clone https://github.com/your-org/moneyflow.git
+cd moneyflow
 
-## :couple: Manage shared finances
+# Install dependencies
+pnpm install
 
-Track ownership of spending if you share your accounts with someone you :heart:
+# Copy environment template
+cp .env.local.example .env.local
 
-## :inbox_tray: Simple data import
+# Start local Supabase (requires Docker)
+supabase start
 
-Data import is designed to be painless without comprimising your security. Visit your bank's online banking website
-as you normally would, then either:
-1. Copy and paste straight out of the web page.
-2. Download CSV files of your transactions and upload them to MoneyFlow.
-3. In the future, a desktop app will do this for you automatically
-   (it will all be open source, so you can be sure nothing :fish: is going on).
+# The above command outputs local credentials. Update .env.local with:
+# - NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+# - NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-local-anon-key>
 
-## Getting started
+# Start Next.js dev server
+pnpm dev
+```
 
-Clone this repository then:
+Open [http://localhost:3000](http://localhost:3000).
 
-- `dotnet user-secrets -p MoneyFlow.sln set "StorageConnectionString" ""`
+### Running Tests
 
-For dev:
-- `bin/make run server` (watch run server)
-- `bin/make run ui` (watch run client)
-- `bin/make test server` (watch test server)
+```bash
+# Unit tests (Vitest)
+pnpm test
 
-Or if you're using nix shell and tmux:
-- `nix-shell`
-- `tmux source tmux.conf`
+# Unit tests in watch mode
+pnpm test:watch
 
-To build for production:
-- `m build` (same build that CI runs to prepare for deployment)
+# E2E tests (requires Supabase running)
+supabase start
+pnpm test:e2e
 
-To format the C# files:
-- Run `dotnet format`
-- In rider:
-  - File type: C# file
-  - Scope: Current file
-  - Program: dotnet
-  - Arguments: format $SolutionPath$ --include $FilePathRelativeToProjectRoot$
-  - Output paths to refresh: $FilePath$
-  - Advanced options: Untick all
+# E2E tests with UI
+pnpm test:e2e:ui
+```
 
-To update outdated nuget packages:
-- `dotnet outdated`
+## 📁 Project Structure
 
-To update outdated npm packages:
-- `bin/make ui yarn upgrade-interactive --latest`
+```
+src/
+├── app/                      # Next.js App Router
+│   ├── (onboarding)/         # New user, unlock pages
+│   ├── (marketing)/          # Landing page
+│   ├── (app)/                # Authenticated app pages
+│   │   ├── transactions/     # Transaction management
+│   │   ├── accounts/         # Account management
+│   │   ├── people/           # People & sharing
+│   │   ├── tags/             # Tag hierarchy
+│   │   ├── automations/      # Automation rules
+│   │   ├── statuses/         # Custom statuses
+│   │   └── imports/          # Import history
+│   └── api/                  # API routes (tRPC)
+├── components/
+│   ├── ui/                   # shadcn/ui primitives
+│   ├── features/             # Feature-specific components
+│   └── providers/            # React context providers
+├── lib/
+│   ├── crypto/               # Encryption, signing, keys
+│   ├── crdt/                 # Loro CRDT state management
+│   ├── sync/                 # Real-time sync (Supabase Realtime)
+│   ├── import/               # CSV/OFX parsing
+│   └── domain/               # Business logic
+├── server/                   # tRPC routers and schemas
+└── hooks/                    # React hooks
 
-## Resources
+tests/
+├── unit/                     # Vitest unit tests
+├── integration/              # Integration tests
+└── e2e/                      # Playwright E2E tests
 
-- [App](https://moneyflow.azurewebsites.net/)
-- [Build Server Management](https://dev.azure.com/btefay/MoneyFlow/_build)
-- [Prod Server Management](https://portal.azure.com)
-- [Project Management](https://github.com/bentefay/MoneyFlow/projects/1)
+supabase/
+├── migrations/               # Database migrations
+└── config.toml               # Supabase configuration
+```
 
-## Features
+## 🛠️ Available Commands
 
-- [ ] Coming soon... :wink:
+```bash
+# Development
+pnpm dev              # Start dev server (Turbopack)
+pnpm build            # Production build
+pnpm start            # Start production server
+
+# Code Quality
+pnpm lint             # ESLint
+pnpm typecheck        # TypeScript type checking
+pnpm format           # Biome format
+pnpm format:check     # Check formatting (CI)
+
+# Testing
+pnpm test             # Run all unit tests
+pnpm test:watch       # Unit tests in watch mode
+pnpm test:e2e         # E2E tests (Playwright)
+pnpm test:e2e:ui      # E2E tests with UI
+
+# Database
+pnpm db:start         # Start local Supabase
+pnpm db:stop          # Stop local Supabase
+pnpm db:reset         # Reset DB and apply migrations
+pnpm db:types         # Generate TypeScript types from schema
+```
+
+## 🔐 Security Architecture
+
+MoneyFlow implements a **zero-knowledge architecture**:
+
+1. **Identity**: Users generate a BIP39 12-word seed phrase that derives their Ed25519 keypair
+2. **Authentication**: API requests are signed with Ed25519—no passwords, no sessions on server
+3. **Encryption**: All vault data is encrypted client-side with XChaCha20-Poly1305
+4. **Sharing**: Vault keys are shared via X25519 key exchange (ECIES)
+5. **Sync**: Server only stores and relays encrypted binary blobs—never sees plaintext
+
+See [specs/001-core-mvp/data-model.md](specs/001-core-mvp/data-model.md) for detailed cryptographic design.
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Run tests and linting (`pnpm test && pnpm lint && pnpm typecheck`)
+4. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+5. Push to the branch (`git push origin feature/amazing-feature`)
+6. Open a Pull Request
+
+See [.github/copilot-instructions.md](.github/copilot-instructions.md) for coding guidelines.
+
+## 📚 Documentation
+
+- [Specification](specs/001-core-mvp/spec.md) - Feature requirements
+- [Implementation Plan](specs/001-core-mvp/plan.md) - Technical architecture
+- [Data Model](specs/001-core-mvp/data-model.md) - CRDT schema and encryption
+- [Quickstart](specs/001-core-mvp/quickstart.md) - Detailed development setup
+
+## 📄 License
+
+This project is proprietary. All rights reserved.
