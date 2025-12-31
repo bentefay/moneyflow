@@ -56,7 +56,8 @@ export async function createNewIdentity(page: Page): Promise<string[]> {
 
 	await continueButton.click();
 
-	await page.waitForURL("**/dashboard", { timeout: 15000 });
+	// New users land on settings page after vault creation
+	await page.waitForURL("**/settings", { timeout: 15000 });
 
 	// Onboarding must create + select a vault (persisted via localStorage)
 	await page.waitForFunction(

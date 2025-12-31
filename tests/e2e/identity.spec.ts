@@ -62,7 +62,7 @@ test.describe("Identity", () => {
 		});
 	});
 
-	test("new user journey: generate seed phrase, confirm, and access dashboard", async ({
+	test("new user journey: generate seed phrase, confirm, and access settings", async ({
 		page,
 		context,
 	}) => {
@@ -118,15 +118,16 @@ test.describe("Identity", () => {
 			await expect(continueButton).toBeEnabled();
 		});
 
-		await test.step("complete creation and redirect to dashboard", async () => {
+		await test.step("complete creation and redirect to settings", async () => {
 			const continueButton = page.locator('[data-testid="continue-button"]');
 			await continueButton.click();
 
-			await page.waitForURL("**/dashboard", { timeout: 15000 });
+			// New users land on settings page after vault creation
+			await page.waitForURL("**/settings", { timeout: 15000 });
 		});
 	});
 
-	test("unlock journey: enter seed phrase and access dashboard", async ({ page, context }) => {
+	test("unlock journey: enter seed phrase and access transactions", async ({ page, context }) => {
 		// Grant clipboard permissions
 		await context.grantPermissions(["clipboard-read", "clipboard-write"]);
 
@@ -151,7 +152,8 @@ test.describe("Identity", () => {
 
 			const continueButton = page.locator('[data-testid="continue-button"]');
 			await continueButton.click();
-			await page.waitForURL("**/dashboard", { timeout: 15000 });
+			// New users land on settings page
+			await page.waitForURL("**/settings", { timeout: 15000 });
 
 			// Clear session to simulate returning user
 			await page.evaluate(() => sessionStorage.clear());
@@ -238,7 +240,8 @@ test.describe("Identity", () => {
 			await expect(unlockButton).toBeEnabled({ timeout: 5000 });
 			await unlockButton.click();
 
-			await page.waitForURL("**/dashboard", { timeout: 15000 });
+			// Existing users (unlock) land on transactions
+			await page.waitForURL("**/transactions", { timeout: 15000 });
 		});
 	});
 

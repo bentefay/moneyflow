@@ -16,6 +16,11 @@ export async function goToTransactions(page: Page): Promise<void> {
 	await page.getByRole("heading", { name: "Transactions", level: 1 }).waitFor({ timeout: 15000 });
 }
 
+export async function goToSettings(page: Page): Promise<void> {
+	await page.goto("/settings");
+	await page.getByRole("heading", { name: "Vault Settings", level: 1 }).waitFor({ timeout: 15000 });
+}
+
 export async function goToTags(page: Page): Promise<void> {
 	await page.goto("/tags");
 	await page.getByRole("heading", { name: "Tags", level: 1 }).waitFor({ timeout: 15000 });

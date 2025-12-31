@@ -182,7 +182,7 @@ export default function InvitePage() {
 
 			setState("success");
 
-			router.push("/dashboard");
+			router.push("/transactions");
 		} catch (err) {
 			setState("error");
 			setError(err instanceof Error ? err.message : "Failed to accept invite");

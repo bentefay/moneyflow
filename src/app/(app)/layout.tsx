@@ -14,7 +14,6 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	FileDown,
-	LayoutDashboard,
 	LogOut,
 	Receipt,
 	Settings,
@@ -44,7 +43,6 @@ interface NavItem {
 }
 
 const mainNavItems: NavItem[] = [
-	{ href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
 	{ href: "/transactions", label: "Transactions", icon: Receipt },
 	{ href: "/accounts", label: "Accounts", icon: Building2 },
 	{ href: "/people", label: "People", icon: Users },
@@ -54,7 +52,7 @@ const mainNavItems: NavItem[] = [
 	{ href: "/imports", label: "Imports", icon: FileDown },
 ];
 
-const bottomNavItems: NavItem[] = [{ href: "/settings", label: "Settings", icon: Settings }];
+const bottomNavItems: NavItem[] = [{ href: "/settings", label: "Vault Settings", icon: Settings }];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
 	return (
@@ -122,7 +120,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 				{/* Logo */}
 				<div className="flex h-16 items-center justify-between border-b px-4">
 					{!isCollapsed && (
-						<Link href="/dashboard" className="font-semibold text-lg">
+						<Link href="/transactions" className="font-semibold text-lg">
 							MoneyFlow
 						</Link>
 					)}
@@ -158,7 +156,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 							router.replace("/unlock");
 						}}
 						className={cn(
-							"flex w-full items-center gap-3 rounded-md px-3 py-2 font-medium text-muted-foreground text-sm hover:bg-accent hover:text-accent-foreground",
+							"flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2 font-medium text-muted-foreground text-sm hover:bg-accent hover:text-accent-foreground",
 							isCollapsed && "justify-center"
 						)}
 					>

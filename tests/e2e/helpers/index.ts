@@ -11,6 +11,7 @@ export {
 	goToImportNew,
 	goToImports,
 	goToPeople,
+	goToSettings,
 	goToTags,
 	goToTransactions,
 } from "./nav";

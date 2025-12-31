@@ -33,7 +33,7 @@ export default function UnlockPage() {
 
 	useEffect(() => {
 		if (status === "unlocked" && !showAnimation) {
-			router.replace("/dashboard");
+			router.replace("/transactions");
 		}
 	}, [status, showAnimation, router]);
 
@@ -63,7 +63,7 @@ export default function UnlockPage() {
 	// -------------------------------------------------------------------------
 
 	const handleAnimationComplete = useCallback(() => {
-		router.push("/dashboard");
+		router.push("/transactions");
 	}, [router]);
 
 	// -------------------------------------------------------------------------

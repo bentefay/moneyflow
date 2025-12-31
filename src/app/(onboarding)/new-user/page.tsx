@@ -76,7 +76,8 @@ export default function NewUserPage() {
 			// Register with server only after user confirms they saved the phrase
 			await registerIdentity(pendingIdentity.current);
 			setStep("complete");
-			router.push("/dashboard");
+			// New users land on settings to configure vault defaults
+			router.push("/settings");
 		} catch {
 			// Error is handled by useIdentity hook
 			setIsRegistering(false);

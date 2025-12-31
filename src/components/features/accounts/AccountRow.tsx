@@ -180,10 +180,12 @@ export function AccountRow({
 					) : (
 						<>
 							<div className="truncate font-medium">{account.name}</div>
-							{account.accountNumber && (
+							{account.accountNumber ? (
 								<div className="truncate text-muted-foreground text-sm">
 									···{account.accountNumber.slice(-4)}
 								</div>
+							) : (
+								<div className="text-muted-foreground/50 text-sm italic">No account number yet</div>
 							)}
 						</>
 					)}
@@ -232,7 +234,7 @@ export function AccountRow({
 				</div>
 
 				{/* Actions */}
-				<div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+				<div className="flex w-20 shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
 					{isEditing ? (
 						<>
 							<Button
