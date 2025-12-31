@@ -10,7 +10,12 @@
 import { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useActiveAccounts, useActivePeople, useVaultAction } from "@/lib/crdt/context";
+import {
+	useActiveAccounts,
+	useActivePeople,
+	useVaultAction,
+	useVaultPreferences,
+} from "@/lib/crdt/context";
 import type { Account, AccountInput, Person } from "@/lib/crdt/schema";
 import { createEqualOwnerships } from "@/lib/domain/ownership";
 import { cn } from "@/lib/utils";
@@ -27,6 +32,10 @@ export interface AccountsTableProps {
 export function AccountsTable({ className }: AccountsTableProps) {
 	const accounts = useActiveAccounts();
 	const people = useActivePeople();
+	const preferences = useVaultPreferences();
+
+	// Get vault default currency (fallback to USD)
+	const defaultCurrency = preferences?.defaultCurrency ?? "USD";
 
 	const [expandedAccountId, setExpandedAccountId] = useState<string | null>(null);
 	const [isAddingAccount, setIsAddingAccount] = useState(false);
@@ -95,7 +104,7 @@ export function AccountsTable({ className }: AccountsTableProps) {
 			id: crypto.randomUUID(),
 			name,
 			accountType: "checking",
-			currency: "USD",
+			currency: defaultCurrency, // Use vault's default currency
 			balance: 0,
 			ownerships: defaultOwnerships,
 		};
@@ -103,7 +112,7 @@ export function AccountsTable({ className }: AccountsTableProps) {
 		addAccount(newAccount as AccountInput);
 		setNewAccountName("");
 		setIsAddingAccount(false);
-	}, [newAccountName, people, addAccount]);
+	}, [newAccountName, people, addAccount, defaultCurrency]);
 
 	// Handle cancel add
 	const handleCancelAdd = useCallback(() => {

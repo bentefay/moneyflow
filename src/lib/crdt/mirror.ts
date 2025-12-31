@@ -37,6 +37,7 @@ export const DEFAULT_VAULT_STATE = {
 	importTemplates: {},
 	automations: {},
 	preferences: {
+		name: "My Vault",
 		automationCreationPreference: "manual",
 		defaultCurrency: "USD",
 	},

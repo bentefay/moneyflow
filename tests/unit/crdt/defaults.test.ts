@@ -143,6 +143,7 @@ describe("initializeVaultDefaults", () => {
 				importTemplates: {},
 				automations: {},
 				preferences: {
+					name: "My Vault",
 					automationCreationPreference: "manual",
 					defaultCurrency: "USD",
 				},
@@ -178,6 +179,7 @@ describe("initializeVaultDefaults", () => {
 				importTemplates: {},
 				automations: {},
 				preferences: {
+					name: "My Vault",
 					automationCreationPreference: "manual",
 					defaultCurrency: "USD",
 				},

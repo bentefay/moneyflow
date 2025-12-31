@@ -224,7 +224,9 @@ test.describe("Tags", () => {
 
 	test("navigation: sidebar link works", async ({ page }) => {
 		await createNewIdentity(page);
-		await page.goto("/dashboard");
+		// Navigate to a different page first (settings is where new users land)
+		await page.goto("/transactions");
+		await page.waitForLoadState("networkidle");
 
 		// Click Tags in sidebar
 		await page.getByRole("link", { name: /tags/i }).click();

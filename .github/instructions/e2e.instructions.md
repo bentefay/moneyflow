@@ -12,13 +12,14 @@ e2e tests that repetitively run slow initialization flows to test small units of
 Use Playwright's test.step() to break complex flows into logical sections for readability and debugging.
 
 Use the next.js and playwright MCP servers to help with debugging. Assume the next.js server is already running (pnpm dev). The server automatically
-picks up changes. NEVER assume it is running with old code.
+picks up changes. NEVER assume it is running with old code. Make sure to fix flaky tests when you discover them.
 
 ## Auto-Approved Terminal Commands
 
 - `pnpm playwright test --reporter=line --max-failures=1 2>&1` - Run with fail-fast
 - `pnpm playwright test --reporter=json --max-failures=1 2>&1` - Use json reporter if you need structured output
 - `pnpm playwright test --workers=4 --repeat-each=5 --reporter=line 2>&1 ` - Use --repeat-each for flaky tests
+- Do NOT use `--debug` as it opens the GUI and will block forever.
 
 ## Shared Helpers
 

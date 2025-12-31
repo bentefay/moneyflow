@@ -4,6 +4,10 @@
  * Vault Selector
  *
  * Dropdown component to select the active vault.
+ *
+ * The currentVaultName prop should come from CRDT preferences for real-time
+ * updates when the vault name is edited. The vault list names come from the
+ * server and are used for non-active vaults in the dropdown.
  */
 
 import { Check, ChevronDown, Plus } from "lucide-react";
@@ -20,6 +24,11 @@ export interface VaultOption {
 export interface VaultSelectorProps {
 	/** Available vaults to select from */
 	vaults: VaultOption[];
+	/**
+	 * Name of the current vault from CRDT preferences.
+	 * This takes precedence over the vault list name for the active vault.
+	 */
+	currentVaultName?: string;
 	/** Whether vaults are loading */
 	isLoading?: boolean;
 	/** Called when user wants to create a new vault */
@@ -33,6 +42,7 @@ export interface VaultSelectorProps {
  */
 export function VaultSelector({
 	vaults,
+	currentVaultName,
 	isLoading = false,
 	onCreateVault,
 	className,
@@ -68,22 +78,18 @@ export function VaultSelector({
 	// Auto-select first vault if none selected
 	useEffect(() => {
 		if (!activeVault && vaults.length > 0) {
-			setActiveVault({
-				id: vaults[0].id,
-				name: vaults[0].name,
-			});
+			setActiveVault({ id: vaults[0].id });
 		}
 	}, [activeVault, vaults, setActiveVault]);
 
 	const handleSelect = (vault: VaultOption) => {
-		setActiveVault({
-			id: vault.id,
-			name: vault.name,
-		});
+		setActiveVault({ id: vault.id });
 		setIsOpen(false);
 	};
 
 	const selectedVault = vaults.find((v) => v.id === activeVault?.id);
+	// Use CRDT name for active vault, fall back to server name
+	const displayName = currentVaultName ?? selectedVault?.name;
 
 	return (
 		<div ref={dropdownRef} className={cn("relative", className)}>
@@ -101,7 +107,7 @@ export function VaultSelector({
 					<span className="text-muted-foreground">Loading...</span>
 				) : selectedVault ? (
 					<>
-						<span>{selectedVault.name}</span>
+						<span>{displayName}</span>
 						<RoleBadge role={selectedVault.role} />
 					</>
 				) : (
@@ -122,21 +128,27 @@ export function VaultSelector({
 						<div className="px-3 py-2 text-muted-foreground text-sm">No vaults available</div>
 					) : (
 						<div className="max-h-[300px] overflow-auto">
-							{vaults.map((vault) => (
-								<button
-									key={vault.id}
-									onClick={() => handleSelect(vault)}
-									className={cn(
-										"flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm",
-										"hover:bg-accent focus:bg-accent focus:outline-none",
-										vault.id === activeVault?.id && "bg-accent"
-									)}
-								>
-									<span className="flex-1 text-left">{vault.name}</span>
-									<RoleBadge role={vault.role} />
-									{vault.id === activeVault?.id && <Check className="h-4 w-4 text-primary" />}
-								</button>
-							))}
+							{vaults.map((vault) => {
+								const isActive = vault.id === activeVault?.id;
+								// Use CRDT name for active vault in dropdown too
+								const vaultDisplayName =
+									isActive && currentVaultName ? currentVaultName : vault.name;
+								return (
+									<button
+										key={vault.id}
+										onClick={() => handleSelect(vault)}
+										className={cn(
+											"flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm",
+											"hover:bg-accent focus:bg-accent focus:outline-none",
+											isActive && "bg-accent"
+										)}
+									>
+										<span className="flex-1 text-left">{vaultDisplayName}</span>
+										<RoleBadge role={vault.role} />
+										{isActive && <Check className="h-4 w-4 text-primary" />}
+									</button>
+								);
+							})}
 						</div>
 					)}
 

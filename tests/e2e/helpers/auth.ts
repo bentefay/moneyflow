@@ -7,7 +7,7 @@
 import type { Page } from "@playwright/test";
 
 /**
- * Complete the new user flow: generate seed phrase, confirm, and continue to dashboard.
+ * Complete the new user flow: generate seed phrase, confirm, and create account.
  * Returns the seed phrase words for potential later use (e.g., unlock tests).
  */
 export async function createNewIdentity(page: Page): Promise<string[]> {
@@ -56,7 +56,8 @@ export async function createNewIdentity(page: Page): Promise<string[]> {
 
 	await continueButton.click();
 
-	await page.waitForURL("**/dashboard", { timeout: 15000 });
+	// New users land on settings page after vault creation
+	await page.waitForURL("**/settings", { timeout: 15000 });
 
 	// Onboarding must create + select a vault (persisted via localStorage)
 	await page.waitForFunction(

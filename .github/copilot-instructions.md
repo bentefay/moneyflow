@@ -6,7 +6,7 @@
 - Favour a functional programming style with pure functions and immutable data structures.
 - **Tests are not optional**: Write unit tests for pure functions, E2E tests for user flows. A feature is not complete without tests.
 - **Don't reinvent the wheel**: Use established libraries for well-known algorithms (e.g., Levenshtein distance, CSV parsing, date handling). Custom implementations are bugs waiting to happen.
-- .github/agents/copilot-instructions.md must be updated alongside code changes to keep instructions current.
+- .github/copilot-instructions.md must be updated alongside code changes to keep instructions current.
 - .github/instructions/\* must be created/updated as new folders/domains are added.
 - Always run pnpm db:types/lint/format/typecheck/lint/test/test:e2e before commiting
 
@@ -150,10 +150,10 @@ Custom algorithm implementations introduce subtle bugs, lack edge case handling,
 
 ## Testing Requirements
 
-Tests MUST be written alongside features. See Constitution VII for philosophy.
+Tests MUST be written alongside features. See Constitution VII for philosophy. Always load .github/instructions/e2e.instructions.md when writing e2e tests.
 
 | Type        | Location               | Style                                                                       |
 | ----------- | ---------------------- | --------------------------------------------------------------------------- |
 | Unit        | `tests/unit/{module}/` | Table-driven for pure functions; property-based (fast-check) for invariants |
 | Integration | `tests/integration/`   | Happy path + error cases                                                    |
-| E2E         | `tests/e2e/`           | Harness functions, assert behaviour not text                                |
+| E2E         | `tests/e2e/`           | Harness functions, assert behaviour not text                                | 

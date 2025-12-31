@@ -1,17 +1,17 @@
 {
-  "servers": {
-    "playwright": {
-      "command": "npx",
-      "args": ["@playwright/mcp@latest"]
-    },
-    "next-devtools": {
-      "command": "npx",
-      "args": ["-y", "next-devtools-mcp@latest"]
-    },
-    "supabase": {
-      "type": "http",              
-      "url": "http://localhost:54321/mcp"
-    }
-  },
-  "inputs": []
+	"servers": {
+		"playwright": {
+			"command": "npx",
+			"args": ["@playwright/mcp@latest"]
+		},
+		"next-devtools": {
+			"command": "npx",
+			"args": ["-y", "next-devtools-mcp@latest"]
+		},
+		"supabase": {
+			"type": "http",
+			"url": "http://localhost:54321/mcp"
+		}
+	},
+	"inputs": []
 }
