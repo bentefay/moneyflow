@@ -86,6 +86,7 @@ export function getDefaultVaultState(): VaultInput {
 		automations: {},
 		automationApplications: {},
 		preferences: {
+			name: "My Vault",
 			automationCreationPreference: "manual",
 			defaultCurrency: "USD",
 		},
@@ -121,6 +122,7 @@ export function initializeVaultDefaults(draft: VaultInput): void {
 	// Ensure preferences exist with defaults
 	if (!draft.preferences) {
 		draft.preferences = {
+			name: "My Vault",
 			automationCreationPreference: "manual",
 			defaultCurrency: "USD",
 		};

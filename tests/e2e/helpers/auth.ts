@@ -7,7 +7,7 @@
 import type { Page } from "@playwright/test";
 
 /**
- * Complete the new user flow: generate seed phrase, confirm, and continue to dashboard.
+ * Complete the new user flow: generate seed phrase, confirm, and create account.
  * Returns the seed phrase words for potential later use (e.g., unlock tests).
  */
 export async function createNewIdentity(page: Page): Promise<string[]> {

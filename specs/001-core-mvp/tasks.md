@@ -123,7 +123,7 @@ Based on plan.md structure:
 1. Click "Generate Recovery Phrase" → generates keys locally (no server call)
 2. User writes down seed phrase
 3. User checks confirmation checkbox
-4. Click "Continue to Dashboard" → registers with server and stores session
+4. Click "Create Account" → registers with server and stores session
 
 ### API for User Story 1
 

@@ -239,7 +239,7 @@ export default function NewUserPage() {
 								</>
 							) : (
 								<>
-									Continue to Dashboard
+									Create Account
 									<ArrowRight className="h-4 w-4" />
 								</>
 							)}

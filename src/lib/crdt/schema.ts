@@ -177,6 +177,8 @@ export const automationApplicationSchema = schema.LoroMap({
  * Vault preferences schema - vault-scoped settings synced across members
  */
 export const vaultPreferencesSchema = schema.LoroMap({
+	/** Display name for the vault */
+	name: schema.String({ defaultValue: "My Vault" }),
 	/** Automation creation preference */
 	automationCreationPreference: schema.String({ defaultValue: "manual" }), // "createAutomatically" | "manual"
 	/** Default currency for new accounts and imports (ISO 4217 code) */
