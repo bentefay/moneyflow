@@ -3,18 +3,35 @@
 /**
  * AccountRow Component
  *
- * Individual row in the accounts list with inline editing support.
+ * Individual row in the accounts list with per-field inline editing support.
  * Shows account name, type, currency, balance, and ownership percentages.
+ *
+ * Each field can be edited individually by clicking on it:
+ * - Name: Text input
+ * - Account Number: Text input (shown below name)
+ * - Type: Select dropdown
+ * - Currency: CurrencySelect component
+ *
+ * All editors support:
+ * - Enter to save
+ * - Escape to cancel
+ * - Click outside to save
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Account, Person } from "@/lib/crdt/schema";
 import { Currencies } from "@/lib/domain/currencies";
-import { createCurrencyFormatter, getCurrency, type MoneyMinorUnits } from "@/lib/domain/currency";
+import {
+	createCurrencyFormatter,
+	getCurrency,
+	type MoneyMinorUnits,
+	resolveAccountCurrency,
+} from "@/lib/domain/currency";
 import { isValidOwnership } from "@/lib/domain/ownership";
 import { cn } from "@/lib/utils";
+import { CurrencySelect } from "./CurrencySelect";
 import { OwnershipEditor } from "./OwnershipEditor";
 
 export interface AccountRowProps {
@@ -22,6 +39,8 @@ export interface AccountRowProps {
 	account: Account;
 	/** All people in the vault (for displaying owner names) */
 	people: Record<string, Person>;
+	/** Vault's default currency code (used for fallback display) */
+	vaultDefaultCurrency: string;
 	/** Callback when account is updated */
 	onUpdate: (id: string, data: Partial<Account>) => void;
 	/** Callback when account is deleted */
@@ -44,26 +63,46 @@ const ACCOUNT_TYPES: Record<string, string> = {
 	investment: "Investment",
 };
 
+/** Which field is currently being edited (or "all" for full edit mode) */
+type EditingField = "name" | "accountNumber" | "type" | "currency" | "all" | null;
+
 /**
- * Account row component with inline editing.
+ * Account row component with per-field inline editing.
  */
 export function AccountRow({
 	account,
 	people,
+	vaultDefaultCurrency,
 	onUpdate,
 	onDelete,
 	isExpanded = false,
 	onToggleExpand,
 	className,
 }: AccountRowProps) {
-	const [isEditing, setIsEditing] = useState(false);
+	// Per-field editing state ("all" = full edit mode from edit button)
+	const [editingField, setEditingField] = useState<EditingField>(null);
 	const [editedName, setEditedName] = useState(account.name);
 	const [editedAccountNumber, setEditedAccountNumber] = useState(account.accountNumber || "");
 	const [editedType, setEditedType] = useState(account.accountType || "checking");
+	const [editedCurrency, setEditedCurrency] = useState(account.currency || "");
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-	// Get currency info for formatting
-	const currency = getCurrency(account.currency || "USD") || Currencies.USD;
+	// Whether in full edit mode (all fields editable at once)
+	const isEditMode = editingField === "all";
+
+	// Refs for input focus management
+	const nameInputRef = useRef<HTMLInputElement>(null);
+	const accountNumberInputRef = useRef<HTMLInputElement>(null);
+	const typeSelectRef = useRef<HTMLSelectElement>(null);
+
+	// Resolve currency with inheritance indicator
+	const { code: resolvedCurrency, isInherited } = resolveAccountCurrency(
+		account.currency,
+		vaultDefaultCurrency
+	);
+
+	// Get currency info for formatting using resolved currency
+	const currency = getCurrency(resolvedCurrency) || Currencies.USD;
 	const formatter = createCurrencyFormatter(currency, "en-US");
 	const balance = account.balance as MoneyMinorUnits;
 
@@ -80,23 +119,124 @@ export function AccountRow({
 		.filter(Boolean)
 		.join(", ");
 
-	// Handle saving inline edits
-	const handleSave = useCallback(() => {
-		onUpdate(account.id, {
-			name: editedName.trim() || "Untitled Account",
-			accountNumber: editedAccountNumber.trim() || undefined,
-			accountType: editedType,
-		});
-		setIsEditing(false);
-	}, [account.id, editedName, editedAccountNumber, editedType, onUpdate]);
+	// Focus input when editing starts
+	useEffect(() => {
+		if (editingField === "name" && nameInputRef.current) {
+			nameInputRef.current.focus();
+			nameInputRef.current.select();
+		} else if (editingField === "accountNumber" && accountNumberInputRef.current) {
+			accountNumberInputRef.current.focus();
+			accountNumberInputRef.current.select();
+		} else if (editingField === "type" && typeSelectRef.current) {
+			typeSelectRef.current.focus();
+		}
+	}, [editingField]);
 
-	// Handle canceling inline edits
-	const handleCancel = useCallback(() => {
+	// Reset edited values when account changes
+	useEffect(() => {
 		setEditedName(account.name);
 		setEditedAccountNumber(account.accountNumber || "");
 		setEditedType(account.accountType || "checking");
-		setIsEditing(false);
+		setEditedCurrency(account.currency || "");
 	}, [account]);
+
+	// Save name field
+	const saveName = useCallback(() => {
+		const newName = editedName.trim() || "Untitled Account";
+		if (newName !== account.name) {
+			onUpdate(account.id, { name: newName });
+		}
+		setEditingField(null);
+	}, [account.id, account.name, editedName, onUpdate]);
+
+	// Save account number field
+	const saveAccountNumber = useCallback(() => {
+		const newNumber = editedAccountNumber.trim() || undefined;
+		if (newNumber !== (account.accountNumber || undefined)) {
+			onUpdate(account.id, { accountNumber: newNumber });
+		}
+		setEditingField(null);
+	}, [account.id, account.accountNumber, editedAccountNumber, onUpdate]);
+
+	// Save type field
+	const saveType = useCallback(() => {
+		if (editedType !== account.accountType) {
+			onUpdate(account.id, { accountType: editedType });
+		}
+		setEditingField(null);
+	}, [account.id, account.accountType, editedType, onUpdate]);
+
+	// Cancel editing
+	const cancelEditing = useCallback(() => {
+		setEditedName(account.name);
+		setEditedAccountNumber(account.accountNumber || "");
+		setEditedType(account.accountType || "checking");
+		setEditedCurrency(account.currency || "");
+		setEditingField(null);
+	}, [account]);
+
+	// Handle keyboard events for fields
+	const handleKeyDown = useCallback(
+		(e: React.KeyboardEvent, saveHandler: () => void) => {
+			if (e.key === "Enter") {
+				e.preventDefault();
+				saveHandler();
+			} else if (e.key === "Escape") {
+				e.preventDefault();
+				cancelEditing();
+			}
+		},
+		[cancelEditing]
+	);
+
+	// Start editing a field
+	const startEditing = useCallback((field: EditingField, e: React.MouseEvent) => {
+		e.stopPropagation();
+		setEditingField(field);
+	}, []);
+
+	// Enter full edit mode (all fields editable)
+	const enterEditMode = useCallback((e: React.MouseEvent) => {
+		e.stopPropagation();
+		setEditingField("all");
+	}, []);
+
+	// Exit edit mode and save all changes
+	const exitEditMode = useCallback(
+		(e: React.MouseEvent) => {
+			e.stopPropagation();
+			// Save all changed values
+			const updates: Partial<Account> = {};
+			const newName = editedName.trim() || "Untitled Account";
+			if (newName !== account.name) updates.name = newName;
+			const newNumber = editedAccountNumber.trim() || undefined;
+			if (newNumber !== (account.accountNumber || undefined)) updates.accountNumber = newNumber;
+			if (editedType !== account.accountType) updates.accountType = editedType;
+			if (editedCurrency !== (account.currency || "")) updates.currency = editedCurrency;
+
+			if (Object.keys(updates).length > 0) {
+				onUpdate(account.id, updates);
+			}
+			setEditingField(null);
+		},
+		[account, editedName, editedAccountNumber, editedType, editedCurrency, onUpdate]
+	);
+
+	// Handle currency change from CurrencySelect
+	const handleCurrencyChange = useCallback(
+		(newCurrency: string) => {
+			setEditedCurrency(newCurrency);
+			// In edit mode, just update state - save happens on exitEditMode
+			// Otherwise, save immediately since CurrencySelect is a popover
+			if (!isEditMode) {
+				if (newCurrency !== (account.currency || "")) {
+					onUpdate(account.id, { currency: newCurrency });
+				}
+				setEditingField(null);
+			}
+		},
+		[account.id, account.currency, onUpdate, isEditMode]
+	);
 
 	// Handle ownership change - filter out $cid from loro-mirror
 	const handleOwnershipChange = useCallback(
@@ -161,44 +301,90 @@ export function AccountRow({
 
 				{/* Account name & number */}
 				<div className="min-w-0 flex-1">
-					{isEditing ? (
-						<div className="flex flex-col gap-1" onClick={(e) => e.stopPropagation()}>
+					{/* Name field */}
+					{editingField === "name" || isEditMode ? (
+						<div onClick={(e) => e.stopPropagation()}>
 							<Input
+								ref={nameInputRef}
 								value={editedName}
 								onChange={(e) => setEditedName(e.target.value)}
+								onKeyDown={(e) => !isEditMode && handleKeyDown(e, saveName)}
+								onBlur={() => !isEditMode && saveName()}
 								placeholder="Account name"
 								className="h-8"
-								autoFocus
-							/>
-							<Input
-								value={editedAccountNumber}
-								onChange={(e) => setEditedAccountNumber(e.target.value)}
-								placeholder="Account number (optional)"
-								className="h-7 text-sm"
 							/>
 						</div>
 					) : (
-						<>
-							<div className="truncate font-medium">{account.name}</div>
-							{account.accountNumber ? (
-								<div className="truncate text-muted-foreground text-sm">
-									···{account.accountNumber.slice(-4)}
-								</div>
-							) : (
-								<div className="text-muted-foreground/50 text-sm italic">No account number yet</div>
+						<div
+							className={cn(
+								"group/name cursor-text truncate font-medium rounded px-1 -mx-1",
+								"hover:bg-accent/50 hover:ring-1 hover:ring-border"
 							)}
-						</>
+							onClick={(e) => startEditing("name", e)}
+							title="Click to edit name"
+						>
+							{account.name}
+						</div>
+					)}
+
+					{/* Account number field */}
+					{editingField === "accountNumber" || isEditMode ? (
+						<div onClick={(e) => e.stopPropagation()}>
+							<Input
+								ref={accountNumberInputRef}
+								value={editedAccountNumber}
+								onChange={(e) => setEditedAccountNumber(e.target.value)}
+								onKeyDown={(e) => !isEditMode && handleKeyDown(e, saveAccountNumber)}
+								onBlur={() => !isEditMode && saveAccountNumber()}
+								placeholder="Account number (optional)"
+								className="mt-1 h-7 text-sm"
+							/>
+						</div>
+					) : account.accountNumber ? (
+						<div
+							className={cn(
+								"cursor-text truncate text-muted-foreground text-sm rounded px-1 -mx-1",
+								"hover:bg-accent/50 hover:ring-1 hover:ring-border"
+							)}
+							onClick={(e) => startEditing("accountNumber", e)}
+							title="Click to edit account number"
+						>
+							···{account.accountNumber.slice(-4)}
+						</div>
+					) : (
+						<div
+							className={cn(
+								"cursor-text text-muted-foreground/50 text-sm italic rounded px-1 -mx-1",
+								"hover:bg-accent/50 hover:ring-1 hover:ring-border"
+							)}
+							onClick={(e) => startEditing("accountNumber", e)}
+							title="Click to add account number"
+						>
+							No account number
+						</div>
 					)}
 				</div>
 
 				{/* Account type */}
 				<div className="w-28 shrink-0">
-					{isEditing ? (
+					{editingField === "type" || isEditMode ? (
 						<select
+							ref={typeSelectRef}
 							value={editedType}
-							onChange={(e) => setEditedType(e.target.value)}
+							onChange={(e) => {
+								setEditedType(e.target.value);
+								// In edit mode, just update state
+								if (!isEditMode) {
+									if (e.target.value !== account.accountType) {
+										onUpdate(account.id, { accountType: e.target.value });
+									}
+									setEditingField(null);
+								}
+							}}
+							onKeyDown={(e) => !isEditMode && handleKeyDown(e, saveType)}
+							onBlur={() => !isEditMode && saveType()}
 							onClick={(e) => e.stopPropagation()}
-							className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm"
+							className="h-8 w-full appearance-none rounded-md border border-input bg-background px-2 pr-6 text-sm bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22m6%208%204%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.25rem] bg-[right_0.25rem_center] bg-no-repeat"
 						>
 							{Object.entries(ACCOUNT_TYPES).map(([value, label]) => (
 								<option key={value} value={value}>
@@ -207,19 +393,45 @@ export function AccountRow({
 							))}
 						</select>
 					) : (
-						<span className="rounded bg-muted px-2 py-0.5 text-muted-foreground text-xs">
+						<span
+							className={cn(
+								"cursor-pointer rounded bg-muted px-2 py-0.5 text-muted-foreground text-xs",
+								"hover:bg-accent hover:ring-1 hover:ring-border"
+							)}
+							onClick={(e) => startEditing("type", e)}
+							title="Click to change type"
+						>
 							{ACCOUNT_TYPES[account.accountType || "checking"] || account.accountType}
 						</span>
 					)}
 				</div>
 
 				{/* Currency */}
-				<div className="w-12 shrink-0 text-center text-muted-foreground text-sm">
-					{account.currency || "USD"}
+				<div className="w-32 shrink-0 text-center text-sm" onClick={(e) => e.stopPropagation()}>
+					{editingField === "currency" || isEditMode ? (
+						<CurrencySelect
+							value={editedCurrency}
+							vaultDefaultCurrency={vaultDefaultCurrency}
+							onChange={handleCurrencyChange}
+						/>
+					) : (
+						<span
+							className={cn(
+								"inline-flex items-center gap-1 cursor-pointer rounded px-1 -mx-1",
+								"hover:bg-accent/50 hover:ring-1 hover:ring-border",
+								isInherited && "text-muted-foreground"
+							)}
+							onClick={(e) => startEditing("currency", e)}
+							title="Click to change currency"
+						>
+							{resolvedCurrency}
+							{isInherited && <span className="text-muted-foreground/60 text-xs">(default)</span>}
+						</span>
+					)}
 				</div>
 
 				{/* Owners */}
-				<div className="hidden w-40 shrink-0 truncate text-muted-foreground text-sm md:block">
+				<div className="hidden w-32 shrink-0 truncate text-muted-foreground text-sm md:block">
 					{ownerNames || <span className="text-amber-500 italic">No owners</span>}
 				</div>
 
@@ -234,84 +446,80 @@ export function AccountRow({
 				</div>
 
 				{/* Actions */}
-				<div className="flex w-20 shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-					{isEditing ? (
-						<>
-							<Button
-								type="button"
-								variant="ghost"
-								size="sm"
-								onClick={(e) => {
-									e.stopPropagation();
-									handleSave();
-								}}
-								className="h-7 px-2"
-							>
-								Save
-							</Button>
-							<Button
-								type="button"
-								variant="ghost"
-								size="sm"
-								onClick={(e) => {
-									e.stopPropagation();
-									handleCancel();
-								}}
-								className="h-7 px-2"
-							>
-								Cancel
-							</Button>
-						</>
-					) : (
-						<>
-							<Button
-								type="button"
-								variant="ghost"
-								size="sm"
-								onClick={(e) => {
-									e.stopPropagation();
-									setIsEditing(true);
-								}}
-								className="h-7 w-7 p-0 text-muted-foreground"
-								aria-label="Edit account"
-							>
-								<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-									<path
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										strokeWidth={2}
-										d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-									/>
-								</svg>
-							</Button>
-							<Button
-								type="button"
-								variant="ghost"
-								size="sm"
-								onClick={handleDelete}
-								className={cn(
-									"h-7 w-7 p-0",
-									showDeleteConfirm
-										? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"
-										: "text-muted-foreground hover:text-destructive"
-								)}
-								aria-label={showDeleteConfirm ? "Confirm delete" : "Delete account"}
-							>
-								{showDeleteConfirm ? (
-									<span className="text-xs">!</span>
-								) : (
-									<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-										<path
-											strokeLinecap="round"
-											strokeLinejoin="round"
-											strokeWidth={2}
-											d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-										/>
-									</svg>
-								)}
-							</Button>
-						</>
+				<div
+					className={cn(
+						"flex w-20 shrink-0 gap-1 transition-opacity",
+						isEditMode ? "opacity-100" : "opacity-0 group-hover:opacity-100"
 					)}
+				>
+					{/* Edit / Done button */}
+					{isEditMode ? (
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							onClick={exitEditMode}
+							className="h-7 w-7 p-0 text-green-600 hover:bg-green-100 hover:text-green-700 dark:text-green-400 dark:hover:bg-green-900/30"
+							aria-label="Save changes"
+						>
+							{/* Checkmark icon */}
+							<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									strokeWidth={2}
+									d="M5 13l4 4L19 7"
+								/>
+							</svg>
+						</Button>
+					) : (
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							onClick={enterEditMode}
+							className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+							aria-label="Edit account"
+						>
+							{/* Pencil icon */}
+							<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									strokeWidth={2}
+									d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+								/>
+							</svg>
+						</Button>
+					)}
+
+					{/* Delete button */}
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
+						onClick={handleDelete}
+						className={cn(
+							"h-7 w-7 p-0",
+							showDeleteConfirm
+								? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"
+								: "text-muted-foreground hover:text-destructive"
+						)}
+						aria-label={showDeleteConfirm ? "Confirm delete" : "Delete account"}
+					>
+						{showDeleteConfirm ? (
+							<span className="text-xs">!</span>
+						) : (
+							<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									strokeWidth={2}
+									d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+								/>
+							</svg>
+						)}
+					</Button>
 				</div>
 			</div>
 

@@ -10,6 +10,8 @@ import { describe, expect, it } from "vitest";
 import {
 	DEFAULT_ACCOUNT,
 	DEFAULT_ACCOUNT_ID,
+	DEFAULT_PERSON,
+	DEFAULT_PERSON_ID,
 	DEFAULT_STATUS_IDS,
 	DEFAULT_STATUSES,
 	getDefaultVaultState,
@@ -17,6 +19,23 @@ import {
 	initializeVaultDefaults,
 } from "@/lib/crdt/defaults";
 import { type VaultInput, vaultSchema } from "@/lib/crdt/schema";
+
+describe("DEFAULT_PERSON_ID", () => {
+	it("defines the default person ID", () => {
+		expect(DEFAULT_PERSON_ID).toBe("person-default-me");
+	});
+});
+
+describe("DEFAULT_PERSON", () => {
+	it("has correct default properties", () => {
+		expect(DEFAULT_PERSON).toEqual({
+			id: "person-default-me",
+			name: "Me",
+			linkedUserId: "", // Empty string = not linked to any user
+			deletedAt: 0,
+		});
+	});
+});
 
 describe("DEFAULT_ACCOUNT_ID", () => {
 	it("defines the default account ID", () => {
@@ -30,12 +49,22 @@ describe("DEFAULT_ACCOUNT", () => {
 			id: "account-default",
 			name: "Default",
 			accountNumber: "",
-			currency: "USD",
+			currency: "", // Empty string = inherits from vault default
 			accountType: "checking",
 			balance: 0,
-			ownerships: {},
+			ownerships: { [DEFAULT_PERSON_ID]: 100 }, // Me owns 100%
 			deletedAt: 0,
 		});
+	});
+
+	it("has Me as 100% owner", () => {
+		expect(DEFAULT_ACCOUNT.ownerships).toEqual({ [DEFAULT_PERSON_ID]: 100 });
+	});
+
+	it("has empty string currency to inherit from vault", () => {
+		// Empty string "" is used instead of undefined due to loro-mirror type constraints
+		// The resolveAccountCurrency() function treats "" as "not set"
+		expect(DEFAULT_ACCOUNT.currency).toBe("");
 	});
 });
 
@@ -92,6 +121,13 @@ describe("getDefaultVaultState", () => {
 		expect(state).toHaveProperty("preferences");
 	});
 
+	it("includes default person", () => {
+		const state = getDefaultVaultState();
+
+		expect(state.people[DEFAULT_PERSON_ID]).toBeDefined();
+		expect(state.people[DEFAULT_PERSON_ID].name).toBe("Me");
+	});
+
 	it("includes default statuses", () => {
 		const state = getDefaultVaultState();
 
@@ -99,17 +135,19 @@ describe("getDefaultVaultState", () => {
 		expect(state.statuses[DEFAULT_STATUS_IDS.PAID]).toBeDefined();
 	});
 
-	it("includes default account", () => {
+	it("includes default account with Me as owner", () => {
 		const state = getDefaultVaultState();
 
 		expect(state.accounts[DEFAULT_ACCOUNT_ID]).toBeDefined();
 		expect(state.accounts[DEFAULT_ACCOUNT_ID].name).toBe("Default");
+		expect(state.accounts[DEFAULT_ACCOUNT_ID].ownerships).toEqual({ [DEFAULT_PERSON_ID]: 100 });
 	});
 
-	it("has empty collections for other entities", () => {
+	it("has default person and account, empty other collections", () => {
 		const state = getDefaultVaultState();
 
-		expect(Object.keys(state.people)).toHaveLength(0);
+		// people has 1 default person
+		expect(Object.keys(state.people)).toHaveLength(1);
 		// accounts has 1 default account
 		expect(Object.keys(state.accounts)).toHaveLength(1);
 		expect(Object.keys(state.tags)).toHaveLength(0);
@@ -128,7 +166,7 @@ describe("getDefaultVaultState", () => {
 });
 
 describe("initializeVaultDefaults", () => {
-	it("adds default account and statuses to an empty draft", () => {
+	it("adds default person, account, and statuses to an empty draft", () => {
 		const doc = new LoroDoc();
 		const mirror = new Mirror({
 			doc,
@@ -157,10 +195,61 @@ describe("initializeVaultDefaults", () => {
 		});
 
 		const state = mirror.getState();
+		// Default person
+		expect(state.people[DEFAULT_PERSON_ID]).toBeDefined();
+		expect(state.people[DEFAULT_PERSON_ID].name).toBe("Me");
+		// Default account with ownership
 		expect(state.accounts[DEFAULT_ACCOUNT_ID]).toBeDefined();
 		expect(state.accounts[DEFAULT_ACCOUNT_ID].name).toBe("Default");
+		expect(state.accounts[DEFAULT_ACCOUNT_ID].ownerships[DEFAULT_PERSON_ID]).toBe(100);
+		// Default statuses
 		expect(state.statuses[DEFAULT_STATUS_IDS.FOR_REVIEW]).toBeDefined();
 		expect(state.statuses[DEFAULT_STATUS_IDS.PAID]).toBeDefined();
+	});
+
+	it("does not overwrite existing person when present", () => {
+		// Create a vault and first add a custom person with the default ID
+		const doc = new LoroDoc();
+		const mirror = new Mirror({
+			doc,
+			schema: vaultSchema,
+			initialState: {
+				people: {},
+				accounts: {},
+				tags: {},
+				statuses: {},
+				transactions: {},
+				imports: {},
+				importTemplates: {},
+				automations: {},
+				preferences: {
+					name: "My Vault",
+					automationCreationPreference: "manual",
+					defaultCurrency: "USD",
+				},
+			},
+			validateUpdates: true,
+			throwOnValidationError: true,
+		});
+
+		// First add a custom person with the default person ID
+		mirror.setState((draft: VaultInput) => {
+			draft.people[DEFAULT_PERSON_ID] = {
+				id: DEFAULT_PERSON_ID,
+				name: "Custom Name",
+				linkedUserId: "",
+				deletedAt: 0,
+			};
+		});
+
+		// Now call initializeVaultDefaults - it should NOT overwrite the custom person
+		mirror.setState((draft: VaultInput) => {
+			initializeVaultDefaults(draft);
+		});
+
+		const state = mirror.getState();
+		// Should keep custom name since person already existed
+		expect(state.people[DEFAULT_PERSON_ID].name).toBe("Custom Name");
 	});
 
 	it("does not overwrite existing statuses when they have values", () => {

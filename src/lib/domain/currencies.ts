@@ -1082,3 +1082,17 @@ export const Currencies: Record<string, Currency> = {
 		name_plural: "Zambian kwachas",
 	},
 };
+
+/**
+ * Sorted list of supported currencies for use in dropdowns.
+ * Common currencies (USD, EUR, GBP, CAD) are listed first.
+ */
+export const SUPPORTED_CURRENCIES = (() => {
+	const common = ["USD", "EUR", "GBP", "CAD", "AUD", "JPY", "CHF"];
+	const all = Object.values(Currencies);
+	const commonCurrencies = common.map((code) => Currencies[code]).filter(Boolean);
+	const otherCurrencies = all
+		.filter((c) => !common.includes(c.code))
+		.sort((a, b) => a.code.localeCompare(b.code));
+	return [...commonCurrencies, ...otherCurrencies];
+})();

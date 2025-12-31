@@ -104,7 +104,7 @@ export function AccountsTable({ className }: AccountsTableProps) {
 			id: crypto.randomUUID(),
 			name,
 			accountType: "checking",
-			currency: defaultCurrency, // Use vault's default currency
+			currency: "", // Empty string = inherit from vault default
 			balance: 0,
 			ownerships: defaultOwnerships,
 		};
@@ -112,7 +112,7 @@ export function AccountsTable({ className }: AccountsTableProps) {
 		addAccount(newAccount as AccountInput);
 		setNewAccountName("");
 		setIsAddingAccount(false);
-	}, [newAccountName, people, addAccount, defaultCurrency]);
+	}, [newAccountName, people, addAccount]);
 
 	// Handle cancel add
 	const handleCancelAdd = useCallback(() => {
@@ -125,10 +125,10 @@ export function AccountsTable({ className }: AccountsTableProps) {
 			{/* Header */}
 			<div className="flex items-center gap-4 border-b bg-muted/50 px-4 py-2 font-medium text-sm">
 				<div className="w-5 shrink-0" /> {/* Expand indicator space */}
-				<div className="flex-1">Account</div>
+				<div className="min-w-0 flex-1">Account</div>
 				<div className="w-28 shrink-0">Type</div>
-				<div className="w-12 shrink-0 text-center">Currency</div>
-				<div className="hidden w-40 shrink-0 md:block">Owners</div>
+				<div className="w-32 shrink-0 text-center">Currency</div>
+				<div className="hidden w-32 shrink-0 md:block">Owners</div>
 				<div className="w-28 shrink-0 text-right">Balance</div>
 				<div className="w-20 shrink-0" /> {/* Actions space */}
 			</div>
@@ -140,6 +140,7 @@ export function AccountsTable({ className }: AccountsTableProps) {
 						key={account.id}
 						account={account}
 						people={people as unknown as Record<string, Person>}
+						vaultDefaultCurrency={defaultCurrency}
 						onUpdate={handleUpdate}
 						onDelete={handleDelete}
 						isExpanded={expandedAccountId === account.id}

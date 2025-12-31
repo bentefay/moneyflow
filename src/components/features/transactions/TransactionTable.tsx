@@ -274,53 +274,55 @@ export function TransactionTable({
 	}
 
 	return (
-		<div
-			ref={containerRef}
-			className={cn("flex h-full flex-col overflow-auto", className)}
-			role="grid"
-			aria-label="Transactions"
-			data-testid="transaction-table"
-		>
+		<div className={cn("flex min-h-0 flex-1 flex-col", className)}>
 			<TransactionTableHeader />
 			<div
-				className="relative flex-1"
-				role="rowgroup"
-				style={{ height: `${virtualizer.getTotalSize()}px` }}
+				ref={containerRef}
+				className="min-h-0 flex-1 overflow-auto"
+				role="grid"
+				aria-label="Transactions"
+				data-testid="transaction-table"
 			>
-				{virtualItems.map((virtualRow) => {
-					const transaction = transactions[virtualRow.index];
-					return (
-						<div
-							key={transaction.id}
-							data-index={virtualRow.index}
-							ref={virtualizer.measureElement}
-							className="absolute top-0 left-0 w-full"
-							style={{
-								transform: `translateY(${virtualRow.start}px)`,
-							}}
-						>
-							<TransactionRow
-								transaction={transaction}
-								presence={presenceByTransactionId[transaction.id]}
-								currentUserId={currentUserId}
-								isSelected={selectedIds.has(transaction.id)}
-								onClick={(e?: React.MouseEvent) =>
-									handleRowClick(transaction.id, e as React.MouseEvent)
-								}
-								onFocus={() => {
-									setFocusedId(transaction.id);
-									onTransactionFocus?.(transaction.id);
+				<div
+					className="relative"
+					role="rowgroup"
+					style={{ height: `${virtualizer.getTotalSize()}px` }}
+				>
+					{virtualItems.map((virtualRow) => {
+						const transaction = transactions[virtualRow.index];
+						return (
+							<div
+								key={transaction.id}
+								data-index={virtualRow.index}
+								ref={virtualizer.measureElement}
+								className="absolute top-0 left-0 w-full"
+								style={{
+									transform: `translateY(${virtualRow.start}px)`,
 								}}
-								onDelete={
-									onTransactionDelete ? () => onTransactionDelete(transaction.id) : undefined
-								}
-								onResolveDuplicate={
-									onResolveDuplicate ? () => onResolveDuplicate(transaction.id) : undefined
-								}
-							/>
-						</div>
-					);
-				})}
+							>
+								<TransactionRow
+									transaction={transaction}
+									presence={presenceByTransactionId[transaction.id]}
+									currentUserId={currentUserId}
+									isSelected={selectedIds.has(transaction.id)}
+									onClick={(e?: React.MouseEvent) =>
+										handleRowClick(transaction.id, e as React.MouseEvent)
+									}
+									onFocus={() => {
+										setFocusedId(transaction.id);
+										onTransactionFocus?.(transaction.id);
+									}}
+									onDelete={
+										onTransactionDelete ? () => onTransactionDelete(transaction.id) : undefined
+									}
+									onResolveDuplicate={
+										onResolveDuplicate ? () => onResolveDuplicate(transaction.id) : undefined
+									}
+								/>
+							</div>
+						);
+					})}
+				</div>
 			</div>
 			{isLoading && <LoadingIndicator />}
 			{!isLoading && hasMore && transactions.length > 0 && (

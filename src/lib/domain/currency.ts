@@ -85,6 +85,59 @@ export function asMinorUnits(value: number): MoneyMinorUnits {
 }
 
 // ============================================================================
+// Currency Resolution
+// ============================================================================
+
+/**
+ * Result of resolving an account's effective currency.
+ */
+export interface ResolvedCurrency {
+	/** The resolved ISO 4217 currency code */
+	code: string;
+	/** Whether the currency is inherited (from vault default or USD fallback) */
+	isInherited: boolean;
+}
+
+/**
+ * Resolves the effective currency for an account.
+ *
+ * Resolution order:
+ * 1. Explicit account currency (if set)
+ * 2. Vault default currency (if set)
+ * 3. "USD" (ultimate fallback)
+ *
+ * @param accountCurrency - The account's explicit currency (may be undefined)
+ * @param vaultDefaultCurrency - The vault's default currency (may be undefined)
+ * @returns Object with resolved code and whether it's inherited
+ *
+ * @example
+ * ```ts
+ * // Account with explicit EUR
+ * resolveAccountCurrency("EUR", "USD"); // { code: "EUR", isInherited: false }
+ *
+ * // Account without currency, vault has default
+ * resolveAccountCurrency(undefined, "GBP"); // { code: "GBP", isInherited: true }
+ *
+ * // Account without currency, no vault default
+ * resolveAccountCurrency(undefined, undefined); // { code: "USD", isInherited: true }
+ * ```
+ */
+export function resolveAccountCurrency(
+	accountCurrency: string | undefined,
+	vaultDefaultCurrency: string | undefined
+): ResolvedCurrency {
+	// Empty string "" is treated as "not set" (same as undefined)
+	// This is needed because loro-mirror requires string fields to be string, not undefined
+	if (accountCurrency && accountCurrency !== "") {
+		return { code: accountCurrency, isInherited: false };
+	}
+	if (vaultDefaultCurrency && vaultDefaultCurrency !== "") {
+		return { code: vaultDefaultCurrency, isInherited: true };
+	}
+	return { code: "USD", isInherited: true };
+}
+
+// ============================================================================
 // Currency Factory Functions
 // ============================================================================
 
