@@ -150,10 +150,10 @@ Custom algorithm implementations introduce subtle bugs, lack edge case handling,
 
 ## Testing Requirements
 
-Tests MUST be written alongside features. See Constitution VII for philosophy.
+Tests MUST be written alongside features. See Constitution VII for philosophy. Always load .github/instructions/e2e.instructions.md when writing e2e tests.
 
 | Type        | Location               | Style                                                                       |
 | ----------- | ---------------------- | --------------------------------------------------------------------------- |
 | Unit        | `tests/unit/{module}/` | Table-driven for pure functions; property-based (fast-check) for invariants |
 | Integration | `tests/integration/`   | Happy path + error cases                                                    |
-| E2E         | `tests/e2e/`           | Harness functions, assert behaviour not text                                |
+| E2E         | `tests/e2e/`           | Harness functions, assert behaviour not text                                | 

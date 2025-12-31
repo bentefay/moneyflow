@@ -155,9 +155,9 @@ test.describe("Vault Settings", () => {
 		test("should update vault name in header when renamed in settings", async ({ page }) => {
 			await createNewIdentity(page);
 
-			// Verify initial vault name in header vault selector
+			// Verify initial vault name in header vault selector (wait for CRDT to load)
 			const vaultSelector = page.locator("button").filter({ hasText: "My Vault" }).first();
-			await expect(vaultSelector).toBeVisible();
+			await expect(vaultSelector).toBeVisible({ timeout: 10000 });
 
 			// Find and update the vault name input
 			const vaultNameInput = page.getByLabel(/vault name/i);

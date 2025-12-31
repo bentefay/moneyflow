@@ -32,6 +32,7 @@ import { useActiveVault } from "@/hooks/use-active-vault";
 import { SyncStatusProvider, usePollUnsavedChanges, useSyncStatus } from "@/hooks/use-sync-status";
 import { useVaultPresence } from "@/hooks/use-vault-presence";
 import { AuthGuard, useAuthGuard } from "@/lib/auth";
+import { useVaultPreferences } from "@/lib/crdt/context";
 import { clearSession } from "@/lib/crypto/session";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
@@ -80,22 +81,19 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 	const [isCollapsed, setIsCollapsed] = useState(false);
 	const { activeVault } = useActiveVault();
 
+	// Get vault name from CRDT preferences (single source of truth)
+	const preferences = useVaultPreferences();
+	const currentVaultName = preferences?.name;
+
 	const vaultListQuery = trpc.vault.list.useQuery();
 
 	const vaultOptions = useMemo(() => {
 		const vaults = vaultListQuery.data?.vaults ?? [];
 		return vaults.map((v) => {
-			const shortId = v.id.slice(0, 6);
-			const name =
-				activeVault?.id === v.id ? (activeVault.name ?? `Vault ${shortId}`) : `Vault ${shortId}`;
-
-			return {
-				id: v.id,
-				name,
-				role: v.role,
-			};
+			// Server doesn't store vault names, use placeholder for non-active vaults
+			return { id: v.id, name: "Vault", role: v.role };
 		});
-	}, [vaultListQuery.data, activeVault]);
+	}, [vaultListQuery.data]);
 
 	// Track presence in active vault
 	const { onlineUsers, isConnected } = useVaultPresence(activeVault?.id ?? null, pubkeyHash);
@@ -187,6 +185,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 						{/* Vault selector */}
 						<VaultSelector
 							vaults={vaultOptions}
+							currentVaultName={currentVaultName}
 							isLoading={isVaultsLoading}
 							onCreateVault={() => {
 								// TODO: Open create vault dialog
