@@ -8,7 +8,9 @@ export { AccountCell, type AccountCellProps, type AccountData } from "./AccountC
 export { AmountCell, type AmountCellProps } from "./AmountCell";
 export { AutomationCell, type AutomationCellProps } from "./AutomationCell";
 export { BalanceCell, type BalanceCellProps } from "./BalanceCell";
+export { CheckboxCell, type CheckboxCellProps } from "./CheckboxCell";
 export { DateCell, type DateCellProps } from "./DateCell";
+export { EditableCell, type EditableCellProps } from "./EditableCell";
 export {
 	type AllocationData,
 	PersonAllocationCell,

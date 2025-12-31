@@ -17,7 +17,6 @@
 - **Path-Specific Guides**: `.github/instructions/` - Domain-specific instructions
 
 ## Active Technologies
-
 - TypeScript 5.x, Node.js 20.x
 - Next.js 15 (App Router), React 19
 - Supabase (Postgres, Auth, Realtime)
@@ -161,3 +160,6 @@ Tests MUST be written alongside features. See Constitution VII for philosophy. A
 | Unit        | `tests/unit/{module}/` | Table-driven for pure functions; property-based (fast-check) for invariants |
 | Integration | `tests/integration/`   | Happy path + error cases                                                    |
 | E2E         | `tests/e2e/`           | Harness functions, assert behaviour not text                                | 
+
+## Recent Changes
+- 004-transaction-table-ux: Added TypeScript 5.x, Node.js 20.x + Next.js 15 (App Router), React 19, loro-mirror, TanStack Virtual, shadcn/ui, Tailwind CSS
