@@ -3,15 +3,13 @@ import { useCallback, useMemo, useState } from "react";
 export interface UseTableSelectionOptions {
 	/** All transaction IDs matching current filter (not just visible/rendered rows) */
 	filteredIds: string[];
+	/** Externally controlled selected IDs */
+	selectedIds: Set<string>;
 	/** Callback when selection changes */
 	onSelectionChange?: (selectedIds: Set<string>) => void;
-	/** Initial selected IDs */
-	initialSelectedIds?: Set<string>;
 }
 
 export interface UseTableSelectionReturn {
-	/** Currently selected transaction IDs */
-	selectedIds: Set<string>;
 	/** Last selected ID (for shift-click range selection) */
 	lastSelectedId: string | null;
 	/** Whether all filtered transactions are selected */
@@ -26,14 +24,11 @@ export interface UseTableSelectionReturn {
 	toggleRow: (id: string, shiftKey?: boolean) => void;
 	/** Clear all selection */
 	clearSelection: () => void;
-	/** Check if a specific row is selected */
-	isSelected: (id: string) => boolean;
-	/** Select specific IDs (replaces current selection) */
-	setSelectedIds: (ids: Set<string>) => void;
 }
 
 /**
  * Hook for managing table selection state across virtualized rows.
+ * This is a controlled hook - selection state is owned by the parent.
  * Tracks selection by ID, not by rendered row index, so selection
  * persists when scrolling through virtualized content.
  *
@@ -45,15 +40,13 @@ export interface UseTableSelectionReturn {
  */
 export function useTableSelection({
 	filteredIds,
+	selectedIds,
 	onSelectionChange,
-	initialSelectedIds,
 }: UseTableSelectionOptions): UseTableSelectionReturn {
-	const [selectedIds, setSelectedIdsState] = useState<Set<string>>(
-		() => initialSelectedIds ?? new Set()
-	);
+	// Track last selected ID for shift-click range selection
 	const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
 
-	// Compute derived state
+	// Compute derived state from controlled selectedIds
 	const { isAllSelected, isSomeSelected, selectedCount } = useMemo(() => {
 		const count = selectedIds.size;
 		const filteredCount = filteredIds.length;
@@ -73,15 +66,6 @@ export function useTableSelection({
 		};
 	}, [selectedIds, filteredIds]);
 
-	// Helper to update selection and notify
-	const updateSelection = useCallback(
-		(newIds: Set<string>) => {
-			setSelectedIdsState(newIds);
-			onSelectionChange?.(newIds);
-		},
-		[onSelectionChange]
-	);
-
 	// Toggle select-all
 	const selectAll = useCallback(() => {
 		if (isAllSelected) {
@@ -90,17 +74,17 @@ export function useTableSelection({
 			for (const id of filteredIds) {
 				newIds.delete(id);
 			}
-			updateSelection(newIds);
+			onSelectionChange?.(newIds);
 		} else {
 			// Select all filtered
 			const newIds = new Set(selectedIds);
 			for (const id of filteredIds) {
 				newIds.add(id);
 			}
-			updateSelection(newIds);
+			onSelectionChange?.(newIds);
 		}
 		setLastSelectedId(null);
-	}, [isAllSelected, selectedIds, filteredIds, updateSelection]);
+	}, [isAllSelected, selectedIds, filteredIds, onSelectionChange]);
 
 	// Toggle single row (with optional shift for range)
 	const toggleRow = useCallback(
@@ -127,31 +111,19 @@ export function useTableSelection({
 				}
 			}
 
-			updateSelection(newIds);
+			onSelectionChange?.(newIds);
 			setLastSelectedId(id);
 		},
-		[selectedIds, lastSelectedId, filteredIds, updateSelection]
+		[selectedIds, lastSelectedId, filteredIds, onSelectionChange]
 	);
 
 	// Clear all selection
 	const clearSelection = useCallback(() => {
-		updateSelection(new Set());
+		onSelectionChange?.(new Set());
 		setLastSelectedId(null);
-	}, [updateSelection]);
-
-	// Check if a row is selected
-	const isSelected = useCallback((id: string) => selectedIds.has(id), [selectedIds]);
-
-	// Set selection directly
-	const setSelectedIds = useCallback(
-		(ids: Set<string>) => {
-			updateSelection(ids);
-		},
-		[updateSelection]
-	);
+	}, [onSelectionChange]);
 
 	return {
-		selectedIds,
 		lastSelectedId,
 		isAllSelected,
 		isSomeSelected,
@@ -159,7 +131,5 @@ export function useTableSelection({
 		selectAll,
 		toggleRow,
 		clearSelection,
-		isSelected,
-		setSelectedIds,
 	};
 }

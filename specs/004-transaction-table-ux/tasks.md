@@ -69,7 +69,7 @@
 - [x] T014e [US1] Create InlineEditableTags component in src/components/features/transactions/cells/InlineEditableTags.tsx
 - [x] T018 [US1] Update TransactionRow to use InlineEditable* components for all cells in src/components/features/transactions/TransactionRow.tsx
 - [x] T018a [US1] Wire onFieldUpdate callback through TransactionTable to page-level handler
-- [ ] T019 [US1] Integrate useKeyboardNavigation into TransactionTable in src/components/features/transactions/TransactionTable.tsx (Arrow key navigation between rows)
+- [x] T019 [US1] Integrate useKeyboardNavigation into TransactionTable in src/components/features/transactions/TransactionTable.tsx (Arrow key navigation between rows)
 
 **Checkpoint**: All cells are spreadsheet-style editable (click to focus, Enter saves, Escape reverts, Tab moves to next cell) ✅
 
@@ -83,18 +83,18 @@
 
 ### Tests for User Story 2
 
-- [ ] T020 [P] [US2] Add checkbox selection E2E test in tests/e2e/transactions.spec.ts (individual, header, range)
-- [ ] T021 [P] [US2] Add header checkbox indeterminate state E2E test in tests/e2e/transactions.spec.ts
+- [x] T020 [P] [US2] Add checkbox selection E2E test in tests/e2e/transactions.spec.ts (individual, header, range)
+- [x] T021 [P] [US2] Add header checkbox indeterminate state E2E test in tests/e2e/transactions.spec.ts
 
 ### Implementation for User Story 2
 
-- [ ] T022 [US2] Create TransactionTableHeader component in src/components/features/transactions/TransactionTableHeader.tsx
-- [ ] T023 [US2] Add checkbox column to TransactionRow in src/components/features/transactions/TransactionRow.tsx
-- [ ] T024 [US2] Integrate useTableSelection into TransactionTable in src/components/features/transactions/TransactionTable.tsx
-- [ ] T025 [US2] Wire header checkbox to select-all-filtered logic in TransactionTable
+- [x] T022 [US2] Create TransactionTableHeader component in src/components/features/transactions/TransactionTableHeader.tsx
+- [x] T023 [US2] Add checkbox column to TransactionRow in src/components/features/transactions/TransactionRow.tsx
+- [x] T024 [US2] Integrate useTableSelection into TransactionTable in src/components/features/transactions/TransactionTable.tsx
+- [x] T025 [US2] Wire header checkbox to select-all-filtered logic in TransactionTable
 - [ ] T025a [US2] Add warning toast when select-all exceeds 500 transactions
 
-**Checkpoint**: Checkbox column visible, header checkbox selects all filtered, shift-click range works
+**Checkpoint**: Checkbox column visible, header checkbox selects all filtered, shift-click range works ✅
 
 ---
 
@@ -106,18 +106,18 @@
 
 ### Tests for User Story 3
 
-- [ ] T026 [P] [US3] Add bulk edit tags E2E test in tests/e2e/transactions.spec.ts
-- [ ] T027 [P] [US3] Add bulk edit description E2E test in tests/e2e/transactions.spec.ts
-- [ ] T028 [P] [US3] Add bulk edit amount E2E test in tests/e2e/transactions.spec.ts
+- [x] T026 [P] [US3] Add bulk edit tags E2E test in tests/e2e/transactions.spec.ts
+- [x] T027 [P] [US3] Add bulk edit description E2E test in tests/e2e/transactions.spec.ts
+- [x] T028 [P] [US3] Add bulk edit status E2E test in tests/e2e/transactions.spec.ts
 
 ### Implementation for User Story 3
 
-- [ ] T029 [US3] Add Set Description button to BulkEditToolbar in src/components/features/transactions/BulkEditToolbar.tsx
+- [x] T029 [US3] Add Set Description button to BulkEditToolbar in src/components/features/transactions/BulkEditToolbar.tsx
 - [ ] T030 [US3] Add Set Amount button to BulkEditToolbar in src/components/features/transactions/BulkEditToolbar.tsx
 - [ ] T031 [US3] Add progress indicator to BulkEditToolbar for large operations
-- [ ] T032 [US3] Connect BulkEditToolbar to useBulkEdit hook in TransactionTable
+- [x] T032 [US3] Connect BulkEditToolbar to useBulkEdit hook in TransactionTable
 
-**Checkpoint**: Bulk toolbar appears with 2+ selected, tags/description/amount buttons work
+**Checkpoint**: Bulk toolbar appears with 2+ selected, tags/description/status buttons work ✅
 
 ---
 

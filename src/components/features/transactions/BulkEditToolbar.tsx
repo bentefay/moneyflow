@@ -4,10 +4,10 @@
  * Bulk Edit Toolbar
  *
  * Floating toolbar that appears when multiple transactions are selected.
- * Allows bulk operations like editing tags, status, or deleting.
+ * Allows bulk operations like editing tags, status, description, or deleting.
  */
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { FilterOption } from "./filters/MultiSelectFilter";
 
@@ -24,6 +24,8 @@ export interface BulkEditToolbarProps {
 	onSetStatus?: (statusId: string) => void;
 	/** Callback to set account on selected transactions */
 	onSetAccount?: (accountId: string) => void;
+	/** Callback to set description on selected transactions */
+	onSetDescription?: (description: string) => void;
 	/** Available tags for bulk edit */
 	availableTags?: FilterOption[];
 	/** Available statuses for bulk edit */
@@ -34,7 +36,7 @@ export interface BulkEditToolbarProps {
 	className?: string;
 }
 
-type ActiveDropdown = "tags" | "status" | "account" | null;
+type ActiveDropdown = "tags" | "status" | "account" | "description" | null;
 
 /**
  * Bulk edit toolbar component.
@@ -46,6 +48,7 @@ export function BulkEditToolbar({
 	onSetTags,
 	onSetStatus,
 	onSetAccount,
+	onSetDescription,
 	availableTags = [],
 	availableStatuses = [],
 	availableAccounts = [],
@@ -53,6 +56,23 @@ export function BulkEditToolbar({
 }: BulkEditToolbarProps) {
 	const [activeDropdown, setActiveDropdown] = useState<ActiveDropdown>(null);
 	const [confirmDelete, setConfirmDelete] = useState(false);
+	const [descriptionValue, setDescriptionValue] = useState("");
+	const descriptionInputRef = useRef<HTMLInputElement>(null);
+
+	// Focus input when description dropdown opens
+	useEffect(() => {
+		if (activeDropdown === "description" && descriptionInputRef.current) {
+			descriptionInputRef.current.focus();
+		}
+	}, [activeDropdown]);
+
+	// Handle Escape key to close dropdown
+	const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+		if (e.key === "Escape") {
+			setActiveDropdown(null);
+			setDescriptionValue("");
+		}
+	}, []);
 
 	if (selectedCount === 0) {
 		return null;
@@ -210,6 +230,85 @@ export function BulkEditToolbar({
 										{account.label}
 									</button>
 								))}
+							</div>
+						)}
+					</div>
+				)}
+
+				{/* Description button */}
+				{onSetDescription && (
+					<div className="relative">
+						<button
+							type="button"
+							onClick={() =>
+								setActiveDropdown(activeDropdown === "description" ? null : "description")
+							}
+							className={cn(
+								"flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm",
+								"hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary",
+								activeDropdown === "description" && "bg-accent"
+							)}
+						>
+							<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									strokeWidth={2}
+									d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+								/>
+							</svg>
+							Set Description
+						</button>
+
+						{activeDropdown === "description" && (
+							<div
+								className="absolute bottom-full left-0 mb-2 w-64 rounded-lg border bg-popover p-3 shadow-lg"
+								onKeyDown={handleKeyDown}
+							>
+								<input
+									ref={descriptionInputRef}
+									type="text"
+									value={descriptionValue}
+									onChange={(e) => setDescriptionValue(e.target.value)}
+									placeholder="Enter description..."
+									className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+									onKeyDown={(e) => {
+										if (e.key === "Enter" && descriptionValue.trim()) {
+											onSetDescription(descriptionValue.trim());
+											setDescriptionValue("");
+											closeDropdowns();
+										} else if (e.key === "Escape") {
+											setDescriptionValue("");
+											closeDropdowns();
+										}
+									}}
+								/>
+								<div className="mt-2 flex justify-end gap-2">
+									<button
+										type="button"
+										onClick={() => {
+											setDescriptionValue("");
+											closeDropdowns();
+										}}
+										className="rounded px-2 py-1 text-sm text-muted-foreground hover:text-foreground"
+									>
+										Cancel
+									</button>
+									<button
+										type="button"
+										onClick={() => {
+											if (descriptionValue.trim()) {
+												onSetDescription(descriptionValue.trim());
+												setDescriptionValue("");
+												closeDropdowns();
+											}
+										}}
+										disabled={!descriptionValue.trim()}
+										className="rounded bg-primary px-3 py-1 text-primary-foreground text-sm disabled:opacity-50"
+									>
+										Apply
+									</button>
+								</div>
 							</div>
 						)}
 					</div>

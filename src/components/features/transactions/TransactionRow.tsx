@@ -8,10 +8,11 @@
  * Supports duplicate detection, resolution actions, deletion, and inline editing.
  */
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { PresenceAvatar } from "@/components/features/presence/PresenceAvatar";
 import { cn } from "@/lib/utils";
 import { hashToColor } from "@/lib/utils/color";
+import { CheckboxCell } from "./cells/CheckboxCell";
 import { InlineEditableAmount } from "./cells/InlineEditableAmount";
 import { InlineEditableDate } from "./cells/InlineEditableDate";
 import { InlineEditableStatus, type StatusOption } from "./cells/InlineEditableStatus";
@@ -66,6 +67,10 @@ export interface TransactionRowProps {
 	onDelete?: () => void;
 	/** Callback when a field is updated via inline edit */
 	onFieldUpdate?: (field: keyof TransactionRowData, value: unknown) => void;
+	/** Callback when checkbox is toggled */
+	onCheckboxChange?: () => void;
+	/** Callback when shift-clicking checkbox for range selection */
+	onCheckboxShiftClick?: () => void;
 	/** Additional CSS classes */
 	className?: string;
 }
@@ -85,6 +90,8 @@ export function TransactionRow({
 	onResolveDuplicate,
 	onDelete,
 	onFieldUpdate,
+	onCheckboxChange,
+	onCheckboxShiftClick,
 	className,
 }: TransactionRowProps) {
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -109,6 +116,25 @@ export function TransactionRow({
 			setTimeout(() => setShowDeleteConfirm(false), 3000);
 		}
 	};
+
+	// Handle checkbox click without propagating to row click
+	const handleCheckboxClick = useCallback((e: React.MouseEvent) => {
+		e.stopPropagation();
+	}, []);
+
+	// Handle checkbox change (toggle) - CheckboxCell passes new value but we just notify toggle
+	const handleCheckboxChange = useCallback(() => {
+		onCheckboxChange?.();
+	}, [onCheckboxChange]);
+
+	// Handle shift-click on checkbox
+	const handleShiftClick = useCallback(
+		(event: React.MouseEvent) => {
+			event.stopPropagation();
+			onCheckboxShiftClick?.();
+		},
+		[onCheckboxShiftClick]
+	);
 
 	return (
 		<div
@@ -140,6 +166,17 @@ export function TransactionRow({
 					}
 				/>
 			)}
+
+			{/* Checkbox for selection */}
+			{/* biome-ignore lint/a11y/useKeyWithClickEvents: keyboard handled by CheckboxCell */}
+			<div className="w-8 shrink-0" data-testid="row-checkbox" onClick={handleCheckboxClick}>
+				<CheckboxCell
+					checked={isSelected}
+					onChange={() => handleCheckboxChange()}
+					onShiftClick={handleShiftClick}
+					ariaLabel={`Select transaction ${transaction.description}`}
+				/>
+			</div>
 
 			{/* Duplicate indicator */}
 			{isDuplicate && (

@@ -478,4 +478,359 @@ test.describe("Transactions", () => {
 			});
 		});
 	});
+
+	// ========================================================================
+	// Phase 4: Checkbox Selection (User Story 2)
+	// ========================================================================
+
+	test.describe("US2: Checkbox Selection", () => {
+		test("T020: clicking row checkbox selects transaction without editing", async ({ page }) => {
+			await createNewIdentity(page);
+			await goToTransactions(page);
+
+			await test.step("create test transactions", async () => {
+				await createTestTransaction(page, { merchant: "Checkbox Test 1", amount: "-25.00" });
+				await createTestTransaction(page, { merchant: "Checkbox Test 2", amount: "-35.00" });
+			});
+
+			await test.step("click checkbox to select first row", async () => {
+				const firstRow = page.locator('[data-testid="transaction-row"]').first();
+				const checkboxButton = firstRow.locator('[data-testid="row-checkbox"] button');
+
+				await expect(checkboxButton).toBeVisible();
+				await checkboxButton.click();
+
+				// Checkbox button should now show checked state
+				await expect(checkboxButton).toHaveAttribute("aria-checked", "true");
+
+				// Row should have selected styling
+				await expect(firstRow).toHaveAttribute("aria-selected", "true");
+			});
+
+			await test.step("verify selection badge shows count", async () => {
+				// Selection count should show in toolbar or badge
+				await expect(page.getByText(/1 selected/i).first()).toBeVisible();
+			});
+
+			await test.step("clicking checkbox again deselects", async () => {
+				const firstRow = page.locator('[data-testid="transaction-row"]').first();
+				const checkboxButton = firstRow.locator('[data-testid="row-checkbox"] button');
+
+				await checkboxButton.click();
+
+				// Row should be deselected
+				await expect(checkboxButton).toHaveAttribute("aria-checked", "false");
+				await expect(firstRow).toHaveAttribute("aria-selected", "false");
+			});
+		});
+
+		test("T021a: header checkbox selects all filtered transactions", async ({ page }) => {
+			await createNewIdentity(page);
+			await goToTransactions(page);
+
+			await test.step("create multiple test transactions", async () => {
+				await createTestTransaction(page, { merchant: "Select All 1", amount: "-10.00" });
+				await createTestTransaction(page, { merchant: "Select All 2", amount: "-20.00" });
+				await createTestTransaction(page, { merchant: "Select All 3", amount: "-30.00" });
+			});
+
+			await test.step("click header checkbox to select all", async () => {
+				const headerCheckbox = page.locator('[data-testid="header-checkbox"] button');
+				await expect(headerCheckbox).toBeVisible();
+
+				await headerCheckbox.click();
+
+				// All rows should be selected
+				const rows = page.locator('[data-testid="transaction-row"]');
+				const count = await rows.count();
+				expect(count).toBe(3);
+
+				for (let i = 0; i < count; i++) {
+					await expect(rows.nth(i)).toHaveAttribute("aria-selected", "true");
+				}
+			});
+
+			await test.step("selection badge shows all selected", async () => {
+				await expect(page.getByText(/3 selected/i).first()).toBeVisible();
+			});
+
+			await test.step("click header checkbox again to deselect all", async () => {
+				const headerCheckbox = page.locator('[data-testid="header-checkbox"] button');
+				await headerCheckbox.click();
+
+				// All rows should be deselected
+				const rows = page.locator('[data-testid="transaction-row"]');
+				const count = await rows.count();
+
+				for (let i = 0; i < count; i++) {
+					await expect(rows.nth(i)).toHaveAttribute("aria-selected", "false");
+				}
+			});
+		});
+
+		test("T021b: header checkbox shows indeterminate when some selected", async ({ page }) => {
+			await createNewIdentity(page);
+			await goToTransactions(page);
+
+			await test.step("create multiple test transactions", async () => {
+				await createTestTransaction(page, { merchant: "Indeterminate 1", amount: "-10.00" });
+				await createTestTransaction(page, { merchant: "Indeterminate 2", amount: "-20.00" });
+				await createTestTransaction(page, { merchant: "Indeterminate 3", amount: "-30.00" });
+			});
+
+			await test.step("select only first row", async () => {
+				const firstRow = page.locator('[data-testid="transaction-row"]').first();
+				const checkboxButton = firstRow.locator('[data-testid="row-checkbox"] button');
+				await checkboxButton.click();
+			});
+
+			await test.step("verify header checkbox is indeterminate", async () => {
+				const headerCheckbox = page.locator('[data-testid="header-checkbox"] button');
+				// Indeterminate state is represented by aria-checked="mixed"
+				await expect(headerCheckbox).toHaveAttribute("aria-checked", "mixed");
+			});
+
+			await test.step("clicking indeterminate header selects all", async () => {
+				const headerCheckbox = page.locator('[data-testid="header-checkbox"] button');
+				await headerCheckbox.click();
+
+				// All rows should now be selected
+				await expect(page.getByText(/3 selected/i).first()).toBeVisible();
+			});
+		});
+
+		test("T021c: shift-click selects range of transactions", async ({ page }) => {
+			await createNewIdentity(page);
+			await goToTransactions(page);
+
+			await test.step("create multiple test transactions", async () => {
+				await createTestTransaction(page, { merchant: "Range 1", amount: "-10.00" });
+				await createTestTransaction(page, { merchant: "Range 2", amount: "-20.00" });
+				await createTestTransaction(page, { merchant: "Range 3", amount: "-30.00" });
+				await createTestTransaction(page, { merchant: "Range 4", amount: "-40.00" });
+			});
+
+			await test.step("click first row checkbox", async () => {
+				const firstRow = page.locator('[data-testid="transaction-row"]').first();
+				const checkboxButton = firstRow.locator('[data-testid="row-checkbox"] button');
+				await checkboxButton.click();
+			});
+
+			await test.step("shift-click third row checkbox to select range", async () => {
+				const thirdRow = page.locator('[data-testid="transaction-row"]').nth(2);
+				const checkboxButton = thirdRow.locator('[data-testid="row-checkbox"] button');
+
+				// Shift-click to select range
+				await checkboxButton.click({ modifiers: ["Shift"] });
+
+				// First three rows should be selected
+				await expect(page.getByText(/3 selected/i).first()).toBeVisible();
+
+				// Verify each row's selection state
+				const rows = page.locator('[data-testid="transaction-row"]');
+				await expect(rows.nth(0)).toHaveAttribute("aria-selected", "true");
+				await expect(rows.nth(1)).toHaveAttribute("aria-selected", "true");
+				await expect(rows.nth(2)).toHaveAttribute("aria-selected", "true");
+				await expect(rows.nth(3)).toHaveAttribute("aria-selected", "false");
+			});
+		});
+	});
+
+	// ============================================================================
+	// US3: Bulk Edit Operations
+	// ============================================================================
+
+	test.describe("US3: Bulk Edit Operations", () => {
+		test("T026: bulk edit tags applies to all selected transactions", async ({ page }) => {
+			await createNewIdentity(page);
+			await goToTransactions(page);
+
+			await test.step("create test transactions", async () => {
+				await createTestTransaction(page, { merchant: "Bulk Tag 1", amount: "-10.00" });
+				await createTestTransaction(page, { merchant: "Bulk Tag 2", amount: "-20.00" });
+				await createTestTransaction(page, { merchant: "Bulk Tag 3", amount: "-30.00" });
+			});
+
+			await test.step("first create a tag to apply", async () => {
+				// Navigate to Tags page and create a tag
+				await page.getByRole("link", { name: /tags/i }).click();
+				await page.getByRole("button", { name: /add tag/i }).click();
+				await page.getByPlaceholder(/tag name/i).fill("BulkTestTag");
+				await page.getByRole("button", { name: /^add tag$/i }).click();
+				await expect(page.getByText("BulkTestTag")).toBeVisible();
+
+				// Navigate back to transactions
+				await page.getByRole("link", { name: /transactions/i }).click();
+				await expect(page.locator('[data-testid="transaction-row"]').first()).toBeVisible();
+			});
+
+			await test.step("select first two transactions", async () => {
+				const firstRow = page.locator('[data-testid="transaction-row"]').first();
+				const secondRow = page.locator('[data-testid="transaction-row"]').nth(1);
+
+				const firstCheckbox = firstRow.locator('[data-testid="row-checkbox"] button');
+				const secondCheckbox = secondRow.locator('[data-testid="row-checkbox"] button');
+
+				await firstCheckbox.click();
+				await secondCheckbox.click();
+
+				await expect(page.getByText(/2 selected/i).first()).toBeVisible();
+			});
+
+			await test.step("verify bulk edit toolbar appears", async () => {
+				const toolbar = page.locator('[data-testid="bulk-edit-toolbar"]');
+				await expect(toolbar).toBeVisible();
+			});
+
+			await test.step("click Set Tags button and apply tag", async () => {
+				await page.getByRole("button", { name: /set tags/i }).click();
+
+				// Select the tag from the dropdown (button element)
+				const tagOption = page.getByRole("button", { name: "BulkTestTag" });
+				await tagOption.click();
+			});
+
+			await test.step("verify tags applied to selected transactions", async () => {
+				const firstRow = page.locator('[data-testid="transaction-row"]').first();
+				const secondRow = page.locator('[data-testid="transaction-row"]').nth(1);
+				const thirdRow = page.locator('[data-testid="transaction-row"]').nth(2);
+
+				// First two should have the tag
+				await expect(firstRow.getByText("BulkTestTag")).toBeVisible();
+				await expect(secondRow.getByText("BulkTestTag")).toBeVisible();
+
+				// Third should NOT have the tag (wasn't selected)
+				await expect(thirdRow.getByText("BulkTestTag")).not.toBeVisible();
+			});
+		});
+
+		test("T027: bulk edit description applies to all selected transactions", async ({ page }) => {
+			await createNewIdentity(page);
+			await goToTransactions(page);
+
+			await test.step("create test transactions", async () => {
+				await createTestTransaction(page, { merchant: "Bulk Desc 1", amount: "-10.00" });
+				await createTestTransaction(page, { merchant: "Bulk Desc 2", amount: "-20.00" });
+			});
+
+			await test.step("select both transactions", async () => {
+				const headerCheckbox = page.locator('[data-testid="header-checkbox"] button');
+				await headerCheckbox.click();
+
+				await expect(page.getByText(/2 selected/i).first()).toBeVisible();
+			});
+
+			await test.step("click Set Description and enter new value", async () => {
+				await page.getByRole("button", { name: /set description/i }).click();
+
+				const descInput = page.getByPlaceholder(/description/i);
+				await descInput.fill("Bulk Updated Description");
+
+				await page.getByRole("button", { name: /apply/i }).click();
+			});
+
+			await test.step("verify description applied to all transactions", async () => {
+				const rows = page.locator('[data-testid="transaction-row"]');
+				const count = await rows.count();
+
+				for (let i = 0; i < count; i++) {
+					await expect(rows.nth(i).getByText("Bulk Updated Description")).toBeVisible();
+				}
+			});
+		});
+
+		test("T028: bulk edit status applies to all selected transactions", async ({ page }) => {
+			await createNewIdentity(page);
+			await goToTransactions(page);
+
+			await test.step("create test transactions", async () => {
+				await createTestTransaction(page, { merchant: "Bulk Status 1", amount: "-10.00" });
+				await createTestTransaction(page, { merchant: "Bulk Status 2", amount: "-20.00" });
+			});
+
+			await test.step("select all transactions", async () => {
+				const headerCheckbox = page.locator('[data-testid="header-checkbox"] button');
+				await headerCheckbox.click();
+
+				await expect(page.getByText(/2 selected/i).first()).toBeVisible();
+			});
+
+			await test.step("click Set Status and select Paid", async () => {
+				await page.getByRole("button", { name: /set status/i }).click();
+
+				// Select "Paid" status (button element in dropdown)
+				const paidOption = page.getByRole("button", { name: /^paid$/i });
+				await paidOption.click();
+			});
+
+			await test.step("verify status applied to all transactions", async () => {
+				const rows = page.locator('[data-testid="transaction-row"]');
+				const count = await rows.count();
+
+				for (let i = 0; i < count; i++) {
+					// Status should show "Paid"
+					await expect(rows.nth(i).getByText("Paid")).toBeVisible();
+				}
+			});
+		});
+
+		test("T028a: bulk edit toolbar disappears when selection cleared", async ({ page }) => {
+			await createNewIdentity(page);
+			await goToTransactions(page);
+
+			await test.step("create test transactions", async () => {
+				await createTestTransaction(page, { merchant: "Clear Test 1", amount: "-10.00" });
+				await createTestTransaction(page, { merchant: "Clear Test 2", amount: "-20.00" });
+			});
+
+			await test.step("select transactions and verify toolbar appears", async () => {
+				const headerCheckbox = page.locator('[data-testid="header-checkbox"] button');
+				await headerCheckbox.click();
+
+				const toolbar = page.locator('[data-testid="bulk-edit-toolbar"]');
+				await expect(toolbar).toBeVisible();
+			});
+
+			await test.step("clear selection with header checkbox", async () => {
+				const headerCheckbox = page.locator('[data-testid="header-checkbox"] button');
+				await headerCheckbox.click();
+
+				// Toolbar should disappear
+				const toolbar = page.locator('[data-testid="bulk-edit-toolbar"]');
+				await expect(toolbar).not.toBeVisible();
+			});
+		});
+
+		test("T028b: Escape cancels bulk edit operation", async ({ page }) => {
+			await createNewIdentity(page);
+			await goToTransactions(page);
+
+			await test.step("create and select transaction", async () => {
+				await createTestTransaction(page, { merchant: "Escape Test", amount: "-10.00" });
+				await createTestTransaction(page, { merchant: "Escape Test 2", amount: "-20.00" });
+
+				const headerCheckbox = page.locator('[data-testid="header-checkbox"] button');
+				await headerCheckbox.click();
+			});
+
+			await test.step("open bulk description edit and cancel with Escape", async () => {
+				await page.getByRole("button", { name: /set description/i }).click();
+
+				const descInput = page.getByPlaceholder(/description/i);
+				await expect(descInput).toBeVisible();
+
+				// Press Escape to cancel
+				await page.keyboard.press("Escape");
+
+				// Modal/input should close
+				await expect(descInput).not.toBeVisible();
+			});
+
+			await test.step("verify no changes applied", async () => {
+				// Transactions should keep original descriptions
+				const firstRow = page.locator('[data-testid="transaction-row"]').first();
+				await expect(firstRow.getByText("Escape Test")).toBeVisible();
+			});
+		});
+	});
 });

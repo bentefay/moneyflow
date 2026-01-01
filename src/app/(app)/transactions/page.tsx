@@ -271,6 +271,16 @@ export default function TransactionsPage() {
 		[selectedIds, setTransaction]
 	);
 
+	// Handle bulk set description (updates merchant which is shown as description)
+	const handleBulkSetDescription = useCallback(
+		(description: string) => {
+			for (const id of selectedIds) {
+				setTransaction(id, { merchant: description });
+			}
+		},
+		[selectedIds, setTransaction]
+	);
+
 	// Handle single transaction delete
 	const handleSingleDelete = useCallback(
 		(id: string) => {
@@ -463,6 +473,7 @@ export default function TransactionsPage() {
 						onSetTags={handleBulkSetTags}
 						onSetStatus={handleBulkSetStatus}
 						onSetAccount={handleBulkSetAccount}
+						onSetDescription={handleBulkSetDescription}
 						availableTags={tagOptions}
 						availableStatuses={statusOptions}
 						availableAccounts={accountOptionsForFilter}

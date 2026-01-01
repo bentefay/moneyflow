@@ -8,9 +8,11 @@
  */
 
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { StatusOption, TagOption } from "./cells";
+import { CheckboxCell } from "./cells/CheckboxCell";
+import { useTableSelection } from "./hooks/useTableSelection";
 import {
 	TransactionRow,
 	type TransactionRowData,
@@ -53,12 +55,33 @@ export interface TransactionTableProps {
 }
 
 /**
- * Table header with column labels.
+ * Table header with column labels and select-all checkbox.
  */
-function TransactionTableHeader() {
+interface TransactionTableHeaderProps {
+	/** Whether all filtered transactions are selected */
+	isAllSelected: boolean;
+	/** Whether some (but not all) filtered transactions are selected */
+	isSomeSelected: boolean;
+	/** Callback to toggle select-all */
+	onSelectAll: () => void;
+}
+
+function TransactionTableHeader({
+	isAllSelected,
+	isSomeSelected,
+	onSelectAll,
+}: TransactionTableHeaderProps) {
 	return (
 		<div className="sticky top-0 z-10 flex items-center gap-4 border-b bg-muted/50 px-4 py-2 font-medium text-sm">
-			<div className="w-8 shrink-0" /> {/* Checkbox column */}
+			{/* Checkbox column */}
+			<div className="w-8 shrink-0" data-testid="header-checkbox">
+				<CheckboxCell
+					checked={isAllSelected}
+					indeterminate={isSomeSelected}
+					onChange={onSelectAll}
+					ariaLabel={isAllSelected ? "Deselect all transactions" : "Select all transactions"}
+				/>
+			</div>
 			<div className="w-24 shrink-0">Date</div>
 			<div className="min-w-0 flex-1">Description</div>
 			<div className="w-32 shrink-0">Tags</div>
@@ -118,8 +141,18 @@ export function TransactionTable({
 	className,
 }: TransactionTableProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
-	const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
 	const [focusedId, setFocusedId] = useState<string | null>(null);
+
+	// Extract transaction IDs for selection hook
+	const filteredIds = useMemo(() => transactions.map((t) => t.id), [transactions]);
+
+	// Use table selection hook for managing selection actions
+	// The hook is controlled - it receives selectedIds from parent and calls onSelectionChange
+	const { isAllSelected, isSomeSelected, selectAll, toggleRow } = useTableSelection({
+		filteredIds,
+		selectedIds,
+		onSelectionChange,
+	});
 
 	// Keyboard shortcuts for duplicate resolution and deletion
 	useEffect(() => {
@@ -209,7 +242,7 @@ export function TransactionTable({
 		onSelectionChange,
 	]);
 
-	// Handle single row click
+	// Handle single row click (row click selects/navigates, not checkbox)
 	const handleRowClick = useCallback(
 		(id: string, event: React.MouseEvent) => {
 			if (onTransactionClick) {
@@ -218,34 +251,34 @@ export function TransactionTable({
 
 			if (!onSelectionChange) return;
 
-			if (event.shiftKey && lastSelectedId) {
-				// Shift-click: select range
-				const startIdx = transactions.findIndex((t) => t.id === lastSelectedId);
-				const endIdx = transactions.findIndex((t) => t.id === id);
-				if (startIdx !== -1 && endIdx !== -1) {
-					const [from, to] = startIdx < endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
-					const rangeIds = transactions.slice(from, to + 1).map((t) => t.id);
-					const newSelected = new Set(selectedIds);
-					rangeIds.forEach((rangeId) => newSelected.add(rangeId));
-					onSelectionChange(newSelected);
-				}
+			// Use toggleRow from useTableSelection for shift-click range
+			if (event.shiftKey) {
+				toggleRow(id, true);
 			} else if (event.metaKey || event.ctrlKey) {
 				// Cmd/Ctrl-click: toggle selection
-				const newSelected = new Set(selectedIds);
-				if (newSelected.has(id)) {
-					newSelected.delete(id);
-				} else {
-					newSelected.add(id);
-				}
-				onSelectionChange(newSelected);
-				setLastSelectedId(id);
+				toggleRow(id, false);
 			} else {
 				// Regular click: select only this one
 				onSelectionChange(new Set([id]));
-				setLastSelectedId(id);
 			}
 		},
-		[transactions, selectedIds, lastSelectedId, onSelectionChange, onTransactionClick]
+		[onSelectionChange, onTransactionClick, toggleRow]
+	);
+
+	// Handle checkbox click (separate from row click)
+	const handleCheckboxChange = useCallback(
+		(id: string) => {
+			toggleRow(id, false);
+		},
+		[toggleRow]
+	);
+
+	// Handle shift-click on checkbox for range selection
+	const handleCheckboxShiftClick = useCallback(
+		(id: string) => {
+			toggleRow(id, true);
+		},
+		[toggleRow]
 	);
 
 	// Row height for virtualization (approximately 44px per row)
@@ -276,13 +309,26 @@ export function TransactionTable({
 		}
 	}, [virtualItems, onLoadMore, hasMore, isLoading, transactions.length]);
 
+	// Calculate selected count for display
+	const selectedCount = selectedIds.size;
+
 	if (transactions.length === 0 && !isLoading) {
 		return <EmptyState />;
 	}
 
 	return (
 		<div className={cn("flex min-h-0 flex-1 flex-col", className)}>
-			<TransactionTableHeader />
+			{/* Selection count badge */}
+			{selectedCount > 0 && (
+				<div className="flex items-center gap-2 border-b bg-accent/50 px-4 py-2">
+					<span className="font-medium text-sm">{selectedCount} selected</span>
+				</div>
+			)}
+			<TransactionTableHeader
+				isAllSelected={isAllSelected}
+				isSomeSelected={isSomeSelected}
+				onSelectAll={selectAll}
+			/>
 			<div
 				ref={containerRef}
 				className="min-h-0 flex-1 overflow-auto"
@@ -297,6 +343,7 @@ export function TransactionTable({
 				>
 					{virtualItems.map((virtualRow) => {
 						const transaction = transactions[virtualRow.index];
+						const isSelected = selectedIds.has(transaction.id);
 						return (
 							<div
 								key={transaction.id}
@@ -311,7 +358,7 @@ export function TransactionTable({
 									transaction={transaction}
 									presence={presenceByTransactionId[transaction.id]}
 									currentUserId={currentUserId}
-									isSelected={selectedIds.has(transaction.id)}
+									isSelected={isSelected}
 									availableStatuses={availableStatuses}
 									availableTags={availableTags}
 									onClick={(e?: React.MouseEvent) =>
@@ -332,6 +379,8 @@ export function TransactionTable({
 									onResolveDuplicate={
 										onResolveDuplicate ? () => onResolveDuplicate(transaction.id) : undefined
 									}
+									onCheckboxChange={() => handleCheckboxChange(transaction.id)}
+									onCheckboxShiftClick={() => handleCheckboxShiftClick(transaction.id)}
 								/>
 							</div>
 						);
