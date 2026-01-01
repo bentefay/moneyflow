@@ -83,6 +83,9 @@
   see below), for choosing/creating template, column mapping, formatting, etc. The "auto-detect" buttons should be
   automatically applied rather than needing to be clicked.
 
+- When importing, add a checkbox to collapse whitespace between words for descriptions (similar to how text works in
+  html without pre).
+
 - Store transactions as ordered movable list and always use both date and transaction id to locate transaction for
   update using binary search on date (i.e. never look up by id alone). Ordering within date should be preserved when
   importing. Perhaps we store this as an additional sub date index on each transaction? Should we group transactions by

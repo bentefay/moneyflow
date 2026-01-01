@@ -156,7 +156,7 @@ export function BulkEditToolbar({
 				{progress ? (
 					<ProgressBar progress={progress} />
 				) : (
-					<span className="font-medium text-sm">{selectedCount} selected</span>
+					<span className="font-medium text-sm text-nowrap">Edit {selectedCount}</span>
 				)}
 
 				<div className="mx-2 h-6 w-px bg-border" />
@@ -166,6 +166,7 @@ export function BulkEditToolbar({
 					<div className="relative">
 						<button
 							type="button"
+							data-testid="bulk-edit-tags-button"
 							onClick={() => setActiveDropdown(activeDropdown === "tags" ? null : "tags")}
 							disabled={!!progress}
 							className={cn(
@@ -183,7 +184,7 @@ export function BulkEditToolbar({
 									d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
 								/>
 							</svg>
-							Set Tags
+							Tags
 						</button>
 
 						{activeDropdown === "tags" && (
@@ -211,6 +212,7 @@ export function BulkEditToolbar({
 					<div className="relative">
 						<button
 							type="button"
+							data-testid="bulk-edit-status-button"
 							onClick={() => setActiveDropdown(activeDropdown === "status" ? null : "status")}
 							disabled={!!progress}
 							className={cn(
@@ -228,7 +230,7 @@ export function BulkEditToolbar({
 									d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
 								/>
 							</svg>
-							Set Status
+							Status
 						</button>
 
 						{activeDropdown === "status" && (
@@ -273,7 +275,7 @@ export function BulkEditToolbar({
 									d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
 								/>
 							</svg>
-							Set Account
+							Account
 						</button>
 
 						{activeDropdown === "account" && (
@@ -301,6 +303,7 @@ export function BulkEditToolbar({
 					<div className="relative">
 						<button
 							type="button"
+							data-testid="bulk-edit-description-button"
 							onClick={() =>
 								setActiveDropdown(activeDropdown === "description" ? null : "description")
 							}
@@ -320,7 +323,7 @@ export function BulkEditToolbar({
 									d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
 								/>
 							</svg>
-							Set Description
+							Description
 						</button>
 
 						{activeDropdown === "description" && (
@@ -399,7 +402,7 @@ export function BulkEditToolbar({
 									d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
 								/>
 							</svg>
-							Set Amount
+							Amount
 						</button>
 
 						{activeDropdown === "amount" && (

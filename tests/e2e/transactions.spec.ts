@@ -295,44 +295,53 @@ test.describe("Transactions", () => {
 				});
 			});
 
-			await test.step("click on date cell to focus and edit", async () => {
-				// Spreadsheet-style: input is always visible, click to focus
-				const dateInput = page
+			await test.step("click on date cell to open calendar popover", async () => {
+				// Spreadsheet-style: click button to open calendar popover
+				const dateButton = page
 					.locator('[data-testid="transaction-row"]')
 					.first()
 					.locator('[data-testid="date-editable"]');
 
-				await dateInput.click();
-				await expect(dateInput).toBeFocused();
-				await expect(dateInput).toHaveRole("textbox");
+				await dateButton.click();
+				// Calendar popover should be visible
+				await expect(page.getByRole("dialog")).toBeVisible();
 			});
 
-			await test.step("change date and press Enter to save", async () => {
-				const dateInput = page
+			await test.step("select a date from calendar to save", async () => {
+				// Find and click on day 15 in the calendar
+				const calendar = page.getByRole("dialog");
+				await calendar.getByRole("gridcell", { name: "15" }).click();
+
+				// Calendar should close after selection
+				await expect(page.getByRole("dialog")).not.toBeVisible();
+
+				// Date button should show the selected date
+				const dateButton = page
 					.locator('[data-testid="transaction-row"]')
 					.first()
 					.locator('[data-testid="date-editable"]');
-
-				// Set a specific date
-				await dateInput.fill("2024-06-15");
-				await dateInput.press("Enter");
-
-				// Should have the new value
-				await expect(dateInput).toHaveValue("2024-06-15");
+				await expect(dateButton).toContainText("15");
 			});
 
-			await test.step("edit again and press Escape to cancel", async () => {
-				const dateInput = page
+			await test.step("open calendar and click outside to close without saving", async () => {
+				const dateButton = page
 					.locator('[data-testid="transaction-row"]')
 					.first()
 					.locator('[data-testid="date-editable"]');
 
-				await dateInput.click();
-				await dateInput.fill("2023-01-01");
-				await dateInput.press("Escape");
+				// Get current date text
+				const currentText = await dateButton.textContent();
 
-				// Value should be reverted (still 2024-06-15)
-				await expect(dateInput).toHaveValue("2024-06-15");
+				// Open calendar
+				await dateButton.click();
+				await expect(page.getByRole("dialog")).toBeVisible();
+
+				// Press Escape to close without selecting
+				await page.keyboard.press("Escape");
+				await expect(page.getByRole("dialog")).not.toBeVisible();
+
+				// Date should be unchanged
+				await expect(dateButton).toHaveText(currentText!);
 			});
 		});
 
@@ -480,25 +489,21 @@ test.describe("Transactions", () => {
 				await expect(tagsEditable).toBeVisible();
 				await tagsEditable.click();
 
-				// Wait for the dropdown to appear with search input
-				const tagsCell = page
-					.locator('[data-testid="transaction-row"]')
-					.first()
-					.locator('[data-cell="tags"]');
-				const searchInput = tagsCell.getByPlaceholder("Search tags...");
+				// Wait for the dropdown to appear with search input (portaled to body)
+				const searchInput = page.getByPlaceholder("Search tags...");
 				await expect(searchInput).toBeVisible({ timeout: 5000 });
 			});
 
 			await test.step("select a tag (saves immediately)", async () => {
-				// Click on Groceries tag in the dropdown
+				// Click on Groceries tag in the portaled dropdown
+				const tagOption = page.getByRole("button", { name: "Groceries" });
+				await tagOption.click();
+
+				// Should show the tag in the cell (dropdown closes after selection)
 				const tagsCell = page
 					.locator('[data-testid="transaction-row"]')
 					.first()
 					.locator('[data-cell="tags"]');
-				const tagOption = tagsCell.getByRole("button", { name: "Groceries" });
-				await tagOption.click();
-
-				// Should show the tag (dropdown may close after selection)
 				await expect(tagsCell).toContainText("Groceries");
 			});
 		});
@@ -522,7 +527,8 @@ test.describe("Transactions", () => {
 
 				await tagsCell.click();
 
-				const searchInput = tagsCell.getByPlaceholder("Search tags...");
+				// Dropdown is portaled to body
+				const searchInput = page.getByPlaceholder("Search tags...");
 				await expect(searchInput).toBeVisible({ timeout: 5000 });
 
 				// Type a new tag name that doesn't exist
@@ -589,7 +595,8 @@ test.describe("Transactions", () => {
 
 				await tagsCell.click();
 
-				const searchInput = tagsCell.getByPlaceholder("Search tags...");
+				// Dropdown is portaled to body
+				const searchInput = page.getByPlaceholder("Search tags...");
 				await expect(searchInput).toBeVisible({ timeout: 5000 });
 
 				// Type exact name of existing tag
@@ -807,8 +814,8 @@ test.describe("Transactions", () => {
 				await expect(toolbar).toBeVisible();
 			});
 
-			await test.step("click Set Tags button and apply tag", async () => {
-				await page.getByRole("button", { name: /set tags/i }).click();
+			await test.step("click bulk edit tags button and apply tag", async () => {
+				await page.locator('[data-testid="bulk-edit-tags-button"]').click();
 
 				// Select the tag from the dropdown (button element)
 				const tagOption = page.getByRole("button", { name: "BulkTestTag" });
@@ -845,8 +852,8 @@ test.describe("Transactions", () => {
 				await expect(page.getByText(/2 selected/i).first()).toBeVisible();
 			});
 
-			await test.step("click Set Description and enter new value", async () => {
-				await page.getByRole("button", { name: /set description/i }).click();
+			await test.step("click bulk edit description button and enter new value", async () => {
+				await page.locator('[data-testid="bulk-edit-description-button"]').click();
 
 				// Use more specific selector - the bulk edit description input
 				const descInput = page.getByRole("textbox", { name: /enter description/i });
@@ -888,8 +895,8 @@ test.describe("Transactions", () => {
 				await expect(page.getByText(/2 selected/i).first()).toBeVisible();
 			});
 
-			await test.step("click Set Status and select Paid", async () => {
-				await page.getByRole("button", { name: /set status/i }).click();
+			await test.step("click bulk edit status button and select Paid", async () => {
+				await page.locator('[data-testid="bulk-edit-status-button"]').click();
 
 				// Select "Paid" status (button element in dropdown)
 				const paidOption = page.getByRole("button", { name: /^paid$/i });
@@ -949,7 +956,7 @@ test.describe("Transactions", () => {
 			});
 
 			await test.step("open bulk description edit and cancel with Escape", async () => {
-				await page.getByRole("button", { name: /set description/i }).click();
+				await page.locator('[data-testid="bulk-edit-description-button"]').click();
 
 				// Use more specific selector - the bulk edit description input
 				const descInput = page.getByRole("textbox", { name: /enter description/i });

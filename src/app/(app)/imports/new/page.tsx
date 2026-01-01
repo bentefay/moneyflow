@@ -21,6 +21,7 @@ import {
 	useImportTemplates,
 	useVaultAction,
 } from "@/lib/crdt/context";
+import { DEFAULT_STATUS_IDS } from "@/lib/crdt/defaults";
 import type {
 	Automation,
 	AutomationApplication,
@@ -141,9 +142,8 @@ export default function NewImportPage() {
 				deletedAt: 0,
 			} as ImportRecord);
 
-			// Get default status ID (first one or create one)
-			// For now we'll use a placeholder - this should come from vault state
-			const defaultStatusId = "default";
+			// Use "For Review" status for all imported transactions
+			const defaultStatusId = DEFAULT_STATUS_IDS.FOR_REVIEW;
 
 			// Convert automations to array for processing
 			const automationList = Object.values(automations).filter(

@@ -19,6 +19,14 @@ import {
 	type TransactionRowPresence,
 } from "./TransactionRow";
 
+/**
+ * Shared grid template for transaction table columns.
+ * This ensures header and rows have identical column widths.
+ * Format: checkbox | date | merchant | account | tags | status | amount | actions
+ */
+export const TRANSACTION_GRID_TEMPLATE =
+	"32px 110px minmax(150px, 2fr) minmax(80px, 0.7fr) 128px 96px 112px 88px";
+
 export interface TransactionTableProps {
 	/** Array of transactions to display */
 	transactions: TransactionRowData[];
@@ -74,9 +82,12 @@ function TransactionTableHeader({
 	onSelectAll,
 }: TransactionTableHeaderProps) {
 	return (
-		<div className="sticky top-0 z-10 flex items-center gap-4 border-b bg-muted/50 px-4 py-2 font-medium text-sm">
+		<div
+			className="sticky top-0 z-10 grid min-w-fit items-center gap-4 border-b bg-muted/50 px-4 py-2 font-medium text-sm"
+			style={{ gridTemplateColumns: TRANSACTION_GRID_TEMPLATE }}
+		>
 			{/* Checkbox column */}
-			<div className="w-8 shrink-0" data-testid="header-checkbox">
+			<div data-testid="header-checkbox">
 				<CheckboxCell
 					checked={isAllSelected}
 					indeterminate={isSomeSelected}
@@ -84,12 +95,13 @@ function TransactionTableHeader({
 					ariaLabel={isAllSelected ? "Deselect all transactions" : "Select all transactions"}
 				/>
 			</div>
-			<div className="w-24 shrink-0">Date</div>
-			<div className="min-w-0 flex-1">Merchant</div>
-			<div className="w-32 shrink-0">Tags</div>
-			<div className="w-24 shrink-0">Status</div>
-			<div className="w-28 shrink-0 text-right">Amount</div>
-			<div className="w-28 shrink-0 text-right">Balance</div>
+			<div>Date</div>
+			<div className="truncate">Merchant</div>
+			<div className="truncate">Account</div>
+			<div>Tags</div>
+			<div>Status</div>
+			<div className="text-right">Amount</div>
+			<div>{/* Actions */}</div>
 		</div>
 	);
 }
@@ -326,21 +338,12 @@ export function TransactionTable({
 		}
 	}, [virtualItems, onLoadMore, hasMore, isLoading, transactions.length]);
 
-	// Calculate selected count for display
-	const selectedCount = selectedIds.size;
-
 	if (transactions.length === 0 && !isLoading) {
 		return <EmptyState />;
 	}
 
 	return (
-		<div className={cn("flex min-h-0 flex-1 flex-col", className)}>
-			{/* Selection count badge */}
-			{selectedCount > 0 && (
-				<div className="flex items-center gap-2 border-b bg-accent/50 px-4 py-2">
-					<span className="font-medium text-sm">{selectedCount} selected</span>
-				</div>
-			)}
+		<div className={cn("flex min-h-0 flex-1 flex-col overflow-x-auto", className)}>
 			<TransactionTableHeader
 				isAllSelected={isAllSelected}
 				isSomeSelected={isSomeSelected}
@@ -354,7 +357,7 @@ export function TransactionTable({
 				data-testid="transaction-table"
 			>
 				<div
-					className="relative"
+					className="relative min-w-fit"
 					role="rowgroup"
 					style={{ height: `${virtualizer.getTotalSize()}px` }}
 				>

@@ -3,11 +3,15 @@
 /**
  * Inline Editable Date
  *
- * Spreadsheet-style always-editable date cell.
- * No mode switching - always shows date input, styled minimally.
+ * Spreadsheet-style date cell with calendar popover.
+ * Click to open calendar, select date to save.
  */
 
-import { useCallback, useRef, useState } from "react";
+import { format, parse } from "date-fns";
+import { CalendarIcon } from "lucide-react";
+import { useCallback, useState } from "react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
 export interface InlineEditableDateProps {
@@ -26,13 +30,11 @@ export interface InlineEditableDateProps {
 }
 
 /**
- * Spreadsheet-style always-editable date cell.
+ * Spreadsheet-style date cell with calendar popover.
  *
- * - Click to focus and edit
- * - Enter to save
- * - Escape to revert
- * - Tab to save and move to next cell
- * - Blur to save
+ * - Click to open calendar popover
+ * - Select date to save and close
+ * - Click outside to close without saving
  */
 export function InlineEditableDate({
 	value,
@@ -42,80 +44,59 @@ export function InlineEditableDate({
 	disabled = false,
 	"data-testid": testId,
 }: InlineEditableDateProps) {
-	const [localValue, setLocalValue] = useState(value);
-	const [isFocused, setIsFocused] = useState(false);
-	const inputRef = useRef<HTMLInputElement>(null);
-	const isRevertingRef = useRef(false);
+	const [isOpen, setIsOpen] = useState(false);
 
-	// Sync local value when prop changes (only if not focused)
-	if (value !== localValue && !isFocused) {
-		setLocalValue(value);
-	}
+	// Parse ISO date string to Date object
+	const dateValue = value ? parse(value, "yyyy-MM-dd", new Date()) : undefined;
 
-	const handleSave = useCallback(() => {
-		if (localValue !== value) {
-			onSave(localValue);
-		}
-	}, [localValue, value, onSave]);
-
-	const handleRevert = useCallback(() => {
-		setLocalValue(value);
-	}, [value]);
-
-	const handleKeyDown = useCallback(
-		(e: React.KeyboardEvent<HTMLInputElement>) => {
-			if (e.key === "Enter") {
-				e.preventDefault();
-				handleSave();
-			} else if (e.key === "Escape") {
-				e.preventDefault();
-				isRevertingRef.current = true;
-				handleRevert();
-				inputRef.current?.blur();
+	const handleSelect = useCallback(
+		(date: Date | undefined) => {
+			if (date) {
+				const isoDate = format(date, "yyyy-MM-dd");
+				onSave(isoDate);
 			}
+			setIsOpen(false);
 		},
-		[handleSave, handleRevert]
+		[onSave]
 	);
-
-	const handleFocus = useCallback(() => {
-		setIsFocused(true);
-	}, []);
-
-	const handleBlur = useCallback(() => {
-		setIsFocused(false);
-		// Don't save on blur if we're reverting (Escape was pressed)
-		if (isRevertingRef.current) {
-			isRevertingRef.current = false;
-			return;
-		}
-		handleSave();
-	}, [handleSave]);
 
 	const handleClick = useCallback((e: React.MouseEvent) => {
 		e.stopPropagation(); // Prevent row selection
 	}, []);
 
+	// Format the display date
+	const displayDate = dateValue ? format(dateValue, "MMM d, yyyy") : "Pick a date";
+
 	return (
-		<input
-			ref={inputRef}
-			type="date"
-			value={localValue}
-			onChange={(e) => setLocalValue(e.target.value)}
-			onKeyDown={handleKeyDown}
-			onFocus={handleFocus}
-			onBlur={handleBlur}
-			onClick={handleClick}
-			disabled={disabled}
-			data-testid={testId}
-			className={cn(
-				"w-full bg-transparent px-1 py-0.5 text-sm text-muted-foreground",
-				"border-transparent rounded",
-				"hover:bg-accent/30 hover:text-foreground",
-				"focus:bg-background focus:text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary",
-				disabled && "cursor-not-allowed opacity-50",
-				inputClassName,
-				className
-			)}
-		/>
+		<Popover open={isOpen} onOpenChange={setIsOpen}>
+			<PopoverTrigger asChild>
+				<button
+					type="button"
+					onClick={handleClick}
+					disabled={disabled}
+					data-testid={testId}
+					className={cn(
+						"flex w-full items-center gap-1.5 bg-transparent px-1 py-0.5 text-left text-sm",
+						"rounded border-transparent",
+						"hover:bg-accent/30",
+						"focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary",
+						disabled && "cursor-not-allowed opacity-50",
+						inputClassName,
+						className
+					)}
+				>
+					<CalendarIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+					<span className={cn(!dateValue && "text-muted-foreground")}>{displayDate}</span>
+				</button>
+			</PopoverTrigger>
+			<PopoverContent className="w-auto p-0" align="start">
+				<Calendar
+					mode="single"
+					selected={dateValue}
+					onSelect={handleSelect}
+					defaultMonth={dateValue}
+				/>
+			</PopoverContent>
+		</Popover>
 	);
 }

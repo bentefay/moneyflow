@@ -30,6 +30,8 @@ export interface AddTransactionRowProps {
 	onFocus?: () => void;
 	/** Default account ID to pre-select */
 	defaultAccountId?: string;
+	/** Number of selected transactions (shown on right side) */
+	selectedCount?: number;
 	/** Additional CSS classes */
 	className?: string;
 }
@@ -42,6 +44,7 @@ export function AddTransactionRow({
 	onAdd,
 	onFocus,
 	defaultAccountId,
+	selectedCount = 0,
 	className,
 }: AddTransactionRowProps) {
 	const [isActive, setIsActive] = useState(false);
@@ -147,7 +150,10 @@ export function AddTransactionRow({
 				<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 					<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
 				</svg>
-				<span className="text-sm">Add transaction...</span>
+				<span className="flex-1 text-sm">Add transaction...</span>
+				{selectedCount > 0 && (
+					<span className="font-medium text-foreground text-sm">{selectedCount} selected</span>
+				)}
 			</div>
 		);
 	}
@@ -159,6 +165,11 @@ export function AddTransactionRow({
 			className={cn("flex items-center gap-2 border-b bg-accent/50 px-4 py-2", className)}
 			onKeyDown={handleKeyDown}
 		>
+			{/* Selection count (left side when active) */}
+			{selectedCount > 0 && (
+				<span className="mr-2 font-medium text-foreground text-sm">{selectedCount} selected</span>
+			)}
+
 			{/* Date */}
 			<input
 				type="date"

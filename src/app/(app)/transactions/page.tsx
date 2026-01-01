@@ -494,6 +494,7 @@ export default function TransactionsPage() {
 						availableAccounts={accountOptions}
 						onAdd={handleAddTransaction}
 						defaultAccountId={accountOptions[0]?.id}
+						selectedCount={selectedCount}
 					/>
 
 					{/* Table */}
