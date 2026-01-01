@@ -18,10 +18,6 @@
   create UX should be as simple as always showing the currently entered text with a (create) tag next to it in the
   select list, and pressing enter or clicking it creates it.
 
-- I need to understand whether the description column really is a description or a description. For example, with
-  transfers, does the description I provide show up? Or is it just the account id? If the former, it's a description
-  column, if the later it's a description column.
-
 - Change how automations work. They work differently for each field. For description aliases, when you apply a
   description alias to a transaction on the transactions page where the description text doesn't already match a rule,
   some controls appear inline below the field in the table. A select that contains the options: 1. updating all 2.
@@ -77,13 +73,15 @@
   duplicates in a file or in existing vault are never considered as duplicates)
 
 - For CSV and OFX, the import process should show the raw file data and a preview of the imported data as a single table
-  (columns for both, with a strong vertical line between). The preview columns should be representative of how they will
-  look in the transactions table (show duplicates, formatted dates, tags, description aliases, etc). Make sure this
-  logic is reused - i.e. the import is where these things are calculated for the new transactions. Then when import
-  confirmed the new transactions are merged into the existing data structure. Replace the wizard. The table should be
-  always visible on the right or below (if screen too small). On the left are tabs replacing the wizard steps, for
-  choosing/creating template, column mapping, formatting, etc. The "infer" buttons should be automatically applied
-  rather than needing to be clicked.
+  (columns for both, with a strong vertical line between). The raw data should be on the left, unordered, completely
+  unformatted. The preview columns should be representative of how they will look in the transactions table after
+  parsing (show duplicates, formatted dates, tags, description aliases, etc). Plus a status column at the end. And total
+  rows, valid transactions, rows with errors counts (the current preview looks really good). Make sure this logic is
+  reused - i.e. the import is where these things are calculated for the new transactions. Then when import confirmed the
+  new transactions are merged into the existing data structure. Replace the wizard. The table should be always visible
+  on the right or below (if screen too small). On the left are tabs replacing the wizard steps (use animate-ui tabs -
+  see below), for choosing/creating template, column mapping, formatting, etc. The "auto-detect" buttons should be
+  automatically applied rather than needing to be clicked.
 
 - Store transactions as ordered movable list and always use both date and transaction id to locate transaction for
   update using binary search on date (i.e. never look up by id alone). Ordering within date should be preserved when
