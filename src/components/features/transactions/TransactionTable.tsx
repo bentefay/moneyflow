@@ -10,6 +10,7 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import type { StatusOption, TagOption } from "./cells";
 import {
 	TransactionRow,
 	type TransactionRowData,
@@ -25,6 +26,10 @@ export interface TransactionTableProps {
 	currentUserId?: string;
 	/** Currently selected transaction IDs */
 	selectedIds?: Set<string>;
+	/** Available statuses for inline editing */
+	availableStatuses?: StatusOption[];
+	/** Available tags for inline editing */
+	availableTags?: TagOption[];
 	/** Callback when selection changes */
 	onSelectionChange?: (ids: Set<string>) => void;
 	/** Callback when a transaction is clicked */
@@ -99,10 +104,12 @@ export function TransactionTable({
 	presenceByTransactionId = {},
 	currentUserId,
 	selectedIds = new Set(),
+	availableStatuses = [],
+	availableTags = [],
 	onSelectionChange,
 	onTransactionClick,
 	onTransactionFocus,
-	// onTransactionUpdate - reserved for future inline editing
+	onTransactionUpdate,
 	onLoadMore,
 	hasMore = false,
 	isLoading = false,
@@ -305,6 +312,8 @@ export function TransactionTable({
 									presence={presenceByTransactionId[transaction.id]}
 									currentUserId={currentUserId}
 									isSelected={selectedIds.has(transaction.id)}
+									availableStatuses={availableStatuses}
+									availableTags={availableTags}
 									onClick={(e?: React.MouseEvent) =>
 										handleRowClick(transaction.id, e as React.MouseEvent)
 									}
@@ -312,6 +321,11 @@ export function TransactionTable({
 										setFocusedId(transaction.id);
 										onTransactionFocus?.(transaction.id);
 									}}
+									onFieldUpdate={
+										onTransactionUpdate
+											? (field, value) => onTransactionUpdate(transaction.id, { [field]: value })
+											: undefined
+									}
 									onDelete={
 										onTransactionDelete ? () => onTransactionDelete(transaction.id) : undefined
 									}

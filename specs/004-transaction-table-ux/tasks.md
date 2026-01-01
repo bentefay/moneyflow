@@ -47,25 +47,31 @@
 
 ## Phase 3: User Story 1 - Inline Cell Editing (Priority: P1) 🎯 MVP
 
-**Goal**: Users can edit any cell with single-click, no mode switch, no layout shift
+**Goal**: Users can edit any cell with single-click (spreadsheet-style), no mode switch, no layout shift
 
 **Independent Test**: Click any cell → edit value → verify persistence and sync
 
 ### Tests for User Story 1
 
-- [ ] T012 [P] [US1] Add inline edit E2E test in tests/e2e/transactions.spec.ts (single-click edits, Enter saves, Escape reverts, arrow keys disabled during edit)
-- [ ] T013 [P] [US1] Add Tab navigation E2E test in tests/e2e/transactions.spec.ts (Tab saves and moves to next cell)
+- [x] T012 [P] [US1] Add inline edit E2E test in tests/e2e/transactions.spec.ts (click to focus, Enter saves, Escape reverts)
+- [x] T013 [P] [US1] Add Tab navigation E2E test in tests/e2e/transactions.spec.ts (Tab saves and moves to next cell)
+- [x] T014a [P] [US1] Add date cell edit E2E test in tests/e2e/transactions.spec.ts
+- [x] T015 [P] [US1] Add amount cell edit E2E test in tests/e2e/transactions.spec.ts
+- [x] T016 [P] [US1] Add status cell edit E2E test in tests/e2e/transactions.spec.ts
+- [x] T017 [P] [US1] Add tags cell edit E2E test in tests/e2e/transactions.spec.ts
 
 ### Implementation for User Story 1
 
-- [ ] T014 [US1] Refactor DateCell to use EditableCell pattern in src/components/features/transactions/cells/DateCell.tsx
-- [ ] T015 [P] [US1] Refactor AmountCell to use EditableCell pattern in src/components/features/transactions/cells/AmountCell.tsx
-- [ ] T016 [P] [US1] Refactor StatusCell to use EditableCell pattern in src/components/features/transactions/cells/StatusCell.tsx
-- [ ] T017 [P] [US1] Refactor TagsCell to use EditableCell pattern in src/components/features/transactions/cells/TagsCell.tsx
-- [ ] T018 [US1] Update TransactionRow to handle cell focus events in src/components/features/transactions/TransactionRow.tsx
-- [ ] T019 [US1] Integrate useKeyboardNavigation into TransactionTable in src/components/features/transactions/TransactionTable.tsx
+- [x] T014 [US1] Create InlineEditableText component (spreadsheet-style) in src/components/features/transactions/cells/InlineEditableText.tsx
+- [x] T014b [US1] Create InlineEditableDate component in src/components/features/transactions/cells/InlineEditableDate.tsx
+- [x] T014c [US1] Create InlineEditableAmount component in src/components/features/transactions/cells/InlineEditableAmount.tsx
+- [x] T014d [US1] Create InlineEditableStatus component in src/components/features/transactions/cells/InlineEditableStatus.tsx
+- [x] T014e [US1] Create InlineEditableTags component in src/components/features/transactions/cells/InlineEditableTags.tsx
+- [x] T018 [US1] Update TransactionRow to use InlineEditable* components for all cells in src/components/features/transactions/TransactionRow.tsx
+- [x] T018a [US1] Wire onFieldUpdate callback through TransactionTable to page-level handler
+- [ ] T019 [US1] Integrate useKeyboardNavigation into TransactionTable in src/components/features/transactions/TransactionTable.tsx (Arrow key navigation between rows)
 
-**Checkpoint**: Users can single-click edit any cell, Tab/Enter/Escape work correctly
+**Checkpoint**: All cells are spreadsheet-style editable (click to focus, Enter saves, Escape reverts, Tab moves to next cell) ✅
 
 ---
 

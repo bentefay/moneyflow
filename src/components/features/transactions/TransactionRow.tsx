@@ -5,13 +5,18 @@
  *
  * Individual row in the transaction list with presence highlighting.
  * Shows colored border when another user is focused on or editing the row.
- * Supports duplicate detection, resolution actions, and deletion.
+ * Supports duplicate detection, resolution actions, deletion, and inline editing.
  */
 
 import { useState } from "react";
 import { PresenceAvatar } from "@/components/features/presence/PresenceAvatar";
 import { cn } from "@/lib/utils";
 import { hashToColor } from "@/lib/utils/color";
+import { InlineEditableAmount } from "./cells/InlineEditableAmount";
+import { InlineEditableDate } from "./cells/InlineEditableDate";
+import { InlineEditableStatus, type StatusOption } from "./cells/InlineEditableStatus";
+import { InlineEditableTags, type TagOption } from "./cells/InlineEditableTags";
+import { InlineEditableText } from "./cells/InlineEditableText";
 import { DuplicateBadge } from "./DuplicateBadge";
 
 export interface TransactionRowData {
@@ -47,6 +52,10 @@ export interface TransactionRowProps {
 	currentUserId?: string;
 	/** Whether this row is selected */
 	isSelected?: boolean;
+	/** Available statuses for inline editing */
+	availableStatuses?: StatusOption[];
+	/** Available tags for inline editing */
+	availableTags?: TagOption[];
 	/** Callback when row is clicked */
 	onClick?: (event?: React.MouseEvent) => void;
 	/** Callback when row is focused */
@@ -55,18 +64,10 @@ export interface TransactionRowProps {
 	onResolveDuplicate?: (action: "keep" | "delete") => void;
 	/** Callback when deleting the transaction */
 	onDelete?: () => void;
+	/** Callback when a field is updated via inline edit */
+	onFieldUpdate?: (field: keyof TransactionRowData, value: unknown) => void;
 	/** Additional CSS classes */
 	className?: string;
-}
-
-/**
- * Format amount as currency.
- */
-function formatCurrency(amount: number): string {
-	return new Intl.NumberFormat("en-US", {
-		style: "currency",
-		currency: "USD",
-	}).format(amount);
 }
 
 /**
@@ -77,10 +78,13 @@ export function TransactionRow({
 	presence,
 	currentUserId,
 	isSelected = false,
+	availableStatuses = [],
+	availableTags = [],
 	onClick,
 	onFocus,
 	onResolveDuplicate,
 	onDelete,
+	onFieldUpdate,
 	className,
 }: TransactionRowProps) {
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -148,54 +152,58 @@ export function TransactionRow({
 			)}
 
 			{/* Date */}
-			<div className="w-24 shrink-0 text-muted-foreground text-sm">{transaction.date}</div>
+			<div data-cell="date" className="w-24 shrink-0">
+				<InlineEditableDate
+					value={transaction.date}
+					onSave={(value) => onFieldUpdate?.("date", value)}
+					data-testid="date-editable"
+				/>
+			</div>
 
-			{/* Description */}
-			<div className="min-w-0 flex-1">
-				<div className="truncate font-medium">{transaction.description}</div>
+			{/* Merchant/Description */}
+			<div data-cell="merchant" className="min-w-0 flex-1">
+				<InlineEditableText
+					value={transaction.description}
+					onSave={(value) => onFieldUpdate?.("description", value)}
+					className="truncate font-medium"
+					inputClassName="font-medium"
+					placeholder="No description"
+					data-testid="merchant-editable"
+				/>
 				<div className="flex items-center gap-2 text-muted-foreground text-sm">
 					{transaction.account && <span className="truncate">{transaction.account}</span>}
 				</div>
 			</div>
 
 			{/* Tags */}
-			{transaction.tags && transaction.tags.length > 0 && (
-				<div className="flex gap-1">
-					{transaction.tags.slice(0, 2).map((tag) => (
-						<span
-							key={tag.id}
-							className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground text-xs"
-						>
-							{tag.name}
-						</span>
-					))}
-					{transaction.tags.length > 2 && (
-						<span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground text-xs">
-							+{transaction.tags.length - 2}
-						</span>
-					)}
-				</div>
-			)}
+			<div data-cell="tags" className="w-32 shrink-0">
+				<InlineEditableTags
+					value={transaction.tags?.map((t) => t.id) ?? []}
+					tags={transaction.tags ?? []}
+					availableTags={availableTags}
+					onSave={(tagIds) => onFieldUpdate?.("tags", tagIds)}
+					data-testid="tags-editable"
+				/>
+			</div>
 
 			{/* Status */}
-			{transaction.status && (
-				<div className="w-24 shrink-0">
-					<span className="rounded-full bg-blue-100 px-2 py-0.5 text-blue-800 text-xs dark:bg-blue-900 dark:text-blue-200">
-						{transaction.status}
-					</span>
-				</div>
-			)}
+			<div data-cell="status" className="w-24 shrink-0">
+				<InlineEditableStatus
+					value={transaction.statusId}
+					statusName={transaction.status}
+					availableStatuses={availableStatuses}
+					onSave={(statusId) => onFieldUpdate?.("statusId", statusId)}
+					data-testid="status-editable"
+				/>
+			</div>
 
 			{/* Amount */}
-			<div
-				className={cn(
-					"w-28 shrink-0 text-right font-medium tabular-nums",
-					transaction.amount < 0
-						? "text-red-600 dark:text-red-400"
-						: "text-green-600 dark:text-green-400"
-				)}
-			>
-				{formatCurrency(transaction.amount)}
+			<div data-cell="amount" className="w-28 shrink-0">
+				<InlineEditableAmount
+					value={transaction.amount}
+					onSave={(value) => onFieldUpdate?.("amount", value)}
+					data-testid="amount-editable"
+				/>
 			</div>
 
 			{/* Delete button */}

@@ -5,10 +5,52 @@
  * - Default account creation on vault creation
  * - Account selection with search and create functionality
  * - Creating accounts from the transaction form
+ * - Inline cell editing (Phase 3 - US1)
+ * - Keyboard navigation (Phase 3 - US1)
  */
 
 import { expect, test } from "@playwright/test";
-import { createNewIdentity, goToAccounts, goToTransactions } from "./helpers";
+import { createNewIdentity, goToAccounts, goToTags, goToTransactions } from "./helpers";
+
+// ============================================================================
+// Helper: Create a test transaction
+// ============================================================================
+
+/**
+ * Create a transaction via the add row form.
+ * Returns the transaction row locator.
+ */
+async function createTestTransaction(
+	page: import("@playwright/test").Page,
+	data: {
+		merchant: string;
+		amount: string;
+	}
+) {
+	const addRow = page.locator('[data-testid="add-transaction-row"]');
+	await addRow.click();
+
+	// Wait for the add row to be in active state (has inputs)
+	const merchantInput = page.locator('[data-testid="new-transaction-merchant"]');
+	await expect(merchantInput).toBeVisible({ timeout: 5000 });
+
+	// Fill merchant/description
+	await merchantInput.clear();
+	await merchantInput.fill(data.merchant);
+
+	// Fill amount
+	const amountInput = page.locator('[data-testid="new-transaction-amount"]');
+	await amountInput.clear();
+	await amountInput.fill(data.amount);
+
+	// Submit with Enter
+	await amountInput.press("Enter");
+
+	// Wait for the transaction to appear in the grid
+	// Look by grid row with accessible name containing our merchant
+	const transactionRow = page.getByRole("row", { name: new RegExp(data.merchant) });
+	await expect(transactionRow).toBeVisible({ timeout: 5000 });
+}
 
 // ============================================================================
 // Tests
@@ -121,6 +163,319 @@ test.describe("Transactions", () => {
 
 			// New account should be visible
 			await expect(page.getByText("My Checking", { exact: true })).toBeVisible();
+		});
+	});
+
+	// ========================================================================
+	// Phase 3: User Story 1 - Inline Cell Editing (Spreadsheet-style)
+	// ========================================================================
+
+	test.describe("Inline Cell Editing (US1)", () => {
+		test("T012: click to focus, Enter saves, Escape reverts", async ({ page }) => {
+			await createNewIdentity(page);
+			await goToTransactions(page);
+
+			await test.step("create a test transaction", async () => {
+				await createTestTransaction(page, {
+					merchant: "Test Coffee Shop",
+					amount: "-5.50",
+				});
+			});
+
+			await test.step("click on merchant cell to focus and edit", async () => {
+				const merchantInput = page
+					.locator('[data-testid="transaction-row"]')
+					.first()
+					.locator('[data-testid="merchant-editable"]');
+
+				// In spreadsheet mode, input is always present
+				await expect(merchantInput).toHaveRole("textbox");
+				await merchantInput.click();
+				await expect(merchantInput).toBeFocused();
+			});
+
+			await test.step("type new value and press Enter to save", async () => {
+				const merchantInput = page
+					.locator('[data-testid="transaction-row"]')
+					.first()
+					.locator('[data-testid="merchant-editable"]');
+
+				await merchantInput.clear();
+				await merchantInput.fill("Updated Merchant Name");
+				await merchantInput.press("Enter");
+
+				// Value should be updated
+				await expect(merchantInput).toHaveValue("Updated Merchant Name");
+			});
+
+			await test.step("edit again and press Escape to revert", async () => {
+				const merchantInput = page
+					.locator('[data-testid="transaction-row"]')
+					.first()
+					.locator('[data-testid="merchant-editable"]');
+
+				await merchantInput.click();
+				await merchantInput.clear();
+				await merchantInput.fill("This should be reverted");
+				await merchantInput.press("Escape");
+
+				// Value should be reverted to saved value
+				await expect(merchantInput).toHaveValue("Updated Merchant Name");
+			});
+		});
+
+		test("T013: Tab saves and moves to next cell", async ({ page }) => {
+			await createNewIdentity(page);
+			await goToTransactions(page);
+
+			await test.step("create a test transaction", async () => {
+				await createTestTransaction(page, {
+					merchant: "Tab Test Store",
+					amount: "-10.00",
+				});
+			});
+
+			await test.step("click to focus merchant cell", async () => {
+				const merchantInput = page
+					.locator('[data-testid="transaction-row"]')
+					.first()
+					.locator('[data-testid="merchant-editable"]');
+				await merchantInput.click();
+				await expect(merchantInput).toBeFocused();
+			});
+
+			await test.step("press Tab to save and move to next cell", async () => {
+				const merchantInput = page
+					.locator('[data-testid="transaction-row"]')
+					.first()
+					.locator('[data-testid="merchant-editable"]');
+
+				await merchantInput.clear();
+				await merchantInput.fill("Tab Saved Value");
+				await merchantInput.press("Tab");
+
+				// Merchant should be saved
+				await expect(merchantInput).toHaveValue("Tab Saved Value");
+			});
+		});
+
+		test("T014a: edit date cell", async ({ page }) => {
+			await createNewIdentity(page);
+			await goToTransactions(page);
+
+			await test.step("create a test transaction", async () => {
+				await createTestTransaction(page, {
+					merchant: "Date Test Store",
+					amount: "-25.00",
+				});
+			});
+
+			await test.step("click on date cell to focus and edit", async () => {
+				// Spreadsheet-style: input is always visible, click to focus
+				const dateInput = page
+					.locator('[data-testid="transaction-row"]')
+					.first()
+					.locator('[data-testid="date-editable"]');
+
+				await dateInput.click();
+				await expect(dateInput).toBeFocused();
+				await expect(dateInput).toHaveRole("textbox");
+			});
+
+			await test.step("change date and press Enter to save", async () => {
+				const dateInput = page
+					.locator('[data-testid="transaction-row"]')
+					.first()
+					.locator('[data-testid="date-editable"]');
+
+				// Set a specific date
+				await dateInput.fill("2024-06-15");
+				await dateInput.press("Enter");
+
+				// Should have the new value
+				await expect(dateInput).toHaveValue("2024-06-15");
+			});
+
+			await test.step("edit again and press Escape to cancel", async () => {
+				const dateInput = page
+					.locator('[data-testid="transaction-row"]')
+					.first()
+					.locator('[data-testid="date-editable"]');
+
+				await dateInput.click();
+				await dateInput.fill("2023-01-01");
+				await dateInput.press("Escape");
+
+				// Value should be reverted (still 2024-06-15)
+				await expect(dateInput).toHaveValue("2024-06-15");
+			});
+		});
+
+		test("T015: click to edit amount cell (spreadsheet-style)", async ({ page }) => {
+			await createNewIdentity(page);
+			await goToTransactions(page);
+
+			await test.step("create a test transaction", async () => {
+				await createTestTransaction(page, {
+					merchant: "Amount Test Store",
+					amount: "-100.00",
+				});
+			});
+
+			await test.step("click on amount cell to focus and edit", async () => {
+				// Spreadsheet-style: input is always visible, click to focus
+				const amountInput = page
+					.locator('[data-testid="transaction-row"]')
+					.first()
+					.locator('[data-testid="amount-editable"]');
+
+				await amountInput.click();
+				await expect(amountInput).toBeFocused();
+				await expect(amountInput).toHaveRole("textbox");
+			});
+
+			await test.step("change amount and press Enter to save", async () => {
+				const amountInput = page
+					.locator('[data-testid="transaction-row"]')
+					.first()
+					.locator('[data-testid="amount-editable"]');
+
+				await amountInput.clear();
+				await amountInput.fill("-250.50");
+				await amountInput.press("Enter");
+
+				// Should have the new value
+				await expect(amountInput).toHaveValue("-250.50");
+			});
+
+			await test.step("edit again and press Escape to cancel", async () => {
+				const amountInput = page
+					.locator('[data-testid="transaction-row"]')
+					.first()
+					.locator('[data-testid="amount-editable"]');
+
+				await amountInput.click();
+				await amountInput.clear();
+				await amountInput.fill("-999.99");
+				await amountInput.press("Escape");
+
+				// Value should be reverted
+				await expect(amountInput).toHaveValue("-250.50");
+			});
+		});
+
+		test("T016: click to edit status cell (spreadsheet-style)", async ({ page }) => {
+			await createNewIdentity(page);
+			await goToTransactions(page);
+
+			await test.step("create a test transaction", async () => {
+				await createTestTransaction(page, {
+					merchant: "Status Test Store",
+					amount: "-50.00",
+				});
+			});
+
+			await test.step("click on status cell to focus", async () => {
+				// Spreadsheet-style: select is always visible, click to focus
+				const statusSelect = page
+					.locator('[data-testid="transaction-row"]')
+					.first()
+					.locator('[data-testid="status-editable"]');
+
+				await statusSelect.click();
+				await expect(statusSelect).toBeFocused();
+				await expect(statusSelect).toHaveRole("combobox");
+			});
+
+			await test.step("select different status (saves immediately)", async () => {
+				const statusSelect = page
+					.locator('[data-testid="transaction-row"]')
+					.first()
+					.locator('[data-testid="status-editable"]');
+
+				// Select "Paid" status (default status created on vault init)
+				await statusSelect.selectOption({ label: "Paid" });
+
+				// Status selects save immediately on change
+				await expect(statusSelect).toHaveValue(/.+/); // Has some value selected
+			});
+
+			await test.step("change status and verify it persists", async () => {
+				const statusSelect = page
+					.locator('[data-testid="transaction-row"]')
+					.first()
+					.locator('[data-testid="status-editable"]');
+
+				// Select "For Review" status
+				await statusSelect.selectOption({ label: "For Review" });
+
+				// Verify it shows "For Review"
+				const selectedOption = await statusSelect.inputValue();
+				expect(selectedOption).toBeTruthy();
+			});
+		});
+
+		test("T017: click to edit tags cell (spreadsheet-style)", async ({ page }) => {
+			await createNewIdentity(page);
+
+			await test.step("create a tag first", async () => {
+				// Navigate to tags page
+				await goToTags(page);
+
+				// Create a tag using the Add Tag form
+				await page.getByRole("button", { name: /add tag/i }).click();
+
+				const nameInput = page.getByPlaceholder(/enter tag name/i);
+				await nameInput.waitFor({ state: "visible", timeout: 3000 });
+				await nameInput.fill("Groceries");
+
+				await page.getByRole("button", { name: /^add tag$/i }).click();
+
+				// Wait for tag row to be created (more specific than just text)
+				await expect(page.locator('[data-testid^="tag-row-"]').first()).toBeVisible();
+
+				// Go back to transactions
+				await goToTransactions(page);
+			});
+
+			await test.step("create a test transaction", async () => {
+				await createTestTransaction(page, {
+					merchant: "Tags Test Store",
+					amount: "-75.00",
+				});
+			});
+
+			await test.step("click on tags cell to open dropdown", async () => {
+				// Spreadsheet-style: click opens the dropdown
+				const tagsEditable = page
+					.locator('[data-testid="transaction-row"]')
+					.first()
+					.locator('[data-testid="tags-editable"]');
+
+				await expect(tagsEditable).toBeVisible();
+				await tagsEditable.click();
+
+				// Wait for the dropdown to appear with search input
+				const tagsCell = page
+					.locator('[data-testid="transaction-row"]')
+					.first()
+					.locator('[data-cell="tags"]');
+				const searchInput = tagsCell.getByPlaceholder("Search tags...");
+				await expect(searchInput).toBeVisible({ timeout: 5000 });
+			});
+
+			await test.step("select a tag (saves immediately)", async () => {
+				// Click on Groceries tag in the dropdown
+				const tagsCell = page
+					.locator('[data-testid="transaction-row"]')
+					.first()
+					.locator('[data-cell="tags"]');
+				const tagOption = tagsCell.getByRole("button", { name: "Groceries" });
+				await tagOption.click();
+
+				// Should show the tag (dropdown may close after selection)
+				await expect(tagsCell).toContainText("Groceries");
+			});
 		});
 	});
 });

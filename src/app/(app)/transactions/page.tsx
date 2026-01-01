@@ -16,6 +16,7 @@ import {
 	type NewTransactionData,
 	TransactionFilters,
 	type TransactionFiltersState,
+	type TransactionRowData,
 	TransactionTable,
 } from "@/components/features/transactions";
 import { useActiveVault } from "@/hooks/use-active-vault";
@@ -292,6 +293,45 @@ export default function TransactionsPage() {
 		[setTransaction]
 	);
 
+	// Handle inline edit update (from TransactionTable)
+	const handleTransactionUpdate = useCallback(
+		(id: string, updates: Partial<TransactionRowData>) => {
+			// Map TransactionRowData fields to Transaction fields
+			const transactionUpdates: Partial<Transaction> = {};
+			if ("description" in updates && updates.description !== undefined) {
+				// TransactionRowData.description maps to merchant (primary display field)
+				// We update merchant since that's what's shown in the UI (tx.merchant || tx.description)
+				transactionUpdates.merchant = updates.description;
+			}
+			if ("date" in updates && updates.date !== undefined) {
+				transactionUpdates.date = updates.date;
+			}
+			if ("amount" in updates && updates.amount !== undefined) {
+				transactionUpdates.amount = updates.amount;
+			}
+			if ("statusId" in updates && updates.statusId !== undefined) {
+				transactionUpdates.statusId = updates.statusId;
+			}
+			if ("accountId" in updates && updates.accountId !== undefined) {
+				transactionUpdates.accountId = updates.accountId;
+			}
+			if ("tags" in updates && Array.isArray(updates.tags)) {
+				// Tags come as array of IDs (string[]) from inline editor
+				// But TransactionRowData.tags type is Array<{id, name}>, so check first element
+				const tagIds =
+					updates.tags.length > 0 && typeof updates.tags[0] === "string"
+						? (updates.tags as unknown as string[])
+						: updates.tags.map((t) => (typeof t === "string" ? t : t.id));
+				transactionUpdates.tagIds = tagIds;
+			}
+			// Only call setTransaction if we have updates
+			if (Object.keys(transactionUpdates).length > 0) {
+				setTransaction(id, transactionUpdates);
+			}
+		},
+		[setTransaction]
+	);
+
 	// Tag options for filter/bulk edit (with label for FilterOption)
 	const tagOptions = useMemo(
 		() =>
@@ -304,6 +344,18 @@ export default function TransactionsPage() {
 		[tags]
 	);
 
+	// Tag options for inline editing (with name for TagOption)
+	const tagOptionsForInlineEdit = useMemo(
+		() =>
+			Object.values(tags)
+				.filter((t): t is Tag & { $cid: string } => typeof t === "object")
+				.map((t) => ({
+					id: t.id,
+					name: t.name,
+				})),
+		[tags]
+	);
+
 	// Status options for filter/bulk edit (with label for FilterOption)
 	const statusOptions = useMemo(
 		() =>
@@ -312,6 +364,19 @@ export default function TransactionsPage() {
 				.map((s) => ({
 					id: s.id,
 					label: s.name,
+				})),
+		[statuses]
+	);
+
+	// Status options for inline editing (with name and behavior for StatusOption)
+	const statusOptionsForInlineEdit = useMemo(
+		() =>
+			Object.values(statuses)
+				.filter((s): s is Status & { $cid: string } => typeof s === "object")
+				.map((s) => ({
+					id: s.id,
+					name: s.name,
+					behavior: s.behavior as "treatAsPaid" | null | undefined,
 				})),
 		[statuses]
 	);
@@ -375,6 +440,8 @@ export default function TransactionsPage() {
 						transactions={tableData}
 						presenceByTransactionId={presenceByTransactionId}
 						selectedIds={selectedIds}
+						availableStatuses={statusOptionsForInlineEdit}
+						availableTags={tagOptionsForInlineEdit}
 						onSelectionChange={(ids) => {
 							// When TransactionTable changes selection, sync with our selection state
 							setSelection(ids);
@@ -383,6 +450,7 @@ export default function TransactionsPage() {
 						hasMore={hasMore}
 						onTransactionDelete={handleSingleDelete}
 						onResolveDuplicate={handleResolveDuplicate}
+						onTransactionUpdate={handleTransactionUpdate}
 					/>
 				</div>
 

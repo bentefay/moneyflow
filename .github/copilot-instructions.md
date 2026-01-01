@@ -8,7 +8,7 @@
 - **Don't reinvent the wheel**: Use established libraries for well-known algorithms (e.g., Levenshtein distance, CSV parsing, date handling). Custom implementations are bugs waiting to happen.
 - .github/copilot-instructions.md must be updated alongside code changes to keep instructions current.
 - .github/instructions/\* must be created/updated as new folders/domains are added.
-- Always run pnpm db:types/lint/format/typecheck/lint/test/test:e2e before commiting
+- Always run pnpm db:types/lint/format/typecheck/lint/test/test:e2e before commiting. All the tests must be passing and there must be no formatting changes or linting warnings or errors.
 
 ## Quick Reference
 
