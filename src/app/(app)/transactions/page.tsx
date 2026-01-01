@@ -27,7 +27,6 @@ import { useIdentity } from "@/hooks/use-identity";
 const LARGE_SELECTION_THRESHOLD = 500;
 
 import { useVaultPresence } from "@/hooks/use-vault-presence";
-import { useTransactionSelection } from "@/hooks/useTransactionSelection";
 import {
 	useActiveAccounts,
 	useActivePeople,
@@ -104,11 +103,12 @@ export default function TransactionsPage() {
 	// Pagination state
 	const [displayCount, setDisplayCount] = useState(PAGE_SIZE);
 
-	// Selection state
-	const transactionIds = useMemo(() => Object.keys(transactions), [transactions]);
-	const { selectedIds, clearSelection, selectedCount, setSelection } = useTransactionSelection({
-		transactionIds,
-	});
+	// Selection state - simple Set instead of custom hook
+	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+	const selectedCount = selectedIds.size;
+
+	// Clear selection helper
+	const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
 	// Warn when selection exceeds threshold
 	useEffect(() => {
@@ -299,11 +299,11 @@ export default function TransactionsPage() {
 		[selectedIds, setTransaction]
 	);
 
-	// Handle bulk set description (updates merchant which is shown as description)
+	// Handle bulk set description
 	const handleBulkSetDescription = useCallback(
 		(description: string) => {
 			for (const id of selectedIds) {
-				setTransaction(id, { merchant: description });
+				setTransaction(id, { description });
 			}
 		},
 		[selectedIds, setTransaction]
@@ -335,12 +335,14 @@ export default function TransactionsPage() {
 			deleteTransactions([id]);
 			// Clear selection if the deleted transaction was selected
 			if (selectedIds.has(id)) {
-				const newSelection = new Set(selectedIds);
-				newSelection.delete(id);
-				setSelection(newSelection);
+				setSelectedIds((prev) => {
+					const newSelection = new Set(prev);
+					newSelection.delete(id);
+					return newSelection;
+				});
 			}
 		},
-		[deleteTransactions, selectedIds, setSelection]
+		[deleteTransactions, selectedIds]
 	);
 
 	// Handle resolve duplicate (mark as not a duplicate)
@@ -502,10 +504,7 @@ export default function TransactionsPage() {
 						availableStatuses={statusOptionsForInlineEdit}
 						availableTags={tagOptionsForInlineEdit}
 						onCreateTag={handleCreateTag}
-						onSelectionChange={(ids) => {
-							// When TransactionTable changes selection, sync with our selection state
-							setSelection(ids);
-						}}
+						onSelectionChange={setSelectedIds}
 						onLoadMore={handleLoadMore}
 						hasMore={hasMore}
 						onTransactionDelete={handleSingleDelete}

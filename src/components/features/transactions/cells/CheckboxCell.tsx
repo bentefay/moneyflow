@@ -1,4 +1,4 @@
-import { type KeyboardEvent, useCallback } from "react";
+import { useCallback } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
@@ -37,30 +37,26 @@ export function CheckboxCell({
 	ariaLabel,
 	className,
 }: CheckboxCellProps) {
+	// Handle click - either shift+click for range or normal toggle
 	const handleClick = useCallback(
 		(event: React.MouseEvent) => {
 			if (disabled) return;
 
 			if (event.shiftKey && onShiftClick) {
+				// Prevent default toggle for shift+click - let parent handle range selection
 				event.preventDefault();
+				event.stopPropagation();
 				onShiftClick(event);
-			} else {
-				onChange(!checked);
+				return;
 			}
+
+			// Normal click - toggle the checkbox
+			// We handle this manually because Radix onCheckedChange fires AFTER onClick
+			// and we need consistent behavior
+			event.preventDefault();
+			onChange(!checked);
 		},
 		[checked, disabled, onChange, onShiftClick]
-	);
-
-	const handleKeyDown = useCallback(
-		(event: KeyboardEvent<HTMLButtonElement>) => {
-			if (disabled) return;
-
-			if (event.key === " " || event.key === "Enter") {
-				event.preventDefault();
-				onChange(!checked);
-			}
-		},
-		[checked, disabled, onChange]
 	);
 
 	return (
@@ -70,13 +66,7 @@ export function CheckboxCell({
 		>
 			<Checkbox
 				checked={indeterminate ? "indeterminate" : checked}
-				onCheckedChange={(value) => {
-					if (!disabled && typeof value === "boolean") {
-						onChange(value);
-					}
-				}}
 				onClick={handleClick}
-				onKeyDown={handleKeyDown}
 				disabled={disabled}
 				aria-label={ariaLabel}
 				className={cn(disabled && "opacity-50 cursor-not-allowed")}

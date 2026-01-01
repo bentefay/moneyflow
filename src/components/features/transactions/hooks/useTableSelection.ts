@@ -68,12 +68,22 @@ export function useTableSelection({
 
 	// Toggle select-all
 	const selectAll = useCallback(() => {
+		console.log("[useTableSelection] selectAll called:", {
+			isAllSelected,
+			filteredIdsCount: filteredIds.length,
+			selectedIdsCount: selectedIds.size,
+		});
 		if (isAllSelected) {
 			// Deselect all filtered
 			const newIds = new Set(selectedIds);
 			for (const id of filteredIds) {
 				newIds.delete(id);
 			}
+			console.log(
+				"[useTableSelection] deselecting all, calling onSelectionChange with:",
+				newIds.size,
+				"items"
+			);
 			onSelectionChange?.(newIds);
 		} else {
 			// Select all filtered
@@ -81,6 +91,11 @@ export function useTableSelection({
 			for (const id of filteredIds) {
 				newIds.add(id);
 			}
+			console.log(
+				"[useTableSelection] selecting all, calling onSelectionChange with:",
+				newIds.size,
+				"items"
+			);
 			onSelectionChange?.(newIds);
 		}
 		setLastSelectedId(null);

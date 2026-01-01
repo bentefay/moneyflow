@@ -48,8 +48,33 @@ async function createTestTransaction(
 
 	// Wait for the transaction to appear in the grid
 	// Look by grid row with accessible name containing our merchant
-	const transactionRow = page.getByRole("row", { name: new RegExp(data.merchant) });
+	// Escape regex special chars and use word boundary or end-of-string to avoid partial matches
+	const escapedMerchant = data.merchant.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	const transactionRow = page.getByRole("row", {
+		name: new RegExp(`${escapedMerchant}(Default|$|\\s)`),
+	});
 	await expect(transactionRow).toBeVisible({ timeout: 5000 });
+}
+
+/**
+ * Toggle a Radix checkbox by focusing and pressing Space.
+ * Radix checkboxes don't respond to Playwright's click() method,
+ * so we use keyboard interaction instead.
+ *
+ * @param checkbox - The checkbox locator
+ * @param modifiers - Optional keyboard modifiers (e.g., ["Shift"] for shift-click)
+ */
+async function toggleCheckbox(
+	checkbox: import("@playwright/test").Locator,
+	modifiers?: ("Shift" | "Control" | "Alt" | "Meta")[]
+) {
+	await checkbox.focus();
+	if (modifiers?.includes("Shift")) {
+		// For Shift+Space, hold Shift while pressing Space
+		await checkbox.press("Shift+Space");
+	} else {
+		await checkbox.press("Space");
+	}
 }
 
 // ============================================================================
@@ -598,7 +623,7 @@ test.describe("Transactions", () => {
 				const checkboxButton = firstRow.locator('[data-testid="row-checkbox"] button');
 
 				await expect(checkboxButton).toBeVisible();
-				await checkboxButton.click();
+				await toggleCheckbox(checkboxButton);
 
 				// Checkbox button should now show checked state
 				await expect(checkboxButton).toHaveAttribute("aria-checked", "true");
@@ -616,7 +641,7 @@ test.describe("Transactions", () => {
 				const firstRow = page.locator('[data-testid="transaction-row"]').first();
 				const checkboxButton = firstRow.locator('[data-testid="row-checkbox"] button');
 
-				await checkboxButton.click();
+				await toggleCheckbox(checkboxButton);
 
 				// Row should be deselected
 				await expect(checkboxButton).toHaveAttribute("aria-checked", "false");
@@ -635,10 +660,10 @@ test.describe("Transactions", () => {
 			});
 
 			await test.step("click header checkbox to select all", async () => {
-				const headerCheckbox = page.locator('[data-testid="header-checkbox"] button');
+				const headerCheckbox = page.getByRole("checkbox", { name: "Select all transactions" });
 				await expect(headerCheckbox).toBeVisible();
 
-				await headerCheckbox.click();
+				await toggleCheckbox(headerCheckbox);
 
 				// All rows should be selected
 				const rows = page.locator('[data-testid="transaction-row"]');
@@ -656,7 +681,7 @@ test.describe("Transactions", () => {
 
 			await test.step("click header checkbox again to deselect all", async () => {
 				const headerCheckbox = page.locator('[data-testid="header-checkbox"] button');
-				await headerCheckbox.click();
+				await toggleCheckbox(headerCheckbox);
 
 				// All rows should be deselected
 				const rows = page.locator('[data-testid="transaction-row"]');
@@ -681,7 +706,7 @@ test.describe("Transactions", () => {
 			await test.step("select only first row", async () => {
 				const firstRow = page.locator('[data-testid="transaction-row"]').first();
 				const checkboxButton = firstRow.locator('[data-testid="row-checkbox"] button');
-				await checkboxButton.click();
+				await toggleCheckbox(checkboxButton);
 			});
 
 			await test.step("verify header checkbox is indeterminate", async () => {
@@ -692,7 +717,7 @@ test.describe("Transactions", () => {
 
 			await test.step("clicking indeterminate header selects all", async () => {
 				const headerCheckbox = page.locator('[data-testid="header-checkbox"] button');
-				await headerCheckbox.click();
+				await toggleCheckbox(headerCheckbox);
 
 				// All rows should now be selected
 				await expect(page.getByText(/3 selected/i).first()).toBeVisible();
@@ -713,7 +738,7 @@ test.describe("Transactions", () => {
 			await test.step("click first row checkbox", async () => {
 				const firstRow = page.locator('[data-testid="transaction-row"]').first();
 				const checkboxButton = firstRow.locator('[data-testid="row-checkbox"] button');
-				await checkboxButton.click();
+				await toggleCheckbox(checkboxButton);
 			});
 
 			await test.step("shift-click third row checkbox to select range", async () => {
@@ -721,7 +746,7 @@ test.describe("Transactions", () => {
 				const checkboxButton = thirdRow.locator('[data-testid="row-checkbox"] button');
 
 				// Shift-click to select range
-				await checkboxButton.click({ modifiers: ["Shift"] });
+				await toggleCheckbox(checkboxButton, ["Shift"]);
 
 				// First three rows should be selected
 				await expect(page.getByText(/3 selected/i).first()).toBeVisible();
@@ -771,8 +796,8 @@ test.describe("Transactions", () => {
 				const firstCheckbox = firstRow.locator('[data-testid="row-checkbox"] button');
 				const secondCheckbox = secondRow.locator('[data-testid="row-checkbox"] button');
 
-				await firstCheckbox.click();
-				await secondCheckbox.click();
+				await toggleCheckbox(firstCheckbox);
+				await toggleCheckbox(secondCheckbox);
 
 				await expect(page.getByText(/2 selected/i).first()).toBeVisible();
 			});
@@ -815,7 +840,7 @@ test.describe("Transactions", () => {
 
 			await test.step("select both transactions", async () => {
 				const headerCheckbox = page.locator('[data-testid="header-checkbox"] button');
-				await headerCheckbox.click();
+				await toggleCheckbox(headerCheckbox);
 
 				await expect(page.getByText(/2 selected/i).first()).toBeVisible();
 			});
@@ -823,7 +848,8 @@ test.describe("Transactions", () => {
 			await test.step("click Set Description and enter new value", async () => {
 				await page.getByRole("button", { name: /set description/i }).click();
 
-				const descInput = page.getByPlaceholder(/description/i);
+				// Use more specific selector - the bulk edit description input
+				const descInput = page.getByRole("textbox", { name: /enter description/i });
 				await descInput.fill("Bulk Updated Description");
 
 				await page.getByRole("button", { name: /apply/i }).click();
@@ -833,8 +859,15 @@ test.describe("Transactions", () => {
 				const rows = page.locator('[data-testid="transaction-row"]');
 				const count = await rows.count();
 
+				// Description is in the expanded row - expand each row and check
 				for (let i = 0; i < count; i++) {
-					await expect(rows.nth(i).getByText("Bulk Updated Description")).toBeVisible();
+					const row = rows.nth(i);
+					const expandButton = row.locator('[data-testid="expand-description-button"]');
+					await expandButton.click();
+
+					// The description row appears for the expanded row
+					const descriptionInput = page.locator('[data-testid="description-editable"]').nth(i);
+					await expect(descriptionInput).toHaveValue("Bulk Updated Description");
 				}
 			});
 		});
@@ -850,7 +883,7 @@ test.describe("Transactions", () => {
 
 			await test.step("select all transactions", async () => {
 				const headerCheckbox = page.locator('[data-testid="header-checkbox"] button');
-				await headerCheckbox.click();
+				await toggleCheckbox(headerCheckbox);
 
 				await expect(page.getByText(/2 selected/i).first()).toBeVisible();
 			});
@@ -868,8 +901,10 @@ test.describe("Transactions", () => {
 				const count = await rows.count();
 
 				for (let i = 0; i < count; i++) {
-					// Status should show "Paid"
-					await expect(rows.nth(i).getByText("Paid")).toBeVisible();
+					// Status is in a select element - check the value contains the status name
+					const statusSelect = rows.nth(i).locator('[data-testid="status-editable"]');
+					// The selected option should display "Paid"
+					await expect(statusSelect).toContainText("Paid");
 				}
 			});
 		});
@@ -885,7 +920,7 @@ test.describe("Transactions", () => {
 
 			await test.step("select transactions and verify toolbar appears", async () => {
 				const headerCheckbox = page.locator('[data-testid="header-checkbox"] button');
-				await headerCheckbox.click();
+				await toggleCheckbox(headerCheckbox);
 
 				const toolbar = page.locator('[data-testid="bulk-edit-toolbar"]');
 				await expect(toolbar).toBeVisible();
@@ -893,7 +928,7 @@ test.describe("Transactions", () => {
 
 			await test.step("clear selection with header checkbox", async () => {
 				const headerCheckbox = page.locator('[data-testid="header-checkbox"] button');
-				await headerCheckbox.click();
+				await toggleCheckbox(headerCheckbox);
 
 				// Toolbar should disappear
 				const toolbar = page.locator('[data-testid="bulk-edit-toolbar"]');
@@ -910,13 +945,14 @@ test.describe("Transactions", () => {
 				await createTestTransaction(page, { merchant: "Escape Test 2", amount: "-20.00" });
 
 				const headerCheckbox = page.locator('[data-testid="header-checkbox"] button');
-				await headerCheckbox.click();
+				await toggleCheckbox(headerCheckbox);
 			});
 
 			await test.step("open bulk description edit and cancel with Escape", async () => {
 				await page.getByRole("button", { name: /set description/i }).click();
 
-				const descInput = page.getByPlaceholder(/description/i);
+				// Use more specific selector - the bulk edit description input
+				const descInput = page.getByRole("textbox", { name: /enter description/i });
 				await expect(descInput).toBeVisible();
 
 				// Press Escape to cancel
@@ -927,9 +963,10 @@ test.describe("Transactions", () => {
 			});
 
 			await test.step("verify no changes applied", async () => {
-				// Transactions should keep original descriptions
+				// Transactions should keep original merchant names
 				const firstRow = page.locator('[data-testid="transaction-row"]').first();
-				await expect(firstRow.getByText("Escape Test")).toBeVisible();
+				const merchantInput = firstRow.locator('[data-testid="merchant-editable"]');
+				await expect(merchantInput).toHaveValue("Escape Test");
 			});
 		});
 	});

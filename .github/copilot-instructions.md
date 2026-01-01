@@ -153,7 +153,7 @@ Custom algorithm implementations introduce subtle bugs, lack edge case handling,
 
 ## Testing Requirements
 
-Tests MUST be written alongside features. See Constitution VII for philosophy. Always load .github/instructions/e2e.instructions.md when writing e2e tests.
+Tests MUST be written alongside features. See Constitution VII for philosophy. Always load .github/instructions/e2e.instructions.md when writing e2e tests. Do NOT use playwright with the --debug flag, as it blocks forever and doesn't work for agents.
 
 | Type        | Location               | Style                                                                       |
 | ----------- | ---------------------- | --------------------------------------------------------------------------- |
