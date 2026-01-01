@@ -41,7 +41,7 @@ export function CTASection() {
 								className="rounded-full bg-white px-8 text-violet-600 hover:bg-violet-50"
 							>
 								<Link href="/new-user">
-									Get Started Free
+									Get Started
 									<ArrowRight className="ml-2 h-4 w-4" />
 								</Link>
 							</Button>

@@ -1,15 +1,3 @@
-- Investigate Uppy 5.0 (https://uppy.io/blog/uppy-5.0/) as replacement for custom FileDropzone component
-
-  - Current: Custom HTML5 drag-and-drop implementation in src/components/features/import/FileDropzone.tsx
-  - Evaluate: Bundle size impact, features (progress, resumable uploads, file previews), integration complexity
-  - Specifically using the useDropzone hook (if it provides any value)
-
-- Investigate animate-ui shadcn registry components (https://animate-ui.com/docs/components)
-
-  - Focus on /radix/ components: Dialog, Alert Dialog, Dropdown Menu, Tooltip, etc.
-  - Evaluate: Animation quality, accessibility, bundle size, compatibility with existing shadcn/ui setup
-  - Compare with current @radix-ui/\* primitives + tw-animate-css setup
-
 - When creating a vault the default currency should be inferred from time zone or culture
   (https://gist.github.com/mizrael/50c10be8ec92264751187d7705362eb2)? I'm guessing time zone is probably a better
   indicator of country?
@@ -127,3 +115,15 @@
 - Update the marketing pages to include all these features. Be clear, succinct and not too "markety". It's private. It's
   for categorising and allocating your transactions, not budgeting. Supports importing CSV and ofx. Multiple people can
   collaborate in real-time. It intelligently applies your tags, aliases and allocations to new imports.
+
+- Investigate Uppy 5.0 (https://uppy.io/blog/uppy-5.0/) as replacement for custom FileDropzone component
+
+  - Current: Custom HTML5 drag-and-drop implementation in src/components/features/import/FileDropzone.tsx
+  - Evaluate: Bundle size impact, features (progress, resumable uploads, file previews), integration complexity
+  - Specifically using the useDropzone hook (if it provides any value)
+
+- Investigate animate-ui shadcn registry components (https://animate-ui.com/docs/components)
+
+  - Focus on /radix/ components: Dialog, Alert Dialog, Dropdown Menu, Tooltip, etc.
+  - Evaluate: Animation quality, accessibility, bundle size, compatibility with existing shadcn/ui setup
+  - Compare with current @radix-ui/\* primitives + tw-animate-css setup
