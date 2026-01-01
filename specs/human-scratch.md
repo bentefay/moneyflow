@@ -83,8 +83,14 @@
   see below), for choosing/creating template, column mapping, formatting, etc. The "auto-detect" buttons should be
   automatically applied rather than needing to be clicked.
 
-- When importing, add a checkbox to collapse whitespace between words for descriptions (similar to how text works in
-  html without pre).
+- When importing, add a checkbox to optionally choose to collapse whitespace between words for descriptions (similar to
+  how text works in html without pre).
+
+  - When importing CSV, add a required account select to choose which account to import into. There should be a account
+    selector for OFX too - except with OFX we use the account from the file by default if it matches an existing
+    account. If the account id doesn't match any configured account and the OFX file contains an account number and the
+    account selected by the user doesn't have an account id already, we apply the account id from the OFX file to the
+    account.
 
 - Store transactions as ordered movable list and always use both date and transaction id to locate transaction for
   update using binary search on date (i.e. never look up by id alone). Ordering within date should be preserved when
@@ -128,3 +134,5 @@
   - Focus on /radix/ components: Dialog, Alert Dialog, Dropdown Menu, Tooltip, etc.
   - Evaluate: Animation quality, accessibility, bundle size, compatibility with existing shadcn/ui setup
   - Compare with current @radix-ui/\* primitives + tw-animate-css setup
+
+- Update tanstack virtual once https://github.com/TanStack/virtual/pull/1100 is released and enable useFlushSync

@@ -343,77 +343,75 @@ export function TransactionTable({
 	}
 
 	return (
-		<div className={cn("flex min-h-0 flex-1 flex-col overflow-x-auto", className)}>
-			<TransactionTableHeader
-				isAllSelected={isAllSelected}
-				isSomeSelected={isSomeSelected}
-				onSelectAll={selectAll}
-			/>
-			<div
-				ref={containerRef}
-				className="min-h-0 flex-1 overflow-auto"
-				role="grid"
-				aria-label="Transactions"
-				data-testid="transaction-table"
-			>
+		<div className={cn("flex min-h-0 flex-1 flex-col", className)}>
+			<div ref={containerRef} className="flex min-h-0 flex-1 flex-col overflow-auto">
+				<TransactionTableHeader
+					isAllSelected={isAllSelected}
+					isSomeSelected={isSomeSelected}
+					onSelectAll={selectAll}
+				/>
 				<div
-					className="relative min-w-fit"
-					role="rowgroup"
-					style={{ height: `${virtualizer.getTotalSize()}px` }}
+					className="relative min-w-fit flex-1"
+					role="grid"
+					aria-label="Transactions"
+					data-testid="transaction-table"
 				>
-					{virtualItems.map((virtualRow) => {
-						const transaction = transactions[virtualRow.index];
-						const isSelected = selectedIds.has(transaction.id);
-						return (
-							<div
-								key={transaction.id}
-								data-index={virtualRow.index}
-								ref={virtualizer.measureElement}
-								className="absolute top-0 left-0 w-full"
-								style={{
-									transform: `translateY(${virtualRow.start}px)`,
-								}}
-							>
-								<TransactionRow
-									transaction={transaction}
-									presence={presenceByTransactionId[transaction.id]}
-									currentUserId={currentUserId}
-									isSelected={isSelected}
-									isExpanded={expandedIds.has(transaction.id)}
-									availableStatuses={availableStatuses}
-									availableTags={availableTags}
-									onCreateTag={onCreateTag}
-									onClick={(e?: React.MouseEvent) =>
-										handleRowClick(transaction.id, e as React.MouseEvent)
-									}
-									onFocus={() => {
-										setFocusedId(transaction.id);
-										onTransactionFocus?.(transaction.id);
+					<div
+						className="relative min-w-fit"
+						role="rowgroup"
+						style={{ height: `${virtualizer.getTotalSize()}px` }}
+					>
+						{virtualItems.map((virtualRow) => {
+							const transaction = transactions[virtualRow.index];
+							const isSelected = selectedIds.has(transaction.id);
+							return (
+								<div
+									key={transaction.id}
+									data-index={virtualRow.index}
+									ref={virtualizer.measureElement}
+									className="absolute top-0 left-0 w-full"
+									style={{
+										transform: `translateY(${virtualRow.start}px)`,
 									}}
-									onFieldUpdate={
-										onTransactionUpdate
-											? (field, value) => onTransactionUpdate(transaction.id, { [field]: value })
-											: undefined
-									}
-									onDelete={
-										onTransactionDelete ? () => onTransactionDelete(transaction.id) : undefined
-									}
-									onResolveDuplicate={
-										onResolveDuplicate ? () => onResolveDuplicate(transaction.id) : undefined
-									}
-									onCheckboxChange={() => handleCheckboxChange(transaction.id)}
-									onCheckboxShiftClick={() => handleCheckboxShiftClick(transaction.id)}
-									onToggleExpand={() => handleToggleExpand(transaction.id)}
-								/>
-							</div>
-						);
-					})}
+								>
+									<TransactionRow
+										transaction={transaction}
+										presence={presenceByTransactionId[transaction.id]}
+										currentUserId={currentUserId}
+										isSelected={isSelected}
+										isExpanded={expandedIds.has(transaction.id)}
+										availableStatuses={availableStatuses}
+										availableTags={availableTags}
+										onCreateTag={onCreateTag}
+										onClick={(e?: React.MouseEvent) =>
+											handleRowClick(transaction.id, e as React.MouseEvent)
+										}
+										onFocus={() => {
+											setFocusedId(transaction.id);
+											onTransactionFocus?.(transaction.id);
+										}}
+										onFieldUpdate={
+											onTransactionUpdate
+												? (field, value) => onTransactionUpdate(transaction.id, { [field]: value })
+												: undefined
+										}
+										onDelete={
+											onTransactionDelete ? () => onTransactionDelete(transaction.id) : undefined
+										}
+										onResolveDuplicate={
+											onResolveDuplicate ? () => onResolveDuplicate(transaction.id) : undefined
+										}
+										onCheckboxChange={() => handleCheckboxChange(transaction.id)}
+										onCheckboxShiftClick={() => handleCheckboxShiftClick(transaction.id)}
+										onToggleExpand={() => handleToggleExpand(transaction.id)}
+									/>
+								</div>
+							);
+						})}
+					</div>
 				</div>
 			</div>
 			{isLoading && <LoadingIndicator />}
-			{!isLoading && hasMore && transactions.length > 0 && (
-				<div className="py-4 text-center text-muted-foreground text-sm">Scroll to load more</div>
-			)}
 		</div>
 	);
 }

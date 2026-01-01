@@ -465,72 +465,62 @@ export default function TransactionsPage() {
 	);
 
 	return (
-		<div className="flex h-full flex-col">
-			{/* Page header */}
-			<div className="border-b px-6 py-4">
-				<h1 className="font-semibold text-2xl">Transactions</h1>
-				<p className="mt-1 text-muted-foreground text-sm">
-					{filteredTransactions.length} transaction{filteredTransactions.length !== 1 ? "s" : ""}
-					{hasActiveFilters(filters) && " (filtered)"}
-				</p>
-			</div>
+		<div className="flex min-h-0 flex-1 flex-col gap-4 p-6">
+			{/* Filters */}
+			<TransactionFilters
+				filters={filters}
+				onChange={setFilters}
+				availableTags={tagOptions}
+				availablePeople={peopleOptions}
+				availableAccounts={accountOptionsForFilter}
+				availableStatuses={statusOptions}
+			/>
 
-			{/* Transactions content */}
-			<div className="flex flex-1 flex-col gap-4 overflow-auto p-6">
-				{/* Filters */}
-				<TransactionFilters
-					filters={filters}
-					onChange={setFilters}
-					availableTags={tagOptions}
-					availablePeople={peopleOptions}
-					availableAccounts={accountOptionsForFilter}
-					availableStatuses={statusOptions}
+			{/* Transaction Table */}
+			<div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border">
+				{/* Add Transaction Row */}
+				<AddTransactionRow
+					availableAccounts={accountOptions}
+					onAdd={handleAddTransaction}
+					defaultAccountId={accountOptions[0]?.id}
+					selectedCount={selectedCount}
+					totalCount={filteredTransactions.length}
+					isFiltered={hasActiveFilters(filters)}
 				/>
 
-				{/* Transaction Table */}
-				<div className="flex-1 overflow-hidden rounded-lg border">
-					{/* Add Transaction Row */}
-					<AddTransactionRow
-						availableAccounts={accountOptions}
-						onAdd={handleAddTransaction}
-						defaultAccountId={accountOptions[0]?.id}
-						selectedCount={selectedCount}
-					/>
-
-					{/* Table */}
-					<TransactionTable
-						transactions={tableData}
-						presenceByTransactionId={presenceByTransactionId}
-						selectedIds={selectedIds}
-						availableStatuses={statusOptionsForInlineEdit}
-						availableTags={tagOptionsForInlineEdit}
-						onCreateTag={handleCreateTag}
-						onSelectionChange={setSelectedIds}
-						onLoadMore={handleLoadMore}
-						hasMore={hasMore}
-						onTransactionDelete={handleSingleDelete}
-						onResolveDuplicate={handleResolveDuplicate}
-						onTransactionUpdate={handleTransactionUpdate}
-					/>
-				</div>
-
-				{/* Bulk Edit Toolbar */}
-				{selectedCount > 0 && (
-					<BulkEditToolbar
-						selectedCount={selectedCount}
-						onClearSelection={clearSelection}
-						onDelete={handleBulkDelete}
-						onSetTags={handleBulkSetTags}
-						onSetStatus={handleBulkSetStatus}
-						onSetAccount={handleBulkSetAccount}
-						onSetDescription={handleBulkSetDescription}
-						onSetAmount={handleBulkSetAmount}
-						availableTags={tagOptions}
-						availableStatuses={statusOptions}
-						availableAccounts={accountOptionsForFilter}
-					/>
-				)}
+				{/* Table */}
+				<TransactionTable
+					transactions={tableData}
+					presenceByTransactionId={presenceByTransactionId}
+					selectedIds={selectedIds}
+					availableStatuses={statusOptionsForInlineEdit}
+					availableTags={tagOptionsForInlineEdit}
+					onCreateTag={handleCreateTag}
+					onSelectionChange={setSelectedIds}
+					onLoadMore={handleLoadMore}
+					hasMore={hasMore}
+					onTransactionDelete={handleSingleDelete}
+					onResolveDuplicate={handleResolveDuplicate}
+					onTransactionUpdate={handleTransactionUpdate}
+				/>
 			</div>
+
+			{/* Bulk Edit Toolbar */}
+			{selectedCount > 0 && (
+				<BulkEditToolbar
+					selectedCount={selectedCount}
+					onClearSelection={clearSelection}
+					onDelete={handleBulkDelete}
+					onSetTags={handleBulkSetTags}
+					onSetStatus={handleBulkSetStatus}
+					onSetAccount={handleBulkSetAccount}
+					onSetDescription={handleBulkSetDescription}
+					onSetAmount={handleBulkSetAmount}
+					availableTags={tagOptions}
+					availableStatuses={statusOptions}
+					availableAccounts={accountOptionsForFilter}
+				/>
+			)}
 		</div>
 	);
 }

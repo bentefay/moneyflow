@@ -21,7 +21,7 @@ import {
 	Users,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { PresenceAvatarGroup } from "@/components/features/presence/PresenceAvatarGroup";
 import { VaultSelector } from "@/components/features/vault/VaultSelector";
@@ -115,8 +115,8 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 					isCollapsed ? "w-16" : "w-64"
 				)}
 			>
-				{/* Logo */}
-				<div className="flex h-16 items-center justify-between border-b px-4">
+				{/* Logo & Collapse Toggle */}
+				<div className="flex h-12 items-center justify-between border-b px-4">
 					{!isCollapsed && (
 						<Link href="/transactions" className="font-semibold text-lg">
 							MoneyFlow
@@ -134,6 +134,33 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 						)}
 					</button>
 				</div>
+
+				{/* Vault Selector & Status */}
+				{!isCollapsed && (
+					<div className="space-y-2 border-b p-3">
+						<VaultSelector
+							vaults={vaultOptions}
+							currentVaultName={currentVaultName}
+							isLoading={isVaultsLoading}
+							onCreateVault={() => {
+								// TODO: Open create vault dialog
+								console.log("Create vault");
+							}}
+						/>
+						<div className="flex items-center justify-between">
+							<SyncStatus state={syncState} hasUnsavedChanges={hasUnsavedChanges} showLabel />
+							{isConnected && onlineUsers.length > 0 && (
+								<PresenceAvatarGroup
+									users={onlineUsers.map((u) => ({
+										userId: u.userId,
+										isOnline: true,
+									}))}
+									size="sm"
+								/>
+							)}
+						</div>
+					</div>
+				)}
 
 				{/* Main Navigation */}
 				<nav className="flex-1 space-y-1 p-2">
@@ -164,55 +191,26 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 				</nav>
 			</aside>
 
-			{/* Main Content Area */}
-			<div className="flex flex-1 flex-col overflow-hidden">
-				{/* Top Header */}
-				<header className="flex h-16 items-center justify-between border-b px-6">
-					<div>{/* Breadcrumb or page title goes here */}</div>
-					<div className="flex items-center gap-4">
-						{/* Sync status indicator */}
-						<SyncStatus state={syncState} hasUnsavedChanges={hasUnsavedChanges} showLabel />
-						{/* Online users */}
-						{isConnected && onlineUsers.length > 0 && (
-							<PresenceAvatarGroup
-								users={onlineUsers.map((u) => ({
-									userId: u.userId,
-									isOnline: true,
-								}))}
-								size="sm"
-							/>
-						)}
-						{/* Vault selector */}
-						<VaultSelector
-							vaults={vaultOptions}
-							currentVaultName={currentVaultName}
-							isLoading={isVaultsLoading}
-							onCreateVault={() => {
-								// TODO: Open create vault dialog
-								console.log("Create vault");
-							}}
-						/>
-					</div>
-				</header>
-
-				{/* Page Content */}
-				<main className="flex-1 overflow-auto">
-					<div className="container py-6">{children}</div>
-				</main>
-			</div>
+			{/* Main Content Area - no header, full height for virtualization */}
+			<main className="flex min-h-0 flex-1 flex-col">{children}</main>
 		</div>
 	);
 }
 
 function NavLink({ item, isCollapsed }: { item: NavItem; isCollapsed: boolean }) {
+	const pathname = usePathname();
 	const Icon = item.icon;
+	const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
 
 	return (
 		<Link
 			href={item.href}
 			className={cn(
-				"flex items-center gap-3 rounded-md px-3 py-2 font-medium text-muted-foreground text-sm hover:bg-accent hover:text-accent-foreground",
-				isCollapsed && "justify-center"
+				"flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground",
+				isCollapsed && "justify-center",
+				isActive
+					? "bg-accent font-semibold text-accent-foreground"
+					: "font-medium text-muted-foreground"
 			)}
 			title={isCollapsed ? item.label : undefined}
 		>

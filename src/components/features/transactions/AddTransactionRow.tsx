@@ -32,6 +32,10 @@ export interface AddTransactionRowProps {
 	defaultAccountId?: string;
 	/** Number of selected transactions (shown on right side) */
 	selectedCount?: number;
+	/** Total number of transactions (shown on right side) */
+	totalCount?: number;
+	/** Whether filters are currently active */
+	isFiltered?: boolean;
 	/** Additional CSS classes */
 	className?: string;
 }
@@ -45,6 +49,8 @@ export function AddTransactionRow({
 	onFocus,
 	defaultAccountId,
 	selectedCount = 0,
+	totalCount = 0,
+	isFiltered = false,
 	className,
 }: AddTransactionRowProps) {
 	const [isActive, setIsActive] = useState(false);
@@ -151,9 +157,13 @@ export function AddTransactionRow({
 					<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
 				</svg>
 				<span className="flex-1 text-sm">Add transaction...</span>
-				{selectedCount > 0 && (
-					<span className="font-medium text-foreground text-sm">{selectedCount} selected</span>
-				)}
+				<span className="text-muted-foreground text-sm">
+					{totalCount} transaction{totalCount !== 1 ? "s" : ""}
+					{isFiltered && " (filtered)"}
+					{selectedCount > 0 && (
+						<span className="ml-2 font-medium text-foreground">· {selectedCount} selected</span>
+					)}
+				</span>
 			</div>
 		);
 	}
