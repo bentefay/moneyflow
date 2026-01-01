@@ -4,12 +4,19 @@
  * Bulk Edit Toolbar
  *
  * Floating toolbar that appears when multiple transactions are selected.
- * Allows bulk operations like editing tags, status, description, or deleting.
+ * Allows bulk operations like editing tags, status, description, amount, or deleting.
+ * Includes progress indicator for large bulk operations.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { FilterOption } from "./filters/MultiSelectFilter";
+
+export interface BulkEditProgress {
+	current: number;
+	total: number;
+	operation: string;
+}
 
 export interface BulkEditToolbarProps {
 	/** Number of selected transactions */
@@ -26,17 +33,42 @@ export interface BulkEditToolbarProps {
 	onSetAccount?: (accountId: string) => void;
 	/** Callback to set description on selected transactions */
 	onSetDescription?: (description: string) => void;
+	/** Callback to set amount on selected transactions */
+	onSetAmount?: (amount: number) => void;
 	/** Available tags for bulk edit */
 	availableTags?: FilterOption[];
 	/** Available statuses for bulk edit */
 	availableStatuses?: FilterOption[];
 	/** Available accounts for bulk edit */
 	availableAccounts?: FilterOption[];
+	/** Progress of current bulk operation */
+	progress?: BulkEditProgress | null;
 	/** Additional CSS classes */
 	className?: string;
 }
 
-type ActiveDropdown = "tags" | "status" | "account" | "description" | null;
+type ActiveDropdown = "tags" | "status" | "account" | "description" | "amount" | null;
+
+/**
+ * Progress bar component for bulk operations.
+ */
+function ProgressBar({ progress }: { progress: BulkEditProgress }) {
+	const percentage = Math.round((progress.current / progress.total) * 100);
+
+	return (
+		<div className="flex items-center gap-3" data-testid="bulk-progress">
+			<div className="h-2 w-24 overflow-hidden rounded-full bg-muted">
+				<div
+					className="h-full bg-primary transition-all duration-150"
+					style={{ width: `${percentage}%` }}
+				/>
+			</div>
+			<span className="text-muted-foreground text-xs">
+				{progress.current}/{progress.total}
+			</span>
+		</div>
+	);
+}
 
 /**
  * Bulk edit toolbar component.
@@ -49,20 +81,27 @@ export function BulkEditToolbar({
 	onSetStatus,
 	onSetAccount,
 	onSetDescription,
+	onSetAmount,
 	availableTags = [],
 	availableStatuses = [],
 	availableAccounts = [],
+	progress,
 	className,
 }: BulkEditToolbarProps) {
 	const [activeDropdown, setActiveDropdown] = useState<ActiveDropdown>(null);
 	const [confirmDelete, setConfirmDelete] = useState(false);
 	const [descriptionValue, setDescriptionValue] = useState("");
+	const [amountValue, setAmountValue] = useState("");
 	const descriptionInputRef = useRef<HTMLInputElement>(null);
+	const amountInputRef = useRef<HTMLInputElement>(null);
 
-	// Focus input when description dropdown opens
+	// Focus input when dropdown opens
 	useEffect(() => {
 		if (activeDropdown === "description" && descriptionInputRef.current) {
 			descriptionInputRef.current.focus();
+		}
+		if (activeDropdown === "amount" && amountInputRef.current) {
+			amountInputRef.current.focus();
 		}
 	}, [activeDropdown]);
 
@@ -71,6 +110,7 @@ export function BulkEditToolbar({
 		if (e.key === "Escape") {
 			setActiveDropdown(null);
 			setDescriptionValue("");
+			setAmountValue("");
 		}
 	}, []);
 
@@ -92,6 +132,17 @@ export function BulkEditToolbar({
 		setConfirmDelete(false);
 	};
 
+	const handleAmountSubmit = () => {
+		const parsed = Number.parseFloat(amountValue);
+		if (!Number.isNaN(parsed) && onSetAmount) {
+			// Convert to cents (minor units)
+			const amountInCents = Math.round(parsed * 100);
+			onSetAmount(amountInCents);
+			setAmountValue("");
+			closeDropdowns();
+		}
+	};
+
 	return (
 		<div
 			className={cn(
@@ -101,8 +152,12 @@ export function BulkEditToolbar({
 			data-testid="bulk-edit-toolbar"
 		>
 			<div className="flex items-center gap-2 px-4 py-3">
-				{/* Selection count */}
-				<span className="font-medium text-sm">{selectedCount} selected</span>
+				{/* Progress indicator or selection count */}
+				{progress ? (
+					<ProgressBar progress={progress} />
+				) : (
+					<span className="font-medium text-sm">{selectedCount} selected</span>
+				)}
 
 				<div className="mx-2 h-6 w-px bg-border" />
 
@@ -112,9 +167,11 @@ export function BulkEditToolbar({
 						<button
 							type="button"
 							onClick={() => setActiveDropdown(activeDropdown === "tags" ? null : "tags")}
+							disabled={!!progress}
 							className={cn(
 								"flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm",
 								"hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary",
+								"disabled:pointer-events-none disabled:opacity-50",
 								activeDropdown === "tags" && "bg-accent"
 							)}
 						>
@@ -155,9 +212,11 @@ export function BulkEditToolbar({
 						<button
 							type="button"
 							onClick={() => setActiveDropdown(activeDropdown === "status" ? null : "status")}
+							disabled={!!progress}
 							className={cn(
 								"flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm",
 								"hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary",
+								"disabled:pointer-events-none disabled:opacity-50",
 								activeDropdown === "status" && "bg-accent"
 							)}
 						>
@@ -198,9 +257,11 @@ export function BulkEditToolbar({
 						<button
 							type="button"
 							onClick={() => setActiveDropdown(activeDropdown === "account" ? null : "account")}
+							disabled={!!progress}
 							className={cn(
 								"flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm",
 								"hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary",
+								"disabled:pointer-events-none disabled:opacity-50",
 								activeDropdown === "account" && "bg-accent"
 							)}
 						>
@@ -243,9 +304,11 @@ export function BulkEditToolbar({
 							onClick={() =>
 								setActiveDropdown(activeDropdown === "description" ? null : "description")
 							}
+							disabled={!!progress}
 							className={cn(
 								"flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm",
 								"hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary",
+								"disabled:pointer-events-none disabled:opacity-50",
 								activeDropdown === "description" && "bg-accent"
 							)}
 						>
@@ -314,15 +377,94 @@ export function BulkEditToolbar({
 					</div>
 				)}
 
+				{/* Amount button */}
+				{onSetAmount && (
+					<div className="relative">
+						<button
+							type="button"
+							onClick={() => setActiveDropdown(activeDropdown === "amount" ? null : "amount")}
+							disabled={!!progress}
+							className={cn(
+								"flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm",
+								"hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary",
+								"disabled:pointer-events-none disabled:opacity-50",
+								activeDropdown === "amount" && "bg-accent"
+							)}
+						>
+							<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									strokeWidth={2}
+									d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+								/>
+							</svg>
+							Set Amount
+						</button>
+
+						{activeDropdown === "amount" && (
+							<div
+								className="absolute bottom-full left-0 mb-2 w-48 rounded-lg border bg-popover p-3 shadow-lg"
+								onKeyDown={handleKeyDown}
+							>
+								<div className="relative">
+									<span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground text-sm">
+										$
+									</span>
+									<input
+										ref={amountInputRef}
+										type="number"
+										step="0.01"
+										value={amountValue}
+										onChange={(e) => setAmountValue(e.target.value)}
+										placeholder="0.00"
+										className="w-full rounded-md border bg-background py-2 pr-3 pl-7 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+										onKeyDown={(e) => {
+											if (e.key === "Enter") {
+												handleAmountSubmit();
+											} else if (e.key === "Escape") {
+												setAmountValue("");
+												closeDropdowns();
+											}
+										}}
+									/>
+								</div>
+								<div className="mt-2 flex justify-end gap-2">
+									<button
+										type="button"
+										onClick={() => {
+											setAmountValue("");
+											closeDropdowns();
+										}}
+										className="rounded px-2 py-1 text-sm text-muted-foreground hover:text-foreground"
+									>
+										Cancel
+									</button>
+									<button
+										type="button"
+										onClick={handleAmountSubmit}
+										disabled={!amountValue || Number.isNaN(Number.parseFloat(amountValue))}
+										className="rounded bg-primary px-3 py-1 text-primary-foreground text-sm disabled:opacity-50"
+									>
+										Apply
+									</button>
+								</div>
+							</div>
+						)}
+					</div>
+				)}
+
 				{/* Delete button */}
 				{onDelete && (
 					<button
 						type="button"
 						onClick={handleDelete}
+						disabled={!!progress}
 						data-testid="bulk-delete"
 						className={cn(
 							"flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm",
 							"hover:bg-destructive/10 focus:outline-none focus:ring-2 focus:ring-destructive",
+							"disabled:pointer-events-none disabled:opacity-50",
 							confirmDelete ? "bg-destructive text-destructive-foreground" : "text-destructive"
 						)}
 					>
@@ -347,8 +489,9 @@ export function BulkEditToolbar({
 						onClearSelection();
 						closeDropdowns();
 					}}
+					disabled={!!progress}
 					data-testid="clear-selection"
-					className="text-muted-foreground text-sm hover:text-foreground"
+					className="text-muted-foreground text-sm hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
 				>
 					Clear
 				</button>

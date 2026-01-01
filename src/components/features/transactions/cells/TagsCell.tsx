@@ -205,23 +205,33 @@ export function TagsCell({
 									{tag.name}
 								</button>
 							))}
-							{searchQuery.trim() &&
-								!availableTags.some((t) => t.name.toLowerCase() === searchQuery.toLowerCase()) && (
-									<button
-										type="button"
-										onClick={() => {
-											if (onCreateTag) {
-												onCreateTag(searchQuery.trim()).then((newTag) => {
-													setSelectedTagIds((prev) => [...prev, newTag.id]);
-													setSearchQuery("");
-												});
-											}
-										}}
-										className="block w-full rounded px-2 py-1 text-left text-primary text-sm hover:bg-muted"
-									>
-										Create "{searchQuery}"
-									</button>
-								)}
+							{/* Create button - always visible when searching and callback provided */}
+							{searchQuery.trim() && onCreateTag && (
+								<button
+									type="button"
+									disabled={availableTags.some(
+										(t) => t.name.toLowerCase() === searchQuery.toLowerCase()
+									)}
+									data-testid="create-tag-button"
+									onClick={() => {
+										if (
+											!availableTags.some((t) => t.name.toLowerCase() === searchQuery.toLowerCase())
+										) {
+											onCreateTag(searchQuery.trim()).then((newTag) => {
+												setSelectedTagIds((prev) => [...prev, newTag.id]);
+												setSearchQuery("");
+											});
+										}
+									}}
+									className={cn(
+										"block w-full rounded px-2 py-1 text-left text-primary text-sm hover:bg-muted",
+										availableTags.some((t) => t.name.toLowerCase() === searchQuery.toLowerCase()) &&
+											"cursor-not-allowed opacity-50"
+									)}
+								>
+									Create "{searchQuery}"
+								</button>
+							)}
 						</div>
 					)}
 				</div>

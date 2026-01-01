@@ -24,6 +24,8 @@ export interface InlineEditableTagsProps {
 	availableTags: TagOption[];
 	/** Callback when value is saved */
 	onSave: (newTagIds: string[]) => void;
+	/** Callback when a new tag should be created */
+	onCreateTag?: (name: string) => Promise<TagOption>;
 	/** Maximum number of tags to display before showing "+N" */
 	maxDisplay?: number;
 	/** Additional class names for the container */
@@ -91,12 +93,14 @@ export function InlineEditableTags({
 	tags,
 	availableTags,
 	onSave,
+	onCreateTag,
 	className,
 	disabled = false,
 	"data-testid": testId,
 }: InlineEditableTagsProps) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
+	const [isCreating, setIsCreating] = useState(false);
 	const containerRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
 
@@ -132,14 +136,6 @@ export function InlineEditableTags({
 		[disabled]
 	);
 
-	const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-		if (e.key === "Escape") {
-			e.preventDefault();
-			setIsOpen(false);
-			setSearchQuery("");
-		}
-	}, []);
-
 	const toggleTag = useCallback(
 		(tagId: string) => {
 			const newValue = value.includes(tagId)
@@ -155,6 +151,51 @@ export function InlineEditableTags({
 			onSave(value.filter((id) => id !== tagId));
 		},
 		[value, onSave]
+	);
+
+	// Handle creating a new tag
+	const handleCreateTag = useCallback(async () => {
+		if (!onCreateTag || !searchQuery.trim() || isCreating) return;
+
+		// Check if exact match already exists
+		const exactMatch = availableTags.some(
+			(t) => t.name.toLowerCase() === searchQuery.toLowerCase()
+		);
+		if (exactMatch) return;
+
+		setIsCreating(true);
+		try {
+			const newTag = await onCreateTag(searchQuery.trim());
+			// Add the new tag to the selection
+			onSave([...value, newTag.id]);
+			setSearchQuery("");
+		} finally {
+			setIsCreating(false);
+		}
+	}, [onCreateTag, searchQuery, isCreating, availableTags, onSave, value]);
+
+	const handleKeyDown = useCallback(
+		(e: React.KeyboardEvent) => {
+			if (e.key === "Escape") {
+				e.preventDefault();
+				setIsOpen(false);
+				setSearchQuery("");
+			} else if (e.key === "Enter" && searchQuery.trim()) {
+				e.preventDefault();
+				// If there's an exact match, toggle it
+				const exactMatch = availableTags.find(
+					(t) => t.name.toLowerCase() === searchQuery.toLowerCase()
+				);
+				if (exactMatch) {
+					toggleTag(exactMatch.id);
+					setSearchQuery("");
+				} else if (onCreateTag) {
+					// Otherwise create a new tag
+					handleCreateTag();
+				}
+			}
+		},
+		[availableTags, searchQuery, toggleTag, onCreateTag, handleCreateTag]
 	);
 
 	// Filter available tags based on search
@@ -213,7 +254,7 @@ export function InlineEditableTags({
 
 					{/* Tag list */}
 					<div className="max-h-32 overflow-auto">
-						{filteredTags.length === 0 ? (
+						{filteredTags.length === 0 && !searchQuery.trim() ? (
 							<div className="px-2 py-1 text-muted-foreground text-xs">No tags found</div>
 						) : (
 							filteredTags.map((tag) => (
@@ -254,6 +295,40 @@ export function InlineEditableTags({
 									{tag.name}
 								</button>
 							))
+						)}
+
+						{/* Create button - always visible when searching and callback provided */}
+						{searchQuery.trim() && onCreateTag && (
+							<button
+								type="button"
+								onClick={(e) => {
+									e.stopPropagation();
+									handleCreateTag();
+								}}
+								disabled={
+									isCreating ||
+									availableTags.some((t) => t.name.toLowerCase() === searchQuery.toLowerCase())
+								}
+								data-testid="create-tag-button"
+								className={cn(
+									"flex w-full items-center gap-2 rounded px-2 py-1 text-left text-primary text-sm hover:bg-accent",
+									(isCreating ||
+										availableTags.some(
+											(t) => t.name.toLowerCase() === searchQuery.toLowerCase()
+										)) &&
+										"cursor-not-allowed opacity-50"
+								)}
+							>
+								<svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										strokeWidth={2}
+										d="M12 4v16m8-8H4"
+									/>
+								</svg>
+								{isCreating ? "Creating..." : `Create "${searchQuery}"`}
+							</button>
 						)}
 					</div>
 				</div>

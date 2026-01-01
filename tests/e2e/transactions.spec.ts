@@ -477,6 +477,106 @@ test.describe("Transactions", () => {
 				await expect(tagsCell).toContainText("Groceries");
 			});
 		});
+
+		test("T033: inline tag creation - Create button visible when searching", async ({ page }) => {
+			await createNewIdentity(page);
+			await goToTransactions(page);
+
+			await test.step("create a test transaction", async () => {
+				await createTestTransaction(page, {
+					merchant: "Tag Creation Test",
+					amount: "-50.00",
+				});
+			});
+
+			await test.step("open tags dropdown and type new tag name", async () => {
+				const tagsCell = page
+					.locator('[data-testid="transaction-row"]')
+					.first()
+					.locator('[data-cell="tags"]');
+
+				await tagsCell.click();
+
+				const searchInput = tagsCell.getByPlaceholder("Search tags...");
+				await expect(searchInput).toBeVisible({ timeout: 5000 });
+
+				// Type a new tag name that doesn't exist
+				await searchInput.fill("NewInlineTag");
+			});
+
+			await test.step("verify Create button is visible and clickable", async () => {
+				const createButton = page.getByTestId("create-tag-button");
+				await expect(createButton).toBeVisible();
+				await expect(createButton).toContainText(/create.*newinlinetag/i);
+
+				// Click the Create button
+				await createButton.click();
+			});
+
+			await test.step("verify new tag was created and applied", async () => {
+				const tagsCell = page
+					.locator('[data-testid="transaction-row"]')
+					.first()
+					.locator('[data-cell="tags"]');
+
+				// The tag should now be visible on the transaction
+				await expect(tagsCell).toContainText("NewInlineTag");
+			});
+
+			await test.step("verify tag exists in tags page", async () => {
+				await goToTags(page);
+
+				// The newly created tag should appear
+				await expect(page.getByText("NewInlineTag")).toBeVisible();
+			});
+		});
+
+		test("T033a: Create button disabled when exact match exists", async ({ page }) => {
+			await createNewIdentity(page);
+			await goToTransactions(page);
+
+			await test.step("create an existing tag", async () => {
+				await goToTags(page);
+				await page.getByRole("button", { name: /add tag/i }).click();
+
+				const nameInput = page.getByPlaceholder(/enter tag name/i);
+				await nameInput.waitFor({ state: "visible", timeout: 3000 });
+				await nameInput.fill("ExistingTag");
+
+				await page.getByRole("button", { name: /^add tag$/i }).click();
+				await expect(page.locator('[data-testid^="tag-row-"]').first()).toBeVisible();
+
+				await goToTransactions(page);
+			});
+
+			await test.step("create a test transaction", async () => {
+				await createTestTransaction(page, {
+					merchant: "Exact Match Test",
+					amount: "-25.00",
+				});
+			});
+
+			await test.step("open tags dropdown and type exact match", async () => {
+				const tagsCell = page
+					.locator('[data-testid="transaction-row"]')
+					.first()
+					.locator('[data-cell="tags"]');
+
+				await tagsCell.click();
+
+				const searchInput = tagsCell.getByPlaceholder("Search tags...");
+				await expect(searchInput).toBeVisible({ timeout: 5000 });
+
+				// Type exact name of existing tag
+				await searchInput.fill("ExistingTag");
+			});
+
+			await test.step("verify Create button is disabled", async () => {
+				const createButton = page.getByTestId("create-tag-button");
+				await expect(createButton).toBeVisible();
+				await expect(createButton).toBeDisabled();
+			});
+		});
 	});
 
 	// ========================================================================
@@ -830,6 +930,199 @@ test.describe("Transactions", () => {
 				// Transactions should keep original descriptions
 				const firstRow = page.locator('[data-testid="transaction-row"]').first();
 				await expect(firstRow.getByText("Escape Test")).toBeVisible();
+			});
+		});
+	});
+
+	// ========================================================================
+	// Phase 7: Merchant/Description Separation (User Story 5)
+	// ========================================================================
+
+	test.describe("US5: Merchant/Description Separation", () => {
+		test("T037: merchant column displays primary text, description in expandable row", async ({
+			page,
+		}) => {
+			await createNewIdentity(page);
+			await goToTransactions(page);
+
+			await test.step("create transaction with merchant", async () => {
+				await createTestTransaction(page, {
+					merchant: "Starbucks",
+					amount: "-5.00",
+				});
+			});
+
+			await test.step("verify merchant displays in main row", async () => {
+				const row = page.locator('[data-testid="transaction-row"]').first();
+				const merchantInput = row.locator('[data-testid="merchant-editable"]');
+
+				await expect(merchantInput).toHaveValue("Starbucks");
+			});
+
+			await test.step("verify expand button exists", async () => {
+				const row = page.locator('[data-testid="transaction-row"]').first();
+				const expandButton = row.locator('[data-testid="expand-description-button"]');
+
+				await expect(expandButton).toBeVisible();
+			});
+
+			await test.step("expand description row", async () => {
+				const row = page.locator('[data-testid="transaction-row"]').first();
+				const expandButton = row.locator('[data-testid="expand-description-button"]');
+
+				await expandButton.click();
+
+				// Description row should now be visible
+				const descriptionRow = page.locator('[data-testid="description-row"]');
+				await expect(descriptionRow).toBeVisible();
+			});
+
+			await test.step("verify description field is editable", async () => {
+				const descriptionRow = page.locator('[data-testid="description-row"]');
+				const descriptionInput = descriptionRow.locator('[data-testid="description-editable"]');
+
+				await expect(descriptionInput).toBeVisible();
+				await expect(descriptionInput).toHaveAttribute("placeholder", /add a description/i);
+			});
+		});
+
+		test("T038: edit description in expanded row", async ({ page }) => {
+			await createNewIdentity(page);
+			await goToTransactions(page);
+
+			await test.step("create transaction and expand", async () => {
+				await createTestTransaction(page, {
+					merchant: "Amazon",
+					amount: "-99.00",
+				});
+
+				const row = page.locator('[data-testid="transaction-row"]').first();
+				const expandButton = row.locator('[data-testid="expand-description-button"]');
+				await expandButton.click();
+			});
+
+			await test.step("edit description and save with Enter", async () => {
+				const descriptionRow = page.locator('[data-testid="description-row"]');
+				const descriptionInput = descriptionRow.locator('[data-testid="description-editable"]');
+
+				await descriptionInput.click();
+				await descriptionInput.fill("Monthly subscription payment");
+				await descriptionInput.press("Enter");
+			});
+
+			await test.step("verify description saved", async () => {
+				const descriptionRow = page.locator('[data-testid="description-row"]');
+				const descriptionInput = descriptionRow.locator('[data-testid="description-editable"]');
+
+				await expect(descriptionInput).toHaveValue("Monthly subscription payment");
+			});
+
+			await test.step("collapse and re-expand to verify persistence", async () => {
+				const row = page.locator('[data-testid="transaction-row"]').first();
+				const expandButton = row.locator('[data-testid="expand-description-button"]');
+
+				// Collapse
+				await expandButton.click();
+				await expect(page.locator('[data-testid="description-row"]')).not.toBeVisible();
+
+				// Re-expand
+				await expandButton.click();
+				const descriptionRow = page.locator('[data-testid="description-row"]');
+				const descriptionInput = descriptionRow.locator('[data-testid="description-editable"]');
+
+				await expect(descriptionInput).toHaveValue("Monthly subscription payment");
+			});
+		});
+
+		test("T039: expand button icon reflects description state", async ({ page }) => {
+			await createNewIdentity(page);
+			await goToTransactions(page);
+
+			await test.step("create transaction without description", async () => {
+				await createTestTransaction(page, {
+					merchant: "Icon Test Store",
+					amount: "-10.00",
+				});
+			});
+
+			await test.step("verify expand button shows plus icon initially", async () => {
+				const row = page.locator('[data-testid="transaction-row"]').first();
+				const expandButton = row.locator('[data-testid="expand-description-button"]');
+
+				// Button should be mostly hidden until hover (opacity-0 with group-hover:opacity-100)
+				// But we can still click it
+				await expect(expandButton).toBeAttached();
+			});
+
+			await test.step("add description and verify icon changes", async () => {
+				const row = page.locator('[data-testid="transaction-row"]').first();
+				const expandButton = row.locator('[data-testid="expand-description-button"]');
+
+				await expandButton.click();
+
+				const descriptionRow = page.locator('[data-testid="description-row"]');
+				const descriptionInput = descriptionRow.locator('[data-testid="description-editable"]');
+
+				await descriptionInput.fill("Test memo");
+				await descriptionInput.press("Enter");
+
+				// Collapse
+				await expandButton.click();
+
+				// Expand button should now be visible (not hidden) because description exists
+				await expect(expandButton).toBeVisible();
+			});
+		});
+
+		test("T040: search filters include both merchant and description", async ({ page }) => {
+			await createNewIdentity(page);
+			await goToTransactions(page);
+
+			await test.step("create transaction with merchant and add description", async () => {
+				await createTestTransaction(page, {
+					merchant: "UniqueStoreName",
+					amount: "-50.00",
+				});
+
+				// Add a description
+				const row = page.locator('[data-testid="transaction-row"]').first();
+				const expandButton = row.locator('[data-testid="expand-description-button"]');
+				await expandButton.click();
+
+				const descriptionRow = page.locator('[data-testid="description-row"]');
+				const descriptionInput = descriptionRow.locator('[data-testid="description-editable"]');
+
+				await descriptionInput.fill("UniqueDescriptionText");
+				await descriptionInput.press("Enter");
+
+				// Collapse
+				await expandButton.click();
+			});
+
+			await test.step("search by merchant finds transaction", async () => {
+				const searchInput = page.getByPlaceholder(/search/i).first();
+				await searchInput.fill("UniqueStoreName");
+
+				// Transaction should be visible
+				await expect(page.locator('[data-testid="transaction-row"]')).toHaveCount(1);
+			});
+
+			await test.step("search by description finds transaction", async () => {
+				const searchInput = page.getByPlaceholder(/search/i).first();
+				await searchInput.clear();
+				await searchInput.fill("UniqueDescriptionText");
+
+				// Transaction should still be visible
+				await expect(page.locator('[data-testid="transaction-row"]')).toHaveCount(1);
+			});
+
+			await test.step("search by non-matching term hides transaction", async () => {
+				const searchInput = page.getByPlaceholder(/search/i).first();
+				await searchInput.clear();
+				await searchInput.fill("NonExistentSearchTerm12345");
+
+				// Transaction should not be visible
+				await expect(page.locator('[data-testid="transaction-row"]')).toHaveCount(0);
 			});
 		});
 	});

@@ -32,6 +32,8 @@ export interface TransactionTableProps {
 	availableStatuses?: StatusOption[];
 	/** Available tags for inline editing */
 	availableTags?: TagOption[];
+	/** Callback when a new tag should be created */
+	onCreateTag?: (name: string) => Promise<TagOption>;
 	/** Callback when selection changes */
 	onSelectionChange?: (ids: Set<string>) => void;
 	/** Callback when a transaction is clicked */
@@ -83,7 +85,7 @@ function TransactionTableHeader({
 				/>
 			</div>
 			<div className="w-24 shrink-0">Date</div>
-			<div className="min-w-0 flex-1">Description</div>
+			<div className="min-w-0 flex-1">Merchant</div>
 			<div className="w-32 shrink-0">Tags</div>
 			<div className="w-24 shrink-0">Status</div>
 			<div className="w-28 shrink-0 text-right">Amount</div>
@@ -129,6 +131,7 @@ export function TransactionTable({
 	selectedIds = new Set(),
 	availableStatuses = [],
 	availableTags = [],
+	onCreateTag,
 	onSelectionChange,
 	onTransactionClick,
 	onTransactionFocus,
@@ -142,6 +145,7 @@ export function TransactionTable({
 }: TransactionTableProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [focusedId, setFocusedId] = useState<string | null>(null);
+	const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
 	// Extract transaction IDs for selection hook
 	const filteredIds = useMemo(() => transactions.map((t) => t.id), [transactions]);
@@ -273,6 +277,19 @@ export function TransactionTable({
 		[toggleRow]
 	);
 
+	// Handle expand/collapse for description
+	const handleToggleExpand = useCallback((id: string) => {
+		setExpandedIds((prev) => {
+			const next = new Set(prev);
+			if (next.has(id)) {
+				next.delete(id);
+			} else {
+				next.add(id);
+			}
+			return next;
+		});
+	}, []);
+
 	// Handle shift-click on checkbox for range selection
 	const handleCheckboxShiftClick = useCallback(
 		(id: string) => {
@@ -359,8 +376,10 @@ export function TransactionTable({
 									presence={presenceByTransactionId[transaction.id]}
 									currentUserId={currentUserId}
 									isSelected={isSelected}
+									isExpanded={expandedIds.has(transaction.id)}
 									availableStatuses={availableStatuses}
 									availableTags={availableTags}
+									onCreateTag={onCreateTag}
 									onClick={(e?: React.MouseEvent) =>
 										handleRowClick(transaction.id, e as React.MouseEvent)
 									}
@@ -381,6 +400,7 @@ export function TransactionTable({
 									}
 									onCheckboxChange={() => handleCheckboxChange(transaction.id)}
 									onCheckboxShiftClick={() => handleCheckboxShiftClick(transaction.id)}
+									onToggleExpand={() => handleToggleExpand(transaction.id)}
 								/>
 							</div>
 						);

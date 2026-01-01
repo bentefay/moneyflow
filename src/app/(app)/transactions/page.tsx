@@ -7,7 +7,7 @@
  * and real-time collaborative sync.
  */
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
 	AddTransactionRow,
 	BulkEditToolbar,
@@ -19,8 +19,13 @@ import {
 	type TransactionRowData,
 	TransactionTable,
 } from "@/components/features/transactions";
+import { useToast } from "@/components/ui/toast";
 import { useActiveVault } from "@/hooks/use-active-vault";
 import { useIdentity } from "@/hooks/use-identity";
+
+/** Threshold for showing warning when selecting all */
+const LARGE_SELECTION_THRESHOLD = 500;
+
 import { useVaultPresence } from "@/hooks/use-vault-presence";
 import { useTransactionSelection } from "@/hooks/useTransactionSelection";
 import {
@@ -45,6 +50,9 @@ function generateId(): string {
  * Transactions page component.
  */
 export default function TransactionsPage() {
+	// Toast notifications
+	const { toast } = useToast();
+
 	// CRDT state
 	const transactions = useActiveTransactions();
 	const accounts = useActiveAccounts();
@@ -81,6 +89,15 @@ export default function TransactionsPage() {
 		}
 	});
 
+	const addTag = useVaultAction((state, tag: { id: string; name: string }) => {
+		state.tags[tag.id] = {
+			id: tag.id,
+			name: tag.name,
+			parentTagId: "",
+			deletedAt: 0,
+		} as (typeof state.tags)[string];
+	});
+
 	// Filter state
 	const [filters, setFilters] = useState<TransactionFiltersState>(createEmptyFilters());
 
@@ -92,6 +109,16 @@ export default function TransactionsPage() {
 	const { selectedIds, clearSelection, selectedCount, setSelection } = useTransactionSelection({
 		transactionIds,
 	});
+
+	// Warn when selection exceeds threshold
+	useEffect(() => {
+		if (selectedCount > LARGE_SELECTION_THRESHOLD) {
+			toast({
+				message: `Selected ${selectedCount} transactions. Large selections may be slow.`,
+				type: "warning",
+			});
+		}
+	}, [selectedCount, toast]);
 
 	// Convert presence list to presence by transaction ID
 	// For now, we don't have transaction-level presence tracking
@@ -170,7 +197,8 @@ export default function TransactionsPage() {
 				return {
 					id: tx.id,
 					date: tx.date,
-					description: tx.merchant || tx.description || "",
+					merchant: tx.merchant || "",
+					description: tx.description || "",
 					amount: tx.amount,
 					account: typeof acc === "object" ? acc.name : "Unknown",
 					accountId: tx.accountId,
@@ -281,6 +309,26 @@ export default function TransactionsPage() {
 		[selectedIds, setTransaction]
 	);
 
+	// Handle bulk set amount
+	const handleBulkSetAmount = useCallback(
+		(amount: number) => {
+			for (const id of selectedIds) {
+				setTransaction(id, { amount });
+			}
+		},
+		[selectedIds, setTransaction]
+	);
+
+	// Handle creating a new tag
+	const handleCreateTag = useCallback(
+		async (name: string): Promise<{ id: string; name: string }> => {
+			const id = generateId();
+			addTag({ id, name });
+			return { id, name };
+		},
+		[addTag]
+	);
+
 	// Handle single transaction delete
 	const handleSingleDelete = useCallback(
 		(id: string) => {
@@ -308,10 +356,11 @@ export default function TransactionsPage() {
 		(id: string, updates: Partial<TransactionRowData>) => {
 			// Map TransactionRowData fields to Transaction fields
 			const transactionUpdates: Partial<Transaction> = {};
+			if ("merchant" in updates && updates.merchant !== undefined) {
+				transactionUpdates.merchant = updates.merchant;
+			}
 			if ("description" in updates && updates.description !== undefined) {
-				// TransactionRowData.description maps to merchant (primary display field)
-				// We update merchant since that's what's shown in the UI (tx.merchant || tx.description)
-				transactionUpdates.merchant = updates.description;
+				transactionUpdates.description = updates.description;
 			}
 			if ("date" in updates && updates.date !== undefined) {
 				transactionUpdates.date = updates.date;
@@ -452,6 +501,7 @@ export default function TransactionsPage() {
 						selectedIds={selectedIds}
 						availableStatuses={statusOptionsForInlineEdit}
 						availableTags={tagOptionsForInlineEdit}
+						onCreateTag={handleCreateTag}
 						onSelectionChange={(ids) => {
 							// When TransactionTable changes selection, sync with our selection state
 							setSelection(ids);
@@ -474,6 +524,7 @@ export default function TransactionsPage() {
 						onSetStatus={handleBulkSetStatus}
 						onSetAccount={handleBulkSetAccount}
 						onSetDescription={handleBulkSetDescription}
+						onSetAmount={handleBulkSetAmount}
 						availableTags={tagOptions}
 						availableStatuses={statusOptions}
 						availableAccounts={accountOptionsForFilter}
