@@ -13,6 +13,7 @@ import { PresenceAvatar } from "@/components/features/presence/PresenceAvatar";
 import { cn } from "@/lib/utils";
 import { hashToColor } from "@/lib/utils/color";
 import { CheckboxCell } from "./cells/CheckboxCell";
+import { type AccountOption, InlineEditableAccount } from "./cells/InlineEditableAccount";
 import { InlineEditableAmount } from "./cells/InlineEditableAmount";
 import { InlineEditableDate } from "./cells/InlineEditableDate";
 import { InlineEditableStatus, type StatusOption } from "./cells/InlineEditableStatus";
@@ -59,6 +60,8 @@ export interface TransactionRowProps {
 	isSelected?: boolean;
 	/** Whether the description row is expanded */
 	isExpanded?: boolean;
+	/** Available accounts for inline editing */
+	availableAccounts?: AccountOption[];
 	/** Available statuses for inline editing */
 	availableStatuses?: StatusOption[];
 	/** Available tags for inline editing */
@@ -94,6 +97,7 @@ export function TransactionRow({
 	currentUserId,
 	isSelected = false,
 	isExpanded = false,
+	availableAccounts = [],
 	availableStatuses = [],
 	availableTags = [],
 	onCreateTag,
@@ -219,9 +223,13 @@ export function TransactionRow({
 
 				{/* Account */}
 				<div data-cell="account" className="min-w-0 truncate">
-					<span className="truncate text-muted-foreground text-sm">
-						{transaction.account || "—"}
-					</span>
+					<InlineEditableAccount
+						value={transaction.accountId}
+						accountName={transaction.account}
+						availableAccounts={availableAccounts}
+						onSave={(accountId) => onFieldUpdate?.("accountId", accountId)}
+						data-testid="account-editable"
+					/>
 				</div>
 
 				{/* Tags */}

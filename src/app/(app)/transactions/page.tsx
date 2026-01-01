@@ -465,7 +465,7 @@ export default function TransactionsPage() {
 	);
 
 	return (
-		<div className="flex min-h-0 flex-1 flex-col gap-4 p-6">
+		<div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-6">
 			{/* Filters */}
 			<TransactionFilters
 				filters={filters}

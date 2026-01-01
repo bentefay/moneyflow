@@ -191,7 +191,17 @@ export function InlineEditableTags({
 		}
 	}, [onCreateTag, searchQuery, isCreating, availableTags, onSave, value]);
 
-	const handleKeyDown = useCallback(
+	// Handle keyboard events on container (just Escape to close)
+	const handleContainerKeyDown = useCallback((e: React.KeyboardEvent) => {
+		if (e.key === "Escape") {
+			e.preventDefault();
+			setIsOpen(false);
+			setSearchQuery("");
+		}
+	}, []);
+
+	// Handle keyboard events on input (Enter to create/toggle, Escape to close)
+	const handleInputKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
 			if (e.key === "Escape") {
 				e.preventDefault();
@@ -199,6 +209,7 @@ export function InlineEditableTags({
 				setSearchQuery("");
 			} else if (e.key === "Enter" && searchQuery.trim()) {
 				e.preventDefault();
+				e.stopPropagation(); // Prevent double-firing
 				// If there's an exact match, toggle it
 				const exactMatch = availableTags.find(
 					(t) => t.name.toLowerCase() === searchQuery.toLowerCase()
@@ -227,7 +238,7 @@ export function InlineEditableTags({
 		<div
 			ref={containerRef}
 			onClick={handleClick}
-			onKeyDown={handleKeyDown}
+			onKeyDown={handleContainerKeyDown}
 			data-testid={testId}
 			className={cn("relative", className)}
 		>
@@ -273,7 +284,7 @@ export function InlineEditableTags({
 							type="text"
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
-							onKeyDown={handleKeyDown}
+							onKeyDown={handleInputKeyDown}
 							placeholder="Search tags..."
 							className="mb-2 w-full rounded border px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
 						/>

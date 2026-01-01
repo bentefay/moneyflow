@@ -12,6 +12,11 @@ export { CheckboxCell, type CheckboxCellProps } from "./CheckboxCell";
 export { DateCell, type DateCellProps } from "./DateCell";
 export { EditableCell, type EditableCellProps } from "./EditableCell";
 export {
+	type AccountOption,
+	InlineEditableAccount,
+	type InlineEditableAccountProps,
+} from "./InlineEditableAccount";
+export {
 	InlineEditableAmount,
 	type InlineEditableAmountProps,
 } from "./InlineEditableAmount";

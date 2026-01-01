@@ -1,3 +1,17 @@
+- The account selector in the transaction row doesn't work (it doesn't open the dropdown)
+
+- The add transaction row should have the same columns as the main table rows (including account and status)
+
+- Current clicking a row selects it. Change that so you have to click the checkbox (with a click area of the entire cell
+  to make it easy) to select. This avoids accidental selection when trying to edit a cell.
+
+- On small width devices the entire page scrolls rather than just the transactions table. We should fix this so only the
+  transactions table scrolls horizontally.
+
+- The vault selector and saving indicator should be visible when the menu is collapsed, with nice icons. The whole vault
+  name doesn't need to be visible. The whole left pane should collapse automatically at small breakpoints and use a
+  slide out pane.
+
 - When creating a vault the default currency should be inferred from time zone or culture
   (https://gist.github.com/mizrael/50c10be8ec92264751187d7705362eb2)? I'm guessing time zone is probably a better
   indicator of country?

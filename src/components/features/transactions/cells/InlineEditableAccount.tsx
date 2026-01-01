@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * Inline Editable Status
+ * Inline Editable Account
  *
- * Spreadsheet-style always-editable status dropdown.
+ * Spreadsheet-style always-editable account dropdown.
  * Uses shadcn Select for consistent styling.
  */
 
@@ -17,21 +17,20 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
-export interface StatusOption {
+export interface AccountOption {
 	id: string;
 	name: string;
-	behavior?: "treatAsPaid" | null;
 }
 
-export interface InlineEditableStatusProps {
-	/** Current status ID */
+export interface InlineEditableAccountProps {
+	/** Current account ID */
 	value: string | undefined;
-	/** Current status name for display (unused in spreadsheet mode) */
-	statusName?: string;
-	/** All available statuses for selection */
-	availableStatuses: StatusOption[];
+	/** Current account name for display */
+	accountName?: string;
+	/** All available accounts for selection */
+	availableAccounts: AccountOption[];
 	/** Callback when value is saved */
-	onSave: (newStatusId: string) => void;
+	onSave: (newAccountId: string) => void;
 	/** Additional class names for the container */
 	className?: string;
 	/** Whether editing is disabled */
@@ -41,20 +40,20 @@ export interface InlineEditableStatusProps {
 }
 
 /**
- * Spreadsheet-style always-editable status dropdown.
+ * Spreadsheet-style always-editable account dropdown.
  *
  * - Click to open dropdown
  * - Change selection to save immediately
  * - Tab to move to next cell
  */
-export function InlineEditableStatus({
+export function InlineEditableAccount({
 	value,
-	availableStatuses,
+	availableAccounts,
 	onSave,
 	className,
 	disabled = false,
 	"data-testid": testId,
-}: InlineEditableStatusProps) {
+}: InlineEditableAccountProps) {
 	const [open, setOpen] = useState(false);
 
 	const handleValueChange = useCallback(
@@ -83,18 +82,18 @@ export function InlineEditableStatus({
 					data-testid={testId}
 					size="sm"
 					className={cn(
-						"h-7 w-full border-transparent bg-transparent px-1 shadow-none",
+						"h-7 w-full border-transparent bg-transparent px-1 text-muted-foreground shadow-none",
 						"hover:bg-accent/30",
 						"focus:border-primary focus:bg-background focus:ring-1 focus:ring-primary",
 						disabled && "cursor-not-allowed opacity-50"
 					)}
 				>
-					<SelectValue placeholder="Select..." />
+					<SelectValue placeholder="Select account..." />
 				</SelectTrigger>
 				<SelectContent align="start">
-					{availableStatuses.map((s) => (
-						<SelectItem key={s.id} value={s.id}>
-							{s.name}
+					{availableAccounts.map((account) => (
+						<SelectItem key={account.id} value={account.id}>
+							{account.name}
 						</SelectItem>
 					))}
 				</SelectContent>
