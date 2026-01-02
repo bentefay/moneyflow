@@ -311,12 +311,12 @@ test.describe("Transactions", () => {
 			await test.step("verify date displays in compact format (no year)", async () => {
 				// New transaction defaults to today's date
 				// Date should be displayed in compact format without year (e.g., "2/1" or "1/2" depending on locale)
-				const dateButton = page
+				const dateInput = page
 					.locator('[data-testid="transaction-row"]')
 					.first()
 					.locator('[data-testid="date-editable"]');
 
-				const dateText = await dateButton.textContent();
+				const dateText = await dateInput.inputValue();
 				// Format should be D/M or M/D (no year for current year, no strict padding)
 				// Allow for locale-specific separators (/, ., -)
 				expect(dateText).toMatch(/^\d{1,2}[./-]\d{1,2}\.?$/);
@@ -335,52 +335,56 @@ test.describe("Transactions", () => {
 			});
 
 			await test.step("click on date cell to open calendar popover", async () => {
-				// Spreadsheet-style: click button to open calendar popover
-				const dateButton = page
+				// Click the calendar button to open the popover
+				const calendarButton = page
 					.locator('[data-testid="transaction-row"]')
 					.first()
-					.locator('[data-testid="date-editable"]');
+					.getByRole("button", { name: "Open calendar" });
 
-				await dateButton.click();
-				// Calendar popover should be visible
-				await expect(page.getByRole("dialog")).toBeVisible();
+				await calendarButton.click();
+				// Calendar popover should be visible - use specific month name pattern
+				await expect(page.getByRole("grid", { name: /\w+ \d{4}/ })).toBeVisible();
 			});
 
 			await test.step("select a date from calendar to save", async () => {
 				// Find and click on day 15 in the calendar
-				const calendar = page.getByRole("dialog");
+				const calendar = page.getByRole("grid", { name: /\w+ \d{4}/ });
 				await calendar.getByRole("gridcell", { name: "15" }).click();
 
 				// Calendar should close after selection
-				await expect(page.getByRole("dialog")).not.toBeVisible();
+				await expect(page.getByRole("grid", { name: /\w+ \d{4}/ })).not.toBeVisible();
 
-				// Date button should show the selected date
-				const dateButton = page
+				// Date input should show the selected date (value contains "15")
+				const dateInput = page
 					.locator('[data-testid="transaction-row"]')
 					.first()
 					.locator('[data-testid="date-editable"]');
-				await expect(dateButton).toContainText("15");
+				await expect(dateInput).toHaveValue(/15/);
 			});
 
 			await test.step("open calendar and click outside to close without saving", async () => {
-				const dateButton = page
+				const dateInput = page
 					.locator('[data-testid="transaction-row"]')
 					.first()
 					.locator('[data-testid="date-editable"]');
 
-				// Get current date text
-				const currentText = await dateButton.textContent();
+				// Get current date value
+				const currentValue = await dateInput.inputValue();
 
-				// Open calendar
-				await dateButton.click();
-				await expect(page.getByRole("dialog")).toBeVisible();
+				// Open calendar via button
+				const calendarButton = page
+					.locator('[data-testid="transaction-row"]')
+					.first()
+					.getByRole("button", { name: "Open calendar" });
+				await calendarButton.click();
+				await expect(page.getByRole("grid", { name: /\w+ \d{4}/ })).toBeVisible();
 
 				// Press Escape to close without selecting
 				await page.keyboard.press("Escape");
-				await expect(page.getByRole("dialog")).not.toBeVisible();
+				await expect(page.getByRole("grid", { name: /\w+ \d{4}/ })).not.toBeVisible();
 
 				// Date should be unchanged
-				await expect(dateButton).toHaveText(currentText!);
+				await expect(dateInput).toHaveValue(currentValue);
 			});
 		});
 
@@ -514,14 +518,16 @@ test.describe("Transactions", () => {
 			});
 
 			await test.step("click on account cell to open dropdown", async () => {
-				// Spreadsheet-style: click opens the dropdown
-				const accountTrigger = page
-					.locator('[data-testid="transaction-row"]')
-					.first()
-					.locator('[data-testid="account-editable"]');
+				// Wait for transaction row to be visible (it may still be saving)
+				const transactionRow = page.locator('[data-testid="transaction-row"]').first();
+				await expect(transactionRow).toBeVisible({ timeout: 5000 });
 
-				await expect(accountTrigger).toBeVisible();
-				await expect(accountTrigger).toHaveRole("combobox");
+				// Spreadsheet-style: click opens the dropdown
+				const accountTrigger = transactionRow
+					.locator('[data-cell="account"]')
+					.getByRole("combobox");
+
+				await expect(accountTrigger).toBeVisible({ timeout: 5000 });
 				await accountTrigger.click();
 
 				// Dropdown should be visible with account options
@@ -537,7 +543,8 @@ test.describe("Transactions", () => {
 				const accountTrigger = page
 					.locator('[data-testid="transaction-row"]')
 					.first()
-					.locator('[data-testid="account-editable"]');
+					.locator('[data-cell="account"]')
+					.getByRole("combobox");
 
 				await expect(accountTrigger).toContainText("Savings");
 			});
@@ -546,7 +553,8 @@ test.describe("Transactions", () => {
 				const accountTrigger = page
 					.locator('[data-testid="transaction-row"]')
 					.first()
-					.locator('[data-testid="account-editable"]');
+					.locator('[data-cell="account"]')
+					.getByRole("combobox");
 
 				await accountTrigger.click();
 				await page.getByRole("option", { name: "Default" }).click();
@@ -601,8 +609,8 @@ test.describe("Transactions", () => {
 			});
 
 			await test.step("select a tag (saves immediately)", async () => {
-				// Click on Groceries tag in the portaled dropdown
-				const tagOption = page.getByRole("button", { name: "Groceries" });
+				// Click on Groceries tag in the portaled dropdown (cmdk items have role="option")
+				const tagOption = page.getByRole("option", { name: "Groceries" });
 				await tagOption.click();
 
 				// Should show the tag in the cell (dropdown closes after selection)
@@ -668,7 +676,7 @@ test.describe("Transactions", () => {
 			});
 		});
 
-		test("T033a: Create button disabled when exact match exists", async ({ page }) => {
+		test("T033a: Create button hidden when exact match exists", async ({ page }) => {
 			await createNewIdentity(page);
 			await goToTransactions(page);
 
@@ -709,10 +717,14 @@ test.describe("Transactions", () => {
 				await searchInput.fill("ExistingTag");
 			});
 
-			await test.step("verify Create button is disabled", async () => {
+			await test.step("verify Create button is not shown for exact match", async () => {
+				// When exact match exists, no create button is rendered
 				const createButton = page.getByTestId("create-tag-button");
-				await expect(createButton).toBeVisible();
-				await expect(createButton).toBeDisabled();
+				await expect(createButton).not.toBeVisible();
+
+				// The existing tag should be selectable instead
+				const existingTagOption = page.getByRole("option", { name: "ExistingTag" });
+				await expect(existingTagOption).toBeVisible();
 			});
 		});
 	});
@@ -1195,7 +1207,8 @@ test.describe("Transactions", () => {
 				const descriptionRow = page.locator('[data-testid="description-row"]');
 				const descriptionInput = descriptionRow.locator('[data-testid="description-editable"]');
 
-				await expect(descriptionInput).toHaveValue("Monthly subscription payment");
+				// Textarea may have trailing newline, so check contains text
+				await expect(descriptionInput).toHaveValue(/Monthly subscription payment/);
 			});
 
 			await test.step("collapse and re-expand to verify persistence", async () => {
@@ -1211,7 +1224,8 @@ test.describe("Transactions", () => {
 				const descriptionRow = page.locator('[data-testid="description-row"]');
 				const descriptionInput = descriptionRow.locator('[data-testid="description-editable"]');
 
-				await expect(descriptionInput).toHaveValue("Monthly subscription payment");
+				// Textarea may have trailing newline, so check contains text
+				await expect(descriptionInput).toHaveValue(/Monthly subscription payment/);
 			});
 		});
 

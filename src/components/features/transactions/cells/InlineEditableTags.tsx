@@ -194,14 +194,20 @@ export function InlineEditableTags({
 		}
 	}, [onCreateTag, searchQuery, isCreating, availableTags, onSave, value]);
 
-	// Handle keyboard events on container (just Escape to close)
-	const handleContainerKeyDown = useCallback((e: React.KeyboardEvent) => {
-		if (e.key === "Escape") {
-			e.preventDefault();
-			setIsOpen(false);
-			setSearchQuery("");
-		}
-	}, []);
+	// Handle keyboard events on the display area (Enter/Space to open, Escape to close)
+	const handleDisplayKeyDown = useCallback(
+		(e: React.KeyboardEvent) => {
+			if (e.key === "Escape") {
+				e.preventDefault();
+				setIsOpen(false);
+				setSearchQuery("");
+			} else if ((e.key === "Enter" || e.key === " ") && !isOpen && !disabled) {
+				e.preventDefault();
+				setIsOpen(true);
+			}
+		},
+		[isOpen, disabled]
+	);
 
 	// Handle keyboard events on input (Enter to create/toggle, Escape to close)
 	const handleInputKeyDown = useCallback(
@@ -247,14 +253,13 @@ export function InlineEditableTags({
 		<div
 			ref={containerRef}
 			onClick={handleClick}
-			onKeyDown={handleContainerKeyDown}
 			data-testid={testId}
 			className={cn("relative", className)}
 		>
 			{/* Display area */}
 			<div
 				tabIndex={disabled ? -1 : 0}
-				onFocus={() => !disabled && setIsOpen(true)}
+				onKeyDown={handleDisplayKeyDown}
 				className={cn(
 					"flex min-h-[28px] cursor-pointer flex-wrap items-center gap-1 rounded-md px-1 py-0.5",
 					"border border-transparent bg-transparent shadow-none outline-none",

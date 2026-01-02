@@ -10,6 +10,7 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { AccountOption } from "../accounts";
 import type { StatusOption, TagOption } from "./cells";
 import { CheckboxCell } from "./cells/CheckboxCell";
 import { useTableSelection } from "./hooks/useTableSelection";
@@ -19,7 +20,6 @@ import {
 	type TransactionRowData,
 	type TransactionRowPresence,
 } from "./TransactionRow";
-import { AccountOption } from "../accounts";
 
 /**
  * Shared grid template for transaction table columns.

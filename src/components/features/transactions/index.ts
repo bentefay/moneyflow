@@ -1,6 +1,5 @@
 export { BulkEditToolbar, type BulkEditToolbarProps } from "./BulkEditToolbar";
 export * from "./cells";
-export { type AccountOption } from "./cells/InlineEditableAccount";
 export * from "./filters";
 
 export { InlineTagEditor, type InlineTagEditorProps } from "./InlineTagEditor";
