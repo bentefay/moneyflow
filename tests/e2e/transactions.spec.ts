@@ -54,6 +54,13 @@ async function createTestTransaction(
 		name: new RegExp(`${escapedMerchant}(Default|$|\\s)`),
 	});
 	await expect(transactionRow).toBeVisible({ timeout: 5000 });
+
+	// Cancel the add row to return to inactive state
+	// This ensures the selection count is visible in the placeholder
+	await page.keyboard.press("Escape");
+
+	// Wait for add row to return to inactive state (placeholder visible)
+	await expect(page.locator('[data-testid="add-transaction-row"]')).toBeVisible({ timeout: 5000 });
 }
 
 /**

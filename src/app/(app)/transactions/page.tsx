@@ -246,12 +246,12 @@ export default function TransactionsPage() {
 			const newTx = {
 				id: generateId(),
 				date: data.date,
-				merchant: data.description,
-				description: "",
+				merchant: data.merchant,
+				description: data.description ?? "",
 				amount: data.amount,
 				accountId: data.accountId,
-				tagIds: [] as string[],
-				statusId: defaultStatusId,
+				tagIds: data.tagIds ?? ([] as string[]),
+				statusId: data.statusId ?? defaultStatusId,
 				allocations: {} as Record<string, number>,
 				importId: "",
 				duplicateOf: "",
@@ -481,6 +481,9 @@ export default function TransactionsPage() {
 				{/* Add Transaction Row */}
 				<AddTransactionRow
 					availableAccounts={accountOptions}
+					availableStatuses={statusOptionsForInlineEdit}
+					availableTags={tagOptionsForInlineEdit}
+					onCreateTag={handleCreateTag}
 					onAdd={handleAddTransaction}
 					defaultAccountId={accountOptions[0]?.id}
 					selectedCount={selectedCount}

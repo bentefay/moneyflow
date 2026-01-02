@@ -6,9 +6,13 @@
  * Individual row in the transaction list with presence highlighting.
  * Shows colored border when another user is focused on or editing the row.
  * Supports duplicate detection, resolution actions, deletion, and inline editing.
+ *
+ * Also supports "add" mode for creating new transactions with the same
+ * layout and controls as existing transaction rows.
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import { AccountCombobox } from "@/components/features/accounts";
 import { PresenceAvatar } from "@/components/features/presence/PresenceAvatar";
 import { cn } from "@/lib/utils";
 import { hashToColor } from "@/lib/utils/color";
@@ -21,6 +25,9 @@ import { InlineEditableTags, type TagOption } from "./cells/InlineEditableTags";
 import { InlineEditableText } from "./cells/InlineEditableText";
 import { DuplicateBadge } from "./DuplicateBadge";
 import { TRANSACTION_GRID_TEMPLATE } from "./TransactionTable";
+
+/** Mode for the transaction row */
+export type TransactionRowMode = "view" | "add";
 
 export interface TransactionRowData {
 	id: string;
@@ -50,8 +57,10 @@ export interface TransactionRowPresence {
 }
 
 export interface TransactionRowProps {
-	/** Transaction data */
-	transaction: TransactionRowData;
+	/** Mode: "view" for existing transactions, "add" for new transaction entry */
+	mode?: TransactionRowMode;
+	/** Transaction data (required for view mode, optional for add mode) */
+	transaction?: TransactionRowData;
 	/** Presence info for this row */
 	presence?: TransactionRowPresence;
 	/** Current user's pubkey hash */
@@ -84,14 +93,35 @@ export interface TransactionRowProps {
 	onCheckboxShiftClick?: () => void;
 	/** Callback when expand/collapse is toggled */
 	onToggleExpand?: () => void;
+	/** Callback when a new transaction is submitted (add mode only) */
+	onAdd?: (data: NewTransactionData) => void;
+	/** Callback when add is cancelled (add mode only) */
+	onCancel?: () => void;
+	/** Default account ID for add mode */
+	defaultAccountId?: string;
+	/** Default status ID for add mode */
+	defaultStatusId?: string;
 	/** Additional CSS classes */
 	className?: string;
 }
 
+/** Data for a new transaction (add mode) */
+export interface NewTransactionData {
+	date: string;
+	merchant: string;
+	description?: string;
+	amount: number;
+	accountId: string;
+	statusId?: string;
+	tagIds?: string[];
+}
+
 /**
  * Transaction row component with presence highlighting.
+ * Supports both "view" mode (existing transactions) and "add" mode (new entry).
  */
 export function TransactionRow({
+	mode = "view",
 	transaction,
 	presence,
 	currentUserId,
@@ -109,18 +139,69 @@ export function TransactionRow({
 	onCheckboxChange,
 	onCheckboxShiftClick,
 	onToggleExpand,
+	onAdd,
+	onCancel,
+	defaultAccountId,
+	defaultStatusId,
 	className,
 }: TransactionRowProps) {
+	const isAddMode = mode === "add";
+
+	// Add mode local state - use defaults directly, user changes override
+	const [addDate, setAddDate] = useState(() => new Date().toISOString().split("T")[0]);
+	const [addMerchant, setAddMerchant] = useState("");
+	const [addDescription, setAddDescription] = useState("");
+	const [addAmount, setAddAmount] = useState(0);
+	// Track whether user has explicitly changed these values
+	const [userChangedAccount, setUserChangedAccount] = useState(false);
+	const [userChangedStatus, setUserChangedStatus] = useState(false);
+	const [addAccountId, setAddAccountId] = useState(defaultAccountId ?? "");
+	const [addStatusId, setAddStatusId] = useState(defaultStatusId ?? "");
+	const [addTagIds, setAddTagIds] = useState<string[]>([]);
+	const [isAddExpanded, setIsAddExpanded] = useState(false);
+
+	const containerRef = useRef<HTMLDivElement>(null);
+
+	// View mode state
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-	// Determine presence state
-	const focusedByOther = presence?.focusedBy && presence.focusedBy !== currentUserId;
-	const editingByOther = presence?.editingBy && presence.editingBy !== currentUserId;
+	// Derive effective account/status - use user's choice if they changed it, otherwise use latest default
+	const effectiveAddAccountId = userChangedAccount
+		? addAccountId
+		: (defaultAccountId ?? addAccountId);
+	const effectiveAddStatusId = userChangedStatus ? addStatusId : (defaultStatusId ?? addStatusId);
+
+	// Get effective values (either from transaction or add mode state)
+	const effectiveData: TransactionRowData = isAddMode
+		? {
+				id: "add-row",
+				date: addDate,
+				merchant: addMerchant,
+				description: addDescription,
+				amount: addAmount,
+				accountId: effectiveAddAccountId,
+				account: availableAccounts.find((a) => a.id === effectiveAddAccountId)?.name,
+				statusId: effectiveAddStatusId,
+				status: availableStatuses.find((s) => s.id === effectiveAddStatusId)?.name,
+				tags: addTagIds
+					.map((id) => {
+						const tag = availableTags.find((t) => t.id === id);
+						return tag ? { id: tag.id, name: tag.name } : null;
+					})
+					.filter((t): t is { id: string; name: string } => t !== null),
+			}
+		: transaction!;
+
+	const effectiveExpanded = isAddMode ? isAddExpanded : isExpanded;
+
+	// Determine presence state (only for view mode)
+	const focusedByOther = !isAddMode && presence?.focusedBy && presence.focusedBy !== currentUserId;
+	const editingByOther = !isAddMode && presence?.editingBy && presence.editingBy !== currentUserId;
 	const presenceUserId = presence?.editingBy || presence?.focusedBy;
 	const borderColor = presenceUserId ? hashToColor(presenceUserId) : undefined;
 
-	// Whether this is a potential duplicate
-	const isDuplicate = !!transaction.possibleDuplicateOf;
+	// Whether this is a potential duplicate (only for view mode)
+	const isDuplicate = !isAddMode && !!effectiveData.possibleDuplicateOf;
 
 	const handleDelete = (e: React.MouseEvent) => {
 		e.stopPropagation();
@@ -153,31 +234,145 @@ export function TransactionRow({
 		[onCheckboxShiftClick]
 	);
 
+	// Add mode: handle field updates locally
+	const handleFieldUpdateForMode = useCallback(
+		(field: keyof TransactionRowData, value: unknown) => {
+			if (isAddMode) {
+				switch (field) {
+					case "date":
+						setAddDate(value as string);
+						break;
+					case "merchant":
+						setAddMerchant(value as string);
+						break;
+					case "description":
+						setAddDescription(value as string);
+						break;
+					case "amount":
+						setAddAmount(value as number);
+						break;
+					case "accountId":
+						setAddAccountId(value as string);
+						setUserChangedAccount(true);
+						break;
+					case "statusId":
+						setAddStatusId(value as string);
+						setUserChangedStatus(true);
+						break;
+					case "tags":
+						setAddTagIds(value as string[]);
+						break;
+				}
+			} else {
+				onFieldUpdate?.(field, value);
+			}
+		},
+		[isAddMode, onFieldUpdate]
+	);
+
+	// Add mode: submit handler
+	const handleAddSubmit = useCallback(() => {
+		if (!addMerchant.trim() || !effectiveAddAccountId) {
+			return;
+		}
+
+		onAdd?.({
+			date: addDate,
+			merchant: addMerchant.trim(),
+			description: addDescription.trim() || undefined,
+			amount: addAmount,
+			accountId: effectiveAddAccountId,
+			statusId: effectiveAddStatusId || undefined,
+			tagIds: addTagIds.length > 0 ? addTagIds : undefined,
+		});
+
+		// Reset for next entry
+		setAddMerchant("");
+		setAddDescription("");
+		setAddAmount(0);
+		setAddTagIds([]);
+		setIsAddExpanded(false);
+		// Keep date, account, status as user likely wants same defaults
+	}, [
+		addDate,
+		addMerchant,
+		addDescription,
+		addAmount,
+		effectiveAddAccountId,
+		effectiveAddStatusId,
+		addTagIds,
+		onAdd,
+	]);
+
+	// Add mode: cancel handler
+	const handleAddCancel = useCallback(() => {
+		setAddDate(new Date().toISOString().split("T")[0]);
+		setAddMerchant("");
+		setAddDescription("");
+		setAddAmount(0);
+		setAddAccountId(defaultAccountId ?? "");
+		setAddStatusId(defaultStatusId ?? "");
+		setUserChangedAccount(false);
+		setUserChangedStatus(false);
+		setAddTagIds([]);
+		setIsAddExpanded(false);
+		onCancel?.();
+	}, [defaultAccountId, defaultStatusId, onCancel]);
+
+	// Add mode: keyboard handler
+	const handleKeyDown = useCallback(
+		(e: React.KeyboardEvent) => {
+			if (!isAddMode) return;
+			if (e.key === "Enter" && !e.shiftKey && (e.metaKey || e.ctrlKey)) {
+				e.preventDefault();
+				handleAddSubmit();
+			} else if (e.key === "Escape") {
+				handleAddCancel();
+			}
+		},
+		[isAddMode, handleAddSubmit, handleAddCancel]
+	);
+
+	// Add mode: toggle expand handler
+	const handleToggleExpandForMode = useCallback(() => {
+		if (isAddMode) {
+			setIsAddExpanded((prev) => !prev);
+		} else {
+			onToggleExpand?.();
+		}
+	}, [isAddMode, onToggleExpand]);
+
+	// Can submit in add mode?
+	const canSubmit = isAddMode && addMerchant.trim() && effectiveAddAccountId;
+
 	return (
-		<div className="flex flex-col">
+		<div ref={containerRef} className="flex flex-col" onKeyDown={handleKeyDown}>
 			{/* Main row */}
 			<div
-				onClick={(e) => onClick?.(e)}
+				onClick={isAddMode ? undefined : (e) => onClick?.(e)}
 				onFocus={onFocus}
 				tabIndex={0}
-				data-testid="transaction-row"
+				data-testid={isAddMode ? "add-transaction-row" : "transaction-row"}
 				className={cn(
 					"group relative grid items-center gap-4 px-4 py-3",
-					!isExpanded && "border-b",
-					"hover:bg-accent/50 focus:bg-accent/50 focus:outline-none",
-					"cursor-pointer transition-colors",
-					isSelected && "bg-accent",
-					isSelected && "focused selected",
+					!effectiveExpanded && "border-b",
+					isAddMode && "border-dashed bg-accent/30",
+					!isAddMode && "hover:bg-accent/50 focus:bg-accent/50",
+					"focus:outline-none",
+					!isAddMode && "cursor-pointer",
+					"transition-colors",
+					!isAddMode && isSelected && "bg-accent",
+					!isAddMode && isSelected && "focused selected",
 					isDuplicate && "bg-yellow-50/50 dark:bg-yellow-950/20",
 					className
 				)}
 				style={{ gridTemplateColumns: TRANSACTION_GRID_TEMPLATE }}
 				role="row"
-				aria-selected={isSelected}
-				aria-expanded={onToggleExpand ? isExpanded : undefined}
+				aria-selected={isAddMode ? undefined : isSelected}
+				aria-expanded={isAddMode ? effectiveExpanded : onToggleExpand ? isExpanded : undefined}
 			>
-				{/* Presence indicator - colored left border */}
-				{(focusedByOther || editingByOther) && (
+				{/* Presence indicator - colored left border (view mode only) */}
+				{!isAddMode && (focusedByOther || editingByOther) && (
 					<div
 						className={cn("absolute top-0 bottom-0 left-0 w-1", editingByOther && "animate-pulse")}
 						style={{ backgroundColor: borderColor }}
@@ -189,177 +384,312 @@ export function TransactionRow({
 					/>
 				)}
 
-				{/* Checkbox for selection */}
-				{/* biome-ignore lint/a11y/useKeyWithClickEvents: keyboard handled by CheckboxCell */}
-				<div data-testid="row-checkbox" onClick={handleCheckboxClick}>
-					<CheckboxCell
-						checked={isSelected}
-						onChange={() => handleCheckboxChange()}
-						onShiftClick={handleShiftClick}
-						ariaLabel={`Select transaction ${transaction.merchant}`}
-					/>
-				</div>
+				{/* Checkbox for selection (view mode) / Add icon (add mode) */}
+				{isAddMode ? (
+					<div className="flex items-center justify-center text-muted-foreground">
+						<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								strokeWidth={2}
+								d="M12 4v16m8-8H4"
+							/>
+						</svg>
+					</div>
+				) : (
+					/* biome-ignore lint/a11y/useKeyWithClickEvents: keyboard handled by CheckboxCell */
+					<div data-testid="row-checkbox" onClick={handleCheckboxClick}>
+						<CheckboxCell
+							checked={isSelected}
+							onChange={() => handleCheckboxChange()}
+							onShiftClick={handleShiftClick}
+							ariaLabel={`Select transaction ${effectiveData.merchant}`}
+						/>
+					</div>
+				)}
 
 				{/* Date */}
 				<div data-cell="date">
 					<InlineEditableDate
-						value={transaction.date}
-						onSave={(value) => onFieldUpdate?.("date", value)}
-						data-testid="date-editable"
+						value={effectiveData.date}
+						onSave={(value) => handleFieldUpdateForMode("date", value)}
+						data-testid={isAddMode ? "new-transaction-date" : "date-editable"}
 					/>
 				</div>
 
 				{/* Merchant */}
 				<div data-cell="merchant" className="min-w-0 truncate">
 					<InlineEditableText
-						value={transaction.merchant}
-						onSave={(value) => onFieldUpdate?.("merchant", value)}
+						value={effectiveData.merchant}
+						onSave={(value) => handleFieldUpdateForMode("merchant", value)}
 						className="truncate font-medium"
 						inputClassName="font-medium"
-						placeholder="No merchant"
-						data-testid="merchant-editable"
+						placeholder={isAddMode ? "Merchant name..." : "No merchant"}
+						data-testid={isAddMode ? "new-transaction-merchant" : "merchant-editable"}
 					/>
 				</div>
 
 				{/* Account */}
 				<div data-cell="account" className="min-w-0 truncate">
-					<InlineEditableAccount
-						value={transaction.accountId}
-						accountName={transaction.account}
-						availableAccounts={availableAccounts}
-						onSave={(accountId) => onFieldUpdate?.("accountId", accountId)}
-						data-testid="account-editable"
-					/>
+					{isAddMode ? (
+						<AccountCombobox
+							value={effectiveData.accountId ?? ""}
+							onChange={(accountId) => handleFieldUpdateForMode("accountId", accountId)}
+							accounts={availableAccounts}
+							placeholder="Select account..."
+							className="h-7 border-transparent bg-transparent px-1 text-muted-foreground shadow-none hover:bg-accent/30 focus:border-primary focus:bg-background focus:ring-1 focus:ring-primary"
+						/>
+					) : (
+						<InlineEditableAccount
+							value={effectiveData.accountId}
+							accountName={effectiveData.account}
+							availableAccounts={availableAccounts}
+							onSave={(accountId) => handleFieldUpdateForMode("accountId", accountId)}
+							data-testid="account-editable"
+						/>
+					)}
 				</div>
 
 				{/* Tags */}
 				<div data-cell="tags">
 					<InlineEditableTags
-						value={transaction.tags?.map((t) => t.id) ?? []}
-						tags={transaction.tags ?? []}
+						value={effectiveData.tags?.map((t) => t.id) ?? []}
+						tags={effectiveData.tags ?? []}
 						availableTags={availableTags}
-						onSave={(tagIds) => onFieldUpdate?.("tags", tagIds)}
+						onSave={(tagIds) => handleFieldUpdateForMode("tags", tagIds)}
 						onCreateTag={onCreateTag}
-						data-testid="tags-editable"
+						data-testid={isAddMode ? "new-transaction-tags" : "tags-editable"}
 					/>
 				</div>
 
 				{/* Status */}
 				<div data-cell="status">
 					<InlineEditableStatus
-						value={transaction.statusId}
-						statusName={transaction.status}
+						value={effectiveData.statusId}
+						statusName={effectiveData.status}
 						availableStatuses={availableStatuses}
-						onSave={(statusId) => onFieldUpdate?.("statusId", statusId)}
-						data-testid="status-editable"
+						onSave={(statusId) => handleFieldUpdateForMode("statusId", statusId)}
+						data-testid={isAddMode ? "new-transaction-status" : "status-editable"}
 					/>
 				</div>
 
-				{/* Amount */}
-				<div data-cell="amount" className="text-right">
+				{/* Amount - In add mode, Enter submits after saving */}
+				<div
+					data-cell="amount"
+					className="text-right"
+					onKeyDown={
+						isAddMode
+							? (e) => {
+									if (e.key === "Enter" && !e.shiftKey) {
+										// Schedule submit after the InlineEditableAmount has saved
+										// Using setTimeout to let the save complete first
+										setTimeout(() => handleAddSubmit(), 0);
+									}
+								}
+							: undefined
+					}
+				>
 					<InlineEditableAmount
-						value={transaction.amount}
-						onSave={(value) => onFieldUpdate?.("amount", value)}
-						data-testid="amount-editable"
+						value={effectiveData.amount}
+						onSave={(value) => handleFieldUpdateForMode("amount", value)}
+						data-testid={isAddMode ? "new-transaction-amount" : "amount-editable"}
 					/>
 				</div>
 
-				{/* Actions column - contains expand button and optionally duplicate badge */}
+				{/* Actions column */}
 				<div className="flex items-center justify-end gap-1">
-					{/* Duplicate indicator */}
-					{isDuplicate && (
-						<DuplicateBadge
-							duplicateOfId={transaction.possibleDuplicateOf}
-							onResolve={onResolveDuplicate}
-						/>
-					)}
+					{/* Add mode: Submit and Cancel buttons */}
+					{isAddMode ? (
+						<>
+							<button
+								type="button"
+								onClick={handleAddSubmit}
+								disabled={!canSubmit}
+								data-testid="add-transaction-submit"
+								className={cn(
+									"rounded p-1.5 transition-colors",
+									"hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50",
+									"text-primary"
+								)}
+								aria-label="Add transaction"
+								title="Add transaction (Ctrl+Enter)"
+							>
+								<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										strokeWidth={2}
+										d="M5 13l4 4L19 7"
+									/>
+								</svg>
+							</button>
+							<button
+								type="button"
+								onClick={handleAddCancel}
+								data-testid="add-transaction-cancel"
+								className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+								aria-label="Cancel"
+								title="Cancel (Escape)"
+							>
+								<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										strokeWidth={2}
+										d="M6 18L18 6M6 6l12 12"
+									/>
+								</svg>
+							</button>
+							{/* Expand/Description toggle button for add mode */}
+							<button
+								type="button"
+								onClick={(e) => {
+									e.stopPropagation();
+									handleToggleExpandForMode();
+								}}
+								data-testid="expand-description-button"
+								className={cn(
+									"rounded p-1.5 transition-colors",
+									effectiveExpanded || addDescription
+										? "text-primary hover:bg-primary/10"
+										: "text-muted-foreground opacity-0 hover:bg-accent group-hover:opacity-100"
+								)}
+								title={
+									effectiveExpanded
+										? "Collapse description"
+										: addDescription
+											? "Edit description"
+											: "Add description"
+								}
+							>
+								{effectiveExpanded ? (
+									<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											strokeWidth={2}
+											d="M5 15l7-7 7 7"
+										/>
+									</svg>
+								) : addDescription ? (
+									<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											strokeWidth={2}
+											d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+										/>
+									</svg>
+								) : (
+									<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											strokeWidth={2}
+											d="M12 4v16m8-8H4"
+										/>
+									</svg>
+								)}
+							</button>
+						</>
+					) : (
+						<>
+							{/* Duplicate indicator (view mode only) */}
+							{isDuplicate && (
+								<DuplicateBadge
+									duplicateOfId={effectiveData.possibleDuplicateOf}
+									onResolve={onResolveDuplicate}
+								/>
+							)}
 
-					{/* Expand/Description toggle button */}
-					{onToggleExpand && (
-						<button
-							type="button"
-							onClick={(e) => {
-								e.stopPropagation();
-								onToggleExpand();
-							}}
-							data-testid="expand-description-button"
-							className={cn(
-								"rounded p-1.5 transition-colors",
-								isExpanded || transaction.description
-									? "text-primary hover:bg-primary/10"
-									: "text-muted-foreground opacity-0 hover:bg-accent group-hover:opacity-100"
+							{/* Expand/Description toggle button (view mode) */}
+							{onToggleExpand && (
+								<button
+									type="button"
+									onClick={(e) => {
+										e.stopPropagation();
+										onToggleExpand();
+									}}
+									data-testid="expand-description-button"
+									className={cn(
+										"rounded p-1.5 transition-colors",
+										effectiveExpanded || effectiveData.description
+											? "text-primary hover:bg-primary/10"
+											: "text-muted-foreground opacity-0 hover:bg-accent group-hover:opacity-100"
+									)}
+									title={
+										effectiveExpanded
+											? "Collapse description"
+											: effectiveData.description
+												? "Edit description"
+												: "Add description"
+									}
+								>
+									{effectiveExpanded ? (
+										<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+											<path
+												strokeLinecap="round"
+												strokeLinejoin="round"
+												strokeWidth={2}
+												d="M5 15l7-7 7 7"
+											/>
+										</svg>
+									) : effectiveData.description ? (
+										<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+											<path
+												strokeLinecap="round"
+												strokeLinejoin="round"
+												strokeWidth={2}
+												d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+											/>
+										</svg>
+									) : (
+										<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+											<path
+												strokeLinecap="round"
+												strokeLinejoin="round"
+												strokeWidth={2}
+												d="M12 4v16m8-8H4"
+											/>
+										</svg>
+									)}
+								</button>
 							)}
-							title={
-								isExpanded
-									? "Collapse description"
-									: transaction.description
-										? "Edit description"
-										: "Add description"
-							}
-						>
-							{isExpanded ? (
-								<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-									<path
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										strokeWidth={2}
-										d="M5 15l7-7 7 7"
-									/>
-								</svg>
-							) : transaction.description ? (
-								<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-									<path
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										strokeWidth={2}
-										d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-									/>
-								</svg>
-							) : (
-								<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-									<path
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										strokeWidth={2}
-										d="M12 4v16m8-8H4"
-									/>
-								</svg>
-							)}
-						</button>
-					)}
 
-					{/* Delete button */}
-					{onDelete && (
-						<button
-							type="button"
-							onClick={handleDelete}
-							data-testid="delete-button"
-							className={cn(
-								"rounded p-1.5 transition-colors",
-								showDeleteConfirm
-									? "bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400"
-									: "text-muted-foreground opacity-0 hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+							{/* Delete button (view mode only) */}
+							{onDelete && (
+								<button
+									type="button"
+									onClick={handleDelete}
+									data-testid="delete-button"
+									className={cn(
+										"rounded p-1.5 transition-colors",
+										showDeleteConfirm
+											? "bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400"
+											: "text-muted-foreground opacity-0 hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+									)}
+									title={showDeleteConfirm ? "Click again to confirm delete" : "Delete transaction"}
+								>
+									{showDeleteConfirm ? (
+										<span className="px-1 font-medium text-xs">Confirm?</span>
+									) : (
+										<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+											<path
+												strokeLinecap="round"
+												strokeLinejoin="round"
+												strokeWidth={2}
+												d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+											/>
+										</svg>
+									)}
+								</button>
 							)}
-							title={showDeleteConfirm ? "Click again to confirm delete" : "Delete transaction"}
-						>
-							{showDeleteConfirm ? (
-								<span className="px-1 font-medium text-xs">Confirm?</span>
-							) : (
-								<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-									<path
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										strokeWidth={2}
-										d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-									/>
-								</svg>
-							)}
-						</button>
+						</>
 					)}
 				</div>
 
-				{/* Presence avatar - shows when someone is focused/editing */}
-				{presenceUserId && presenceUserId !== currentUserId && (
+				{/* Presence avatar - shows when someone is focused/editing (view mode only) */}
+				{!isAddMode && presenceUserId && presenceUserId !== currentUserId && (
 					<div className="absolute top-1/2 -right-2 -translate-y-1/2">
 						<PresenceAvatar
 							userId={presenceUserId}
@@ -372,7 +702,7 @@ export function TransactionRow({
 			</div>
 
 			{/* Expanded description row */}
-			{isExpanded && (
+			{effectiveExpanded && (
 				<div
 					className="grid items-center gap-4 border-b bg-muted/30 px-4 py-2"
 					style={{ gridTemplateColumns: TRANSACTION_GRID_TEMPLATE }}
@@ -387,12 +717,12 @@ export function TransactionRow({
 					{/* Merchant column - description editor (spans merchant + account) */}
 					<div className="col-span-2">
 						<InlineEditableText
-							value={transaction.description || ""}
-							onSave={(value) => onFieldUpdate?.("description", value)}
+							value={effectiveData.description || ""}
+							onSave={(value) => handleFieldUpdateForMode("description", value)}
 							className="text-muted-foreground text-sm"
 							inputClassName="text-sm"
 							placeholder="Add a description or memo..."
-							data-testid="description-editable"
+							data-testid={isAddMode ? "new-transaction-description" : "description-editable"}
 						/>
 					</div>
 					{/* Tags column */}

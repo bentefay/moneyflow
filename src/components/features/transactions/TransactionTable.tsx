@@ -12,13 +12,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { StatusOption, TagOption } from "./cells";
 import { CheckboxCell } from "./cells/CheckboxCell";
+import type { AccountOption } from "./cells/InlineEditableAccount";
 import { useTableSelection } from "./hooks/useTableSelection";
 import {
 	TransactionRow,
 	type TransactionRowData,
 	type TransactionRowPresence,
 } from "./TransactionRow";
-import type { AccountOption } from "./cells/InlineEditableAccount";
 
 /**
  * Shared grid template for transaction table columns.
