@@ -7,6 +7,10 @@
   area of the entire cell to make it easy) to select. This avoids accidental selection when trying
   to edit a cell.
 
+- [] Add keyboard navigation to the transactions table. Arrow keys to move between cells, enter to
+  start editing a cell, escape to stop editing a cell, tab to move to next editable cell, shift tab
+  to move to previous editable cell.
+
 - [] On small width devices the entire page scrolls rather than just the transactions table. We
   should fix this so only the transactions table scrolls horizontally.
 
