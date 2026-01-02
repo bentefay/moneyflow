@@ -408,6 +408,7 @@ export function TransactionRow({
 				) : (
 					/* biome-ignore lint/a11y/useKeyWithClickEvents: keyboard handled by CheckboxCell */
 					<div
+						data-cell="checkbox"
 						data-testid="row-checkbox"
 						onClick={handleCheckboxClick}
 						className="flex h-full w-full cursor-pointer items-center justify-center"
@@ -570,57 +571,63 @@ export function TransactionRow({
 
 							{/* Expand/Description toggle button (view mode) */}
 							{onToggleExpand && (
-								<Button
-									variant="ghost"
-									size="icon-sm"
-									onClick={(e) => {
-										e.stopPropagation();
-										onToggleExpand();
-									}}
-									data-testid="expand-description-button"
-									className={cn(
-										effectiveExpanded || effectiveData.description
-											? "text-primary hover:bg-primary/10"
-											: "text-muted-foreground opacity-0 group-hover:opacity-100"
-									)}
-									title={
-										effectiveExpanded
-											? "Collapse description"
-											: effectiveData.description
-												? "Edit description"
-												: "Add description"
-									}
-								>
-									{effectiveExpanded ? (
-										<ChevronUp className="h-4 w-4" />
-									) : effectiveData.description ? (
-										<Pencil className="h-4 w-4" />
-									) : (
-										<Plus className="h-4 w-4" />
-									)}
-								</Button>
+								<div data-cell="expand">
+									<Button
+										variant="ghost"
+										size="icon-sm"
+										onClick={(e) => {
+											e.stopPropagation();
+											onToggleExpand();
+										}}
+										data-testid="expand-description-button"
+										className={cn(
+											effectiveExpanded || effectiveData.description
+												? "text-primary hover:bg-primary/10"
+												: "text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100"
+										)}
+										title={
+											effectiveExpanded
+												? "Collapse description"
+												: effectiveData.description
+													? "Edit description"
+													: "Add description"
+										}
+									>
+										{effectiveExpanded ? (
+											<ChevronUp className="h-4 w-4" />
+										) : effectiveData.description ? (
+											<Pencil className="h-4 w-4" />
+										) : (
+											<Plus className="h-4 w-4" />
+										)}
+									</Button>
+								</div>
 							)}
 
 							{/* Delete button (view mode only) */}
 							{onDelete && (
-								<Button
-									variant="ghost"
-									size="icon-sm"
-									onClick={handleDelete}
-									data-testid="delete-button"
-									className={cn(
-										showDeleteConfirm
-											? "bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400"
-											: "text-muted-foreground opacity-0 hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
-									)}
-									title={showDeleteConfirm ? "Click again to confirm delete" : "Delete transaction"}
-								>
-									{showDeleteConfirm ? (
-										<span className="px-1 font-medium text-xs">Confirm?</span>
-									) : (
-										<Trash2 className="h-4 w-4" />
-									)}
-								</Button>
+								<div data-cell="delete">
+									<Button
+										variant="ghost"
+										size="icon-sm"
+										onClick={handleDelete}
+										data-testid="delete-button"
+										className={cn(
+											showDeleteConfirm
+												? "bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400"
+												: "text-muted-foreground opacity-0 hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 focus:opacity-100"
+										)}
+										title={
+											showDeleteConfirm ? "Click again to confirm delete" : "Delete transaction"
+										}
+									>
+										{showDeleteConfirm ? (
+											<span className="px-1 font-medium text-xs">Confirm?</span>
+										) : (
+											<Trash2 className="h-4 w-4" />
+										)}
+									</Button>
+								</div>
 							)}
 						</>
 					)}
@@ -645,9 +652,10 @@ export function TransactionRow({
 					className="grid items-center gap-4 border-b bg-muted/30 px-4 py-2"
 					style={{ gridTemplateColumns: TRANSACTION_GRID_TEMPLATE }}
 					data-testid="description-row"
+					role="row"
 				>
 					<div />
-					<div className="col-span-7">
+					<div className="col-span-7" data-cell="description">
 						<Textarea
 							ref={descriptionRef}
 							value={effectiveData.description || ""}

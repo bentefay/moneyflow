@@ -119,6 +119,10 @@ export function InlineEditableDate({
 		setIsFocused(true);
 		// Set input to full date format for editing
 		setInputValue(formatDateFull(dateValue));
+		// Select all text after state update for spreadsheet-style navigation
+		queueMicrotask(() => {
+			inputRef.current?.select();
+		});
 	}, [dateValue]);
 
 	// When blurred, parse input and save if valid
@@ -153,31 +157,19 @@ export function InlineEditableDate({
 	}, []);
 
 	// Handle keyboard events
-	const handleKeyDown = useCallback(
-		(e: React.KeyboardEvent<HTMLInputElement>) => {
-			if (e.key === "Enter") {
-				e.preventDefault();
-				// Parse and save
-				const parsed = parseDate(inputValue);
-				if (parsed) {
-					const isoDate = toIsoDate(parsed);
-					onSave(isoDate);
-					setIsFocused(false);
-					setInputValue("");
-					inputRef.current?.blur();
-				}
-			} else if (e.key === "Escape") {
-				e.preventDefault();
-				setIsFocused(false);
-				setInputValue("");
-				inputRef.current?.blur();
-			} else if (e.key === "ArrowDown" && !isOpen) {
-				e.preventDefault();
-				setIsOpen(true);
-			}
-		},
-		[inputValue, onSave, isOpen]
-	);
+	const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+		if (e.key === "Enter") {
+			e.preventDefault();
+			// Open calendar popup on Enter (like select components)
+			setIsOpen(true);
+		} else if (e.key === "Escape") {
+			e.preventDefault();
+			setIsFocused(false);
+			setInputValue("");
+			inputRef.current?.blur();
+		}
+		// Arrow up/down: don't handle here, let them bubble for grid navigation
+	}, []);
 
 	// Handle calendar date selection
 	const handleCalendarSelect = useCallback(

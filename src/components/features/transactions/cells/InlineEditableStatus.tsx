@@ -70,6 +70,19 @@ export function InlineEditableStatus({
 		e.stopPropagation(); // Prevent row selection
 	}, []);
 
+	// Prevent arrow keys from opening the dropdown when closed,
+	// but let the event bubble for grid navigation
+	const handleTriggerKeyDown = useCallback(
+		(e: React.KeyboardEvent) => {
+			if (!open && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+				// Prevent Radix from opening the dropdown
+				e.preventDefault();
+				// Don't stopPropagation - let it bubble for grid navigation
+			}
+		},
+		[open]
+	);
+
 	return (
 		<div onClick={handleClick} className={cn("w-full", className)}>
 			<Select
@@ -82,6 +95,7 @@ export function InlineEditableStatus({
 				<SelectTrigger
 					data-testid={testId}
 					size="sm"
+					onKeyDown={handleTriggerKeyDown}
 					className={cn(
 						"h-7 w-full border-transparent bg-transparent px-1 shadow-none",
 						"hover:bg-accent/30",

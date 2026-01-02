@@ -11,6 +11,11 @@ export {
 	useBulkEdit,
 } from "./useBulkEdit";
 export {
+	type UseGridCellNavigationOptions,
+	type UseGridCellNavigationReturn,
+	useGridCellNavigation,
+} from "./useGridCellNavigation";
+export {
 	type FocusedCell,
 	type UseKeyboardNavigationOptions,
 	type UseKeyboardNavigationReturn,

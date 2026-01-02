@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { AccountOption } from "../accounts";
 import type { StatusOption, TagOption } from "./cells";
 import { CheckboxCell } from "./cells/CheckboxCell";
+import { useGridCellNavigation } from "./hooks/useGridCellNavigation";
 import { useTableSelection } from "./hooks/useTableSelection";
 import {
 	type NewTransactionData,
@@ -179,6 +180,9 @@ export function TransactionTable({
 	const [focusedId, setFocusedId] = useState<string | null>(null);
 	const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
+	// Grid cell navigation for arrow up/down between cells
+	const { handleGridKeyDown } = useGridCellNavigation();
+
 	// Extract transaction IDs for selection hook
 	const filteredIds = useMemo(() => transactions.map((t) => t.id), [transactions]);
 
@@ -232,32 +236,6 @@ export function TransactionTable({
 						onTransactionDelete(targetId);
 					}
 					break;
-				case "arrowdown": {
-					// Navigate to next transaction
-					event.preventDefault();
-					const currentIdx = transactions.findIndex((t) => t.id === targetId);
-					if (currentIdx < transactions.length - 1) {
-						const nextId = transactions[currentIdx + 1].id;
-						setFocusedId(nextId);
-						if (!event.shiftKey) {
-							onSelectionChange?.(new Set([nextId]));
-						}
-					}
-					break;
-				}
-				case "arrowup": {
-					// Navigate to previous transaction
-					event.preventDefault();
-					const currIdx = transactions.findIndex((t) => t.id === targetId);
-					if (currIdx > 0) {
-						const prevId = transactions[currIdx - 1].id;
-						setFocusedId(prevId);
-						if (!event.shiftKey) {
-							onSelectionChange?.(new Set([prevId]));
-						}
-					}
-					break;
-				}
 				case "escape":
 					// Clear selection
 					event.preventDefault();
@@ -378,6 +356,7 @@ export function TransactionTable({
 					role="grid"
 					aria-label="Transactions"
 					data-testid="transaction-table"
+					onKeyDown={handleGridKeyDown}
 				>
 					<div
 						className="relative min-w-fit"

@@ -7,18 +7,19 @@
       area of the entire cell to make it easy) to select. This avoids accidental selection when
       trying to edit a cell.
 
-- [] Consider switch to ag grid community. I believe it supports all our needs out of the box,
-  including virtual scrolling, cell editing, custom cell renderers, keyboard navigation, etc. It
-  would reduce our custom code and maintenance burden.
+- [x] Consider switch to ag grid community. I believe it supports all our needs out of the box,
+      including virtual scrolling, cell editing, custom cell renderers, keyboard navigation, etc. It
+      would reduce our custom code and maintenance burden. We can keep using our own implementation,
+      as keyboard navigation (below) worked better than expected.
 
-- [] Add keyboard navigation to the transactions table. Arrow keys to move between cells, enter to
-  start editing a cell, escape to stop editing a cell, tab to move to next editable cell, shift tab
-  to move to previous editable cell.
+- [x] Add keyboard navigation to the transactions table. Arrow keys to move between cells, enter to
+      start editing a cell, escape to stop editing a cell, tab to move to next editable cell, shift
+      tab to move to previous editable cell.
 
-- [] On small width devices the entire page scrolls rather than just the transactions table. We
-  should fix this so only the transactions table scrolls horizontally. The border under each row and
-  the hover background is only the visible width of the container (the client width rather than the
-  scroll width) in the transaction table at small break points
+- [x] On small width devices the entire page scrolls rather than just the transactions table. We
+      should fix this so only the transactions table scrolls horizontally. The border under each row
+      and the hover background is only the visible width of the container (the client width rather
+      than the scroll width) in the transaction table at small break points
 
 - [] The vault selector and saving indicator should be visible when the menu is collapsed, with nice
   icons. The whole vault name doesn't need to be visible. The whole left pane should collapse

@@ -730,6 +730,291 @@ test.describe("Transactions", () => {
 	});
 
 	// ========================================================================
+	// Keyboard Grid Navigation
+	// ========================================================================
+
+	test.describe("Keyboard Grid Navigation", () => {
+		test("arrow up/down moves focus between same column cells", async ({ page }) => {
+			await createNewIdentity(page);
+			await goToTransactions(page);
+
+			await test.step("create test transactions", async () => {
+				await createTestTransaction(page, { merchant: "Row 1 Store", amount: "-10.00" });
+				await createTestTransaction(page, { merchant: "Row 2 Store", amount: "-20.00" });
+				await createTestTransaction(page, { merchant: "Row 3 Store", amount: "-30.00" });
+			});
+
+			await test.step("focus first row merchant and press arrow down", async () => {
+				const firstRowMerchant = page
+					.locator('[data-testid="transaction-row"]')
+					.first()
+					.locator('[data-testid="merchant-editable"]');
+
+				await firstRowMerchant.click();
+				await expect(firstRowMerchant).toBeFocused();
+
+				// Press arrow down
+				await page.keyboard.press("ArrowDown");
+
+				// Second row merchant should now be focused
+				const secondRowMerchant = page
+					.locator('[data-testid="transaction-row"]')
+					.nth(1)
+					.locator('[data-testid="merchant-editable"]');
+
+				await expect(secondRowMerchant).toBeFocused();
+			});
+
+			await test.step("press arrow down again to move to third row", async () => {
+				await page.keyboard.press("ArrowDown");
+
+				const thirdRowMerchant = page
+					.locator('[data-testid="transaction-row"]')
+					.nth(2)
+					.locator('[data-testid="merchant-editable"]');
+
+				await expect(thirdRowMerchant).toBeFocused();
+			});
+
+			await test.step("press arrow up to move back to second row", async () => {
+				await page.keyboard.press("ArrowUp");
+
+				const secondRowMerchant = page
+					.locator('[data-testid="transaction-row"]')
+					.nth(1)
+					.locator('[data-testid="merchant-editable"]');
+
+				await expect(secondRowMerchant).toBeFocused();
+			});
+		});
+
+		test("arrow left/right moves focus between cells in same row", async ({ page }) => {
+			await createNewIdentity(page);
+			await goToTransactions(page);
+
+			await test.step("create a test transaction", async () => {
+				await createTestTransaction(page, { merchant: "Nav Test", amount: "-50.00" });
+			});
+
+			await test.step("focus merchant cell and navigate right to account", async () => {
+				const row = page.locator('[data-testid="transaction-row"]').first();
+				const merchantInput = row.locator('[data-testid="merchant-editable"]');
+
+				await merchantInput.click();
+				await expect(merchantInput).toBeFocused();
+
+				// Move cursor to end of text, then press right to navigate to next cell
+				await page.keyboard.press("End");
+				await page.keyboard.press("ArrowRight");
+
+				// Should focus the account cell (next after merchant)
+				const accountTrigger = row.locator('[data-cell="account"]').getByRole("combobox");
+				await expect(accountTrigger).toBeFocused();
+			});
+
+			await test.step("navigate right through remaining cells", async () => {
+				const row = page.locator('[data-testid="transaction-row"]').first();
+
+				// From account, arrow right goes to tags (focusable div inside tags-editable)
+				await page.keyboard.press("ArrowRight");
+				const tagsFocusable = row.locator('[data-testid="tags-editable"] [tabindex="0"]');
+				await expect(tagsFocusable).toBeFocused();
+
+				// From tags, arrow right goes to status
+				await page.keyboard.press("ArrowRight");
+				const statusTrigger = row.locator('[data-testid="status-editable"]');
+				await expect(statusTrigger).toBeFocused();
+
+				// From status, arrow right goes to amount
+				await page.keyboard.press("ArrowRight");
+				const amountInput = row.locator('[data-testid="amount-editable"]');
+				await expect(amountInput).toBeFocused();
+			});
+
+			await test.step("navigate left back through cells", async () => {
+				const row = page.locator('[data-testid="transaction-row"]').first();
+
+				// Move cursor to start, then press left
+				await page.keyboard.press("Home");
+				await page.keyboard.press("ArrowLeft");
+
+				// Should go back to status
+				const statusTrigger = row.locator('[data-testid="status-editable"]');
+				await expect(statusTrigger).toBeFocused();
+
+				// Left again to tags
+				await page.keyboard.press("ArrowLeft");
+				const tagsFocusable = row.locator('[data-testid="tags-editable"] [tabindex="0"]');
+				await expect(tagsFocusable).toBeFocused();
+			});
+		});
+
+		test("text input only navigates when cursor at boundary", async ({ page }) => {
+			await createNewIdentity(page);
+			await goToTransactions(page);
+
+			await test.step("create transactions", async () => {
+				await createTestTransaction(page, { merchant: "Boundary Test", amount: "-25.00" });
+				await createTestTransaction(page, { merchant: "Other Row", amount: "-35.00" });
+			});
+
+			await test.step("position cursor in middle of text - arrow keys move cursor not focus", async () => {
+				const row = page.locator('[data-testid="transaction-row"]').first();
+				const merchantInput = row.locator('[data-testid="merchant-editable"]');
+
+				await merchantInput.click();
+				// Position cursor in the middle (after "Bound")
+				await page.keyboard.press("Home");
+				await page.keyboard.press("ArrowRight");
+				await page.keyboard.press("ArrowRight");
+				await page.keyboard.press("ArrowRight");
+				await page.keyboard.press("ArrowRight");
+				await page.keyboard.press("ArrowRight");
+
+				// Now arrow right should move cursor within text, not navigate
+				await page.keyboard.press("ArrowRight");
+
+				// Should still be focused on same input
+				await expect(merchantInput).toBeFocused();
+			});
+
+			await test.step("arrow down from text input moves to next row", async () => {
+				// Arrow down should move to next row's merchant (single-line input)
+				await page.keyboard.press("ArrowDown");
+
+				const secondRowMerchant = page
+					.locator('[data-testid="transaction-row"]')
+					.nth(1)
+					.locator('[data-testid="merchant-editable"]');
+
+				await expect(secondRowMerchant).toBeFocused();
+			});
+		});
+
+		test("status dropdown arrow keys navigate grid, not open dropdown", async ({ page }) => {
+			await createNewIdentity(page);
+			await goToTransactions(page);
+
+			await test.step("create transactions", async () => {
+				await createTestTransaction(page, { merchant: "Status Nav 1", amount: "-10.00" });
+				await createTestTransaction(page, { merchant: "Status Nav 2", amount: "-20.00" });
+			});
+
+			await test.step("focus status cell and verify arrow down navigates to next row", async () => {
+				const firstRow = page.locator('[data-testid="transaction-row"]').first();
+				const firstStatus = firstRow.locator('[data-testid="status-editable"]');
+
+				// Click to focus (not open)
+				await firstStatus.focus();
+				await expect(firstStatus).toBeFocused();
+
+				// Dropdown should NOT be open
+				await expect(firstStatus).toHaveAttribute("aria-expanded", "false");
+
+				// Press arrow down - should navigate to next row, not open dropdown
+				await page.keyboard.press("ArrowDown");
+
+				// Second row status should be focused
+				const secondRow = page.locator('[data-testid="transaction-row"]').nth(1);
+				const secondStatus = secondRow.locator('[data-testid="status-editable"]');
+				await expect(secondStatus).toBeFocused();
+
+				// Dropdown should still be closed
+				await expect(secondStatus).toHaveAttribute("aria-expanded", "false");
+			});
+		});
+
+		test("description row navigation - down from merchant to description", async ({ page }) => {
+			await createNewIdentity(page);
+			await goToTransactions(page);
+
+			await test.step("create transaction and add description", async () => {
+				await createTestTransaction(page, { merchant: "Desc Nav Test", amount: "-50.00" });
+
+				// Expand and add description
+				const row = page.locator('[data-testid="transaction-row"]').first();
+				const expandButton = row.locator('[data-testid="expand-description-button"]');
+				await expandButton.click();
+
+				const descriptionInput = page.locator('[data-testid="description-editable"]');
+				await descriptionInput.fill("Test description text");
+				await descriptionInput.press("Enter");
+			});
+
+			await test.step("create second transaction", async () => {
+				await createTestTransaction(page, { merchant: "Second Row", amount: "-30.00" });
+			});
+
+			await test.step("navigate down from merchant to description", async () => {
+				const firstRow = page.locator('[data-testid="transaction-row"]').first();
+				const merchantInput = firstRow.locator('[data-testid="merchant-editable"]');
+
+				await merchantInput.click();
+				await expect(merchantInput).toBeFocused();
+
+				// Arrow down should go to description (expanded row)
+				await page.keyboard.press("ArrowDown");
+
+				const descriptionInput = page.locator('[data-testid="description-editable"]');
+				await expect(descriptionInput).toBeFocused();
+			});
+
+			await test.step("navigate up from description back to merchant", async () => {
+				// The description should still be focused from previous step
+				// Move cursor to start of textarea before pressing up
+				await page.keyboard.press("Control+Home"); // Go to very beginning
+				await page.keyboard.press("ArrowUp");
+
+				const firstRow = page.locator('[data-testid="transaction-row"]').first();
+				const merchantInput = firstRow.locator('[data-testid="merchant-editable"]');
+				await expect(merchantInput).toBeFocused();
+			});
+
+			await test.step("navigate down from description to next row merchant", async () => {
+				// Go back to description
+				await page.keyboard.press("ArrowDown");
+
+				const descriptionInput = page.locator('[data-testid="description-editable"]');
+				await expect(descriptionInput).toBeFocused();
+
+				// Move cursor to very end of textarea before pressing down
+				await page.keyboard.press("Control+End");
+				await page.keyboard.press("ArrowDown");
+
+				// Find the second transaction row (after description row)
+				const secondMerchant = page
+					.locator('[data-testid="transaction-row"]')
+					.nth(1)
+					.locator('[data-testid="merchant-editable"]');
+				await expect(secondMerchant).toBeFocused();
+			});
+		});
+
+		test("Enter key opens date calendar popup", async ({ page }) => {
+			await createNewIdentity(page);
+			await goToTransactions(page);
+
+			await test.step("create a transaction", async () => {
+				await createTestTransaction(page, { merchant: "Date Enter Test", amount: "-40.00" });
+			});
+
+			await test.step("focus date cell and press Enter to open calendar", async () => {
+				const row = page.locator('[data-testid="transaction-row"]').first();
+				const dateInput = row.locator('[data-testid="date-editable"]');
+
+				await dateInput.click();
+				await expect(dateInput).toBeFocused();
+
+				// Press Enter to open calendar
+				await page.keyboard.press("Enter");
+
+				// Calendar popup should be visible
+				await expect(page.getByRole("grid", { name: /\w+ \d{4}/ })).toBeVisible();
+			});
+		});
+	});
+
+	// ========================================================================
 	// Phase 4: Checkbox Selection (User Story 2)
 	// ========================================================================
 
