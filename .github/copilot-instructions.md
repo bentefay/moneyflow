@@ -17,6 +17,7 @@
 - **Path-Specific Guides**: `.github/instructions/` - Domain-specific instructions
 
 ## Active Technologies
+
 - TypeScript 5.x, Node.js 20.x
 - Next.js 15 (App Router), React 19
 - Supabase (Postgres, Auth, Realtime)
@@ -60,16 +61,15 @@ specs/
 
 Keep this section updated with commands for this environment:
 
-```bash
-pnpm dev          # Start dev server
-pnpm build        # Production build
-pnpm test         # Run all tests
-pnpm lint         # ESLint (Next.js rules)
-pnpm format       # Biome format + class sorting
-pnpm format:check # Check formatting (CI)
-pnpm typecheck    # Type checking
-bat -P            # DO NOT USE cat. Always use `bat -P` (otherwise will use bat with pager for large files).
-```
+- Run `pnpm dev` to start dev server
+- Run `pnpm build` to production build
+- Run `pnpm test` to run all tests
+- Run `pnpm lint` to ESLint (Next.js rules)
+- Run `pnpm format` to run biome format + class sorting
+- Run `pnpm format:check` to check formatting (CI)
+- Run `pnpm typecheck` to type checking
+- Run `bat -P` rather than `cat` (which is aliased to bat with a pager for large files).
+- Do not run `playwright` with the `--debug` flag as it opens the GUI and will block forever.
 
 ## Key Architecture Decisions
 
@@ -126,6 +126,7 @@ When a user creates their identity or unlocks for the first time, the system **a
 - After unlocking on `/unlock` if user has no vaults (edge case)
 
 The vault is initialized with:
+
 - Default statuses ("For Review", "Paid")
 - Default "Me" person with 100% ownership of the default account
 - Default account with currency inherited from vault settings
@@ -159,7 +160,8 @@ Tests MUST be written alongside features. See Constitution VII for philosophy. A
 | ----------- | ---------------------- | --------------------------------------------------------------------------- |
 | Unit        | `tests/unit/{module}/` | Table-driven for pure functions; property-based (fast-check) for invariants |
 | Integration | `tests/integration/`   | Happy path + error cases                                                    |
-| E2E         | `tests/e2e/`           | Harness functions, assert behaviour not text                                | 
+| E2E         | `tests/e2e/`           | Harness functions, assert behaviour not text                                |
 
 ## Recent Changes
+
 - 004-transaction-table-ux: Added TypeScript 5.x, Node.js 20.x + Next.js 15 (App Router), React 19, loro-mirror, TanStack Virtual, shadcn/ui, Tailwind CSS

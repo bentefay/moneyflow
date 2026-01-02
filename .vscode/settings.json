@@ -1,64 +1,61 @@
 {
-	"chat.promptFilesRecommendations": {
-		"speckit.constitution": true,
-		"speckit.specify": true,
-		"speckit.plan": true,
-		"speckit.tasks": true,
-		"speckit.implement": true
-	},
-	"chat.tools.terminal.autoApprove": {
-		".specify/scripts/bash/": true,
-		".specify/scripts/powershell/": true,
-		"pnpm vitest": true,
-		"pnpm typecheck": true,
-		"pnpm tsc": true,
-		"pnpm test:e2e": true,
-		"pnpm test": true,
-		"pnpm playwright test": true,
-		"pnpm lint": true,
-		"pnpm format": true,
-		"bat": true,
-		"playwright test": true,
-		"jq": true
-	},
-	"[typescript]": {
-		"editor.formatOnSave": true,
-		"editor.defaultFormatter": "biomejs.biome",
-		"editor.codeActionsOnSave": {
-			"source.fixAll.eslint": "always"
-		}
-	},
-	"[typescriptreact]": {
-		"editor.formatOnSave": true,
-		"editor.defaultFormatter": "biomejs.biome",
-		"editor.codeActionsOnSave": {
-			"source.fixAll.eslint": "always"
-		}
-	},
-	"[javascript]": {
-		"editor.formatOnSave": true,
-		"editor.defaultFormatter": "biomejs.biome",
-		"editor.codeActionsOnSave": {
-			"source.fixAll.eslint": "always"
-		}
-	},
-	"[javascriptreact]": {
-		"editor.formatOnSave": true,
-		"editor.defaultFormatter": "biomejs.biome",
-		"editor.codeActionsOnSave": {
-			"source.fixAll.eslint": "always"
-		}
-	},
-	"[html]": {
-		"editor.formatOnSave": true,
-		"editor.defaultFormatter": "biomejs.biome"
-	},
-	"[json]": {
-		"editor.formatOnSave": true,
-		"editor.defaultFormatter": "biomejs.biome"
-	},
-	"[jsonc]": {
-		"editor.defaultFormatter": "biomejs.biome"
-	},
-	"biome.suggestInstallingGlobally": false
+  "chat.promptFilesRecommendations": {
+    "speckit.constitution": true,
+    "speckit.specify": true,
+    "speckit.plan": true,
+    "speckit.tasks": true,
+    "speckit.implement": true
+  },
+  "chat.tools.terminal.autoApprove": {
+    ".specify/scripts/bash/": true,
+    ".specify/scripts/powershell/": true,
+    "pnpm vitest": true,
+    "pnpm typecheck": true,
+    "pnpm tsc": true,
+    "pnpm test:e2e": true,
+    "pnpm test": true,
+    "pnpm playwright test": true,
+    "pnpm lint": true,
+    "pnpm format": true,
+    "bat": true,
+    "playwright test": true,
+    "jq": true
+  },
+  "[typescript]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "biomejs.biome",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": "always"
+    }
+  },
+  "[typescriptreact]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "biomejs.biome",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": "always"
+    }
+  },
+  "[javascript]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "biomejs.biome",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": "always"
+    }
+  },
+  "[javascriptreact]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "biomejs.biome",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": "always"
+    }
+  },
+  "[html]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[json]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "biome.suggestInstallingGlobally": false
 }
