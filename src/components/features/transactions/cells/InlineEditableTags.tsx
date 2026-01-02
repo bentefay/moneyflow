@@ -62,7 +62,7 @@ function TagPill({
 	return (
 		<span
 			className={cn(
-				"inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-primary-foreground text-xs",
+				"inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-primary-foreground text-xs font-medium",
 				disabled && "opacity-50"
 			)}
 		>
@@ -74,7 +74,7 @@ function TagPill({
 						e.stopPropagation();
 						onRemove();
 					}}
-					className="rounded-full hover:bg-primary-foreground/20"
+					className="rounded-full hover:text-primary-foreground/50 cursor-pointer -m-1 p-1"
 					aria-label={`Remove ${tag.name}`}
 				>
 					<X className="h-3 w-3" />
