@@ -11,9 +11,12 @@
  * layout and controls as existing transaction rows.
  */
 
-import { useCallback, useRef, useState } from "react";
+import { Check, ChevronUp, Pencil, Plus, Trash2, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AccountCombobox } from "@/components/features/accounts";
 import { PresenceAvatar } from "@/components/features/presence/PresenceAvatar";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { hashToColor } from "@/lib/utils/color";
 import { CheckboxCell } from "./cells/CheckboxCell";
@@ -161,6 +164,7 @@ export function TransactionRow({
 	const [isAddExpanded, setIsAddExpanded] = useState(false);
 
 	const containerRef = useRef<HTMLDivElement>(null);
+	const descriptionRef = useRef<HTMLTextAreaElement>(null);
 
 	// View mode state
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -345,6 +349,13 @@ export function TransactionRow({
 	// Can submit in add mode?
 	const canSubmit = isAddMode && addMerchant.trim() && effectiveAddAccountId;
 
+	// Auto-focus description textarea when expanded
+	useEffect(() => {
+		if (effectiveExpanded && descriptionRef.current) {
+			descriptionRef.current.focus();
+		}
+	}, [effectiveExpanded]);
+
 	return (
 		<div ref={containerRef} className="flex flex-col" onKeyDown={handleKeyDown}>
 			{/* Main row */}
@@ -504,58 +515,42 @@ export function TransactionRow({
 					{/* Add mode: Submit and Cancel buttons */}
 					{isAddMode ? (
 						<>
-							<button
-								type="button"
+							<Button
+								variant="ghost"
+								size="icon-sm"
 								onClick={handleAddSubmit}
 								disabled={!canSubmit}
 								data-testid="add-transaction-submit"
-								className={cn(
-									"rounded p-1.5 transition-colors",
-									"hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50",
-									"text-primary"
-								)}
+								className="text-primary"
 								aria-label="Add transaction"
 								title="Add transaction (Ctrl+Enter)"
 							>
-								<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-									<path
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										strokeWidth={2}
-										d="M5 13l4 4L19 7"
-									/>
-								</svg>
-							</button>
-							<button
-								type="button"
+								<Check className="h-4 w-4" />
+							</Button>
+							<Button
+								variant="ghost"
+								size="icon-sm"
 								onClick={handleAddCancel}
 								data-testid="add-transaction-cancel"
-								className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+								className="text-muted-foreground"
 								aria-label="Cancel"
 								title="Cancel (Escape)"
 							>
-								<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-									<path
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										strokeWidth={2}
-										d="M6 18L18 6M6 6l12 12"
-									/>
-								</svg>
-							</button>
+								<X className="h-4 w-4" />
+							</Button>
 							{/* Expand/Description toggle button for add mode */}
-							<button
-								type="button"
+							<Button
+								variant="ghost"
+								size="icon-sm"
 								onClick={(e) => {
 									e.stopPropagation();
 									handleToggleExpandForMode();
 								}}
 								data-testid="expand-description-button"
 								className={cn(
-									"rounded p-1.5 transition-colors",
 									effectiveExpanded || addDescription
 										? "text-primary hover:bg-primary/10"
-										: "text-muted-foreground opacity-0 hover:bg-accent group-hover:opacity-100"
+										: "text-muted-foreground opacity-0 group-hover:opacity-100"
 								)}
 								title={
 									effectiveExpanded
@@ -566,34 +561,13 @@ export function TransactionRow({
 								}
 							>
 								{effectiveExpanded ? (
-									<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-										<path
-											strokeLinecap="round"
-											strokeLinejoin="round"
-											strokeWidth={2}
-											d="M5 15l7-7 7 7"
-										/>
-									</svg>
+									<ChevronUp className="h-4 w-4" />
 								) : addDescription ? (
-									<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-										<path
-											strokeLinecap="round"
-											strokeLinejoin="round"
-											strokeWidth={2}
-											d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-										/>
-									</svg>
+									<Pencil className="h-4 w-4" />
 								) : (
-									<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-										<path
-											strokeLinecap="round"
-											strokeLinejoin="round"
-											strokeWidth={2}
-											d="M12 4v16m8-8H4"
-										/>
-									</svg>
+									<Plus className="h-4 w-4" />
 								)}
-							</button>
+							</Button>
 						</>
 					) : (
 						<>
@@ -607,18 +581,18 @@ export function TransactionRow({
 
 							{/* Expand/Description toggle button (view mode) */}
 							{onToggleExpand && (
-								<button
-									type="button"
+								<Button
+									variant="ghost"
+									size="icon-sm"
 									onClick={(e) => {
 										e.stopPropagation();
 										onToggleExpand();
 									}}
 									data-testid="expand-description-button"
 									className={cn(
-										"rounded p-1.5 transition-colors",
 										effectiveExpanded || effectiveData.description
 											? "text-primary hover:bg-primary/10"
-											: "text-muted-foreground opacity-0 hover:bg-accent group-hover:opacity-100"
+											: "text-muted-foreground opacity-0 group-hover:opacity-100"
 									)}
 									title={
 										effectiveExpanded
@@ -629,44 +603,23 @@ export function TransactionRow({
 									}
 								>
 									{effectiveExpanded ? (
-										<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-											<path
-												strokeLinecap="round"
-												strokeLinejoin="round"
-												strokeWidth={2}
-												d="M5 15l7-7 7 7"
-											/>
-										</svg>
+										<ChevronUp className="h-4 w-4" />
 									) : effectiveData.description ? (
-										<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-											<path
-												strokeLinecap="round"
-												strokeLinejoin="round"
-												strokeWidth={2}
-												d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-											/>
-										</svg>
+										<Pencil className="h-4 w-4" />
 									) : (
-										<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-											<path
-												strokeLinecap="round"
-												strokeLinejoin="round"
-												strokeWidth={2}
-												d="M12 4v16m8-8H4"
-											/>
-										</svg>
+										<Plus className="h-4 w-4" />
 									)}
-								</button>
+								</Button>
 							)}
 
 							{/* Delete button (view mode only) */}
 							{onDelete && (
-								<button
-									type="button"
+								<Button
+									variant="ghost"
+									size="icon-sm"
 									onClick={handleDelete}
 									data-testid="delete-button"
 									className={cn(
-										"rounded p-1.5 transition-colors",
 										showDeleteConfirm
 											? "bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400"
 											: "text-muted-foreground opacity-0 hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
@@ -676,16 +629,9 @@ export function TransactionRow({
 									{showDeleteConfirm ? (
 										<span className="px-1 font-medium text-xs">Confirm?</span>
 									) : (
-										<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-											<path
-												strokeLinecap="round"
-												strokeLinejoin="round"
-												strokeWidth={2}
-												d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-											/>
-										</svg>
+										<Trash2 className="h-4 w-4" />
 									)}
-								</button>
+								</Button>
 							)}
 						</>
 					)}
@@ -711,12 +657,15 @@ export function TransactionRow({
 					style={{ gridTemplateColumns: TRANSACTION_GRID_TEMPLATE }}
 					data-testid="description-row"
 				>
-					<div className="col-span-8">
-						<InlineEditableText
+					<div />
+					<div className="col-span-7">
+						<Textarea
+							ref={descriptionRef}
 							value={effectiveData.description || ""}
-							onSave={(value) => handleFieldUpdateForMode("description", value)}
-							className="text-muted-foreground text-sm"
-							inputClassName="text-sm"
+							onChange={(e) => handleFieldUpdateForMode("description", e.target.value)}
+							onBlur={(e) => handleFieldUpdateForMode("description", e.target.value)}
+							rows={1}
+							className="min-h-0 resize-none border-transparent bg-transparent py-1 text-muted-foreground text-sm shadow-none hover:bg-accent/30 focus:border-input focus:bg-background"
 							placeholder="Add a description or memo..."
 							data-testid={isAddMode ? "new-transaction-description" : "description-editable"}
 						/>

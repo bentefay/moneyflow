@@ -264,7 +264,7 @@ export function InlineEditableTags({
 				)}
 			>
 				{selectedTags.length === 0 ? (
-					<span className="text-muted-foreground text-xs">Add tags...</span>
+					<span className="text-muted-foreground text-sm">Add tags...</span>
 				) : (
 					selectedTags.map((tag) => (
 						<TagPill

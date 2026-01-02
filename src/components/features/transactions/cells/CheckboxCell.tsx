@@ -61,7 +61,7 @@ export function CheckboxCell({
 
 	return (
 		<div
-			className={cn("flex items-center justify-center w-full h-full", className)}
+			className={cn("flex items-center justify-center w-full h-full relative", className)}
 			role="gridcell"
 		>
 			<Checkbox
@@ -69,7 +69,10 @@ export function CheckboxCell({
 				onClick={handleClick}
 				disabled={disabled}
 				aria-label={ariaLabel}
-				className={cn(disabled && "opacity-50")}
+				className={cn(
+					disabled && "opacity-50",
+					"before:content-[''] before:absolute before:inset-[-4px]"
+				)}
 			/>
 		</div>
 	);

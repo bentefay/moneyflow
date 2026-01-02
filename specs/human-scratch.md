@@ -3,9 +3,9 @@
 - [x] The add transaction row should have the same columns as the main table rows (including account
       and status)
 
-- [] Current clicking a row selects it. Change that so you have to click the checkbox (with a click
-  area of the entire cell to make it easy) to select. This avoids accidental selection when trying
-  to edit a cell.
+- [x] Current clicking a row selects it. Change that so you have to click the checkbox (with a click
+      area of the entire cell to make it easy) to select. This avoids accidental selection when
+      trying to edit a cell.
 
 - [] Add keyboard navigation to the transactions table. Arrow keys to move between cells, enter to
   start editing a cell, escape to stop editing a cell, tab to move to next editable cell, shift tab
