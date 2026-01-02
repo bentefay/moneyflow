@@ -7,6 +7,10 @@
       area of the entire cell to make it easy) to select. This avoids accidental selection when
       trying to edit a cell.
 
+- [] Consider switch to ag grid community. I believe it supports all our needs out of the box,
+  including virtual scrolling, cell editing, custom cell renderers, keyboard navigation, etc. It
+  would reduce our custom code and maintenance burden.
+
 - [] Add keyboard navigation to the transactions table. Arrow keys to move between cells, enter to
   start editing a cell, escape to stop editing a cell, tab to move to next editable cell, shift tab
   to move to previous editable cell.
