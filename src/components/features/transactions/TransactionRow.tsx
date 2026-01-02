@@ -711,14 +711,7 @@ export function TransactionRow({
 					style={{ gridTemplateColumns: TRANSACTION_GRID_TEMPLATE }}
 					data-testid="description-row"
 				>
-					{/* Checkbox column spacer */}
-					<div />
-					{/* Date column - label */}
-					<div>
-						<span className="text-muted-foreground text-xs">Description:</span>
-					</div>
-					{/* Merchant column - description editor (spans merchant + account) */}
-					<div className="col-span-2">
+					<div className="col-span-8">
 						<InlineEditableText
 							value={effectiveData.description || ""}
 							onSave={(value) => handleFieldUpdateForMode("description", value)}
@@ -728,14 +721,6 @@ export function TransactionRow({
 							data-testid={isAddMode ? "new-transaction-description" : "description-editable"}
 						/>
 					</div>
-					{/* Tags column */}
-					<div />
-					{/* Status column */}
-					<div />
-					{/* Amount column */}
-					<div />
-					{/* Actions column */}
-					<div />
 				</div>
 			)}
 		</div>
