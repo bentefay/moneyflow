@@ -357,7 +357,7 @@ export function TransactionRow({
 	}, [effectiveExpanded]);
 
 	return (
-		<div ref={containerRef} className="flex flex-col" onKeyDown={handleKeyDown}>
+		<div ref={containerRef} className="flex min-w-fit flex-col" onKeyDown={handleKeyDown}>
 			{/* Main row */}
 			<div
 				onClick={isAddMode ? undefined : () => onClick?.()}
@@ -365,7 +365,7 @@ export function TransactionRow({
 				tabIndex={0}
 				data-testid={isAddMode ? "add-transaction-row" : "transaction-row"}
 				className={cn(
-					"group relative grid items-center gap-4 px-4 py-3",
+					"group relative grid min-w-fit items-center gap-4 px-4 py-3",
 					!effectiveExpanded && "border-b",
 					isAddMode && "border-dashed bg-accent/30",
 					!isAddMode && "hover:bg-accent/50 focus:bg-accent/50",
@@ -653,7 +653,7 @@ export function TransactionRow({
 			{/* Expanded description row */}
 			{effectiveExpanded && (
 				<div
-					className="grid items-center gap-4 border-b bg-muted/30 px-4 py-2"
+					className="grid min-w-fit items-center gap-4 border-b bg-muted/30 px-4 py-2"
 					style={{ gridTemplateColumns: TRANSACTION_GRID_TEMPLATE }}
 					data-testid="description-row"
 				>
