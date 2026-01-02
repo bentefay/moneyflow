@@ -18,6 +18,7 @@ import {
 	type TransactionRowData,
 	type TransactionRowPresence,
 } from "./TransactionRow";
+import type { AccountOption } from "./cells/InlineEditableAccount";
 
 /**
  * Shared grid template for transaction table columns.
@@ -36,6 +37,8 @@ export interface TransactionTableProps {
 	currentUserId?: string;
 	/** Currently selected transaction IDs */
 	selectedIds?: Set<string>;
+	/** Available accounts for inline editing */
+	availableAccounts?: AccountOption[];
 	/** Available statuses for inline editing */
 	availableStatuses?: StatusOption[];
 	/** Available tags for inline editing */
@@ -141,6 +144,7 @@ export function TransactionTable({
 	presenceByTransactionId = {},
 	currentUserId,
 	selectedIds = new Set(),
+	availableAccounts = [],
 	availableStatuses = [],
 	availableTags = [],
 	onCreateTag,
@@ -380,6 +384,7 @@ export function TransactionTable({
 										currentUserId={currentUserId}
 										isSelected={isSelected}
 										isExpanded={expandedIds.has(transaction.id)}
+										availableAccounts={availableAccounts}
 										availableStatuses={availableStatuses}
 										availableTags={availableTags}
 										onCreateTag={onCreateTag}

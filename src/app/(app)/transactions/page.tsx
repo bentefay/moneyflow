@@ -493,6 +493,7 @@ export default function TransactionsPage() {
 					transactions={tableData}
 					presenceByTransactionId={presenceByTransactionId}
 					selectedIds={selectedIds}
+					availableAccounts={accountOptions}
 					availableStatuses={statusOptionsForInlineEdit}
 					availableTags={tagOptionsForInlineEdit}
 					onCreateTag={handleCreateTag}
