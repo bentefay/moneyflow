@@ -411,42 +411,109 @@ test.describe("Transactions", () => {
 			});
 
 			await test.step("click on status cell to focus", async () => {
-				// Spreadsheet-style: select is always visible, click to focus
+				// Spreadsheet-style: select is always visible, click to open dropdown
 				const statusSelect = page
 					.locator('[data-testid="transaction-row"]')
 					.first()
 					.locator('[data-testid="status-editable"]');
 
-				await statusSelect.click();
-				await expect(statusSelect).toBeFocused();
 				await expect(statusSelect).toHaveRole("combobox");
+				await statusSelect.click();
+
+				// Dropdown should be open (Radix moves focus to dropdown content)
+				await expect(statusSelect).toHaveAttribute("aria-expanded", "true");
 			});
 
 			await test.step("select different status (saves immediately)", async () => {
-				const statusSelect = page
+				// Select "Paid" status (default status created on vault init)
+				// Radix Select uses role="option" for items in the dropdown
+				await page.getByRole("option", { name: "Paid" }).click();
+
+				// Dropdown closes and status should show "Paid"
+				const statusTrigger = page
 					.locator('[data-testid="transaction-row"]')
 					.first()
 					.locator('[data-testid="status-editable"]');
 
-				// Select "Paid" status (default status created on vault init)
-				await statusSelect.selectOption({ label: "Paid" });
-
-				// Status selects save immediately on change
-				await expect(statusSelect).toHaveValue(/.+/); // Has some value selected
+				await expect(statusTrigger).toContainText("Paid");
 			});
 
 			await test.step("change status and verify it persists", async () => {
-				const statusSelect = page
+				const statusTrigger = page
 					.locator('[data-testid="transaction-row"]')
 					.first()
 					.locator('[data-testid="status-editable"]');
 
+				// Open dropdown again
+				await statusTrigger.click();
+
 				// Select "For Review" status
-				await statusSelect.selectOption({ label: "For Review" });
+				await page.getByRole("option", { name: "For Review" }).click();
 
 				// Verify it shows "For Review"
-				const selectedOption = await statusSelect.inputValue();
-				expect(selectedOption).toBeTruthy();
+				await expect(statusTrigger).toContainText("For Review");
+			});
+		});
+
+		test("T016a: click to edit account cell (spreadsheet-style)", async ({ page }) => {
+			await createNewIdentity(page);
+
+			await test.step("create a second account", async () => {
+				await goToAccounts(page);
+				await page.getByRole("button", { name: /add account/i }).click();
+				const nameInput = page.getByPlaceholder(/account name/i);
+				await nameInput.fill("Savings");
+				await page.getByRole("button", { name: /^add$/i }).click();
+				await expect(page.getByText("Savings", { exact: true })).toBeVisible();
+				await goToTransactions(page);
+			});
+
+			await test.step("create a test transaction", async () => {
+				await createTestTransaction(page, {
+					merchant: "Account Test Store",
+					amount: "-60.00",
+				});
+			});
+
+			await test.step("click on account cell to open dropdown", async () => {
+				// Spreadsheet-style: click opens the dropdown
+				const accountTrigger = page
+					.locator('[data-testid="transaction-row"]')
+					.first()
+					.locator('[data-testid="account-editable"]');
+
+				await expect(accountTrigger).toBeVisible();
+				await expect(accountTrigger).toHaveRole("combobox");
+				await accountTrigger.click();
+
+				// Dropdown should be visible with account options
+				await expect(page.getByRole("option", { name: "Default" })).toBeVisible();
+				await expect(page.getByRole("option", { name: "Savings" })).toBeVisible();
+			});
+
+			await test.step("select different account (saves immediately)", async () => {
+				// Click on Savings account option
+				await page.getByRole("option", { name: "Savings" }).click();
+
+				// Dropdown should close and account should be updated
+				const accountTrigger = page
+					.locator('[data-testid="transaction-row"]')
+					.first()
+					.locator('[data-testid="account-editable"]');
+
+				await expect(accountTrigger).toContainText("Savings");
+			});
+
+			await test.step("change account back and verify it persists", async () => {
+				const accountTrigger = page
+					.locator('[data-testid="transaction-row"]')
+					.first()
+					.locator('[data-testid="account-editable"]');
+
+				await accountTrigger.click();
+				await page.getByRole("option", { name: "Default" }).click();
+
+				await expect(accountTrigger).toContainText("Default");
 			});
 		});
 
