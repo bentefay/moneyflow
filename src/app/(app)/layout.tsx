@@ -27,6 +27,7 @@ import { PresenceAvatarGroup } from "@/components/features/presence/PresenceAvat
 import { VaultSelector } from "@/components/features/vault/VaultSelector";
 import { ActiveVaultProvider } from "@/components/providers/active-vault-provider";
 import { VaultProvider } from "@/components/providers/vault-provider";
+import { Button } from "@/components/ui/button";
 import { SyncStatus } from "@/components/ui/sync-status";
 import { useActiveVault } from "@/hooks/use-active-vault";
 import { SyncStatusProvider, usePollUnsavedChanges, useSyncStatus } from "@/hooks/use-sync-status";
@@ -122,9 +123,10 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 							MoneyFlow
 						</Link>
 					)}
-					<button
+					<Button
+						variant="ghost"
+						size="icon-sm"
 						onClick={() => setIsCollapsed(!isCollapsed)}
-						className="rounded-md p-2 hover:bg-accent"
 						aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
 					>
 						{isCollapsed ? (
@@ -132,7 +134,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 						) : (
 							<ChevronLeft className="h-4 w-4" />
 						)}
-					</button>
+					</Button>
 				</div>
 
 				{/* Vault Selector & Status */}
@@ -174,20 +176,21 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 					{bottomNavItems.map((item) => (
 						<NavLink key={item.href} item={item} isCollapsed={isCollapsed} />
 					))}
-					<button
+					<Button
+						variant="ghost"
 						onClick={() => {
 							// Clear session and redirect to unlock
 							clearSession();
 							router.replace("/unlock");
 						}}
 						className={cn(
-							"flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2 font-medium text-muted-foreground text-sm hover:bg-accent hover:text-accent-foreground",
+							"w-full justify-start font-medium text-muted-foreground hover:text-accent-foreground",
 							isCollapsed && "justify-center"
 						)}
 					>
 						<LogOut className="h-4 w-4" />
 						{!isCollapsed && <span>Lock</span>}
-					</button>
+					</Button>
 				</nav>
 			</aside>
 

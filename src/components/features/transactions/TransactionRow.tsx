@@ -422,7 +422,7 @@ export function TransactionRow({
 				</div>
 
 				{/* Merchant */}
-				<div data-cell="merchant" className="min-w-0 truncate">
+				<div data-cell="merchant" className="min-w-0">
 					<InlineEditableText
 						value={effectiveData.merchant}
 						onSave={(value) => handleFieldUpdateForMode("merchant", value)}
@@ -434,7 +434,7 @@ export function TransactionRow({
 				</div>
 
 				{/* Account */}
-				<div data-cell="account" className="min-w-0 truncate">
+				<div data-cell="account" className="min-w-0">
 					{isAddMode ? (
 						<AccountCombobox
 							value={effectiveData.accountId ?? ""}

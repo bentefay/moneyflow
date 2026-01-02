@@ -85,7 +85,7 @@ export function InlineEditableStatus({
 					className={cn(
 						"h-7 w-full border-transparent bg-transparent px-1 shadow-none",
 						"hover:bg-accent/30",
-						"focus:border-primary focus:bg-background focus:ring-1 focus:ring-primary",
+						"focus:border-input focus:bg-background",
 						disabled && "cursor-not-allowed opacity-50"
 					)}
 				>

@@ -5,10 +5,20 @@
  *
  * Spreadsheet-style always-editable tags multi-select.
  * Shows selected tags as pills with a dropdown for adding more.
+ * Uses shadcn Command for the dropdown with search.
  */
 
+import { Check, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import {
+	Command,
+	CommandEmpty,
+	CommandGroup,
+	CommandInput,
+	CommandItem,
+	CommandList,
+} from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 
 export interface TagOption {
@@ -52,7 +62,7 @@ function TagPill({
 	return (
 		<span
 			className={cn(
-				"inline-flex items-center gap-0.5 rounded bg-muted px-1.5 py-0.5 text-muted-foreground text-xs",
+				"inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-primary-foreground text-xs",
 				disabled && "opacity-50"
 			)}
 		>
@@ -64,17 +74,10 @@ function TagPill({
 						e.stopPropagation();
 						onRemove();
 					}}
-					className="ml-0.5 rounded hover:bg-muted-foreground/20"
+					className="rounded-full hover:bg-primary-foreground/20"
 					aria-label={`Remove ${tag.name}`}
 				>
-					<svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path
-							strokeLinecap="round"
-							strokeLinejoin="round"
-							strokeWidth={2}
-							d="M6 18L18 6M6 6l12 12"
-						/>
-					</svg>
+					<X className="h-3 w-3" />
 				</button>
 			)}
 		</span>
@@ -234,6 +237,12 @@ export function InlineEditableTags({
 	// Selected tags for display
 	const selectedTags = tags.length > 0 ? tags : availableTags.filter((t) => value.includes(t.id));
 
+	// Check if we can create a new tag (search has content and no exact match)
+	const canCreateTag =
+		onCreateTag &&
+		searchQuery.trim() &&
+		!availableTags.some((t) => t.name.toLowerCase() === searchQuery.toLowerCase());
+
 	return (
 		<div
 			ref={containerRef}
@@ -244,11 +253,13 @@ export function InlineEditableTags({
 		>
 			{/* Display area */}
 			<div
+				tabIndex={disabled ? -1 : 0}
+				onFocus={() => !disabled && setIsOpen(true)}
 				className={cn(
-					"flex min-h-[26px] cursor-pointer flex-wrap items-center gap-1 rounded px-1 py-0.5",
-					"border-transparent",
+					"flex min-h-[28px] cursor-pointer flex-wrap items-center gap-1 rounded-md px-1 py-0.5",
+					"border border-transparent bg-transparent shadow-none outline-none",
 					"hover:bg-accent/30",
-					isOpen && "bg-background ring-1 ring-primary",
+					"focus-visible:border-ring focus-visible:bg-background focus-visible:ring-[3px] focus-visible:ring-ring/50",
 					disabled && "cursor-not-allowed opacity-50"
 				)}
 			>
@@ -272,102 +283,45 @@ export function InlineEditableTags({
 				createPortal(
 					<div
 						ref={dropdownRef}
-						className="fixed z-[9999] w-48 rounded-md border bg-popover p-2 shadow-lg"
+						className="fixed z-[9999] w-56 rounded-md border bg-popover shadow-lg"
 						style={{
 							top: dropdownPosition.top,
 							left: dropdownPosition.left,
 						}}
 					>
-						{/* Search input */}
-						<input
-							ref={inputRef}
-							type="text"
-							value={searchQuery}
-							onChange={(e) => setSearchQuery(e.target.value)}
-							onKeyDown={handleInputKeyDown}
-							placeholder="Search tags..."
-							className="mb-2 w-full rounded border px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-						/>
-
-						{/* Tag list */}
-						<div className="max-h-32 overflow-auto">
-							{filteredTags.length === 0 && !searchQuery.trim() ? (
-								<div className="px-2 py-1 text-muted-foreground text-xs">No tags found</div>
-							) : (
-								filteredTags.map((tag) => (
-									<button
-										key={tag.id}
-										type="button"
-										onClick={(e) => {
-											e.stopPropagation();
-											toggleTag(tag.id);
-										}}
-										className={cn(
-											"flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm hover:bg-accent",
-											value.includes(tag.id) && "bg-accent/50"
-										)}
-									>
-										<span
-											className={cn(
-												"h-3 w-3 rounded border",
-												value.includes(tag.id) && "border-primary bg-primary"
-											)}
+						<Command shouldFilter={false}>
+							<CommandInput
+								ref={inputRef}
+								value={searchQuery}
+								onValueChange={setSearchQuery}
+								onKeyDown={handleInputKeyDown}
+								placeholder="Search tags..."
+							/>
+							<CommandList>
+								<CommandEmpty className="py-2 text-sm">No tags found.</CommandEmpty>
+								<CommandGroup>
+									{filteredTags.map((tag) => (
+										<CommandItem key={tag.id} value={tag.name} onSelect={() => toggleTag(tag.id)}>
+											{tag.name}
+											{value.includes(tag.id) && <Check className="ml-auto h-4 w-4" />}
+										</CommandItem>
+									))}
+									{/* Create option - always visible when search has content and no exact match */}
+									{canCreateTag && (
+										<CommandItem
+											value={`create-${searchQuery}`}
+											onSelect={() => handleCreateTag()}
+											disabled={isCreating}
+											data-testid="create-tag-button"
+											className="text-primary"
 										>
-											{value.includes(tag.id) && (
-												<svg
-													className="h-3 w-3 text-primary-foreground"
-													fill="none"
-													viewBox="0 0 24 24"
-													stroke="currentColor"
-												>
-													<path
-														strokeLinecap="round"
-														strokeLinejoin="round"
-														strokeWidth={3}
-														d="M5 13l4 4L19 7"
-													/>
-												</svg>
-											)}
-										</span>
-										{tag.name}
-									</button>
-								))
-							)}
-
-							{/* Create button - always visible when searching and callback provided */}
-							{searchQuery.trim() && onCreateTag && (
-								<button
-									type="button"
-									onClick={(e) => {
-										e.stopPropagation();
-										handleCreateTag();
-									}}
-									disabled={
-										isCreating ||
-										availableTags.some((t) => t.name.toLowerCase() === searchQuery.toLowerCase())
-									}
-									data-testid="create-tag-button"
-									className={cn(
-										"flex w-full items-center gap-2 rounded px-2 py-1 text-left text-primary text-sm hover:bg-accent",
-										(isCreating ||
-											availableTags.some(
-												(t) => t.name.toLowerCase() === searchQuery.toLowerCase()
-											)) &&
-											"cursor-not-allowed opacity-50"
+											<Plus className="h-4 w-4" />
+											{isCreating ? "Creating..." : `Create "${searchQuery}"`}
+										</CommandItem>
 									)}
-								>
-									<svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-										<path
-											strokeLinecap="round"
-											strokeLinejoin="round"
-											strokeWidth={2}
-											d="M12 4v16m8-8H4"
-										/>
-									</svg>
-									{isCreating ? "Creating..." : `Create "${searchQuery}"`}
-								</button>
-							)}
-						</div>
+								</CommandGroup>
+							</CommandList>
+						</Command>
 					</div>,
 					document.body
 				)}

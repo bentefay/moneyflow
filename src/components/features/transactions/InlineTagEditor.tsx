@@ -7,7 +7,9 @@
  * Displays selected tags as pills with remove buttons.
  */
 
+import { Plus } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export interface TagData {
@@ -270,32 +272,20 @@ export function InlineTagEditor({
 
 				{/* Create new tag option - always visible when searching and no exact match */}
 				{searchQuery.trim() && onCreateTag && (
-					<button
+					<Button
 						type="button"
+						variant="ghost"
 						onClick={handleCreateTag}
 						disabled={
 							isCreating ||
 							availableTags.some((t) => t.name.toLowerCase() === searchQuery.toLowerCase())
 						}
 						data-testid="create-tag-button"
-						className={cn(
-							"flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-primary text-sm",
-							"hover:bg-accent focus:bg-accent focus:outline-none",
-							(isCreating ||
-								availableTags.some((t) => t.name.toLowerCase() === searchQuery.toLowerCase())) &&
-								"cursor-not-allowed opacity-50"
-						)}
+						className="w-full justify-start gap-2 px-2 text-primary"
 					>
-						<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path
-								strokeLinecap="round"
-								strokeLinejoin="round"
-								strokeWidth={2}
-								d="M12 4v16m8-8H4"
-							/>
-						</svg>
+						<Plus className="h-4 w-4" />
 						<span>Create "{searchQuery}"</span>
-					</button>
+					</Button>
 				)}
 
 				{/* Empty state */}

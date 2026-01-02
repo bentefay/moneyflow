@@ -8,6 +8,7 @@
  */
 
 import { useCallback, useRef, useState } from "react";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 export interface InlineEditableAmountProps {
@@ -115,7 +116,7 @@ export function InlineEditableAmount({
 		parsed < 0 ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400";
 
 	return (
-		<input
+		<Input
 			ref={inputRef}
 			type="text"
 			inputMode="decimal"
@@ -128,11 +129,10 @@ export function InlineEditableAmount({
 			disabled={disabled}
 			data-testid={testId}
 			className={cn(
-				"w-full bg-transparent px-1 py-0.5 text-right text-sm font-medium tabular-nums",
-				"border-transparent rounded",
+				"h-7 border-transparent bg-transparent text-right text-sm font-medium tabular-nums shadow-none",
 				colorClass,
 				"hover:bg-accent/30",
-				"focus:bg-background focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary",
+				"focus:border-input focus:bg-background",
 				disabled && "cursor-not-allowed opacity-50",
 				inputClassName,
 				className

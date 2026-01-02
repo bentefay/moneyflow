@@ -9,6 +9,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { FilterOption } from "./filters/MultiSelectFilter";
 
@@ -331,13 +333,12 @@ export function BulkEditToolbar({
 								className="absolute bottom-full left-0 mb-2 w-64 rounded-lg border bg-popover p-3 shadow-lg"
 								onKeyDown={handleKeyDown}
 							>
-								<input
+								<Input
 									ref={descriptionInputRef}
 									type="text"
 									value={descriptionValue}
 									onChange={(e) => setDescriptionValue(e.target.value)}
 									placeholder="Enter description..."
-									className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
 									onKeyDown={(e) => {
 										if (e.key === "Enter" && descriptionValue.trim()) {
 											onSetDescription(descriptionValue.trim());
@@ -350,18 +351,20 @@ export function BulkEditToolbar({
 									}}
 								/>
 								<div className="mt-2 flex justify-end gap-2">
-									<button
+									<Button
 										type="button"
+										variant="ghost"
+										size="sm"
 										onClick={() => {
 											setDescriptionValue("");
 											closeDropdowns();
 										}}
-										className="rounded px-2 py-1 text-sm text-muted-foreground hover:text-foreground"
 									>
 										Cancel
-									</button>
-									<button
+									</Button>
+									<Button
 										type="button"
+										size="sm"
 										onClick={() => {
 											if (descriptionValue.trim()) {
 												onSetDescription(descriptionValue.trim());
@@ -370,10 +373,9 @@ export function BulkEditToolbar({
 											}
 										}}
 										disabled={!descriptionValue.trim()}
-										className="rounded bg-primary px-3 py-1 text-primary-foreground text-sm disabled:opacity-50"
 									>
 										Apply
-									</button>
+									</Button>
 								</div>
 							</div>
 						)}
@@ -414,14 +416,14 @@ export function BulkEditToolbar({
 									<span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground text-sm">
 										$
 									</span>
-									<input
+									<Input
 										ref={amountInputRef}
 										type="number"
 										step="0.01"
 										value={amountValue}
 										onChange={(e) => setAmountValue(e.target.value)}
 										placeholder="0.00"
-										className="w-full rounded-md border bg-background py-2 pr-3 pl-7 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+										className="pl-7"
 										onKeyDown={(e) => {
 											if (e.key === "Enter") {
 												handleAmountSubmit();
@@ -433,24 +435,25 @@ export function BulkEditToolbar({
 									/>
 								</div>
 								<div className="mt-2 flex justify-end gap-2">
-									<button
+									<Button
 										type="button"
+										variant="ghost"
+										size="sm"
 										onClick={() => {
 											setAmountValue("");
 											closeDropdowns();
 										}}
-										className="rounded px-2 py-1 text-sm text-muted-foreground hover:text-foreground"
 									>
 										Cancel
-									</button>
-									<button
+									</Button>
+									<Button
 										type="button"
+										size="sm"
 										onClick={handleAmountSubmit}
 										disabled={!amountValue || Number.isNaN(Number.parseFloat(amountValue))}
-										className="rounded bg-primary px-3 py-1 text-primary-foreground text-sm disabled:opacity-50"
 									>
 										Apply
-									</button>
+									</Button>
 								</div>
 							</div>
 						)}
@@ -486,18 +489,19 @@ export function BulkEditToolbar({
 				<div className="mx-2 h-6 w-px bg-border" />
 
 				{/* Clear selection */}
-				<button
+				<Button
 					type="button"
+					variant="ghost"
+					size="sm"
 					onClick={() => {
 						onClearSelection();
 						closeDropdowns();
 					}}
 					disabled={!!progress}
 					data-testid="clear-selection"
-					className="text-muted-foreground text-sm hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
 				>
 					Clear
-				</button>
+				</Button>
 			</div>
 		</div>
 	);
