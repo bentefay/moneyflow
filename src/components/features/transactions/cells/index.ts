@@ -6,11 +6,6 @@
 
 export { CheckboxCell, type CheckboxCellProps } from "./CheckboxCell";
 export {
-	type AccountOption,
-	InlineEditableAccount,
-	type InlineEditableAccountProps,
-} from "./InlineEditableAccount";
-export {
 	InlineEditableAmount,
 	type InlineEditableAmountProps,
 } from "./InlineEditableAmount";

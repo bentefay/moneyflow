@@ -27,10 +27,11 @@ async function createTestTransaction(
 		amount: string;
 	}
 ) {
-	const addRow = page.locator('[data-testid="add-transaction-row"]');
-	await addRow.click();
+	// Click the "Add transaction" button in the toolbar
+	const addButton = page.locator('[data-testid="add-transaction-button"]');
+	await addButton.click();
 
-	// Wait for the add row to be in active state (has inputs)
+	// Wait for the add row to appear in the table (has inputs)
 	const merchantInput = page.locator('[data-testid="new-transaction-merchant"]');
 	await expect(merchantInput).toBeVisible({ timeout: 5000 });
 
@@ -56,11 +57,13 @@ async function createTestTransaction(
 	await expect(transactionRow).toBeVisible({ timeout: 5000 });
 
 	// Cancel the add row to return to inactive state
-	// This ensures the selection count is visible in the placeholder
+	// This ensures the selection count is visible in the toolbar
 	await page.keyboard.press("Escape");
 
-	// Wait for add row to return to inactive state (placeholder visible)
-	await expect(page.locator('[data-testid="add-transaction-row"]')).toBeVisible({ timeout: 5000 });
+	// Wait for add row to disappear (cancelled)
+	await expect(page.locator('[data-testid="add-transaction-row"]')).not.toBeVisible({
+		timeout: 5000,
+	});
 }
 
 /**
@@ -100,10 +103,12 @@ test.describe("Transactions", () => {
 			await expect(page.getByRole("link", { name: "Transactions" })).toBeVisible();
 		});
 
-		await test.step("show add transaction row in empty state", async () => {
-			// The add transaction row should always be visible
-			const addRow = page.locator('[data-testid="add-transaction-row"]');
-			await expect(addRow).toBeVisible();
+		await test.step("show toolbar in empty state", async () => {
+			// The toolbar with add button should always be visible
+			const toolbar = page.locator('[data-testid="transaction-table-toolbar"]');
+			await expect(toolbar).toBeVisible();
+			const addButton = page.locator('[data-testid="add-transaction-button"]');
+			await expect(addButton).toBeVisible();
 		});
 	});
 
@@ -123,8 +128,8 @@ test.describe("Transactions", () => {
 		await goToTransactions(page);
 
 		await test.step("activate add transaction row", async () => {
-			const addRow = page.locator('[data-testid="add-transaction-row"]');
-			await addRow.click();
+			const addButton = page.locator('[data-testid="add-transaction-button"]');
+			await addButton.click();
 		});
 
 		await test.step("open account selector and verify create option exists", async () => {
@@ -154,8 +159,8 @@ test.describe("Transactions", () => {
 		await goToTransactions(page);
 
 		await test.step("activate add transaction row and fill some data", async () => {
-			const addRow = page.locator('[data-testid="add-transaction-row"]');
-			await addRow.click();
+			const addButton = page.locator('[data-testid="add-transaction-button"]');
+			await addButton.click();
 
 			// Fill in description to prevent click-outside from closing the row
 			const descriptionInput = page.locator('[data-testid="new-transaction-merchant"]');

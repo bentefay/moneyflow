@@ -9,7 +9,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import type { AccountOption } from "./cells/InlineEditableAccount";
+import { AccountOption } from "../accounts";
 import type { StatusOption } from "./cells/InlineEditableStatus";
 import type { TagOption } from "./cells/InlineEditableTags";
 import { type NewTransactionData, TransactionRow } from "./TransactionRow";
@@ -85,7 +85,7 @@ export function AddTransactionRow({
 				onClick={handleActivate}
 				data-testid="add-transaction-row"
 				className={cn(
-					"flex cursor-pointer items-center gap-4 border-b border-dashed px-4 py-3",
+					"flex min-w-fit cursor-pointer items-center gap-4 border-b border-dashed px-4 py-3",
 					"text-muted-foreground hover:bg-accent/50 hover:text-foreground",
 					"transition-colors",
 					className

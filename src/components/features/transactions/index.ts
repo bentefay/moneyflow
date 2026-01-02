@@ -1,10 +1,6 @@
-export {
-	type AccountOption,
-	AddTransactionRow,
-	type AddTransactionRowProps,
-} from "./AddTransactionRow";
 export { BulkEditToolbar, type BulkEditToolbarProps } from "./BulkEditToolbar";
 export * from "./cells";
+export { type AccountOption } from "./cells/InlineEditableAccount";
 export * from "./filters";
 
 export { InlineTagEditor, type InlineTagEditorProps } from "./InlineTagEditor";
@@ -24,3 +20,7 @@ export {
 	type TransactionRowProps,
 } from "./TransactionRow";
 export { TransactionTable, type TransactionTableProps } from "./TransactionTable";
+export {
+	TransactionTableToolbar,
+	type TransactionTableToolbarProps,
+} from "./TransactionTableToolbar";

@@ -9,7 +9,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-	AddTransactionRow,
 	BulkEditToolbar,
 	createEmptyFilters,
 	hasActiveFilters,
@@ -18,6 +17,7 @@ import {
 	type TransactionFiltersState,
 	type TransactionRowData,
 	TransactionTable,
+	TransactionTableToolbar,
 } from "@/components/features/transactions";
 import { useToast } from "@/components/ui/toast";
 import { useActiveVault } from "@/hooks/use-active-vault";
@@ -106,6 +106,9 @@ export default function TransactionsPage() {
 	// Selection state - simple Set instead of custom hook
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 	const selectedCount = selectedIds.size;
+
+	// Add transaction state
+	const [isAddingTransaction, setIsAddingTransaction] = useState(false);
 
 	// Clear selection helper
 	const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
@@ -478,14 +481,10 @@ export default function TransactionsPage() {
 
 			{/* Transaction Table */}
 			<div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border">
-				{/* Add Transaction Row */}
-				<AddTransactionRow
-					availableAccounts={accountOptions}
-					availableStatuses={statusOptionsForInlineEdit}
-					availableTags={tagOptionsForInlineEdit}
-					onCreateTag={handleCreateTag}
-					onAdd={handleAddTransaction}
-					defaultAccountId={accountOptions[0]?.id}
+				{/* Toolbar with Add button and counts */}
+				<TransactionTableToolbar
+					isAddingTransaction={isAddingTransaction}
+					onAddClick={() => setIsAddingTransaction(true)}
 					selectedCount={selectedCount}
 					totalCount={filteredTransactions.length}
 					isFiltered={hasActiveFilters(filters)}
@@ -506,6 +505,11 @@ export default function TransactionsPage() {
 					onTransactionDelete={handleSingleDelete}
 					onResolveDuplicate={handleResolveDuplicate}
 					onTransactionUpdate={handleTransactionUpdate}
+					isAddingTransaction={isAddingTransaction}
+					onAddTransaction={handleAddTransaction}
+					onCancelAddTransaction={() => setIsAddingTransaction(false)}
+					defaultAccountId={accountOptions[0]?.id}
+					defaultStatusId={defaultStatusId}
 				/>
 			</div>
 

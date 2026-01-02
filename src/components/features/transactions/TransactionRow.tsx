@@ -13,14 +13,13 @@
 
 import { Check, ChevronUp, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AccountCombobox } from "@/components/features/accounts";
+import { AccountCombobox, AccountOption } from "@/components/features/accounts";
 import { PresenceAvatar } from "@/components/features/presence/PresenceAvatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { hashToColor } from "@/lib/utils/color";
 import { CheckboxCell } from "./cells/CheckboxCell";
-import { type AccountOption, InlineEditableAccount } from "./cells/InlineEditableAccount";
 import { InlineEditableAmount } from "./cells/InlineEditableAmount";
 import { InlineEditableDate } from "./cells/InlineEditableDate";
 import { InlineEditableStatus, type StatusOption } from "./cells/InlineEditableStatus";
@@ -357,7 +356,7 @@ export function TransactionRow({
 	}, [effectiveExpanded]);
 
 	return (
-		<div ref={containerRef} className="flex min-w-fit flex-col" onKeyDown={handleKeyDown}>
+		<div ref={containerRef} className="flex flex-col" onKeyDown={handleKeyDown}>
 			{/* Main row */}
 			<div
 				onClick={isAddMode ? undefined : () => onClick?.()}
@@ -365,7 +364,7 @@ export function TransactionRow({
 				tabIndex={0}
 				data-testid={isAddMode ? "add-transaction-row" : "transaction-row"}
 				className={cn(
-					"group relative grid min-w-fit items-center gap-4 px-4 py-3",
+					"group relative grid items-center gap-4 px-4 py-3",
 					!effectiveExpanded && "border-b",
 					isAddMode && "border-dashed bg-accent/30",
 					!isAddMode && "hover:bg-accent/50 focus:bg-accent/50",
@@ -445,23 +444,13 @@ export function TransactionRow({
 
 				{/* Account */}
 				<div data-cell="account" className="min-w-0">
-					{isAddMode ? (
-						<AccountCombobox
-							value={effectiveData.accountId ?? ""}
-							onChange={(accountId) => handleFieldUpdateForMode("accountId", accountId)}
-							accounts={availableAccounts}
-							placeholder="Select account..."
-							className="h-7 border-transparent bg-transparent px-1 text-muted-foreground shadow-none hover:bg-accent/30 focus:border-primary focus:bg-background focus:ring-1 focus:ring-primary"
-						/>
-					) : (
-						<InlineEditableAccount
-							value={effectiveData.accountId}
-							accountName={effectiveData.account}
-							availableAccounts={availableAccounts}
-							onSave={(accountId) => handleFieldUpdateForMode("accountId", accountId)}
-							data-testid="account-editable"
-						/>
-					)}
+					<AccountCombobox
+						value={effectiveData.accountId ?? ""}
+						onChange={(accountId) => handleFieldUpdateForMode("accountId", accountId)}
+						accounts={availableAccounts}
+						placeholder="Add account..."
+						className="h-7 border-transparent bg-transparent px-1 text-muted-foreground shadow-none hover:bg-accent/30 focus:border-primary focus:bg-background focus:ring-1 focus:ring-primary"
+					/>
 				</div>
 
 				{/* Tags */}
@@ -653,7 +642,7 @@ export function TransactionRow({
 			{/* Expanded description row */}
 			{effectiveExpanded && (
 				<div
-					className="grid min-w-fit items-center gap-4 border-b bg-muted/30 px-4 py-2"
+					className="grid items-center gap-4 border-b bg-muted/30 px-4 py-2"
 					style={{ gridTemplateColumns: TRANSACTION_GRID_TEMPLATE }}
 					data-testid="description-row"
 				>

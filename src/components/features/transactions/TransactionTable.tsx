@@ -12,13 +12,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { StatusOption, TagOption } from "./cells";
 import { CheckboxCell } from "./cells/CheckboxCell";
-import type { AccountOption } from "./cells/InlineEditableAccount";
 import { useTableSelection } from "./hooks/useTableSelection";
 import {
+	type NewTransactionData,
 	TransactionRow,
 	type TransactionRowData,
 	type TransactionRowPresence,
 } from "./TransactionRow";
+import { AccountOption } from "../accounts";
 
 /**
  * Shared grid template for transaction table columns.
@@ -26,7 +27,7 @@ import {
  * Format: checkbox | date | merchant | account | tags | status | amount | actions
  */
 export const TRANSACTION_GRID_TEMPLATE =
-	"32px 110px minmax(150px, 2fr) 140px 140px 110px 112px 88px";
+	"32px 120px minmax(150px, 2fr) 160px 140px 110px 112px 88px";
 
 export interface TransactionTableProps {
 	/** Array of transactions to display */
@@ -63,6 +64,16 @@ export interface TransactionTableProps {
 	onTransactionDelete?: (id: string) => void;
 	/** Callback when a duplicate is resolved (kept) */
 	onResolveDuplicate?: (id: string) => void;
+	/** Whether to show the add transaction row at the top */
+	isAddingTransaction?: boolean;
+	/** Callback when a new transaction is added */
+	onAddTransaction?: (data: NewTransactionData) => void;
+	/** Callback when add transaction is cancelled */
+	onCancelAddTransaction?: () => void;
+	/** Default account ID for add row */
+	defaultAccountId?: string;
+	/** Default status ID for add row */
+	defaultStatusId?: string;
 	/** Additional CSS classes */
 	className?: string;
 }
@@ -86,7 +97,7 @@ function TransactionTableHeader({
 }: TransactionTableHeaderProps) {
 	return (
 		<div
-			className="sticky top-0 z-10 grid min-w-fit items-center gap-4 border-b bg-muted/50 px-4 py-2 font-medium text-sm"
+			className="sticky top-0 z-10 grid min-w-fit items-center gap-4 border-b bg-slate-50 px-4 py-2 font-medium text-sm"
 			style={{ gridTemplateColumns: TRANSACTION_GRID_TEMPLATE }}
 		>
 			{/* Checkbox column */}
@@ -157,6 +168,11 @@ export function TransactionTable({
 	isLoading = false,
 	onTransactionDelete,
 	onResolveDuplicate,
+	isAddingTransaction = false,
+	onAddTransaction,
+	onCancelAddTransaction,
+	defaultAccountId,
+	defaultStatusId,
 	className,
 }: TransactionTableProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -329,7 +345,7 @@ export function TransactionTable({
 		}
 	}, [virtualItems, onLoadMore, hasMore, isLoading, transactions.length]);
 
-	if (transactions.length === 0 && !isLoading) {
+	if (transactions.length === 0 && !isLoading && !isAddingTransaction) {
 		return <EmptyState />;
 	}
 
@@ -341,6 +357,22 @@ export function TransactionTable({
 					isSomeSelected={isSomeSelected}
 					onSelectAll={selectAll}
 				/>
+
+				{/* Add Transaction Row - appears at top of table when active */}
+				{isAddingTransaction && onAddTransaction && (
+					<TransactionRow
+						mode="add"
+						availableAccounts={availableAccounts}
+						availableStatuses={availableStatuses}
+						availableTags={availableTags}
+						onCreateTag={onCreateTag}
+						onAdd={onAddTransaction}
+						onCancel={onCancelAddTransaction}
+						defaultAccountId={defaultAccountId}
+						defaultStatusId={defaultStatusId}
+					/>
+				)}
+
 				<div
 					className="relative min-w-fit flex-1"
 					role="grid"
