@@ -69,7 +69,7 @@ export function CheckboxCell({
 				onClick={handleClick}
 				disabled={disabled}
 				aria-label={ariaLabel}
-				className={cn(disabled && "opacity-50 cursor-not-allowed")}
+				className={cn(disabled && "opacity-50")}
 			/>
 		</div>
 	);

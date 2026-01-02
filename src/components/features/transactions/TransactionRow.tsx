@@ -359,7 +359,6 @@ export function TransactionRow({
 					isAddMode && "border-dashed bg-accent/30",
 					!isAddMode && "hover:bg-accent/50 focus:bg-accent/50",
 					"focus:outline-none",
-					!isAddMode && "cursor-pointer",
 					"transition-colors",
 					!isAddMode && isSelected && "bg-accent",
 					!isAddMode && isSelected && "focused selected",
