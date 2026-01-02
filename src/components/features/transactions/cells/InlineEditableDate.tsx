@@ -13,6 +13,7 @@ import { useCallback, useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { formatTransactionDate } from "@/lib/utils/date-format";
 
 export interface InlineEditableDateProps {
 	/** Current value in ISO format (YYYY-MM-DD) */
@@ -64,8 +65,8 @@ export function InlineEditableDate({
 		e.stopPropagation(); // Prevent row selection
 	}, []);
 
-	// Format the display date
-	const displayDate = dateValue ? format(dateValue, "MMM d, yyyy") : "Pick a date";
+	// Format the display date using the transaction date formatter
+	const displayDate = value ? formatTransactionDate(value) : "Pick a date";
 
 	return (
 		<Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -92,6 +93,7 @@ export function InlineEditableDate({
 			<PopoverContent className="w-auto p-0" align="start">
 				<Calendar
 					mode="single"
+					captionLayout="dropdown"
 					selected={dateValue}
 					onSelect={handleSelect}
 					defaultMonth={dateValue}

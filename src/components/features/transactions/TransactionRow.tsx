@@ -77,8 +77,8 @@ export interface TransactionRowProps {
 	availableTags?: TagOption[];
 	/** Callback when a new tag should be created */
 	onCreateTag?: (name: string) => Promise<TagOption>;
-	/** Callback when row is clicked */
-	onClick?: (event?: React.MouseEvent) => void;
+	/** Callback when row is clicked (for navigation/focus, not selection) */
+	onClick?: () => void;
 	/** Callback when row is focused */
 	onFocus?: () => void;
 	/** Callback when resolving duplicate (keep = clear flag, delete = remove) */
@@ -349,7 +349,7 @@ export function TransactionRow({
 		<div ref={containerRef} className="flex flex-col" onKeyDown={handleKeyDown}>
 			{/* Main row */}
 			<div
-				onClick={isAddMode ? undefined : (e) => onClick?.(e)}
+				onClick={isAddMode ? undefined : () => onClick?.()}
 				onFocus={onFocus}
 				tabIndex={0}
 				data-testid={isAddMode ? "add-transaction-row" : "transaction-row"}
@@ -398,7 +398,11 @@ export function TransactionRow({
 					</div>
 				) : (
 					/* biome-ignore lint/a11y/useKeyWithClickEvents: keyboard handled by CheckboxCell */
-					<div data-testid="row-checkbox" onClick={handleCheckboxClick}>
+					<div
+						data-testid="row-checkbox"
+						onClick={handleCheckboxClick}
+						className="flex h-full w-full cursor-pointer items-center justify-center"
+					>
 						<CheckboxCell
 							checked={isSelected}
 							onChange={() => handleCheckboxChange()}

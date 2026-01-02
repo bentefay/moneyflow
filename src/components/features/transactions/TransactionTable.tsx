@@ -262,30 +262,17 @@ export function TransactionTable({
 		onSelectionChange,
 	]);
 
-	// Handle single row click (row click selects/navigates, not checkbox)
+	// Handle single row click (navigation/focus only - selection is handled by checkbox)
 	const handleRowClick = useCallback(
-		(id: string, event: React.MouseEvent) => {
+		(id: string) => {
 			if (onTransactionClick) {
 				onTransactionClick(id);
 			}
-
-			if (!onSelectionChange) return;
-
-			// Use toggleRow from useTableSelection for shift-click range
-			if (event.shiftKey) {
-				toggleRow(id, true);
-			} else if (event.metaKey || event.ctrlKey) {
-				// Cmd/Ctrl-click: toggle selection
-				toggleRow(id, false);
-			} else {
-				// Regular click: select only this one
-				onSelectionChange(new Set([id]));
-			}
 		},
-		[onSelectionChange, onTransactionClick, toggleRow]
+		[onTransactionClick]
 	);
 
-	// Handle checkbox click (separate from row click)
+	// Handle checkbox click (toggles selection)
 	const handleCheckboxChange = useCallback(
 		(id: string) => {
 			toggleRow(id, false);
@@ -388,9 +375,7 @@ export function TransactionTable({
 										availableStatuses={availableStatuses}
 										availableTags={availableTags}
 										onCreateTag={onCreateTag}
-										onClick={(e?: React.MouseEvent) =>
-											handleRowClick(transaction.id, e as React.MouseEvent)
-										}
+										onClick={() => handleRowClick(transaction.id)}
 										onFocus={() => {
 											setFocusedId(transaction.id);
 											onTransactionFocus?.(transaction.id);

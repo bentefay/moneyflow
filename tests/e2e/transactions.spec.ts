@@ -292,6 +292,32 @@ test.describe("Transactions", () => {
 			});
 		});
 
+		test("T014: date displays in compact format for current year", async ({ page }) => {
+			await createNewIdentity(page);
+			await goToTransactions(page);
+
+			await test.step("create a test transaction", async () => {
+				await createTestTransaction(page, {
+					merchant: "Date Format Test",
+					amount: "-50.00",
+				});
+			});
+
+			await test.step("verify date displays in compact format (no year)", async () => {
+				// New transaction defaults to today's date
+				// Date should be displayed in compact format without year (e.g., "2/1" or "1/2" depending on locale)
+				const dateButton = page
+					.locator('[data-testid="transaction-row"]')
+					.first()
+					.locator('[data-testid="date-editable"]');
+
+				const dateText = await dateButton.textContent();
+				// Format should be D/M or M/D (no year for current year, no strict padding)
+				// Allow for locale-specific separators (/, ., -)
+				expect(dateText).toMatch(/^\d{1,2}[./-]\d{1,2}\.?$/);
+			});
+		});
+
 		test("T014a: edit date cell", async ({ page }) => {
 			await createNewIdentity(page);
 			await goToTransactions(page);
@@ -728,6 +754,37 @@ test.describe("Transactions", () => {
 				// Row should be deselected
 				await expect(checkboxButton).toHaveAttribute("aria-checked", "false");
 				await expect(firstRow).toHaveAttribute("aria-selected", "false");
+			});
+		});
+
+		test("T020b: clicking row body does not select transaction", async ({ page }) => {
+			await createNewIdentity(page);
+			await goToTransactions(page);
+
+			await test.step("create test transaction", async () => {
+				await createTestTransaction(page, { merchant: "No Select Test", amount: "-50.00" });
+			});
+
+			await test.step("click on row body (merchant cell) should not select", async () => {
+				const row = page.locator('[data-testid="transaction-row"]').first();
+				const merchantCell = row.locator('[data-cell="merchant"]');
+
+				// Ensure row starts unselected
+				await expect(row).toHaveAttribute("aria-selected", "false");
+
+				// Click on the merchant cell (part of the row body)
+				await merchantCell.click();
+
+				// Row should still be unselected
+				await expect(row).toHaveAttribute("aria-selected", "false");
+			});
+
+			await test.step("clicking checkbox cell selects the row", async () => {
+				const row = page.locator('[data-testid="transaction-row"]').first();
+				const checkboxButton = row.locator('[data-testid="row-checkbox"] button');
+
+				await toggleCheckbox(checkboxButton);
+				await expect(row).toHaveAttribute("aria-selected", "true");
 			});
 		});
 

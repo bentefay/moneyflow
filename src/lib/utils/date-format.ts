@@ -39,6 +39,95 @@ export function formatDateCompact(isoDate: string, locale?: string): string {
 }
 
 /**
+ * Format an ISO date string for transaction table display.
+ * Pure function that accepts referenceDate for testability.
+ * Internationalized using Temporal's toLocaleString.
+ *
+ * Format rules:
+ * - Same year as reference: D/M (e.g., "15/1" or "1/15" in en-US)
+ * - Year > 2000 but different from reference: D/M/YY (e.g., "25/12/23")
+ * - Year <= 2000: DD/MM/YYYY (e.g., "31/12/1999")
+ *
+ * @param isoDate - ISO 8601 date string (YYYY-MM-DD)
+ * @param referenceDate - Reference date for "same year" comparison (defaults to today)
+ * @param locale - BCP 47 locale string (defaults to browser locale)
+ * @returns Formatted date string respecting locale's date order and separators
+ */
+export function formatTransactionDate(
+	isoDate: string,
+	referenceDate?: Temporal.PlainDate,
+	locale?: string
+): string {
+	const date = Temporal.PlainDate.from(isoDate);
+	const now = referenceDate ?? Temporal.Now.plainDateISO();
+	const resolvedLocale =
+		locale ?? (typeof navigator !== "undefined" ? navigator.language : "en-GB");
+
+	if (date.year === now.year) {
+		// Same year: D/M (compact, no year, no padding)
+		// Use toLocaleString for order/separator, then strip leading zeros from day/month
+		const formatted = date.toLocaleString(resolvedLocale, {
+			day: "numeric",
+			month: "numeric",
+		});
+		return stripLeadingZeros(formatted);
+	}
+
+	if (date.year > 2000) {
+		// Year > 2000 but different year: D/M/YY (compact with 2-digit year)
+		// Use toLocaleString for order/separator, then strip leading zeros from day/month
+		const formatted = date.toLocaleString(resolvedLocale, {
+			day: "numeric",
+			month: "numeric",
+			year: "2-digit",
+		});
+		return stripLeadingZerosExceptYear(formatted);
+	}
+
+	// Year <= 2000: DD/MM/YYYY (full format with padding)
+	return date.toLocaleString(resolvedLocale, {
+		day: "2-digit",
+		month: "2-digit",
+		year: "numeric",
+	});
+}
+
+/**
+ * Strip leading zeros from date parts (day and month).
+ * Preserves separators and order.
+ * Example: "01/05" -> "1/5", "01.05." -> "1.5."
+ */
+function stripLeadingZeros(formatted: string): string {
+	// Replace patterns like "01" at word boundaries with "1"
+	// But preserve trailing dots for German format
+	return formatted.replace(/\b0(\d)/g, "$1");
+}
+
+/**
+ * Strip leading zeros from day/month but preserve the year part.
+ * Example: "01/05/24" -> "1/5/24", "01.05.24" -> "1.5.24"
+ */
+function stripLeadingZerosExceptYear(formatted: string): string {
+	// Split by common date separators, strip zeros from first two parts, keep year
+	const parts = formatted.split(/([/.,-])/);
+	let numericCount = 0;
+	return parts
+		.map((part) => {
+			// Check if this part is numeric
+			if (/^\d+$/.test(part)) {
+				numericCount++;
+				// Only strip zeros from first two numeric parts (day and month)
+				// Keep the year (3rd numeric part) as-is
+				if (numericCount <= 2) {
+					return part.replace(/^0+/, "") || "0";
+				}
+			}
+			return part;
+		})
+		.join("");
+}
+
+/**
  * Parse a locale-formatted date string back to ISO format.
  * Falls back to native Date parsing for flexibility.
  *
