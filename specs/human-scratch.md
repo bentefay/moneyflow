@@ -21,9 +21,15 @@
       and the hover background is only the visible width of the container (the client width rather
       than the scroll width) in the transaction table at small break points
 
-- [] The vault selector and saving indicator should be visible when the menu is collapsed, with nice
-  icons. The whole vault name doesn't need to be visible. The whole left pane should collapse
-  automatically at small breakpoints and use a slide out pane.
+- [x] Can you implement a few features related to the top app menu bar on the left?
+
+  - The vault selector and saving indicator should be visible when the menu is collapsed, with nice
+    icons. Specifically, lets switch the coloured circles to larger coloured circles with icons
+    inside. Use lucide icons. Add a tooltip so it's obvious what they are even when collapsed. Then
+    show the circle with icon only when collapsed. The vault indicator should just be an icon that
+    opens the select popup. The whole vault name doesn't need to be visible.
+  - At small breakpoints the left bar should switch to a top bar with the MoneyFlow icon logo and a
+    menu that you can click to open a menu page.
 
 - [] When creating a vault the default currency should be inferred from time zone or culture
   (https://gist.github.com/mizrael/50c10be8ec92264751187d7705362eb2)? I'm guessing time zone is

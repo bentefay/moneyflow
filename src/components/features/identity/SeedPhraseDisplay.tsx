@@ -96,6 +96,28 @@ export function SeedPhraseDisplay({
 	// Render
 	// -------------------------------------------------------------------------
 
+	const copyToClipboardButton = showCopyButton && (
+		<Button
+			data-testid="copy-button"
+			variant="outline"
+			size="sm"
+			onClick={handleCopy}
+			className="gap-2"
+		>
+			{isCopied ? (
+				<>
+					<Check className="h-4 w-4" />
+					Copied!
+				</>
+			) : (
+				<>
+					<Copy className="h-4 w-4" />
+					Copy to clipboard
+				</>
+			)}
+		</Button>
+	);
+
 	return (
 		<div className={cn("space-y-4", className)}>
 			{/* Seed phrase grid */}
@@ -117,27 +139,12 @@ export function SeedPhraseDisplay({
 							)}
 						>
 							<span className="w-5 font-medium text-muted-foreground text-xs">{index + 1}.</span>
-							<span className={cn("font-mono text-sm", !isRevealed && "blur-sm")}>
+							<span className={cn("font-mono text-sm", !isRevealed && "blur-xs")}>
 								{isRevealed ? word : "•••••"}
 							</span>
 						</div>
 					))}
 				</div>
-
-				{/* Blur overlay when hidden */}
-				{!isRevealed && (
-					<button
-						className="absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-4 rounded-lg bg-background/20 text-sm backdrop-blur-xs hover:bg-teal-100/20"
-						onClick={toggleReveal}
-					>
-						<div className="flex items-center gap-2 font-bold">
-							<Eye className="h-4 w-4" />
-							Click to reveal your recovery phrase
-						</div>
-
-						<div>or copy to clipboard below...</div>
-					</button>
-				)}
 			</div>
 
 			{/* Action buttons */}
@@ -158,27 +165,7 @@ export function SeedPhraseDisplay({
 				)}
 				{!showRevealToggle && <div />}
 
-				{showCopyButton && (
-					<Button
-						data-testid="copy-button"
-						variant="outline"
-						size="sm"
-						onClick={handleCopy}
-						className="gap-2"
-					>
-						{isCopied ? (
-							<>
-								<Check className="h-4 w-4" />
-								Copied!
-							</>
-						) : (
-							<>
-								<Copy className="h-4 w-4" />
-								Copy to clipboard
-							</>
-						)}
-					</Button>
-				)}
+				{copyToClipboardButton}
 			</div>
 
 			{/* Security warning */}

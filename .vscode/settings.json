@@ -19,7 +19,11 @@
 		"pnpm format": true,
 		"bat": true,
 		"playwright test": true,
-		"jq": true
+		"jq": true,
+		"git commit": true,
+		"git status": true,
+		"git fetch": true,
+		"git checkout": true
 	},
 	"[typescript]": {
 		"editor.formatOnSave": true,

@@ -5,6 +5,11 @@
  *
  * Authenticated app layout with sidebar navigation.
  * Protected by AuthGuard - redirects unauthenticated users to /unlock.
+ *
+ * Features:
+ * - Collapsible sidebar on desktop (md+)
+ * - Collapsed mode shows vault icon and sync status with tooltips
+ * - Mobile (<md) shows top bar with hamburger menu opening a full-screen drawer
  */
 
 import {
@@ -15,6 +20,7 @@ import {
 	ChevronRight,
 	FileDown,
 	LogOut,
+	Menu,
 	Receipt,
 	Settings,
 	Tags,
@@ -28,7 +34,9 @@ import { VaultSelector } from "@/components/features/vault/VaultSelector";
 import { ActiveVaultProvider } from "@/components/providers/active-vault-provider";
 import { VaultProvider } from "@/components/providers/vault-provider";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { SyncStatus } from "@/components/ui/sync-status";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useActiveVault } from "@/hooks/use-active-vault";
 import { SyncStatusProvider, usePollUnsavedChanges, useSyncStatus } from "@/hooks/use-sync-status";
 import { useVaultPresence } from "@/hooks/use-vault-presence";
@@ -80,6 +88,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 	const router = useRouter();
 	const { pubkeyHash } = useAuthGuard({ redirect: false });
 	const [isCollapsed, setIsCollapsed] = useState(false);
+	const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 	const { activeVault } = useActiveVault();
 
 	// Get vault name from CRDT preferences (single source of truth)
@@ -107,12 +116,116 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 
 	const isVaultsLoading = vaultListQuery.isLoading;
 
+	const handleLogout = () => {
+		clearSession();
+		router.replace("/unlock");
+	};
+
+	// Close mobile menu on navigation
+	const handleMobileNavClick = () => {
+		setIsMobileMenuOpen(false);
+	};
+
+	// Shared navigation content for both mobile drawer and desktop sidebar
+	const navigationContent = (isMobile: boolean) => (
+		<>
+			{/* Main Navigation */}
+			<nav className="flex-1 space-y-1 p-2">
+				{mainNavItems.map((item) => (
+					<NavLink
+						key={item.href}
+						item={item}
+						isCollapsed={!isMobile && isCollapsed}
+						onClick={isMobile ? handleMobileNavClick : undefined}
+					/>
+				))}
+			</nav>
+
+			{/* Bottom Navigation */}
+			<nav className="space-y-1 border-t p-2">
+				{bottomNavItems.map((item) => (
+					<NavLink
+						key={item.href}
+						item={item}
+						isCollapsed={!isMobile && isCollapsed}
+						onClick={isMobile ? handleMobileNavClick : undefined}
+					/>
+				))}
+				<Button
+					variant="ghost"
+					onClick={handleLogout}
+					className={cn(
+						"w-full justify-start font-medium text-muted-foreground hover:text-accent-foreground",
+						!isMobile && isCollapsed && "justify-center"
+					)}
+				>
+					<LogOut className="h-4 w-4" />
+					{(isMobile || !isCollapsed) && <span>Lock</span>}
+				</Button>
+			</nav>
+		</>
+	);
+
 	return (
-		<div className="flex h-screen">
-			{/* Sidebar */}
+		<div className="flex h-screen flex-col md:flex-row">
+			{/* Mobile Top Bar */}
+			<header className="flex h-14 items-center justify-between border-b bg-card px-4 md:hidden">
+				{/* Logo */}
+				<Link href="/transactions" className="font-semibold text-lg">
+					MoneyFlow
+				</Link>
+
+				{/* Right side: Presence + Menu */}
+				<div className="flex items-center gap-2">
+					{isConnected && onlineUsers.length > 0 && (
+						<PresenceAvatarGroup
+							users={onlineUsers.map((u) => ({
+								userId: u.userId,
+								isOnline: true,
+							}))}
+							size="sm"
+						/>
+					)}
+					<Button
+						variant="ghost"
+						size="icon"
+						onClick={() => setIsMobileMenuOpen(true)}
+						aria-label="Open menu"
+					>
+						<Menu className="h-5 w-5" />
+					</Button>
+				</div>
+			</header>
+
+			{/* Mobile Drawer */}
+			<Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+				<SheetContent side="left" className="flex w-80 flex-col p-0">
+					<SheetHeader className="border-b p-4">
+						<SheetTitle className="text-left">MoneyFlow</SheetTitle>
+					</SheetHeader>
+
+					{/* Vault Selector & Status */}
+					<div className="space-y-3 border-b p-4">
+						<VaultSelector
+							vaults={vaultOptions}
+							currentVaultName={currentVaultName}
+							isLoading={isVaultsLoading}
+							onCreateVault={() => {
+								console.log("Create vault");
+								setIsMobileMenuOpen(false);
+							}}
+						/>
+						<SyncStatus state={syncState} hasUnsavedChanges={hasUnsavedChanges} showLabel />
+					</div>
+
+					{navigationContent(true)}
+				</SheetContent>
+			</Sheet>
+
+			{/* Desktop Sidebar */}
 			<aside
 				className={cn(
-					"flex flex-col border-r bg-card transition-all duration-300",
+					"hidden flex-col border-r bg-card transition-all duration-300 md:flex",
 					isCollapsed ? "w-16" : "w-64"
 				)}
 			>
@@ -123,21 +236,47 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 							MoneyFlow
 						</Link>
 					)}
-					<Button
-						variant="ghost"
-						size="icon-sm"
-						onClick={() => setIsCollapsed(!isCollapsed)}
-						aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-					>
-						{isCollapsed ? (
-							<ChevronRight className="h-4 w-4" />
-						) : (
-							<ChevronLeft className="h-4 w-4" />
-						)}
-					</Button>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								variant="ghost"
+								size="icon-sm"
+								onClick={() => setIsCollapsed(!isCollapsed)}
+								aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+							>
+								{isCollapsed ? (
+									<ChevronRight className="h-4 w-4" />
+								) : (
+									<ChevronLeft className="h-4 w-4" />
+								)}
+							</Button>
+						</TooltipTrigger>
+						{isCollapsed && <TooltipContent side="right">Expand sidebar</TooltipContent>}
+					</Tooltip>
 				</div>
 
-				{/* Vault Selector & Status */}
+				{/* Vault Selector & Status - Collapsed Mode */}
+				{isCollapsed && (
+					<div className="flex flex-col items-center gap-2 border-b py-3">
+						<VaultSelector
+							vaults={vaultOptions}
+							currentVaultName={currentVaultName}
+							isLoading={isVaultsLoading}
+							onCreateVault={() => {
+								console.log("Create vault");
+							}}
+							iconMode
+						/>
+						<SyncStatus
+							state={syncState}
+							hasUnsavedChanges={hasUnsavedChanges}
+							iconMode
+							showLabel={false}
+						/>
+					</div>
+				)}
+
+				{/* Vault Selector & Status - Expanded Mode */}
 				{!isCollapsed && (
 					<div className="space-y-2 border-b p-3">
 						<VaultSelector
@@ -145,12 +284,17 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 							currentVaultName={currentVaultName}
 							isLoading={isVaultsLoading}
 							onCreateVault={() => {
-								// TODO: Open create vault dialog
 								console.log("Create vault");
 							}}
+							showAvatar
 						/>
 						<div className="flex items-center justify-between">
-							<SyncStatus state={syncState} hasUnsavedChanges={hasUnsavedChanges} showLabel />
+							<SyncStatus
+								state={syncState}
+								hasUnsavedChanges={hasUnsavedChanges}
+								iconMode
+								showLabel
+							/>
 							{isConnected && onlineUsers.length > 0 && (
 								<PresenceAvatarGroup
 									users={onlineUsers.map((u) => ({
@@ -164,34 +308,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 					</div>
 				)}
 
-				{/* Main Navigation */}
-				<nav className="flex-1 space-y-1 p-2">
-					{mainNavItems.map((item) => (
-						<NavLink key={item.href} item={item} isCollapsed={isCollapsed} />
-					))}
-				</nav>
-
-				{/* Bottom Navigation */}
-				<nav className="space-y-1 border-t p-2">
-					{bottomNavItems.map((item) => (
-						<NavLink key={item.href} item={item} isCollapsed={isCollapsed} />
-					))}
-					<Button
-						variant="ghost"
-						onClick={() => {
-							// Clear session and redirect to unlock
-							clearSession();
-							router.replace("/unlock");
-						}}
-						className={cn(
-							"w-full justify-start font-medium text-muted-foreground hover:text-accent-foreground",
-							isCollapsed && "justify-center"
-						)}
-					>
-						<LogOut className="h-4 w-4" />
-						{!isCollapsed && <span>Lock</span>}
-					</Button>
-				</nav>
+				{navigationContent(false)}
 			</aside>
 
 			{/* Main Content Area - no header, full height for virtualization */}
@@ -200,14 +317,23 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 	);
 }
 
-function NavLink({ item, isCollapsed }: { item: NavItem; isCollapsed: boolean }) {
+function NavLink({
+	item,
+	isCollapsed,
+	onClick,
+}: {
+	item: NavItem;
+	isCollapsed: boolean;
+	onClick?: () => void;
+}) {
 	const pathname = usePathname();
 	const Icon = item.icon;
 	const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
 
-	return (
+	const link = (
 		<Link
 			href={item.href}
+			onClick={onClick}
 			className={cn(
 				"flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground",
 				isCollapsed && "justify-center",
@@ -215,10 +341,21 @@ function NavLink({ item, isCollapsed }: { item: NavItem; isCollapsed: boolean })
 					? "bg-accent font-semibold text-accent-foreground"
 					: "font-medium text-muted-foreground"
 			)}
-			title={isCollapsed ? item.label : undefined}
 		>
 			<Icon className="h-4 w-4" />
 			{!isCollapsed && <span>{item.label}</span>}
 		</Link>
 	);
+
+	// Wrap in tooltip when collapsed
+	if (isCollapsed) {
+		return (
+			<Tooltip>
+				<TooltipTrigger asChild>{link}</TooltipTrigger>
+				<TooltipContent side="right">{item.label}</TooltipContent>
+			</Tooltip>
+		);
+	}
+
+	return link;
 }
