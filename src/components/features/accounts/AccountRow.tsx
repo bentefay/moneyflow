@@ -45,6 +45,8 @@ export interface AccountRowProps {
 	onUpdate: (id: string, data: Partial<Account>) => void;
 	/** Callback when account is deleted */
 	onDelete: (id: string) => void;
+	/** Whether this account can be deleted (FR-013: last account cannot be deleted) */
+	canDelete?: boolean;
 	/** Whether this row is expanded to show ownership editor */
 	isExpanded?: boolean;
 	/** Callback when row expansion is toggled */
@@ -75,6 +77,7 @@ export function AccountRow({
 	vaultDefaultCurrency,
 	onUpdate,
 	onDelete,
+	canDelete = true,
 	isExpanded = false,
 	onToggleExpand,
 	className,
@@ -499,8 +502,11 @@ export function AccountRow({
 						variant="ghost"
 						size="sm"
 						onClick={handleDelete}
+						disabled={!canDelete}
+						title={canDelete ? undefined : "Cannot delete the last account"}
 						className={cn(
 							"h-7 w-7 p-0",
+							!canDelete && "opacity-50 cursor-not-allowed",
 							showDeleteConfirm
 								? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"
 								: "text-muted-foreground hover:text-destructive"

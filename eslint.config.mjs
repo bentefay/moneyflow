@@ -16,6 +16,8 @@ const eslintConfig = defineConfig([
     // Generated files:
     "playwright-report/**",
     "test-results/**",
+    // Vendored animate-ui components (installed via shadcn):
+    "src/components/animate-ui/**",
   ]),
 ]);
 

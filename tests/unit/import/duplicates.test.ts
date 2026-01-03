@@ -214,6 +214,109 @@ describe("checkDuplicate", () => {
 		});
 	});
 
+	describe("date match mode", () => {
+		it("exact mode requires same day", () => {
+			const tx1 = createTransaction({ id: "tx-1", date: isoDate("2024-01-15") });
+			const tx2 = createTransaction({ id: "tx-2", date: isoDate("2024-01-16") });
+
+			const exactConfig: DuplicateDetectionConfig = {
+				...DEFAULT_DUPLICATE_CONFIG,
+				dateMatchMode: "exact",
+			};
+
+			const match = checkDuplicate(tx1, tx2, exactConfig);
+			expect(match).toBeNull(); // One day apart should not match in exact mode
+		});
+
+		it("exact mode matches same day", () => {
+			const tx1 = createTransaction({ id: "tx-1", date: isoDate("2024-01-15") });
+			const tx2 = createTransaction({ id: "tx-2", date: isoDate("2024-01-15") });
+
+			const exactConfig: DuplicateDetectionConfig = {
+				...DEFAULT_DUPLICATE_CONFIG,
+				dateMatchMode: "exact",
+			};
+
+			const match = checkDuplicate(tx1, tx2, exactConfig);
+			expect(match).not.toBeNull();
+			expect(match?.matchDetails.dateMatch).toBe(true);
+		});
+
+		it("within mode allows date tolerance", () => {
+			const tx1 = createTransaction({ id: "tx-1", date: isoDate("2024-01-15") });
+			const tx2 = createTransaction({ id: "tx-2", date: isoDate("2024-01-17") });
+
+			const withinConfig: DuplicateDetectionConfig = {
+				...DEFAULT_DUPLICATE_CONFIG,
+				dateMatchMode: "within",
+				maxDateDiffDays: 3,
+			};
+
+			const match = checkDuplicate(tx1, tx2, withinConfig);
+			expect(match).not.toBeNull();
+			expect(match?.matchDetails.dateMatch).toBe(true);
+		});
+	});
+
+	describe("description match mode", () => {
+		it("exact mode requires case-insensitive match", () => {
+			const tx1 = createTransaction({ id: "tx-1", description: "AMAZON PURCHASE" });
+			const tx2 = createTransaction({ id: "tx-2", description: "amazon purchase" });
+
+			const exactConfig: DuplicateDetectionConfig = {
+				...DEFAULT_DUPLICATE_CONFIG,
+				descriptionMatchMode: "exact",
+			};
+
+			const match = checkDuplicate(tx1, tx2, exactConfig);
+			expect(match).not.toBeNull();
+			expect(match?.matchDetails.descriptionSimilarity).toBe(1);
+		});
+
+		it("exact mode rejects different descriptions", () => {
+			const tx1 = createTransaction({ id: "tx-1", description: "AMAZON PURCHASE" });
+			const tx2 = createTransaction({ id: "tx-2", description: "AMAZON.COM*AMZN" });
+
+			const exactConfig: DuplicateDetectionConfig = {
+				...DEFAULT_DUPLICATE_CONFIG,
+				descriptionMatchMode: "exact",
+			};
+
+			const match = checkDuplicate(tx1, tx2, exactConfig);
+			expect(match).toBeNull(); // Different descriptions should not match in exact mode
+		});
+
+		it("similar mode uses Levenshtein similarity", () => {
+			const tx1 = createTransaction({ id: "tx-1", description: "AMAZON.COM*AMZN.COM/BI" });
+			const tx2 = createTransaction({ id: "tx-2", description: "AMAZON.COM*AMZN.COM" });
+
+			const similarConfig: DuplicateDetectionConfig = {
+				...DEFAULT_DUPLICATE_CONFIG,
+				descriptionMatchMode: "similar",
+				minDescriptionSimilarity: 0.6,
+			};
+
+			const match = checkDuplicate(tx1, tx2, similarConfig);
+			expect(match).not.toBeNull();
+			expect(match?.matchDetails.descriptionSimilarity).toBeGreaterThan(0.8);
+		});
+
+		it("similar mode respects similarity threshold", () => {
+			const tx1 = createTransaction({ id: "tx-1", description: "COFFEE SHOP" });
+			const tx2 = createTransaction({ id: "tx-2", description: "GAS STATION" });
+
+			const strictSimilarConfig: DuplicateDetectionConfig = {
+				...DEFAULT_DUPLICATE_CONFIG,
+				descriptionMatchMode: "similar",
+				minDescriptionSimilarity: 0.9, // Very strict threshold
+			};
+
+			const match = checkDuplicate(tx1, tx2, strictSimilarConfig);
+			// These descriptions are too different to match with 90% threshold
+			expect(match).toBeNull();
+		});
+	});
+
 	describe("match output", () => {
 		it("returns correct transaction IDs", () => {
 			const tx1 = createTransaction({ id: "new-tx-123" });

@@ -4,32 +4,29 @@
  * New Import Page
  *
  * Page for importing transactions from CSV/OFX files.
+ * Uses the new ImportPanel with tabbed configuration.
  */
 
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo } from "react";
-import type { ColumnMapping } from "@/components/features/import/ColumnMappingStep";
-import type { ImportFormatting } from "@/components/features/import/FormattingStep";
-import { ImportWizard, type ParsedTransaction } from "@/components/features/import/ImportWizard";
 import {
-	type ImportTemplate,
-	mappingsToTemplateFormat,
-} from "@/components/features/import/TemplateSelector";
+	ImportPanel,
+	type ImportTransactionData,
+} from "@/components/features/import/ImportPanel";
 import {
+	useActiveAccounts,
+	useActiveStatuses,
 	useActiveTransactions,
-	useAutomations,
 	useImportTemplates,
 	useVaultAction,
+	useVaultPreferences,
 } from "@/lib/crdt/context";
-import { DEFAULT_STATUS_IDS } from "@/lib/crdt/defaults";
 import type {
-	Automation,
-	AutomationApplication,
-	Import as ImportRecord,
+	Account,
 	ImportTemplate as ImportTemplateRecord,
+	Status,
 	Transaction,
 } from "@/lib/crdt/schema";
-import { applyAutomationsWithTracking, type TransactionChanges } from "@/lib/domain/automation";
 
 /** Generate unique ID */
 function generateId(): string {
@@ -42,20 +39,33 @@ function generateId(): string {
 export default function NewImportPage() {
 	const router = useRouter();
 
-	// Get existing transactions for duplicate detection
+	// Get data from vault
 	const transactions = useActiveTransactions();
+	const accounts = useActiveAccounts();
+	const statuses = useActiveStatuses();
 	const importTemplates = useImportTemplates();
-	const automations = useAutomations();
+	const preferences = useVaultPreferences();
+
+	// Default currency
+	const defaultCurrency = preferences?.defaultCurrency ?? "USD";
+
+	// Get default status ID (first status marked as default, or first status)
+	const defaultStatusId = useMemo(() => {
+		const statusList = Object.values(statuses);
+		const defaultStatus = statusList.find(
+			(s): s is { id: string; isDefault: boolean } & Record<string, unknown> =>
+				typeof s === "object" && s !== null && "isDefault" in s && s.isDefault === true
+		);
+		if (defaultStatus) return defaultStatus.id;
+		// Fallback to first status
+		const first = statusList.find(
+			(s): s is { id: string } & Record<string, unknown> =>
+				typeof s === "object" && s !== null && "id" in s
+		);
+		return first?.id ?? "";
+	}, [statuses]);
 
 	// Actions
-	const addTransaction = useVaultAction((state, data: Transaction) => {
-		state.transactions[data.id] = data as (typeof state.transactions)[string];
-	});
-
-	const addImport = useVaultAction((state, data: ImportRecord) => {
-		state.imports[data.id] = data as (typeof state.imports)[string];
-	});
-
 	const addImportTemplate = useVaultAction((state, data: ImportTemplateRecord) => {
 		state.importTemplates[data.id] = data as (typeof state.importTemplates)[string];
 	});
@@ -67,142 +77,132 @@ export default function NewImportPage() {
 		}
 	});
 
-	const addAutomationApplication = useVaultAction((state, data: AutomationApplication) => {
-		state.automationApplications[data.id] = data as (typeof state.automationApplications)[string];
-	});
-
-	// Convert CRDT templates to component format
-	const templates = useMemo((): ImportTemplate[] => {
-		return Object.values(importTemplates)
-			.filter(
-				(t): t is ImportTemplateRecord & { $cid: string } =>
-					typeof t === "object" && t !== null && !t.deletedAt
-			)
-			.map((t) => ({
-				id: t.id,
-				name: t.name,
-				columnMappings: Object.fromEntries(
-					Object.entries(t.columnMappings ?? {}).filter(
-						([key, v]) => typeof v === "string" && key !== "$cid"
-					)
-				) as Record<string, string>,
-				formatting: {
-					thousandSeparator: t.formatting?.thousandSeparator ?? ",",
-					decimalSeparator: t.formatting?.decimalSeparator ?? ".",
-					dateFormat: t.formatting?.dateFormat ?? "yyyy-MM-dd",
-					amountInCents: false, // Not in schema yet
-					negateAmounts: false, // Not in schema yet
-				},
-				createdAt: 0,
-			}));
-	}, [importTemplates]);
-
-	// Existing transactions for duplicate detection
-	const existingTransactions = useMemo(() => {
-		return Object.values(transactions)
-			.filter((t): t is Transaction & { $cid: string } => typeof t === "object" && t !== null)
-			.map((t) => ({
-				date: t.date,
-				amount: t.amount,
-				description: t.description || t.notes || "",
-			}));
-	}, [transactions]);
-
-	/**
-	 * Apply automation changes to a transaction.
-	 */
-	function applyChangesToTransaction(
-		transaction: Transaction,
-		changes: TransactionChanges
-	): Transaction {
-		const result = { ...transaction } as Transaction;
-
-		if (changes.tagIds !== undefined) {
-			(result as { tagIds: string[] }).tagIds = changes.tagIds;
-		}
-		if (changes.statusId !== undefined) {
-			(result as { statusId: string }).statusId = changes.statusId;
-		}
-		if (changes.allocations !== undefined) {
-			(result as { allocations: Record<string, number> }).allocations = changes.allocations;
-		}
-
-		return result;
-	}
-
-	// Handle import complete
-	const handleImportComplete = useCallback(
-		(parsedTransactions: ParsedTransaction[], importId: string) => {
-			// Create the import record
-			addImport({
-				id: importId,
-				filename: "imported_file", // TODO: Pass filename through
-				transactionCount: parsedTransactions.length,
+	// Create import batch and transactions in CRDT
+	const createImportBatch = useVaultAction(
+		(
+			state,
+			data: {
+				importId: string;
+				fileName: string;
+				transactions: Array<{
+					id: string;
+					date: string;
+					description: string;
+					amount: number;
+					accountId: string;
+					statusId: string;
+					duplicateOf: string | null;
+				}>;
+			}
+		) => {
+			// Create import record
+			state.imports[data.importId] = {
+				id: data.importId,
+				filename: data.fileName,
+				transactionCount: data.transactions.length,
 				createdAt: Date.now(),
 				deletedAt: 0,
-			} as ImportRecord);
+			} as (typeof state.imports)[string];
 
-			// Use "For Review" status for all imported transactions
-			const defaultStatusId = DEFAULT_STATUS_IDS.FOR_REVIEW;
+			// Create transactions
+			for (const tx of data.transactions) {
+				state.transactions[tx.id] = {
+					id: tx.id,
+					date: tx.date,
+					description: tx.description,
+					notes: "",
+					amount: tx.amount,
+					accountId: tx.accountId,
+					tagIds: [] as string[],
+					statusId: tx.statusId,
+					importId: data.importId,
+					allocations: {} as Record<string, number>,
+					duplicateOf: tx.duplicateOf ?? "",
+					deletedAt: 0,
+				} as (typeof state.transactions)[string];
+			}
+		}
+	);
 
-			// Convert automations to array for processing
-			const automationList = Object.values(automations).filter(
-				(a): a is NonNullable<typeof a> => typeof a === "object" && a !== null && !a.deletedAt
-			) as Automation[];
+	// Convert CRDT transactions to array
+	const existingTransactions = useMemo(() => {
+		return Object.values(transactions).filter(
+			(t): t is Transaction => typeof t === "object" && t !== null && !t.deletedAt
+		);
+	}, [transactions]);
 
-			// Create base transactions first (we need them for automation evaluation)
-			const newTransactions = parsedTransactions.map((tx) => ({
+	// Convert CRDT accounts to array
+	const accountsList = useMemo(() => {
+		return Object.values(accounts).filter(
+			(a): a is Account => typeof a === "object" && a !== null && !a.deletedAt
+		);
+	}, [accounts]);
+
+	// Convert CRDT templates to array
+	const templatesList = useMemo(() => {
+		return Object.values(importTemplates).filter(
+			(t): t is ImportTemplateRecord => typeof t === "object" && t !== null && !t.deletedAt
+		);
+	}, [importTemplates]);
+
+	// Handle creating transactions from import
+	const handleCreateTransactions = useCallback(
+		(transactionData: ImportTransactionData[], fileName: string): string => {
+			const importId = generateId();
+
+			// Map import data to full transaction records
+			const transactionsToCreate = transactionData.map((tx) => ({
 				id: generateId(),
 				date: tx.date,
 				description: tx.description,
-				notes: tx.memo || "",
 				amount: tx.amount,
-				accountId: "", // TODO: Allow account selection in wizard
-				tagIds: [] as string[],
+				accountId: tx.accountId,
 				statusId: defaultStatusId,
+				duplicateOf: tx.duplicateOf,
+			}));
+
+			// Create import batch and all transactions in one action
+			createImportBatch({
 				importId,
-				allocations: {} as Record<string, number>,
-				duplicateOf: tx.isDuplicate ? "suspected" : "",
-				deletedAt: 0,
-			})) as unknown as Transaction[];
+				fileName,
+				transactions: transactionsToCreate,
+			});
 
-			// Apply automations and track changes for undo
-			const { appliedChanges, applications } = applyAutomationsWithTracking(
-				automationList,
-				newTransactions
-			);
-
-			// Create transactions with automation changes applied
-			for (const tx of newTransactions) {
-				const changes = appliedChanges.get(tx.id);
-				const finalTransaction = changes ? applyChangesToTransaction(tx, changes) : tx;
-				addTransaction(finalTransaction);
-			}
-
-			// Store automation applications for undo capability
-			for (const application of applications) {
-				addAutomationApplication(application as AutomationApplication);
-			}
-
-			// Navigate to transactions page
-			router.push("/transactions");
+			return importId;
 		},
-		[addImport, addTransaction, addAutomationApplication, router, automations]
+		[createImportBatch, defaultStatusId]
 	);
+
+	// Handle import complete - navigate to transactions
+	const handleImportComplete = useCallback(() => {
+		router.push("/transactions");
+	}, [router]);
 
 	// Handle save template
 	const handleSaveTemplate = useCallback(
-		(name: string, mappings: ColumnMapping[], formatting: ImportFormatting) => {
+		(name: string) => {
 			addImportTemplate({
 				id: generateId(),
 				name,
-				columnMappings: mappingsToTemplateFormat(mappings) as Record<string, string>,
+				columnMappings: {},
 				formatting: {
 					hasHeaders: true,
-					thousandSeparator: formatting.thousandSeparator,
-					decimalSeparator: formatting.decimalSeparator,
-					dateFormat: formatting.dateFormat,
+					thousandSeparator: ",",
+					decimalSeparator: ".",
+					dateFormat: "yyyy-MM-dd",
+					collapseWhitespace: false,
 				},
+				duplicateDetection: {
+					dateMatchMode: "within",
+					maxDateDiffDays: 3,
+					descriptionMatchMode: "similar",
+					minDescriptionSimilarity: 0.6,
+				},
+				oldTransactionFilter: {
+					mode: "ignore-duplicates",
+					cutoffDays: 10,
+				},
+				lastUsedAt: Date.now(),
 				deletedAt: 0,
 			} as ImportTemplateRecord);
 		},
@@ -218,7 +218,7 @@ export default function NewImportPage() {
 	);
 
 	return (
-		<div className="mx-auto max-w-3xl space-y-6">
+		<div className="mx-auto max-w-5xl space-y-6 p-4">
 			<div>
 				<h1 className="font-bold text-2xl">Import Transactions</h1>
 				<p className="text-muted-foreground">
@@ -227,12 +227,15 @@ export default function NewImportPage() {
 			</div>
 
 			<div className="rounded-lg border p-6">
-				<ImportWizard
-					templates={templates}
+				<ImportPanel
+					existingTransactions={existingTransactions}
+					accounts={accountsList}
+					templates={templatesList}
+					defaultCurrency={defaultCurrency}
+					onCreateTransactions={handleCreateTransactions}
 					onImportComplete={handleImportComplete}
 					onSaveTemplate={handleSaveTemplate}
 					onDeleteTemplate={handleDeleteTemplate}
-					existingTransactions={existingTransactions}
 				/>
 			</div>
 		</div>

@@ -162,13 +162,31 @@
 
 - [] Store transactions as ordered movable list and always use both date and transaction id to
   locate transaction for update using binary search on date (i.e. never look up by id alone).
-  Ordering within date should be preserved when importing. Perhaps we store this as an additional
-  sub date index on each transaction? Should we group transactions by set of account >
-  chronologically ordered movable list of year > chronologically ordered movable list of month >
-  chronologically ordered movable list of transaction. Then track total count and position and by
-  person amounts owing in the year and month groupings? Potentially faster for aggregation and less
-  churn on indices? Can then do linear time merge for rendering, and much faster searching by
-  account? Imports should be very efficient using this structure (linear time)
+
+  - Ordering within date should be preserved when importing. Perhaps we should store the source's
+    transaction ordering within each date as an additional sub date index on each transaction so we
+    can preserve ordering?
+
+  - Should we should store transactions as follows:
+
+  ```
+  type Transactions = LoroMap<account id, YearlyTransactions>
+  type YearlyTransactions = { transactions: LoroMovableList<MonthlyTransactions>, transactionCount:
+     number, balance: number, byPersonAmountsOwing: Map<personId, number> }
+  type MonthlyTransactions = { transactions: LoroMovableList<DailyTransactions>, transactionCount: number,
+    balance: number, byPersonAmountsOwing: Map<personId, number> }
+  - type DailyTransactions = { transactions: LoroMovableList<TransactionList>, transactionCount: number, balance:
+    number, byPersonAmountsOwing: Map<personId, number> }
+  ```
+
+  - I'm wondering specifically whether this might prevent the need to modify a potentially enormous
+    list if we keep transactions flattened. Potentially faster for aggregation, less churn on
+    indices and better memory reuse? We can then do linear time merge for rendering, and much faster
+    searching by account? Imports should be very efficient using this structure (linear time).
+  - We should make sure that if we are mapping from the immutable loro data structures to in-memory
+    structures for rendering, that we memoize and reuse as much as possible to avoid garbage
+    collection churn and unnecessary re-renders. With this structure we can potentially even reuse
+    all the existing monthly and yearly structures if they are unchanged during an import?
 
 - [] We should be using loro ephemeral state for tracking presence and active transaction.
 

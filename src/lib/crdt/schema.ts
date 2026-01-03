@@ -109,7 +109,7 @@ export const importSchema = schema.LoroMap({
 });
 
 /**
- * Import template schema - reusable CSV column mappings
+ * Import template schema - reusable import settings and column mappings
  */
 export const importTemplateSchema = schema.LoroMap({
 	id: schema.String({ required: true }),
@@ -120,7 +120,19 @@ export const importTemplateSchema = schema.LoroMap({
 		thousandSeparator: schema.String({ defaultValue: "," }),
 		decimalSeparator: schema.String({ defaultValue: "." }),
 		dateFormat: schema.String({ defaultValue: "yyyy-MM-dd" }),
+		collapseWhitespace: schema.Boolean({ defaultValue: false }),
 	}),
+	duplicateDetection: schema.LoroMap({
+		dateMatchMode: schema.String({ defaultValue: "within" }), // "exact" | "within"
+		maxDateDiffDays: schema.Number({ defaultValue: 3 }),
+		descriptionMatchMode: schema.String({ defaultValue: "similar" }), // "exact" | "similar"
+		minDescriptionSimilarity: schema.Number({ defaultValue: 0.6 }),
+	}),
+	oldTransactionFilter: schema.LoroMap({
+		mode: schema.String({ defaultValue: "ignore-duplicates" }), // "ignore-all" | "ignore-duplicates" | "do-not-ignore"
+		cutoffDays: schema.Number({ defaultValue: 10 }),
+	}),
+	lastUsedAt: schema.Number(), // Unix timestamp of last import using this template
 	deletedAt: schema.Number(),
 });
 

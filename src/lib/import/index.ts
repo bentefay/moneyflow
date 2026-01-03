@@ -23,6 +23,13 @@ export {
 	detectInternalDuplicates,
 } from "./duplicates";
 export {
+	calculateCutoffDate,
+	type FilterableTransaction,
+	filterOldTransactions,
+	getFilterModeDescription,
+	isBeforeCutoff,
+} from "./filter";
+export {
 	isSimilar,
 	levenshtein,
 	normalizedSimilarity,
@@ -52,3 +59,25 @@ export {
 	processImport,
 	processOFXImport,
 } from "./processor";
+export {
+	type DateMatchMode,
+	DEFAULT_DUPLICATE_DETECTION_SETTINGS,
+	DEFAULT_FILTER_SETTINGS,
+	DEFAULT_FORMATTING_SETTINGS,
+	DEFAULT_IMPORT_CONFIG,
+	type DescriptionMatchMode,
+	type DuplicateCheckResult,
+	type DuplicateDetectionSettings,
+	type FilterConfig,
+	type FilterResult,
+	type FilterStats,
+	type FormattingSettings,
+	type ImportConfig,
+	type ImportFileType,
+	type ImportSession,
+	type ImportSummaryStats,
+	type OldTransactionMode,
+	type PreviewTransaction,
+	type PreviewTransactionStatus,
+	type ValidationError,
+} from "./types";
