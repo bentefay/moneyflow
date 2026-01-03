@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { TRPCProvider } from "@/components/providers/trpc-provider";
+import { ToastProvider } from "@/components/ui/toast";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -29,7 +30,9 @@ export default function RootLayout({
 			<body
 				className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background antialiased`}
 			>
-				<TRPCProvider>{children}</TRPCProvider>
+				<TRPCProvider>
+					<ToastProvider>{children}</ToastProvider>
+				</TRPCProvider>
 			</body>
 		</html>
 	);

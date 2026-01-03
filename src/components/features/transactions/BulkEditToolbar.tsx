@@ -4,12 +4,21 @@
  * Bulk Edit Toolbar
  *
  * Floating toolbar that appears when multiple transactions are selected.
- * Allows bulk operations like editing tags, status, or deleting.
+ * Allows bulk operations like editing tags, status, notes, amount, or deleting.
+ * Includes progress indicator for large bulk operations.
  */
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { FilterOption } from "./filters/MultiSelectFilter";
+
+export interface BulkEditProgress {
+	current: number;
+	total: number;
+	operation: string;
+}
 
 export interface BulkEditToolbarProps {
 	/** Number of selected transactions */
@@ -24,17 +33,44 @@ export interface BulkEditToolbarProps {
 	onSetStatus?: (statusId: string) => void;
 	/** Callback to set account on selected transactions */
 	onSetAccount?: (accountId: string) => void;
+	/** Callback to set notes on selected transactions */
+	onSetNotes?: (notes: string) => void;
+	/** Callback to set amount on selected transactions */
+	onSetAmount?: (amount: number) => void;
 	/** Available tags for bulk edit */
 	availableTags?: FilterOption[];
 	/** Available statuses for bulk edit */
 	availableStatuses?: FilterOption[];
 	/** Available accounts for bulk edit */
 	availableAccounts?: FilterOption[];
+	/** Progress of current bulk operation */
+	progress?: BulkEditProgress | null;
 	/** Additional CSS classes */
 	className?: string;
 }
 
-type ActiveDropdown = "tags" | "status" | "account" | null;
+type ActiveDropdown = "tags" | "status" | "account" | "notes" | "amount" | null;
+
+/**
+ * Progress bar component for bulk operations.
+ */
+function ProgressBar({ progress }: { progress: BulkEditProgress }) {
+	const percentage = Math.round((progress.current / progress.total) * 100);
+
+	return (
+		<div className="flex items-center gap-3" data-testid="bulk-progress">
+			<div className="h-2 w-24 overflow-hidden rounded-full bg-muted">
+				<div
+					className="h-full bg-primary transition-all duration-150"
+					style={{ width: `${percentage}%` }}
+				/>
+			</div>
+			<span className="text-muted-foreground text-xs">
+				{progress.current}/{progress.total}
+			</span>
+		</div>
+	);
+}
 
 /**
  * Bulk edit toolbar component.
@@ -46,13 +82,39 @@ export function BulkEditToolbar({
 	onSetTags,
 	onSetStatus,
 	onSetAccount,
+	onSetNotes,
+	onSetAmount,
 	availableTags = [],
 	availableStatuses = [],
 	availableAccounts = [],
+	progress,
 	className,
 }: BulkEditToolbarProps) {
 	const [activeDropdown, setActiveDropdown] = useState<ActiveDropdown>(null);
 	const [confirmDelete, setConfirmDelete] = useState(false);
+	const [notesValue, setNotesValue] = useState("");
+	const [amountValue, setAmountValue] = useState("");
+	const notesInputRef = useRef<HTMLInputElement>(null);
+	const amountInputRef = useRef<HTMLInputElement>(null);
+
+	// Focus input when dropdown opens
+	useEffect(() => {
+		if (activeDropdown === "notes" && notesInputRef.current) {
+			notesInputRef.current.focus();
+		}
+		if (activeDropdown === "amount" && amountInputRef.current) {
+			amountInputRef.current.focus();
+		}
+	}, [activeDropdown]);
+
+	// Handle Escape key to close dropdown
+	const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+		if (e.key === "Escape") {
+			setActiveDropdown(null);
+			setNotesValue("");
+			setAmountValue("");
+		}
+	}, []);
 
 	if (selectedCount === 0) {
 		return null;
@@ -72,6 +134,17 @@ export function BulkEditToolbar({
 		setConfirmDelete(false);
 	};
 
+	const handleAmountSubmit = () => {
+		const parsed = Number.parseFloat(amountValue);
+		if (!Number.isNaN(parsed) && onSetAmount) {
+			// Convert to cents (minor units)
+			const amountInCents = Math.round(parsed * 100);
+			onSetAmount(amountInCents);
+			setAmountValue("");
+			closeDropdowns();
+		}
+	};
+
 	return (
 		<div
 			className={cn(
@@ -81,8 +154,12 @@ export function BulkEditToolbar({
 			data-testid="bulk-edit-toolbar"
 		>
 			<div className="flex items-center gap-2 px-4 py-3">
-				{/* Selection count */}
-				<span className="font-medium text-sm">{selectedCount} selected</span>
+				{/* Progress indicator or selection count */}
+				{progress ? (
+					<ProgressBar progress={progress} />
+				) : (
+					<span className="font-medium text-sm text-nowrap">Edit {selectedCount}</span>
+				)}
 
 				<div className="mx-2 h-6 w-px bg-border" />
 
@@ -91,10 +168,13 @@ export function BulkEditToolbar({
 					<div className="relative">
 						<button
 							type="button"
+							data-testid="bulk-edit-tags-button"
 							onClick={() => setActiveDropdown(activeDropdown === "tags" ? null : "tags")}
+							disabled={!!progress}
 							className={cn(
 								"flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm",
 								"hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary",
+								"disabled:pointer-events-none disabled:opacity-50",
 								activeDropdown === "tags" && "bg-accent"
 							)}
 						>
@@ -106,7 +186,7 @@ export function BulkEditToolbar({
 									d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
 								/>
 							</svg>
-							Set Tags
+							Tags
 						</button>
 
 						{activeDropdown === "tags" && (
@@ -134,10 +214,13 @@ export function BulkEditToolbar({
 					<div className="relative">
 						<button
 							type="button"
+							data-testid="bulk-edit-status-button"
 							onClick={() => setActiveDropdown(activeDropdown === "status" ? null : "status")}
+							disabled={!!progress}
 							className={cn(
 								"flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm",
 								"hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary",
+								"disabled:pointer-events-none disabled:opacity-50",
 								activeDropdown === "status" && "bg-accent"
 							)}
 						>
@@ -149,7 +232,7 @@ export function BulkEditToolbar({
 									d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
 								/>
 							</svg>
-							Set Status
+							Status
 						</button>
 
 						{activeDropdown === "status" && (
@@ -178,9 +261,11 @@ export function BulkEditToolbar({
 						<button
 							type="button"
 							onClick={() => setActiveDropdown(activeDropdown === "account" ? null : "account")}
+							disabled={!!progress}
 							className={cn(
 								"flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm",
 								"hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary",
+								"disabled:pointer-events-none disabled:opacity-50",
 								activeDropdown === "account" && "bg-accent"
 							)}
 						>
@@ -192,7 +277,7 @@ export function BulkEditToolbar({
 									d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
 								/>
 							</svg>
-							Set Account
+							Account
 						</button>
 
 						{activeDropdown === "account" && (
@@ -215,15 +300,175 @@ export function BulkEditToolbar({
 					</div>
 				)}
 
+				{/* Notes button */}
+				{onSetNotes && (
+					<div className="relative">
+						<button
+							type="button"
+							data-testid="bulk-edit-notes-button"
+							onClick={() => setActiveDropdown(activeDropdown === "notes" ? null : "notes")}
+							disabled={!!progress}
+							className={cn(
+								"flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm",
+								"hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary",
+								"disabled:pointer-events-none disabled:opacity-50",
+								activeDropdown === "notes" && "bg-accent"
+							)}
+						>
+							<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									strokeWidth={2}
+									d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+								/>
+							</svg>
+							Notes
+						</button>
+
+						{activeDropdown === "notes" && (
+							<div
+								className="absolute bottom-full left-0 mb-2 w-64 rounded-lg border bg-popover p-3 shadow-lg"
+								onKeyDown={handleKeyDown}
+							>
+								<Input
+									ref={notesInputRef}
+									type="text"
+									value={notesValue}
+									onChange={(e) => setNotesValue(e.target.value)}
+									placeholder="Enter notes..."
+									onKeyDown={(e) => {
+										if (e.key === "Enter" && notesValue.trim()) {
+											onSetNotes(notesValue.trim());
+											setNotesValue("");
+											closeDropdowns();
+										} else if (e.key === "Escape") {
+											setNotesValue("");
+											closeDropdowns();
+										}
+									}}
+								/>
+								<div className="mt-2 flex justify-end gap-2">
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										onClick={() => {
+											setNotesValue("");
+											closeDropdowns();
+										}}
+									>
+										Cancel
+									</Button>
+									<Button
+										type="button"
+										size="sm"
+										onClick={() => {
+											if (notesValue.trim()) {
+												onSetNotes(notesValue.trim());
+												setNotesValue("");
+												closeDropdowns();
+											}
+										}}
+										disabled={!notesValue.trim()}
+									>
+										Apply
+									</Button>
+								</div>
+							</div>
+						)}
+					</div>
+				)}
+
+				{/* Amount button */}
+				{onSetAmount && (
+					<div className="relative">
+						<button
+							type="button"
+							onClick={() => setActiveDropdown(activeDropdown === "amount" ? null : "amount")}
+							disabled={!!progress}
+							className={cn(
+								"flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm",
+								"hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary",
+								"disabled:pointer-events-none disabled:opacity-50",
+								activeDropdown === "amount" && "bg-accent"
+							)}
+						>
+							<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									strokeWidth={2}
+									d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+								/>
+							</svg>
+							Amount
+						</button>
+
+						{activeDropdown === "amount" && (
+							<div
+								className="absolute bottom-full left-0 mb-2 w-48 rounded-lg border bg-popover p-3 shadow-lg"
+								onKeyDown={handleKeyDown}
+							>
+								<div className="relative">
+									<span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground text-sm">
+										$
+									</span>
+									<Input
+										ref={amountInputRef}
+										type="number"
+										step="0.01"
+										value={amountValue}
+										onChange={(e) => setAmountValue(e.target.value)}
+										placeholder="0.00"
+										className="pl-7"
+										onKeyDown={(e) => {
+											if (e.key === "Enter") {
+												handleAmountSubmit();
+											} else if (e.key === "Escape") {
+												setAmountValue("");
+												closeDropdowns();
+											}
+										}}
+									/>
+								</div>
+								<div className="mt-2 flex justify-end gap-2">
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										onClick={() => {
+											setAmountValue("");
+											closeDropdowns();
+										}}
+									>
+										Cancel
+									</Button>
+									<Button
+										type="button"
+										size="sm"
+										onClick={handleAmountSubmit}
+										disabled={!amountValue || Number.isNaN(Number.parseFloat(amountValue))}
+									>
+										Apply
+									</Button>
+								</div>
+							</div>
+						)}
+					</div>
+				)}
+
 				{/* Delete button */}
 				{onDelete && (
 					<button
 						type="button"
 						onClick={handleDelete}
+						disabled={!!progress}
 						data-testid="bulk-delete"
 						className={cn(
 							"flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm",
 							"hover:bg-destructive/10 focus:outline-none focus:ring-2 focus:ring-destructive",
+							"disabled:pointer-events-none disabled:opacity-50",
 							confirmDelete ? "bg-destructive text-destructive-foreground" : "text-destructive"
 						)}
 					>
@@ -242,17 +487,19 @@ export function BulkEditToolbar({
 				<div className="mx-2 h-6 w-px bg-border" />
 
 				{/* Clear selection */}
-				<button
+				<Button
 					type="button"
+					variant="ghost"
+					size="sm"
 					onClick={() => {
 						onClearSelection();
 						closeDropdowns();
 					}}
+					disabled={!!progress}
 					data-testid="clear-selection"
-					className="text-muted-foreground text-sm hover:text-foreground"
 				>
 					Clear
-				</button>
+				</Button>
 			</div>
 		</div>
 	);

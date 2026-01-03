@@ -147,11 +147,11 @@ describe("processCSVImport", () => {
 			expect(result.transactions[2].amount).toBe(250000); // $2500.00
 		});
 
-		it("extracts description as merchant when no merchant column", () => {
+		it("extracts description from CSV Description column when no merchant column", () => {
 			const result = processCSVImport(SIMPLE_CSV, STANDARD_MAPPINGS, DEFAULT_FORMATTING);
 
-			expect(result.transactions[0].merchant).toBe("COFFEE SHOP");
-			expect(result.transactions[1].merchant).toBe("GROCERY STORE");
+			expect(result.transactions[0].description).toBe("COFFEE SHOP");
+			expect(result.transactions[1].description).toBe("GROCERY STORE");
 		});
 	});
 
@@ -171,8 +171,8 @@ describe("processCSVImport", () => {
 
 			const firstTx = result.transactions[0];
 			expect(firstTx.date).toBe("2024-01-15");
-			expect(firstTx.merchant).toBe("AMAZON");
-			expect(firstTx.description).toBe("Order #12345");
+			expect(firstTx.description).toBe("AMAZON");
+			expect(firstTx.notes).toBe("Order #12345");
 			expect(firstTx.amount).toBe(-2599); // -$25.99 in cents
 			expect(firstTx.categoryHint).toBe("Shopping");
 		});
@@ -356,8 +356,8 @@ describe("processOFXImport", () => {
 		const firstTx = data.transactions[0];
 		expect(firstTx.date).toBe("2024-01-15");
 		expect(firstTx.amount).toBe(-550); // -$5.50 in cents
-		expect(firstTx.merchant).toBe("COFFEE SHOP");
-		expect(firstTx.description).toBe("PURCHASE");
+		expect(firstTx.description).toBe("COFFEE SHOP");
+		expect(firstTx.notes).toBe("PURCHASE");
 	});
 
 	it("preserves FITID as transaction ID", () => {
@@ -374,7 +374,7 @@ describe("processOFXImport", () => {
 				id: "existing-1",
 				date: isoDate("2024-01-15"),
 				amount: cents(-550), // -$5.50 in cents
-				description: "PURCHASE", // OFX uses MEMO as description for duplicate matching
+				description: "COFFEE SHOP", // OFX NAME field is used for duplicate matching
 			},
 		];
 
@@ -453,7 +453,7 @@ describe("processImport", () => {
 	});
 
 	it("passes through duplicate detection for both formats", () => {
-		// For CSV, the description field matches directly
+		// For CSV, the description field matches directly against imported description
 		const csvExisting: ExistingTransaction[] = [
 			{
 				id: "existing-1",
@@ -463,13 +463,13 @@ describe("processImport", () => {
 			},
 		];
 
-		// For OFX, the description maps to MEMO field
+		// For OFX, the NAME field is used for duplicate matching (becomes description)
 		const ofxExisting: ExistingTransaction[] = [
 			{
 				id: "existing-1",
 				date: isoDate("2024-01-15"),
 				amount: cents(-550), // -$5.50 in cents
-				description: "PURCHASE", // OFX MEMO field
+				description: "COFFEE SHOP", // OFX NAME field
 			},
 		];
 
@@ -511,7 +511,7 @@ describe("real-world bank exports", () => {
 
 		expect(result.transactions).toHaveLength(2);
 		expect(result.transactions[0].date).toBe("2024-01-15");
-		expect(result.transactions[0].merchant).toBe("COFFEE SHOP");
+		expect(result.transactions[0].description).toBe("COFFEE SHOP");
 		expect(result.transactions[0].amount).toBe(-550); // -$5.50 in cents
 		expect(result.transactions[0].categoryHint).toBe("Food & Drink");
 	});
@@ -535,7 +535,7 @@ describe("real-world bank exports", () => {
 		const result = processCSVImport(boaCSV, boaMappings, boaFormatting);
 
 		expect(result.transactions).toHaveLength(2);
-		expect(result.transactions[0].merchant).toBe("AMAZON.COM*AMZN.COM/BI, WA");
+		expect(result.transactions[0].description).toBe("AMAZON.COM*AMZN.COM/BI, WA");
 		expect(result.transactions[0].amount).toBe(-2599); // -$25.99 in cents
 	});
 

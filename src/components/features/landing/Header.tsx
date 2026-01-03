@@ -41,14 +41,16 @@ export function Header() {
 
 					{/* Mobile menu button */}
 					<div className="flex lg:hidden">
-						<button
+						<Button
 							type="button"
-							className="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-zinc-700 dark:text-zinc-300"
+							variant="ghost"
+							size="icon"
+							className="-m-2.5"
 							onClick={() => setMobileMenuOpen(true)}
 						>
 							<span className="sr-only">Open main menu</span>
 							<Menu className="h-6 w-6" aria-hidden="true" />
-						</button>
+						</Button>
 					</div>
 
 					{/* Desktop navigation */}
@@ -95,14 +97,16 @@ export function Header() {
 									</span>
 								</div>
 							</Link>
-							<button
+							<Button
 								type="button"
-								className="-m-2.5 rounded-md p-2.5 text-zinc-700 dark:text-zinc-300"
+								variant="ghost"
+								size="icon"
+								className="-m-2.5"
 								onClick={() => setMobileMenuOpen(false)}
 							>
 								<span className="sr-only">Close menu</span>
 								<X className="h-6 w-6" aria-hidden="true" />
-							</button>
+							</Button>
 						</div>
 						<div className="mt-6 flow-root">
 							<div className="-my-6 divide-y divide-zinc-500/10 dark:divide-zinc-800">

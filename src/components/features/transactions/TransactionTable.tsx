@@ -8,13 +8,27 @@
  */
 
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { AccountOption } from "../accounts";
+import type { StatusOption, TagOption } from "./cells";
+import { CheckboxCell } from "./cells/CheckboxCell";
+import { useGridCellNavigation } from "./hooks/useGridCellNavigation";
+import { useTableSelection } from "./hooks/useTableSelection";
 import {
+	type NewTransactionData,
 	TransactionRow,
 	type TransactionRowData,
 	type TransactionRowPresence,
 } from "./TransactionRow";
+
+/**
+ * Shared grid template for transaction table columns.
+ * This ensures header and rows have identical column widths.
+ * Format: checkbox | date | description | account | tags | status | amount | actions
+ */
+export const TRANSACTION_GRID_TEMPLATE =
+	"32px 120px minmax(150px, 2fr) 160px 140px 110px 112px 88px";
 
 export interface TransactionTableProps {
 	/** Array of transactions to display */
@@ -25,6 +39,14 @@ export interface TransactionTableProps {
 	currentUserId?: string;
 	/** Currently selected transaction IDs */
 	selectedIds?: Set<string>;
+	/** Available accounts for inline editing */
+	availableAccounts?: AccountOption[];
+	/** Available statuses for inline editing */
+	availableStatuses?: StatusOption[];
+	/** Available tags for inline editing */
+	availableTags?: TagOption[];
+	/** Callback when a new tag should be created */
+	onCreateTag?: (name: string) => Promise<TagOption>;
 	/** Callback when selection changes */
 	onSelectionChange?: (ids: Set<string>) => void;
 	/** Callback when a transaction is clicked */
@@ -43,23 +65,58 @@ export interface TransactionTableProps {
 	onTransactionDelete?: (id: string) => void;
 	/** Callback when a duplicate is resolved (kept) */
 	onResolveDuplicate?: (id: string) => void;
+	/** Whether to show the add transaction row at the top */
+	isAddingTransaction?: boolean;
+	/** Callback when a new transaction is added */
+	onAddTransaction?: (data: NewTransactionData) => void;
+	/** Callback when add transaction is cancelled */
+	onCancelAddTransaction?: () => void;
+	/** Default account ID for add row */
+	defaultAccountId?: string;
+	/** Default status ID for add row */
+	defaultStatusId?: string;
 	/** Additional CSS classes */
 	className?: string;
 }
 
 /**
- * Table header with column labels.
+ * Table header with column labels and select-all checkbox.
  */
-function TransactionTableHeader() {
+interface TransactionTableHeaderProps {
+	/** Whether all filtered transactions are selected */
+	isAllSelected: boolean;
+	/** Whether some (but not all) filtered transactions are selected */
+	isSomeSelected: boolean;
+	/** Callback to toggle select-all */
+	onSelectAll: () => void;
+}
+
+function TransactionTableHeader({
+	isAllSelected,
+	isSomeSelected,
+	onSelectAll,
+}: TransactionTableHeaderProps) {
 	return (
-		<div className="sticky top-0 z-10 flex items-center gap-4 border-b bg-muted/50 px-4 py-2 font-medium text-sm">
-			<div className="w-8 shrink-0" /> {/* Checkbox column */}
-			<div className="w-24 shrink-0">Date</div>
-			<div className="min-w-0 flex-1">Description</div>
-			<div className="w-32 shrink-0">Tags</div>
-			<div className="w-24 shrink-0">Status</div>
-			<div className="w-28 shrink-0 text-right">Amount</div>
-			<div className="w-28 shrink-0 text-right">Balance</div>
+		<div
+			className="sticky top-0 z-10 grid min-w-fit items-center gap-4 border-b bg-slate-50 px-4 py-2 font-medium text-sm"
+			style={{ gridTemplateColumns: TRANSACTION_GRID_TEMPLATE }}
+		>
+			{/* Checkbox column */}
+			<div data-testid="header-checkbox">
+				<CheckboxCell
+					checked={isAllSelected}
+					indeterminate={isSomeSelected}
+					onChange={onSelectAll}
+					ariaLabel={isAllSelected ? "Deselect all transactions" : "Select all transactions"}
+				/>
+			</div>
+			<div>Date</div>
+			<div className="truncate">Description</div>
+			<div className="truncate">Account</div>
+			<div>Tags</div>
+			<div>Status</div>
+			<div className="text-right">Amount</div>
+			<div>{/* Actions */}</div>
 		</div>
 	);
 }
@@ -99,20 +156,43 @@ export function TransactionTable({
 	presenceByTransactionId = {},
 	currentUserId,
 	selectedIds = new Set(),
+	availableAccounts = [],
+	availableStatuses = [],
+	availableTags = [],
+	onCreateTag,
 	onSelectionChange,
 	onTransactionClick,
 	onTransactionFocus,
-	// onTransactionUpdate - reserved for future inline editing
+	onTransactionUpdate,
 	onLoadMore,
 	hasMore = false,
 	isLoading = false,
 	onTransactionDelete,
 	onResolveDuplicate,
+	isAddingTransaction = false,
+	onAddTransaction,
+	onCancelAddTransaction,
+	defaultAccountId,
+	defaultStatusId,
 	className,
 }: TransactionTableProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
-	const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
 	const [focusedId, setFocusedId] = useState<string | null>(null);
+	const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+	// Grid cell navigation for arrow up/down between cells
+	const { handleGridKeyDown } = useGridCellNavigation();
+
+	// Extract transaction IDs for selection hook
+	const filteredIds = useMemo(() => transactions.map((t) => t.id), [transactions]);
+
+	// Use table selection hook for managing selection actions
+	// The hook is controlled - it receives selectedIds from parent and calls onSelectionChange
+	const { isAllSelected, isSomeSelected, selectAll, toggleRow } = useTableSelection({
+		filteredIds,
+		selectedIds,
+		onSelectionChange,
+	});
 
 	// Keyboard shortcuts for duplicate resolution and deletion
 	useEffect(() => {
@@ -156,32 +236,6 @@ export function TransactionTable({
 						onTransactionDelete(targetId);
 					}
 					break;
-				case "arrowdown": {
-					// Navigate to next transaction
-					event.preventDefault();
-					const currentIdx = transactions.findIndex((t) => t.id === targetId);
-					if (currentIdx < transactions.length - 1) {
-						const nextId = transactions[currentIdx + 1].id;
-						setFocusedId(nextId);
-						if (!event.shiftKey) {
-							onSelectionChange?.(new Set([nextId]));
-						}
-					}
-					break;
-				}
-				case "arrowup": {
-					// Navigate to previous transaction
-					event.preventDefault();
-					const currIdx = transactions.findIndex((t) => t.id === targetId);
-					if (currIdx > 0) {
-						const prevId = transactions[currIdx - 1].id;
-						setFocusedId(prevId);
-						if (!event.shiftKey) {
-							onSelectionChange?.(new Set([prevId]));
-						}
-					}
-					break;
-				}
 				case "escape":
 					// Clear selection
 					event.preventDefault();
@@ -202,43 +256,43 @@ export function TransactionTable({
 		onSelectionChange,
 	]);
 
-	// Handle single row click
+	// Handle single row click (navigation/focus only - selection is handled by checkbox)
 	const handleRowClick = useCallback(
-		(id: string, event: React.MouseEvent) => {
+		(id: string) => {
 			if (onTransactionClick) {
 				onTransactionClick(id);
 			}
-
-			if (!onSelectionChange) return;
-
-			if (event.shiftKey && lastSelectedId) {
-				// Shift-click: select range
-				const startIdx = transactions.findIndex((t) => t.id === lastSelectedId);
-				const endIdx = transactions.findIndex((t) => t.id === id);
-				if (startIdx !== -1 && endIdx !== -1) {
-					const [from, to] = startIdx < endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
-					const rangeIds = transactions.slice(from, to + 1).map((t) => t.id);
-					const newSelected = new Set(selectedIds);
-					rangeIds.forEach((rangeId) => newSelected.add(rangeId));
-					onSelectionChange(newSelected);
-				}
-			} else if (event.metaKey || event.ctrlKey) {
-				// Cmd/Ctrl-click: toggle selection
-				const newSelected = new Set(selectedIds);
-				if (newSelected.has(id)) {
-					newSelected.delete(id);
-				} else {
-					newSelected.add(id);
-				}
-				onSelectionChange(newSelected);
-				setLastSelectedId(id);
-			} else {
-				// Regular click: select only this one
-				onSelectionChange(new Set([id]));
-				setLastSelectedId(id);
-			}
 		},
-		[transactions, selectedIds, lastSelectedId, onSelectionChange, onTransactionClick]
+		[onTransactionClick]
+	);
+
+	// Handle checkbox click (toggles selection)
+	const handleCheckboxChange = useCallback(
+		(id: string) => {
+			toggleRow(id, false);
+		},
+		[toggleRow]
+	);
+
+	// Handle expand/collapse for notes
+	const handleToggleExpand = useCallback((id: string) => {
+		setExpandedIds((prev) => {
+			const next = new Set(prev);
+			if (next.has(id)) {
+				next.delete(id);
+			} else {
+				next.add(id);
+			}
+			return next;
+		});
+	}, []);
+
+	// Handle shift-click on checkbox for range selection
+	const handleCheckboxShiftClick = useCallback(
+		(id: string) => {
+			toggleRow(id, true);
+		},
+		[toggleRow]
 	);
 
 	// Row height for virtualization (approximately 44px per row)
@@ -269,65 +323,96 @@ export function TransactionTable({
 		}
 	}, [virtualItems, onLoadMore, hasMore, isLoading, transactions.length]);
 
-	if (transactions.length === 0 && !isLoading) {
+	if (transactions.length === 0 && !isLoading && !isAddingTransaction) {
 		return <EmptyState />;
 	}
 
 	return (
-		<div className={cn("flex min-h-0 flex-1 flex-col", className)}>
-			<TransactionTableHeader />
-			<div
-				ref={containerRef}
-				className="min-h-0 flex-1 overflow-auto"
-				role="grid"
-				aria-label="Transactions"
-				data-testid="transaction-table"
-			>
+		<div className={cn("flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden", className)}>
+			<div ref={containerRef} className="flex min-h-0 flex-1 flex-col overflow-auto">
+				<TransactionTableHeader
+					isAllSelected={isAllSelected}
+					isSomeSelected={isSomeSelected}
+					onSelectAll={selectAll}
+				/>
+
+				{/* Add Transaction Row - appears at top of table when active */}
+				{isAddingTransaction && onAddTransaction && (
+					<TransactionRow
+						mode="add"
+						availableAccounts={availableAccounts}
+						availableStatuses={availableStatuses}
+						availableTags={availableTags}
+						onCreateTag={onCreateTag}
+						onAdd={onAddTransaction}
+						onCancel={onCancelAddTransaction}
+						defaultAccountId={defaultAccountId}
+						defaultStatusId={defaultStatusId}
+					/>
+				)}
+
 				<div
-					className="relative"
-					role="rowgroup"
-					style={{ height: `${virtualizer.getTotalSize()}px` }}
+					className="relative min-w-fit flex-1"
+					role="grid"
+					aria-label="Transactions"
+					data-testid="transaction-table"
+					onKeyDown={handleGridKeyDown}
 				>
-					{virtualItems.map((virtualRow) => {
-						const transaction = transactions[virtualRow.index];
-						return (
-							<div
-								key={transaction.id}
-								data-index={virtualRow.index}
-								ref={virtualizer.measureElement}
-								className="absolute top-0 left-0 w-full"
-								style={{
-									transform: `translateY(${virtualRow.start}px)`,
-								}}
-							>
-								<TransactionRow
-									transaction={transaction}
-									presence={presenceByTransactionId[transaction.id]}
-									currentUserId={currentUserId}
-									isSelected={selectedIds.has(transaction.id)}
-									onClick={(e?: React.MouseEvent) =>
-										handleRowClick(transaction.id, e as React.MouseEvent)
-									}
-									onFocus={() => {
-										setFocusedId(transaction.id);
-										onTransactionFocus?.(transaction.id);
+					<div
+						className="relative min-w-fit"
+						role="rowgroup"
+						style={{ height: `${virtualizer.getTotalSize()}px` }}
+					>
+						{virtualItems.map((virtualRow) => {
+							const transaction = transactions[virtualRow.index];
+							const isSelected = selectedIds.has(transaction.id);
+							return (
+								<div
+									key={transaction.id}
+									data-index={virtualRow.index}
+									ref={virtualizer.measureElement}
+									className="absolute top-0 left-0 w-full"
+									style={{
+										transform: `translateY(${virtualRow.start}px)`,
 									}}
-									onDelete={
-										onTransactionDelete ? () => onTransactionDelete(transaction.id) : undefined
-									}
-									onResolveDuplicate={
-										onResolveDuplicate ? () => onResolveDuplicate(transaction.id) : undefined
-									}
-								/>
-							</div>
-						);
-					})}
+								>
+									<TransactionRow
+										transaction={transaction}
+										presence={presenceByTransactionId[transaction.id]}
+										currentUserId={currentUserId}
+										isSelected={isSelected}
+										isExpanded={expandedIds.has(transaction.id)}
+										availableAccounts={availableAccounts}
+										availableStatuses={availableStatuses}
+										availableTags={availableTags}
+										onCreateTag={onCreateTag}
+										onClick={() => handleRowClick(transaction.id)}
+										onFocus={() => {
+											setFocusedId(transaction.id);
+											onTransactionFocus?.(transaction.id);
+										}}
+										onFieldUpdate={
+											onTransactionUpdate
+												? (field, value) => onTransactionUpdate(transaction.id, { [field]: value })
+												: undefined
+										}
+										onDelete={
+											onTransactionDelete ? () => onTransactionDelete(transaction.id) : undefined
+										}
+										onResolveDuplicate={
+											onResolveDuplicate ? () => onResolveDuplicate(transaction.id) : undefined
+										}
+										onCheckboxChange={() => handleCheckboxChange(transaction.id)}
+										onCheckboxShiftClick={() => handleCheckboxShiftClick(transaction.id)}
+										onToggleExpand={() => handleToggleExpand(transaction.id)}
+									/>
+								</div>
+							);
+						})}
+					</div>
 				</div>
 			</div>
 			{isLoading && <LoadingIndicator />}
-			{!isLoading && hasMore && transactions.length > 0 && (
-				<div className="py-4 text-center text-muted-foreground text-sm">Scroll to load more</div>
-			)}
 		</div>
 	);
 }

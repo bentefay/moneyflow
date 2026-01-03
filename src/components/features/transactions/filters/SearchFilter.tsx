@@ -3,7 +3,7 @@
 /**
  * Search Filter
  *
- * Free-text search input for filtering transactions by merchant or description.
+ * Free-text search input for filtering transactions by description or notes.
  */
 
 import { useEffect, useRef, useState } from "react";

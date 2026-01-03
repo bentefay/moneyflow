@@ -165,7 +165,7 @@ export function AutomationRow({
 	const handleAddCondition = useCallback(() => {
 		const newCondition: ConditionData = {
 			id: crypto.randomUUID(),
-			column: "merchant",
+			column: "description",
 			operator: "contains",
 			value: "",
 		};

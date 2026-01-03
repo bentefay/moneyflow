@@ -163,6 +163,30 @@ describe("getDefaultVaultState", () => {
 		expect(state.preferences.automationCreationPreference).toBe("manual");
 		expect(state.preferences.defaultCurrency).toBe("USD");
 	});
+
+	it("uses provided defaultCurrency option", () => {
+		const state = getDefaultVaultState({ defaultCurrency: "EUR" });
+
+		expect(state.preferences.defaultCurrency).toBe("EUR");
+	});
+
+	it("defaults to USD when defaultCurrency option is undefined", () => {
+		const state = getDefaultVaultState({ defaultCurrency: undefined });
+
+		expect(state.preferences.defaultCurrency).toBe("USD");
+	});
+
+	it("accepts various currency codes", () => {
+		expect(getDefaultVaultState({ defaultCurrency: "GBP" }).preferences.defaultCurrency).toBe(
+			"GBP"
+		);
+		expect(getDefaultVaultState({ defaultCurrency: "JPY" }).preferences.defaultCurrency).toBe(
+			"JPY"
+		);
+		expect(getDefaultVaultState({ defaultCurrency: "AUD" }).preferences.defaultCurrency).toBe(
+			"AUD"
+		);
+	});
 });
 
 describe("initializeVaultDefaults", () => {

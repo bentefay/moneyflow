@@ -19,7 +19,12 @@
 		"pnpm format": true,
 		"bat": true,
 		"playwright test": true,
-		"jq": true
+		"jq": true,
+		"git commit": true,
+		"git status": true,
+		"git fetch": true,
+		"git checkout": true,
+		"git add": true
 	},
 	"[typescript]": {
 		"editor.formatOnSave": true,
@@ -55,9 +60,6 @@
 	},
 	"[json]": {
 		"editor.formatOnSave": true,
-		"editor.defaultFormatter": "biomejs.biome"
-	},
-	"[jsonc]": {
 		"editor.defaultFormatter": "biomejs.biome"
 	},
 	"biome.suggestInstallingGlobally": false

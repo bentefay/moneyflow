@@ -1,9 +1,3 @@
-export {
-	type AccountOption,
-	AddTransactionRow,
-	type AddTransactionRowProps,
-	type NewTransactionData,
-} from "./AddTransactionRow";
 export { BulkEditToolbar, type BulkEditToolbarProps } from "./BulkEditToolbar";
 export * from "./cells";
 export * from "./filters";
@@ -17,9 +11,15 @@ export {
 	type TransactionFiltersState,
 } from "./TransactionFilters";
 export {
+	type NewTransactionData,
 	TransactionRow,
 	type TransactionRowData,
+	type TransactionRowMode,
 	type TransactionRowPresence,
 	type TransactionRowProps,
 } from "./TransactionRow";
 export { TransactionTable, type TransactionTableProps } from "./TransactionTable";
+export {
+	TransactionTableToolbar,
+	type TransactionTableToolbarProps,
+} from "./TransactionTableToolbar";

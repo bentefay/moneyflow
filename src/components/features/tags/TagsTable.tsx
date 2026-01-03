@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { useVaultAction, useVaultSelector } from "@/lib/crdt/context";
 import type { Tag, TagInput } from "@/lib/crdt/schema";
+import { getNextTagColor } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 import { ParentTagSelector } from "./ParentTagSelector";
 import { TagRow } from "./TagRow";
@@ -167,12 +168,16 @@ export function TagsTable({ className }: TagsTableProps) {
 		if (!trimmedName) return;
 
 		const id = crypto.randomUUID();
+		const usedColors = activeTags.map((t) => t.color);
+		const color = getNextTagColor(usedColors);
+
 		updateVault({
 			type: "add",
 			id,
 			data: {
 				id,
 				name: trimmedName,
+				color,
 				parentTagId: newTagParentId || undefined,
 				isTransfer: newTagIsTransfer,
 			},
@@ -182,7 +187,7 @@ export function TagsTable({ className }: TagsTableProps) {
 		setNewTagParentId("");
 		setNewTagIsTransfer(false);
 		setIsAdding(false);
-	}, [newTagName, newTagParentId, newTagIsTransfer, updateVault]);
+	}, [newTagName, newTagParentId, newTagIsTransfer, activeTags, updateVault]);
 
 	// Handle updating a tag
 	const handleUpdate = useCallback(

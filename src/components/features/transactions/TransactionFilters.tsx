@@ -108,7 +108,7 @@ export function TransactionFilters({
 			<SearchFilter
 				value={filters.search}
 				onChange={(search) => updateFilter("search", search)}
-				placeholder="Search merchant, description..."
+				placeholder="Search description, notes..."
 				className="w-full"
 			/>
 

@@ -21,6 +21,7 @@ import {
 	useImportTemplates,
 	useVaultAction,
 } from "@/lib/crdt/context";
+import { DEFAULT_STATUS_IDS } from "@/lib/crdt/defaults";
 import type {
 	Automation,
 	AutomationApplication,
@@ -103,7 +104,7 @@ export default function NewImportPage() {
 			.map((t) => ({
 				date: t.date,
 				amount: t.amount,
-				description: t.merchant || t.description || "",
+				description: t.description || t.notes || "",
 			}));
 	}, [transactions]);
 
@@ -141,9 +142,8 @@ export default function NewImportPage() {
 				deletedAt: 0,
 			} as ImportRecord);
 
-			// Get default status ID (first one or create one)
-			// For now we'll use a placeholder - this should come from vault state
-			const defaultStatusId = "default";
+			// Use "For Review" status for all imported transactions
+			const defaultStatusId = DEFAULT_STATUS_IDS.FOR_REVIEW;
 
 			// Convert automations to array for processing
 			const automationList = Object.values(automations).filter(
@@ -154,8 +154,8 @@ export default function NewImportPage() {
 			const newTransactions = parsedTransactions.map((tx) => ({
 				id: generateId(),
 				date: tx.date,
-				merchant: tx.merchant,
-				description: tx.memo || tx.description,
+				description: tx.description,
+				notes: tx.memo || "",
 				amount: tx.amount,
 				accountId: "", // TODO: Allow account selection in wizard
 				tagIds: [] as string[],

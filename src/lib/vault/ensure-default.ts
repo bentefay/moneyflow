@@ -18,6 +18,7 @@ import { generateVaultKey } from "@/lib/crypto/encryption";
 import { initCrypto } from "@/lib/crypto/keypair";
 import { wrapKey } from "@/lib/crypto/keywrap";
 import { getSession } from "@/lib/crypto/session";
+import { detectDefaultCurrency } from "@/lib/domain/detect-currency";
 
 /**
  * Result of vault creation
@@ -142,8 +143,12 @@ export async function ensureDefaultVault(
 	});
 
 	// 4. Initialize LoroDoc with default state
+	// Detect user's preferred currency from browser locale
+	const detectedCurrency = detectDefaultCurrency();
+	console.log(`Detected default currency from locale: ${detectedCurrency}`);
+
 	const doc = new LoroDoc();
-	const defaultState = getDefaultVaultState();
+	const defaultState = getDefaultVaultState({ defaultCurrency: detectedCurrency });
 
 	const mirror = new Mirror({
 		doc,

@@ -7,7 +7,10 @@
  * Shows percentage input for each person.
  */
 
+import { X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 export interface PersonData {
@@ -149,37 +152,27 @@ export function PersonAllocationCell({
 										{person?.name ?? "Unknown"}
 									</span>
 									<div className="flex items-center gap-1">
-										<input
+										<Input
 											type="number"
-											min="0"
-											max="100"
+											min={0}
+											max={100}
 											value={allocation.percentage}
 											onChange={(e) =>
 												handlePercentageChange(allocation.personId, parseInt(e.target.value) || 0)
 											}
-											className="w-14 rounded border px-2 py-1 text-right text-sm"
+											className="h-8 w-14 text-right"
 										/>
 										<span className="text-muted-foreground text-sm">%</span>
-										<button
+										<Button
 											type="button"
+											variant="ghost"
+											size="icon-sm"
 											onClick={() => handleRemovePerson(allocation.personId)}
-											className="ml-1 text-muted-foreground hover:text-foreground"
+											className="ml-1"
 											aria-label={`Remove ${person?.name}`}
 										>
-											<svg
-												className="h-4 w-4"
-												fill="none"
-												viewBox="0 0 24 24"
-												stroke="currentColor"
-											>
-												<path
-													strokeLinecap="round"
-													strokeLinejoin="round"
-													strokeWidth={2}
-													d="M6 18L18 6M6 6l12 12"
-												/>
-											</svg>
-										</button>
+											<X className="h-4 w-4" />
+										</Button>
 									</div>
 								</div>
 							);

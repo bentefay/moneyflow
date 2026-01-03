@@ -151,7 +151,7 @@ export type StatusBehavior = z.infer<typeof StatusBehaviorSchema>;
 export const AutomationOperatorSchema = z.enum(["contains", "regex"]);
 export type AutomationOperator = z.infer<typeof AutomationOperatorSchema>;
 
-export const AutomationColumnSchema = z.enum(["merchant", "description", "amount", "accountId"]);
+export const AutomationColumnSchema = z.enum(["description", "notes", "amount", "accountId"]);
 export type AutomationColumn = z.infer<typeof AutomationColumnSchema>;
 
 export const AutomationActionTypeSchema = z.enum(["setTags", "setAllocation", "setStatus"]);

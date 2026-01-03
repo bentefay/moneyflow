@@ -52,11 +52,11 @@ export function evaluateCondition(condition: ConditionData, transaction: Transac
 	// Get the value to check based on column
 	let fieldValue: string;
 	switch (condition.column) {
-		case "merchant":
-			fieldValue = transaction.merchant ?? "";
-			break;
 		case "description":
 			fieldValue = transaction.description ?? "";
+			break;
+		case "notes":
+			fieldValue = transaction.notes ?? "";
 			break;
 		case "amount":
 			fieldValue = String(transaction.amount);
@@ -245,22 +245,22 @@ export function createAutomationFromTransaction(
 	const conditions: ConditionData[] = [];
 	const actions: ActionData[] = [];
 
-	// Create condition based on merchant if present
-	if (transaction.merchant) {
-		conditions.push({
-			id: crypto.randomUUID(),
-			column: "merchant",
-			operator: "contains",
-			value: transaction.merchant,
-			caseSensitive: false,
-		});
-	} else if (transaction.description) {
-		// Fallback to description
+	// Create condition based on description if present
+	if (transaction.description) {
 		conditions.push({
 			id: crypto.randomUUID(),
 			column: "description",
 			operator: "contains",
 			value: transaction.description,
+			caseSensitive: false,
+		});
+	} else if (transaction.notes) {
+		// Fallback to notes
+		conditions.push({
+			id: crypto.randomUUID(),
+			column: "notes",
+			operator: "contains",
+			value: transaction.notes,
 			caseSensitive: false,
 		});
 	}

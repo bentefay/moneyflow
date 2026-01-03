@@ -669,27 +669,6 @@ With 2+ developers after Phase 2:
 
 ---
 
----
-
-## Phase 14: Investigation & Future Improvements
-
-**Purpose**: Research and evaluate potential library/framework upgrades and enhancements
-
-### Library Investigations
-
-- [ ] T201 [P] Investigate Uppy 5.0 (https://uppy.io/blog/uppy-5.0/) as replacement for custom FileDropzone component
-  - Current: Custom HTML5 drag-and-drop implementation in src/components/features/import/FileDropzone.tsx
-  - Evaluate: Bundle size impact, features (progress, resumable uploads, file previews), integration complexity
-  - Document findings in specs/001-core-mvp/research/uppy-evaluation.md
-
-- [ ] T202 [P] Investigate animate-ui shadcn registry components (https://animate-ui.com/docs/components)
-  - Focus on /radix/ components: Dialog, Alert Dialog, Dropdown Menu, Tooltip, etc.
-  - Evaluate: Animation quality, accessibility, bundle size, compatibility with existing shadcn/ui setup
-  - Compare with current @radix-ui/* primitives + tw-animate-css setup
-  - Document findings in specs/001-core-mvp/research/animate-ui-evaluation.md
-
----
-
 ## Task Summary
 
 | Phase | User Story           | Task Count | Tests Included |

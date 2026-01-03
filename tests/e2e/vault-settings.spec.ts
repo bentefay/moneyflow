@@ -117,7 +117,7 @@ test.describe("Vault Settings", () => {
 
 			// Navigate to transactions
 			await goToTransactions(page);
-			await expect(page.getByRole("heading", { name: "Transactions", level: 1 })).toBeVisible();
+			await expect(page).toHaveURL(/\/transactions$/);
 
 			// Navigate back to settings
 			await goToSettings(page);
@@ -147,7 +147,7 @@ test.describe("Vault Settings", () => {
 
 			// Should land on transactions, not dashboard or settings
 			await page.waitForURL("**/transactions", { timeout: 15000 });
-			await expect(page.getByRole("heading", { name: "Transactions", level: 1 })).toBeVisible();
+			await expect(page).toHaveURL(/\/transactions$/);
 		});
 	});
 

@@ -7,7 +7,7 @@
  * Uses shadcn's Command + Popover pattern for accessible autocomplete.
  */
 
-import { CheckIcon, ChevronsUpDownIcon, PlusCircleIcon } from "lucide-react";
+import { CheckIcon, ChevronDownIcon, PlusCircleIcon } from "lucide-react";
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -103,7 +103,7 @@ export function AccountCombobox({
 						)}
 					>
 						<span className="truncate">{selectedAccount?.name ?? placeholder}</span>
-						<ChevronsUpDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+						<ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
 					</Button>
 				</PopoverTrigger>
 				<PopoverContent className="w-[200px] p-0" align="start">

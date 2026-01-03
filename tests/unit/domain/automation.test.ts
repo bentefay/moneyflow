@@ -26,8 +26,8 @@ function createTransaction(overrides: Partial<Omit<Transaction, "$cid">> = {}): 
 	return {
 		id: "tx-1",
 		date: "2024-01-15",
-		merchant: "Amazon",
-		description: "Office Supplies",
+		description: "Amazon",
+		notes: "Office Supplies",
 		amount: -5000, // -$50.00
 		accountId: "acc-1",
 		tagIds: [] as string[],
@@ -78,51 +78,51 @@ describe("evaluateCondition", () => {
 			expected: boolean;
 		}> = [
 			{
-				name: "matches when merchant contains value (case insensitive)",
+				name: "matches when description contains value (case insensitive)",
 				condition: {
 					id: "c1",
-					column: "merchant",
+					column: "description",
 					operator: "contains",
 					value: "amazon",
 					caseSensitive: false,
 				},
-				transaction: createTransaction({ merchant: "Amazon" }),
+				transaction: createTransaction({ description: "Amazon" }),
 				expected: true,
 			},
 			{
-				name: "does not match when merchant does not contain value",
+				name: "does not match when description does not contain value",
 				condition: {
 					id: "c1",
-					column: "merchant",
+					column: "description",
 					operator: "contains",
 					value: "walmart",
 					caseSensitive: false,
 				},
-				transaction: createTransaction({ merchant: "Amazon" }),
+				transaction: createTransaction({ description: "Amazon" }),
 				expected: false,
 			},
 			{
 				name: "respects case sensitivity",
 				condition: {
 					id: "c1",
-					column: "merchant",
+					column: "description",
 					operator: "contains",
 					value: "amazon",
 					caseSensitive: true,
 				},
-				transaction: createTransaction({ merchant: "Amazon" }),
+				transaction: createTransaction({ description: "Amazon" }),
 				expected: false,
 			},
 			{
-				name: "matches description field",
+				name: "matches notes field",
 				condition: {
 					id: "c1",
-					column: "description",
+					column: "notes",
 					operator: "contains",
 					value: "supplies",
 					caseSensitive: false,
 				},
-				transaction: createTransaction({ description: "Office Supplies" }),
+				transaction: createTransaction({ notes: "Office Supplies" }),
 				expected: true,
 			},
 		];
@@ -145,24 +145,24 @@ describe("evaluateCondition", () => {
 				name: "matches exact value (case insensitive)",
 				condition: {
 					id: "c1",
-					column: "merchant",
+					column: "description",
 					operator: "equals",
 					value: "amazon",
 					caseSensitive: false,
 				},
-				transaction: createTransaction({ merchant: "Amazon" }),
+				transaction: createTransaction({ description: "Amazon" }),
 				expected: true,
 			},
 			{
 				name: "does not match partial value",
 				condition: {
 					id: "c1",
-					column: "merchant",
+					column: "description",
 					operator: "equals",
 					value: "amaz",
 					caseSensitive: false,
 				},
-				transaction: createTransaction({ merchant: "Amazon" }),
+				transaction: createTransaction({ description: "Amazon" }),
 				expected: false,
 			},
 		];
@@ -175,50 +175,54 @@ describe("evaluateCondition", () => {
 	});
 
 	describe("startsWith operator", () => {
-		it("matches when merchant starts with value", () => {
+		it("matches when description starts with value", () => {
 			const condition: ConditionData = {
 				id: "c1",
-				column: "merchant",
+				column: "description",
 				operator: "startsWith",
 				value: "ama",
 				caseSensitive: false,
 			};
-			expect(evaluateCondition(condition, createTransaction({ merchant: "Amazon" }))).toBe(true);
+			expect(evaluateCondition(condition, createTransaction({ description: "Amazon" }))).toBe(true);
 		});
 
-		it("does not match when merchant does not start with value", () => {
+		it("does not match when description does not start with value", () => {
 			const condition: ConditionData = {
 				id: "c1",
-				column: "merchant",
+				column: "description",
 				operator: "startsWith",
 				value: "zon",
 				caseSensitive: false,
 			};
-			expect(evaluateCondition(condition, createTransaction({ merchant: "Amazon" }))).toBe(false);
+			expect(evaluateCondition(condition, createTransaction({ description: "Amazon" }))).toBe(
+				false
+			);
 		});
 	});
 
 	describe("endsWith operator", () => {
-		it("matches when merchant ends with value", () => {
+		it("matches when description ends with value", () => {
 			const condition: ConditionData = {
 				id: "c1",
-				column: "merchant",
+				column: "description",
 				operator: "endsWith",
 				value: "zon",
 				caseSensitive: false,
 			};
-			expect(evaluateCondition(condition, createTransaction({ merchant: "Amazon" }))).toBe(true);
+			expect(evaluateCondition(condition, createTransaction({ description: "Amazon" }))).toBe(true);
 		});
 
-		it("does not match when merchant does not end with value", () => {
+		it("does not match when description does not end with value", () => {
 			const condition: ConditionData = {
 				id: "c1",
-				column: "merchant",
+				column: "description",
 				operator: "endsWith",
 				value: "ama",
 				caseSensitive: false,
 			};
-			expect(evaluateCondition(condition, createTransaction({ merchant: "Amazon" }))).toBe(false);
+			expect(evaluateCondition(condition, createTransaction({ description: "Amazon" }))).toBe(
+				false
+			);
 		});
 	});
 
@@ -226,34 +230,38 @@ describe("evaluateCondition", () => {
 		it("matches regex pattern", () => {
 			const condition: ConditionData = {
 				id: "c1",
-				column: "merchant",
+				column: "description",
 				operator: "regex",
 				value: "^Am.*n$",
 				caseSensitive: false,
 			};
-			expect(evaluateCondition(condition, createTransaction({ merchant: "Amazon" }))).toBe(true);
+			expect(evaluateCondition(condition, createTransaction({ description: "Amazon" }))).toBe(true);
 		});
 
 		it("does not match invalid regex (returns false)", () => {
 			const condition: ConditionData = {
 				id: "c1",
-				column: "merchant",
+				column: "description",
 				operator: "regex",
 				value: "[", // Invalid regex
 				caseSensitive: false,
 			};
-			expect(evaluateCondition(condition, createTransaction({ merchant: "Amazon" }))).toBe(false);
+			expect(evaluateCondition(condition, createTransaction({ description: "Amazon" }))).toBe(
+				false
+			);
 		});
 
 		it("respects case sensitivity in regex", () => {
 			const condition: ConditionData = {
 				id: "c1",
-				column: "merchant",
+				column: "description",
 				operator: "regex",
 				value: "amazon",
 				caseSensitive: true,
 			};
-			expect(evaluateCondition(condition, createTransaction({ merchant: "Amazon" }))).toBe(false);
+			expect(evaluateCondition(condition, createTransaction({ description: "Amazon" }))).toBe(
+				false
+			);
 		});
 	});
 
@@ -278,10 +286,16 @@ describe("evaluateConditions", () => {
 
 	it("returns true when all conditions match (AND logic)", () => {
 		const conditions: ConditionData[] = [
-			{ id: "c1", column: "merchant", operator: "contains", value: "amazon", caseSensitive: false },
+			{
+				id: "c1",
+				column: "description",
+				operator: "contains",
+				value: "amazon",
+				caseSensitive: false,
+			},
 			{
 				id: "c2",
-				column: "description",
+				column: "notes",
 				operator: "contains",
 				value: "supplies",
 				caseSensitive: false,
@@ -292,10 +306,16 @@ describe("evaluateConditions", () => {
 
 	it("returns false when any condition does not match", () => {
 		const conditions: ConditionData[] = [
-			{ id: "c1", column: "merchant", operator: "contains", value: "amazon", caseSensitive: false },
+			{
+				id: "c1",
+				column: "description",
+				operator: "contains",
+				value: "amazon",
+				caseSensitive: false,
+			},
 			{
 				id: "c2",
-				column: "description",
+				column: "notes",
 				operator: "contains",
 				value: "electronics",
 				caseSensitive: false,
@@ -349,7 +369,7 @@ describe("evaluateAutomation", () => {
 			conditions: [
 				{
 					id: "c1",
-					column: "merchant",
+					column: "description",
 					operator: "contains",
 					value: "amazon",
 					caseSensitive: false,
@@ -368,7 +388,7 @@ describe("evaluateAutomation", () => {
 			conditions: [
 				{
 					id: "c1",
-					column: "merchant",
+					column: "description",
 					operator: "contains",
 					value: "amazon",
 					caseSensitive: false,
@@ -389,7 +409,7 @@ describe("evaluateAutomations", () => {
 				conditions: [
 					{
 						id: "c1",
-						column: "merchant",
+						column: "description",
 						operator: "equals",
 						value: "walmart",
 						caseSensitive: false,
@@ -402,7 +422,7 @@ describe("evaluateAutomations", () => {
 				conditions: [
 					{
 						id: "c1",
-						column: "merchant",
+						column: "description",
 						operator: "contains",
 						value: "amazon",
 						caseSensitive: false,
@@ -425,7 +445,7 @@ describe("evaluateAutomations", () => {
 				conditions: [
 					{
 						id: "c1",
-						column: "merchant",
+						column: "description",
 						operator: "contains",
 						value: "amazon",
 						caseSensitive: false,
@@ -440,22 +460,22 @@ describe("evaluateAutomations", () => {
 });
 
 describe("createAutomationFromTransaction", () => {
-	it("creates automation with merchant condition when merchant is present", () => {
-		const tx = createTransaction({ merchant: "Amazon", tagIds: ["tag-1"] as string[] });
+	it("creates automation with description condition when description is present", () => {
+		const tx = createTransaction({ description: "Amazon", tagIds: ["tag-1"] as string[] });
 		const automation = createAutomationFromTransaction(tx, "Amazon Rule");
 
 		expect(automation.name).toBe("Amazon Rule");
 		expect(automation.conditions).toHaveLength(1);
-		expect(automation.conditions[0].column).toBe("merchant");
+		expect(automation.conditions[0].column).toBe("description");
 		expect(automation.conditions[0].value).toBe("Amazon");
 	});
 
-	it("creates automation with description condition when merchant is empty", () => {
-		const tx = createTransaction({ merchant: "", description: "Office Supplies" });
+	it("creates automation with notes condition when description is empty", () => {
+		const tx = createTransaction({ description: "", notes: "Office Supplies" });
 		const automation = createAutomationFromTransaction(tx, "Office Rule");
 
 		expect(automation.conditions).toHaveLength(1);
-		expect(automation.conditions[0].column).toBe("description");
+		expect(automation.conditions[0].column).toBe("notes");
 		expect(automation.conditions[0].value).toBe("Office Supplies");
 	});
 
@@ -532,7 +552,7 @@ describe("applyAutomationsWithTracking", () => {
 				conditions: [
 					{
 						id: "c1",
-						column: "merchant",
+						column: "description",
 						operator: "contains",
 						value: "amazon",
 						caseSensitive: false,
@@ -561,7 +581,7 @@ describe("applyAutomationsWithTracking", () => {
 				conditions: [
 					{
 						id: "c1",
-						column: "merchant",
+						column: "description",
 						operator: "equals",
 						value: "walmart",
 						caseSensitive: false,
@@ -569,7 +589,7 @@ describe("applyAutomationsWithTracking", () => {
 				] as ConditionData[],
 			}),
 		];
-		const transactions = [createTransaction({ merchant: "Amazon" })];
+		const transactions = [createTransaction({ description: "Amazon" })];
 
 		const { appliedChanges, applications } = applyAutomationsWithTracking(
 			automations,

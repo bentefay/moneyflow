@@ -412,6 +412,121 @@ describe("parseOFX", () => {
 // isOFXFormat tests
 // ============================================================================
 
+// Real-world OFX that has caused parse failures
+const CREDIT_CARD_WITH_EMPTY_FITID = `OFXHEADER:100
+DATA:OFXSGML
+VERSION:102
+SECURITY:NONE
+ENCODING:USASCII
+CHARSET:1252
+COMPRESSION:NONE
+OLDFILEUID:NONE
+NEWFILEUID:NONE
+<OFX>
+<SIGNONMSGSRSV1>
+<SONRS>
+<STATUS>
+<CODE>0
+<SEVERITY>INFO
+</STATUS>
+<DTSERVER>20251223125616
+<LANGUAGE>ENG
+</SONRS>
+</SIGNONMSGSRSV1>
+<CREDITCARDMSGSRSV1>
+<CCSTMTTRNRS>
+<TRNUID>1
+<STATUS>
+<CODE>0
+<SEVERITY>INFO
+</STATUS>
+<CCSTMTRS>
+<CURDEF>AUD
+<CCACCTFROM>
+<ACCTID>5511111111111111
+</CCACCTFROM>
+<BANKTRANLIST>
+<DTSTART>20231223000000
+<DTEND>20251223000000
+<STMTTRN>
+<TRNTYPE>CREDIT
+<DTPOSTED>20251222
+<DTUSER>20251222
+<TRNAMT>6000.00
+<FITID>N922159322670
+<MEMO>PAYMENT RECEIVED, THANK YOU
+</STMTTRN>
+<STMTTRN>
+<TRNTYPE>DEBIT
+<DTPOSTED>20251221
+<DTUSER>20251221
+<TRNAMT>-15.00
+<FITID>
+<MEMO>Fruit
+</STMTTRN>
+<STMTTRN>
+<TRNTYPE>DEBIT
+<DTPOSTED>20251221
+<DTUSER>20251221
+<TRNAMT>-53.96
+<FITID>
+<MEMO>WOOLWORTHS
+</STMTTRN>
+<STMTTRN>
+<TRNTYPE>DEBIT
+<DTPOSTED>20251220
+<DTUSER>20251220
+<TRNAMT>-176.91
+<FITID>
+</STMTTRN>
+</BANKTRANLIST>
+<LEDGERBAL>
+<BALAMT>-1879.07
+<DTASOF>20251223125616
+</LEDGERBAL>
+<AVAILBAL>
+<BALAMT>5816.86
+<DTASOF>20251223125616
+</AVAILBAL>
+</CCSTMTRS>
+</CCSTMTTRNRS>
+</CREDITCARDMSGSRSV1>
+</OFX>
+`;
+
+describe("real-world OFX edge cases", () => {
+	it("parses credit card OFX with empty FITID fields", () => {
+		const data = expectSuccess(parseOFX(CREDIT_CARD_WITH_EMPTY_FITID));
+
+		expect(data.statements).toHaveLength(1);
+		const stmt = data.statements[0];
+
+		expect(stmt.account.accountId).toBe("5511111111111111");
+		expect(stmt.account.accountType).toBe("CREDITCARD");
+		expect(stmt.currency).toBe("AUD");
+		expect(stmt.transactions).toHaveLength(4);
+
+		// First transaction has a real FITID
+		expect(stmt.transactions[0].fitId).toBe("N922159322670");
+		expect(stmt.transactions[0].amount).toBe(6000);
+		expect(stmt.transactions[0].memo).toBe("PAYMENT RECEIVED, THANK YOU");
+
+		// Subsequent transactions had empty FITID in the file - library auto-generates them
+		// (format is AUTO + random hex, or our generator produces gen-...)
+		expect(stmt.transactions[1].fitId).toBeTruthy();
+		expect(stmt.transactions[1].amount).toBe(-15);
+		expect(stmt.transactions[1].memo).toBe("Fruit");
+
+		// Last transaction has no MEMO at all
+		expect(stmt.transactions[3].amount).toBe(-176.91);
+		expect(stmt.transactions[3].memo).toBe("");
+	});
+});
+
+// ============================================================================
+// isOFXFormat tests
+// ============================================================================
+
 describe("isOFXFormat", () => {
 	const positiveTestCases = [
 		{ name: "OFXHEADER", content: "OFXHEADER:100\n<OFX>" },

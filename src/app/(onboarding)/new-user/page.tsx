@@ -100,11 +100,10 @@ export default function NewUserPage() {
 
 						{/* Title */}
 						<div>
-							<h1 className="font-bold text-3xl">Create Your Account</h1>
+							<h1 className="font-bold text-3xl">Get Started</h1>
 							<p className="mt-2 max-w-md text-muted-foreground">
-								We're going to create a recovery phrase for you. It's a very secure password that
-								secures your account. It is the only way to access your data - there&apos;s no
-								password reset. This means:
+								We're going to create a recovery phrase for you. It is the only way to access your
+								data - there&apos;s no password reset.
 							</p>
 						</div>
 
@@ -113,9 +112,9 @@ export default function NewUserPage() {
 							<div className="flex items-start gap-3 rounded-lg border bg-card p-4 text-left">
 								<CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-green-500" />
 								<div>
-									<p className="font-medium">Your data stays yours</p>
+									<p className="font-medium">Your data is private and secure</p>
 									<p className="text-muted-foreground text-sm">
-										All data is encrypted on your device. We can&apos;t see your finances.
+										All data is encrypted on your device so not even we can see it.
 									</p>
 								</div>
 							</div>
@@ -182,7 +181,7 @@ export default function NewUserPage() {
 						<div className="text-center">
 							<h1 className="font-bold text-2xl">Your Recovery Phrase</h1>
 							<p className="mt-1 text-muted-foreground">
-								Save these 12 words somewhere safe. We recommend a password manager.
+								Save the 12 words below somewhere safe. We recommend a password manager.
 							</p>
 						</div>
 

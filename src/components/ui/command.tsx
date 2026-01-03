@@ -85,11 +85,14 @@ function CommandList({ className, ...props }: React.ComponentProps<typeof Comman
 	);
 }
 
-function CommandEmpty({ ...props }: React.ComponentProps<typeof CommandPrimitive.Empty>) {
+function CommandEmpty({
+	className,
+	...props
+}: React.ComponentProps<typeof CommandPrimitive.Empty>) {
 	return (
 		<CommandPrimitive.Empty
 			data-slot="command-empty"
-			className="py-6 text-center text-sm"
+			className={cn("py-6 text-center text-sm", className)}
 			{...props}
 		/>
 	);

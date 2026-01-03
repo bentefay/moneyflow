@@ -33,10 +33,10 @@ export interface ProcessedTransaction {
 	date: ISODateString;
 	/** Amount in minor units/cents (positive = income, negative = expense) */
 	amount: MoneyMinorUnits;
-	/** Merchant name */
-	merchant: string;
-	/** Description/memo */
+	/** Imported description text from bank file (OFX NAME, CSV description/merchant column) */
 	description: string;
+	/** Notes/memo */
+	notes: string;
 	/** Check number if available */
 	checkNumber?: string;
 	/** Category/tag hint from import */
@@ -175,8 +175,8 @@ export function processCSVImport(
 		const checkNumberIdx = columnMap.get("checkNumber");
 		const categoryIdx = columnMap.get("category");
 
-		const merchant = merchantIdx !== undefined ? row[merchantIdx] || "" : "";
-		const description = descriptionIdx !== undefined ? row[descriptionIdx] || "" : "";
+		const merchantCol = merchantIdx !== undefined ? row[merchantIdx] || "" : "";
+		const descriptionCol = descriptionIdx !== undefined ? row[descriptionIdx] || "" : "";
 		const memo = memoIdx !== undefined ? row[memoIdx] || "" : "";
 		const checkNumber = checkNumberIdx !== undefined ? row[checkNumberIdx] : undefined;
 		const categoryHint = categoryIdx !== undefined ? row[categoryIdx] : undefined;
@@ -196,16 +196,22 @@ export function processCSVImport(
 			id: `import-${Temporal.Now.instant().epochMilliseconds}-${i}`,
 			date,
 			amount,
-			merchant: merchant || description,
-			description: memo || description,
+			description: merchantCol || descriptionCol,
+			notes: memo || descriptionCol,
 			checkNumber,
 			categoryHint,
 			isDuplicate: false,
 		});
 	}
 
-	// Detect duplicates
-	const duplicateMatches = detectDuplicates(transactions, existingTransactions);
+	// Detect duplicates - map ProcessedTransaction to DuplicateCheckTransaction format
+	const transactionsForDuplicateCheck = transactions.map((t) => ({
+		id: t.id,
+		date: t.date,
+		amount: t.amount,
+		description: t.description || t.notes, // Use description/notes for duplicate comparison
+	}));
+	const duplicateMatches = detectDuplicates(transactionsForDuplicateCheck, existingTransactions);
 
 	// Mark duplicates
 	for (const match of duplicateMatches) {
@@ -311,8 +317,8 @@ export function processOFXImport(
 				id: tx.fitId || `import-${Temporal.Now.instant().epochMilliseconds}-${transactionIndex}`,
 				date: toISODateString(tx.datePosted),
 				amount: amountInMinorUnits,
-				merchant: tx.name,
-				description: tx.memo,
+				description: tx.name,
+				notes: tx.memo,
 				checkNumber: tx.checkNumber,
 				isDuplicate: false,
 			});
@@ -320,8 +326,14 @@ export function processOFXImport(
 		}
 	}
 
-	// Detect duplicates
-	const duplicateMatches = detectDuplicates(allTransactions, existingTransactions);
+	// Detect duplicates - map ProcessedTransaction to DuplicateCheckTransaction format
+	const transactionsForDuplicateCheck = allTransactions.map((t) => ({
+		id: t.id,
+		date: t.date,
+		amount: t.amount,
+		description: t.description || t.notes || "", // Use description/notes for duplicate comparison
+	}));
+	const duplicateMatches = detectDuplicates(transactionsForDuplicateCheck, existingTransactions);
 
 	// Mark duplicates
 	for (const match of duplicateMatches) {

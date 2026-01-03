@@ -19,7 +19,7 @@ export interface PreviewTransaction {
 	date: string | null;
 	/** Parsed amount */
 	amount: number | null;
-	/** Description/merchant */
+	/** Description (imported text from bank file) */
 	description: string;
 	/** Any parsing errors for this row */
 	errors: string[];

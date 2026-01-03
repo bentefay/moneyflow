@@ -13,7 +13,8 @@ export async function goToDashboard(page: Page): Promise<void> {
 
 export async function goToTransactions(page: Page): Promise<void> {
 	await page.goto("/transactions");
-	await page.getByRole("heading", { name: "Transactions", level: 1 }).waitFor({ timeout: 15000 });
+	// Wait for the transaction table toolbar which is always present (even in empty state)
+	await page.locator('[data-testid="transaction-table-toolbar"]').waitFor({ timeout: 15000 });
 }
 
 export async function goToSettings(page: Page): Promise<void> {

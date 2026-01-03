@@ -62,6 +62,7 @@ export const accountSchema = schema.LoroMap({
 export const tagSchema = schema.LoroMap({
 	id: schema.String({ required: true }),
 	name: schema.String({ required: true }),
+	color: schema.String(), // Hex color (e.g., "#3b82f6"), auto-assigned on creation
 	parentTagId: schema.String(), // Optional parent for hierarchy
 	isTransfer: schema.Boolean({ defaultValue: false }), // Transfer tags exclude from "expenses"
 	deletedAt: schema.Number(),
@@ -84,8 +85,8 @@ export const statusSchema = schema.LoroMap({
 export const transactionSchema = schema.LoroMap({
 	id: schema.String({ required: true }),
 	date: schema.String({ required: true }), // ISO date string
-	merchant: schema.String({ defaultValue: "" }),
-	description: schema.String({ defaultValue: "" }),
+	description: schema.String({ defaultValue: "" }), // Imported text from bank file (OFX NAME, CSV description)
+	notes: schema.String({ defaultValue: "" }), // User's notes/memo
 	amount: schema.Number({ required: true }), // MoneyMinorUnits: integer cents (positive = income, negative = expense)
 	accountId: schema.String({ required: true }),
 	tagIds: schema.LoroList(schema.String(), (id) => id), // Tag IDs as LoroList for concurrent adds
@@ -128,7 +129,7 @@ export const importTemplateSchema = schema.LoroMap({
  */
 export const automationConditionSchema = schema.LoroMap({
 	id: schema.String({ required: true }),
-	column: schema.String({ required: true }), // "merchant" | "description" | "amount" | "accountId"
+	column: schema.String({ required: true }), // "description" | "notes" | "amount" | "accountId"
 	operator: schema.String({ required: true }), // "contains" | "regex"
 	value: schema.String({ required: true }),
 	caseSensitive: schema.Boolean({ defaultValue: false }),

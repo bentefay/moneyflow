@@ -4,138 +4,88 @@
  * Add Transaction Row
  *
  * Empty row at the top of the transaction table for adding new transactions.
- * Provides inline form for quick transaction entry.
+ * Shows a placeholder when inactive, expands to full TransactionRow when clicked.
  */
 
-import { useEffect, useRef, useState } from "react";
-import { AccountCombobox, type AccountOption } from "@/components/features/accounts";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { AccountOption } from "../accounts";
+import type { StatusOption } from "./cells/InlineEditableStatus";
+import type { TagOption } from "./cells/InlineEditableTags";
+import { type NewTransactionData, TransactionRow } from "./TransactionRow";
 
-export interface NewTransactionData {
-	date: string;
-	description: string;
-	amount: number;
-	accountId: string;
-}
-
-// Re-export AccountOption for consumers
-export type { AccountOption };
+// Re-export types for backwards compatibility
+export type { AccountOption, NewTransactionData };
 
 export interface AddTransactionRowProps {
 	/** Available accounts for selection */
 	availableAccounts?: AccountOption[];
+	/** Available statuses for selection */
+	availableStatuses?: StatusOption[];
+	/** Available tags for selection */
+	availableTags?: TagOption[];
+	/** Callback when a new tag should be created */
+	onCreateTag?: (name: string) => Promise<TagOption>;
 	/** Callback when a new transaction is submitted */
 	onAdd: (transaction: NewTransactionData) => void;
 	/** Callback when the add row is focused */
 	onFocus?: () => void;
 	/** Default account ID to pre-select */
 	defaultAccountId?: string;
+	/** Default status ID to pre-select */
+	defaultStatusId?: string;
+	/** Number of selected transactions (shown on right side) */
+	selectedCount?: number;
+	/** Total number of transactions (shown on right side) */
+	totalCount?: number;
+	/** Whether filters are currently active */
+	isFiltered?: boolean;
 	/** Additional CSS classes */
 	className?: string;
 }
 
 /**
  * Add transaction row component.
+ * Shows a placeholder when inactive, full inline editing when active.
  */
 export function AddTransactionRow({
 	availableAccounts = [],
+	availableStatuses = [],
+	availableTags = [],
+	onCreateTag,
 	onAdd,
 	onFocus,
 	defaultAccountId,
+	defaultStatusId,
+	selectedCount = 0,
+	totalCount = 0,
+	isFiltered = false,
 	className,
 }: AddTransactionRowProps) {
 	const [isActive, setIsActive] = useState(false);
-	const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
-	const [description, setDescription] = useState("");
-	const [amount, setAmount] = useState("");
-	const [accountId, setAccountId] = useState(defaultAccountId ?? "");
-
-	const descriptionRef = useRef<HTMLInputElement>(null);
-	const containerRef = useRef<HTMLDivElement>(null);
-
-	// Set default account if provided - only runs when defaults change
-	useEffect(() => {
-		if (defaultAccountId && !accountId) {
-			setAccountId(defaultAccountId);
-		}
-	}, [defaultAccountId, accountId]);
-
-	// Focus description input when activated
-	useEffect(() => {
-		if (isActive && descriptionRef.current) {
-			descriptionRef.current.focus();
-		}
-	}, [isActive]);
 
 	const handleActivate = () => {
 		setIsActive(true);
 		onFocus?.();
 	};
 
-	const handleReset = () => {
-		setDate(new Date().toISOString().split("T")[0]);
-		setDescription("");
-		setAmount("");
-		setAccountId(defaultAccountId ?? "");
+	const handleAdd = (data: NewTransactionData) => {
+		onAdd(data);
+		// Stay active for adding more transactions
+	};
+
+	const handleCancel = () => {
 		setIsActive(false);
 	};
 
-	const handleSubmit = () => {
-		if (!description.trim() || !amount || !accountId) {
-			return;
-		}
-
-		const parsedAmount = parseFloat(amount.replace(/[^0-9.-]/g, ""));
-		if (isNaN(parsedAmount)) {
-			return;
-		}
-
-		onAdd({
-			date,
-			description: description.trim(),
-			amount: parsedAmount,
-			accountId,
-		});
-
-		// Reset for next entry
-		setDescription("");
-		setAmount("");
-		descriptionRef.current?.focus();
-	};
-
-	const handleKeyDown = (e: React.KeyboardEvent) => {
-		if (e.key === "Enter" && !e.shiftKey) {
-			e.preventDefault();
-			handleSubmit();
-		} else if (e.key === "Escape") {
-			handleReset();
-		}
-	};
-
-	// Handle click outside to deactivate
-	useEffect(() => {
-		if (!isActive) return;
-
-		const handleClickOutside = (e: MouseEvent) => {
-			if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-				if (!description.trim() && !amount) {
-					handleReset();
-				}
-			}
-		};
-
-		document.addEventListener("mousedown", handleClickOutside);
-		return () => document.removeEventListener("mousedown", handleClickOutside);
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- handleReset is stable
-	}, [isActive, description, amount]);
-
+	// Inactive state - show placeholder
 	if (!isActive) {
 		return (
 			<div
 				onClick={handleActivate}
 				data-testid="add-transaction-row"
 				className={cn(
-					"flex cursor-pointer items-center gap-4 border-b border-dashed px-4 py-3",
+					"flex min-w-fit cursor-pointer items-center gap-4 border-b border-dashed px-4 py-3",
 					"text-muted-foreground hover:bg-accent/50 hover:text-foreground",
 					"transition-colors",
 					className
@@ -147,91 +97,32 @@ export function AddTransactionRow({
 				<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 					<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
 				</svg>
-				<span className="text-sm">Add transaction...</span>
+				<span className="flex-1 text-sm">Add transaction...</span>
+				<span className="text-muted-foreground text-sm">
+					{totalCount} transaction{totalCount !== 1 ? "s" : ""}
+					{isFiltered && " (filtered)"}
+					{selectedCount > 0 && (
+						<span className="ml-2 font-medium text-foreground">· {selectedCount} selected</span>
+					)}
+				</span>
 			</div>
 		);
 	}
 
+	// Active state - use TransactionRow in add mode
 	return (
-		<div
-			ref={containerRef}
-			data-testid="add-transaction-row"
-			className={cn("flex items-center gap-2 border-b bg-accent/50 px-4 py-2", className)}
-			onKeyDown={handleKeyDown}
-		>
-			{/* Date */}
-			<input
-				type="date"
-				value={date}
-				onChange={(e) => setDate(e.target.value)}
-				data-testid="new-transaction-date"
-				className="w-32 rounded border bg-transparent px-2 py-1 text-sm"
-			/>
-
-			{/* Description */}
-			<input
-				ref={descriptionRef}
-				type="text"
-				value={description}
-				onChange={(e) => setDescription(e.target.value)}
-				placeholder="Description"
-				data-testid="new-transaction-merchant"
-				className="min-w-0 flex-1 rounded border bg-transparent px-2 py-1 text-sm"
-			/>
-
-			{/* Account */}
-			<AccountCombobox
-				value={accountId}
-				onChange={setAccountId}
-				accounts={availableAccounts}
-				placeholder="Account..."
-				className="w-40"
-			/>
-
-			{/* Amount */}
-			<input
-				type="text"
-				inputMode="decimal"
-				value={amount}
-				onChange={(e) => setAmount(e.target.value)}
-				placeholder="0.00"
-				data-testid="new-transaction-amount"
-				className="w-24 rounded border bg-transparent px-2 py-1 text-right text-sm tabular-nums"
-			/>
-
-			{/* Actions */}
-			<div className="flex gap-1">
-				<button
-					type="button"
-					onClick={handleSubmit}
-					disabled={!description.trim() || !amount || !accountId}
-					className={cn(
-						"rounded p-1.5",
-						"hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50",
-						"text-primary"
-					)}
-					aria-label="Add transaction"
-				>
-					<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-					</svg>
-				</button>
-				<button
-					type="button"
-					onClick={handleReset}
-					className="rounded p-1.5 text-muted-foreground hover:text-foreground"
-					aria-label="Cancel"
-				>
-					<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path
-							strokeLinecap="round"
-							strokeLinejoin="round"
-							strokeWidth={2}
-							d="M6 18L18 6M6 6l12 12"
-						/>
-					</svg>
-				</button>
-			</div>
-		</div>
+		<TransactionRow
+			mode="add"
+			availableAccounts={availableAccounts}
+			availableStatuses={availableStatuses}
+			availableTags={availableTags}
+			onCreateTag={onCreateTag}
+			onAdd={handleAdd}
+			onCancel={handleCancel}
+			defaultAccountId={defaultAccountId}
+			defaultStatusId={defaultStatusId}
+			onFocus={onFocus}
+			className={className}
+		/>
 	);
 }

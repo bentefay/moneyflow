@@ -40,9 +40,10 @@ test.describe("Sync Persistence", () => {
 			});
 
 			await test.step("verify Saved state", async () => {
-				const syncStatus = page.locator('[role="status"]');
-				// Should show "Saved" text or green indicator
-				await expect(syncStatus.getByText(/saved/i)).toBeVisible({ timeout: 10000 });
+				// The sync status uses aria-label for the status role, with text label next to it
+				// Look for the status indicator with aria-label "Saved" or the text "Saved" near it
+				const syncIndicator = page.getByRole("status", { name: /saved/i });
+				await expect(syncIndicator).toBeVisible({ timeout: 10000 });
 			});
 		});
 	});
@@ -77,8 +78,8 @@ test.describe("Sync Persistence", () => {
 			await test.step("wait for sync to complete", async () => {
 				// Wait for the saving indicator to show "Saved"
 				await page.waitForTimeout(3000);
-				const syncStatus = page.locator('[role="status"]');
-				await expect(syncStatus.getByText(/saved/i)).toBeVisible({ timeout: 10000 });
+				const syncIndicator = page.getByRole("status", { name: /saved/i });
+				await expect(syncIndicator).toBeVisible({ timeout: 10000 });
 			});
 
 			await test.step("reload page", async () => {

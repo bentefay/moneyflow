@@ -38,7 +38,7 @@ function generateTransactions(count: number): Transaction[] {
 		"Bookstore",
 	];
 
-	const descriptions = [
+	const notesOptions = [
 		"Regular purchase",
 		"Monthly subscription",
 		"One-time payment",
@@ -55,14 +55,14 @@ function generateTransactions(count: number): Transaction[] {
 
 	for (let i = 0; i < count; i++) {
 		const merchant = merchants[i % merchants.length];
-		const description = descriptions[i % descriptions.length];
+		const notesSuffix = notesOptions[i % notesOptions.length];
 		const amount = -Math.floor(Math.random() * 50000) - 100; // -$1.00 to -$500.00
 
 		transactions.push({
 			id: `tx-${i}`,
 			date: `2024-${String((Math.floor(i / 1000) % 12) + 1).padStart(2, "0")}-${String((i % 28) + 1).padStart(2, "0")}`,
-			merchant,
-			description: `${merchant} - ${description}`,
+			description: merchant,
+			notes: `${merchant} - ${notesSuffix}`,
 			amount,
 			accountId: "acc-1",
 			tagIds: [] as string[],
@@ -101,7 +101,7 @@ function generateAutomations(count: number): Automation[] {
 			conditions: [
 				{
 					id: `c-${i}`,
-					column: "merchant",
+					column: "description",
 					operator: i % 3 === 0 ? "regex" : "contains",
 					value: i % 3 === 0 ? `^${pattern}` : pattern,
 					caseSensitive: false,
@@ -239,14 +239,14 @@ describe("Automation Performance", () => {
 				conditions: [
 					{
 						id: `c-${i}`,
-						column: "merchant" as const,
+						column: "description" as const,
 						operator: "regex" as const,
 						value: `^(amazon|walmart|target|starbucks|shell).*${i}?`,
 						caseSensitive: false,
 					},
 					{
 						id: `c2-${i}`,
-						column: "description" as const,
+						column: "notes" as const,
 						operator: "regex" as const,
 						value: `(purchase|payment|subscription)`,
 						caseSensitive: false,
@@ -301,7 +301,7 @@ describe("Automation Performance", () => {
 					conditions: [
 						{
 							id: "c1",
-							column: "merchant",
+							column: "description",
 							operator: "equals",
 							value: "ZZZZZ-WILL-NEVER-MATCH-ZZZZZ",
 							caseSensitive: true,

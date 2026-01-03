@@ -7,21 +7,26 @@
  * and real-time collaborative sync.
  */
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-	AddTransactionRow,
 	BulkEditToolbar,
 	createEmptyFilters,
 	hasActiveFilters,
 	type NewTransactionData,
 	TransactionFilters,
 	type TransactionFiltersState,
+	type TransactionRowData,
 	TransactionTable,
+	TransactionTableToolbar,
 } from "@/components/features/transactions";
+import { useToast } from "@/components/ui/toast";
 import { useActiveVault } from "@/hooks/use-active-vault";
 import { useIdentity } from "@/hooks/use-identity";
+
+/** Threshold for showing warning when selecting all */
+const LARGE_SELECTION_THRESHOLD = 500;
+
 import { useVaultPresence } from "@/hooks/use-vault-presence";
-import { useTransactionSelection } from "@/hooks/useTransactionSelection";
 import {
 	useActiveAccounts,
 	useActivePeople,
@@ -31,6 +36,7 @@ import {
 	useVaultAction,
 } from "@/lib/crdt/context";
 import type { Account, Person, Status, Tag, Transaction } from "@/lib/crdt/schema";
+import { getNextTagColor } from "@/lib/domain";
 
 // Number of transactions to load per page
 const PAGE_SIZE = 50;
@@ -44,6 +50,9 @@ function generateId(): string {
  * Transactions page component.
  */
 export default function TransactionsPage() {
+	// Toast notifications
+	const { toast } = useToast();
+
 	// CRDT state
 	const transactions = useActiveTransactions();
 	const accounts = useActiveAccounts();
@@ -80,17 +89,41 @@ export default function TransactionsPage() {
 		}
 	});
 
+	const addTag = useVaultAction((state, tag: { id: string; name: string; color: string }) => {
+		state.tags[tag.id] = {
+			id: tag.id,
+			name: tag.name,
+			color: tag.color,
+			parentTagId: "",
+			deletedAt: 0,
+		} as (typeof state.tags)[string];
+	});
+
 	// Filter state
 	const [filters, setFilters] = useState<TransactionFiltersState>(createEmptyFilters());
 
 	// Pagination state
 	const [displayCount, setDisplayCount] = useState(PAGE_SIZE);
 
-	// Selection state
-	const transactionIds = useMemo(() => Object.keys(transactions), [transactions]);
-	const { selectedIds, clearSelection, selectedCount, setSelection } = useTransactionSelection({
-		transactionIds,
-	});
+	// Selection state - simple Set instead of custom hook
+	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+	const selectedCount = selectedIds.size;
+
+	// Add transaction state
+	const [isAddingTransaction, setIsAddingTransaction] = useState(false);
+
+	// Clear selection helper
+	const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+	// Warn when selection exceeds threshold
+	useEffect(() => {
+		if (selectedCount > LARGE_SELECTION_THRESHOLD) {
+			toast({
+				message: `Selected ${selectedCount} transactions. Large selections may be slow.`,
+				type: "warning",
+			});
+		}
+	}, [selectedCount, toast]);
 
 	// Convert presence list to presence by transaction ID
 	// For now, we don't have transaction-level presence tracking
@@ -133,8 +166,8 @@ export default function TransactionsPage() {
 			const searchLower = filters.search.toLowerCase();
 			txList = txList.filter(
 				(tx) =>
-					tx.merchant?.toLowerCase().includes(searchLower) ||
-					tx.description?.toLowerCase().includes(searchLower)
+					tx.description?.toLowerCase().includes(searchLower) ||
+					tx.notes?.toLowerCase().includes(searchLower)
 			);
 		}
 
@@ -169,7 +202,8 @@ export default function TransactionsPage() {
 				return {
 					id: tx.id,
 					date: tx.date,
-					description: tx.merchant || tx.description || "",
+					description: tx.description || "",
+					notes: tx.notes || "",
 					amount: tx.amount,
 					account: typeof acc === "object" ? acc.name : "Unknown",
 					accountId: tx.accountId,
@@ -180,6 +214,7 @@ export default function TransactionsPage() {
 						return {
 							id,
 							name: typeof tag === "object" ? tag.name : "Unknown",
+							color: typeof tag === "object" ? tag.color : undefined,
 						};
 					}),
 					balance: 0, // Will be calculated separately
@@ -217,12 +252,12 @@ export default function TransactionsPage() {
 			const newTx = {
 				id: generateId(),
 				date: data.date,
-				merchant: data.description,
-				description: "",
+				description: data.description,
+				notes: data.notes ?? "",
 				amount: data.amount,
 				accountId: data.accountId,
-				tagIds: [] as string[],
-				statusId: defaultStatusId,
+				tagIds: data.tagIds ?? ([] as string[]),
+				statusId: data.statusId ?? defaultStatusId,
 				allocations: {} as Record<string, number>,
 				importId: "",
 				duplicateOf: "",
@@ -270,24 +305,100 @@ export default function TransactionsPage() {
 		[selectedIds, setTransaction]
 	);
 
+	// Handle bulk set notes
+	const handleBulkSetNotes = useCallback(
+		(notes: string) => {
+			for (const id of selectedIds) {
+				setTransaction(id, { notes });
+			}
+		},
+		[selectedIds, setTransaction]
+	);
+
+	// Handle bulk set amount
+	const handleBulkSetAmount = useCallback(
+		(amount: number) => {
+			for (const id of selectedIds) {
+				setTransaction(id, { amount });
+			}
+		},
+		[selectedIds, setTransaction]
+	);
+
+	// Handle creating a new tag
+	const handleCreateTag = useCallback(
+		async (name: string): Promise<{ id: string; name: string; color?: string }> => {
+			const id = generateId();
+			const usedColors = Object.values(tags)
+				.filter((t): t is Tag & { $cid: string } => typeof t === "object")
+				.map((t) => t.color);
+			const color = getNextTagColor(usedColors);
+			addTag({ id, name, color });
+			return { id, name, color };
+		},
+		[addTag, tags]
+	);
+
 	// Handle single transaction delete
 	const handleSingleDelete = useCallback(
 		(id: string) => {
 			deleteTransactions([id]);
 			// Clear selection if the deleted transaction was selected
 			if (selectedIds.has(id)) {
-				const newSelection = new Set(selectedIds);
-				newSelection.delete(id);
-				setSelection(newSelection);
+				setSelectedIds((prev) => {
+					const newSelection = new Set(prev);
+					newSelection.delete(id);
+					return newSelection;
+				});
 			}
 		},
-		[deleteTransactions, selectedIds, setSelection]
+		[deleteTransactions, selectedIds]
 	);
 
 	// Handle resolve duplicate (mark as not a duplicate)
 	const handleResolveDuplicate = useCallback(
 		(id: string) => {
 			setTransaction(id, { duplicateOf: undefined });
+		},
+		[setTransaction]
+	);
+
+	// Handle inline edit update (from TransactionTable)
+	const handleTransactionUpdate = useCallback(
+		(id: string, updates: Partial<TransactionRowData>) => {
+			// Map TransactionRowData fields to Transaction fields
+			const transactionUpdates: Partial<Transaction> = {};
+			if ("description" in updates && updates.description !== undefined) {
+				transactionUpdates.description = updates.description;
+			}
+			if ("notes" in updates && updates.notes !== undefined) {
+				transactionUpdates.notes = updates.notes;
+			}
+			if ("date" in updates && updates.date !== undefined) {
+				transactionUpdates.date = updates.date;
+			}
+			if ("amount" in updates && updates.amount !== undefined) {
+				transactionUpdates.amount = updates.amount;
+			}
+			if ("statusId" in updates && updates.statusId !== undefined) {
+				transactionUpdates.statusId = updates.statusId;
+			}
+			if ("accountId" in updates && updates.accountId !== undefined) {
+				transactionUpdates.accountId = updates.accountId;
+			}
+			if ("tags" in updates && Array.isArray(updates.tags)) {
+				// Tags come as array of IDs (string[]) from inline editor
+				// But TransactionRowData.tags type is Array<{id, name}>, so check first element
+				const tagIds =
+					updates.tags.length > 0 && typeof updates.tags[0] === "string"
+						? (updates.tags as unknown as string[])
+						: updates.tags.map((t) => (typeof t === "string" ? t : t.id));
+				transactionUpdates.tagIds = tagIds;
+			}
+			// Only call setTransaction if we have updates
+			if (Object.keys(transactionUpdates).length > 0) {
+				setTransaction(id, transactionUpdates);
+			}
 		},
 		[setTransaction]
 	);
@@ -304,6 +415,19 @@ export default function TransactionsPage() {
 		[tags]
 	);
 
+	// Tag options for inline editing (with name for TagOption)
+	const tagOptionsForInlineEdit = useMemo(
+		() =>
+			Object.values(tags)
+				.filter((t): t is Tag & { $cid: string } => typeof t === "object")
+				.map((t) => ({
+					id: t.id,
+					name: t.name,
+					color: t.color,
+				})),
+		[tags]
+	);
+
 	// Status options for filter/bulk edit (with label for FilterOption)
 	const statusOptions = useMemo(
 		() =>
@@ -312,6 +436,19 @@ export default function TransactionsPage() {
 				.map((s) => ({
 					id: s.id,
 					label: s.name,
+				})),
+		[statuses]
+	);
+
+	// Status options for inline editing (with name and behavior for StatusOption)
+	const statusOptionsForInlineEdit = useMemo(
+		() =>
+			Object.values(statuses)
+				.filter((s): s is Status & { $cid: string } => typeof s === "object")
+				.map((s) => ({
+					id: s.id,
+					name: s.name,
+					behavior: s.behavior as "treatAsPaid" | null | undefined,
 				})),
 		[statuses]
 	);
@@ -339,68 +476,67 @@ export default function TransactionsPage() {
 	);
 
 	return (
-		<div className="flex h-full flex-col">
-			{/* Page header */}
-			<div className="border-b px-6 py-4">
-				<h1 className="font-semibold text-2xl">Transactions</h1>
-				<p className="mt-1 text-muted-foreground text-sm">
-					{filteredTransactions.length} transaction{filteredTransactions.length !== 1 ? "s" : ""}
-					{hasActiveFilters(filters) && " (filtered)"}
-				</p>
-			</div>
+		<div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden p-6">
+			{/* Filters */}
+			<TransactionFilters
+				filters={filters}
+				onChange={setFilters}
+				availableTags={tagOptions}
+				availablePeople={peopleOptions}
+				availableAccounts={accountOptionsForFilter}
+				availableStatuses={statusOptions}
+			/>
 
-			{/* Transactions content */}
-			<div className="flex flex-1 flex-col gap-4 overflow-auto p-6">
-				{/* Filters */}
-				<TransactionFilters
-					filters={filters}
-					onChange={setFilters}
-					availableTags={tagOptions}
-					availablePeople={peopleOptions}
-					availableAccounts={accountOptionsForFilter}
-					availableStatuses={statusOptions}
+			{/* Transaction Table */}
+			<div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border">
+				{/* Toolbar with Add button and counts */}
+				<TransactionTableToolbar
+					isAddingTransaction={isAddingTransaction}
+					onAddClick={() => setIsAddingTransaction(true)}
+					selectedCount={selectedCount}
+					totalCount={filteredTransactions.length}
+					isFiltered={hasActiveFilters(filters)}
 				/>
 
-				{/* Transaction Table */}
-				<div className="flex-1 overflow-hidden rounded-lg border">
-					{/* Add Transaction Row */}
-					<AddTransactionRow
-						availableAccounts={accountOptions}
-						onAdd={handleAddTransaction}
-						defaultAccountId={accountOptions[0]?.id}
-					/>
-
-					{/* Table */}
-					<TransactionTable
-						transactions={tableData}
-						presenceByTransactionId={presenceByTransactionId}
-						selectedIds={selectedIds}
-						onSelectionChange={(ids) => {
-							// When TransactionTable changes selection, sync with our selection state
-							setSelection(ids);
-						}}
-						onLoadMore={handleLoadMore}
-						hasMore={hasMore}
-						onTransactionDelete={handleSingleDelete}
-						onResolveDuplicate={handleResolveDuplicate}
-					/>
-				</div>
-
-				{/* Bulk Edit Toolbar */}
-				{selectedCount > 0 && (
-					<BulkEditToolbar
-						selectedCount={selectedCount}
-						onClearSelection={clearSelection}
-						onDelete={handleBulkDelete}
-						onSetTags={handleBulkSetTags}
-						onSetStatus={handleBulkSetStatus}
-						onSetAccount={handleBulkSetAccount}
-						availableTags={tagOptions}
-						availableStatuses={statusOptions}
-						availableAccounts={accountOptionsForFilter}
-					/>
-				)}
+				{/* Table */}
+				<TransactionTable
+					transactions={tableData}
+					presenceByTransactionId={presenceByTransactionId}
+					selectedIds={selectedIds}
+					availableAccounts={accountOptions}
+					availableStatuses={statusOptionsForInlineEdit}
+					availableTags={tagOptionsForInlineEdit}
+					onCreateTag={handleCreateTag}
+					onSelectionChange={setSelectedIds}
+					onLoadMore={handleLoadMore}
+					hasMore={hasMore}
+					onTransactionDelete={handleSingleDelete}
+					onResolveDuplicate={handleResolveDuplicate}
+					onTransactionUpdate={handleTransactionUpdate}
+					isAddingTransaction={isAddingTransaction}
+					onAddTransaction={handleAddTransaction}
+					onCancelAddTransaction={() => setIsAddingTransaction(false)}
+					defaultAccountId={accountOptions[0]?.id}
+					defaultStatusId={defaultStatusId}
+				/>
 			</div>
+
+			{/* Bulk Edit Toolbar */}
+			{selectedCount > 0 && (
+				<BulkEditToolbar
+					selectedCount={selectedCount}
+					onClearSelection={clearSelection}
+					onDelete={handleBulkDelete}
+					onSetTags={handleBulkSetTags}
+					onSetStatus={handleBulkSetStatus}
+					onSetAccount={handleBulkSetAccount}
+					onSetNotes={handleBulkSetNotes}
+					onSetAmount={handleBulkSetAmount}
+					availableTags={tagOptions}
+					availableStatuses={statusOptions}
+					availableAccounts={accountOptionsForFilter}
+				/>
+			)}
 		</div>
 	);
 }

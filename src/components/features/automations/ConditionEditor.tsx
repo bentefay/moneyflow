@@ -4,7 +4,7 @@
  * ConditionEditor Component
  *
  * Editor for creating/editing automation conditions.
- * Supports matching by merchant, description, amount, or account.
+ * Supports matching by description, notes, amount, or account.
  */
 
 import { X } from "lucide-react";
@@ -44,8 +44,8 @@ export interface ConditionEditorProps {
 
 /** Available columns for conditions */
 export const CONDITION_COLUMNS = [
-	{ value: "merchant", label: "Merchant" },
 	{ value: "description", label: "Description" },
+	{ value: "notes", label: "Notes" },
 	{ value: "amount", label: "Amount" },
 	{ value: "accountId", label: "Account" },
 ] as const;

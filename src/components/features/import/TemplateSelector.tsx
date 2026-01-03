@@ -7,6 +7,8 @@
  */
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { ColumnMapping } from "./ColumnMappingStep";
 import type { ImportFormatting } from "./FormattingStep";
@@ -81,33 +83,24 @@ export function TemplateSelector({
 	if (isCreating) {
 		return (
 			<div className={cn("flex gap-2", className)}>
-				<input
+				<Input
 					type="text"
 					value={newTemplateName}
 					onChange={(e) => setNewTemplateName(e.target.value)}
 					placeholder="Template name..."
-					className="flex-1 rounded border bg-transparent px-3 py-1.5 text-sm"
+					className="flex-1"
 					autoFocus
 					onKeyDown={(e) => {
 						if (e.key === "Enter") handleSave();
 						if (e.key === "Escape") handleCancel();
 					}}
 				/>
-				<button
-					type="button"
-					onClick={handleSave}
-					disabled={!newTemplateName.trim()}
-					className="rounded bg-primary px-3 py-1.5 font-medium text-primary-foreground text-sm disabled:opacity-50"
-				>
+				<Button type="button" onClick={handleSave} disabled={!newTemplateName.trim()} size="sm">
 					Save
-				</button>
-				<button
-					type="button"
-					onClick={handleCancel}
-					className="rounded px-3 py-1.5 text-sm hover:bg-accent"
-				>
+				</Button>
+				<Button type="button" onClick={handleCancel} variant="ghost" size="sm">
 					Cancel
-				</button>
+				</Button>
 			</div>
 		);
 	}
@@ -135,14 +128,16 @@ export function TemplateSelector({
 				{onSave && <option value="__new__">+ Save current as template...</option>}
 			</select>
 			{selectedTemplateId && onDelete && (
-				<button
+				<Button
 					type="button"
 					onClick={() => {
 						if (confirm("Delete this template?")) {
 							onDelete(selectedTemplateId);
 						}
 					}}
-					className="rounded p-1.5 text-muted-foreground text-sm hover:text-destructive"
+					variant="ghost"
+					size="icon-sm"
+					className="text-muted-foreground hover:text-destructive"
 					title="Delete template"
 				>
 					<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -153,7 +148,7 @@ export function TemplateSelector({
 							d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
 						/>
 					</svg>
-				</button>
+				</Button>
 			)}
 		</div>
 	);

@@ -26,8 +26,8 @@ const fixtures = {
 		amazon: {
 			id: "tx-amazon-1",
 			date: "2024-01-15",
-			merchant: "Amazon",
-			description: "Office Supplies - Pens and Notebooks",
+			description: "Amazon",
+			notes: "Office Supplies - Pens and Notebooks",
 			amount: -2500,
 			accountId: "acc-checking",
 			tagIds: [] as string[],
@@ -40,8 +40,8 @@ const fixtures = {
 		starbucks: {
 			id: "tx-starbucks-1",
 			date: "2024-01-16",
-			merchant: "Starbucks",
-			description: "Coffee and Pastry",
+			description: "Starbucks",
+			notes: "Coffee and Pastry",
 			amount: -850,
 			accountId: "acc-checking",
 			tagIds: [] as string[],
@@ -54,8 +54,8 @@ const fixtures = {
 		salary: {
 			id: "tx-salary-1",
 			date: "2024-01-30",
-			merchant: "ACME Corp",
-			description: "Monthly Salary",
+			description: "ACME Corp",
+			notes: "Monthly Salary",
 			amount: 500000,
 			accountId: "acc-checking",
 			tagIds: [] as string[],
@@ -68,8 +68,8 @@ const fixtures = {
 		groceries: {
 			id: "tx-groceries-1",
 			date: "2024-01-17",
-			merchant: "Whole Foods Market",
-			description: "Weekly Groceries",
+			description: "Whole Foods Market",
+			notes: "Weekly Groceries",
 			amount: -15000,
 			accountId: "acc-checking",
 			tagIds: [] as string[],
@@ -87,7 +87,7 @@ const fixtures = {
 			conditions: [
 				{
 					id: "c1",
-					column: "merchant",
+					column: "description",
 					operator: "contains",
 					value: "amazon",
 					caseSensitive: false,
@@ -106,7 +106,7 @@ const fixtures = {
 			conditions: [
 				{
 					id: "c1",
-					column: "merchant",
+					column: "description",
 					operator: "regex",
 					value: "starbucks|dunkin|coffee",
 					caseSensitive: false,
@@ -126,7 +126,7 @@ const fixtures = {
 			conditions: [
 				{
 					id: "c1",
-					column: "description",
+					column: "notes",
 					operator: "contains",
 					value: "salary",
 					caseSensitive: false,
@@ -147,7 +147,7 @@ const fixtures = {
 			conditions: [
 				{
 					id: "c1",
-					column: "description",
+					column: "notes",
 					operator: "regex",
 					value: "groceries|food|restaurant|cafe",
 					caseSensitive: false,
@@ -197,7 +197,7 @@ describe("Automation Engine Integration", () => {
 		});
 
 		it("respects automation order for groceries matching multiple rules", () => {
-			// Groceries description contains "groceries" which matches catchAllFood
+			// Groceries notes contains "groceries" which matches catchAllFood
 			const automations = [
 				fixtures.automations.amazonShopping,
 				fixtures.automations.coffeeFood,
@@ -319,7 +319,7 @@ describe("Automation Engine Integration", () => {
 
 			expect(automation.name).toBe("Amazon Shopping Rule");
 			expect(automation.conditions).toHaveLength(1);
-			expect(automation.conditions[0].column).toBe("merchant");
+			expect(automation.conditions[0].column).toBe("description");
 			expect(automation.conditions[0].value).toBe("Amazon");
 
 			// Check actions
@@ -333,16 +333,16 @@ describe("Automation Engine Integration", () => {
 			expect(allocationAction?.value).toEqual({ "person-1": 60, "person-2": 40 });
 		});
 
-		it("uses description when merchant is empty", () => {
-			const txNoMerchant: Transaction = {
+		it("uses notes when description is empty", () => {
+			const txNoDescription: Transaction = {
 				...fixtures.transactions.amazon,
-				merchant: "",
-				description: "Bank Transfer - Rent Payment",
+				description: "",
+				notes: "Bank Transfer - Rent Payment",
 			};
 
-			const automation = createAutomationFromTransaction(txNoMerchant, "Rent Rule");
+			const automation = createAutomationFromTransaction(txNoDescription, "Rent Rule");
 
-			expect(automation.conditions[0].column).toBe("description");
+			expect(automation.conditions[0].column).toBe("notes");
 			expect(automation.conditions[0].value).toBe("Bank Transfer - Rent Payment");
 		});
 	});
@@ -367,7 +367,7 @@ describe("Automation Engine Integration", () => {
 
 			const result = evaluateAutomations(automations, fixtures.transactions.amazon);
 
-			// catchAllFood doesn't match Amazon merchant
+			// catchAllFood doesn't match Amazon description
 			expect(result.matched).toBe(false);
 		});
 	});
@@ -380,7 +380,7 @@ describe("Automation Engine Integration", () => {
 				conditions: [
 					{
 						id: "c1",
-						column: "merchant",
+						column: "description",
 						operator: "regex",
 						value: "amazon|walmart|target|costco",
 						caseSensitive: false,

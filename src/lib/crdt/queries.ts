@@ -72,14 +72,14 @@ export interface TransactionQueryOptions {
 	accountIds?: string[];
 	/** Filter by status IDs */
 	statusIds?: string[];
-	/** Free text search in merchant/description */
+	/** Free text search in description/notes */
 	search?: string;
 	/** Only show potential duplicates */
 	showDuplicatesOnly?: boolean;
 	/** Exclude soft-deleted transactions */
 	excludeDeleted?: boolean;
 	/** Sort by field */
-	sortBy?: "date" | "amount" | "merchant";
+	sortBy?: "date" | "amount" | "description";
 	/** Sort direction */
 	sortDirection?: "asc" | "desc";
 }
@@ -164,8 +164,8 @@ export function filterTransactions(
 		const searchLower = options.search.toLowerCase();
 		results = results.filter(
 			(tx) =>
-				tx.merchant?.toLowerCase().includes(searchLower) ||
-				tx.description?.toLowerCase().includes(searchLower)
+				tx.description?.toLowerCase().includes(searchLower) ||
+				tx.notes?.toLowerCase().includes(searchLower)
 		);
 	}
 
@@ -185,8 +185,8 @@ export function filterTransactions(
 				return multiplier * a.date.localeCompare(b.date);
 			case "amount":
 				return multiplier * (a.amount - b.amount);
-			case "merchant":
-				return multiplier * (a.merchant ?? "").localeCompare(b.merchant ?? "");
+			case "description":
+				return multiplier * (a.description ?? "").localeCompare(b.description ?? "");
 			default:
 				return 0;
 		}

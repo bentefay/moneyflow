@@ -8,7 +8,14 @@
 - **Don't reinvent the wheel**: Use established libraries for well-known algorithms (e.g., Levenshtein distance, CSV parsing, date handling). Custom implementations are bugs waiting to happen.
 - .github/copilot-instructions.md must be updated alongside code changes to keep instructions current.
 - .github/instructions/\* must be created/updated as new folders/domains are added.
-- Always run pnpm db:types/lint/format/typecheck/lint/test/test:e2e before commiting
+
+## Before Completing Any Task
+
+1. Run ALL checks: `pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm test:e2e`
+2. Fix any issues found
+3. **Commit the changes** - this is required, not optional
+
+A task is not complete until committed.
 
 ## Quick Reference
 
@@ -61,16 +68,17 @@ specs/
 
 Keep this section updated with commands for this environment:
 
-```bash
-pnpm dev          # Start dev server
-pnpm build        # Production build
-pnpm test         # Run all tests
-pnpm lint         # ESLint (Next.js rules)
-pnpm format       # Biome format + class sorting
-pnpm format:check # Check formatting (CI)
-pnpm typecheck    # Type checking
-bat -P            # DO NOT USE cat. Always use `bat -P` (otherwise will use bat with pager for large files).
-```
+- Run `pnpm dev` to start dev server
+- Run `pnpm build` to production build
+- Run `pnpm test` to run all tests
+- Run `pnpm lint` to ESLint (Next.js rules)
+- Run `pnpm format` to run biome format + class sorting
+- Run `pnpm format:check` to check formatting (CI)
+- Run `pnpm typecheck` to type checking
+- Run `bat -P` rather than `cat` (which is aliased to bat with a pager for large files).
+- Do not run `playwright` with the `--debug` flag as it opens the GUI and will block forever.
+- Use `pwd` before `cd` (as I'll need to approve it).
+- Never use parentheses in commit messages (as I'll need to approve it).
 
 ## Key Architecture Decisions
 
@@ -127,11 +135,13 @@ When a user creates their identity or unlocks for the first time, the system **a
 - After unlocking on `/unlock` if user has no vaults (edge case)
 
 The vault is initialized with:
+
 - Default statuses ("For Review", "Paid")
 - Default "Me" person with 100% ownership of the default account
 - Default account with currency inherited from vault settings
+- Default currency inferred from browser locale (e.g., "en-GB" → GBP, "de-DE" → EUR)
 
-See: `src/lib/vault/ensure-default.ts`, `src/lib/crdt/defaults.ts`
+See: `src/lib/vault/ensure-default.ts`, `src/lib/crdt/defaults.ts`, `src/lib/domain/detect-currency.ts`
 
 ### 6. Money as Integer Minor Units
 
@@ -154,10 +164,14 @@ Custom algorithm implementations introduce subtle bugs, lack edge case handling,
 
 ## Testing Requirements
 
-Tests MUST be written alongside features. See Constitution VII for philosophy. Always load .github/instructions/e2e.instructions.md when writing e2e tests.
+Tests MUST be written alongside features. See Constitution VII for philosophy. Always load .github/instructions/e2e.instructions.md when writing e2e tests. Do NOT use playwright with the --debug flag, as it blocks forever and doesn't work for agents.
 
 | Type        | Location               | Style                                                                       |
 | ----------- | ---------------------- | --------------------------------------------------------------------------- |
 | Unit        | `tests/unit/{module}/` | Table-driven for pure functions; property-based (fast-check) for invariants |
 | Integration | `tests/integration/`   | Happy path + error cases                                                    |
-| E2E         | `tests/e2e/`           | Harness functions, assert behaviour not text                                | 
+| E2E         | `tests/e2e/`           | Harness functions, assert behaviour not text                                |
+
+## Recent Changes
+
+- 004-transaction-table-ux: Added TypeScript 5.x, Node.js 20.x + Next.js 15 (App Router), React 19, loro-mirror, TanStack Virtual, shadcn/ui, Tailwind CSS

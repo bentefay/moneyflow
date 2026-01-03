@@ -4,7 +4,7 @@
  * TagRow Component
  *
  * Individual row in the tags table with inline editing support.
- * Shows tag name, parent hierarchy, transfer flag, and actions.
+ * Shows tag name, parent hierarchy, transfer flag, color, and actions.
  */
 
 import { ArrowLeftRight, Check, Pencil, Tag as TagIcon, Trash2, X } from "lucide-react";
@@ -13,7 +13,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { Tag } from "@/lib/crdt/schema";
+import { DEFAULT_TAG_COLOR, getContrastingTextColor, TAG_COLOR_PALETTE } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 import { ParentTagSelector } from "./ParentTagSelector";
 
@@ -51,17 +53,22 @@ export function TagRow({
 }: TagRowProps) {
 	const [isEditing, setIsEditing] = useState(false);
 	const [editedName, setEditedName] = useState(tag.name);
+	const [editedColor, setEditedColor] = useState(tag.color ?? DEFAULT_TAG_COLOR);
 	const [editedParentId, setEditedParentId] = useState(tag.parentTagId ?? "");
 	const [editedIsTransfer, setEditedIsTransfer] = useState(tag.isTransfer ?? false);
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+	// Current display color (with fallback)
+	const displayColor = tag.color ?? DEFAULT_TAG_COLOR;
+
 	// Handle starting edit mode
 	const handleStartEdit = useCallback(() => {
 		setEditedName(tag.name);
+		setEditedColor(tag.color ?? DEFAULT_TAG_COLOR);
 		setEditedParentId(tag.parentTagId ?? "");
 		setEditedIsTransfer(tag.isTransfer ?? false);
 		setIsEditing(true);
-	}, [tag.name, tag.parentTagId, tag.isTransfer]);
+	}, [tag.name, tag.color, tag.parentTagId, tag.isTransfer]);
 
 	// Handle saving inline edits
 	const handleSave = useCallback(() => {
@@ -75,6 +82,10 @@ export function TagRow({
 
 		if (trimmedName !== tag.name) {
 			updates.name = trimmedName;
+		}
+
+		if (editedColor !== (tag.color ?? DEFAULT_TAG_COLOR)) {
+			updates.color = editedColor;
 		}
 
 		const newParentId = editedParentId || undefined;
@@ -94,9 +105,11 @@ export function TagRow({
 	}, [
 		tag.id,
 		tag.name,
+		tag.color,
 		tag.parentTagId,
 		tag.isTransfer,
 		editedName,
+		editedColor,
 		editedParentId,
 		editedIsTransfer,
 		onUpdate,
@@ -105,10 +118,11 @@ export function TagRow({
 	// Handle canceling inline edits
 	const handleCancel = useCallback(() => {
 		setEditedName(tag.name);
+		setEditedColor(tag.color ?? DEFAULT_TAG_COLOR);
 		setEditedParentId(tag.parentTagId ?? "");
 		setEditedIsTransfer(tag.isTransfer ?? false);
 		setIsEditing(false);
-	}, [tag.name, tag.parentTagId, tag.isTransfer]);
+	}, [tag.name, tag.color, tag.parentTagId, tag.isTransfer]);
 
 	// Handle keyboard events
 	const handleKeyDown = useCallback(
@@ -162,16 +176,19 @@ export function TagRow({
 			)}
 			style={{ marginLeft: depth * 24 }}
 		>
-			{/* Tag icon */}
-			<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
-				<TagIcon className="h-5 w-5 text-muted-foreground" />
+			{/* Tag color indicator */}
+			<div
+				className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+				style={{ backgroundColor: displayColor }}
+			>
+				<TagIcon className="h-5 w-5" style={{ color: getContrastingTextColor(displayColor) }} />
 			</div>
 
 			{/* Name and details section */}
 			<div className="flex min-w-0 flex-1 flex-col gap-1">
 				{isEditing ? (
 					<div className="flex flex-col gap-3">
-						{/* Name input */}
+						{/* Name and color input */}
 						<div className="flex items-center gap-2">
 							<Input
 								value={editedName}
@@ -181,6 +198,34 @@ export function TagRow({
 								className="h-8 max-w-xs"
 								autoFocus
 							/>
+							{/* Color picker */}
+							<Popover>
+								<PopoverTrigger asChild>
+									<button
+										type="button"
+										className="h-8 w-8 shrink-0 rounded-md border cursor-pointer"
+										style={{ backgroundColor: editedColor }}
+										aria-label="Change tag color"
+									/>
+								</PopoverTrigger>
+								<PopoverContent className="w-auto p-3" align="start">
+									<div className="grid grid-cols-4 gap-2">
+										{TAG_COLOR_PALETTE.map((color) => (
+											<button
+												key={color}
+												type="button"
+												onClick={() => setEditedColor(color)}
+												className={cn(
+													"h-8 w-8 rounded-md cursor-pointer transition-transform hover:scale-110",
+													editedColor === color && "ring-2 ring-primary ring-offset-2"
+												)}
+												style={{ backgroundColor: color }}
+												aria-label={`Select color ${color}`}
+											/>
+										))}
+									</div>
+								</PopoverContent>
+							</Popover>
 						</div>
 
 						{/* Parent selection */}
