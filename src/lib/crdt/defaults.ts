@@ -87,14 +87,30 @@ export const DEFAULT_STATUSES: Record<string, StatusInput> = {
 };
 
 /**
+ * Options for creating default vault state.
+ */
+export interface DefaultVaultStateOptions {
+	/**
+	 * Default currency for the vault.
+	 * If not provided, defaults to "USD".
+	 * Use detectDefaultCurrency() to infer from browser locale.
+	 */
+	defaultCurrency?: string;
+}
+
+/**
  * Returns the default initial state for a new vault.
  *
  * Includes:
  * - Default statuses ("For Review", "Paid")
  * - Empty collections for all other entities
  * - Default preferences
+ *
+ * @param options - Optional configuration for vault defaults
  */
-export function getDefaultVaultState(): VaultInput {
+export function getDefaultVaultState(options?: DefaultVaultStateOptions): VaultInput {
+	const defaultCurrency = options?.defaultCurrency ?? "USD";
+
 	return {
 		people: { [DEFAULT_PERSON_ID]: { ...DEFAULT_PERSON } },
 		accounts: { [DEFAULT_ACCOUNT_ID]: { ...DEFAULT_ACCOUNT } },
@@ -108,7 +124,7 @@ export function getDefaultVaultState(): VaultInput {
 		preferences: {
 			name: "My Vault",
 			automationCreationPreference: "manual",
-			defaultCurrency: "USD",
+			defaultCurrency,
 		},
 	};
 }
@@ -125,8 +141,14 @@ export function getDefaultVaultState(): VaultInput {
  * ```
  *
  * @param draft - The vault draft to initialize (from loro-mirror setState)
+ * @param options - Optional configuration for vault defaults
  */
-export function initializeVaultDefaults(draft: VaultInput): void {
+export function initializeVaultDefaults(
+	draft: VaultInput,
+	options?: DefaultVaultStateOptions
+): void {
+	const defaultCurrency = options?.defaultCurrency ?? "USD";
+
 	// Add default person if it doesn't exist
 	if (!draft.people[DEFAULT_PERSON_ID]) {
 		draft.people[DEFAULT_PERSON_ID] = { ...DEFAULT_PERSON };
@@ -149,7 +171,7 @@ export function initializeVaultDefaults(draft: VaultInput): void {
 		draft.preferences = {
 			name: "My Vault",
 			automationCreationPreference: "manual",
-			defaultCurrency: "USD",
+			defaultCurrency,
 		};
 	}
 }

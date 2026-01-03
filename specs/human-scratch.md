@@ -31,15 +31,18 @@
   - At small breakpoints the left bar should switch to a top bar with the MoneyFlow icon logo and a
     menu that you can click to open a menu page.
 
-- [] When creating a vault the default currency should be inferred from time zone or culture
-  (https://gist.github.com/mizrael/50c10be8ec92264751187d7705362eb2)? I'm guessing time zone is
-  probably a better indicator of country?
+- [x] When creating a vault the default currency should be inferred from time zone or culture
+      (https://gist.github.com/mizrael/50c10be8ec92264751187d7705362eb2)? I'm guessing time zone is
+      probably a better indicator of country?
 
 - [] Tags should be stored as IDs on transactions so they can be renamed. The tag management page
   should support renaming tags. Tags also have a default colour, and this can be changed on the tag
   management page.
 
-- [] We should rename the merchant field to "description", and the "description" field to "notes".
+- [] In csv and OFX exports the merchant (for credit card) and user descriptions of transfers (for
+  savings accounts) are saved in the "memo" field. Calling it merchant is thus incorrect. I doubt
+  many people would know what "memo" means, so what do you think about renaming the current
+  "description" field to "notes" and then rename the current "merchant" field to "description".
 
 - [] description aliases - these are much like tags in that there is a single curated list of
   aliases. Stored as an optional ID on each transaction. There is a page where description aliases
@@ -150,8 +153,11 @@
 
 - [] We should be using loro ephemeral state for tracking presence and active transaction.
 
-- [] Each user with access to the vault should have a name saved alongside their automation
-  preferences in the crdt of the vault (this is what is used for showing presence in the vault)
+- [] What is the current UX for adding a new user to a vault? I thought we had an invite flow? But I
+  can't see it? Does it make sense that each user must be a person in the vault? You can then
+  optionally invite that person to join the vault as a user? So the person page is also used for
+  managing users that have access to the vault? Or perhaps users with access should live in vault
+  settings?
 
 - [] There should be a person created for each user automatically, person should have an optional
   user id (pub key hash?) and the person name should become optional and uses the user name as a

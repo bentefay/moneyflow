@@ -145,6 +145,14 @@ test.describe("Identity", () => {
 
 			// Wait for the step to change: seed phrase appears
 			await page.waitForSelector('[data-testid="seed-phrase-word"]', { timeout: 20000 });
+
+			// Reveal seed phrase (it's hidden by default)
+			const revealButton = page.getByRole("button", { name: /click to reveal/i });
+			await revealButton.waitFor({ state: "visible", timeout: 5000 });
+			await revealButton.click();
+			await page.waitForTimeout(300);
+
+			// Now extract the visible seed phrase
 			savedSeedPhrase = await extractSeedPhrase(page);
 
 			const checkbox = page.locator('[data-testid="confirm-checkbox"]');

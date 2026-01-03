@@ -27,12 +27,14 @@ export async function createNewIdentity(page: Page): Promise<string[]> {
 	// Wait for seed phrase to be displayed
 	await page.waitForSelector('[data-testid="seed-phrase-word"]', { timeout: 20000 });
 
-	// Reveal seed phrase if hidden (click the overlay)
-	const revealOverlay = page.locator("text=Click to reveal your recovery phrase");
-	if (await revealOverlay.isVisible({ timeout: 1000 }).catch(() => false)) {
-		await revealOverlay.click();
-		await page.waitForTimeout(300);
-	}
+	// Reveal seed phrase if hidden (click the reveal button)
+	// The SeedPhraseDisplay starts with initiallyRevealed=false on new-user page
+	const revealButton = page.getByRole("button", { name: /click to reveal/i });
+	// Wait a moment for the button to be visible (it should be there initially)
+	await revealButton.waitFor({ state: "visible", timeout: 5000 });
+	await revealButton.click();
+	// Wait for reveal animation
+	await page.waitForTimeout(300);
 
 	// Extract seed phrase
 	const words = await extractSeedPhrase(page);
@@ -95,11 +97,32 @@ export async function extractSeedPhrase(page: Page): Promise<string[]> {
 
 /**
  * Enter seed phrase into the unlock inputs.
+ * Clears all inputs first and then fills each word.
+ *
+ * @param page - Playwright page
+ * @param words - Array of 12 seed phrase words
+ * @param expectValid - Whether to wait for "Valid recovery phrase" indicator (default: false)
  */
-export async function enterSeedPhrase(page: Page, words: string[]): Promise<void> {
+export async function enterSeedPhrase(
+	page: Page,
+	words: string[],
+	expectValid = false
+): Promise<void> {
+	// First, clear all inputs to ensure clean state
+	for (let i = 0; i < 12; i++) {
+		const input = page.locator(`[data-testid="seed-word-input-${i}"]`);
+		await input.clear();
+	}
+
+	// Enter words one by one
 	for (let i = 0; i < words.length; i++) {
 		const input = page.locator(`[data-testid="seed-word-input-${i}"]`);
 		await input.fill(words[i]);
+	}
+
+	// If we expect the phrase to be valid, wait for the validation indicator
+	if (expectValid) {
+		await page.getByText("Valid recovery phrase").waitFor({ state: "visible", timeout: 5000 });
 	}
 }
 

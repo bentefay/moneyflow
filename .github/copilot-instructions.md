@@ -130,8 +130,9 @@ The vault is initialized with:
 - Default statuses ("For Review", "Paid")
 - Default "Me" person with 100% ownership of the default account
 - Default account with currency inherited from vault settings
+- Default currency inferred from browser locale (e.g., "en-GB" → GBP, "de-DE" → EUR)
 
-See: `src/lib/vault/ensure-default.ts`, `src/lib/crdt/defaults.ts`
+See: `src/lib/vault/ensure-default.ts`, `src/lib/crdt/defaults.ts`, `src/lib/domain/detect-currency.ts`
 
 ### 6. Money as Integer Minor Units
 
