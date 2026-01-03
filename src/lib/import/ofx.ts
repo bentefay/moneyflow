@@ -152,6 +152,23 @@ export type OFXParseResult =
 // Helper Functions
 // ============================================================================
 
+/**
+ * Preprocess OFX content to handle edge cases that the library doesn't support.
+ *
+ * Specifically handles:
+ * - Empty SGML value tags like `<FITID>` followed by newline (removes them so library treats as absent)
+ *
+ * The library parses `<FITID>` + newline as `FITID: ""` which fails Zod validation (expects string, not empty).
+ * By removing these empty tags entirely, the library treats the field as undefined, which is valid.
+ */
+function preprocessOFX(content: string): string {
+	// Known OFX value tags that may appear empty in some bank exports.
+	// These are leaf tags that should contain a value, not container tags.
+	const emptyValueTags = ["FITID", "MEMO", "NAME", "CHECKNUM", "REFNUM", "PAYEEID", "SIC"];
+	const pattern = new RegExp(`<(${emptyValueTags.join("|")})>[ \\t]*\\r?\\n(?=<)`, "gm");
+	return content.replace(pattern, "");
+}
+
 /** Convert a Date object to Temporal.PlainDate */
 function toPlainDate(date: Date): Temporal.PlainDate {
 	// Extract local date parts to avoid UTC shift issues
@@ -338,7 +355,9 @@ function extractStatements(doc: OFXDocument): ParsedOFXStatement[] {
  * ```
  */
 export function parseOFX(content: string): OFXParseResult {
-	const libResult = parse(content);
+	// Preprocess to handle edge cases like empty SGML tags
+	const preprocessed = preprocessOFX(content);
+	const libResult = parse(preprocessed);
 
 	if (!libResult.success) {
 		const zodError = libResult.error;

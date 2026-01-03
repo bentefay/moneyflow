@@ -112,41 +112,53 @@
 
 - [] We need a transfer tag, right? Should be used to determine who owes who what
 
-- [] Fix ofx import
+- [x] Fix ofx import
 
-- [] When importing, optionally either 1. ignore all or 2. or ignore duplicates or 3. do not ignore,
-  transactions that are more than X days older than the newest existing transaction
+- [] When importing, add a select to optionally either...
 
-- [] Configure whether must be exact match to be considered duplicate or whether additionally can
-  be 1. within X days and b. a similar description
+  1. ignore all or
+  2. ignore duplicates or
+  3. do not ignore
+
+  ...transactions that are more than X days older than the newest existing transaction
+
+- [] Add two selects for configuring whether a transaction wheter a transaction must be an exact
+  match to be considered duplicate or whether additionally can be:
+
+  - 1. have a date within X days and
+  - 2. a similar description (using the current string similarity logic with threshold)
 
 - [] Duplicate checking should only ever compare existing transactions in account against new
-  transactions in account (i.e. duplicates in a file or in existing vault are never considered as
-  duplicates)
+  transactions in account (i.e. identical transaction in a file or in an existing vault are never
+  considered as duplicates (unless they're already duplicates))
 
-- [] For CSV and OFX, the import process should show the raw file data and a preview of the imported
-  data as a single table (columns for both, with a strong vertical line between). The raw data
-  should be on the left, unordered, completely unformatted. The preview columns should be
-  representative of how they will look in the transactions table after parsing (show duplicates,
-  formatted dates, tags, description aliases, etc). Plus a status column at the end, same as what
-  you currently have in the preview table. The current preview table is really good. It just
-  diverges from how it will look in the final transaction view. Keep the total rows, valid
-  transactions, rows with errors counts as well (the current preview looks really good). Make sure
-  this logic is reused - i.e. the import is where these things are calculated for the new
-  transactions. Then when import confirmed the new transactions are merged into the existing data
-  structure. Replace the wizard. The table should be always visible on the right or below (if screen
-  too small). On the left are tabs replacing the wizard steps (use animate-ui tabs - see below), for
-  choosing/creating template, column mapping, formatting, etc. The "auto-detect" buttons should be
-  automatically applied rather than needing to be clicked.
+- [] For CSV and OFX, I want to change the import flow a bit. All of the features that currently
+  exist are great and should be kept. However, I think it would be more streamlined if we switch to
+  always showing input and output data, and having tabs to configure the transformation. At any
+  point you can click import to complete the process. Specifically, the import process should show
+  the raw file data and a preview of the imported data as a single table (columns for both, with a
+  strong vertical line between). The raw data should be on the left, unordered, completely
+  unformatted. The preview columns should be representative of how the transactions will look in the
+  transactions table after parsing (show duplicates, formatted dates, tags, description aliases,
+  etc). Plus a status column at the end, same as what you currently have in the preview table. The
+  current preview table is really good. It just diverges from how it will look in the final
+  transaction view. Keep the total rows, valid transactions, rows with errors counts as well (the
+  current preview looks really good). Make sure this logic is reused - i.e. the import is where
+  these things are calculated for the new transactions. Then when import confirmed the new
+  transactions are merged into the existing data structure. Replace the wizard. The table should be
+  always visible on the right or below (if screen too small). On the left are tabs replacing the
+  wizard steps (use animate-ui tabs - see below), for choosing/creating template, column mapping,
+  formatting, etc. The "auto-detect" buttons should be automatically applied rather than needing to
+  be clicked.
 
 - [] When importing, add a checkbox to optionally choose to collapse whitespace between words for
   descriptions (similar to how text works in html without pre).
 
-  - When importing CSV, add a required account select to choose which account to import into. There
-    should be a account selector for OFX too - except with OFX we use the account from the file by
-    default if it matches an existing account. If the account id doesn't match any configured
-    account and the OFX file contains an account number and the account selected by the user doesn't
-    have an account id already, we apply the account id from the OFX file to the account.
+- When importing CSV, add a required account select to choose which account to import into. There
+  should be a account selector for OFX too - except with OFX we use the account from the file by
+  default if it matches an existing account. If the account id doesn't match any configured account
+  and the OFX file contains an account number and the account selected by the user doesn't have an
+  account id already, we apply the account id from the OFX file to the account.
 
 - [] Store transactions as ordered movable list and always use both date and transaction id to
   locate transaction for update using binary search on date (i.e. never look up by id alone).

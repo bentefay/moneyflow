@@ -8,8 +8,14 @@
 - **Don't reinvent the wheel**: Use established libraries for well-known algorithms (e.g., Levenshtein distance, CSV parsing, date handling). Custom implementations are bugs waiting to happen.
 - .github/copilot-instructions.md must be updated alongside code changes to keep instructions current.
 - .github/instructions/\* must be created/updated as new folders/domains are added.
-- Always run pnpm db:types/lint/format/typecheck/lint/test/test:e2e before commiting. All the tests must be passing and there must be no formatting changes or linting warnings or errors.
-- Commit once you've verified everything is passing and formatted. Do not commit broken or unformatted code.
+
+## Before Completing Any Task
+
+1. Run ALL checks: `pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm test:e2e`
+2. Fix any issues found
+3. **Commit the changes** - this is required, not optional
+
+A task is not complete until committed.
 
 ## Quick Reference
 
