@@ -4,7 +4,7 @@
  * Inline Editable Tags
  *
  * Spreadsheet-style always-editable tags multi-select.
- * Shows selected tags as pills with a dropdown for adding more.
+ * Shows selected tags as colored pills with a dropdown for adding more.
  * Uses shadcn Command for the dropdown with search.
  */
 
@@ -19,11 +19,13 @@ import {
 	CommandItem,
 	CommandList,
 } from "@/components/ui/command";
+import { DEFAULT_TAG_COLOR, getContrastingTextColor } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
 export interface TagOption {
 	id: string;
 	name: string;
+	color?: string;
 }
 
 export interface InlineEditableTagsProps {
@@ -59,12 +61,16 @@ function TagPill({
 	onRemove: () => void;
 	disabled?: boolean;
 }) {
+	const bgColor = tag.color ?? DEFAULT_TAG_COLOR;
+	const textColor = getContrastingTextColor(bgColor);
+
 	return (
 		<span
 			className={cn(
-				"inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-primary-foreground text-xs font-medium",
+				"inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
 				disabled && "opacity-50"
 			)}
+			style={{ backgroundColor: bgColor, color: textColor }}
 		>
 			{tag.name}
 			{!disabled && (
@@ -74,7 +80,7 @@ function TagPill({
 						e.stopPropagation();
 						onRemove();
 					}}
-					className="rounded-full hover:text-primary-foreground/50 cursor-pointer -m-1 p-1"
+					className="rounded-full cursor-pointer -m-1 p-1 hover:opacity-70"
 					aria-label={`Remove ${tag.name}`}
 				>
 					<X className="h-3 w-3" />
@@ -305,12 +311,19 @@ export function InlineEditableTags({
 							<CommandList>
 								<CommandEmpty className="py-2 text-sm">No tags found.</CommandEmpty>
 								<CommandGroup>
-									{filteredTags.map((tag) => (
-										<CommandItem key={tag.id} value={tag.name} onSelect={() => toggleTag(tag.id)}>
-											{tag.name}
-											{value.includes(tag.id) && <Check className="ml-auto h-4 w-4" />}
-										</CommandItem>
-									))}
+									{filteredTags.map((tag) => {
+										const tagColor = tag.color ?? DEFAULT_TAG_COLOR;
+										return (
+											<CommandItem key={tag.id} value={tag.name} onSelect={() => toggleTag(tag.id)}>
+												<span
+													className="h-3 w-3 shrink-0 rounded-full"
+													style={{ backgroundColor: tagColor }}
+												/>
+												{tag.name}
+												{value.includes(tag.id) && <Check className="ml-auto h-4 w-4" />}
+											</CommandItem>
+										);
+									})}
 									{/* Create option - always visible when search has content and no exact match */}
 									{canCreateTag && (
 										<CommandItem

@@ -43,7 +43,7 @@ export interface TransactionRowData {
 	accountId?: string;
 	status?: string;
 	statusId?: string;
-	tags?: Array<{ id: string; name: string }>;
+	tags?: Array<{ id: string; name: string; color?: string }>;
 	balance?: number;
 	/** ID of suspected duplicate transaction */
 	possibleDuplicateOf?: string;

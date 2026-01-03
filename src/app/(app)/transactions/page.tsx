@@ -36,6 +36,7 @@ import {
 	useVaultAction,
 } from "@/lib/crdt/context";
 import type { Account, Person, Status, Tag, Transaction } from "@/lib/crdt/schema";
+import { getNextTagColor } from "@/lib/domain";
 
 // Number of transactions to load per page
 const PAGE_SIZE = 50;
@@ -88,10 +89,11 @@ export default function TransactionsPage() {
 		}
 	});
 
-	const addTag = useVaultAction((state, tag: { id: string; name: string }) => {
+	const addTag = useVaultAction((state, tag: { id: string; name: string; color: string }) => {
 		state.tags[tag.id] = {
 			id: tag.id,
 			name: tag.name,
+			color: tag.color,
 			parentTagId: "",
 			deletedAt: 0,
 		} as (typeof state.tags)[string];
@@ -212,6 +214,7 @@ export default function TransactionsPage() {
 						return {
 							id,
 							name: typeof tag === "object" ? tag.name : "Unknown",
+							color: typeof tag === "object" ? tag.color : undefined,
 						};
 					}),
 					balance: 0, // Will be calculated separately
@@ -324,12 +327,16 @@ export default function TransactionsPage() {
 
 	// Handle creating a new tag
 	const handleCreateTag = useCallback(
-		async (name: string): Promise<{ id: string; name: string }> => {
+		async (name: string): Promise<{ id: string; name: string; color?: string }> => {
 			const id = generateId();
-			addTag({ id, name });
-			return { id, name };
+			const usedColors = Object.values(tags)
+				.filter((t): t is Tag & { $cid: string } => typeof t === "object")
+				.map((t) => t.color);
+			const color = getNextTagColor(usedColors);
+			addTag({ id, name, color });
+			return { id, name, color };
 		},
-		[addTag]
+		[addTag, tags]
 	);
 
 	// Handle single transaction delete
@@ -416,6 +423,7 @@ export default function TransactionsPage() {
 				.map((t) => ({
 					id: t.id,
 					name: t.name,
+					color: t.color,
 				})),
 		[tags]
 	);

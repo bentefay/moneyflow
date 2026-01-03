@@ -35,9 +35,11 @@
       (https://gist.github.com/mizrael/50c10be8ec92264751187d7705362eb2)? I'm guessing time zone is
       probably a better indicator of country?
 
-- [] Tags should be stored as IDs on transactions so they can be renamed. The tag management page
-  should support renaming tags. Tags also have a default colour, and this can be changed on the tag
-  management page.
+- [x] Tags should be stored as IDs on transactions so they can be renamed. The tag management page
+      should support renaming tags. Tags also have a default colour, and this can be changed on the
+      tag management page. **DONE**: Tags were already stored as IDs. Added `color` field to
+      tagSchema with auto-assignment from 16-color palette on creation. Tags page shows colored icon
+      and color picker. Transaction table shows colored tag pills.
 
 - [x] In csv and OFX exports the merchant (for credit card) and user descriptions of transfers (for
       savings accounts) are saved in the "memo" field. Calling it merchant is thus incorrect. I
@@ -126,8 +128,10 @@
   data as a single table (columns for both, with a strong vertical line between). The raw data
   should be on the left, unordered, completely unformatted. The preview columns should be
   representative of how they will look in the transactions table after parsing (show duplicates,
-  formatted dates, tags, description aliases, etc). Plus a status column at the end. And total rows,
-  valid transactions, rows with errors counts (the current preview looks really good). Make sure
+  formatted dates, tags, description aliases, etc). Plus a status column at the end, same as what
+  you currently have in the preview table. The current preview table is really good. It just
+  diverges from how it will look in the final transaction view. Keep the total rows, valid
+  transactions, rows with errors counts as well (the current preview looks really good). Make sure
   this logic is reused - i.e. the import is where these things are calculated for the new
   transactions. Then when import confirmed the new transactions are merged into the existing data
   structure. Replace the wizard. The table should be always visible on the right or below (if screen
@@ -182,14 +186,15 @@
   Supports importing CSV and ofx. Multiple people can collaborate in real-time. It intelligently
   applies your tags, aliases and allocations to new imports.
 
-- [] Investigate Uppy 5.0 (https://uppy.io/blog/uppy-5.0/) as replacement for custom FileDropzone
-  component
+- [x] Investigate Uppy 5.0 (https://uppy.io/blog/uppy-5.0/) as replacement for custom FileDropzone
+      component
 
   - Current: Custom HTML5 drag-and-drop implementation in
     src/components/features/import/FileDropzone.tsx
   - Evaluate: Bundle size impact, features (progress, resumable uploads, file previews), integration
     complexity
   - Specifically using the useDropzone hook (if it provides any value)
+  - Nevermind - the current implementation is already really good
 
 - [] Investigate animate-ui shadcn registry components (https://animate-ui.com/docs/components)
 

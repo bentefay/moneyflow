@@ -62,6 +62,7 @@ export const accountSchema = schema.LoroMap({
 export const tagSchema = schema.LoroMap({
 	id: schema.String({ required: true }),
 	name: schema.String({ required: true }),
+	color: schema.String(), // Hex color (e.g., "#3b82f6"), auto-assigned on creation
 	parentTagId: schema.String(), // Optional parent for hierarchy
 	isTransfer: schema.Boolean({ defaultValue: false }), // Transfer tags exclude from "expenses"
 	deletedAt: schema.Number(),
