@@ -25,7 +25,7 @@ import {
 /**
  * Shared grid template for transaction table columns.
  * This ensures header and rows have identical column widths.
- * Format: checkbox | date | merchant | account | tags | status | amount | actions
+ * Format: checkbox | date | description | account | tags | status | amount | actions
  */
 export const TRANSACTION_GRID_TEMPLATE =
 	"32px 120px minmax(150px, 2fr) 160px 140px 110px 112px 88px";
@@ -111,7 +111,7 @@ function TransactionTableHeader({
 				/>
 			</div>
 			<div>Date</div>
-			<div className="truncate">Merchant</div>
+			<div className="truncate">Description</div>
 			<div className="truncate">Account</div>
 			<div>Tags</div>
 			<div>Status</div>
@@ -274,7 +274,7 @@ export function TransactionTable({
 		[toggleRow]
 	);
 
-	// Handle expand/collapse for description
+	// Handle expand/collapse for notes
 	const handleToggleExpand = useCallback((id: string) => {
 		setExpandedIds((prev) => {
 			const next = new Set(prev);

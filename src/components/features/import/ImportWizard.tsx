@@ -62,7 +62,6 @@ export interface ParsedTransaction {
 	date: string;
 	amount: number;
 	description: string;
-	merchant: string;
 	memo: string;
 	checkNumber?: string;
 	isDuplicate: boolean;
@@ -208,7 +207,7 @@ export function ImportWizard({
 		const dateIdx = mappings.findIndex((m) => m.targetField === "date");
 		const amountIdx = mappings.findIndex((m) => m.targetField === "amount");
 		const descIdx = mappings.findIndex((m) => m.targetField === "description");
-		const merchantIdx = mappings.findIndex((m) => m.targetField === "merchant");
+		const merchantIdx = mappings.findIndex((m) => m.targetField === "merchant"); // CSV column labeled "merchant"
 
 		const preview: PreviewTransaction[] = csvRows.map((row, idx) => {
 			const errors: string[] = [];
@@ -315,7 +314,6 @@ export function ImportWizard({
 						date: tx.date!,
 						amount: tx.amount!,
 						description: tx.description,
-						merchant: tx.description,
 						memo: "",
 						isDuplicate: tx.isDuplicate ?? false,
 					})

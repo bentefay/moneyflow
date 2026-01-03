@@ -5,7 +5,7 @@
 
 ## Overview
 
-This feature requires **no changes** to the persisted CRDT schema. The `Transaction` entity already has `merchant` and `description` fields. All new state is UI-only (React state).
+This feature requires **no changes** to the persisted CRDT schema. The `Transaction` entity already has `description` (imported text from bank) and `notes` (user memo) fields. All new state is UI-only (React state).
 
 ## Existing CRDT Schema (No Changes)
 
@@ -14,8 +14,8 @@ This feature requires **no changes** to the persisted CRDT schema. The `Transact
 export const transactionSchema = schema.LoroMap({
   id: schema.String({ required: true }),
   date: schema.String({ required: true }),        // ISO date string
-  merchant: schema.String({ defaultValue: "" }),  // ✅ Already exists
-  description: schema.String({ defaultValue: "" }), // ✅ Already exists (memo/notes)
+  description: schema.String({ defaultValue: "" }),  // Imported text from bank file (OFX NAME, CSV)
+  notes: schema.String({ defaultValue: "" }),        // User notes/memo
   amount: schema.Number({ required: true }),
   accountId: schema.String({ required: true }),
   tagIds: schema.LoroList(schema.String(), (id) => id),
@@ -94,7 +94,7 @@ interface FocusState {
 type ColumnId = 
   | "checkbox"
   | "date" 
-  | "merchant"
+  | "description"
   | "account"
   | "tags"
   | "status"
@@ -108,7 +108,7 @@ type ColumnId =
 ```typescript
 /**
  * Column definition for the transaction table.
- * Order matches FR-033a: Checkbox → Date → Merchant → Account → Tags → Status → Amount → Balance → Actions
+ * Order matches FR-033a: Checkbox → Date → Description → Account → Tags → Status → Amount → Balance → Actions
  */
 interface ColumnDef {
   id: ColumnId;
@@ -121,9 +121,9 @@ interface ColumnDef {
 
 const COLUMN_CONFIG: ColumnDef[] = [
   { id: "checkbox", header: "",        width: "w-10",  align: "center", editable: false, sortable: false },
-  { id: "date",     header: "Date",    width: "w-28",  align: "left",   editable: true,  sortable: true },
-  { id: "merchant", header: "Merchant", width: "flex-1", align: "left",  editable: true,  sortable: true },
-  { id: "account",  header: "Account", width: "w-32",  align: "left",   editable: true,  sortable: true },
+  { id: "date",        header: "Date",        width: "w-28",  align: "left",   editable: true,  sortable: true },
+  { id: "description", header: "Description", width: "flex-1", align: "left",  editable: true,  sortable: true },
+  { id: "account",     header: "Account",     width: "w-32",  align: "left",   editable: true,  sortable: true },
   { id: "tags",     header: "Tags",    width: "w-40",  align: "center", editable: true,  sortable: false },
   { id: "status",   header: "Status",  width: "w-28",  align: "center", editable: true,  sortable: true },
   { id: "amount",   header: "Amount",  width: "w-28",  align: "right",  editable: true,  sortable: true },
@@ -147,8 +147,8 @@ export type { SelectionState, SelectionDerived, ExpandedState, FocusState, Colum
 No additional validation rules. Existing transaction validation applies:
 
 - `date`: Required, ISO 8601 date string (YYYY-MM-DD)
-- `merchant`: Optional, string (defaults to "")
-- `description`: Optional, string (defaults to "")
+- `description`: Optional, string (defaults to "") - imported text from bank file
+- `notes`: Optional, string (defaults to "") - user notes/memo
 - `amount`: Required, integer (minor units)
 - `accountId`: Required, must reference existing account
 - `statusId`: Required, must reference existing status

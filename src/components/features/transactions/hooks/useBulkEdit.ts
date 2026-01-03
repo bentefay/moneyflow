@@ -30,11 +30,11 @@ export interface UseBulkEditReturn {
 		tagIds: string[],
 		applyMutation: (id: string, tagIds: string[]) => Promise<void>
 	) => Promise<void>;
-	/** Set description on selected transactions */
-	setDescription: (
+	/** Set notes on selected transactions */
+	setNotes: (
 		selectedIds: string[],
-		description: string,
-		applyMutation: (id: string, description: string) => Promise<void>
+		notes: string,
+		applyMutation: (id: string, notes: string) => Promise<void>
 	) => Promise<void>;
 	/** Set amount on selected transactions */
 	setAmount: (
@@ -153,13 +153,13 @@ export function useBulkEdit({
 		[executeBulk]
 	);
 
-	const setDescription = useCallback(
+	const setNotes = useCallback(
 		async (
 			selectedIds: string[],
-			description: string,
-			applyMutation: (id: string, description: string) => Promise<void>
+			notes: string,
+			applyMutation: (id: string, notes: string) => Promise<void>
 		): Promise<void> => {
-			await executeBulk(selectedIds, "setDescription", description, applyMutation);
+			await executeBulk(selectedIds, "setNotes", notes, applyMutation);
 		},
 		[executeBulk]
 	);
@@ -238,7 +238,7 @@ export function useBulkEdit({
 		isProcessing,
 		progress,
 		setTags,
-		setDescription,
+		setNotes,
 		setAmount,
 		setStatus,
 		deleteSelected,

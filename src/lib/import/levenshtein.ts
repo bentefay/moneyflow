@@ -5,7 +5,7 @@
  * Uses the string-comparison library for battle-tested algorithms.
  *
  * Note: The library normalizes strings (case-insensitive, whitespace trimmed)
- * which is ideal for merchant name matching.
+ * which is ideal for transaction description matching.
  */
 
 import stringComparison from "string-comparison";
@@ -35,7 +35,7 @@ export function levenshtein(a: string, b: string): number {
  * Uses Levenshtein for short strings (< 10 chars) and Dice coefficient
  * for longer strings. Levenshtein is better for short strings where
  * single-character edits matter; Dice is O(m+n) and handles word-level
- * similarity well for longer merchant names.
+ * similarity well for longer descriptions.
  *
  * @param a - First string
  * @param b - Second string

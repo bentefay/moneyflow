@@ -104,7 +104,7 @@ export default function NewImportPage() {
 			.map((t) => ({
 				date: t.date,
 				amount: t.amount,
-				description: t.merchant || t.description || "",
+				description: t.description || t.notes || "",
 			}));
 	}, [transactions]);
 
@@ -154,8 +154,8 @@ export default function NewImportPage() {
 			const newTransactions = parsedTransactions.map((tx) => ({
 				id: generateId(),
 				date: tx.date,
-				merchant: tx.merchant,
-				description: tx.memo || tx.description,
+				description: tx.description,
+				notes: tx.memo || "",
 				amount: tx.amount,
 				accountId: "", // TODO: Allow account selection in wizard
 				tagIds: [] as string[],

@@ -69,9 +69,9 @@ export interface ParsedOFXTransaction {
 	readonly datePosted: Temporal.PlainDate;
 	/** Transaction amount (negative for debits) */
 	readonly amount: number;
-	/** Payee/merchant name */
+	/** Payee/description name */
 	readonly name: string;
-	/** Memo/description */
+	/** Memo/notes */
 	readonly memo: string;
 	/** Check number if applicable */
 	readonly checkNumber?: string;

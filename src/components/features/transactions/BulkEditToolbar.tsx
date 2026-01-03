@@ -4,7 +4,7 @@
  * Bulk Edit Toolbar
  *
  * Floating toolbar that appears when multiple transactions are selected.
- * Allows bulk operations like editing tags, status, description, amount, or deleting.
+ * Allows bulk operations like editing tags, status, notes, amount, or deleting.
  * Includes progress indicator for large bulk operations.
  */
 
@@ -33,8 +33,8 @@ export interface BulkEditToolbarProps {
 	onSetStatus?: (statusId: string) => void;
 	/** Callback to set account on selected transactions */
 	onSetAccount?: (accountId: string) => void;
-	/** Callback to set description on selected transactions */
-	onSetDescription?: (description: string) => void;
+	/** Callback to set notes on selected transactions */
+	onSetNotes?: (notes: string) => void;
 	/** Callback to set amount on selected transactions */
 	onSetAmount?: (amount: number) => void;
 	/** Available tags for bulk edit */
@@ -49,7 +49,7 @@ export interface BulkEditToolbarProps {
 	className?: string;
 }
 
-type ActiveDropdown = "tags" | "status" | "account" | "description" | "amount" | null;
+type ActiveDropdown = "tags" | "status" | "account" | "notes" | "amount" | null;
 
 /**
  * Progress bar component for bulk operations.
@@ -82,7 +82,7 @@ export function BulkEditToolbar({
 	onSetTags,
 	onSetStatus,
 	onSetAccount,
-	onSetDescription,
+	onSetNotes,
 	onSetAmount,
 	availableTags = [],
 	availableStatuses = [],
@@ -92,15 +92,15 @@ export function BulkEditToolbar({
 }: BulkEditToolbarProps) {
 	const [activeDropdown, setActiveDropdown] = useState<ActiveDropdown>(null);
 	const [confirmDelete, setConfirmDelete] = useState(false);
-	const [descriptionValue, setDescriptionValue] = useState("");
+	const [notesValue, setNotesValue] = useState("");
 	const [amountValue, setAmountValue] = useState("");
-	const descriptionInputRef = useRef<HTMLInputElement>(null);
+	const notesInputRef = useRef<HTMLInputElement>(null);
 	const amountInputRef = useRef<HTMLInputElement>(null);
 
 	// Focus input when dropdown opens
 	useEffect(() => {
-		if (activeDropdown === "description" && descriptionInputRef.current) {
-			descriptionInputRef.current.focus();
+		if (activeDropdown === "notes" && notesInputRef.current) {
+			notesInputRef.current.focus();
 		}
 		if (activeDropdown === "amount" && amountInputRef.current) {
 			amountInputRef.current.focus();
@@ -111,7 +111,7 @@ export function BulkEditToolbar({
 	const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
 		if (e.key === "Escape") {
 			setActiveDropdown(null);
-			setDescriptionValue("");
+			setNotesValue("");
 			setAmountValue("");
 		}
 	}, []);
@@ -300,21 +300,19 @@ export function BulkEditToolbar({
 					</div>
 				)}
 
-				{/* Description button */}
-				{onSetDescription && (
+				{/* Notes button */}
+				{onSetNotes && (
 					<div className="relative">
 						<button
 							type="button"
-							data-testid="bulk-edit-description-button"
-							onClick={() =>
-								setActiveDropdown(activeDropdown === "description" ? null : "description")
-							}
+							data-testid="bulk-edit-notes-button"
+							onClick={() => setActiveDropdown(activeDropdown === "notes" ? null : "notes")}
 							disabled={!!progress}
 							className={cn(
 								"flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm",
 								"hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary",
 								"disabled:pointer-events-none disabled:opacity-50",
-								activeDropdown === "description" && "bg-accent"
+								activeDropdown === "notes" && "bg-accent"
 							)}
 						>
 							<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -325,27 +323,27 @@ export function BulkEditToolbar({
 									d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
 								/>
 							</svg>
-							Description
+							Notes
 						</button>
 
-						{activeDropdown === "description" && (
+						{activeDropdown === "notes" && (
 							<div
 								className="absolute bottom-full left-0 mb-2 w-64 rounded-lg border bg-popover p-3 shadow-lg"
 								onKeyDown={handleKeyDown}
 							>
 								<Input
-									ref={descriptionInputRef}
+									ref={notesInputRef}
 									type="text"
-									value={descriptionValue}
-									onChange={(e) => setDescriptionValue(e.target.value)}
-									placeholder="Enter description..."
+									value={notesValue}
+									onChange={(e) => setNotesValue(e.target.value)}
+									placeholder="Enter notes..."
 									onKeyDown={(e) => {
-										if (e.key === "Enter" && descriptionValue.trim()) {
-											onSetDescription(descriptionValue.trim());
-											setDescriptionValue("");
+										if (e.key === "Enter" && notesValue.trim()) {
+											onSetNotes(notesValue.trim());
+											setNotesValue("");
 											closeDropdowns();
 										} else if (e.key === "Escape") {
-											setDescriptionValue("");
+											setNotesValue("");
 											closeDropdowns();
 										}
 									}}
@@ -356,7 +354,7 @@ export function BulkEditToolbar({
 										variant="ghost"
 										size="sm"
 										onClick={() => {
-											setDescriptionValue("");
+											setNotesValue("");
 											closeDropdowns();
 										}}
 									>
@@ -366,13 +364,13 @@ export function BulkEditToolbar({
 										type="button"
 										size="sm"
 										onClick={() => {
-											if (descriptionValue.trim()) {
-												onSetDescription(descriptionValue.trim());
-												setDescriptionValue("");
+											if (notesValue.trim()) {
+												onSetNotes(notesValue.trim());
+												setNotesValue("");
 												closeDropdowns();
 											}
 										}}
-										disabled={!descriptionValue.trim()}
+										disabled={!notesValue.trim()}
 									>
 										Apply
 									</Button>

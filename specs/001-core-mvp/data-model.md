@@ -916,8 +916,8 @@ function createTransaction(vault: LoroDoc, data: TransactionInput): string {
 
   const tx = transactions.setContainer(id, new LoroMap());
   tx.set("date", data.date);
-  tx.set("merchant", data.merchant);
-  tx.set("description", data.description);
+  tx.set("description", data.description); // Imported text from bank file
+  tx.set("notes", data.notes);             // User notes/memo
   tx.set("amount", data.amount);
   tx.set("accountId", data.accountId);
   tx.set("statusId", data.statusId);
@@ -950,7 +950,7 @@ function createTransaction(vault: LoroDoc, data: TransactionInput): string {
 // Automation condition (stored as JSON within LoroMap)
 interface AutomationCondition {
   id: string;
-  column: "merchant" | "description" | "amount" | "accountId";
+  column: "description" | "notes" | "amount" | "accountId";
   operator: "contains" | "regex";
   value: string;
   caseSensitive: boolean;
@@ -1016,8 +1016,8 @@ interface Tag {
 interface Transaction {
   id: string;
   date: string;
-  merchant: string;
-  description: string;
+  description: string; // Imported text from bank file (OFX NAME, CSV description)
+  notes: string;       // User notes/memo
   amount: number;
   accountId: string;
   tagIds: string[]; // LoroList.toJSON() returns array
@@ -1341,8 +1341,8 @@ const TagSchema = z.object({
 const TransactionSchema = z.object({
   id: z.string().uuid(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), // ISO date
-  merchant: z.string().max(200),
-  description: z.string().max(500),
+  description: z.string().max(200), // Imported text from bank file
+  notes: z.string().max(500),       // User notes/memo
   amount: z.number(),
   accountId: z.string().uuid(),
   tagIds: z.array(z.string().uuid()),

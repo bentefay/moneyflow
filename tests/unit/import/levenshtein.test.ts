@@ -262,8 +262,8 @@ describe("normalizedSimilarity", () => {
 		expect(normalizedSimilarity("  Hello   World  ", "hello world")).toBe(1);
 	});
 
-	it("compares merchant names effectively", () => {
-		// Real-world merchant comparison
+	it("compares description text effectively", () => {
+		// Real-world description comparison
 		const s = normalizedSimilarity("AMAZON.COM*AMZN.COM/BI", "Amazon.com Purchase");
 		expect(s).toBeGreaterThan(0.3); // Dice coefficient gives lower scores for partial matches
 	});

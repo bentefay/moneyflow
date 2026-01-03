@@ -1,13 +1,13 @@
 /**
  * Column configuration for the transaction table.
- * Order matches FR-033a: Checkbox → Date → Merchant → Account → Tags → Status → Amount → Balance → Actions
+ * Order matches FR-033a: Checkbox → Date → Description → Account → Tags → Status → Amount → Balance → Actions
  */
 
 /** Valid column identifiers for focus navigation */
 export type ColumnId =
 	| "checkbox"
 	| "date"
-	| "merchant"
+	| "description"
 	| "account"
 	| "tags"
 	| "status"
@@ -53,8 +53,8 @@ export const COLUMN_CONFIG: ColumnDef[] = [
 		sortable: true,
 	},
 	{
-		id: "merchant",
-		header: "Merchant",
+		id: "description",
+		header: "Description",
 		width: "flex-1",
 		align: "left",
 		editable: true,

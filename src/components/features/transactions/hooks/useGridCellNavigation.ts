@@ -5,11 +5,11 @@
  * Listens to bubbling keydown events and navigates between cells.
  *
  * Vertical navigation (Up/Down):
- * - Special handling for description rows:
- *   - Down from merchant: if description row exists, focus description first
- *   - Down from description: focus next row's merchant
- *   - Up from merchant: if previous row has description, focus it; else focus previous merchant
- *   - Up from description: focus same row's merchant
+ * - Special handling for notes rows:
+ *   - Down from description: if notes row exists, focus notes first
+ *   - Down from notes: focus next row's description
+ *   - Up from description: if previous row has notes, focus it; else focus previous description
+ *   - Up from notes: focus same row's description
  * - For textareas: only navigate away when cursor is on first/last line.
  *
  * Horizontal navigation (Left/Right):
@@ -100,24 +100,24 @@ function isCursorAtEnd(element: HTMLInputElement | HTMLTextAreaElement): boolean
 
 /**
  * Get transaction rows grouped by their transaction container.
- * Each transaction can have a main row and optionally a description row.
- * Returns: Array of { mainRow, descriptionRow? } ordered by position.
+ * Each transaction can have a main row and optionally a notes row.
+ * Returns: Array of { mainRow, notesRow? } ordered by position.
  */
 function getTransactionRowGroups(grid: Element): Array<{
 	mainRow: Element;
-	descriptionRow?: Element;
+	notesRow?: Element;
 }> {
 	const allRows = Array.from(grid.querySelectorAll('[role="row"]'));
-	const groups: Array<{ mainRow: Element; descriptionRow?: Element }> = [];
+	const groups: Array<{ mainRow: Element; notesRow?: Element }> = [];
 
 	for (let i = 0; i < allRows.length; i++) {
 		const row = allRows[i];
-		const hasDescription = row.querySelector('[data-cell="description"]');
+		const hasNotes = row.querySelector('[data-cell="notes"]');
 
-		if (hasDescription) {
-			// This is a description row - should be attached to previous group
+		if (hasNotes) {
+			// This is a notes row - should be attached to previous group
 			if (groups.length > 0) {
-				groups[groups.length - 1].descriptionRow = row;
+				groups[groups.length - 1].notesRow = row;
 			}
 		} else {
 			// This is a main row
@@ -215,19 +215,19 @@ export function useGridCellNavigation(
 			const isGoingDown = event.key === "ArrowDown";
 			const isGoingUp = event.key === "ArrowUp";
 
-			// Find which group and whether we're in main or description row
+			// Find which group and whether we're in main or notes row
 			let currentGroupIndex = -1;
-			let isInDescription = false;
+			let isInNotes = false;
 
 			for (let i = 0; i < groups.length; i++) {
 				if (groups[i].mainRow === currentRow) {
 					currentGroupIndex = i;
-					isInDescription = false;
+					isInNotes = false;
 					break;
 				}
-				if (groups[i].descriptionRow === currentRow) {
+				if (groups[i].notesRow === currentRow) {
 					currentGroupIndex = i;
-					isInDescription = true;
+					isInNotes = true;
 					break;
 				}
 			}
@@ -237,21 +237,21 @@ export function useGridCellNavigation(
 			const currentGroup = groups[currentGroupIndex];
 
 			// Navigation logic
-			if (isInDescription) {
-				// We're in a description row
+			if (isInNotes) {
+				// We're in a notes row
 				if (isGoingUp) {
-					// Up from description → same row's merchant
-					const merchantCell = currentGroup.mainRow.querySelector('[data-cell="merchant"]');
-					if (merchantCell && focusCellElement(merchantCell)) {
+					// Up from notes → same row's description
+					const descriptionCell = currentGroup.mainRow.querySelector('[data-cell="description"]');
+					if (descriptionCell && focusCellElement(descriptionCell)) {
 						event.preventDefault();
 						onNavigate?.("up");
 					}
 				} else {
-					// Down from description → next row's merchant
+					// Down from notes → next row's description
 					const nextGroup = groups[currentGroupIndex + 1];
 					if (nextGroup) {
-						const merchantCell = nextGroup.mainRow.querySelector('[data-cell="merchant"]');
-						if (merchantCell && focusCellElement(merchantCell)) {
+						const descriptionCell = nextGroup.mainRow.querySelector('[data-cell="description"]');
+						if (descriptionCell && focusCellElement(descriptionCell)) {
 							event.preventDefault();
 							onNavigate?.("down");
 						}
@@ -259,12 +259,12 @@ export function useGridCellNavigation(
 				}
 			} else {
 				// We're in a main row
-				if (cellName === "merchant") {
-					// Special handling for merchant column
-					if (isGoingDown && currentGroup.descriptionRow) {
-						// Down from merchant with description → focus description
-						const descCell = currentGroup.descriptionRow.querySelector('[data-cell="description"]');
-						if (descCell && focusCellElement(descCell)) {
+				if (cellName === "description") {
+					// Special handling for description column
+					if (isGoingDown && currentGroup.notesRow) {
+						// Down from description with notes → focus notes
+						const notesCell = currentGroup.notesRow.querySelector('[data-cell="notes"]');
+						if (notesCell && focusCellElement(notesCell)) {
 							event.preventDefault();
 							onNavigate?.("down");
 							return;
@@ -272,11 +272,11 @@ export function useGridCellNavigation(
 					}
 
 					if (isGoingUp) {
-						// Up from merchant → check if previous row has description
+						// Up from description → check if previous row has notes
 						const prevGroup = groups[currentGroupIndex - 1];
-						if (prevGroup?.descriptionRow) {
-							const descCell = prevGroup.descriptionRow.querySelector('[data-cell="description"]');
-							if (descCell && focusCellElement(descCell)) {
+						if (prevGroup?.notesRow) {
+							const notesCell = prevGroup.notesRow.querySelector('[data-cell="notes"]');
+							if (notesCell && focusCellElement(notesCell)) {
 								event.preventDefault();
 								onNavigate?.("up");
 								return;

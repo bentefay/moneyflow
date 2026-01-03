@@ -34,10 +34,10 @@ export type TransactionRowMode = "view" | "add";
 export interface TransactionRowData {
 	id: string;
 	date: string;
-	/** Merchant/payee name (primary display in main row) */
-	merchant: string;
-	/** Description/memo (shown in expandable row) */
-	description?: string;
+	/** Description text (imported from bank file or user-entered) */
+	description: string;
+	/** Notes/memo (shown in expandable row) */
+	notes?: string;
 	amount: number;
 	account?: string;
 	accountId?: string;
@@ -69,7 +69,7 @@ export interface TransactionRowProps {
 	currentUserId?: string;
 	/** Whether this row is selected */
 	isSelected?: boolean;
-	/** Whether the description row is expanded */
+	/** Whether the notes row is expanded */
 	isExpanded?: boolean;
 	/** Available accounts for inline editing */
 	availableAccounts?: AccountOption[];
@@ -110,8 +110,8 @@ export interface TransactionRowProps {
 /** Data for a new transaction (add mode) */
 export interface NewTransactionData {
 	date: string;
-	merchant: string;
-	description?: string;
+	description: string;
+	notes?: string;
 	amount: number;
 	accountId: string;
 	statusId?: string;
@@ -151,8 +151,8 @@ export function TransactionRow({
 
 	// Add mode local state - use defaults directly, user changes override
 	const [addDate, setAddDate] = useState(() => new Date().toISOString().split("T")[0]);
-	const [addMerchant, setAddMerchant] = useState("");
 	const [addDescription, setAddDescription] = useState("");
+	const [addNotes, setAddNotes] = useState("");
 	const [addAmount, setAddAmount] = useState(0);
 	// Track whether user has explicitly changed these values
 	const [userChangedAccount, setUserChangedAccount] = useState(false);
@@ -163,7 +163,7 @@ export function TransactionRow({
 	const [isAddExpanded, setIsAddExpanded] = useState(false);
 
 	const containerRef = useRef<HTMLDivElement>(null);
-	const descriptionRef = useRef<HTMLTextAreaElement>(null);
+	const notesRef = useRef<HTMLTextAreaElement>(null);
 
 	// View mode state
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -179,8 +179,8 @@ export function TransactionRow({
 		? {
 				id: "add-row",
 				date: addDate,
-				merchant: addMerchant,
 				description: addDescription,
+				notes: addNotes,
 				amount: addAmount,
 				accountId: effectiveAddAccountId,
 				account: availableAccounts.find((a) => a.id === effectiveAddAccountId)?.name,
@@ -245,11 +245,11 @@ export function TransactionRow({
 					case "date":
 						setAddDate(value as string);
 						break;
-					case "merchant":
-						setAddMerchant(value as string);
-						break;
 					case "description":
 						setAddDescription(value as string);
+						break;
+					case "notes":
+						setAddNotes(value as string);
 						break;
 					case "amount":
 						setAddAmount(value as number);
@@ -275,14 +275,14 @@ export function TransactionRow({
 
 	// Add mode: submit handler
 	const handleAddSubmit = useCallback(() => {
-		if (!addMerchant.trim() || !effectiveAddAccountId) {
+		if (!addDescription.trim() || !effectiveAddAccountId) {
 			return;
 		}
 
 		onAdd?.({
 			date: addDate,
-			merchant: addMerchant.trim(),
-			description: addDescription.trim() || undefined,
+			description: addDescription.trim(),
+			notes: addNotes.trim() || undefined,
 			amount: addAmount,
 			accountId: effectiveAddAccountId,
 			statusId: effectiveAddStatusId || undefined,
@@ -290,16 +290,16 @@ export function TransactionRow({
 		});
 
 		// Reset for next entry
-		setAddMerchant("");
 		setAddDescription("");
+		setAddNotes("");
 		setAddAmount(0);
 		setAddTagIds([]);
 		setIsAddExpanded(false);
 		// Keep date, account, status as user likely wants same defaults
 	}, [
 		addDate,
-		addMerchant,
 		addDescription,
+		addNotes,
 		addAmount,
 		effectiveAddAccountId,
 		effectiveAddStatusId,
@@ -310,8 +310,8 @@ export function TransactionRow({
 	// Add mode: cancel handler
 	const handleAddCancel = useCallback(() => {
 		setAddDate(new Date().toISOString().split("T")[0]);
-		setAddMerchant("");
 		setAddDescription("");
+		setAddNotes("");
 		setAddAmount(0);
 		setAddAccountId(defaultAccountId ?? "");
 		setAddStatusId(defaultStatusId ?? "");
@@ -346,12 +346,12 @@ export function TransactionRow({
 	}, [isAddMode, onToggleExpand]);
 
 	// Can submit in add mode?
-	const canSubmit = isAddMode && addMerchant.trim() && effectiveAddAccountId;
+	const canSubmit = isAddMode && addDescription.trim() && effectiveAddAccountId;
 
-	// Auto-focus description textarea when expanded
+	// Auto-focus notes textarea when expanded
 	useEffect(() => {
-		if (effectiveExpanded && descriptionRef.current) {
-			descriptionRef.current.focus();
+		if (effectiveExpanded && notesRef.current) {
+			notesRef.current.focus();
 		}
 	}, [effectiveExpanded]);
 
@@ -417,7 +417,7 @@ export function TransactionRow({
 							checked={isSelected}
 							onChange={() => handleCheckboxChange()}
 							onShiftClick={handleShiftClick}
-							ariaLabel={`Select transaction ${effectiveData.merchant}`}
+							ariaLabel={`Select transaction ${effectiveData.description}`}
 						/>
 					</div>
 				)}
@@ -431,15 +431,15 @@ export function TransactionRow({
 					/>
 				</div>
 
-				{/* Merchant */}
-				<div data-cell="merchant" className="min-w-0">
+				{/* Description */}
+				<div data-cell="description" className="min-w-0">
 					<InlineEditableText
-						value={effectiveData.merchant}
-						onSave={(value) => handleFieldUpdateForMode("merchant", value)}
+						value={effectiveData.description}
+						onSave={(value) => handleFieldUpdateForMode("description", value)}
 						className="truncate font-medium"
 						inputClassName="font-medium"
-						placeholder={isAddMode ? "Merchant name..." : "No merchant"}
-						data-testid={isAddMode ? "new-transaction-merchant" : "merchant-editable"}
+						placeholder={isAddMode ? "Description..." : "No description"}
+						data-testid={isAddMode ? "new-transaction-description" : "description-editable"}
 					/>
 				</div>
 
@@ -528,7 +528,7 @@ export function TransactionRow({
 							>
 								<X className="h-4 w-4" />
 							</Button>
-							{/* Expand/Description toggle button for add mode */}
+							{/* Expand/Notes toggle button for add mode */}
 							<Button
 								variant="ghost"
 								size="icon-sm"
@@ -536,23 +536,17 @@ export function TransactionRow({
 									e.stopPropagation();
 									handleToggleExpandForMode();
 								}}
-								data-testid="expand-description-button"
+								data-testid="expand-notes-button"
 								className={cn(
-									effectiveExpanded || addDescription
+									effectiveExpanded || addNotes
 										? "text-primary hover:bg-primary/10"
 										: "text-muted-foreground opacity-0 group-hover:opacity-100"
 								)}
-								title={
-									effectiveExpanded
-										? "Collapse description"
-										: addDescription
-											? "Edit description"
-											: "Add description"
-								}
+								title={effectiveExpanded ? "Collapse notes" : addNotes ? "Edit notes" : "Add notes"}
 							>
 								{effectiveExpanded ? (
 									<ChevronUp className="h-4 w-4" />
-								) : addDescription ? (
+								) : addNotes ? (
 									<Pencil className="h-4 w-4" />
 								) : (
 									<Plus className="h-4 w-4" />
@@ -569,7 +563,7 @@ export function TransactionRow({
 								/>
 							)}
 
-							{/* Expand/Description toggle button (view mode) */}
+							{/* Expand/Notes toggle button (view mode) */}
 							{onToggleExpand && (
 								<div data-cell="expand">
 									<Button
@@ -579,23 +573,23 @@ export function TransactionRow({
 											e.stopPropagation();
 											onToggleExpand();
 										}}
-										data-testid="expand-description-button"
+										data-testid="expand-notes-button"
 										className={cn(
-											effectiveExpanded || effectiveData.description
+											effectiveExpanded || effectiveData.notes
 												? "text-primary hover:bg-primary/10"
 												: "text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100"
 										)}
 										title={
 											effectiveExpanded
-												? "Collapse description"
-												: effectiveData.description
-													? "Edit description"
-													: "Add description"
+												? "Collapse notes"
+												: effectiveData.notes
+													? "Edit notes"
+													: "Add notes"
 										}
 									>
 										{effectiveExpanded ? (
 											<ChevronUp className="h-4 w-4" />
-										) : effectiveData.description ? (
+										) : effectiveData.notes ? (
 											<Pencil className="h-4 w-4" />
 										) : (
 											<Plus className="h-4 w-4" />
@@ -646,25 +640,25 @@ export function TransactionRow({
 				)}
 			</div>
 
-			{/* Expanded description row */}
+			{/* Expanded notes row */}
 			{effectiveExpanded && (
 				<div
 					className="grid items-center gap-4 border-b bg-muted/30 px-4 py-2"
 					style={{ gridTemplateColumns: TRANSACTION_GRID_TEMPLATE }}
-					data-testid="description-row"
+					data-testid="notes-row"
 					role="row"
 				>
 					<div />
-					<div className="col-span-7" data-cell="description">
+					<div className="col-span-7" data-cell="notes">
 						<Textarea
-							ref={descriptionRef}
-							value={effectiveData.description || ""}
-							onChange={(e) => handleFieldUpdateForMode("description", e.target.value)}
-							onBlur={(e) => handleFieldUpdateForMode("description", e.target.value)}
+							ref={notesRef}
+							value={effectiveData.notes || ""}
+							onChange={(e) => handleFieldUpdateForMode("notes", e.target.value)}
+							onBlur={(e) => handleFieldUpdateForMode("notes", e.target.value)}
 							rows={1}
 							className="min-h-0 resize-none border-transparent bg-transparent py-1 text-muted-foreground text-sm shadow-none hover:bg-accent/30 focus:border-input focus:bg-background"
-							placeholder="Add a description or memo..."
-							data-testid={isAddMode ? "new-transaction-description" : "description-editable"}
+							placeholder="Add notes or a memo..."
+							data-testid={isAddMode ? "new-transaction-notes" : "notes-editable"}
 						/>
 					</div>
 				</div>

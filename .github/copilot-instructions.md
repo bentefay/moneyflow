@@ -9,6 +9,7 @@
 - .github/copilot-instructions.md must be updated alongside code changes to keep instructions current.
 - .github/instructions/\* must be created/updated as new folders/domains are added.
 - Always run pnpm db:types/lint/format/typecheck/lint/test/test:e2e before commiting. All the tests must be passing and there must be no formatting changes or linting warnings or errors.
+- Commit once you've verified everything is passing and formatted. Do not commit broken or unformatted code.
 
 ## Quick Reference
 
@@ -70,6 +71,8 @@ Keep this section updated with commands for this environment:
 - Run `pnpm typecheck` to type checking
 - Run `bat -P` rather than `cat` (which is aliased to bat with a pager for large files).
 - Do not run `playwright` with the `--debug` flag as it opens the GUI and will block forever.
+- Use `pwd` before `cd` (as I'll need to approve it).
+- Never use parentheses in commit messages (as I'll need to approve it).
 
 ## Key Architecture Decisions
 

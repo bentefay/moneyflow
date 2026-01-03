@@ -8,7 +8,7 @@ describe("useKeyboardNavigation", () => {
 	const columnIds: ColumnId[] = [
 		"checkbox",
 		"date",
-		"merchant",
+		"description",
 		"account",
 		"tags",
 		"status",
@@ -16,7 +16,7 @@ describe("useKeyboardNavigation", () => {
 		"balance",
 		"actions",
 	];
-	const focusableColumns: ColumnId[] = ["date", "merchant", "tags", "status", "amount"];
+	const focusableColumns: ColumnId[] = ["date", "description", "tags", "status", "amount"];
 
 	const createDefaultProps = () => ({
 		rowIds,
@@ -93,7 +93,7 @@ describe("useKeyboardNavigation", () => {
 			expect(result.current.isEditing).toBe(true);
 
 			act(() => {
-				result.current.setFocus("row-2", "merchant");
+				result.current.setFocus("row-2", "description");
 			});
 
 			expect(result.current.isEditing).toBe(false);
@@ -179,7 +179,7 @@ describe("useKeyboardNavigation", () => {
 
 			expect(result.current.isFocused("row-1", "date")).toBe(true);
 			expect(result.current.isFocused("row-2", "date")).toBe(false);
-			expect(result.current.isFocused("row-1", "merchant")).toBe(false);
+			expect(result.current.isFocused("row-1", "description")).toBe(false);
 		});
 
 		it("isFocusedEditing returns true only when editing", () => {
@@ -259,7 +259,7 @@ describe("useKeyboardNavigation", () => {
 			const { result } = renderHook(() => useKeyboardNavigation(createDefaultProps()));
 
 			act(() => {
-				result.current.setFocus("row-1", "merchant");
+				result.current.setFocus("row-1", "description");
 			});
 
 			const event = createKeyboardEvent("ArrowLeft");
@@ -287,7 +287,7 @@ describe("useKeyboardNavigation", () => {
 
 			expect(result.current.focusedCell).toEqual({
 				rowId: "row-1",
-				column: "merchant",
+				column: "description",
 			});
 		});
 
@@ -340,7 +340,7 @@ describe("useKeyboardNavigation", () => {
 
 			expect(result.current.focusedCell).toEqual({
 				rowId: "row-1",
-				column: "merchant",
+				column: "description",
 			});
 		});
 
@@ -490,7 +490,7 @@ describe("useKeyboardNavigation", () => {
 			});
 			expect(result.current.focusedCell).toEqual({
 				rowId: "row-1",
-				column: "merchant",
+				column: "description",
 			});
 		});
 	});

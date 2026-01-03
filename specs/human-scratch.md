@@ -39,10 +39,13 @@
   should support renaming tags. Tags also have a default colour, and this can be changed on the tag
   management page.
 
-- [] In csv and OFX exports the merchant (for credit card) and user descriptions of transfers (for
-  savings accounts) are saved in the "memo" field. Calling it merchant is thus incorrect. I doubt
-  many people would know what "memo" means, so what do you think about renaming the current
-  "description" field to "notes" and then rename the current "merchant" field to "description".
+- [x] In csv and OFX exports the merchant (for credit card) and user descriptions of transfers (for
+      savings accounts) are saved in the "memo" field. Calling it merchant is thus incorrect. I
+      doubt many people would know what "memo" means, so what do you think about renaming the
+      current "description" field to "notes" and then rename the current "merchant" field to
+      "description". **DONE**: Renamed `description` → `notes` (user notes/memo field) and
+      `merchant` → `description` (imported text from bank file). Automation conditions now use
+      `description` column.
 
 - [] description aliases - these are much like tags in that there is a single curated list of
   aliases. Stored as an optional ID on each transaction. There is a page where description aliases

@@ -79,19 +79,19 @@ describe("useBulkEdit", () => {
 		});
 	});
 
-	describe("setDescription", () => {
-		it("applies description to all selected transactions", async () => {
+	describe("setNotes", () => {
+		it("applies notes to all selected transactions", async () => {
 			const props = createDefaultProps();
 			const { result } = renderHook(() => useBulkEdit(props));
 			const mutation = createImmediateMutation<string>();
 
 			await act(async () => {
-				await result.current.setDescription(["tx-1", "tx-2"], "Updated description", mutation);
+				await result.current.setNotes(["tx-1", "tx-2"], "Updated notes", mutation);
 			});
 
 			expect(mutation).toHaveBeenCalledTimes(2);
-			expect(mutation).toHaveBeenCalledWith("tx-1", "Updated description");
-			expect(mutation).toHaveBeenCalledWith("tx-2", "Updated description");
+			expect(mutation).toHaveBeenCalledWith("tx-1", "Updated notes");
+			expect(mutation).toHaveBeenCalledWith("tx-2", "Updated notes");
 		});
 	});
 
@@ -346,7 +346,7 @@ describe("useBulkEdit", () => {
 			const { result, rerender } = renderHook(() => useBulkEdit(props));
 
 			const firstSetTags = result.current.setTags;
-			const firstSetDescription = result.current.setDescription;
+			const firstSetNotes = result.current.setNotes;
 			const firstSetAmount = result.current.setAmount;
 			const firstSetStatus = result.current.setStatus;
 			const firstDeleteSelected = result.current.deleteSelected;
@@ -355,7 +355,7 @@ describe("useBulkEdit", () => {
 			rerender();
 
 			expect(result.current.setTags).toBe(firstSetTags);
-			expect(result.current.setDescription).toBe(firstSetDescription);
+			expect(result.current.setNotes).toBe(firstSetNotes);
 			expect(result.current.setAmount).toBe(firstSetAmount);
 			expect(result.current.setStatus).toBe(firstSetStatus);
 			expect(result.current.deleteSelected).toBe(firstDeleteSelected);

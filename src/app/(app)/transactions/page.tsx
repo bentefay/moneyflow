@@ -164,8 +164,8 @@ export default function TransactionsPage() {
 			const searchLower = filters.search.toLowerCase();
 			txList = txList.filter(
 				(tx) =>
-					tx.merchant?.toLowerCase().includes(searchLower) ||
-					tx.description?.toLowerCase().includes(searchLower)
+					tx.description?.toLowerCase().includes(searchLower) ||
+					tx.notes?.toLowerCase().includes(searchLower)
 			);
 		}
 
@@ -200,8 +200,8 @@ export default function TransactionsPage() {
 				return {
 					id: tx.id,
 					date: tx.date,
-					merchant: tx.merchant || "",
 					description: tx.description || "",
+					notes: tx.notes || "",
 					amount: tx.amount,
 					account: typeof acc === "object" ? acc.name : "Unknown",
 					accountId: tx.accountId,
@@ -249,8 +249,8 @@ export default function TransactionsPage() {
 			const newTx = {
 				id: generateId(),
 				date: data.date,
-				merchant: data.merchant,
-				description: data.description ?? "",
+				description: data.description,
+				notes: data.notes ?? "",
 				amount: data.amount,
 				accountId: data.accountId,
 				tagIds: data.tagIds ?? ([] as string[]),
@@ -302,11 +302,11 @@ export default function TransactionsPage() {
 		[selectedIds, setTransaction]
 	);
 
-	// Handle bulk set description
-	const handleBulkSetDescription = useCallback(
-		(description: string) => {
+	// Handle bulk set notes
+	const handleBulkSetNotes = useCallback(
+		(notes: string) => {
 			for (const id of selectedIds) {
-				setTransaction(id, { description });
+				setTransaction(id, { notes });
 			}
 		},
 		[selectedIds, setTransaction]
@@ -361,11 +361,11 @@ export default function TransactionsPage() {
 		(id: string, updates: Partial<TransactionRowData>) => {
 			// Map TransactionRowData fields to Transaction fields
 			const transactionUpdates: Partial<Transaction> = {};
-			if ("merchant" in updates && updates.merchant !== undefined) {
-				transactionUpdates.merchant = updates.merchant;
-			}
 			if ("description" in updates && updates.description !== undefined) {
 				transactionUpdates.description = updates.description;
+			}
+			if ("notes" in updates && updates.notes !== undefined) {
+				transactionUpdates.notes = updates.notes;
 			}
 			if ("date" in updates && updates.date !== undefined) {
 				transactionUpdates.date = updates.date;
@@ -522,7 +522,7 @@ export default function TransactionsPage() {
 					onSetTags={handleBulkSetTags}
 					onSetStatus={handleBulkSetStatus}
 					onSetAccount={handleBulkSetAccount}
-					onSetDescription={handleBulkSetDescription}
+					onSetNotes={handleBulkSetNotes}
 					onSetAmount={handleBulkSetAmount}
 					availableTags={tagOptions}
 					availableStatuses={statusOptions}

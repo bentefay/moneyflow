@@ -23,7 +23,7 @@ import { createNewIdentity, goToAccounts, goToTags, goToTransactions } from "./h
 async function createTestTransaction(
 	page: import("@playwright/test").Page,
 	data: {
-		merchant: string;
+		description: string;
 		amount: string;
 	}
 ) {
@@ -32,12 +32,12 @@ async function createTestTransaction(
 	await addButton.click();
 
 	// Wait for the add row to appear in the table (has inputs)
-	const merchantInput = page.locator('[data-testid="new-transaction-merchant"]');
-	await expect(merchantInput).toBeVisible({ timeout: 5000 });
+	const descriptionInput = page.locator('[data-testid="new-transaction-description"]');
+	await expect(descriptionInput).toBeVisible({ timeout: 5000 });
 
-	// Fill merchant/description
-	await merchantInput.clear();
-	await merchantInput.fill(data.merchant);
+	// Fill description
+	await descriptionInput.clear();
+	await descriptionInput.fill(data.description);
 
 	// Fill amount
 	const amountInput = page.locator('[data-testid="new-transaction-amount"]');
@@ -48,11 +48,11 @@ async function createTestTransaction(
 	await amountInput.press("Enter");
 
 	// Wait for the transaction to appear in the grid
-	// Look by grid row with accessible name containing our merchant
+	// Look by grid row with accessible name containing our description
 	// Escape regex special chars and use word boundary or end-of-string to avoid partial matches
-	const escapedMerchant = data.merchant.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	const escapedDescription = data.description.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 	const transactionRow = page.getByRole("row", {
-		name: new RegExp(`${escapedMerchant}(Default|$|\\s)`),
+		name: new RegExp(`${escapedDescription}(Default|$|\\s)`),
 	});
 	await expect(transactionRow).toBeVisible({ timeout: 5000 });
 
@@ -163,7 +163,7 @@ test.describe("Transactions", () => {
 			await addButton.click();
 
 			// Fill in description to prevent click-outside from closing the row
-			const descriptionInput = page.locator('[data-testid="new-transaction-merchant"]');
+			const descriptionInput = page.locator('[data-testid="new-transaction-description"]');
 			await descriptionInput.fill("Test transaction");
 		});
 
@@ -215,50 +215,50 @@ test.describe("Transactions", () => {
 
 			await test.step("create a test transaction", async () => {
 				await createTestTransaction(page, {
-					merchant: "Test Coffee Shop",
+					description: "Test Coffee Shop",
 					amount: "-5.50",
 				});
 			});
 
-			await test.step("click on merchant cell to focus and edit", async () => {
-				const merchantInput = page
+			await test.step("click on description cell to focus and edit", async () => {
+				const descriptionInput = page
 					.locator('[data-testid="transaction-row"]')
 					.first()
-					.locator('[data-testid="merchant-editable"]');
+					.locator('[data-testid="description-editable"]');
 
 				// In spreadsheet mode, input is always present
-				await expect(merchantInput).toHaveRole("textbox");
-				await merchantInput.click();
-				await expect(merchantInput).toBeFocused();
+				await expect(descriptionInput).toHaveRole("textbox");
+				await descriptionInput.click();
+				await expect(descriptionInput).toBeFocused();
 			});
 
 			await test.step("type new value and press Enter to save", async () => {
-				const merchantInput = page
+				const descriptionInput = page
 					.locator('[data-testid="transaction-row"]')
 					.first()
-					.locator('[data-testid="merchant-editable"]');
+					.locator('[data-testid="description-editable"]');
 
-				await merchantInput.clear();
-				await merchantInput.fill("Updated Merchant Name");
-				await merchantInput.press("Enter");
+				await descriptionInput.clear();
+				await descriptionInput.fill("Updated Description Name");
+				await descriptionInput.press("Enter");
 
 				// Value should be updated
-				await expect(merchantInput).toHaveValue("Updated Merchant Name");
+				await expect(descriptionInput).toHaveValue("Updated Description Name");
 			});
 
 			await test.step("edit again and press Escape to revert", async () => {
-				const merchantInput = page
+				const descriptionInput = page
 					.locator('[data-testid="transaction-row"]')
 					.first()
-					.locator('[data-testid="merchant-editable"]');
+					.locator('[data-testid="description-editable"]');
 
-				await merchantInput.click();
-				await merchantInput.clear();
-				await merchantInput.fill("This should be reverted");
-				await merchantInput.press("Escape");
+				await descriptionInput.click();
+				await descriptionInput.clear();
+				await descriptionInput.fill("This should be reverted");
+				await descriptionInput.press("Escape");
 
 				// Value should be reverted to saved value
-				await expect(merchantInput).toHaveValue("Updated Merchant Name");
+				await expect(descriptionInput).toHaveValue("Updated Description Name");
 			});
 		});
 
@@ -268,32 +268,32 @@ test.describe("Transactions", () => {
 
 			await test.step("create a test transaction", async () => {
 				await createTestTransaction(page, {
-					merchant: "Tab Test Store",
+					description: "Tab Test Store",
 					amount: "-10.00",
 				});
 			});
 
-			await test.step("click to focus merchant cell", async () => {
-				const merchantInput = page
+			await test.step("click to focus description cell", async () => {
+				const descriptionInput = page
 					.locator('[data-testid="transaction-row"]')
 					.first()
-					.locator('[data-testid="merchant-editable"]');
-				await merchantInput.click();
-				await expect(merchantInput).toBeFocused();
+					.locator('[data-testid="description-editable"]');
+				await descriptionInput.click();
+				await expect(descriptionInput).toBeFocused();
 			});
 
 			await test.step("press Tab to save and move to next cell", async () => {
-				const merchantInput = page
+				const descriptionInput = page
 					.locator('[data-testid="transaction-row"]')
 					.first()
-					.locator('[data-testid="merchant-editable"]');
+					.locator('[data-testid="description-editable"]');
 
-				await merchantInput.clear();
-				await merchantInput.fill("Tab Saved Value");
-				await merchantInput.press("Tab");
+				await descriptionInput.clear();
+				await descriptionInput.fill("Tab Saved Value");
+				await descriptionInput.press("Tab");
 
-				// Merchant should be saved
-				await expect(merchantInput).toHaveValue("Tab Saved Value");
+				// Description should be saved
+				await expect(descriptionInput).toHaveValue("Tab Saved Value");
 			});
 		});
 
@@ -303,7 +303,7 @@ test.describe("Transactions", () => {
 
 			await test.step("create a test transaction", async () => {
 				await createTestTransaction(page, {
-					merchant: "Date Format Test",
+					description: "Date Format Test",
 					amount: "-50.00",
 				});
 			});
@@ -329,7 +329,7 @@ test.describe("Transactions", () => {
 
 			await test.step("create a test transaction", async () => {
 				await createTestTransaction(page, {
-					merchant: "Date Test Store",
+					description: "Date Test Store",
 					amount: "-25.00",
 				});
 			});
@@ -394,7 +394,7 @@ test.describe("Transactions", () => {
 
 			await test.step("create a test transaction", async () => {
 				await createTestTransaction(page, {
-					merchant: "Amount Test Store",
+					description: "Amount Test Store",
 					amount: "-100.00",
 				});
 			});
@@ -447,7 +447,7 @@ test.describe("Transactions", () => {
 
 			await test.step("create a test transaction", async () => {
 				await createTestTransaction(page, {
-					merchant: "Status Test Store",
+					description: "Status Test Store",
 					amount: "-50.00",
 				});
 			});
@@ -512,7 +512,7 @@ test.describe("Transactions", () => {
 
 			await test.step("create a test transaction", async () => {
 				await createTestTransaction(page, {
-					merchant: "Account Test Store",
+					description: "Account Test Store",
 					amount: "-60.00",
 				});
 			});
@@ -588,7 +588,7 @@ test.describe("Transactions", () => {
 
 			await test.step("create a test transaction", async () => {
 				await createTestTransaction(page, {
-					merchant: "Tags Test Store",
+					description: "Tags Test Store",
 					amount: "-75.00",
 				});
 			});
@@ -628,7 +628,7 @@ test.describe("Transactions", () => {
 
 			await test.step("create a test transaction", async () => {
 				await createTestTransaction(page, {
-					merchant: "Tag Creation Test",
+					description: "Tag Creation Test",
 					amount: "-50.00",
 				});
 			});
@@ -696,7 +696,7 @@ test.describe("Transactions", () => {
 
 			await test.step("create a test transaction", async () => {
 				await createTestTransaction(page, {
-					merchant: "Exact Match Test",
+					description: "Exact Match Test",
 					amount: "-25.00",
 				});
 			});
@@ -739,52 +739,52 @@ test.describe("Transactions", () => {
 			await goToTransactions(page);
 
 			await test.step("create test transactions", async () => {
-				await createTestTransaction(page, { merchant: "Row 1 Store", amount: "-10.00" });
-				await createTestTransaction(page, { merchant: "Row 2 Store", amount: "-20.00" });
-				await createTestTransaction(page, { merchant: "Row 3 Store", amount: "-30.00" });
+				await createTestTransaction(page, { description: "Row 1 Store", amount: "-10.00" });
+				await createTestTransaction(page, { description: "Row 2 Store", amount: "-20.00" });
+				await createTestTransaction(page, { description: "Row 3 Store", amount: "-30.00" });
 			});
 
-			await test.step("focus first row merchant and press arrow down", async () => {
-				const firstRowMerchant = page
+			await test.step("focus first row description and press arrow down", async () => {
+				const firstRowDescription = page
 					.locator('[data-testid="transaction-row"]')
 					.first()
-					.locator('[data-testid="merchant-editable"]');
+					.locator('[data-testid="description-editable"]');
 
-				await firstRowMerchant.click();
-				await expect(firstRowMerchant).toBeFocused();
+				await firstRowDescription.click();
+				await expect(firstRowDescription).toBeFocused();
 
 				// Press arrow down
 				await page.keyboard.press("ArrowDown");
 
-				// Second row merchant should now be focused
-				const secondRowMerchant = page
+				// Second row description should now be focused
+				const secondRowDescription = page
 					.locator('[data-testid="transaction-row"]')
 					.nth(1)
-					.locator('[data-testid="merchant-editable"]');
+					.locator('[data-testid="description-editable"]');
 
-				await expect(secondRowMerchant).toBeFocused();
+				await expect(secondRowDescription).toBeFocused();
 			});
 
 			await test.step("press arrow down again to move to third row", async () => {
 				await page.keyboard.press("ArrowDown");
 
-				const thirdRowMerchant = page
+				const thirdRowDescription = page
 					.locator('[data-testid="transaction-row"]')
 					.nth(2)
-					.locator('[data-testid="merchant-editable"]');
+					.locator('[data-testid="description-editable"]');
 
-				await expect(thirdRowMerchant).toBeFocused();
+				await expect(thirdRowDescription).toBeFocused();
 			});
 
 			await test.step("press arrow up to move back to second row", async () => {
 				await page.keyboard.press("ArrowUp");
 
-				const secondRowMerchant = page
+				const secondRowDescription = page
 					.locator('[data-testid="transaction-row"]')
 					.nth(1)
-					.locator('[data-testid="merchant-editable"]');
+					.locator('[data-testid="description-editable"]');
 
-				await expect(secondRowMerchant).toBeFocused();
+				await expect(secondRowDescription).toBeFocused();
 			});
 		});
 
@@ -793,21 +793,21 @@ test.describe("Transactions", () => {
 			await goToTransactions(page);
 
 			await test.step("create a test transaction", async () => {
-				await createTestTransaction(page, { merchant: "Nav Test", amount: "-50.00" });
+				await createTestTransaction(page, { description: "Nav Test", amount: "-50.00" });
 			});
 
-			await test.step("focus merchant cell and navigate right to account", async () => {
+			await test.step("focus description cell and navigate right to account", async () => {
 				const row = page.locator('[data-testid="transaction-row"]').first();
-				const merchantInput = row.locator('[data-testid="merchant-editable"]');
+				const descriptionInput = row.locator('[data-testid="description-editable"]');
 
-				await merchantInput.click();
-				await expect(merchantInput).toBeFocused();
+				await descriptionInput.click();
+				await expect(descriptionInput).toBeFocused();
 
 				// Move cursor to end of text, then press right to navigate to next cell
 				await page.keyboard.press("End");
 				await page.keyboard.press("ArrowRight");
 
-				// Should focus the account cell (next after merchant)
+				// Should focus the account cell (next after description)
 				const accountTrigger = row.locator('[data-cell="account"]').getByRole("combobox");
 				await expect(accountTrigger).toBeFocused();
 			});
@@ -854,15 +854,15 @@ test.describe("Transactions", () => {
 			await goToTransactions(page);
 
 			await test.step("create transactions", async () => {
-				await createTestTransaction(page, { merchant: "Boundary Test", amount: "-25.00" });
-				await createTestTransaction(page, { merchant: "Other Row", amount: "-35.00" });
+				await createTestTransaction(page, { description: "Boundary Test", amount: "-25.00" });
+				await createTestTransaction(page, { description: "Other Row", amount: "-35.00" });
 			});
 
 			await test.step("position cursor in middle of text - arrow keys move cursor not focus", async () => {
 				const row = page.locator('[data-testid="transaction-row"]').first();
-				const merchantInput = row.locator('[data-testid="merchant-editable"]');
+				const descriptionInput = row.locator('[data-testid="description-editable"]');
 
-				await merchantInput.click();
+				await descriptionInput.click();
 				// Position cursor in the middle (after "Bound")
 				await page.keyboard.press("Home");
 				await page.keyboard.press("ArrowRight");
@@ -875,19 +875,19 @@ test.describe("Transactions", () => {
 				await page.keyboard.press("ArrowRight");
 
 				// Should still be focused on same input
-				await expect(merchantInput).toBeFocused();
+				await expect(descriptionInput).toBeFocused();
 			});
 
 			await test.step("arrow down from text input moves to next row", async () => {
-				// Arrow down should move to next row's merchant (single-line input)
+				// Arrow down should move to next row's description (single-line input)
 				await page.keyboard.press("ArrowDown");
 
-				const secondRowMerchant = page
+				const secondRowDescription = page
 					.locator('[data-testid="transaction-row"]')
 					.nth(1)
-					.locator('[data-testid="merchant-editable"]');
+					.locator('[data-testid="description-editable"]');
 
-				await expect(secondRowMerchant).toBeFocused();
+				await expect(secondRowDescription).toBeFocused();
 			});
 		});
 
@@ -896,8 +896,8 @@ test.describe("Transactions", () => {
 			await goToTransactions(page);
 
 			await test.step("create transactions", async () => {
-				await createTestTransaction(page, { merchant: "Status Nav 1", amount: "-10.00" });
-				await createTestTransaction(page, { merchant: "Status Nav 2", amount: "-20.00" });
+				await createTestTransaction(page, { description: "Status Nav 1", amount: "-10.00" });
+				await createTestTransaction(page, { description: "Status Nav 2", amount: "-20.00" });
 			});
 
 			await test.step("focus status cell and verify arrow down navigates to next row", async () => {
@@ -924,69 +924,69 @@ test.describe("Transactions", () => {
 			});
 		});
 
-		test("description row navigation - down from merchant to description", async ({ page }) => {
+		test("description row navigation - down from description to notes", async ({ page }) => {
 			await createNewIdentity(page);
 			await goToTransactions(page);
 
-			await test.step("create transaction and add description", async () => {
-				await createTestTransaction(page, { merchant: "Desc Nav Test", amount: "-50.00" });
+			await test.step("create transaction and add notes", async () => {
+				await createTestTransaction(page, { description: "Desc Nav Test", amount: "-50.00" });
 
-				// Expand and add description
+				// Expand and add notes
 				const row = page.locator('[data-testid="transaction-row"]').first();
-				const expandButton = row.locator('[data-testid="expand-description-button"]');
+				const expandButton = row.locator('[data-testid="expand-notes-button"]');
 				await expandButton.click();
 
-				const descriptionInput = page.locator('[data-testid="description-editable"]');
-				await descriptionInput.fill("Test description text");
-				await descriptionInput.press("Enter");
+				const notesInput = page.locator('[data-testid="notes-editable"]');
+				await notesInput.fill("Test notes text");
+				await notesInput.press("Enter");
 			});
 
 			await test.step("create second transaction", async () => {
-				await createTestTransaction(page, { merchant: "Second Row", amount: "-30.00" });
+				await createTestTransaction(page, { description: "Second Row", amount: "-30.00" });
 			});
 
-			await test.step("navigate down from merchant to description", async () => {
+			await test.step("navigate down from description to notes", async () => {
 				const firstRow = page.locator('[data-testid="transaction-row"]').first();
-				const merchantInput = firstRow.locator('[data-testid="merchant-editable"]');
+				const descriptionInput = firstRow.locator('[data-testid="description-editable"]');
 
-				await merchantInput.click();
-				await expect(merchantInput).toBeFocused();
+				await descriptionInput.click();
+				await expect(descriptionInput).toBeFocused();
 
-				// Arrow down should go to description (expanded row)
+				// Arrow down should go to notes (expanded row)
 				await page.keyboard.press("ArrowDown");
 
-				const descriptionInput = page.locator('[data-testid="description-editable"]');
-				await expect(descriptionInput).toBeFocused();
+				const notesInput = page.locator('[data-testid="notes-editable"]');
+				await expect(notesInput).toBeFocused();
 			});
 
-			await test.step("navigate up from description back to merchant", async () => {
-				// The description should still be focused from previous step
+			await test.step("navigate up from notes back to description", async () => {
+				// The notes should still be focused from previous step
 				// Move cursor to start of textarea before pressing up
 				await page.keyboard.press("Control+Home"); // Go to very beginning
 				await page.keyboard.press("ArrowUp");
 
 				const firstRow = page.locator('[data-testid="transaction-row"]').first();
-				const merchantInput = firstRow.locator('[data-testid="merchant-editable"]');
-				await expect(merchantInput).toBeFocused();
+				const descriptionInput = firstRow.locator('[data-testid="description-editable"]');
+				await expect(descriptionInput).toBeFocused();
 			});
 
-			await test.step("navigate down from description to next row merchant", async () => {
-				// Go back to description
+			await test.step("navigate down from notes to next row description", async () => {
+				// Go back to notes
 				await page.keyboard.press("ArrowDown");
 
-				const descriptionInput = page.locator('[data-testid="description-editable"]');
-				await expect(descriptionInput).toBeFocused();
+				const notesInput = page.locator('[data-testid="notes-editable"]');
+				await expect(notesInput).toBeFocused();
 
 				// Move cursor to very end of textarea before pressing down
 				await page.keyboard.press("Control+End");
 				await page.keyboard.press("ArrowDown");
 
-				// Find the second transaction row (after description row)
-				const secondMerchant = page
+				// Find the second transaction row (after notes row)
+				const secondDescription = page
 					.locator('[data-testid="transaction-row"]')
 					.nth(1)
-					.locator('[data-testid="merchant-editable"]');
-				await expect(secondMerchant).toBeFocused();
+					.locator('[data-testid="description-editable"]');
+				await expect(secondDescription).toBeFocused();
 			});
 		});
 
@@ -995,7 +995,7 @@ test.describe("Transactions", () => {
 			await goToTransactions(page);
 
 			await test.step("create a transaction", async () => {
-				await createTestTransaction(page, { merchant: "Date Enter Test", amount: "-40.00" });
+				await createTestTransaction(page, { description: "Date Enter Test", amount: "-40.00" });
 			});
 
 			await test.step("focus date cell and press Enter to open calendar", async () => {
@@ -1024,8 +1024,8 @@ test.describe("Transactions", () => {
 			await goToTransactions(page);
 
 			await test.step("create test transactions", async () => {
-				await createTestTransaction(page, { merchant: "Checkbox Test 1", amount: "-25.00" });
-				await createTestTransaction(page, { merchant: "Checkbox Test 2", amount: "-35.00" });
+				await createTestTransaction(page, { description: "Checkbox Test 1", amount: "-25.00" });
+				await createTestTransaction(page, { description: "Checkbox Test 2", amount: "-35.00" });
 			});
 
 			await test.step("click checkbox to select first row", async () => {
@@ -1064,18 +1064,18 @@ test.describe("Transactions", () => {
 			await goToTransactions(page);
 
 			await test.step("create test transaction", async () => {
-				await createTestTransaction(page, { merchant: "No Select Test", amount: "-50.00" });
+				await createTestTransaction(page, { description: "No Select Test", amount: "-50.00" });
 			});
 
-			await test.step("click on row body (merchant cell) should not select", async () => {
+			await test.step("click on row body (description cell) should not select", async () => {
 				const row = page.locator('[data-testid="transaction-row"]').first();
-				const merchantCell = row.locator('[data-cell="merchant"]');
+				const descriptionCell = row.locator('[data-cell="description"]');
 
 				// Ensure row starts unselected
 				await expect(row).toHaveAttribute("aria-selected", "false");
 
-				// Click on the merchant cell (part of the row body)
-				await merchantCell.click();
+				// Click on the description cell (part of the row body)
+				await descriptionCell.click();
 
 				// Row should still be unselected
 				await expect(row).toHaveAttribute("aria-selected", "false");
@@ -1095,9 +1095,9 @@ test.describe("Transactions", () => {
 			await goToTransactions(page);
 
 			await test.step("create multiple test transactions", async () => {
-				await createTestTransaction(page, { merchant: "Select All 1", amount: "-10.00" });
-				await createTestTransaction(page, { merchant: "Select All 2", amount: "-20.00" });
-				await createTestTransaction(page, { merchant: "Select All 3", amount: "-30.00" });
+				await createTestTransaction(page, { description: "Select All 1", amount: "-10.00" });
+				await createTestTransaction(page, { description: "Select All 2", amount: "-20.00" });
+				await createTestTransaction(page, { description: "Select All 3", amount: "-30.00" });
 			});
 
 			await test.step("click header checkbox to select all", async () => {
@@ -1139,9 +1139,9 @@ test.describe("Transactions", () => {
 			await goToTransactions(page);
 
 			await test.step("create multiple test transactions", async () => {
-				await createTestTransaction(page, { merchant: "Indeterminate 1", amount: "-10.00" });
-				await createTestTransaction(page, { merchant: "Indeterminate 2", amount: "-20.00" });
-				await createTestTransaction(page, { merchant: "Indeterminate 3", amount: "-30.00" });
+				await createTestTransaction(page, { description: "Indeterminate 1", amount: "-10.00" });
+				await createTestTransaction(page, { description: "Indeterminate 2", amount: "-20.00" });
+				await createTestTransaction(page, { description: "Indeterminate 3", amount: "-30.00" });
 			});
 
 			await test.step("select only first row", async () => {
@@ -1170,10 +1170,10 @@ test.describe("Transactions", () => {
 			await goToTransactions(page);
 
 			await test.step("create multiple test transactions", async () => {
-				await createTestTransaction(page, { merchant: "Range 1", amount: "-10.00" });
-				await createTestTransaction(page, { merchant: "Range 2", amount: "-20.00" });
-				await createTestTransaction(page, { merchant: "Range 3", amount: "-30.00" });
-				await createTestTransaction(page, { merchant: "Range 4", amount: "-40.00" });
+				await createTestTransaction(page, { description: "Range 1", amount: "-10.00" });
+				await createTestTransaction(page, { description: "Range 2", amount: "-20.00" });
+				await createTestTransaction(page, { description: "Range 3", amount: "-30.00" });
+				await createTestTransaction(page, { description: "Range 4", amount: "-40.00" });
 			});
 
 			await test.step("click first row checkbox", async () => {
@@ -1212,9 +1212,9 @@ test.describe("Transactions", () => {
 			await goToTransactions(page);
 
 			await test.step("create test transactions", async () => {
-				await createTestTransaction(page, { merchant: "Bulk Tag 1", amount: "-10.00" });
-				await createTestTransaction(page, { merchant: "Bulk Tag 2", amount: "-20.00" });
-				await createTestTransaction(page, { merchant: "Bulk Tag 3", amount: "-30.00" });
+				await createTestTransaction(page, { description: "Bulk Tag 1", amount: "-10.00" });
+				await createTestTransaction(page, { description: "Bulk Tag 2", amount: "-20.00" });
+				await createTestTransaction(page, { description: "Bulk Tag 3", amount: "-30.00" });
 			});
 
 			await test.step("first create a tag to apply", async () => {
@@ -1270,13 +1270,13 @@ test.describe("Transactions", () => {
 			});
 		});
 
-		test("T027: bulk edit description applies to all selected transactions", async ({ page }) => {
+		test("T027: bulk edit notes applies to all selected transactions", async ({ page }) => {
 			await createNewIdentity(page);
 			await goToTransactions(page);
 
 			await test.step("create test transactions", async () => {
-				await createTestTransaction(page, { merchant: "Bulk Desc 1", amount: "-10.00" });
-				await createTestTransaction(page, { merchant: "Bulk Desc 2", amount: "-20.00" });
+				await createTestTransaction(page, { description: "Bulk Desc 1", amount: "-10.00" });
+				await createTestTransaction(page, { description: "Bulk Desc 2", amount: "-20.00" });
 			});
 
 			await test.step("select both transactions", async () => {
@@ -1287,28 +1287,28 @@ test.describe("Transactions", () => {
 			});
 
 			await test.step("click bulk edit description button and enter new value", async () => {
-				await page.locator('[data-testid="bulk-edit-description-button"]').click();
+				await page.locator('[data-testid="bulk-edit-notes-button"]').click();
 
 				// Use more specific selector - the bulk edit description input
-				const descInput = page.getByRole("textbox", { name: /enter description/i });
+				const descInput = page.getByRole("textbox", { name: /enter notes/i });
 				await descInput.fill("Bulk Updated Description");
 
 				await page.getByRole("button", { name: /apply/i }).click();
 			});
 
-			await test.step("verify description applied to all transactions", async () => {
+			await test.step("verify notes applied to all transactions", async () => {
 				const rows = page.locator('[data-testid="transaction-row"]');
 				const count = await rows.count();
 
-				// Description is in the expanded row - expand each row and check
+				// Notes is in the expanded row - expand each row and check
 				for (let i = 0; i < count; i++) {
 					const row = rows.nth(i);
-					const expandButton = row.locator('[data-testid="expand-description-button"]');
+					const expandButton = row.locator('[data-testid="expand-notes-button"]');
 					await expandButton.click();
 
-					// The description row appears for the expanded row
-					const descriptionInput = page.locator('[data-testid="description-editable"]').nth(i);
-					await expect(descriptionInput).toHaveValue("Bulk Updated Description");
+					// The notes row appears for the expanded row
+					const notesInput = page.locator('[data-testid="notes-editable"]').nth(i);
+					await expect(notesInput).toHaveValue("Bulk Updated Description");
 				}
 			});
 		});
@@ -1318,8 +1318,8 @@ test.describe("Transactions", () => {
 			await goToTransactions(page);
 
 			await test.step("create test transactions", async () => {
-				await createTestTransaction(page, { merchant: "Bulk Status 1", amount: "-10.00" });
-				await createTestTransaction(page, { merchant: "Bulk Status 2", amount: "-20.00" });
+				await createTestTransaction(page, { description: "Bulk Status 1", amount: "-10.00" });
+				await createTestTransaction(page, { description: "Bulk Status 2", amount: "-20.00" });
 			});
 
 			await test.step("select all transactions", async () => {
@@ -1355,8 +1355,8 @@ test.describe("Transactions", () => {
 			await goToTransactions(page);
 
 			await test.step("create test transactions", async () => {
-				await createTestTransaction(page, { merchant: "Clear Test 1", amount: "-10.00" });
-				await createTestTransaction(page, { merchant: "Clear Test 2", amount: "-20.00" });
+				await createTestTransaction(page, { description: "Clear Test 1", amount: "-10.00" });
+				await createTestTransaction(page, { description: "Clear Test 2", amount: "-20.00" });
 			});
 
 			await test.step("select transactions and verify toolbar appears", async () => {
@@ -1382,18 +1382,18 @@ test.describe("Transactions", () => {
 			await goToTransactions(page);
 
 			await test.step("create and select transaction", async () => {
-				await createTestTransaction(page, { merchant: "Escape Test", amount: "-10.00" });
-				await createTestTransaction(page, { merchant: "Escape Test 2", amount: "-20.00" });
+				await createTestTransaction(page, { description: "Escape Test", amount: "-10.00" });
+				await createTestTransaction(page, { description: "Escape Test 2", amount: "-20.00" });
 
 				const headerCheckbox = page.locator('[data-testid="header-checkbox"] button');
 				await toggleCheckbox(headerCheckbox);
 			});
 
 			await test.step("open bulk description edit and cancel with Escape", async () => {
-				await page.locator('[data-testid="bulk-edit-description-button"]').click();
+				await page.locator('[data-testid="bulk-edit-notes-button"]').click();
 
 				// Use more specific selector - the bulk edit description input
-				const descInput = page.getByRole("textbox", { name: /enter description/i });
+				const descInput = page.getByRole("textbox", { name: /enter notes/i });
 				await expect(descInput).toBeVisible();
 
 				// Press Escape to cancel
@@ -1404,182 +1404,182 @@ test.describe("Transactions", () => {
 			});
 
 			await test.step("verify no changes applied", async () => {
-				// Transactions should keep original merchant names
+				// Transactions should keep original description names
 				const firstRow = page.locator('[data-testid="transaction-row"]').first();
-				const merchantInput = firstRow.locator('[data-testid="merchant-editable"]');
-				await expect(merchantInput).toHaveValue("Escape Test");
+				const descriptionInput = firstRow.locator('[data-testid="description-editable"]');
+				await expect(descriptionInput).toHaveValue("Escape Test");
 			});
 		});
 	});
 
 	// ========================================================================
-	// Phase 7: Merchant/Description Separation (User Story 5)
+	// Phase 7: Description/Notes Separation (User Story 5)
 	// ========================================================================
 
-	test.describe("US5: Merchant/Description Separation", () => {
-		test("T037: merchant column displays primary text, description in expandable row", async ({
+	test.describe("US5: Description/Notes Separation", () => {
+		test("T037: description column displays primary text, notes in expandable row", async ({
 			page,
 		}) => {
 			await createNewIdentity(page);
 			await goToTransactions(page);
 
-			await test.step("create transaction with merchant", async () => {
+			await test.step("create transaction with description", async () => {
 				await createTestTransaction(page, {
-					merchant: "Starbucks",
+					description: "Starbucks",
 					amount: "-5.00",
 				});
 			});
 
-			await test.step("verify merchant displays in main row", async () => {
+			await test.step("verify description displays in main row", async () => {
 				const row = page.locator('[data-testid="transaction-row"]').first();
-				const merchantInput = row.locator('[data-testid="merchant-editable"]');
+				const descriptionInput = row.locator('[data-testid="description-editable"]');
 
-				await expect(merchantInput).toHaveValue("Starbucks");
+				await expect(descriptionInput).toHaveValue("Starbucks");
 			});
 
 			await test.step("verify expand button exists", async () => {
 				const row = page.locator('[data-testid="transaction-row"]').first();
-				const expandButton = row.locator('[data-testid="expand-description-button"]');
+				const expandButton = row.locator('[data-testid="expand-notes-button"]');
 
 				await expect(expandButton).toBeVisible();
 			});
 
-			await test.step("expand description row", async () => {
+			await test.step("expand notes row", async () => {
 				const row = page.locator('[data-testid="transaction-row"]').first();
-				const expandButton = row.locator('[data-testid="expand-description-button"]');
+				const expandButton = row.locator('[data-testid="expand-notes-button"]');
 
 				await expandButton.click();
 
-				// Description row should now be visible
-				const descriptionRow = page.locator('[data-testid="description-row"]');
-				await expect(descriptionRow).toBeVisible();
+				// Notes row should now be visible
+				const notesRow = page.locator('[data-testid="notes-row"]');
+				await expect(notesRow).toBeVisible();
 			});
 
-			await test.step("verify description field is editable", async () => {
-				const descriptionRow = page.locator('[data-testid="description-row"]');
-				const descriptionInput = descriptionRow.locator('[data-testid="description-editable"]');
+			await test.step("verify notes field is editable", async () => {
+				const notesRow = page.locator('[data-testid="notes-row"]');
+				const notesInput = notesRow.locator('[data-testid="notes-editable"]');
 
-				await expect(descriptionInput).toBeVisible();
-				await expect(descriptionInput).toHaveAttribute("placeholder", /add a description/i);
+				await expect(notesInput).toBeVisible();
+				await expect(notesInput).toHaveAttribute("placeholder", /add notes/i);
 			});
 		});
 
-		test("T038: edit description in expanded row", async ({ page }) => {
+		test("T038: edit notes in expanded row", async ({ page }) => {
 			await createNewIdentity(page);
 			await goToTransactions(page);
 
 			await test.step("create transaction and expand", async () => {
 				await createTestTransaction(page, {
-					merchant: "Amazon",
+					description: "Amazon",
 					amount: "-99.00",
 				});
 
 				const row = page.locator('[data-testid="transaction-row"]').first();
-				const expandButton = row.locator('[data-testid="expand-description-button"]');
+				const expandButton = row.locator('[data-testid="expand-notes-button"]');
 				await expandButton.click();
 			});
 
-			await test.step("edit description and save with Enter", async () => {
-				const descriptionRow = page.locator('[data-testid="description-row"]');
-				const descriptionInput = descriptionRow.locator('[data-testid="description-editable"]');
+			await test.step("edit notes and save with Enter", async () => {
+				const notesRow = page.locator('[data-testid="notes-row"]');
+				const notesInput = notesRow.locator('[data-testid="notes-editable"]');
 
-				await descriptionInput.click();
-				await descriptionInput.fill("Monthly subscription payment");
-				await descriptionInput.press("Enter");
+				await notesInput.click();
+				await notesInput.fill("Monthly subscription payment");
+				await notesInput.press("Enter");
 			});
 
-			await test.step("verify description saved", async () => {
-				const descriptionRow = page.locator('[data-testid="description-row"]');
-				const descriptionInput = descriptionRow.locator('[data-testid="description-editable"]');
+			await test.step("verify notes saved", async () => {
+				const notesRow = page.locator('[data-testid="notes-row"]');
+				const notesInput = notesRow.locator('[data-testid="notes-editable"]');
 
 				// Textarea may have trailing newline, so check contains text
-				await expect(descriptionInput).toHaveValue(/Monthly subscription payment/);
+				await expect(notesInput).toHaveValue(/Monthly subscription payment/);
 			});
 
 			await test.step("collapse and re-expand to verify persistence", async () => {
 				const row = page.locator('[data-testid="transaction-row"]').first();
-				const expandButton = row.locator('[data-testid="expand-description-button"]');
+				const expandButton = row.locator('[data-testid="expand-notes-button"]');
 
 				// Collapse
 				await expandButton.click();
-				await expect(page.locator('[data-testid="description-row"]')).not.toBeVisible();
+				await expect(page.locator('[data-testid="notes-row"]')).not.toBeVisible();
 
 				// Re-expand
 				await expandButton.click();
-				const descriptionRow = page.locator('[data-testid="description-row"]');
-				const descriptionInput = descriptionRow.locator('[data-testid="description-editable"]');
+				const notesRow = page.locator('[data-testid="notes-row"]');
+				const notesInput = notesRow.locator('[data-testid="notes-editable"]');
 
 				// Textarea may have trailing newline, so check contains text
-				await expect(descriptionInput).toHaveValue(/Monthly subscription payment/);
+				await expect(notesInput).toHaveValue(/Monthly subscription payment/);
 			});
 		});
 
-		test("T039: expand button icon reflects description state", async ({ page }) => {
+		test("T039: expand button icon reflects notes state", async ({ page }) => {
 			await createNewIdentity(page);
 			await goToTransactions(page);
 
-			await test.step("create transaction without description", async () => {
+			await test.step("create transaction without notes", async () => {
 				await createTestTransaction(page, {
-					merchant: "Icon Test Store",
+					description: "Icon Test Store",
 					amount: "-10.00",
 				});
 			});
 
 			await test.step("verify expand button shows plus icon initially", async () => {
 				const row = page.locator('[data-testid="transaction-row"]').first();
-				const expandButton = row.locator('[data-testid="expand-description-button"]');
+				const expandButton = row.locator('[data-testid="expand-notes-button"]');
 
 				// Button should be mostly hidden until hover (opacity-0 with group-hover:opacity-100)
 				// But we can still click it
 				await expect(expandButton).toBeAttached();
 			});
 
-			await test.step("add description and verify icon changes", async () => {
+			await test.step("add notes and verify icon changes", async () => {
 				const row = page.locator('[data-testid="transaction-row"]').first();
-				const expandButton = row.locator('[data-testid="expand-description-button"]');
+				const expandButton = row.locator('[data-testid="expand-notes-button"]');
 
 				await expandButton.click();
 
-				const descriptionRow = page.locator('[data-testid="description-row"]');
-				const descriptionInput = descriptionRow.locator('[data-testid="description-editable"]');
+				const notesRow = page.locator('[data-testid="notes-row"]');
+				const notesInput = notesRow.locator('[data-testid="notes-editable"]');
 
-				await descriptionInput.fill("Test memo");
-				await descriptionInput.press("Enter");
+				await notesInput.fill("Test memo");
+				await notesInput.press("Enter");
 
 				// Collapse
 				await expandButton.click();
 
-				// Expand button should now be visible (not hidden) because description exists
+				// Expand button should now be visible (not hidden) because notes exists
 				await expect(expandButton).toBeVisible();
 			});
 		});
 
-		test("T040: search filters include both merchant and description", async ({ page }) => {
+		test("T040: search filters include both description and notes", async ({ page }) => {
 			await createNewIdentity(page);
 			await goToTransactions(page);
 
-			await test.step("create transaction with merchant and add description", async () => {
+			await test.step("create transaction with description and add notes", async () => {
 				await createTestTransaction(page, {
-					merchant: "UniqueStoreName",
+					description: "UniqueStoreName",
 					amount: "-50.00",
 				});
 
-				// Add a description
+				// add notes
 				const row = page.locator('[data-testid="transaction-row"]').first();
-				const expandButton = row.locator('[data-testid="expand-description-button"]');
+				const expandButton = row.locator('[data-testid="expand-notes-button"]');
 				await expandButton.click();
 
-				const descriptionRow = page.locator('[data-testid="description-row"]');
-				const descriptionInput = descriptionRow.locator('[data-testid="description-editable"]');
+				const notesRow = page.locator('[data-testid="notes-row"]');
+				const notesInput = notesRow.locator('[data-testid="notes-editable"]');
 
-				await descriptionInput.fill("UniqueDescriptionText");
-				await descriptionInput.press("Enter");
+				await notesInput.fill("UniqueNotesText");
+				await notesInput.press("Enter");
 
 				// Collapse
 				await expandButton.click();
 			});
 
-			await test.step("search by merchant finds transaction", async () => {
+			await test.step("search by description finds transaction", async () => {
 				const searchInput = page.getByPlaceholder(/search/i).first();
 				await searchInput.fill("UniqueStoreName");
 
@@ -1587,10 +1587,10 @@ test.describe("Transactions", () => {
 				await expect(page.locator('[data-testid="transaction-row"]')).toHaveCount(1);
 			});
 
-			await test.step("search by description finds transaction", async () => {
+			await test.step("search by notes finds transaction", async () => {
 				const searchInput = page.getByPlaceholder(/search/i).first();
 				await searchInput.clear();
-				await searchInput.fill("UniqueDescriptionText");
+				await searchInput.fill("UniqueNotesText");
 
 				// Transaction should still be visible
 				await expect(page.locator('[data-testid="transaction-row"]')).toHaveCount(1);

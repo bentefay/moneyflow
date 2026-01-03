@@ -35,8 +35,8 @@ function createTransaction(
 		[id]: {
 			id,
 			date: "2024-01-01",
-			merchant: "",
 			description: "",
+			notes: "",
 			amount: amount as MoneyMinorUnits,
 			accountId,
 			tagIds: [],
