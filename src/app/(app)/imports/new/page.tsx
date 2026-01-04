@@ -9,10 +9,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo } from "react";
-import {
-	ImportPanel,
-	type ImportTransactionData,
-} from "@/components/features/import/ImportPanel";
+import { ImportPanel, type ImportTransactionData } from "@/components/features/import/ImportPanel";
 import {
 	useActiveAccounts,
 	useActiveStatuses,
@@ -51,18 +48,10 @@ export default function NewImportPage() {
 
 	// Get default status ID (first status marked as default, or first status)
 	const defaultStatusId = useMemo(() => {
-		const statusList = Object.values(statuses);
-		const defaultStatus = statusList.find(
-			(s): s is { id: string; isDefault: boolean } & Record<string, unknown> =>
-				typeof s === "object" && s !== null && "isDefault" in s && s.isDefault === true
+		const defaultStatus = Object.values(statuses).find(
+			(s): s is Status & { $cid: string } => typeof s === "object" && s.isDefault
 		);
-		if (defaultStatus) return defaultStatus.id;
-		// Fallback to first status
-		const first = statusList.find(
-			(s): s is { id: string } & Record<string, unknown> =>
-				typeof s === "object" && s !== null && "id" in s
-		);
-		return first?.id ?? "";
+		return defaultStatus?.id ?? Object.keys(statuses)[0] ?? "";
 	}, [statuses]);
 
 	// Actions

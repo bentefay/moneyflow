@@ -52,10 +52,7 @@ export interface ImportPanelProps {
 	/** Default currency code for amount parsing */
 	defaultCurrency: string;
 	/** Callback to create transactions - returns import batch ID */
-	onCreateTransactions: (
-		transactions: ImportTransactionData[],
-		fileName: string
-	) => string;
+	onCreateTransactions: (transactions: ImportTransactionData[], fileName: string) => string;
 	/** Callback when import is complete */
 	onImportComplete: () => void;
 	/** Callback to save a new template */
