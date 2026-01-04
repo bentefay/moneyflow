@@ -54,6 +54,14 @@ export function AccountsTable({ className }: AccountsTableProps) {
 	});
 
 	const deleteAccount = useVaultAction((state, id: string) => {
+		// FR-013: Prevent deletion of last account
+		const activeAccounts = Object.values(state.accounts).filter(
+			(a): a is Account => typeof a === "object" && !a.deletedAt
+		);
+		if (activeAccounts.length <= 1) {
+			// Cannot delete last account - validation happens in UI
+			return;
+		}
 		const account = state.accounts[id];
 		if (account) {
 			account.deletedAt = Date.now();
@@ -143,6 +151,7 @@ export function AccountsTable({ className }: AccountsTableProps) {
 						vaultDefaultCurrency={defaultCurrency}
 						onUpdate={handleUpdate}
 						onDelete={handleDelete}
+						canDelete={sortedAccounts.length > 1}
 						isExpanded={expandedAccountId === account.id}
 						onToggleExpand={() => handleToggleExpand(account.id)}
 					/>

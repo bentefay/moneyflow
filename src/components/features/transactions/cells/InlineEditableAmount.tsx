@@ -5,18 +5,23 @@
  *
  * Spreadsheet-style always-editable amount cell.
  * Shows red for expenses (negative) and green for income (positive).
+ *
+ * Amounts are stored as integers in minor units (e.g., cents for USD, yen for JPY)
+ * but displayed and edited in major units (e.g., dollars). Conversion happens internally
+ * using the currency's decimal_digits to determine the multiplier.
  */
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
+import { getMinorUnitMultiplier, toMinorUnitsForCurrency } from "@/lib/domain/currency";
 import { cn } from "@/lib/utils";
 
 export interface InlineEditableAmountProps {
-	/** Current value (in major units, e.g., dollars) */
+	/** Current value in minor units (e.g., cents) - integer */
 	value: number;
-	/** Currency code (default: USD) */
+	/** Currency code for conversion (default: USD) */
 	currency?: string;
-	/** Callback when value is saved */
+	/** Callback when value is saved (returns minor units as integer) */
 	onSave: (newValue: number) => void;
 	/** Additional class names for the container */
 	className?: string;
@@ -29,13 +34,24 @@ export interface InlineEditableAmountProps {
 }
 
 /**
- * Parse a currency string to number.
+ * Parse a currency string to number (major units).
  */
 function parseCurrency(str: string): number {
 	// Remove currency symbols, commas, and whitespace
 	const cleaned = str.replace(/[^0-9.-]/g, "");
 	const parsed = parseFloat(cleaned);
 	return isNaN(parsed) ? 0 : parsed;
+}
+
+/**
+ * Format minor units as a display string.
+ */
+function formatForDisplay(minorUnits: number, currencyCode: string): string {
+	const multiplier = getMinorUnitMultiplier(currencyCode);
+	const majorUnits = minorUnits / multiplier;
+	// Get decimal places from multiplier (100 = 2, 1000 = 3, 1 = 0)
+	const decimalPlaces = Math.log10(multiplier);
+	return majorUnits.toFixed(decimalPlaces);
 }
 
 /**
@@ -49,33 +65,37 @@ function parseCurrency(str: string): number {
  */
 export function InlineEditableAmount({
 	value,
+	currency = "USD",
 	onSave,
 	className,
 	inputClassName,
 	disabled = false,
 	"data-testid": testId,
 }: InlineEditableAmountProps) {
-	const [localValue, setLocalValue] = useState(value.toFixed(2));
+	// Convert minor units to display string
+	const displayValue = useMemo(() => formatForDisplay(value, currency), [value, currency]);
+
+	const [localValue, setLocalValue] = useState(displayValue);
 	const [isFocused, setIsFocused] = useState(false);
 	const inputRef = useRef<HTMLInputElement>(null);
 	const isRevertingRef = useRef(false);
 
 	// Sync local value when prop changes (only if not focused)
-	const valueStr = value.toFixed(2);
-	if (valueStr !== localValue && !isFocused) {
-		setLocalValue(valueStr);
+	if (displayValue !== localValue && !isFocused) {
+		setLocalValue(displayValue);
 	}
 
 	const handleSave = useCallback(() => {
-		const parsed = parseCurrency(localValue);
-		if (parsed !== value) {
-			onSave(parsed);
+		const parsedMajorUnits = parseCurrency(localValue);
+		const newMinorUnits = toMinorUnitsForCurrency(parsedMajorUnits, currency);
+		if (newMinorUnits !== value) {
+			onSave(newMinorUnits);
 		}
-	}, [localValue, value, onSave]);
+	}, [localValue, value, currency, onSave]);
 
 	const handleRevert = useCallback(() => {
-		setLocalValue(value.toFixed(2));
-	}, [value]);
+		setLocalValue(displayValue);
+	}, [displayValue]);
 
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent<HTMLInputElement>) => {

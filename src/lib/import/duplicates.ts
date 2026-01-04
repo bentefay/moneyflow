@@ -5,12 +5,17 @@
  * date, amount, and description similarity.
  *
  * Amounts are MoneyMinorUnits (integer cents) - comparison is exact integer match.
+ *
+ * Supports configurable matching modes:
+ * - Date: "exact" (same day only) or "within" (within maxDateDiffDays)
+ * - Description: "exact" (case-insensitive match) or "similar" (Levenshtein similarity)
  */
 
 import { Temporal } from "temporal-polyfill";
 import type { MoneyMinorUnits } from "@/lib/domain/currency";
 import { fromISODateString, type ISODateString } from "@/types";
 import { normalizedSimilarity } from "./levenshtein";
+import type { DateMatchMode, DescriptionMatchMode } from "./types";
 
 /**
  * Transaction for duplicate detection.
@@ -44,15 +49,19 @@ export interface DuplicateMatch {
 }
 
 /**
- * Duplicate detection configuration.
+ * Duplicate detection configuration with configurable matching modes.
  */
 export interface DuplicateDetectionConfig {
-	/** Maximum date difference in days to consider a match */
+	/** How to match dates: "exact" (same day) or "within" (tolerance) */
+	dateMatchMode: DateMatchMode;
+	/** Maximum date difference in days to consider a match (only used when dateMatchMode="within") */
 	maxDateDiffDays: number;
+	/** How to match descriptions: "exact" (case-insensitive) or "similar" (Levenshtein) */
+	descriptionMatchMode: DescriptionMatchMode;
+	/** Minimum description similarity (0-1) to consider a match (only used when descriptionMatchMode="similar") */
+	minDescriptionSimilarity: number;
 	/** Maximum amount difference in minor units (cents) to consider a match */
 	maxAmountDiff: MoneyMinorUnits;
-	/** Minimum description similarity (0-1) to consider a match */
-	minDescriptionSimilarity: number;
 	/** Minimum overall confidence to flag as duplicate */
 	minConfidence: number;
 }
@@ -61,9 +70,11 @@ export interface DuplicateDetectionConfig {
  * Default duplicate detection configuration.
  */
 export const DEFAULT_DUPLICATE_CONFIG: DuplicateDetectionConfig = {
+	dateMatchMode: "within",
 	maxDateDiffDays: 3, // Allow 3 days difference for posting delays
-	maxAmountDiff: 1 as MoneyMinorUnits, // Allow 1 cent difference for rounding
+	descriptionMatchMode: "similar",
 	minDescriptionSimilarity: 0.6, // 60% similar descriptions
+	maxAmountDiff: 1 as MoneyMinorUnits, // Allow 1 cent difference for rounding
 	minConfidence: 0.7, // Overall 70% confidence
 };
 
@@ -119,6 +130,10 @@ function calculateConfidence(
 /**
  * Check if two transactions are potential duplicates.
  *
+ * Supports configurable matching modes:
+ * - Date: "exact" requires same day, "within" allows maxDateDiffDays tolerance
+ * - Description: "exact" requires case-insensitive match, "similar" uses Levenshtein
+ *
  * @param newTx - New/imported transaction
  * @param existingTx - Existing transaction
  * @param config - Detection configuration
@@ -129,16 +144,43 @@ export function checkDuplicate(
 	existingTx: DuplicateCheckTransaction,
 	config: DuplicateDetectionConfig = DEFAULT_DUPLICATE_CONFIG
 ): DuplicateMatch | null {
-	// Check date
+	// Check date based on mode
 	const dateDiff = daysBetween(newTx.date, existingTx.date);
-	const dateMatch = dateDiff <= config.maxDateDiffDays;
+	let dateMatch: boolean;
+	if (config.dateMatchMode === "exact") {
+		dateMatch = dateDiff === 0;
+	} else {
+		// "within" mode
+		dateMatch = dateDiff <= config.maxDateDiffDays;
+	}
 
 	// Check amount
 	const amountDiff = Math.abs(newTx.amount - existingTx.amount);
 	const amountMatch = amountDiff <= config.maxAmountDiff;
 
-	// Check description similarity
-	const descriptionSimilarity = normalizedSimilarity(newTx.description, existingTx.description);
+	// Check description based on mode
+	let descriptionSimilarity: number;
+	if (config.descriptionMatchMode === "exact") {
+		// Case-insensitive exact match
+		const normalizedNew = newTx.description.toLowerCase().trim();
+		const normalizedExisting = existingTx.description.toLowerCase().trim();
+		descriptionSimilarity = normalizedNew === normalizedExisting ? 1.0 : 0.0;
+	} else {
+		// "similar" mode - use Levenshtein similarity
+		descriptionSimilarity = normalizedSimilarity(newTx.description, existingTx.description);
+	}
+
+	// For "similar" mode, check if meets similarity threshold
+	// For "exact" mode, descriptionSimilarity is either 0 or 1
+	const descriptionMatches =
+		config.descriptionMatchMode === "exact"
+			? descriptionSimilarity === 1.0
+			: descriptionSimilarity >= config.minDescriptionSimilarity;
+
+	// If description doesn't match in exact mode, it's definitely not a duplicate
+	if (config.descriptionMatchMode === "exact" && !descriptionMatches) {
+		return null;
+	}
 
 	// Calculate confidence
 	const confidence = calculateConfidence(dateMatch, amountMatch, descriptionSimilarity);

@@ -38,9 +38,12 @@ export interface TransactionRowData {
 	description: string;
 	/** Notes/memo (shown in expandable row) */
 	notes?: string;
+	/** Amount in minor units (e.g., cents for USD) - stored as integer */
 	amount: number;
 	account?: string;
 	accountId?: string;
+	/** Currency code for the account (for amount display/editing) */
+	currency?: string;
 	status?: string;
 	statusId?: string;
 	tags?: Array<{ id: string; name: string; color?: string }>;
@@ -112,6 +115,7 @@ export interface NewTransactionData {
 	date: string;
 	description: string;
 	notes?: string;
+	/** Amount in minor units (e.g., cents for USD) - integer */
 	amount: number;
 	accountId: string;
 	statusId?: string;
@@ -175,6 +179,7 @@ export function TransactionRow({
 	const effectiveAddStatusId = userChangedStatus ? addStatusId : (defaultStatusId ?? addStatusId);
 
 	// Get effective values (either from transaction or add mode state)
+	const selectedAccount = availableAccounts.find((a) => a.id === effectiveAddAccountId);
 	const effectiveData: TransactionRowData = isAddMode
 		? {
 				id: "add-row",
@@ -183,7 +188,8 @@ export function TransactionRow({
 				notes: addNotes,
 				amount: addAmount,
 				accountId: effectiveAddAccountId,
-				account: availableAccounts.find((a) => a.id === effectiveAddAccountId)?.name,
+				account: selectedAccount?.name,
+				currency: selectedAccount?.currency,
 				statusId: effectiveAddStatusId,
 				status: availableStatuses.find((s) => s.id === effectiveAddStatusId)?.name,
 				tags: addTagIds
@@ -495,6 +501,7 @@ export function TransactionRow({
 				>
 					<InlineEditableAmount
 						value={effectiveData.amount}
+						currency={effectiveData.currency}
 						onSave={(value) => handleFieldUpdateForMode("amount", value)}
 						data-testid={isAddMode ? "new-transaction-amount" : "amount-editable"}
 					/>

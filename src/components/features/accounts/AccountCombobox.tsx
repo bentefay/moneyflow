@@ -26,6 +26,8 @@ import { CreateAccountDialog } from "./CreateAccountDialog";
 export interface AccountOption {
 	id: string;
 	name: string;
+	/** Currency code for the account (e.g., "USD", "EUR") */
+	currency?: string;
 }
 
 export interface AccountComboboxProps {

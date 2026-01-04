@@ -207,6 +207,7 @@ export default function TransactionsPage() {
 					amount: tx.amount,
 					account: typeof acc === "object" ? acc.name : "Unknown",
 					accountId: tx.accountId,
+					currency: typeof acc === "object" ? acc.currency : undefined,
 					status: typeof stat === "object" ? stat.name : "Unknown",
 					statusId: tx.statusId,
 					tags: (tx.tagIds ?? []).map((id) => {
@@ -232,6 +233,7 @@ export default function TransactionsPage() {
 				.map((acc) => ({
 					id: acc.id,
 					name: acc.name,
+					currency: acc.currency,
 				})),
 		[accounts]
 	);

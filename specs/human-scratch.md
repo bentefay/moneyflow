@@ -49,7 +49,103 @@
       `merchant` → `description` (imported text from bank file). Automation conditions now use
       `description` column.
 
-- [] description aliases - these are much like tags in that there is a single curated list of
+- [x] We need a transfer tag, right? Should be used to determine who owes who what. I think this
+      already exists.
+
+- [x] Fix ofx import
+
+- [x] When importing, add a select to optionally either...
+
+  1. ignore all or
+  2. ignore duplicates or
+  3. do not ignore
+
+  ...transactions that are more than X days older than the newest existing transaction
+
+- [x] Add two selects for configuring whether a transaction wheter a transaction must be an exact
+      match to be considered duplicate or whether additionally can be:
+
+  - 1. have a date within X days and
+  - 2. a similar description (using the current string similarity logic with threshold)
+
+- [x] Duplicate checking should only ever compare existing transactions in account against new
+      transactions in account (i.e. identical transaction in a file or in an existing vault are
+      never considered as duplicates (unless they're already duplicates))
+
+- [x] For CSV and OFX, I want to change the import flow a bit. All of the features that currently
+      exist are great and should be kept. However, I think it would be more streamlined if we switch
+      to always showing input and output data, and having tabs to configure the transformation. At
+      any point you can click import to complete the process. Specifically, the import process
+      should show the raw file data and a preview of the imported data as a single table (columns
+      for both, with a strong vertical line between). The raw data should be on the left, unordered,
+      completely unformatted. The preview columns should be representative of how the transactions
+      will look in the transactions table after parsing (show duplicates, formatted dates, tags,
+      description aliases, etc). Plus a status column at the end, same as what you currently have in
+      the preview table. The current preview table is really good. It just diverges from how it will
+      look in the final transaction view. Keep the total rows, valid transactions, rows with errors
+      counts as well (the current preview looks really good). Make sure this logic is reused - i.e.
+      the import is where these things are calculated for the new transactions. Then when import
+      confirmed the new transactions are merged into the existing data structure. Replace the
+      wizard. The table should be always visible on the right or below (if screen too small). On the
+      left are tabs replacing the wizard steps (use animate-ui tabs - see below), for
+      choosing/creating template, column mapping, formatting, etc. The "auto-detect" buttons should
+      be automatically applied rather than needing to be clicked.
+
+- [x] When importing, add a checkbox to optionally choose to collapse whitespace between words for
+      descriptions (similar to how text works in html without pre).
+
+- [x] When importing CSV, add a required account select to choose which account to import into.
+      There should be a account selector for OFX too - except with OFX we use the account from the
+      file by default if it matches an existing account. If the account id doesn't match any
+      configured account and the OFX file contains an account number and the account selected by the
+      user doesn't have an account id already, we apply the account id from the OFX file to the
+      account.
+
+- [x] Investigate Uppy 5.0 (https://uppy.io/blog/uppy-5.0/) as replacement for custom FileDropzone
+      component
+
+  - Current: Custom HTML5 drag-and-drop implementation in
+    src/components/features/import/FileDropzone.tsx
+  - Evaluate: Bundle size impact, features (progress, resumable uploads, file previews), integration
+    complexity
+  - Specifically using the useDropzone hook (if it provides any value)
+  - Nevermind - the current implementation is already really good, and we only need the most basic
+    features (we don't need uploading, resumable uploads, etc.)
+
+- [] Before release (and needing to make backwards compatible changes), we should make sure we are
+  storing transactions and other state in a way that supports efficient lookup and modification
+  given our access patterns. Should we store transactions as an ordered movable list and always use
+  both date and transaction id to locate transaction for update using binary search on date (i.e.
+  never look up by id alone).
+
+  - Ordering within date should be preserved when importing. Perhaps we should store the source's
+    transaction ordering within each date as an additional sub date index on each transaction so we
+    can preserve ordering?
+
+  - Should we should store transactions as follows:
+
+  ```
+  type Transactions = LoroMap<account id, YearlyTransactions>
+  type YearlyTransactions = { transactions: LoroMovableList<MonthlyTransactions>, transactionCount:
+     number, balance: number, byPersonAmountsOwing: Map<personId, number> }
+  type MonthlyTransactions = { transactions: LoroMovableList<DailyTransactions>, transactionCount: number,
+    balance: number, byPersonAmountsOwing: Map<personId, number> }
+  - type DailyTransactions = { transactions: LoroMovableList<TransactionList>, transactionCount: number, balance:
+    number, byPersonAmountsOwing: Map<personId, number> }
+  ```
+
+  - I'm wondering specifically whether this might prevent the need to modify a potentially enormous
+    list if we keep transactions flattened. Potentially faster for aggregation, less churn on
+    indices and better memory reuse? We can then do linear time merge for rendering, and much faster
+    searching by account? Imports should be very efficient using this structure (linear time).
+  - We should make sure that if we are mapping from the immutable loro data structures to in-memory
+    structures for rendering, that we memoize and reuse as much as possible to avoid garbage
+    collection churn and unnecessary re-renders. With this structure we can potentially even reuse
+    all the existing monthly and yearly structures if they are unchanged during an import?
+
+- [] We should be using loro ephemeral state for tracking presence and active transaction.
+
+- [] Add description aliases - these are much like tags in that there is a single curated list of
   aliases. Stored as an optional ID on each transaction. There is a page where description aliases
   can be created, deleted and renamed. As part of this feature, we change the description field on
   transactions to make it read only - it can't be changed for imported transactions. Instead, the
@@ -110,68 +206,6 @@
 - [] We should drop the user state column from the user table until we use it (we'd want it to use
   the same sync and crdt logic, which is unnecessary complexity at this point).
 
-- [] We need a transfer tag, right? Should be used to determine who owes who what
-
-- [x] Fix ofx import
-
-- [] When importing, add a select to optionally either...
-
-  1. ignore all or
-  2. ignore duplicates or
-  3. do not ignore
-
-  ...transactions that are more than X days older than the newest existing transaction
-
-- [] Add two selects for configuring whether a transaction wheter a transaction must be an exact
-  match to be considered duplicate or whether additionally can be:
-
-  - 1. have a date within X days and
-  - 2. a similar description (using the current string similarity logic with threshold)
-
-- [] Duplicate checking should only ever compare existing transactions in account against new
-  transactions in account (i.e. identical transaction in a file or in an existing vault are never
-  considered as duplicates (unless they're already duplicates))
-
-- [] For CSV and OFX, I want to change the import flow a bit. All of the features that currently
-  exist are great and should be kept. However, I think it would be more streamlined if we switch to
-  always showing input and output data, and having tabs to configure the transformation. At any
-  point you can click import to complete the process. Specifically, the import process should show
-  the raw file data and a preview of the imported data as a single table (columns for both, with a
-  strong vertical line between). The raw data should be on the left, unordered, completely
-  unformatted. The preview columns should be representative of how the transactions will look in the
-  transactions table after parsing (show duplicates, formatted dates, tags, description aliases,
-  etc). Plus a status column at the end, same as what you currently have in the preview table. The
-  current preview table is really good. It just diverges from how it will look in the final
-  transaction view. Keep the total rows, valid transactions, rows with errors counts as well (the
-  current preview looks really good). Make sure this logic is reused - i.e. the import is where
-  these things are calculated for the new transactions. Then when import confirmed the new
-  transactions are merged into the existing data structure. Replace the wizard. The table should be
-  always visible on the right or below (if screen too small). On the left are tabs replacing the
-  wizard steps (use animate-ui tabs - see below), for choosing/creating template, column mapping,
-  formatting, etc. The "auto-detect" buttons should be automatically applied rather than needing to
-  be clicked.
-
-- [] When importing, add a checkbox to optionally choose to collapse whitespace between words for
-  descriptions (similar to how text works in html without pre).
-
-- When importing CSV, add a required account select to choose which account to import into. There
-  should be a account selector for OFX too - except with OFX we use the account from the file by
-  default if it matches an existing account. If the account id doesn't match any configured account
-  and the OFX file contains an account number and the account selected by the user doesn't have an
-  account id already, we apply the account id from the OFX file to the account.
-
-- [] Store transactions as ordered movable list and always use both date and transaction id to
-  locate transaction for update using binary search on date (i.e. never look up by id alone).
-  Ordering within date should be preserved when importing. Perhaps we store this as an additional
-  sub date index on each transaction? Should we group transactions by set of account >
-  chronologically ordered movable list of year > chronologically ordered movable list of month >
-  chronologically ordered movable list of transaction. Then track total count and position and by
-  person amounts owing in the year and month groupings? Potentially faster for aggregation and less
-  churn on indices? Can then do linear time merge for rendering, and much faster searching by
-  account? Imports should be very efficient using this structure (linear time)
-
-- [] We should be using loro ephemeral state for tracking presence and active transaction.
-
 - [] What is the current UX for adding a new user to a vault? I thought we had an invite flow? But I
   can't see it? Does it make sense that each user must be a person in the vault? You can then
   optionally invite that person to join the vault as a user? So the person page is also used for
@@ -198,18 +232,10 @@
   Supports importing CSV and ofx. Multiple people can collaborate in real-time. It intelligently
   applies your tags, aliases and allocations to new imports.
 
-- [x] Investigate Uppy 5.0 (https://uppy.io/blog/uppy-5.0/) as replacement for custom FileDropzone
-      component
-
-  - Current: Custom HTML5 drag-and-drop implementation in
-    src/components/features/import/FileDropzone.tsx
-  - Evaluate: Bundle size impact, features (progress, resumable uploads, file previews), integration
-    complexity
-  - Specifically using the useDropzone hook (if it provides any value)
-  - Nevermind - the current implementation is already really good
-
 - [] Investigate animate-ui shadcn registry components (https://animate-ui.com/docs/components)
 
+  - We've already used it for the import tabs - good to use it more broadly for consistency and
+    because it looks great!
   - Focus on /radix/ components: Dialog, Alert Dialog, Dropdown Menu, Tooltip, etc.
   - Evaluate: Animation quality, accessibility, bundle size, compatibility with existing shadcn/ui
     setup

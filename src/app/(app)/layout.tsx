@@ -268,6 +268,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 							iconMode
 						/>
 						<SyncStatus
+							className="-mt-3"
 							state={syncState}
 							hasUnsavedChanges={hasUnsavedChanges}
 							iconMode
@@ -278,8 +279,10 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 
 				{/* Vault Selector & Status - Expanded Mode */}
 				{!isCollapsed && (
-					<div className="space-y-2 border-b p-3">
+					<div className="flex flex-col items-full border-b p-3">
 						<VaultSelector
+							classNames={{ button: "w-full" }}
+							className="w-full"
 							vaults={vaultOptions}
 							currentVaultName={currentVaultName}
 							isLoading={isVaultsLoading}
@@ -288,7 +291,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 							}}
 							showAvatar
 						/>
-						<div className="flex items-center justify-between">
+						<div className="flex self-start items-center justify-between gap-4 bg-gray-50 rounded-b-lg border border-gray-100 pl-2 py-1 pr-4 ml-1">
 							<SyncStatus
 								state={syncState}
 								hasUnsavedChanges={hasUnsavedChanges}
@@ -311,8 +314,8 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 				{navigationContent(false)}
 			</aside>
 
-			{/* Main Content Area - no header, full height for virtualization */}
-			<main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{children}</main>
+			{/* Main Content Area - allows vertical scrolling for non-virtualized pages */}
+			<main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">{children}</main>
 		</div>
 	);
 }

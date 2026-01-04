@@ -4,32 +4,31 @@
  * New Import Page
  *
  * Page for importing transactions from CSV/OFX files.
+ * Uses the new ImportPanel with tabbed configuration.
  */
 
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo } from "react";
-import type { ColumnMapping } from "@/components/features/import/ColumnMappingStep";
-import type { ImportFormatting } from "@/components/features/import/FormattingStep";
-import { ImportWizard, type ParsedTransaction } from "@/components/features/import/ImportWizard";
+import { useCallback, useMemo, useState } from "react";
 import {
-	type ImportTemplate,
-	mappingsToTemplateFormat,
-} from "@/components/features/import/TemplateSelector";
+	type ImportContext,
+	ImportPanel,
+	type ImportTransactionData,
+} from "@/components/features/import/ImportPanel";
 import {
+	useActiveAccounts,
+	useActiveStatuses,
 	useActiveTransactions,
-	useAutomations,
 	useImportTemplates,
 	useVaultAction,
+	useVaultPreferences,
 } from "@/lib/crdt/context";
-import { DEFAULT_STATUS_IDS } from "@/lib/crdt/defaults";
 import type {
-	Automation,
-	AutomationApplication,
-	Import as ImportRecord,
+	Account,
 	ImportTemplate as ImportTemplateRecord,
+	Status,
 	Transaction,
 } from "@/lib/crdt/schema";
-import { applyAutomationsWithTracking, type TransactionChanges } from "@/lib/domain/automation";
+import type { ImportConfig } from "@/lib/import/types";
 
 /** Generate unique ID */
 function generateId(): string {
@@ -42,23 +41,69 @@ function generateId(): string {
 export default function NewImportPage() {
 	const router = useRouter();
 
-	// Get existing transactions for duplicate detection
+	// Lazy initialize initial file from sessionStorage (only runs once on mount)
+	const [initialFile] = useState<File | null>(() => {
+		// Check if we're on the client
+		if (typeof window === "undefined") return null;
+
+		const pending = sessionStorage.getItem("pendingImportFile");
+		if (!pending) return null;
+
+		sessionStorage.removeItem("pendingImportFile");
+		try {
+			const { name, content, type } = JSON.parse(pending);
+			const blob = new Blob([content], { type: type || "text/plain" });
+			return new File([blob], name, { type: type || "text/plain" });
+		} catch {
+			return null;
+		}
+	});
+
+	// Get data from vault
 	const transactions = useActiveTransactions();
+	const accounts = useActiveAccounts();
+	const statuses = useActiveStatuses();
 	const importTemplates = useImportTemplates();
-	const automations = useAutomations();
+	const preferences = useVaultPreferences();
+
+	// Default currency
+	const defaultCurrency = preferences?.defaultCurrency ?? "USD";
+
+	// Get default status ID (first status marked as default, or first status)
+	const defaultStatusId = useMemo(() => {
+		const defaultStatus = Object.values(statuses).find(
+			(s): s is Status & { $cid: string } => typeof s === "object" && s.isDefault
+		);
+		return defaultStatus?.id ?? Object.keys(statuses)[0] ?? "";
+	}, [statuses]);
 
 	// Actions
-	const addTransaction = useVaultAction((state, data: Transaction) => {
-		state.transactions[data.id] = data as (typeof state.transactions)[string];
-	});
-
-	const addImport = useVaultAction((state, data: ImportRecord) => {
-		state.imports[data.id] = data as (typeof state.imports)[string];
-	});
-
 	const addImportTemplate = useVaultAction((state, data: ImportTemplateRecord) => {
 		state.importTemplates[data.id] = data as (typeof state.importTemplates)[string];
 	});
+
+	const updateImportTemplate = useVaultAction(
+		(state, data: { id: string; config: ImportConfig; fileType: "csv" | "ofx" }) => {
+			const template = state.importTemplates[data.id];
+			if (template && typeof template === "object") {
+				// Only update column mappings for CSV files (OFX has fixed mappings)
+				if (data.fileType === "csv") {
+					template.columnMappings = data.config
+						.columnMappings as (typeof template)["columnMappings"];
+					// Update all formatting for CSV
+					template.formatting = data.config.formatting as (typeof template)["formatting"];
+				} else {
+					// For OFX, only update collapseWhitespace
+					template.formatting.collapseWhitespace = data.config.formatting.collapseWhitespace;
+				}
+				template.duplicateDetection = data.config
+					.duplicateDetection as (typeof template)["duplicateDetection"];
+				template.oldTransactionFilter = data.config
+					.oldTransactionFilter as (typeof template)["oldTransactionFilter"];
+				template.lastUsedAt = Date.now();
+			}
+		}
+	);
 
 	const deleteImportTemplate = useVaultAction((state, id: string) => {
 		const template = state.importTemplates[id];
@@ -67,146 +112,195 @@ export default function NewImportPage() {
 		}
 	});
 
-	const addAutomationApplication = useVaultAction((state, data: AutomationApplication) => {
-		state.automationApplications[data.id] = data as (typeof state.automationApplications)[string];
-	});
-
-	// Convert CRDT templates to component format
-	const templates = useMemo((): ImportTemplate[] => {
-		return Object.values(importTemplates)
-			.filter(
-				(t): t is ImportTemplateRecord & { $cid: string } =>
-					typeof t === "object" && t !== null && !t.deletedAt
-			)
-			.map((t) => ({
-				id: t.id,
-				name: t.name,
-				columnMappings: Object.fromEntries(
-					Object.entries(t.columnMappings ?? {}).filter(
-						([key, v]) => typeof v === "string" && key !== "$cid"
-					)
-				) as Record<string, string>,
-				formatting: {
-					thousandSeparator: t.formatting?.thousandSeparator ?? ",",
-					decimalSeparator: t.formatting?.decimalSeparator ?? ".",
-					dateFormat: t.formatting?.dateFormat ?? "yyyy-MM-dd",
-					amountInCents: false, // Not in schema yet
-					negateAmounts: false, // Not in schema yet
-				},
-				createdAt: 0,
-			}));
-	}, [importTemplates]);
-
-	// Existing transactions for duplicate detection
-	const existingTransactions = useMemo(() => {
-		return Object.values(transactions)
-			.filter((t): t is Transaction & { $cid: string } => typeof t === "object" && t !== null)
-			.map((t) => ({
-				date: t.date,
-				amount: t.amount,
-				description: t.description || t.notes || "",
-			}));
-	}, [transactions]);
-
-	/**
-	 * Apply automation changes to a transaction.
-	 */
-	function applyChangesToTransaction(
-		transaction: Transaction,
-		changes: TransactionChanges
-	): Transaction {
-		const result = { ...transaction } as Transaction;
-
-		if (changes.tagIds !== undefined) {
-			(result as { tagIds: string[] }).tagIds = changes.tagIds;
+	// Account actions for OFX import
+	const createAccount = useVaultAction(
+		(state, data: { id: string; name: string; accountNumber: string; currency: string }) => {
+			state.accounts[data.id] = {
+				id: data.id,
+				name: data.name,
+				accountNumber: data.accountNumber,
+				currency: data.currency,
+				deletedAt: 0,
+			} as (typeof state.accounts)[string];
 		}
-		if (changes.statusId !== undefined) {
-			(result as { statusId: string }).statusId = changes.statusId;
-		}
-		if (changes.allocations !== undefined) {
-			(result as { allocations: Record<string, number> }).allocations = changes.allocations;
-		}
+	);
 
-		return result;
-	}
+	const updateAccountNumber = useVaultAction(
+		(state, data: { accountId: string; accountNumber: string }) => {
+			const account = state.accounts[data.accountId];
+			if (account && typeof account === "object") {
+				account.accountNumber = data.accountNumber;
+			}
+		}
+	);
 
-	// Handle import complete
-	const handleImportComplete = useCallback(
-		(parsedTransactions: ParsedTransaction[], importId: string) => {
-			// Create the import record
-			addImport({
-				id: importId,
-				filename: "imported_file", // TODO: Pass filename through
-				transactionCount: parsedTransactions.length,
+	// Create import batch and transactions in CRDT
+	const createImportBatch = useVaultAction(
+		(
+			state,
+			data: {
+				importId: string;
+				fileName: string;
+				transactions: Array<{
+					id: string;
+					date: string;
+					description: string;
+					amount: number;
+					accountId: string;
+					statusId: string;
+					duplicateOf: string | null;
+				}>;
+			}
+		) => {
+			// Create import record
+			state.imports[data.importId] = {
+				id: data.importId,
+				filename: data.fileName,
+				transactionCount: data.transactions.length,
 				createdAt: Date.now(),
 				deletedAt: 0,
-			} as ImportRecord);
+			} as (typeof state.imports)[string];
 
-			// Use "For Review" status for all imported transactions
-			const defaultStatusId = DEFAULT_STATUS_IDS.FOR_REVIEW;
+			// Create transactions
+			for (const tx of data.transactions) {
+				state.transactions[tx.id] = {
+					id: tx.id,
+					date: tx.date,
+					description: tx.description,
+					notes: "",
+					amount: tx.amount,
+					accountId: tx.accountId,
+					tagIds: [] as string[],
+					statusId: tx.statusId,
+					importId: data.importId,
+					allocations: {} as Record<string, number>,
+					duplicateOf: tx.duplicateOf ?? "",
+					deletedAt: 0,
+				} as (typeof state.transactions)[string];
+			}
+		}
+	);
 
-			// Convert automations to array for processing
-			const automationList = Object.values(automations).filter(
-				(a): a is NonNullable<typeof a> => typeof a === "object" && a !== null && !a.deletedAt
-			) as Automation[];
+	// Convert CRDT transactions to array
+	const existingTransactions = useMemo(() => {
+		return Object.values(transactions).filter(
+			(t): t is Transaction => typeof t === "object" && t !== null && !t.deletedAt
+		);
+	}, [transactions]);
 
-			// Create base transactions first (we need them for automation evaluation)
-			const newTransactions = parsedTransactions.map((tx) => ({
+	// Convert CRDT accounts to array
+	const accountsList = useMemo(() => {
+		return Object.values(accounts).filter(
+			(a): a is Account => typeof a === "object" && a !== null && !a.deletedAt
+		);
+	}, [accounts]);
+
+	// Convert CRDT templates to array
+	const templatesList = useMemo(() => {
+		return Object.values(importTemplates).filter(
+			(t): t is ImportTemplateRecord => typeof t === "object" && t !== null && !t.deletedAt
+		);
+	}, [importTemplates]);
+
+	// Handle creating transactions from import
+	const handleCreateTransactions = useCallback(
+		(
+			transactionData: ImportTransactionData[],
+			fileName: string,
+			context: ImportContext
+		): string => {
+			const importId = generateId();
+
+			// Handle account action first (create or update account)
+			let accountIdToUse = transactionData[0]?.accountId;
+
+			if (context.accountAction?.type === "create-new") {
+				// Create new account with detected ID
+				const newAccountId = generateId();
+				createAccount({
+					id: newAccountId,
+					name: context.accountAction.accountName,
+					accountNumber: context.accountAction.accountNumber,
+					currency: defaultCurrency,
+				});
+				accountIdToUse = newAccountId;
+			} else if (context.accountAction?.type === "apply-id") {
+				// Update existing account with detected ID
+				updateAccountNumber({
+					accountId: context.accountAction.accountId,
+					accountNumber: context.accountAction.accountNumber,
+				});
+			}
+
+			// Map import data to full transaction records
+			const transactionsToCreate = transactionData.map((tx) => ({
 				id: generateId(),
 				date: tx.date,
 				description: tx.description,
-				notes: tx.memo || "",
 				amount: tx.amount,
-				accountId: "", // TODO: Allow account selection in wizard
-				tagIds: [] as string[],
+				accountId: accountIdToUse ?? tx.accountId,
 				statusId: defaultStatusId,
+				duplicateOf: tx.duplicateOf,
+			}));
+
+			// Create import batch and all transactions in one action
+			createImportBatch({
 				importId,
-				allocations: {} as Record<string, number>,
-				duplicateOf: tx.isDuplicate ? "suspected" : "",
-				deletedAt: 0,
-			})) as unknown as Transaction[];
+				fileName,
+				transactions: transactionsToCreate,
+			});
 
-			// Apply automations and track changes for undo
-			const { appliedChanges, applications } = applyAutomationsWithTracking(
-				automationList,
-				newTransactions
-			);
-
-			// Create transactions with automation changes applied
-			for (const tx of newTransactions) {
-				const changes = appliedChanges.get(tx.id);
-				const finalTransaction = changes ? applyChangesToTransaction(tx, changes) : tx;
-				addTransaction(finalTransaction);
-			}
-
-			// Store automation applications for undo capability
-			for (const application of applications) {
-				addAutomationApplication(application as AutomationApplication);
-			}
-
-			// Navigate to transactions page
-			router.push("/transactions");
+			return importId;
 		},
-		[addImport, addTransaction, addAutomationApplication, router, automations]
+		[createImportBatch, createAccount, updateAccountNumber, defaultStatusId, defaultCurrency]
 	);
 
-	// Handle save template
+	// Handle import complete - navigate to transactions
+	const handleImportComplete = useCallback(() => {
+		router.push("/transactions");
+	}, [router]);
+
+	// Handle cancel - navigate back to imports list
+	const handleCancel = useCallback(() => {
+		router.push("/imports");
+	}, [router]);
+
+	// Handle save template (with config from ImportPanel)
+	// For OFX files, we don't save column mappings or CSV-specific formatting (they're fixed/irrelevant)
 	const handleSaveTemplate = useCallback(
-		(name: string, mappings: ColumnMapping[], formatting: ImportFormatting) => {
+		(name: string, config: ImportConfig, fileType: "csv" | "ofx") => {
 			addImportTemplate({
 				id: generateId(),
 				name,
-				columnMappings: mappingsToTemplateFormat(mappings) as Record<string, string>,
-				formatting: {
-					hasHeaders: true,
-					thousandSeparator: formatting.thousandSeparator,
-					decimalSeparator: formatting.decimalSeparator,
-					dateFormat: formatting.dateFormat,
-				},
+				// Only save column mappings for CSV files
+				columnMappings: fileType === "csv" ? config.columnMappings : {},
+				// For OFX, only save collapseWhitespace; for CSV, save all formatting
+				formatting:
+					fileType === "csv"
+						? config.formatting
+						: {
+								hasHeaders: true, // default
+								thousandSeparator: ",", // default
+								decimalSeparator: ".", // default
+								dateFormat: "yyyy-MM-dd", // default
+								collapseWhitespace: config.formatting.collapseWhitespace,
+							},
+				duplicateDetection: config.duplicateDetection,
+				oldTransactionFilter: config.oldTransactionFilter,
+				lastUsedAt: Date.now(),
 				deletedAt: 0,
 			} as ImportTemplateRecord);
 		},
 		[addImportTemplate]
+	);
+
+	// Handle update template (for auto-update on import)
+	// For OFX files, we don't update column mappings (they're fixed)
+	const handleUpdateTemplate = useCallback(
+		(templateId: string, config: ImportConfig, fileType: "csv" | "ofx") => {
+			updateImportTemplate({ id: templateId, config, fileType });
+		},
+		[updateImportTemplate]
 	);
 
 	// Handle delete template
@@ -218,7 +312,7 @@ export default function NewImportPage() {
 	);
 
 	return (
-		<div className="mx-auto max-w-3xl space-y-6">
+		<div className="space-y-6 p-4">
 			<div>
 				<h1 className="font-bold text-2xl">Import Transactions</h1>
 				<p className="text-muted-foreground">
@@ -227,12 +321,18 @@ export default function NewImportPage() {
 			</div>
 
 			<div className="rounded-lg border p-6">
-				<ImportWizard
-					templates={templates}
-					onImportComplete={handleImportComplete}
-					onSaveTemplate={handleSaveTemplate}
-					onDeleteTemplate={handleDeleteTemplate}
+				<ImportPanel
 					existingTransactions={existingTransactions}
+					accounts={accountsList}
+					templates={templatesList}
+					defaultCurrency={defaultCurrency}
+					initialFile={initialFile}
+					onCreateTransactions={handleCreateTransactions}
+					onImportComplete={handleImportComplete}
+					onCancel={handleCancel}
+					onSaveTemplate={handleSaveTemplate}
+					onUpdateTemplate={handleUpdateTemplate}
+					onDeleteTemplate={handleDeleteTemplate}
 				/>
 			</div>
 		</div>
