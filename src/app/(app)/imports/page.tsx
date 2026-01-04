@@ -5,21 +5,25 @@
  *
  * Lists all import batches with the ability to view details
  * and delete imports (along with their transactions).
- * Also provides a dropzone for quick file import.
+ * The entire content area is a dropzone for quick file import.
  */
 
+import { Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback } from "react";
-import { FileDropzone, type ImportData, ImportsTable } from "@/components/features/import";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useCallback, useRef, useState } from "react";
+import { ACCEPTED_EXTENSIONS, type ImportData, ImportsTable } from "@/components/features/import";
+import { Button } from "@/components/ui/button";
 import { useActiveImports, useVaultAction } from "@/lib/crdt/context";
 import type { Import as ImportRecord } from "@/lib/crdt/schema";
+import { cn } from "@/lib/utils";
 
 /**
  * Imports list page component.
  */
 export default function ImportsPage() {
 	const router = useRouter();
+	const fileInputRef = useRef<HTMLInputElement>(null);
+	const [isDragging, setIsDragging] = useState(false);
 
 	// Get all active imports from CRDT state
 	const importsMap = useActiveImports();
@@ -65,9 +69,17 @@ export default function ImportsPage() {
 		deleteImport(id);
 	};
 
+	// Validate file extension
+	const validateFile = useCallback((file: File): boolean => {
+		const extension = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
+		return ACCEPTED_EXTENSIONS.includes(extension);
+	}, []);
+
 	// Handle file selection - store in sessionStorage and navigate
 	const handleFileSelect = useCallback(
 		(file: File) => {
+			if (!validateFile(file)) return;
+
 			// Read file content and store in sessionStorage for the new page
 			const reader = new FileReader();
 			reader.onload = () => {
@@ -83,32 +95,110 @@ export default function ImportsPage() {
 			};
 			reader.readAsText(file);
 		},
-		[router]
+		[router, validateFile]
 	);
 
+	// Drag and drop handlers
+	const handleDragEnter = useCallback((e: React.DragEvent) => {
+		e.preventDefault();
+		e.stopPropagation();
+		setIsDragging(true);
+	}, []);
+
+	const handleDragLeave = useCallback((e: React.DragEvent) => {
+		e.preventDefault();
+		e.stopPropagation();
+		// Only set dragging to false if we're leaving the container (not entering a child)
+		const rect = e.currentTarget.getBoundingClientRect();
+		const x = e.clientX;
+		const y = e.clientY;
+		if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) {
+			setIsDragging(false);
+		}
+	}, []);
+
+	const handleDragOver = useCallback((e: React.DragEvent) => {
+		e.preventDefault();
+		e.stopPropagation();
+	}, []);
+
+	const handleDrop = useCallback(
+		(e: React.DragEvent) => {
+			e.preventDefault();
+			e.stopPropagation();
+			setIsDragging(false);
+
+			const files = e.dataTransfer.files;
+			if (files.length > 0) {
+				handleFileSelect(files[0]);
+			}
+		},
+		[handleFileSelect]
+	);
+
+	const handleButtonClick = () => {
+		fileInputRef.current?.click();
+	};
+
+	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const files = e.target.files;
+		if (files && files.length > 0) {
+			handleFileSelect(files[0]);
+		}
+		// Reset input to allow selecting the same file again
+		e.target.value = "";
+	};
+
 	return (
-		<div className="flex h-full flex-col">
-			{/* Page header with dropzone */}
-			<div className="border-b px-6 py-4">
-				<div className="mb-4">
-					<h1 className="font-semibold text-2xl">Imports</h1>
-					<p className="mt-1 text-muted-foreground text-sm">
-						Import transactions from your bank statements.
-					</p>
+		<div
+			className={cn(
+				"flex h-full flex-col relative",
+				isDragging && "ring-2 ring-inset ring-primary/50"
+			)}
+			onDragEnter={handleDragEnter}
+			onDragLeave={handleDragLeave}
+			onDragOver={handleDragOver}
+			onDrop={handleDrop}
+		>
+			{/* Hidden file input */}
+			<input
+				ref={fileInputRef}
+				type="file"
+				accept={ACCEPTED_EXTENSIONS.join(",")}
+				onChange={handleInputChange}
+				className="hidden"
+			/>
+
+			{/* Drag overlay */}
+			{isDragging && (
+				<div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+					<div className="flex flex-col items-center gap-2 text-primary">
+						<Upload className="h-12 w-12" />
+						<p className="font-medium text-lg">Drop file to import</p>
+						<p className="text-sm text-muted-foreground">CSV, OFX, or QFX files</p>
+					</div>
 				</div>
-				<FileDropzone onFileSelect={handleFileSelect} className="w-full" />
+			)}
+
+			{/* Page header */}
+			<div className="border-b px-6 py-4">
+				<div className="flex items-center justify-between">
+					<div>
+						<h1 className="font-semibold text-2xl">Imports</h1>
+						<p className="mt-1 text-muted-foreground text-sm">
+							Import transactions from your bank statements.
+						</p>
+					</div>
+					<Button onClick={handleButtonClick}>
+						<Upload className="h-4 w-4 mr-2" />
+						Import new file
+					</Button>
+				</div>
 			</div>
 
 			{/* Imports table */}
 			<div className="flex-1 overflow-auto p-6">
-				<Card>
-					<CardHeader>
-						<CardTitle>Import History</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<ImportsTable imports={imports} onDeleteImport={handleDeleteImport} />
-					</CardContent>
-				</Card>
+				<ImportsTable imports={imports} onDeleteImport={handleDeleteImport} />
 			</div>
 		</div>
 	);

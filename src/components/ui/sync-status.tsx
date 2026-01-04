@@ -14,7 +14,15 @@
  * Also handles beforeunload warning for unsaved changes.
  */
 
-import { Cloud, CloudOff, CloudUpload, type LucideIcon, RefreshCw } from "lucide-react";
+import {
+	Cloud,
+	CloudBackup,
+	CloudCheck,
+	CloudOff,
+	CloudUpload,
+	type LucideIcon,
+	RefreshCw,
+} from "lucide-react";
 import * as React from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { SyncState } from "@/lib/sync";
@@ -49,7 +57,7 @@ const stateConfig: Record<SyncState, StateConfig> = {
 		bgColor: "bg-green-100 dark:bg-green-900/30",
 		textColor: "text-green-600 dark:text-green-400",
 		showSpinner: false,
-		icon: Cloud,
+		icon: CloudCheck,
 	},
 	saving: {
 		label: "Saving...",
@@ -99,7 +107,7 @@ export function SyncStatus({
 		const iconElement = (
 			<div
 				className={cn(
-					"relative flex h-8 w-8 items-center justify-center rounded-full",
+					"relative flex h-6 w-6 items-center justify-center rounded-full",
 					displayState.bgColor
 				)}
 				role="status"

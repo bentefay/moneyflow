@@ -253,6 +253,11 @@ export default function NewImportPage() {
 		router.push("/transactions");
 	}, [router]);
 
+	// Handle cancel - navigate back to imports list
+	const handleCancel = useCallback(() => {
+		router.push("/imports");
+	}, [router]);
+
 	// Handle save template (with config from ImportPanel)
 	const handleSaveTemplate = useCallback(
 		(name: string, config: ImportConfig) => {
@@ -304,6 +309,7 @@ export default function NewImportPage() {
 					initialFile={initialFile}
 					onCreateTransactions={handleCreateTransactions}
 					onImportComplete={handleImportComplete}
+					onCancel={handleCancel}
 					onSaveTemplate={handleSaveTemplate}
 					onUpdateTemplate={handleUpdateTemplate}
 					onDeleteTemplate={handleDeleteTemplate}

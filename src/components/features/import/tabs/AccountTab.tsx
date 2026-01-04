@@ -25,6 +25,8 @@ export interface AccountActionMessageProps {
 	accountAction: OFXAccountAction;
 	/** Detected account number from OFX file (for matched message) */
 	detectedAccountNumber?: string | null;
+	/** Target account name (for apply-id message) */
+	targetAccountName?: string | null;
 	/** Additional CSS classes */
 	className?: string;
 }
@@ -57,6 +59,7 @@ export interface AccountTabProps {
 export function AccountActionMessage({
 	accountAction,
 	detectedAccountNumber,
+	targetAccountName,
 	className,
 }: AccountActionMessageProps) {
 	if (!accountAction) return null;
@@ -96,7 +99,7 @@ export function AccountActionMessage({
 						<code className="bg-blue-100 dark:bg-blue-900/50 px-1 rounded">
 							...{accountAction.accountNumber.slice(-4)}
 						</code>{" "}
-						to this account on import
+						from file to account <strong>{targetAccountName ?? "Unknown"}</strong> on import
 					</span>
 				</div>
 			);

@@ -76,6 +76,8 @@ export interface ImportPanelProps {
 	) => string;
 	/** Callback when import is complete */
 	onImportComplete: () => void;
+	/** Callback when cancel is clicked (defaults to reset) */
+	onCancel?: () => void;
 	/** Callback to save a new template (name + config) */
 	onSaveTemplate?: (name: string, config: ImportConfig) => void;
 	/** Callback to update an existing template's config */
@@ -101,6 +103,7 @@ export function ImportPanel({
 	initialFile,
 	onCreateTransactions,
 	onImportComplete,
+	onCancel,
 	onSaveTemplate,
 	onUpdateTemplate,
 	onDeleteTemplate,
@@ -274,7 +277,15 @@ export function ImportPanel({
 					</div>
 				</div>
 				<div className="flex items-center gap-2">
-					<Button type="button" variant="ghost" size="sm" onClick={reset}>
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
+						onClick={() => {
+							reset();
+							onCancel?.();
+						}}
+					>
 						<X className="h-4 w-4 mr-1" />
 						Cancel
 					</Button>
@@ -299,6 +310,11 @@ export function ImportPanel({
 				<AccountActionMessage
 					accountAction={session.accountAction}
 					detectedAccountNumber={session.detectedAccountNumber}
+					targetAccountName={
+						session.selectedAccountId
+							? accounts.find((a) => a.id === session.selectedAccountId)?.name
+							: null
+					}
 				/>
 			)}
 
@@ -310,7 +326,7 @@ export function ImportPanel({
 			/>
 
 			{/* Main content: Table + Config */}
-			<div className="grid gap-4 lg:grid-cols-[1fr_350px]">
+			<div className="flex flex-wrap gap-4">
 				{/* Split table */}
 				<ImportTable
 					rawRows={session.rawRows}
@@ -327,7 +343,7 @@ export function ImportPanel({
 					showFiltered={showFiltered}
 					onToggleFiltered={handleToggleFiltered}
 					maxDisplayRows={100}
-					className="min-h-[400px]"
+					className="min-h-[400px] flex-1 min-w-0 lg:min-w-[500px]"
 				/>
 
 				{/* Config tabs */}
@@ -343,7 +359,7 @@ export function ImportPanel({
 					selectedAccountId={session.selectedAccountId}
 					onSelectAccount={selectAccount}
 					fileType={session.fileType}
-					className="h-fit"
+					className="w-full lg:w-[350px] lg:shrink-0 h-fit"
 				>
 					{/* Template Tab */}
 					<TabsContent value="template">

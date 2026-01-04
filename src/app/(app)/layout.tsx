@@ -268,6 +268,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 							iconMode
 						/>
 						<SyncStatus
+							className="-mt-4"
 							state={syncState}
 							hasUnsavedChanges={hasUnsavedChanges}
 							iconMode
@@ -290,7 +291,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 							}}
 							showAvatar
 						/>
-						<div className="flex self-start items-center justify-between gap-4 bg-gray-50 rounded-b-lg border border-gray-100 pl-2 py-1 pr-4 ml-3">
+						<div className="flex self-start items-center justify-between gap-4 bg-gray-50 rounded-b-lg border border-gray-100 pl-2 py-1 pr-4 ml-1">
 							<SyncStatus
 								state={syncState}
 								hasUnsavedChanges={hasUnsavedChanges}

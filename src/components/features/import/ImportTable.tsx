@@ -16,6 +16,7 @@ import { useMemo } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { ImportSummaryStats, PreviewTransaction } from "@/lib/import/types";
 import { cn } from "@/lib/utils";
+import { formatTransactionDate } from "@/lib/utils/date-format";
 
 // ============================================================================
 // Types
@@ -243,7 +244,11 @@ function PreviewTable({ transactions, showFiltered, maxRows }: PreviewTableProps
 									</TooltipProvider>
 								</td>
 								<td className="px-2 py-1 whitespace-nowrap tabular-nums">
-									{tx.date || <span className="text-muted-foreground">—</span>}
+									{tx.date ? (
+										formatTransactionDate(tx.date)
+									) : (
+										<span className="text-muted-foreground">—</span>
+									)}
 								</td>
 								<td className="px-2 py-1 truncate max-w-[250px]" title={tx.description}>
 									{tx.description || <span className="text-muted-foreground">—</span>}
