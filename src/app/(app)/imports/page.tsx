@@ -5,12 +5,12 @@
  *
  * Lists all import batches with the ability to view details
  * and delete imports (along with their transactions).
+ * Also provides a dropzone for quick file import.
  */
 
-import { Plus } from "lucide-react";
-import Link from "next/link";
-import { type ImportData, ImportsTable } from "@/components/features/import";
-import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+import { useCallback } from "react";
+import { FileDropzone, type ImportData, ImportsTable } from "@/components/features/import";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useActiveImports, useVaultAction } from "@/lib/crdt/context";
 import type { Import as ImportRecord } from "@/lib/crdt/schema";
@@ -19,6 +19,8 @@ import type { Import as ImportRecord } from "@/lib/crdt/schema";
  * Imports list page component.
  */
 export default function ImportsPage() {
+	const router = useRouter();
+
 	// Get all active imports from CRDT state
 	const importsMap = useActiveImports();
 
@@ -63,22 +65,38 @@ export default function ImportsPage() {
 		deleteImport(id);
 	};
 
+	// Handle file selection - store in sessionStorage and navigate
+	const handleFileSelect = useCallback(
+		(file: File) => {
+			// Read file content and store in sessionStorage for the new page
+			const reader = new FileReader();
+			reader.onload = () => {
+				sessionStorage.setItem(
+					"pendingImportFile",
+					JSON.stringify({
+						name: file.name,
+						content: reader.result,
+						type: file.type,
+					})
+				);
+				router.push("/imports/new");
+			};
+			reader.readAsText(file);
+		},
+		[router]
+	);
+
 	return (
 		<div className="flex h-full flex-col">
-			{/* Page header */}
-			<div className="flex items-center justify-between border-b px-6 py-4">
-				<div>
+			{/* Page header with dropzone */}
+			<div className="border-b px-6 py-4">
+				<div className="mb-4">
 					<h1 className="font-semibold text-2xl">Imports</h1>
 					<p className="mt-1 text-muted-foreground text-sm">
 						Import transactions from your bank statements.
 					</p>
 				</div>
-				<Button asChild>
-					<Link href="/imports/new">
-						<Plus className="mr-2 h-4 w-4" />
-						New Import
-					</Link>
-				</Button>
+				<FileDropzone onFileSelect={handleFileSelect} className="w-full" />
 			</div>
 
 			{/* Imports table */}

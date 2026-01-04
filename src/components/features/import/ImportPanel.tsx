@@ -14,7 +14,7 @@
  */
 
 import { Loader2, Upload, X } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 // Hooks and Types
 import { useImportState } from "@/hooks/use-import-state";
@@ -26,7 +26,14 @@ import { ConfigTabs, TabsContent } from "./ConfigTabs";
 import { FileDropzone } from "./FileDropzone";
 import { ImportSummary } from "./ImportSummary";
 import { ImportTable } from "./ImportTable";
-import { AccountTab, DuplicatesTab, FormattingTab, MappingTab, TemplateTab } from "./tabs";
+import {
+	AccountActionMessage,
+	AccountTab,
+	DuplicatesTab,
+	FormattingTab,
+	MappingTab,
+	TemplateTab,
+} from "./tabs";
 
 // ============================================================================
 // Types
@@ -59,6 +66,8 @@ export interface ImportPanelProps {
 	templates: ImportTemplate[];
 	/** Default currency code for amount parsing */
 	defaultCurrency: string;
+	/** Initial file to load on mount (e.g., from file drop on imports page) */
+	initialFile?: File | null;
 	/** Callback to create transactions - returns import batch ID */
 	onCreateTransactions: (
 		transactions: ImportTransactionData[],
@@ -89,6 +98,7 @@ export function ImportPanel({
 	accounts,
 	templates,
 	defaultCurrency,
+	initialFile,
 	onCreateTransactions,
 	onImportComplete,
 	onSaveTemplate,
@@ -99,6 +109,7 @@ export function ImportPanel({
 	// State
 	const [showFiltered, setShowFiltered] = useState(true);
 	const [isImporting, setIsImporting] = useState(false);
+	const hasLoadedInitialFile = useRef(false);
 
 	// Import state hook
 	const {
@@ -119,6 +130,14 @@ export function ImportPanel({
 		templates,
 		defaultCurrency,
 	});
+
+	// Load initial file if provided
+	useEffect(() => {
+		if (initialFile && !hasLoadedInitialFile.current) {
+			hasLoadedInitialFile.current = true;
+			void loadFile(initialFile);
+		}
+	}, [initialFile, loadFile]);
 
 	// Handlers
 	const handleFileDrop = useCallback(
@@ -149,9 +168,9 @@ export function ImportPanel({
 
 		setIsImporting(true);
 		try {
-			// Collect valid transactions to import
+			// Collect valid transactions to import (valid + duplicate, not filtered/invalid)
 			const transactionsToImport: ImportTransactionData[] = previewTransactions
-				.filter((tx) => tx.status === "valid")
+				.filter((tx) => tx.status === "valid" || tx.status === "duplicate")
 				.map((tx) => ({
 					date: tx.date,
 					description: tx.description,
@@ -268,17 +287,27 @@ export function ImportPanel({
 						) : (
 							<>
 								<Upload className="h-4 w-4 mr-2" />
-								Import{" "}
-								{summaryStats.validCount - summaryStats.duplicateCount - summaryStats.filteredCount}{" "}
-								Transactions
+								Import {summaryStats.validCount + summaryStats.duplicateCount} Transactions
 							</>
 						)}
 					</Button>
 				</div>
 			</div>
 
+			{/* Account action message (visible at top level for OFX files) */}
+			{session.accountAction && (
+				<AccountActionMessage
+					accountAction={session.accountAction}
+					detectedAccountNumber={session.detectedAccountNumber}
+				/>
+			)}
+
 			{/* Summary statistics */}
-			<ImportSummary stats={summaryStats} canImport={canImport} />
+			<ImportSummary
+				stats={summaryStats}
+				canImport={canImport}
+				needsAccountSelection={!session.selectedAccountId && session.fileType === "csv"}
+			/>
 
 			{/* Main content: Table + Config */}
 			<div className="grid gap-4 lg:grid-cols-[1fr_350px]">

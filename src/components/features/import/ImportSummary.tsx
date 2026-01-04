@@ -24,6 +24,8 @@ export interface ImportSummaryProps {
 	stats: ImportSummaryStats;
 	/** Whether import can proceed (has valid transactions) */
 	canImport: boolean;
+	/** Whether an account needs to be selected (CSV files) */
+	needsAccountSelection?: boolean;
 	/** Additional CSS classes */
 	className?: string;
 }
@@ -68,11 +70,19 @@ function StatCard({ label, value, icon: Icon, iconColor, bgColor, detail }: Stat
 /**
  * ImportSummary component.
  */
-export function ImportSummary({ stats, canImport, className }: ImportSummaryProps) {
+export function ImportSummary({
+	stats,
+	canImport,
+	needsAccountSelection,
+	className,
+}: ImportSummaryProps) {
 	const { totalRows, validCount, errorCount, duplicateCount, filteredCount } = stats;
 
-	// Calculate what will actually be imported
-	const willImportCount = validCount - duplicateCount - filteredCount;
+	// Calculate what will actually be imported:
+	// Valid + Duplicates are imported (duplicates get duplicateOf set)
+	// Filtered are skipped (old transactions based on mode)
+	// Errors are always skipped
+	const willImportCount = validCount + duplicateCount;
 
 	return (
 		<div className={cn("space-y-4", className)}>
@@ -102,7 +112,7 @@ export function ImportSummary({ stats, canImport, className }: ImportSummaryProp
 					value={duplicateCount}
 					icon={Copy}
 					iconColor="text-amber-600 dark:text-amber-400"
-					detail={duplicateCount > 0 ? "Will skip" : undefined}
+					detail={duplicateCount > 0 ? "Will be marked" : undefined}
 				/>
 				<StatCard
 					label="Old"
@@ -129,7 +139,8 @@ export function ImportSummary({ stats, canImport, className }: ImportSummaryProp
 						{duplicateCount > 0 && (
 							<span className="text-green-700 dark:text-green-300">
 								{" "}
-								({duplicateCount} duplicate{duplicateCount !== 1 ? "s" : ""} skipped)
+								(including {duplicateCount} potential duplicate
+								{duplicateCount !== 1 ? "s" : ""})
 							</span>
 						)}
 						{filteredCount > 0 && (
@@ -141,7 +152,9 @@ export function ImportSummary({ stats, canImport, className }: ImportSummaryProp
 					</p>
 				) : (
 					<p className="text-sm text-amber-800 dark:text-amber-200">
-						{errorCount === totalRows ? (
+						{needsAccountSelection ? (
+							<>Please select an account to import transactions</>
+						) : errorCount === totalRows ? (
 							<>
 								No valid transactions found. Please check your column mappings and formatting
 								settings.
@@ -153,9 +166,6 @@ export function ImportSummary({ stats, canImport, className }: ImportSummaryProp
 										<span className="font-medium">{errorCount}</span> row
 										{errorCount !== 1 ? "s have" : " has"} errors.{" "}
 									</>
-								)}
-								{willImportCount === 0 && validCount > 0 && (
-									<>All valid transactions are either duplicates or filtered by date.</>
 								)}
 							</>
 						)}

@@ -119,7 +119,9 @@ function RawTable({ rows, headers, hasHeaders, columnMappings, maxRows }: RawTab
 
 	return (
 		<div className="flex-1 min-w-0 overflow-auto">
-			<div className="text-xs font-medium text-muted-foreground mb-2 px-2">Raw File Data</div>
+			<div className="px-3 py-2 border-b bg-muted/30 text-sm font-medium text-muted-foreground">
+				Raw File Data
+			</div>
 			<table className="w-full text-sm">
 				<thead className="bg-muted/50 sticky top-0">
 					<tr>
@@ -182,7 +184,9 @@ function PreviewTable({ transactions, showFiltered, maxRows }: PreviewTableProps
 
 	return (
 		<div className="flex-1 min-w-0 overflow-auto">
-			<div className="text-xs font-medium text-muted-foreground mb-2 px-2">Import Preview</div>
+			<div className="px-3 py-2 border-b bg-muted/30 text-sm font-medium text-muted-foreground">
+				Import Preview
+			</div>
 			<table className="w-full text-sm">
 				<thead className="bg-muted/50 sticky top-0">
 					<tr>
@@ -321,7 +325,9 @@ export function ImportTable({
 				className={cn(
 					"flex border rounded-lg overflow-hidden bg-card",
 					// Stack on mobile, side-by-side on desktop
-					"flex-col lg:flex-row"
+					"flex-col lg:flex-row",
+					// Constrained height with scrolling
+					"max-h-[500px] min-h-[300px]"
 				)}
 			>
 				{/* Raw data (left) */}

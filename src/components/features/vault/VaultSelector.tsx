@@ -40,6 +40,7 @@ export interface VaultSelectorProps {
 	onCreateVault?: () => void;
 	/** Additional CSS classes */
 	className?: string;
+	classNames?: { button?: string };
 	/** Use icon mode (compact circle with first letter) */
 	iconMode?: boolean;
 	/** Show avatar circle alongside vault name in expanded mode */
@@ -55,6 +56,7 @@ export function VaultSelector({
 	isLoading = false,
 	onCreateVault,
 	className,
+	classNames,
 	iconMode = false,
 	showAvatar = false,
 }: VaultSelectorProps) {
@@ -157,7 +159,8 @@ export function VaultSelector({
 				className={cn(
 					"flex items-center gap-2 rounded-md border px-3 py-2 font-medium text-sm",
 					"hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-					isLoading && "cursor-wait opacity-50"
+					isLoading && "cursor-wait opacity-50",
+					classNames?.button
 				)}
 				disabled={isLoading}
 			>

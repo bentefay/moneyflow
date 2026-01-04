@@ -278,8 +278,10 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 
 				{/* Vault Selector & Status - Expanded Mode */}
 				{!isCollapsed && (
-					<div className="space-y-2 border-b p-3">
+					<div className="flex flex-col items-full border-b p-3">
 						<VaultSelector
+							classNames={{ button: "w-full" }}
+							className="w-full"
 							vaults={vaultOptions}
 							currentVaultName={currentVaultName}
 							isLoading={isVaultsLoading}
@@ -288,7 +290,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 							}}
 							showAvatar
 						/>
-						<div className="flex items-center justify-between">
+						<div className="flex self-start items-center justify-between gap-4 bg-gray-50 rounded-b-lg border border-gray-100 pl-2 py-1 pr-4 ml-3">
 							<SyncStatus
 								state={syncState}
 								hasUnsavedChanges={hasUnsavedChanges}

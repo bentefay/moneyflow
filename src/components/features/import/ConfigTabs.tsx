@@ -132,7 +132,7 @@ export function ConfigTabs({
 	return (
 		<div className={cn("flex flex-col", className)}>
 			<Tabs value={activeTab} onValueChange={handleTabChange}>
-				<TabsList className="w-full flex-wrap justify-start">
+				<TabsList className="w-full h-auto flex-wrap justify-start">
 					{visibleTabs.map((tab) => (
 						<TabsTrigger key={tab.id} value={tab.id} className="gap-1.5">
 							<tab.icon className="h-4 w-4" />

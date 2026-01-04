@@ -11,6 +11,7 @@
  */
 
 import { useCallback, useMemo, useState } from "react";
+import { autoDetectColumnMappings } from "@/components/features/import/ColumnMappingStep";
 import type { Account, ImportTemplate, Transaction } from "@/lib/crdt/schema";
 import type { MoneyMinorUnits } from "@/lib/domain/currency";
 import { toMinorUnitsForCurrency } from "@/lib/domain/currency";
@@ -189,7 +190,7 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 						for (const tx of stmt.transactions) {
 							rawRows.push([
 								tx.datePosted.toString(),
-								tx.name ?? tx.memo ?? "",
+								tx.name || tx.memo || "",
 								tx.amount.toString(),
 							]);
 						}
@@ -248,6 +249,9 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 						"1": "description",
 						"2": "amount",
 					};
+				} else if (!recentTemplate) {
+					// For CSV files without a template, auto-detect columns from headers
+					config.columnMappings = autoDetectColumnMappings(headers);
 				}
 
 				// Determine account selection and action for OFX files

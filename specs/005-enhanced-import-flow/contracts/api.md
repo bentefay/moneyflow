@@ -3,7 +3,8 @@
 **Feature**: 005-enhanced-import-flow  
 **Date**: 3 January 2026
 
-This feature is entirely client-side - no new server endpoints are required. All data flows through the existing CRDT sync mechanism.
+This feature is entirely client-side - no new server endpoints are required. All data flows through
+the existing CRDT sync mechanism.
 
 ## Internal TypeScript Interfaces
 
@@ -35,12 +36,12 @@ export interface FilterStats {
 
 /**
  * Filters transactions based on age and duplicate status.
- * 
+ *
  * @param transactions - Array of transactions with date and isDuplicate fields
  * @param newestExistingDate - ISO date of the newest transaction in vault, or null if vault empty
  * @param config - Filter configuration
  * @returns Object with included/excluded arrays and statistics
- * 
+ *
  * @example
  * const result = filterOldTransactions(parsed, "2026-01-01", {
  *   mode: "ignore-duplicates",
@@ -87,7 +88,7 @@ export interface DuplicateCheckResult {
 
 /**
  * Check a single imported transaction against existing transactions.
- * 
+ *
  * @param imported - The imported transaction to check
  * @param existing - Array of existing transactions in the vault
  * @param config - Duplicate detection configuration
@@ -101,7 +102,7 @@ export function checkDuplicate(
 
 /**
  * Batch check multiple imported transactions.
- * 
+ *
  * @param imported - Array of imported transactions
  * @param existing - Array of existing transactions in the vault
  * @param config - Duplicate detection configuration
@@ -126,10 +127,7 @@ export interface TemplateService {
    * Find templates matching a file signature (filename pattern, column headers).
    * Returns templates sorted by lastUsedAt descending.
    */
-  findMatchingTemplates(
-    fileName: string,
-    headers: string[]
-  ): ImportTemplate[];
+  findMatchingTemplates(fileName: string, headers: string[]): ImportTemplate[];
 
   /**
    * Get the most recently used template for auto-selection.
@@ -140,11 +138,7 @@ export interface TemplateService {
    * Save template settings. Creates new if templateId is null.
    * Updates lastUsedAt timestamp.
    */
-  saveTemplate(
-    templateId: string | null,
-    name: string,
-    config: ImportConfig
-  ): ImportTemplate;
+  saveTemplate(templateId: string | null, name: string, config: ImportConfig): ImportTemplate;
 
   /**
    * Find account matching OFX account ID.
@@ -165,19 +159,19 @@ export interface UseImportStateReturn {
   session: ImportSession | null;
   isLoading: boolean;
   error: Error | null;
-  
+
   // Actions
   loadFile: (file: File) => Promise<void>;
   setConfig: (updates: Partial<ImportConfig>) => void;
   selectAccount: (accountId: string) => void;
   selectTemplate: (templateId: string | null) => void;
-  
+
   // Computed
   previewTransactions: PreviewTransaction[];
   duplicateStats: { total: number; duplicates: number; filtered: number };
   canImport: boolean;
   validationErrors: ValidationError[];
-  
+
   // Final actions
   importTransactions: () => Promise<ImportResult>;
   saveAsTemplate: (name: string) => Promise<ImportTemplate>;
@@ -211,7 +205,7 @@ interface ImportTableProps {
 interface ConfigTabsProps {
   config: ImportConfig;
   onChange: (updates: Partial<ImportConfig>) => void;
-  headers: string[];  // For column mapping
+  headers: string[]; // For column mapping
 }
 
 // src/components/features/import/tabs/DuplicatesTab.tsx
@@ -274,12 +268,12 @@ interface AccountTabProps {
 
 ## Validation Rules
 
-| Field | Validation | Error Message |
-|-------|-----------|---------------|
-| selectedAccountId | Required for CSV and OFX | "Please select an account" |
-| date | Valid ISO date | "Invalid date format in row {n}" |
-| amount | Valid number | "Invalid amount in row {n}" |
-| description | Non-empty after normalization | "Empty description in row {n}" |
-| cutoffDays | 1-365 | "Cutoff must be between 1 and 365 days" |
-| maxDateDiffDays | 0-365 | "Date range must be between 0 and 365 days" |
-| minDescriptionSimilarity | 0-1 | "Similarity must be between 0% and 100%" |
+| Field                    | Validation                    | Error Message                               |
+| ------------------------ | ----------------------------- | ------------------------------------------- |
+| selectedAccountId        | Required for CSV and OFX      | "Please select an account"                  |
+| date                     | Valid ISO date                | "Invalid date format in row {n}"            |
+| amount                   | Valid number                  | "Invalid amount in row {n}"                 |
+| description              | Non-empty after normalization | "Empty description in row {n}"              |
+| cutoffDays               | 1-365                         | "Cutoff must be between 1 and 365 days"     |
+| maxDateDiffDays          | 0-365                         | "Date range must be between 0 and 365 days" |
+| minDescriptionSimilarity | 0-1                           | "Similarity must be between 0% and 100%"    |

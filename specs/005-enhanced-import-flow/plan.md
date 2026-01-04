@@ -5,12 +5,16 @@
 
 ## Summary
 
-Redesign the import flow to replace the sequential wizard with a tabbed configuration panel alongside a unified raw/preview table. Add configurable duplicate detection (date tolerance, description similarity), old transaction filtering with three modes, account selection for both CSV and OFX, and whitespace normalization. Settings are persisted per-template in the vault CRDT.
+Redesign the import flow to replace the sequential wizard with a tabbed configuration panel
+alongside a unified raw/preview table. Add configurable duplicate detection (date tolerance,
+description similarity), old transaction filtering with three modes, account selection for both CSV
+and OFX, and whitespace normalization. Settings are persisted per-template in the vault CRDT.
 
 ## Technical Context
 
 **Language/Version**: TypeScript 5.x, Node.js 20.x  
-**Primary Dependencies**: Next.js 15 (App Router), React 19, loro-mirror, shadcn/ui, animate-ui tabs  
+**Primary Dependencies**: Next.js 15 (App Router), React 19, loro-mirror, shadcn/ui, animate-ui
+tabs  
 **Storage**: Loro CRDT (client-side), Supabase (server sync), IndexedDB (persistence)  
 **Testing**: Vitest (unit), Playwright (E2E)  
 **Target Platform**: Web (desktop-first, mobile-responsive)  
@@ -23,17 +27,17 @@ Redesign the import flow to replace the sequential wizard with a tabbed configur
 
 _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
-| Principle | Status | Notes |
-|-----------|--------|-------|
-| I. Security & Privacy First | ✅ PASS | No changes to encryption; import processing remains client-side |
-| II. Multi-Party Financial Integrity | ✅ PASS | Allocations unchanged; new transactions get default allocation |
-| III. Data Portability & Import Flexibility | ✅ PASS | Enhances import with better duplicate detection, more formats |
-| IV. Auditability & Transparency | ✅ PASS | Import templates provide audit trail of settings used |
-| V. User-Owned Data Architecture | ✅ PASS | Templates stored in vault CRDT, exportable with other data |
-| VI. Performance, Beauty & Craft | ✅ PASS | Instant preview updates, animated tabs, polished UX |
-| VII. Robustness & Reliability | ✅ PASS | Requires unit tests for duplicate detection, E2E for import flow |
-| VIII. LLM-Agent Friendly | ✅ PASS | Adding import.instructions.md for domain guidance |
-| IX. Code Clarity | ✅ PASS | Pure functions for duplicate/filter logic; loro-mirror for state |
+| Principle                                  | Status  | Notes                                                            |
+| ------------------------------------------ | ------- | ---------------------------------------------------------------- |
+| I. Security & Privacy First                | ✅ PASS | No changes to encryption; import processing remains client-side  |
+| II. Multi-Party Financial Integrity        | ✅ PASS | Allocations unchanged; new transactions get default allocation   |
+| III. Data Portability & Import Flexibility | ✅ PASS | Enhances import with better duplicate detection, more formats    |
+| IV. Auditability & Transparency            | ✅ PASS | Import templates provide audit trail of settings used            |
+| V. User-Owned Data Architecture            | ✅ PASS | Templates stored in vault CRDT, exportable with other data       |
+| VI. Performance, Beauty & Craft            | ✅ PASS | Instant preview updates, animated tabs, polished UX              |
+| VII. Robustness & Reliability              | ✅ PASS | Requires unit tests for duplicate detection, E2E for import flow |
+| VIII. LLM-Agent Friendly                   | ✅ PASS | Adding import.instructions.md for domain guidance                |
+| IX. Code Clarity                           | ✅ PASS | Pure functions for duplicate/filter logic; loro-mirror for state |
 
 **Gate Status**: PASS - No violations, proceed to Phase 0.
 
@@ -86,7 +90,9 @@ tests/
     └── import.spec.ts         # MODIFY: Add tests for new UI flow
 ```
 
-**Structure Decision**: Follows existing monorepo structure. Import components reorganized from wizard steps to tab-based panels. Core logic in `src/lib/import/`, UI in `src/components/features/import/`.
+**Structure Decision**: Follows existing monorepo structure. Import components reorganized from
+wizard steps to tab-based panels. Core logic in `src/lib/import/`, UI in
+`src/components/features/import/`.
 
 ## Complexity Tracking
 

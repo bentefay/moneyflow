@@ -20,6 +20,15 @@ import { cn } from "@/lib/utils";
 // Types
 // ============================================================================
 
+export interface AccountActionMessageProps {
+	/** Account action to display */
+	accountAction: OFXAccountAction;
+	/** Detected account number from OFX file (for matched message) */
+	detectedAccountNumber?: string | null;
+	/** Additional CSS classes */
+	className?: string;
+}
+
 export interface AccountTabProps {
 	/** Available accounts (not deleted) */
 	accounts: Account[];
@@ -35,6 +44,98 @@ export interface AccountTabProps {
 	accountAction?: OFXAccountAction;
 	/** Additional CSS classes */
 	className?: string;
+}
+
+// ============================================================================
+// Components
+// ============================================================================
+
+/**
+ * Display account action message based on OFX detection.
+ * Can be used standalone or within AccountTab.
+ */
+export function AccountActionMessage({
+	accountAction,
+	detectedAccountNumber,
+	className,
+}: AccountActionMessageProps) {
+	if (!accountAction) return null;
+
+	switch (accountAction.type) {
+		case "matched":
+			if (!detectedAccountNumber) return null;
+			return (
+				<div
+					className={cn(
+						"flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30 px-3 py-2 text-sm text-green-800 dark:text-green-200",
+						className
+					)}
+				>
+					<CheckCircle2 className="h-4 w-4 shrink-0" />
+					<span>
+						Auto-matched from OFX file (account ending in{" "}
+						<code className="bg-green-100 dark:bg-green-900/50 px-1 rounded">
+							{detectedAccountNumber.slice(-4)}
+						</code>
+						)
+					</span>
+				</div>
+			);
+
+		case "apply-id":
+			return (
+				<div
+					className={cn(
+						"flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 px-3 py-2 text-sm text-blue-800 dark:text-blue-200",
+						className
+					)}
+				>
+					<Info className="h-4 w-4 shrink-0" />
+					<span>
+						Will apply account ID{" "}
+						<code className="bg-blue-100 dark:bg-blue-900/50 px-1 rounded">
+							...{accountAction.accountNumber.slice(-4)}
+						</code>{" "}
+						to this account on import
+					</span>
+				</div>
+			);
+
+		case "create-new":
+			return (
+				<div
+					className={cn(
+						"flex items-center gap-2 rounded-lg border border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-950/30 px-3 py-2 text-sm text-purple-800 dark:text-purple-200",
+						className
+					)}
+				>
+					<PlusCircle className="h-4 w-4 shrink-0" />
+					<span>
+						Will create new account &ldquo;{accountAction.accountName}&rdquo; with ID{" "}
+						<code className="bg-purple-100 dark:bg-purple-900/50 px-1 rounded">
+							...{accountAction.accountNumber.slice(-4)}
+						</code>{" "}
+						on import
+					</span>
+				</div>
+			);
+
+		case "default-selected":
+			return (
+				<div
+					className={cn(
+						"flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2 text-sm text-amber-800 dark:text-amber-200",
+						className
+					)}
+				>
+					<AlertCircle className="h-4 w-4 shrink-0" />
+					<span>No account ID in file — defaulting to first account</span>
+				</div>
+			);
+
+		default:
+			return null;
+	}
 }
 
 // ============================================================================
@@ -79,51 +180,12 @@ export function AccountTab({
 				</p>
 			</div>
 
-			{/* Account action messages based on OFX detection */}
-			{accountAction?.type === "matched" && detectedAccountNumber && (
-				<div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30 px-3 py-2 text-sm text-green-800 dark:text-green-200">
-					<CheckCircle2 className="h-4 w-4 shrink-0" />
-					<span>
-						Auto-matched from OFX file (account ending in{" "}
-						<code className="bg-green-100 dark:bg-green-900/50 px-1 rounded">
-							{detectedAccountNumber.slice(-4)}
-						</code>
-						)
-					</span>
-				</div>
-			)}
-
-			{accountAction?.type === "apply-id" && (
-				<div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 px-3 py-2 text-sm text-blue-800 dark:text-blue-200">
-					<Info className="h-4 w-4 shrink-0" />
-					<span>
-						Will apply account ID{" "}
-						<code className="bg-blue-100 dark:bg-blue-900/50 px-1 rounded">
-							...{accountAction.accountNumber.slice(-4)}
-						</code>{" "}
-						to this account on import
-					</span>
-				</div>
-			)}
-
-			{accountAction?.type === "create-new" && (
-				<div className="flex items-center gap-2 rounded-lg border border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-950/30 px-3 py-2 text-sm text-purple-800 dark:text-purple-200">
-					<PlusCircle className="h-4 w-4 shrink-0" />
-					<span>
-						Will create new account &ldquo;{accountAction.accountName}&rdquo; with ID{" "}
-						<code className="bg-purple-100 dark:bg-purple-900/50 px-1 rounded">
-							...{accountAction.accountNumber.slice(-4)}
-						</code>{" "}
-						on import
-					</span>
-				</div>
-			)}
-
-			{accountAction?.type === "default-selected" && (
-				<div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
-					<AlertCircle className="h-4 w-4 shrink-0" />
-					<span>No account ID in file — defaulting to first account</span>
-				</div>
+			{/* Account action message based on OFX detection */}
+			{accountAction && (
+				<AccountActionMessage
+					accountAction={accountAction}
+					detectedAccountNumber={detectedAccountNumber}
+				/>
 			)}
 
 			{/* Required but not selected warning (for create-new case or CSV) */}

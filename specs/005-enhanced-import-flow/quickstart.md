@@ -6,6 +6,7 @@
 ## Overview
 
 This feature replaces the existing wizard-based import flow with a redesigned interface featuring:
+
 - Side-by-side raw data and preview table
 - Tabbed configuration panel (no "Next" buttons)
 - Enhanced duplicate detection with configurable matching
@@ -15,7 +16,8 @@ This feature replaces the existing wizard-based import flow with a redesigned in
 ## Prerequisites
 
 1. **Working development environment** - `pnpm dev` runs without errors
-2. **Understanding of existing import code** - Read through `src/lib/import/` and `src/components/features/import/`
+2. **Understanding of existing import code** - Read through `src/lib/import/` and
+   `src/components/features/import/`
 3. **Familiarity with loro-mirror** - Know how to read/write CRDT data
 
 ## Quick Setup
@@ -31,26 +33,28 @@ pnpm test:e2e
 
 ## Key Files to Understand
 
-| File | Purpose |
-|------|---------|
-| `src/lib/import/duplicates.ts` | Duplicate detection algorithm |
-| `src/lib/import/csv.ts` | CSV parsing and format detection |
-| `src/lib/import/ofx.ts` | OFX parsing |
-| `src/lib/crdt/schema.ts` | CRDT schema including `importTemplateSchema` |
+| File                                              | Purpose                                        |
+| ------------------------------------------------- | ---------------------------------------------- |
+| `src/lib/import/duplicates.ts`                    | Duplicate detection algorithm                  |
+| `src/lib/import/csv.ts`                           | CSV parsing and format detection               |
+| `src/lib/import/ofx.ts`                           | OFX parsing                                    |
+| `src/lib/crdt/schema.ts`                          | CRDT schema including `importTemplateSchema`   |
 | `src/components/features/import/ImportWizard.tsx` | Current wizard implementation (to be replaced) |
-| `tests/e2e/import.spec.ts` | E2E tests for import flow |
+| `tests/e2e/import.spec.ts`                        | E2E tests for import flow                      |
 
 ## Implementation Order
 
 ### Phase 1: Data Layer (1-2 days)
 
 1. **Extend CRDT schema** (`src/lib/crdt/schema.ts`)
+
    - Add `duplicateDetection` map to `importTemplateSchema`
    - Add `oldTransactionFilter` map
    - Add `collapseWhitespace` to formatting
    - Add `lastUsedAt` timestamp
 
 2. **Create filter module** (`src/lib/import/filter.ts`)
+
    - Implement `filterOldTransactions()` pure function
    - Write unit tests in `tests/unit/import/filter.test.ts`
 
@@ -69,11 +73,13 @@ pnpm test:e2e
 ### Phase 3: UI Components (2-3 days)
 
 1. **Create ImportTable** (`src/components/features/import/ImportTable.tsx`)
+
    - Side-by-side raw/preview layout
    - Row highlighting for duplicates/filtered
    - Virtual scrolling for large files
 
 2. **Create ConfigTabs** (`src/components/features/import/ConfigTabs.tsx`)
+
    - Template tab (template selection, save)
    - Mapping tab (column assignments)
    - Formatting tab (separators, date format, whitespace)
@@ -115,23 +121,29 @@ pnpm exec playwright test tests/e2e/import.spec.ts --ui
 ## Common Pitfalls
 
 ### 1. CRDT Defaults
+
 New schema fields use `defaultValue` - existing templates will have defaults, not `undefined`.
 
 ### 2. Integer Money
+
 All amounts are in **minor units** (cents). Use `toMinorUnitsForCurrency()` for conversion.
 
 ### 3. Date Handling
+
 Dates are ISO 8601 strings. Use `date-fns` for parsing/comparison, not native Date.
 
 ### 4. OFX Account Matching
+
 OFX `<ACCTID>` maps to `Account.accountNumber`, not `Account.id`.
 
 ### 5. Template Auto-Selection
+
 Templates are selected by `lastUsedAt` (most recent first), not by name match.
 
 ## Architecture Decisions
 
 See [research.md](./research.md) for detailed rationale on:
+
 - animate-ui tabs selection
 - Duplicate detection algorithm
 - Filter implementation approach

@@ -233,6 +233,58 @@ export function ColumnMappingStep({
 }
 
 /**
+ * Auto-detect column mappings based on header names.
+ * Returns a mapping object suitable for ImportConfig.columnMappings.
+ */
+export function autoDetectColumnMappings(headers: string[]): Record<string, string> {
+	const mappings: Record<string, string> = {};
+	const usedFields = new Set<string>();
+
+	for (let idx = 0; idx < headers.length; idx++) {
+		const header = headers[idx];
+		const headerLower = header.toLowerCase();
+		let targetField = "";
+
+		// Match common header names to target fields
+		if (headerLower.includes("date") || headerLower === "posted") {
+			targetField = "date";
+		} else if (
+			headerLower.includes("amount") ||
+			headerLower.includes("debit") ||
+			headerLower.includes("credit")
+		) {
+			targetField = "amount";
+		} else if (
+			headerLower.includes("description") ||
+			headerLower.includes("desc") ||
+			headerLower.includes("name")
+		) {
+			targetField = "description";
+		} else if (headerLower.includes("merchant") || headerLower.includes("payee")) {
+			targetField = "merchant";
+		} else if (headerLower.includes("account")) {
+			targetField = "account";
+		} else if (headerLower.includes("category") || headerLower.includes("type")) {
+			targetField = "category";
+		} else if (headerLower.includes("memo") || headerLower.includes("note")) {
+			targetField = "memo";
+		} else if (headerLower.includes("check")) {
+			targetField = "checkNumber";
+		} else if (headerLower.includes("balance")) {
+			targetField = "balance";
+		}
+
+		// Only use each field once (first match wins)
+		if (targetField && !usedFields.has(targetField)) {
+			mappings[String(idx)] = targetField;
+			usedFields.add(targetField);
+		}
+	}
+
+	return mappings;
+}
+
+/**
  * Initialize column mappings from CSV headers.
  */
 export function initializeColumnMappings(

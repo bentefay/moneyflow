@@ -8,7 +8,7 @@
  */
 
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
 	type ImportContext,
 	ImportPanel,
@@ -40,6 +40,24 @@ function generateId(): string {
  */
 export default function NewImportPage() {
 	const router = useRouter();
+
+	// Lazy initialize initial file from sessionStorage (only runs once on mount)
+	const [initialFile] = useState<File | null>(() => {
+		// Check if we're on the client
+		if (typeof window === "undefined") return null;
+
+		const pending = sessionStorage.getItem("pendingImportFile");
+		if (!pending) return null;
+
+		sessionStorage.removeItem("pendingImportFile");
+		try {
+			const { name, content, type } = JSON.parse(pending);
+			const blob = new Blob([content], { type: type || "text/plain" });
+			return new File([blob], name, { type: type || "text/plain" });
+		} catch {
+			return null;
+		}
+	});
 
 	// Get data from vault
 	const transactions = useActiveTransactions();
@@ -283,6 +301,7 @@ export default function NewImportPage() {
 					accounts={accountsList}
 					templates={templatesList}
 					defaultCurrency={defaultCurrency}
+					initialFile={initialFile}
 					onCreateTransactions={handleCreateTransactions}
 					onImportComplete={handleImportComplete}
 					onSaveTemplate={handleSaveTemplate}
