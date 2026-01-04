@@ -76,6 +76,7 @@ export {
 	type ImportFileType,
 	type ImportSession,
 	type ImportSummaryStats,
+	type OFXAccountAction,
 	type OldTransactionMode,
 	type PreviewTransaction,
 	type PreviewTransactionStatus,

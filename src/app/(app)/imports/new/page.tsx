@@ -9,7 +9,11 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo } from "react";
-import { ImportPanel, type ImportTransactionData } from "@/components/features/import/ImportPanel";
+import {
+	type ImportContext,
+	ImportPanel,
+	type ImportTransactionData,
+} from "@/components/features/import/ImportPanel";
 import {
 	useActiveAccounts,
 	useActiveStatuses,
@@ -83,6 +87,28 @@ export default function NewImportPage() {
 		}
 	});
 
+	// Account actions for OFX import
+	const createAccount = useVaultAction(
+		(state, data: { id: string; name: string; accountNumber: string; currency: string }) => {
+			state.accounts[data.id] = {
+				id: data.id,
+				name: data.name,
+				accountNumber: data.accountNumber,
+				currency: data.currency,
+				deletedAt: 0,
+			} as (typeof state.accounts)[string];
+		}
+	);
+
+	const updateAccountNumber = useVaultAction(
+		(state, data: { accountId: string; accountNumber: string }) => {
+			const account = state.accounts[data.accountId];
+			if (account && typeof account === "object") {
+				account.accountNumber = data.accountNumber;
+			}
+		}
+	);
+
 	// Create import batch and transactions in CRDT
 	const createImportBatch = useVaultAction(
 		(
@@ -153,8 +179,33 @@ export default function NewImportPage() {
 
 	// Handle creating transactions from import
 	const handleCreateTransactions = useCallback(
-		(transactionData: ImportTransactionData[], fileName: string): string => {
+		(
+			transactionData: ImportTransactionData[],
+			fileName: string,
+			context: ImportContext
+		): string => {
 			const importId = generateId();
+
+			// Handle account action first (create or update account)
+			let accountIdToUse = transactionData[0]?.accountId;
+
+			if (context.accountAction?.type === "create-new") {
+				// Create new account with detected ID
+				const newAccountId = generateId();
+				createAccount({
+					id: newAccountId,
+					name: context.accountAction.accountName,
+					accountNumber: context.accountAction.accountNumber,
+					currency: defaultCurrency,
+				});
+				accountIdToUse = newAccountId;
+			} else if (context.accountAction?.type === "apply-id") {
+				// Update existing account with detected ID
+				updateAccountNumber({
+					accountId: context.accountAction.accountId,
+					accountNumber: context.accountAction.accountNumber,
+				});
+			}
 
 			// Map import data to full transaction records
 			const transactionsToCreate = transactionData.map((tx) => ({
@@ -162,7 +213,7 @@ export default function NewImportPage() {
 				date: tx.date,
 				description: tx.description,
 				amount: tx.amount,
-				accountId: tx.accountId,
+				accountId: accountIdToUse ?? tx.accountId,
 				statusId: defaultStatusId,
 				duplicateOf: tx.duplicateOf,
 			}));
@@ -176,7 +227,7 @@ export default function NewImportPage() {
 
 			return importId;
 		},
-		[createImportBatch, defaultStatusId]
+		[createImportBatch, createAccount, updateAccountNumber, defaultStatusId, defaultCurrency]
 	);
 
 	// Handle import complete - navigate to transactions
@@ -218,7 +269,7 @@ export default function NewImportPage() {
 	);
 
 	return (
-		<div className="mx-auto max-w-5xl space-y-6 p-4">
+		<div className="space-y-6 p-4">
 			<div>
 				<h1 className="font-bold text-2xl">Import Transactions</h1>
 				<p className="text-muted-foreground">

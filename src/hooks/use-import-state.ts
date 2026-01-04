@@ -240,15 +240,72 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 						}
 					: { ...DEFAULT_IMPORT_CONFIG };
 
-				// Auto-select account for OFX if account number matches
+				// For OFX files, always use fixed column mappings since structure is known
+				// OFX headers are ["Date", "Description", "Amount"] (indices 0, 1, 2)
+				if (fileType === "ofx") {
+					config.columnMappings = {
+						"0": "date",
+						"1": "description",
+						"2": "amount",
+					};
+				}
+
+				// Determine account selection and action for OFX files
 				let selectedAccountId: string | null = null;
-				if (detectedAccountNumber) {
-					const matchingAccount = accounts.find(
-						(a) => !a.deletedAt && a.accountNumber === detectedAccountNumber
-					);
-					if (matchingAccount) {
-						selectedAccountId = matchingAccount.id;
+				let accountAction: ImportSession["accountAction"] = null;
+				const activeAccounts = accounts.filter((a) => !a.deletedAt);
+
+				if (fileType === "ofx") {
+					if (detectedAccountNumber) {
+						// Case 1: OFX has ACCTID - try to match
+						const matchingAccount = activeAccounts.find(
+							(a) => a.accountNumber === detectedAccountNumber
+						);
+
+						if (matchingAccount) {
+							// Exact match found
+							selectedAccountId = matchingAccount.id;
+							accountAction = { type: "matched" };
+						} else {
+							// No match - check if any account has no accountNumber
+							const accountWithoutId = activeAccounts.find((a) => !a.accountNumber);
+
+							if (accountWithoutId) {
+								// Will apply ID to this account
+								selectedAccountId = accountWithoutId.id;
+								accountAction = {
+									type: "apply-id",
+									accountId: accountWithoutId.id,
+									accountNumber: detectedAccountNumber,
+								};
+							} else {
+								// All accounts have IDs, need to create new
+								// Generate unique name "Account N"
+								const existingNames = new Set(activeAccounts.map((a) => a.name.toLowerCase()));
+								let n = 1;
+								while (existingNames.has(`account ${n}`)) {
+									n++;
+								}
+								accountAction = {
+									type: "create-new",
+									accountName: `Account ${n}`,
+									accountNumber: detectedAccountNumber,
+								};
+								// No account selected - will create on import
+								selectedAccountId = null;
+							}
+						}
+					} else {
+						// Case 2: No ACCTID in OFX - default to first account
+						if (activeAccounts.length > 0) {
+							selectedAccountId = activeAccounts[0].id;
+							accountAction = { type: "default-selected" };
+						}
 					}
+				} else {
+					// CSV files - no auto-selection
+					selectedAccountId = null;
+					accountAction = null;
 				}
 
 				// Create session
@@ -263,6 +320,7 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 					config,
 					selectedAccountId,
 					detectedAccountNumber,
+					accountAction,
 					previewTransactions: [],
 					duplicateResults: [],
 					filteredOut: [],
@@ -310,13 +368,46 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 
 	/**
 	 * Select an account.
+	 * When user manually selects, recalculate the account action.
 	 */
-	const selectAccount = useCallback((accountId: string) => {
-		setSession((prev) => {
-			if (!prev) return prev;
-			return { ...prev, selectedAccountId: accountId };
-		});
-	}, []);
+	const selectAccount = useCallback(
+		(accountId: string) => {
+			setSession((prev) => {
+				if (!prev) return prev;
+
+				// Recalculate account action based on new selection
+				let newAccountAction: ImportSession["accountAction"] = null;
+
+				if (prev.fileType === "ofx" && prev.detectedAccountNumber) {
+					const selectedAccount = accounts.find((a) => a.id === accountId && !a.deletedAt);
+
+					if (selectedAccount) {
+						if (selectedAccount.accountNumber === prev.detectedAccountNumber) {
+							// User selected the matching account
+							newAccountAction = { type: "matched" };
+						} else if (!selectedAccount.accountNumber) {
+							// User selected an account without ID - will apply
+							newAccountAction = {
+								type: "apply-id",
+								accountId: selectedAccount.id,
+								accountNumber: prev.detectedAccountNumber,
+							};
+						} else {
+							// User selected an account with a different ID
+							// This is an explicit override - treat as matched (no action)
+							newAccountAction = { type: "matched" };
+						}
+					}
+				} else if (prev.fileType === "ofx" && !prev.detectedAccountNumber) {
+					// No ACCTID in file - any selection is just a default
+					newAccountAction = { type: "default-selected" };
+				}
+
+				return { ...prev, selectedAccountId: accountId, accountAction: newAccountAction };
+			});
+		},
+		[accounts]
+	);
 
 	/**
 	 * Select a template and apply its settings.

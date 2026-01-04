@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 // Hooks and Types
 import { useImportState } from "@/hooks/use-import-state";
 import type { Account, ImportTemplate, Transaction } from "@/lib/crdt/schema";
-import type { ImportConfig } from "@/lib/import/types";
+import type { ImportConfig, OFXAccountAction } from "@/lib/import/types";
 import { cn } from "@/lib/utils";
 import { ConfigTabs, TabsContent } from "./ConfigTabs";
 // Components
@@ -43,6 +43,13 @@ export interface ImportTransactionData {
 	duplicateOf: string | null;
 }
 
+/**
+ * Additional context passed during import for account actions.
+ */
+export interface ImportContext {
+	accountAction: OFXAccountAction;
+}
+
 export interface ImportPanelProps {
 	/** Existing transactions in the vault for duplicate detection */
 	existingTransactions: Transaction[];
@@ -53,7 +60,11 @@ export interface ImportPanelProps {
 	/** Default currency code for amount parsing */
 	defaultCurrency: string;
 	/** Callback to create transactions - returns import batch ID */
-	onCreateTransactions: (transactions: ImportTransactionData[], fileName: string) => string;
+	onCreateTransactions: (
+		transactions: ImportTransactionData[],
+		fileName: string,
+		context: ImportContext
+	) => string;
 	/** Callback when import is complete */
 	onImportComplete: () => void;
 	/** Callback to save a new template (name + config) */
@@ -155,7 +166,9 @@ export function ImportPanel({
 			}
 
 			// Create transactions in CRDT
-			onCreateTransactions(transactionsToImport, session.fileName);
+			onCreateTransactions(transactionsToImport, session.fileName, {
+				accountAction: session.accountAction,
+			});
 
 			// Auto-save or auto-update template
 			// Only for CSV files since OFX has built-in format
@@ -372,6 +385,7 @@ export function ImportPanel({
 							onSelectAccount={selectAccount}
 							isRequired={session.fileType === "csv"}
 							detectedAccountNumber={session.detectedAccountNumber}
+							accountAction={session.accountAction}
 						/>
 					</TabsContent>
 				</ConfigTabs>

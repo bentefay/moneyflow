@@ -4,21 +4,16 @@
  * AccountTab
  *
  * Tab content for selecting target account for import.
- * Required for CSV imports, auto-selected for OFX when account number matches.
+ * Uses AccountCombobox for selection with inline account creation.
+ * Shows contextual messages based on OFX account action.
  */
 
-import { AlertCircle, CheckCircle2, Landmark } from "lucide-react";
+import { AlertCircle, CheckCircle2, Info, Landmark, PlusCircle } from "lucide-react";
 import { useMemo } from "react";
-import { Badge } from "@/components/ui/badge";
+import { AccountCombobox } from "@/components/features/accounts/AccountCombobox";
 import { Label } from "@/components/ui/label";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import type { Account } from "@/lib/crdt/schema";
+import type { OFXAccountAction } from "@/lib/import/types";
 import { cn } from "@/lib/utils";
 
 // ============================================================================
@@ -36,6 +31,8 @@ export interface AccountTabProps {
 	isRequired?: boolean;
 	/** Auto-detected account number from OFX file */
 	detectedAccountNumber?: string | null;
+	/** Account action to take on import (OFX only) */
+	accountAction?: OFXAccountAction;
 	/** Additional CSS classes */
 	className?: string;
 }
@@ -53,6 +50,7 @@ export function AccountTab({
 	onSelectAccount,
 	isRequired = false,
 	detectedAccountNumber,
+	accountAction,
 	className,
 }: AccountTabProps) {
 	// Filter to active accounts only
@@ -61,11 +59,11 @@ export function AccountTab({
 	// Find selected account
 	const selectedAccount = activeAccounts.find((a) => a.id === selectedAccountId);
 
-	// Check if we have an auto-match situation
-	const autoMatchedAccount = useMemo(() => {
-		if (!detectedAccountNumber) return null;
-		return activeAccounts.find((a) => a.accountNumber === detectedAccountNumber);
-	}, [detectedAccountNumber, activeAccounts]);
+	// Convert to AccountCombobox format
+	const accountOptions = useMemo(
+		() => activeAccounts.map((a) => ({ id: a.id, name: a.name })),
+		[activeAccounts]
+	);
 
 	const hasSelection = selectedAccountId !== null;
 
@@ -81,69 +79,78 @@ export function AccountTab({
 				</p>
 			</div>
 
-			{/* Auto-matched notice */}
-			{autoMatchedAccount && selectedAccountId === autoMatchedAccount.id && (
+			{/* Account action messages based on OFX detection */}
+			{accountAction?.type === "matched" && detectedAccountNumber && (
 				<div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30 px-3 py-2 text-sm text-green-800 dark:text-green-200">
 					<CheckCircle2 className="h-4 w-4 shrink-0" />
 					<span>
 						Auto-matched from OFX file (account ending in{" "}
 						<code className="bg-green-100 dark:bg-green-900/50 px-1 rounded">
-							{detectedAccountNumber?.slice(-4)}
+							{detectedAccountNumber.slice(-4)}
 						</code>
 						)
 					</span>
 				</div>
 			)}
 
-			{/* Required but not selected warning */}
-			{isRequired && !hasSelection && (
+			{accountAction?.type === "apply-id" && (
+				<div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 px-3 py-2 text-sm text-blue-800 dark:text-blue-200">
+					<Info className="h-4 w-4 shrink-0" />
+					<span>
+						Will apply account ID{" "}
+						<code className="bg-blue-100 dark:bg-blue-900/50 px-1 rounded">
+							...{accountAction.accountNumber.slice(-4)}
+						</code>{" "}
+						to this account on import
+					</span>
+				</div>
+			)}
+
+			{accountAction?.type === "create-new" && (
+				<div className="flex items-center gap-2 rounded-lg border border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-950/30 px-3 py-2 text-sm text-purple-800 dark:text-purple-200">
+					<PlusCircle className="h-4 w-4 shrink-0" />
+					<span>
+						Will create new account &ldquo;{accountAction.accountName}&rdquo; with ID{" "}
+						<code className="bg-purple-100 dark:bg-purple-900/50 px-1 rounded">
+							...{accountAction.accountNumber.slice(-4)}
+						</code>{" "}
+						on import
+					</span>
+				</div>
+			)}
+
+			{accountAction?.type === "default-selected" && (
+				<div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
+					<AlertCircle className="h-4 w-4 shrink-0" />
+					<span>No account ID in file — defaulting to first account</span>
+				</div>
+			)}
+
+			{/* Required but not selected warning (for create-new case or CSV) */}
+			{isRequired && !hasSelection && accountAction?.type !== "create-new" && (
 				<div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
 					<AlertCircle className="h-4 w-4 shrink-0" />
 					<span>An account must be selected to import transactions</span>
 				</div>
 			)}
 
-			{/* Account selector */}
-			<Select
-				value={selectedAccountId ?? "__none__"}
-				onValueChange={(v) => {
-					if (v !== "__none__") {
-						onSelectAccount(v);
-					}
-				}}
-			>
-				<SelectTrigger id="account-select" className="w-full">
-					<SelectValue placeholder="Select an account..." />
-				</SelectTrigger>
-				<SelectContent>
-					{!isRequired && (
-						<SelectItem value="__none__" disabled>
-							<span className="text-muted-foreground">Select an account...</span>
-						</SelectItem>
-					)}
-					{activeAccounts.map((account) => (
-						<SelectItem key={account.id} value={account.id}>
-							<div className="flex items-center gap-2">
-								<Landmark className="h-4 w-4 text-muted-foreground" />
-								<span>{account.name}</span>
-								{account.accountNumber && (
-									<Badge variant="secondary" className="ml-1 text-xs">
-										...{account.accountNumber.slice(-4)}
-									</Badge>
-								)}
-								{autoMatchedAccount?.id === account.id && detectedAccountNumber && (
-									<Badge
-										variant="outline"
-										className="ml-1 text-xs text-green-600 border-green-300 dark:text-green-400 dark:border-green-700"
-									>
-										Matched
-									</Badge>
-								)}
-							</div>
-						</SelectItem>
-					))}
-				</SelectContent>
-			</Select>
+			{/* Account selector using AccountCombobox */}
+			<div id="account-select">
+				<AccountCombobox
+					value={selectedAccountId ?? ""}
+					onChange={onSelectAccount}
+					accounts={accountOptions}
+					placeholder="Select an account..."
+					disabled={accountAction?.type === "create-new"}
+				/>
+			</div>
+
+			{/* Hint when create-new is active */}
+			{accountAction?.type === "create-new" && (
+				<p className="text-xs text-muted-foreground">
+					Select an existing account above to use it instead of creating a new one.
+				</p>
+			)}
 
 			{/* Selected account info */}
 			{selectedAccount && (
@@ -166,7 +173,7 @@ export function AccountTab({
 			)}
 
 			{/* No accounts warning */}
-			{activeAccounts.length === 0 && (
+			{activeAccounts.length === 0 && accountAction?.type !== "create-new" && (
 				<div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
 					No accounts available. Create an account first before importing transactions.
 				</div>

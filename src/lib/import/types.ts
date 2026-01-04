@@ -246,6 +246,16 @@ export interface ValidationError {
 export type ImportFileType = "csv" | "ofx";
 
 /**
+ * Account action to take during OFX import.
+ */
+export type OFXAccountAction =
+	| { type: "matched" } // Account matched by ID, no action needed
+	| { type: "apply-id"; accountId: string; accountNumber: string } // Apply detected ID to existing account
+	| { type: "create-new"; accountName: string; accountNumber: string } // Create new account with detected ID
+	| { type: "default-selected" } // No ID in file, defaulted to first account
+	| null; // No action (CSV or user overrode selection)
+
+/**
  * Ephemeral state for an import session.
  * Not persisted to CRDT - exists only in React state during import.
  */
@@ -277,6 +287,8 @@ export interface ImportSession {
 	selectedAccountId: string | null;
 	/** Account number detected from OFX file */
 	detectedAccountNumber: string | null;
+	/** Action to take for account on import (OFX only) */
+	accountAction: OFXAccountAction;
 
 	// Computed state (derived from config + raw data)
 	/** Preview transactions with computed statuses */
