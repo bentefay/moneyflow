@@ -199,16 +199,14 @@ export function ImportPanel({
 			});
 
 			// Auto-save or auto-update template
-			// Only for CSV files since OFX has built-in format
-			if (session.fileType === "csv") {
-				if (session.templateId && onUpdateTemplate) {
-					// Template was selected - update it with current config
-					onUpdateTemplate(session.templateId, session.config);
-				} else if (templates.length === 0 && onSaveTemplate) {
-					// No templates exist - auto-save with filename as name
-					const templateName = session.fileName.replace(/\.(csv|ofx)$/i, "");
-					onSaveTemplate(templateName, session.config);
-				}
+			// Both CSV and OFX benefit from saved duplicate detection and filter settings
+			if (session.templateId && onUpdateTemplate) {
+				// Template was selected - update it with current config
+				onUpdateTemplate(session.templateId, session.config);
+			} else if (templates.length === 0 && onSaveTemplate) {
+				// No templates exist - auto-save with filename as name
+				const templateName = session.fileName.replace(/\.(csv|ofx)$/i, "");
+				onSaveTemplate(templateName, session.config);
 			}
 
 			// Signal completion and reset

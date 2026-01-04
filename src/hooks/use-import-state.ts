@@ -222,42 +222,84 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 					.sort((a, b) => (b.lastUsedAt ?? 0) - (a.lastUsedAt ?? 0));
 				const recentTemplate = sortedTemplates[0] ?? null;
 
-				// Initialize config from template or defaults
-				const config: ImportConfig = recentTemplate
-					? {
-							formatting: {
-								hasHeaders: recentTemplate.formatting.hasHeaders ?? true,
-								thousandSeparator: recentTemplate.formatting.thousandSeparator ?? ",",
-								decimalSeparator: recentTemplate.formatting.decimalSeparator ?? ".",
-								dateFormat: recentTemplate.formatting.dateFormat ?? "yyyy-MM-dd",
-								collapseWhitespace: recentTemplate.formatting.collapseWhitespace ?? false,
-							},
-							duplicateDetection: {
-								dateMatchMode:
-									(recentTemplate.duplicateDetection?.dateMatchMode as "exact" | "within") ??
-									"within",
-								maxDateDiffDays: recentTemplate.duplicateDetection?.maxDateDiffDays ?? 3,
-								descriptionMatchMode:
-									(recentTemplate.duplicateDetection?.descriptionMatchMode as
-										| "exact"
-										| "similar") ?? "similar",
-								minDescriptionSimilarity:
-									recentTemplate.duplicateDetection?.minDescriptionSimilarity ?? 0.6,
-							},
-							oldTransactionFilter: {
-								mode:
-									(recentTemplate.oldTransactionFilter?.mode as
-										| "ignore-all"
-										| "ignore-duplicates"
-										| "do-not-ignore") ?? "ignore-duplicates",
-								cutoffType:
-									(recentTemplate.oldTransactionFilter?.cutoffType as "days" | "date") ?? "days",
-								cutoffDays: recentTemplate.oldTransactionFilter?.cutoffDays ?? 10,
-								cutoffDate: (recentTemplate.oldTransactionFilter?.cutoffDate as string) ?? null,
-							},
-							columnMappings: { ...recentTemplate.columnMappings },
-						}
-					: { ...DEFAULT_IMPORT_CONFIG };
+				// Initialize config - for OFX, only apply common settings from template
+				let config: ImportConfig;
+
+				if (recentTemplate && fileType === "ofx") {
+					// OFX with template: only apply common settings (duplicate detection, filter, collapseWhitespace)
+					config = {
+						...DEFAULT_IMPORT_CONFIG,
+						formatting: {
+							...DEFAULT_IMPORT_CONFIG.formatting,
+							collapseWhitespace: recentTemplate.formatting.collapseWhitespace ?? false,
+						},
+						duplicateDetection: {
+							dateMatchMode:
+								(recentTemplate.duplicateDetection?.dateMatchMode as "exact" | "within") ??
+								"within",
+							maxDateDiffDays: recentTemplate.duplicateDetection?.maxDateDiffDays ?? 3,
+							descriptionMatchMode:
+								(recentTemplate.duplicateDetection?.descriptionMatchMode as "exact" | "similar") ??
+								"similar",
+							minDescriptionSimilarity:
+								recentTemplate.duplicateDetection?.minDescriptionSimilarity ?? 0.6,
+						},
+						oldTransactionFilter: {
+							mode:
+								(recentTemplate.oldTransactionFilter?.mode as
+									| "ignore-all"
+									| "ignore-duplicates"
+									| "do-not-ignore") ?? "ignore-duplicates",
+							cutoffType:
+								(recentTemplate.oldTransactionFilter?.cutoffType as "days" | "date") ?? "days",
+							cutoffDays: recentTemplate.oldTransactionFilter?.cutoffDays ?? 10,
+							cutoffDate: (recentTemplate.oldTransactionFilter?.cutoffDate as string) ?? null,
+						},
+						// OFX has fixed column mappings
+						columnMappings: {
+							"0": "date",
+							"1": "description",
+							"2": "amount",
+						},
+					};
+				} else if (recentTemplate) {
+					// CSV with template: apply all settings
+					config = {
+						formatting: {
+							hasHeaders: recentTemplate.formatting.hasHeaders ?? true,
+							thousandSeparator: recentTemplate.formatting.thousandSeparator ?? ",",
+							decimalSeparator: recentTemplate.formatting.decimalSeparator ?? ".",
+							dateFormat: recentTemplate.formatting.dateFormat ?? "yyyy-MM-dd",
+							collapseWhitespace: recentTemplate.formatting.collapseWhitespace ?? false,
+						},
+						duplicateDetection: {
+							dateMatchMode:
+								(recentTemplate.duplicateDetection?.dateMatchMode as "exact" | "within") ??
+								"within",
+							maxDateDiffDays: recentTemplate.duplicateDetection?.maxDateDiffDays ?? 3,
+							descriptionMatchMode:
+								(recentTemplate.duplicateDetection?.descriptionMatchMode as "exact" | "similar") ??
+								"similar",
+							minDescriptionSimilarity:
+								recentTemplate.duplicateDetection?.minDescriptionSimilarity ?? 0.6,
+						},
+						oldTransactionFilter: {
+							mode:
+								(recentTemplate.oldTransactionFilter?.mode as
+									| "ignore-all"
+									| "ignore-duplicates"
+									| "do-not-ignore") ?? "ignore-duplicates",
+							cutoffType:
+								(recentTemplate.oldTransactionFilter?.cutoffType as "days" | "date") ?? "days",
+							cutoffDays: recentTemplate.oldTransactionFilter?.cutoffDays ?? 10,
+							cutoffDate: (recentTemplate.oldTransactionFilter?.cutoffDate as string) ?? null,
+						},
+						columnMappings: { ...recentTemplate.columnMappings },
+					};
+				} else {
+					// No template: use defaults
+					config = { ...DEFAULT_IMPORT_CONFIG };
+				}
 
 				// For OFX files, always use fixed column mappings since structure is known
 				// OFX headers are ["Date", "Description", "Amount"] (indices 0, 1, 2)
@@ -468,6 +510,8 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 
 	/**
 	 * Select a template and apply its settings.
+	 * For OFX files, only common settings are applied (duplicate detection, old transaction filter).
+	 * CSV-specific settings like column mappings and formatting are skipped for OFX.
 	 */
 	const selectTemplate = useCallback(
 		(templateId: string | null) => {
@@ -475,17 +519,66 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 				if (!prev) return prev;
 
 				if (!templateId) {
-					// Reset to defaults
+					// Reset to defaults, but preserve OFX column mappings if OFX file
+					const defaultConfig = { ...DEFAULT_IMPORT_CONFIG };
+					if (prev.fileType === "ofx") {
+						defaultConfig.columnMappings = {
+							"0": "date",
+							"1": "description",
+							"2": "amount",
+						};
+					}
 					return {
 						...prev,
 						templateId: null,
-						config: { ...DEFAULT_IMPORT_CONFIG },
+						config: defaultConfig,
 					};
 				}
 
 				const template = templates.find((t) => t.id === templateId);
 				if (!template) return prev;
 
+				// For OFX files, only apply common settings (duplicate detection, old transaction filter)
+				// Skip CSV-specific settings: column mappings, hasHeaders, dateFormat, separators
+				if (prev.fileType === "ofx") {
+					return {
+						...prev,
+						templateId,
+						config: {
+							...prev.config,
+							// Only apply collapseWhitespace from formatting (relevant for OFX)
+							formatting: {
+								...prev.config.formatting,
+								collapseWhitespace: template.formatting.collapseWhitespace ?? false,
+							},
+							duplicateDetection: {
+								dateMatchMode:
+									(template.duplicateDetection?.dateMatchMode as "exact" | "within") ?? "within",
+								maxDateDiffDays: template.duplicateDetection?.maxDateDiffDays ?? 3,
+								descriptionMatchMode:
+									(template.duplicateDetection?.descriptionMatchMode as "exact" | "similar") ??
+									"similar",
+								minDescriptionSimilarity:
+									template.duplicateDetection?.minDescriptionSimilarity ?? 0.6,
+							},
+							oldTransactionFilter: {
+								mode:
+									(template.oldTransactionFilter?.mode as
+										| "ignore-all"
+										| "ignore-duplicates"
+										| "do-not-ignore") ?? "ignore-duplicates",
+								cutoffType:
+									(template.oldTransactionFilter?.cutoffType as "days" | "date") ?? "days",
+								cutoffDays: template.oldTransactionFilter?.cutoffDays ?? 10,
+								cutoffDate: (template.oldTransactionFilter?.cutoffDate as string) ?? null,
+							},
+							// Keep OFX column mappings
+							columnMappings: prev.config.columnMappings,
+						},
+					};
+				}
+
+				// For CSV files, apply all template settings
 				return {
 					...prev,
 					templateId,
