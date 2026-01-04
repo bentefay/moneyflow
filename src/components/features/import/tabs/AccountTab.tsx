@@ -23,6 +23,8 @@ import { cn } from "@/lib/utils";
 export interface AccountActionMessageProps {
 	/** Account action to display */
 	accountAction: OFXAccountAction;
+	/** File type (csv or ofx) */
+	fileType?: "csv" | "ofx";
 	/** Detected account number from OFX file (for matched message) */
 	detectedAccountNumber?: string | null;
 	/** Target account name (for apply-id message) */
@@ -58,6 +60,7 @@ export interface AccountTabProps {
  */
 export function AccountActionMessage({
 	accountAction,
+	fileType = "ofx",
 	detectedAccountNumber,
 	targetAccountName,
 	className,
@@ -134,7 +137,7 @@ export function AccountActionMessage({
 				>
 					<AlertCircle className="h-4 w-4 shrink-0" />
 					<span>
-						No account ID found in OFX file — defaulting to{" "}
+						No account ID found in {fileType.toUpperCase()} file — defaulting to{" "}
 						<strong>{targetAccountName ?? "first account"}</strong>
 					</span>
 				</div>

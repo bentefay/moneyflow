@@ -90,8 +90,12 @@ export default function NewImportPage() {
 				if (data.fileType === "csv") {
 					template.columnMappings = data.config
 						.columnMappings as (typeof template)["columnMappings"];
+					// Update all formatting for CSV
+					template.formatting = data.config.formatting as (typeof template)["formatting"];
+				} else {
+					// For OFX, only update collapseWhitespace
+					template.formatting.collapseWhitespace = data.config.formatting.collapseWhitespace;
 				}
-				template.formatting = data.config.formatting as (typeof template)["formatting"];
 				template.duplicateDetection = data.config
 					.duplicateDetection as (typeof template)["duplicateDetection"];
 				template.oldTransactionFilter = data.config
@@ -262,7 +266,7 @@ export default function NewImportPage() {
 	}, [router]);
 
 	// Handle save template (with config from ImportPanel)
-	// For OFX files, we don't save column mappings (they're fixed)
+	// For OFX files, we don't save column mappings or CSV-specific formatting (they're fixed/irrelevant)
 	const handleSaveTemplate = useCallback(
 		(name: string, config: ImportConfig, fileType: "csv" | "ofx") => {
 			addImportTemplate({
@@ -270,7 +274,17 @@ export default function NewImportPage() {
 				name,
 				// Only save column mappings for CSV files
 				columnMappings: fileType === "csv" ? config.columnMappings : {},
-				formatting: config.formatting,
+				// For OFX, only save collapseWhitespace; for CSV, save all formatting
+				formatting:
+					fileType === "csv"
+						? config.formatting
+						: {
+								hasHeaders: true, // default
+								thousandSeparator: ",", // default
+								decimalSeparator: ".", // default
+								dateFormat: "yyyy-MM-dd", // default
+								collapseWhitespace: config.formatting.collapseWhitespace,
+							},
 				duplicateDetection: config.duplicateDetection,
 				oldTransactionFilter: config.oldTransactionFilter,
 				lastUsedAt: Date.now(),

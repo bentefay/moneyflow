@@ -190,20 +190,20 @@ export function ImportTable({
 			{/* Merged table container */}
 			<div className={cn("border rounded-lg overflow-auto bg-card", "max-h-[500px] min-h-[300px]")}>
 				<table className="w-full text-sm">
-					<thead className="bg-muted/50 sticky top-0 z-10">
+					<thead className="bg-slate-100 sticky top-0 z-10">
 						{/* Section header row */}
 						<tr className="border-b">
-							<th className="bg-muted/50" />
+							<th className="bg-slate-100" />
 							<th
 								colSpan={rawColCount}
-								className="px-2 py-1 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-muted/50"
+								className="px-2 py-1 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-slate-100"
 							>
 								Raw
 							</th>
 							<th className="w-px bg-border" />
 							<th
 								colSpan={previewColCount}
-								className="px-2 py-1 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-muted/30"
+								className="px-2 py-1 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-slate-50"
 							>
 								Preview
 							</th>
@@ -211,7 +211,7 @@ export function ImportTable({
 						{/* Column headers row */}
 						<tr>
 							{/* Row number */}
-							<th className="px-2 py-1.5 text-left text-xs font-medium text-muted-foreground w-10 border-r bg-muted/50">
+							<th className="px-2 py-1.5 text-left text-xs font-medium text-muted-foreground w-10 border-r bg-slate-100">
 								#
 							</th>
 							{/* Raw data headers */}
@@ -231,16 +231,16 @@ export function ImportTable({
 							{/* Divider column */}
 							<th className="w-px bg-border" />
 							{/* Preview headers */}
-							<th className="px-2 py-1.5 text-left text-xs font-medium text-muted-foreground w-10 bg-muted/30">
+							<th className="px-2 py-1.5 text-left text-xs font-medium text-muted-foreground w-10 bg-slate-50">
 								Status
 							</th>
-							<th className="px-2 py-1.5 text-left text-xs font-medium text-muted-foreground bg-muted/30">
+							<th className="px-2 py-1.5 text-left text-xs font-medium text-muted-foreground bg-slate-50">
 								Date
 							</th>
-							<th className="px-2 py-1.5 text-left text-xs font-medium text-muted-foreground bg-muted/30">
+							<th className="px-2 py-1.5 text-left text-xs font-medium text-muted-foreground bg-slate-50">
 								Description
 							</th>
-							<th className="px-2 py-1.5 text-right text-xs font-medium text-muted-foreground bg-muted/30">
+							<th className="px-2 py-1.5 text-right text-xs font-medium text-muted-foreground bg-slate-50">
 								Amount
 							</th>
 						</tr>

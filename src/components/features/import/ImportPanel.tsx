@@ -326,6 +326,7 @@ export function ImportPanel({
 			{session.accountAction && (
 				<AccountActionMessage
 					accountAction={session.accountAction}
+					fileType={session.fileType}
 					detectedAccountNumber={session.detectedAccountNumber}
 					targetAccountName={
 						session.selectedAccountId
