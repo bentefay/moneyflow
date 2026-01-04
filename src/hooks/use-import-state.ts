@@ -505,6 +505,10 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 		const { rawRows, headers, config, selectedAccountId, fileType } = session;
 		const { formatting, duplicateDetection, oldTransactionFilter, columnMappings } = config;
 
+		// Get the currency for the selected account (falls back to vault default)
+		const selectedAccount = accounts.find((a) => a.id === selectedAccountId);
+		const accountCurrency = selectedAccount?.currency || defaultCurrency;
+
 		// Skip header row if present
 		const dataRows = formatting.hasHeaders ? rawRows.slice(1) : rawRows;
 
@@ -554,7 +558,9 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 					formatting.decimalSeparator
 				);
 				if (parsed !== null) {
-					amount = toMinorUnitsForCurrency(parsed, defaultCurrency);
+					// Convert from major units (e.g., dollars) to minor units (e.g., cents)
+					// using the selected account's currency for proper decimal handling
+					amount = toMinorUnitsForCurrency(parsed, accountCurrency);
 				} else {
 					rowErrors.push(`Invalid amount: ${row[amountIdx]}`);
 				}
@@ -679,7 +685,7 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 			validationErrors: errors,
 			canImport,
 		};
-	}, [session, existingForDuplicates, newestExistingDate, defaultCurrency]);
+	}, [session, existingForDuplicates, newestExistingDate, accounts, defaultCurrency]);
 
 	// ========================================================================
 	// Summary Stats

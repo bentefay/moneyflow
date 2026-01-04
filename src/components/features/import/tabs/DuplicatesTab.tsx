@@ -198,11 +198,7 @@ export function DuplicatesTab({
 						<Label>Date Matching</Label>
 					</div>
 
-					<RadioGroup
-						value={duplicateDetection.dateMatchMode}
-						onValueChange={handleDateModeChange}
-						className="space-y-2"
-					>
+					<RadioGroup value={duplicateDetection.dateMatchMode} onValueChange={handleDateModeChange}>
 						<label
 							htmlFor="date-exact"
 							className="flex items-center space-x-3 cursor-pointer rounded-md hover:bg-muted/30 transition-colors"
@@ -212,7 +208,7 @@ export function DuplicatesTab({
 						</label>
 						<label
 							htmlFor="date-within"
-							className="flex items-center space-x-3 cursor-pointer rounded-md p-2 hover:bg-muted/30 transition-colors"
+							className="flex items-center space-x-3 cursor-pointer rounded-md hover:bg-muted/30 transition-colors"
 						>
 							<RadioGroupItem value="within" id="date-within" />
 							<span className="text-sm">Allow dates within range</span>
@@ -247,18 +243,17 @@ export function DuplicatesTab({
 					<RadioGroup
 						value={duplicateDetection.descriptionMatchMode}
 						onValueChange={handleDescModeChange}
-						className="space-y-2"
 					>
 						<label
 							htmlFor="desc-exact"
-							className="flex items-center space-x-3 cursor-pointer rounded-md p-2 hover:bg-muted/30 transition-colors"
+							className="flex items-center space-x-3 cursor-pointer rounded-md hover:bg-muted/30 transition-colors"
 						>
 							<RadioGroupItem value="exact" id="desc-exact" />
 							<span className="text-sm">Exact description match only</span>
 						</label>
 						<label
 							htmlFor="desc-similar"
-							className="flex items-center space-x-3 cursor-pointer rounded-md p-2 hover:bg-muted/30 transition-colors"
+							className="flex items-center space-x-3 cursor-pointer rounded-md hover:bg-muted/30 transition-colors"
 						>
 							<RadioGroupItem value="similar" id="desc-similar" />
 							<span className="text-sm">Allow similar descriptions</span>

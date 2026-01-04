@@ -53,10 +53,19 @@ export function calculateCutoffDate(
  *
  * @param date - Date to check (ISO string)
  * @param cutoffDate - Cutoff date (ISO string)
- * @returns True if date is before cutoff
+ * @returns True if date is before cutoff, false if either date is invalid
  */
 export function isBeforeCutoff(date: string, cutoffDate: string): boolean {
-	return Temporal.PlainDate.compare(date, cutoffDate) < 0;
+	// Validate inputs - both must be valid ISO date strings
+	if (!date || !cutoffDate) {
+		return false;
+	}
+	try {
+		return Temporal.PlainDate.compare(date, cutoffDate) < 0;
+	} catch {
+		// Invalid date format - treat as not before cutoff (include the transaction)
+		return false;
+	}
 }
 
 /**
@@ -104,8 +113,15 @@ export function filterOldTransactions<T extends FilterableTransaction>(
 
 	// Calculate cutoff date based on cutoff type
 	let cutoffDate: string | null = null;
-	if (cutoffType === "date" && explicitCutoffDate) {
-		cutoffDate = explicitCutoffDate;
+	if (cutoffType === "date" && explicitCutoffDate && explicitCutoffDate.trim()) {
+		// Validate that the explicit cutoff date is a valid ISO date
+		try {
+			Temporal.PlainDate.from(explicitCutoffDate);
+			cutoffDate = explicitCutoffDate;
+		} catch {
+			// Invalid date format - fall back to days-based calculation
+			cutoffDate = calculateCutoffDate(newestExistingDate, cutoffDays);
+		}
 	} else {
 		cutoffDate = calculateCutoffDate(newestExistingDate, cutoffDays);
 	}

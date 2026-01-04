@@ -134,6 +134,12 @@ export function ImportPanel({
 		defaultCurrency,
 	});
 
+	// Get selected account's currency for proper amount formatting
+	const selectedAccount = session?.selectedAccountId
+		? accounts.find((a) => a.id === session.selectedAccountId)
+		: undefined;
+	const accountCurrency = selectedAccount?.currency ?? defaultCurrency;
+
 	// Load initial file if provided
 	useEffect(() => {
 		if (initialFile && !hasLoadedInitialFile.current) {
@@ -343,6 +349,7 @@ export function ImportPanel({
 					showFiltered={showFiltered}
 					onToggleFiltered={handleToggleFiltered}
 					maxDisplayRows={100}
+					currency={accountCurrency}
 					className="min-h-[400px] flex-1 min-w-0 lg:min-w-[500px]"
 				/>
 

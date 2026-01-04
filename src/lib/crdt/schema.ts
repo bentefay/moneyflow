@@ -235,7 +235,12 @@ export type VaultState = InferType<typeof vaultSchema>;
 /** Inferred type for writing vault state (input) */
 export type VaultInput = InferInputType<typeof vaultSchema>;
 
-/** Individual entity types */
+/** Individual entity types
+ *
+ * Note: Transaction.amount and Account.balance are stored as integers in minor units
+ * (e.g., cents for USD, yen for JPY). Use asMinorUnits() to cast when type safety is needed,
+ * or use the currency conversion functions for display.
+ */
 export type Person = InferType<typeof personSchema>;
 export type Account = InferType<typeof accountSchema>;
 export type Tag = InferType<typeof tagSchema>;

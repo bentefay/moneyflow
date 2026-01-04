@@ -14,6 +14,7 @@
 import { AlertCircle, CheckCircle2, Clock, Copy, Eye, EyeOff } from "lucide-react";
 import { useMemo } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { getMinorUnitMultiplier } from "@/lib/domain/currency";
 import type { ImportSummaryStats, PreviewTransaction } from "@/lib/import/types";
 import { cn } from "@/lib/utils";
 import { formatTransactionDate } from "@/lib/utils/date-format";
@@ -35,6 +36,8 @@ export interface ImportTableProps {
 	hasHeaders: boolean;
 	/** Column mapping for highlighting mapped columns */
 	columnMappings: Record<string, number>;
+	/** Currency code for amount formatting */
+	currency?: string;
 	/** Whether to show filtered (old) transactions */
 	showFiltered?: boolean;
 	/** Callback to toggle filtered visibility */
@@ -109,6 +112,7 @@ export function ImportTable({
 	stats,
 	hasHeaders,
 	columnMappings,
+	currency = "USD",
 	showFiltered = true,
 	onToggleFiltered,
 	maxDisplayRows = 100,
@@ -116,6 +120,10 @@ export function ImportTable({
 }: ImportTableProps) {
 	// Build set of mapped column indices for highlighting
 	const mappedIndices = useMemo(() => new Set(Object.values(columnMappings)), [columnMappings]);
+
+	// Get decimal places for the currency (for amount formatting)
+	const multiplier = getMinorUnitMultiplier(currency);
+	const decimalPlaces = Math.log10(multiplier);
 
 	// Skip header row if present for raw data
 	const dataRows = hasHeaders ? rawRows.slice(1) : rawRows;
@@ -129,7 +137,11 @@ export function ImportTable({
 		}> = [];
 
 		for (let i = 0; i < Math.min(dataRows.length, maxDisplayRows); i++) {
-			const preview = previewTransactions.find((tx) => tx.rowIndex === i);
+			// Preview rowIndex is the original index in rawRows
+			// If hasHeaders, preview rowIndex starts at 1 (after header row)
+			// So we need to offset: dataRows[i] corresponds to rawRows[i + 1] when hasHeaders
+			const originalRowIndex = hasHeaders ? i + 1 : i;
+			const preview = previewTransactions.find((tx) => tx.rowIndex === originalRowIndex);
 			// Skip filtered transactions if showFiltered is false
 			if (!showFiltered && preview?.status === "filtered") {
 				continue;
@@ -142,9 +154,13 @@ export function ImportTable({
 		}
 
 		return result;
-	}, [dataRows, previewTransactions, showFiltered, maxDisplayRows]);
+	}, [dataRows, previewTransactions, showFiltered, maxDisplayRows, hasHeaders]);
 
 	const truncated = rawRows.length > maxDisplayRows;
+
+	// Calculate number of columns for each section
+	const rawColCount = rawHeaders.length;
+	const previewColCount = 4; // Status, Date, Description, Amount
 
 	return (
 		<div className={cn("flex flex-col", className)}>
@@ -175,6 +191,24 @@ export function ImportTable({
 			<div className={cn("border rounded-lg overflow-auto bg-card", "max-h-[500px] min-h-[300px]")}>
 				<table className="w-full text-sm">
 					<thead className="bg-muted/50 sticky top-0 z-10">
+						{/* Section header row */}
+						<tr className="border-b">
+							<th className="bg-muted/50" />
+							<th
+								colSpan={rawColCount}
+								className="px-2 py-1 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-muted/50"
+							>
+								Raw
+							</th>
+							<th className="w-px bg-border" />
+							<th
+								colSpan={previewColCount}
+								className="px-2 py-1 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-muted/30"
+							>
+								Preview
+							</th>
+						</tr>
+						{/* Column headers row */}
 						<tr>
 							{/* Row number */}
 							<th className="px-2 py-1.5 text-left text-xs font-medium text-muted-foreground w-10 border-r bg-muted/50">
@@ -299,7 +333,7 @@ export function ImportTable({
 										{preview?.amount !== null && preview?.amount !== undefined ? (
 											<span>
 												{preview.amount < 0 ? "−" : "+"}
-												{Math.abs(preview.amount / 100).toFixed(2)}
+												{Math.abs(preview.amount / multiplier).toFixed(decimalPlaces)}
 											</span>
 										) : (
 											<span className="text-muted-foreground">—</span>

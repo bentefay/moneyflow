@@ -314,8 +314,8 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 				{navigationContent(false)}
 			</aside>
 
-			{/* Main Content Area - no header, full height for virtualization */}
-			<main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{children}</main>
+			{/* Main Content Area - allows vertical scrolling for non-virtualized pages */}
+			<main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">{children}</main>
 		</div>
 	);
 }
