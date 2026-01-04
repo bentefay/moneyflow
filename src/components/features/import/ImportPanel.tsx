@@ -78,10 +78,10 @@ export interface ImportPanelProps {
 	onImportComplete: () => void;
 	/** Callback when cancel is clicked (defaults to reset) */
 	onCancel?: () => void;
-	/** Callback to save a new template (name + config) */
-	onSaveTemplate?: (name: string, config: ImportConfig) => void;
+	/** Callback to save a new template (name + config + fileType) */
+	onSaveTemplate?: (name: string, config: ImportConfig, fileType: "csv" | "ofx") => void;
 	/** Callback to update an existing template's config */
-	onUpdateTemplate?: (templateId: string, config: ImportConfig) => void;
+	onUpdateTemplate?: (templateId: string, config: ImportConfig, fileType: "csv" | "ofx") => void;
 	/** Callback to delete a template */
 	onDeleteTemplate?: (templateId: string) => void;
 	/** Additional CSS classes */
@@ -162,11 +162,11 @@ export function ImportPanel({
 		setShowFiltered((prev) => !prev);
 	}, []);
 
-	// Wrap onSaveTemplate to include current config
+	// Wrap onSaveTemplate to include current config and fileType
 	const handleSaveTemplate = useCallback(
 		(name: string) => {
 			if (onSaveTemplate && session) {
-				onSaveTemplate(name, session.config);
+				onSaveTemplate(name, session.config, session.fileType);
 			}
 		},
 		[onSaveTemplate, session]
@@ -202,11 +202,11 @@ export function ImportPanel({
 			// Both CSV and OFX benefit from saved duplicate detection and filter settings
 			if (session.templateId && onUpdateTemplate) {
 				// Template was selected - update it with current config
-				onUpdateTemplate(session.templateId, session.config);
+				onUpdateTemplate(session.templateId, session.config, session.fileType);
 			} else if (templates.length === 0 && onSaveTemplate) {
 				// No templates exist - auto-save with filename as name
 				const templateName = session.fileName.replace(/\.(csv|ofx)$/i, "");
-				onSaveTemplate(templateName, session.config);
+				onSaveTemplate(templateName, session.config, session.fileType);
 			}
 
 			// Signal completion and reset

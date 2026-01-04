@@ -83,11 +83,14 @@ export default function NewImportPage() {
 	});
 
 	const updateImportTemplate = useVaultAction(
-		(state, data: { id: string; config: ImportConfig }) => {
+		(state, data: { id: string; config: ImportConfig; fileType: "csv" | "ofx" }) => {
 			const template = state.importTemplates[data.id];
 			if (template && typeof template === "object") {
-				// Update config fields
-				template.columnMappings = data.config.columnMappings as (typeof template)["columnMappings"];
+				// Only update column mappings for CSV files (OFX has fixed mappings)
+				if (data.fileType === "csv") {
+					template.columnMappings = data.config
+						.columnMappings as (typeof template)["columnMappings"];
+				}
 				template.formatting = data.config.formatting as (typeof template)["formatting"];
 				template.duplicateDetection = data.config
 					.duplicateDetection as (typeof template)["duplicateDetection"];
@@ -259,12 +262,14 @@ export default function NewImportPage() {
 	}, [router]);
 
 	// Handle save template (with config from ImportPanel)
+	// For OFX files, we don't save column mappings (they're fixed)
 	const handleSaveTemplate = useCallback(
-		(name: string, config: ImportConfig) => {
+		(name: string, config: ImportConfig, fileType: "csv" | "ofx") => {
 			addImportTemplate({
 				id: generateId(),
 				name,
-				columnMappings: config.columnMappings,
+				// Only save column mappings for CSV files
+				columnMappings: fileType === "csv" ? config.columnMappings : {},
 				formatting: config.formatting,
 				duplicateDetection: config.duplicateDetection,
 				oldTransactionFilter: config.oldTransactionFilter,
@@ -276,9 +281,10 @@ export default function NewImportPage() {
 	);
 
 	// Handle update template (for auto-update on import)
+	// For OFX files, we don't update column mappings (they're fixed)
 	const handleUpdateTemplate = useCallback(
-		(templateId: string, config: ImportConfig) => {
-			updateImportTemplate({ id: templateId, config });
+		(templateId: string, config: ImportConfig, fileType: "csv" | "ofx") => {
+			updateImportTemplate({ id: templateId, config, fileType });
 		},
 		[updateImportTemplate]
 	);
