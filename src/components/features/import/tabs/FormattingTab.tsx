@@ -38,6 +38,8 @@ export interface FormattingTabProps {
 	sampleDates?: string[];
 	/** Sample amount values for auto-detection */
 	sampleAmounts?: string[];
+	/** File type - controls which settings are shown */
+	fileType?: "csv" | "ofx";
 	/** Additional CSS classes */
 	className?: string;
 }
@@ -164,8 +166,11 @@ export function FormattingTab({
 	onFormattingChange,
 	sampleDates = [],
 	sampleAmounts = [],
+	fileType = "csv",
 	className,
 }: FormattingTabProps) {
+	const isCsv = fileType === "csv";
+
 	// Get current number format label
 	const currentNumberFormat = NUMBER_FORMAT_OPTIONS.find(
 		(opt) =>
@@ -206,90 +211,98 @@ export function FormattingTab({
 
 	return (
 		<div className={cn("space-y-6", className)}>
-			{/* Header with auto-detect */}
-			<div className="flex items-center justify-between">
-				<div>
-					<Label>Format Settings</Label>
-					<p className="text-sm text-muted-foreground">
-						Configure how dates and numbers are parsed
-					</p>
+			{/* Header with auto-detect (CSV only) */}
+			{isCsv && (
+				<div className="flex items-center justify-between">
+					<div>
+						<Label>Format Settings</Label>
+						<p className="text-sm text-muted-foreground">
+							Configure how dates and numbers are parsed
+						</p>
+					</div>
+					<Button type="button" variant="outline" size="sm" onClick={handleAutoDetect}>
+						<Wand2 className="h-4 w-4 mr-1.5" />
+						Auto-detect
+					</Button>
 				</div>
-				<Button type="button" variant="outline" size="sm" onClick={handleAutoDetect}>
-					<Wand2 className="h-4 w-4 mr-1.5" />
-					Auto-detect
-				</Button>
-			</div>
+			)}
 
-			{/* Has headers */}
-			<div className="flex items-center space-x-3">
-				<Checkbox
-					id="has-headers"
-					checked={formatting.hasHeaders}
-					onCheckedChange={(checked) => onFormattingChange({ hasHeaders: checked === true })}
-				/>
-				<div className="space-y-0.5">
-					<Label htmlFor="has-headers" className="cursor-pointer">
-						First row is headers
-					</Label>
-					<p className="text-xs text-muted-foreground">
-						Skip the first row when importing transactions
-					</p>
+			{/* Has headers (CSV only) */}
+			{isCsv && (
+				<div className="flex items-center space-x-3">
+					<Checkbox
+						id="has-headers"
+						checked={formatting.hasHeaders}
+						onCheckedChange={(checked) => onFormattingChange({ hasHeaders: checked === true })}
+					/>
+					<div className="space-y-0.5">
+						<Label htmlFor="has-headers" className="cursor-pointer">
+							First row is headers
+						</Label>
+						<p className="text-xs text-muted-foreground">
+							Skip the first row when importing transactions
+						</p>
+					</div>
 				</div>
-			</div>
+			)}
 
-			{/* Date format */}
-			<div className="space-y-2">
-				<Label htmlFor="date-format">Date Format</Label>
-				<Select
-					value={formatting.dateFormat}
-					onValueChange={(v) => onFormattingChange({ dateFormat: v })}
-				>
-					<SelectTrigger id="date-format">
-						<SelectValue placeholder="Select date format" />
-					</SelectTrigger>
-					<SelectContent>
-						{DATE_FORMAT_OPTIONS.map((opt) => (
-							<SelectItem key={opt.value} value={opt.value}>
-								{opt.label}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
-				{sampleDates.length > 0 && (
-					<p className="text-xs text-muted-foreground">
-						Sample: <code className="bg-muted px-1 rounded">{sampleDates[0]}</code>
-					</p>
-				)}
-			</div>
+			{/* Date format (CSV only) */}
+			{isCsv && (
+				<div className="space-y-2">
+					<Label htmlFor="date-format">Date Format</Label>
+					<Select
+						value={formatting.dateFormat}
+						onValueChange={(v) => onFormattingChange({ dateFormat: v })}
+					>
+						<SelectTrigger id="date-format">
+							<SelectValue placeholder="Select date format" />
+						</SelectTrigger>
+						<SelectContent>
+							{DATE_FORMAT_OPTIONS.map((opt) => (
+								<SelectItem key={opt.value} value={opt.value}>
+									{opt.label}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+					{sampleDates.length > 0 && (
+						<p className="text-xs text-muted-foreground">
+							Sample: <code className="bg-muted px-1 rounded">{sampleDates[0]}</code>
+						</p>
+					)}
+				</div>
+			)}
 
-			{/* Number format */}
-			<div className="space-y-2">
-				<Label htmlFor="number-format">Number Format</Label>
-				<Select
-					value={`${formatting.thousandSeparator}|${formatting.decimalSeparator}`}
-					onValueChange={handleNumberFormatChange}
-				>
-					<SelectTrigger id="number-format">
-						<SelectValue placeholder="Select number format">
-							{currentNumberFormat?.label ?? "Custom"}
-						</SelectValue>
-					</SelectTrigger>
-					<SelectContent>
-						{NUMBER_FORMAT_OPTIONS.map((opt) => (
-							<SelectItem key={opt.label} value={`${opt.thousand}|${opt.decimal}`}>
-								{opt.label}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
-				{sampleAmounts.length > 0 && (
-					<p className="text-xs text-muted-foreground">
-						Sample: <code className="bg-muted px-1 rounded">{sampleAmounts[0]}</code>
-					</p>
-				)}
-			</div>
+			{/* Number format (CSV only) */}
+			{isCsv && (
+				<div className="space-y-2">
+					<Label htmlFor="number-format">Number Format</Label>
+					<Select
+						value={`${formatting.thousandSeparator}|${formatting.decimalSeparator}`}
+						onValueChange={handleNumberFormatChange}
+					>
+						<SelectTrigger id="number-format">
+							<SelectValue placeholder="Select number format">
+								{currentNumberFormat?.label ?? "Custom"}
+							</SelectValue>
+						</SelectTrigger>
+						<SelectContent>
+							{NUMBER_FORMAT_OPTIONS.map((opt) => (
+								<SelectItem key={opt.label} value={`${opt.thousand}|${opt.decimal}`}>
+									{opt.label}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+					{sampleAmounts.length > 0 && (
+						<p className="text-xs text-muted-foreground">
+							Sample: <code className="bg-muted px-1 rounded">{sampleAmounts[0]}</code>
+						</p>
+					)}
+				</div>
+			)}
 
-			{/* Whitespace normalization */}
+			{/* Whitespace normalization (both CSV and OFX) */}
 			<div className="flex items-center space-x-3">
 				<Checkbox
 					id="collapse-whitespace"

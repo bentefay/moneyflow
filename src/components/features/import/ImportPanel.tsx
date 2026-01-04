@@ -405,7 +405,7 @@ export function ImportPanel({
 						/>
 					</TabsContent>
 
-					{/* Formatting Tab (CSV only) */}
+					{/* Formatting Tab */}
 					<TabsContent value="formatting">
 						<FormattingTab
 							formatting={session.config.formatting}
@@ -416,6 +416,7 @@ export function ImportPanel({
 							}
 							sampleDates={sampleDates}
 							sampleAmounts={sampleAmounts}
+							fileType={session.fileType}
 						/>
 					</TabsContent>
 

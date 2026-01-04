@@ -77,7 +77,7 @@ interface TabConfig {
 const TABS: TabConfig[] = [
 	{ id: "template", label: "Template", icon: FileText, showFor: ["csv", "ofx"] },
 	{ id: "mapping", label: "Columns", icon: Columns, showFor: ["csv"] },
-	{ id: "formatting", label: "Format", icon: Settings, showFor: ["csv"] },
+	{ id: "formatting", label: "Format", icon: Settings, showFor: ["csv", "ofx"] },
 	{ id: "duplicates", label: "Duplicates", icon: Copy, showFor: ["csv", "ofx"] },
 	{ id: "account", label: "Account", icon: Landmark, showFor: ["csv", "ofx"] },
 ];
