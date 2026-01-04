@@ -254,7 +254,7 @@ test.describe("Import Panel", () => {
 			// Should show old transaction filter section with new label
 			await expect(page.getByText(/how to handle old transactions/i)).toBeVisible();
 			// Should show filter mode options (one of the radio options) - use first() to handle duplicates
-			await expect(page.getByText(/import all transactions/i).first()).toBeVisible();
+			await expect(page.getByText(/import all old transactions/i).first()).toBeVisible();
 		});
 
 		await test.step("cleanup", async () => {

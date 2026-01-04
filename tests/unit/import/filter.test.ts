@@ -35,20 +35,25 @@ describe("calculateCutoffDate", () => {
 		expect(calculateCutoffDate(null, 10)).toBeNull();
 	});
 
-	it("subtracts cutoff days from newest date", () => {
-		expect(calculateCutoffDate("2026-01-15", 10)).toBe("2026-01-05");
+	it("subtracts cutoff days from newest date and adds 1", () => {
+		// 2026-01-15 - 10 + 1 = 2026-01-06
+		expect(calculateCutoffDate("2026-01-15", 10)).toBe("2026-01-06");
 	});
 
 	it("handles month boundaries correctly", () => {
-		expect(calculateCutoffDate("2026-01-05", 10)).toBe("2025-12-26");
+		// 2026-01-05 - 10 + 1 = 2025-12-27
+		expect(calculateCutoffDate("2026-01-05", 10)).toBe("2025-12-27");
 	});
 
 	it("handles year boundaries correctly", () => {
-		expect(calculateCutoffDate("2026-01-01", 5)).toBe("2025-12-27");
+		// 2026-01-01 - 5 + 1 = 2025-12-28
+		expect(calculateCutoffDate("2026-01-01", 5)).toBe("2025-12-28");
 	});
 
-	it("handles zero cutoff days", () => {
-		expect(calculateCutoffDate("2026-01-15", 0)).toBe("2026-01-15");
+	it("handles zero cutoff days - excludes newest date and before", () => {
+		// 2026-01-15 - 0 + 1 = 2026-01-16
+		// This means only dates >= 2026-01-16 are kept (newer than existing)
+		expect(calculateCutoffDate("2026-01-15", 0)).toBe("2026-01-16");
 	});
 });
 
@@ -125,27 +130,29 @@ describe("filterOldTransactions", () => {
 			cutoffDate: null,
 		};
 
+		// With cutoffDays=10 from 2026-01-15: cutoff = 2026-01-06
+		// Dates >= 2026-01-06 are included, dates < 2026-01-06 are excluded
 		const testCases = [
 			{
 				name: "excludes all transactions before cutoff",
 				transactions: [
 					tx("1", "2026-01-20"), // New - included
-					tx("2", "2026-01-05"), // Exactly at cutoff - included
-					tx("3", "2026-01-04", true), // Old duplicate - excluded
-					tx("4", "2026-01-04", false), // Old non-duplicate - excluded
+					tx("2", "2026-01-06"), // Exactly at cutoff - included
+					tx("3", "2026-01-05", true), // Old (before cutoff) duplicate - excluded
+					tx("4", "2026-01-05", false), // Old (before cutoff) non-duplicate - excluded
 				],
 				expectedIncludedIds: ["1", "2"],
 				expectedExcludedIds: ["3", "4"],
 			},
 			{
 				name: "includes all when nothing is old",
-				transactions: [tx("1", "2026-01-15"), tx("2", "2026-01-10"), tx("3", "2026-01-05")],
+				transactions: [tx("1", "2026-01-15"), tx("2", "2026-01-10"), tx("3", "2026-01-06")],
 				expectedIncludedIds: ["1", "2", "3"],
 				expectedExcludedIds: [],
 			},
 			{
 				name: "excludes all when everything is old",
-				transactions: [tx("1", "2026-01-04"), tx("2", "2026-01-01"), tx("3", "2025-12-25")],
+				transactions: [tx("1", "2026-01-05"), tx("2", "2026-01-01"), tx("3", "2025-12-25")],
 				expectedIncludedIds: [],
 				expectedExcludedIds: ["1", "2", "3"],
 			},
@@ -167,14 +174,16 @@ describe("filterOldTransactions", () => {
 			cutoffDate: null,
 		};
 
+		// With cutoffDays=10 from 2026-01-15: cutoff = 2026-01-06
+		// Dates >= 2026-01-06 are new, dates < 2026-01-06 are old
 		const testCases = [
 			{
 				name: "excludes old duplicates, includes old non-duplicates",
 				transactions: [
 					tx("1", "2026-01-20"), // New - included
 					tx("2", "2026-01-10", true), // New duplicate - included (duplicates only excluded if OLD)
-					tx("3", "2026-01-04", true), // Old duplicate - excluded
-					tx("4", "2026-01-04", false), // Old non-duplicate - included
+					tx("3", "2026-01-05", true), // Old duplicate - excluded
+					tx("4", "2026-01-05", false), // Old non-duplicate - included
 					tx("5", "2026-01-01", true), // Old duplicate - excluded
 					tx("6", "2026-01-01", false), // Old non-duplicate - included
 				],
@@ -245,9 +254,11 @@ describe("filterOldTransactions", () => {
 				cutoffDays: 10,
 				cutoffDate: null,
 			};
+			// With cutoffDays=10 from 2026-01-15: cutoff = 2026-01-06
+			// Dates >= 2026-01-06 are included, dates < 2026-01-06 are excluded
 			const transactions = [
-				tx("1", "2026-01-05"), // Exactly at cutoff - included
-				tx("2", "2026-01-04"), // One day before cutoff - excluded
+				tx("1", "2026-01-06"), // Exactly at cutoff - included
+				tx("2", "2026-01-05"), // One day before cutoff - excluded
 			];
 
 			const result = filterOldTransactions(transactions, newestExisting, config);
@@ -256,22 +267,26 @@ describe("filterOldTransactions", () => {
 			expect(result.excluded.map((t) => t.id)).toEqual(["2"]);
 		});
 
-		it("handles zero cutoff days (only same-day transactions pass)", () => {
+		it("handles zero cutoff days (only strictly newer transactions pass)", () => {
 			const config: FilterConfig = {
 				mode: "ignore-all",
 				cutoffType: "days",
 				cutoffDays: 0,
 				cutoffDate: null,
 			};
+			// With cutoffDays=0 from 2026-01-15: cutoff = 2026-01-16
+			// Dates >= 2026-01-16 are included (strictly newer than existing)
+			// Dates <= 2026-01-15 are excluded (same day as newest or older)
 			const transactions = [
-				tx("1", "2026-01-15"), // Same as newest - included
-				tx("2", "2026-01-14"), // One day before - excluded
+				tx("1", "2026-01-16"), // Strictly newer than newest - included
+				tx("2", "2026-01-15"), // Same as newest - excluded
+				tx("3", "2026-01-14"), // Older than newest - excluded
 			];
 
 			const result = filterOldTransactions(transactions, newestExisting, config);
 
 			expect(result.included.map((t) => t.id)).toEqual(["1"]);
-			expect(result.excluded.map((t) => t.id)).toEqual(["2"]);
+			expect(result.excluded.map((t) => t.id)).toEqual(["2", "3"]);
 		});
 
 		it("preserves order of transactions", () => {

@@ -31,6 +31,11 @@ export interface FilterableTransaction {
 /**
  * Calculate the cutoff date based on the newest existing transaction and cutoff days.
  *
+ * The cutoff is calculated as (newestDate - cutoffDays + 1) day, making the filter
+ * inclusive of the newest date when cutoffDays=0. This means:
+ * - cutoffDays=0: Exclude transactions on or before the newest existing date
+ * - cutoffDays=1: Exclude transactions more than 1 day before newest (keep same day + 1 before)
+ *
  * @param newestExistingDate - ISO date of newest transaction, or null if no transactions
  * @param cutoffDays - Number of days before newest to set as cutoff
  * @returns Cutoff date as ISO string, or null if no existing transactions
@@ -44,7 +49,9 @@ export function calculateCutoffDate(
 	}
 
 	const newest = Temporal.PlainDate.from(newestExistingDate);
-	const cutoff = newest.subtract({ days: cutoffDays });
+	// Add 1 to cutoffDays so that cutoffDays=0 means "exclude newest date and before"
+	// (transactions strictly after newest are kept)
+	const cutoff = newest.subtract({ days: cutoffDays }).add({ days: 1 });
 	return cutoff.toString();
 }
 

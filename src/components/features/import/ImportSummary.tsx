@@ -159,6 +159,17 @@ export function ImportSummary({
 								No valid transactions found. Please check your column mappings and formatting
 								settings.
 							</>
+						) : willImportCount === 0 ? (
+							<>
+								No transactions to import.
+								{filteredCount > 0 && (
+									<>
+										{" "}
+										All {filteredCount} transaction{filteredCount !== 1 ? "s are" : " is"} older
+										than the cutoff date.
+									</>
+								)}
+							</>
 						) : (
 							<>
 								{errorCount > 0 && (
