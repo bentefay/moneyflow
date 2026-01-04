@@ -342,6 +342,11 @@ export function ImportPanel({
 				stats={summaryStats}
 				canImport={canImport}
 				needsAccountSelection={!session.selectedAccountId && session.fileType === "csv"}
+				selectedAccountName={
+					session.selectedAccountId
+						? accounts.find((a) => a.id === session.selectedAccountId)?.name
+						: null
+				}
 			/>
 
 			{/* Main content: Table + Config */}

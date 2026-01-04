@@ -358,9 +358,11 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 						}
 					}
 				} else {
-					// CSV files - no auto-selection
-					selectedAccountId = null;
-					accountAction = null;
+					// CSV files - default to first account
+					if (activeAccounts.length > 0) {
+						selectedAccountId = activeAccounts[0].id;
+						accountAction = { type: "default-selected" };
+					}
 				}
 
 				// Create session

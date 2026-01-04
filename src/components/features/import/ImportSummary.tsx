@@ -26,6 +26,8 @@ export interface ImportSummaryProps {
 	canImport: boolean;
 	/** Whether an account needs to be selected (CSV files) */
 	needsAccountSelection?: boolean;
+	/** Name of the selected account for display */
+	selectedAccountName?: string | null;
 	/** Additional CSS classes */
 	className?: string;
 }
@@ -74,6 +76,7 @@ export function ImportSummary({
 	stats,
 	canImport,
 	needsAccountSelection,
+	selectedAccountName,
 	className,
 }: ImportSummaryProps) {
 	const { totalRows, validCount, errorCount, duplicateCount, filteredCount } = stats;
@@ -136,6 +139,12 @@ export function ImportSummary({
 					<p className="text-sm text-green-800 dark:text-green-200">
 						<span className="font-medium">{willImportCount}</span> transaction
 						{willImportCount !== 1 ? "s" : ""} will be imported
+						{selectedAccountName && (
+							<>
+								{" "}
+								into <span className="font-semibold">{selectedAccountName}</span>
+							</>
+						)}
 						{duplicateCount > 0 && (
 							<span className="text-green-700 dark:text-green-300">
 								{" "}
