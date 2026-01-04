@@ -24,6 +24,7 @@ import type {
 	Status,
 	Transaction,
 } from "@/lib/crdt/schema";
+import type { ImportConfig } from "@/lib/import/types";
 
 /** Generate unique ID */
 function generateId(): string {
@@ -58,6 +59,22 @@ export default function NewImportPage() {
 	const addImportTemplate = useVaultAction((state, data: ImportTemplateRecord) => {
 		state.importTemplates[data.id] = data as (typeof state.importTemplates)[string];
 	});
+
+	const updateImportTemplate = useVaultAction(
+		(state, data: { id: string; config: ImportConfig }) => {
+			const template = state.importTemplates[data.id];
+			if (template && typeof template === "object") {
+				// Update config fields
+				template.columnMappings = data.config.columnMappings as (typeof template)["columnMappings"];
+				template.formatting = data.config.formatting as (typeof template)["formatting"];
+				template.duplicateDetection = data.config
+					.duplicateDetection as (typeof template)["duplicateDetection"];
+				template.oldTransactionFilter = data.config
+					.oldTransactionFilter as (typeof template)["oldTransactionFilter"];
+				template.lastUsedAt = Date.now();
+			}
+		}
+	);
 
 	const deleteImportTemplate = useVaultAction((state, id: string) => {
 		const template = state.importTemplates[id];
@@ -167,35 +184,29 @@ export default function NewImportPage() {
 		router.push("/transactions");
 	}, [router]);
 
-	// Handle save template
+	// Handle save template (with config from ImportPanel)
 	const handleSaveTemplate = useCallback(
-		(name: string) => {
+		(name: string, config: ImportConfig) => {
 			addImportTemplate({
 				id: generateId(),
 				name,
-				columnMappings: {},
-				formatting: {
-					hasHeaders: true,
-					thousandSeparator: ",",
-					decimalSeparator: ".",
-					dateFormat: "yyyy-MM-dd",
-					collapseWhitespace: false,
-				},
-				duplicateDetection: {
-					dateMatchMode: "within",
-					maxDateDiffDays: 3,
-					descriptionMatchMode: "similar",
-					minDescriptionSimilarity: 0.6,
-				},
-				oldTransactionFilter: {
-					mode: "ignore-duplicates",
-					cutoffDays: 10,
-				},
+				columnMappings: config.columnMappings,
+				formatting: config.formatting,
+				duplicateDetection: config.duplicateDetection,
+				oldTransactionFilter: config.oldTransactionFilter,
 				lastUsedAt: Date.now(),
 				deletedAt: 0,
 			} as ImportTemplateRecord);
 		},
 		[addImportTemplate]
+	);
+
+	// Handle update template (for auto-update on import)
+	const handleUpdateTemplate = useCallback(
+		(templateId: string, config: ImportConfig) => {
+			updateImportTemplate({ id: templateId, config });
+		},
+		[updateImportTemplate]
 	);
 
 	// Handle delete template
@@ -224,6 +235,7 @@ export default function NewImportPage() {
 					onCreateTransactions={handleCreateTransactions}
 					onImportComplete={handleImportComplete}
 					onSaveTemplate={handleSaveTemplate}
+					onUpdateTemplate={handleUpdateTemplate}
 					onDeleteTemplate={handleDeleteTemplate}
 				/>
 			</div>

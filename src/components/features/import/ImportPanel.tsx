@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 // Hooks and Types
 import { useImportState } from "@/hooks/use-import-state";
 import type { Account, ImportTemplate, Transaction } from "@/lib/crdt/schema";
+import type { ImportConfig } from "@/lib/import/types";
 import { cn } from "@/lib/utils";
 import { ConfigTabs, TabsContent } from "./ConfigTabs";
 // Components
@@ -55,8 +56,10 @@ export interface ImportPanelProps {
 	onCreateTransactions: (transactions: ImportTransactionData[], fileName: string) => string;
 	/** Callback when import is complete */
 	onImportComplete: () => void;
-	/** Callback to save a new template */
-	onSaveTemplate?: (name: string) => void;
+	/** Callback to save a new template (name + config) */
+	onSaveTemplate?: (name: string, config: ImportConfig) => void;
+	/** Callback to update an existing template's config */
+	onUpdateTemplate?: (templateId: string, config: ImportConfig) => void;
 	/** Callback to delete a template */
 	onDeleteTemplate?: (templateId: string) => void;
 	/** Additional CSS classes */
@@ -78,6 +81,7 @@ export function ImportPanel({
 	onCreateTransactions,
 	onImportComplete,
 	onSaveTemplate,
+	onUpdateTemplate,
 	onDeleteTemplate,
 	className,
 }: ImportPanelProps) {
@@ -119,6 +123,16 @@ export function ImportPanel({
 		setShowFiltered((prev) => !prev);
 	}, []);
 
+	// Wrap onSaveTemplate to include current config
+	const handleSaveTemplate = useCallback(
+		(name: string) => {
+			if (onSaveTemplate && session) {
+				onSaveTemplate(name, session.config);
+			}
+		},
+		[onSaveTemplate, session]
+	);
+
 	const handleImport = useCallback(async () => {
 		if (!canImport || !session) return;
 
@@ -143,6 +157,19 @@ export function ImportPanel({
 			// Create transactions in CRDT
 			onCreateTransactions(transactionsToImport, session.fileName);
 
+			// Auto-save or auto-update template
+			// Only for CSV files since OFX has built-in format
+			if (session.fileType === "csv") {
+				if (session.templateId && onUpdateTemplate) {
+					// Template was selected - update it with current config
+					onUpdateTemplate(session.templateId, session.config);
+				} else if (templates.length === 0 && onSaveTemplate) {
+					// No templates exist - auto-save with filename as name
+					const templateName = session.fileName.replace(/\.(csv|ofx)$/i, "");
+					onSaveTemplate(templateName, session.config);
+				}
+			}
+
 			// Signal completion and reset
 			onImportComplete();
 			reset();
@@ -151,7 +178,17 @@ export function ImportPanel({
 		} finally {
 			setIsImporting(false);
 		}
-	}, [canImport, session, previewTransactions, onCreateTransactions, onImportComplete, reset]);
+	}, [
+		canImport,
+		session,
+		previewTransactions,
+		templates.length,
+		onCreateTransactions,
+		onImportComplete,
+		onSaveTemplate,
+		onUpdateTemplate,
+		reset,
+	]);
 
 	// Extract sample data for formatting tab
 	const sampleDates =
@@ -259,7 +296,7 @@ export function ImportPanel({
 					templates={templates}
 					selectedTemplateId={session.templateId}
 					onSelectTemplate={selectTemplate}
-					onSaveTemplate={onSaveTemplate}
+					onSaveTemplate={handleSaveTemplate}
 					accounts={accounts}
 					selectedAccountId={session.selectedAccountId}
 					onSelectAccount={selectAccount}
@@ -272,7 +309,7 @@ export function ImportPanel({
 							templates={templates}
 							selectedTemplateId={session.templateId}
 							onSelect={selectTemplate}
-							onSave={onSaveTemplate}
+							onSave={handleSaveTemplate}
 							onDelete={onDeleteTemplate}
 						/>
 					</TabsContent>
