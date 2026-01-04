@@ -409,11 +409,13 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 		const dataRows = formatting.hasHeaders ? rawRows.slice(1) : rawRows;
 
 		// Build column index map
+		// columnMappings keys are column indices as strings (e.g., "0", "1", "2")
+		// values are target field names (e.g., "date", "description", "amount")
 		const columnMap = new Map<string, number>();
-		for (const [sourceCol, targetField] of Object.entries(columnMappings)) {
+		for (const [sourceColIdx, targetField] of Object.entries(columnMappings)) {
 			if (targetField && targetField !== "ignore") {
-				const idx = headers.indexOf(sourceCol);
-				if (idx !== -1) {
+				const idx = Number.parseInt(sourceColIdx, 10);
+				if (!Number.isNaN(idx) && idx >= 0 && idx < headers.length) {
 					columnMap.set(targetField, idx);
 				}
 			}

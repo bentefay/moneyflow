@@ -38,11 +38,11 @@ function createTestFile(content: string, extension: string): string {
  */
 function createSampleBankCSV(): string {
 	const content = `Date,Description,Amount,Balance
-2024-01-15,"Coffee Shop",-5.50,1000.00
-2024-01-16,"Grocery Store",-75.25,924.75
-2024-01-17,"Direct Deposit",2500.00,3424.75
-2024-01-18,"Gas Station",-45.00,3379.75
-2024-01-19,"Restaurant",-32.50,3347.25`;
+2024-01-15,Coffee Shop,-5.50,1000.00
+2024-01-16,Grocery Store,-75.25,924.75
+2024-01-17,Direct Deposit,2500.00,3424.75
+2024-01-18,Gas Station,-45.00,3379.75
+2024-01-19,Restaurant,-32.50,3347.25`;
 	return createTestFile(content, "csv");
 }
 
@@ -259,6 +259,193 @@ test.describe("Import Panel", () => {
 
 		await test.step("cleanup", async () => {
 			fs.unlinkSync(csvPath);
+		});
+	});
+
+	test("CSV import creates transactions and auto-saves template on first import", async ({
+		page,
+	}) => {
+		await createNewIdentity(page);
+
+		let csvPath: string;
+
+		await test.step("upload CSV file", async () => {
+			await goToImportNew(page);
+			csvPath = createSampleBankCSV();
+
+			const fileInput = page.locator('input[type="file"]');
+			await fileInput.setInputFiles(csvPath);
+
+			await expect(page.getByText(/6 rows/i)).toBeVisible({ timeout: 5000 });
+		});
+
+		await test.step("configure column mappings", async () => {
+			await page.getByRole("tab", { name: /Columns/i }).click();
+			// Wait for tab panel to be visible
+			const autoDetectBtn = page.getByRole("button", { name: /Auto-detect/i });
+			await expect(autoDetectBtn).toBeVisible();
+			// Click "Auto-detect" button to map columns
+			await autoDetectBtn.click();
+			// Wait for mappings to apply - check for the green "All required fields mapped" message
+			await expect(page.getByText(/All required fields mapped/i)).toBeVisible({ timeout: 5000 });
+		});
+
+		await test.step("select target account", async () => {
+			await page.getByRole("tab", { name: /Account/i }).click();
+
+			// Select the default account created during identity setup
+			const accountSelect = page.locator("#account-select");
+			await accountSelect.click();
+			// Select the "Default" account by name
+			await page.getByRole("option", { name: /Default/i }).click();
+		});
+
+		await test.step("verify import button is enabled and click", async () => {
+			// Should show import button with transaction count (5 data rows)
+			const importButton = page.getByRole("button", { name: /Import \d+ Transactions/i });
+			await expect(importButton).toBeEnabled({ timeout: 5000 });
+			await importButton.click();
+		});
+
+		await test.step("verify redirected to transactions page with new transactions", async () => {
+			// Should redirect to transactions page
+			await expect(page).toHaveURL(/\/transactions/);
+
+			// Should show all 5 imported transactions - check for rows containing description text
+			await expect(page.getByRole("row", { name: /Coffee Shop/i })).toBeVisible({ timeout: 5000 });
+			await expect(page.getByRole("row", { name: /Direct Deposit/i })).toBeVisible();
+			await expect(page.getByText("5 transactions")).toBeVisible();
+		});
+
+		await test.step("verify template was auto-saved on first import", async () => {
+			// Navigate back to import page
+			await goToImportNew(page);
+			csvPath = createSampleBankCSV();
+
+			const fileInput = page.locator('input[type="file"]');
+			await fileInput.setInputFiles(csvPath);
+
+			await expect(page.getByText(/6 rows/i)).toBeVisible({ timeout: 5000 });
+
+			// Go to Template tab - should now have auto-saved template
+			await page.getByRole("tab", { name: /Template/i }).click();
+
+			// The auto-saved template should be visible in the template selector dropdown
+			const templateCombobox = page.getByRole("combobox", { name: /Import Template/i });
+			await expect(templateCombobox).toContainText(/test-import-\d+/i);
+		});
+
+		await test.step("cleanup", async () => {
+			fs.unlinkSync(csvPath);
+		});
+	});
+
+	test("selecting template and importing auto-updates template config", async ({ page }) => {
+		await createNewIdentity(page);
+
+		let csvPath: string;
+		let csvPath2: string;
+
+		await test.step("first import to create template", async () => {
+			await goToImportNew(page);
+			csvPath = createSampleBankCSV();
+
+			const fileInput = page.locator('input[type="file"]');
+			await fileInput.setInputFiles(csvPath);
+			await expect(page.getByText(/6 rows/i)).toBeVisible({ timeout: 5000 });
+
+			// Configure column mappings
+			await page.getByRole("tab", { name: /Columns/i }).click();
+			await page.getByRole("button", { name: /Auto-detect/i }).click();
+
+			// Select account
+			await page.getByRole("tab", { name: /Account/i }).click();
+			await expect(page.getByText(/Target Account/i)).toBeVisible();
+			const accountSelect = page.locator("#account-select");
+			await accountSelect.click();
+			await expect(page.getByRole("option", { name: /Default/i })).toBeVisible();
+			await page.getByRole("option", { name: /Default/i }).click();
+
+			// Import
+			const importBtn = page.getByRole("button", { name: /Import \d+ Transactions/i });
+			await expect(importBtn).toBeEnabled({ timeout: 5000 });
+			await importBtn.click();
+			await expect(page).toHaveURL(/\/transactions/);
+		});
+
+		await test.step("second import with template selected and modified config", async () => {
+			await goToImportNew(page);
+			// Create a CSV with different transaction data to avoid duplicate detection
+			csvPath2 = createTestFile(
+				`Date,Description,Amount,Balance
+2024-02-01,Office Supplies,-125.00,5000.00
+2024-02-02,Client Payment,3500.00,8500.00
+2024-02-03,Utility Bill,-89.99,8410.01`,
+				"csv"
+			);
+
+			const fileInput = page.locator('input[type="file"]');
+			await fileInput.setInputFiles(csvPath2);
+			await expect(page.getByText(/4 rows/i)).toBeVisible({ timeout: 5000 });
+
+			// Select the auto-saved template from the Template tab
+			await page.getByRole("tab", { name: /Template/i }).click();
+			// Use the template selector (select dropdown)
+			const templateTrigger = page.locator("#template-select");
+			await templateTrigger.click();
+			// Select the first non-"No template" option (the auto-saved template)
+			await page.getByRole("option", { name: /test-import-\d+/i }).click();
+
+			// Change a config setting (e.g., date matching mode)
+			await page.getByRole("tab", { name: /Duplicates/i }).click();
+			const exactDateCheckbox = page.getByLabel(/exact date match/i);
+			const wasChecked = await exactDateCheckbox.isChecked();
+			await exactDateCheckbox.click();
+
+			// Select account
+			await page.getByRole("tab", { name: /Account/i }).click();
+			const accountSelect2 = page.locator("#account-select");
+			await accountSelect2.click();
+			await page.getByRole("option", { name: /Default/i }).click();
+
+			// Import (should auto-update template)
+			const importBtn = page.getByRole("button", { name: /Import \d+ Transactions/i });
+			await expect(importBtn).toBeEnabled({ timeout: 5000 });
+			await importBtn.click();
+			await expect(page).toHaveURL(/\/transactions/);
+
+			// Verify the config change was saved by checking on third import
+			await goToImportNew(page);
+			const csvPath3 = createTestFile(
+				`Date,Description,Amount,Balance
+2024-03-01,Test Transaction,-50.00,1000.00`,
+				"csv"
+			);
+			const fileInput2 = page.locator('input[type="file"]');
+			await fileInput2.setInputFiles(csvPath3);
+			await expect(page.getByText(/2 rows/i)).toBeVisible({ timeout: 5000 });
+
+			// Select template and check if config persisted
+			await page.getByRole("tab", { name: /Template/i }).click();
+			const templateTrigger2 = page.locator("#template-select");
+			await templateTrigger2.click();
+			await page.getByRole("option", { name: /test-import-\d+/i }).click();
+
+			await page.getByRole("tab", { name: /Duplicates/i }).click();
+			const exactDateCheckbox2 = page.getByLabel(/exact date match/i);
+			// Should now have the toggled value
+			await expect(exactDateCheckbox2).toHaveAttribute(
+				"aria-checked",
+				wasChecked ? "false" : "true"
+			);
+
+			// Cleanup temp files
+			fs.unlinkSync(csvPath3);
+		});
+
+		await test.step("cleanup", async () => {
+			fs.unlinkSync(csvPath);
+			fs.unlinkSync(csvPath2);
 		});
 	});
 });
