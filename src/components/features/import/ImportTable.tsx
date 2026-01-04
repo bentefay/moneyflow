@@ -273,7 +273,7 @@ export function ImportTable({
 											)}
 											title={cell}
 										>
-											<span className="font-mono text-xs">{cell || "—"}</span>
+											<span className="font-mono text-xs whitespace-pre-wrap">{cell || "—"}</span>
 										</td>
 									))}
 									{/* Divider */}
@@ -315,7 +315,7 @@ export function ImportTable({
 										)}
 									</td>
 									<td
-										className="px-2 py-1 truncate max-w-[200px] bg-muted/10"
+										className="px-2 py-1 truncate max-w-[200px] bg-muted/10 whitespace-pre-wrap"
 										title={preview?.description}
 									>
 										{preview?.description || <span className="text-muted-foreground">—</span>}

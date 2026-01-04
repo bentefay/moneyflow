@@ -10,8 +10,13 @@
  * the import process. Configuration is not persisted until a template is saved.
  */
 
+import Papa from "papaparse";
 import { useCallback, useMemo, useState } from "react";
 import { autoDetectColumnMappings } from "@/components/features/import/ColumnMappingStep";
+import {
+	detectDateFormat,
+	detectNumberFormat,
+} from "@/components/features/import/tabs/FormattingTab";
 import type { Account, ImportTemplate, Transaction } from "@/lib/crdt/schema";
 import type { MoneyMinorUnits } from "@/lib/domain/currency";
 import { toMinorUnitsForCurrency } from "@/lib/domain/currency";
@@ -86,14 +91,24 @@ function detectFileType(content: string): ImportFileType {
 }
 
 /**
- * Parse raw CSV content into rows.
+ * Parse raw CSV content into rows using Papa.parse for proper handling
+ * of quoted fields that may contain delimiters.
  */
 function parseRawRows(content: string): { rows: string[][]; headers: string[]; separator: string } {
 	const separator = detectSeparator(content);
-	const lines = content.split(/\r?\n/).filter((line) => line.trim());
-	const rows = lines.map((line) => line.split(separator));
+
+	// Use Papa.parse for proper CSV parsing (handles quoted fields with embedded delimiters)
+	const result = Papa.parse<string[]>(content, {
+		delimiter: separator,
+		header: false,
+		skipEmptyLines: true,
+	});
+
+	const rows = result.data;
 	const hasHeaders = detectHeaders(content, separator);
-	const headers = hasHeaders ? rows[0] : rows[0].map((_, i) => `Column ${i + 1}`);
+	const headers = hasHeaders
+		? rows[0]?.map((h, i) => h?.trim() || `Column ${i + 1}`)
+		: (rows[0]?.map((_, i) => `Column ${i + 1}`) ?? []);
 	return { rows, headers, separator };
 }
 
@@ -255,6 +270,39 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 				} else if (!recentTemplate) {
 					// For CSV files without a template, auto-detect columns from headers
 					config.columnMappings = autoDetectColumnMappings(headers);
+
+					// Also auto-detect formatting settings from sample data
+					const dataRows = config.formatting.hasHeaders ? rawRows.slice(1) : rawRows;
+					const sampleRows = dataRows.slice(0, 5);
+
+					// Find date column to get sample dates
+					const dateColIdx = Object.entries(config.columnMappings).find(
+						([, field]) => field === "date"
+					)?.[0];
+					if (dateColIdx !== undefined) {
+						const sampleDates = sampleRows
+							.map((row) => row[parseInt(dateColIdx, 10)] ?? "")
+							.filter((v) => v.trim());
+						const detectedDateFormat = detectDateFormat(sampleDates);
+						if (detectedDateFormat) {
+							config.formatting.dateFormat = detectedDateFormat;
+						}
+					}
+
+					// Find amount column to get sample amounts
+					const amountColIdx = Object.entries(config.columnMappings).find(
+						([, field]) => field === "amount"
+					)?.[0];
+					if (amountColIdx !== undefined) {
+						const sampleAmounts = sampleRows
+							.map((row) => row[parseInt(amountColIdx, 10)] ?? "")
+							.filter((v) => v.trim());
+						const detectedNumberFormat = detectNumberFormat(sampleAmounts);
+						if (detectedNumberFormat) {
+							config.formatting.thousandSeparator = detectedNumberFormat.thousand;
+							config.formatting.decimalSeparator = detectedNumberFormat.decimal;
+						}
+					}
 				}
 
 				// Determine account selection and action for OFX files

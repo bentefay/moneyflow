@@ -73,13 +73,13 @@ const NUMBER_FORMAT_OPTIONS = [
 ];
 
 // ============================================================================
-// Helper Functions
+// Helper Functions (exported for auto-detection on file load)
 // ============================================================================
 
 /**
  * Auto-detect date format from sample values.
  */
-function detectDateFormat(samples: string[]): string | null {
+export function detectDateFormat(samples: string[]): string | null {
 	if (samples.length === 0) return null;
 
 	const sample = samples[0].trim();
@@ -118,7 +118,9 @@ function detectDateFormat(samples: string[]): string | null {
 /**
  * Auto-detect number format from sample values.
  */
-function detectNumberFormat(samples: string[]): { thousand: string; decimal: string } | null {
+export function detectNumberFormat(
+	samples: string[]
+): { thousand: string; decimal: string } | null {
 	if (samples.length === 0) return null;
 
 	const sample = samples[0].trim();
