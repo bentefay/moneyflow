@@ -557,7 +557,8 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 					formatting.thousandSeparator,
 					formatting.decimalSeparator
 				);
-				if (parsed !== null) {
+				// parseNumber returns NaN for invalid values (e.g., header text like "Amount")
+				if (!isNaN(parsed)) {
 					// Convert from major units (e.g., dollars) to minor units (e.g., cents)
 					// using the selected account's currency for proper decimal handling
 					amount = toMinorUnitsForCurrency(parsed, accountCurrency);

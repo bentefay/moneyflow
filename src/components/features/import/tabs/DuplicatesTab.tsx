@@ -350,7 +350,7 @@ export function DuplicatesTab({
 					>
 						<RadioGroupItem value="do-not-ignore" id="filter-none" className="mt-0.5" />
 						<div className="space-y-1">
-							<span className="font-medium">Import all transactions</span>
+							<span className="font-medium">Import all old transactions</span>
 							<p className="text-xs text-muted-foreground">
 								{getFilterModeDescription("do-not-ignore")}
 							</p>

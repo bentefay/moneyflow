@@ -188,6 +188,6 @@ export function getFilterModeDescription(mode: OldTransactionMode): string {
 		case "ignore-duplicates":
 			return "Skip old duplicates, keep old non-duplicates";
 		case "do-not-ignore":
-			return "Import all transactions";
+			return "Import all old transactions";
 	}
 }
