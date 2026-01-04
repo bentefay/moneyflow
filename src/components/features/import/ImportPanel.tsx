@@ -417,6 +417,7 @@ export function ImportPanel({
 									},
 								})
 							}
+							existingTransactions={existingTransactions}
 							duplicateCount={summaryStats.duplicateCount}
 							filteredCount={summaryStats.filteredCount}
 						/>

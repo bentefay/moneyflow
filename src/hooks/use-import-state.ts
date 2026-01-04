@@ -235,7 +235,10 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 										| "ignore-all"
 										| "ignore-duplicates"
 										| "do-not-ignore") ?? "ignore-duplicates",
+								cutoffType:
+									(recentTemplate.oldTransactionFilter?.cutoffType as "days" | "date") ?? "days",
 								cutoffDays: recentTemplate.oldTransactionFilter?.cutoffDays ?? 10,
+								cutoffDate: (recentTemplate.oldTransactionFilter?.cutoffDate as string) ?? null,
 							},
 							columnMappings: { ...recentTemplate.columnMappings },
 						}
@@ -460,7 +463,9 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 									| "ignore-all"
 									| "ignore-duplicates"
 									| "do-not-ignore") ?? "ignore-duplicates",
+							cutoffType: (template.oldTransactionFilter?.cutoffType as "days" | "date") ?? "days",
 							cutoffDays: template.oldTransactionFilter?.cutoffDays ?? 10,
+							cutoffDate: (template.oldTransactionFilter?.cutoffDate as string) ?? null,
 						},
 						columnMappings: { ...template.columnMappings },
 					},
@@ -635,10 +640,11 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 			isDuplicate: p.status === "duplicate",
 		}));
 
-		const filterResult = filterOldTransactions(filterablePreviews, newestExistingDate, {
-			mode: oldTransactionFilter.mode,
-			cutoffDays: oldTransactionFilter.cutoffDays,
-		});
+		const filterResult = filterOldTransactions(
+			filterablePreviews,
+			newestExistingDate,
+			oldTransactionFilter
+		);
 
 		// Mark filtered transactions
 		const excludedRowIndices = new Set(filterResult.excluded.map((t) => t.rowIndex));

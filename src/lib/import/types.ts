@@ -23,13 +23,24 @@ export type { ISODateString } from "@/types";
 export type OldTransactionMode = "ignore-all" | "ignore-duplicates" | "do-not-ignore";
 
 /**
+ * Type of cutoff calculation for old transaction filtering.
+ * - "days": Calculate cutoff as X days before newest existing transaction
+ * - "date": Use explicit cutoff date
+ */
+export type CutoffType = "days" | "date";
+
+/**
  * Configuration for old transaction filtering.
  */
 export interface FilterConfig {
 	/** How to handle old transactions */
 	mode: OldTransactionMode;
-	/** Number of days before newest existing transaction to consider "old" */
+	/** Type of cutoff calculation */
+	cutoffType: CutoffType;
+	/** Number of days before newest existing transaction to consider "old" (when cutoffType="days") */
 	cutoffDays: number;
+	/** Explicit cutoff date (when cutoffType="date") */
+	cutoffDate: string | null;
 }
 
 /**
@@ -176,7 +187,9 @@ export const DEFAULT_DUPLICATE_DETECTION_SETTINGS: DuplicateDetectionSettings = 
  */
 export const DEFAULT_FILTER_SETTINGS: FilterConfig = {
 	mode: "ignore-duplicates",
+	cutoffType: "days",
 	cutoffDays: 10,
+	cutoffDate: null,
 };
 
 /**

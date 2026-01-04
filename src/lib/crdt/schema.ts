@@ -130,7 +130,9 @@ export const importTemplateSchema = schema.LoroMap({
 	}),
 	oldTransactionFilter: schema.LoroMap({
 		mode: schema.String({ defaultValue: "ignore-duplicates" }), // "ignore-all" | "ignore-duplicates" | "do-not-ignore"
+		cutoffType: schema.String({ defaultValue: "days" }), // "days" | "date"
 		cutoffDays: schema.Number({ defaultValue: 10 }),
+		cutoffDate: schema.String(), // ISO date string when cutoffType="date", null otherwise
 	}),
 	lastUsedAt: schema.Number(), // Unix timestamp of last import using this template
 	deletedAt: schema.Number(),

@@ -9,6 +9,10 @@
  * - "ignore-all": Skip all transactions older than cutoff
  * - "ignore-duplicates": Skip old duplicates, keep old non-duplicates
  * - "do-not-ignore": Import all transactions regardless of age
+ *
+ * Two cutoff types:
+ * - "days": Calculate cutoff as X days before newest existing transaction
+ * - "date": Use explicit cutoff date
  */
 
 import { Temporal } from "temporal-polyfill";
@@ -66,7 +70,9 @@ export function isBeforeCutoff(date: string, cutoffDate: string): boolean {
  * @example
  * const result = filterOldTransactions(parsed, "2026-01-15", {
  *   mode: "ignore-duplicates",
- *   cutoffDays: 10
+ *   cutoffType: "days",
+ *   cutoffDays: 10,
+ *   cutoffDate: null
  * });
  * // Transactions before 2026-01-05 that are duplicates will be excluded
  */
@@ -75,7 +81,7 @@ export function filterOldTransactions<T extends FilterableTransaction>(
 	newestExistingDate: string | null,
 	config: FilterConfig
 ): FilterResult<T> {
-	const { mode, cutoffDays } = config;
+	const { mode, cutoffType, cutoffDays, cutoffDate: explicitCutoffDate } = config;
 
 	// Initialize stats
 	const stats: FilterStats = {
@@ -96,8 +102,13 @@ export function filterOldTransactions<T extends FilterableTransaction>(
 		};
 	}
 
-	// Calculate cutoff date
-	const cutoffDate = calculateCutoffDate(newestExistingDate, cutoffDays);
+	// Calculate cutoff date based on cutoff type
+	let cutoffDate: string | null = null;
+	if (cutoffType === "date" && explicitCutoffDate) {
+		cutoffDate = explicitCutoffDate;
+	} else {
+		cutoffDate = calculateCutoffDate(newestExistingDate, cutoffDays);
+	}
 
 	// If no existing transactions, include everything (no cutoff reference point)
 	if (cutoffDate === null) {

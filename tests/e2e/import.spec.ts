@@ -251,10 +251,10 @@ test.describe("Import Panel", () => {
 		});
 
 		await test.step("configure old transaction filter", async () => {
-			// Should show old transaction filter options
-			await expect(page.getByText(/old transaction filter/i)).toBeVisible();
-			// "Cutoff:" label specifically
-			await expect(page.getByText("Cutoff:", { exact: true })).toBeVisible();
+			// Should show old transaction filter section with new label
+			await expect(page.getByText(/how to handle old transactions/i)).toBeVisible();
+			// Should show filter mode options (one of the radio options) - use first() to handle duplicates
+			await expect(page.getByText(/import all transactions/i).first()).toBeVisible();
 		});
 
 		await test.step("cleanup", async () => {

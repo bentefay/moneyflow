@@ -80,7 +80,12 @@ describe("filterOldTransactions", () => {
 	const cutoffDays = 10;
 
 	describe("mode: do-not-ignore", () => {
-		const config: FilterConfig = { mode: "do-not-ignore", cutoffDays };
+		const config: FilterConfig = {
+			mode: "do-not-ignore",
+			cutoffType: "days",
+			cutoffDays,
+			cutoffDate: null,
+		};
 
 		const testCases = [
 			{
@@ -113,7 +118,12 @@ describe("filterOldTransactions", () => {
 	});
 
 	describe("mode: ignore-all", () => {
-		const config: FilterConfig = { mode: "ignore-all", cutoffDays };
+		const config: FilterConfig = {
+			mode: "ignore-all",
+			cutoffType: "days",
+			cutoffDays,
+			cutoffDate: null,
+		};
 
 		const testCases = [
 			{
@@ -150,7 +160,12 @@ describe("filterOldTransactions", () => {
 	});
 
 	describe("mode: ignore-duplicates", () => {
-		const config: FilterConfig = { mode: "ignore-duplicates", cutoffDays };
+		const config: FilterConfig = {
+			mode: "ignore-duplicates",
+			cutoffType: "days",
+			cutoffDays,
+			cutoffDate: null,
+		};
 
 		const testCases = [
 			{
@@ -205,7 +220,12 @@ describe("filterOldTransactions", () => {
 
 	describe("edge cases", () => {
 		it("includes all when newestExistingDate is null (empty vault)", () => {
-			const config: FilterConfig = { mode: "ignore-all", cutoffDays: 10 };
+			const config: FilterConfig = {
+				mode: "ignore-all",
+				cutoffType: "days",
+				cutoffDays: 10,
+				cutoffDate: null,
+			};
 			const transactions = [
 				tx("1", "2020-01-01"), // Very old
 				tx("2", "2025-01-01"),
@@ -219,7 +239,12 @@ describe("filterOldTransactions", () => {
 		});
 
 		it("handles transactions exactly at cutoff boundary", () => {
-			const config: FilterConfig = { mode: "ignore-all", cutoffDays: 10 };
+			const config: FilterConfig = {
+				mode: "ignore-all",
+				cutoffType: "days",
+				cutoffDays: 10,
+				cutoffDate: null,
+			};
 			const transactions = [
 				tx("1", "2026-01-05"), // Exactly at cutoff - included
 				tx("2", "2026-01-04"), // One day before cutoff - excluded
@@ -232,7 +257,12 @@ describe("filterOldTransactions", () => {
 		});
 
 		it("handles zero cutoff days (only same-day transactions pass)", () => {
-			const config: FilterConfig = { mode: "ignore-all", cutoffDays: 0 };
+			const config: FilterConfig = {
+				mode: "ignore-all",
+				cutoffType: "days",
+				cutoffDays: 0,
+				cutoffDate: null,
+			};
 			const transactions = [
 				tx("1", "2026-01-15"), // Same as newest - included
 				tx("2", "2026-01-14"), // One day before - excluded
@@ -245,7 +275,12 @@ describe("filterOldTransactions", () => {
 		});
 
 		it("preserves order of transactions", () => {
-			const config: FilterConfig = { mode: "ignore-duplicates", cutoffDays: 10 };
+			const config: FilterConfig = {
+				mode: "ignore-duplicates",
+				cutoffType: "days",
+				cutoffDays: 10,
+				cutoffDate: null,
+			};
 			const transactions = [
 				tx("a", "2026-01-10"),
 				tx("b", "2026-01-04", false),
@@ -260,7 +295,12 @@ describe("filterOldTransactions", () => {
 		});
 
 		it("provides accurate total count in stats", () => {
-			const config: FilterConfig = { mode: "ignore-duplicates", cutoffDays: 10 };
+			const config: FilterConfig = {
+				mode: "ignore-duplicates",
+				cutoffType: "days",
+				cutoffDays: 10,
+				cutoffDate: null,
+			};
 			const transactions = [
 				tx("1", "2026-01-10"),
 				tx("2", "2026-01-04", true),

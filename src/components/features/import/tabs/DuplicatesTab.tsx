@@ -7,18 +7,26 @@
  * Combines:
  * - Date matching mode (exact vs within X days)
  * - Description matching mode (exact vs similar with threshold)
- * - Old transaction filter (three modes + cutoff days)
+ * - Old transaction filter (three modes + cutoff type/value)
  */
 
 import { CalendarRange, Clock, Copy, FileText } from "lucide-react";
-import { useCallback } from "react";
-import { Checkbox } from "@/components/ui/checkbox";
+import { useCallback, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
+import type { Transaction } from "@/lib/crdt/schema";
 import { getFilterModeDescription } from "@/lib/import/filter";
 import type {
+	CutoffType,
 	DuplicateDetectionSettings,
 	FilterConfig,
 	OldTransactionMode,
@@ -38,11 +46,34 @@ export interface DuplicatesTabProps {
 	oldTransactionFilter: FilterConfig;
 	/** Callback when filter settings change */
 	onFilterChange: (updates: Partial<FilterConfig>) => void;
+	/** Existing transactions for calculating default cutoff date */
+	existingTransactions: Transaction[];
 	/** Statistics for display */
 	duplicateCount?: number;
 	filteredCount?: number;
 	/** Additional CSS classes */
 	className?: string;
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Find the newest transaction date for a specific account.
+ */
+function findNewestDateForAccount(
+	transactions: Transaction[],
+	accountId: string | null
+): string | null {
+	const filtered = transactions.filter(
+		(tx) => !tx.deletedAt && (accountId === null || tx.accountId === accountId)
+	);
+	if (filtered.length === 0) return null;
+
+	return filtered.reduce((newest, tx) => {
+		return tx.date > newest ? tx.date : newest;
+	}, filtered[0].date);
 }
 
 // ============================================================================
@@ -57,15 +88,22 @@ export function DuplicatesTab({
 	onDuplicateDetectionChange,
 	oldTransactionFilter,
 	onFilterChange,
+	existingTransactions,
 	duplicateCount = 0,
 	filteredCount = 0,
 	className,
 }: DuplicatesTabProps) {
+	// Calculate default cutoff date (newest existing transaction)
+	const defaultCutoffDate = useMemo(() => {
+		const newest = findNewestDateForAccount(existingTransactions, null);
+		return newest ?? new Date().toISOString().split("T")[0];
+	}, [existingTransactions]);
+
 	// Handlers for duplicate detection
 	const handleDateModeChange = useCallback(
-		(exactMatch: boolean) => {
+		(value: string) => {
 			onDuplicateDetectionChange({
-				dateMatchMode: exactMatch ? "exact" : "within",
+				dateMatchMode: value as "exact" | "within",
 			});
 		},
 		[onDuplicateDetectionChange]
@@ -81,9 +119,9 @@ export function DuplicatesTab({
 	);
 
 	const handleDescModeChange = useCallback(
-		(exactMatch: boolean) => {
+		(value: string) => {
 			onDuplicateDetectionChange({
-				descriptionMatchMode: exactMatch ? "exact" : "similar",
+				descriptionMatchMode: value as "exact" | "similar",
 			});
 		},
 		[onDuplicateDetectionChange]
@@ -106,12 +144,32 @@ export function DuplicatesTab({
 		[onFilterChange]
 	);
 
+	const handleCutoffTypeChange = useCallback(
+		(type: string) => {
+			const newType = type as CutoffType;
+			const updates: Partial<FilterConfig> = { cutoffType: newType };
+			// Set default cutoff date when switching to date mode
+			if (newType === "date" && !oldTransactionFilter.cutoffDate) {
+				updates.cutoffDate = defaultCutoffDate;
+			}
+			onFilterChange(updates);
+		},
+		[onFilterChange, oldTransactionFilter.cutoffDate, defaultCutoffDate]
+	);
+
 	const handleCutoffDaysChange = useCallback(
 		(e: React.ChangeEvent<HTMLInputElement>) => {
 			const value = parseInt(e.target.value, 10);
 			if (!isNaN(value) && value >= 0) {
 				onFilterChange({ cutoffDays: value });
 			}
+		},
+		[onFilterChange]
+	);
+
+	const handleCutoffDateChange = useCallback(
+		(e: React.ChangeEvent<HTMLInputElement>) => {
+			onFilterChange({ cutoffDate: e.target.value || null });
 		},
 		[onFilterChange]
 	);
@@ -140,19 +198,29 @@ export function DuplicatesTab({
 						<Label>Date Matching</Label>
 					</div>
 
-					<div className="flex items-center space-x-3">
-						<Checkbox
-							id="date-exact"
-							checked={duplicateDetection.dateMatchMode === "exact"}
-							onCheckedChange={(checked) => handleDateModeChange(checked === true)}
-						/>
-						<Label htmlFor="date-exact" className="cursor-pointer text-sm">
-							Exact date match only
-						</Label>
-					</div>
+					<RadioGroup
+						value={duplicateDetection.dateMatchMode}
+						onValueChange={handleDateModeChange}
+						className="space-y-2"
+					>
+						<label
+							htmlFor="date-exact"
+							className="flex items-center space-x-3 cursor-pointer rounded-md hover:bg-muted/30 transition-colors"
+						>
+							<RadioGroupItem value="exact" id="date-exact" />
+							<span className="text-sm">Exact date match only</span>
+						</label>
+						<label
+							htmlFor="date-within"
+							className="flex items-center space-x-3 cursor-pointer rounded-md p-2 hover:bg-muted/30 transition-colors"
+						>
+							<RadioGroupItem value="within" id="date-within" />
+							<span className="text-sm">Allow dates within range</span>
+						</label>
+					</RadioGroup>
 
 					{duplicateDetection.dateMatchMode === "within" && (
-						<div className="space-y-2 pl-6">
+						<div className="space-y-2 pl-6 border-l-2 border-muted ml-2">
 							<div className="flex items-center justify-between text-sm">
 								<span className="text-muted-foreground">Allow dates within:</span>
 								<span className="font-medium">{duplicateDetection.maxDateDiffDays} days</span>
@@ -176,19 +244,29 @@ export function DuplicatesTab({
 						<Label>Description Matching</Label>
 					</div>
 
-					<div className="flex items-center space-x-3">
-						<Checkbox
-							id="desc-exact"
-							checked={duplicateDetection.descriptionMatchMode === "exact"}
-							onCheckedChange={(checked) => handleDescModeChange(checked === true)}
-						/>
-						<Label htmlFor="desc-exact" className="cursor-pointer text-sm">
-							Exact description match only
-						</Label>
-					</div>
+					<RadioGroup
+						value={duplicateDetection.descriptionMatchMode}
+						onValueChange={handleDescModeChange}
+						className="space-y-2"
+					>
+						<label
+							htmlFor="desc-exact"
+							className="flex items-center space-x-3 cursor-pointer rounded-md p-2 hover:bg-muted/30 transition-colors"
+						>
+							<RadioGroupItem value="exact" id="desc-exact" />
+							<span className="text-sm">Exact description match only</span>
+						</label>
+						<label
+							htmlFor="desc-similar"
+							className="flex items-center space-x-3 cursor-pointer rounded-md p-2 hover:bg-muted/30 transition-colors"
+						>
+							<RadioGroupItem value="similar" id="desc-similar" />
+							<span className="text-sm">Allow similar descriptions</span>
+						</label>
+					</RadioGroup>
 
 					{duplicateDetection.descriptionMatchMode === "similar" && (
-						<div className="space-y-2 pl-6">
+						<div className="space-y-2 pl-6 border-l-2 border-muted ml-2">
 							<div className="flex items-center justify-between text-sm">
 								<span className="text-muted-foreground">Minimum similarity:</span>
 								<span className="font-medium">
@@ -218,75 +296,97 @@ export function DuplicatesTab({
 			<div className="space-y-4">
 				<div className="flex items-center gap-2">
 					<Clock className="h-4 w-4 text-muted-foreground" />
-					<Label className="text-base font-medium">Old Transaction Filter</Label>
+					<Label className="text-base font-medium">How to Handle Old Transactions</Label>
 					{filteredCount > 0 && (
 						<span className="text-sm text-muted-foreground">{filteredCount} affected</span>
 					)}
 				</div>
-				<p className="text-sm text-muted-foreground">
-					Handle transactions older than a cutoff date
-				</p>
 
-				{/* Cutoff days input */}
-				<div className="flex items-center gap-3">
-					<Label htmlFor="cutoff-days" className="shrink-0">
-						Cutoff:
-					</Label>
-					<div className="flex items-center gap-2">
-						<Input
-							id="cutoff-days"
-							type="number"
-							min={0}
-							max={365}
-							value={oldTransactionFilter.cutoffDays}
-							onChange={handleCutoffDaysChange}
-							className="w-20"
-						/>
-						<span className="text-sm text-muted-foreground">days ago</span>
-					</div>
+				{/* Cutoff type selector */}
+				<div className="rounded-lg border p-4 space-y-3">
+					<Label>Define &ldquo;old&rdquo; as:</Label>
+					<Select value={oldTransactionFilter.cutoffType} onValueChange={handleCutoffTypeChange}>
+						<SelectTrigger className="w-full">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="date">Transactions older than a specific date</SelectItem>
+							<SelectItem value="days">Transactions older than last import</SelectItem>
+						</SelectContent>
+					</Select>
+
+					{/* Cutoff value input */}
+					{oldTransactionFilter.cutoffType === "days" ? (
+						<div className="flex items-center gap-3">
+							<Input
+								type="number"
+								min={0}
+								max={365}
+								value={oldTransactionFilter.cutoffDays}
+								onChange={handleCutoffDaysChange}
+								className="w-24"
+							/>
+							<span className="text-sm text-muted-foreground">
+								days before newest existing transaction
+							</span>
+						</div>
+					) : (
+						<div className="flex items-center gap-3">
+							<Input
+								type="date"
+								value={oldTransactionFilter.cutoffDate ?? defaultCutoffDate}
+								onChange={handleCutoffDateChange}
+								className="w-44"
+							/>
+							<span className="text-sm text-muted-foreground">cutoff date</span>
+						</div>
+					)}
 				</div>
 
 				{/* Filter mode radio group */}
 				<RadioGroup
 					value={oldTransactionFilter.mode}
 					onValueChange={handleFilterModeChange}
-					className="space-y-3"
+					className="space-y-2"
 				>
-					<div className="flex items-start space-x-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors">
+					<label
+						htmlFor="filter-none"
+						className="flex items-start space-x-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors cursor-pointer"
+					>
 						<RadioGroupItem value="do-not-ignore" id="filter-none" className="mt-0.5" />
 						<div className="space-y-1">
-							<Label htmlFor="filter-none" className="cursor-pointer font-medium">
-								Import all transactions
-							</Label>
+							<span className="font-medium">Import all transactions</span>
 							<p className="text-xs text-muted-foreground">
 								{getFilterModeDescription("do-not-ignore")}
 							</p>
 						</div>
-					</div>
+					</label>
 
-					<div className="flex items-start space-x-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors">
+					<label
+						htmlFor="filter-dupes"
+						className="flex items-start space-x-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors cursor-pointer"
+					>
 						<RadioGroupItem value="ignore-duplicates" id="filter-dupes" className="mt-0.5" />
 						<div className="space-y-1">
-							<Label htmlFor="filter-dupes" className="cursor-pointer font-medium">
-								Skip old duplicates
-							</Label>
+							<span className="font-medium">Skip old duplicates</span>
 							<p className="text-xs text-muted-foreground">
 								{getFilterModeDescription("ignore-duplicates")}
 							</p>
 						</div>
-					</div>
+					</label>
 
-					<div className="flex items-start space-x-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors">
+					<label
+						htmlFor="filter-all"
+						className="flex items-start space-x-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors cursor-pointer"
+					>
 						<RadioGroupItem value="ignore-all" id="filter-all" className="mt-0.5" />
 						<div className="space-y-1">
-							<Label htmlFor="filter-all" className="cursor-pointer font-medium">
-								Skip all old transactions
-							</Label>
+							<span className="font-medium">Skip all old transactions</span>
 							<p className="text-xs text-muted-foreground">
 								{getFilterModeDescription("ignore-all")}
 							</p>
 						</div>
-					</div>
+					</label>
 				</RadioGroup>
 			</div>
 		</div>

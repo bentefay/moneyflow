@@ -268,7 +268,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 							iconMode
 						/>
 						<SyncStatus
-							className="-mt-4"
+							className="-mt-3"
 							state={syncState}
 							hasUnsavedChanges={hasUnsavedChanges}
 							iconMode

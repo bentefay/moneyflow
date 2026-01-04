@@ -14,15 +14,7 @@
  * Also handles beforeunload warning for unsaved changes.
  */
 
-import {
-	Cloud,
-	CloudBackup,
-	CloudCheck,
-	CloudOff,
-	CloudUpload,
-	type LucideIcon,
-	RefreshCw,
-} from "lucide-react";
+import { CloudCheck, CloudOff, CloudUpload, type LucideIcon, RefreshCw } from "lucide-react";
 import * as React from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { SyncState } from "@/lib/sync";

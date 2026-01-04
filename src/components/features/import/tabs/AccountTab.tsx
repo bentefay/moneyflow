@@ -76,7 +76,8 @@ export function AccountActionMessage({
 				>
 					<CheckCircle2 className="h-4 w-4 shrink-0" />
 					<span>
-						Auto-matched from OFX file (account ending in{" "}
+						Auto-matched account <strong>{targetAccountName ?? "Unknown"}</strong> from OFX file
+						(account ending in{" "}
 						<code className="bg-green-100 dark:bg-green-900/50 px-1 rounded">
 							{detectedAccountNumber.slice(-4)}
 						</code>
@@ -95,11 +96,11 @@ export function AccountActionMessage({
 				>
 					<Info className="h-4 w-4 shrink-0" />
 					<span>
-						Will apply account ID{" "}
+						Will link account <strong>{targetAccountName ?? "Unknown"}</strong> to OFX account ID{" "}
 						<code className="bg-blue-100 dark:bg-blue-900/50 px-1 rounded">
 							...{accountAction.accountNumber.slice(-4)}
 						</code>{" "}
-						from file to account <strong>{targetAccountName ?? "Unknown"}</strong> on import
+						on import
 					</span>
 				</div>
 			);
@@ -114,11 +115,11 @@ export function AccountActionMessage({
 				>
 					<PlusCircle className="h-4 w-4 shrink-0" />
 					<span>
-						Will create new account &ldquo;{accountAction.accountName}&rdquo; with ID{" "}
+						Will create new account &ldquo;{accountAction.accountName}&rdquo; linked to OFX account
+						ID{" "}
 						<code className="bg-purple-100 dark:bg-purple-900/50 px-1 rounded">
 							...{accountAction.accountNumber.slice(-4)}
-						</code>{" "}
-						on import
+						</code>
 					</span>
 				</div>
 			);
@@ -132,7 +133,10 @@ export function AccountActionMessage({
 					)}
 				>
 					<AlertCircle className="h-4 w-4 shrink-0" />
-					<span>No account ID in file — defaulting to first account</span>
+					<span>
+						No account ID found in OFX file — defaulting to{" "}
+						<strong>{targetAccountName ?? "first account"}</strong>
+					</span>
 				</div>
 			);
 

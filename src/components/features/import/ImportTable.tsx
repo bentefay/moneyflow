@@ -3,12 +3,12 @@
 /**
  * ImportTable
  *
- * Side-by-side split table showing raw file data on the left and
- * parsed preview on the right. Updates in real-time as settings change.
+ * Merged table showing raw file data and parsed preview side by side.
+ * Updates in real-time as settings change.
  *
  * Layout:
- * - Desktop: Two tables side-by-side with vertical divider
- * - Mobile: Stacked vertically (raw above, preview below)
+ * - Row number | Raw columns (highlighted when mapped) | Divider | Preview columns (Status, Date, Description, Amount)
+ * - Single scroll container for unified scrolling
  */
 
 import { AlertCircle, CheckCircle2, Clock, Copy, Eye, EyeOff } from "lucide-react";
@@ -96,195 +96,11 @@ function getStatusDisplay(status: RowStatus): {
 }
 
 // ============================================================================
-// Sub-Components
-// ============================================================================
-
-interface RawTableProps {
-	rows: string[][];
-	headers: string[];
-	hasHeaders: boolean;
-	columnMappings: Record<string, number>;
-	maxRows: number;
-}
-
-/**
- * Raw data table (left side).
- */
-function RawTable({ rows, headers, hasHeaders, columnMappings, maxRows }: RawTableProps) {
-	// Build set of mapped column indices for highlighting
-	const mappedIndices = useMemo(() => new Set(Object.values(columnMappings)), [columnMappings]);
-
-	// Skip header row if present
-	const dataRows = hasHeaders ? rows.slice(1) : rows;
-	const displayRows = dataRows.slice(0, maxRows);
-
-	return (
-		<div className="flex-1 min-w-0 overflow-auto">
-			<div className="px-3 py-2 border-b bg-muted/30 text-sm font-medium text-muted-foreground">
-				Raw File Data
-			</div>
-			<table className="w-full text-sm">
-				<thead className="bg-muted/50 sticky top-0">
-					<tr>
-						<th className="px-2 py-1.5 text-left text-xs font-medium text-muted-foreground w-10">
-							#
-						</th>
-						{headers.map((header, idx) => (
-							<th
-								key={idx}
-								className={cn(
-									"px-2 py-1.5 text-left text-xs font-medium whitespace-nowrap",
-									mappedIndices.has(idx) ? "text-foreground bg-primary/10" : "text-muted-foreground"
-								)}
-							>
-								{header}
-							</th>
-						))}
-					</tr>
-				</thead>
-				<tbody className="divide-y divide-border/50">
-					{displayRows.map((row, rowIdx) => (
-						<tr key={rowIdx} className="hover:bg-muted/30 transition-colors">
-							<td className="px-2 py-1 text-xs text-muted-foreground tabular-nums">{rowIdx + 1}</td>
-							{row.map((cell, cellIdx) => (
-								<td
-									key={cellIdx}
-									className={cn(
-										"px-2 py-1 truncate max-w-[200px]",
-										mappedIndices.has(cellIdx) && "bg-primary/5"
-									)}
-									title={cell}
-								>
-									<span className="font-mono text-xs">{cell || "—"}</span>
-								</td>
-							))}
-						</tr>
-					))}
-				</tbody>
-			</table>
-		</div>
-	);
-}
-
-interface PreviewTableProps {
-	transactions: PreviewTransaction[];
-	showFiltered: boolean;
-	maxRows: number;
-}
-
-/**
- * Preview table (right side).
- */
-function PreviewTable({ transactions, showFiltered, maxRows }: PreviewTableProps) {
-	const displayTx = useMemo(() => {
-		const filtered = showFiltered
-			? transactions
-			: transactions.filter((tx) => tx.status !== "filtered");
-		return filtered.slice(0, maxRows);
-	}, [transactions, showFiltered, maxRows]);
-
-	return (
-		<div className="flex-1 min-w-0 overflow-auto">
-			<div className="px-3 py-2 border-b bg-muted/30 text-sm font-medium text-muted-foreground">
-				Import Preview
-			</div>
-			<table className="w-full text-sm">
-				<thead className="bg-muted/50 sticky top-0">
-					<tr>
-						<th className="px-2 py-1.5 text-left text-xs font-medium text-muted-foreground w-10">
-							Status
-						</th>
-						<th className="px-2 py-1.5 text-left text-xs font-medium text-muted-foreground">
-							Date
-						</th>
-						<th className="px-2 py-1.5 text-left text-xs font-medium text-muted-foreground">
-							Description
-						</th>
-						<th className="px-2 py-1.5 text-right text-xs font-medium text-muted-foreground">
-							Amount
-						</th>
-					</tr>
-				</thead>
-				<tbody className="divide-y divide-border/50">
-					{displayTx.map((tx) => {
-						const status = getRowStatus(tx);
-						const { icon: StatusIcon, color, label } = getStatusDisplay(status);
-						const isExcluded = status === "filtered" || status === "duplicate";
-
-						return (
-							<tr
-								key={tx.rowIndex}
-								className={cn(
-									"transition-colors",
-									isExcluded ? "opacity-50 bg-muted/20" : "hover:bg-muted/30"
-								)}
-							>
-								<td className="px-2 py-1">
-									<TooltipProvider>
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<div className={cn("flex items-center", color)}>
-													<StatusIcon className="h-4 w-4" />
-												</div>
-											</TooltipTrigger>
-											<TooltipContent side="right" className="max-w-xs">
-												<p className="font-medium">{label}</p>
-												{tx.validationErrors.length > 0 && (
-													<ul className="text-xs mt-1 text-destructive">
-														{tx.validationErrors.map((err: string, i: number) => (
-															<li key={i}>• {err}</li>
-														))}
-													</ul>
-												)}
-												{tx.status === "duplicate" && tx.duplicateOf && (
-													<p className="text-xs mt-1">Matches existing transaction</p>
-												)}
-											</TooltipContent>
-										</Tooltip>
-									</TooltipProvider>
-								</td>
-								<td className="px-2 py-1 whitespace-nowrap tabular-nums">
-									{tx.date ? (
-										formatTransactionDate(tx.date)
-									) : (
-										<span className="text-muted-foreground">—</span>
-									)}
-								</td>
-								<td className="px-2 py-1 truncate max-w-[250px]" title={tx.description}>
-									{tx.description || <span className="text-muted-foreground">—</span>}
-								</td>
-								<td
-									className={cn(
-										"px-2 py-1 text-right tabular-nums whitespace-nowrap",
-										tx.amount !== null && tx.amount < 0
-											? "text-destructive"
-											: "text-green-600 dark:text-green-400"
-									)}
-								>
-									{tx.amount !== null ? (
-										<span>
-											{tx.amount < 0 ? "−" : "+"}
-											{Math.abs(tx.amount / 100).toFixed(2)}
-										</span>
-									) : (
-										<span className="text-muted-foreground">—</span>
-									)}
-								</td>
-							</tr>
-						);
-					})}
-				</tbody>
-			</table>
-		</div>
-	);
-}
-
-// ============================================================================
 // Main Component
 // ============================================================================
 
 /**
- * ImportTable component.
+ * ImportTable component - merged raw + preview table.
  */
 export function ImportTable({
 	rawRows,
@@ -298,6 +114,36 @@ export function ImportTable({
 	maxDisplayRows = 100,
 	className,
 }: ImportTableProps) {
+	// Build set of mapped column indices for highlighting
+	const mappedIndices = useMemo(() => new Set(Object.values(columnMappings)), [columnMappings]);
+
+	// Skip header row if present for raw data
+	const dataRows = hasHeaders ? rawRows.slice(1) : rawRows;
+
+	// Filter preview transactions based on showFiltered
+	const displayData = useMemo(() => {
+		const result: Array<{
+			rowIndex: number;
+			rawRow: string[];
+			preview: PreviewTransaction | null;
+		}> = [];
+
+		for (let i = 0; i < Math.min(dataRows.length, maxDisplayRows); i++) {
+			const preview = previewTransactions.find((tx) => tx.rowIndex === i);
+			// Skip filtered transactions if showFiltered is false
+			if (!showFiltered && preview?.status === "filtered") {
+				continue;
+			}
+			result.push({
+				rowIndex: i,
+				rawRow: dataRows[i],
+				preview: preview ?? null,
+			});
+		}
+
+		return result;
+	}, [dataRows, previewTransactions, showFiltered, maxDisplayRows]);
+
 	const truncated = rawRows.length > maxDisplayRows;
 
 	return (
@@ -325,37 +171,145 @@ export function ImportTable({
 				</div>
 			)}
 
-			{/* Split table container */}
-			<div
-				className={cn(
-					"flex border rounded-lg overflow-hidden bg-card",
-					// Stack on mobile, side-by-side on desktop
-					"flex-col lg:flex-row",
-					// Constrained height with scrolling
-					"max-h-[500px] min-h-[300px]"
-				)}
-			>
-				{/* Raw data (left) */}
-				<RawTable
-					rows={rawRows}
-					headers={rawHeaders}
-					hasHeaders={hasHeaders}
-					columnMappings={columnMappings}
-					maxRows={maxDisplayRows}
-				/>
+			{/* Merged table container */}
+			<div className={cn("border rounded-lg overflow-auto bg-card", "max-h-[500px] min-h-[300px]")}>
+				<table className="w-full text-sm">
+					<thead className="bg-muted/50 sticky top-0 z-10">
+						<tr>
+							{/* Row number */}
+							<th className="px-2 py-1.5 text-left text-xs font-medium text-muted-foreground w-10 border-r bg-muted/50">
+								#
+							</th>
+							{/* Raw data headers */}
+							{rawHeaders.map((header, idx) => (
+								<th
+									key={`raw-${idx}`}
+									className={cn(
+										"px-2 py-1.5 text-left text-xs font-medium whitespace-nowrap",
+										mappedIndices.has(idx)
+											? "text-foreground bg-primary/10"
+											: "text-muted-foreground"
+									)}
+								>
+									{header}
+								</th>
+							))}
+							{/* Divider column */}
+							<th className="w-px bg-border" />
+							{/* Preview headers */}
+							<th className="px-2 py-1.5 text-left text-xs font-medium text-muted-foreground w-10 bg-muted/30">
+								Status
+							</th>
+							<th className="px-2 py-1.5 text-left text-xs font-medium text-muted-foreground bg-muted/30">
+								Date
+							</th>
+							<th className="px-2 py-1.5 text-left text-xs font-medium text-muted-foreground bg-muted/30">
+								Description
+							</th>
+							<th className="px-2 py-1.5 text-right text-xs font-medium text-muted-foreground bg-muted/30">
+								Amount
+							</th>
+						</tr>
+					</thead>
+					<tbody className="divide-y divide-border/50">
+						{displayData.map(({ rowIndex, rawRow, preview }) => {
+							const status = preview ? getRowStatus(preview) : null;
+							const statusDisplay = status ? getStatusDisplay(status) : null;
+							const isExcluded = status === "filtered" || status === "duplicate";
 
-				{/* Vertical divider (desktop only) */}
-				<div className="hidden lg:block w-px bg-border" />
-
-				{/* Horizontal divider (mobile only) */}
-				<div className="lg:hidden h-px bg-border" />
-
-				{/* Preview (right) */}
-				<PreviewTable
-					transactions={previewTransactions}
-					showFiltered={showFiltered}
-					maxRows={maxDisplayRows}
-				/>
+							return (
+								<tr
+									key={rowIndex}
+									className={cn(
+										"transition-colors",
+										isExcluded ? "opacity-50 bg-muted/20" : "hover:bg-muted/30"
+									)}
+								>
+									{/* Row number */}
+									<td className="px-2 py-1 text-xs text-muted-foreground tabular-nums border-r">
+										{rowIndex + 1}
+									</td>
+									{/* Raw data cells */}
+									{rawRow.map((cell, cellIdx) => (
+										<td
+											key={`raw-${cellIdx}`}
+											className={cn(
+												"px-2 py-1 truncate max-w-[150px]",
+												mappedIndices.has(cellIdx) && "bg-primary/5"
+											)}
+											title={cell}
+										>
+											<span className="font-mono text-xs">{cell || "—"}</span>
+										</td>
+									))}
+									{/* Divider */}
+									<td className="w-px bg-border" />
+									{/* Preview cells */}
+									<td className="px-2 py-1 bg-muted/10">
+										{statusDisplay ? (
+											<TooltipProvider>
+												<Tooltip>
+													<TooltipTrigger asChild>
+														<div className={cn("flex items-center", statusDisplay.color)}>
+															<statusDisplay.icon className="h-4 w-4" />
+														</div>
+													</TooltipTrigger>
+													<TooltipContent side="right" className="max-w-xs">
+														<p className="font-medium">{statusDisplay.label}</p>
+														{preview?.validationErrors && preview.validationErrors.length > 0 && (
+															<ul className="text-xs mt-1 text-destructive">
+																{preview.validationErrors.map((err: string, i: number) => (
+																	<li key={i}>• {err}</li>
+																))}
+															</ul>
+														)}
+														{preview?.status === "duplicate" && preview.duplicateOf && (
+															<p className="text-xs mt-1">Matches existing transaction</p>
+														)}
+													</TooltipContent>
+												</Tooltip>
+											</TooltipProvider>
+										) : (
+											<span className="text-muted-foreground">—</span>
+										)}
+									</td>
+									<td className="px-2 py-1 whitespace-nowrap tabular-nums bg-muted/10">
+										{preview?.date ? (
+											formatTransactionDate(preview.date)
+										) : (
+											<span className="text-muted-foreground">—</span>
+										)}
+									</td>
+									<td
+										className="px-2 py-1 truncate max-w-[200px] bg-muted/10"
+										title={preview?.description}
+									>
+										{preview?.description || <span className="text-muted-foreground">—</span>}
+									</td>
+									<td
+										className={cn(
+											"px-2 py-1 text-right tabular-nums whitespace-nowrap bg-muted/10",
+											preview?.amount !== null &&
+												preview?.amount !== undefined &&
+												preview.amount < 0
+												? "text-destructive"
+												: "text-green-600 dark:text-green-400"
+										)}
+									>
+										{preview?.amount !== null && preview?.amount !== undefined ? (
+											<span>
+												{preview.amount < 0 ? "−" : "+"}
+												{Math.abs(preview.amount / 100).toFixed(2)}
+											</span>
+										) : (
+											<span className="text-muted-foreground">—</span>
+										)}
+									</td>
+								</tr>
+							);
+						})}
+					</tbody>
+				</table>
 			</div>
 
 			{/* Truncation notice */}
