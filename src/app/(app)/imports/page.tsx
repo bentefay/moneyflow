@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import { ACCEPTED_EXTENSIONS, type ImportData, ImportsTable } from "@/components/features/import";
 import { Button } from "@/components/ui/button";
-import { useActiveImports, useVaultAction } from "@/lib/crdt/context";
+import { useActiveImports, useTransactionActions, useVaultAction } from "@/lib/crdt/context";
 import type { Import as ImportRecord } from "@/lib/crdt/schema";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +27,9 @@ export default function ImportsPage() {
 
 	// Get all active imports from CRDT state
 	const importsMap = useActiveImports();
+
+	// Transaction actions for deleting transactions by import
+	const { deleteTransactionsByImport } = useTransactionActions();
 
 	// Convert CRDT map to array for the table
 	const imports: ImportData[] = Object.values(importsMap)
@@ -42,32 +45,25 @@ export default function ImportsPage() {
 			deletedAt: imp.deletedAt,
 		}));
 
-	// Soft-delete import and its transactions
-	const deleteImport = useVaultAction((state, importId: string) => {
+	// Soft-delete import record only
+	const deleteImportRecord = useVaultAction((state, importId: string) => {
 		const now = Date.now();
-
-		// Mark the import as deleted
 		const importRecord = state.imports[importId];
 		if (importRecord && typeof importRecord === "object") {
 			importRecord.deletedAt = now;
 		}
-
-		// Mark all transactions from this import as deleted
-		for (const [, transaction] of Object.entries(state.transactions)) {
-			if (
-				typeof transaction === "object" &&
-				transaction !== null &&
-				transaction.importId === importId &&
-				!transaction.deletedAt
-			) {
-				transaction.deletedAt = now;
-			}
-		}
 	});
 
-	const handleDeleteImport = (id: string) => {
-		deleteImport(id);
-	};
+	// Delete import and all its transactions
+	const handleDeleteImport = useCallback(
+		(importId: string) => {
+			// Delete all transactions from this import using hierarchical structure
+			deleteTransactionsByImport(importId);
+			// Mark the import record as deleted
+			deleteImportRecord(importId);
+		},
+		[deleteTransactionsByImport, deleteImportRecord]
+	);
 
 	// Validate file extension
 	const validateFile = useCallback((file: File): boolean => {

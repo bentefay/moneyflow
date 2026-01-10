@@ -1,12 +1,24 @@
 /**
  * CRDT Query Utilities
  *
- * Provides pagination and filtering utilities for Loro state.
+ * Provides pagination and filtering utilities for hierarchical transaction storage.
  * These utilities work on top of loro-mirror state to provide
  * efficient data access patterns for UI components.
  */
 
-import type { Account, Person, Status, Tag, Transaction, VaultState } from "./schema";
+import type {
+	Account,
+	AccountTransactionTree,
+	DayBucket,
+	MonthBucket,
+	Person,
+	Status,
+	Tag,
+	Transaction,
+	TransactionStore,
+	VaultState,
+	YearBucket,
+} from "./schema";
 
 // ============================================
 // PAGINATION TYPES
@@ -74,7 +86,7 @@ export interface TransactionQueryOptions {
 	statusIds?: string[];
 	/** Free text search in description/notes */
 	search?: string;
-	/** Only show potential duplicates */
+	/** Only show transactions with suspected duplicates */
 	showDuplicatesOnly?: boolean;
 	/** Exclude soft-deleted transactions */
 	excludeDeleted?: boolean;
@@ -82,6 +94,39 @@ export interface TransactionQueryOptions {
 	sortBy?: "date" | "amount" | "description";
 	/** Sort direction */
 	sortDirection?: "asc" | "desc";
+}
+
+// ============================================
+// TRANSACTION LOCATION TYPE
+// ============================================
+
+export interface TransactionLocation {
+	accountId: string;
+	date: string; // YYYY-MM-DD
+	transactionId: string;
+}
+
+export interface TransactionWithLocation extends Transaction {
+	location: TransactionLocation;
+}
+
+// ============================================
+// DATE PARSING HELPERS
+// ============================================
+
+interface ParsedDate {
+	year: number;
+	month: number;
+	day: number;
+}
+
+function parseDate(dateStr: string): ParsedDate {
+	const [yearStr, monthStr, dayStr] = dateStr.split("-");
+	return {
+		year: parseInt(yearStr, 10),
+		month: parseInt(monthStr, 10),
+		day: parseInt(dayStr, 10),
+	};
 }
 
 // ============================================
@@ -111,17 +156,290 @@ export function getItemsByIds<T>(collection: Record<string, T | string>, ids: st
 }
 
 // ============================================
-// TRANSACTION QUERIES
+// HIERARCHICAL TRANSACTION QUERIES
 // ============================================
 
 /**
- * Filter transactions based on query options
+ * Get all transactions for an account, sorted by date desc, creationInstant desc, importRowIndex asc.
+ * Handles potential duplicate day buckets from CRDT conflicts by unioning them.
+ */
+export function getAccountTransactions(store: TransactionStore, accountId: string): Transaction[] {
+	const tree = store[accountId];
+	if (!tree || typeof tree === "string") return [];
+
+	const result: Transaction[] = [];
+
+	// Iterate through years (already sorted desc)
+	for (const yearBucket of tree.years) {
+		// Group months by month number to handle CRDT duplicates
+		const monthGroups = new Map<number, MonthBucket[]>();
+		for (const monthBucket of yearBucket.months) {
+			const existing = monthGroups.get(monthBucket.month) ?? [];
+			existing.push(monthBucket);
+			monthGroups.set(monthBucket.month, existing);
+		}
+
+		// Process months in descending order
+		const sortedMonths = Array.from(monthGroups.keys()).sort((a, b) => b - a);
+		for (const month of sortedMonths) {
+			const monthBuckets = monthGroups.get(month)!;
+
+			// Group days by day number to handle CRDT duplicates
+			const dayGroups = new Map<number, DayBucket[]>();
+			for (const monthBucket of monthBuckets) {
+				for (const dayBucket of monthBucket.days) {
+					const existing = dayGroups.get(dayBucket.day) ?? [];
+					existing.push(dayBucket);
+					dayGroups.set(dayBucket.day, existing);
+				}
+			}
+
+			// Process days in descending order
+			const sortedDays = Array.from(dayGroups.keys()).sort((a, b) => b - a);
+			for (const day of sortedDays) {
+				const dayBuckets = dayGroups.get(day)!;
+				// Union transactions from all same-day buckets
+				for (const dayBucket of dayBuckets) {
+					result.push(...dayBucket.transactions);
+				}
+			}
+		}
+	}
+
+	return result;
+}
+
+/**
+ * Get all transactions across all accounts, sorted.
+ * Merges transactions from all accounts while maintaining sort order.
+ */
+export function getAllTransactions(store: TransactionStore): Transaction[] {
+	const allTransactions: Transaction[] = [];
+
+	for (const accountId of Object.keys(store)) {
+		const tree = store[accountId];
+		if (!tree || typeof tree === "string") continue;
+		allTransactions.push(...getAccountTransactions(store, accountId));
+	}
+
+	// Sort by date desc, then creationInstant desc, then importRowIndex asc
+	allTransactions.sort((a, b) => {
+		// Date descending
+		const dateCompare = b.date.localeCompare(a.date);
+		if (dateCompare !== 0) return dateCompare;
+
+		// creationInstant descending
+		const instantCompare = b.creationInstant - a.creationInstant;
+		if (instantCompare !== 0) return instantCompare;
+
+		// importRowIndex ascending (nulls sort last)
+		const aIdx = a.importRowIndex ?? Infinity;
+		const bIdx = b.importRowIndex ?? Infinity;
+		return aIdx - bIdx;
+	});
+
+	return allTransactions;
+}
+
+/**
+ * Find a specific transaction by location.
+ * Also searches within suspectedDuplicates.
+ */
+export function findTransaction(
+	store: TransactionStore,
+	location: TransactionLocation
+): Transaction | undefined {
+	const { accountId, date, transactionId } = location;
+	const tree = store[accountId];
+	if (!tree || typeof tree === "string") return undefined;
+
+	const { year, month, day } = parseDate(date);
+
+	// Find matching buckets (handling CRDT duplicates)
+	for (const yearBucket of tree.years) {
+		if (yearBucket.year !== year) continue;
+
+		for (const monthBucket of yearBucket.months) {
+			if (monthBucket.month !== month) continue;
+
+			for (const dayBucket of monthBucket.days) {
+				if (dayBucket.day !== day) continue;
+
+				// Check parent transactions
+				const tx = dayBucket.transactions.find((t) => t.id === transactionId);
+				if (tx) return tx;
+
+				// Check nested duplicates
+				for (const t of dayBucket.transactions) {
+					const dup = t.suspectedDuplicates?.find((d) => d.id === transactionId);
+					if (dup) return dup as unknown as Transaction;
+				}
+			}
+		}
+	}
+
+	return undefined;
+}
+
+/**
+ * Find a transaction by ID alone (slower - scans all).
+ * Use findTransaction with location when possible.
+ */
+export function findTransactionById(
+	store: TransactionStore,
+	transactionId: string
+): { transaction: Transaction; location: TransactionLocation } | undefined {
+	for (const accountId of Object.keys(store)) {
+		const tree = store[accountId];
+		if (!tree || typeof tree === "string") continue;
+
+		for (const yearBucket of tree.years) {
+			for (const monthBucket of yearBucket.months) {
+				for (const dayBucket of monthBucket.days) {
+					for (const tx of dayBucket.transactions) {
+						if (tx.id === transactionId) {
+							return {
+								transaction: tx,
+								location: {
+									accountId,
+									date: tx.date,
+									transactionId,
+								},
+							};
+						}
+						// Check nested duplicates
+						const dup = tx.suspectedDuplicates?.find((d) => d.id === transactionId);
+						if (dup) {
+							return {
+								transaction: dup as unknown as Transaction,
+								location: {
+									accountId,
+									date: tx.date, // Use parent's date for location
+									transactionId,
+								},
+							};
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return undefined;
+}
+
+/**
+ * Get transactions within a date range for duplicate detection.
+ * Returns transactions sorted by date ascending for merge-scan algorithm.
+ */
+export function getTransactionsInDateRange(
+	store: TransactionStore,
+	accountId: string,
+	dateRange: { start: string; end: string }
+): Transaction[] {
+	const tree = store[accountId];
+	if (!tree || typeof tree === "string") return [];
+
+	const startParsed = parseDate(dateRange.start);
+	const endParsed = parseDate(dateRange.end);
+
+	const result: Transaction[] = [];
+
+	for (const yearBucket of tree.years) {
+		if (yearBucket.year < startParsed.year || yearBucket.year > endParsed.year) continue;
+
+		for (const monthBucket of yearBucket.months) {
+			// Skip months outside range
+			if (yearBucket.year === startParsed.year && monthBucket.month < startParsed.month) continue;
+			if (yearBucket.year === endParsed.year && monthBucket.month > endParsed.month) continue;
+
+			for (const dayBucket of monthBucket.days) {
+				// Skip days outside range
+				if (
+					yearBucket.year === startParsed.year &&
+					monthBucket.month === startParsed.month &&
+					dayBucket.day < startParsed.day
+				)
+					continue;
+				if (
+					yearBucket.year === endParsed.year &&
+					monthBucket.month === endParsed.month &&
+					dayBucket.day > endParsed.day
+				)
+					continue;
+
+				result.push(...dayBucket.transactions);
+			}
+		}
+	}
+
+	// Sort ascending by date for merge-scan
+	result.sort((a, b) => a.date.localeCompare(b.date));
+
+	return result;
+}
+
+/**
+ * Get transactions that have suspected duplicates (for "Show Duplicates" filter).
+ * Returns parent transactions only that have non-empty suspectedDuplicates.
+ */
+export function getTransactionsWithDuplicates(
+	store: TransactionStore,
+	accountId?: string
+): Transaction[] {
+	const accountIds = accountId
+		? [accountId]
+		: Object.keys(store).filter((id) => store[id] && typeof store[id] !== "string");
+
+	const result: Transaction[] = [];
+
+	for (const accId of accountIds) {
+		const transactions = getAccountTransactions(store, accId);
+		for (const tx of transactions) {
+			if (tx.suspectedDuplicates && tx.suspectedDuplicates.length > 0) {
+				result.push(tx);
+			}
+		}
+	}
+
+	return result;
+}
+
+/**
+ * Check if a day bucket exists for the given date.
+ */
+export function hasDayBucket(store: TransactionStore, accountId: string, date: string): boolean {
+	const tree = store[accountId];
+	if (!tree || typeof tree === "string") return false;
+
+	const { year, month, day } = parseDate(date);
+
+	for (const yearBucket of tree.years) {
+		if (yearBucket.year !== year) continue;
+		for (const monthBucket of yearBucket.months) {
+			if (monthBucket.month !== month) continue;
+			for (const dayBucket of monthBucket.days) {
+				if (dayBucket.day === day) return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+// ============================================
+// TRANSACTION FILTERING (works on flat arrays)
+// ============================================
+
+/**
+ * Filter transactions based on query options.
+ * Works on a flat array of transactions (after extraction from hierarchical structure).
  */
 export function filterTransactions(
-	transactions: Record<string, Transaction>,
+	transactions: Transaction[],
 	options: TransactionQueryOptions = {}
 ): Transaction[] {
-	let results = Object.values(transactions);
+	let results = [...transactions];
 
 	// Exclude deleted by default
 	if (options.excludeDeleted !== false) {
@@ -169,9 +487,9 @@ export function filterTransactions(
 		);
 	}
 
-	// Duplicates filter
+	// Duplicates filter - show transactions with suspected duplicates
 	if (options.showDuplicatesOnly) {
-		results = results.filter((tx) => tx.duplicateOf);
+		results = results.filter((tx) => tx.suspectedDuplicates && tx.suspectedDuplicates.length > 0);
 	}
 
 	// Sort
@@ -270,14 +588,44 @@ export function cursorPaginateTransactions(
 }
 
 /**
- * Query transactions with filtering and pagination
+ * Query transactions with filtering and pagination.
+ * Uses the hierarchical structure for efficient account filtering.
  */
 export function queryTransactions(
 	state: VaultState,
 	queryOptions: TransactionQueryOptions = {},
 	paginationOptions?: PaginationOptions
 ): PaginatedResult<Transaction> {
-	const filtered = filterTransactions(state.transactions, queryOptions);
+	// Get transactions - use account filter for O(1) account selection
+	let transactions: Transaction[];
+	if (queryOptions.accountIds && queryOptions.accountIds.length === 1) {
+		// Single account - direct subtree access
+		transactions = getAccountTransactions(state.transactions, queryOptions.accountIds[0]);
+	} else if (queryOptions.accountIds && queryOptions.accountIds.length > 1) {
+		// Multiple accounts - merge subtrees
+		transactions = queryOptions.accountIds.flatMap((accountId) =>
+			getAccountTransactions(state.transactions, accountId)
+		);
+		// Re-sort merged results
+		transactions.sort((a, b) => {
+			const dateCompare = b.date.localeCompare(a.date);
+			if (dateCompare !== 0) return dateCompare;
+			const instantCompare = b.creationInstant - a.creationInstant;
+			if (instantCompare !== 0) return instantCompare;
+			const aIdx = a.importRowIndex ?? Infinity;
+			const bIdx = b.importRowIndex ?? Infinity;
+			return aIdx - bIdx;
+		});
+	} else {
+		// All accounts
+		transactions = getAllTransactions(state.transactions);
+	}
+
+	// Apply remaining filters
+	const filtered = filterTransactions(transactions, {
+		...queryOptions,
+		accountIds: undefined, // Already handled
+	});
 
 	if (paginationOptions) {
 		return paginateTransactions(filtered, paginationOptions);
@@ -372,9 +720,9 @@ export function getTagTree(state: VaultState): TagTreeNode[] {
 }
 
 /**
- * Get transactions for a specific account
+ * Get transactions for a specific account with pagination
  */
-export function getAccountTransactions(
+export function getAccountTransactionsQuery(
 	state: VaultState,
 	accountId: string,
 	pagination?: PaginationOptions

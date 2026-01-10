@@ -23,17 +23,17 @@
 
 **Purpose**: Schema changes and foundational type definitions
 
-- [ ] T001 Add `creationInstant` field to transaction schema in src/lib/crdt/schema.ts
-- [ ] T002 Add `importRowIndex` field to transaction schema in src/lib/crdt/schema.ts
-- [ ] T003 Add `suspectedDuplicates` LoroList field to transaction schema in src/lib/crdt/schema.ts
-- [ ] T004 Remove `duplicateOf` field from transaction schema in src/lib/crdt/schema.ts
-- [ ] T005 Define dayBucketSchema in src/lib/crdt/schema.ts
-- [ ] T006 Define monthBucketSchema in src/lib/crdt/schema.ts
-- [ ] T007 Define yearBucketSchema in src/lib/crdt/schema.ts
-- [ ] T008 Define accountTransactionTreeSchema in src/lib/crdt/schema.ts
-- [ ] T009 Define transactionStoreSchema in src/lib/crdt/schema.ts
-- [ ] T010 Update vaultSchema to use new hierarchical transactionStoreSchema in src/lib/crdt/schema.ts
-- [ ] T011 Export new types (DayBucket, MonthBucket, YearBucket, AccountTransactionTree, TransactionStore) from src/lib/crdt/schema.ts
+- [x] T001 Add `creationInstant` field to transaction schema in src/lib/crdt/schema.ts
+- [x] T002 Add `importRowIndex` field to transaction schema in src/lib/crdt/schema.ts
+- [x] T003 Add `suspectedDuplicates` LoroList field to transaction schema in src/lib/crdt/schema.ts
+- [x] T004 Remove `duplicateOf` field from transaction schema in src/lib/crdt/schema.ts
+- [x] T005 Define dayBucketSchema in src/lib/crdt/schema.ts
+- [x] T006 Define monthBucketSchema in src/lib/crdt/schema.ts
+- [x] T007 Define yearBucketSchema in src/lib/crdt/schema.ts
+- [x] T008 Define accountTransactionTreeSchema in src/lib/crdt/schema.ts
+- [x] T009 Define transactionStoreSchema in src/lib/crdt/schema.ts
+- [x] T010 Update vaultSchema to use new hierarchical transactionStoreSchema in src/lib/crdt/schema.ts
+- [x] T011 Export new types (DayBucket, MonthBucket, YearBucket, AccountTransactionTree, TransactionStore) from src/lib/crdt/schema.ts
 
 ---
 

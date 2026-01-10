@@ -19,9 +19,11 @@ import {
 	useActiveStatuses,
 	useActiveTransactions,
 	useImportTemplates,
+	useTransactionActions,
 	useVaultAction,
 	useVaultPreferences,
 } from "@/lib/crdt/context";
+import { insertTransaction } from "@/lib/crdt/mutations";
 import type {
 	Account,
 	ImportTemplate as ImportTemplateRecord,
@@ -114,7 +116,15 @@ export default function NewImportPage() {
 
 	// Account actions for OFX import
 	const createAccount = useVaultAction(
-		(state, data: { id: string; name: string; accountNumber: string; currency: string }) => {
+		(
+			state,
+			data: {
+				id: string;
+				name: string;
+				accountNumber: string;
+				currency: string;
+			}
+		) => {
 			state.accounts[data.id] = {
 				id: data.id,
 				name: data.name,
@@ -141,6 +151,7 @@ export default function NewImportPage() {
 			data: {
 				importId: string;
 				fileName: string;
+				creationInstant: number;
 				transactions: Array<{
 					id: string;
 					date: string;
@@ -148,6 +159,7 @@ export default function NewImportPage() {
 					amount: number;
 					accountId: string;
 					statusId: string;
+					importRowIndex: number;
 					duplicateOf: string | null;
 				}>;
 			}
@@ -157,36 +169,37 @@ export default function NewImportPage() {
 				id: data.importId,
 				filename: data.fileName,
 				transactionCount: data.transactions.length,
-				createdAt: Date.now(),
+				createdAt: data.creationInstant,
 				deletedAt: 0,
 			} as (typeof state.imports)[string];
 
-			// Create transactions
+			// Create transactions using hierarchical structure
 			for (const tx of data.transactions) {
-				state.transactions[tx.id] = {
-					id: tx.id,
-					date: tx.date,
-					description: tx.description,
-					notes: "",
-					amount: tx.amount,
-					accountId: tx.accountId,
-					tagIds: [] as string[],
-					statusId: tx.statusId,
-					importId: data.importId,
-					allocations: {} as Record<string, number>,
-					duplicateOf: tx.duplicateOf ?? "",
-					deletedAt: 0,
-				} as (typeof state.transactions)[string];
+				// TODO: Phase 4 will handle duplicate nesting via suspectedDuplicateOf
+				// For now, we insert all transactions as standalone
+				insertTransaction(state.transactions, {
+					transaction: {
+						id: tx.id,
+						date: tx.date,
+						description: tx.description,
+						notes: "",
+						amount: tx.amount,
+						accountId: tx.accountId,
+						tagIds: [],
+						statusId: tx.statusId,
+						importId: data.importId,
+						allocations: {},
+						creationInstant: data.creationInstant,
+						importRowIndex: tx.importRowIndex,
+						deletedAt: 0,
+					},
+				});
 			}
 		}
 	);
 
-	// Convert CRDT transactions to array
-	const existingTransactions = useMemo(() => {
-		return Object.values(transactions).filter(
-			(t): t is Transaction => typeof t === "object" && t !== null && !t.deletedAt
-		);
-	}, [transactions]);
+	// Get existing transactions - already filtered for active only
+	const existingTransactions = transactions;
 
 	// Convert CRDT accounts to array
 	const accountsList = useMemo(() => {
@@ -232,14 +245,16 @@ export default function NewImportPage() {
 				});
 			}
 
-			// Map import data to full transaction records
-			const transactionsToCreate = transactionData.map((tx) => ({
+			// Map import data to full transaction records with row indices
+			const creationInstant = Date.now();
+			const transactionsToCreate = transactionData.map((tx, index) => ({
 				id: generateId(),
 				date: tx.date,
 				description: tx.description,
 				amount: tx.amount,
 				accountId: accountIdToUse ?? tx.accountId,
 				statusId: defaultStatusId,
+				importRowIndex: index,
 				duplicateOf: tx.duplicateOf,
 			}));
 
@@ -247,6 +262,7 @@ export default function NewImportPage() {
 			createImportBatch({
 				importId,
 				fileName,
+				creationInstant,
 				transactions: transactionsToCreate,
 			});
 

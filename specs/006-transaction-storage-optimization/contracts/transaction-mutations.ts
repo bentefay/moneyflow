@@ -12,39 +12,39 @@ import type { Transaction, TransactionStore } from "@/lib/crdt/schema";
 // ============================================================================
 
 export interface TransactionLocation {
-  accountId: string;
-  date: string; // YYYY-MM-DD
-  transactionId: string;
+	accountId: string;
+	date: string; // YYYY-MM-DD
+	transactionId: string;
 }
 
 export interface InsertTransactionInput {
-  transaction: Omit<Transaction, "suspectedDuplicates">;
-  suspectedDuplicateOf?: TransactionLocation; // If set, nest under this parent
+	transaction: Omit<Transaction, "suspectedDuplicates">;
+	suspectedDuplicateOf?: TransactionLocation; // If set, nest under this parent
 }
 
 export interface UpdateTransactionInput {
-  location: TransactionLocation;
-  updates: Partial<Omit<Transaction, "id" | "accountId" | "suspectedDuplicates">>;
+	location: TransactionLocation;
+	updates: Partial<Omit<Transaction, "id" | "accountId" | "suspectedDuplicates">>;
 }
 
 export interface MoveTransactionInput {
-  location: TransactionLocation;
-  newDate: string; // YYYY-MM-DD
+	location: TransactionLocation;
+	newDate: string; // YYYY-MM-DD
 }
 
 export interface DeleteTransactionInput {
-  location: TransactionLocation;
-  cascade?: boolean; // Default true for parents, ignored for duplicates
+	location: TransactionLocation;
+	cascade?: boolean; // Default true for parents, ignored for duplicates
 }
 
 export interface UnnestDuplicateInput {
-  parentLocation: TransactionLocation;
-  duplicateId: string;
+	parentLocation: TransactionLocation;
+	duplicateId: string;
 }
 
 export interface SwapDuplicateInput {
-  parentLocation: TransactionLocation;
-  duplicateId: string;
+	parentLocation: TransactionLocation;
+	duplicateId: string;
 }
 
 // ============================================================================
@@ -58,10 +58,7 @@ export interface SwapDuplicateInput {
  * @param store - Transaction store (draft)
  * @param input - Transaction data and optional parent for duplicates
  */
-export function insertTransaction(
-  store: TransactionStore,
-  input: InsertTransactionInput
-): void;
+export function insertTransaction(store: TransactionStore, input: InsertTransactionInput): void;
 
 /**
  * Update a transaction in place.
@@ -70,10 +67,7 @@ export function insertTransaction(
  * @param store - Transaction store (draft)
  * @param input - Location and partial updates
  */
-export function updateTransaction(
-  store: TransactionStore,
-  input: UpdateTransactionInput
-): void;
+export function updateTransaction(store: TransactionStore, input: UpdateTransactionInput): void;
 
 /**
  * Move a transaction to a different date.
@@ -83,10 +77,7 @@ export function updateTransaction(
  * @param store - Transaction store (draft)
  * @param input - Current location and new date
  */
-export function moveTransaction(
-  store: TransactionStore,
-  input: MoveTransactionInput
-): void;
+export function moveTransaction(store: TransactionStore, input: MoveTransactionInput): void;
 
 /**
  * Delete a transaction.
@@ -96,10 +87,7 @@ export function moveTransaction(
  * @param store - Transaction store (draft)
  * @param input - Location and cascade option
  */
-export function deleteTransaction(
-  store: TransactionStore,
-  input: DeleteTransactionInput
-): void;
+export function deleteTransaction(store: TransactionStore, input: DeleteTransactionInput): void;
 
 /**
  * Unnest a suspected duplicate, making it a standalone transaction.
@@ -108,10 +96,7 @@ export function deleteTransaction(
  * @param store - Transaction store (draft)
  * @param input - Parent location and duplicate ID to unnest
  */
-export function unnestDuplicate(
-  store: TransactionStore,
-  input: UnnestDuplicateInput
-): void;
+export function unnestDuplicate(store: TransactionStore, input: UnnestDuplicateInput): void;
 
 /**
  * Swap a duplicate with its parent.
@@ -121,10 +106,7 @@ export function unnestDuplicate(
  * @param store - Transaction store (draft)
  * @param input - Parent location and duplicate ID to promote
  */
-export function swapDuplicate(
-  store: TransactionStore,
-  input: SwapDuplicateInput
-): void;
+export function swapDuplicate(store: TransactionStore, input: SwapDuplicateInput): void;
 
 /**
  * Delete all transactions for a given import.
@@ -134,7 +116,4 @@ export function swapDuplicate(
  * @param store - Transaction store (draft)
  * @param importId - Import ID to delete transactions for
  */
-export function deleteTransactionsByImport(
-  store: TransactionStore,
-  importId: string
-): void;
+export function deleteTransactionsByImport(store: TransactionStore, importId: string): void;

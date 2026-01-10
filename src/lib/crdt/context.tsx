@@ -8,6 +8,7 @@
  */
 
 import { createLoroContext } from "loro-mirror-react";
+import type { Transaction } from "./schema";
 import { vaultSchema } from "./schema";
 
 /**
@@ -120,10 +121,30 @@ export function useTag(tagId: string) {
 }
 
 /**
- * Hook to get a specific transaction by ID
+ * Hook to get a specific transaction by ID.
+ * Searches through the hierarchical structure.
+ * Note: This is O(n) - prefer using findTransaction with location when possible.
  */
 export function useTransaction(transactionId: string) {
-	return useVaultSelector((state) => state.transactions[transactionId]);
+	return useVaultSelector((state) => {
+		for (const accountId of Object.keys(state.transactions)) {
+			const tree = state.transactions[accountId];
+			if (!tree || typeof tree === "string") continue;
+			for (const yearBucket of tree.years) {
+				for (const monthBucket of yearBucket.months) {
+					for (const dayBucket of monthBucket.days) {
+						for (const tx of dayBucket.transactions) {
+							if (tx.id === transactionId) return tx;
+							// Also check nested duplicates
+							const dup = tx.suspectedDuplicates?.find((d) => d.id === transactionId);
+							if (dup) return dup as unknown as Transaction;
+						}
+					}
+				}
+			}
+		}
+		return undefined;
+	});
 }
 
 /**
@@ -160,14 +181,39 @@ export function useActiveTags() {
 }
 
 /**
- * Hook to get active (non-deleted) transactions
+ * Hook to get active (non-deleted) transactions from hierarchical structure.
+ * Returns a flat array of transactions sorted by date desc.
  */
 export function useActiveTransactions() {
-	return useVaultSelector((state) =>
-		Object.fromEntries(
-			Object.entries(state.transactions).filter(([, t]) => typeof t === "object" && !t.deletedAt)
-		)
-	);
+	return useVaultSelector((state) => {
+		const result: Transaction[] = [];
+		for (const accountId of Object.keys(state.transactions)) {
+			const tree = state.transactions[accountId];
+			if (!tree || typeof tree === "string") continue;
+			for (const yearBucket of tree.years) {
+				for (const monthBucket of yearBucket.months) {
+					for (const dayBucket of monthBucket.days) {
+						for (const tx of dayBucket.transactions) {
+							if (!tx.deletedAt) {
+								result.push(tx);
+							}
+						}
+					}
+				}
+			}
+		}
+		// Sort by date desc, creationInstant desc, importRowIndex asc
+		result.sort((a, b) => {
+			const dateCompare = b.date.localeCompare(a.date);
+			if (dateCompare !== 0) return dateCompare;
+			const instantCompare = b.creationInstant - a.creationInstant;
+			if (instantCompare !== 0) return instantCompare;
+			const aIdx = a.importRowIndex ?? Infinity;
+			const bIdx = b.importRowIndex ?? Infinity;
+			return aIdx - bIdx;
+		});
+		return result;
+	});
 }
 
 /**
@@ -190,4 +236,68 @@ export function useActiveStatuses() {
 			Object.entries(state.statuses).filter(([, s]) => typeof s === "object" && !s.deletedAt)
 		)
 	);
+}
+
+// ============================================
+// TRANSACTION MUTATION HOOKS
+// ============================================
+
+import {
+	type DeleteTransactionInput,
+	deleteTransactionsByImport as deleteByImport,
+	deleteTransaction as deleteTx,
+	type InsertTransactionInput,
+	insertTransaction as insertTx,
+	type MoveTransactionInput,
+	moveTransaction as moveTx,
+	type SwapDuplicateInput,
+	swapDuplicate as swapDup,
+	type UnnestDuplicateInput,
+	type UpdateTransactionInput,
+	unnestDuplicate as unnestDup,
+	updateTransaction as updateTx,
+} from "./mutations";
+
+/**
+ * Hook providing transaction mutation actions.
+ * Uses useVaultAction for memoized callbacks that work with the hierarchical structure.
+ */
+export function useTransactionActions() {
+	const insertTransaction = useVaultAction((state, input: InsertTransactionInput) => {
+		insertTx(state.transactions, input);
+	});
+
+	const updateTransaction = useVaultAction((state, input: UpdateTransactionInput) => {
+		updateTx(state.transactions, input);
+	});
+
+	const moveTransaction = useVaultAction((state, input: MoveTransactionInput) => {
+		moveTx(state.transactions, input);
+	});
+
+	const deleteTransaction = useVaultAction((state, input: DeleteTransactionInput) => {
+		deleteTx(state.transactions, input);
+	});
+
+	const unnestDuplicate = useVaultAction((state, input: UnnestDuplicateInput) => {
+		unnestDup(state.transactions, input);
+	});
+
+	const swapDuplicate = useVaultAction((state, input: SwapDuplicateInput) => {
+		swapDup(state.transactions, input);
+	});
+
+	const deleteTransactionsByImport = useVaultAction((state, importId: string) => {
+		deleteByImport(state.transactions, importId);
+	});
+
+	return {
+		insertTransaction,
+		updateTransaction,
+		moveTransaction,
+		deleteTransaction,
+		unnestDuplicate,
+		swapDuplicate,
+		deleteTransactionsByImport,
+	};
 }

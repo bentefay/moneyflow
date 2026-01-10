@@ -5,6 +5,9 @@
  *
  * Main transactions view with filtering, inline editing, bulk edit,
  * and real-time collaborative sync.
+ *
+ * Uses hierarchical transaction storage for O(1) account filtering
+ * and pre-sorted data (date desc, creationInstant desc, importRowIndex asc).
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -33,8 +36,10 @@ import {
 	useActiveTags,
 	useActiveTransactions,
 	useStatuses,
+	useTransactionActions,
 	useVaultAction,
 } from "@/lib/crdt/context";
+import { filterTransactions } from "@/lib/crdt/queries";
 import type { Account, Person, Status, Tag, Transaction } from "@/lib/crdt/schema";
 import { getNextTagColor } from "@/lib/domain";
 
@@ -53,7 +58,7 @@ export default function TransactionsPage() {
 	// Toast notifications
 	const { toast } = useToast();
 
-	// CRDT state
+	// CRDT state - transactions are pre-sorted by the hierarchical structure
 	const transactions = useActiveTransactions();
 	const accounts = useActiveAccounts();
 	const tags = useActiveTags();
@@ -67,28 +72,16 @@ export default function TransactionsPage() {
 	// Presence (only active when vault & identity are available)
 	useVaultPresence(activeVault?.id ?? null, pubkeyHash ?? null);
 
-	// Vault actions for mutations
-	const setTransaction = useVaultAction((state, id: string, data: Partial<Transaction>) => {
-		const existing = state.transactions[id];
-		if (existing) {
-			Object.assign(existing, data);
-		}
-	});
+	// Transaction mutations from hierarchical structure
+	const {
+		insertTransaction,
+		updateTransaction,
+		moveTransaction,
+		deleteTransaction,
+		unnestDuplicate,
+	} = useTransactionActions();
 
-	const addTransaction = useVaultAction((state, data: Transaction) => {
-		state.transactions[data.id] = data as (typeof state.transactions)[string];
-	});
-
-	const deleteTransactions = useVaultAction((state, ids: string[]) => {
-		const now = Date.now();
-		for (const id of ids) {
-			const tx = state.transactions[id];
-			if (tx) {
-				tx.deletedAt = now;
-			}
-		}
-	});
-
+	// Legacy vault actions for non-transaction mutations
 	const addTag = useVaultAction((state, tag: { id: string; name: string; color: string }) => {
 		state.tags[tag.id] = {
 			id: tag.id,
@@ -130,55 +123,25 @@ export default function TransactionsPage() {
 	// This would require extending the presence system
 	const presenceByTransactionId = useMemo(() => ({}), []);
 
-	// Filter and sort transactions
+	// Filter transactions using the query helper
+	// Data is already sorted by the hierarchical structure
 	const filteredTransactions = useMemo(() => {
-		let txList = Object.values(transactions) as Transaction[];
-
-		// Apply filters
-		if (filters.dateRange.start || filters.dateRange.end) {
-			txList = txList.filter((tx) => {
-				if (filters.dateRange.start && tx.date < filters.dateRange.start) return false;
-				if (filters.dateRange.end && tx.date > filters.dateRange.end) return false;
-				return true;
-			});
-		}
-
-		if (filters.tagIds.length > 0) {
-			txList = txList.filter((tx) => tx.tagIds?.some((tagId) => filters.tagIds.includes(tagId)));
-		}
-
-		if (filters.personIds.length > 0) {
-			txList = txList.filter((tx) => {
-				const allocations = tx.allocations ?? {};
-				return Object.keys(allocations).some((personId) => filters.personIds.includes(personId));
-			});
-		}
-
-		if (filters.accountIds.length > 0) {
-			txList = txList.filter((tx) => filters.accountIds.includes(tx.accountId));
-		}
-
-		if (filters.statusIds.length > 0) {
-			txList = txList.filter((tx) => filters.statusIds.includes(tx.statusId));
-		}
-
-		if (filters.search) {
-			const searchLower = filters.search.toLowerCase();
-			txList = txList.filter(
-				(tx) =>
-					tx.description?.toLowerCase().includes(searchLower) ||
-					tx.notes?.toLowerCase().includes(searchLower)
-			);
-		}
-
-		if (filters.showDuplicatesOnly) {
-			txList = txList.filter((tx) => tx.duplicateOf);
-		}
-
-		// Sort by date descending
-		txList.sort((a, b) => b.date.localeCompare(a.date));
-
-		return txList;
+		return filterTransactions(transactions, {
+			dateRange: {
+				start: filters.dateRange.start || undefined,
+				end: filters.dateRange.end || undefined,
+			},
+			tagIds: filters.tagIds.length > 0 ? filters.tagIds : undefined,
+			personIds: filters.personIds.length > 0 ? filters.personIds : undefined,
+			accountIds: filters.accountIds.length > 0 ? filters.accountIds : undefined,
+			statusIds: filters.statusIds.length > 0 ? filters.statusIds : undefined,
+			search: filters.search || undefined,
+			showDuplicatesOnly: filters.showDuplicatesOnly,
+			excludeDeleted: true,
+			// Data is pre-sorted, but filterTransactions preserves order when sortBy is "date" and sortDirection is "desc"
+			sortBy: "date",
+			sortDirection: "desc",
+		});
 	}, [transactions, filters]);
 
 	// Paginate
@@ -199,6 +162,8 @@ export default function TransactionsPage() {
 			displayedTransactions.map((tx) => {
 				const acc = accounts[tx.accountId];
 				const stat = statuses[tx.statusId];
+				// Check if this transaction has suspected duplicates (is a parent with nested dups)
+				const hasDuplicates = tx.suspectedDuplicates && tx.suspectedDuplicates.length > 0;
 				return {
 					id: tx.id,
 					date: tx.date,
@@ -219,7 +184,10 @@ export default function TransactionsPage() {
 						};
 					}),
 					balance: 0, // Will be calculated separately
-					possibleDuplicateOf: tx.duplicateOf,
+					// For now, mark as having duplicates if it has nested suspected duplicates
+					possibleDuplicateOf: hasDuplicates ? "has-duplicates" : undefined,
+					// Include the nested duplicates for rendering
+					suspectedDuplicates: tx.suspectedDuplicates,
 				};
 			}),
 		[displayedTransactions, accounts, statuses, tags]
@@ -246,85 +214,150 @@ export default function TransactionsPage() {
 		return defaultStatus?.id ?? Object.keys(statuses)[0] ?? "";
 	}, [statuses]);
 
-	// Handle add transaction
+	// Handle add transaction - uses insertTransaction mutation
 	const handleAddTransaction = useCallback(
 		(data: NewTransactionData) => {
-			// Create new transaction with minimal required fields
-			// The CRDT layer will handle $cid internally
-			const newTx = {
-				id: generateId(),
-				date: data.date,
-				description: data.description,
-				notes: data.notes ?? "",
-				amount: data.amount,
-				accountId: data.accountId,
-				tagIds: data.tagIds ?? ([] as string[]),
-				statusId: data.statusId ?? defaultStatusId,
-				allocations: {} as Record<string, number>,
-				importId: "",
-				duplicateOf: "",
-				deletedAt: 0,
-			};
-			addTransaction(newTx as Transaction);
+			const now = Date.now();
+			insertTransaction({
+				transaction: {
+					id: generateId(),
+					date: data.date,
+					description: data.description,
+					notes: data.notes ?? "",
+					amount: data.amount,
+					accountId: data.accountId,
+					tagIds: data.tagIds ?? [],
+					statusId: data.statusId ?? defaultStatusId,
+					allocations: {},
+					importId: "",
+					creationInstant: now,
+					importRowIndex: 0, // Manual transactions get index 0
+					deletedAt: 0,
+				},
+			});
 		},
-		[addTransaction, defaultStatusId]
+		[insertTransaction, defaultStatusId]
 	);
 
-	// Handle bulk delete
+	// Handle bulk delete - uses deleteTransaction mutation
 	const handleBulkDelete = useCallback(() => {
-		const ids = Array.from(selectedIds);
-		deleteTransactions(ids);
+		// We need transaction locations for the new delete mutation
+		// For now, find each transaction and delete it
+		for (const id of selectedIds) {
+			const tx = transactions.find((t) => t.id === id);
+			if (tx) {
+				deleteTransaction({
+					location: {
+						accountId: tx.accountId,
+						date: tx.date,
+						transactionId: tx.id,
+					},
+				});
+			}
+		}
 		clearSelection();
-	}, [selectedIds, deleteTransactions, clearSelection]);
+	}, [selectedIds, transactions, deleteTransaction, clearSelection]);
 
 	// Handle bulk set tags
 	const handleBulkSetTags = useCallback(
 		(tagIds: string[]) => {
 			for (const id of selectedIds) {
-				setTransaction(id, { tagIds });
+				const tx = transactions.find((t) => t.id === id);
+				if (tx) {
+					updateTransaction({
+						location: {
+							accountId: tx.accountId,
+							date: tx.date,
+							transactionId: tx.id,
+						},
+						updates: { tagIds },
+					});
+				}
 			}
 		},
-		[selectedIds, setTransaction]
+		[selectedIds, transactions, updateTransaction]
 	);
 
 	// Handle bulk set status
 	const handleBulkSetStatus = useCallback(
 		(statusId: string) => {
 			for (const id of selectedIds) {
-				setTransaction(id, { statusId });
+				const tx = transactions.find((t) => t.id === id);
+				if (tx) {
+					updateTransaction({
+						location: {
+							accountId: tx.accountId,
+							date: tx.date,
+							transactionId: tx.id,
+						},
+						updates: { statusId },
+					});
+				}
 			}
 		},
-		[selectedIds, setTransaction]
+		[selectedIds, transactions, updateTransaction]
 	);
 
-	// Handle bulk set account
+	// Handle bulk set account - uses moveTransaction for account changes
 	const handleBulkSetAccount = useCallback(
 		(accountId: string) => {
 			for (const id of selectedIds) {
-				setTransaction(id, { accountId });
+				const tx = transactions.find((t) => t.id === id);
+				if (tx && tx.accountId !== accountId) {
+					// Account change requires move since it's a different tree
+					moveTransaction({
+						location: {
+							accountId: tx.accountId,
+							date: tx.date,
+							transactionId: tx.id,
+						},
+						newDate: tx.date,
+						newAccountId: accountId,
+					});
+				}
 			}
 		},
-		[selectedIds, setTransaction]
+		[selectedIds, transactions, moveTransaction]
 	);
 
 	// Handle bulk set notes
 	const handleBulkSetNotes = useCallback(
 		(notes: string) => {
 			for (const id of selectedIds) {
-				setTransaction(id, { notes });
+				const tx = transactions.find((t) => t.id === id);
+				if (tx) {
+					updateTransaction({
+						location: {
+							accountId: tx.accountId,
+							date: tx.date,
+							transactionId: tx.id,
+						},
+						updates: { notes },
+					});
+				}
 			}
 		},
-		[selectedIds, setTransaction]
+		[selectedIds, transactions, updateTransaction]
 	);
 
 	// Handle bulk set amount
 	const handleBulkSetAmount = useCallback(
 		(amount: number) => {
 			for (const id of selectedIds) {
-				setTransaction(id, { amount });
+				const tx = transactions.find((t) => t.id === id);
+				if (tx) {
+					updateTransaction({
+						location: {
+							accountId: tx.accountId,
+							date: tx.date,
+							transactionId: tx.id,
+						},
+						updates: { amount },
+					});
+				}
 			}
 		},
-		[selectedIds, setTransaction]
+		[selectedIds, transactions, updateTransaction]
 	);
 
 	// Handle creating a new tag
@@ -344,7 +377,16 @@ export default function TransactionsPage() {
 	// Handle single transaction delete
 	const handleSingleDelete = useCallback(
 		(id: string) => {
-			deleteTransactions([id]);
+			const tx = transactions.find((t) => t.id === id);
+			if (tx) {
+				deleteTransaction({
+					location: {
+						accountId: tx.accountId,
+						date: tx.date,
+						transactionId: tx.id,
+					},
+				});
+			}
 			// Clear selection if the deleted transaction was selected
 			if (selectedIds.has(id)) {
 				setSelectedIds((prev) => {
@@ -354,21 +396,61 @@ export default function TransactionsPage() {
 				});
 			}
 		},
-		[deleteTransactions, selectedIds]
+		[transactions, deleteTransaction, selectedIds]
 	);
 
-	// Handle resolve duplicate (mark as not a duplicate)
+	// Handle resolve duplicate (unnest from parent)
 	const handleResolveDuplicate = useCallback(
 		(id: string) => {
-			setTransaction(id, { duplicateOf: undefined });
+			// Find the parent transaction that contains this duplicate
+			for (const tx of transactions) {
+				const dupIndex = tx.suspectedDuplicates?.findIndex((d) => d.id === id);
+				if (dupIndex !== undefined && dupIndex >= 0) {
+					unnestDuplicate({
+						parentLocation: {
+							accountId: tx.accountId,
+							date: tx.date,
+							transactionId: tx.id,
+						},
+						duplicateId: id,
+					});
+					return;
+				}
+			}
 		},
-		[setTransaction]
+		[transactions, unnestDuplicate]
 	);
 
 	// Handle inline edit update (from TransactionTable)
 	const handleTransactionUpdate = useCallback(
 		(id: string, updates: Partial<TransactionRowData>) => {
-			// Map TransactionRowData fields to Transaction fields
+			// Find the transaction to get its location
+			const tx = transactions.find((t) => t.id === id);
+			if (!tx) return;
+
+			// Check if date or account changed - requires move
+			const newDate = updates.date;
+			const newAccountId = updates.accountId;
+			const dateChanged = newDate && newDate !== tx.date;
+			const accountChanged = newAccountId && newAccountId !== tx.accountId;
+
+			if (dateChanged || accountChanged) {
+				// Use moveTransaction for date/account changes
+				moveTransaction({
+					location: {
+						accountId: tx.accountId,
+						date: tx.date,
+						transactionId: tx.id,
+					},
+					newDate: newDate ?? tx.date,
+					newAccountId: accountChanged ? newAccountId : undefined,
+				});
+				// Remove date and accountId from updates since moveTransaction handles them
+				delete updates.date;
+				delete updates.accountId;
+			}
+
+			// Map remaining TransactionRowData fields to Transaction fields
 			const transactionUpdates: Partial<Transaction> = {};
 			if ("description" in updates && updates.description !== undefined) {
 				transactionUpdates.description = updates.description;
@@ -376,17 +458,11 @@ export default function TransactionsPage() {
 			if ("notes" in updates && updates.notes !== undefined) {
 				transactionUpdates.notes = updates.notes;
 			}
-			if ("date" in updates && updates.date !== undefined) {
-				transactionUpdates.date = updates.date;
-			}
 			if ("amount" in updates && updates.amount !== undefined) {
 				transactionUpdates.amount = updates.amount;
 			}
 			if ("statusId" in updates && updates.statusId !== undefined) {
 				transactionUpdates.statusId = updates.statusId;
-			}
-			if ("accountId" in updates && updates.accountId !== undefined) {
-				transactionUpdates.accountId = updates.accountId;
 			}
 			if ("tags" in updates && Array.isArray(updates.tags)) {
 				// Tags come as array of IDs (string[]) from inline editor
@@ -397,12 +473,22 @@ export default function TransactionsPage() {
 						: updates.tags.map((t) => (typeof t === "string" ? t : t.id));
 				transactionUpdates.tagIds = tagIds;
 			}
-			// Only call setTransaction if we have updates
+
+			// Only call updateTransaction if we have updates
 			if (Object.keys(transactionUpdates).length > 0) {
-				setTransaction(id, transactionUpdates);
+				// Use the new location if it changed
+				const location = {
+					accountId: accountChanged ? newAccountId! : tx.accountId,
+					date: dateChanged ? newDate! : tx.date,
+					transactionId: tx.id,
+				};
+				updateTransaction({
+					location,
+					updates: transactionUpdates,
+				});
 			}
 		},
-		[setTransaction]
+		[transactions, updateTransaction, moveTransaction]
 	);
 
 	// Tag options for filter/bulk edit (with label for FilterOption)
