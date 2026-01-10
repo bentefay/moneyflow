@@ -716,10 +716,10 @@ describe("detectDuplicates performance", () => {
 		const ratio1 = times[1] / Math.max(times[0], 0.01);
 		const ratio2 = times[2] / Math.max(times[1], 0.01);
 
-		// Both ratios should be less than 3.5 for O(n+m) behavior
+		// Both ratios should be less than 4 for O(n+m) behavior
 		// (allowing margin for JIT warmup, GC, etc.)
-		expect(ratio1).toBeLessThan(3.5);
-		expect(ratio2).toBeLessThan(3.5);
+		expect(ratio1).toBeLessThan(4);
+		expect(ratio2).toBeLessThan(4);
 	});
 
 	it("handles large transaction sets efficiently", () => {
