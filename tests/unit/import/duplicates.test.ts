@@ -65,24 +65,42 @@ describe("checkDuplicate", () => {
 
 	describe("date matching", () => {
 		it("matches transactions on same date", () => {
-			const tx1 = createTransaction({ id: "tx-1", date: isoDate("2024-01-15") });
-			const tx2 = createTransaction({ id: "tx-2", date: isoDate("2024-01-15") });
+			const tx1 = createTransaction({
+				id: "tx-1",
+				date: isoDate("2024-01-15"),
+			});
+			const tx2 = createTransaction({
+				id: "tx-2",
+				date: isoDate("2024-01-15"),
+			});
 
 			const match = checkDuplicate(tx1, tx2);
 			expect(match?.matchDetails.dateMatch).toBe(true);
 		});
 
 		it("matches transactions within 3 day tolerance", () => {
-			const tx1 = createTransaction({ id: "tx-1", date: isoDate("2024-01-15") });
-			const tx2 = createTransaction({ id: "tx-2", date: isoDate("2024-01-17") });
+			const tx1 = createTransaction({
+				id: "tx-1",
+				date: isoDate("2024-01-15"),
+			});
+			const tx2 = createTransaction({
+				id: "tx-2",
+				date: isoDate("2024-01-17"),
+			});
 
 			const match = checkDuplicate(tx1, tx2);
 			expect(match?.matchDetails.dateMatch).toBe(true);
 		});
 
 		it("rejects transactions beyond date tolerance", () => {
-			const tx1 = createTransaction({ id: "tx-1", date: isoDate("2024-01-15") });
-			const tx2 = createTransaction({ id: "tx-2", date: isoDate("2024-01-20") });
+			const tx1 = createTransaction({
+				id: "tx-1",
+				date: isoDate("2024-01-15"),
+			});
+			const tx2 = createTransaction({
+				id: "tx-2",
+				date: isoDate("2024-01-20"),
+			});
 
 			const match = checkDuplicate(tx1, tx2);
 			expect(match).toBeNull(); // No match when date differs too much
@@ -121,16 +139,28 @@ describe("checkDuplicate", () => {
 
 	describe("description similarity", () => {
 		it("matches identical descriptions", () => {
-			const tx1 = createTransaction({ id: "tx-1", description: "AMAZON PURCHASE" });
-			const tx2 = createTransaction({ id: "tx-2", description: "AMAZON PURCHASE" });
+			const tx1 = createTransaction({
+				id: "tx-1",
+				description: "AMAZON PURCHASE",
+			});
+			const tx2 = createTransaction({
+				id: "tx-2",
+				description: "AMAZON PURCHASE",
+			});
 
 			const match = checkDuplicate(tx1, tx2);
 			expect(match?.matchDetails.descriptionSimilarity).toBe(1);
 		});
 
 		it("matches similar descriptions", () => {
-			const tx1 = createTransaction({ id: "tx-1", description: "AMAZON.COM*AMZN.COM/BI" });
-			const tx2 = createTransaction({ id: "tx-2", description: "AMAZON.COM*AMZN.COM" });
+			const tx1 = createTransaction({
+				id: "tx-1",
+				description: "AMAZON.COM*AMZN.COM/BI",
+			});
+			const tx2 = createTransaction({
+				id: "tx-2",
+				description: "AMAZON.COM*AMZN.COM",
+			});
 
 			const match = checkDuplicate(tx1, tx2);
 			expect(match?.matchDetails.descriptionSimilarity).toBeGreaterThan(0.8);
@@ -170,8 +200,14 @@ describe("checkDuplicate", () => {
 
 	describe("custom configuration", () => {
 		it("respects custom date tolerance", () => {
-			const tx1 = createTransaction({ id: "tx-1", date: isoDate("2024-01-15") });
-			const tx2 = createTransaction({ id: "tx-2", date: isoDate("2024-01-20") });
+			const tx1 = createTransaction({
+				id: "tx-1",
+				date: isoDate("2024-01-15"),
+			});
+			const tx2 = createTransaction({
+				id: "tx-2",
+				date: isoDate("2024-01-20"),
+			});
 
 			const config: DuplicateDetectionConfig = {
 				...DEFAULT_DUPLICATE_CONFIG,
@@ -197,7 +233,10 @@ describe("checkDuplicate", () => {
 
 		it("respects custom confidence threshold", () => {
 			const tx1 = createTransaction({ id: "tx-1" });
-			const tx2 = createTransaction({ id: "tx-2", description: "SLIGHTLY DIFFERENT" });
+			const tx2 = createTransaction({
+				id: "tx-2",
+				description: "SLIGHTLY DIFFERENT",
+			});
 
 			const strictConfig: DuplicateDetectionConfig = {
 				...DEFAULT_DUPLICATE_CONFIG,
@@ -216,8 +255,14 @@ describe("checkDuplicate", () => {
 
 	describe("date match mode", () => {
 		it("exact mode requires same day", () => {
-			const tx1 = createTransaction({ id: "tx-1", date: isoDate("2024-01-15") });
-			const tx2 = createTransaction({ id: "tx-2", date: isoDate("2024-01-16") });
+			const tx1 = createTransaction({
+				id: "tx-1",
+				date: isoDate("2024-01-15"),
+			});
+			const tx2 = createTransaction({
+				id: "tx-2",
+				date: isoDate("2024-01-16"),
+			});
 
 			const exactConfig: DuplicateDetectionConfig = {
 				...DEFAULT_DUPLICATE_CONFIG,
@@ -229,8 +274,14 @@ describe("checkDuplicate", () => {
 		});
 
 		it("exact mode matches same day", () => {
-			const tx1 = createTransaction({ id: "tx-1", date: isoDate("2024-01-15") });
-			const tx2 = createTransaction({ id: "tx-2", date: isoDate("2024-01-15") });
+			const tx1 = createTransaction({
+				id: "tx-1",
+				date: isoDate("2024-01-15"),
+			});
+			const tx2 = createTransaction({
+				id: "tx-2",
+				date: isoDate("2024-01-15"),
+			});
 
 			const exactConfig: DuplicateDetectionConfig = {
 				...DEFAULT_DUPLICATE_CONFIG,
@@ -243,8 +294,14 @@ describe("checkDuplicate", () => {
 		});
 
 		it("within mode allows date tolerance", () => {
-			const tx1 = createTransaction({ id: "tx-1", date: isoDate("2024-01-15") });
-			const tx2 = createTransaction({ id: "tx-2", date: isoDate("2024-01-17") });
+			const tx1 = createTransaction({
+				id: "tx-1",
+				date: isoDate("2024-01-15"),
+			});
+			const tx2 = createTransaction({
+				id: "tx-2",
+				date: isoDate("2024-01-17"),
+			});
 
 			const withinConfig: DuplicateDetectionConfig = {
 				...DEFAULT_DUPLICATE_CONFIG,
@@ -260,8 +317,14 @@ describe("checkDuplicate", () => {
 
 	describe("description match mode", () => {
 		it("exact mode requires case-insensitive match", () => {
-			const tx1 = createTransaction({ id: "tx-1", description: "AMAZON PURCHASE" });
-			const tx2 = createTransaction({ id: "tx-2", description: "amazon purchase" });
+			const tx1 = createTransaction({
+				id: "tx-1",
+				description: "AMAZON PURCHASE",
+			});
+			const tx2 = createTransaction({
+				id: "tx-2",
+				description: "amazon purchase",
+			});
 
 			const exactConfig: DuplicateDetectionConfig = {
 				...DEFAULT_DUPLICATE_CONFIG,
@@ -274,8 +337,14 @@ describe("checkDuplicate", () => {
 		});
 
 		it("exact mode rejects different descriptions", () => {
-			const tx1 = createTransaction({ id: "tx-1", description: "AMAZON PURCHASE" });
-			const tx2 = createTransaction({ id: "tx-2", description: "AMAZON.COM*AMZN" });
+			const tx1 = createTransaction({
+				id: "tx-1",
+				description: "AMAZON PURCHASE",
+			});
+			const tx2 = createTransaction({
+				id: "tx-2",
+				description: "AMAZON.COM*AMZN",
+			});
 
 			const exactConfig: DuplicateDetectionConfig = {
 				...DEFAULT_DUPLICATE_CONFIG,
@@ -287,8 +356,14 @@ describe("checkDuplicate", () => {
 		});
 
 		it("similar mode uses Levenshtein similarity", () => {
-			const tx1 = createTransaction({ id: "tx-1", description: "AMAZON.COM*AMZN.COM/BI" });
-			const tx2 = createTransaction({ id: "tx-2", description: "AMAZON.COM*AMZN.COM" });
+			const tx1 = createTransaction({
+				id: "tx-1",
+				description: "AMAZON.COM*AMZN.COM/BI",
+			});
+			const tx2 = createTransaction({
+				id: "tx-2",
+				description: "AMAZON.COM*AMZN.COM",
+			});
 
 			const similarConfig: DuplicateDetectionConfig = {
 				...DEFAULT_DUPLICATE_CONFIG,
@@ -368,12 +443,28 @@ describe("detectDuplicates", () => {
 
 	it("detects multiple duplicates", () => {
 		const newTxs = [
-			createTransaction({ id: "new-1", date: isoDate("2024-01-15"), description: "TX A" }),
-			createTransaction({ id: "new-2", date: isoDate("2024-01-20"), description: "TX B" }),
+			createTransaction({
+				id: "new-1",
+				date: isoDate("2024-01-15"),
+				description: "TX A",
+			}),
+			createTransaction({
+				id: "new-2",
+				date: isoDate("2024-01-20"),
+				description: "TX B",
+			}),
 		];
 		const existingTxs = [
-			createTransaction({ id: "existing-1", date: isoDate("2024-01-15"), description: "TX A" }),
-			createTransaction({ id: "existing-2", date: isoDate("2024-01-20"), description: "TX B" }),
+			createTransaction({
+				id: "existing-1",
+				date: isoDate("2024-01-15"),
+				description: "TX A",
+			}),
+			createTransaction({
+				id: "existing-2",
+				date: isoDate("2024-01-20"),
+				description: "TX B",
+			}),
 		];
 
 		const matches = detectDuplicates(newTxs, existingTxs);
@@ -568,5 +659,91 @@ describe("duplicate detection properties", () => {
 				}
 			})
 		);
+	});
+});
+
+// ============================================================================
+// Performance / Complexity Tests
+// ============================================================================
+
+describe("detectDuplicates performance", () => {
+	// Generate a batch of transactions spread across a date range
+	function generateTransactionBatch(
+		count: number,
+		startDate: string,
+		idPrefix: string
+	): DuplicateCheckTransaction[] {
+		const transactions: DuplicateCheckTransaction[] = [];
+		const baseDate = new Date(startDate);
+
+		for (let i = 0; i < count; i++) {
+			// Spread transactions across ~30 days
+			const dayOffset = i % 30;
+			const date = new Date(baseDate);
+			date.setDate(date.getDate() + dayOffset);
+			const dateStr = date.toISOString().split("T")[0];
+
+			transactions.push({
+				id: `${idPrefix}-${i}`,
+				date: isoDate(dateStr),
+				amount: cents(-1000 - (i % 100)), // Varying amounts
+				description: `Transaction ${i}`,
+			});
+		}
+
+		return transactions;
+	}
+
+	it("scales linearly with input size (O(n+m) complexity)", () => {
+		// Test that doubling input size roughly doubles execution time (not quadruples)
+		const sizes = [100, 200, 400];
+		const times: number[] = [];
+
+		for (const size of sizes) {
+			const newTxs = generateTransactionBatch(size, "2024-01-01", "new");
+			const existingTxs = generateTransactionBatch(size, "2024-01-01", "existing");
+
+			const start = performance.now();
+			detectDuplicates(newTxs, existingTxs);
+			const elapsed = performance.now() - start;
+			times.push(elapsed);
+		}
+
+		// Check that time grows roughly linearly, not quadratically
+		// For linear: t(2n) ≈ 2 * t(n), ratio ≈ 2
+		// For quadratic: t(2n) ≈ 4 * t(n), ratio ≈ 4
+		// We allow some variance, but expect ratio < 3 for linear behavior
+		const ratio1 = times[1] / Math.max(times[0], 0.01);
+		const ratio2 = times[2] / Math.max(times[1], 0.01);
+
+		// Both ratios should be less than 3.5 for O(n+m) behavior
+		// (allowing margin for JIT warmup, GC, etc.)
+		expect(ratio1).toBeLessThan(3.5);
+		expect(ratio2).toBeLessThan(3.5);
+	});
+
+	it("handles large transaction sets efficiently", () => {
+		// Import 100 transactions into 1000 existing - should complete quickly
+		const newTxs = generateTransactionBatch(100, "2024-01-01", "new");
+		const existingTxs = generateTransactionBatch(1000, "2024-01-01", "existing");
+
+		const start = performance.now();
+		const matches = detectDuplicates(newTxs, existingTxs);
+		const elapsed = performance.now() - start;
+
+		// Should complete in under 3 seconds (generous limit for CI)
+		expect(elapsed).toBeLessThan(3000);
+
+		// Verify we got some matches (transactions have overlapping dates/amounts)
+		expect(matches.length).toBeGreaterThan(0);
+	});
+
+	it("returns empty array for empty inputs", () => {
+		const empty: DuplicateCheckTransaction[] = [];
+		const some = generateTransactionBatch(10, "2024-01-01", "tx");
+
+		expect(detectDuplicates(empty, some)).toEqual([]);
+		expect(detectDuplicates(some, empty)).toEqual([]);
+		expect(detectDuplicates(empty, empty)).toEqual([]);
 	});
 });

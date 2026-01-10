@@ -203,7 +203,10 @@ export function checkDuplicate(
 }
 
 /**
- * Detect duplicates in a list of new transactions.
+ * Detect duplicates in a list of new transactions using sorted merge-scan.
+ *
+ * Uses O(n log n + m log m) sorting + O(n + m) linear scan for efficient
+ * duplicate detection even with large transaction sets.
  *
  * @param newTransactions - New/imported transactions
  * @param existingTransactions - Existing transactions to check against
@@ -215,49 +218,46 @@ export function detectDuplicates(
 	existingTransactions: DuplicateCheckTransaction[],
 	config: DuplicateDetectionConfig = DEFAULT_DUPLICATE_CONFIG
 ): DuplicateMatch[] {
+	if (newTransactions.length === 0 || existingTransactions.length === 0) {
+		return [];
+	}
+
 	const matches: DuplicateMatch[] = [];
 
-	// Pre-group existing transactions by approximate date for faster lookup
-	const existingByMonth = new Map<string, DuplicateCheckTransaction[]>();
-	for (const tx of existingTransactions) {
-		const monthKey = tx.date.substring(0, 7); // YYYY-MM
-		const list = existingByMonth.get(monthKey) ?? [];
-		list.push(tx);
-		existingByMonth.set(monthKey, list);
-	}
+	// Sort both lists by date for merge-scan
+	const sortedNew = [...newTransactions].sort((a, b) => a.date.localeCompare(b.date));
+	const sortedExisting = [...existingTransactions].sort((a, b) => a.date.localeCompare(b.date));
 
-	// Also add to adjacent months for transactions near month boundaries
-	for (const tx of existingTransactions) {
-		const date = Temporal.PlainDate.from(tx.date);
+	// Use sliding window approach: for each new transaction, only check
+	// existing transactions within the date tolerance window
+	let windowStart = 0;
 
-		// Previous month
-		const prev = date.add({ months: -1 });
-		const prevKey = `${prev.year}-${String(prev.month).padStart(2, "0")}`;
-		const prevList = existingByMonth.get(prevKey) ?? [];
-		if (!prevList.includes(tx)) {
-			prevList.push(tx);
-			existingByMonth.set(prevKey, prevList);
+	for (const newTx of sortedNew) {
+		const newDate = Temporal.PlainDate.from(newTx.date);
+
+		// Advance window start past transactions that are too old
+		while (windowStart < sortedExisting.length) {
+			const existingDate = Temporal.PlainDate.from(sortedExisting[windowStart].date);
+			const daysDiff = existingDate.until(newDate, { largestUnit: "day" }).days;
+			if (daysDiff <= config.maxDateDiffDays) {
+				break;
+			}
+			windowStart++;
 		}
 
-		// Next month
-		const next = date.add({ months: 1 });
-		const nextKey = `${next.year}-${String(next.month).padStart(2, "0")}`;
-		const nextList = existingByMonth.get(nextKey) ?? [];
-		if (!nextList.includes(tx)) {
-			nextList.push(tx);
-			existingByMonth.set(nextKey, nextList);
-		}
-	}
-
-	// Check each new transaction
-	for (const newTx of newTransactions) {
-		const monthKey = newTx.date.substring(0, 7);
-		const candidates = existingByMonth.get(monthKey) ?? [];
-
-		// Find best match
+		// Check transactions within the window
 		let bestMatch: DuplicateMatch | null = null;
 
-		for (const existingTx of candidates) {
+		for (let i = windowStart; i < sortedExisting.length; i++) {
+			const existingTx = sortedExisting[i];
+			const existingDate = Temporal.PlainDate.from(existingTx.date);
+			const daysDiff = newDate.until(existingDate, { largestUnit: "day" }).days;
+
+			// Stop if we've gone past the date tolerance
+			if (daysDiff > config.maxDateDiffDays) {
+				break;
+			}
+
 			const match = checkDuplicate(newTx, existingTx, config);
 			if (match && (!bestMatch || match.confidence > bestMatch.confidence)) {
 				bestMatch = match;

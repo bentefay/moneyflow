@@ -24,6 +24,7 @@ import {
 	useVaultPreferences,
 } from "@/lib/crdt/context";
 import { insertTransaction } from "@/lib/crdt/mutations";
+import { findTransactionById } from "@/lib/crdt/queries";
 import type {
 	Account,
 	ImportTemplate as ImportTemplateRecord,
@@ -175,8 +176,19 @@ export default function NewImportPage() {
 
 			// Create transactions using hierarchical structure
 			for (const tx of data.transactions) {
-				// TODO: Phase 4 will handle duplicate nesting via suspectedDuplicateOf
-				// For now, we insert all transactions as standalone
+				// If this is a duplicate, find the parent transaction location to nest under
+				let suspectedDuplicateOf = undefined;
+				if (tx.duplicateOf) {
+					const parentResult = findTransactionById(state.transactions, tx.duplicateOf);
+					if (parentResult) {
+						suspectedDuplicateOf = {
+							accountId: parentResult.transaction.accountId,
+							date: parentResult.transaction.date,
+							transactionId: parentResult.transaction.id,
+						};
+					}
+				}
+
 				insertTransaction(state.transactions, {
 					transaction: {
 						id: tx.id,
@@ -193,6 +205,7 @@ export default function NewImportPage() {
 						importRowIndex: tx.importRowIndex,
 						deletedAt: 0,
 					},
+					suspectedDuplicateOf,
 				});
 			}
 		}
