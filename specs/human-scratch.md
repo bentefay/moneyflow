@@ -22,7 +22,6 @@
       than the scroll width) in the transaction table at small break points
 
 - [x] Can you implement a few features related to the top app menu bar on the left?
-
   - The vault selector and saving indicator should be visible when the menu is collapsed, with nice
     icons. Specifically, lets switch the coloured circles to larger coloured circles with icons
     inside. Use lucide icons. Add a tooltip so it's obvious what they are even when collapsed. Then
@@ -55,7 +54,6 @@
 - [x] Fix ofx import
 
 - [x] When importing, add a select to optionally either...
-
   1. ignore all or
   2. ignore duplicates or
   3. do not ignore
@@ -64,7 +62,6 @@
 
 - [x] Add two selects for configuring whether a transaction wheter a transaction must be an exact
       match to be considered duplicate or whether additionally can be:
-
   - 1. have a date within X days and
   - 2. a similar description (using the current string similarity logic with threshold)
 
@@ -103,7 +100,6 @@
 
 - [x] Investigate Uppy 5.0 (https://uppy.io/blog/uppy-5.0/) as replacement for custom FileDropzone
       component
-
   - Current: Custom HTML5 drag-and-drop implementation in
     src/components/features/import/FileDropzone.tsx
   - Evaluate: Bundle size impact, features (progress, resumable uploads, file previews), integration
@@ -112,12 +108,15 @@
   - Nevermind - the current implementation is already really good, and we only need the most basic
     features (we don't need uploading, resumable uploads, etc.)
 
+- Import should default to match exactly on date and description
+
+- Duplicate transactions should always sort immediately after the original row
+
 - [] Before release (and needing to make backwards compatible changes), we should make sure we are
   storing transactions and other state in a way that supports efficient lookup and modification
   given our access patterns. Should we store transactions as an ordered movable list and always use
   both date and transaction id to locate transaction for update using binary search on date (i.e.
   never look up by id alone).
-
   - Ordering within date should be preserved when importing. Perhaps we should store the source's
     transaction ordering within each date as an additional sub date index on each transaction so we
     can preserve ordering?
@@ -135,13 +134,15 @@
   ```
 
   - I'm wondering specifically whether this might prevent the need to modify a potentially enormous
-    list if we keep transactions flattened. Potentially faster for aggregation, less churn on
+    list if we keep transactions flattened. Potentially faster for aggregation, less churn on  
     indices and better memory reuse? We can then do linear time merge for rendering, and much faster
     searching by account? Imports should be very efficient using this structure (linear time).
   - We should make sure that if we are mapping from the immutable loro data structures to in-memory
     structures for rendering, that we memoize and reuse as much as possible to avoid garbage
-    collection churn and unnecessary re-renders. With this structure we can potentially even reuse
+    collection churn and unnecessary re-renders. With this structure we can potentially even reuse  
     all the existing monthly and yearly structures if they are unchanged during an import?
+  - When doing performance optimisation, duplicate detection should be updated to be O(n + m) by sorting
+    the import transactions and linearly scanning the existing (n) and new (m) transactions (plus the allowed date closeness in days n)
 
 - [] We should be using loro ephemeral state for tracking presence and active transaction.
 
@@ -233,7 +234,6 @@
   applies your tags, aliases and allocations to new imports.
 
 - [] Investigate animate-ui shadcn registry components (https://animate-ui.com/docs/components)
-
   - We've already used it for the import tabs - good to use it more broadly for consistency and
     because it looks great!
   - Focus on /radix/ components: Dialog, Alert Dialog, Dropdown Menu, Tooltip, etc.
