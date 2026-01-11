@@ -227,33 +227,17 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 
 				if (recentTemplate && fileType === "ofx") {
 					// OFX with template: only apply common settings (duplicate detection, filter, collapseWhitespace)
+					// CRDT schema provides defaults, so we can trust the template has all fields
 					config = {
 						...DEFAULT_IMPORT_CONFIG,
 						formatting: {
 							...DEFAULT_IMPORT_CONFIG.formatting,
-							collapseWhitespace: recentTemplate.formatting.collapseWhitespace ?? false,
+							collapseWhitespace: recentTemplate.formatting.collapseWhitespace,
 						},
-						duplicateDetection: {
-							dateMatchMode:
-								(recentTemplate.duplicateDetection?.dateMatchMode as "exact" | "within") ??
-								"within",
-							maxDateDiffDays: recentTemplate.duplicateDetection?.maxDateDiffDays ?? 3,
-							descriptionMatchMode:
-								(recentTemplate.duplicateDetection?.descriptionMatchMode as "exact" | "similar") ??
-								"similar",
-							minDescriptionSimilarity:
-								recentTemplate.duplicateDetection?.minDescriptionSimilarity ?? 0.6,
-						},
+						duplicateDetection: recentTemplate.duplicateDetection,
 						oldTransactionFilter: {
-							mode:
-								(recentTemplate.oldTransactionFilter?.mode as
-									| "ignore-all"
-									| "ignore-duplicates"
-									| "do-not-ignore") ?? "ignore-duplicates",
-							cutoffType:
-								(recentTemplate.oldTransactionFilter?.cutoffType as "days" | "date") ?? "days",
-							cutoffDays: recentTemplate.oldTransactionFilter?.cutoffDays ?? 10,
-							cutoffDate: (recentTemplate.oldTransactionFilter?.cutoffDate as string) ?? null,
+							...recentTemplate.oldTransactionFilter,
+							cutoffDate: recentTemplate.oldTransactionFilter.cutoffDate ?? null,
 						},
 						// OFX has fixed column mappings
 						columnMappings: {
@@ -264,35 +248,13 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 					};
 				} else if (recentTemplate) {
 					// CSV with template: apply all settings
+					// CRDT schema provides defaults, so we can trust the template has all fields
 					config = {
-						formatting: {
-							hasHeaders: recentTemplate.formatting.hasHeaders ?? true,
-							thousandSeparator: recentTemplate.formatting.thousandSeparator ?? ",",
-							decimalSeparator: recentTemplate.formatting.decimalSeparator ?? ".",
-							dateFormat: recentTemplate.formatting.dateFormat ?? "yyyy-MM-dd",
-							collapseWhitespace: recentTemplate.formatting.collapseWhitespace ?? false,
-						},
-						duplicateDetection: {
-							dateMatchMode:
-								(recentTemplate.duplicateDetection?.dateMatchMode as "exact" | "within") ??
-								"within",
-							maxDateDiffDays: recentTemplate.duplicateDetection?.maxDateDiffDays ?? 3,
-							descriptionMatchMode:
-								(recentTemplate.duplicateDetection?.descriptionMatchMode as "exact" | "similar") ??
-								"similar",
-							minDescriptionSimilarity:
-								recentTemplate.duplicateDetection?.minDescriptionSimilarity ?? 0.6,
-						},
+						formatting: recentTemplate.formatting,
+						duplicateDetection: recentTemplate.duplicateDetection,
 						oldTransactionFilter: {
-							mode:
-								(recentTemplate.oldTransactionFilter?.mode as
-									| "ignore-all"
-									| "ignore-duplicates"
-									| "do-not-ignore") ?? "ignore-duplicates",
-							cutoffType:
-								(recentTemplate.oldTransactionFilter?.cutoffType as "days" | "date") ?? "days",
-							cutoffDays: recentTemplate.oldTransactionFilter?.cutoffDays ?? 10,
-							cutoffDate: (recentTemplate.oldTransactionFilter?.cutoffDate as string) ?? null,
+							...recentTemplate.oldTransactionFilter,
+							cutoffDate: recentTemplate.oldTransactionFilter.cutoffDate ?? null,
 						},
 						columnMappings: { ...recentTemplate.columnMappings },
 					};
@@ -540,37 +502,21 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 
 				// For OFX files, only apply common settings (duplicate detection, old transaction filter)
 				// Skip CSV-specific settings: column mappings, hasHeaders, dateFormat, separators
+				// CRDT schema provides defaults, so we can trust the template has all fields
 				if (prev.fileType === "ofx") {
 					return {
 						...prev,
 						templateId,
 						config: {
 							...prev.config,
-							// Only apply collapseWhitespace from formatting (relevant for OFX)
 							formatting: {
 								...prev.config.formatting,
-								collapseWhitespace: template.formatting.collapseWhitespace ?? false,
+								collapseWhitespace: template.formatting.collapseWhitespace,
 							},
-							duplicateDetection: {
-								dateMatchMode:
-									(template.duplicateDetection?.dateMatchMode as "exact" | "within") ?? "within",
-								maxDateDiffDays: template.duplicateDetection?.maxDateDiffDays ?? 3,
-								descriptionMatchMode:
-									(template.duplicateDetection?.descriptionMatchMode as "exact" | "similar") ??
-									"similar",
-								minDescriptionSimilarity:
-									template.duplicateDetection?.minDescriptionSimilarity ?? 0.6,
-							},
+							duplicateDetection: template.duplicateDetection,
 							oldTransactionFilter: {
-								mode:
-									(template.oldTransactionFilter?.mode as
-										| "ignore-all"
-										| "ignore-duplicates"
-										| "do-not-ignore") ?? "ignore-duplicates",
-								cutoffType:
-									(template.oldTransactionFilter?.cutoffType as "days" | "date") ?? "days",
-								cutoffDays: template.oldTransactionFilter?.cutoffDays ?? 10,
-								cutoffDate: (template.oldTransactionFilter?.cutoffDate as string) ?? null,
+								...template.oldTransactionFilter,
+								cutoffDate: template.oldTransactionFilter.cutoffDate ?? null,
 							},
 							// Keep OFX column mappings
 							columnMappings: prev.config.columnMappings,
@@ -579,36 +525,16 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 				}
 
 				// For CSV files, apply all template settings
+				// CRDT schema provides defaults, so we can trust the template has all fields
 				return {
 					...prev,
 					templateId,
 					config: {
-						formatting: {
-							hasHeaders: template.formatting.hasHeaders ?? true,
-							thousandSeparator: template.formatting.thousandSeparator ?? ",",
-							decimalSeparator: template.formatting.decimalSeparator ?? ".",
-							dateFormat: template.formatting.dateFormat ?? "yyyy-MM-dd",
-							collapseWhitespace: template.formatting.collapseWhitespace ?? false,
-						},
-						duplicateDetection: {
-							dateMatchMode:
-								(template.duplicateDetection?.dateMatchMode as "exact" | "within") ?? "within",
-							maxDateDiffDays: template.duplicateDetection?.maxDateDiffDays ?? 3,
-							descriptionMatchMode:
-								(template.duplicateDetection?.descriptionMatchMode as "exact" | "similar") ??
-								"similar",
-							minDescriptionSimilarity:
-								template.duplicateDetection?.minDescriptionSimilarity ?? 0.6,
-						},
+						formatting: template.formatting,
+						duplicateDetection: template.duplicateDetection,
 						oldTransactionFilter: {
-							mode:
-								(template.oldTransactionFilter?.mode as
-									| "ignore-all"
-									| "ignore-duplicates"
-									| "do-not-ignore") ?? "ignore-duplicates",
-							cutoffType: (template.oldTransactionFilter?.cutoffType as "days" | "date") ?? "days",
-							cutoffDays: template.oldTransactionFilter?.cutoffDays ?? 10,
-							cutoffDate: (template.oldTransactionFilter?.cutoffDate as string) ?? null,
+							...template.oldTransactionFilter,
+							cutoffDate: template.oldTransactionFilter.cutoffDate ?? null,
 						},
 						columnMappings: { ...template.columnMappings },
 					},

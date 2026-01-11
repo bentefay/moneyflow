@@ -176,10 +176,10 @@ export interface ImportConfig {
  * Default duplicate detection settings.
  */
 export const DEFAULT_DUPLICATE_DETECTION_SETTINGS: DuplicateDetectionSettings = {
-	dateMatchMode: "within",
-	maxDateDiffDays: 3,
-	descriptionMatchMode: "similar",
-	minDescriptionSimilarity: 0.6,
+	dateMatchMode: "exact",
+	maxDateDiffDays: 0,
+	descriptionMatchMode: "exact",
+	minDescriptionSimilarity: 1,
 };
 
 /**

@@ -15,7 +15,11 @@ import { Temporal } from "temporal-polyfill";
 import type { MoneyMinorUnits } from "@/lib/domain/currency";
 import { fromISODateString, type ISODateString } from "@/types";
 import { normalizedSimilarity } from "./levenshtein";
-import type { DateMatchMode, DescriptionMatchMode } from "./types";
+import {
+	type DateMatchMode,
+	DEFAULT_DUPLICATE_DETECTION_SETTINGS,
+	type DescriptionMatchMode,
+} from "./types";
 
 /**
  * Transaction for duplicate detection.
@@ -68,12 +72,10 @@ export interface DuplicateDetectionConfig {
 
 /**
  * Default duplicate detection configuration.
+ * Extends DEFAULT_DUPLICATE_DETECTION_SETTINGS with algorithm-specific settings.
  */
 export const DEFAULT_DUPLICATE_CONFIG: DuplicateDetectionConfig = {
-	dateMatchMode: "within",
-	maxDateDiffDays: 3, // Allow 3 days difference for posting delays
-	descriptionMatchMode: "similar",
-	minDescriptionSimilarity: 0.6, // 60% similar descriptions
+	...DEFAULT_DUPLICATE_DETECTION_SETTINGS,
 	maxAmountDiff: 1 as MoneyMinorUnits, // Allow 1 cent difference for rounding
 	minConfidence: 0.7, // Overall 70% confidence
 };

@@ -78,7 +78,7 @@ describe("checkDuplicate", () => {
 			expect(match?.matchDetails.dateMatch).toBe(true);
 		});
 
-		it("matches transactions within 3 day tolerance", () => {
+		it("matches transactions within 3 day tolerance with within mode", () => {
 			const tx1 = createTransaction({
 				id: "tx-1",
 				date: isoDate("2024-01-15"),
@@ -88,7 +88,13 @@ describe("checkDuplicate", () => {
 				date: isoDate("2024-01-17"),
 			});
 
-			const match = checkDuplicate(tx1, tx2);
+			const config: DuplicateDetectionConfig = {
+				...DEFAULT_DUPLICATE_CONFIG,
+				dateMatchMode: "within",
+				maxDateDiffDays: 3,
+			};
+
+			const match = checkDuplicate(tx1, tx2, config);
 			expect(match?.matchDetails.dateMatch).toBe(true);
 		});
 
@@ -152,7 +158,7 @@ describe("checkDuplicate", () => {
 			expect(match?.matchDetails.descriptionSimilarity).toBe(1);
 		});
 
-		it("matches similar descriptions", () => {
+		it("matches similar descriptions with similar mode", () => {
 			const tx1 = createTransaction({
 				id: "tx-1",
 				description: "AMAZON.COM*AMZN.COM/BI",
@@ -162,7 +168,13 @@ describe("checkDuplicate", () => {
 				description: "AMAZON.COM*AMZN.COM",
 			});
 
-			const match = checkDuplicate(tx1, tx2);
+			const config: DuplicateDetectionConfig = {
+				...DEFAULT_DUPLICATE_CONFIG,
+				descriptionMatchMode: "similar",
+				minDescriptionSimilarity: 0.6,
+			};
+
+			const match = checkDuplicate(tx1, tx2, config);
 			expect(match?.matchDetails.descriptionSimilarity).toBeGreaterThan(0.8);
 		});
 
@@ -211,6 +223,7 @@ describe("checkDuplicate", () => {
 
 			const config: DuplicateDetectionConfig = {
 				...DEFAULT_DUPLICATE_CONFIG,
+				dateMatchMode: "within",
 				maxDateDiffDays: 7,
 			};
 
@@ -232,19 +245,24 @@ describe("checkDuplicate", () => {
 		});
 
 		it("respects custom confidence threshold", () => {
-			const tx1 = createTransaction({ id: "tx-1" });
+			const tx1 = createTransaction({ id: "tx-1", description: "COFFEE SHOP" });
 			const tx2 = createTransaction({
 				id: "tx-2",
-				description: "SLIGHTLY DIFFERENT",
+				description: "COFFEE SHOP DOWNTOWN",
 			});
 
+			// Use similar mode so we get partial matches
 			const strictConfig: DuplicateDetectionConfig = {
 				...DEFAULT_DUPLICATE_CONFIG,
+				descriptionMatchMode: "similar",
+				minDescriptionSimilarity: 0.5,
 				minConfidence: 0.99,
 			};
 
 			const lenientConfig: DuplicateDetectionConfig = {
 				...DEFAULT_DUPLICATE_CONFIG,
+				descriptionMatchMode: "similar",
+				minDescriptionSimilarity: 0.5,
 				minConfidence: 0.3,
 			};
 
@@ -497,12 +515,18 @@ describe("detectDuplicates", () => {
 		expect(matches).toHaveLength(0);
 	});
 
-	it("optimizes lookup by month", () => {
+	it("optimizes lookup by month with within mode", () => {
 		// Transactions in different months should still match within tolerance
 		const newTxs = [createTransaction({ id: "new-1", date: isoDate("2024-01-31") })];
 		const existingTxs = [createTransaction({ id: "existing-1", date: isoDate("2024-02-01") })];
 
-		const matches = detectDuplicates(newTxs, existingTxs);
+		const config: DuplicateDetectionConfig = {
+			...DEFAULT_DUPLICATE_CONFIG,
+			dateMatchMode: "within",
+			maxDateDiffDays: 3,
+		};
+
+		const matches = detectDuplicates(newTxs, existingTxs, config);
 		expect(matches).toHaveLength(1); // Should match across month boundary
 	});
 });
@@ -581,10 +605,12 @@ describe("detectInternalDuplicates", () => {
 // ============================================================================
 
 describe("DEFAULT_DUPLICATE_CONFIG", () => {
-	it("has sensible defaults", () => {
-		expect(DEFAULT_DUPLICATE_CONFIG.maxDateDiffDays).toBe(3);
+	it("has sensible defaults for exact matching", () => {
+		expect(DEFAULT_DUPLICATE_CONFIG.dateMatchMode).toBe("exact");
+		expect(DEFAULT_DUPLICATE_CONFIG.maxDateDiffDays).toBe(0);
+		expect(DEFAULT_DUPLICATE_CONFIG.descriptionMatchMode).toBe("exact");
+		expect(DEFAULT_DUPLICATE_CONFIG.minDescriptionSimilarity).toBe(1);
 		expect(DEFAULT_DUPLICATE_CONFIG.maxAmountDiff).toBe(1); // 1 cent tolerance
-		expect(DEFAULT_DUPLICATE_CONFIG.minDescriptionSimilarity).toBe(0.6);
 		expect(DEFAULT_DUPLICATE_CONFIG.minConfidence).toBe(0.7);
 	});
 });

@@ -108,15 +108,15 @@
   - Nevermind - the current implementation is already really good, and we only need the most basic
     features (we don't need uploading, resumable uploads, etc.)
 
-- Import should default to match exactly on date and description
+- [x] Import should default to match exactly on date and description
 
-- Duplicate transactions should always sort immediately after the original row
+- [x] Duplicate transactions should always sort immediately after the original row
 
-- [] Before release (and needing to make backwards compatible changes), we should make sure we are
-  storing transactions and other state in a way that supports efficient lookup and modification
-  given our access patterns. Should we store transactions as an ordered movable list and always use
-  both date and transaction id to locate transaction for update using binary search on date (i.e.
-  never look up by id alone).
+- [x] Before release (and needing to make backwards compatible changes), we should make sure we are
+      storing transactions and other state in a way that supports efficient lookup and modification
+      given our access patterns. Should we store transactions as an ordered movable list and always use
+      both date and transaction id to locate transaction for update using binary search on date (i.e.
+      never look up by id alone).
   - Ordering within date should be preserved when importing. Perhaps we should store the source's
     transaction ordering within each date as an additional sub date index on each transaction so we
     can preserve ordering?

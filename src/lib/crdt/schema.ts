@@ -22,6 +22,14 @@
  */
 
 import { schema } from "loro-mirror";
+import {
+	type CutoffType,
+	type DateMatchMode,
+	DEFAULT_DUPLICATE_DETECTION_SETTINGS,
+	DEFAULT_FILTER_SETTINGS,
+	type DescriptionMatchMode,
+	type OldTransactionMode,
+} from "@/lib/import/types";
 
 // ============================================
 // ENTITY SCHEMAS
@@ -198,15 +206,23 @@ export const importTemplateSchema = schema.LoroMap({
 		collapseWhitespace: schema.Boolean({ defaultValue: false }),
 	}),
 	duplicateDetection: schema.LoroMap({
-		dateMatchMode: schema.String({ defaultValue: "within" }), // "exact" | "within"
-		maxDateDiffDays: schema.Number({ defaultValue: 3 }),
-		descriptionMatchMode: schema.String({ defaultValue: "similar" }), // "exact" | "similar"
-		minDescriptionSimilarity: schema.Number({ defaultValue: 0.6 }),
+		dateMatchMode: schema.String<DateMatchMode>({
+			defaultValue: DEFAULT_DUPLICATE_DETECTION_SETTINGS.dateMatchMode,
+		}),
+		maxDateDiffDays: schema.Number({
+			defaultValue: DEFAULT_DUPLICATE_DETECTION_SETTINGS.maxDateDiffDays,
+		}),
+		descriptionMatchMode: schema.String<DescriptionMatchMode>({
+			defaultValue: DEFAULT_DUPLICATE_DETECTION_SETTINGS.descriptionMatchMode,
+		}),
+		minDescriptionSimilarity: schema.Number({
+			defaultValue: DEFAULT_DUPLICATE_DETECTION_SETTINGS.minDescriptionSimilarity,
+		}),
 	}),
 	oldTransactionFilter: schema.LoroMap({
-		mode: schema.String({ defaultValue: "ignore-duplicates" }), // "ignore-all" | "ignore-duplicates" | "do-not-ignore"
-		cutoffType: schema.String({ defaultValue: "days" }), // "days" | "date"
-		cutoffDays: schema.Number({ defaultValue: 10 }),
+		mode: schema.String<OldTransactionMode>({ defaultValue: DEFAULT_FILTER_SETTINGS.mode }),
+		cutoffType: schema.String<CutoffType>({ defaultValue: DEFAULT_FILTER_SETTINGS.cutoffType }),
+		cutoffDays: schema.Number({ defaultValue: DEFAULT_FILTER_SETTINGS.cutoffDays }),
 		cutoffDate: schema.String(), // ISO date string when cutoffType="date", null otherwise
 	}),
 	lastUsedAt: schema.Number(), // Unix timestamp of last import using this template

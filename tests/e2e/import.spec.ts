@@ -398,9 +398,15 @@ test.describe("Import Panel", () => {
 
 			// Change a config setting (e.g., date matching mode)
 			await page.getByRole("tab", { name: /Duplicates/i }).click();
-			const exactDateCheckbox = page.getByLabel(/exact date match/i);
-			const wasChecked = await exactDateCheckbox.isChecked();
-			await exactDateCheckbox.click();
+			const exactDateRadio = page.getByLabel(/exact date match/i);
+			const withinDateRadio = page.getByLabel(/Allow dates within range/i);
+			const wasExact = await exactDateRadio.isChecked();
+			// Click the opposite option to toggle (radio buttons don't toggle when clicking the selected option)
+			if (wasExact) {
+				await withinDateRadio.click();
+			} else {
+				await exactDateRadio.click();
+			}
 
 			// Select account
 			await page.getByRole("tab", { name: /Account/i }).click();
@@ -432,12 +438,9 @@ test.describe("Import Panel", () => {
 			await page.getByRole("option", { name: /test-import-\d+/i }).click();
 
 			await page.getByRole("tab", { name: /Duplicates/i }).click();
-			const exactDateCheckbox2 = page.getByLabel(/exact date match/i);
-			// Should now have the toggled value
-			await expect(exactDateCheckbox2).toHaveAttribute(
-				"aria-checked",
-				wasChecked ? "false" : "true"
-			);
+			const exactDateRadio2 = page.getByLabel(/exact date match/i);
+			// Should now have the toggled value (opposite of original)
+			await expect(exactDateRadio2).toHaveAttribute("aria-checked", wasExact ? "false" : "true");
 
 			// Cleanup temp files
 			fs.unlinkSync(csvPath3);
