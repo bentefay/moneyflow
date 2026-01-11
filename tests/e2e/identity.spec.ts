@@ -22,7 +22,8 @@ async function extractSeedPhrase(page: Page): Promise<string[]> {
 	const revealOverlay = page.locator("text=Click to reveal your recovery phrase");
 	if (await revealOverlay.isVisible({ timeout: 1000 }).catch(() => false)) {
 		await revealOverlay.click();
-		await page.waitForTimeout(300);
+		// Wait for reveal animation to complete by checking first word is visible
+		await page.locator('[data-testid="seed-phrase-word"]').first().waitFor({ state: "visible" });
 	}
 
 	const wordElements = await page.$$('[data-testid="seed-phrase-word"]');
@@ -150,7 +151,8 @@ test.describe("Identity", () => {
 			const revealButton = page.getByRole("button", { name: /click to reveal/i });
 			await revealButton.waitFor({ state: "visible", timeout: 5000 });
 			await revealButton.click();
-			await page.waitForTimeout(300);
+			// Wait for reveal animation to complete
+			await page.locator('[data-testid="seed-phrase-word"]').first().waitFor({ state: "visible" });
 
 			// Now extract the visible seed phrase
 			savedSeedPhrase = await extractSeedPhrase(page);
@@ -232,8 +234,8 @@ test.describe("Identity", () => {
 			const unlockButton = page.locator('[data-testid="unlock-button"]');
 			if (await unlockButton.isEnabled()) {
 				await unlockButton.click();
-				await page.waitForTimeout(2000);
-				expect(page.url()).toContain("/unlock");
+				// Wait for error feedback or URL to stabilize - should stay on unlock page
+				await expect(page).toHaveURL(/\/unlock/, { timeout: 5000 });
 			}
 		});
 

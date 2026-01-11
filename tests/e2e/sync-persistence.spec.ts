@@ -31,19 +31,11 @@ test.describe("Sync Persistence", () => {
 			await createNewIdentity(page);
 			await goToTransactions(page);
 
-			await test.step("wait for initial sync to complete", async () => {
-				// Wait for any initial loading to complete
-				await page.waitForLoadState("networkidle");
-
-				// Give some time for sync to settle
-				await page.waitForTimeout(3000);
-			});
-
 			await test.step("verify Saved state", async () => {
-				// The sync status uses aria-label for the status role, with text label next to it
-				// Look for the status indicator with aria-label "Saved" or the text "Saved" near it
+				// Wait for sync status indicator to show "Saved"
+				// This replaces hard-coded timeout with condition-based wait
 				const syncIndicator = page.getByRole("status", { name: /saved/i });
-				await expect(syncIndicator).toBeVisible({ timeout: 10000 });
+				await expect(syncIndicator).toBeVisible({ timeout: 15000 });
 			});
 		});
 	});
@@ -77,9 +69,8 @@ test.describe("Sync Persistence", () => {
 
 			await test.step("wait for sync to complete", async () => {
 				// Wait for the saving indicator to show "Saved"
-				await page.waitForTimeout(3000);
 				const syncIndicator = page.getByRole("status", { name: /saved/i });
-				await expect(syncIndicator).toBeVisible({ timeout: 10000 });
+				await expect(syncIndicator).toBeVisible({ timeout: 15000 });
 			});
 
 			await test.step("reload page", async () => {
@@ -88,28 +79,19 @@ test.describe("Sync Persistence", () => {
 			});
 
 			await test.step("verify tag still exists after reload", async () => {
-				// Note: After reload, user may need to re-unlock
-				// If redirected to unlock page, the test environment handles this
-				// For now, we assume the session persists during the test
+				// After reload, session should persist via IndexedDB
+				// Wait for either tags page to load or auth redirect
+				await page.waitForLoadState("domcontentloaded");
 
-				// Navigate back to tags if needed
-				if (page.url().includes("unlock")) {
-					// Session expired - this is expected behavior
-					// In real app, user would re-enter seed phrase
-					test.skip(true, "Session expired on reload - expected behavior");
-					return;
-				}
+				// If session expired and we're on unlock page, fail with clear message
+				// This indicates a bug in session persistence, not expected behavior
+				expect(page.url(), "Session should persist after reload").not.toContain("/unlock");
 
 				await goToTags(page);
 
-				// Wait a bit for sync manager to initialize
-				await page.waitForTimeout(2000);
-
-				// Look for the tag we created
-				// Note: Tag might be in a table row or list item
+				// Look for the tag we created - wait for it to load from IndexedDB
 				const tagName = page.getByText("TestPersistenceTag");
-				// Allow for the tag to have been loaded from IndexedDB
-				await expect(tagName).toBeVisible({ timeout: 5000 });
+				await expect(tagName).toBeVisible({ timeout: 10000 });
 			});
 		});
 	});
@@ -135,12 +117,9 @@ test.describe("Sync Persistence", () => {
 			});
 
 			await test.step("wait for sync status to stabilize", async () => {
-				// Give time for any sync operations
-				await page.waitForTimeout(3000);
-
-				// Eventually should show "Saved"
-				const syncStatus = page.locator('[role="status"]');
-				await expect(syncStatus).toBeVisible();
+				// Wait for sync to complete and show "Saved"
+				const syncIndicator = page.getByRole("status", { name: /saved/i });
+				await expect(syncIndicator).toBeVisible({ timeout: 15000 });
 			});
 		});
 	});
