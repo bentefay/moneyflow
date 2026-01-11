@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { useVaultAction, useVaultSelector } from "@/lib/crdt/context";
 import type { Tag, TagInput } from "@/lib/crdt/schema";
+import { getEntriesOfLoroMap } from "@/lib/crdt/utils";
 import { getNextTagColor } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 import { ParentTagSelector } from "./ParentTagSelector";
@@ -22,13 +23,6 @@ import { TagRow } from "./TagRow";
 export interface TagsTableProps {
 	/** Additional CSS classes */
 	className?: string;
-}
-
-/**
- * Filter out loro-mirror's $cid from object entries.
- */
-function filterCid<T>(record: Record<string, T>): Array<[string, T]> {
-	return Object.entries(record).filter(([key]) => key !== "$cid");
 }
 
 interface TagWithDepth {
@@ -129,7 +123,7 @@ export function TagsTable({ className }: TagsTableProps) {
 
 	// Get list of active tags (not deleted)
 	const activeTags = useMemo(() => {
-		return filterCid(tags as unknown as Record<string, Tag>)
+		return getEntriesOfLoroMap(tags as unknown as Record<string, Tag>)
 			.filter(([, tag]) => tag && !tag.deletedAt)
 			.map(([id, tag]) => ({ ...tag, id }));
 	}, [tags]);
@@ -140,7 +134,7 @@ export function TagsTable({ className }: TagsTableProps) {
 	// Check if a tag has transactions
 	const tagHasTransactions = useCallback(
 		(tagId: string): boolean => {
-			for (const [, tx] of filterCid(
+			for (const [, tx] of getEntriesOfLoroMap(
 				transactions as unknown as Record<string, { tagIds?: string[]; deletedAt?: number }>
 			)) {
 				if (tx && !tx.deletedAt && tx.tagIds) {

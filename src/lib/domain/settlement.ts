@@ -12,6 +12,7 @@
  */
 
 import type { Person, Status, Transaction } from "@/lib/crdt/schema";
+import { getEntriesOfLoroMap } from "@/lib/crdt/utils";
 import type { MoneyMinorUnits } from "./currency";
 
 export interface SettlementBalance {
@@ -26,18 +27,11 @@ export interface SettlementBalance {
 }
 
 /**
- * Filters out loro-mirror's $cid injection from object entries.
- */
-function filterCid<T>(record: Record<string, T>): Array<[string, T]> {
-	return Object.entries(record).filter(([key]) => key !== "$cid");
-}
-
-/**
  * Gets status IDs that have "treatAsPaid" behavior.
  */
 function getTreatAsPaidStatusIds(statuses: Record<string, Status>): Set<string> {
 	const ids = new Set<string>();
-	for (const [id, status] of filterCid(statuses)) {
+	for (const [id, status] of getEntriesOfLoroMap(statuses)) {
 		if (status && typeof status === "object" && status.behavior === "treatAsPaid") {
 			ids.add(id);
 		}
@@ -66,7 +60,7 @@ export function calculateSettlementBalances(
 	const debts = new Map<string, { amount: number; currency: string }>();
 
 	// Process each transaction
-	for (const [, transaction] of filterCid(transactions)) {
+	for (const [, transaction] of getEntriesOfLoroMap(transactions)) {
 		if (!transaction || typeof transaction !== "object") continue;
 		if (transaction.deletedAt) continue;
 		if (!treatAsPaidIds.has(transaction.statusId)) continue;
@@ -76,7 +70,7 @@ export function calculateSettlementBalances(
 		const currency = accountCurrencies[transaction.accountId] || "USD";
 
 		// Skip if no allocations (no one owes anyone)
-		const allocationEntries = filterCid(allocations as Record<string, number>);
+		const allocationEntries = getEntriesOfLoroMap(allocations as Record<string, number>);
 		if (allocationEntries.length === 0) continue;
 
 		// Get the primary account owner (person who paid)

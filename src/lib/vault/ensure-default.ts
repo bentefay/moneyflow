@@ -12,7 +12,7 @@
 import sodium from "libsodium-wrappers";
 import { LoroDoc } from "loro-crdt";
 import { Mirror } from "loro-mirror";
-import { getDefaultVaultState } from "@/lib/crdt/defaults";
+import { DEFAULT_VAULT_NAME, getDefaultVaultState } from "@/lib/crdt/defaults";
 import { vaultSchema } from "@/lib/crdt/schema";
 import { generateVaultKey } from "@/lib/crypto/encryption";
 import { initCrypto } from "@/lib/crypto/keypair";
@@ -66,11 +66,6 @@ export interface EnsureDefaultVaultOptions {
 	/** Force creation even if user has vaults (for testing) */
 	force?: boolean;
 }
-
-/**
- * The default vault name for new users
- */
-export const DEFAULT_VAULT_NAME = "My Vault";
 
 /**
  * Generates the HLC timestamp for sync operations.

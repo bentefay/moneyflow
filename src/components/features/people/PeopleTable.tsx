@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useVaultAction, useVaultSelector } from "@/lib/crdt/context";
 import type { Person, PersonInput } from "@/lib/crdt/schema";
+import { getEntriesOfLoroMap } from "@/lib/crdt/utils";
 import { getSessionPubkeyHash } from "@/lib/crypto/session";
 import { cn } from "@/lib/utils";
 import { BalanceSummary } from "./BalanceSummary";
@@ -30,13 +31,6 @@ export interface PeopleTableProps {
 	isOwner?: boolean;
 	/** Additional CSS classes */
 	className?: string;
-}
-
-/**
- * Filter out loro-mirror's $cid from object entries.
- */
-function filterCid<T>(record: Record<string, T>): Array<[string, T]> {
-	return Object.entries(record).filter(([key]) => key !== "$cid");
 }
 
 /**
@@ -91,7 +85,7 @@ export function PeopleTable({
 
 	// Get list of active people (not deleted)
 	const activePeople = useMemo(() => {
-		return filterCid(people as unknown as Record<string, Person>)
+		return getEntriesOfLoroMap(people as unknown as Record<string, Person>)
 			.filter(([, person]) => person && !person.deletedAt)
 			.map(([id, person]) => ({ ...person, id }))
 			.sort((a, b) => a.name.localeCompare(b.name));
@@ -100,7 +94,7 @@ export function PeopleTable({
 	// Get account currencies for settlement calculation
 	const accountCurrencies = useMemo(() => {
 		const currencies: Record<string, string> = {};
-		for (const [id, account] of filterCid(
+		for (const [id, account] of getEntriesOfLoroMap(
 			accounts as unknown as Record<string, { currency?: string }>
 		)) {
 			if (account?.currency) {
@@ -113,7 +107,7 @@ export function PeopleTable({
 	// Check if a person has transactions (can't delete if so)
 	const personHasTransactions = useCallback(
 		(personId: string): boolean => {
-			for (const [, tx] of filterCid(
+			for (const [, tx] of getEntriesOfLoroMap(
 				transactions as unknown as Record<
 					string,
 					{ allocations?: Record<string, number>; deletedAt?: number }

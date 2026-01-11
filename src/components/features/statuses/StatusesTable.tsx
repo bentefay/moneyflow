@@ -13,19 +13,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useVaultAction, useVaultSelector } from "@/lib/crdt/context";
 import type { Status, StatusInput } from "@/lib/crdt/schema";
+import { getEntriesOfLoroMap } from "@/lib/crdt/utils";
 import { BehaviorSelector } from "./BehaviorSelector";
 import { StatusRow } from "./StatusRow";
 
 export interface StatusesTableProps {
 	/** Additional CSS classes */
 	className?: string;
-}
-
-/**
- * Filter out loro-mirror's $cid from object entries.
- */
-function filterCid<T>(record: Record<string, T>): Array<[string, T]> {
-	return Object.entries(record).filter(([key]) => key !== "$cid");
 }
 
 /**
@@ -69,7 +63,9 @@ export function StatusesTable({ className }: StatusesTableProps) {
 					break;
 				case "setDefault":
 					// Clear isDefault from all other statuses
-					for (const [key, status] of filterCid(draft.statuses as Record<string, Status>)) {
+					for (const [key, status] of getEntriesOfLoroMap(
+						draft.statuses as Record<string, Status>
+					)) {
 						if (status && key !== action.id && status.isDefault) {
 							status.isDefault = false;
 						}
@@ -86,7 +82,7 @@ export function StatusesTable({ className }: StatusesTableProps) {
 
 	// Get list of active statuses (not deleted)
 	const activeStatuses = useMemo(() => {
-		return filterCid(statuses as unknown as Record<string, Status>)
+		return getEntriesOfLoroMap(statuses as unknown as Record<string, Status>)
 			.filter(([, status]) => status && !status.deletedAt)
 			.map(([id, status]) => ({ ...status, id }));
 	}, [statuses]);
@@ -105,7 +101,7 @@ export function StatusesTable({ className }: StatusesTableProps) {
 	// Compute which statuses have transactions
 	const statusesWithTransactions = useMemo(() => {
 		const statusIds = new Set<string>();
-		for (const [, tx] of filterCid(
+		for (const [, tx] of getEntriesOfLoroMap(
 			transactions as unknown as Record<string, { statusId?: string; deletedAt?: number }>
 		)) {
 			if (tx && !tx.deletedAt && tx.statusId) {

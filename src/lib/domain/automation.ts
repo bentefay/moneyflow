@@ -6,6 +6,7 @@
  */
 
 import type { ActionData, ConditionData } from "@/components/features/automations";
+import { DEFAULT_AUTOMATION_ORDER } from "@/lib/crdt/defaults";
 import type { Automation, Transaction } from "@/lib/crdt/schema";
 
 /**
@@ -207,7 +208,7 @@ export function applyAutomationsToTransactions(
 	// Sort automations by order
 	const sortedAutomations = [...automations]
 		.filter((a) => !a.deletedAt)
-		.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+		.sort((a, b) => (a.order ?? DEFAULT_AUTOMATION_ORDER) - (b.order ?? DEFAULT_AUTOMATION_ORDER));
 
 	for (const transaction of transactions) {
 		const result = evaluateAutomations(sortedAutomations, transaction);
@@ -400,7 +401,7 @@ export function applyAutomationsWithTracking(
 	// Sort automations by order
 	const sortedAutomations = [...automations]
 		.filter((a) => !a.deletedAt)
-		.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+		.sort((a, b) => (a.order ?? DEFAULT_AUTOMATION_ORDER) - (b.order ?? DEFAULT_AUTOMATION_ORDER));
 
 	for (const transaction of transactions) {
 		const result = evaluateAutomations(sortedAutomations, transaction);

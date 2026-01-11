@@ -30,6 +30,13 @@ import {
 	type DescriptionMatchMode,
 	type OldTransactionMode,
 } from "@/lib/import/types";
+import {
+	DEFAULT_ACCOUNT_TYPE,
+	DEFAULT_AUTOMATION_CREATION_PREFERENCE,
+	DEFAULT_AUTOMATION_ORDER,
+	DEFAULT_CURRENCY,
+	DEFAULT_VAULT_NAME,
+} from "./defaults";
 
 // ============================================
 // ENTITY SCHEMAS
@@ -57,7 +64,7 @@ export const accountSchema = schema.LoroMap({
 	accountNumber: schema.String(),
 	/** ISO 4217 currency code (e.g., "USD", "EUR", "JPY"). Optional - falls back to vault default if undefined. */
 	currency: schema.String(),
-	accountType: schema.String({ defaultValue: "checking" }), // checking, savings, credit, cash, loan
+	accountType: schema.String({ defaultValue: DEFAULT_ACCOUNT_TYPE }), // checking, savings, credit, cash, loan
 	/** Balance in minor units for this account's currency (e.g., cents for USD, yen for JPY) */
 	balance: schema.Number({ defaultValue: 0 }),
 	ownerships: schema.LoroMapRecord(schema.Number()), // personId -> ownership percentage
@@ -257,7 +264,7 @@ export const automationSchema = schema.LoroMap({
 	name: schema.String({ required: true }),
 	conditions: schema.LoroList(automationConditionSchema, (c) => c.id),
 	actions: schema.LoroList(automationActionSchema, (a) => a.id),
-	order: schema.Number({ defaultValue: 0 }), // Execution priority
+	order: schema.Number({ defaultValue: DEFAULT_AUTOMATION_ORDER }), // Execution priority
 	excludedTransactionIds: schema.LoroList(schema.String(), (id) => id),
 	deletedAt: schema.Number(),
 });
@@ -284,11 +291,13 @@ export const automationApplicationSchema = schema.LoroMap({
  */
 export const vaultPreferencesSchema = schema.LoroMap({
 	/** Display name for the vault */
-	name: schema.String({ defaultValue: "My Vault" }),
+	name: schema.String({ defaultValue: DEFAULT_VAULT_NAME }),
 	/** Automation creation preference */
-	automationCreationPreference: schema.String({ defaultValue: "manual" }), // "createAutomatically" | "manual"
+	automationCreationPreference: schema.String({
+		defaultValue: DEFAULT_AUTOMATION_CREATION_PREFERENCE,
+	}), // "createAutomatically" | "manual"
 	/** Default currency for new accounts and imports (ISO 4217 code) */
-	defaultCurrency: schema.String({ defaultValue: "USD" }),
+	defaultCurrency: schema.String({ defaultValue: DEFAULT_CURRENCY }),
 });
 
 // ============================================

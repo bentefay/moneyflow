@@ -23,6 +23,7 @@ import {
 	useVaultAction,
 	useVaultPreferences,
 } from "@/lib/crdt/context";
+import { DEFAULT_CURRENCY } from "@/lib/crdt/defaults";
 import { insertTransaction } from "@/lib/crdt/mutations";
 import { findTransactionById } from "@/lib/crdt/queries";
 import type {
@@ -70,7 +71,7 @@ export default function NewImportPage() {
 	const preferences = useVaultPreferences();
 
 	// Default currency
-	const defaultCurrency = preferences?.defaultCurrency ?? "USD";
+	const defaultCurrency = preferences?.defaultCurrency ?? DEFAULT_CURRENCY;
 
 	// Get default status ID (first status marked as default, or first status)
 	const defaultStatusId = useMemo(() => {

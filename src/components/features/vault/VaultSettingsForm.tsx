@@ -12,6 +12,7 @@
 
 import { Input } from "@/components/ui/input";
 import { useVaultAction, useVaultPreferences } from "@/lib/crdt/context";
+import { DEFAULT_CURRENCY, DEFAULT_VAULT_NAME } from "@/lib/crdt/defaults";
 import { CurrencySelector } from "./CurrencySelector";
 
 export interface VaultSettingsFormProps {
@@ -25,8 +26,8 @@ export interface VaultSettingsFormProps {
  */
 export function VaultSettingsForm({ className }: VaultSettingsFormProps) {
 	const preferences = useVaultPreferences();
-	const vaultName = preferences?.name ?? "My Vault";
-	const defaultCurrency = preferences?.defaultCurrency ?? "USD";
+	const vaultName = preferences?.name ?? DEFAULT_VAULT_NAME;
+	const defaultCurrency = preferences?.defaultCurrency ?? DEFAULT_CURRENCY;
 
 	// Create mutation action for updating vault name
 	const setVaultName = useVaultAction((state, name: string) => {

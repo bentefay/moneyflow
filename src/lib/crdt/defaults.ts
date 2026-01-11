@@ -10,6 +10,39 @@
 
 import type { AccountInput, PersonInput, StatusInput, VaultInput } from "./schema";
 
+// ============================================================================
+// GLOBAL DEFAULTS - Single source of truth for default values
+// ============================================================================
+
+/**
+ * Default currency code (ISO 4217)
+ */
+export const DEFAULT_CURRENCY = "USD";
+
+/**
+ * Default vault name for new vaults
+ */
+export const DEFAULT_VAULT_NAME = "My Vault";
+
+/**
+ * Default automation creation preference
+ */
+export const DEFAULT_AUTOMATION_CREATION_PREFERENCE = "manual" as const;
+
+/**
+ * Default account type
+ */
+export const DEFAULT_ACCOUNT_TYPE = "checking" as const;
+
+/**
+ * Default automation order (for sorting)
+ */
+export const DEFAULT_AUTOMATION_ORDER = 0;
+
+// ============================================================================
+// ENTITY DEFAULTS
+// ============================================================================
+
 /**
  * Default person ID (stable for reference in code)
  */
@@ -46,7 +79,7 @@ export const DEFAULT_ACCOUNT: AccountInput = {
 	name: "Default",
 	accountNumber: "",
 	currency: "", // Empty string = inherit from vault default (resolved at display time)
-	accountType: "checking",
+	accountType: DEFAULT_ACCOUNT_TYPE,
 	balance: 0,
 	ownerships: { [DEFAULT_PERSON_ID]: 100 }, // Me owns 100%
 	deletedAt: 0,
@@ -109,7 +142,7 @@ export interface DefaultVaultStateOptions {
  * @param options - Optional configuration for vault defaults
  */
 export function getDefaultVaultState(options?: DefaultVaultStateOptions): VaultInput {
-	const defaultCurrency = options?.defaultCurrency ?? "USD";
+	const currency = options?.defaultCurrency ?? DEFAULT_CURRENCY;
 
 	return {
 		people: { [DEFAULT_PERSON_ID]: { ...DEFAULT_PERSON } },
@@ -122,9 +155,9 @@ export function getDefaultVaultState(options?: DefaultVaultStateOptions): VaultI
 		automations: {},
 		automationApplications: {},
 		preferences: {
-			name: "My Vault",
-			automationCreationPreference: "manual",
-			defaultCurrency,
+			name: DEFAULT_VAULT_NAME,
+			automationCreationPreference: DEFAULT_AUTOMATION_CREATION_PREFERENCE,
+			defaultCurrency: currency,
 		},
 	};
 }
@@ -147,7 +180,7 @@ export function initializeVaultDefaults(
 	draft: VaultInput,
 	options?: DefaultVaultStateOptions
 ): void {
-	const defaultCurrency = options?.defaultCurrency ?? "USD";
+	const currency = options?.defaultCurrency ?? DEFAULT_CURRENCY;
 
 	// Add default person if it doesn't exist
 	if (!draft.people[DEFAULT_PERSON_ID]) {
@@ -169,9 +202,9 @@ export function initializeVaultDefaults(
 	// Ensure preferences exist with defaults
 	if (!draft.preferences) {
 		draft.preferences = {
-			name: "My Vault",
-			automationCreationPreference: "manual",
-			defaultCurrency,
+			name: DEFAULT_VAULT_NAME,
+			automationCreationPreference: DEFAULT_AUTOMATION_CREATION_PREFERENCE,
+			defaultCurrency: currency,
 		};
 	}
 }

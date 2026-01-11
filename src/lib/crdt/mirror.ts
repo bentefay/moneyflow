@@ -7,6 +7,11 @@
 
 import { LoroDoc } from "loro-crdt";
 import { Mirror } from "loro-mirror";
+import {
+	DEFAULT_AUTOMATION_CREATION_PREFERENCE,
+	DEFAULT_CURRENCY,
+	DEFAULT_VAULT_NAME,
+} from "./defaults";
 import { type VaultState, vaultSchema } from "./schema";
 
 /**
@@ -37,9 +42,9 @@ export const DEFAULT_VAULT_STATE = {
 	importTemplates: {},
 	automations: {},
 	preferences: {
-		name: "My Vault",
-		automationCreationPreference: "manual",
-		defaultCurrency: "USD",
+		name: DEFAULT_VAULT_NAME,
+		automationCreationPreference: DEFAULT_AUTOMATION_CREATION_PREFERENCE,
+		defaultCurrency: DEFAULT_CURRENCY,
 	},
 } as const;
 

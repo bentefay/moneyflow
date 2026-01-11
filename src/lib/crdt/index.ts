@@ -138,3 +138,5 @@ export {
 	type VersionState,
 	type VersionVector,
 } from "./sync";
+// Utilities
+export { getEntriesOfLoroMap } from "./utils";

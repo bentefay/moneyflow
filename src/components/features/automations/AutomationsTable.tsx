@@ -12,19 +12,14 @@ import { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useVaultAction, useVaultSelector } from "@/lib/crdt/context";
+import { DEFAULT_AUTOMATION_ORDER } from "@/lib/crdt/defaults";
 import type { Automation, AutomationInput, Person, Status, Tag } from "@/lib/crdt/schema";
+import { getEntriesOfLoroMap } from "@/lib/crdt/utils";
 import { AutomationRow } from "./AutomationRow";
 
 export interface AutomationsTableProps {
 	/** Additional CSS classes */
 	className?: string;
-}
-
-/**
- * Filter out loro-mirror's $cid from object entries.
- */
-function filterCid<T>(record: Record<string, T>): Array<[string, T]> {
-	return Object.entries(record).filter(([key]) => key !== "$cid");
 }
 
 /**
@@ -80,31 +75,33 @@ export function AutomationsTable({ className }: AutomationsTableProps) {
 
 	// Get list of active automations (not deleted)
 	const activeAutomations = useMemo(() => {
-		return filterCid(automations as unknown as Record<string, Automation>)
+		return getEntriesOfLoroMap(automations as unknown as Record<string, Automation>)
 			.filter(([, automation]) => automation && !automation.deletedAt)
 			.map(([id, automation]) => ({ ...automation, id }));
 	}, [automations]);
 
 	// Sort automations by order
 	const sortedAutomations = useMemo(() => {
-		return [...activeAutomations].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+		return [...activeAutomations].sort(
+			(a, b) => (a.order ?? DEFAULT_AUTOMATION_ORDER) - (b.order ?? DEFAULT_AUTOMATION_ORDER)
+		);
 	}, [activeAutomations]);
 
 	// Get active tags, statuses, and people
 	const activeTags = useMemo(() => {
-		return filterCid(tags as unknown as Record<string, Tag>)
+		return getEntriesOfLoroMap(tags as unknown as Record<string, Tag>)
 			.filter(([, tag]) => tag && !tag.deletedAt)
 			.map(([id, tag]) => ({ ...tag, id }));
 	}, [tags]);
 
 	const activeStatuses = useMemo(() => {
-		return filterCid(statuses as unknown as Record<string, Status>)
+		return getEntriesOfLoroMap(statuses as unknown as Record<string, Status>)
 			.filter(([, status]) => status && !status.deletedAt)
 			.map(([id, status]) => ({ ...status, id }));
 	}, [statuses]);
 
 	const activePeople = useMemo(() => {
-		return filterCid(people as unknown as Record<string, Person>)
+		return getEntriesOfLoroMap(people as unknown as Record<string, Person>)
 			.filter(([, person]) => person && !person.deletedAt)
 			.map(([id, person]) => ({ ...person, id }));
 	}, [people]);
@@ -115,7 +112,10 @@ export function AutomationsTable({ className }: AutomationsTableProps) {
 		if (!trimmedName) return;
 
 		const id = crypto.randomUUID();
-		const maxOrder = sortedAutomations.reduce((max, a) => Math.max(max, a.order ?? 0), 0);
+		const maxOrder = sortedAutomations.reduce(
+			(max, a) => Math.max(max, a.order ?? DEFAULT_AUTOMATION_ORDER),
+			DEFAULT_AUTOMATION_ORDER
+		);
 
 		const automationData: Record<string, unknown> = {
 			id,
