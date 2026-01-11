@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useVaultAction, useVaultSelector } from "@/lib/crdt/context";
 import { DEFAULT_AUTOMATION_ORDER } from "@/lib/crdt/defaults";
-import type { Automation, AutomationInput, Person, Status, Tag } from "@/lib/crdt/schema";
+import type { Automation, AutomationInput } from "@/lib/crdt/schema";
 import { getEntriesOfLoroMap } from "@/lib/crdt/utils";
 import { AutomationRow } from "./AutomationRow";
 
@@ -75,7 +75,7 @@ export function AutomationsTable({ className }: AutomationsTableProps) {
 
 	// Get list of active automations (not deleted)
 	const activeAutomations = useMemo(() => {
-		return getEntriesOfLoroMap(automations as unknown as Record<string, Automation>)
+		return getEntriesOfLoroMap(automations)
 			.filter(([, automation]) => automation && !automation.deletedAt)
 			.map(([id, automation]) => ({ ...automation, id }));
 	}, [automations]);
@@ -89,19 +89,19 @@ export function AutomationsTable({ className }: AutomationsTableProps) {
 
 	// Get active tags, statuses, and people
 	const activeTags = useMemo(() => {
-		return getEntriesOfLoroMap(tags as unknown as Record<string, Tag>)
+		return getEntriesOfLoroMap(tags)
 			.filter(([, tag]) => tag && !tag.deletedAt)
 			.map(([id, tag]) => ({ ...tag, id }));
 	}, [tags]);
 
 	const activeStatuses = useMemo(() => {
-		return getEntriesOfLoroMap(statuses as unknown as Record<string, Status>)
+		return getEntriesOfLoroMap(statuses)
 			.filter(([, status]) => status && !status.deletedAt)
 			.map(([id, status]) => ({ ...status, id }));
 	}, [statuses]);
 
 	const activePeople = useMemo(() => {
-		return getEntriesOfLoroMap(people as unknown as Record<string, Person>)
+		return getEntriesOfLoroMap(people)
 			.filter(([, person]) => person && !person.deletedAt)
 			.map(([id, person]) => ({ ...person, id }));
 	}, [people]);

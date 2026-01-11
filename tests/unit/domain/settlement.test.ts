@@ -7,7 +7,7 @@
 
 import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import type { Person, Status, Transaction } from "@/lib/crdt/schema";
+import type { Status, Transaction } from "@/lib/crdt/schema";
 import type { MoneyMinorUnits } from "@/lib/domain/currency";
 import {
 	calculateSettlementBalances,
@@ -30,27 +30,26 @@ function createTransaction(
 	allocations: Record<string, number> = {},
 	accountId = "account-1",
 	deletedAt?: number
-): Record<string, Transaction> {
+): Transaction {
 	return {
-		[id]: {
-			id,
-			date: "2024-01-01",
-			description: "",
-			notes: "",
-			amount: amount as MoneyMinorUnits,
-			accountId,
-			tagIds: [],
-			statusId,
-			allocations,
-			deletedAt,
-		} as unknown as Transaction,
-	};
+		id,
+		date: "2024-01-01",
+		description: "",
+		notes: "",
+		amount: amount as MoneyMinorUnits,
+		accountId,
+		tagIds: [],
+		statusId,
+		allocations,
+		creationInstant: Date.now(),
+		deletedAt,
+	} as unknown as Transaction;
 }
 
 /**
  * Create a status with optional treatAsPaid behavior
  */
-function createStatus(id: string, treatAsPaid = false): Record<string, Status> {
+function createStatus(id: string, treatAsPaid = false): Record<string, Status | string> {
 	return {
 		[id]: {
 			id,
@@ -60,98 +59,59 @@ function createStatus(id: string, treatAsPaid = false): Record<string, Status> {
 	};
 }
 
-/**
- * Create a person
- */
-function createPerson(id: string, name: string): Record<string, Person> {
-	return {
-		[id]: {
-			id,
-			name,
-		} as unknown as Person,
-	};
-}
-
 // ============================================================================
 // calculateSettlementBalances tests
 // ============================================================================
 
 describe("calculateSettlementBalances", () => {
 	it("returns empty array when no transactions", () => {
-		const transactions = {};
+		const transactions: Transaction[] = [];
 		const statuses = { ...createStatus("pending") };
-		const people = { ...createPerson("alice", "Alice") };
 		const accountCurrencies = { "account-1": "USD" };
 
-		const result = calculateSettlementBalances(transactions, statuses, people, accountCurrencies);
+		const result = calculateSettlementBalances(transactions, statuses, accountCurrencies);
 
 		expect(result).toEqual([]);
 	});
 
 	it("returns empty array when no treatAsPaid statuses", () => {
-		const transactions = {
-			...createTransaction("tx1", -1000, "pending", { alice: 50, bob: 50 }),
-		};
+		const transactions = [createTransaction("tx1", -1000, "pending", { alice: 50, bob: 50 })];
 		const statuses = { ...createStatus("pending", false) };
-		const people = {
-			...createPerson("alice", "Alice"),
-			...createPerson("bob", "Bob"),
-		};
 		const accountCurrencies = { "account-1": "USD" };
 
-		const result = calculateSettlementBalances(transactions, statuses, people, accountCurrencies);
+		const result = calculateSettlementBalances(transactions, statuses, accountCurrencies);
 
 		expect(result).toEqual([]);
 	});
 
 	it("returns empty array for deleted transactions", () => {
-		const transactions = {
-			...createTransaction(
-				"tx1",
-				-1000,
-				"settled",
-				{ alice: 50, bob: 50 },
-				"account-1",
-				Date.now()
-			),
-		};
+		const transactions = [
+			createTransaction("tx1", -1000, "settled", { alice: 50, bob: 50 }, "account-1", Date.now()),
+		];
 		const statuses = { ...createStatus("settled", true) };
-		const people = {
-			...createPerson("alice", "Alice"),
-			...createPerson("bob", "Bob"),
-		};
 		const accountCurrencies = { "account-1": "USD" };
 
-		const result = calculateSettlementBalances(transactions, statuses, people, accountCurrencies);
+		const result = calculateSettlementBalances(transactions, statuses, accountCurrencies);
 
 		expect(result).toEqual([]);
 	});
 
 	it("returns empty array when transactions have no allocations", () => {
-		const transactions = {
-			...createTransaction("tx1", -1000, "settled", {}),
-		};
+		const transactions = [createTransaction("tx1", -1000, "settled", {})];
 		const statuses = { ...createStatus("settled", true) };
-		const people = { ...createPerson("alice", "Alice") };
 		const accountCurrencies = { "account-1": "USD" };
 
-		const result = calculateSettlementBalances(transactions, statuses, people, accountCurrencies);
+		const result = calculateSettlementBalances(transactions, statuses, accountCurrencies);
 
 		expect(result).toEqual([]);
 	});
 
 	it("calculates simple 50/50 split correctly", () => {
-		const transactions = {
-			...createTransaction("tx1", -1000, "settled", { alice: 60, bob: 40 }),
-		};
+		const transactions = [createTransaction("tx1", -1000, "settled", { alice: 60, bob: 40 })];
 		const statuses = { ...createStatus("settled", true) };
-		const people = {
-			...createPerson("alice", "Alice"),
-			...createPerson("bob", "Bob"),
-		};
 		const accountCurrencies = { "account-1": "USD" };
 
-		const result = calculateSettlementBalances(transactions, statuses, people, accountCurrencies);
+		const result = calculateSettlementBalances(transactions, statuses, accountCurrencies);
 
 		// Alice has 60%, Bob has 40%
 		// Since Alice has higher allocation, Bob owes Alice proportionally
@@ -159,35 +119,27 @@ describe("calculateSettlementBalances", () => {
 	});
 
 	it("handles multiple transactions", () => {
-		const transactions = {
-			...createTransaction("tx1", -1000, "settled", { alice: 100 }),
-			...createTransaction("tx2", -500, "settled", { bob: 100 }),
-		};
+		const transactions = [
+			createTransaction("tx1", -1000, "settled", { alice: 100 }),
+			createTransaction("tx2", -500, "settled", { bob: 100 }),
+		];
 		const statuses = { ...createStatus("settled", true) };
-		const people = {
-			...createPerson("alice", "Alice"),
-			...createPerson("bob", "Bob"),
-		};
 		const accountCurrencies = { "account-1": "USD" };
 
-		const result = calculateSettlementBalances(transactions, statuses, people, accountCurrencies);
+		const result = calculateSettlementBalances(transactions, statuses, accountCurrencies);
 
 		// Both transactions have single allocations, no inter-person debts
 		expect(result.length).toBe(0);
 	});
 
 	it("uses correct currency from account", () => {
-		const transactions = {
-			...createTransaction("tx1", -1000, "settled", { alice: 70, bob: 30 }, "eur-account"),
-		};
+		const transactions = [
+			createTransaction("tx1", -1000, "settled", { alice: 70, bob: 30 }, "eur-account"),
+		];
 		const statuses = { ...createStatus("settled", true) };
-		const people = {
-			...createPerson("alice", "Alice"),
-			...createPerson("bob", "Bob"),
-		};
 		const accountCurrencies = { "eur-account": "EUR" };
 
-		const result = calculateSettlementBalances(transactions, statuses, people, accountCurrencies);
+		const result = calculateSettlementBalances(transactions, statuses, accountCurrencies);
 
 		// Check currency is EUR
 		if (result.length > 0) {
@@ -196,17 +148,13 @@ describe("calculateSettlementBalances", () => {
 	});
 
 	it("defaults to USD when account currency not found", () => {
-		const transactions = {
-			...createTransaction("tx1", -1000, "settled", { alice: 70, bob: 30 }, "unknown-account"),
-		};
+		const transactions = [
+			createTransaction("tx1", -1000, "settled", { alice: 70, bob: 30 }, "unknown-account"),
+		];
 		const statuses = { ...createStatus("settled", true) };
-		const people = {
-			...createPerson("alice", "Alice"),
-			...createPerson("bob", "Bob"),
-		};
 		const accountCurrencies = {};
 
-		const result = calculateSettlementBalances(transactions, statuses, people, accountCurrencies);
+		const result = calculateSettlementBalances(transactions, statuses, accountCurrencies);
 
 		if (result.length > 0) {
 			expect(result[0].currency).toBe("USD");

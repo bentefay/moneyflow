@@ -12,6 +12,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useVaultAction, useVaultSelector } from "@/lib/crdt/context";
+import { getAllTransactions } from "@/lib/crdt/queries";
 import type { Person, PersonInput } from "@/lib/crdt/schema";
 import { getEntriesOfLoroMap } from "@/lib/crdt/utils";
 import { getSessionPubkeyHash } from "@/lib/crypto/session";
@@ -85,7 +86,7 @@ export function PeopleTable({
 
 	// Get list of active people (not deleted)
 	const activePeople = useMemo(() => {
-		return getEntriesOfLoroMap(people as unknown as Record<string, Person>)
+		return getEntriesOfLoroMap(people)
 			.filter(([, person]) => person && !person.deletedAt)
 			.map(([id, person]) => ({ ...person, id }))
 			.sort((a, b) => a.name.localeCompare(b.name));
@@ -94,9 +95,7 @@ export function PeopleTable({
 	// Get account currencies for settlement calculation
 	const accountCurrencies = useMemo(() => {
 		const currencies: Record<string, string> = {};
-		for (const [id, account] of getEntriesOfLoroMap(
-			accounts as unknown as Record<string, { currency?: string }>
-		)) {
+		for (const [id, account] of getEntriesOfLoroMap(accounts)) {
 			if (account?.currency) {
 				currencies[id] = account.currency;
 			}
@@ -107,16 +106,9 @@ export function PeopleTable({
 	// Check if a person has transactions (can't delete if so)
 	const personHasTransactions = useCallback(
 		(personId: string): boolean => {
-			for (const [, tx] of getEntriesOfLoroMap(
-				transactions as unknown as Record<
-					string,
-					{ allocations?: Record<string, number>; deletedAt?: number }
-				>
-			)) {
-				if (tx && !tx.deletedAt && tx.allocations) {
-					if (personId in tx.allocations) {
-						return true;
-					}
+			for (const tx of getAllTransactions(transactions)) {
+				if (!tx.deletedAt && tx.allocations && personId in tx.allocations) {
+					return true;
 				}
 			}
 			return false;
@@ -251,11 +243,9 @@ export function PeopleTable({
 			{/* Settlement summary */}
 			{activePeople.length > 1 && (
 				<BalanceSummary
-					people={people as unknown as Record<string, Person>}
-					transactions={
-						transactions as unknown as Record<string, import("@/lib/crdt/schema").Transaction>
-					}
-					statuses={statuses as unknown as Record<string, import("@/lib/crdt/schema").Status>}
+					people={people}
+					transactions={transactions}
+					statuses={statuses}
 					accountCurrencies={accountCurrencies}
 					currentPersonId={currentPersonId}
 				/>

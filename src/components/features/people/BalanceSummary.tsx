@@ -10,7 +10,9 @@
 import { ArrowRight, Scale } from "lucide-react";
 import { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Person, Status, Transaction } from "@/lib/crdt/schema";
+import { getAllTransactions } from "@/lib/crdt/queries";
+import type { Person, Status, TransactionStore } from "@/lib/crdt/schema";
+import { getEntriesOfLoroMap } from "@/lib/crdt/utils";
 import { Currencies } from "@/lib/domain/currencies";
 import {
 	asMinorUnits,
@@ -22,12 +24,12 @@ import { calculateSettlementBalances, type SettlementBalance } from "@/lib/domai
 import { cn } from "@/lib/utils";
 
 export interface BalanceSummaryProps {
-	/** All people in the vault */
-	people: Record<string, Person>;
-	/** All transactions in the vault */
-	transactions: Record<string, Transaction>;
-	/** All statuses in the vault (to identify "Treat as Paid") */
-	statuses: Record<string, Status>;
+	/** All people in the vault (loro-mirror map with $cid) */
+	people: Record<string, Person | string>;
+	/** All transactions in the vault (hierarchical store) */
+	transactions: TransactionStore;
+	/** All statuses in the vault (loro-mirror map with $cid) */
+	statuses: Record<string, Status | string>;
 	/** Account ID to currency mapping */
 	accountCurrencies: Record<string, string>;
 	/** Current user's person ID (to highlight their balances) */
@@ -52,8 +54,9 @@ export function BalanceSummary({
 }: BalanceSummaryProps) {
 	// Calculate settlement balances
 	const balances = useMemo(() => {
-		return calculateSettlementBalances(transactions, statuses, people, accountCurrencies);
-	}, [transactions, statuses, people, accountCurrencies]);
+		const allTransactions = getAllTransactions(transactions);
+		return calculateSettlementBalances(allTransactions, statuses, accountCurrencies);
+	}, [transactions, statuses, accountCurrencies]);
 
 	// Get currency formatter
 	const currency = getCurrency(displayCurrency) || Currencies.USD;
@@ -92,12 +95,20 @@ export function BalanceSummary({
 		return Array.from(pairs.values()).filter((b) => b.amount !== 0);
 	}, [balances]);
 
-	// Get person name by ID (filtering out $cid)
+	// Build person lookup map (filtering out $cid)
+	const personMap = useMemo(() => {
+		const map = new Map<string, Person>();
+		for (const [id, person] of getEntriesOfLoroMap(people)) {
+			map.set(id, person);
+		}
+		return map;
+	}, [people]);
+
+	// Get person name by ID
 	const getPersonName = (personId: string | undefined): string => {
 		if (!personId) return "Unknown";
-		const person = people[personId];
-		if (!person || typeof person !== "object") return "Unknown";
-		return person.name || "Unknown";
+		const person = personMap.get(personId);
+		return person?.name || "Unknown";
 	};
 
 	// Check if balance involves current user

@@ -139,4 +139,4 @@ export {
 	type VersionVector,
 } from "./sync";
 // Utilities
-export { getEntriesOfLoroMap } from "./utils";
+export { getEntriesOfLoroMap, type WithCid } from "./utils";

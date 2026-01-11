@@ -12,6 +12,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useVaultAction, useVaultSelector } from "@/lib/crdt/context";
+import { getAllTransactions } from "@/lib/crdt/queries";
 import type { Status, StatusInput } from "@/lib/crdt/schema";
 import { getEntriesOfLoroMap } from "@/lib/crdt/utils";
 import { BehaviorSelector } from "./BehaviorSelector";
@@ -82,7 +83,7 @@ export function StatusesTable({ className }: StatusesTableProps) {
 
 	// Get list of active statuses (not deleted)
 	const activeStatuses = useMemo(() => {
-		return getEntriesOfLoroMap(statuses as unknown as Record<string, Status>)
+		return getEntriesOfLoroMap(statuses)
 			.filter(([, status]) => status && !status.deletedAt)
 			.map(([id, status]) => ({ ...status, id }));
 	}, [statuses]);
@@ -101,10 +102,8 @@ export function StatusesTable({ className }: StatusesTableProps) {
 	// Compute which statuses have transactions
 	const statusesWithTransactions = useMemo(() => {
 		const statusIds = new Set<string>();
-		for (const [, tx] of getEntriesOfLoroMap(
-			transactions as unknown as Record<string, { statusId?: string; deletedAt?: number }>
-		)) {
-			if (tx && !tx.deletedAt && tx.statusId) {
+		for (const tx of getAllTransactions(transactions)) {
+			if (!tx.deletedAt && tx.statusId) {
 				statusIds.add(tx.statusId);
 			}
 		}

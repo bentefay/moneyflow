@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { useVaultAction, useVaultSelector } from "@/lib/crdt/context";
+import { getAllTransactions } from "@/lib/crdt/queries";
 import type { Tag, TagInput } from "@/lib/crdt/schema";
 import { getEntriesOfLoroMap } from "@/lib/crdt/utils";
 import { getNextTagColor } from "@/lib/domain";
@@ -123,7 +124,7 @@ export function TagsTable({ className }: TagsTableProps) {
 
 	// Get list of active tags (not deleted)
 	const activeTags = useMemo(() => {
-		return getEntriesOfLoroMap(tags as unknown as Record<string, Tag>)
+		return getEntriesOfLoroMap(tags)
 			.filter(([, tag]) => tag && !tag.deletedAt)
 			.map(([id, tag]) => ({ ...tag, id }));
 	}, [tags]);
@@ -134,13 +135,9 @@ export function TagsTable({ className }: TagsTableProps) {
 	// Check if a tag has transactions
 	const tagHasTransactions = useCallback(
 		(tagId: string): boolean => {
-			for (const [, tx] of getEntriesOfLoroMap(
-				transactions as unknown as Record<string, { tagIds?: string[]; deletedAt?: number }>
-			)) {
-				if (tx && !tx.deletedAt && tx.tagIds) {
-					if (tx.tagIds.includes(tagId)) {
-						return true;
-					}
+			for (const tx of getAllTransactions(transactions)) {
+				if (!tx.deletedAt && tx.tagIds?.includes(tagId)) {
+					return true;
 				}
 			}
 			return false;

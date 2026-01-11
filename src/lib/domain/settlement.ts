@@ -11,8 +11,8 @@
  * 4. Net out mutual debts (if A owes B $50 and B owes A $30, A owes B $20)
  */
 
-import type { Person, Status, Transaction } from "@/lib/crdt/schema";
-import { getEntriesOfLoroMap } from "@/lib/crdt/utils";
+import type { Status, Transaction } from "@/lib/crdt/schema";
+import { getEntriesOfLoroMap, getEntriesOfLoroPrimitiveMap } from "@/lib/crdt/utils";
 import type { MoneyMinorUnits } from "./currency";
 
 export interface SettlementBalance {
@@ -29,10 +29,10 @@ export interface SettlementBalance {
 /**
  * Gets status IDs that have "treatAsPaid" behavior.
  */
-function getTreatAsPaidStatusIds(statuses: Record<string, Status>): Set<string> {
+function getTreatAsPaidStatusIds(statuses: Record<string, Status | string>): Set<string> {
 	const ids = new Set<string>();
 	for (const [id, status] of getEntriesOfLoroMap(statuses)) {
-		if (status && typeof status === "object" && status.behavior === "treatAsPaid") {
+		if (status.behavior === "treatAsPaid") {
 			ids.add(id);
 		}
 	}
@@ -42,16 +42,14 @@ function getTreatAsPaidStatusIds(statuses: Record<string, Status>): Set<string> 
 /**
  * Calculates settlement balances between all people in the vault.
  *
- * @param transactions - All transactions in the vault
+ * @param transactions - All transactions (flattened array)
  * @param statuses - All statuses (to identify "treatAsPaid")
- * @param people - All people in the vault
  * @param accountCurrencies - Mapping of account ID to currency code
  * @returns Array of settlement balances
  */
 export function calculateSettlementBalances(
-	transactions: Record<string, Transaction>,
-	statuses: Record<string, Status>,
-	people: Record<string, Person>,
+	transactions: Transaction[],
+	statuses: Record<string, Status | string>,
 	accountCurrencies: Record<string, string>
 ): SettlementBalance[] {
 	const treatAsPaidIds = getTreatAsPaidStatusIds(statuses);
@@ -60,8 +58,7 @@ export function calculateSettlementBalances(
 	const debts = new Map<string, { amount: number; currency: string }>();
 
 	// Process each transaction
-	for (const [, transaction] of getEntriesOfLoroMap(transactions)) {
-		if (!transaction || typeof transaction !== "object") continue;
+	for (const transaction of transactions) {
 		if (transaction.deletedAt) continue;
 		if (!treatAsPaidIds.has(transaction.statusId)) continue;
 
@@ -70,7 +67,7 @@ export function calculateSettlementBalances(
 		const currency = accountCurrencies[transaction.accountId] || "USD";
 
 		// Skip if no allocations (no one owes anyone)
-		const allocationEntries = getEntriesOfLoroMap(allocations as Record<string, number>);
+		const allocationEntries = getEntriesOfLoroPrimitiveMap(allocations);
 		if (allocationEntries.length === 0) continue;
 
 		// Get the primary account owner (person who paid)
