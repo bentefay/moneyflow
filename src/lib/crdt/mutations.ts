@@ -24,6 +24,35 @@ import type {
 } from "./schema";
 
 // ============================================
+// LORO-MIRROR HELPERS
+// ============================================
+
+/**
+ * Recursively transforms Input types to Output types by making $cid required at every level.
+ *
+ * loro-mirror's InferInputType has `$cid?: string` (optional) while InferType has
+ * `$cid: string` (required). This mapped type performs the deep transformation.
+ */
+type WithCid<T> =
+	T extends Array<infer U>
+		? Array<WithCid<U>>
+		: T extends object
+			? { [K in keyof T]: WithCid<T[K]> } & { $cid: string }
+			: T;
+
+/**
+ * Type helper for loro-mirror container creation.
+ *
+ * When inserting objects into LoroList/LoroMap, loro-mirror adds $cid at runtime.
+ * This function provides type-safe bridging from Input types to Container types.
+ *
+ * @see https://loro.dev/blog/loro-mirror for $cid documentation
+ */
+function withCid<T extends object>(input: T): WithCid<T> {
+	return input as WithCid<T>;
+}
+
+// ============================================
 // TYPES
 // ============================================
 
@@ -101,12 +130,11 @@ export function getOrCreateAccountTree(
 	accountId: string
 ): AccountTransactionTree {
 	if (!store[accountId]) {
-		// Use input type for creation, loro-mirror adds $cid internally
 		const tree: AccountTransactionTreeInput = {
 			accountId,
 			years: [],
 		};
-		store[accountId] = tree as unknown as AccountTransactionTree;
+		store[accountId] = withCid(tree);
 	}
 	return store[accountId] as AccountTransactionTree;
 }
@@ -127,11 +155,11 @@ export function getOrCreateYearBucket(tree: AccountTransactionTree, year: number
 	const newBucket: YearBucketInput = { year, months: [] };
 	const insertIndex = tree.years.findIndex((y) => y.year < year);
 	if (insertIndex === -1) {
-		tree.years.push(newBucket as unknown as YearBucket);
+		tree.years.push(withCid(newBucket));
 	} else {
-		tree.years.splice(insertIndex, 0, newBucket as unknown as YearBucket);
+		tree.years.splice(insertIndex, 0, withCid(newBucket));
 	}
-	return newBucket as unknown as YearBucket;
+	return withCid(newBucket);
 }
 
 /**
@@ -148,11 +176,11 @@ export function getOrCreateMonthBucket(yearBucket: YearBucket, month: number): M
 	const newBucket: MonthBucketInput = { month, days: [] };
 	const insertIndex = yearBucket.months.findIndex((m) => m.month < month);
 	if (insertIndex === -1) {
-		yearBucket.months.push(newBucket as unknown as MonthBucket);
+		yearBucket.months.push(withCid(newBucket));
 	} else {
-		yearBucket.months.splice(insertIndex, 0, newBucket as unknown as MonthBucket);
+		yearBucket.months.splice(insertIndex, 0, withCid(newBucket));
 	}
-	return newBucket as unknown as MonthBucket;
+	return withCid(newBucket);
 }
 
 /**
@@ -169,11 +197,11 @@ export function getOrCreateDayBucket(monthBucket: MonthBucket, day: number): Day
 	const newBucket: DayBucketInput = { day, transactions: [] };
 	const insertIndex = monthBucket.days.findIndex((d) => d.day < day);
 	if (insertIndex === -1) {
-		monthBucket.days.push(newBucket as unknown as DayBucket);
+		monthBucket.days.push(withCid(newBucket));
 	} else {
-		monthBucket.days.splice(insertIndex, 0, newBucket as unknown as DayBucket);
+		monthBucket.days.splice(insertIndex, 0, withCid(newBucket));
 	}
-	return newBucket as unknown as DayBucket;
+	return withCid(newBucket);
 }
 
 /**
@@ -307,7 +335,7 @@ export function insertTransaction(store: TransactionStore, input: InsertTransact
 			if (!parentTx.suspectedDuplicates) {
 				(parentTx as { suspectedDuplicates: NestedDuplicate[] }).suspectedDuplicates = [];
 			}
-			parentTx.suspectedDuplicates.push(duplicate as unknown as NestedDuplicate);
+			parentTx.suspectedDuplicates.push(withCid(duplicate));
 			return;
 		}
 		// If parent not found, insert as standalone
@@ -328,7 +356,7 @@ export function insertTransaction(store: TransactionStore, input: InsertTransact
 
 	// Insert at correct sorted position
 	const insertIndex = findTransactionInsertIndex(dayBucket.transactions, transaction);
-	dayBucket.transactions.splice(insertIndex, 0, fullTransaction as unknown as Transaction);
+	dayBucket.transactions.splice(insertIndex, 0, withCid(fullTransaction));
 }
 
 /**
@@ -583,7 +611,7 @@ export function swapDuplicate(store: TransactionStore, input: SwapDuplicateInput
 			creationInstant: newParent.creationInstant,
 			importRowIndex: newParent.importRowIndex,
 			deletedAt: newParent.deletedAt,
-			suspectedDuplicates: allDuplicates as unknown as NestedDuplicate[],
+			suspectedDuplicates: allDuplicates.map((d) => withCid(d)),
 		},
 	});
 
