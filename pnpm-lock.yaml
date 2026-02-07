@@ -99,11 +99,11 @@ importers:
         specifier: ^1.10.3
         version: 1.10.3
       loro-mirror:
-        specifier: ^1.2.1
-        version: 1.2.1(loro-crdt@1.10.3)
+        specifier: file:../loro-mirror/packages/core
+        version: file:../loro-mirror/packages/core(loro-crdt@1.10.3)
       loro-mirror-react:
-        specifier: ^1.2.1
-        version: 1.2.1(loro-crdt@1.10.3)(loro-mirror@1.2.1(loro-crdt@1.10.3))(react@19.2.3)
+        specifier: file:../loro-mirror/packages/react
+        version: file:../loro-mirror/packages/react(loro-crdt@1.10.3)(loro-mirror@file:../loro-mirror/packages/core(loro-crdt@1.10.3))(react@19.2.3)
       lucide-react:
         specifier: ^0.562.0
         version: 0.562.0(react@19.2.3)
@@ -4194,15 +4194,15 @@ packages:
   loro-crdt@1.10.3:
     resolution: {integrity: sha512-vzWkVw7mWrKTilPjrgAhhzjAyOn3/DaUPJxdK9lunpEI1Y+uQMDBt/pEtRiovKFtGXo4tUVfULnFc7H/ufGwkQ==}
 
-  loro-mirror-react@1.2.1:
-    resolution: {integrity: sha512-ysFnKRFpU5/QYMuYa3BXBR0o/oKTsu+0wOXbL13ljmMO9WyzMYnXcR45kloXQoT1KcJfejeu1YlDcYZ0rIlKDg==}
+  loro-mirror-react@file:../loro-mirror/packages/react:
+    resolution: {directory: ../loro-mirror/packages/react, type: directory}
     peerDependencies:
       loro-crdt: ^1.8.0
-      loro-mirror: 1.2.1
+      loro-mirror: workspace:*
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
-  loro-mirror@1.2.1:
-    resolution: {integrity: sha512-ySBIn3DA+ZdpI2w+pHR/zQ4bd7XghOFY6rb7IAGmLjRbMxEbdwvUi0MtBn9xQ5c7QIcHBCa2Ryzz5yqTo7VODg==}
+  loro-mirror@file:../loro-mirror/packages/core:
+    resolution: {directory: ../loro-mirror/packages/core, type: directory}
     peerDependencies:
       loro-crdt: ^1.8.0
 
@@ -9389,13 +9389,13 @@ snapshots:
 
   loro-crdt@1.10.3: {}
 
-  loro-mirror-react@1.2.1(loro-crdt@1.10.3)(loro-mirror@1.2.1(loro-crdt@1.10.3))(react@19.2.3):
+  loro-mirror-react@file:../loro-mirror/packages/react(loro-crdt@1.10.3)(loro-mirror@file:../loro-mirror/packages/core(loro-crdt@1.10.3))(react@19.2.3):
     dependencies:
       loro-crdt: 1.10.3
-      loro-mirror: 1.2.1(loro-crdt@1.10.3)
+      loro-mirror: file:../loro-mirror/packages/core(loro-crdt@1.10.3)
       react: 19.2.3
 
-  loro-mirror@1.2.1(loro-crdt@1.10.3):
+  loro-mirror@file:../loro-mirror/packages/core(loro-crdt@1.10.3):
     dependencies:
       immer: 10.2.0
       loro-crdt: 1.10.3
