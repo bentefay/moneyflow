@@ -17,12 +17,13 @@ This feature is largely straightforward as it builds on existing infrastructure.
 
 ```typescript
 export const vaultPreferencesSchema = schema.LoroMap({
-  automationCreationPreference: schema.String({ defaultValue: "manual" }),
-  defaultCurrency: schema.String({ defaultValue: "USD" }),
+    automationCreationPreference: schema.String({ defaultValue: "manual" }),
+    defaultCurrency: schema.String({ defaultValue: "USD" }),
 });
 ```
 
-**Alternatives considered**: 
+**Alternatives considered**:
+
 - Create a separate settings document → Rejected: Unnecessary complexity, preferences belong in vault
 - Store in Supabase directly → Rejected: Violates client-side encryption principle
 
@@ -33,6 +34,7 @@ export const vaultPreferencesSchema = schema.LoroMap({
 **Rationale**: Comprehensive list of 160+ currencies with proper ISO 4217 codes, symbols, and decimal digit configuration. Already used throughout the app.
 
 **Alternatives considered**:
+
 - Fetch from external API → Rejected: Offline-first requirement
 - Subset of common currencies → Could be done for UX, but full list provides flexibility
 
@@ -44,7 +46,7 @@ export const vaultPreferencesSchema = schema.LoroMap({
 
 ```typescript
 const setDefaultCurrency = useVaultAction((state, currency: string) => {
-  state.preferences.defaultCurrency = currency;
+    state.preferences.defaultCurrency = currency;
 });
 ```
 
@@ -57,15 +59,17 @@ const setDefaultCurrency = useVaultAction((state, currency: string) => {
 **Rationale**: Standard Next.js App Router pattern. The redirect happens server-side for direct URL access.
 
 **Implementation**:
+
 ```typescript
 // src/app/(app)/dashboard/page.tsx
 import { redirect } from "next/navigation";
 export default function DashboardPage() {
-  redirect("/transactions");
+    redirect("/transactions");
 }
 ```
 
 **Alternatives considered**:
+
 - Middleware redirect → Overkill for single route
 - Remove dashboard folder entirely → Keep for potential future use
 
@@ -76,6 +80,7 @@ export default function DashboardPage() {
 **Rationale**: New vaults should configure default currency first. Existing vaults go straight to work.
 
 **Implementation locations**:
+
 - `src/app/(onboarding)/new-user/page.tsx` → Change `/dashboard` to `/settings`
 - `src/app/(onboarding)/unlock/page.tsx` → Change `/dashboard` to `/transactions`
 - `src/app/(onboarding)/invite/[token]/page.tsx` → Change `/dashboard` to `/transactions`
@@ -85,10 +90,12 @@ export default function DashboardPage() {
 **Decision**: Adjust column widths and ensure consistent alignment in header and rows
 
 **Issue**: Current header and row structures have width mismatches causing visual "mashing":
+
 - Header: `w-5, flex-1, w-28, w-12, w-40, w-28, w-20`
 - Row: `w-5, flex-1, w-28, w-12, w-40, w-28, (no explicit width on actions)`
 
-**Fix**: 
+**Fix**:
+
 1. Add explicit `w-20` to actions column in rows
 2. Add "No account number yet" placeholder in AccountRow when `accountNumber` is empty
 
@@ -110,15 +117,16 @@ export default function DashboardPage() {
 
 ## Open Questions (Resolved)
 
-| Question | Resolution |
-|----------|------------|
-| Should settings page show vault name? | Yes, read-only display for context |
+| Question                                                       | Resolution                          |
+| -------------------------------------------------------------- | ----------------------------------- |
+| Should settings page show vault name?                          | Yes, read-only display for context  |
 | How to handle existing accounts when default currency changes? | No change—only affects new accounts |
-| Should currency selector be searchable? | Yes, 160+ options requires search |
+| Should currency selector be searchable?                        | Yes, 160+ options requires search   |
 
 ## Dependencies
 
 All dependencies are already installed:
+
 - `loro-crdt`, `loro-mirror` - CRDT state management
 - `cmdk` - Command palette/combobox for currency search
 - `@radix-ui/react-select` - Base select primitive

@@ -8,6 +8,7 @@ description: tRPC v11 API layer with Zod and Ed25519 auth. Use when working on f
 ## Authentication
 
 All authenticated procedures verify Ed25519 signatures:
+
 - Verify signature matches pubkeyHash
 - Verify timestamp is recent (prevent replay)
 - Verify message matches request
@@ -15,6 +16,7 @@ All authenticated procedures verify Ed25519 signatures:
 ## Patterns
 
 **Router:**
+
 ```typescript
 export const vaultRouter = router({
   create: authedProcedure
@@ -24,11 +26,12 @@ export const vaultRouter = router({
 ```
 
 **Schema:**
+
 ```typescript
 export const createVaultSchema = z.object({
-  name: z.string().min(1).max(100),
-  encryptedSnapshot: z.string(),
-  wrappedKey: z.string(),
+    name: z.string().min(1).max(100),
+    encryptedSnapshot: z.string(),
+    wrappedKey: z.string(),
 });
 ```
 
@@ -44,7 +47,7 @@ export const createVaultSchema = z.object({
 
 ```typescript
 throw new TRPCError({
-  code: "NOT_FOUND", // or "FORBIDDEN"
-  message: "Vault not found",
+    code: "NOT_FOUND", // or "FORBIDDEN"
+    message: "Vault not found",
 });
 ```

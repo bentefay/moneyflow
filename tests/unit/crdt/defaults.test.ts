@@ -7,392 +7,393 @@
 import { LoroDoc } from "loro-crdt";
 import { Mirror } from "loro-mirror";
 import { describe, expect, it } from "vitest";
+
 import {
-	DEFAULT_ACCOUNT,
-	DEFAULT_ACCOUNT_ID,
-	DEFAULT_PERSON,
-	DEFAULT_PERSON_ID,
-	DEFAULT_STATUS_IDS,
-	DEFAULT_STATUSES,
-	getDefaultVaultState,
-	hasVaultDefaults,
-	initializeVaultDefaults,
+    DEFAULT_ACCOUNT,
+    DEFAULT_ACCOUNT_ID,
+    DEFAULT_PERSON,
+    DEFAULT_PERSON_ID,
+    DEFAULT_STATUS_IDS,
+    DEFAULT_STATUSES,
+    getDefaultVaultState,
+    hasVaultDefaults,
+    initializeVaultDefaults,
 } from "@/lib/crdt/defaults";
 import { type VaultInput, vaultSchema } from "@/lib/crdt/schema";
 
 describe("DEFAULT_PERSON_ID", () => {
-	it("defines the default person ID", () => {
-		expect(DEFAULT_PERSON_ID).toBe("person-default-me");
-	});
+    it("defines the default person ID", () => {
+        expect(DEFAULT_PERSON_ID).toBe("person-default-me");
+    });
 });
 
 describe("DEFAULT_PERSON", () => {
-	it("has correct default properties", () => {
-		expect(DEFAULT_PERSON).toEqual({
-			id: "person-default-me",
-			name: "Me",
-			linkedUserId: undefined,
-			deletedAt: undefined,
-		});
-	});
+    it("has correct default properties", () => {
+        expect(DEFAULT_PERSON).toEqual({
+            id: "person-default-me",
+            name: "Me",
+            linkedUserId: undefined,
+            deletedAt: undefined,
+        });
+    });
 });
 
 describe("DEFAULT_ACCOUNT_ID", () => {
-	it("defines the default account ID", () => {
-		expect(DEFAULT_ACCOUNT_ID).toBe("account-default");
-	});
+    it("defines the default account ID", () => {
+        expect(DEFAULT_ACCOUNT_ID).toBe("account-default");
+    });
 });
 
 describe("DEFAULT_ACCOUNT", () => {
-	it("has correct default properties", () => {
-		expect(DEFAULT_ACCOUNT).toEqual({
-			id: "account-default",
-			name: "Default",
-			accountNumber: undefined,
-			currency: undefined, // undefined = inherits from vault default
-			accountType: "checking",
-			balance: 0,
-			ownerships: { [DEFAULT_PERSON_ID]: 100 }, // Me owns 100%
-			deletedAt: undefined,
-		});
-	});
+    it("has correct default properties", () => {
+        expect(DEFAULT_ACCOUNT).toEqual({
+            id: "account-default",
+            name: "Default",
+            accountNumber: undefined,
+            currency: undefined, // undefined = inherits from vault default
+            accountType: "checking",
+            balance: 0,
+            ownerships: { [DEFAULT_PERSON_ID]: 100 }, // Me owns 100%
+            deletedAt: undefined,
+        });
+    });
 
-	it("has Me as 100% owner", () => {
-		expect(DEFAULT_ACCOUNT.ownerships).toEqual({ [DEFAULT_PERSON_ID]: 100 });
-	});
+    it("has Me as 100% owner", () => {
+        expect(DEFAULT_ACCOUNT.ownerships).toEqual({ [DEFAULT_PERSON_ID]: 100 });
+    });
 
-	it("has undefined currency to inherit from vault", () => {
-		// undefined means "not set" - resolveAccountCurrency() falls back to vault default
-		expect(DEFAULT_ACCOUNT.currency).toBeUndefined();
-	});
+    it("has undefined currency to inherit from vault", () => {
+        // undefined means "not set" - resolveAccountCurrency() falls back to vault default
+        expect(DEFAULT_ACCOUNT.currency).toBeUndefined();
+    });
 });
 
 describe("DEFAULT_STATUS_IDS", () => {
-	it("defines FOR_REVIEW status ID", () => {
-		expect(DEFAULT_STATUS_IDS.FOR_REVIEW).toBe("status-for-review");
-	});
+    it("defines FOR_REVIEW status ID", () => {
+        expect(DEFAULT_STATUS_IDS.FOR_REVIEW).toBe("status-for-review");
+    });
 
-	it("defines PAID status ID", () => {
-		expect(DEFAULT_STATUS_IDS.PAID).toBe("status-paid");
-	});
+    it("defines PAID status ID", () => {
+        expect(DEFAULT_STATUS_IDS.PAID).toBe("status-paid");
+    });
 });
 
 describe("DEFAULT_STATUSES", () => {
-	it("includes For Review status with correct properties", () => {
-		const forReview = DEFAULT_STATUSES[DEFAULT_STATUS_IDS.FOR_REVIEW];
-		expect(forReview).toEqual({
-			id: "status-for-review",
-			name: "For Review",
-			behavior: undefined, // No special behavior
-			isDefault: true,
-			deletedAt: undefined,
-		});
-	});
+    it("includes For Review status with correct properties", () => {
+        const forReview = DEFAULT_STATUSES[DEFAULT_STATUS_IDS.FOR_REVIEW];
+        expect(forReview).toEqual({
+            id: "status-for-review",
+            name: "For Review",
+            behavior: undefined, // No special behavior
+            isDefault: true,
+            deletedAt: undefined,
+        });
+    });
 
-	it("includes Paid status with treatAsPaid behavior", () => {
-		const paid = DEFAULT_STATUSES[DEFAULT_STATUS_IDS.PAID];
-		expect(paid).toEqual({
-			id: "status-paid",
-			name: "Paid",
-			behavior: "treatAsPaid",
-			isDefault: true,
-			deletedAt: undefined,
-		});
-	});
+    it("includes Paid status with treatAsPaid behavior", () => {
+        const paid = DEFAULT_STATUSES[DEFAULT_STATUS_IDS.PAID];
+        expect(paid).toEqual({
+            id: "status-paid",
+            name: "Paid",
+            behavior: "treatAsPaid",
+            isDefault: true,
+            deletedAt: undefined,
+        });
+    });
 
-	it("has exactly two default statuses", () => {
-		expect(Object.keys(DEFAULT_STATUSES)).toHaveLength(2);
-	});
+    it("has exactly two default statuses", () => {
+        expect(Object.keys(DEFAULT_STATUSES)).toHaveLength(2);
+    });
 });
 
 describe("getDefaultVaultState", () => {
-	it("returns valid vault state structure", () => {
-		const state = getDefaultVaultState();
+    it("returns valid vault state structure", () => {
+        const state = getDefaultVaultState();
 
-		expect(state).toHaveProperty("people");
-		expect(state).toHaveProperty("accounts");
-		expect(state).toHaveProperty("tags");
-		expect(state).toHaveProperty("statuses");
-		expect(state).toHaveProperty("transactions");
-		expect(state).toHaveProperty("imports");
-		expect(state).toHaveProperty("importTemplates");
-		expect(state).toHaveProperty("automations");
-		expect(state).toHaveProperty("preferences");
-	});
+        expect(state).toHaveProperty("people");
+        expect(state).toHaveProperty("accounts");
+        expect(state).toHaveProperty("tags");
+        expect(state).toHaveProperty("statuses");
+        expect(state).toHaveProperty("transactions");
+        expect(state).toHaveProperty("imports");
+        expect(state).toHaveProperty("importTemplates");
+        expect(state).toHaveProperty("automations");
+        expect(state).toHaveProperty("preferences");
+    });
 
-	it("includes default person", () => {
-		const state = getDefaultVaultState();
+    it("includes default person", () => {
+        const state = getDefaultVaultState();
 
-		expect(state.people[DEFAULT_PERSON_ID]).toBeDefined();
-		expect(state.people[DEFAULT_PERSON_ID].name).toBe("Me");
-	});
+        expect(state.people[DEFAULT_PERSON_ID]).toBeDefined();
+        expect(state.people[DEFAULT_PERSON_ID].name).toBe("Me");
+    });
 
-	it("includes default statuses", () => {
-		const state = getDefaultVaultState();
+    it("includes default statuses", () => {
+        const state = getDefaultVaultState();
 
-		expect(state.statuses[DEFAULT_STATUS_IDS.FOR_REVIEW]).toBeDefined();
-		expect(state.statuses[DEFAULT_STATUS_IDS.PAID]).toBeDefined();
-	});
+        expect(state.statuses[DEFAULT_STATUS_IDS.FOR_REVIEW]).toBeDefined();
+        expect(state.statuses[DEFAULT_STATUS_IDS.PAID]).toBeDefined();
+    });
 
-	it("includes default account with Me as owner", () => {
-		const state = getDefaultVaultState();
+    it("includes default account with Me as owner", () => {
+        const state = getDefaultVaultState();
 
-		expect(state.accounts[DEFAULT_ACCOUNT_ID]).toBeDefined();
-		expect(state.accounts[DEFAULT_ACCOUNT_ID].name).toBe("Default");
-		expect(state.accounts[DEFAULT_ACCOUNT_ID].ownerships).toEqual({ [DEFAULT_PERSON_ID]: 100 });
-	});
+        expect(state.accounts[DEFAULT_ACCOUNT_ID]).toBeDefined();
+        expect(state.accounts[DEFAULT_ACCOUNT_ID].name).toBe("Default");
+        expect(state.accounts[DEFAULT_ACCOUNT_ID].ownerships).toEqual({ [DEFAULT_PERSON_ID]: 100 });
+    });
 
-	it("has default person and account, empty other collections", () => {
-		const state = getDefaultVaultState();
+    it("has default person and account, empty other collections", () => {
+        const state = getDefaultVaultState();
 
-		// people has 1 default person
-		expect(Object.keys(state.people)).toHaveLength(1);
-		// accounts has 1 default account
-		expect(Object.keys(state.accounts)).toHaveLength(1);
-		expect(Object.keys(state.tags)).toHaveLength(0);
-		expect(Object.keys(state.transactions)).toHaveLength(0);
-		expect(Object.keys(state.imports)).toHaveLength(0);
-		expect(Object.keys(state.importTemplates)).toHaveLength(0);
-		expect(Object.keys(state.automations)).toHaveLength(0);
-	});
+        // people has 1 default person
+        expect(Object.keys(state.people)).toHaveLength(1);
+        // accounts has 1 default account
+        expect(Object.keys(state.accounts)).toHaveLength(1);
+        expect(Object.keys(state.tags)).toHaveLength(0);
+        expect(Object.keys(state.transactions)).toHaveLength(0);
+        expect(Object.keys(state.imports)).toHaveLength(0);
+        expect(Object.keys(state.importTemplates)).toHaveLength(0);
+        expect(Object.keys(state.automations)).toHaveLength(0);
+    });
 
-	it("has default preferences", () => {
-		const state = getDefaultVaultState();
+    it("has default preferences", () => {
+        const state = getDefaultVaultState();
 
-		expect(state.preferences.automationCreationPreference).toBe("manual");
-		expect(state.preferences.defaultCurrency).toBe("USD");
-	});
+        expect(state.preferences.automationCreationPreference).toBe("manual");
+        expect(state.preferences.defaultCurrency).toBe("USD");
+    });
 
-	it("uses provided defaultCurrency option", () => {
-		const state = getDefaultVaultState({ defaultCurrency: "EUR" });
+    it("uses provided defaultCurrency option", () => {
+        const state = getDefaultVaultState({ defaultCurrency: "EUR" });
 
-		expect(state.preferences.defaultCurrency).toBe("EUR");
-	});
+        expect(state.preferences.defaultCurrency).toBe("EUR");
+    });
 
-	it("defaults to USD when defaultCurrency option is undefined", () => {
-		const state = getDefaultVaultState({ defaultCurrency: undefined });
+    it("defaults to USD when defaultCurrency option is undefined", () => {
+        const state = getDefaultVaultState({ defaultCurrency: undefined });
 
-		expect(state.preferences.defaultCurrency).toBe("USD");
-	});
+        expect(state.preferences.defaultCurrency).toBe("USD");
+    });
 
-	it("accepts various currency codes", () => {
-		expect(getDefaultVaultState({ defaultCurrency: "GBP" }).preferences.defaultCurrency).toBe(
-			"GBP"
-		);
-		expect(getDefaultVaultState({ defaultCurrency: "JPY" }).preferences.defaultCurrency).toBe(
-			"JPY"
-		);
-		expect(getDefaultVaultState({ defaultCurrency: "AUD" }).preferences.defaultCurrency).toBe(
-			"AUD"
-		);
-	});
+    it("accepts various currency codes", () => {
+        expect(getDefaultVaultState({ defaultCurrency: "GBP" }).preferences.defaultCurrency).toBe(
+            "GBP"
+        );
+        expect(getDefaultVaultState({ defaultCurrency: "JPY" }).preferences.defaultCurrency).toBe(
+            "JPY"
+        );
+        expect(getDefaultVaultState({ defaultCurrency: "AUD" }).preferences.defaultCurrency).toBe(
+            "AUD"
+        );
+    });
 });
 
 describe("initializeVaultDefaults", () => {
-	it("adds default person, account, and statuses to an empty draft", () => {
-		const doc = new LoroDoc();
-		const mirror = new Mirror({
-			doc,
-			schema: vaultSchema,
-			initialState: {
-				people: {},
-				accounts: {},
-				tags: {},
-				statuses: {},
-				transactions: {},
-				imports: {},
-				importTemplates: {},
-				automations: {},
-				preferences: {
-					name: "My Vault",
-					automationCreationPreference: "manual",
-					defaultCurrency: "USD",
-				},
-			},
-			validateUpdates: true,
-			throwOnValidationError: true,
-		});
+    it("adds default person, account, and statuses to an empty draft", () => {
+        const doc = new LoroDoc();
+        const mirror = new Mirror({
+            doc,
+            schema: vaultSchema,
+            initialState: {
+                people: {},
+                accounts: {},
+                tags: {},
+                statuses: {},
+                transactions: {},
+                imports: {},
+                importTemplates: {},
+                automations: {},
+                preferences: {
+                    name: "My Vault",
+                    automationCreationPreference: "manual",
+                    defaultCurrency: "USD",
+                },
+            },
+            validateUpdates: true,
+            throwOnValidationError: true,
+        });
 
-		mirror.setState((draft: VaultInput) => {
-			initializeVaultDefaults(draft);
-		});
+        mirror.setState((draft: VaultInput) => {
+            initializeVaultDefaults(draft);
+        });
 
-		const state = mirror.getState();
-		// Default person
-		expect(state.people[DEFAULT_PERSON_ID]).toBeDefined();
-		expect(state.people[DEFAULT_PERSON_ID].name).toBe("Me");
-		// Default account with ownership
-		expect(state.accounts[DEFAULT_ACCOUNT_ID]).toBeDefined();
-		expect(state.accounts[DEFAULT_ACCOUNT_ID].name).toBe("Default");
-		expect(state.accounts[DEFAULT_ACCOUNT_ID].ownerships[DEFAULT_PERSON_ID]).toBe(100);
-		// Default statuses
-		expect(state.statuses[DEFAULT_STATUS_IDS.FOR_REVIEW]).toBeDefined();
-		expect(state.statuses[DEFAULT_STATUS_IDS.PAID]).toBeDefined();
-	});
+        const state = mirror.getState();
+        // Default person
+        expect(state.people[DEFAULT_PERSON_ID]).toBeDefined();
+        expect(state.people[DEFAULT_PERSON_ID].name).toBe("Me");
+        // Default account with ownership
+        expect(state.accounts[DEFAULT_ACCOUNT_ID]).toBeDefined();
+        expect(state.accounts[DEFAULT_ACCOUNT_ID].name).toBe("Default");
+        expect(state.accounts[DEFAULT_ACCOUNT_ID].ownerships[DEFAULT_PERSON_ID]).toBe(100);
+        // Default statuses
+        expect(state.statuses[DEFAULT_STATUS_IDS.FOR_REVIEW]).toBeDefined();
+        expect(state.statuses[DEFAULT_STATUS_IDS.PAID]).toBeDefined();
+    });
 
-	it("does not overwrite existing person when present", () => {
-		// Create a vault and first add a custom person with the default ID
-		const doc = new LoroDoc();
-		const mirror = new Mirror({
-			doc,
-			schema: vaultSchema,
-			initialState: {
-				people: {},
-				accounts: {},
-				tags: {},
-				statuses: {},
-				transactions: {},
-				imports: {},
-				importTemplates: {},
-				automations: {},
-				preferences: {
-					name: "My Vault",
-					automationCreationPreference: "manual",
-					defaultCurrency: "USD",
-				},
-			},
-			validateUpdates: true,
-			throwOnValidationError: true,
-		});
+    it("does not overwrite existing person when present", () => {
+        // Create a vault and first add a custom person with the default ID
+        const doc = new LoroDoc();
+        const mirror = new Mirror({
+            doc,
+            schema: vaultSchema,
+            initialState: {
+                people: {},
+                accounts: {},
+                tags: {},
+                statuses: {},
+                transactions: {},
+                imports: {},
+                importTemplates: {},
+                automations: {},
+                preferences: {
+                    name: "My Vault",
+                    automationCreationPreference: "manual",
+                    defaultCurrency: "USD",
+                },
+            },
+            validateUpdates: true,
+            throwOnValidationError: true,
+        });
 
-		// First add a custom person with the default person ID
-		mirror.setState((draft: VaultInput) => {
-			draft.people[DEFAULT_PERSON_ID] = {
-				id: DEFAULT_PERSON_ID,
-				name: "Custom Name",
-				linkedUserId: undefined,
-				deletedAt: undefined,
-			};
-		});
+        // First add a custom person with the default person ID
+        mirror.setState((draft: VaultInput) => {
+            draft.people[DEFAULT_PERSON_ID] = {
+                id: DEFAULT_PERSON_ID,
+                name: "Custom Name",
+                linkedUserId: undefined,
+                deletedAt: undefined,
+            };
+        });
 
-		// Now call initializeVaultDefaults - it should NOT overwrite the custom person
-		mirror.setState((draft: VaultInput) => {
-			initializeVaultDefaults(draft);
-		});
+        // Now call initializeVaultDefaults - it should NOT overwrite the custom person
+        mirror.setState((draft: VaultInput) => {
+            initializeVaultDefaults(draft);
+        });
 
-		const state = mirror.getState();
-		// Should keep custom name since person already existed
-		expect(state.people[DEFAULT_PERSON_ID].name).toBe("Custom Name");
-	});
+        const state = mirror.getState();
+        // Should keep custom name since person already existed
+        expect(state.people[DEFAULT_PERSON_ID].name).toBe("Custom Name");
+    });
 
-	it("does not overwrite existing statuses when they have values", () => {
-		// Create a vault and first add the statuses with initializeVaultDefaults
-		const doc = new LoroDoc();
-		const mirror = new Mirror({
-			doc,
-			schema: vaultSchema,
-			initialState: {
-				people: {},
-				accounts: {},
-				tags: {},
-				statuses: {},
-				transactions: {},
-				imports: {},
-				importTemplates: {},
-				automations: {},
-				preferences: {
-					name: "My Vault",
-					automationCreationPreference: "manual",
-					defaultCurrency: "USD",
-				},
-			},
-			validateUpdates: true,
-			throwOnValidationError: true,
-		});
+    it("does not overwrite existing statuses when they have values", () => {
+        // Create a vault and first add the statuses with initializeVaultDefaults
+        const doc = new LoroDoc();
+        const mirror = new Mirror({
+            doc,
+            schema: vaultSchema,
+            initialState: {
+                people: {},
+                accounts: {},
+                tags: {},
+                statuses: {},
+                transactions: {},
+                imports: {},
+                importTemplates: {},
+                automations: {},
+                preferences: {
+                    name: "My Vault",
+                    automationCreationPreference: "manual",
+                    defaultCurrency: "USD",
+                },
+            },
+            validateUpdates: true,
+            throwOnValidationError: true,
+        });
 
-		// First add defaults
-		mirror.setState((draft: VaultInput) => {
-			initializeVaultDefaults(draft);
-		});
+        // First add defaults
+        mirror.setState((draft: VaultInput) => {
+            initializeVaultDefaults(draft);
+        });
 
-		// Verify defaults were added
-		let state = mirror.getState();
-		expect(state.statuses[DEFAULT_STATUS_IDS.FOR_REVIEW]).toBeDefined();
-		expect(state.statuses[DEFAULT_STATUS_IDS.FOR_REVIEW].name).toBe("For Review");
+        // Verify defaults were added
+        let state = mirror.getState();
+        expect(state.statuses[DEFAULT_STATUS_IDS.FOR_REVIEW]).toBeDefined();
+        expect(state.statuses[DEFAULT_STATUS_IDS.FOR_REVIEW].name).toBe("For Review");
 
-		// Modify the FOR_REVIEW status name
-		mirror.setState((draft: VaultInput) => {
-			if (draft.statuses[DEFAULT_STATUS_IDS.FOR_REVIEW]) {
-				draft.statuses[DEFAULT_STATUS_IDS.FOR_REVIEW].name = "Custom Review Name";
-			}
-		});
+        // Modify the FOR_REVIEW status name
+        mirror.setState((draft: VaultInput) => {
+            if (draft.statuses[DEFAULT_STATUS_IDS.FOR_REVIEW]) {
+                draft.statuses[DEFAULT_STATUS_IDS.FOR_REVIEW].name = "Custom Review Name";
+            }
+        });
 
-		// Now call initializeVaultDefaults again - it should NOT overwrite
-		mirror.setState((draft: VaultInput) => {
-			initializeVaultDefaults(draft);
-		});
+        // Now call initializeVaultDefaults again - it should NOT overwrite
+        mirror.setState((draft: VaultInput) => {
+            initializeVaultDefaults(draft);
+        });
 
-		state = mirror.getState();
-		// Should keep custom name since status already existed
-		expect(state.statuses[DEFAULT_STATUS_IDS.FOR_REVIEW].name).toBe("Custom Review Name");
-		// PAID status should still be there
-		expect(state.statuses[DEFAULT_STATUS_IDS.PAID]).toBeDefined();
-	});
+        state = mirror.getState();
+        // Should keep custom name since status already existed
+        expect(state.statuses[DEFAULT_STATUS_IDS.FOR_REVIEW].name).toBe("Custom Review Name");
+        // PAID status should still be there
+        expect(state.statuses[DEFAULT_STATUS_IDS.PAID]).toBeDefined();
+    });
 
-	it("does not overwrite existing preferences", () => {
-		// initializeVaultDefaults only sets preferences if the object doesn't exist
-		// In practice, loro-mirror always creates the preferences object
-		const doc = new LoroDoc();
-		const mirror = new Mirror({
-			doc,
-			schema: vaultSchema,
-			initialState: getDefaultVaultState(),
-			validateUpdates: true,
-			throwOnValidationError: true,
-		});
+    it("does not overwrite existing preferences", () => {
+        // initializeVaultDefaults only sets preferences if the object doesn't exist
+        // In practice, loro-mirror always creates the preferences object
+        const doc = new LoroDoc();
+        const mirror = new Mirror({
+            doc,
+            schema: vaultSchema,
+            initialState: getDefaultVaultState(),
+            validateUpdates: true,
+            throwOnValidationError: true,
+        });
 
-		// Write preferences to the Loro doc explicitly
-		mirror.setState((draft: VaultInput) => {
-			draft.preferences.automationCreationPreference = "manual";
-			draft.preferences.defaultCurrency = "USD";
-		});
+        // Write preferences to the Loro doc explicitly
+        mirror.setState((draft: VaultInput) => {
+            draft.preferences.automationCreationPreference = "manual";
+            draft.preferences.defaultCurrency = "USD";
+        });
 
-		// Verify preferences are set
-		let state = mirror.getState();
-		expect(state.preferences.automationCreationPreference).toBe("manual");
+        // Verify preferences are set
+        let state = mirror.getState();
+        expect(state.preferences.automationCreationPreference).toBe("manual");
 
-		// initializeVaultDefaults doesn't overwrite existing preferences object
-		// (only creates if missing entirely, which loro-mirror prevents)
-		mirror.setState((draft: VaultInput) => {
-			initializeVaultDefaults(draft);
-		});
+        // initializeVaultDefaults doesn't overwrite existing preferences object
+        // (only creates if missing entirely, which loro-mirror prevents)
+        mirror.setState((draft: VaultInput) => {
+            initializeVaultDefaults(draft);
+        });
 
-		state = mirror.getState();
-		// Since preferences object exists, it won't be overwritten
-		// The function only sets preferences if the object is falsy
-		expect(state.preferences).toBeDefined();
-		expect(state.preferences.automationCreationPreference).toBe("manual");
-	});
+        state = mirror.getState();
+        // Since preferences object exists, it won't be overwritten
+        // The function only sets preferences if the object is falsy
+        expect(state.preferences).toBeDefined();
+        expect(state.preferences.automationCreationPreference).toBe("manual");
+    });
 });
 
 describe("hasVaultDefaults", () => {
-	it("returns true when vault has all default account and statuses", () => {
-		const state = getDefaultVaultState();
-		expect(hasVaultDefaults(state)).toBe(true);
-	});
+    it("returns true when vault has all default account and statuses", () => {
+        const state = getDefaultVaultState();
+        expect(hasVaultDefaults(state)).toBe(true);
+    });
 
-	it("returns false when default account is missing", () => {
-		const state = getDefaultVaultState();
-		delete state.accounts[DEFAULT_ACCOUNT_ID];
-		expect(hasVaultDefaults(state)).toBe(false);
-	});
+    it("returns false when default account is missing", () => {
+        const state = getDefaultVaultState();
+        delete state.accounts[DEFAULT_ACCOUNT_ID];
+        expect(hasVaultDefaults(state)).toBe(false);
+    });
 
-	it("returns false when FOR_REVIEW status is missing", () => {
-		const state = getDefaultVaultState();
-		delete state.statuses[DEFAULT_STATUS_IDS.FOR_REVIEW];
-		expect(hasVaultDefaults(state)).toBe(false);
-	});
+    it("returns false when FOR_REVIEW status is missing", () => {
+        const state = getDefaultVaultState();
+        delete state.statuses[DEFAULT_STATUS_IDS.FOR_REVIEW];
+        expect(hasVaultDefaults(state)).toBe(false);
+    });
 
-	it("returns false when PAID status is missing", () => {
-		const state = getDefaultVaultState();
-		delete state.statuses[DEFAULT_STATUS_IDS.PAID];
-		expect(hasVaultDefaults(state)).toBe(false);
-	});
+    it("returns false when PAID status is missing", () => {
+        const state = getDefaultVaultState();
+        delete state.statuses[DEFAULT_STATUS_IDS.PAID];
+        expect(hasVaultDefaults(state)).toBe(false);
+    });
 
-	it("returns false for empty statuses and accounts", () => {
-		const state = getDefaultVaultState();
-		state.accounts = {};
-		state.statuses = {};
-		expect(hasVaultDefaults(state)).toBe(false);
-	});
+    it("returns false for empty statuses and accounts", () => {
+        const state = getDefaultVaultState();
+        state.accounts = {};
+        state.statuses = {};
+        expect(hasVaultDefaults(state)).toBe(false);
+    });
 });

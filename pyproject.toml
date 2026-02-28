@@ -3,8 +3,6 @@ name = "moneyflow"
 version = "0.1.0"
 description = "MoneyFlow project"
 requires-python = ">=3.11"
-dependencies = [
-    "specify-cli @ git+https://github.com/github/spec-kit.git",
-]
+dependencies = ["specify-cli @ git+https://github.com/github/spec-kit.git"]
 
 [tool.uv]

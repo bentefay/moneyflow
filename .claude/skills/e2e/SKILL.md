@@ -22,7 +22,7 @@ pnpm playwright test --workers=4 --repeat-each=5 --reporter=line 2>&1  # flaky d
 
 ## Selectors (priority order)
 
-1. `getByRole()` 
+1. `getByRole()`
 2. `getByTestId()`
 3. `getByLabel()`
 4. `getByText(/regex/i)`
@@ -36,6 +36,7 @@ pnpm playwright test --workers=4 --repeat-each=5 --reporter=line 2>&1  # flaky d
 ## Helpers
 
 Import from `tests/e2e/helpers/`:
+
 - `createNewIdentity(page)` - full new user flow
 - `goToTransactions(page)`, `goToTags(page)`, etc.
 
@@ -45,13 +46,13 @@ Create helpers for multi-step reused flows. Don't wrap single Playwright calls.
 
 ```typescript
 test.describe("Feature", () => {
-  test.beforeEach(async ({ page }) => {
-    await createNewIdentity(page);
-    await goToFeature(page);
-  });
+    test.beforeEach(async ({ page }) => {
+        await createNewIdentity(page);
+        await goToFeature(page);
+    });
 
-  test("should do thing", async ({ page }) => {
-    // Arrange → Act → Assert
-  });
+    test("should do thing", async ({ page }) => {
+        // Arrange → Act → Assert
+    });
 });
 ```

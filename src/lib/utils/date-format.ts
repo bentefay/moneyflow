@@ -9,12 +9,12 @@ import { Temporal } from "temporal-polyfill";
  * @returns Formatted date string (e.g., "Dec 31, 2025" for en-US)
  */
 export function formatDate(isoDate: string, locale?: string): string {
-	const date = Temporal.PlainDate.from(isoDate);
-	return date.toLocaleString(locale ?? navigator.language, {
-		month: "short",
-		day: "numeric",
-		year: "numeric",
-	});
+    const date = Temporal.PlainDate.from(isoDate);
+    return date.toLocaleString(locale ?? navigator.language, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+    });
 }
 
 /**
@@ -25,17 +25,17 @@ export function formatDate(isoDate: string, locale?: string): string {
  * @returns Formatted date string (e.g., "Dec 31" or "Dec 31, 2024")
  */
 export function formatDateCompact(isoDate: string, locale?: string): string {
-	const date = Temporal.PlainDate.from(isoDate);
-	const now = Temporal.Now.plainDateISO();
+    const date = Temporal.PlainDate.from(isoDate);
+    const now = Temporal.Now.plainDateISO();
 
-	if (date.year === now.year) {
-		return date.toLocaleString(locale ?? navigator.language, {
-			month: "short",
-			day: "numeric",
-		});
-	}
+    if (date.year === now.year) {
+        return date.toLocaleString(locale ?? navigator.language, {
+            month: "short",
+            day: "numeric",
+        });
+    }
 
-	return formatDate(isoDate, locale);
+    return formatDate(isoDate, locale);
 }
 
 /**
@@ -54,42 +54,42 @@ export function formatDateCompact(isoDate: string, locale?: string): string {
  * @returns Formatted date string respecting locale's date order and separators
  */
 export function formatTransactionDate(
-	isoDate: string,
-	referenceDate?: Temporal.PlainDate,
-	locale?: string
+    isoDate: string,
+    referenceDate?: Temporal.PlainDate,
+    locale?: string
 ): string {
-	const date = Temporal.PlainDate.from(isoDate);
-	const now = referenceDate ?? Temporal.Now.plainDateISO();
-	const resolvedLocale =
-		locale ?? (typeof navigator !== "undefined" ? navigator.language : "en-GB");
+    const date = Temporal.PlainDate.from(isoDate);
+    const now = referenceDate ?? Temporal.Now.plainDateISO();
+    const resolvedLocale =
+        locale ?? (typeof navigator !== "undefined" ? navigator.language : "en-GB");
 
-	if (date.year === now.year) {
-		// Same year: D/M (compact, no year, no padding)
-		// Use toLocaleString for order/separator, then strip leading zeros from day/month
-		const formatted = date.toLocaleString(resolvedLocale, {
-			day: "numeric",
-			month: "numeric",
-		});
-		return stripLeadingZeros(formatted);
-	}
+    if (date.year === now.year) {
+        // Same year: D/M (compact, no year, no padding)
+        // Use toLocaleString for order/separator, then strip leading zeros from day/month
+        const formatted = date.toLocaleString(resolvedLocale, {
+            day: "numeric",
+            month: "numeric",
+        });
+        return stripLeadingZeros(formatted);
+    }
 
-	if (date.year > 2000) {
-		// Year > 2000 but different year: D/M/YY (compact with 2-digit year)
-		// Use toLocaleString for order/separator, then strip leading zeros from day/month
-		const formatted = date.toLocaleString(resolvedLocale, {
-			day: "numeric",
-			month: "numeric",
-			year: "2-digit",
-		});
-		return stripLeadingZerosExceptYear(formatted);
-	}
+    if (date.year > 2000) {
+        // Year > 2000 but different year: D/M/YY (compact with 2-digit year)
+        // Use toLocaleString for order/separator, then strip leading zeros from day/month
+        const formatted = date.toLocaleString(resolvedLocale, {
+            day: "numeric",
+            month: "numeric",
+            year: "2-digit",
+        });
+        return stripLeadingZerosExceptYear(formatted);
+    }
 
-	// Year <= 2000: DD/MM/YYYY (full format with padding)
-	return date.toLocaleString(resolvedLocale, {
-		day: "2-digit",
-		month: "2-digit",
-		year: "numeric",
-	});
+    // Year <= 2000: DD/MM/YYYY (full format with padding)
+    return date.toLocaleString(resolvedLocale, {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+    });
 }
 
 /**
@@ -98,9 +98,9 @@ export function formatTransactionDate(
  * Example: "01/05" -> "1/5", "01.05." -> "1.5."
  */
 function stripLeadingZeros(formatted: string): string {
-	// Replace patterns like "01" at word boundaries with "1"
-	// But preserve trailing dots for German format
-	return formatted.replace(/\b0(\d)/g, "$1");
+    // Replace patterns like "01" at word boundaries with "1"
+    // But preserve trailing dots for German format
+    return formatted.replace(/\b0(\d)/g, "$1");
 }
 
 /**
@@ -108,23 +108,23 @@ function stripLeadingZeros(formatted: string): string {
  * Example: "01/05/24" -> "1/5/24", "01.05.24" -> "1.5.24"
  */
 function stripLeadingZerosExceptYear(formatted: string): string {
-	// Split by common date separators, strip zeros from first two parts, keep year
-	const parts = formatted.split(/([/.,-])/);
-	let numericCount = 0;
-	return parts
-		.map((part) => {
-			// Check if this part is numeric
-			if (/^\d+$/.test(part)) {
-				numericCount++;
-				// Only strip zeros from first two numeric parts (day and month)
-				// Keep the year (3rd numeric part) as-is
-				if (numericCount <= 2) {
-					return part.replace(/^0+/, "") || "0";
-				}
-			}
-			return part;
-		})
-		.join("");
+    // Split by common date separators, strip zeros from first two parts, keep year
+    const parts = formatted.split(/([/.,-])/);
+    let numericCount = 0;
+    return parts
+        .map((part) => {
+            // Check if this part is numeric
+            if (/^\d+$/.test(part)) {
+                numericCount++;
+                // Only strip zeros from first two numeric parts (day and month)
+                // Keep the year (3rd numeric part) as-is
+                if (numericCount <= 2) {
+                    return part.replace(/^0+/, "") || "0";
+                }
+            }
+            return part;
+        })
+        .join("");
 }
 
 /**
@@ -136,30 +136,30 @@ function stripLeadingZerosExceptYear(formatted: string): string {
  * @returns ISO 8601 date string (YYYY-MM-DD) or null if parsing fails
  */
 export function parseDate(dateString: string, locale?: string): string | null {
-	// Note: locale reserved for future locale-aware parsing
-	void locale;
-	// First try ISO format directly
-	if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-		try {
-			Temporal.PlainDate.from(dateString);
-			return dateString;
-		} catch {
-			return null;
-		}
-	}
+    // Note: locale reserved for future locale-aware parsing
+    void locale;
+    // First try ISO format directly
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        try {
+            Temporal.PlainDate.from(dateString);
+            return dateString;
+        } catch {
+            return null;
+        }
+    }
 
-	// Fall back to native Date for flexible parsing
-	const parsed = new Date(dateString);
-	if (Number.isNaN(parsed.getTime())) {
-		return null;
-	}
+    // Fall back to native Date for flexible parsing
+    const parsed = new Date(dateString);
+    if (Number.isNaN(parsed.getTime())) {
+        return null;
+    }
 
-	// Convert to ISO string (YYYY-MM-DD)
-	return Temporal.PlainDate.from({
-		year: parsed.getFullYear(),
-		month: parsed.getMonth() + 1,
-		day: parsed.getDate(),
-	}).toString();
+    // Convert to ISO string (YYYY-MM-DD)
+    return Temporal.PlainDate.from({
+        year: parsed.getFullYear(),
+        month: parsed.getMonth() + 1,
+        day: parsed.getDate(),
+    }).toString();
 }
 
 /**
@@ -170,36 +170,36 @@ export function parseDate(dateString: string, locale?: string): string | null {
  * @returns Day of week (0 = Sunday, 1 = Monday, etc.)
  */
 export function getWeekStartDay(locale?: string): number {
-	const resolvedLocale = locale ?? navigator.language;
+    const resolvedLocale = locale ?? navigator.language;
 
-	// Locales that start week on Sunday (exact matches only)
-	const sundayStartLocales = new Set([
-		"en-US",
-		"en-CA",
-		"ja-JP",
-		"ko-KR",
-		"zh-CN",
-		"zh-TW",
-		"he-IL",
-		"ar-SA",
-		"pt-BR",
-	]);
+    // Locales that start week on Sunday (exact matches only)
+    const sundayStartLocales = new Set([
+        "en-US",
+        "en-CA",
+        "ja-JP",
+        "ko-KR",
+        "zh-CN",
+        "zh-TW",
+        "he-IL",
+        "ar-SA",
+        "pt-BR",
+    ]);
 
-	// Check exact locale match first
-	if (sundayStartLocales.has(resolvedLocale)) {
-		return 0; // Sunday
-	}
+    // Check exact locale match first
+    if (sundayStartLocales.has(resolvedLocale)) {
+        return 0; // Sunday
+    }
 
-	// For locales without region, default based on language
-	// Only certain base languages default to Sunday
-	const baseLanguage = resolvedLocale.split("-")[0];
-	const sundayDefaultLanguages = new Set(["ja", "ko", "zh", "he"]);
+    // For locales without region, default based on language
+    // Only certain base languages default to Sunday
+    const baseLanguage = resolvedLocale.split("-")[0];
+    const sundayDefaultLanguages = new Set(["ja", "ko", "zh", "he"]);
 
-	if (sundayDefaultLanguages.has(baseLanguage)) {
-		return 0; // Sunday
-	}
+    if (sundayDefaultLanguages.has(baseLanguage)) {
+        return 0; // Sunday
+    }
 
-	return 1; // Monday (ISO default for most of the world)
+    return 1; // Monday (ISO default for most of the world)
 }
 
 /**
@@ -208,7 +208,7 @@ export function getWeekStartDay(locale?: string): number {
  * @returns ISO 8601 date string (YYYY-MM-DD)
  */
 export function getTodayISO(): string {
-	return Temporal.Now.plainDateISO().toString();
+    return Temporal.Now.plainDateISO().toString();
 }
 
 /**
@@ -218,14 +218,14 @@ export function getTodayISO(): string {
  * @returns True if valid ISO 8601 date
  */
 export function isValidISODate(dateString: string): boolean {
-	if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-		return false;
-	}
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        return false;
+    }
 
-	try {
-		Temporal.PlainDate.from(dateString);
-		return true;
-	} catch {
-		return false;
-	}
+    try {
+        Temporal.PlainDate.from(dateString);
+        return true;
+    } catch {
+        return false;
+    }
 }

@@ -58,33 +58,33 @@ For MoneyFlow's use case (LWW-Map, LWW-Register, OR-Set), HLC is the sweet spot:
 
 ```typescript
 interface HLCTimestamp {
-  // Physical time (milliseconds since epoch)
-  wallTime: number;
-  // Logical counter for same wallTime
-  logical: number;
-  // Node identifier for deterministic tiebreaking
-  nodeId: string;
+    // Physical time (milliseconds since epoch)
+    wallTime: number;
+    // Logical counter for same wallTime
+    logical: number;
+    // Node identifier for deterministic tiebreaking
+    nodeId: string;
 }
 
 function createHLC(nodeId: string, previous?: HLCTimestamp): HLCTimestamp {
-  const now = Date.now();
+    const now = Date.now();
 
-  if (!previous || now > previous.wallTime) {
-    return { wallTime: now, logical: 0, nodeId };
-  }
+    if (!previous || now > previous.wallTime) {
+        return { wallTime: now, logical: 0, nodeId };
+    }
 
-  // Wall clock hasn't advanced, increment logical
-  return {
-    wallTime: previous.wallTime,
-    logical: previous.logical + 1,
-    nodeId,
-  };
+    // Wall clock hasn't advanced, increment logical
+    return {
+        wallTime: previous.wallTime,
+        logical: previous.logical + 1,
+        nodeId,
+    };
 }
 
 function compareHLC(a: HLCTimestamp, b: HLCTimestamp): number {
-  if (a.wallTime !== b.wallTime) return a.wallTime - b.wallTime;
-  if (a.logical !== b.logical) return a.logical - b.logical;
-  return a.nodeId.localeCompare(b.nodeId); // Deterministic tiebreak
+    if (a.wallTime !== b.wallTime) return a.wallTime - b.wallTime;
+    if (a.logical !== b.logical) return a.logical - b.logical;
+    return a.nodeId.localeCompare(b.nodeId); // Deterministic tiebreak
 }
 ```
 
@@ -123,20 +123,20 @@ Each transaction is an **LWW-Map** where each field is independently versioned:
 
 ```typescript
 interface Transaction {
-  id: string;
-  // Each field has its own timestamp
-  fields: {
-    amount: { value: number; hlc: HLCTimestamp };
-    date: { value: string; hlc: HLCTimestamp };
-    merchant: { value: string; hlc: HLCTimestamp };
-    description: { value: string; hlc: HLCTimestamp };
-    status: { value: string; hlc: HLCTimestamp };
-    accountId: { value: string; hlc: HLCTimestamp };
-  };
-  // Tags use OR-Set semantics
-  tags: ORSet<string>;
-  // Allocations per person (each person's % is LWW)
-  allocations: { [personId: string]: { value: number; hlc: HLCTimestamp } };
+    id: string;
+    // Each field has its own timestamp
+    fields: {
+        amount: { value: number; hlc: HLCTimestamp };
+        date: { value: string; hlc: HLCTimestamp };
+        merchant: { value: string; hlc: HLCTimestamp };
+        description: { value: string; hlc: HLCTimestamp };
+        status: { value: string; hlc: HLCTimestamp };
+        accountId: { value: string; hlc: HLCTimestamp };
+    };
+    // Tags use OR-Set semantics
+    tags: ORSet<string>;
+    // Allocations per person (each person's % is LWW)
+    allocations: { [personId: string]: { value: number; hlc: HLCTimestamp } };
 }
 ```
 
@@ -197,20 +197,20 @@ import { hash, verify } from "@node-rs/argon2";
 
 // For key derivation (not hashing)
 async function deriveKeyFromPassword(
-  password: string,
-  salt: Uint8Array, // Random 16+ bytes, stored with user document
-  keyLength: number = 32 // 256-bit key
+    password: string,
+    salt: Uint8Array, // Random 16+ bytes, stored with user document
+    keyLength: number = 32 // 256-bit key
 ): Promise<Uint8Array> {
-  // Parameters tuned for ~500ms on modern hardware
-  const params = {
-    memoryCost: 65536, // 64 MB
-    timeCost: 3, // 3 iterations
-    parallelism: 4, // 4 threads
-    hashLength: keyLength,
-    type: 2, // Argon2id
-  };
+    // Parameters tuned for ~500ms on modern hardware
+    const params = {
+        memoryCost: 65536, // 64 MB
+        timeCost: 3, // 3 iterations
+        parallelism: 4, // 4 threads
+        hashLength: keyLength,
+        type: 2, // Argon2id
+    };
 
-  return argon2.hash(password, salt, params);
+    return argon2.hash(password, salt, params);
 }
 ```
 
@@ -222,16 +222,16 @@ For client-side (browser), use `argon2-browser` or `hash-wasm`:
 import { argon2id } from "hash-wasm";
 
 async function deriveKey(password: string, salt: Uint8Array): Promise<Uint8Array> {
-  const hash = await argon2id({
-    password,
-    salt,
-    parallelism: 4,
-    iterations: 3,
-    memorySize: 65536, // 64 MB
-    hashLength: 32,
-    outputType: "binary",
-  });
-  return hash;
+    const hash = await argon2id({
+        password,
+        salt,
+        parallelism: 4,
+        iterations: 3,
+        memorySize: 65536, // 64 MB
+        hashLength: 32,
+        outputType: "binary",
+    });
+    return hash;
 }
 ```
 
@@ -273,9 +273,9 @@ There are two approaches:
 
 - When password changes, re-encrypt entire vault
 - Problems:
-  - Very slow for large vaults
-  - Race conditions with concurrent edits
-  - What if user goes offline mid-rotation?
+    - Very slow for large vaults
+    - Race conditions with concurrent edits
+    - What if user goes offline mid-rotation?
 
 **Option B: Key Wrapping Hierarchy** ✅
 
@@ -318,29 +318,29 @@ There are two approaches:
 
 ```typescript
 async function changePassword(oldPassword: string, newPassword: string) {
-  // 1. Derive old KEK
-  const oldKEK = await deriveKEK(oldPassword, user.salt);
+    // 1. Derive old KEK
+    const oldKEK = await deriveKEK(oldPassword, user.salt);
 
-  // 2. Decrypt vault key using old KEK
-  const vaultKey = await decrypt(user.encryptedVaultKey, oldKEK);
+    // 2. Decrypt vault key using old KEK
+    const vaultKey = await decrypt(user.encryptedVaultKey, oldKEK);
 
-  // 3. Generate new salt (IMPORTANT: salt must change!)
-  const newSalt = crypto.getRandomValues(new Uint8Array(16));
+    // 3. Generate new salt (IMPORTANT: salt must change!)
+    const newSalt = crypto.getRandomValues(new Uint8Array(16));
 
-  // 4. Derive new KEK from new password
-  const newKEK = await deriveKEK(newPassword, newSalt);
+    // 4. Derive new KEK from new password
+    const newKEK = await deriveKEK(newPassword, newSalt);
 
-  // 5. Re-encrypt vault key with new KEK
-  const newEncryptedVaultKey = await encrypt(vaultKey, newKEK);
+    // 5. Re-encrypt vault key with new KEK
+    const newEncryptedVaultKey = await encrypt(vaultKey, newKEK);
 
-  // 6. Update user document atomically
-  await updateUser({
-    salt: newSalt,
-    encryptedVaultKey: newEncryptedVaultKey,
-    // Optionally: invalidate other sessions
-  });
+    // 6. Update user document atomically
+    await updateUser({
+        salt: newSalt,
+        encryptedVaultKey: newEncryptedVaultKey,
+        // Optionally: invalidate other sessions
+    });
 
-  // Vault data remains unchanged - only the wrapper key changed
+    // Vault data remains unchanged - only the wrapper key changed
 }
 ```
 
@@ -398,37 +398,37 @@ Each user has a **key pair** (public/private). The vault key is wrapped (encrypt
 
 ```typescript
 async function registerUser(email: string, password: string) {
-  // 1. Generate asymmetric key pair for this user
-  const keyPair = await crypto.subtle.generateKey(
-    {
-      name: "RSA-OAEP",
-      modulusLength: 4096,
-      publicExponent: new Uint8Array([1, 0, 1]),
-      hash: "SHA-256",
-    },
-    true, // extractable
-    ["encrypt", "decrypt"]
-  );
+    // 1. Generate asymmetric key pair for this user
+    const keyPair = await crypto.subtle.generateKey(
+        {
+            name: "RSA-OAEP",
+            modulusLength: 4096,
+            publicExponent: new Uint8Array([1, 0, 1]),
+            hash: "SHA-256",
+        },
+        true, // extractable
+        ["encrypt", "decrypt"]
+    );
 
-  // 2. Derive KEK from password
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const kek = await deriveKEK(password, salt);
+    // 2. Derive KEK from password
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const kek = await deriveKEK(password, salt);
 
-  // 3. Encrypt private key with KEK (so it can be stored on server)
-  const exportedPrivateKey = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
-  const encryptedPrivateKey = await encryptAES(exportedPrivateKey, kek);
+    // 3. Encrypt private key with KEK (so it can be stored on server)
+    const exportedPrivateKey = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
+    const encryptedPrivateKey = await encryptAES(exportedPrivateKey, kek);
 
-  // 4. Export public key (stored unencrypted, it's public)
-  const publicKey = await crypto.subtle.exportKey("spki", keyPair.publicKey);
+    // 4. Export public key (stored unencrypted, it's public)
+    const publicKey = await crypto.subtle.exportKey("spki", keyPair.publicKey);
 
-  // 5. Store user document
-  await createUser({
-    email,
-    salt,
-    encryptedPrivateKey,
-    publicKey,
-    // No vault access yet
-  });
+    // 5. Store user document
+    await createUser({
+        email,
+        salt,
+        encryptedPrivateKey,
+        publicKey,
+        // No vault access yet
+    });
 }
 ```
 
@@ -436,34 +436,34 @@ async function registerUser(email: string, password: string) {
 
 ```typescript
 async function inviteUserToVault(inviteeEmail: string, vaultId: string) {
-  // 1. Current user must have vault access
-  const vaultKey = await getVaultKey(vaultId);
+    // 1. Current user must have vault access
+    const vaultKey = await getVaultKey(vaultId);
 
-  // 2. Get invitee's public key
-  const invitee = await getUser(inviteeEmail);
-  const inviteePublicKey = await crypto.subtle.importKey(
-    "spki",
-    invitee.publicKey,
-    { name: "RSA-OAEP", hash: "SHA-256" },
-    false,
-    ["encrypt"]
-  );
+    // 2. Get invitee's public key
+    const invitee = await getUser(inviteeEmail);
+    const inviteePublicKey = await crypto.subtle.importKey(
+        "spki",
+        invitee.publicKey,
+        { name: "RSA-OAEP", hash: "SHA-256" },
+        false,
+        ["encrypt"]
+    );
 
-  // 3. Wrap (encrypt) vault key with invitee's public key
-  const wrappedVaultKey = await crypto.subtle.encrypt(
-    { name: "RSA-OAEP" },
-    inviteePublicKey,
-    vaultKey
-  );
+    // 3. Wrap (encrypt) vault key with invitee's public key
+    const wrappedVaultKey = await crypto.subtle.encrypt(
+        { name: "RSA-OAEP" },
+        inviteePublicKey,
+        vaultKey
+    );
 
-  // 4. Store the wrapped key for the invitee
-  await addVaultAccess({
-    vaultId,
-    userId: invitee.id,
-    wrappedVaultKey,
-  });
+    // 4. Store the wrapped key for the invitee
+    await addVaultAccess({
+        vaultId,
+        userId: invitee.id,
+        wrappedVaultKey,
+    });
 
-  // Invitee can now decrypt vault using their private key
+    // Invitee can now decrypt vault using their private key
 }
 ```
 
@@ -471,31 +471,31 @@ async function inviteUserToVault(inviteeEmail: string, vaultId: string) {
 
 ```typescript
 async function loginAndAccessVault(password: string, vaultId: string) {
-  // 1. Derive KEK from password
-  const kek = await deriveKEK(password, user.salt);
+    // 1. Derive KEK from password
+    const kek = await deriveKEK(password, user.salt);
 
-  // 2. Decrypt private key
-  const privateKey = await decryptAES(user.encryptedPrivateKey, kek);
-  const cryptoPrivateKey = await crypto.subtle.importKey(
-    "pkcs8",
-    privateKey,
-    { name: "RSA-OAEP", hash: "SHA-256" },
-    false,
-    ["decrypt"]
-  );
+    // 2. Decrypt private key
+    const privateKey = await decryptAES(user.encryptedPrivateKey, kek);
+    const cryptoPrivateKey = await crypto.subtle.importKey(
+        "pkcs8",
+        privateKey,
+        { name: "RSA-OAEP", hash: "SHA-256" },
+        false,
+        ["decrypt"]
+    );
 
-  // 3. Get wrapped vault key for this user
-  const vaultAccess = await getVaultAccess(vaultId, user.id);
+    // 3. Get wrapped vault key for this user
+    const vaultAccess = await getVaultAccess(vaultId, user.id);
 
-  // 4. Unwrap (decrypt) vault key using private key
-  const vaultKey = await crypto.subtle.decrypt(
-    { name: "RSA-OAEP" },
-    cryptoPrivateKey,
-    vaultAccess.wrappedVaultKey
-  );
+    // 4. Unwrap (decrypt) vault key using private key
+    const vaultKey = await crypto.subtle.decrypt(
+        { name: "RSA-OAEP" },
+        cryptoPrivateKey,
+        vaultAccess.wrappedVaultKey
+    );
 
-  // 5. Now can decrypt vault data
-  return vaultKey;
+    // 5. Now can decrypt vault data
+    return vaultKey;
 }
 ```
 
@@ -503,22 +503,22 @@ async function loginAndAccessVault(password: string, vaultId: string) {
 
 ```typescript
 async function revokeUserAccess(userId: string, vaultId: string) {
-  // 1. Delete the wrapped key for this user
-  await deleteVaultAccess(vaultId, userId);
+    // 1. Delete the wrapped key for this user
+    await deleteVaultAccess(vaultId, userId);
 
-  // 2. Generate new vault key
-  const newVaultKey = crypto.getRandomValues(new Uint8Array(32));
+    // 2. Generate new vault key
+    const newVaultKey = crypto.getRandomValues(new Uint8Array(32));
 
-  // 3. Re-wrap for all remaining users
-  const remainingUsers = await getVaultUsers(vaultId);
-  for (const user of remainingUsers) {
-    const wrappedKey = await wrapKeyForUser(newVaultKey, user.publicKey);
-    await updateVaultAccess(vaultId, user.id, wrappedKey);
-  }
+    // 3. Re-wrap for all remaining users
+    const remainingUsers = await getVaultUsers(vaultId);
+    for (const user of remainingUsers) {
+        const wrappedKey = await wrapKeyForUser(newVaultKey, user.publicKey);
+        await updateVaultAccess(vaultId, user.id, wrappedKey);
+    }
 
-  // 4. Re-encrypt all vault data with new key
-  // (This is expensive but necessary for true revocation)
-  await reEncryptVault(vaultId, oldVaultKey, newVaultKey);
+    // 4. Re-encrypt all vault data with new key
+    // (This is expensive but necessary for true revocation)
+    await reEncryptVault(vaultId, oldVaultKey, newVaultKey);
 }
 ```
 
@@ -556,73 +556,73 @@ Batching serves multiple purposes:
 
 ```typescript
 interface BatchConfig {
-  debounceMs: number; // Wait for inactivity
-  maxWaitMs: number; // Maximum time before forced flush
-  maxEvents: number; // Maximum events before forced flush
-  maxSizeBytes: number; // Maximum batch size before forced flush
+    debounceMs: number; // Wait for inactivity
+    maxWaitMs: number; // Maximum time before forced flush
+    maxEvents: number; // Maximum events before forced flush
+    maxSizeBytes: number; // Maximum batch size before forced flush
 }
 
 const defaultConfig: BatchConfig = {
-  debounceMs: 1000, // 1 second of inactivity triggers flush
-  maxWaitMs: 5000, // Never wait more than 5 seconds
-  maxEvents: 100, // Flush if 100 events queued
-  maxSizeBytes: 64 * 1024, // Flush if batch exceeds 64KB
+    debounceMs: 1000, // 1 second of inactivity triggers flush
+    maxWaitMs: 5000, // Never wait more than 5 seconds
+    maxEvents: 100, // Flush if 100 events queued
+    maxSizeBytes: 64 * 1024, // Flush if batch exceeds 64KB
 };
 
 class EventBatcher {
-  private queue: CRDTEvent[] = [];
-  private debounceTimer: NodeJS.Timeout | null = null;
-  private maxWaitTimer: NodeJS.Timeout | null = null;
-  private firstEventTime: number | null = null;
+    private queue: CRDTEvent[] = [];
+    private debounceTimer: NodeJS.Timeout | null = null;
+    private maxWaitTimer: NodeJS.Timeout | null = null;
+    private firstEventTime: number | null = null;
 
-  constructor(
-    private config: BatchConfig,
-    private onFlush: (events: CRDTEvent[]) => Promise<void>
-  ) {}
+    constructor(
+        private config: BatchConfig,
+        private onFlush: (events: CRDTEvent[]) => Promise<void>
+    ) {}
 
-  add(event: CRDTEvent) {
-    this.queue.push(event);
+    add(event: CRDTEvent) {
+        this.queue.push(event);
 
-    // Start max wait timer on first event
-    if (!this.firstEventTime) {
-      this.firstEventTime = Date.now();
-      this.maxWaitTimer = setTimeout(() => this.flush(), this.config.maxWaitMs);
+        // Start max wait timer on first event
+        if (!this.firstEventTime) {
+            this.firstEventTime = Date.now();
+            this.maxWaitTimer = setTimeout(() => this.flush(), this.config.maxWaitMs);
+        }
+
+        // Check size limits
+        if (
+            this.queue.length >= this.config.maxEvents ||
+            this.estimateSize() >= this.config.maxSizeBytes
+        ) {
+            this.flush();
+            return;
+        }
+
+        // Reset debounce timer
+        if (this.debounceTimer) clearTimeout(this.debounceTimer);
+        this.debounceTimer = setTimeout(() => this.flush(), this.config.debounceMs);
     }
 
-    // Check size limits
-    if (
-      this.queue.length >= this.config.maxEvents ||
-      this.estimateSize() >= this.config.maxSizeBytes
-    ) {
-      this.flush();
-      return;
+    async flush() {
+        if (this.queue.length === 0) return;
+
+        // Clear timers
+        if (this.debounceTimer) clearTimeout(this.debounceTimer);
+        if (this.maxWaitTimer) clearTimeout(this.maxWaitTimer);
+        this.debounceTimer = null;
+        this.maxWaitTimer = null;
+        this.firstEventTime = null;
+
+        // Take all events and clear queue
+        const events = this.queue;
+        this.queue = [];
+
+        await this.onFlush(events);
     }
 
-    // Reset debounce timer
-    if (this.debounceTimer) clearTimeout(this.debounceTimer);
-    this.debounceTimer = setTimeout(() => this.flush(), this.config.debounceMs);
-  }
-
-  async flush() {
-    if (this.queue.length === 0) return;
-
-    // Clear timers
-    if (this.debounceTimer) clearTimeout(this.debounceTimer);
-    if (this.maxWaitTimer) clearTimeout(this.maxWaitTimer);
-    this.debounceTimer = null;
-    this.maxWaitTimer = null;
-    this.firstEventTime = null;
-
-    // Take all events and clear queue
-    const events = this.queue;
-    this.queue = [];
-
-    await this.onFlush(events);
-  }
-
-  private estimateSize(): number {
-    return JSON.stringify(this.queue).length;
-  }
+    private estimateSize(): number {
+        return JSON.stringify(this.queue).length;
+    }
 }
 ```
 
@@ -647,13 +647,13 @@ Each batch becomes one encrypted document:
 
 ```typescript
 interface EventBatch {
-  id: string; // Batch UUID
-  vaultId: string;
-  events: CRDTEvent[]; // The actual events
-  minHLC: HLCTimestamp; // Earliest event in batch
-  maxHLC: HLCTimestamp; // Latest event in batch
-  createdBy: string; // Node that created batch
-  createdAt: number; // Wall clock (for debugging)
+    id: string; // Batch UUID
+    vaultId: string;
+    events: CRDTEvent[]; // The actual events
+    minHLC: HLCTimestamp; // Earliest event in batch
+    maxHLC: HLCTimestamp; // Latest event in batch
+    createdBy: string; // Node that created batch
+    createdAt: number; // Wall clock (for debugging)
 }
 
 // Stored as encrypted blob
@@ -704,27 +704,27 @@ Without compaction:
 
 ```typescript
 interface VaultSnapshot {
-  id: string;
-  vaultId: string;
+    id: string;
+    vaultId: string;
 
-  // Version tracking
-  hlc: HLCTimestamp; // HLC of last included event
-  eventBatchIds: string[]; // Which batches are included
+    // Version tracking
+    hlc: HLCTimestamp; // HLC of last included event
+    eventBatchIds: string[]; // Which batches are included
 
-  // Materialized state (encrypted)
-  state: {
-    transactions: Map<string, Transaction>;
-    accounts: Map<string, Account>;
-    people: Map<string, Person>;
-    tags: Map<string, Tag>;
-    statuses: Map<string, Status>;
-    automations: Map<string, Automation>;
-    imports: Map<string, Import>;
-  };
+    // Materialized state (encrypted)
+    state: {
+        transactions: Map<string, Transaction>;
+        accounts: Map<string, Account>;
+        people: Map<string, Person>;
+        tags: Map<string, Tag>;
+        statuses: Map<string, Status>;
+        automations: Map<string, Automation>;
+        imports: Map<string, Import>;
+    };
 
-  // Metadata
-  createdAt: number;
-  createdBy: string;
+    // Metadata
+    createdAt: number;
+    createdBy: string;
 }
 ```
 
@@ -780,37 +780,37 @@ async function compactVault(vaultId: string) {
 
 ```typescript
 async function syncVault(vaultId: string) {
-  // 1. Check local state
-  const localHLC = getLocalLastHLC(vaultId);
+    // 1. Check local state
+    const localHLC = getLocalLastHLC(vaultId);
 
-  // 2. Get server's latest snapshot
-  const serverSnapshot = await fetchLatestSnapshot(vaultId);
+    // 2. Get server's latest snapshot
+    const serverSnapshot = await fetchLatestSnapshot(vaultId);
 
-  if (!localHLC || compareHLC(serverSnapshot.hlc, localHLC) > 0) {
-    // 3a. We're behind - load snapshot first
-    if (shouldUseSnapshot(localHLC, serverSnapshot.hlc)) {
-      await loadSnapshot(serverSnapshot);
+    if (!localHLC || compareHLC(serverSnapshot.hlc, localHLC) > 0) {
+        // 3a. We're behind - load snapshot first
+        if (shouldUseSnapshot(localHLC, serverSnapshot.hlc)) {
+            await loadSnapshot(serverSnapshot);
+        }
+
+        // 3b. Get event batches since our state
+        const syncFromHLC = localHLC ?? serverSnapshot.hlc;
+        const batches = await fetchEventBatchesSince(vaultId, syncFromHLC);
+
+        for (const batch of batches) {
+            await applyEventBatch(batch);
+        }
     }
 
-    // 3b. Get event batches since our state
-    const syncFromHLC = localHLC ?? serverSnapshot.hlc;
-    const batches = await fetchEventBatchesSince(vaultId, syncFromHLC);
-
-    for (const batch of batches) {
-      await applyEventBatch(batch);
-    }
-  }
-
-  // 4. Subscribe to real-time updates
-  subscribeToEvents(vaultId, (event) => applyEvent(event));
+    // 4. Subscribe to real-time updates
+    subscribeToEvents(vaultId, (event) => applyEvent(event));
 }
 
 function shouldUseSnapshot(localHLC: HLCTimestamp | null, snapshotHLC: HLCTimestamp): boolean {
-  if (!localHLC) return true; // First sync
+    if (!localHLC) return true; // First sync
 
-  // Use snapshot if we're very far behind (heuristic)
-  const hoursBehind = (snapshotHLC.wallTime - localHLC.wallTime) / (1000 * 60 * 60);
-  return hoursBehind > 24; // More than 24 hours behind
+    // Use snapshot if we're very far behind (heuristic)
+    const hoursBehind = (snapshotHLC.wallTime - localHLC.wallTime) / (1000 * 60 * 60);
+    return hoursBehind > 24; // More than 24 hours behind
 }
 ```
 
@@ -818,16 +818,16 @@ function shouldUseSnapshot(localHLC: HLCTimestamp | null, snapshotHLC: HLCTimest
 
 ```typescript
 const compactionTriggers = {
-  // Time-based
-  maxHoursSinceLastCompaction: 24,
+    // Time-based
+    maxHoursSinceLastCompaction: 24,
 
-  // Size-based
-  maxEventBatchesSinceSnapshot: 100,
-  maxEventsSinceSnapshot: 10000,
+    // Size-based
+    maxEventBatchesSinceSnapshot: 100,
+    maxEventsSinceSnapshot: 10000,
 
-  // On-demand
-  onClientRequest: true, // Client can request compaction
-  onUserIdle: true, // Compact when vault has no active users
+    // On-demand
+    onClientRequest: true, // Client can request compaction
+    onUserIdle: true, // Compact when vault has no active users
 };
 ```
 
@@ -838,47 +838,47 @@ const compactionTriggers = {
 ### 🔴 Critical Issues
 
 1. **Password Strength Enforcement**
-   - 20-character minimum mentioned in spec is good
-   - Consider: passphrase suggestions, breached password checking
-   - Recommendation: Use zxcvbn for strength estimation
+    - 20-character minimum mentioned in spec is good
+    - Consider: passphrase suggestions, breached password checking
+    - Recommendation: Use zxcvbn for strength estimation
 
 2. **Authentication Key Separation**
-   - Never use the same key for auth and encryption
-   - Server should only see authentication proof, never KEK
-   - Recommendation: Derive auth key and KEK separately from password
+    - Never use the same key for auth and encryption
+    - Server should only see authentication proof, never KEK
+    - Recommendation: Derive auth key and KEK separately from password
 
 3. **Client-Side Key Storage**
-   - Never persist decrypted keys to localStorage
-   - Use session-only memory or Web Crypto non-extractable keys
-   - Recommendation: Clear keys on tab close, re-derive on session resume
+    - Never persist decrypted keys to localStorage
+    - Use session-only memory or Web Crypto non-extractable keys
+    - Recommendation: Clear keys on tab close, re-derive on session resume
 
 ### 🟡 Important Considerations
 
 4. **Metadata Leakage**
-   - Server can see: when users sync, document sizes, access patterns
-   - Timestamps reveal activity patterns
-   - Recommendation: Consider padding documents, batching queries
+    - Server can see: when users sync, document sizes, access patterns
+    - Timestamps reveal activity patterns
+    - Recommendation: Consider padding documents, batching queries
 
 5. **Nonce/IV Reuse**
-   - AES-GCM requires unique nonce per encryption
-   - Reusing nonce = catastrophic key recovery
-   - Recommendation: Use random 12-byte nonce, never counter-based
+    - AES-GCM requires unique nonce per encryption
+    - Reusing nonce = catastrophic key recovery
+    - Recommendation: Use random 12-byte nonce, never counter-based
 
 6. **Forward Secrecy**
-   - If vault key is compromised, all historical data is exposed
-   - True forward secrecy is complex in async systems
-   - Recommendation: Document the tradeoff, consider periodic key rotation
+    - If vault key is compromised, all historical data is exposed
+    - True forward secrecy is complex in async systems
+    - Recommendation: Document the tradeoff, consider periodic key rotation
 
 ### 🟢 Good Practices to Maintain
 
 7. **Server Knows Nothing**
-   - Server stores only encrypted blobs
-   - No server-side queries on plaintext
-   - RLS based on vault membership, not data content
+    - Server stores only encrypted blobs
+    - No server-side queries on plaintext
+    - RLS based on vault membership, not data content
 
 8. **Audit Trail**
-   - Event sourcing naturally provides audit trail
-   - Consider: signed events, tamper detection
+    - Event sourcing naturally provides audit trail
+    - Consider: signed events, tamper detection
 
 ---
 
@@ -887,19 +887,19 @@ const compactionTriggers = {
 ### Architecture Improvements
 
 1. **Use Supabase Realtime (not Vercel Blob)**
-   - Real-time WebSocket is essential for collaboration
-   - Vercel Blob's 60s cache makes it unsuitable
-   - Supabase's free tier is generous
+    - Real-time WebSocket is essential for collaboration
+    - Vercel Blob's 60s cache makes it unsuitable
+    - Supabase's free tier is generous
 
 2. **Consider PowerSync as Alternative**
-   - Documented E2EE support
-   - Better offline handling
-   - More batteries-included
+    - Documented E2EE support
+    - Better offline handling
+    - More batteries-included
 
 3. **Separate Auth from Encryption**
-   - Use Supabase Auth for session management
-   - Derive encryption keys client-side only
-   - Server never sees encryption keys
+    - Use Supabase Auth for session management
+    - Derive encryption keys client-side only
+    - Server never sees encryption keys
 
 ### Implementation Priorities
 

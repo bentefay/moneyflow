@@ -12,30 +12,30 @@ import type { Transaction, TransactionStore } from "@/lib/crdt/schema";
 // ============================================================================
 
 export interface TransactionLocation {
-	accountId: string;
-	date: string; // YYYY-MM-DD
-	transactionId: string;
+    accountId: string;
+    date: string; // YYYY-MM-DD
+    transactionId: string;
 }
 
 export interface TransactionFilter {
-	accountIds?: string[];
-	dateRange?: { start: string; end: string }; // YYYY-MM-DD
-	tagIds?: string[];
-	statusIds?: string[];
-	personIds?: string[];
-	search?: string;
-	showDuplicatesOnly?: boolean;
-	excludeDeleted?: boolean;
+    accountIds?: string[];
+    dateRange?: { start: string; end: string }; // YYYY-MM-DD
+    tagIds?: string[];
+    statusIds?: string[];
+    personIds?: string[];
+    search?: string;
+    showDuplicatesOnly?: boolean;
+    excludeDeleted?: boolean;
 }
 
 export interface PaginationOptions {
-	offset?: number;
-	limit?: number;
+    offset?: number;
+    limit?: number;
 }
 
 export interface TransactionWithDuplicates extends Transaction {
-	hasDuplicates: boolean;
-	duplicateCount: number;
+    hasDuplicates: boolean;
+    duplicateCount: number;
 }
 
 // ============================================================================
@@ -69,8 +69,8 @@ export function getAllTransactions(store: TransactionStore): Transaction[];
  * @returns Transaction if found, undefined otherwise
  */
 export function findTransaction(
-	store: TransactionStore,
-	location: TransactionLocation
+    store: TransactionStore,
+    location: TransactionLocation
 ): Transaction | undefined;
 
 /**
@@ -82,8 +82,8 @@ export function findTransaction(
  * @returns Transaction and its location if found
  */
 export function findTransactionById(
-	store: TransactionStore,
-	transactionId: string
+    store: TransactionStore,
+    transactionId: string
 ): { transaction: Transaction; location: TransactionLocation } | undefined;
 
 /**
@@ -94,8 +94,8 @@ export function findTransactionById(
  * @returns Filtered array of transactions
  */
 export function filterTransactions(
-	transactions: Transaction[],
-	filter: TransactionFilter
+    transactions: Transaction[],
+    filter: TransactionFilter
 ): Transaction[];
 
 /**
@@ -106,8 +106,8 @@ export function filterTransactions(
  * @returns Paginated slice
  */
 export function paginateTransactions(
-	transactions: Transaction[],
-	options: PaginationOptions
+    transactions: Transaction[],
+    options: PaginationOptions
 ): Transaction[];
 
 /**
@@ -119,8 +119,8 @@ export function paginateTransactions(
  * @returns Transactions with hasDuplicates and duplicateCount
  */
 export function getTransactionsWithDuplicates(
-	store: TransactionStore,
-	accountId?: string
+    store: TransactionStore,
+    accountId?: string
 ): TransactionWithDuplicates[];
 
 /**
@@ -133,9 +133,9 @@ export function getTransactionsWithDuplicates(
  * @returns Transactions sorted by date ascending
  */
 export function getTransactionsInDateRange(
-	store: TransactionStore,
-	accountId: string,
-	dateRange: { start: string; end: string }
+    store: TransactionStore,
+    accountId: string,
+    dateRange: { start: string; end: string }
 ): Transaction[];
 
 /**
@@ -160,7 +160,7 @@ export function hasDayBucket(store: TransactionStore, accountId: string, date: s
  * @returns Day bucket (may be newly created)
  */
 export function getOrCreateDayBucket(
-	store: TransactionStore,
-	accountId: string,
-	date: string
+    store: TransactionStore,
+    accountId: string,
+    date: string
 ): DayBucket;

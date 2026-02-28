@@ -12,39 +12,39 @@ import type { Transaction, TransactionStore } from "@/lib/crdt/schema";
 // ============================================================================
 
 export interface TransactionLocation {
-	accountId: string;
-	date: string; // YYYY-MM-DD
-	transactionId: string;
+    accountId: string;
+    date: string; // YYYY-MM-DD
+    transactionId: string;
 }
 
 export interface InsertTransactionInput {
-	transaction: Omit<Transaction, "suspectedDuplicates">;
-	suspectedDuplicateOf?: TransactionLocation; // If set, nest under this parent
+    transaction: Omit<Transaction, "suspectedDuplicates">;
+    suspectedDuplicateOf?: TransactionLocation; // If set, nest under this parent
 }
 
 export interface UpdateTransactionInput {
-	location: TransactionLocation;
-	updates: Partial<Omit<Transaction, "id" | "accountId" | "suspectedDuplicates">>;
+    location: TransactionLocation;
+    updates: Partial<Omit<Transaction, "id" | "accountId" | "suspectedDuplicates">>;
 }
 
 export interface MoveTransactionInput {
-	location: TransactionLocation;
-	newDate: string; // YYYY-MM-DD
+    location: TransactionLocation;
+    newDate: string; // YYYY-MM-DD
 }
 
 export interface DeleteTransactionInput {
-	location: TransactionLocation;
-	cascade?: boolean; // Default true for parents, ignored for duplicates
+    location: TransactionLocation;
+    cascade?: boolean; // Default true for parents, ignored for duplicates
 }
 
 export interface UnnestDuplicateInput {
-	parentLocation: TransactionLocation;
-	duplicateId: string;
+    parentLocation: TransactionLocation;
+    duplicateId: string;
 }
 
 export interface SwapDuplicateInput {
-	parentLocation: TransactionLocation;
-	duplicateId: string;
+    parentLocation: TransactionLocation;
+    duplicateId: string;
 }
 
 // ============================================================================

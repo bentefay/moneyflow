@@ -12,10 +12,11 @@
 import type { TransformDefinition } from "loro-mirror";
 import { schema } from "loro-mirror";
 import { Temporal } from "temporal-polyfill";
+
 import {
-	type CurrencyCode,
-	isValidCurrencyCode,
-	type MoneyMinorUnits,
+    type CurrencyCode,
+    isValidCurrencyCode,
+    type MoneyMinorUnits,
 } from "@/lib/domain/currency";
 import type { Percentage } from "@/types";
 
@@ -27,26 +28,26 @@ import type { Percentage } from "@/types";
  * string (ISO YYYY-MM-DD) ↔ Temporal.PlainDate
  */
 export const plainDateTransform: TransformDefinition<string, Temporal.PlainDate> = {
-	decode: (value) => Temporal.PlainDate.from(value),
-	encode: (value) => value.toString(),
-	isEqual: (a, b) => Temporal.PlainDate.compare(a, b) === 0,
-	validate: (value) => {
-		if (!(value instanceof Temporal.PlainDate)) return "Expected Temporal.PlainDate";
-		return true;
-	},
+    decode: (value) => Temporal.PlainDate.from(value),
+    encode: (value) => value.toString(),
+    isEqual: (a, b) => Temporal.PlainDate.compare(a, b) === 0,
+    validate: (value) => {
+        if (!(value instanceof Temporal.PlainDate)) return "Expected Temporal.PlainDate";
+        return true;
+    },
 };
 
 /**
  * number (epoch milliseconds) ↔ Temporal.Instant
  */
 export const instantFromMillisTransform: TransformDefinition<number, Temporal.Instant> = {
-	decode: (value) => Temporal.Instant.fromEpochMilliseconds(value),
-	encode: (value) => value.epochMilliseconds,
-	isEqual: (a, b) => a.epochMilliseconds === b.epochMilliseconds,
-	validate: (value) => {
-		if (!(value instanceof Temporal.Instant)) return "Expected Temporal.Instant";
-		return true;
-	},
+    decode: (value) => Temporal.Instant.fromEpochMilliseconds(value),
+    encode: (value) => value.epochMilliseconds,
+    isEqual: (a, b) => a.epochMilliseconds === b.epochMilliseconds,
+    validate: (value) => {
+        if (!(value instanceof Temporal.Instant)) return "Expected Temporal.Instant";
+        return true;
+    },
 };
 
 /**
@@ -54,12 +55,12 @@ export const instantFromMillisTransform: TransformDefinition<number, Temporal.In
  * Branded number — === does value comparison on primitives.
  */
 export const moneyMinorUnitsTransform: TransformDefinition<number, MoneyMinorUnits> = {
-	decode: (value) => value as MoneyMinorUnits,
-	encode: (value) => value as number,
-	validate: (value) => {
-		if (!Number.isInteger(value)) return "MoneyMinorUnits must be an integer";
-		return true;
-	},
+    decode: (value) => value as MoneyMinorUnits,
+    encode: (value) => value as number,
+    validate: (value) => {
+        if (!Number.isInteger(value)) return "MoneyMinorUnits must be an integer";
+        return true;
+    },
 };
 
 /**
@@ -67,8 +68,8 @@ export const moneyMinorUnitsTransform: TransformDefinition<number, MoneyMinorUni
  * Branded number — === does value comparison on primitives.
  */
 export const percentageTransform: TransformDefinition<number, Percentage> = {
-	decode: (value) => value as Percentage,
-	encode: (value) => value as number,
+    decode: (value) => value as Percentage,
+    encode: (value) => value as number,
 };
 
 /**
@@ -76,12 +77,12 @@ export const percentageTransform: TransformDefinition<number, Percentage> = {
  * === works for string comparison.
  */
 export const currencyCodeTransform: TransformDefinition<string, CurrencyCode> = {
-	decode: (value) => value as CurrencyCode,
-	encode: (value) => value as string,
-	validate: (value) => {
-		if (!isValidCurrencyCode(value as string)) return `Invalid currency code: ${value}`;
-		return true;
-	},
+    decode: (value) => value as CurrencyCode,
+    encode: (value) => value as string,
+    validate: (value) => {
+        if (!isValidCurrencyCode(value as string)) return `Invalid currency code: ${value}`;
+        return true;
+    },
 };
 
 /**
@@ -89,19 +90,19 @@ export const currencyCodeTransform: TransformDefinition<string, CurrencyCode> = 
  * Decode is a cast; validate checks membership.
  */
 export function createEnumTransform<T extends string>(
-	values: readonly T[]
+    values: readonly T[]
 ): TransformDefinition<string, T> {
-	const valueSet = new Set<string>(values);
-	return {
-		decode: (value) => value as T,
-		encode: (value) => value as string,
-		validate: (value) => {
-			if (!valueSet.has(value as string)) {
-				return `Expected one of: ${values.join(", ")}; got: ${value}`;
-			}
-			return true;
-		},
-	};
+    const valueSet = new Set<string>(values);
+    return {
+        decode: (value) => value as T,
+        encode: (value) => value as string,
+        validate: (value) => {
+            if (!valueSet.has(value as string)) {
+                return `Expected one of: ${values.join(", ")}; got: ${value}`;
+            }
+            return true;
+        },
+    };
 }
 
 // ============================================
@@ -124,21 +125,21 @@ import type { SchemaOptions } from "loro-mirror";
  *   richSchema.StringEnum(["a", "b"] as const, { required: true })
  */
 export const richSchema = {
-	PlainDate: <O extends SchemaOptions>(opts?: O) =>
-		schema.String(opts).transform(plainDateTransform),
+    PlainDate: <O extends SchemaOptions>(opts?: O) =>
+        schema.String(opts).transform(plainDateTransform),
 
-	Instant: <O extends SchemaOptions>(opts?: O) =>
-		schema.Number(opts).transform(instantFromMillisTransform),
+    Instant: <O extends SchemaOptions>(opts?: O) =>
+        schema.Number(opts).transform(instantFromMillisTransform),
 
-	MoneyMinorUnits: <O extends SchemaOptions>(opts?: O) =>
-		schema.Number(opts).transform(moneyMinorUnitsTransform),
+    MoneyMinorUnits: <O extends SchemaOptions>(opts?: O) =>
+        schema.Number(opts).transform(moneyMinorUnitsTransform),
 
-	Percentage: <O extends SchemaOptions>(opts?: O) =>
-		schema.Number(opts).transform(percentageTransform),
+    Percentage: <O extends SchemaOptions>(opts?: O) =>
+        schema.Number(opts).transform(percentageTransform),
 
-	CurrencyCode: <O extends SchemaOptions>(opts?: O) =>
-		schema.String(opts).transform(currencyCodeTransform),
+    CurrencyCode: <O extends SchemaOptions>(opts?: O) =>
+        schema.String(opts).transform(currencyCodeTransform),
 
-	StringEnum: <T extends string, O extends SchemaOptions>(values: readonly T[], opts?: O) =>
-		schema.String(opts).transform(createEnumTransform(values)),
+    StringEnum: <T extends string, O extends SchemaOptions>(values: readonly T[], opts?: O) =>
+        schema.String(opts).transform(createEnumTransform(values)),
 };

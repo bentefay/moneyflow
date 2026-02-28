@@ -27,11 +27,11 @@ export type WithCid<T> = T & { readonly $cid: string };
  * ```
  */
 export function getEntriesOfLoroMap<T extends object>(
-	record: Record<string, T | string>
+    record: Record<string, T | string>
 ): Array<[string, T]> {
-	return Object.entries(record).filter(
-		(entry): entry is [string, T] => entry[0] !== "$cid" && typeof entry[1] === "object"
-	);
+    return Object.entries(record).filter(
+        (entry): entry is [string, T] => entry[0] !== "$cid" && typeof entry[1] === "object"
+    );
 }
 
 /**
@@ -41,9 +41,9 @@ export function getEntriesOfLoroMap<T extends object>(
  * For object types, use `getEntriesOfLoroMap` instead.
  */
 export function getEntriesOfLoroPrimitiveMap<T extends number | boolean>(
-	record: Record<string, T | string>
+    record: Record<string, T | string>
 ): Array<[string, T]> {
-	return Object.entries(record).filter(
-		(entry): entry is [string, T] => entry[0] !== "$cid"
-	) as Array<[string, T]>;
+    return Object.entries(record).filter(
+        (entry): entry is [string, T] => entry[0] !== "$cid"
+    ) as Array<[string, T]>;
 }

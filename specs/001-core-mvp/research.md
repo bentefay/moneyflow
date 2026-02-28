@@ -77,9 +77,9 @@ See [crdt-research.md](research/crdt-research.md) for detailed CRDT analysis.
 
 ```typescript
 interface HLC {
-  wallTime: number; // milliseconds since epoch
-  logical: number; // logical counter for same-wallTime events
-  nodeId: string; // unique client identifier
+    wallTime: number; // milliseconds since epoch
+    logical: number; // logical counter for same-wallTime events
+    nodeId: string; // unique client identifier
 }
 ```
 
@@ -119,10 +119,10 @@ interface TransactionEvent {
 
 ```typescript
 const argon2Params = {
-  memory: 65536, // 64 MB
-  iterations: 3,
-  parallelism: 4,
-  hashLength: 32, // 256 bits
+    memory: 65536, // 64 MB
+    iterations: 3,
+    parallelism: 4,
+    hashLength: 32, // 256 bits
 };
 ```
 
@@ -161,11 +161,11 @@ Password + Salt → Argon2id → KEK (Key Encryption Key)
 
 ```typescript
 interface Vault {
-  id: string;
-  wrappedKeys: {
-    [userId: string]: EncryptedVaultKey; // encrypted with user's public key
-  };
-  // ... events stored separately
+    id: string;
+    wrappedKeys: {
+        [userId: string]: EncryptedVaultKey; // encrypted with user's public key
+    };
+    // ... events stored separately
 }
 ```
 
@@ -175,9 +175,9 @@ interface Vault {
 
 ```typescript
 const batchConfig = {
-  debounceMs: 1000, // Wait 1s after last edit
-  maxWaitMs: 5000, // Force flush after 5s
-  maxEvents: 100, // Force flush after 100 events
+    debounceMs: 1000, // Wait 1s after last edit
+    maxWaitMs: 5000, // Force flush after 5s
+    maxEvents: 100, // Force flush after 100 events
 };
 ```
 
@@ -201,20 +201,20 @@ const batchConfig = {
 
 ```typescript
 interface VaultSnapshot {
-  vaultId: string;
-  version: number; // Monotonic snapshot version
-  hlc: HLC; // HLC at snapshot time
-  encryptedState: string; // Full hydrated state, encrypted
-  createdAt: Date;
+    vaultId: string;
+    version: number; // Monotonic snapshot version
+    hlc: HLC; // HLC at snapshot time
+    encryptedState: string; // Full hydrated state, encrypted
+    createdAt: Date;
 }
 
 interface EventBatch {
-  vaultId: string;
-  batchId: string;
-  afterSnapshotVersion: number; // Which snapshot this follows
-  encryptedEvents: string; // Array of events, encrypted
-  hlc: HLC;
-  createdAt: Date;
+    vaultId: string;
+    batchId: string;
+    afterSnapshotVersion: number; // Which snapshot this follows
+    encryptedEvents: string; // Array of events, encrypted
+    hlc: HLC;
+    createdAt: Date;
 }
 ```
 
@@ -235,12 +235,12 @@ interface EventBatch {
 
 ```typescript
 const encryptionSpec = {
-  algorithm: "XChaCha20-Poly1305",
-  keySize: 256,
-  nonceSize: 192, // 24 bytes - safe for random generation
-  tagSize: 128, // 16 bytes
-  kdf: "HKDF-SHA256", // Domain-separated key derivation from BIP39 seed
-  keyWrapping: "X25519 + XSalsa20-Poly1305", // libsodium sealed box
+    algorithm: "XChaCha20-Poly1305",
+    keySize: 256,
+    nonceSize: 192, // 24 bytes - safe for random generation
+    tagSize: 128, // 16 bytes
+    kdf: "HKDF-SHA256", // Domain-separated key derivation from BIP39 seed
+    keyWrapping: "X25519 + XSalsa20-Poly1305", // libsodium sealed box
 };
 ```
 
@@ -282,23 +282,23 @@ Password + Salt₂ → Argon2id → kekKey     (for key encryption key)
 
 ```json
 {
-  "dependencies": {
-    "next": "^15.0.0",
-    "@supabase/supabase-js": "^2.x",
-    "@js-temporal/polyfill": "^0.4.x",
-    "remeda": "^2.x",
-    "libsodium-wrappers": "^0.7.x",
-    "zod": "^3.x",
-    "react-hook-form": "^7.x",
-    "@hookform/resolvers": "^3.x"
-  },
-  "devDependencies": {
-    "typescript": "^5.x",
-    "vitest": "^2.x",
-    "@playwright/test": "^1.x",
-    "tailwindcss": "^3.x",
-    "@shadcn/ui": "latest"
-  }
+    "dependencies": {
+        "next": "^15.0.0",
+        "@supabase/supabase-js": "^2.x",
+        "@js-temporal/polyfill": "^0.4.x",
+        "remeda": "^2.x",
+        "libsodium-wrappers": "^0.7.x",
+        "zod": "^3.x",
+        "react-hook-form": "^7.x",
+        "@hookform/resolvers": "^3.x"
+    },
+    "devDependencies": {
+        "typescript": "^5.x",
+        "vitest": "^2.x",
+        "@playwright/test": "^1.x",
+        "tailwindcss": "^3.x",
+        "@shadcn/ui": "latest"
+    }
 }
 ```
 

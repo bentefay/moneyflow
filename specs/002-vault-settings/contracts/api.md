@@ -13,6 +13,7 @@
 ## State Mutations (Client-Side)
 
 All preference changes are made through loro-mirror's `useVaultAction` hook, which:
+
 1. Mutates the local CRDT state
 2. Generates CRDT operations
 3. Persists to IndexedDB
@@ -23,7 +24,7 @@ All preference changes are made through loro-mirror's `useVaultAction` hook, whi
 ```typescript
 // No API call - direct CRDT mutation
 const setDefaultCurrency = useVaultAction((state, currency: string) => {
-  state.preferences.defaultCurrency = currency;
+    state.preferences.defaultCurrency = currency;
 });
 
 // Usage
@@ -31,6 +32,7 @@ setDefaultCurrency("EUR");
 ```
 
 **Sync Flow**:
+
 ```
 Client                          Server
   │                               │
@@ -51,26 +53,27 @@ Client                          Server
 
 These routes from 001-core-mvp handle all persistence:
 
-| Route | Purpose |
-|-------|---------|
-| `vault.ops.push` | Push encrypted CRDT operations to server |
-| `vault.ops.pull` | Pull operations from other clients |
+| Route                 | Purpose                                       |
+| --------------------- | --------------------------------------------- |
+| `vault.ops.push`      | Push encrypted CRDT operations to server      |
+| `vault.ops.pull`      | Pull operations from other clients            |
 | `vault.snapshot.save` | Save shallow snapshot when threshold exceeded |
-| `vault.snapshot.load` | Load latest snapshot on cold start |
+| `vault.snapshot.load` | Load latest snapshot on cold start            |
 
 ## Navigation (No API)
 
 Route changes are purely client-side Next.js routing:
 
-| From | To | Trigger |
-|------|-----|---------|
-| `/dashboard` | `/transactions` | Direct URL or link click |
-| After vault creation | `/settings` | `router.push("/settings")` |
-| After unlock | `/transactions` | `router.replace("/transactions")` |
+| From                 | To              | Trigger                           |
+| -------------------- | --------------- | --------------------------------- |
+| `/dashboard`         | `/transactions` | Direct URL or link click          |
+| After vault creation | `/settings`     | `router.push("/settings")`        |
+| After unlock         | `/transactions` | `router.replace("/transactions")` |
 
 ## No New Contracts Needed
 
 This feature adds:
+
 - ✅ UI pages (client-side only)
 - ✅ CRDT state mutations (existing infrastructure)
 - ✅ Navigation changes (client-side routing)

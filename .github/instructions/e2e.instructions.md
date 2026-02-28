@@ -65,7 +65,7 @@ Create helpers for **multi-step flows** that are reused across tests:
 ```typescript
 // ❌ Bad: Unnecessary indirection
 async function clickButton(page, name) {
-  await page.getByRole("button", { name }).click();
+    await page.getByRole("button", { name }).click();
 }
 
 // ✅ Good: Just use Playwright directly
@@ -97,18 +97,18 @@ Tests should read like specifications using shared helpers.
 import { createNewIdentity, goToTags } from "./helpers";
 
 test.describe("Tags", () => {
-  test.beforeEach(async ({ page }) => {
-    await createNewIdentity(page);
-    await goToTags(page);
-  });
+    test.beforeEach(async ({ page }) => {
+        await createNewIdentity(page);
+        await goToTags(page);
+    });
 
-  test("should create a tag", async ({ page }) => {
-    await page.getByRole("button", { name: /add tag/i }).click();
-    await page.getByPlaceholder(/tag name/i).fill("Food");
-    await page.getByRole("button", { name: /^add tag$/i }).click();
+    test("should create a tag", async ({ page }) => {
+        await page.getByRole("button", { name: /add tag/i }).click();
+        await page.getByPlaceholder(/tag name/i).fill("Food");
+        await page.getByRole("button", { name: /^add tag$/i }).click();
 
-    await expect(page.getByText("Food", { exact: true })).toBeVisible();
-  });
+        await expect(page.getByText("Food", { exact: true })).toBeVisible();
+    });
 });
 ```
 
@@ -126,9 +126,9 @@ import { createNewIdentity, goToFeature } from "./helpers";
 // ============================================================================
 
 async function createItem(page: Page, data: { name: string }): Promise<void> {
-  await page.getByRole("button", { name: /add/i }).click();
-  await page.getByPlaceholder(/name/i).fill(data.name);
-  await page.getByRole("button", { name: /save/i }).click();
+    await page.getByRole("button", { name: /add/i }).click();
+    await page.getByPlaceholder(/name/i).fill(data.name);
+    await page.getByRole("button", { name: /save/i }).click();
 }
 
 // ============================================================================
@@ -136,14 +136,14 @@ async function createItem(page: Page, data: { name: string }): Promise<void> {
 // ============================================================================
 
 test.describe("Feature", () => {
-  test.beforeEach(async ({ page }) => {
-    await createNewIdentity(page);
-    await goToFeature(page);
-  });
+    test.beforeEach(async ({ page }) => {
+        await createNewIdentity(page);
+        await goToFeature(page);
+    });
 
-  test("should [behaviour]", async ({ page }) => {
-    // Arrange → Act → Assert
-  });
+    test("should [behaviour]", async ({ page }) => {
+        // Arrange → Act → Assert
+    });
 });
 ```
 

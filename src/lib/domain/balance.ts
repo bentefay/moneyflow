@@ -9,6 +9,7 @@
  */
 
 import { Temporal } from "temporal-polyfill";
+
 import type { Account, Transaction } from "@/lib/crdt/schema";
 import type { MoneyMinorUnits } from "@/lib/domain/currency";
 
@@ -16,23 +17,23 @@ import type { MoneyMinorUnits } from "@/lib/domain/currency";
  * Transaction with calculated running balance.
  */
 export interface TransactionWithBalance {
-	id: string;
-	date: Temporal.PlainDate;
-	/** Amount in minor units (cents) */
-	amount: MoneyMinorUnits;
-	accountId: string;
-	/** Running balance in minor units (cents) */
-	runningBalance: MoneyMinorUnits;
+    id: string;
+    date: Temporal.PlainDate;
+    /** Amount in minor units (cents) */
+    amount: MoneyMinorUnits;
+    accountId: string;
+    /** Running balance in minor units (cents) */
+    runningBalance: MoneyMinorUnits;
 }
 
 /**
  * Options for balance calculation.
  */
 export interface BalanceCalculationOptions {
-	/** Starting balance for the account in minor units (e.g., cents) */
-	startingBalance?: MoneyMinorUnits;
-	/** Whether to calculate balance from newest to oldest (default: true) */
-	reverseOrder?: boolean;
+    /** Starting balance for the account in minor units (e.g., cents) */
+    startingBalance?: MoneyMinorUnits;
+    /** Whether to calculate balance from newest to oldest (default: true) */
+    reverseOrder?: boolean;
 }
 
 /**
@@ -52,35 +53,35 @@ export interface BalanceCalculationOptions {
  * ```
  */
 export function calculateRunningBalances(
-	transactions: Pick<Transaction, "id" | "date" | "amount" | "accountId">[],
-	accountStartingBalances: Record<string, number> = {}
+    transactions: Pick<Transaction, "id" | "date" | "amount" | "accountId">[],
+    accountStartingBalances: Record<string, number> = {}
 ): Map<string, number> {
-	const result = new Map<string, number>();
+    const result = new Map<string, number>();
 
-	// Group transactions by account
-	const transactionsByAccount = new Map<string, typeof transactions>();
-	for (const tx of transactions) {
-		const list = transactionsByAccount.get(tx.accountId) ?? [];
-		list.push(tx);
-		transactionsByAccount.set(tx.accountId, list);
-	}
+    // Group transactions by account
+    const transactionsByAccount = new Map<string, typeof transactions>();
+    for (const tx of transactions) {
+        const list = transactionsByAccount.get(tx.accountId) ?? [];
+        list.push(tx);
+        transactionsByAccount.set(tx.accountId, list);
+    }
 
-	// Calculate running balance for each account
-	for (const [accountId, accountTransactions] of transactionsByAccount) {
-		// Sort by date ascending for cumulative calculation
-		const sorted = [...accountTransactions].sort((a, b) =>
-			Temporal.PlainDate.compare(a.date, b.date)
-		);
+    // Calculate running balance for each account
+    for (const [accountId, accountTransactions] of transactionsByAccount) {
+        // Sort by date ascending for cumulative calculation
+        const sorted = [...accountTransactions].sort((a, b) =>
+            Temporal.PlainDate.compare(a.date, b.date)
+        );
 
-		let balance = accountStartingBalances[accountId] ?? 0;
+        let balance = accountStartingBalances[accountId] ?? 0;
 
-		for (const tx of sorted) {
-			balance += tx.amount;
-			result.set(tx.id, balance);
-		}
-	}
+        for (const tx of sorted) {
+            balance += tx.amount;
+            result.set(tx.id, balance);
+        }
+    }
 
-	return result;
+    return result;
 }
 
 /**
@@ -94,16 +95,16 @@ export function calculateRunningBalances(
  * @returns Map of transaction ID to running balance
  */
 export function calculateTableRunningBalances(
-	transactions: Pick<Transaction, "id" | "date" | "amount" | "accountId">[],
-	accounts: Record<string, Account>
+    transactions: Pick<Transaction, "id" | "date" | "amount" | "accountId">[],
+    accounts: Record<string, Account>
 ): Map<string, number> {
-	// Extract starting balances from accounts
-	const startingBalances: Record<string, number> = {};
-	for (const [id, account] of Object.entries(accounts)) {
-		startingBalances[id] = account.balance ?? 0;
-	}
+    // Extract starting balances from accounts
+    const startingBalances: Record<string, number> = {};
+    for (const [id, account] of Object.entries(accounts)) {
+        startingBalances[id] = account.balance ?? 0;
+    }
 
-	return calculateRunningBalances(transactions, startingBalances);
+    return calculateRunningBalances(transactions, startingBalances);
 }
 
 /**
@@ -114,10 +115,10 @@ export function calculateTableRunningBalances(
  * @returns Current account balance
  */
 export function calculateAccountBalance(
-	transactions: Pick<Transaction, "amount">[],
-	startingBalance = 0
+    transactions: Pick<Transaction, "amount">[],
+    startingBalance = 0
 ): number {
-	return transactions.reduce((sum, tx) => sum + tx.amount, startingBalance);
+    return transactions.reduce((sum, tx) => sum + tx.amount, startingBalance);
 }
 
 /**
@@ -128,23 +129,23 @@ export function calculateAccountBalance(
  * @returns Map of account ID to current balance
  */
 export function calculateAllAccountBalances(
-	transactions: Pick<Transaction, "amount" | "accountId">[],
-	accounts: Record<string, Account>
+    transactions: Pick<Transaction, "amount" | "accountId">[],
+    accounts: Record<string, Account>
 ): Map<string, number> {
-	const result = new Map<string, number>();
+    const result = new Map<string, number>();
 
-	// Initialize with starting balances
-	for (const [id, account] of Object.entries(accounts)) {
-		result.set(id, account.balance ?? 0);
-	}
+    // Initialize with starting balances
+    for (const [id, account] of Object.entries(accounts)) {
+        result.set(id, account.balance ?? 0);
+    }
 
-	// Add transactions
-	for (const tx of transactions) {
-		const current = result.get(tx.accountId) ?? 0;
-		result.set(tx.accountId, current + tx.amount);
-	}
+    // Add transactions
+    for (const tx of transactions) {
+        const current = result.get(tx.accountId) ?? 0;
+        result.set(tx.accountId, current + tx.amount);
+    }
 
-	return result;
+    return result;
 }
 
 /**
@@ -159,36 +160,36 @@ export function calculateAllAccountBalances(
  * @returns Map of person ID to net balance (positive = owed money, negative = owes money)
  */
 export function calculateSettlementBalances(
-	transactions: Pick<Transaction, "amount" | "allocations" | "accountId">[],
-	accounts: Record<string, Account>
+    transactions: Pick<Transaction, "amount" | "allocations" | "accountId">[],
+    accounts: Record<string, Account>
 ): Map<string, number> {
-	const result = new Map<string, number>();
+    const result = new Map<string, number>();
 
-	for (const tx of transactions) {
-		const allocations = tx.allocations ?? {};
-		const account = accounts[tx.accountId];
-		const accountOwnerships = account?.ownerships ?? {};
+    for (const tx of transactions) {
+        const allocations = tx.allocations ?? {};
+        const account = accounts[tx.accountId];
+        const accountOwnerships = account?.ownerships ?? {};
 
-		// For each person with an allocation
-		for (const [personId, allocationPercent] of Object.entries(allocations)) {
-			if (typeof allocationPercent !== "number") continue;
+        // For each person with an allocation
+        for (const [personId, allocationPercent] of Object.entries(allocations)) {
+            if (typeof allocationPercent !== "number") continue;
 
-			// Their share of this expense
-			const theirShare = (tx.amount * allocationPercent) / 100;
+            // Their share of this expense
+            const theirShare = (tx.amount * allocationPercent) / 100;
 
-			// Their ownership of the account that paid
-			const ownershipPercent = accountOwnerships[personId] ?? 0;
-			const theirOwnership = (tx.amount * ownershipPercent) / 100;
+            // Their ownership of the account that paid
+            const ownershipPercent = accountOwnerships[personId] ?? 0;
+            const theirOwnership = (tx.amount * ownershipPercent) / 100;
 
-			// Net impact: positive means they benefited, negative means they paid
-			const netImpact = theirShare - theirOwnership;
+            // Net impact: positive means they benefited, negative means they paid
+            const netImpact = theirShare - theirOwnership;
 
-			const current = result.get(personId) ?? 0;
-			result.set(personId, current + netImpact);
-		}
-	}
+            const current = result.get(personId) ?? 0;
+            result.set(personId, current + netImpact);
+        }
+    }
 
-	return result;
+    return result;
 }
 
 /**
@@ -196,8 +197,8 @@ export function calculateSettlementBalances(
  * This is exported separately for use with useMemo.
  */
 export function useRunningBalances(
-	transactions: Pick<Transaction, "id" | "date" | "amount" | "accountId">[],
-	accounts: Record<string, Account>
+    transactions: Pick<Transaction, "id" | "date" | "amount" | "accountId">[],
+    accounts: Record<string, Account>
 ): Map<string, number> {
-	return calculateTableRunningBalances(transactions, accounts);
+    return calculateTableRunningBalances(transactions, accounts);
 }

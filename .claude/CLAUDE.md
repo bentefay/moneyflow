@@ -24,7 +24,7 @@
 - `pnpm test:e2e` - E2E tests
 - `pnpm typecheck` - type checking
 - `pnpm lint` - ESLint
-- `pnpm format` / `pnpm format:check` - Biome formatting
+- `pnpm format` / `pnpm format:check` - oxfmt formatting
 - Use `bat -P` rather than `cat` (aliased to bat with pager)
 - Never run `playwright --debug` (opens GUI, blocks forever)
 - Never use parentheses in commit messages

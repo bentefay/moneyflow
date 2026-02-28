@@ -15,12 +15,12 @@ A client-side encrypted, real-time collaborative household expense tracker. All 
 
 ### Prerequisites
 
-| Tool         | Version  | Installation                                      |
-| ------------ | -------- | ------------------------------------------------- |
+| Tool         | Version  | Installation                                         |
+| ------------ | -------- | ---------------------------------------------------- |
 | Node.js      | 20.x LTS | [nodejs.org](https://nodejs.org) or `nvm install 20` |
-| pnpm         | 8.x+     | `npm install -g pnpm`                             |
-| Docker       | Latest   | [docker.com](https://www.docker.com/get-started)  |
-| Supabase CLI | Latest   | `brew install supabase/tap/supabase`              |
+| pnpm         | 8.x+     | `npm install -g pnpm`                                |
+| Docker       | Latest   | [docker.com](https://www.docker.com/get-started)     |
+| Supabase CLI | Latest   | `brew install supabase/tap/supabase`                 |
 
 ### Development Setup
 
@@ -115,7 +115,7 @@ pnpm start            # Start production server
 # Code Quality
 pnpm lint             # ESLint
 pnpm typecheck        # TypeScript type checking
-pnpm format           # Biome format
+pnpm format           # oxfmt format
 pnpm format:check     # Check formatting (CI)
 
 # Testing

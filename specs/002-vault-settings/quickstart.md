@@ -37,19 +37,19 @@ pnpm dev
 import { VaultSettingsForm } from "@/components/features/vault/VaultSettingsForm";
 
 export default function SettingsPage() {
-  return (
-    <div className="flex h-full flex-col">
-      <div className="border-b px-6 py-4">
-        <h1 className="text-2xl font-semibold">Vault Settings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Configure preferences for this vault.
-        </p>
-      </div>
-      <div className="flex-1 overflow-auto p-6">
-        <VaultSettingsForm />
-      </div>
-    </div>
-  );
+    return (
+        <div className="flex h-full flex-col">
+            <div className="border-b px-6 py-4">
+                <h1 className="text-2xl font-semibold">Vault Settings</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    Configure preferences for this vault.
+                </p>
+            </div>
+            <div className="flex-1 overflow-auto p-6">
+                <VaultSettingsForm />
+            </div>
+        </div>
+    );
 }
 ```
 
@@ -64,27 +64,24 @@ import { useVaultAction, useVaultPreferences } from "@/lib/crdt/context";
 import { CurrencySelector } from "./CurrencySelector";
 
 export function VaultSettingsForm() {
-  const preferences = useVaultPreferences();
-  const defaultCurrency = preferences?.defaultCurrency ?? "USD";
+    const preferences = useVaultPreferences();
+    const defaultCurrency = preferences?.defaultCurrency ?? "USD";
 
-  const setDefaultCurrency = useVaultAction((state, currency: string) => {
-    state.preferences.defaultCurrency = currency;
-  });
+    const setDefaultCurrency = useVaultAction((state, currency: string) => {
+        state.preferences.defaultCurrency = currency;
+    });
 
-  return (
-    <div className="max-w-md space-y-6">
-      <div>
-        <label className="text-sm font-medium">Default Currency</label>
-        <p className="text-sm text-muted-foreground mb-2">
-          New accounts will use this currency by default.
-        </p>
-        <CurrencySelector
-          value={defaultCurrency}
-          onChange={setDefaultCurrency}
-        />
-      </div>
-    </div>
-  );
+    return (
+        <div className="max-w-md space-y-6">
+            <div>
+                <label className="text-sm font-medium">Default Currency</label>
+                <p className="text-sm text-muted-foreground mb-2">
+                    New accounts will use this currency by default.
+                </p>
+                <CurrencySelector value={defaultCurrency} onChange={setDefaultCurrency} />
+            </div>
+        </div>
+    );
 }
 ```
 
@@ -128,19 +125,21 @@ Uses shadcn Combobox pattern with cmdk for search.
 import { redirect } from "next/navigation";
 
 export default function DashboardPage() {
-  redirect("/transactions");
+    redirect("/transactions");
 }
 ```
 
 ### 6. Onboarding Navigation Changes
 
 **Modify**: `src/app/(onboarding)/new-user/page.tsx`
+
 ```diff
 - router.push("/dashboard");
 + router.push("/settings");
 ```
 
 **Modify**: `src/app/(onboarding)/unlock/page.tsx`
+
 ```diff
 - router.replace("/dashboard");
 + router.replace("/transactions");
@@ -151,16 +150,17 @@ export default function DashboardPage() {
 **Modify**: `src/components/features/accounts/AccountRow.tsx`
 
 Add placeholder for missing account number:
+
 ```tsx
-{account.accountNumber ? (
-  <div className="truncate text-sm text-muted-foreground">
-    ···{account.accountNumber.slice(-4)}
-  </div>
-) : (
-  <div className="text-sm text-muted-foreground/50 italic">
-    No account number yet
-  </div>
-)}
+{
+    account.accountNumber ? (
+        <div className="truncate text-sm text-muted-foreground">
+            ···{account.accountNumber.slice(-4)}
+        </div>
+    ) : (
+        <div className="text-sm text-muted-foreground/50 italic">No account number yet</div>
+    );
+}
 ```
 
 **Modify**: `src/components/features/accounts/AccountsTable.tsx`
@@ -178,13 +178,13 @@ import { describe, it, expect } from "vitest";
 // Test preference reading and mutation
 
 describe("vault preferences", () => {
-  it("should default to USD currency", () => {
-    // ...
-  });
+    it("should default to USD currency", () => {
+        // ...
+    });
 
-  it("should persist currency change", () => {
-    // ...
-  });
+    it("should persist currency change", () => {
+        // ...
+    });
 });
 ```
 
@@ -197,18 +197,18 @@ import { test, expect } from "@playwright/test";
 import { loginAsNewUser, loginAsExistingUser } from "./helpers/auth";
 
 test("new user lands on settings page", async ({ page }) => {
-  await loginAsNewUser(page);
-  await expect(page).toHaveURL(/\/settings/);
+    await loginAsNewUser(page);
+    await expect(page).toHaveURL(/\/settings/);
 });
 
 test("existing user lands on transactions page", async ({ page }) => {
-  await loginAsExistingUser(page);
-  await expect(page).toHaveURL(/\/transactions/);
+    await loginAsExistingUser(page);
+    await expect(page).toHaveURL(/\/transactions/);
 });
 
 test("can change default currency", async ({ page }) => {
-  await loginAsNewUser(page);
-  // ... select EUR, verify persistence
+    await loginAsNewUser(page);
+    // ... select EUR, verify persistence
 });
 ```
 

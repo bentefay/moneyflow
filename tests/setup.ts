@@ -4,5 +4,5 @@ import { beforeAll } from "vitest";
 
 // Initialize libsodium before all tests
 beforeAll(async () => {
-	await sodium.ready;
+    await sodium.ready;
 });

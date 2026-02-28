@@ -25,17 +25,17 @@ Add a Vault Settings page where users can configure vault-level preferences (sta
 
 _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
-| Principle | Status | Notes |
-|-----------|--------|-------|
-| I. Security & Privacy First | ✅ Pass | Vault settings stored in encrypted CRDT doc; no server-side plaintext |
-| II. Multi-Party Financial Integrity | ✅ Pass | Default currency doesn't affect existing allocations |
-| III. Data Portability | ✅ Pass | Currency preference exported with vault data |
-| IV. Auditability | ✅ Pass | No audit trail needed for preferences |
-| V. User-Owned Data | ✅ Pass | Settings live in user's vault document |
-| VI. Performance, Beauty & Craft | ✅ Pass | Consistent styling, pointer cursors, clear visual hierarchy |
-| VII. Robustness & Reliability | ✅ Pass | Must add tests for settings persistence, navigation redirects |
-| VIII. LLM-Agent Friendly | ✅ Pass | Uses existing patterns (loro-mirror, shadcn/ui) |
-| IX. Code Clarity | ✅ Pass | Pure functions, explicit naming, no abbreviations |
+| Principle                           | Status  | Notes                                                                 |
+| ----------------------------------- | ------- | --------------------------------------------------------------------- |
+| I. Security & Privacy First         | ✅ Pass | Vault settings stored in encrypted CRDT doc; no server-side plaintext |
+| II. Multi-Party Financial Integrity | ✅ Pass | Default currency doesn't affect existing allocations                  |
+| III. Data Portability               | ✅ Pass | Currency preference exported with vault data                          |
+| IV. Auditability                    | ✅ Pass | No audit trail needed for preferences                                 |
+| V. User-Owned Data                  | ✅ Pass | Settings live in user's vault document                                |
+| VI. Performance, Beauty & Craft     | ✅ Pass | Consistent styling, pointer cursors, clear visual hierarchy           |
+| VII. Robustness & Reliability       | ✅ Pass | Must add tests for settings persistence, navigation redirects         |
+| VIII. LLM-Agent Friendly            | ✅ Pass | Uses existing patterns (loro-mirror, shadcn/ui)                       |
+| IX. Code Clarity                    | ✅ Pass | Pure functions, explicit naming, no abbreviations                     |
 
 **All gates pass. No violations to justify.**
 

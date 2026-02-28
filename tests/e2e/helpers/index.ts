@@ -6,12 +6,12 @@
 
 export { clearSession, createNewIdentity, enterSeedPhrase, extractSeedPhrase } from "./auth";
 export {
-	goToAccounts,
-	goToDashboard,
-	goToImportNew,
-	goToImports,
-	goToPeople,
-	goToSettings,
-	goToTags,
-	goToTransactions,
+    goToAccounts,
+    goToDashboard,
+    goToImportNew,
+    goToImports,
+    goToPeople,
+    goToSettings,
+    goToTags,
+    goToTransactions,
 } from "./nav";

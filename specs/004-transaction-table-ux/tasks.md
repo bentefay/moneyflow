@@ -19,10 +19,10 @@
 
 **Purpose**: Project dependencies and shared infrastructure
 
-- [X] T001 Install Temporal polyfill: `pnpm add temporal-polyfill`
-- [X] T002 [P] Create date formatting utility in src/lib/utils/date-format.ts
-- [X] T003 [P] Create column configuration constants in src/components/features/transactions/column-config.ts
-- [X] T004 [P] Create unit tests for date formatting in tests/unit/transactions/date-format.test.ts
+- [x] T001 Install Temporal polyfill: `pnpm add temporal-polyfill`
+- [x] T002 [P] Create date formatting utility in src/lib/utils/date-format.ts
+- [x] T003 [P] Create column configuration constants in src/components/features/transactions/column-config.ts
+- [x] T004 [P] Create unit tests for date formatting in tests/unit/transactions/date-format.test.ts
 
 ---
 
@@ -32,14 +32,14 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [X] T005 Create useTableSelection hook in src/components/features/transactions/hooks/useTableSelection.ts
-- [X] T006 [P] Create unit tests for selection hook in tests/unit/transactions/selection.test.ts
-- [X] T007 Create useKeyboardNavigation hook in src/components/features/transactions/hooks/useKeyboardNavigation.ts
-- [X] T008 [P] Create unit tests for keyboard navigation in tests/unit/transactions/keyboard-navigation.test.ts
-- [X] T009 Create useBulkEdit hook in src/components/features/transactions/hooks/useBulkEdit.ts
-- [X] T009a [P] Create unit tests for useBulkEdit hook in tests/unit/transactions/bulk-edit.test.ts
-- [X] T010 Create EditableCell base component in src/components/features/transactions/cells/EditableCell.tsx
-- [X] T011 Create CheckboxCell component in src/components/features/transactions/cells/CheckboxCell.tsx
+- [x] T005 Create useTableSelection hook in src/components/features/transactions/hooks/useTableSelection.ts
+- [x] T006 [P] Create unit tests for selection hook in tests/unit/transactions/selection.test.ts
+- [x] T007 Create useKeyboardNavigation hook in src/components/features/transactions/hooks/useKeyboardNavigation.ts
+- [x] T008 [P] Create unit tests for keyboard navigation in tests/unit/transactions/keyboard-navigation.test.ts
+- [x] T009 Create useBulkEdit hook in src/components/features/transactions/hooks/useBulkEdit.ts
+- [x] T009a [P] Create unit tests for useBulkEdit hook in tests/unit/transactions/bulk-edit.test.ts
+- [x] T010 Create EditableCell base component in src/components/features/transactions/cells/EditableCell.tsx
+- [x] T011 Create CheckboxCell component in src/components/features/transactions/cells/CheckboxCell.tsx
 
 **Checkpoint**: Foundation ready - user story implementation can begin
 
@@ -67,7 +67,7 @@
 - [x] T014c [US1] Create InlineEditableAmount component in src/components/features/transactions/cells/InlineEditableAmount.tsx
 - [x] T014d [US1] Create InlineEditableStatus component in src/components/features/transactions/cells/InlineEditableStatus.tsx
 - [x] T014e [US1] Create InlineEditableTags component in src/components/features/transactions/cells/InlineEditableTags.tsx
-- [x] T018 [US1] Update TransactionRow to use InlineEditable* components for all cells in src/components/features/transactions/TransactionRow.tsx
+- [x] T018 [US1] Update TransactionRow to use InlineEditable\* components for all cells in src/components/features/transactions/TransactionRow.tsx
 - [x] T018a [US1] Wire onFieldUpdate callback through TransactionTable to page-level handler
 - [x] T019 [US1] Integrate useKeyboardNavigation into TransactionTable in src/components/features/transactions/TransactionTable.tsx (Arrow key navigation between rows)
 
@@ -296,11 +296,13 @@ Phase 12 (Polish)
 ### Parallel Opportunities Per Phase
 
 **Phase 1 (Setup)**:
+
 ```
 T002, T003, T004 can all run in parallel
 ```
 
 **Phase 2 (Foundational)**:
+
 ```
 After T005: T006 in parallel
 After T007: T008 in parallel
@@ -308,17 +310,20 @@ T010, T011 can run in parallel after T005 completes
 ```
 
 **Phase 3 (US1 MVP)**:
+
 ```
 T012, T013 can run in parallel (tests)
 T015, T016, T017 can run in parallel (cell refactors)
 ```
 
 **Phase 4 (US2 MVP)**:
+
 ```
 T020, T021 can run in parallel (tests)
 ```
 
 **Phase 5 (US3 MVP)**:
+
 ```
 T026, T027, T028 can run in parallel (tests)
 ```
@@ -339,11 +344,11 @@ T026, T027, T028 can run in parallel (tests)
 
 ### Incremental Delivery
 
-| Milestone | User Stories | Value Delivered |
-|-----------|--------------|-----------------|
-| MVP | US1, US2, US3 | Core editing and bulk operations |
+| Milestone  | User Stories       | Value Delivered                                                     |
+| ---------- | ------------------ | ------------------------------------------------------------------- |
+| MVP        | US1, US2, US3      | Core editing and bulk operations                                    |
 | P2 Release | US4, US5, US6, US7 | Tag creation, merchant/description split, account column, alignment |
-| P3 Release | US8, US9 | Date localization, actions column |
+| P3 Release | US8, US9           | Date localization, actions column                                   |
 
 ### Suggested MVP Scope
 

@@ -30,66 +30,66 @@ Vault
 
 Root container for all transactions, partitioned by account.
 
-| Field | Type | Description |
-|-------|------|-------------|
+| Field    | Type                                      | Description                                   |
+| -------- | ----------------------------------------- | --------------------------------------------- |
 | accounts | `LoroMap<string, AccountTransactionTree>` | Map of accountId → account's transaction tree |
 
 ### AccountTransactionTree
 
 All transactions for a single account, organized by year.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| accountId | `string` | Reference to the account |
-| years | `LoroList<YearBucket>` | List of year buckets, sorted by year descending |
+| Field     | Type                   | Description                                     |
+| --------- | ---------------------- | ----------------------------------------------- |
+| accountId | `string`               | Reference to the account                        |
+| years     | `LoroList<YearBucket>` | List of year buckets, sorted by year descending |
 
 ### YearBucket
 
 Transactions for a single year within an account.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| year | `number` | Year (e.g., 2024) |
+| Field  | Type                    | Description                                       |
+| ------ | ----------------------- | ------------------------------------------------- |
+| year   | `number`                | Year (e.g., 2024)                                 |
 | months | `LoroList<MonthBucket>` | List of month buckets, sorted by month descending |
 
 ### MonthBucket
 
 Transactions for a single month within a year.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| month | `number` | Month (1-12) |
-| days | `LoroList<DayBucket>` | List of day buckets, sorted by day descending |
+| Field | Type                  | Description                                   |
+| ----- | --------------------- | --------------------------------------------- |
+| month | `number`              | Month (1-12)                                  |
+| days  | `LoroList<DayBucket>` | List of day buckets, sorted by day descending |
 
 ### DayBucket
 
 Transactions for a single day within a month.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| day | `number` | Day of month (1-31) |
+| Field        | Type                    | Description                                                              |
+| ------------ | ----------------------- | ------------------------------------------------------------------------ |
+| day          | `number`                | Day of month (1-31)                                                      |
 | transactions | `LoroList<Transaction>` | List of transactions, sorted by creationInstant desc, importRowIndex asc |
 
 ### Transaction
 
 A single financial transaction.
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| id | `string` | Yes | Unique identifier |
-| date | `string` | Yes | ISO date (YYYY-MM-DD) |
-| description | `string` | No | Bank-provided description |
-| notes | `string` | No | User notes |
-| amount | `number` | Yes | Amount in minor units (cents) |
-| accountId | `string` | Yes | Reference to account |
-| tagIds | `LoroList<string>` | No | List of tag IDs |
-| statusId | `string` | Yes | Reference to status |
-| importId | `string` | No | Reference to import batch |
-| allocations | `LoroMap<string, number>` | No | personId → percentage |
-| creationInstant | `number` | Yes | Epoch milliseconds when entered system |
-| importRowIndex | `number` | No | Row position in source file (null for manual) |
-| suspectedDuplicates | `LoroList<Transaction>` | No | Nested duplicate transactions |
-| deletedAt | `number` | No | Soft delete timestamp |
+| Field               | Type                      | Required | Description                                   |
+| ------------------- | ------------------------- | -------- | --------------------------------------------- |
+| id                  | `string`                  | Yes      | Unique identifier                             |
+| date                | `string`                  | Yes      | ISO date (YYYY-MM-DD)                         |
+| description         | `string`                  | No       | Bank-provided description                     |
+| notes               | `string`                  | No       | User notes                                    |
+| amount              | `number`                  | Yes      | Amount in minor units (cents)                 |
+| accountId           | `string`                  | Yes      | Reference to account                          |
+| tagIds              | `LoroList<string>`        | No       | List of tag IDs                               |
+| statusId            | `string`                  | Yes      | Reference to status                           |
+| importId            | `string`                  | No       | Reference to import batch                     |
+| allocations         | `LoroMap<string, number>` | No       | personId → percentage                         |
+| creationInstant     | `number`                  | Yes      | Epoch milliseconds when entered system        |
+| importRowIndex      | `number`                  | No       | Row position in source file (null for manual) |
+| suspectedDuplicates | `LoroList<Transaction>`   | No       | Nested duplicate transactions                 |
+| deletedAt           | `number`                  | No       | Soft delete timestamp                         |
 
 ---
 
@@ -97,16 +97,16 @@ A single financial transaction.
 
 ### New Fields
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `creationInstant` | `number` | Epoch ms - import timestamp or manual creation time |
-| `importRowIndex` | `number \| null` | Source file row position |
-| `suspectedDuplicates` | `LoroList<Transaction>` | Nested duplicates (replaces `duplicateOf`) |
+| Field                 | Type                    | Description                                         |
+| --------------------- | ----------------------- | --------------------------------------------------- |
+| `creationInstant`     | `number`                | Epoch ms - import timestamp or manual creation time |
+| `importRowIndex`      | `number \| null`        | Source file row position                            |
+| `suspectedDuplicates` | `LoroList<Transaction>` | Nested duplicates (replaces `duplicateOf`)          |
 
 ### Removed Fields
 
-| Field | Replacement |
-|-------|-------------|
+| Field         | Replacement                                 |
+| ------------- | ------------------------------------------- |
 | `duplicateOf` | `suspectedDuplicates` on parent transaction |
 
 ---
@@ -203,45 +203,43 @@ Delete Parent Transaction
 ```typescript
 // New hierarchical transaction schema
 export const transactionSchema = schema.LoroMap({
-  id: schema.String({ required: true }),
-  date: schema.String({ required: true }),
-  description: schema.String({ defaultValue: "" }),
-  notes: schema.String({ defaultValue: "" }),
-  amount: schema.Number({ required: true }),
-  accountId: schema.String({ required: true }),
-  tagIds: schema.LoroList(schema.String()),
-  statusId: schema.String({ required: true }),
-  importId: schema.String(),
-  allocations: schema.LoroMapRecord(schema.Number()),
-  creationInstant: schema.Number({ required: true }),
-  importRowIndex: schema.Number(),
-  suspectedDuplicates: schema.LoroList(/* recursive - see note */),
-  deletedAt: schema.Number(),
+    id: schema.String({ required: true }),
+    date: schema.String({ required: true }),
+    description: schema.String({ defaultValue: "" }),
+    notes: schema.String({ defaultValue: "" }),
+    amount: schema.Number({ required: true }),
+    accountId: schema.String({ required: true }),
+    tagIds: schema.LoroList(schema.String()),
+    statusId: schema.String({ required: true }),
+    importId: schema.String(),
+    allocations: schema.LoroMapRecord(schema.Number()),
+    creationInstant: schema.Number({ required: true }),
+    importRowIndex: schema.Number(),
+    suspectedDuplicates: schema.LoroList(/* recursive - see note */),
+    deletedAt: schema.Number(),
 });
 
 export const dayBucketSchema = schema.LoroMap({
-  day: schema.Number({ required: true }),
-  transactions: schema.LoroList(transactionSchema),
+    day: schema.Number({ required: true }),
+    transactions: schema.LoroList(transactionSchema),
 });
 
 export const monthBucketSchema = schema.LoroMap({
-  month: schema.Number({ required: true }),
-  days: schema.LoroList(dayBucketSchema),
+    month: schema.Number({ required: true }),
+    days: schema.LoroList(dayBucketSchema),
 });
 
 export const yearBucketSchema = schema.LoroMap({
-  year: schema.Number({ required: true }),
-  months: schema.LoroList(monthBucketSchema),
+    year: schema.Number({ required: true }),
+    months: schema.LoroList(monthBucketSchema),
 });
 
 export const accountTransactionTreeSchema = schema.LoroMap({
-  accountId: schema.String({ required: true }),
-  years: schema.LoroList(yearBucketSchema),
+    accountId: schema.String({ required: true }),
+    years: schema.LoroList(yearBucketSchema),
 });
 
-export const transactionStoreSchema = schema.LoroMapRecord(
-  accountTransactionTreeSchema
-);
+export const transactionStoreSchema = schema.LoroMapRecord(accountTransactionTreeSchema);
 
 // In vault schema, replace:
 // transactions: schema.LoroMapRecord(transactionSchema),
@@ -258,26 +256,23 @@ export const transactionStoreSchema = schema.LoroMapRecord(
 ### Get all transactions for account (sorted)
 
 ```typescript
-function getAccountTransactions(
-  store: TransactionStore,
-  accountId: string
-): Transaction[] {
-  const tree = store.accounts[accountId];
-  if (!tree) return [];
-  
-  const result: Transaction[] = [];
-  for (const year of tree.years) {
-    for (const month of year.months) {
-      // Handle potential duplicate day buckets (CRDT conflict)
-      const dayGroups = groupBy(month.days, d => d.day);
-      for (const [, days] of Object.entries(dayGroups).sort((a, b) => b[0] - a[0])) {
-        for (const day of days) {
-          result.push(...day.transactions);
+function getAccountTransactions(store: TransactionStore, accountId: string): Transaction[] {
+    const tree = store.accounts[accountId];
+    if (!tree) return [];
+
+    const result: Transaction[] = [];
+    for (const year of tree.years) {
+        for (const month of year.months) {
+            // Handle potential duplicate day buckets (CRDT conflict)
+            const dayGroups = groupBy(month.days, (d) => d.day);
+            for (const [, days] of Object.entries(dayGroups).sort((a, b) => b[0] - a[0])) {
+                for (const day of days) {
+                    result.push(...day.transactions);
+                }
+            }
         }
-      }
     }
-  }
-  return result; // Already sorted by structure
+    return result; // Already sorted by structure
 }
 ```
 
@@ -285,63 +280,60 @@ function getAccountTransactions(
 
 ```typescript
 function findTransaction(
-  store: TransactionStore,
-  accountId: string,
-  date: string, // YYYY-MM-DD
-  transactionId: string
+    store: TransactionStore,
+    accountId: string,
+    date: string, // YYYY-MM-DD
+    transactionId: string
 ): Transaction | undefined {
-  const [year, month, day] = parseDate(date);
-  const tree = store.accounts[accountId];
-  if (!tree) return undefined;
-  
-  const yearBucket = tree.years.find(y => y.year === year);
-  if (!yearBucket) return undefined;
-  
-  const monthBucket = yearBucket.months.find(m => m.month === month);
-  if (!monthBucket) return undefined;
-  
-  // Handle potential duplicate day buckets
-  const dayBuckets = monthBucket.days.filter(d => d.day === day);
-  for (const dayBucket of dayBuckets) {
-    const tx = dayBucket.transactions.find(t => t.id === transactionId);
-    if (tx) return tx;
-    
-    // Also check nested duplicates
-    for (const t of dayBucket.transactions) {
-      const dup = t.suspectedDuplicates?.find(d => d.id === transactionId);
-      if (dup) return dup;
+    const [year, month, day] = parseDate(date);
+    const tree = store.accounts[accountId];
+    if (!tree) return undefined;
+
+    const yearBucket = tree.years.find((y) => y.year === year);
+    if (!yearBucket) return undefined;
+
+    const monthBucket = yearBucket.months.find((m) => m.month === month);
+    if (!monthBucket) return undefined;
+
+    // Handle potential duplicate day buckets
+    const dayBuckets = monthBucket.days.filter((d) => d.day === day);
+    for (const dayBucket of dayBuckets) {
+        const tx = dayBucket.transactions.find((t) => t.id === transactionId);
+        if (tx) return tx;
+
+        // Also check nested duplicates
+        for (const t of dayBucket.transactions) {
+            const dup = t.suspectedDuplicates?.find((d) => d.id === transactionId);
+            if (dup) return dup;
+        }
     }
-  }
-  
-  return undefined;
+
+    return undefined;
 }
 ```
 
 ### Get transactions with duplicates (for filter)
 
 ```typescript
-function getTransactionsWithDuplicates(
-  store: TransactionStore,
-  accountId?: string
-): Transaction[] {
-  const accounts = accountId 
-    ? [store.accounts[accountId]].filter(Boolean)
-    : Object.values(store.accounts);
-  
-  const result: Transaction[] = [];
-  for (const tree of accounts) {
-    for (const year of tree.years) {
-      for (const month of year.months) {
-        for (const day of month.days) {
-          for (const tx of day.transactions) {
-            if (tx.suspectedDuplicates?.length > 0) {
-              result.push(tx);
+function getTransactionsWithDuplicates(store: TransactionStore, accountId?: string): Transaction[] {
+    const accounts = accountId
+        ? [store.accounts[accountId]].filter(Boolean)
+        : Object.values(store.accounts);
+
+    const result: Transaction[] = [];
+    for (const tree of accounts) {
+        for (const year of tree.years) {
+            for (const month of year.months) {
+                for (const day of month.days) {
+                    for (const tx of day.transactions) {
+                        if (tx.suspectedDuplicates?.length > 0) {
+                            result.push(tx);
+                        }
+                    }
+                }
             }
-          }
         }
-      }
     }
-  }
-  return result;
+    return result;
 }
 ```

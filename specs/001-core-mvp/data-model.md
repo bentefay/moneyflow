@@ -52,16 +52,16 @@ Rather than interacting with the low-level Loro API directly, we use `loro-mirro
 ```typescript
 // ✅ CORRECT: Draft-style mutation - loro-mirror tracks the change precisely
 setState((draft) => {
-  draft.transactions[id].amount = newAmount;
+    draft.transactions[id].amount = newAmount;
 });
 
 // ❌ WRONG: Returning new object - loro-mirror can't see what changed
 setState((state) => ({
-  ...state,
-  transactions: {
-    ...state.transactions,
-    [id]: { ...state.transactions[id], amount: newAmount },
-  },
+    ...state,
+    transactions: {
+        ...state.transactions,
+        [id]: { ...state.transactions[id], amount: newAmount },
+    },
 }));
 ```
 
@@ -114,11 +114,11 @@ EACH SESSION:
 ```typescript
 // Stored in sessionStorage (per-session, cleared on tab close)
 interface SessionData {
-  publicKey: string; // Ed25519 signing public key, base64
-  secretKey: string; // Ed25519 signing secret key, base64
-  encPublicKey: string; // X25519 encryption public key, base64
-  encSecretKey: string; // X25519 encryption secret key, base64
-  pubkeyHash: string; // BLAKE2b hash of signing publicKey, base64
+    publicKey: string; // Ed25519 signing public key, base64
+    secretKey: string; // Ed25519 signing secret key, base64
+    encPublicKey: string; // X25519 encryption public key, base64
+    encSecretKey: string; // X25519 encryption secret key, base64
+    pubkeyHash: string; // BLAKE2b hash of signing publicKey, base64
 }
 
 // Nothing stored in localStorage - seed entered each session
@@ -141,102 +141,102 @@ const DOMAIN_X25519_ENCRYPTION = "moneyflow-v1-x25519-encryption";
 
 // Derive domain-separated keys from master seed
 function deriveKeys(masterSeed: Uint8Array): {
-  signingKeypair: sodium.KeyPair;
-  encryptionKeypair: { publicKey: Uint8Array; privateKey: Uint8Array };
+    signingKeypair: sodium.KeyPair;
+    encryptionKeypair: { publicKey: Uint8Array; privateKey: Uint8Array };
 } {
-  // Ed25519 signing key (for request authentication)
-  const signingSeed = hkdf(sha256, masterSeed, undefined, DOMAIN_ED25519_SIGNING, 32);
-  const signingKeypair = sodium.crypto_sign_seed_keypair(signingSeed);
+    // Ed25519 signing key (for request authentication)
+    const signingSeed = hkdf(sha256, masterSeed, undefined, DOMAIN_ED25519_SIGNING, 32);
+    const signingKeypair = sodium.crypto_sign_seed_keypair(signingSeed);
 
-  // X25519 encryption key (for vault key wrapping)
-  const encryptionSeed = hkdf(sha256, masterSeed, undefined, DOMAIN_X25519_ENCRYPTION, 32);
-  const encryptionKeypair = sodium.crypto_box_seed_keypair(encryptionSeed);
+    // X25519 encryption key (for vault key wrapping)
+    const encryptionSeed = hkdf(sha256, masterSeed, undefined, DOMAIN_X25519_ENCRYPTION, 32);
+    const encryptionKeypair = sodium.crypto_box_seed_keypair(encryptionSeed);
 
-  return { signingKeypair, encryptionKeypair };
+    return { signingKeypair, encryptionKeypair };
 }
 
 // === FIRST TIME SETUP (generates new identity) ===
 // Note: createIdentity() only generates keys. Session is stored and
 // server registration happens after user confirms they saved the phrase.
 async function createIdentity(): Promise<{
-  mnemonic: string;
-  signingKeypair: sodium.KeyPair;
-  encryptionKeypair: { publicKey: Uint8Array; privateKey: Uint8Array };
-  pubkeyHash: string;
+    mnemonic: string;
+    signingKeypair: sodium.KeyPair;
+    encryptionKeypair: { publicKey: Uint8Array; privateKey: Uint8Array };
+    pubkeyHash: string;
 }> {
-  await sodium.ready;
+    await sodium.ready;
 
-  // 1. Generate seed phrase
-  const mnemonic = bip39.generateMnemonic(wordlist, 128); // 12 words
+    // 1. Generate seed phrase
+    const mnemonic = bip39.generateMnemonic(wordlist, 128); // 12 words
 
-  // 2. Derive master seed and domain-separated keys
-  const masterSeed = await bip39.mnemonicToSeed(mnemonic);
-  const { signingKeypair, encryptionKeypair } = deriveKeys(new Uint8Array(masterSeed));
+    // 2. Derive master seed and domain-separated keys
+    const masterSeed = await bip39.mnemonicToSeed(mnemonic);
+    const { signingKeypair, encryptionKeypair } = deriveKeys(new Uint8Array(masterSeed));
 
-  // 3. Hash public key for server identity (signing key is the identity)
-  const pubkeyHash = sodium.to_base64(sodium.crypto_generichash(32, signingKeypair.publicKey));
+    // 3. Hash public key for server identity (signing key is the identity)
+    const pubkeyHash = sodium.to_base64(sodium.crypto_generichash(32, signingKeypair.publicKey));
 
-  // 4. Return identity for display - DO NOT store yet!
-  // Session storage and server registration happen only after
-  // user confirms they've written down the seed phrase.
-  return { mnemonic, signingKeypair, encryptionKeypair, pubkeyHash };
+    // 4. Return identity for display - DO NOT store yet!
+    // Session storage and server registration happen only after
+    // user confirms they've written down the seed phrase.
+    return { mnemonic, signingKeypair, encryptionKeypair, pubkeyHash };
 }
 
 // === STORE SESSION (after user confirms seed phrase) ===
 function storeIdentitySession(identity: {
-  signingKeypair: sodium.KeyPair;
-  encryptionKeypair: { publicKey: Uint8Array; privateKey: Uint8Array };
-  pubkeyHash: string;
+    signingKeypair: sodium.KeyPair;
+    encryptionKeypair: { publicKey: Uint8Array; privateKey: Uint8Array };
+    pubkeyHash: string;
 }): void {
-  sessionStorage.setItem(
-    "moneyflow_session",
-    JSON.stringify({
-      publicKey: sodium.to_base64(identity.signingKeypair.publicKey),
-      secretKey: sodium.to_base64(identity.signingKeypair.privateKey),
-      encPublicKey: sodium.to_base64(identity.encryptionKeypair.publicKey),
-      encSecretKey: sodium.to_base64(identity.encryptionKeypair.privateKey),
-      pubkeyHash: identity.pubkeyHash,
-    })
-  );
+    sessionStorage.setItem(
+        "moneyflow_session",
+        JSON.stringify({
+            publicKey: sodium.to_base64(identity.signingKeypair.publicKey),
+            secretKey: sodium.to_base64(identity.signingKeypair.privateKey),
+            encPublicKey: sodium.to_base64(identity.encryptionKeypair.publicKey),
+            encSecretKey: sodium.to_base64(identity.encryptionKeypair.privateKey),
+            pubkeyHash: identity.pubkeyHash,
+        })
+    );
 }
 
 // === EACH SESSION (enter seed phrase) ===
 async function unlockWithSeed(mnemonic: string): Promise<{
-  signingKeypair: sodium.KeyPair;
-  encryptionKeypair: { publicKey: Uint8Array; privateKey: Uint8Array };
-  pubkeyHash: string;
+    signingKeypair: sodium.KeyPair;
+    encryptionKeypair: { publicKey: Uint8Array; privateKey: Uint8Array };
+    pubkeyHash: string;
 }> {
-  await sodium.ready;
+    await sodium.ready;
 
-  // Validate mnemonic
-  if (!bip39.validateMnemonic(mnemonic, wordlist)) {
-    throw new Error("Invalid recovery phrase");
-  }
+    // Validate mnemonic
+    if (!bip39.validateMnemonic(mnemonic, wordlist)) {
+        throw new Error("Invalid recovery phrase");
+    }
 
-  // Derive master seed and domain-separated keys
-  const masterSeed = await bip39.mnemonicToSeed(mnemonic);
-  const { signingKeypair, encryptionKeypair } = deriveKeys(new Uint8Array(masterSeed));
+    // Derive master seed and domain-separated keys
+    const masterSeed = await bip39.mnemonicToSeed(mnemonic);
+    const { signingKeypair, encryptionKeypair } = deriveKeys(new Uint8Array(masterSeed));
 
-  const pubkeyHash = sodium.to_base64(sodium.crypto_generichash(32, signingKeypair.publicKey));
+    const pubkeyHash = sodium.to_base64(sodium.crypto_generichash(32, signingKeypair.publicKey));
 
-  // Store in session only
-  sessionStorage.setItem(
-    "moneyflow_session",
-    JSON.stringify({
-      publicKey: sodium.to_base64(signingKeypair.publicKey),
-      secretKey: sodium.to_base64(signingKeypair.privateKey),
-      encPublicKey: sodium.to_base64(encryptionKeypair.publicKey),
-      encSecretKey: sodium.to_base64(encryptionKeypair.privateKey),
-      pubkeyHash,
-    })
-  );
+    // Store in session only
+    sessionStorage.setItem(
+        "moneyflow_session",
+        JSON.stringify({
+            publicKey: sodium.to_base64(signingKeypair.publicKey),
+            secretKey: sodium.to_base64(signingKeypair.privateKey),
+            encPublicKey: sodium.to_base64(encryptionKeypair.publicKey),
+            encSecretKey: sodium.to_base64(encryptionKeypair.privateKey),
+            pubkeyHash,
+        })
+    );
 
-  return { signingKeypair, encryptionKeypair, pubkeyHash };
+    return { signingKeypair, encryptionKeypair, pubkeyHash };
 }
 
 // === LOGOUT ===
 function logout(): void {
-  sessionStorage.removeItem("moneyflow_session");
+    sessionStorage.removeItem("moneyflow_session");
 }
 ```
 
@@ -250,48 +250,48 @@ function logout(): void {
 // (birthday bound ~2^96 encryptions before 50% collision chance)
 
 function encryptVaultData(
-  plaintext: Uint8Array,
-  vaultKey: Uint8Array
+    plaintext: Uint8Array,
+    vaultKey: Uint8Array
 ): {
-  ciphertext: Uint8Array;
-  nonce: Uint8Array;
+    ciphertext: Uint8Array;
+    nonce: Uint8Array;
 } {
-  // Generate random 24-byte nonce (192-bit)
-  const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES); // 24 bytes
+    // Generate random 24-byte nonce (192-bit)
+    const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES); // 24 bytes
 
-  const ciphertext = sodium.crypto_secretbox_easy(plaintext, nonce, vaultKey);
+    const ciphertext = sodium.crypto_secretbox_easy(plaintext, nonce, vaultKey);
 
-  return { ciphertext, nonce };
+    return { ciphertext, nonce };
 }
 
 function decryptVaultData(
-  ciphertext: Uint8Array,
-  nonce: Uint8Array,
-  vaultKey: Uint8Array
+    ciphertext: Uint8Array,
+    nonce: Uint8Array,
+    vaultKey: Uint8Array
 ): Uint8Array {
-  const plaintext = sodium.crypto_secretbox_open_easy(ciphertext, nonce, vaultKey);
-  if (!plaintext) {
-    throw new Error("Decryption failed - invalid key or corrupted data");
-  }
-  return plaintext;
+    const plaintext = sodium.crypto_secretbox_open_easy(ciphertext, nonce, vaultKey);
+    if (!plaintext) {
+        throw new Error("Decryption failed - invalid key or corrupted data");
+    }
+    return plaintext;
 }
 
 // Storage format: nonce || ciphertext (nonce prepended for self-describing blobs)
 function encryptForStorage(plaintext: Uint8Array, vaultKey: Uint8Array): Uint8Array {
-  const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
-  const ciphertext = sodium.crypto_secretbox_easy(plaintext, nonce, vaultKey);
+    const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
+    const ciphertext = sodium.crypto_secretbox_easy(plaintext, nonce, vaultKey);
 
-  // Prepend nonce to ciphertext
-  const result = new Uint8Array(nonce.length + ciphertext.length);
-  result.set(nonce);
-  result.set(ciphertext, nonce.length);
-  return result;
+    // Prepend nonce to ciphertext
+    const result = new Uint8Array(nonce.length + ciphertext.length);
+    result.set(nonce);
+    result.set(ciphertext, nonce.length);
+    return result;
 }
 
 function decryptFromStorage(blob: Uint8Array, vaultKey: Uint8Array): Uint8Array {
-  const nonce = blob.slice(0, sodium.crypto_secretbox_NONCEBYTES);
-  const ciphertext = blob.slice(sodium.crypto_secretbox_NONCEBYTES);
-  return decryptVaultData(ciphertext, nonce, vaultKey);
+    const nonce = blob.slice(0, sodium.crypto_secretbox_NONCEBYTES);
+    const ciphertext = blob.slice(sodium.crypto_secretbox_NONCEBYTES);
+    return decryptVaultData(ciphertext, nonce, vaultKey);
 }
 ```
 
@@ -308,29 +308,29 @@ Every API request is signed with the user's Ed25519 key:
 
 ```typescript
 async function signRequest(
-  method: string,
-  path: string,
-  body?: unknown
+    method: string,
+    path: string,
+    body?: unknown
 ): Promise<{ headers: Record<string, string> }> {
-  const session = JSON.parse(sessionStorage.getItem("moneyflow_session")!);
-  const secretKey = sodium.from_base64(session.secretKey);
-  const publicKey = sodium.from_base64(session.publicKey);
+    const session = JSON.parse(sessionStorage.getItem("moneyflow_session")!);
+    const secretKey = sodium.from_base64(session.secretKey);
+    const publicKey = sodium.from_base64(session.publicKey);
 
-  const timestamp = Date.now().toString();
-  const bodyHash = body
-    ? sodium.to_base64(sodium.crypto_generichash(32, JSON.stringify(body)))
-    : "";
+    const timestamp = Date.now().toString();
+    const bodyHash = body
+        ? sodium.to_base64(sodium.crypto_generichash(32, JSON.stringify(body)))
+        : "";
 
-  const message = `${method}\n${path}\n${timestamp}\n${bodyHash}`;
-  const signature = sodium.crypto_sign_detached(sodium.from_string(message), secretKey);
+    const message = `${method}\n${path}\n${timestamp}\n${bodyHash}`;
+    const signature = sodium.crypto_sign_detached(sodium.from_string(message), secretKey);
 
-  return {
-    headers: {
-      "X-Pubkey": sodium.to_base64(publicKey),
-      "X-Timestamp": timestamp,
-      "X-Signature": sodium.to_base64(signature),
-    },
-  };
+    return {
+        headers: {
+            "X-Pubkey": sodium.to_base64(publicKey),
+            "X-Timestamp": timestamp,
+            "X-Signature": sodium.to_base64(signature),
+        },
+    };
 }
 ```
 
@@ -396,21 +396,21 @@ A user can be a member of **multiple vaults**. Each vault is a completely indepe
 ```typescript
 // Decrypted contents of user_data.encrypted_data
 interface UserData {
-  vaults: VaultReference[];
-  globalSettings: GlobalSettings;
+    vaults: VaultReference[];
+    globalSettings: GlobalSettings;
 }
 
 interface VaultReference {
-  id: string; // Vault UUID
-  wrappedKey: string; // Vault encryption key, wrapped with user's X25519 pubkey
-  name?: string; // Cached vault name for selector UI (convenience)
+    id: string; // Vault UUID
+    wrappedKey: string; // Vault encryption key, wrapped with user's X25519 pubkey
+    name?: string; // Cached vault name for selector UI (convenience)
 }
 
 interface GlobalSettings {
-  activeVaultId: string | null; // Currently selected vault
-  theme: "light" | "dark" | "system";
-  defaultCurrency: string; // ISO 4217 code (e.g., "USD", "EUR") - used as fallback for imports
-  // Future: notification preferences, etc.
+    activeVaultId: string | null; // Currently selected vault
+    theme: "light" | "dark" | "system";
+    defaultCurrency: string; // ISO 4217 code (e.g., "USD", "EUR") - used as fallback for imports
+    // Future: notification preferences, etc.
 }
 ```
 
@@ -480,9 +480,9 @@ These entities are stored in Supabase Postgres. The server knows **nothing** abo
 
 ```typescript
 interface DbUserData {
-  pubkey_hash: string; // BLAKE2b(publicKey) - primary key, opaque to server
-  encrypted_data: string; // Encrypted: { vaults: [{id, wrappedKey}], settings }
-  updated_at: Date;
+    pubkey_hash: string; // BLAKE2b(publicKey) - primary key, opaque to server
+    encrypted_data: string; // Encrypted: { vaults: [{id, wrappedKey}], settings }
+    updated_at: Date;
 }
 ```
 
@@ -496,8 +496,8 @@ interface DbUserData {
 
 ```typescript
 interface DbVault {
-  id: string; // UUID, primary key
-  created_at: Date;
+    id: string; // UUID, primary key
+    created_at: Date;
 }
 ```
 
@@ -505,13 +505,13 @@ interface DbVault {
 
 ```typescript
 interface DbVaultMembership {
-  id: string; // UUID, primary key
-  vault_id: string; // FK to Vault
-  pubkey_hash: string; // User identity (hash of their signing public key)
-  enc_public_key: string; // User's X25519 encryption public key (for re-keying)
-  encrypted_vault_key: string; // Vault key wrapped with user's X25519 public key
-  role: "owner" | "member";
-  created_at: Date;
+    id: string; // UUID, primary key
+    vault_id: string; // FK to Vault
+    pubkey_hash: string; // User identity (hash of their signing public key)
+    enc_public_key: string; // User's X25519 encryption public key (for re-keying)
+    encrypted_vault_key: string; // Vault key wrapped with user's X25519 public key
+    role: "owner" | "member";
+    created_at: Date;
 }
 ```
 
@@ -525,14 +525,14 @@ interface DbVaultMembership {
 
 ```typescript
 interface DbVaultInvite {
-  id: string; // UUID, primary key
-  vault_id: string; // FK to Vault
-  invite_pubkey: string; // Ephemeral pubkey derived from invite secret
-  encrypted_vault_key: string; // Vault key wrapped with invite_pubkey
-  role: "owner" | "member";
-  created_by: string; // pubkey_hash of inviter
-  expires_at: Date;
-  created_at: Date;
+    id: string; // UUID, primary key
+    vault_id: string; // FK to Vault
+    invite_pubkey: string; // Ephemeral pubkey derived from invite secret
+    encrypted_vault_key: string; // Vault key wrapped with invite_pubkey
+    role: "owner" | "member";
+    created_by: string; // pubkey_hash of inviter
+    expires_at: Date;
+    created_at: Date;
 }
 ```
 
@@ -546,12 +546,12 @@ interface DbVaultInvite {
 
 ```typescript
 interface DbVaultSnapshot {
-  id: string; // UUID, primary key
-  vault_id: string; // FK to Vault
-  version: number; // Monotonic version number
-  hlc_timestamp: string; // HLC for ordering
-  encrypted_data: string; // Encrypted Loro snapshot
-  created_at: Date;
+    id: string; // UUID, primary key
+    vault_id: string; // FK to Vault
+    version: number; // Monotonic version number
+    hlc_timestamp: string; // HLC for ordering
+    encrypted_data: string; // Encrypted Loro snapshot
+    created_at: Date;
 }
 ```
 
@@ -559,13 +559,13 @@ interface DbVaultSnapshot {
 
 ```typescript
 interface DbVaultUpdate {
-  id: string; // UUID, primary key
-  vault_id: string; // FK to Vault
-  base_snapshot_version: number;
-  hlc_timestamp: string;
-  encrypted_data: string; // Encrypted Loro update
-  author_pubkey_hash: string; // Who pushed this update
-  created_at: Date;
+    id: string; // UUID, primary key
+    vault_id: string; // FK to Vault
+    base_snapshot_version: number;
+    hlc_timestamp: string;
+    encrypted_data: string; // Encrypted Loro update
+    author_pubkey_hash: string; // Who pushed this update
+    created_at: Date;
 }
 ```
 
@@ -911,34 +911,34 @@ Each entity is a nested LoroMap. For collections within entities (like tags on a
 ```typescript
 // Example: Creating a transaction
 function createTransaction(vault: LoroDoc, data: TransactionInput): string {
-  const id = crypto.randomUUID();
-  const transactions = vault.getMap("transactions");
+    const id = crypto.randomUUID();
+    const transactions = vault.getMap("transactions");
 
-  const tx = transactions.setContainer(id, new LoroMap());
-  tx.set("date", data.date);
-  tx.set("description", data.description); // Imported text from bank file
-  tx.set("notes", data.notes);             // User notes/memo
-  tx.set("amount", data.amount);
-  tx.set("accountId", data.accountId);
-  tx.set("statusId", data.statusId);
-  tx.set("importId", data.importId ?? null);
-  tx.set("createdAt", Date.now());
+    const tx = transactions.setContainer(id, new LoroMap());
+    tx.set("date", data.date);
+    tx.set("description", data.description); // Imported text from bank file
+    tx.set("notes", data.notes); // User notes/memo
+    tx.set("amount", data.amount);
+    tx.set("accountId", data.accountId);
+    tx.set("statusId", data.statusId);
+    tx.set("importId", data.importId ?? null);
+    tx.set("createdAt", Date.now());
 
-  // Tags are a LoroList for concurrent-safe add/remove
-  const tags = tx.setContainer("tagIds", new LoroList());
-  for (const tagId of data.tagIds ?? []) {
-    tags.push(tagId);
-  }
-
-  // Allocations are a LoroMap (personId -> percentage)
-  if (data.allocations) {
-    const allocs = tx.setContainer("allocations", new LoroMap());
-    for (const [personId, pct] of Object.entries(data.allocations)) {
-      allocs.set(personId, pct);
+    // Tags are a LoroList for concurrent-safe add/remove
+    const tags = tx.setContainer("tagIds", new LoroList());
+    for (const tagId of data.tagIds ?? []) {
+        tags.push(tagId);
     }
-  }
 
-  return id;
+    // Allocations are a LoroMap (personId -> percentage)
+    if (data.allocations) {
+        const allocs = tx.setContainer("allocations", new LoroMap());
+        for (const [personId, pct] of Object.entries(data.allocations)) {
+            allocs.set(personId, pct);
+        }
+    }
+
+    return id;
 }
 ```
 
@@ -949,18 +949,18 @@ function createTransaction(vault: LoroDoc, data: TransactionInput): string {
 ```typescript
 // Automation condition (stored as JSON within LoroMap)
 interface AutomationCondition {
-  id: string;
-  column: "description" | "notes" | "amount" | "accountId";
-  operator: "contains" | "regex";
-  value: string;
-  caseSensitive: boolean;
+    id: string;
+    column: "description" | "notes" | "amount" | "accountId";
+    operator: "contains" | "regex";
+    value: string;
+    caseSensitive: boolean;
 }
 
 // Automation action (stored as JSON within LoroMap)
 interface AutomationAction {
-  id: string;
-  type: "setTags" | "setAllocation" | "setStatus";
-  value: unknown; // Type depends on action type
+    id: string;
+    type: "setTags" | "setAllocation" | "setStatus";
+    value: unknown; // Type depends on action type
 }
 
 // Action value types
@@ -976,100 +976,100 @@ When you call `doc.toJSON()` or `container.toJSON()`, Loro returns plain JavaScr
 ```typescript
 // Full vault state (via doc.toJSON())
 interface VaultState {
-  people: Record<string, Person>;
-  accounts: Record<string, Account>;
-  tags: Record<string, Tag>;
-  transactions: Record<string, Transaction>;
-  imports: Record<string, Import>;
-  importTemplates: Record<string, ImportTemplate>;
-  statuses: Record<string, Status>;
-  automations: Record<string, Automation>;
-  preferences: VaultPreferences;
+    people: Record<string, Person>;
+    accounts: Record<string, Account>;
+    tags: Record<string, Tag>;
+    transactions: Record<string, Transaction>;
+    imports: Record<string, Import>;
+    importTemplates: Record<string, ImportTemplate>;
+    statuses: Record<string, Status>;
+    automations: Record<string, Automation>;
+    preferences: VaultPreferences;
 }
 
 interface Person {
-  id: string;
-  name: string;
-  linkedUserId?: string;
-  deletedAt?: number; // Soft delete timestamp
+    id: string;
+    name: string;
+    linkedUserId?: string;
+    deletedAt?: number; // Soft delete timestamp
 }
 
 interface Account {
-  id: string;
-  name: string;
-  accountNumber?: string;
-  currency: string;
-  accountType: "checking" | "savings" | "credit" | "cash" | "loan";
-  balance: number;
-  ownerships: Record<string, number>; // personId -> percentage (via LoroMap.toJSON())
-  deletedAt?: number;
+    id: string;
+    name: string;
+    accountNumber?: string;
+    currency: string;
+    accountType: "checking" | "savings" | "credit" | "cash" | "loan";
+    balance: number;
+    ownerships: Record<string, number>; // personId -> percentage (via LoroMap.toJSON())
+    deletedAt?: number;
 }
 
 interface Tag {
-  id: string;
-  name: string;
-  parentTagId?: string;
-  isTransfer: boolean;
-  deletedAt?: number;
+    id: string;
+    name: string;
+    parentTagId?: string;
+    isTransfer: boolean;
+    deletedAt?: number;
 }
 
 interface Transaction {
-  id: string;
-  date: string;
-  description: string; // Imported text from bank file (OFX NAME, CSV description)
-  notes: string;       // User notes/memo
-  amount: number;
-  accountId: string;
-  tagIds: string[]; // LoroList.toJSON() returns array
-  statusId: string;
-  importId?: string;
-  allocations: Record<string, number>; // personId -> percentage
-  duplicateOf?: string; // ID of suspected original transaction (set on import, cleared on Keep)
-  deletedAt?: number;
+    id: string;
+    date: string;
+    description: string; // Imported text from bank file (OFX NAME, CSV description)
+    notes: string; // User notes/memo
+    amount: number;
+    accountId: string;
+    tagIds: string[]; // LoroList.toJSON() returns array
+    statusId: string;
+    importId?: string;
+    allocations: Record<string, number>; // personId -> percentage
+    duplicateOf?: string; // ID of suspected original transaction (set on import, cleared on Keep)
+    deletedAt?: number;
 }
 
 interface Import {
-  id: string;
-  filename: string;
-  transactionCount: number;
-  createdAt: number;
-  deletedAt?: number;
+    id: string;
+    filename: string;
+    transactionCount: number;
+    createdAt: number;
+    deletedAt?: number;
 }
 
 interface ImportTemplate {
-  id: string;
-  name: string;
-  columnMappings: Record<string, string>;
-  formatting: {
-    hasHeaders: boolean;
-    thousandSeparator: string;
-    decimalSeparator: string;
-    dateFormat: string;
-  };
-  deletedAt?: number;
+    id: string;
+    name: string;
+    columnMappings: Record<string, string>;
+    formatting: {
+        hasHeaders: boolean;
+        thousandSeparator: string;
+        decimalSeparator: string;
+        dateFormat: string;
+    };
+    deletedAt?: number;
 }
 
 interface Status {
-  id: string;
-  name: string;
-  behavior: "treatAsPaid" | null;
-  isDefault: boolean;
-  deletedAt?: number;
+    id: string;
+    name: string;
+    behavior: "treatAsPaid" | null;
+    isDefault: boolean;
+    deletedAt?: number;
 }
 
 interface Automation {
-  id: string;
-  name: string;
-  conditions: AutomationCondition[];
-  actions: AutomationAction[];
-  order: number;
-  excludedTransactionIds: string[]; // LoroList of excluded transaction IDs
-  deletedAt?: number;
+    id: string;
+    name: string;
+    conditions: AutomationCondition[];
+    actions: AutomationAction[];
+    order: number;
+    excludedTransactionIds: string[]; // LoroList of excluded transaction IDs
+    deletedAt?: number;
 }
 
 // Vault-scoped preferences (stored in vault CRDT, synced across vault members)
 interface VaultPreferences {
-  automationCreationPreference: "createAutomatically" | "manual";
+    automationCreationPreference: "createAutomatically" | "manual";
 }
 ```
 
@@ -1101,10 +1101,10 @@ const amount = tx?.get("amount");
 
 // Option 3: Subscribe to changes
 transactions.subscribe((event) => {
-  if (event.by === "import") {
-    // Remote change
-  }
-  refreshUI();
+    if (event.by === "import") {
+        // Remote change
+    }
+    refreshUI();
 });
 ```
 
@@ -1178,13 +1178,13 @@ import { EphemeralStore } from "loro-crdt";
 
 // Presence payload broadcast by each client
 interface PresenceData {
-  personId: string; // Person ID in vault (links to people collection)
-  name: string; // Display name for avatar tooltip
-  initials: string; // 2-char initials for avatar circle
-  color: string; // Unique hex color per user (derived from pubkeyHash)
-  activeRow?: string; // Transaction ID currently focused (optional)
-  activeCell?: string; // Column name being edited (optional)
-  lastSeen: number; // Unix timestamp (ms)
+    personId: string; // Person ID in vault (links to people collection)
+    name: string; // Display name for avatar tooltip
+    initials: string; // 2-char initials for avatar circle
+    color: string; // Unique hex color per user (derived from pubkeyHash)
+    activeRow?: string; // Transaction ID currently focused (optional)
+    activeCell?: string; // Column name being edited (optional)
+    lastSeen: number; // Unix timestamp (ms)
 }
 
 // EphemeralStore key format: pubkeyHash (unique per session)
@@ -1199,7 +1199,7 @@ import { sha256 } from "@noble/hashes/sha256";
 
 // Derive presence key from vault key (single-pass, no iterations for speed)
 function derivePresenceKey(vaultKey: Uint8Array): Uint8Array {
-  return hkdf(sha256, vaultKey, undefined, "moneyflow-v1-presence", 32);
+    return hkdf(sha256, vaultKey, undefined, "moneyflow-v1-presence", 32);
 }
 ```
 
@@ -1215,47 +1215,47 @@ const presenceKey = derivePresenceKey(vaultKey);
 
 // Broadcast own presence
 function updatePresence(data: Partial<PresenceData>) {
-  const myPresence: PresenceData = {
-    personId: session.personId,
-    name: session.displayName,
-    initials: getInitials(session.displayName),
-    color: hashToColor(session.pubkeyHash),
-    lastSeen: Date.now(),
-    ...data,
-  };
-  presence.set(session.pubkeyHash, JSON.stringify(myPresence));
+    const myPresence: PresenceData = {
+        personId: session.personId,
+        name: session.displayName,
+        initials: getInitials(session.displayName),
+        color: hashToColor(session.pubkeyHash),
+        lastSeen: Date.now(),
+        ...data,
+    };
+    presence.set(session.pubkeyHash, JSON.stringify(myPresence));
 }
 
 // Send presence updates via Supabase Realtime broadcast (encrypted)
 function syncPresence() {
-  const encoded = presence.encode();
-  const encrypted = encrypt(encoded, presenceKey); // XChaCha20-Poly1305
-  supabaseChannel.send({
-    type: "broadcast",
-    event: "presence",
-    payload: { data: Array.from(encrypted) },
-  });
+    const encoded = presence.encode();
+    const encrypted = encrypt(encoded, presenceKey); // XChaCha20-Poly1305
+    supabaseChannel.send({
+        type: "broadcast",
+        event: "presence",
+        payload: { data: Array.from(encrypted) },
+    });
 }
 
 // Receive presence updates from other clients (decrypt first)
 supabaseChannel.on("broadcast", { event: "presence" }, (msg) => {
-  const encrypted = new Uint8Array(msg.payload.data);
-  const decrypted = decrypt(encrypted, presenceKey);
-  if (decrypted) {
-    presence.apply(decrypted);
-  }
+    const encrypted = new Uint8Array(msg.payload.data);
+    const decrypted = decrypt(encrypted, presenceKey);
+    if (decrypted) {
+        presence.apply(decrypted);
+    }
 });
 
 // Subscribe to presence changes
 presence.subscribe((event) => {
-  const allStates = presence.getAllStates();
-  const activePeers = Object.entries(allStates)
-    .map(([key, value]) => ({
-      key,
-      ...(JSON.parse(value as string) as PresenceData),
-    }))
-    .filter((p) => p.key !== session.pubkeyHash); // Exclude self
-  updatePresenceUI(activePeers);
+    const allStates = presence.getAllStates();
+    const activePeers = Object.entries(allStates)
+        .map(([key, value]) => ({
+            key,
+            ...(JSON.parse(value as string) as PresenceData),
+        }))
+        .filter((p) => p.key !== session.pubkeyHash); // Exclude self
+    updatePresenceUI(activePeers);
 });
 ```
 
@@ -1264,17 +1264,17 @@ presence.subscribe((event) => {
 ```typescript
 // Deterministic color from pubkey hash (for consistent avatar colors)
 function hashToColor(pubkeyHash: string): string {
-  // Use first 6 chars of hash as hue seed
-  const hue = parseInt(pubkeyHash.slice(0, 6), 16) % 360;
-  // Fixed saturation/lightness for good contrast
-  return `hsl(${hue}, 70%, 60%)`;
+    // Use first 6 chars of hash as hue seed
+    const hue = parseInt(pubkeyHash.slice(0, 6), 16) % 360;
+    // Fixed saturation/lightness for good contrast
+    return `hsl(${hue}, 70%, 60%)`;
 }
 
 // Generate initials from name
 function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 ```
 
@@ -1309,47 +1309,47 @@ function getInitials(name: string): string {
 import { z } from "zod";
 
 const PersonSchema = z.object({
-  id: z.string().uuid(),
-  name: z.string().min(1).max(100),
-  linkedUserId: z.string().uuid().optional(),
-  deletedAt: z.number().optional(),
+    id: z.string().uuid(),
+    name: z.string().min(1).max(100),
+    linkedUserId: z.string().uuid().optional(),
+    deletedAt: z.number().optional(),
 });
 
 const AccountSchema = z.object({
-  id: z.string().uuid(),
-  name: z.string().min(1).max(100),
-  accountNumber: z.string().max(50).optional(),
-  currency: z.string().length(3), // ISO 4217
-  accountType: z.enum(["checking", "savings", "credit", "cash", "loan"]),
-  balance: z.number(),
-  ownerships: z
-    .record(z.string().uuid(), z.number())
-    .refine((o) => Object.values(o).reduce((sum, x) => sum + x, 0) === 100, {
-      message: "Ownership percentages must sum to 100",
-    }),
-  deletedAt: z.number().optional(),
+    id: z.string().uuid(),
+    name: z.string().min(1).max(100),
+    accountNumber: z.string().max(50).optional(),
+    currency: z.string().length(3), // ISO 4217
+    accountType: z.enum(["checking", "savings", "credit", "cash", "loan"]),
+    balance: z.number(),
+    ownerships: z
+        .record(z.string().uuid(), z.number())
+        .refine((o) => Object.values(o).reduce((sum, x) => sum + x, 0) === 100, {
+            message: "Ownership percentages must sum to 100",
+        }),
+    deletedAt: z.number().optional(),
 });
 
 const TagSchema = z.object({
-  id: z.string().uuid(),
-  name: z.string().min(1).max(50),
-  parentTagId: z.string().uuid().optional(),
-  isTransfer: z.boolean(),
-  deletedAt: z.number().optional(),
+    id: z.string().uuid(),
+    name: z.string().min(1).max(50),
+    parentTagId: z.string().uuid().optional(),
+    isTransfer: z.boolean(),
+    deletedAt: z.number().optional(),
 });
 
 const TransactionSchema = z.object({
-  id: z.string().uuid(),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), // ISO date
-  description: z.string().max(200), // Imported text from bank file
-  notes: z.string().max(500),       // User notes/memo
-  amount: z.number(),
-  accountId: z.string().uuid(),
-  tagIds: z.array(z.string().uuid()),
-  statusId: z.string().uuid(),
-  importId: z.string().uuid().optional(),
-  allocations: z.record(z.string().uuid(), z.number()),
-  deletedAt: z.number().optional(),
+    id: z.string().uuid(),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), // ISO date
+    description: z.string().max(200), // Imported text from bank file
+    notes: z.string().max(500), // User notes/memo
+    amount: z.number(),
+    accountId: z.string().uuid(),
+    tagIds: z.array(z.string().uuid()),
+    statusId: z.string().uuid(),
+    importId: z.string().uuid().optional(),
+    allocations: z.record(z.string().uuid(), z.number()),
+    deletedAt: z.number().optional(),
 });
 
 // ... similar for other entities
@@ -1363,21 +1363,21 @@ When a new vault is created, initialize with:
 
 ```typescript
 const DEFAULT_STATUSES: Status[] = [
-  {
-    id: generateUUID(),
-    name: "For Review",
-    behavior: null,
-    isDefault: true,
-  },
-  {
-    id: generateUUID(),
-    name: "Paid",
-    behavior: "treatAsPaid",
-    isDefault: false,
-  },
+    {
+        id: generateUUID(),
+        name: "For Review",
+        behavior: null,
+        isDefault: true,
+    },
+    {
+        id: generateUUID(),
+        name: "Paid",
+        behavior: "treatAsPaid",
+        isDefault: false,
+    },
 ];
 
 const DEFAULT_VAULT_PREFERENCES: VaultPreferences = {
-  automationCreationPreference: "createAutomatically",
+    automationCreationPreference: "createAutomatically",
 };
 ```

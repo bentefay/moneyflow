@@ -7,10 +7,11 @@
 
 import { LoroDoc } from "loro-crdt";
 import { Mirror } from "loro-mirror";
+
 import {
-	DEFAULT_AUTOMATION_CREATION_PREFERENCE,
-	DEFAULT_CURRENCY,
-	DEFAULT_VAULT_NAME,
+    DEFAULT_AUTOMATION_CREATION_PREFERENCE,
+    DEFAULT_CURRENCY,
+    DEFAULT_VAULT_NAME,
 } from "./defaults";
 import { migrateVaultSentinels } from "./migration";
 import { type VaultState, vaultSchema } from "./schema";
@@ -19,14 +20,14 @@ import { type VaultState, vaultSchema } from "./schema";
  * Options for creating a vault mirror
  */
 export interface CreateVaultMirrorOptions {
-	/** Existing LoroDoc to sync with (optional - creates new if not provided) */
-	doc?: LoroDoc;
-	/** Initial state to populate the vault with */
-	initialState?: Partial<VaultState>;
-	/** Enable debug logging */
-	debug?: boolean;
-	/** Enable state consistency checks (slower, for development) */
-	checkStateConsistency?: boolean;
+    /** Existing LoroDoc to sync with (optional - creates new if not provided) */
+    doc?: LoroDoc;
+    /** Initial state to populate the vault with */
+    initialState?: Partial<VaultState>;
+    /** Enable debug logging */
+    debug?: boolean;
+    /** Enable state consistency checks (slower, for development) */
+    checkStateConsistency?: boolean;
 }
 
 /**
@@ -34,19 +35,19 @@ export interface CreateVaultMirrorOptions {
  * Note: $cid fields are automatically managed by loro-mirror
  */
 export const DEFAULT_VAULT_STATE = {
-	people: {},
-	accounts: {},
-	tags: {},
-	statuses: {},
-	transactions: {},
-	imports: {},
-	importTemplates: {},
-	automations: {},
-	preferences: {
-		name: DEFAULT_VAULT_NAME,
-		automationCreationPreference: DEFAULT_AUTOMATION_CREATION_PREFERENCE,
-		defaultCurrency: DEFAULT_CURRENCY,
-	},
+    people: {},
+    accounts: {},
+    tags: {},
+    statuses: {},
+    transactions: {},
+    imports: {},
+    importTemplates: {},
+    automations: {},
+    preferences: {
+        name: DEFAULT_VAULT_NAME,
+        automationCreationPreference: DEFAULT_AUTOMATION_CREATION_PREFERENCE,
+        defaultCurrency: DEFAULT_CURRENCY,
+    },
 } as const;
 
 /**
@@ -76,31 +77,31 @@ export const DEFAULT_VAULT_STATE = {
  * ```
  */
 export function createVaultMirror(options: CreateVaultMirrorOptions = {}): {
-	mirror: Mirror<typeof vaultSchema>;
-	doc: LoroDoc;
+    mirror: Mirror<typeof vaultSchema>;
+    doc: LoroDoc;
 } {
-	const {
-		doc = new LoroDoc(),
-		initialState = DEFAULT_VAULT_STATE,
-		debug = false,
-		checkStateConsistency = false,
-	} = options;
+    const {
+        doc = new LoroDoc(),
+        initialState = DEFAULT_VAULT_STATE,
+        debug = false,
+        checkStateConsistency = false,
+    } = options;
 
-	// Enable timestamp recording for version vectors
-	// This allows server-side filtering of ops by timestamp
-	doc.setRecordTimestamp(true);
+    // Enable timestamp recording for version vectors
+    // This allows server-side filtering of ops by timestamp
+    doc.setRecordTimestamp(true);
 
-	const mirror = new Mirror({
-		doc,
-		schema: vaultSchema,
-		initialState,
-		validateUpdates: true,
-		throwOnValidationError: true,
-		debug,
-		checkStateConsistency,
-	});
+    const mirror = new Mirror({
+        doc,
+        schema: vaultSchema,
+        initialState,
+        validateUpdates: true,
+        throwOnValidationError: true,
+        debug,
+        checkStateConsistency,
+    });
 
-	return { mirror, doc };
+    return { mirror, doc };
 }
 
 /**
@@ -112,30 +113,30 @@ export function createVaultMirror(options: CreateVaultMirrorOptions = {}): {
  * @param options - Mirror options
  */
 export function createVaultMirrorFromSnapshot(
-	snapshot: Uint8Array,
-	options: Omit<CreateVaultMirrorOptions, "doc" | "initialState"> = {}
+    snapshot: Uint8Array,
+    options: Omit<CreateVaultMirrorOptions, "doc" | "initialState"> = {}
 ): { mirror: Mirror<typeof vaultSchema>; doc: LoroDoc } {
-	const doc = new LoroDoc();
-	doc.import(snapshot);
+    const doc = new LoroDoc();
+    doc.import(snapshot);
 
-	// Enable timestamp recording for version vectors
-	// This allows server-side filtering of ops by timestamp
-	doc.setRecordTimestamp(true);
+    // Enable timestamp recording for version vectors
+    // This allows server-side filtering of ops by timestamp
+    doc.setRecordTimestamp(true);
 
-	const mirror = new Mirror({
-		doc,
-		schema: vaultSchema,
-		validateUpdates: true,
-		throwOnValidationError: true,
-		debug: options.debug ?? false,
-		checkStateConsistency: options.checkStateConsistency ?? false,
-	});
+    const mirror = new Mirror({
+        doc,
+        schema: vaultSchema,
+        validateUpdates: true,
+        throwOnValidationError: true,
+        debug: options.debug ?? false,
+        checkStateConsistency: options.checkStateConsistency ?? false,
+    });
 
-	// Migrate legacy sentinel values (deletedAt: 0, behavior: "", currency: "")
-	// to undefined before any consumers read state
-	migrateVaultSentinels(mirror);
+    // Migrate legacy sentinel values (deletedAt: 0, behavior: "", currency: "")
+    // to undefined before any consumers read state
+    migrateVaultSentinels(mirror);
 
-	return { mirror, doc };
+    return { mirror, doc };
 }
 
 /**
@@ -147,9 +148,9 @@ export function createVaultMirrorFromSnapshot(
  * @param updates - Array of Loro update bytes (decrypted)
  */
 export function applyUpdates(doc: LoroDoc, updates: Uint8Array[]): void {
-	for (const update of updates) {
-		doc.import(update);
-	}
+    for (const update of updates) {
+        doc.import(update);
+    }
 }
 
 /**

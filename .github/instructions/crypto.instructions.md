@@ -51,14 +51,14 @@ Use property-based tests for roundtrip verification:
 import * as fc from "fast-check";
 
 it("encrypts and decrypts arbitrary data", async () => {
-  await fc.assert(
-    fc.asyncProperty(fc.uint8Array({ maxLength: 10000 }), async (plaintext) => {
-      const key = await generateVaultKey();
-      const ciphertext = await encryptForStorage(plaintext, key);
-      const decrypted = await decryptFromStorage(ciphertext, key);
-      expect(decrypted).toEqual(plaintext);
-    })
-  );
+    await fc.assert(
+        fc.asyncProperty(fc.uint8Array({ maxLength: 10000 }), async (plaintext) => {
+            const key = await generateVaultKey();
+            const ciphertext = await encryptForStorage(plaintext, key);
+            const decrypted = await decryptFromStorage(ciphertext, key);
+            expect(decrypted).toEqual(plaintext);
+        })
+    );
 });
 ```
 

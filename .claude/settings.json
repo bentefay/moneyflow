@@ -1,35 +1,35 @@
 {
-  "permissions": {
-    "allow": [
-      "Skill(crdt)",
-      "Bash(. ~/.profile)",
-      "Bash(. ~/.bashrc)",
-      "Bash(pnpm typecheck:*)",
-      "Bash(pnpm test:*)",
-      "Bash(pnpm lint:*)",
-      "Bash(pnpm format:check:*)",
-      "Bash(pnpm format:*)",
-      "Bash(git add:*)",
-      "Bash(pnpm test:e2e:*)",
-      "Bash(git commit:*)",
-      "Bash(pnpm exec playwright test:*)",
-      "Bash(find:*)",
-      "Bash(tail:*)",
-      "Bash(pnpm playwright:*)",
-      "Bash(pnpm vitest:*)"
-    ]
-  },
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "jq -r '.tool_input.file_path // .tool_input.file_path' | xargs pnpm biome check --write --unsafe 2>/dev/null || true"
-          }
+    "permissions": {
+        "allow": [
+            "Skill(crdt)",
+            "Bash(. ~/.profile)",
+            "Bash(. ~/.bashrc)",
+            "Bash(pnpm typecheck:*)",
+            "Bash(pnpm test:*)",
+            "Bash(pnpm lint:*)",
+            "Bash(pnpm format:check:*)",
+            "Bash(pnpm format:*)",
+            "Bash(git add:*)",
+            "Bash(pnpm test:e2e:*)",
+            "Bash(git commit:*)",
+            "Bash(pnpm exec playwright test:*)",
+            "Bash(find:*)",
+            "Bash(tail:*)",
+            "Bash(pnpm playwright:*)",
+            "Bash(pnpm vitest:*)"
         ]
-      }
-    ]
-  }
+    },
+    "hooks": {
+        "PostToolUse": [
+            {
+                "matcher": "Edit|Write",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "jq -r '.tool_input.file_path // .tool_input.file_path' | xargs pnpm oxfmt 2>/dev/null || true"
+                    }
+                ]
+            }
+        ]
+    }
 }

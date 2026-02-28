@@ -9,18 +9,19 @@
 
 **File**: `src/lib/crdt/schema.ts`
 
-| Field | Type | Required | Default | Change |
-|-------|------|----------|---------|--------|
-| id | string | ✅ | - | No change |
-| name | string | ✅ | - | No change |
-| accountNumber | string | ❌ | - | No change |
-| **currency** | string | **❌** | **-** | **MODIFIED: Remove defaultValue, allow undefined** |
-| accountType | string | ❌ | "checking" | No change |
-| balance | number | ❌ | 0 | No change |
-| ownerships | Record<string, number> | ❌ | {} | No change |
-| deletedAt | number | ❌ | - | No change |
+| Field         | Type                   | Required | Default    | Change                                             |
+| ------------- | ---------------------- | -------- | ---------- | -------------------------------------------------- |
+| id            | string                 | ✅       | -          | No change                                          |
+| name          | string                 | ✅       | -          | No change                                          |
+| accountNumber | string                 | ❌       | -          | No change                                          |
+| **currency**  | string                 | **❌**   | **-**      | **MODIFIED: Remove defaultValue, allow undefined** |
+| accountType   | string                 | ❌       | "checking" | No change                                          |
+| balance       | number                 | ❌       | 0          | No change                                          |
+| ownerships    | Record<string, number> | ❌       | {}         | No change                                          |
+| deletedAt     | number                 | ❌       | -          | No change                                          |
 
 **Currency Resolution Logic**:
+
 ```
 account.currency → vault.preferences.defaultCurrency → "USD"
 ```
@@ -29,12 +30,12 @@ account.currency → vault.preferences.defaultCurrency → "USD"
 
 **File**: `src/lib/crdt/defaults.ts`
 
-| Field | Value |
-|-------|-------|
-| id | `"person-default-me"` |
-| name | `"Me"` |
-| linkedUserId | `undefined` |
-| deletedAt | `0` |
+| Field        | Value                 |
+| ------------ | --------------------- |
+| id           | `"person-default-me"` |
+| name         | `"Me"`                |
+| linkedUserId | `undefined`           |
+| deletedAt    | `0`                   |
 
 **Rationale**: Every new vault starts with a "Me" person so the default account can have valid ownership.
 
@@ -42,10 +43,10 @@ account.currency → vault.preferences.defaultCurrency → "USD"
 
 **File**: `src/lib/crdt/defaults.ts`
 
-| Field | Before | After |
-|-------|--------|-------|
-| currency | `"USD"` | `undefined` |
-| ownerships | `{}` | `{ "person-default-me": 100 }` |
+| Field      | Before  | After                          |
+| ---------- | ------- | ------------------------------ |
+| currency   | `"USD"` | `undefined`                    |
+| ownerships | `{}`    | `{ "person-default-me": 100 }` |
 
 ## Constants
 
@@ -71,6 +72,7 @@ export const DEFAULT_STATUS_IDS = { FOR_REVIEW: "...", PAID: "..." };
 ```
 
 **Impact**: Code accessing `account.currency` must handle `undefined`. Use:
+
 - `account.currency ?? vaultDefault` for display
 - `resolveAccountCurrency(account.currency, vault.defaultCurrency)` helper
 
@@ -81,41 +83,42 @@ export const DEFAULT_STATUS_IDS = { FOR_REVIEW: "...", PAID: "..." };
 ```typescript
 /**
  * Resolves the effective currency for an account.
- * 
+ *
  * Resolution order:
  * 1. Explicit account currency (if set)
  * 2. Vault default currency (if set)
  * 3. "USD" (ultimate fallback)
- * 
+ *
  * @returns Object with resolved code and whether it's inherited
  */
 export function resolveAccountCurrency(
-  accountCurrency: string | undefined,
-  vaultDefaultCurrency: string | undefined
+    accountCurrency: string | undefined,
+    vaultDefaultCurrency: string | undefined
 ): { code: string; isInherited: boolean } {
-  if (accountCurrency) {
-    return { code: accountCurrency, isInherited: false };
-  }
-  if (vaultDefaultCurrency) {
-    return { code: vaultDefaultCurrency, isInherited: true };
-  }
-  return { code: "USD", isInherited: true };
+    if (accountCurrency) {
+        return { code: accountCurrency, isInherited: false };
+    }
+    if (vaultDefaultCurrency) {
+        return { code: vaultDefaultCurrency, isInherited: true };
+    }
+    return { code: "USD", isInherited: true };
 }
 ```
 
 ## Validation Rules
 
-| Rule | Enforcement |
-|------|-------------|
-| Account currency must be valid ISO 4217 code if set | Existing: `Currencies` lookup |
-| Account must have at least one owner | UI warning (existing); default "Me" prevents empty state |
-| Ownership percentages must sum to 100% | Existing: `isValidOwnership()` |
+| Rule                                                | Enforcement                                              |
+| --------------------------------------------------- | -------------------------------------------------------- |
+| Account currency must be valid ISO 4217 code if set | Existing: `Currencies` lookup                            |
+| Account must have at least one owner                | UI warning (existing); default "Me" prevents empty state |
+| Ownership percentages must sum to 100%              | Existing: `isValidOwnership()`                           |
 
 ## Migration
 
 **Required**: None
 
-**Rationale**: 
+**Rationale**:
+
 - Existing accounts have explicit `currency` values set → continue working
 - New accounts can omit `currency` → inherit from vault
 - Existing vaults without default person → backward compatible (no runtime error)

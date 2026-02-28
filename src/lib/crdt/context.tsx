@@ -9,6 +9,7 @@
 
 import { createLoroContext } from "loro-mirror-react";
 import { Temporal } from "temporal-polyfill";
+
 import type { Transaction } from "./schema";
 import { vaultSchema } from "./schema";
 
@@ -41,84 +42,84 @@ export const useVaultAction = loroContext.useLoroAction;
  * ```
  */
 export function usePeople() {
-	return useVaultSelector((state) => state.people);
+    return useVaultSelector((state) => state.people);
 }
 
 /**
  * Hook to get all accounts in the vault
  */
 export function useAccounts() {
-	return useVaultSelector((state) => state.accounts);
+    return useVaultSelector((state) => state.accounts);
 }
 
 /**
  * Hook to get all tags in the vault
  */
 export function useTags() {
-	return useVaultSelector((state) => state.tags);
+    return useVaultSelector((state) => state.tags);
 }
 
 /**
  * Hook to get all statuses in the vault
  */
 export function useStatuses() {
-	return useVaultSelector((state) => state.statuses);
+    return useVaultSelector((state) => state.statuses);
 }
 
 /**
  * Hook to get all transactions in the vault
  */
 export function useTransactions() {
-	return useVaultSelector((state) => state.transactions);
+    return useVaultSelector((state) => state.transactions);
 }
 
 /**
  * Hook to get all imports in the vault
  */
 export function useImports() {
-	return useVaultSelector((state) => state.imports);
+    return useVaultSelector((state) => state.imports);
 }
 
 /**
  * Hook to get all import templates in the vault
  */
 export function useImportTemplates() {
-	return useVaultSelector((state) => state.importTemplates);
+    return useVaultSelector((state) => state.importTemplates);
 }
 
 /**
  * Hook to get all automations in the vault
  */
 export function useAutomations() {
-	return useVaultSelector((state) => state.automations);
+    return useVaultSelector((state) => state.automations);
 }
 
 /**
  * Hook to get vault preferences
  */
 export function useVaultPreferences() {
-	return useVaultSelector((state) => state.preferences);
+    return useVaultSelector((state) => state.preferences);
 }
 
 /**
  * Hook to get a specific person by ID
  */
 export function usePerson(personId: string) {
-	return useVaultSelector((state) => state.people[personId]);
+    return useVaultSelector((state) => state.people[personId]);
 }
 
 /**
  * Hook to get a specific account by ID
  */
 export function useAccount(accountId: string) {
-	return useVaultSelector((state) => state.accounts[accountId]);
+    return useVaultSelector((state) => state.accounts[accountId]);
 }
 
 /**
  * Hook to get a specific tag by ID
  */
 export function useTag(tagId: string) {
-	return useVaultSelector((state) => state.tags[tagId]);
+    return useVaultSelector((state) => state.tags[tagId]);
 }
 
 /**
@@ -127,58 +128,58 @@ export function useTag(tagId: string) {
  * Note: This is O(n) - prefer using findTransaction with location when possible.
  */
 export function useTransaction(transactionId: string) {
-	return useVaultSelector((state) => {
-		for (const accountId of Object.keys(state.transactions)) {
-			const tree = state.transactions[accountId];
-			if (!tree || typeof tree === "string") continue;
-			for (const yearBucket of tree.years) {
-				for (const monthBucket of yearBucket.months) {
-					for (const dayBucket of monthBucket.days) {
-						for (const tx of dayBucket.transactions) {
-							if (tx.id === transactionId) return tx;
-							// Also check nested duplicates
-							const dup = tx.suspectedDuplicates?.find((d) => d.id === transactionId);
-							if (dup) return dup as unknown as Transaction;
-						}
-					}
-				}
-			}
-		}
-		return undefined;
-	});
+    return useVaultSelector((state) => {
+        for (const accountId of Object.keys(state.transactions)) {
+            const tree = state.transactions[accountId];
+            if (!tree || typeof tree === "string") continue;
+            for (const yearBucket of tree.years) {
+                for (const monthBucket of yearBucket.months) {
+                    for (const dayBucket of monthBucket.days) {
+                        for (const tx of dayBucket.transactions) {
+                            if (tx.id === transactionId) return tx;
+                            // Also check nested duplicates
+                            const dup = tx.suspectedDuplicates?.find((d) => d.id === transactionId);
+                            if (dup) return dup as unknown as Transaction;
+                        }
+                    }
+                }
+            }
+        }
+        return undefined;
+    });
 }
 
 /**
  * Hook to get active (non-deleted) people
  */
 export function useActivePeople() {
-	return useVaultSelector((state) =>
-		Object.fromEntries(
-			Object.entries(state.people).filter(([, p]) => typeof p === "object" && !p.deletedAt)
-		)
-	);
+    return useVaultSelector((state) =>
+        Object.fromEntries(
+            Object.entries(state.people).filter(([, p]) => typeof p === "object" && !p.deletedAt)
+        )
+    );
 }
 
 /**
  * Hook to get active (non-deleted) accounts
  */
 export function useActiveAccounts() {
-	return useVaultSelector((state) =>
-		Object.fromEntries(
-			Object.entries(state.accounts).filter(([, a]) => typeof a === "object" && !a.deletedAt)
-		)
-	);
+    return useVaultSelector((state) =>
+        Object.fromEntries(
+            Object.entries(state.accounts).filter(([, a]) => typeof a === "object" && !a.deletedAt)
+        )
+    );
 }
 
 /**
  * Hook to get active (non-deleted) tags
  */
 export function useActiveTags() {
-	return useVaultSelector((state) =>
-		Object.fromEntries(
-			Object.entries(state.tags).filter(([, t]) => typeof t === "object" && !t.deletedAt)
-		)
-	);
+    return useVaultSelector((state) =>
+        Object.fromEntries(
+            Object.entries(state.tags).filter(([, t]) => typeof t === "object" && !t.deletedAt)
+        )
+    );
 }
 
 /**
@@ -186,57 +187,57 @@ export function useActiveTags() {
  * Returns a flat array of transactions sorted by date desc.
  */
 export function useActiveTransactions() {
-	return useVaultSelector((state) => {
-		const result: Transaction[] = [];
-		for (const accountId of Object.keys(state.transactions)) {
-			const tree = state.transactions[accountId];
-			if (!tree || typeof tree === "string") continue;
-			for (const yearBucket of tree.years) {
-				for (const monthBucket of yearBucket.months) {
-					for (const dayBucket of monthBucket.days) {
-						for (const tx of dayBucket.transactions) {
-							if (!tx.deletedAt) {
-								result.push(tx);
-							}
-						}
-					}
-				}
-			}
-		}
-		// Sort by date desc, creationInstant desc, importRowIndex asc
-		result.sort((a, b) => {
-			const dateCompare = Temporal.PlainDate.compare(b.date, a.date);
-			if (dateCompare !== 0) return dateCompare;
-			const instantCompare = Temporal.Instant.compare(b.creationInstant, a.creationInstant);
-			if (instantCompare !== 0) return instantCompare;
-			const aIdx = a.importRowIndex ?? Infinity;
-			const bIdx = b.importRowIndex ?? Infinity;
-			return aIdx - bIdx;
-		});
-		return result;
-	});
+    return useVaultSelector((state) => {
+        const result: Transaction[] = [];
+        for (const accountId of Object.keys(state.transactions)) {
+            const tree = state.transactions[accountId];
+            if (!tree || typeof tree === "string") continue;
+            for (const yearBucket of tree.years) {
+                for (const monthBucket of yearBucket.months) {
+                    for (const dayBucket of monthBucket.days) {
+                        for (const tx of dayBucket.transactions) {
+                            if (!tx.deletedAt) {
+                                result.push(tx);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // Sort by date desc, creationInstant desc, importRowIndex asc
+        result.sort((a, b) => {
+            const dateCompare = Temporal.PlainDate.compare(b.date, a.date);
+            if (dateCompare !== 0) return dateCompare;
+            const instantCompare = Temporal.Instant.compare(b.creationInstant, a.creationInstant);
+            if (instantCompare !== 0) return instantCompare;
+            const aIdx = a.importRowIndex ?? Infinity;
+            const bIdx = b.importRowIndex ?? Infinity;
+            return aIdx - bIdx;
+        });
+        return result;
+    });
 }
 
 /**
  * Hook to get active (non-deleted) imports
  */
 export function useActiveImports() {
-	return useVaultSelector((state) =>
-		Object.fromEntries(
-			Object.entries(state.imports).filter(([, i]) => typeof i === "object" && !i.deletedAt)
-		)
-	);
+    return useVaultSelector((state) =>
+        Object.fromEntries(
+            Object.entries(state.imports).filter(([, i]) => typeof i === "object" && !i.deletedAt)
+        )
+    );
 }
 
 /**
  * Hook to get active (non-deleted) statuses
  */
 export function useActiveStatuses() {
-	return useVaultSelector((state) =>
-		Object.fromEntries(
-			Object.entries(state.statuses).filter(([, s]) => typeof s === "object" && !s.deletedAt)
-		)
-	);
+    return useVaultSelector((state) =>
+        Object.fromEntries(
+            Object.entries(state.statuses).filter(([, s]) => typeof s === "object" && !s.deletedAt)
+        )
+    );
 }
 
 // ============================================
@@ -244,19 +245,19 @@ export function useActiveStatuses() {
 // ============================================
 
 import {
-	type DeleteTransactionInput,
-	deleteTransactionsByImport as deleteByImport,
-	deleteTransaction as deleteTx,
-	type InsertTransactionInput,
-	insertTransaction as insertTx,
-	type MoveTransactionInput,
-	moveTransaction as moveTx,
-	type SwapDuplicateInput,
-	swapDuplicate as swapDup,
-	type UnnestDuplicateInput,
-	type UpdateTransactionInput,
-	unnestDuplicate as unnestDup,
-	updateTransaction as updateTx,
+    type DeleteTransactionInput,
+    deleteTransactionsByImport as deleteByImport,
+    deleteTransaction as deleteTx,
+    type InsertTransactionInput,
+    insertTransaction as insertTx,
+    type MoveTransactionInput,
+    moveTransaction as moveTx,
+    type SwapDuplicateInput,
+    swapDuplicate as swapDup,
+    type UnnestDuplicateInput,
+    type UpdateTransactionInput,
+    unnestDuplicate as unnestDup,
+    updateTransaction as updateTx,
 } from "./mutations";
 
 /**
@@ -264,41 +265,41 @@ import {
  * Uses useVaultAction for memoized callbacks that work with the hierarchical structure.
  */
 export function useTransactionActions() {
-	const insertTransaction = useVaultAction((state, input: InsertTransactionInput) => {
-		insertTx(state.transactions, input);
-	});
+    const insertTransaction = useVaultAction((state, input: InsertTransactionInput) => {
+        insertTx(state.transactions, input);
+    });
 
-	const updateTransaction = useVaultAction((state, input: UpdateTransactionInput) => {
-		updateTx(state.transactions, input);
-	});
+    const updateTransaction = useVaultAction((state, input: UpdateTransactionInput) => {
+        updateTx(state.transactions, input);
+    });
 
-	const moveTransaction = useVaultAction((state, input: MoveTransactionInput) => {
-		moveTx(state.transactions, input);
-	});
+    const moveTransaction = useVaultAction((state, input: MoveTransactionInput) => {
+        moveTx(state.transactions, input);
+    });
 
-	const deleteTransaction = useVaultAction((state, input: DeleteTransactionInput) => {
-		deleteTx(state.transactions, input);
-	});
+    const deleteTransaction = useVaultAction((state, input: DeleteTransactionInput) => {
+        deleteTx(state.transactions, input);
+    });
 
-	const unnestDuplicate = useVaultAction((state, input: UnnestDuplicateInput) => {
-		unnestDup(state.transactions, input);
-	});
+    const unnestDuplicate = useVaultAction((state, input: UnnestDuplicateInput) => {
+        unnestDup(state.transactions, input);
+    });
 
-	const swapDuplicate = useVaultAction((state, input: SwapDuplicateInput) => {
-		swapDup(state.transactions, input);
-	});
+    const swapDuplicate = useVaultAction((state, input: SwapDuplicateInput) => {
+        swapDup(state.transactions, input);
+    });
 
-	const deleteTransactionsByImport = useVaultAction((state, importId: string) => {
-		deleteByImport(state.transactions, importId);
-	});
+    const deleteTransactionsByImport = useVaultAction((state, importId: string) => {
+        deleteByImport(state.transactions, importId);
+    });
 
-	return {
-		insertTransaction,
-		updateTransaction,
-		moveTransaction,
-		deleteTransaction,
-		unnestDuplicate,
-		swapDuplicate,
-		deleteTransactionsByImport,
-	};
+    return {
+        insertTransaction,
+        updateTransaction,
+        moveTransaction,
+        deleteTransaction,
+        unnestDuplicate,
+        swapDuplicate,
+        deleteTransactionsByImport,
+    };
 }

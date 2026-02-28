@@ -10,13 +10,13 @@ description: Loro CRDT state management with loro-mirror. Use when working on fi
 ```typescript
 // CORRECT - mutate in place
 setState((state) => {
-  state.transactions[id] = transaction;
+    state.transactions[id] = transaction;
 });
 
 // WRONG - returning new objects breaks change tracking
 setState((state) => ({
-  ...state,
-  transactions: { ...state.transactions, [id]: transaction },
+    ...state,
+    transactions: { ...state.transactions, [id]: transaction },
 }));
 ```
 
@@ -33,23 +33,23 @@ Schema fields use `richSchema.*` helpers that apply bidirectional transforms bet
 CRDT primitives and domain types. The `richSchema` factory methods must be generic over
 `O extends SchemaOptions` to preserve `required: false` optionality.
 
-| richSchema helper       | CRDT primitive | Domain type          |
-| ------------------------ | -------------- | -------------------- |
-| `richSchema.PlainDate()` | `string`       | `Temporal.PlainDate` |
-| `richSchema.Instant()`   | `number`       | `Temporal.Instant`   |
-| `richSchema.MoneyMinorUnits()` | `number` | `MoneyMinorUnits`    |
-| `richSchema.Percentage()` | `number`      | `Percentage`         |
-| `richSchema.CurrencyCode()` | `string`    | `CurrencyCode`       |
-| `richSchema.StringEnum(values)` | `string` | Union literal type  |
+| richSchema helper               | CRDT primitive | Domain type          |
+| ------------------------------- | -------------- | -------------------- |
+| `richSchema.PlainDate()`        | `string`       | `Temporal.PlainDate` |
+| `richSchema.Instant()`          | `number`       | `Temporal.Instant`   |
+| `richSchema.MoneyMinorUnits()`  | `number`       | `MoneyMinorUnits`    |
+| `richSchema.Percentage()`       | `number`       | `Percentage`         |
+| `richSchema.CurrencyCode()`     | `string`       | `CurrencyCode`       |
+| `richSchema.StringEnum(values)` | `string`       | Union literal type   |
 
 ## Schema Pattern
 
 ```typescript
 export const entitySchema = schema.LoroMap({
-  id: schema.String({ required: true }),
-  name: schema.String({ required: true }),
-  // Optional fields use { required: false } — value type becomes T | undefined
-  deletedAt: richSchema.Instant({ required: false }),
+    id: schema.String({ required: true }),
+    name: schema.String({ required: true }),
+    // Optional fields use { required: false } — value type becomes T | undefined
+    deletedAt: richSchema.Instant({ required: false }),
 });
 ```
 

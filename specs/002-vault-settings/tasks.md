@@ -157,14 +157,14 @@
 
 ### User Story Dependencies
 
-| Story | Priority | Depends On | Files Modified |
-|-------|----------|------------|----------------|
-| US1 (Currency Settings) | P1 | Phase 2 | New files in `vault/`, `settings/` |
-| US2 (Settings Navigation) | P1 | Phase 2, US1 | None (satisfied by T003, T010) |
-| US3 (Transactions Landing) | P2 | Phase 2 | `unlock/page.tsx`, `invite/[token]/page.tsx` |
-| US4 (Accounts Alignment) | P2 | Phase 2 | `AccountRow.tsx`, `AccountsTable.tsx` |
-| US5 (Menu Styling) | P3 | Phase 2 | `layout.tsx` (mostly done in T006) |
-| US1a (New Vault Landing) | P1 | Phase 2 | `new-user/page.tsx` |
+| Story                      | Priority | Depends On   | Files Modified                               |
+| -------------------------- | -------- | ------------ | -------------------------------------------- |
+| US1 (Currency Settings)    | P1       | Phase 2      | New files in `vault/`, `settings/`           |
+| US2 (Settings Navigation)  | P1       | Phase 2, US1 | None (satisfied by T003, T010)               |
+| US3 (Transactions Landing) | P2       | Phase 2      | `unlock/page.tsx`, `invite/[token]/page.tsx` |
+| US4 (Accounts Alignment)   | P2       | Phase 2      | `AccountRow.tsx`, `AccountsTable.tsx`        |
+| US5 (Menu Styling)         | P3       | Phase 2      | `layout.tsx` (mostly done in T006)           |
+| US1a (New Vault Landing)   | P1       | Phase 2      | `new-user/page.tsx`                          |
 
 ### Parallel Opportunities
 
@@ -199,26 +199,26 @@
 ### Full Feature
 
 1. MVP + US3 (Transactions landing for existing users)
-2. + US4 (Accounts page fixes)
-3. + US5 (Menu styling polish)
-4. + E2E tests
+2.  - US4 (Accounts page fixes)
+3.  - US5 (Menu styling polish)
+4.  - E2E tests
 5. Final validation
 
 ---
 
 ## Task Summary
 
-| Phase | Tasks | Description |
-|-------|-------|-------------|
-| 1 | T001-T002 | Setup directories |
-| 2 | T003-T007 | Navigation infrastructure |
-| 3 | T008-T011 | Currency settings (US1) |
-| 4 | - | Settings navigation (US2) - no tasks needed |
-| 5 | T013-T014 | Transactions landing (US3) |
-| 6 | T015-T017 | Accounts alignment (US4) |
-| 7 | T018 | Menu styling (US5) |
-| 8 | T019 | New vault landing (US1a) |
-| 9 | T020-T024 | E2E tests & validation |
+| Phase | Tasks     | Description                                 |
+| ----- | --------- | ------------------------------------------- |
+| 1     | T001-T002 | Setup directories                           |
+| 2     | T003-T007 | Navigation infrastructure                   |
+| 3     | T008-T011 | Currency settings (US1)                     |
+| 4     | -         | Settings navigation (US2) - no tasks needed |
+| 5     | T013-T014 | Transactions landing (US3)                  |
+| 6     | T015-T017 | Accounts alignment (US4)                    |
+| 7     | T018      | Menu styling (US5)                          |
+| 8     | T019      | New vault landing (US1a)                    |
+| 9     | T020-T024 | E2E tests & validation                      |
 
 **Total**: 24 tasks
 **Parallel opportunities**: 10 tasks marked [P]

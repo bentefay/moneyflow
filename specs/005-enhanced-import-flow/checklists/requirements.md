@@ -32,9 +32,9 @@
 ## Notes
 
 - All clarifications resolved during spec creation:
-  - Q1: Old transaction cutoff default = 10 days, mode = "ignore duplicates"
-  - Q2: Default account always exists (prevent deletion of last account)
-  - Q3: Preview shows core columns matching source data (Date, Description, Amount, Status)
+    - Q1: Old transaction cutoff default = 10 days, mode = "ignore duplicates"
+    - Q2: Default account always exists (prevent deletion of last account)
+    - Q3: Preview shows core columns matching source data (Date, Description, Amount, Status)
 - Specification mentions animate-ui tabs component - this is a UI pattern reference, not
   implementation detail
 - FR-013 (prevent deletion of last account) is a supporting requirement that ensures the account

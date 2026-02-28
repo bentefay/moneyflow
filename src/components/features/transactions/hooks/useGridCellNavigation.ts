@@ -31,16 +31,16 @@
 import { useCallback } from "react";
 
 export interface UseGridCellNavigationOptions {
-	/** Optional callback when navigation occurs */
-	onNavigate?: (direction: "up" | "down" | "left" | "right") => void;
+    /** Optional callback when navigation occurs */
+    onNavigate?: (direction: "up" | "down" | "left" | "right") => void;
 }
 
 export interface UseGridCellNavigationReturn {
-	/**
-	 * Key down handler for the grid container.
-	 * Handles arrow keys to navigate between cells.
-	 */
-	handleGridKeyDown: (event: React.KeyboardEvent) => void;
+    /**
+     * Key down handler for the grid container.
+     * Handles arrow keys to navigate between cells.
+     */
+    handleGridKeyDown: (event: React.KeyboardEvent) => void;
 }
 
 /**
@@ -48,38 +48,38 @@ export interface UseGridCellNavigationReturn {
  * For text inputs, also selects all text for spreadsheet-style behavior.
  */
 function focusCellElement(cell: Element): boolean {
-	const focusable =
-		cell.querySelector<HTMLElement>(
-			'input:not([disabled]), textarea:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])'
-		) || (cell as HTMLElement);
+    const focusable =
+        cell.querySelector<HTMLElement>(
+            'input:not([disabled]), textarea:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        ) || (cell as HTMLElement);
 
-	if (focusable && typeof focusable.focus === "function") {
-		focusable.focus();
-		// Select all text in text inputs for spreadsheet-style navigation
-		if (focusable instanceof HTMLInputElement || focusable instanceof HTMLTextAreaElement) {
-			focusable.select();
-		}
-		return true;
-	}
-	return false;
+    if (focusable && typeof focusable.focus === "function") {
+        focusable.focus();
+        // Select all text in text inputs for spreadsheet-style navigation
+        if (focusable instanceof HTMLInputElement || focusable instanceof HTMLTextAreaElement) {
+            focusable.select();
+        }
+        return true;
+    }
+    return false;
 }
 
 /**
  * Check if cursor is on the first line of a textarea.
  */
 function isOnFirstLine(textarea: HTMLTextAreaElement): boolean {
-	const { selectionStart, value } = textarea;
-	const textBeforeCursor = value.substring(0, selectionStart);
-	return !textBeforeCursor.includes("\n");
+    const { selectionStart, value } = textarea;
+    const textBeforeCursor = value.substring(0, selectionStart);
+    return !textBeforeCursor.includes("\n");
 }
 
 /**
  * Check if cursor is on the last line of a textarea.
  */
 function isOnLastLine(textarea: HTMLTextAreaElement): boolean {
-	const { selectionStart, value } = textarea;
-	const textAfterCursor = value.substring(selectionStart);
-	return !textAfterCursor.includes("\n");
+    const { selectionStart, value } = textarea;
+    const textAfterCursor = value.substring(selectionStart);
+    return !textAfterCursor.includes("\n");
 }
 
 /**
@@ -87,7 +87,7 @@ function isOnLastLine(textarea: HTMLTextAreaElement): boolean {
  * Returns true if selectionStart is 0 (cursor at start or selection includes start).
  */
 function isCursorAtStart(element: HTMLInputElement | HTMLTextAreaElement): boolean {
-	return element.selectionStart === 0;
+    return element.selectionStart === 0;
 }
 
 /**
@@ -95,7 +95,7 @@ function isCursorAtStart(element: HTMLInputElement | HTMLTextAreaElement): boole
  * Returns true if selectionEnd is at the end (cursor at end or selection includes end).
  */
 function isCursorAtEnd(element: HTMLInputElement | HTMLTextAreaElement): boolean {
-	return element.selectionEnd === element.value.length;
+    return element.selectionEnd === element.value.length;
 }
 
 /**
@@ -104,202 +104,208 @@ function isCursorAtEnd(element: HTMLInputElement | HTMLTextAreaElement): boolean
  * Returns: Array of { mainRow, notesRow? } ordered by position.
  */
 function getTransactionRowGroups(grid: Element): Array<{
-	mainRow: Element;
-	notesRow?: Element;
+    mainRow: Element;
+    notesRow?: Element;
 }> {
-	const allRows = Array.from(grid.querySelectorAll('[role="row"]'));
-	const groups: Array<{ mainRow: Element; notesRow?: Element }> = [];
+    const allRows = Array.from(grid.querySelectorAll('[role="row"]'));
+    const groups: Array<{ mainRow: Element; notesRow?: Element }> = [];
 
-	for (let i = 0; i < allRows.length; i++) {
-		const row = allRows[i];
-		const hasNotes = row.querySelector('[data-cell="notes"]');
+    for (let i = 0; i < allRows.length; i++) {
+        const row = allRows[i];
+        const hasNotes = row.querySelector('[data-cell="notes"]');
 
-		if (hasNotes) {
-			// This is a notes row - should be attached to previous group
-			if (groups.length > 0) {
-				groups[groups.length - 1].notesRow = row;
-			}
-		} else {
-			// This is a main row
-			groups.push({ mainRow: row });
-		}
-	}
+        if (hasNotes) {
+            // This is a notes row - should be attached to previous group
+            if (groups.length > 0) {
+                groups[groups.length - 1].notesRow = row;
+            }
+        } else {
+            // This is a main row
+            groups.push({ mainRow: row });
+        }
+    }
 
-	return groups;
+    return groups;
 }
 
 /**
  * Get all cells in a row, ordered left to right.
  */
 function getCellsInRow(row: Element): Element[] {
-	return Array.from(row.querySelectorAll("[data-cell]"));
+    return Array.from(row.querySelectorAll("[data-cell]"));
 }
 
 /**
  * Hook for grid-like arrow key navigation between cells.
  */
 export function useGridCellNavigation(
-	options: UseGridCellNavigationOptions = {}
+    options: UseGridCellNavigationOptions = {}
 ): UseGridCellNavigationReturn {
-	const { onNavigate } = options;
+    const { onNavigate } = options;
 
-	const handleGridKeyDown = useCallback(
-		(event: React.KeyboardEvent) => {
-			const isVertical = event.key === "ArrowUp" || event.key === "ArrowDown";
-			const isHorizontal = event.key === "ArrowLeft" || event.key === "ArrowRight";
+    const handleGridKeyDown = useCallback(
+        (event: React.KeyboardEvent) => {
+            const isVertical = event.key === "ArrowUp" || event.key === "ArrowDown";
+            const isHorizontal = event.key === "ArrowLeft" || event.key === "ArrowRight";
 
-			if (!isVertical && !isHorizontal) {
-				return;
-			}
+            if (!isVertical && !isHorizontal) {
+                return;
+            }
 
-			const focusedElement = event.target as HTMLElement;
-			if (!focusedElement) return;
+            const focusedElement = event.target as HTMLElement;
+            if (!focusedElement) return;
 
-			const isTextInput =
-				focusedElement.tagName === "INPUT" || focusedElement.tagName === "TEXTAREA";
+            const isTextInput =
+                focusedElement.tagName === "INPUT" || focusedElement.tagName === "TEXTAREA";
 
-			// For text inputs, check cursor position before navigating
-			if (isTextInput) {
-				const textElement = focusedElement as HTMLInputElement | HTMLTextAreaElement;
+            // For text inputs, check cursor position before navigating
+            if (isTextInput) {
+                const textElement = focusedElement as HTMLInputElement | HTMLTextAreaElement;
 
-				if (isVertical) {
-					// For textareas, only navigate when on first/last line
-					if (focusedElement.tagName === "TEXTAREA") {
-						const textarea = focusedElement as HTMLTextAreaElement;
-						if (event.key === "ArrowUp" && !isOnFirstLine(textarea)) return;
-						if (event.key === "ArrowDown" && !isOnLastLine(textarea)) return;
-					}
-				}
+                if (isVertical) {
+                    // For textareas, only navigate when on first/last line
+                    if (focusedElement.tagName === "TEXTAREA") {
+                        const textarea = focusedElement as HTMLTextAreaElement;
+                        if (event.key === "ArrowUp" && !isOnFirstLine(textarea)) return;
+                        if (event.key === "ArrowDown" && !isOnLastLine(textarea)) return;
+                    }
+                }
 
-				if (isHorizontal) {
-					// Only navigate when cursor is at start (left) or end (right)
-					if (event.key === "ArrowLeft" && !isCursorAtStart(textElement)) return;
-					if (event.key === "ArrowRight" && !isCursorAtEnd(textElement)) return;
-				}
-			}
+                if (isHorizontal) {
+                    // Only navigate when cursor is at start (left) or end (right)
+                    if (event.key === "ArrowLeft" && !isCursorAtStart(textElement)) return;
+                    if (event.key === "ArrowRight" && !isCursorAtEnd(textElement)) return;
+                }
+            }
 
-			const cellContainer = focusedElement.closest("[data-cell]") as HTMLElement;
-			if (!cellContainer) return;
+            const cellContainer = focusedElement.closest("[data-cell]") as HTMLElement;
+            if (!cellContainer) return;
 
-			const cellName = cellContainer.getAttribute("data-cell");
-			if (!cellName) return;
+            const cellName = cellContainer.getAttribute("data-cell");
+            if (!cellName) return;
 
-			const currentRow = cellContainer.closest('[role="row"]');
-			if (!currentRow) return;
+            const currentRow = cellContainer.closest('[role="row"]');
+            if (!currentRow) return;
 
-			const grid = currentRow.closest('[role="grid"]');
-			if (!grid) return;
+            const grid = currentRow.closest('[role="grid"]');
+            if (!grid) return;
 
-			// Handle horizontal navigation
-			if (isHorizontal) {
-				const cells = getCellsInRow(currentRow);
-				const currentIndex = cells.indexOf(cellContainer);
+            // Handle horizontal navigation
+            if (isHorizontal) {
+                const cells = getCellsInRow(currentRow);
+                const currentIndex = cells.indexOf(cellContainer);
 
-				if (currentIndex === -1) return;
+                if (currentIndex === -1) return;
 
-				const direction = event.key === "ArrowLeft" ? -1 : 1;
-				const targetIndex = currentIndex + direction;
+                const direction = event.key === "ArrowLeft" ? -1 : 1;
+                const targetIndex = currentIndex + direction;
 
-				if (targetIndex < 0 || targetIndex >= cells.length) return;
+                if (targetIndex < 0 || targetIndex >= cells.length) return;
 
-				const targetCell = cells[targetIndex];
-				if (targetCell && focusCellElement(targetCell)) {
-					event.preventDefault();
-					onNavigate?.(event.key === "ArrowLeft" ? "left" : "right");
-				}
-				return;
-			}
+                const targetCell = cells[targetIndex];
+                if (targetCell && focusCellElement(targetCell)) {
+                    event.preventDefault();
+                    onNavigate?.(event.key === "ArrowLeft" ? "left" : "right");
+                }
+                return;
+            }
 
-			// Handle vertical navigation
-			const groups = getTransactionRowGroups(grid);
-			const isGoingDown = event.key === "ArrowDown";
-			const isGoingUp = event.key === "ArrowUp";
+            // Handle vertical navigation
+            const groups = getTransactionRowGroups(grid);
+            const isGoingDown = event.key === "ArrowDown";
+            const isGoingUp = event.key === "ArrowUp";
 
-			// Find which group and whether we're in main or notes row
-			let currentGroupIndex = -1;
-			let isInNotes = false;
+            // Find which group and whether we're in main or notes row
+            let currentGroupIndex = -1;
+            let isInNotes = false;
 
-			for (let i = 0; i < groups.length; i++) {
-				if (groups[i].mainRow === currentRow) {
-					currentGroupIndex = i;
-					isInNotes = false;
-					break;
-				}
-				if (groups[i].notesRow === currentRow) {
-					currentGroupIndex = i;
-					isInNotes = true;
-					break;
-				}
-			}
+            for (let i = 0; i < groups.length; i++) {
+                if (groups[i].mainRow === currentRow) {
+                    currentGroupIndex = i;
+                    isInNotes = false;
+                    break;
+                }
+                if (groups[i].notesRow === currentRow) {
+                    currentGroupIndex = i;
+                    isInNotes = true;
+                    break;
+                }
+            }
 
-			if (currentGroupIndex === -1) return;
+            if (currentGroupIndex === -1) return;
 
-			const currentGroup = groups[currentGroupIndex];
+            const currentGroup = groups[currentGroupIndex];
 
-			// Navigation logic
-			if (isInNotes) {
-				// We're in a notes row
-				if (isGoingUp) {
-					// Up from notes → same row's description
-					const descriptionCell = currentGroup.mainRow.querySelector('[data-cell="description"]');
-					if (descriptionCell && focusCellElement(descriptionCell)) {
-						event.preventDefault();
-						onNavigate?.("up");
-					}
-				} else {
-					// Down from notes → next row's description
-					const nextGroup = groups[currentGroupIndex + 1];
-					if (nextGroup) {
-						const descriptionCell = nextGroup.mainRow.querySelector('[data-cell="description"]');
-						if (descriptionCell && focusCellElement(descriptionCell)) {
-							event.preventDefault();
-							onNavigate?.("down");
-						}
-					}
-				}
-			} else {
-				// We're in a main row
-				if (cellName === "description") {
-					// Special handling for description column
-					if (isGoingDown && currentGroup.notesRow) {
-						// Down from description with notes → focus notes
-						const notesCell = currentGroup.notesRow.querySelector('[data-cell="notes"]');
-						if (notesCell && focusCellElement(notesCell)) {
-							event.preventDefault();
-							onNavigate?.("down");
-							return;
-						}
-					}
+            // Navigation logic
+            if (isInNotes) {
+                // We're in a notes row
+                if (isGoingUp) {
+                    // Up from notes → same row's description
+                    const descriptionCell = currentGroup.mainRow.querySelector(
+                        '[data-cell="description"]'
+                    );
+                    if (descriptionCell && focusCellElement(descriptionCell)) {
+                        event.preventDefault();
+                        onNavigate?.("up");
+                    }
+                } else {
+                    // Down from notes → next row's description
+                    const nextGroup = groups[currentGroupIndex + 1];
+                    if (nextGroup) {
+                        const descriptionCell = nextGroup.mainRow.querySelector(
+                            '[data-cell="description"]'
+                        );
+                        if (descriptionCell && focusCellElement(descriptionCell)) {
+                            event.preventDefault();
+                            onNavigate?.("down");
+                        }
+                    }
+                }
+            } else {
+                // We're in a main row
+                if (cellName === "description") {
+                    // Special handling for description column
+                    if (isGoingDown && currentGroup.notesRow) {
+                        // Down from description with notes → focus notes
+                        const notesCell =
+                            currentGroup.notesRow.querySelector('[data-cell="notes"]');
+                        if (notesCell && focusCellElement(notesCell)) {
+                            event.preventDefault();
+                            onNavigate?.("down");
+                            return;
+                        }
+                    }
 
-					if (isGoingUp) {
-						// Up from description → check if previous row has notes
-						const prevGroup = groups[currentGroupIndex - 1];
-						if (prevGroup?.notesRow) {
-							const notesCell = prevGroup.notesRow.querySelector('[data-cell="notes"]');
-							if (notesCell && focusCellElement(notesCell)) {
-								event.preventDefault();
-								onNavigate?.("up");
-								return;
-							}
-						}
-					}
-				}
+                    if (isGoingUp) {
+                        // Up from description → check if previous row has notes
+                        const prevGroup = groups[currentGroupIndex - 1];
+                        if (prevGroup?.notesRow) {
+                            const notesCell =
+                                prevGroup.notesRow.querySelector('[data-cell="notes"]');
+                            if (notesCell && focusCellElement(notesCell)) {
+                                event.preventDefault();
+                                onNavigate?.("up");
+                                return;
+                            }
+                        }
+                    }
+                }
 
-				// Default: navigate to same cell in adjacent row
-				const targetGroupIndex = currentGroupIndex + (isGoingDown ? 1 : -1);
-				if (targetGroupIndex < 0 || targetGroupIndex >= groups.length) return;
+                // Default: navigate to same cell in adjacent row
+                const targetGroupIndex = currentGroupIndex + (isGoingDown ? 1 : -1);
+                if (targetGroupIndex < 0 || targetGroupIndex >= groups.length) return;
 
-				const targetGroup = groups[targetGroupIndex];
-				const targetCell = targetGroup.mainRow.querySelector(`[data-cell="${cellName}"]`);
+                const targetGroup = groups[targetGroupIndex];
+                const targetCell = targetGroup.mainRow.querySelector(`[data-cell="${cellName}"]`);
 
-				if (targetCell && focusCellElement(targetCell)) {
-					event.preventDefault();
-					onNavigate?.(isGoingDown ? "down" : "up");
-				}
-			}
-		},
-		[onNavigate]
-	);
+                if (targetCell && focusCellElement(targetCell)) {
+                    event.preventDefault();
+                    onNavigate?.(isGoingDown ? "down" : "up");
+                }
+            }
+        },
+        [onNavigate]
+    );
 
-	return { handleGridKeyDown };
+    return { handleGridKeyDown };
 }
