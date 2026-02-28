@@ -25,7 +25,7 @@ function normalizeBodyForSigning(
     url: URL
 ): Array<{ path: string; input: unknown }> | undefined {
     if (!rawBody || typeof rawBody !== "object") {
-        return undefined;
+        return undefined;        
     }
 
     // Extract procedure names from URL query param "batch"

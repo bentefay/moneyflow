@@ -26,40 +26,10 @@
         "git checkout": true,
         "git add": true
     },
-    "[typescript]": {
-        "editor.formatOnSave": true,
-        "editor.defaultFormatter": "nicolo-ribaudo.oxfmt-vscode",
-        "editor.codeActionsOnSave": {
-            "source.fixAll.eslint": "always"
-        }
-    },
-    "[typescriptreact]": {
-        "editor.formatOnSave": true,
-        "editor.defaultFormatter": "nicolo-ribaudo.oxfmt-vscode",
-        "editor.codeActionsOnSave": {
-            "source.fixAll.eslint": "always"
-        }
-    },
-    "[javascript]": {
-        "editor.formatOnSave": true,
-        "editor.defaultFormatter": "nicolo-ribaudo.oxfmt-vscode",
-        "editor.codeActionsOnSave": {
-            "source.fixAll.eslint": "always"
-        }
-    },
-    "[javascriptreact]": {
-        "editor.formatOnSave": true,
-        "editor.defaultFormatter": "nicolo-ribaudo.oxfmt-vscode",
-        "editor.codeActionsOnSave": {
-            "source.fixAll.eslint": "always"
-        }
-    },
-    "[html]": {
-        "editor.formatOnSave": true,
-        "editor.defaultFormatter": "nicolo-ribaudo.oxfmt-vscode"
-    },
-    "[json]": {
-        "editor.formatOnSave": true,
-        "editor.defaultFormatter": "nicolo-ribaudo.oxfmt-vscode"
+    "editor.defaultFormatter": "oxc.oxc-vscode",
+    "editor.formatOnSave": true,
+    "editor.formatOnSaveMode": "file",
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": "always"
     }
 }
