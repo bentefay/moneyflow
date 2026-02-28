@@ -8,6 +8,7 @@
  */
 
 import { useCallback, useMemo, useState } from "react";
+import { Temporal } from "temporal-polyfill";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -64,7 +65,7 @@ export function AccountsTable({ className }: AccountsTableProps) {
 		}
 		const account = state.accounts[id];
 		if (account) {
-			account.deletedAt = Date.now();
+			account.deletedAt = Temporal.Now.instant();
 		}
 	});
 

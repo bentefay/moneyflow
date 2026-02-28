@@ -28,7 +28,9 @@ import {
 } from "@/components/ui/select";
 import { useActivePeople, useVaultAction } from "@/lib/crdt/context";
 import type { AccountInput } from "@/lib/crdt/schema";
+import { asMinorUnits } from "@/lib/domain/currency";
 import { createEqualOwnerships } from "@/lib/domain/ownership";
+import { asPercentage } from "@/types";
 
 export interface CreateAccountDialogProps {
 	/** Whether the dialog is open */
@@ -56,7 +58,9 @@ export function CreateAccountDialog({ open, onOpenChange, onCreated }: CreateAcc
 	const people = useActivePeople();
 
 	const [name, setName] = useState("");
-	const [accountType, setAccountType] = useState("checking");
+	const [accountType, setAccountType] = useState<
+		"checking" | "savings" | "credit" | "cash" | "loan"
+	>("checking");
 	const [currency, setCurrency] = useState("USD");
 
 	const addAccount = useVaultAction((state, data: AccountInput) => {
@@ -72,15 +76,18 @@ export function CreateAccountDialog({ open, onOpenChange, onCreated }: CreateAcc
 		const defaultOwnerships = personIds.length > 0 ? createEqualOwnerships(personIds) : {};
 
 		const newAccountId = crypto.randomUUID();
+		const ownershipsAsPercentage = Object.fromEntries(
+			Object.entries(defaultOwnerships).map(([k, v]) => [k, asPercentage(v)])
+		);
 		const newAccount: AccountInput = {
 			id: newAccountId,
 			name: trimmedName,
 			accountNumber: "",
 			accountType,
 			currency,
-			balance: 0,
-			ownerships: defaultOwnerships,
-			deletedAt: 0,
+			balance: asMinorUnits(0),
+			ownerships: ownershipsAsPercentage,
+			deletedAt: undefined,
 		};
 
 		addAccount(newAccount);
@@ -132,7 +139,10 @@ export function CreateAccountDialog({ open, onOpenChange, onCreated }: CreateAcc
 					{/* Account Type */}
 					<div className="grid gap-2">
 						<Label htmlFor="account-type">Type</Label>
-						<Select value={accountType} onValueChange={setAccountType}>
+						<Select
+							value={accountType}
+							onValueChange={(v) => setAccountType(v as typeof accountType)}
+						>
 							<SelectTrigger id="account-type">
 								<SelectValue placeholder="Select type" />
 							</SelectTrigger>

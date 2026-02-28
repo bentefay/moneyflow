@@ -6,6 +6,7 @@
  */
 
 import * as fc from "fast-check";
+import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 import type { Account, Transaction } from "@/lib/crdt/schema";
 import {
@@ -15,6 +16,8 @@ import {
 	calculateSettlementBalances,
 	calculateTableRunningBalances,
 } from "@/lib/domain/balance";
+import { asMinorUnits } from "@/lib/domain/currency";
+import { asPercentage } from "@/types";
 
 // ============================================================================
 // Test Helpers
@@ -26,14 +29,25 @@ function testAccount(data: {
 	name: string;
 	ownerships: Record<string, number>;
 }): Account {
-	return data as unknown as Account;
+	return {
+		...data,
+		ownerships: Object.fromEntries(
+			Object.entries(data.ownerships).map(([k, v]) => [k, asPercentage(v)])
+		),
+	} as unknown as Account;
 }
 
 /** Helper to create test transactions for settlement */
 function testSettlementTxs(
 	txs: Array<{ amount: number; accountId: string; allocations: Record<string, number> }>
 ): Pick<Transaction, "amount" | "accountId" | "allocations">[] {
-	return txs as unknown as Pick<Transaction, "amount" | "accountId" | "allocations">[];
+	return txs.map((tx) => ({
+		amount: asMinorUnits(tx.amount),
+		accountId: tx.accountId,
+		allocations: Object.fromEntries(
+			Object.entries(tx.allocations).map(([k, v]) => [k, asPercentage(v)])
+		),
+	})) as Pick<Transaction, "amount" | "accountId" | "allocations">[];
 }
 
 // ============================================================================
@@ -49,15 +63,15 @@ const isoDateArb = fc
 		max: new Date("2030-12-31"),
 		noInvalidDate: true,
 	})
-	.map((d) => d.toISOString().split("T")[0]);
+	.map((d) => Temporal.PlainDate.from(d.toISOString().split("T")[0]));
 
 /**
  * Generate a transaction amount (can be positive or negative)
  * Uses integer cents divided by 100 to avoid floating-point edge cases
  */
 const amountArb = fc
-	.integer({ min: -10000000, max: 10000000 }) // cents: -100k to 100k
-	.map((cents) => cents / 100);
+	.integer({ min: -10000000, max: 10000000 }) // minor units (cents): -100k to 100k
+	.map((cents) => asMinorUnits(cents));
 
 /**
  * Generate a simple transaction for testing
@@ -86,7 +100,14 @@ describe("calculateRunningBalances", () => {
 	});
 
 	it("handles single transaction correctly", () => {
-		const transactions = [{ id: "tx-1", date: "2024-01-01", amount: 100, accountId: "acc-1" }];
+		const transactions = [
+			{
+				id: "tx-1",
+				date: Temporal.PlainDate.from("2024-01-01"),
+				amount: asMinorUnits(100),
+				accountId: "acc-1",
+			},
+		];
 
 		const result = calculateRunningBalances(transactions);
 
@@ -94,7 +115,14 @@ describe("calculateRunningBalances", () => {
 	});
 
 	it("handles starting balance correctly", () => {
-		const transactions = [{ id: "tx-1", date: "2024-01-01", amount: 50, accountId: "acc-1" }];
+		const transactions = [
+			{
+				id: "tx-1",
+				date: Temporal.PlainDate.from("2024-01-01"),
+				amount: asMinorUnits(50),
+				accountId: "acc-1",
+			},
+		];
 
 		const result = calculateRunningBalances(transactions, { "acc-1": 1000 });
 
@@ -103,9 +131,24 @@ describe("calculateRunningBalances", () => {
 
 	it("calculates cumulative balance in date order", () => {
 		const transactions = [
-			{ id: "tx-1", date: "2024-01-01", amount: 100, accountId: "acc-1" },
-			{ id: "tx-2", date: "2024-01-02", amount: -30, accountId: "acc-1" },
-			{ id: "tx-3", date: "2024-01-03", amount: 50, accountId: "acc-1" },
+			{
+				id: "tx-1",
+				date: Temporal.PlainDate.from("2024-01-01"),
+				amount: asMinorUnits(100),
+				accountId: "acc-1",
+			},
+			{
+				id: "tx-2",
+				date: Temporal.PlainDate.from("2024-01-02"),
+				amount: asMinorUnits(-30),
+				accountId: "acc-1",
+			},
+			{
+				id: "tx-3",
+				date: Temporal.PlainDate.from("2024-01-03"),
+				amount: asMinorUnits(50),
+				accountId: "acc-1",
+			},
 		];
 
 		const result = calculateRunningBalances(transactions);
@@ -120,9 +163,24 @@ describe("calculateRunningBalances", () => {
 
 	it("handles multiple accounts independently", () => {
 		const transactions = [
-			{ id: "tx-1", date: "2024-01-01", amount: 100, accountId: "acc-1" },
-			{ id: "tx-2", date: "2024-01-01", amount: 200, accountId: "acc-2" },
-			{ id: "tx-3", date: "2024-01-02", amount: 50, accountId: "acc-1" },
+			{
+				id: "tx-1",
+				date: Temporal.PlainDate.from("2024-01-01"),
+				amount: asMinorUnits(100),
+				accountId: "acc-1",
+			},
+			{
+				id: "tx-2",
+				date: Temporal.PlainDate.from("2024-01-01"),
+				amount: asMinorUnits(200),
+				accountId: "acc-2",
+			},
+			{
+				id: "tx-3",
+				date: Temporal.PlainDate.from("2024-01-02"),
+				amount: asMinorUnits(50),
+				accountId: "acc-1",
+			},
 		];
 
 		const result = calculateRunningBalances(transactions);
@@ -148,7 +206,7 @@ describe("calculateRunningBalances", () => {
 
 				for (const [, accountTxs] of byAccount) {
 					// Sort by date like the function does
-					const sorted = [...accountTxs].sort((a, b) => a.date.localeCompare(b.date));
+					const sorted = [...accountTxs].sort((a, b) => Temporal.PlainDate.compare(a.date, b.date));
 					let expectedBalance = 0;
 
 					for (const tx of sorted) {
@@ -181,12 +239,19 @@ describe("calculateRunningBalances", () => {
 
 describe("calculateTableRunningBalances", () => {
 	it("uses account starting balances", () => {
-		const transactions = [{ id: "tx-1", date: "2024-01-01", amount: 100, accountId: "acc-1" }];
+		const transactions = [
+			{
+				id: "tx-1",
+				date: Temporal.PlainDate.from("2024-01-01"),
+				amount: asMinorUnits(100),
+				accountId: "acc-1",
+			},
+		];
 		const accounts: Record<string, Account> = {
 			"acc-1": {
 				id: "acc-1",
 				name: "Checking",
-				balance: 500,
+				balance: asMinorUnits(500),
 			} as Account,
 		};
 
@@ -196,7 +261,14 @@ describe("calculateTableRunningBalances", () => {
 	});
 
 	it("handles missing account balance as 0", () => {
-		const transactions = [{ id: "tx-1", date: "2024-01-01", amount: 50, accountId: "acc-1" }];
+		const transactions = [
+			{
+				id: "tx-1",
+				date: Temporal.PlainDate.from("2024-01-01"),
+				amount: asMinorUnits(50),
+				accountId: "acc-1",
+			},
+		];
 		const accounts: Record<string, Account> = {
 			"acc-1": {
 				id: "acc-1",
@@ -225,12 +297,16 @@ describe("calculateAccountBalance", () => {
 	});
 
 	it("sums all transaction amounts", () => {
-		const transactions = [{ amount: 100 }, { amount: -30 }, { amount: 50 }];
+		const transactions = [
+			{ amount: asMinorUnits(100) },
+			{ amount: asMinorUnits(-30) },
+			{ amount: asMinorUnits(50) },
+		];
 		expect(calculateAccountBalance(transactions)).toBe(120);
 	});
 
 	it("adds to starting balance", () => {
-		const transactions = [{ amount: 100 }, { amount: -30 }];
+		const transactions = [{ amount: asMinorUnits(100) }, { amount: asMinorUnits(-30) }];
 		expect(calculateAccountBalance(transactions, 500)).toBe(570);
 	});
 
@@ -257,8 +333,8 @@ describe("calculateAccountBalance", () => {
 describe("calculateAllAccountBalances", () => {
 	it("returns starting balances for empty transactions", () => {
 		const accounts: Record<string, Account> = {
-			"acc-1": { id: "acc-1", name: "A", balance: 100 } as Account,
-			"acc-2": { id: "acc-2", name: "B", balance: 200 } as Account,
+			"acc-1": { id: "acc-1", name: "A", balance: asMinorUnits(100) } as Account,
+			"acc-2": { id: "acc-2", name: "B", balance: asMinorUnits(200) } as Account,
 		};
 
 		const result = calculateAllAccountBalances([], accounts);
@@ -269,13 +345,13 @@ describe("calculateAllAccountBalances", () => {
 
 	it("calculates balances per account", () => {
 		const transactions = [
-			{ amount: 50, accountId: "acc-1" },
-			{ amount: 100, accountId: "acc-2" },
-			{ amount: -20, accountId: "acc-1" },
+			{ amount: asMinorUnits(50), accountId: "acc-1" },
+			{ amount: asMinorUnits(100), accountId: "acc-2" },
+			{ amount: asMinorUnits(-20), accountId: "acc-1" },
 		];
 		const accounts: Record<string, Account> = {
-			"acc-1": { id: "acc-1", name: "A", balance: 0 } as Account,
-			"acc-2": { id: "acc-2", name: "B", balance: 0 } as Account,
+			"acc-1": { id: "acc-1", name: "A", balance: asMinorUnits(0) } as Account,
+			"acc-2": { id: "acc-2", name: "B", balance: asMinorUnits(0) } as Account,
 		};
 
 		const result = calculateAllAccountBalances(transactions, accounts);
@@ -289,9 +365,9 @@ describe("calculateAllAccountBalances", () => {
 		fc.assert(
 			fc.property(transactionsArb(0, 30), (transactions) => {
 				const accounts: Record<string, Account> = {
-					"account-1": { id: "account-1", name: "A", balance: 100 } as Account,
-					"account-2": { id: "account-2", name: "B", balance: 200 } as Account,
-					"account-3": { id: "account-3", name: "C", balance: 0 } as Account,
+					"account-1": { id: "account-1", name: "A", balance: asMinorUnits(100) } as Account,
+					"account-2": { id: "account-2", name: "B", balance: asMinorUnits(200) } as Account,
+					"account-3": { id: "account-3", name: "C", balance: asMinorUnits(0) } as Account,
 				};
 
 				const result = calculateAllAccountBalances(transactions, accounts);

@@ -8,6 +8,7 @@
  * - Undo capability
  */
 
+import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 import type { ActionData, ConditionData } from "@/components/features/automations";
 import type { Automation, Transaction } from "@/lib/crdt/schema";
@@ -292,7 +293,7 @@ describe("Automation Engine Integration", () => {
 				id: "app-1",
 				transactionId: transaction.id,
 				automationId: "auto-income",
-				appliedAt: Date.now(),
+				appliedAt: Temporal.Now.instant(),
 				previousValues: {
 					tagIds: ["old-tag"],
 					statusId: "old-status",
@@ -351,7 +352,7 @@ describe("Automation Engine Integration", () => {
 		it("ignores deleted automations", () => {
 			const deletedAutomation: Automation = {
 				...fixtures.automations.amazonShopping,
-				deletedAt: Date.now(),
+				deletedAt: Temporal.Now.instant(),
 			};
 
 			const result = evaluateAutomations([deletedAutomation], fixtures.transactions.amazon);
@@ -361,7 +362,7 @@ describe("Automation Engine Integration", () => {
 
 		it("processes remaining automations after deleted ones", () => {
 			const automations: Automation[] = [
-				{ ...fixtures.automations.amazonShopping, deletedAt: Date.now() },
+				{ ...fixtures.automations.amazonShopping, deletedAt: Temporal.Now.instant() },
 				fixtures.automations.catchAllFood, // Not deleted, but won't match Amazon
 			];
 

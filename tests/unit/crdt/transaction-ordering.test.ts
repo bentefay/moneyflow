@@ -5,10 +5,12 @@
  */
 
 import * as fc from "fast-check";
+import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 import { type InsertTransactionInput, insertTransaction } from "@/lib/crdt/mutations";
 import { getAccountTransactions, getAllTransactions } from "@/lib/crdt/queries";
 import type { TransactionInput, TransactionStore } from "@/lib/crdt/schema";
+import { asMinorUnits } from "@/lib/domain/currency";
 
 // Arbitrary for generating valid dates
 const dateArbitrary = fc
@@ -17,10 +19,7 @@ const dateArbitrary = fc
 		month: fc.integer({ min: 1, max: 12 }),
 		day: fc.integer({ min: 1, max: 28 }), // Use 28 to avoid invalid dates
 	})
-	.map(
-		({ year, month, day }) =>
-			`${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
-	);
+	.map(({ year, month, day }) => Temporal.PlainDate.from({ year, month, day }));
 
 // Arbitrary for generating transaction inputs
 const transactionArbitrary = fc
@@ -39,8 +38,10 @@ const transactionArbitrary = fc
 	})
 	.map((tx) => ({
 		...tx,
+		amount: asMinorUnits(tx.amount),
+		creationInstant: Temporal.Instant.fromEpochMilliseconds(tx.creationInstant),
 		allocations: {},
-		deletedAt: 0,
+		deletedAt: undefined,
 	}));
 
 // Helper to create empty store
@@ -72,7 +73,7 @@ describe("Transaction Ordering Invariants", () => {
 					for (let i = 1; i < result.length; i++) {
 						const prev = result[i - 1];
 						const curr = result[i];
-						expect(prev.date >= curr.date).toBe(true);
+						expect(Temporal.PlainDate.compare(prev.date, curr.date) >= 0).toBe(true);
 					}
 				}
 			),
@@ -86,7 +87,7 @@ describe("Transaction Ordering Invariants", () => {
 				fc.array(transactionArbitrary, { minLength: 2, maxLength: 20 }),
 				(transactions) => {
 					// Force all transactions to same date
-					const sameDate = "2024-01-15";
+					const sameDate = Temporal.PlainDate.from("2024-01-15");
 					const sameDateTxs = transactions.map((tx) => ({
 						...tx,
 						date: sameDate,
@@ -100,8 +101,10 @@ describe("Transaction Ordering Invariants", () => {
 						const prev = result[i - 1];
 						const curr = result[i];
 
-						if (prev.date === curr.date) {
-							expect(prev.creationInstant >= curr.creationInstant).toBe(true);
+						if (Temporal.PlainDate.compare(prev.date, curr.date) === 0) {
+							expect(
+								Temporal.Instant.compare(prev.creationInstant, curr.creationInstant) >= 0
+							).toBe(true);
 						}
 					}
 				}
@@ -118,8 +121,8 @@ describe("Transaction Ordering Invariants", () => {
 					maxLength: 10,
 				}),
 				(rowIndices) => {
-					const now = Date.now();
-					const sameDate = "2024-01-15";
+					const now = Temporal.Instant.fromEpochMilliseconds(Date.now());
+					const sameDate = Temporal.PlainDate.from("2024-01-15");
 
 					// Create transactions with same date and creationInstant, different importRowIndex
 					const transactions = rowIndices.map((idx, i) => ({
@@ -127,7 +130,7 @@ describe("Transaction Ordering Invariants", () => {
 						date: sameDate,
 						description: "",
 						notes: "",
-						amount: 100,
+						amount: asMinorUnits(100),
 						accountId: "acc-1",
 						tagIds: [] as string[],
 						statusId: "status-1",
@@ -135,7 +138,7 @@ describe("Transaction Ordering Invariants", () => {
 						allocations: {},
 						creationInstant: now,
 						importRowIndex: idx,
-						deletedAt: 0,
+						deletedAt: undefined,
 					}));
 
 					const store = populateStore(transactions);
@@ -146,7 +149,10 @@ describe("Transaction Ordering Invariants", () => {
 						const prev = result[i - 1];
 						const curr = result[i];
 
-						if (prev.date === curr.date && prev.creationInstant === curr.creationInstant) {
+						if (
+							Temporal.PlainDate.compare(prev.date, curr.date) === 0 &&
+							Temporal.Instant.compare(prev.creationInstant, curr.creationInstant) === 0
+						) {
 							const prevIdx = prev.importRowIndex ?? Infinity;
 							const currIdx = curr.importRowIndex ?? Infinity;
 							expect(prevIdx <= currIdx).toBe(true);
@@ -159,8 +165,8 @@ describe("Transaction Ordering Invariants", () => {
 	});
 
 	it("manual transactions sort after imports with same creationInstant", () => {
-		const now = Date.now();
-		const sameDate = "2024-01-15";
+		const now = Temporal.Instant.fromEpochMilliseconds(Date.now());
+		const sameDate = Temporal.PlainDate.from("2024-01-15");
 
 		// Manual transactions use Number.MAX_SAFE_INTEGER to sort after imports
 		const transactions = [
@@ -169,7 +175,7 @@ describe("Transaction Ordering Invariants", () => {
 				date: sameDate,
 				description: "Manual",
 				notes: "",
-				amount: 100,
+				amount: asMinorUnits(100),
 				accountId: "acc-1",
 				tagIds: [] as string[],
 				statusId: "status-1",
@@ -177,14 +183,14 @@ describe("Transaction Ordering Invariants", () => {
 				allocations: {},
 				creationInstant: now,
 				importRowIndex: Number.MAX_SAFE_INTEGER, // Manual - sorts last
-				deletedAt: 0,
+				deletedAt: undefined,
 			},
 			{
 				id: "tx-import",
 				date: sameDate,
 				description: "Import",
 				notes: "",
-				amount: 100,
+				amount: asMinorUnits(100),
 				accountId: "acc-1",
 				tagIds: [] as string[],
 				statusId: "status-1",
@@ -192,7 +198,7 @@ describe("Transaction Ordering Invariants", () => {
 				allocations: {},
 				creationInstant: now,
 				importRowIndex: 5,
-				deletedAt: 0,
+				deletedAt: undefined,
 			},
 		];
 
@@ -223,11 +229,15 @@ describe("Transaction Ordering Invariants", () => {
 							const curr = result[j];
 
 							// Primary: date descending
-							if (prev.date !== curr.date) {
-								expect(prev.date > curr.date).toBe(true);
-							} else if (prev.creationInstant !== curr.creationInstant) {
+							if (Temporal.PlainDate.compare(prev.date, curr.date) !== 0) {
+								expect(Temporal.PlainDate.compare(prev.date, curr.date) > 0).toBe(true);
+							} else if (
+								Temporal.Instant.compare(prev.creationInstant, curr.creationInstant) !== 0
+							) {
 								// Secondary: creationInstant descending
-								expect(prev.creationInstant > curr.creationInstant).toBe(true);
+								expect(
+									Temporal.Instant.compare(prev.creationInstant, curr.creationInstant) > 0
+								).toBe(true);
 							} else {
 								// Tertiary: importRowIndex ascending
 								const prevIdx = prev.importRowIndex ?? Infinity;
@@ -262,7 +272,7 @@ describe("Transaction Ordering Invariants", () => {
 							expect(curr.accountId).toBe(accountId);
 
 							// Should be properly ordered
-							expect(prev.date >= curr.date).toBe(true);
+							expect(Temporal.PlainDate.compare(prev.date, curr.date) >= 0).toBe(true);
 						}
 					}
 				}
@@ -313,33 +323,33 @@ describe("Edge Cases", () => {
 		const transactions = [
 			{
 				id: "tx-dec-31",
-				date: "2023-12-31",
+				date: Temporal.PlainDate.from("2023-12-31"),
 				description: "Last day of year",
 				notes: "",
-				amount: 100,
+				amount: asMinorUnits(100),
 				accountId: "acc-1",
 				tagIds: [] as string[],
 				statusId: "status-1",
 				importId: "",
 				allocations: {},
-				creationInstant: Date.now(),
+				creationInstant: Temporal.Instant.fromEpochMilliseconds(Date.now()),
 				importRowIndex: 0,
-				deletedAt: 0,
+				deletedAt: undefined,
 			},
 			{
 				id: "tx-jan-01",
-				date: "2024-01-01",
+				date: Temporal.PlainDate.from("2024-01-01"),
 				description: "First day of year",
 				notes: "",
-				amount: 100,
+				amount: asMinorUnits(100),
 				accountId: "acc-1",
 				tagIds: [] as string[],
 				statusId: "status-1",
 				importId: "",
 				allocations: {},
-				creationInstant: Date.now(),
+				creationInstant: Temporal.Instant.fromEpochMilliseconds(Date.now()),
 				importRowIndex: 0,
-				deletedAt: 0,
+				deletedAt: undefined,
 			},
 		];
 
@@ -355,33 +365,33 @@ describe("Edge Cases", () => {
 		const transactions = [
 			{
 				id: "tx-jan-31",
-				date: "2024-01-31",
+				date: Temporal.PlainDate.from("2024-01-31"),
 				description: "Last day of January",
 				notes: "",
-				amount: 100,
+				amount: asMinorUnits(100),
 				accountId: "acc-1",
 				tagIds: [] as string[],
 				statusId: "status-1",
 				importId: "",
 				allocations: {},
-				creationInstant: Date.now(),
+				creationInstant: Temporal.Instant.fromEpochMilliseconds(Date.now()),
 				importRowIndex: 0,
-				deletedAt: 0,
+				deletedAt: undefined,
 			},
 			{
 				id: "tx-feb-01",
-				date: "2024-02-01",
+				date: Temporal.PlainDate.from("2024-02-01"),
 				description: "First day of February",
 				notes: "",
-				amount: 100,
+				amount: asMinorUnits(100),
 				accountId: "acc-1",
 				tagIds: [] as string[],
 				statusId: "status-1",
 				importId: "",
 				allocations: {},
-				creationInstant: Date.now(),
+				creationInstant: Temporal.Instant.fromEpochMilliseconds(Date.now()),
 				importRowIndex: 0,
-				deletedAt: 0,
+				deletedAt: undefined,
 			},
 		];
 
@@ -395,20 +405,23 @@ describe("Edge Cases", () => {
 
 	it("handles large number of transactions efficiently", () => {
 		// Generate 1000 transactions
+		const now = Date.now();
 		const transactions = Array.from({ length: 1000 }, (_, i) => ({
 			id: `tx-${i}`,
-			date: `2024-${String((i % 12) + 1).padStart(2, "0")}-${String((i % 28) + 1).padStart(2, "0")}`,
+			date: Temporal.PlainDate.from(
+				`2024-${String((i % 12) + 1).padStart(2, "0")}-${String((i % 28) + 1).padStart(2, "0")}`
+			),
 			description: `Transaction ${i}`,
 			notes: "",
-			amount: i * 100,
+			amount: asMinorUnits(i * 100),
 			accountId: "acc-1",
 			tagIds: [] as string[],
 			statusId: "status-1",
 			importId: "",
 			allocations: {},
-			creationInstant: Date.now() - i * 1000,
+			creationInstant: Temporal.Instant.fromEpochMilliseconds(now - i * 1000),
 			importRowIndex: 0,
-			deletedAt: 0,
+			deletedAt: undefined,
 		}));
 
 		const start = performance.now();
@@ -428,7 +441,7 @@ describe("Edge Cases", () => {
 
 		// Verify ordering
 		for (let i = 1; i < result.length; i++) {
-			expect(result[i - 1].date >= result[i].date).toBe(true);
+			expect(Temporal.PlainDate.compare(result[i - 1].date, result[i].date) >= 0).toBe(true);
 		}
 	});
 });

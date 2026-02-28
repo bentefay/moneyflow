@@ -6,6 +6,7 @@
  * efficient data access patterns for UI components.
  */
 
+import { Temporal } from "temporal-polyfill";
 import type {
 	Account,
 	AccountTransactionTree,
@@ -73,8 +74,8 @@ export interface CursorPaginatedResult<T> {
 export interface TransactionQueryOptions {
 	/** Date range filter */
 	dateRange?: {
-		start?: string;
-		end?: string;
+		start?: Temporal.PlainDate;
+		end?: Temporal.PlainDate;
 	};
 	/** Filter by tag IDs (any match) */
 	tagIds?: string[];
@@ -102,7 +103,7 @@ export interface TransactionQueryOptions {
 
 export interface TransactionLocation {
 	accountId: string;
-	date: string; // YYYY-MM-DD
+	date: Temporal.PlainDate;
 	transactionId: string;
 }
 
@@ -111,23 +112,8 @@ export interface TransactionWithLocation extends Transaction {
 }
 
 // ============================================
-// DATE PARSING HELPERS
+// DATE HELPERS
 // ============================================
-
-interface ParsedDate {
-	year: number;
-	month: number;
-	day: number;
-}
-
-function parseDate(dateStr: string): ParsedDate {
-	const [yearStr, monthStr, dayStr] = dateStr.split("-");
-	return {
-		year: parseInt(yearStr, 10),
-		month: parseInt(monthStr, 10),
-		day: parseInt(dayStr, 10),
-	};
-}
 
 // ============================================
 // UTILITY FUNCTIONS
@@ -137,7 +123,7 @@ function parseDate(dateStr: string): ParsedDate {
  * Get active (non-deleted) items from a collection
  * Filters out soft-deleted items and non-object values (loro-mirror may include $cid strings)
  */
-export function getActiveItems<T extends { deletedAt?: number }>(
+export function getActiveItems<T extends { deletedAt?: Temporal.Instant }>(
 	collection: Record<string, T | string>
 ): T[] {
 	return Object.values(collection)
@@ -225,11 +211,11 @@ export function getAllTransactions(store: TransactionStore): Transaction[] {
 	// Sort by date desc, then creationInstant desc, then importRowIndex asc
 	allTransactions.sort((a, b) => {
 		// Date descending
-		const dateCompare = b.date.localeCompare(a.date);
+		const dateCompare = Temporal.PlainDate.compare(b.date, a.date);
 		if (dateCompare !== 0) return dateCompare;
 
 		// creationInstant descending
-		const instantCompare = b.creationInstant - a.creationInstant;
+		const instantCompare = Temporal.Instant.compare(b.creationInstant, a.creationInstant);
 		if (instantCompare !== 0) return instantCompare;
 
 		// importRowIndex ascending (nulls sort last)
@@ -253,7 +239,7 @@ export function findTransaction(
 	const tree = store[accountId];
 	if (!tree || typeof tree === "string") return undefined;
 
-	const { year, month, day } = parseDate(date);
+	const { year, month, day } = date;
 
 	// Find matching buckets (handling CRDT duplicates)
 	for (const yearBucket of tree.years) {
@@ -335,13 +321,13 @@ export function findTransactionById(
 export function getTransactionsInDateRange(
 	store: TransactionStore,
 	accountId: string,
-	dateRange: { start: string; end: string }
+	dateRange: { start: Temporal.PlainDate; end: Temporal.PlainDate }
 ): Transaction[] {
 	const tree = store[accountId];
 	if (!tree || typeof tree === "string") return [];
 
-	const startParsed = parseDate(dateRange.start);
-	const endParsed = parseDate(dateRange.end);
+	const startParsed = dateRange.start;
+	const endParsed = dateRange.end;
 
 	const result: Transaction[] = [];
 
@@ -374,7 +360,7 @@ export function getTransactionsInDateRange(
 	}
 
 	// Sort ascending by date for merge-scan
-	result.sort((a, b) => a.date.localeCompare(b.date));
+	result.sort((a, b) => Temporal.PlainDate.compare(a.date, b.date));
 
 	return result;
 }
@@ -408,11 +394,15 @@ export function getTransactionsWithDuplicates(
 /**
  * Check if a day bucket exists for the given date.
  */
-export function hasDayBucket(store: TransactionStore, accountId: string, date: string): boolean {
+export function hasDayBucket(
+	store: TransactionStore,
+	accountId: string,
+	date: Temporal.PlainDate
+): boolean {
 	const tree = store[accountId];
 	if (!tree || typeof tree === "string") return false;
 
-	const { year, month, day } = parseDate(date);
+	const { year, month, day } = date;
 
 	for (const yearBucket of tree.years) {
 		if (yearBucket.year !== year) continue;
@@ -448,10 +438,12 @@ export function filterTransactions(
 
 	// Date range filter
 	if (options.dateRange?.start) {
-		results = results.filter((tx) => tx.date >= options.dateRange!.start!);
+		const start = options.dateRange.start;
+		results = results.filter((tx) => Temporal.PlainDate.compare(tx.date, start) >= 0);
 	}
 	if (options.dateRange?.end) {
-		results = results.filter((tx) => tx.date <= options.dateRange!.end!);
+		const end = options.dateRange.end;
+		results = results.filter((tx) => Temporal.PlainDate.compare(tx.date, end) <= 0);
 	}
 
 	// Tag filter (any match)
@@ -500,7 +492,7 @@ export function filterTransactions(
 	results.sort((a, b) => {
 		switch (sortBy) {
 			case "date":
-				return multiplier * a.date.localeCompare(b.date);
+				return multiplier * Temporal.PlainDate.compare(a.date, b.date);
 			case "amount":
 				return multiplier * (a.amount - b.amount);
 			case "description":
@@ -608,9 +600,9 @@ export function queryTransactions(
 		);
 		// Re-sort merged results
 		transactions.sort((a, b) => {
-			const dateCompare = b.date.localeCompare(a.date);
+			const dateCompare = Temporal.PlainDate.compare(b.date, a.date);
 			if (dateCompare !== 0) return dateCompare;
-			const instantCompare = b.creationInstant - a.creationInstant;
+			const instantCompare = Temporal.Instant.compare(b.creationInstant, a.creationInstant);
 			if (instantCompare !== 0) return instantCompare;
 			const aIdx = a.importRowIndex ?? Infinity;
 			const bIdx = b.importRowIndex ?? Infinity;

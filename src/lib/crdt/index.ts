@@ -74,6 +74,8 @@ export {
 	type TagTreeNode,
 	type TransactionQueryOptions,
 } from "./queries";
+// Rich schema transforms
+export { richSchema } from "./rich-schema";
 // Schema and types
 export {
 	type Account,

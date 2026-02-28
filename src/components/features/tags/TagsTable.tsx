@@ -9,6 +9,7 @@
 
 import { Plus, Tag as TagIcon } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
+import { Temporal } from "temporal-polyfill";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -114,7 +115,7 @@ export function TagsTable({ className }: TagsTableProps) {
 					break;
 				case "delete":
 					if (draft.tags[action.id]) {
-						draft.tags[action.id].deletedAt = Date.now();
+						draft.tags[action.id].deletedAt = Temporal.Now.instant();
 					}
 					break;
 			}

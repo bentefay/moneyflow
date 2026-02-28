@@ -5,6 +5,7 @@
  * Schema structure is validated through type compilation and runtime checks.
  */
 
+import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 import {
 	type AccountTransactionTree,
@@ -43,8 +44,8 @@ describe("Transaction type", () => {
 	});
 
 	it("includes creationInstant field", () => {
-		const tx = { creationInstant: Date.now() } as Partial<Transaction>;
-		expect(typeof tx.creationInstant).toBe("number");
+		const tx = { creationInstant: Temporal.Now.instant() } as Partial<Transaction>;
+		expect(tx.creationInstant).toBeInstanceOf(Temporal.Instant);
 	});
 
 	it("includes importRowIndex field", () => {

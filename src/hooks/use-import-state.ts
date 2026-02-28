@@ -12,6 +12,7 @@
 
 import Papa from "papaparse";
 import { useCallback, useMemo, useState } from "react";
+import { Temporal } from "temporal-polyfill";
 import { autoDetectColumnMappings } from "@/components/features/import/ColumnMappingStep";
 import {
 	detectDateFormat,
@@ -127,8 +128,8 @@ function toDuplicateCheckFormat(transactions: Transaction[]): DuplicateCheckTran
 		.filter((tx) => !tx.deletedAt)
 		.map((tx) => ({
 			id: tx.id,
-			date: tx.date as ISODateString,
-			amount: tx.amount as MoneyMinorUnits,
+			date: tx.date.toString() as ISODateString,
+			amount: tx.amount,
 			description: tx.description ?? "",
 		}));
 }
@@ -140,9 +141,11 @@ function findNewestDate(transactions: Transaction[]): string | null {
 	const activeTxs = transactions.filter((tx) => !tx.deletedAt);
 	if (activeTxs.length === 0) return null;
 
-	return activeTxs.reduce((newest, tx) => {
-		return tx.date > newest ? tx.date : newest;
-	}, activeTxs[0].date);
+	return activeTxs
+		.reduce((newest, tx) => {
+			return Temporal.PlainDate.compare(tx.date, newest) > 0 ? tx.date : newest;
+		}, activeTxs[0].date)
+		.toString();
 }
 
 // ============================================================================
@@ -219,7 +222,12 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 				// Find most recently used template
 				const sortedTemplates = [...templates]
 					.filter((t) => !t.deletedAt && t.lastUsedAt)
-					.sort((a, b) => (b.lastUsedAt ?? 0) - (a.lastUsedAt ?? 0));
+					.sort((a, b) => {
+						if (!a.lastUsedAt && !b.lastUsedAt) return 0;
+						if (!a.lastUsedAt) return 1;
+						if (!b.lastUsedAt) return -1;
+						return Temporal.Instant.compare(b.lastUsedAt, a.lastUsedAt);
+					});
 				const recentTemplate = sortedTemplates[0] ?? null;
 
 				// Initialize config - for OFX, only apply common settings from template
@@ -237,7 +245,7 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 						duplicateDetection: recentTemplate.duplicateDetection,
 						oldTransactionFilter: {
 							...recentTemplate.oldTransactionFilter,
-							cutoffDate: recentTemplate.oldTransactionFilter.cutoffDate ?? null,
+							cutoffDate: recentTemplate.oldTransactionFilter.cutoffDate?.toString() ?? null,
 						},
 						// OFX has fixed column mappings
 						columnMappings: {
@@ -254,7 +262,7 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 						duplicateDetection: recentTemplate.duplicateDetection,
 						oldTransactionFilter: {
 							...recentTemplate.oldTransactionFilter,
-							cutoffDate: recentTemplate.oldTransactionFilter.cutoffDate ?? null,
+							cutoffDate: recentTemplate.oldTransactionFilter.cutoffDate?.toString() ?? null,
 						},
 						columnMappings: { ...recentTemplate.columnMappings },
 					};
@@ -516,7 +524,7 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 							duplicateDetection: template.duplicateDetection,
 							oldTransactionFilter: {
 								...template.oldTransactionFilter,
-								cutoffDate: template.oldTransactionFilter.cutoffDate ?? null,
+								cutoffDate: template.oldTransactionFilter.cutoffDate?.toString() ?? null,
 							},
 							// Keep OFX column mappings
 							columnMappings: prev.config.columnMappings,
@@ -534,7 +542,7 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 						duplicateDetection: template.duplicateDetection,
 						oldTransactionFilter: {
 							...template.oldTransactionFilter,
-							cutoffDate: template.oldTransactionFilter.cutoffDate ?? null,
+							cutoffDate: template.oldTransactionFilter.cutoffDate?.toString() ?? null,
 						},
 						columnMappings: { ...template.columnMappings },
 					},

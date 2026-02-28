@@ -72,8 +72,9 @@ function findNewestDateForAccount(
 	if (filtered.length === 0) return null;
 
 	return filtered.reduce((newest, tx) => {
-		return tx.date > newest ? tx.date : newest;
-	}, filtered[0].date);
+		const txDate = tx.date.toString();
+		return txDate > newest ? txDate : newest;
+	}, filtered[0].date.toString());
 }
 
 // ============================================================================

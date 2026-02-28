@@ -9,8 +9,8 @@ export interface ImportData {
 	id: string;
 	filename: string;
 	transactionCount: number;
-	createdAt: number;
-	deletedAt?: number;
+	createdAt: Temporal.Instant;
+	deletedAt?: Temporal.Instant;
 }
 
 interface ImportRowProps {
@@ -19,14 +19,13 @@ interface ImportRowProps {
 }
 
 /**
- * Format a timestamp as a relative date string.
+ * Format a Temporal.Instant as a relative date string.
  * Uses Temporal API for date handling.
  */
-function formatRelativeDate(timestamp: number): string {
+function formatRelativeDate(instant: Temporal.Instant): string {
 	const now = Temporal.Now.instant();
-	const then = Temporal.Instant.fromEpochMilliseconds(timestamp);
 	const nowDate = now.toZonedDateTimeISO(Temporal.Now.timeZoneId()).toPlainDate();
-	const thenDate = then.toZonedDateTimeISO(Temporal.Now.timeZoneId()).toPlainDate();
+	const thenDate = instant.toZonedDateTimeISO(Temporal.Now.timeZoneId()).toPlainDate();
 
 	const daysDiff = nowDate.since(thenDate).days;
 

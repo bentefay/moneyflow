@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Temporal } from "temporal-polyfill";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DeleteImportDialog } from "./DeleteImportDialog";
 import { type ImportData, ImportRow } from "./ImportRow";
@@ -25,7 +26,9 @@ export function ImportsTable({ imports, onDeleteImport }: ImportsTableProps) {
 	}>({ open: false, import_: null });
 
 	// Sort imports by creation date, most recent first
-	const sortedImports = [...imports].sort((a, b) => b.createdAt - a.createdAt);
+	const sortedImports = [...imports].sort((a, b) =>
+		Temporal.Instant.compare(b.createdAt, a.createdAt)
+	);
 
 	const handleDeleteClick = (id: string) => {
 		const import_ = imports.find((i) => i.id === id);

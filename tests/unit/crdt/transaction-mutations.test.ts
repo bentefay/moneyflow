@@ -4,6 +4,7 @@
  * Verifies the hierarchical transaction mutation operations.
  */
 
+import { Temporal } from "temporal-polyfill";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
 	deleteTransaction,
@@ -30,6 +31,7 @@ import type {
 	TransactionInput,
 	TransactionStore,
 } from "@/lib/crdt/schema";
+import { asMinorUnits } from "@/lib/domain/currency";
 
 // Helper to create a minimal transaction input
 function createTransaction(
@@ -37,18 +39,18 @@ function createTransaction(
 ): Omit<TransactionInput, "suspectedDuplicates"> {
 	return {
 		id: `tx-${Math.random().toString(36).slice(2)}`,
-		date: "2024-01-15",
+		date: Temporal.PlainDate.from("2024-01-15"),
 		description: "Test transaction",
 		notes: "",
-		amount: 1000,
+		amount: asMinorUnits(1000),
 		accountId: "acc-1",
 		tagIds: [],
 		statusId: "status-for-review",
 		importId: "",
 		allocations: {},
-		creationInstant: Date.now(),
+		creationInstant: Temporal.Instant.fromEpochMilliseconds(Date.now()),
 		importRowIndex: 0,
-		deletedAt: 0,
+		deletedAt: undefined,
 		...overrides,
 	};
 }
@@ -142,7 +144,7 @@ describe("insertTransaction", () => {
 	it("creates all intermediate buckets lazily", () => {
 		const store = createEmptyStore();
 		const tx = createTransaction({
-			date: "2024-03-15",
+			date: Temporal.PlainDate.from("2024-03-15"),
 			accountId: "acc-1",
 		});
 
@@ -166,15 +168,15 @@ describe("insertTransaction", () => {
 		insertTransaction(store, {
 			transaction: createTransaction({
 				id: "tx-old",
-				date: "2024-01-15",
-				creationInstant: now - 1000,
+				date: Temporal.PlainDate.from("2024-01-15"),
+				creationInstant: Temporal.Instant.fromEpochMilliseconds(now - 1000),
 			}),
 		});
 		insertTransaction(store, {
 			transaction: createTransaction({
 				id: "tx-new",
-				date: "2024-01-15",
-				creationInstant: now,
+				date: Temporal.PlainDate.from("2024-01-15"),
+				creationInstant: Temporal.Instant.fromEpochMilliseconds(now),
 			}),
 		});
 
@@ -193,16 +195,16 @@ describe("insertTransaction", () => {
 		insertTransaction(store, {
 			transaction: createTransaction({
 				id: "tx-row-5",
-				date: "2024-01-15",
-				creationInstant: now,
+				date: Temporal.PlainDate.from("2024-01-15"),
+				creationInstant: Temporal.Instant.fromEpochMilliseconds(now),
 				importRowIndex: 5,
 			}),
 		});
 		insertTransaction(store, {
 			transaction: createTransaction({
 				id: "tx-row-2",
-				date: "2024-01-15",
-				creationInstant: now,
+				date: Temporal.PlainDate.from("2024-01-15"),
+				creationInstant: Temporal.Instant.fromEpochMilliseconds(now),
 				importRowIndex: 2,
 			}),
 		});
@@ -221,20 +223,20 @@ describe("insertTransaction", () => {
 		// Insert parent
 		const parentTx = createTransaction({
 			id: "tx-parent",
-			date: "2024-01-15",
+			date: Temporal.PlainDate.from("2024-01-15"),
 		});
 		insertTransaction(store, { transaction: parentTx });
 
 		// Insert duplicate
 		const dupTx = createTransaction({
 			id: "tx-dup",
-			date: "2024-01-15",
+			date: Temporal.PlainDate.from("2024-01-15"),
 		});
 		insertTransaction(store, {
 			transaction: dupTx,
 			suspectedDuplicateOf: {
 				accountId: "acc-1",
-				date: "2024-01-15",
+				date: Temporal.PlainDate.from("2024-01-15"),
 				transactionId: "tx-parent",
 			},
 		});
@@ -258,7 +260,7 @@ describe("updateTransaction", () => {
 		insertTransaction(store, {
 			transaction: createTransaction({
 				id: "tx-1",
-				date: "2024-01-15",
+				date: Temporal.PlainDate.from("2024-01-15"),
 				description: "Original",
 			}),
 		});
@@ -266,7 +268,7 @@ describe("updateTransaction", () => {
 		updateTransaction(store, {
 			location: {
 				accountId: "acc-1",
-				date: "2024-01-15",
+				date: Temporal.PlainDate.from("2024-01-15"),
 				transactionId: "tx-1",
 			},
 			updates: { description: "Updated" },
@@ -282,17 +284,20 @@ describe("updateTransaction", () => {
 
 		// Insert parent with duplicate
 		insertTransaction(store, {
-			transaction: createTransaction({ id: "tx-parent", date: "2024-01-15" }),
+			transaction: createTransaction({
+				id: "tx-parent",
+				date: Temporal.PlainDate.from("2024-01-15"),
+			}),
 		});
 		insertTransaction(store, {
 			transaction: createTransaction({
 				id: "tx-dup",
-				date: "2024-01-15",
+				date: Temporal.PlainDate.from("2024-01-15"),
 				description: "Original Dup",
 			}),
 			suspectedDuplicateOf: {
 				accountId: "acc-1",
-				date: "2024-01-15",
+				date: Temporal.PlainDate.from("2024-01-15"),
 				transactionId: "tx-parent",
 			},
 		});
@@ -300,7 +305,7 @@ describe("updateTransaction", () => {
 		updateTransaction(store, {
 			location: {
 				accountId: "acc-1",
-				date: "2024-01-15",
+				date: Temporal.PlainDate.from("2024-01-15"),
 				transactionId: "tx-dup",
 			},
 			updates: { description: "Updated Dup" },
@@ -318,28 +323,28 @@ describe("moveTransaction", () => {
 		insertTransaction(store, {
 			transaction: createTransaction({
 				id: "tx-1",
-				date: "2024-01-15",
+				date: Temporal.PlainDate.from("2024-01-15"),
 			}),
 		});
 
 		moveTransaction(store, {
 			location: {
 				accountId: "acc-1",
-				date: "2024-01-15",
+				date: Temporal.PlainDate.from("2024-01-15"),
 				transactionId: "tx-1",
 			},
-			newDate: "2024-02-20",
+			newDate: Temporal.PlainDate.from("2024-02-20"),
 		});
 
 		// Should not be in old location
-		const oldBuckets = getDayBuckets(store, "acc-1", "2024-01-15");
+		const oldBuckets = getDayBuckets(store, "acc-1", Temporal.PlainDate.from("2024-01-15"));
 		expect(oldBuckets.length).toBe(0);
 
 		// Should be in new location
-		const newBuckets = getDayBuckets(store, "acc-1", "2024-02-20");
+		const newBuckets = getDayBuckets(store, "acc-1", Temporal.PlainDate.from("2024-02-20"));
 		expect(newBuckets.length).toBe(1);
 		expect(newBuckets[0].transactions[0].id).toBe("tx-1");
-		expect(newBuckets[0].transactions[0].date).toBe("2024-02-20");
+		expect(newBuckets[0].transactions[0].date).toEqual(Temporal.PlainDate.from("2024-02-20"));
 	});
 
 	it("prunes empty buckets after move", () => {
@@ -347,17 +352,17 @@ describe("moveTransaction", () => {
 		insertTransaction(store, {
 			transaction: createTransaction({
 				id: "tx-1",
-				date: "2024-01-15",
+				date: Temporal.PlainDate.from("2024-01-15"),
 			}),
 		});
 
 		moveTransaction(store, {
 			location: {
 				accountId: "acc-1",
-				date: "2024-01-15",
+				date: Temporal.PlainDate.from("2024-01-15"),
 				transactionId: "tx-1",
 			},
-			newDate: "2024-02-20",
+			newDate: Temporal.PlainDate.from("2024-02-20"),
 		});
 
 		const tree = store["acc-1"] as AccountTransactionTree;
@@ -375,13 +380,16 @@ describe("deleteTransaction", () => {
 
 		// Insert parent with duplicate
 		insertTransaction(store, {
-			transaction: createTransaction({ id: "tx-parent", date: "2024-01-15" }),
+			transaction: createTransaction({
+				id: "tx-parent",
+				date: Temporal.PlainDate.from("2024-01-15"),
+			}),
 		});
 		insertTransaction(store, {
-			transaction: createTransaction({ id: "tx-dup", date: "2024-01-15" }),
+			transaction: createTransaction({ id: "tx-dup", date: Temporal.PlainDate.from("2024-01-15") }),
 			suspectedDuplicateOf: {
 				accountId: "acc-1",
-				date: "2024-01-15",
+				date: Temporal.PlainDate.from("2024-01-15"),
 				transactionId: "tx-parent",
 			},
 		});
@@ -389,13 +397,13 @@ describe("deleteTransaction", () => {
 		deleteTransaction(store, {
 			location: {
 				accountId: "acc-1",
-				date: "2024-01-15",
+				date: Temporal.PlainDate.from("2024-01-15"),
 				transactionId: "tx-parent",
 			},
 		});
 
 		// Both should be gone
-		const buckets = getDayBuckets(store, "acc-1", "2024-01-15");
+		const buckets = getDayBuckets(store, "acc-1", Temporal.PlainDate.from("2024-01-15"));
 		expect(buckets.length).toBe(0);
 	});
 
@@ -404,21 +412,30 @@ describe("deleteTransaction", () => {
 
 		// Insert parent with two duplicates
 		insertTransaction(store, {
-			transaction: createTransaction({ id: "tx-parent", date: "2024-01-15" }),
+			transaction: createTransaction({
+				id: "tx-parent",
+				date: Temporal.PlainDate.from("2024-01-15"),
+			}),
 		});
 		insertTransaction(store, {
-			transaction: createTransaction({ id: "tx-dup1", date: "2024-01-15" }),
+			transaction: createTransaction({
+				id: "tx-dup1",
+				date: Temporal.PlainDate.from("2024-01-15"),
+			}),
 			suspectedDuplicateOf: {
 				accountId: "acc-1",
-				date: "2024-01-15",
+				date: Temporal.PlainDate.from("2024-01-15"),
 				transactionId: "tx-parent",
 			},
 		});
 		insertTransaction(store, {
-			transaction: createTransaction({ id: "tx-dup2", date: "2024-01-15" }),
+			transaction: createTransaction({
+				id: "tx-dup2",
+				date: Temporal.PlainDate.from("2024-01-15"),
+			}),
 			suspectedDuplicateOf: {
 				accountId: "acc-1",
-				date: "2024-01-15",
+				date: Temporal.PlainDate.from("2024-01-15"),
 				transactionId: "tx-parent",
 			},
 		});
@@ -426,7 +443,7 @@ describe("deleteTransaction", () => {
 		deleteTransaction(store, {
 			location: {
 				accountId: "acc-1",
-				date: "2024-01-15",
+				date: Temporal.PlainDate.from("2024-01-15"),
 				transactionId: "tx-dup1",
 			},
 		});
@@ -444,13 +461,13 @@ describe("deleteTransaction", () => {
 	it("prunes empty buckets after deletion", () => {
 		const store = createEmptyStore();
 		insertTransaction(store, {
-			transaction: createTransaction({ id: "tx-1", date: "2024-01-15" }),
+			transaction: createTransaction({ id: "tx-1", date: Temporal.PlainDate.from("2024-01-15") }),
 		});
 
 		deleteTransaction(store, {
 			location: {
 				accountId: "acc-1",
-				date: "2024-01-15",
+				date: Temporal.PlainDate.from("2024-01-15"),
 				transactionId: "tx-1",
 			},
 		});
@@ -466,16 +483,19 @@ describe("unnestDuplicate", () => {
 
 		// Insert parent with duplicate
 		insertTransaction(store, {
-			transaction: createTransaction({ id: "tx-parent", date: "2024-01-15" }),
+			transaction: createTransaction({
+				id: "tx-parent",
+				date: Temporal.PlainDate.from("2024-01-15"),
+			}),
 		});
 		insertTransaction(store, {
 			transaction: createTransaction({
 				id: "tx-dup",
-				date: "2024-01-14", // Different date
+				date: Temporal.PlainDate.from("2024-01-14"), // Different date
 			}),
 			suspectedDuplicateOf: {
 				accountId: "acc-1",
-				date: "2024-01-15",
+				date: Temporal.PlainDate.from("2024-01-15"),
 				transactionId: "tx-parent",
 			},
 		});
@@ -483,18 +503,18 @@ describe("unnestDuplicate", () => {
 		unnestDuplicate(store, {
 			parentLocation: {
 				accountId: "acc-1",
-				date: "2024-01-15",
+				date: Temporal.PlainDate.from("2024-01-15"),
 				transactionId: "tx-parent",
 			},
 			duplicateId: "tx-dup",
 		});
 
 		// Parent should have no duplicates
-		const parentBuckets = getDayBuckets(store, "acc-1", "2024-01-15");
+		const parentBuckets = getDayBuckets(store, "acc-1", Temporal.PlainDate.from("2024-01-15"));
 		expect(parentBuckets[0].transactions[0].suspectedDuplicates?.length).toBe(0);
 
 		// Duplicate should be standalone at its own date
-		const dupBuckets = getDayBuckets(store, "acc-1", "2024-01-14");
+		const dupBuckets = getDayBuckets(store, "acc-1", Temporal.PlainDate.from("2024-01-14"));
 		expect(dupBuckets.length).toBe(1);
 		expect(dupBuckets[0].transactions[0].id).toBe("tx-dup");
 	});
@@ -509,19 +529,19 @@ describe("swapDuplicate", () => {
 		insertTransaction(store, {
 			transaction: createTransaction({
 				id: "tx-parent",
-				date: "2024-01-15",
-				creationInstant: now,
+				date: Temporal.PlainDate.from("2024-01-15"),
+				creationInstant: Temporal.Instant.fromEpochMilliseconds(now),
 			}),
 		});
 		insertTransaction(store, {
 			transaction: createTransaction({
 				id: "tx-dup",
-				date: "2024-01-14", // Different date
-				creationInstant: now + 1000,
+				date: Temporal.PlainDate.from("2024-01-14"), // Different date
+				creationInstant: Temporal.Instant.fromEpochMilliseconds(now + 1000),
 			}),
 			suspectedDuplicateOf: {
 				accountId: "acc-1",
-				date: "2024-01-15",
+				date: Temporal.PlainDate.from("2024-01-15"),
 				transactionId: "tx-parent",
 			},
 		});
@@ -529,18 +549,18 @@ describe("swapDuplicate", () => {
 		swapDuplicate(store, {
 			parentLocation: {
 				accountId: "acc-1",
-				date: "2024-01-15",
+				date: Temporal.PlainDate.from("2024-01-15"),
 				transactionId: "tx-parent",
 			},
 			duplicateId: "tx-dup",
 		});
 
 		// Old parent location should be empty
-		const oldBuckets = getDayBuckets(store, "acc-1", "2024-01-15");
+		const oldBuckets = getDayBuckets(store, "acc-1", Temporal.PlainDate.from("2024-01-15"));
 		expect(oldBuckets.length).toBe(0);
 
 		// New parent should be at duplicate's original date
-		const newBuckets = getDayBuckets(store, "acc-1", "2024-01-14");
+		const newBuckets = getDayBuckets(store, "acc-1", Temporal.PlainDate.from("2024-01-14"));
 		expect(newBuckets.length).toBe(1);
 
 		const newParent = newBuckets[0].transactions[0];
@@ -560,21 +580,21 @@ describe("deleteTransactionsByImport", () => {
 		insertTransaction(store, {
 			transaction: createTransaction({
 				id: "tx-1",
-				date: "2024-01-15",
+				date: Temporal.PlainDate.from("2024-01-15"),
 				importId: "import-A",
 			}),
 		});
 		insertTransaction(store, {
 			transaction: createTransaction({
 				id: "tx-2",
-				date: "2024-01-16",
+				date: Temporal.PlainDate.from("2024-01-16"),
 				importId: "import-A",
 			}),
 		});
 		insertTransaction(store, {
 			transaction: createTransaction({
 				id: "tx-3",
-				date: "2024-01-17",
+				date: Temporal.PlainDate.from("2024-01-17"),
 				importId: "import-B",
 			}),
 		});
@@ -582,11 +602,11 @@ describe("deleteTransactionsByImport", () => {
 		deleteTransactionsByImport(store, "import-A");
 
 		// import-A transactions should be gone
-		expect(getDayBuckets(store, "acc-1", "2024-01-15").length).toBe(0);
-		expect(getDayBuckets(store, "acc-1", "2024-01-16").length).toBe(0);
+		expect(getDayBuckets(store, "acc-1", Temporal.PlainDate.from("2024-01-15")).length).toBe(0);
+		expect(getDayBuckets(store, "acc-1", Temporal.PlainDate.from("2024-01-16")).length).toBe(0);
 
 		// import-B transaction should remain
-		const remainingBuckets = getDayBuckets(store, "acc-1", "2024-01-17");
+		const remainingBuckets = getDayBuckets(store, "acc-1", Temporal.PlainDate.from("2024-01-17"));
 		expect(remainingBuckets.length).toBe(1);
 		expect(remainingBuckets[0].transactions[0].id).toBe("tx-3");
 	});
@@ -598,19 +618,19 @@ describe("deleteTransactionsByImport", () => {
 		insertTransaction(store, {
 			transaction: createTransaction({
 				id: "tx-parent",
-				date: "2024-01-15",
+				date: Temporal.PlainDate.from("2024-01-15"),
 				importId: undefined,
 			}),
 		});
 		insertTransaction(store, {
 			transaction: createTransaction({
 				id: "tx-dup",
-				date: "2024-01-15",
+				date: Temporal.PlainDate.from("2024-01-15"),
 				importId: "import-A",
 			}),
 			suspectedDuplicateOf: {
 				accountId: "acc-1",
-				date: "2024-01-15",
+				date: Temporal.PlainDate.from("2024-01-15"),
 				transactionId: "tx-parent",
 			},
 		});
@@ -618,7 +638,7 @@ describe("deleteTransactionsByImport", () => {
 		deleteTransactionsByImport(store, "import-A");
 
 		// Parent should still exist
-		const buckets = getDayBuckets(store, "acc-1", "2024-01-15");
+		const buckets = getDayBuckets(store, "acc-1", Temporal.PlainDate.from("2024-01-15"));
 		expect(buckets.length).toBe(1);
 		expect(buckets[0].transactions[0].id).toBe("tx-parent");
 
@@ -632,10 +652,10 @@ describe("pruneBuckets", () => {
 		const store = createEmptyStore();
 		// Insert two transactions on different days in the same month
 		insertTransaction(store, {
-			transaction: createTransaction({ id: "tx-1", date: "2024-01-15" }),
+			transaction: createTransaction({ id: "tx-1", date: Temporal.PlainDate.from("2024-01-15") }),
 		});
 		insertTransaction(store, {
-			transaction: createTransaction({ id: "tx-2", date: "2024-01-20" }),
+			transaction: createTransaction({ id: "tx-2", date: Temporal.PlainDate.from("2024-01-20") }),
 		});
 
 		// Manually remove the transaction from day 15
@@ -645,7 +665,7 @@ describe("pruneBuckets", () => {
 			day15Bucket.transactions = [];
 		}
 
-		pruneBuckets(store, "acc-1", "2024-01-15");
+		pruneBuckets(store, "acc-1", Temporal.PlainDate.from("2024-01-15"));
 
 		// Day 15 bucket should be removed, but day 20 should remain
 		expect(tree.years[0].months[0].days.length).toBe(1);
@@ -656,10 +676,10 @@ describe("pruneBuckets", () => {
 		const store = createEmptyStore();
 		// Insert transactions in different months
 		insertTransaction(store, {
-			transaction: createTransaction({ id: "tx-1", date: "2024-01-15" }),
+			transaction: createTransaction({ id: "tx-1", date: Temporal.PlainDate.from("2024-01-15") }),
 		});
 		insertTransaction(store, {
-			transaction: createTransaction({ id: "tx-2", date: "2024-02-15" }),
+			transaction: createTransaction({ id: "tx-2", date: Temporal.PlainDate.from("2024-02-15") }),
 		});
 
 		const tree = store["acc-1"] as AccountTransactionTree;
@@ -669,7 +689,7 @@ describe("pruneBuckets", () => {
 			janBucket.days[0].transactions = [];
 		}
 
-		pruneBuckets(store, "acc-1", "2024-01-15");
+		pruneBuckets(store, "acc-1", Temporal.PlainDate.from("2024-01-15"));
 
 		// January should be removed, February should remain
 		expect(tree.years[0].months.length).toBe(1);
@@ -679,13 +699,13 @@ describe("pruneBuckets", () => {
 	it("removes empty year bucket when last month is removed", () => {
 		const store = createEmptyStore();
 		insertTransaction(store, {
-			transaction: createTransaction({ id: "tx-1", date: "2024-01-15" }),
+			transaction: createTransaction({ id: "tx-1", date: Temporal.PlainDate.from("2024-01-15") }),
 		});
 
 		const tree = store["acc-1"] as AccountTransactionTree;
 		tree.years[0].months[0].days[0].transactions = [];
 
-		pruneBuckets(store, "acc-1", "2024-01-15");
+		pruneBuckets(store, "acc-1", Temporal.PlainDate.from("2024-01-15"));
 
 		// Year bucket should be removed (cascading prune)
 		expect(tree.years.length).toBe(0);
@@ -694,13 +714,13 @@ describe("pruneBuckets", () => {
 	it("removes empty account tree when last year is removed", () => {
 		const store = createEmptyStore();
 		insertTransaction(store, {
-			transaction: createTransaction({ id: "tx-1", date: "2024-01-15" }),
+			transaction: createTransaction({ id: "tx-1", date: Temporal.PlainDate.from("2024-01-15") }),
 		});
 
 		const tree = store["acc-1"] as AccountTransactionTree;
 		tree.years[0].months[0].days[0].transactions = [];
 
-		pruneBuckets(store, "acc-1", "2024-01-15");
+		pruneBuckets(store, "acc-1", Temporal.PlainDate.from("2024-01-15"));
 
 		// Account tree should be removed
 		expect(store["acc-1"]).toBeUndefined();
@@ -711,12 +731,12 @@ describe("findTransactionInStore", () => {
 	it("finds parent transaction by location", () => {
 		const store = createEmptyStore();
 		insertTransaction(store, {
-			transaction: createTransaction({ id: "tx-1", date: "2024-01-15" }),
+			transaction: createTransaction({ id: "tx-1", date: Temporal.PlainDate.from("2024-01-15") }),
 		});
 
 		const found = findTransactionInStore(store, {
 			accountId: "acc-1",
-			date: "2024-01-15",
+			date: Temporal.PlainDate.from("2024-01-15"),
 			transactionId: "tx-1",
 		});
 
@@ -726,20 +746,23 @@ describe("findTransactionInStore", () => {
 	it("finds nested duplicate by location", () => {
 		const store = createEmptyStore();
 		insertTransaction(store, {
-			transaction: createTransaction({ id: "tx-parent", date: "2024-01-15" }),
+			transaction: createTransaction({
+				id: "tx-parent",
+				date: Temporal.PlainDate.from("2024-01-15"),
+			}),
 		});
 		insertTransaction(store, {
-			transaction: createTransaction({ id: "tx-dup", date: "2024-01-15" }),
+			transaction: createTransaction({ id: "tx-dup", date: Temporal.PlainDate.from("2024-01-15") }),
 			suspectedDuplicateOf: {
 				accountId: "acc-1",
-				date: "2024-01-15",
+				date: Temporal.PlainDate.from("2024-01-15"),
 				transactionId: "tx-parent",
 			},
 		});
 
 		const found = findTransactionInStore(store, {
 			accountId: "acc-1",
-			date: "2024-01-15",
+			date: Temporal.PlainDate.from("2024-01-15"),
 			transactionId: "tx-dup",
 		});
 
@@ -751,7 +774,7 @@ describe("findTransactionInStore", () => {
 
 		const found = findTransactionInStore(store, {
 			accountId: "acc-1",
-			date: "2024-01-15",
+			date: Temporal.PlainDate.from("2024-01-15"),
 			transactionId: "tx-nonexistent",
 		});
 
@@ -763,13 +786,16 @@ describe("findParentTransaction", () => {
 	it("finds only parent transactions, not nested duplicates", () => {
 		const store = createEmptyStore();
 		insertTransaction(store, {
-			transaction: createTransaction({ id: "tx-parent", date: "2024-01-15" }),
+			transaction: createTransaction({
+				id: "tx-parent",
+				date: Temporal.PlainDate.from("2024-01-15"),
+			}),
 		});
 		insertTransaction(store, {
-			transaction: createTransaction({ id: "tx-dup", date: "2024-01-15" }),
+			transaction: createTransaction({ id: "tx-dup", date: Temporal.PlainDate.from("2024-01-15") }),
 			suspectedDuplicateOf: {
 				accountId: "acc-1",
-				date: "2024-01-15",
+				date: Temporal.PlainDate.from("2024-01-15"),
 				transactionId: "tx-parent",
 			},
 		});
@@ -777,7 +803,7 @@ describe("findParentTransaction", () => {
 		// Should find parent
 		const foundParent = findParentTransaction(store, {
 			accountId: "acc-1",
-			date: "2024-01-15",
+			date: Temporal.PlainDate.from("2024-01-15"),
 			transactionId: "tx-parent",
 		});
 		expect(foundParent?.id).toBe("tx-parent");
@@ -785,7 +811,7 @@ describe("findParentTransaction", () => {
 		// Should NOT find duplicate (it's nested, not a parent)
 		const foundDup = findParentTransaction(store, {
 			accountId: "acc-1",
-			date: "2024-01-15",
+			date: Temporal.PlainDate.from("2024-01-15"),
 			transactionId: "tx-dup",
 		});
 		expect(foundDup).toBeUndefined();

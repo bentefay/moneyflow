@@ -7,6 +7,7 @@
  * Structure: Account -> Year -> Month -> Day -> Transactions
  */
 
+import { Temporal } from "temporal-polyfill";
 import type {
 	AccountTransactionTree,
 	AccountTransactionTreeInput,
@@ -32,13 +33,17 @@ import type {
  *
  * loro-mirror's InferInputType has `$cid?: string` (optional) while InferType has
  * `$cid: string` (required). This mapped type performs the deep transformation.
+ * Excludes domain types (Temporal.PlainDate, Temporal.Instant) from $cid injection.
  */
-type WithCid<T> =
-	T extends Array<infer U>
-		? Array<WithCid<U>>
-		: T extends object
-			? { [K in keyof T]: WithCid<T[K]> } & { $cid: string }
-			: T;
+type WithCid<T> = T extends Temporal.PlainDate | Temporal.Instant
+	? T
+	: T extends number | string | boolean
+		? T
+		: T extends Array<infer U>
+			? Array<WithCid<U>>
+			: T extends object
+				? { [K in keyof T]: WithCid<T[K]> } & { $cid: string }
+				: T;
 
 /**
  * Type helper for loro-mirror container creation.
@@ -58,7 +63,7 @@ function withCid<T extends object>(input: T): WithCid<T> {
 
 export interface TransactionLocation {
 	accountId: string;
-	date: string; // YYYY-MM-DD
+	date: Temporal.PlainDate;
 	transactionId: string;
 }
 
@@ -77,7 +82,7 @@ export interface UpdateTransactionInput {
 
 export interface MoveTransactionInput {
 	location: TransactionLocation;
-	newDate: string; // YYYY-MM-DD
+	newDate: Temporal.PlainDate;
 	/** If set, move to a different account (changes the tree) */
 	newAccountId?: string;
 }
@@ -99,23 +104,8 @@ export interface SwapDuplicateInput {
 }
 
 // ============================================
-// DATE PARSING HELPERS
+// DATE HELPERS
 // ============================================
-
-interface ParsedDate {
-	year: number;
-	month: number;
-	day: number;
-}
-
-function parseDate(dateStr: string): ParsedDate {
-	const [yearStr, monthStr, dayStr] = dateStr.split("-");
-	return {
-		year: parseInt(yearStr, 10),
-		month: parseInt(monthStr, 10),
-		day: parseInt(dayStr, 10),
-	};
-}
 
 // ============================================
 // BUCKET HELPERS
@@ -211,12 +201,12 @@ export function getOrCreateDayBucket(monthBucket: MonthBucket, day: number): Day
 export function getDayBuckets(
 	store: TransactionStore,
 	accountId: string,
-	date: string
+	date: Temporal.PlainDate
 ): DayBucket[] {
 	const tree = store[accountId];
 	if (!tree || typeof tree === "string") return [];
 
-	const { year, month, day } = parseDate(date);
+	const { year, month, day } = date;
 
 	const yearBuckets = tree.years.filter((y) => y.year === year);
 	const dayBuckets: DayBucket[] = [];
@@ -237,15 +227,16 @@ export function getDayBuckets(
  */
 function findTransactionInsertIndex(
 	transactions: Transaction[],
-	newTx: { creationInstant: number; importRowIndex?: number }
+	newTx: { creationInstant: Temporal.Instant; importRowIndex?: number }
 ): number {
 	for (let i = 0; i < transactions.length; i++) {
 		const existing = transactions[i];
+		const cmp = Temporal.Instant.compare(newTx.creationInstant, existing.creationInstant);
 		// Sort by creationInstant descending
-		if (newTx.creationInstant > existing.creationInstant) {
+		if (cmp > 0) {
 			return i;
 		}
-		if (newTx.creationInstant === existing.creationInstant) {
+		if (cmp === 0) {
 			// Then by importRowIndex ascending (nulls sort last)
 			const newIdx = newTx.importRowIndex ?? Infinity;
 			const existingIdx = existing.importRowIndex ?? Infinity;
@@ -260,11 +251,15 @@ function findTransactionInsertIndex(
 /**
  * Prune empty buckets up the tree after deletion.
  */
-export function pruneBuckets(store: TransactionStore, accountId: string, date: string): void {
+export function pruneBuckets(
+	store: TransactionStore,
+	accountId: string,
+	date: Temporal.PlainDate
+): void {
 	const tree = store[accountId];
 	if (!tree || typeof tree === "string") return;
 
-	const { year, month, day } = parseDate(date);
+	const { year, month, day } = date;
 
 	for (let yi = tree.years.length - 1; yi >= 0; yi--) {
 		const yearBucket = tree.years[yi];
@@ -342,7 +337,7 @@ export function insertTransaction(store: TransactionStore, input: InsertTransact
 	}
 
 	// Get or create the bucket path
-	const { year, month, day } = parseDate(transaction.date);
+	const { year, month, day } = transaction.date;
 	const tree = getOrCreateAccountTree(store, transaction.accountId);
 	const yearBucket = getOrCreateYearBucket(tree, year);
 	const monthBucket = getOrCreateMonthBucket(yearBucket, month);
@@ -480,7 +475,7 @@ export function deleteTransaction(store: TransactionStore, input: DeleteTransact
 				dayBucket.transactions.splice(txIndex, 1);
 			} else {
 				// Soft delete - set deletedAt
-				dayBucket.transactions[txIndex].deletedAt = Date.now();
+				dayBucket.transactions[txIndex].deletedAt = Temporal.Now.instant();
 			}
 			pruneBuckets(store, location.accountId, location.date);
 			return;
@@ -625,7 +620,7 @@ export function swapDuplicate(store: TransactionStore, input: SwapDuplicateInput
  * Prunes empty buckets after deletion.
  */
 export function deleteTransactionsByImport(store: TransactionStore, importId: string): void {
-	const datesToPrune: { accountId: string; date: string }[] = [];
+	const datesToPrune: { accountId: string; date: Temporal.PlainDate }[] = [];
 
 	// Iterate through all accounts
 	for (const accountId of Object.keys(store)) {
@@ -641,7 +636,11 @@ export function deleteTransactionsByImport(store: TransactionStore, importId: st
 						const tx = dayBucket.transactions[i];
 						if (tx.importId === importId) {
 							dayBucket.transactions.splice(i, 1);
-							const date = `${yearBucket.year}-${String(monthBucket.month).padStart(2, "0")}-${String(dayBucket.day).padStart(2, "0")}`;
+							const date = new Temporal.PlainDate(
+								yearBucket.year,
+								monthBucket.month,
+								dayBucket.day
+							);
 							datesToPrune.push({ accountId, date });
 						} else {
 							// Also remove from suspectedDuplicates

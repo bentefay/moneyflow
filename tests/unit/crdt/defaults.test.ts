@@ -31,8 +31,8 @@ describe("DEFAULT_PERSON", () => {
 		expect(DEFAULT_PERSON).toEqual({
 			id: "person-default-me",
 			name: "Me",
-			linkedUserId: "", // Empty string = not linked to any user
-			deletedAt: 0,
+			linkedUserId: undefined,
+			deletedAt: undefined,
 		});
 	});
 });
@@ -48,12 +48,12 @@ describe("DEFAULT_ACCOUNT", () => {
 		expect(DEFAULT_ACCOUNT).toEqual({
 			id: "account-default",
 			name: "Default",
-			accountNumber: "",
-			currency: "", // Empty string = inherits from vault default
+			accountNumber: undefined,
+			currency: undefined, // undefined = inherits from vault default
 			accountType: "checking",
 			balance: 0,
 			ownerships: { [DEFAULT_PERSON_ID]: 100 }, // Me owns 100%
-			deletedAt: 0,
+			deletedAt: undefined,
 		});
 	});
 
@@ -61,10 +61,9 @@ describe("DEFAULT_ACCOUNT", () => {
 		expect(DEFAULT_ACCOUNT.ownerships).toEqual({ [DEFAULT_PERSON_ID]: 100 });
 	});
 
-	it("has empty string currency to inherit from vault", () => {
-		// Empty string "" is used instead of undefined due to loro-mirror type constraints
-		// The resolveAccountCurrency() function treats "" as "not set"
-		expect(DEFAULT_ACCOUNT.currency).toBe("");
+	it("has undefined currency to inherit from vault", () => {
+		// undefined means "not set" - resolveAccountCurrency() falls back to vault default
+		expect(DEFAULT_ACCOUNT.currency).toBeUndefined();
 	});
 });
 
@@ -84,9 +83,9 @@ describe("DEFAULT_STATUSES", () => {
 		expect(forReview).toEqual({
 			id: "status-for-review",
 			name: "For Review",
-			behavior: "", // No special behavior
+			behavior: undefined, // No special behavior
 			isDefault: true,
-			deletedAt: 0,
+			deletedAt: undefined,
 		});
 	});
 
@@ -97,7 +96,7 @@ describe("DEFAULT_STATUSES", () => {
 			name: "Paid",
 			behavior: "treatAsPaid",
 			isDefault: true,
-			deletedAt: 0,
+			deletedAt: undefined,
 		});
 	});
 
@@ -261,8 +260,8 @@ describe("initializeVaultDefaults", () => {
 			draft.people[DEFAULT_PERSON_ID] = {
 				id: DEFAULT_PERSON_ID,
 				name: "Custom Name",
-				linkedUserId: "",
-				deletedAt: 0,
+				linkedUserId: undefined,
+				deletedAt: undefined,
 			};
 		});
 
@@ -330,8 +329,7 @@ describe("initializeVaultDefaults", () => {
 		expect(state.statuses[DEFAULT_STATUS_IDS.PAID]).toBeDefined();
 	});
 
-	it("sets default preferences when empty strings", () => {
-		// The preferences are set by loro-mirror schema defaults
+	it("does not overwrite existing preferences", () => {
 		// initializeVaultDefaults only sets preferences if the object doesn't exist
 		// In practice, loro-mirror always creates the preferences object
 		const doc = new LoroDoc();
@@ -343,19 +341,18 @@ describe("initializeVaultDefaults", () => {
 			throwOnValidationError: true,
 		});
 
-		// Clear the preferences to simulate missing values
+		// Write preferences to the Loro doc explicitly
 		mirror.setState((draft: VaultInput) => {
-			draft.preferences.automationCreationPreference = "";
-			draft.preferences.defaultCurrency = "";
+			draft.preferences.automationCreationPreference = "manual";
+			draft.preferences.defaultCurrency = "USD";
 		});
 
-		// Verify they're cleared
+		// Verify preferences are set
 		let state = mirror.getState();
-		expect(state.preferences.automationCreationPreference).toBe("");
+		expect(state.preferences.automationCreationPreference).toBe("manual");
 
-		// The initializeVaultDefaults doesn't overwrite existing preferences object
+		// initializeVaultDefaults doesn't overwrite existing preferences object
 		// (only creates if missing entirely, which loro-mirror prevents)
-		// This test documents the current behavior
 		mirror.setState((draft: VaultInput) => {
 			initializeVaultDefaults(draft);
 		});
@@ -364,6 +361,7 @@ describe("initializeVaultDefaults", () => {
 		// Since preferences object exists, it won't be overwritten
 		// The function only sets preferences if the object is falsy
 		expect(state.preferences).toBeDefined();
+		expect(state.preferences.automationCreationPreference).toBe("manual");
 	});
 });
 

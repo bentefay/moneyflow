@@ -11,6 +11,7 @@
 import { Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
+import { Temporal } from "temporal-polyfill";
 import { ACCEPTED_EXTENSIONS, type ImportData, ImportsTable } from "@/components/features/import";
 import { Button } from "@/components/ui/button";
 import { useActiveImports, useTransactionActions, useVaultAction } from "@/lib/crdt/context";
@@ -47,7 +48,7 @@ export default function ImportsPage() {
 
 	// Soft-delete import record only
 	const deleteImportRecord = useVaultAction((state, importId: string) => {
-		const now = Date.now();
+		const now = Temporal.Now.instant();
 		const importRecord = state.imports[importId];
 		if (importRecord && typeof importRecord === "object") {
 			importRecord.deletedAt = now;

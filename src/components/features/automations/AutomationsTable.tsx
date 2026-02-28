@@ -9,6 +9,7 @@
 
 import { Plus } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
+import { Temporal } from "temporal-polyfill";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useVaultAction, useVaultSelector } from "@/lib/crdt/context";
@@ -60,7 +61,7 @@ export function AutomationsTable({ className }: AutomationsTableProps) {
 					break;
 				case "delete":
 					if (draft.automations[action.id]) {
-						draft.automations[action.id].deletedAt = Date.now();
+						draft.automations[action.id].deletedAt = Temporal.Now.instant();
 					}
 					break;
 				case "reorder":

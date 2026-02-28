@@ -257,7 +257,7 @@ describe("Automation Performance", () => {
 				] as ActionData[],
 				order: i,
 				excludedTransactionIds: [] as string[],
-				deletedAt: 0,
+				deletedAt: undefined,
 			})) as Automation[];
 
 			const startTime = performance.now();

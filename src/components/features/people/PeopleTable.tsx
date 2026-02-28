@@ -9,6 +9,7 @@
 
 import { Plus, Users } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
+import { Temporal } from "temporal-polyfill";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useVaultAction, useVaultSelector } from "@/lib/crdt/context";
@@ -76,7 +77,7 @@ export function PeopleTable({
 					break;
 				case "delete":
 					if (draft.people[action.id]) {
-						draft.people[action.id].deletedAt = Date.now();
+						draft.people[action.id].deletedAt = Temporal.Now.instant();
 					}
 					break;
 			}

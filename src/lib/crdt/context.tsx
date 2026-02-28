@@ -8,6 +8,7 @@
  */
 
 import { createLoroContext } from "loro-mirror-react";
+import { Temporal } from "temporal-polyfill";
 import type { Transaction } from "./schema";
 import { vaultSchema } from "./schema";
 
@@ -204,9 +205,9 @@ export function useActiveTransactions() {
 		}
 		// Sort by date desc, creationInstant desc, importRowIndex asc
 		result.sort((a, b) => {
-			const dateCompare = b.date.localeCompare(a.date);
+			const dateCompare = Temporal.PlainDate.compare(b.date, a.date);
 			if (dateCompare !== 0) return dateCompare;
-			const instantCompare = b.creationInstant - a.creationInstant;
+			const instantCompare = Temporal.Instant.compare(b.creationInstant, a.creationInstant);
 			if (instantCompare !== 0) return instantCompare;
 			const aIdx = a.importRowIndex ?? Infinity;
 			const bIdx = b.importRowIndex ?? Infinity;

@@ -9,6 +9,7 @@
 
 import { Clock, Copy, FileText, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useCallback, useState } from "react";
+import { Temporal } from "temporal-polyfill";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,9 +54,9 @@ export interface TemplateTabProps {
 /**
  * Format relative time for "last used" display.
  */
-function formatLastUsed(timestamp: number | undefined): string {
+function formatLastUsed(timestamp: Temporal.Instant | undefined): string {
 	if (!timestamp) return "Never used";
-	const diff = Date.now() - timestamp;
+	const diff = Date.now() - timestamp.epochMilliseconds;
 	const minutes = Math.floor(diff / 60000);
 	const hours = Math.floor(diff / 3600000);
 	const days = Math.floor(diff / 86400000);
@@ -64,7 +65,7 @@ function formatLastUsed(timestamp: number | undefined): string {
 	if (minutes < 60) return `${minutes}m ago`;
 	if (hours < 24) return `${hours}h ago`;
 	if (days < 7) return `${days}d ago`;
-	return new Date(timestamp).toLocaleDateString();
+	return new Date(timestamp.epochMilliseconds).toLocaleDateString();
 }
 
 // ============================================================================
@@ -91,7 +92,12 @@ export function TemplateTab({
 	// Sort templates by last used (most recent first)
 	const sortedTemplates = [...templates]
 		.filter((t) => !t.deletedAt)
-		.sort((a, b) => (b.lastUsedAt ?? 0) - (a.lastUsedAt ?? 0));
+		.sort((a, b) => {
+			if (!b.lastUsedAt && !a.lastUsedAt) return 0;
+			if (!b.lastUsedAt) return -1;
+			if (!a.lastUsedAt) return 1;
+			return Temporal.Instant.compare(b.lastUsedAt, a.lastUsedAt);
+		});
 
 	const selectedTemplate = sortedTemplates.find((t) => t.id === selectedTemplateId);
 

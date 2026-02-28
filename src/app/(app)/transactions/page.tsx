@@ -29,6 +29,7 @@ import { useIdentity } from "@/hooks/use-identity";
 /** Threshold for showing warning when selecting all */
 const LARGE_SELECTION_THRESHOLD = 500;
 
+import { Temporal } from "temporal-polyfill";
 import { useVaultPresence } from "@/hooks/use-vault-presence";
 import {
 	useActiveAccounts,
@@ -39,9 +40,11 @@ import {
 	useTransactionActions,
 	useVaultAction,
 } from "@/lib/crdt/context";
+import type { InsertTransactionInput } from "@/lib/crdt/mutations";
 import { filterTransactions } from "@/lib/crdt/queries";
 import type { Account, Person, Status, Tag, Transaction } from "@/lib/crdt/schema";
 import { getNextTagColor } from "@/lib/domain";
+import { asMinorUnits, type MoneyMinorUnits } from "@/lib/domain/currency";
 
 // Number of transactions to load per page
 const PAGE_SIZE = 50;
@@ -88,8 +91,8 @@ export default function TransactionsPage() {
 			name: tag.name,
 			color: tag.color,
 			parentTagId: "",
-			deletedAt: 0,
-		} as (typeof state.tags)[string];
+			isTransfer: false,
+		} as unknown as (typeof state.tags)[string];
 	});
 
 	// Filter state
@@ -128,8 +131,10 @@ export default function TransactionsPage() {
 	const filteredTransactions = useMemo(() => {
 		return filterTransactions(transactions, {
 			dateRange: {
-				start: filters.dateRange.start || undefined,
-				end: filters.dateRange.end || undefined,
+				start: filters.dateRange.start
+					? Temporal.PlainDate.from(filters.dateRange.start)
+					: undefined,
+				end: filters.dateRange.end ? Temporal.PlainDate.from(filters.dateRange.end) : undefined,
 			},
 			tagIds: filters.tagIds.length > 0 ? filters.tagIds : undefined,
 			personIds: filters.personIds.length > 0 ? filters.personIds : undefined,
@@ -166,10 +171,10 @@ export default function TransactionsPage() {
 				const hasDuplicates = tx.suspectedDuplicates && tx.suspectedDuplicates.length > 0;
 				return {
 					id: tx.id,
-					date: tx.date,
+					date: tx.date.toString(),
 					description: tx.description || "",
 					notes: tx.notes || "",
-					amount: tx.amount,
+					amount: tx.amount as number,
 					account: typeof acc === "object" ? acc.name : "Unknown",
 					accountId: tx.accountId,
 					currency: typeof acc === "object" ? acc.currency : undefined,
@@ -217,14 +222,14 @@ export default function TransactionsPage() {
 	// Handle add transaction - uses insertTransaction mutation
 	const handleAddTransaction = useCallback(
 		(data: NewTransactionData) => {
-			const now = Date.now();
+			const now = Temporal.Now.instant();
 			insertTransaction({
 				transaction: {
 					id: generateId(),
-					date: data.date,
+					date: Temporal.PlainDate.from(data.date),
 					description: data.description,
 					notes: data.notes ?? "",
-					amount: data.amount,
+					amount: asMinorUnits(data.amount),
 					accountId: data.accountId,
 					tagIds: data.tagIds ?? [],
 					statusId: data.statusId ?? defaultStatusId,
@@ -232,8 +237,7 @@ export default function TransactionsPage() {
 					importId: "",
 					creationInstant: now,
 					importRowIndex: 0, // Manual transactions get index 0
-					deletedAt: 0,
-				},
+				} as InsertTransactionInput["transaction"],
 			});
 		},
 		[insertTransaction, defaultStatusId]
@@ -352,7 +356,7 @@ export default function TransactionsPage() {
 							date: tx.date,
 							transactionId: tx.id,
 						},
-						updates: { amount },
+						updates: { amount: asMinorUnits(amount) },
 					});
 				}
 			}
@@ -429,9 +433,10 @@ export default function TransactionsPage() {
 			if (!tx) return;
 
 			// Check if date or account changed - requires move
-			const newDate = updates.date;
+			// Convert string date from TransactionRowData to PlainDate for comparison
+			const newPlainDate = updates.date ? Temporal.PlainDate.from(updates.date) : undefined;
 			const newAccountId = updates.accountId;
-			const dateChanged = newDate && newDate !== tx.date;
+			const dateChanged = newPlainDate && Temporal.PlainDate.compare(newPlainDate, tx.date) !== 0;
 			const accountChanged = newAccountId && newAccountId !== tx.accountId;
 
 			if (dateChanged || accountChanged) {
@@ -442,7 +447,7 @@ export default function TransactionsPage() {
 						date: tx.date,
 						transactionId: tx.id,
 					},
-					newDate: newDate ?? tx.date,
+					newDate: newPlainDate ?? tx.date,
 					newAccountId: accountChanged ? newAccountId : undefined,
 				});
 				// Remove date and accountId from updates since moveTransaction handles them
@@ -459,7 +464,7 @@ export default function TransactionsPage() {
 				transactionUpdates.notes = updates.notes;
 			}
 			if ("amount" in updates && updates.amount !== undefined) {
-				transactionUpdates.amount = updates.amount;
+				transactionUpdates.amount = asMinorUnits(updates.amount);
 			}
 			if ("statusId" in updates && updates.statusId !== undefined) {
 				transactionUpdates.statusId = updates.statusId;
@@ -479,7 +484,7 @@ export default function TransactionsPage() {
 				// Use the new location if it changed
 				const location = {
 					accountId: accountChanged ? newAccountId! : tx.accountId,
-					date: dateChanged ? newDate! : tx.date,
+					date: dateChanged ? newPlainDate! : tx.date,
 					transactionId: tx.id,
 				};
 				updateTransaction({

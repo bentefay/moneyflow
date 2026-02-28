@@ -8,6 +8,7 @@
  * Convert to/from display values at the UI boundary.
  */
 
+import { Temporal } from "temporal-polyfill";
 import type { Account, Transaction } from "@/lib/crdt/schema";
 import type { MoneyMinorUnits } from "@/lib/domain/currency";
 
@@ -16,7 +17,7 @@ import type { MoneyMinorUnits } from "@/lib/domain/currency";
  */
 export interface TransactionWithBalance {
 	id: string;
-	date: string;
+	date: Temporal.PlainDate;
 	/** Amount in minor units (cents) */
 	amount: MoneyMinorUnits;
 	accountId: string;
@@ -67,7 +68,9 @@ export function calculateRunningBalances(
 	// Calculate running balance for each account
 	for (const [accountId, accountTransactions] of transactionsByAccount) {
 		// Sort by date ascending for cumulative calculation
-		const sorted = [...accountTransactions].sort((a, b) => a.date.localeCompare(b.date));
+		const sorted = [...accountTransactions].sort((a, b) =>
+			Temporal.PlainDate.compare(a.date, b.date)
+		);
 
 		let balance = accountStartingBalances[accountId] ?? 0;
 

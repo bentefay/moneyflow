@@ -44,7 +44,7 @@ export function StatusRow({
 }: StatusRowProps) {
 	const [isEditing, setIsEditing] = useState(false);
 	const [editedName, setEditedName] = useState(status.name);
-	const [editedBehavior, setEditedBehavior] = useState(status.behavior ?? "");
+	const [editedBehavior, setEditedBehavior] = useState<string>(status.behavior ?? "");
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
 	// Handle starting edit mode
@@ -68,7 +68,7 @@ export function StatusRow({
 			updates.name = trimmedName;
 		}
 
-		const newBehavior = editedBehavior || undefined;
+		const newBehavior = (editedBehavior || undefined) as "treatAsPaid" | undefined;
 		if (newBehavior !== status.behavior) {
 			updates.behavior = newBehavior;
 		}

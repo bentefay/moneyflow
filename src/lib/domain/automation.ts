@@ -5,6 +5,7 @@
  * Used during import and manual rule application.
  */
 
+import { Temporal } from "temporal-polyfill";
 import type { ActionData, ConditionData } from "@/components/features/automations";
 import { DEFAULT_AUTOMATION_ORDER } from "@/lib/crdt/defaults";
 import type { Automation, Transaction } from "@/lib/crdt/schema";
@@ -310,7 +311,7 @@ export interface AutomationApplicationData {
 	id: string;
 	transactionId: string;
 	automationId: string;
-	appliedAt: number;
+	appliedAt: Temporal.Instant;
 	previousValues: {
 		tagIds?: string[];
 		statusId?: string;
@@ -350,7 +351,7 @@ export function createAutomationApplication(
 		id: crypto.randomUUID(),
 		transactionId,
 		automationId,
-		appliedAt: Date.now(),
+		appliedAt: Temporal.Now.instant(),
 		previousValues,
 	};
 }

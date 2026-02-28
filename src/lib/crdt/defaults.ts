@@ -8,6 +8,8 @@
  * This is called when creating a new vault to ensure users never see an empty state.
  */
 
+import { asMinorUnits } from "@/lib/domain/currency";
+import { asPercentage } from "@/types";
 import type { AccountInput, PersonInput, StatusInput, VaultInput } from "./schema";
 
 // ============================================================================
@@ -57,8 +59,8 @@ export const DEFAULT_PERSON_ID = "person-default-me";
 export const DEFAULT_PERSON: PersonInput = {
 	id: DEFAULT_PERSON_ID,
 	name: "Me",
-	linkedUserId: "", // Empty string for optional field
-	deletedAt: 0,
+	linkedUserId: undefined,
+	deletedAt: undefined,
 };
 
 /**
@@ -77,12 +79,12 @@ export const DEFAULT_ACCOUNT_ID = "account-default";
 export const DEFAULT_ACCOUNT: AccountInput = {
 	id: DEFAULT_ACCOUNT_ID,
 	name: "Default",
-	accountNumber: "",
-	currency: "", // Empty string = inherit from vault default (resolved at display time)
+	accountNumber: undefined,
+	currency: undefined,
 	accountType: DEFAULT_ACCOUNT_TYPE,
-	balance: 0,
-	ownerships: { [DEFAULT_PERSON_ID]: 100 }, // Me owns 100%
-	deletedAt: 0,
+	balance: asMinorUnits(0),
+	ownerships: { [DEFAULT_PERSON_ID]: asPercentage(100) }, // Me owns 100%
+	deletedAt: undefined,
 };
 
 /**
@@ -99,23 +101,23 @@ export const DEFAULT_STATUS_IDS = {
  * - "For Review": No behavior, transactions pending review
  * - "Paid": Has "treatAsPaid" behavior, included in settlement calculations
  *
- * Note: Empty string for behavior means "no special behavior"
- * Note: deletedAt of 0 means "not deleted"
+ * Note: undefined behavior means "no special behavior"
+ * Note: undefined deletedAt means "not deleted"
  */
 export const DEFAULT_STATUSES: Record<string, StatusInput> = {
 	[DEFAULT_STATUS_IDS.FOR_REVIEW]: {
 		id: DEFAULT_STATUS_IDS.FOR_REVIEW,
 		name: "For Review",
-		behavior: "", // No special behavior
+		behavior: undefined,
 		isDefault: true,
-		deletedAt: 0, // Not deleted
+		deletedAt: undefined,
 	},
 	[DEFAULT_STATUS_IDS.PAID]: {
 		id: DEFAULT_STATUS_IDS.PAID,
 		name: "Paid",
 		behavior: "treatAsPaid",
 		isDefault: true,
-		deletedAt: 0, // Not deleted
+		deletedAt: undefined,
 	},
 };
 

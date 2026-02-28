@@ -9,6 +9,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
+import { Temporal } from "temporal-polyfill";
 import {
 	type ImportContext,
 	ImportPanel,
@@ -24,7 +25,7 @@ import {
 	useVaultPreferences,
 } from "@/lib/crdt/context";
 import { DEFAULT_CURRENCY } from "@/lib/crdt/defaults";
-import { insertTransaction } from "@/lib/crdt/mutations";
+import { type InsertTransactionInput, insertTransaction } from "@/lib/crdt/mutations";
 import { findTransactionById } from "@/lib/crdt/queries";
 import type {
 	Account,
@@ -32,6 +33,7 @@ import type {
 	Status,
 	Transaction,
 } from "@/lib/crdt/schema";
+import { asMinorUnits, type MoneyMinorUnits } from "@/lib/domain/currency";
 import type { ImportConfig } from "@/lib/import/types";
 
 /** Generate unique ID */
@@ -93,18 +95,19 @@ export default function NewImportPage() {
 				// Only update column mappings for CSV files (OFX has fixed mappings)
 				if (data.fileType === "csv") {
 					template.columnMappings = data.config
-						.columnMappings as (typeof template)["columnMappings"];
+						.columnMappings as unknown as (typeof template)["columnMappings"];
 					// Update all formatting for CSV
-					template.formatting = data.config.formatting as (typeof template)["formatting"];
+					template.formatting = data.config
+						.formatting as unknown as (typeof template)["formatting"];
 				} else {
 					// For OFX, only update collapseWhitespace
 					template.formatting.collapseWhitespace = data.config.formatting.collapseWhitespace;
 				}
 				template.duplicateDetection = data.config
-					.duplicateDetection as (typeof template)["duplicateDetection"];
+					.duplicateDetection as unknown as (typeof template)["duplicateDetection"];
 				template.oldTransactionFilter = data.config
-					.oldTransactionFilter as (typeof template)["oldTransactionFilter"];
-				template.lastUsedAt = Date.now();
+					.oldTransactionFilter as unknown as (typeof template)["oldTransactionFilter"];
+				template.lastUsedAt = Temporal.Now.instant();
 			}
 		}
 	);
@@ -112,7 +115,7 @@ export default function NewImportPage() {
 	const deleteImportTemplate = useVaultAction((state, id: string) => {
 		const template = state.importTemplates[id];
 		if (template && typeof template === "object") {
-			template.deletedAt = Date.now();
+			template.deletedAt = Temporal.Now.instant();
 		}
 	});
 
@@ -132,8 +135,7 @@ export default function NewImportPage() {
 				name: data.name,
 				accountNumber: data.accountNumber,
 				currency: data.currency,
-				deletedAt: 0,
-			} as (typeof state.accounts)[string];
+			} as unknown as (typeof state.accounts)[string];
 		}
 	);
 
@@ -153,12 +155,12 @@ export default function NewImportPage() {
 			data: {
 				importId: string;
 				fileName: string;
-				creationInstant: number;
+				creationInstant: Temporal.Instant;
 				transactions: Array<{
 					id: string;
-					date: string;
+					date: Temporal.PlainDate;
 					description: string;
-					amount: number;
+					amount: MoneyMinorUnits;
 					accountId: string;
 					statusId: string;
 					importRowIndex: number;
@@ -172,8 +174,7 @@ export default function NewImportPage() {
 				filename: data.fileName,
 				transactionCount: data.transactions.length,
 				createdAt: data.creationInstant,
-				deletedAt: 0,
-			} as (typeof state.imports)[string];
+			} as unknown as (typeof state.imports)[string];
 
 			// Create transactions using hierarchical structure
 			for (const tx of data.transactions) {
@@ -204,8 +205,7 @@ export default function NewImportPage() {
 						allocations: {},
 						creationInstant: data.creationInstant,
 						importRowIndex: tx.importRowIndex,
-						deletedAt: 0,
-					},
+					} as unknown as InsertTransactionInput["transaction"],
 					suspectedDuplicateOf,
 				});
 			}
@@ -260,12 +260,12 @@ export default function NewImportPage() {
 			}
 
 			// Map import data to full transaction records with row indices
-			const creationInstant = Date.now();
+			const creationInstant = Temporal.Now.instant();
 			const transactionsToCreate = transactionData.map((tx, index) => ({
 				id: generateId(),
-				date: tx.date,
+				date: Temporal.PlainDate.from(tx.date),
 				description: tx.description,
-				amount: tx.amount,
+				amount: asMinorUnits(tx.amount),
 				accountId: accountIdToUse ?? tx.accountId,
 				statusId: defaultStatusId,
 				importRowIndex: index,
@@ -317,9 +317,8 @@ export default function NewImportPage() {
 							},
 				duplicateDetection: config.duplicateDetection,
 				oldTransactionFilter: config.oldTransactionFilter,
-				lastUsedAt: Date.now(),
-				deletedAt: 0,
-			} as ImportTemplateRecord);
+				lastUsedAt: Temporal.Now.instant(),
+			} as unknown as ImportTemplateRecord);
 		},
 		[addImportTemplate]
 	);

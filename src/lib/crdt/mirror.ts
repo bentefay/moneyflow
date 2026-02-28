@@ -12,6 +12,7 @@ import {
 	DEFAULT_CURRENCY,
 	DEFAULT_VAULT_NAME,
 } from "./defaults";
+import { migrateVaultSentinels } from "./migration";
 import { type VaultState, vaultSchema } from "./schema";
 
 /**
@@ -129,6 +130,10 @@ export function createVaultMirrorFromSnapshot(
 		debug: options.debug ?? false,
 		checkStateConsistency: options.checkStateConsistency ?? false,
 	});
+
+	// Migrate legacy sentinel values (deletedAt: 0, behavior: "", currency: "")
+	// to undefined before any consumers read state
+	migrateVaultSentinels(mirror);
 
 	return { mirror, doc };
 }

@@ -5,6 +5,7 @@
  * Uses table-driven tests for comprehensive coverage.
  */
 
+import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 import type { ActionData, ConditionData } from "@/components/features/automations";
 import type { Automation, Transaction } from "@/lib/crdt/schema";
@@ -20,6 +21,7 @@ import {
 	getUndoChanges,
 	validateRegex,
 } from "@/lib/domain/automation";
+import { asMinorUnits } from "@/lib/domain/currency";
 
 // Helper to create a transaction for testing
 function createTransaction(overrides: Partial<Omit<Transaction, "$cid">> = {}): Transaction {
@@ -274,7 +276,9 @@ describe("evaluateCondition", () => {
 				value: "-5000",
 				caseSensitive: false,
 			};
-			expect(evaluateCondition(condition, createTransaction({ amount: -5000 }))).toBe(true);
+			expect(evaluateCondition(condition, createTransaction({ amount: asMinorUnits(-5000) }))).toBe(
+				true
+			);
 		});
 	});
 });
@@ -531,7 +535,7 @@ describe("getUndoChanges", () => {
 			id: "app-1",
 			transactionId: "tx-1",
 			automationId: "auto-1",
-			appliedAt: Date.now(),
+			appliedAt: Temporal.Now.instant(),
 			previousValues: {
 				tagIds: ["old-tag"],
 				statusId: "old-status",

@@ -86,7 +86,9 @@ export function AccountRow({
 	const [editingField, setEditingField] = useState<EditingField>(null);
 	const [editedName, setEditedName] = useState(account.name);
 	const [editedAccountNumber, setEditedAccountNumber] = useState(account.accountNumber || "");
-	const [editedType, setEditedType] = useState(account.accountType || "checking");
+	const [editedType, setEditedType] = useState<"checking" | "savings" | "credit" | "cash" | "loan">(
+		account.accountType || "checking"
+	);
 	const [editedCurrency, setEditedCurrency] = useState(account.currency || "");
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -375,11 +377,12 @@ export function AccountRow({
 							ref={typeSelectRef}
 							value={editedType}
 							onChange={(e) => {
-								setEditedType(e.target.value);
+								const value = e.target.value as "checking" | "savings" | "credit" | "cash" | "loan";
+								setEditedType(value);
 								// In edit mode, just update state
 								if (!isEditMode) {
-									if (e.target.value !== account.accountType) {
-										onUpdate(account.id, { accountType: e.target.value });
+									if (value !== account.accountType) {
+										onUpdate(account.id, { accountType: value });
 									}
 									setEditingField(null);
 								}

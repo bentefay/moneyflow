@@ -112,7 +112,12 @@ export type MoneyAmount = z.infer<typeof MoneyAmountSchema>;
 
 /** Percentage (0-100, can be negative for reversals) */
 export const PercentageSchema = z.number();
-export type Percentage = z.infer<typeof PercentageSchema>;
+
+declare const PercentageBrand: unique symbol;
+export type Percentage = number & { readonly [PercentageBrand]: true };
+export function asPercentage(value: number): Percentage {
+	return value as Percentage;
+}
 
 // ============================================
 // Identity Types
