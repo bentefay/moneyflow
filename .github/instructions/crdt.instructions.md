@@ -35,18 +35,18 @@ Sync Flow:
 
 1. **Draft-style mutations ONLY** with loro-mirror setState():
 
-   ```typescript
-   // ✅ CORRECT - mutate in place
-   setState((state) => {
-     state.transactions[id] = transaction;
-   });
+    ```typescript
+    // ✅ CORRECT - mutate in place
+    setState((state) => {
+        state.transactions[id] = transaction;
+    });
 
-   // ❌ WRONG - returning new objects breaks change tracking
-   setState((state) => ({
-     ...state,
-     transactions: { ...state.transactions, [id]: transaction },
-   }));
-   ```
+    // ❌ WRONG - returning new objects breaks change tracking
+    setState((state) => ({
+        ...state,
+        transactions: { ...state.transactions, [id]: transaction },
+    }));
+    ```
 
 2. **Use schema types** - Import types from schema.ts, don't redeclare
 
@@ -64,9 +64,9 @@ Entities follow this pattern:
 
 ```typescript
 export const entitySchema = schema.LoroMap({
-  id: schema.String({ required: true }),
-  // ... entity fields
-  deletedAt: schema.Number(), // 0 = not deleted, >0 = timestamp
+    id: schema.String({ required: true }),
+    // ... entity fields
+    deletedAt: schema.Number(), // 0 = not deleted, >0 = timestamp
 });
 ```
 
@@ -87,7 +87,7 @@ const allTransactions = useTransactions(); // includes soft-deleted
 
 // Write data
 const setTransaction = useVaultAction((state, id, data) => {
-  state.transactions[id] = data;
+    state.transactions[id] = data;
 });
 ```
 

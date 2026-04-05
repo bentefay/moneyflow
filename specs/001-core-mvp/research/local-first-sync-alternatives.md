@@ -203,14 +203,14 @@ const ydoc = new Y.Doc();
 
 // Intercept updates and encrypt
 ydoc.on("update", async (update: Uint8Array) => {
-  const encrypted = await encrypt(update, vaultKey);
-  await sendToServer(encrypted);
+    const encrypted = await encrypt(update, vaultKey);
+    await sendToServer(encrypted);
 });
 
 // Receive and decrypt
 async function onServerMessage(encrypted: EncryptedPayload) {
-  const update = await decrypt(encrypted, vaultKey);
-  Y.applyUpdate(ydoc, update);
+    const update = await decrypt(encrypted, vaultKey);
+    Y.applyUpdate(ydoc, update);
 }
 ```
 
@@ -230,7 +230,7 @@ import * as Automerge from "@automerge/automerge";
 let doc = Automerge.init<VaultState>();
 
 doc = Automerge.change(doc, "Add transaction", (d) => {
-  d.transactions.push(newTransaction);
+    d.transactions.push(newTransaction);
 });
 
 // Get changes since last sync
@@ -379,10 +379,10 @@ await db.execute("INSERT INTO local_messages (id, content) VALUES (?, ?)", [row.
 ```typescript
 // Write queries that feel like accessing local data
 const [playlist] = useQuery(
-  zero.query.playlist
-    .related("tracks", (track) => track.related("album").related("artist"))
-    .where("id", id)
-    .one()
+    zero.query.playlist
+        .related("tracks", (track) => track.related("album").related("artist"))
+        .where("id", id)
+        .one()
 );
 ```
 
@@ -433,18 +433,18 @@ Zero's architecture fundamentally requires server-side data access:
 ```typescript
 // Mutations are applied locally first, then synced
 const rep = new Replicache({
-  name: "user123",
-  mutators: {
-    async createTransaction(tx, args) {
-      await tx.put(`tx/${args.id}`, args);
+    name: "user123",
+    mutators: {
+        async createTransaction(tx, args) {
+            await tx.put(`tx/${args.id}`, args);
+        },
     },
-  },
-  push: async (mutations) => {
-    // Send mutations to your backend
-  },
-  pull: async () => {
-    // Fetch latest state from backend
-  },
+    push: async (mutations) => {
+        // Send mutations to your backend
+    },
+    pull: async () => {
+        // Fetch latest state from backend
+    },
 });
 ```
 

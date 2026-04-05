@@ -207,8 +207,8 @@ txTags.push("tag-groceries");
 // 1. Export updates since last sync
 const lastVersion = loadLastSyncedVersion(); // VersionVector
 const update: Uint8Array = doc.export({
-  mode: "update",
-  from: lastVersion,
+    mode: "update",
+    from: lastVersion,
 });
 
 // 2. Encrypt the update (server never sees content)
@@ -216,9 +216,9 @@ const encrypted = await encrypt(update, vaultKey);
 
 // 3. Send to server (just encrypted bytes)
 await supabase.from("vault_updates").insert({
-  vault_id: vaultId,
-  encrypted_data: encrypted,
-  version: doc.version(), // For ordering
+    vault_id: vaultId,
+    encrypted_data: encrypted,
+    version: doc.version(), // For ordering
 });
 
 // 4. Save current version for next sync
@@ -228,17 +228,17 @@ saveLastSyncedVersion(doc.version());
 
 // 1. Receive encrypted update from server (via Realtime)
 supabase
-  .channel(`vault:${vaultId}`)
-  .on("postgres_changes", { event: "INSERT", table: "vault_updates" }, async (payload) => {
-    // 2. Decrypt
-    const decrypted = await decrypt(payload.new.encrypted_data, vaultKey);
+    .channel(`vault:${vaultId}`)
+    .on("postgres_changes", { event: "INSERT", table: "vault_updates" }, async (payload) => {
+        // 2. Decrypt
+        const decrypted = await decrypt(payload.new.encrypted_data, vaultKey);
 
-    // 3. Import into local doc (Loro handles merge)
-    doc.import(decrypted);
+        // 3. Import into local doc (Loro handles merge)
+        doc.import(decrypted);
 
-    // 4. UI updates automatically via subscriptions
-  })
-  .subscribe();
+        // 4. UI updates automatically via subscriptions
+    })
+    .subscribe();
 ```
 
 ### Snapshots for Fast Loading
@@ -252,19 +252,19 @@ const snapshot: Uint8Array = doc.export({ mode: "snapshot" });
 // 2. Encrypt and store
 const encrypted = await encrypt(snapshot, vaultKey);
 await supabase.from("vault_snapshots").upsert({
-  vault_id: vaultId,
-  encrypted_data: encrypted,
-  version: doc.version(),
+    vault_id: vaultId,
+    encrypted_data: encrypted,
+    version: doc.version(),
 });
 
 // === LOADING (Initial or Reconnect) ===
 
 // 1. Load latest snapshot
 const { data: snapshot } = await supabase
-  .from("vault_snapshots")
-  .select("*")
-  .eq("vault_id", vaultId)
-  .single();
+    .from("vault_snapshots")
+    .select("*")
+    .eq("vault_id", vaultId)
+    .single();
 
 const doc = new LoroDoc();
 const decryptedSnapshot = await decrypt(snapshot.encrypted_data, vaultKey);
@@ -272,15 +272,15 @@ doc.import(decryptedSnapshot);
 
 // 2. Load updates since snapshot
 const { data: updates } = await supabase
-  .from("vault_updates")
-  .select("*")
-  .eq("vault_id", vaultId)
-  .gt("created_at", snapshot.created_at)
-  .order("created_at");
+    .from("vault_updates")
+    .select("*")
+    .eq("vault_id", vaultId)
+    .gt("created_at", snapshot.created_at)
+    .order("created_at");
 
 for (const update of updates) {
-  const decrypted = await decrypt(update.encrypted_data, vaultKey);
-  doc.import(decrypted);
+    const decrypted = await decrypt(update.encrypted_data, vaultKey);
+    doc.import(decrypted);
 }
 
 // 3. Subscribe to new updates
@@ -292,19 +292,19 @@ for (const update of updates) {
 ```typescript
 // Subscribe to changes for reactive updates
 transactions.subscribe((event) => {
-  if (event.by === "import") {
-    // Change came from another user
-    console.log("Remote change:", event);
-  }
-  // Re-render UI
-  updateTransactionList(doc.toJSON().transactions);
+    if (event.by === "import") {
+        // Change came from another user
+        console.log("Remote change:", event);
+    }
+    // Re-render UI
+    updateTransactionList(doc.toJSON().transactions);
 });
 
 // Or subscribe at document level
 doc.subscribe((event) => {
-  for (const e of event.events) {
-    console.log("Changed:", e.target, e.diff);
-  }
+    for (const e of event.events) {
+        console.log("Changed:", e.target, e.diff);
+    }
 });
 ```
 
@@ -313,35 +313,35 @@ doc.subscribe((event) => {
 ```typescript
 // Vault structure using Loro containers
 interface VaultDoc {
-  // Each entity type is a Map of ID -> entity data
-  transactions: LoroMap<string, LoroMap>; // LWW-Map semantics
-  accounts: LoroMap<string, LoroMap>;
-  people: LoroMap<string, LoroMap>;
-  tags: LoroMap<string, LoroMap>;
-  automations: LoroMap<string, LoroMap>;
-  statuses: LoroMap<string, LoroMap>;
-  imports: LoroMap<string, LoroMap>;
-  preferences: LoroMap; // User preferences
+    // Each entity type is a Map of ID -> entity data
+    transactions: LoroMap<string, LoroMap>; // LWW-Map semantics
+    accounts: LoroMap<string, LoroMap>;
+    people: LoroMap<string, LoroMap>;
+    tags: LoroMap<string, LoroMap>;
+    automations: LoroMap<string, LoroMap>;
+    statuses: LoroMap<string, LoroMap>;
+    imports: LoroMap<string, LoroMap>;
+    preferences: LoroMap; // User preferences
 }
 
 // Transaction entity
 interface TransactionData {
-  id: string;
-  date: string;
-  merchant: string;
-  description: string;
-  amount: number;
-  accountId: string;
-  statusId: string;
-  tags: LoroList<string>; // List of tag IDs (add/remove friendly)
-  allocations: LoroMap<string, number>; // personId -> percentage
+    id: string;
+    date: string;
+    merchant: string;
+    description: string;
+    amount: number;
+    accountId: string;
+    statusId: string;
+    tags: LoroList<string>; // List of tag IDs (add/remove friendly)
+    allocations: LoroMap<string, number>; // personId -> percentage
 }
 
 // Helper to get typed data
 function getTransaction(doc: LoroDoc, id: string): TransactionData | null {
-  const transactions = doc.getMap("transactions");
-  const tx = transactions.get(id);
-  return tx ? (tx.toJSON() as TransactionData) : null;
+    const transactions = doc.getMap("transactions");
+    const tx = transactions.get(id);
+    return tx ? (tx.toJSON() as TransactionData) : null;
 }
 ```
 
@@ -469,68 +469,68 @@ import { schema } from "loro-mirror";
 // Define typed schema for the entire vault
 // Schema maps to Loro containers: LoroMap, LoroList, etc.
 export const vaultSchema = schema({
-  // Each entity collection is a LoroMap with string keys
-  transactions: schema.LoroMap({}).catchall(
-    schema.LoroMap({
-      date: schema.String(),
-      merchant: schema.String(),
-      description: schema.String(),
-      amount: schema.Number(),
-      accountId: schema.String(),
-      statusId: schema.String({ defaultValue: "for-review" }),
-      // Tags as a list - supports concurrent add/remove
-      tags: schema.LoroList(schema.String()),
-      // Allocations: personId -> percentage
-      allocations: schema.LoroMap({}).catchall(schema.Number()),
-      createdAt: schema.Number(),
-      updatedAt: schema.Number({ required: false }),
-      deletedAt: schema.Number({ required: false }),
-    })
-  ),
-  accounts: schema.LoroMap({}).catchall(
-    schema.LoroMap({
-      name: schema.String(),
-      accountNumber: schema.String({ required: false }),
-      currency: schema.String({ defaultValue: "USD" }),
-      type: schema.String(),
-      balance: schema.Number({ defaultValue: 0 }),
-      // Ownership: personId -> percentage (must sum to 100)
-      ownership: schema.LoroMap({}).catchall(schema.Number()),
-    })
-  ),
-  people: schema.LoroMap({}).catchall(
-    schema.LoroMap({
-      name: schema.String(),
-      email: schema.String({ required: false }),
-    })
-  ),
-  tags: schema.LoroMap({}).catchall(
-    schema.LoroMap({
-      name: schema.String(),
-      parentId: schema.String({ required: false }),
-      isTransfer: schema.Boolean({ defaultValue: false }),
-    })
-  ),
-  statuses: schema.LoroMap({}).catchall(
-    schema.LoroMap({
-      name: schema.String(),
-      treatAsPaid: schema.Boolean({ defaultValue: false }),
-    })
-  ),
-  automations: schema.LoroMap({}).catchall(
-    schema.LoroMap({
-      name: schema.String(),
-      conditions: schema.LoroList(schema.Any()), // Complex condition objects
-      actions: schema.LoroList(schema.Any()), // Complex action objects
-      order: schema.Number({ defaultValue: 0 }),
-    })
-  ),
-  imports: schema.LoroMap({}).catchall(
-    schema.LoroMap({
-      filename: schema.String(),
-      createdAt: schema.Number(),
-    })
-  ),
+    // Each entity collection is a LoroMap with string keys
+    transactions: schema.LoroMap({}).catchall(
+        schema.LoroMap({
+            date: schema.String(),
+            merchant: schema.String(),
+            description: schema.String(),
+            amount: schema.Number(),
+            accountId: schema.String(),
+            statusId: schema.String({ defaultValue: "for-review" }),
+            // Tags as a list - supports concurrent add/remove
+            tags: schema.LoroList(schema.String()),
+            // Allocations: personId -> percentage
+            allocations: schema.LoroMap({}).catchall(schema.Number()),
+            createdAt: schema.Number(),
+            updatedAt: schema.Number({ required: false }),
+            deletedAt: schema.Number({ required: false }),
+        })
+    ),
+    accounts: schema.LoroMap({}).catchall(
+        schema.LoroMap({
+            name: schema.String(),
+            accountNumber: schema.String({ required: false }),
+            currency: schema.String({ defaultValue: "USD" }),
+            type: schema.String(),
+            balance: schema.Number({ defaultValue: 0 }),
+            // Ownership: personId -> percentage (must sum to 100)
+            ownership: schema.LoroMap({}).catchall(schema.Number()),
+        })
+    ),
+    people: schema.LoroMap({}).catchall(
+        schema.LoroMap({
+            name: schema.String(),
+            email: schema.String({ required: false }),
+        })
+    ),
+    tags: schema.LoroMap({}).catchall(
+        schema.LoroMap({
+            name: schema.String(),
+            parentId: schema.String({ required: false }),
+            isTransfer: schema.Boolean({ defaultValue: false }),
+        })
+    ),
+    statuses: schema.LoroMap({}).catchall(
+        schema.LoroMap({
+            name: schema.String(),
+            treatAsPaid: schema.Boolean({ defaultValue: false }),
+        })
+    ),
+    automations: schema.LoroMap({}).catchall(
+        schema.LoroMap({
+            name: schema.String(),
+            conditions: schema.LoroList(schema.Any()), // Complex condition objects
+            actions: schema.LoroList(schema.Any()), // Complex action objects
+            order: schema.Number({ defaultValue: 0 }),
+        })
+    ),
+    imports: schema.LoroMap({}).catchall(
+        schema.LoroMap({
+            filename: schema.String(),
+            createdAt: schema.Number(),
+        })
+    ),
 });
 
 // Infer TypeScript type from schema
@@ -613,64 +613,64 @@ All writes go through `useLoroAction` hooks. These are synchronous - state is up
 import { useLoroAction } from "../vault-context";
 
 export function useTransactionActions() {
-  // Create transaction - Immer-style draft mutation
-  const createTransaction = useLoroAction((state, data: TransactionInput) => {
-    const id = crypto.randomUUID();
-    state.transactions[id] = {
-      $cid: "", // Injected by loro-mirror
-      date: data.date,
-      merchant: data.merchant,
-      description: data.description,
-      amount: data.amount,
-      accountId: data.accountId,
-      statusId: data.statusId ?? "for-review",
-      tags: data.tagIds ?? [],
-      allocations: data.allocations ?? {},
-      createdAt: Date.now(),
+    // Create transaction - Immer-style draft mutation
+    const createTransaction = useLoroAction((state, data: TransactionInput) => {
+        const id = crypto.randomUUID();
+        state.transactions[id] = {
+            $cid: "", // Injected by loro-mirror
+            date: data.date,
+            merchant: data.merchant,
+            description: data.description,
+            amount: data.amount,
+            accountId: data.accountId,
+            statusId: data.statusId ?? "for-review",
+            tags: data.tagIds ?? [],
+            allocations: data.allocations ?? {},
+            createdAt: Date.now(),
+        };
+        return id;
+    }, []);
+
+    // Update transaction - partial update
+    const updateTransaction = useLoroAction(
+        (state, id: string, updates: Partial<TransactionInput>) => {
+            const tx = state.transactions[id];
+            if (!tx) throw new Error(`Transaction ${id} not found`);
+            Object.assign(tx, updates, { updatedAt: Date.now() });
+        },
+        []
+    );
+
+    // Soft delete
+    const deleteTransaction = useLoroAction((state, id: string) => {
+        const tx = state.transactions[id];
+        if (tx) tx.deletedAt = Date.now();
+    }, []);
+
+    // Add tag to transaction
+    const addTag = useLoroAction((state, txId: string, tagId: string) => {
+        const tx = state.transactions[txId];
+        if (tx && !tx.tags.includes(tagId)) {
+            tx.tags.push(tagId);
+        }
+    }, []);
+
+    // Remove tag from transaction
+    const removeTag = useLoroAction((state, txId: string, tagId: string) => {
+        const tx = state.transactions[txId];
+        if (tx) {
+            const idx = tx.tags.indexOf(tagId);
+            if (idx !== -1) tx.tags.splice(idx, 1);
+        }
+    }, []);
+
+    return {
+        createTransaction,
+        updateTransaction,
+        deleteTransaction,
+        addTag,
+        removeTag,
     };
-    return id;
-  }, []);
-
-  // Update transaction - partial update
-  const updateTransaction = useLoroAction(
-    (state, id: string, updates: Partial<TransactionInput>) => {
-      const tx = state.transactions[id];
-      if (!tx) throw new Error(`Transaction ${id} not found`);
-      Object.assign(tx, updates, { updatedAt: Date.now() });
-    },
-    []
-  );
-
-  // Soft delete
-  const deleteTransaction = useLoroAction((state, id: string) => {
-    const tx = state.transactions[id];
-    if (tx) tx.deletedAt = Date.now();
-  }, []);
-
-  // Add tag to transaction
-  const addTag = useLoroAction((state, txId: string, tagId: string) => {
-    const tx = state.transactions[txId];
-    if (tx && !tx.tags.includes(tagId)) {
-      tx.tags.push(tagId);
-    }
-  }, []);
-
-  // Remove tag from transaction
-  const removeTag = useLoroAction((state, txId: string, tagId: string) => {
-    const tx = state.transactions[txId];
-    if (tx) {
-      const idx = tx.tags.indexOf(tagId);
-      if (idx !== -1) tx.tags.splice(idx, 1);
-    }
-  }, []);
-
-  return {
-    createTransaction,
-    updateTransaction,
-    deleteTransaction,
-    addTag,
-    removeTag,
-  };
 }
 ```
 
@@ -847,17 +847,17 @@ const scheduleSync = debounce(pushChanges, 1000);
 
 ```typescript
 const SNAPSHOT_POLICIES = {
-  // Create after significant changes
-  changeThreshold: 100, // operations
+    // Create after significant changes
+    changeThreshold: 100, // operations
 
-  // Create on app close/background
-  onBackground: true,
+    // Create on app close/background
+    onBackground: true,
 
-  // Create after idle period with pending changes
-  idleTimeoutMs: 5 * 60 * 1000, // 5 minutes
+    // Create after idle period with pending changes
+    idleTimeoutMs: 5 * 60 * 1000, // 5 minutes
 
-  // Maximum time without snapshot
-  maxAgeMs: 24 * 60 * 60 * 1000, // 24 hours
+    // Maximum time without snapshot
+    maxAgeMs: 24 * 60 * 60 * 1000, // 24 hours
 };
 ```
 
@@ -865,47 +865,47 @@ const SNAPSHOT_POLICIES = {
 
 ```typescript
 async function saveSnapshot(): Promise<void> {
-  const vault = getVault();
-  const key = getVaultKey();
+    const vault = getVault();
+    const key = getVaultKey();
 
-  // Full snapshot includes all history
-  const snapshot = vault.export({ mode: "snapshot" });
-  const encrypted = await encrypt(snapshot, key);
+    // Full snapshot includes all history
+    const snapshot = vault.export({ mode: "snapshot" });
+    const encrypted = await encrypt(snapshot, key);
 
-  await supabase.from("vault_snapshots").upsert({
-    vault_id: getVaultId(),
-    encrypted_data: bytesToBase64(encrypted),
-    version: bytesToBase64(vault.version()),
-  });
+    await supabase.from("vault_snapshots").upsert({
+        vault_id: getVaultId(),
+        encrypted_data: bytesToBase64(encrypted),
+        version: bytesToBase64(vault.version()),
+    });
 }
 
 async function loadVaultFromServer(): Promise<void> {
-  // 1. Load latest snapshot
-  const { data: snapshot } = await supabase
-    .from("vault_snapshots")
-    .select("*")
-    .eq("vault_id", getVaultId())
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .single();
+    // 1. Load latest snapshot
+    const { data: snapshot } = await supabase
+        .from("vault_snapshots")
+        .select("*")
+        .eq("vault_id", getVaultId())
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
 
-  if (snapshot) {
-    const decrypted = await decrypt(base64ToBytes(snapshot.encrypted_data), key);
-    vault.import(decrypted);
-  }
+    if (snapshot) {
+        const decrypted = await decrypt(base64ToBytes(snapshot.encrypted_data), key);
+        vault.import(decrypted);
+    }
 
-  // 2. Load any updates after snapshot
-  const { data: updates } = await supabase
-    .from("vault_updates")
-    .select("*")
-    .eq("vault_id", getVaultId())
-    .gt("created_at", snapshot?.created_at ?? "1970-01-01")
-    .order("created_at");
+    // 2. Load any updates after snapshot
+    const { data: updates } = await supabase
+        .from("vault_updates")
+        .select("*")
+        .eq("vault_id", getVaultId())
+        .gt("created_at", snapshot?.created_at ?? "1970-01-01")
+        .order("created_at");
 
-  for (const update of updates ?? []) {
-    const decrypted = await decrypt(base64ToBytes(update.encrypted_data), key);
-    vault.import(decrypted);
-  }
+    for (const update of updates ?? []) {
+        const decrypted = await decrypt(base64ToBytes(update.encrypted_data), key);
+        vault.import(decrypted);
+    }
 }
 ```
 

@@ -74,15 +74,15 @@ Postgres → Electric Sync Service → HTTP/JSON → Client
 ### Key Features
 
 - **Shapes**: Define what data to sync per client
-  ```typescript
-  const stream = new ShapeStream({
-    url: "http://electric:3000/v1/shape",
-    params: {
-      table: "todos",
-      where: `user_id = '${userId}'`,
-    },
-  });
-  ```
+    ```typescript
+    const stream = new ShapeStream({
+        url: "http://electric:3000/v1/shape",
+        params: {
+            table: "todos",
+            where: `user_id = '${userId}'`,
+        },
+    });
+    ```
 - **Read-path sync only**: Electric syncs FROM Postgres TO clients
 - **Writes handled separately**: Via your API, not Electric
 - **Scales to millions**: Uses CDN infrastructure for fan-out
@@ -139,27 +139,27 @@ import { electricCollectionOptions } from "@tanstack/electric-db-collection";
 
 // Create a collection synced via Electric
 const vaultCollection = createCollection(
-  electricCollectionOptions({
-    id: "vaults",
-    shapeOptions: {
-      url: "https://electric.your-app.com/v1/shape",
-      params: {
-        table: "vaults",
-        where: `user_id = '${userId}'`,
-      },
-    },
-    getKey: (item) => item.id,
-    schema: vaultSchema,
-    onInsert: async ({ transaction }) => {
-      // Handle write via your API
-      await api.vaults.create(transaction.mutations[0].changes);
-    },
-  })
+    electricCollectionOptions({
+        id: "vaults",
+        shapeOptions: {
+            url: "https://electric.your-app.com/v1/shape",
+            params: {
+                table: "vaults",
+                where: `user_id = '${userId}'`,
+            },
+        },
+        getKey: (item) => item.id,
+        schema: vaultSchema,
+        onInsert: async ({ transaction }) => {
+            // Handle write via your API
+            await api.vaults.create(transaction.mutations[0].changes);
+        },
+    })
 );
 
 // Use in components with live queries
 const { data } = useLiveQuery((q) =>
-  q.from({ vault: vaultCollection }).where(({ vault }) => eq(vault.active, true))
+    q.from({ vault: vaultCollection }).where(({ vault }) => eq(vault.active, true))
 );
 ```
 
@@ -178,34 +178,34 @@ Electric explicitly documents end-to-end encryption as a valid pattern:
 ```typescript
 // Encrypt before sending to server
 async function createEncryptedVault(data: VaultData) {
-  const encrypted = await encryptWithKey(JSON.stringify(data), vaultKey);
+    const encrypted = await encryptWithKey(JSON.stringify(data), vaultKey);
 
-  await api.vaults.create({
-    id: crypto.randomUUID(),
-    ciphertext: encrypted.ciphertext,
-    iv: encrypted.iv,
-  });
+    await api.vaults.create({
+        id: crypto.randomUUID(),
+        ciphertext: encrypted.ciphertext,
+        iv: encrypted.iv,
+    });
 }
 
 // Decrypt after receiving from Electric
 function useDecryptedVaults() {
-  const { data: encryptedVaults } = useShape({
-    url: `${ELECTRIC_URL}/v1/shape`,
-    params: { table: "encrypted_vaults" },
-  });
+    const { data: encryptedVaults } = useShape({
+        url: `${ELECTRIC_URL}/v1/shape`,
+        params: { table: "encrypted_vaults" },
+    });
 
-  const [decryptedVaults, setDecrypted] = useState([]);
+    const [decryptedVaults, setDecrypted] = useState([]);
 
-  useEffect(() => {
-    Promise.all(
-      encryptedVaults.map(async (row) => {
-        const plaintext = await decryptWithKey(row.ciphertext, row.iv, vaultKey);
-        return JSON.parse(plaintext);
-      })
-    ).then(setDecrypted);
-  }, [encryptedVaults]);
+    useEffect(() => {
+        Promise.all(
+            encryptedVaults.map(async (row) => {
+                const plaintext = await decryptWithKey(row.ciphertext, row.iv, vaultKey);
+                return JSON.parse(plaintext);
+            })
+        ).then(setDecrypted);
+    }, [encryptedVaults]);
 
-  return decryptedVaults;
+    return decryptedVaults;
 }
 ```
 

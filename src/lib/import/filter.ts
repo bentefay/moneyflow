@@ -16,16 +16,17 @@
  */
 
 import { Temporal } from "temporal-polyfill";
+
 import type { FilterConfig, FilterResult, FilterStats, OldTransactionMode } from "./types";
 
 /**
  * Transaction with date and optional duplicate flag for filtering.
  */
 export interface FilterableTransaction {
-	/** ISO 8601 date string (YYYY-MM-DD) */
-	date: string;
-	/** Whether this transaction is a duplicate of an existing one */
-	isDuplicate?: boolean;
+    /** ISO 8601 date string (YYYY-MM-DD) */
+    date: string;
+    /** Whether this transaction is a duplicate of an existing one */
+    isDuplicate?: boolean;
 }
 
 /**
@@ -41,18 +42,18 @@ export interface FilterableTransaction {
  * @returns Cutoff date as ISO string, or null if no existing transactions
  */
 export function calculateCutoffDate(
-	newestExistingDate: string | null,
-	cutoffDays: number
+    newestExistingDate: string | null,
+    cutoffDays: number
 ): string | null {
-	if (newestExistingDate === null) {
-		return null;
-	}
+    if (newestExistingDate === null) {
+        return null;
+    }
 
-	const newest = Temporal.PlainDate.from(newestExistingDate);
-	// Add 1 to cutoffDays so that cutoffDays=0 means "exclude newest date and before"
-	// (transactions strictly after newest are kept)
-	const cutoff = newest.subtract({ days: cutoffDays }).add({ days: 1 });
-	return cutoff.toString();
+    const newest = Temporal.PlainDate.from(newestExistingDate);
+    // Add 1 to cutoffDays so that cutoffDays=0 means "exclude newest date and before"
+    // (transactions strictly after newest are kept)
+    const cutoff = newest.subtract({ days: cutoffDays }).add({ days: 1 });
+    return cutoff.toString();
 }
 
 /**
@@ -63,16 +64,16 @@ export function calculateCutoffDate(
  * @returns True if date is before cutoff, false if either date is invalid
  */
 export function isBeforeCutoff(date: string, cutoffDate: string): boolean {
-	// Validate inputs - both must be valid ISO date strings
-	if (!date || !cutoffDate) {
-		return false;
-	}
-	try {
-		return Temporal.PlainDate.compare(date, cutoffDate) < 0;
-	} catch {
-		// Invalid date format - treat as not before cutoff (include the transaction)
-		return false;
-	}
+    // Validate inputs - both must be valid ISO date strings
+    if (!date || !cutoffDate) {
+        return false;
+    }
+    try {
+        return Temporal.PlainDate.compare(date, cutoffDate) < 0;
+    } catch {
+        // Invalid date format - treat as not before cutoff (include the transaction)
+        return false;
+    }
 }
 
 /**
@@ -93,108 +94,108 @@ export function isBeforeCutoff(date: string, cutoffDate: string): boolean {
  * // Transactions before 2026-01-05 that are duplicates will be excluded
  */
 export function filterOldTransactions<T extends FilterableTransaction>(
-	transactions: T[],
-	newestExistingDate: string | null,
-	config: FilterConfig
+    transactions: T[],
+    newestExistingDate: string | null,
+    config: FilterConfig
 ): FilterResult<T> {
-	const { mode, cutoffType, cutoffDays, cutoffDate: explicitCutoffDate } = config;
+    const { mode, cutoffType, cutoffDays, cutoffDate: explicitCutoffDate } = config;
 
-	// Initialize stats
-	const stats: FilterStats = {
-		totalCount: transactions.length,
-		includedCount: 0,
-		excludedCount: 0,
-		oldDuplicatesCount: 0,
-		oldNonDuplicatesCount: 0,
-	};
+    // Initialize stats
+    const stats: FilterStats = {
+        totalCount: transactions.length,
+        includedCount: 0,
+        excludedCount: 0,
+        oldDuplicatesCount: 0,
+        oldNonDuplicatesCount: 0,
+    };
 
-	// If mode is "do-not-ignore", include everything
-	if (mode === "do-not-ignore") {
-		stats.includedCount = transactions.length;
-		return {
-			included: [...transactions],
-			excluded: [],
-			stats,
-		};
-	}
+    // If mode is "do-not-ignore", include everything
+    if (mode === "do-not-ignore") {
+        stats.includedCount = transactions.length;
+        return {
+            included: [...transactions],
+            excluded: [],
+            stats,
+        };
+    }
 
-	// Calculate cutoff date based on cutoff type
-	let cutoffDate: string | null = null;
-	if (cutoffType === "date" && explicitCutoffDate && explicitCutoffDate.trim()) {
-		// Validate that the explicit cutoff date is a valid ISO date
-		try {
-			Temporal.PlainDate.from(explicitCutoffDate);
-			cutoffDate = explicitCutoffDate;
-		} catch {
-			// Invalid date format - fall back to days-based calculation
-			cutoffDate = calculateCutoffDate(newestExistingDate, cutoffDays);
-		}
-	} else {
-		cutoffDate = calculateCutoffDate(newestExistingDate, cutoffDays);
-	}
+    // Calculate cutoff date based on cutoff type
+    let cutoffDate: string | null = null;
+    if (cutoffType === "date" && explicitCutoffDate && explicitCutoffDate.trim()) {
+        // Validate that the explicit cutoff date is a valid ISO date
+        try {
+            Temporal.PlainDate.from(explicitCutoffDate);
+            cutoffDate = explicitCutoffDate;
+        } catch {
+            // Invalid date format - fall back to days-based calculation
+            cutoffDate = calculateCutoffDate(newestExistingDate, cutoffDays);
+        }
+    } else {
+        cutoffDate = calculateCutoffDate(newestExistingDate, cutoffDays);
+    }
 
-	// If no existing transactions, include everything (no cutoff reference point)
-	if (cutoffDate === null) {
-		stats.includedCount = transactions.length;
-		return {
-			included: [...transactions],
-			excluded: [],
-			stats,
-		};
-	}
+    // If no existing transactions, include everything (no cutoff reference point)
+    if (cutoffDate === null) {
+        stats.includedCount = transactions.length;
+        return {
+            included: [...transactions],
+            excluded: [],
+            stats,
+        };
+    }
 
-	const included: T[] = [];
-	const excluded: T[] = [];
+    const included: T[] = [];
+    const excluded: T[] = [];
 
-	for (const tx of transactions) {
-		const isOld = isBeforeCutoff(tx.date, cutoffDate);
+    for (const tx of transactions) {
+        const isOld = isBeforeCutoff(tx.date, cutoffDate);
 
-		if (!isOld) {
-			// New transactions (on or after cutoff) are always included
-			included.push(tx);
-			stats.includedCount++;
-		} else {
-			// Old transactions - behavior depends on mode
-			const isDupe = tx.isDuplicate ?? false;
+        if (!isOld) {
+            // New transactions (on or after cutoff) are always included
+            included.push(tx);
+            stats.includedCount++;
+        } else {
+            // Old transactions - behavior depends on mode
+            const isDupe = tx.isDuplicate ?? false;
 
-			if (isDupe) {
-				stats.oldDuplicatesCount++;
-			} else {
-				stats.oldNonDuplicatesCount++;
-			}
+            if (isDupe) {
+                stats.oldDuplicatesCount++;
+            } else {
+                stats.oldNonDuplicatesCount++;
+            }
 
-			if (mode === "ignore-all") {
-				// Exclude all old transactions
-				excluded.push(tx);
-				stats.excludedCount++;
-			} else {
-				// mode === "ignore-duplicates"
-				if (isDupe) {
-					// Exclude old duplicates
-					excluded.push(tx);
-					stats.excludedCount++;
-				} else {
-					// Include old non-duplicates
-					included.push(tx);
-					stats.includedCount++;
-				}
-			}
-		}
-	}
+            if (mode === "ignore-all") {
+                // Exclude all old transactions
+                excluded.push(tx);
+                stats.excludedCount++;
+            } else {
+                // mode === "ignore-duplicates"
+                if (isDupe) {
+                    // Exclude old duplicates
+                    excluded.push(tx);
+                    stats.excludedCount++;
+                } else {
+                    // Include old non-duplicates
+                    included.push(tx);
+                    stats.includedCount++;
+                }
+            }
+        }
+    }
 
-	return { included, excluded, stats };
+    return { included, excluded, stats };
 }
 
 /**
  * Get a human-readable description of the filter mode.
  */
 export function getFilterModeDescription(mode: OldTransactionMode): string {
-	switch (mode) {
-		case "ignore-all":
-			return "Skip all old transactions";
-		case "ignore-duplicates":
-			return "Skip old duplicates, keep old non-duplicates";
-		case "do-not-ignore":
-			return "Import all old transactions";
-	}
+    switch (mode) {
+        case "ignore-all":
+            return "Skip all old transactions";
+        case "ignore-duplicates":
+            return "Skip old duplicates, keep old non-duplicates";
+        case "do-not-ignore":
+            return "Import all old transactions";
+    }
 }

@@ -16,16 +16,16 @@ import { vaultRouter } from "./vault";
  * Root router that merges all sub-routers.
  */
 export const appRouter = router({
-	/** User identity and settings */
-	user: userRouter,
-	/** Vault CRUD and membership */
-	vault: vaultRouter,
-	/** Vault membership management */
-	membership: membershipRouter,
-	/** CRDT sync operations */
-	sync: syncRouter,
-	/** Vault invitations */
-	invite: inviteRouter,
+    /** User identity and settings */
+    user: userRouter,
+    /** Vault CRUD and membership */
+    vault: vaultRouter,
+    /** Vault membership management */
+    membership: membershipRouter,
+    /** CRDT sync operations */
+    sync: syncRouter,
+    /** Vault invitations */
+    invite: inviteRouter,
 });
 
 /**

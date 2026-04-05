@@ -128,19 +128,19 @@ Mirrors server structure with additional local tracking:
 
 ```typescript
 interface LocalOp {
-  id: string;
-  vault_id: string;
-  version_vector: string; // Plaintext for filtering
-  encrypted_data: string;
-  pushed: boolean; // Has this been sent to server?
-  created_at: number; // Local timestamp
+    id: string;
+    vault_id: string;
+    version_vector: string; // Plaintext for filtering
+    encrypted_data: string;
+    pushed: boolean; // Has this been sent to server?
+    created_at: number; // Local timestamp
 }
 
 interface LocalSnapshot {
-  vault_id: string;
-  version_vector: string;
-  encrypted_data: string;
-  updated_at: number;
+    vault_id: string;
+    version_vector: string;
+    encrypted_data: string;
+    updated_at: number;
 }
 ```
 
@@ -164,38 +164,38 @@ import { throttle } from "lodash-es";
 let pendingServerOps: Uint8Array[] = [];
 
 const flushToServer = throttle(
-  async () => {
-    if (pendingServerOps.length === 0) return;
-    const merged = mergeUpdates(pendingServerOps);
-    pendingServerOps = [];
-    await pushToServer(merged);
-    // Mark ops as pushed in IndexedDB
-  },
-  2000,
-  { trailing: true }
+    async () => {
+        if (pendingServerOps.length === 0) return;
+        const merged = mergeUpdates(pendingServerOps);
+        pendingServerOps = [];
+        await pushToServer(merged);
+        // Mark ops as pushed in IndexedDB
+    },
+    2000,
+    { trailing: true }
 );
 
 doc.subscribeLocalUpdates((update) => {
-  // 1. Immediate IndexedDB write (crash safety)
-  await appendToIndexedDB(update, { pushed: false });
+    // 1. Immediate IndexedDB write (crash safety)
+    await appendToIndexedDB(update, { pushed: false });
 
-  // 2. Accumulate for throttled server push
-  pendingServerOps.push(update);
-  flushToServer();
+    // 2. Accumulate for throttled server push
+    pendingServerOps.push(update);
+    flushToServer();
 });
 
 // Flush on visibility change / beforeunload
 window.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "hidden") {
-    flushToServer.flush();
-  }
+    if (document.visibilityState === "hidden") {
+        flushToServer.flush();
+    }
 });
 
 window.addEventListener("beforeunload", (e) => {
-  if (pendingServerOps.length > 0) {
-    e.preventDefault();
-    flushToServer.flush();
-  }
+    if (pendingServerOps.length > 0) {
+        e.preventDefault();
+        flushToServer.flush();
+    }
 });
 ```
 
@@ -203,48 +203,48 @@ window.addEventListener("beforeunload", (e) => {
 
 ```typescript
 async function coldStart(vaultId: string): Promise<LoroDoc> {
-  // 1. Load local snapshot → app immediately usable
-  const localSnapshot = await loadLocalSnapshot(vaultId);
-  const doc = new LoroDoc();
+    // 1. Load local snapshot → app immediately usable
+    const localSnapshot = await loadLocalSnapshot(vaultId);
+    const doc = new LoroDoc();
 
-  if (localSnapshot) {
-    doc.import(decrypt(localSnapshot.encrypted_data));
-  }
+    if (localSnapshot) {
+        doc.import(decrypt(localSnapshot.encrypted_data));
+    }
 
-  // 2. Return doc immediately, sync in background
-  backgroundSync(doc, vaultId);
-  return doc;
+    // 2. Return doc immediately, sync in background
+    backgroundSync(doc, vaultId);
+    return doc;
 }
 
 async function backgroundSync(doc: LoroDoc, vaultId: string) {
-  const localVersion = doc.version();
-  const hasUnpushed = await hasUnpushedOps(vaultId);
+    const localVersion = doc.version();
+    const hasUnpushed = await hasUnpushedOps(vaultId);
 
-  // 3. Ask server what to do
-  const response = await trpc.sync.getUpdates({
-    vault_id: vaultId,
-    version_vector: encodeVersion(localVersion),
-    has_unpushed: hasUnpushed,
-  });
+    // 3. Ask server what to do
+    const response = await trpc.sync.getUpdates({
+        vault_id: vaultId,
+        version_vector: encodeVersion(localVersion),
+        has_unpushed: hasUnpushed,
+    });
 
-  if (response.type === "use_snapshot") {
-    // Server says: too many ops, just use fresh snapshot
-    const snapshot = await trpc.sync.getSnapshot({ vault_id: vaultId });
-    doc.import(decrypt(snapshot.encrypted_data));
-    await saveLocalSnapshot(vaultId, snapshot);
-  } else {
-    // Apply ops incrementally
-    for (const op of response.ops) {
-      doc.import(decrypt(op.encrypted_data));
+    if (response.type === "use_snapshot") {
+        // Server says: too many ops, just use fresh snapshot
+        const snapshot = await trpc.sync.getSnapshot({ vault_id: vaultId });
+        doc.import(decrypt(snapshot.encrypted_data));
+        await saveLocalSnapshot(vaultId, snapshot);
+    } else {
+        // Apply ops incrementally
+        for (const op of response.ops) {
+            doc.import(decrypt(op.encrypted_data));
+        }
     }
-  }
 
-  // 4. Push any local unpushed ops
-  if (hasUnpushed) {
-    const unpushed = await getUnpushedOps(vaultId);
-    await pushToServer(mergeUpdates(unpushed));
-    await markOpsPushed(unpushed);
-  }
+    // 4. Push any local unpushed ops
+    if (hasUnpushed) {
+        const unpushed = await getUnpushedOps(vaultId);
+        await pushToServer(mergeUpdates(unpushed));
+        await markOpsPushed(unpushed);
+    }
 }
 ```
 
@@ -253,32 +253,32 @@ async function backgroundSync(doc: LoroDoc, vaultId: string) {
 ```typescript
 // Server-side (tRPC router)
 async function getUpdates({ vault_id, version_vector, has_unpushed }) {
-  const stats = await db.query(
-    `
+    const stats = await db.query(
+        `
     SELECT COUNT(*) as count, SUM(LENGTH(encrypted_data)) as bytes
     FROM vault_ops
     WHERE vault_id = $1 AND version > $2
   `,
-    [vault_id, version_vector]
-  );
+        [vault_id, version_vector]
+    );
 
-  const OP_COUNT_THRESHOLD = 500;
-  const BYTES_THRESHOLD = 500_000; // 500KB
+    const OP_COUNT_THRESHOLD = 500;
+    const BYTES_THRESHOLD = 500_000; // 500KB
 
-  if (!has_unpushed && (stats.count > OP_COUNT_THRESHOLD || stats.bytes > BYTES_THRESHOLD)) {
-    return { type: "use_snapshot", snapshot_version: latestSnapshotVersion };
-  }
+    if (!has_unpushed && (stats.count > OP_COUNT_THRESHOLD || stats.bytes > BYTES_THRESHOLD)) {
+        return { type: "use_snapshot", snapshot_version: latestSnapshotVersion };
+    }
 
-  const ops = await db.query(
-    `
+    const ops = await db.query(
+        `
     SELECT * FROM vault_ops
     WHERE vault_id = $1 AND version > $2
     ORDER BY created_at
   `,
-    [vault_id, version_vector]
-  );
+        [vault_id, version_vector]
+    );
 
-  return { type: "ops", ops };
+    return { type: "ops", ops };
 }
 ```
 
@@ -288,8 +288,8 @@ Checked on op insert:
 
 ```typescript
 async function maybeRefreshSnapshot(vaultId: string) {
-  const stats = await db.query(
-    `
+    const stats = await db.query(
+        `
     SELECT 
       COUNT(*) as ops_since_snapshot,
       SUM(LENGTH(encrypted_data)) as bytes_since_snapshot
@@ -298,15 +298,15 @@ async function maybeRefreshSnapshot(vaultId: string) {
       SELECT updated_at FROM vault_snapshots WHERE vault_id = $1
     )
   `,
-    [vaultId]
-  );
+        [vaultId]
+    );
 
-  const REFRESH_OP_COUNT = 1000;
-  const REFRESH_BYTES = 1_000_000; // 1MB
+    const REFRESH_OP_COUNT = 1000;
+    const REFRESH_BYTES = 1_000_000; // 1MB
 
-  if (stats.ops_since_snapshot > REFRESH_OP_COUNT || stats.bytes_since_snapshot > REFRESH_BYTES) {
-    await createNewSnapshot(vaultId);
-  }
+    if (stats.ops_since_snapshot > REFRESH_OP_COUNT || stats.bytes_since_snapshot > REFRESH_BYTES) {
+        await createNewSnapshot(vaultId);
+    }
 }
 ```
 
@@ -330,9 +330,9 @@ Track sync state for UI:
 type SyncStatus = "saved" | "saving" | "offline";
 
 function getSyncStatus(): SyncStatus {
-  if (!navigator.onLine) return "offline";
-  if (pendingServerOps.length > 0) return "saving";
-  return "saved";
+    if (!navigator.onLine) return "offline";
+    if (pendingServerOps.length > 0) return "saving";
+    return "saved";
 }
 ```
 
@@ -359,13 +359,13 @@ Loro CRDT handles conflicts automatically:
 
 ```typescript
 syncManager.on("error", (error) => {
-  if (error.code === "DISCONNECTED") {
-    // Show offline indicator, continue local-only
-  } else if (error.code === "DECRYPT_FAILED") {
-    // Key mismatch - re-fetch wrapped key
-  } else if (error.code === "PUSH_FAILED") {
-    // Keep in pending queue, retry with backoff
-  }
+    if (error.code === "DISCONNECTED") {
+        // Show offline indicator, continue local-only
+    } else if (error.code === "DECRYPT_FAILED") {
+        // Key mismatch - re-fetch wrapped key
+    } else if (error.code === "PUSH_FAILED") {
+        // Keep in pending queue, retry with backoff
+    }
 });
 ```
 
@@ -375,12 +375,12 @@ Track which users are online and what they're viewing/editing:
 
 ```typescript
 interface VaultPresence {
-  ordinal: string;
-  joinedAt: string;
-  lastSeen: string;
-  isOnline: boolean;
-  focusedTransactionId?: string;
-  editingField?: string;
+    ordinal: string;
+    joinedAt: string;
+    lastSeen: string;
+    isOnline: boolean;
+    focusedTransactionId?: string;
+    editingField?: string;
 }
 ```
 

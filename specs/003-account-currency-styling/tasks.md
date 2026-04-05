@@ -144,8 +144,8 @@
 - **Phase 1 (Setup)**: No dependencies—verify branch
 - **Phase 2 (Foundational)**: Depends on Phase 1—BLOCKS all user stories
 - **Phase 3-7 (User Stories)**: All depend on Phase 2 completion
-  - US1 and US2 are both P1 priority—can run in parallel
-  - US3, US4, US5 are P2 priority—can run in parallel after US1/US2
+    - US1 and US2 are both P1 priority—can run in parallel
+    - US3, US4, US5 are P2 priority—can run in parallel after US1/US2
 - **Phase 8 (Polish)**: Depends on all user stories complete
 
 ### User Story Dependencies
@@ -197,27 +197,23 @@ After Phase 2 completes:
 
 ### Full Feature
 
-Continue with:
-7. Complete Phase 5: US3 (Column Alignment)
-8. Complete Phase 6: US4 (Create Account Currency)
-9. Complete Phase 7: US5 (Inline Editing)
-10. Complete Phase 8: Polish
+Continue with: 7. Complete Phase 5: US3 (Column Alignment) 8. Complete Phase 6: US4 (Create Account Currency) 9. Complete Phase 7: US5 (Inline Editing) 10. Complete Phase 8: Polish
 
 ---
 
 ## Task Summary
 
-| Phase | Tasks | Parallel Tasks |
-|-------|-------|----------------|
-| Setup | 1 | 0 |
-| Foundational | 8 | 4 |
-| US1 - Currency Display | 5 | 1 |
-| US2 - Default Person | 2 | 1 |
-| US3 - Column Alignment | 3 | 1 |
-| US4 - Create Account | 2 | 1 |
-| US5 - Inline Editing | 5 | 1 |
-| Polish | 6 | 3 |
-| **Total** | **32** | **12** |
+| Phase                  | Tasks  | Parallel Tasks |
+| ---------------------- | ------ | -------------- |
+| Setup                  | 1      | 0              |
+| Foundational           | 8      | 4              |
+| US1 - Currency Display | 5      | 1              |
+| US2 - Default Person   | 2      | 1              |
+| US3 - Column Alignment | 3      | 1              |
+| US4 - Create Account   | 2      | 1              |
+| US5 - Inline Editing   | 5      | 1              |
+| Polish                 | 6      | 3              |
+| **Total**              | **32** | **12**         |
 
 ---
 

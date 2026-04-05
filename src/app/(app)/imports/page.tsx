@@ -11,9 +11,11 @@
 import { Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
+import { Temporal } from "temporal-polyfill";
+
 import { ACCEPTED_EXTENSIONS, type ImportData, ImportsTable } from "@/components/features/import";
 import { Button } from "@/components/ui/button";
-import { useActiveImports, useVaultAction } from "@/lib/crdt/context";
+import { useActiveImports, useTransactionActions, useVaultAction } from "@/lib/crdt/context";
 import type { Import as ImportRecord } from "@/lib/crdt/schema";
 import { cn } from "@/lib/utils";
 
@@ -21,185 +23,181 @@ import { cn } from "@/lib/utils";
  * Imports list page component.
  */
 export default function ImportsPage() {
-	const router = useRouter();
-	const fileInputRef = useRef<HTMLInputElement>(null);
-	const [isDragging, setIsDragging] = useState(false);
+    const router = useRouter();
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isDragging, setIsDragging] = useState(false);
 
-	// Get all active imports from CRDT state
-	const importsMap = useActiveImports();
+    // Get all active imports from CRDT state
+    const importsMap = useActiveImports();
 
-	// Convert CRDT map to array for the table
-	const imports: ImportData[] = Object.values(importsMap)
-		.filter(
-			(imp): imp is ImportRecord & { $cid: string } =>
-				typeof imp === "object" && imp !== null && !imp.deletedAt
-		)
-		.map((imp) => ({
-			id: imp.id,
-			filename: imp.filename,
-			transactionCount: imp.transactionCount,
-			createdAt: imp.createdAt,
-			deletedAt: imp.deletedAt,
-		}));
+    // Transaction actions for deleting transactions by import
+    const { deleteTransactionsByImport } = useTransactionActions();
 
-	// Soft-delete import and its transactions
-	const deleteImport = useVaultAction((state, importId: string) => {
-		const now = Date.now();
+    // Convert CRDT map to array for the table
+    const imports: ImportData[] = Object.values(importsMap)
+        .filter(
+            (imp): imp is ImportRecord & { $cid: string } =>
+                typeof imp === "object" && imp !== null && !imp.deletedAt
+        )
+        .map((imp) => ({
+            id: imp.id,
+            filename: imp.filename,
+            transactionCount: imp.transactionCount,
+            createdAt: imp.createdAt,
+            deletedAt: imp.deletedAt,
+        }));
 
-		// Mark the import as deleted
-		const importRecord = state.imports[importId];
-		if (importRecord && typeof importRecord === "object") {
-			importRecord.deletedAt = now;
-		}
+    // Soft-delete import record only
+    const deleteImportRecord = useVaultAction((state, importId: string) => {
+        const now = Temporal.Now.instant();
+        const importRecord = state.imports[importId];
+        if (importRecord && typeof importRecord === "object") {
+            importRecord.deletedAt = now;
+        }
+    });
 
-		// Mark all transactions from this import as deleted
-		for (const [, transaction] of Object.entries(state.transactions)) {
-			if (
-				typeof transaction === "object" &&
-				transaction !== null &&
-				transaction.importId === importId &&
-				!transaction.deletedAt
-			) {
-				transaction.deletedAt = now;
-			}
-		}
-	});
+    // Delete import and all its transactions
+    const handleDeleteImport = useCallback(
+        (importId: string) => {
+            // Delete all transactions from this import using hierarchical structure
+            deleteTransactionsByImport(importId);
+            // Mark the import record as deleted
+            deleteImportRecord(importId);
+        },
+        [deleteTransactionsByImport, deleteImportRecord]
+    );
 
-	const handleDeleteImport = (id: string) => {
-		deleteImport(id);
-	};
+    // Validate file extension
+    const validateFile = useCallback((file: File): boolean => {
+        const extension = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
+        return ACCEPTED_EXTENSIONS.includes(extension);
+    }, []);
 
-	// Validate file extension
-	const validateFile = useCallback((file: File): boolean => {
-		const extension = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
-		return ACCEPTED_EXTENSIONS.includes(extension);
-	}, []);
+    // Handle file selection - store in sessionStorage and navigate
+    const handleFileSelect = useCallback(
+        (file: File) => {
+            if (!validateFile(file)) return;
 
-	// Handle file selection - store in sessionStorage and navigate
-	const handleFileSelect = useCallback(
-		(file: File) => {
-			if (!validateFile(file)) return;
+            // Read file content and store in sessionStorage for the new page
+            const reader = new FileReader();
+            reader.onload = () => {
+                sessionStorage.setItem(
+                    "pendingImportFile",
+                    JSON.stringify({
+                        name: file.name,
+                        content: reader.result,
+                        type: file.type,
+                    })
+                );
+                router.push("/imports/new");
+            };
+            reader.readAsText(file);
+        },
+        [router, validateFile]
+    );
 
-			// Read file content and store in sessionStorage for the new page
-			const reader = new FileReader();
-			reader.onload = () => {
-				sessionStorage.setItem(
-					"pendingImportFile",
-					JSON.stringify({
-						name: file.name,
-						content: reader.result,
-						type: file.type,
-					})
-				);
-				router.push("/imports/new");
-			};
-			reader.readAsText(file);
-		},
-		[router, validateFile]
-	);
+    // Drag and drop handlers
+    const handleDragEnter = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    }, []);
 
-	// Drag and drop handlers
-	const handleDragEnter = useCallback((e: React.DragEvent) => {
-		e.preventDefault();
-		e.stopPropagation();
-		setIsDragging(true);
-	}, []);
+    const handleDragLeave = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        // Only set dragging to false if we're leaving the container (not entering a child)
+        const rect = e.currentTarget.getBoundingClientRect();
+        const x = e.clientX;
+        const y = e.clientY;
+        if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) {
+            setIsDragging(false);
+        }
+    }, []);
 
-	const handleDragLeave = useCallback((e: React.DragEvent) => {
-		e.preventDefault();
-		e.stopPropagation();
-		// Only set dragging to false if we're leaving the container (not entering a child)
-		const rect = e.currentTarget.getBoundingClientRect();
-		const x = e.clientX;
-		const y = e.clientY;
-		if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) {
-			setIsDragging(false);
-		}
-	}, []);
+    const handleDragOver = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+    }, []);
 
-	const handleDragOver = useCallback((e: React.DragEvent) => {
-		e.preventDefault();
-		e.stopPropagation();
-	}, []);
+    const handleDrop = useCallback(
+        (e: React.DragEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsDragging(false);
 
-	const handleDrop = useCallback(
-		(e: React.DragEvent) => {
-			e.preventDefault();
-			e.stopPropagation();
-			setIsDragging(false);
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelect(files[0]);
+            }
+        },
+        [handleFileSelect]
+    );
 
-			const files = e.dataTransfer.files;
-			if (files.length > 0) {
-				handleFileSelect(files[0]);
-			}
-		},
-		[handleFileSelect]
-	);
+    const handleButtonClick = () => {
+        fileInputRef.current?.click();
+    };
 
-	const handleButtonClick = () => {
-		fileInputRef.current?.click();
-	};
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (files && files.length > 0) {
+            handleFileSelect(files[0]);
+        }
+        // Reset input to allow selecting the same file again
+        e.target.value = "";
+    };
 
-	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const files = e.target.files;
-		if (files && files.length > 0) {
-			handleFileSelect(files[0]);
-		}
-		// Reset input to allow selecting the same file again
-		e.target.value = "";
-	};
+    return (
+        <div
+            className={cn(
+                "relative flex h-full flex-col",
+                isDragging && "ring-primary/50 ring-2 ring-inset"
+            )}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+        >
+            {/* Hidden file input */}
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept={ACCEPTED_EXTENSIONS.join(",")}
+                onChange={handleInputChange}
+                className="hidden"
+            />
 
-	return (
-		<div
-			className={cn(
-				"flex h-full flex-col relative",
-				isDragging && "ring-2 ring-inset ring-primary/50"
-			)}
-			onDragEnter={handleDragEnter}
-			onDragLeave={handleDragLeave}
-			onDragOver={handleDragOver}
-			onDrop={handleDrop}
-		>
-			{/* Hidden file input */}
-			<input
-				ref={fileInputRef}
-				type="file"
-				accept={ACCEPTED_EXTENSIONS.join(",")}
-				onChange={handleInputChange}
-				className="hidden"
-			/>
+            {/* Drag overlay */}
+            {isDragging && (
+                <div className="bg-background/80 absolute inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
+                    <div className="text-primary flex flex-col items-center gap-2">
+                        <Upload className="h-12 w-12" />
+                        <p className="text-lg font-medium">Drop file to import</p>
+                        <p className="text-muted-foreground text-sm">CSV, OFX, or QFX files</p>
+                    </div>
+                </div>
+            )}
 
-			{/* Drag overlay */}
-			{isDragging && (
-				<div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-					<div className="flex flex-col items-center gap-2 text-primary">
-						<Upload className="h-12 w-12" />
-						<p className="font-medium text-lg">Drop file to import</p>
-						<p className="text-sm text-muted-foreground">CSV, OFX, or QFX files</p>
-					</div>
-				</div>
-			)}
+            {/* Page header */}
+            <div className="border-b px-6 py-4">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-2xl font-semibold">Imports</h1>
+                        <p className="text-muted-foreground mt-1 text-sm">
+                            Import transactions from your bank statements.
+                        </p>
+                    </div>
+                    <Button onClick={handleButtonClick}>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Import new file
+                    </Button>
+                </div>
+            </div>
 
-			{/* Page header */}
-			<div className="border-b px-6 py-4">
-				<div className="flex items-center justify-between">
-					<div>
-						<h1 className="font-semibold text-2xl">Imports</h1>
-						<p className="mt-1 text-muted-foreground text-sm">
-							Import transactions from your bank statements.
-						</p>
-					</div>
-					<Button onClick={handleButtonClick}>
-						<Upload className="h-4 w-4 mr-2" />
-						Import new file
-					</Button>
-				</div>
-			</div>
-
-			{/* Imports table */}
-			<div className="flex-1 overflow-auto p-6">
-				<ImportsTable imports={imports} onDeleteImport={handleDeleteImport} />
-			</div>
-		</div>
-	);
+            {/* Imports table */}
+            <div className="flex-1 overflow-auto p-6">
+                <ImportsTable imports={imports} onDeleteImport={handleDeleteImport} />
+            </div>
+        </div>
+    );
 }

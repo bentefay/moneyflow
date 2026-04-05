@@ -33,42 +33,42 @@ export type CutoffType = "days" | "date";
  * Configuration for old transaction filtering.
  */
 export interface FilterConfig {
-	/** How to handle old transactions */
-	mode: OldTransactionMode;
-	/** Type of cutoff calculation */
-	cutoffType: CutoffType;
-	/** Number of days before newest existing transaction to consider "old" (when cutoffType="days") */
-	cutoffDays: number;
-	/** Explicit cutoff date (when cutoffType="date") */
-	cutoffDate: string | null;
+    /** How to handle old transactions */
+    mode: OldTransactionMode;
+    /** Type of cutoff calculation */
+    cutoffType: CutoffType;
+    /** Number of days before newest existing transaction to consider "old" (when cutoffType="days") */
+    cutoffDays: number;
+    /** Explicit cutoff date (when cutoffType="date") */
+    cutoffDate: string | null;
 }
 
 /**
  * Statistics from filtering operation.
  */
 export interface FilterStats {
-	/** Total transactions before filtering */
-	totalCount: number;
-	/** Transactions that passed the filter */
-	includedCount: number;
-	/** Transactions that were filtered out */
-	excludedCount: number;
-	/** Old transactions that were duplicates (excluded in ignore-duplicates mode) */
-	oldDuplicatesCount: number;
-	/** Old transactions that were NOT duplicates (included in ignore-duplicates mode) */
-	oldNonDuplicatesCount: number;
+    /** Total transactions before filtering */
+    totalCount: number;
+    /** Transactions that passed the filter */
+    includedCount: number;
+    /** Transactions that were filtered out */
+    excludedCount: number;
+    /** Old transactions that were duplicates (excluded in ignore-duplicates mode) */
+    oldDuplicatesCount: number;
+    /** Old transactions that were NOT duplicates (included in ignore-duplicates mode) */
+    oldNonDuplicatesCount: number;
 }
 
 /**
  * Result of filtering transactions.
  */
 export interface FilterResult<T> {
-	/** Transactions to include in import */
-	included: T[];
-	/** Transactions excluded by filter */
-	excluded: T[];
-	/** Statistics about the filtering */
-	stats: FilterStats;
+    /** Transactions to include in import */
+    included: T[];
+    /** Transactions excluded by filter */
+    excluded: T[];
+    /** Statistics about the filtering */
+    stats: FilterStats;
 }
 
 // ============================================================================
@@ -93,34 +93,34 @@ export type DescriptionMatchMode = "exact" | "similar";
  * Extended duplicate detection configuration with user-controllable modes.
  */
 export interface DuplicateDetectionSettings {
-	/** How to match dates */
-	dateMatchMode: DateMatchMode;
-	/** Max days difference when mode="within" */
-	maxDateDiffDays: number;
-	/** How to match descriptions */
-	descriptionMatchMode: DescriptionMatchMode;
-	/** Min similarity (0-1) when mode="similar" */
-	minDescriptionSimilarity: number;
+    /** How to match dates */
+    dateMatchMode: DateMatchMode;
+    /** Max days difference when mode="within" */
+    maxDateDiffDays: number;
+    /** How to match descriptions */
+    descriptionMatchMode: DescriptionMatchMode;
+    /** Min similarity (0-1) when mode="similar" */
+    minDescriptionSimilarity: number;
 }
 
 /**
  * Result of checking a single transaction for duplicates.
  */
 export interface DuplicateCheckResult {
-	/** Row index in the import file */
-	rowIndex: number;
-	/** Whether this transaction is a duplicate */
-	isDuplicate: boolean;
-	/** ID of the existing transaction it matches, if any */
-	matchedTransactionId: string | null;
-	/** Confidence score (0-1) */
-	confidence: number;
-	/** Breakdown of match scores */
-	matchDetails: {
-		dateScore: number;
-		descriptionScore: number;
-		amountMatches: boolean;
-	};
+    /** Row index in the import file */
+    rowIndex: number;
+    /** Whether this transaction is a duplicate */
+    isDuplicate: boolean;
+    /** ID of the existing transaction it matches, if any */
+    matchedTransactionId: string | null;
+    /** Confidence score (0-1) */
+    confidence: number;
+    /** Breakdown of match scores */
+    matchDetails: {
+        dateScore: number;
+        descriptionScore: number;
+        amountMatches: boolean;
+    };
 }
 
 // ============================================================================
@@ -131,27 +131,27 @@ export interface DuplicateCheckResult {
  * Settings for parsing and formatting import data.
  */
 export interface FormattingSettings {
-	/** Whether the file has a header row */
-	hasHeaders: boolean;
-	/** Character used for thousands (e.g., "," in "1,000") */
-	thousandSeparator: string;
-	/** Character used for decimals (e.g., "." in "10.50") */
-	decimalSeparator: string;
-	/** Date format pattern (e.g., "yyyy-MM-dd", "MM/dd/yyyy") */
-	dateFormat: string;
-	/** Whether to collapse multiple spaces to single space */
-	collapseWhitespace: boolean;
+    /** Whether the file has a header row */
+    hasHeaders: boolean;
+    /** Character used for thousands (e.g., "," in "1,000") */
+    thousandSeparator: string;
+    /** Character used for decimals (e.g., "." in "10.50") */
+    decimalSeparator: string;
+    /** Date format pattern (e.g., "yyyy-MM-dd", "MM/dd/yyyy") */
+    dateFormat: string;
+    /** Whether to collapse multiple spaces to single space */
+    collapseWhitespace: boolean;
 }
 
 /**
  * Default formatting settings.
  */
 export const DEFAULT_FORMATTING_SETTINGS: FormattingSettings = {
-	hasHeaders: true,
-	thousandSeparator: ",",
-	decimalSeparator: ".",
-	dateFormat: "yyyy-MM-dd",
-	collapseWhitespace: false,
+    hasHeaders: true,
+    thousandSeparator: ",",
+    decimalSeparator: ".",
+    dateFormat: "yyyy-MM-dd",
+    collapseWhitespace: false,
 };
 
 // ============================================================================
@@ -162,44 +162,44 @@ export const DEFAULT_FORMATTING_SETTINGS: FormattingSettings = {
  * Complete import configuration (stored per-template).
  */
 export interface ImportConfig {
-	/** Parsing and formatting settings */
-	formatting: FormattingSettings;
-	/** Duplicate detection settings */
-	duplicateDetection: DuplicateDetectionSettings;
-	/** Old transaction filter settings */
-	oldTransactionFilter: FilterConfig;
-	/** Column mappings: csvColumn -> entityField */
-	columnMappings: Record<string, string>;
+    /** Parsing and formatting settings */
+    formatting: FormattingSettings;
+    /** Duplicate detection settings */
+    duplicateDetection: DuplicateDetectionSettings;
+    /** Old transaction filter settings */
+    oldTransactionFilter: FilterConfig;
+    /** Column mappings: csvColumn -> entityField */
+    columnMappings: Record<string, string>;
 }
 
 /**
  * Default duplicate detection settings.
  */
 export const DEFAULT_DUPLICATE_DETECTION_SETTINGS: DuplicateDetectionSettings = {
-	dateMatchMode: "within",
-	maxDateDiffDays: 3,
-	descriptionMatchMode: "similar",
-	minDescriptionSimilarity: 0.6,
+    dateMatchMode: "exact",
+    maxDateDiffDays: 0,
+    descriptionMatchMode: "exact",
+    minDescriptionSimilarity: 1,
 };
 
 /**
  * Default filter settings.
  */
 export const DEFAULT_FILTER_SETTINGS: FilterConfig = {
-	mode: "ignore-duplicates",
-	cutoffType: "days",
-	cutoffDays: 10,
-	cutoffDate: null,
+    mode: "ignore-duplicates",
+    cutoffType: "days",
+    cutoffDays: 10,
+    cutoffDate: null,
 };
 
 /**
  * Default import configuration.
  */
 export const DEFAULT_IMPORT_CONFIG: ImportConfig = {
-	formatting: DEFAULT_FORMATTING_SETTINGS,
-	duplicateDetection: DEFAULT_DUPLICATE_DETECTION_SETTINGS,
-	oldTransactionFilter: DEFAULT_FILTER_SETTINGS,
-	columnMappings: {},
+    formatting: DEFAULT_FORMATTING_SETTINGS,
+    duplicateDetection: DEFAULT_DUPLICATE_DETECTION_SETTINGS,
+    oldTransactionFilter: DEFAULT_FILTER_SETTINGS,
+    columnMappings: {},
 };
 
 // ============================================================================
@@ -215,22 +215,22 @@ export type PreviewTransactionStatus = "valid" | "invalid" | "duplicate" | "filt
  * A transaction as displayed in the import preview.
  */
 export interface PreviewTransaction {
-	/** Original row index in the raw data */
-	rowIndex: number;
-	/** Parsed date (ISO 8601) */
-	date: string;
-	/** Cleaned description text */
-	description: string;
-	/** Amount in minor units */
-	amount: MoneyMinorUnits;
-	/** Current status */
-	status: PreviewTransactionStatus;
-	/** ID of existing transaction this duplicates, if any */
-	duplicateOf: string | null;
-	/** Confidence of duplicate match (0-1) */
-	duplicateConfidence: number;
-	/** List of validation errors */
-	validationErrors: string[];
+    /** Original row index in the raw data */
+    rowIndex: number;
+    /** Parsed date (ISO 8601) */
+    date: string;
+    /** Cleaned description text */
+    description: string;
+    /** Amount in minor units */
+    amount: MoneyMinorUnits;
+    /** Current status */
+    status: PreviewTransactionStatus;
+    /** ID of existing transaction this duplicates, if any */
+    duplicateOf: string | null;
+    /** Confidence of duplicate match (0-1) */
+    duplicateConfidence: number;
+    /** List of validation errors */
+    validationErrors: string[];
 }
 
 // ============================================================================
@@ -241,12 +241,12 @@ export interface PreviewTransaction {
  * A validation error for a specific row or field.
  */
 export interface ValidationError {
-	/** Row index (0-based), or -1 for global errors */
-	rowIndex: number;
-	/** Field name, or null for row-level errors */
-	field: string | null;
-	/** Human-readable error message */
-	message: string;
+    /** Row index (0-based), or -1 for global errors */
+    rowIndex: number;
+    /** Field name, or null for row-level errors */
+    field: string | null;
+    /** Human-readable error message */
+    message: string;
 }
 
 // ============================================================================
@@ -262,74 +262,74 @@ export type ImportFileType = "csv" | "ofx";
  * Account action to take during OFX import.
  */
 export type OFXAccountAction =
-	| { type: "matched" } // Account matched by ID, no action needed
-	| { type: "apply-id"; accountId: string; accountNumber: string } // Apply detected ID to existing account
-	| { type: "create-new"; accountName: string; accountNumber: string } // Create new account with detected ID
-	| { type: "default-selected" } // No ID in file, defaulted to first account
-	| null; // No action (CSV or user overrode selection)
+    | { type: "matched" } // Account matched by ID, no action needed
+    | { type: "apply-id"; accountId: string; accountNumber: string } // Apply detected ID to existing account
+    | { type: "create-new"; accountName: string; accountNumber: string } // Create new account with detected ID
+    | { type: "default-selected" } // No ID in file, defaulted to first account
+    | null; // No action (CSV or user overrode selection)
 
 /**
  * Ephemeral state for an import session.
  * Not persisted to CRDT - exists only in React state during import.
  */
 export interface ImportSession {
-	// File metadata
-	/** Unique ID for this import session */
-	fileId: string;
-	/** Original filename */
-	fileName: string;
-	/** Detected file type */
-	fileType: ImportFileType;
-	/** Raw file content */
-	rawContent: string;
+    // File metadata
+    /** Unique ID for this import session */
+    fileId: string;
+    /** Original filename */
+    fileName: string;
+    /** Detected file type */
+    fileType: ImportFileType;
+    /** Raw file content */
+    rawContent: string;
 
-	// Parsed data
-	/** Raw rows from CSV (includes header if present) */
-	rawRows: string[][];
-	/** Column headers (first row or generated) */
-	headers: string[];
+    // Parsed data
+    /** Raw rows from CSV (includes header if present) */
+    rawRows: string[][];
+    /** Column headers (first row or generated) */
+    headers: string[];
 
-	// Configuration
-	/** Selected template ID, or null for defaults */
-	templateId: string | null;
-	/** Current configuration (editable) */
-	config: ImportConfig;
+    // Configuration
+    /** Selected template ID, or null for defaults */
+    templateId: string | null;
+    /** Current configuration (editable) */
+    config: ImportConfig;
 
-	// Account selection
-	/** Selected account ID for import */
-	selectedAccountId: string | null;
-	/** Account number detected from OFX file */
-	detectedAccountNumber: string | null;
-	/** Action to take for account on import (OFX only) */
-	accountAction: OFXAccountAction;
+    // Account selection
+    /** Selected account ID for import */
+    selectedAccountId: string | null;
+    /** Account number detected from OFX file */
+    detectedAccountNumber: string | null;
+    /** Action to take for account on import (OFX only) */
+    accountAction: OFXAccountAction;
 
-	// Computed state (derived from config + raw data)
-	/** Preview transactions with computed statuses */
-	previewTransactions: PreviewTransaction[];
-	/** Duplicate check results */
-	duplicateResults: DuplicateCheckResult[];
-	/** Transactions excluded by old transaction filter */
-	filteredOut: PreviewTransaction[];
+    // Computed state (derived from config + raw data)
+    /** Preview transactions with computed statuses */
+    previewTransactions: PreviewTransaction[];
+    /** Duplicate check results */
+    duplicateResults: DuplicateCheckResult[];
+    /** Transactions excluded by old transaction filter */
+    filteredOut: PreviewTransaction[];
 
-	// Validation
-	/** Validation errors */
-	validationErrors: ValidationError[];
-	/** Whether import can proceed */
-	canImport: boolean;
+    // Validation
+    /** Validation errors */
+    validationErrors: ValidationError[];
+    /** Whether import can proceed */
+    canImport: boolean;
 }
 
 /**
  * Summary statistics for the import preview.
  */
 export interface ImportSummaryStats {
-	/** Total rows in the file */
-	totalRows: number;
-	/** Rows that will be imported */
-	validCount: number;
-	/** Rows with validation errors */
-	errorCount: number;
-	/** Rows flagged as duplicates */
-	duplicateCount: number;
-	/** Rows filtered out by old transaction filter */
-	filteredCount: number;
+    /** Total rows in the file */
+    totalRows: number;
+    /** Rows that will be imported */
+    validCount: number;
+    /** Rows with validation errors */
+    errorCount: number;
+    /** Rows flagged as duplicates */
+    duplicateCount: number;
+    /** Rows filtered out by old transaction filter */
+    filteredCount: number;
 }

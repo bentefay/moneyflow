@@ -8,7 +8,43 @@
  * This is called when creating a new vault to ensure users never see an empty state.
  */
 
+import { asMinorUnits } from "@/lib/domain/currency";
+import { asPercentage } from "@/types";
+
 import type { AccountInput, PersonInput, StatusInput, VaultInput } from "./schema";
+
+// ============================================================================
+// GLOBAL DEFAULTS - Single source of truth for default values
+// ============================================================================
+
+/**
+ * Default currency code (ISO 4217)
+ */
+export const DEFAULT_CURRENCY = "USD";
+
+/**
+ * Default vault name for new vaults
+ */
+export const DEFAULT_VAULT_NAME = "My Vault";
+
+/**
+ * Default automation creation preference
+ */
+export const DEFAULT_AUTOMATION_CREATION_PREFERENCE = "manual" as const;
+
+/**
+ * Default account type
+ */
+export const DEFAULT_ACCOUNT_TYPE = "checking" as const;
+
+/**
+ * Default automation order (for sorting)
+ */
+export const DEFAULT_AUTOMATION_ORDER = 0;
+
+// ============================================================================
+// ENTITY DEFAULTS
+// ============================================================================
 
 /**
  * Default person ID (stable for reference in code)
@@ -22,10 +58,10 @@ export const DEFAULT_PERSON_ID = "person-default-me";
  * can have valid 100% ownership.
  */
 export const DEFAULT_PERSON: PersonInput = {
-	id: DEFAULT_PERSON_ID,
-	name: "Me",
-	linkedUserId: "", // Empty string for optional field
-	deletedAt: 0,
+    id: DEFAULT_PERSON_ID,
+    name: "Me",
+    linkedUserId: undefined,
+    deletedAt: undefined,
 };
 
 /**
@@ -42,22 +78,22 @@ export const DEFAULT_ACCOUNT_ID = "account-default";
  * Ownership is assigned to the default "Me" person.
  */
 export const DEFAULT_ACCOUNT: AccountInput = {
-	id: DEFAULT_ACCOUNT_ID,
-	name: "Default",
-	accountNumber: "",
-	currency: "", // Empty string = inherit from vault default (resolved at display time)
-	accountType: "checking",
-	balance: 0,
-	ownerships: { [DEFAULT_PERSON_ID]: 100 }, // Me owns 100%
-	deletedAt: 0,
+    id: DEFAULT_ACCOUNT_ID,
+    name: "Default",
+    accountNumber: undefined,
+    currency: undefined,
+    accountType: DEFAULT_ACCOUNT_TYPE,
+    balance: asMinorUnits(0),
+    ownerships: { [DEFAULT_PERSON_ID]: asPercentage(100) }, // Me owns 100%
+    deletedAt: undefined,
 };
 
 /**
  * Default status IDs (stable for reference in code)
  */
 export const DEFAULT_STATUS_IDS = {
-	FOR_REVIEW: "status-for-review",
-	PAID: "status-paid",
+    FOR_REVIEW: "status-for-review",
+    PAID: "status-paid",
 } as const;
 
 /**
@@ -66,36 +102,36 @@ export const DEFAULT_STATUS_IDS = {
  * - "For Review": No behavior, transactions pending review
  * - "Paid": Has "treatAsPaid" behavior, included in settlement calculations
  *
- * Note: Empty string for behavior means "no special behavior"
- * Note: deletedAt of 0 means "not deleted"
+ * Note: undefined behavior means "no special behavior"
+ * Note: undefined deletedAt means "not deleted"
  */
 export const DEFAULT_STATUSES: Record<string, StatusInput> = {
-	[DEFAULT_STATUS_IDS.FOR_REVIEW]: {
-		id: DEFAULT_STATUS_IDS.FOR_REVIEW,
-		name: "For Review",
-		behavior: "", // No special behavior
-		isDefault: true,
-		deletedAt: 0, // Not deleted
-	},
-	[DEFAULT_STATUS_IDS.PAID]: {
-		id: DEFAULT_STATUS_IDS.PAID,
-		name: "Paid",
-		behavior: "treatAsPaid",
-		isDefault: true,
-		deletedAt: 0, // Not deleted
-	},
+    [DEFAULT_STATUS_IDS.FOR_REVIEW]: {
+        id: DEFAULT_STATUS_IDS.FOR_REVIEW,
+        name: "For Review",
+        behavior: undefined,
+        isDefault: true,
+        deletedAt: undefined,
+    },
+    [DEFAULT_STATUS_IDS.PAID]: {
+        id: DEFAULT_STATUS_IDS.PAID,
+        name: "Paid",
+        behavior: "treatAsPaid",
+        isDefault: true,
+        deletedAt: undefined,
+    },
 };
 
 /**
  * Options for creating default vault state.
  */
 export interface DefaultVaultStateOptions {
-	/**
-	 * Default currency for the vault.
-	 * If not provided, defaults to "USD".
-	 * Use detectDefaultCurrency() to infer from browser locale.
-	 */
-	defaultCurrency?: string;
+    /**
+     * Default currency for the vault.
+     * If not provided, defaults to "USD".
+     * Use detectDefaultCurrency() to infer from browser locale.
+     */
+    defaultCurrency?: string;
 }
 
 /**
@@ -109,24 +145,24 @@ export interface DefaultVaultStateOptions {
  * @param options - Optional configuration for vault defaults
  */
 export function getDefaultVaultState(options?: DefaultVaultStateOptions): VaultInput {
-	const defaultCurrency = options?.defaultCurrency ?? "USD";
+    const currency = options?.defaultCurrency ?? DEFAULT_CURRENCY;
 
-	return {
-		people: { [DEFAULT_PERSON_ID]: { ...DEFAULT_PERSON } },
-		accounts: { [DEFAULT_ACCOUNT_ID]: { ...DEFAULT_ACCOUNT } },
-		tags: {},
-		statuses: { ...DEFAULT_STATUSES },
-		transactions: {},
-		imports: {},
-		importTemplates: {},
-		automations: {},
-		automationApplications: {},
-		preferences: {
-			name: "My Vault",
-			automationCreationPreference: "manual",
-			defaultCurrency,
-		},
-	};
+    return {
+        people: { [DEFAULT_PERSON_ID]: { ...DEFAULT_PERSON } },
+        accounts: { [DEFAULT_ACCOUNT_ID]: { ...DEFAULT_ACCOUNT } },
+        tags: {},
+        statuses: { ...DEFAULT_STATUSES },
+        transactions: {},
+        imports: {},
+        importTemplates: {},
+        automations: {},
+        automationApplications: {},
+        preferences: {
+            name: DEFAULT_VAULT_NAME,
+            automationCreationPreference: DEFAULT_AUTOMATION_CREATION_PREFERENCE,
+            defaultCurrency: currency,
+        },
+    };
 }
 
 /**
@@ -144,36 +180,36 @@ export function getDefaultVaultState(options?: DefaultVaultStateOptions): VaultI
  * @param options - Optional configuration for vault defaults
  */
 export function initializeVaultDefaults(
-	draft: VaultInput,
-	options?: DefaultVaultStateOptions
+    draft: VaultInput,
+    options?: DefaultVaultStateOptions
 ): void {
-	const defaultCurrency = options?.defaultCurrency ?? "USD";
+    const currency = options?.defaultCurrency ?? DEFAULT_CURRENCY;
 
-	// Add default person if it doesn't exist
-	if (!draft.people[DEFAULT_PERSON_ID]) {
-		draft.people[DEFAULT_PERSON_ID] = { ...DEFAULT_PERSON };
-	}
+    // Add default person if it doesn't exist
+    if (!draft.people[DEFAULT_PERSON_ID]) {
+        draft.people[DEFAULT_PERSON_ID] = { ...DEFAULT_PERSON };
+    }
 
-	// Add default account if it doesn't exist
-	if (!draft.accounts[DEFAULT_ACCOUNT_ID]) {
-		draft.accounts[DEFAULT_ACCOUNT_ID] = { ...DEFAULT_ACCOUNT };
-	}
+    // Add default account if it doesn't exist
+    if (!draft.accounts[DEFAULT_ACCOUNT_ID]) {
+        draft.accounts[DEFAULT_ACCOUNT_ID] = { ...DEFAULT_ACCOUNT };
+    }
 
-	// Add default statuses if they don't exist
-	for (const [id, status] of Object.entries(DEFAULT_STATUSES)) {
-		if (!draft.statuses[id]) {
-			draft.statuses[id] = status;
-		}
-	}
+    // Add default statuses if they don't exist
+    for (const [id, status] of Object.entries(DEFAULT_STATUSES)) {
+        if (!draft.statuses[id]) {
+            draft.statuses[id] = status;
+        }
+    }
 
-	// Ensure preferences exist with defaults
-	if (!draft.preferences) {
-		draft.preferences = {
-			name: "My Vault",
-			automationCreationPreference: "manual",
-			defaultCurrency,
-		};
-	}
+    // Ensure preferences exist with defaults
+    if (!draft.preferences) {
+        draft.preferences = {
+            name: DEFAULT_VAULT_NAME,
+            automationCreationPreference: DEFAULT_AUTOMATION_CREATION_PREFERENCE,
+            defaultCurrency: currency,
+        };
+    }
 }
 
 /**
@@ -183,12 +219,12 @@ export function initializeVaultDefaults(
  * @returns true if default account and statuses exist
  */
 export function hasVaultDefaults(state: {
-	accounts: Record<string, unknown>;
-	statuses: Record<string, unknown>;
+    accounts: Record<string, unknown>;
+    statuses: Record<string, unknown>;
 }): boolean {
-	return (
-		DEFAULT_ACCOUNT_ID in state.accounts &&
-		DEFAULT_STATUS_IDS.FOR_REVIEW in state.statuses &&
-		DEFAULT_STATUS_IDS.PAID in state.statuses
-	);
+    return (
+        DEFAULT_ACCOUNT_ID in state.accounts &&
+        DEFAULT_STATUS_IDS.FOR_REVIEW in state.statuses &&
+        DEFAULT_STATUS_IDS.PAID in state.statuses
+    );
 }

@@ -1,6 +1,7 @@
 # Dependencies
 node_modules/
 .pnpm-store/
+.direnv/
 
 # Build outputs
 .next/
@@ -55,4 +56,4 @@ test-results/
 __pycache__/
 *.pyc
 .venv/
-*.egg-info/ 
+*.egg-info/

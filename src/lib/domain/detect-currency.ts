@@ -37,26 +37,26 @@ import { Currencies } from "./currencies";
  * ```
  */
 export function detectDefaultCurrency(): string {
-	// Server-side or no window - return fallback
-	if (typeof window === "undefined" || typeof navigator === "undefined") {
-		return "USD";
-	}
+    // Server-side or no window - return fallback
+    if (typeof window === "undefined" || typeof navigator === "undefined") {
+        return "USD";
+    }
 
-	try {
-		const locale = getBrowserLocale();
+    try {
+        const locale = getBrowserLocale();
 
-		const currency = getCurrencyFromLocale(locale);
+        const currency = getCurrencyFromLocale(locale);
 
-		// Verify we support this currency
-		if (currency && currency in Currencies) {
-			return currency;
-		}
+        // Verify we support this currency
+        if (currency && currency in Currencies) {
+            return currency;
+        }
 
-		return "USD";
-	} catch {
-		// Any error in detection - use fallback
-		return "USD";
-	}
+        return "USD";
+    } catch {
+        // Any error in detection - use fallback
+        return "USD";
+    }
 }
 
 /**
@@ -68,13 +68,13 @@ export function detectDefaultCurrency(): string {
  * @returns BCP 47 locale string (e.g., "en-US", "de-DE", "ja-JP")
  */
 export function getBrowserLocale(): string {
-	// navigator.languages is the preferred way - it's the user's language preference list
-	if (navigator.languages && navigator.languages.length > 0) {
-		return navigator.languages[0];
-	}
+    // navigator.languages is the preferred way - it's the user's language preference list
+    if (navigator.languages && navigator.languages.length > 0) {
+        return navigator.languages[0];
+    }
 
-	// Fallback to navigator.language
-	return navigator.language || "en-US";
+    // Fallback to navigator.language
+    return navigator.language || "en-US";
 }
 
 /**
@@ -88,21 +88,21 @@ export function getBrowserLocale(): string {
  * @returns ISO 4217 currency code or undefined if detection fails
  */
 export function getCurrencyFromLocale(locale: string): string | undefined {
-	try {
-		// Create a NumberFormat for currency - the browser will resolve the locale's default currency
-		// We need to provide *some* currency to create the formatter, but resolvedOptions()
-		// will tell us what the locale's default would be... except that's not how it works.
-		//
-		// Alternative approach: Use a locale-to-currency mapping based on the region subtag
-		const regionCurrency = getRegionCurrency(locale);
-		if (regionCurrency) {
-			return regionCurrency;
-		}
+    try {
+        // Create a NumberFormat for currency - the browser will resolve the locale's default currency
+        // We need to provide *some* currency to create the formatter, but resolvedOptions()
+        // will tell us what the locale's default would be... except that's not how it works.
+        //
+        // Alternative approach: Use a locale-to-currency mapping based on the region subtag
+        const regionCurrency = getRegionCurrency(locale);
+        if (regionCurrency) {
+            return regionCurrency;
+        }
 
-		return undefined;
-	} catch {
-		return undefined;
-	}
+        return undefined;
+    } catch {
+        return undefined;
+    }
 }
 
 /**
@@ -115,13 +115,13 @@ export function getCurrencyFromLocale(locale: string): string | undefined {
  * @returns ISO 4217 currency code or undefined
  */
 function getRegionCurrency(locale: string): string | undefined {
-	// Extract region from locale (e.g., "en-US" → "US", "de-DE" → "DE")
-	const region = extractRegion(locale);
-	if (!region) {
-		return undefined;
-	}
+    // Extract region from locale (e.g., "en-US" → "US", "de-DE" → "DE")
+    const region = extractRegion(locale);
+    if (!region) {
+        return undefined;
+    }
 
-	return REGION_TO_CURRENCY[region.toUpperCase()];
+    return REGION_TO_CURRENCY[region.toUpperCase()];
 }
 
 /**
@@ -137,25 +137,25 @@ function getRegionCurrency(locale: string): string | undefined {
  * @returns Region code or undefined
  */
 function extractRegion(locale: string): string | undefined {
-	// Use Intl.Locale if available (modern browsers)
-	try {
-		const intlLocale = new Intl.Locale(locale);
-		return intlLocale.region;
-	} catch {
-		// Fallback: Parse manually
-		// BCP 47 format: language[-script][-region]
-		// Region is 2 letters (ISO 3166-1 alpha-2) or 3 digits (UN M.49)
-		const parts = locale.split("-");
+    // Use Intl.Locale if available (modern browsers)
+    try {
+        const intlLocale = new Intl.Locale(locale);
+        return intlLocale.region;
+    } catch {
+        // Fallback: Parse manually
+        // BCP 47 format: language[-script][-region]
+        // Region is 2 letters (ISO 3166-1 alpha-2) or 3 digits (UN M.49)
+        const parts = locale.split("-");
 
-		for (const part of parts.slice(1)) {
-			// Region is 2 uppercase letters
-			if (/^[A-Z]{2}$/i.test(part)) {
-				return part.toUpperCase();
-			}
-		}
+        for (const part of parts.slice(1)) {
+            // Region is 2 uppercase letters
+            if (/^[A-Z]{2}$/i.test(part)) {
+                return part.toUpperCase();
+            }
+        }
 
-		return undefined;
-	}
+        return undefined;
+    }
 }
 
 /**
@@ -168,93 +168,93 @@ function extractRegion(locale: string): string | undefined {
  * Eurozone countries all map to EUR.
  */
 const REGION_TO_CURRENCY: Record<string, string> = {
-	// North America
-	US: "USD",
-	CA: "CAD",
-	MX: "MXN",
+    // North America
+    US: "USD",
+    CA: "CAD",
+    MX: "MXN",
 
-	// Europe - Eurozone
-	AT: "EUR", // Austria
-	BE: "EUR", // Belgium
-	CY: "EUR", // Cyprus
-	EE: "EUR", // Estonia
-	FI: "EUR", // Finland
-	FR: "EUR", // France
-	DE: "EUR", // Germany
-	GR: "EUR", // Greece
-	IE: "EUR", // Ireland
-	IT: "EUR", // Italy
-	LV: "EUR", // Latvia
-	LT: "EUR", // Lithuania
-	LU: "EUR", // Luxembourg
-	MT: "EUR", // Malta
-	NL: "EUR", // Netherlands
-	PT: "EUR", // Portugal
-	SK: "EUR", // Slovakia
-	SI: "EUR", // Slovenia
-	ES: "EUR", // Spain
-	HR: "EUR", // Croatia (joined 2023)
+    // Europe - Eurozone
+    AT: "EUR", // Austria
+    BE: "EUR", // Belgium
+    CY: "EUR", // Cyprus
+    EE: "EUR", // Estonia
+    FI: "EUR", // Finland
+    FR: "EUR", // France
+    DE: "EUR", // Germany
+    GR: "EUR", // Greece
+    IE: "EUR", // Ireland
+    IT: "EUR", // Italy
+    LV: "EUR", // Latvia
+    LT: "EUR", // Lithuania
+    LU: "EUR", // Luxembourg
+    MT: "EUR", // Malta
+    NL: "EUR", // Netherlands
+    PT: "EUR", // Portugal
+    SK: "EUR", // Slovakia
+    SI: "EUR", // Slovenia
+    ES: "EUR", // Spain
+    HR: "EUR", // Croatia (joined 2023)
 
-	// Europe - Non-Eurozone
-	GB: "GBP", // United Kingdom
-	CH: "CHF", // Switzerland
-	NO: "NOK", // Norway
-	SE: "SEK", // Sweden
-	DK: "DKK", // Denmark
-	PL: "PLN", // Poland
-	CZ: "CZK", // Czech Republic
-	HU: "HUF", // Hungary
-	RO: "RON", // Romania
-	BG: "BGN", // Bulgaria
-	IS: "ISK", // Iceland
-	RU: "RUB", // Russia
-	UA: "UAH", // Ukraine
+    // Europe - Non-Eurozone
+    GB: "GBP", // United Kingdom
+    CH: "CHF", // Switzerland
+    NO: "NOK", // Norway
+    SE: "SEK", // Sweden
+    DK: "DKK", // Denmark
+    PL: "PLN", // Poland
+    CZ: "CZK", // Czech Republic
+    HU: "HUF", // Hungary
+    RO: "RON", // Romania
+    BG: "BGN", // Bulgaria
+    IS: "ISK", // Iceland
+    RU: "RUB", // Russia
+    UA: "UAH", // Ukraine
 
-	// Asia-Pacific
-	JP: "JPY", // Japan
-	CN: "CNY", // China
-	HK: "HKD", // Hong Kong
-	TW: "TWD", // Taiwan
-	KR: "KRW", // South Korea
-	SG: "SGD", // Singapore
-	AU: "AUD", // Australia
-	NZ: "NZD", // New Zealand
-	IN: "INR", // India
-	ID: "IDR", // Indonesia
-	MY: "MYR", // Malaysia
-	TH: "THB", // Thailand
-	PH: "PHP", // Philippines
-	VN: "VND", // Vietnam
-	PK: "PKR", // Pakistan
-	BD: "BDT", // Bangladesh
+    // Asia-Pacific
+    JP: "JPY", // Japan
+    CN: "CNY", // China
+    HK: "HKD", // Hong Kong
+    TW: "TWD", // Taiwan
+    KR: "KRW", // South Korea
+    SG: "SGD", // Singapore
+    AU: "AUD", // Australia
+    NZ: "NZD", // New Zealand
+    IN: "INR", // India
+    ID: "IDR", // Indonesia
+    MY: "MYR", // Malaysia
+    TH: "THB", // Thailand
+    PH: "PHP", // Philippines
+    VN: "VND", // Vietnam
+    PK: "PKR", // Pakistan
+    BD: "BDT", // Bangladesh
 
-	// Middle East
-	AE: "AED", // UAE
-	SA: "SAR", // Saudi Arabia
-	IL: "ILS", // Israel
-	TR: "TRY", // Turkey
-	QA: "QAR", // Qatar
-	KW: "KWD", // Kuwait
-	BH: "BHD", // Bahrain
-	OM: "OMR", // Oman
+    // Middle East
+    AE: "AED", // UAE
+    SA: "SAR", // Saudi Arabia
+    IL: "ILS", // Israel
+    TR: "TRY", // Turkey
+    QA: "QAR", // Qatar
+    KW: "KWD", // Kuwait
+    BH: "BHD", // Bahrain
+    OM: "OMR", // Oman
 
-	// Africa
-	ZA: "ZAR", // South Africa
-	EG: "EGP", // Egypt
-	NG: "NGN", // Nigeria
-	KE: "KES", // Kenya
-	MA: "MAD", // Morocco
+    // Africa
+    ZA: "ZAR", // South Africa
+    EG: "EGP", // Egypt
+    NG: "NGN", // Nigeria
+    KE: "KES", // Kenya
+    MA: "MAD", // Morocco
 
-	// South America
-	BR: "BRL", // Brazil
-	AR: "ARS", // Argentina
-	CL: "CLP", // Chile
-	CO: "COP", // Colombia
-	PE: "PEN", // Peru
+    // South America
+    BR: "BRL", // Brazil
+    AR: "ARS", // Argentina
+    CL: "CLP", // Chile
+    CO: "COP", // Colombia
+    PE: "PEN", // Peru
 
-	// Central America & Caribbean
-	PA: "USD", // Panama (uses USD)
-	CR: "CRC", // Costa Rica
-	DO: "DOP", // Dominican Republic
-	JM: "JMD", // Jamaica
+    // Central America & Caribbean
+    PA: "USD", // Panama (uses USD)
+    CR: "CRC", // Costa Rica
+    DO: "DOP", // Dominican Republic
+    JM: "JMD", // Jamaica
 };

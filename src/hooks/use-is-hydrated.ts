@@ -11,12 +11,12 @@ import { useEffect, useState } from "react";
  * return <Button disabled={!isHydrated}>Click me</Button>;
  */
 export function useIsHydrated(): boolean {
-	const [isHydrated, setIsHydrated] = useState(false);
+    const [isHydrated, setIsHydrated] = useState(false);
 
-	useEffect(() => {
-		// eslint-disable-next-line react-hooks/set-state-in-effect -- SSR hydration pattern
-		setIsHydrated(true);
-	}, []);
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- SSR hydration pattern
+        setIsHydrated(true);
+    }, []);
 
-	return isHydrated;
+    return isHydrated;
 }

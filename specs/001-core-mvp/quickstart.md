@@ -168,13 +168,13 @@ import { describe, it, expect } from "vitest";
 import { encrypt, decrypt } from "@/lib/crypto";
 
 describe("encryption", () => {
-  it("should round-trip data", async () => {
-    const key = await generateKey();
-    const plaintext = "sensitive data";
-    const encrypted = await encrypt(plaintext, key);
-    const decrypted = await decrypt(encrypted, key);
-    expect(decrypted).toBe(plaintext);
-  });
+    it("should round-trip data", async () => {
+        const key = await generateKey();
+        const plaintext = "sensitive data";
+        const encrypted = await encrypt(plaintext, key);
+        const decrypted = await decrypt(encrypted, key);
+        expect(decrypted).toBe(plaintext);
+    });
 });
 ```
 
@@ -186,14 +186,14 @@ import { fc } from "@fast-check/vitest";
 import { describe, it } from "vitest";
 
 describe("allocation math", () => {
-  it.prop([fc.array(fc.integer({ min: -100, max: 100 }))])(
-    "should sum correctly",
-    (percentages) => {
-      const result = calculateAllocations(percentages);
-      // Invariant: should not lose or gain money
-      expect(result.total).toBe(percentages.reduce((a, b) => a + b, 0));
-    }
-  );
+    it.prop([fc.array(fc.integer({ min: -100, max: 100 }))])(
+        "should sum correctly",
+        (percentages) => {
+            const result = calculateAllocations(percentages);
+            // Invariant: should not lose or gain money
+            expect(result.total).toBe(percentages.reduce((a, b) => a + b, 0));
+        }
+    );
 });
 ```
 
@@ -204,12 +204,12 @@ describe("allocation math", () => {
 import { test, expect } from "@playwright/test";
 
 test("user can create a transaction", async ({ page }) => {
-  await page.goto("/transactions");
-  await page.click('button:has-text("Add Transaction")');
-  await page.fill('[data-testid="merchant"]', "Grocery Store");
-  await page.fill('[data-testid="amount"]', "-50.00");
-  await page.click('button:has-text("Save")');
-  await expect(page.locator("text=Grocery Store")).toBeVisible();
+    await page.goto("/transactions");
+    await page.click('button:has-text("Add Transaction")');
+    await page.fill('[data-testid="merchant"]', "Grocery Store");
+    await page.fill('[data-testid="amount"]', "-50.00");
+    await page.click('button:has-text("Save")');
+    await expect(page.locator("text=Grocery Store")).toBeVisible();
 });
 ```
 

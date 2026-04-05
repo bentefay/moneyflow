@@ -8,5 +8,5 @@
 import { redirect } from "next/navigation";
 
 export default function DashboardPage() {
-	redirect("/transactions");
+    redirect("/transactions");
 }

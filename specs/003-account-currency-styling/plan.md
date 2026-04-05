@@ -23,17 +23,17 @@ Make account currency optional with vault default fallback, add default "Me" per
 
 _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
-| Principle | Status | Notes |
-|-----------|--------|-------|
-| I. Security & Privacy First | ✅ PASS | No changes to encryption—schema change only affects CRDT structure |
-| II. Multi-Party Financial Integrity | ✅ PASS | Ownership allocations unchanged; "Me" person enables valid 100% ownership |
-| III. Data Portability | ✅ PASS | Currency fallback logic documented; no import format changes |
-| IV. Auditability & Transparency | ✅ PASS | Currency resolution explicit (account → vault → USD); visual distinction for inherited |
-| V. User-Owned Data | ✅ PASS | No new server storage; all changes in existing CRDT document |
-| VI. Performance, Beauty & Craft | ✅ PASS | Column alignment + inline editing directly addresses UI polish requirements |
-| VII. Robustness & Reliability | ✅ PASS | Must add tests for currency resolution, default person creation |
-| VIII. LLM-Agent Friendly | ✅ PASS | Update instructions files if patterns change |
-| IX. Code Clarity | ✅ PASS | Pure functions for currency resolution; loro-mirror mutations for state changes |
+| Principle                           | Status  | Notes                                                                                  |
+| ----------------------------------- | ------- | -------------------------------------------------------------------------------------- |
+| I. Security & Privacy First         | ✅ PASS | No changes to encryption—schema change only affects CRDT structure                     |
+| II. Multi-Party Financial Integrity | ✅ PASS | Ownership allocations unchanged; "Me" person enables valid 100% ownership              |
+| III. Data Portability               | ✅ PASS | Currency fallback logic documented; no import format changes                           |
+| IV. Auditability & Transparency     | ✅ PASS | Currency resolution explicit (account → vault → USD); visual distinction for inherited |
+| V. User-Owned Data                  | ✅ PASS | No new server storage; all changes in existing CRDT document                           |
+| VI. Performance, Beauty & Craft     | ✅ PASS | Column alignment + inline editing directly addresses UI polish requirements            |
+| VII. Robustness & Reliability       | ✅ PASS | Must add tests for currency resolution, default person creation                        |
+| VIII. LLM-Agent Friendly            | ✅ PASS | Update instructions files if patterns change                                           |
+| IX. Code Clarity                    | ✅ PASS | Pure functions for currency resolution; loro-mirror mutations for state changes        |
 
 **Gate Status**: ✅ ALL PASS — proceed to Phase 0
 
@@ -101,12 +101,12 @@ tests/
 
 ### Key Decisions
 
-| Decision | Chosen | Rationale | Alternatives Rejected |
-|----------|--------|-----------|----------------------|
-| Currency field handling | Make truly optional (undefined allowed) | Cleaner than sentinel value; explicit "no currency set" semantics | Sentinel value like "" or "DEFAULT" |
-| Default person ID | `person-default-me` | Stable ID for code references; follows existing pattern (`account-default`, `status-for-review`) | Random UUID |
-| Inline editing trigger | Click on field value | Consistent with existing name/type editing pattern in AccountRow | Double-click or explicit edit button |
-| Currency visual indicator | Muted text + "(default)" suffix | Clear visual hierarchy; unambiguous meaning | Italic only, tooltip only |
+| Decision                  | Chosen                                  | Rationale                                                                                        | Alternatives Rejected                |
+| ------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------ |
+| Currency field handling   | Make truly optional (undefined allowed) | Cleaner than sentinel value; explicit "no currency set" semantics                                | Sentinel value like "" or "DEFAULT"  |
+| Default person ID         | `person-default-me`                     | Stable ID for code references; follows existing pattern (`account-default`, `status-for-review`) | Random UUID                          |
+| Inline editing trigger    | Click on field value                    | Consistent with existing name/type editing pattern in AccountRow                                 | Double-click or explicit edit button |
+| Currency visual indicator | Muted text + "(default)" suffix         | Clear visual hierarchy; unambiguous meaning                                                      | Italic only, tooltip only            |
 
 ---
 
@@ -119,16 +119,16 @@ tests/
 ```typescript
 // BEFORE
 export const accountSchema = schema.LoroMap({
-  // ...
-  currency: schema.String({ defaultValue: "USD" }),
-  // ...
+    // ...
+    currency: schema.String({ defaultValue: "USD" }),
+    // ...
 });
 
 // AFTER
 export const accountSchema = schema.LoroMap({
-  // ...
-  currency: schema.String(), // Optional - falls back to vault default if undefined
-  // ...
+    // ...
+    currency: schema.String(), // Optional - falls back to vault default if undefined
+    // ...
 });
 ```
 
@@ -140,30 +140,30 @@ export const DEFAULT_PERSON_ID = "person-default-me";
 
 // ADD: Default person
 export const DEFAULT_PERSON: PersonInput = {
-  id: DEFAULT_PERSON_ID,
-  name: "Me",
-  deletedAt: 0,
+    id: DEFAULT_PERSON_ID,
+    name: "Me",
+    deletedAt: 0,
 };
 
 // MODIFY: Default account to reference default person
 export const DEFAULT_ACCOUNT: AccountInput = {
-  id: DEFAULT_ACCOUNT_ID,
-  name: "Default",
-  accountNumber: "",
-  currency: undefined, // Use vault default
-  accountType: "checking",
-  balance: 0,
-  ownerships: { [DEFAULT_PERSON_ID]: 100 }, // Me owns 100%
-  deletedAt: 0,
+    id: DEFAULT_ACCOUNT_ID,
+    name: "Default",
+    accountNumber: "",
+    currency: undefined, // Use vault default
+    accountType: "checking",
+    balance: 0,
+    ownerships: { [DEFAULT_PERSON_ID]: 100 }, // Me owns 100%
+    deletedAt: 0,
 };
 
 // MODIFY: getDefaultVaultState() to include default person
 export function getDefaultVaultState(): VaultInput {
-  return {
-    people: { [DEFAULT_PERSON_ID]: { ...DEFAULT_PERSON } },
-    accounts: { [DEFAULT_ACCOUNT_ID]: { ...DEFAULT_ACCOUNT } },
-    // ... rest unchanged
-  };
+    return {
+        people: { [DEFAULT_PERSON_ID]: { ...DEFAULT_PERSON } },
+        accounts: { [DEFAULT_ACCOUNT_ID]: { ...DEFAULT_ACCOUNT } },
+        // ... rest unchanged
+    };
 }
 ```
 
@@ -172,16 +172,16 @@ export function getDefaultVaultState(): VaultInput {
 ```typescript
 // ADD: Currency resolution helper
 export function resolveAccountCurrency(
-  accountCurrency: string | undefined,
-  vaultDefaultCurrency: string | undefined
+    accountCurrency: string | undefined,
+    vaultDefaultCurrency: string | undefined
 ): { code: string; isInherited: boolean } {
-  if (accountCurrency) {
-    return { code: accountCurrency, isInherited: false };
-  }
-  if (vaultDefaultCurrency) {
-    return { code: vaultDefaultCurrency, isInherited: true };
-  }
-  return { code: "USD", isInherited: true }; // Ultimate fallback
+    if (accountCurrency) {
+        return { code: accountCurrency, isInherited: false };
+    }
+    if (vaultDefaultCurrency) {
+        return { code: vaultDefaultCurrency, isInherited: true };
+    }
+    return { code: "USD", isInherited: true }; // Ultimate fallback
 }
 ```
 

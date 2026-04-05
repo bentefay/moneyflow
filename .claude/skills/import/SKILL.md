@@ -17,7 +17,7 @@ File Drop → Parse (CSV/OFX) → Column Mapping → Formatting → Preview → 
 import { toMinorUnitsForCurrency } from "@/lib/domain/currency";
 
 toMinorUnitsForCurrency(12.34, "USD"); // 1234 (cents)
-toMinorUnitsForCurrency(1234, "JPY");  // 1234 (0 decimals)
+toMinorUnitsForCurrency(1234, "JPY"); // 1234 (0 decimals)
 toMinorUnitsForCurrency(1.234, "KWD"); // 1234 (3 decimals)
 ```
 

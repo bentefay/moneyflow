@@ -28,15 +28,15 @@
 import { Tabs, TabsList, TabsTrigger, TabsContents, TabsContent } from "@/components/ui/tabs";
 
 <Tabs defaultValue="template">
-  <TabsList>
-    <TabsTrigger value="template">Template</TabsTrigger>
-    <TabsTrigger value="mapping">Mapping</TabsTrigger>
-    {/* ... */}
-  </TabsList>
-  <TabsContents mode="auto-height">
-    <TabsContent value="template">...</TabsContent>
-    <TabsContent value="mapping">...</TabsContent>
-  </TabsContents>
+    <TabsList>
+        <TabsTrigger value="template">Template</TabsTrigger>
+        <TabsTrigger value="mapping">Mapping</TabsTrigger>
+        {/* ... */}
+    </TabsList>
+    <TabsContents mode="auto-height">
+        <TabsContent value="template">...</TabsContent>
+        <TabsContent value="mapping">...</TabsContent>
+    </TabsContents>
 </Tabs>;
 ```
 
@@ -58,10 +58,10 @@ import { Tabs, TabsList, TabsTrigger, TabsContents, TabsContent } from "@/compon
 
 ```typescript
 export interface DuplicateDetectionConfig {
-  maxDateDiffDays: number; // Default: 3
-  maxAmountDiff: MoneyMinorUnits; // Default: 1 (cent)
-  minDescriptionSimilarity: number; // Default: 0.6 (60%)
-  minConfidence: number; // Default: 0.7 (70%)
+    maxDateDiffDays: number; // Default: 3
+    maxAmountDiff: MoneyMinorUnits; // Default: 1 (cent)
+    minDescriptionSimilarity: number; // Default: 0.6 (60%)
+    minConfidence: number; // Default: 0.7 (70%)
 }
 ```
 
@@ -83,9 +83,9 @@ export interface DuplicateDetectionConfig {
 - Separates concerns: filtering is distinct from duplicate detection
 - Pure function enables easy unit testing
 - Three modes map to simple conditional logic:
-  - "ignore all": Filter out all transactions older than cutoff
-  - "ignore duplicates": Filter out old transactions that ARE duplicates
-  - "do not ignore": No filtering (pass-through)
+    - "ignore all": Filter out all transactions older than cutoff
+    - "ignore duplicates": Filter out old transactions that ARE duplicates
+    - "do not ignore": No filtering (pass-through)
 
 **Function Signature**:
 
@@ -93,14 +93,14 @@ export interface DuplicateDetectionConfig {
 export type OldTransactionMode = "ignore-all" | "ignore-duplicates" | "do-not-ignore";
 
 export interface FilterConfig {
-  cutoffDays: number;
-  mode: OldTransactionMode;
+    cutoffDays: number;
+    mode: OldTransactionMode;
 }
 
 export function filterOldTransactions<T extends { date: string; isDuplicate?: boolean }>(
-  transactions: T[],
-  newestExistingDate: string | null,
-  config: FilterConfig
+    transactions: T[],
+    newestExistingDate: string | null,
+    config: FilterConfig
 ): { included: T[]; excluded: T[] };
 ```
 
@@ -132,16 +132,16 @@ export function filterOldTransactions<T extends { date: string; isDuplicate?: bo
 
 ```typescript
 export const importTemplateSchema = schema.LoroMap({
-  id: schema.String({ required: true }),
-  name: schema.String({ required: true }),
-  columnMappings: schema.LoroMapRecord(schema.String()),
-  formatting: schema.LoroMap({
-    hasHeaders: schema.Boolean({ defaultValue: true }),
-    thousandSeparator: schema.String({ defaultValue: "," }),
-    decimalSeparator: schema.String({ defaultValue: "." }),
-    dateFormat: schema.String({ defaultValue: "yyyy-MM-dd" }),
-  }),
-  deletedAt: schema.Number(),
+    id: schema.String({ required: true }),
+    name: schema.String({ required: true }),
+    columnMappings: schema.LoroMapRecord(schema.String()),
+    formatting: schema.LoroMap({
+        hasHeaders: schema.Boolean({ defaultValue: true }),
+        thousandSeparator: schema.String({ defaultValue: "," }),
+        decimalSeparator: schema.String({ defaultValue: "." }),
+        dateFormat: schema.String({ defaultValue: "yyyy-MM-dd" }),
+    }),
+    deletedAt: schema.Number(),
 });
 ```
 
@@ -231,13 +231,12 @@ computed derivations.
 ### Testing Strategy
 
 1. **Unit Tests** (`tests/unit/import/`):
-
-   - `filter.test.ts`: Table-driven tests for `filterOldTransactions()` covering all three modes
-   - `duplicates.test.ts`: Add tests for exact vs. similar matching modes
-   - Property-based tests: Amount comparisons are exact integers, date comparisons respect timezone
+    - `filter.test.ts`: Table-driven tests for `filterOldTransactions()` covering all three modes
+    - `duplicates.test.ts`: Add tests for exact vs. similar matching modes
+    - Property-based tests: Amount comparisons are exact integers, date comparisons respect timezone
 
 2. **E2E Tests** (`tests/e2e/import.spec.ts`):
-   - Test tab navigation and preview updates
-   - Test account selection validation
-   - Test duplicate detection with different settings
-   - Test old transaction filtering
+    - Test tab navigation and preview updates
+    - Test account selection validation
+    - Test duplicate detection with different settings
+    - Test old transaction filtering

@@ -12,18 +12,18 @@ This feature requires **no changes** to the persisted CRDT schema. The `Transact
 ```typescript
 // From src/lib/crdt/schema.ts - already exists
 export const transactionSchema = schema.LoroMap({
-  id: schema.String({ required: true }),
-  date: schema.String({ required: true }),        // ISO date string
-  description: schema.String({ defaultValue: "" }),  // Imported text from bank file (OFX NAME, CSV)
-  notes: schema.String({ defaultValue: "" }),        // User notes/memo
-  amount: schema.Number({ required: true }),
-  accountId: schema.String({ required: true }),
-  tagIds: schema.LoroList(schema.String(), (id) => id),
-  statusId: schema.String({ required: true }),
-  importId: schema.String(),
-  allocations: schema.LoroMapRecord(schema.Number()),
-  duplicateOf: schema.String(),
-  deletedAt: schema.Number(),
+    id: schema.String({ required: true }),
+    date: schema.String({ required: true }), // ISO date string
+    description: schema.String({ defaultValue: "" }), // Imported text from bank file (OFX NAME, CSV)
+    notes: schema.String({ defaultValue: "" }), // User notes/memo
+    amount: schema.Number({ required: true }),
+    accountId: schema.String({ required: true }),
+    tagIds: schema.LoroList(schema.String(), (id) => id),
+    statusId: schema.String({ required: true }),
+    importId: schema.String(),
+    allocations: schema.LoroMapRecord(schema.Number()),
+    duplicateOf: schema.String(),
+    deletedAt: schema.Number(),
 });
 ```
 
@@ -39,25 +39,25 @@ These interfaces define state managed in React components, not persisted to CRDT
  * Supports virtualized selection (tracks IDs even for non-rendered rows).
  */
 interface SelectionState {
-  /** Set of selected transaction IDs */
-  selectedIds: Set<string>;
-  
-  /** Last selected ID for shift-click range selection */
-  lastSelectedId: string | null;
+    /** Set of selected transaction IDs */
+    selectedIds: Set<string>;
+
+    /** Last selected ID for shift-click range selection */
+    lastSelectedId: string | null;
 }
 
 /**
  * Derived selection state computed from selectedIds and filteredIds
  */
 interface SelectionDerived {
-  /** True when all filtered transactions are selected */
-  isAllSelected: boolean;
-  
-  /** True when at least one (but not all) filtered transactions are selected */
-  isSomeSelected: boolean;
-  
-  /** Number of selected transactions */
-  selectedCount: number;
+    /** True when all filtered transactions are selected */
+    isAllSelected: boolean;
+
+    /** True when at least one (but not all) filtered transactions are selected */
+    isSomeSelected: boolean;
+
+    /** Number of selected transactions */
+    selectedCount: number;
 }
 ```
 
@@ -68,8 +68,8 @@ interface SelectionDerived {
  * Tracks which transactions have their description row expanded.
  */
 interface ExpandedState {
-  /** Set of transaction IDs with expanded description row */
-  expandedIds: Set<string>;
+    /** Set of transaction IDs with expanded description row */
+    expandedIds: Set<string>;
 }
 ```
 
@@ -80,27 +80,27 @@ interface ExpandedState {
  * Tracks which cell has keyboard focus for arrow key navigation.
  */
 interface FocusState {
-  /** Currently focused cell, or null if none */
-  focusedCell: {
-    rowId: string;
-    column: ColumnId;
-  } | null;
-  
-  /** Whether the focused cell is in edit mode (cursor in input) */
-  isEditing: boolean;
+    /** Currently focused cell, or null if none */
+    focusedCell: {
+        rowId: string;
+        column: ColumnId;
+    } | null;
+
+    /** Whether the focused cell is in edit mode (cursor in input) */
+    isEditing: boolean;
 }
 
 /** Valid column identifiers for focus navigation */
-type ColumnId = 
-  | "checkbox"
-  | "date" 
-  | "description"
-  | "account"
-  | "tags"
-  | "status"
-  | "amount"
-  | "balance"
-  | "actions";
+type ColumnId =
+    | "checkbox"
+    | "date"
+    | "description"
+    | "account"
+    | "tags"
+    | "status"
+    | "amount"
+    | "balance"
+    | "actions";
 ```
 
 ## Column Configuration
@@ -111,24 +111,66 @@ type ColumnId =
  * Order matches FR-033a: Checkbox → Date → Description → Account → Tags → Status → Amount → Balance → Actions
  */
 interface ColumnDef {
-  id: ColumnId;
-  header: string;
-  width: string;           // Tailwind width class
-  align: "left" | "center" | "right";
-  editable: boolean;
-  sortable: boolean;
+    id: ColumnId;
+    header: string;
+    width: string; // Tailwind width class
+    align: "left" | "center" | "right";
+    editable: boolean;
+    sortable: boolean;
 }
 
 const COLUMN_CONFIG: ColumnDef[] = [
-  { id: "checkbox", header: "",        width: "w-10",  align: "center", editable: false, sortable: false },
-  { id: "date",        header: "Date",        width: "w-28",  align: "left",   editable: true,  sortable: true },
-  { id: "description", header: "Description", width: "flex-1", align: "left",  editable: true,  sortable: true },
-  { id: "account",     header: "Account",     width: "w-32",  align: "left",   editable: true,  sortable: true },
-  { id: "tags",     header: "Tags",    width: "w-40",  align: "center", editable: true,  sortable: false },
-  { id: "status",   header: "Status",  width: "w-28",  align: "center", editable: true,  sortable: true },
-  { id: "amount",   header: "Amount",  width: "w-28",  align: "right",  editable: true,  sortable: true },
-  { id: "balance",  header: "Balance", width: "w-28",  align: "right",  editable: false, sortable: false },
-  { id: "actions",  header: "",        width: "w-20",  align: "center", editable: false, sortable: false },
+    {
+        id: "checkbox",
+        header: "",
+        width: "w-10",
+        align: "center",
+        editable: false,
+        sortable: false,
+    },
+    { id: "date", header: "Date", width: "w-28", align: "left", editable: true, sortable: true },
+    {
+        id: "description",
+        header: "Description",
+        width: "flex-1",
+        align: "left",
+        editable: true,
+        sortable: true,
+    },
+    {
+        id: "account",
+        header: "Account",
+        width: "w-32",
+        align: "left",
+        editable: true,
+        sortable: true,
+    },
+    { id: "tags", header: "Tags", width: "w-40", align: "center", editable: true, sortable: false },
+    {
+        id: "status",
+        header: "Status",
+        width: "w-28",
+        align: "center",
+        editable: true,
+        sortable: true,
+    },
+    {
+        id: "amount",
+        header: "Amount",
+        width: "w-28",
+        align: "right",
+        editable: true,
+        sortable: true,
+    },
+    {
+        id: "balance",
+        header: "Balance",
+        width: "w-28",
+        align: "right",
+        editable: false,
+        sortable: false,
+    },
+    { id: "actions", header: "", width: "w-20", align: "center", editable: false, sortable: false },
 ];
 ```
 

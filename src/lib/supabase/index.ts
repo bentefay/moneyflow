@@ -2,7 +2,7 @@ export { createSupabaseClientForBrowser as createSupabaseBrowser } from "./clien
 export type { OnPresenceCallback, OnUpdateCallback } from "./realtime";
 export { createVaultRealtimeSync, VaultRealtimeSync } from "./realtime";
 export {
-	createSupabaseClient as createSupabaseServer,
-	createSupabaseClientFresh as createSupabaseServerFresh,
+    createSupabaseClient as createSupabaseServer,
+    createSupabaseClientFresh as createSupabaseServerFresh,
 } from "./server";
 export type { Database } from "./types";

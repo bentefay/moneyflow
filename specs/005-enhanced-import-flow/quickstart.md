@@ -47,48 +47,44 @@ pnpm test:e2e
 ### Phase 1: Data Layer (1-2 days)
 
 1. **Extend CRDT schema** (`src/lib/crdt/schema.ts`)
-
-   - Add `duplicateDetection` map to `importTemplateSchema`
-   - Add `oldTransactionFilter` map
-   - Add `collapseWhitespace` to formatting
-   - Add `lastUsedAt` timestamp
+    - Add `duplicateDetection` map to `importTemplateSchema`
+    - Add `oldTransactionFilter` map
+    - Add `collapseWhitespace` to formatting
+    - Add `lastUsedAt` timestamp
 
 2. **Create filter module** (`src/lib/import/filter.ts`)
-
-   - Implement `filterOldTransactions()` pure function
-   - Write unit tests in `tests/unit/import/filter.test.ts`
+    - Implement `filterOldTransactions()` pure function
+    - Write unit tests in `tests/unit/import/filter.test.ts`
 
 3. **Extend duplicate detection** (`src/lib/import/duplicates.ts`)
-   - Add `dateMatchMode` and `descriptionMatchMode`
-   - Update `checkDuplicate()` to respect modes
-   - Add unit tests for new modes
+    - Add `dateMatchMode` and `descriptionMatchMode`
+    - Update `checkDuplicate()` to respect modes
+    - Add unit tests for new modes
 
 ### Phase 2: State Management (1 day)
 
 1. **Create import state hook** (`src/hooks/use-import-state.ts`)
-   - Consolidate all import session state
-   - Reactive preview computation
-   - Template auto-selection logic
+    - Consolidate all import session state
+    - Reactive preview computation
+    - Template auto-selection logic
 
 ### Phase 3: UI Components (2-3 days)
 
 1. **Create ImportTable** (`src/components/features/import/ImportTable.tsx`)
-
-   - Side-by-side raw/preview layout
-   - Row highlighting for duplicates/filtered
-   - Virtual scrolling for large files
+    - Side-by-side raw/preview layout
+    - Row highlighting for duplicates/filtered
+    - Virtual scrolling for large files
 
 2. **Create ConfigTabs** (`src/components/features/import/ConfigTabs.tsx`)
-
-   - Template tab (template selection, save)
-   - Mapping tab (column assignments)
-   - Formatting tab (separators, date format, whitespace)
-   - Duplicates tab (detection settings)
-   - Account tab (account selection)
+    - Template tab (template selection, save)
+    - Mapping tab (column assignments)
+    - Formatting tab (separators, date format, whitespace)
+    - Duplicates tab (detection settings)
+    - Account tab (account selection)
 
 3. **Create ImportPanel** (`src/components/features/import/ImportPanel.tsx`)
-   - Compose ImportTable + ConfigTabs
-   - Import/Cancel actions
+    - Compose ImportTable + ConfigTabs
+    - Import/Cancel actions
 
 ### Phase 4: Integration (1 day)
 

@@ -95,12 +95,14 @@ A user interacting with the sidebar navigation experiences consistent visual fee
 ### Functional Requirements
 
 **Vault Settings Page**
+
 - **FR-001**: System MUST provide a Vault Settings page accessible from the sidebar navigation
 - **FR-002**: Vault Settings page MUST display a currency selector with all supported currencies
 - **FR-003**: System MUST persist the selected default currency to the vault's CRDT state
 - **FR-004**: System MUST display the vault name on the settings page (read-only initially)
 
 **Navigation Changes**
+
 - **FR-005**: System MUST rename "Settings" navigation item to "Vault Settings"
 - **FR-006**: System MUST navigate new vault users to Vault Settings page after vault creation
 - **FR-007**: System MUST navigate existing vault users to Transactions page as default landing
@@ -109,15 +111,18 @@ A user interacting with the sidebar navigation experiences consistent visual fee
 - **FR-010**: Direct URL access to /dashboard MUST redirect to /transactions
 
 **Accounts Page Fixes**
+
 - **FR-011**: Accounts table MUST display columns in clearly aligned, separate sections
 - **FR-012**: Account rows MUST show "No account number yet" placeholder when account number is empty
 - **FR-013**: Owners column MUST be visually distinct from the Currency column
 
 **Menu Consistency**
+
 - **FR-014**: All sidebar navigation items (including "Lock") MUST display pointer cursor on hover
 - **FR-015**: All sidebar navigation items MUST use consistent interactive styling
 
 **Currency Default Behavior**
+
 - **FR-016**: New accounts MUST default to the vault's default currency when set
 - **FR-017**: System MUST fall back to USD when no vault default currency is configured
 

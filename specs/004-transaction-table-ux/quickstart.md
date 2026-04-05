@@ -10,51 +10,52 @@ Follow this order to minimize merge conflicts and enable incremental testing.
 ### Phase A: Foundation (No UI Changes Visible)
 
 1. **Install Temporal polyfill**
-   ```bash
-   pnpm add @js-temporal/polyfill
-   ```
+
+    ```bash
+    pnpm add @js-temporal/polyfill
+    ```
 
 2. **Create date formatting utility**
-   - File: `src/lib/utils/date-format.ts`
-   - Uses Temporal API with locale support
-   - Unit test: `tests/unit/transactions/date-format.test.ts`
+    - File: `src/lib/utils/date-format.ts`
+    - Uses Temporal API with locale support
+    - Unit test: `tests/unit/transactions/date-format.test.ts`
 
 3. **Create selection hook**
-   - File: `src/components/features/transactions/hooks/useTableSelection.ts`
-   - Pure logic, no UI dependencies
-   - Unit test: `tests/unit/transactions/selection.test.ts`
+    - File: `src/components/features/transactions/hooks/useTableSelection.ts`
+    - Pure logic, no UI dependencies
+    - Unit test: `tests/unit/transactions/selection.test.ts`
 
 4. **Create keyboard navigation hook**
-   - File: `src/components/features/transactions/hooks/useKeyboardNavigation.ts`
-   - Pure logic, state machine
-   - Unit test with state transitions
+    - File: `src/components/features/transactions/hooks/useKeyboardNavigation.ts`
+    - Pure logic, state machine
+    - Unit test with state transitions
 
 ### Phase B: Core Cell Components
 
 5. **Create EditableCell base component**
-   - File: `src/components/features/transactions/cells/EditableCell.tsx`
-   - Always-editable appearance
-   - Handles focus, blur, keyboard events
-   - No mode switching
+    - File: `src/components/features/transactions/cells/EditableCell.tsx`
+    - Always-editable appearance
+    - Handles focus, blur, keyboard events
+    - No mode switching
 
 6. **Create CheckboxCell component**
-   - File: `src/components/features/transactions/cells/CheckboxCell.tsx`
-   - Supports indeterminate state
-   - Passes shift-key info to parent
+    - File: `src/components/features/transactions/cells/CheckboxCell.tsx`
+    - Supports indeterminate state
+    - Passes shift-key info to parent
 
 7. **Refactor DateCell to use Temporal API**
-   - Modify: `src/components/features/transactions/cells/DateCell.tsx`
-   - Use new date-format utility
-   - Inherit from EditableCell pattern
+    - Modify: `src/components/features/transactions/cells/DateCell.tsx`
+    - Use new date-format utility
+    - Inherit from EditableCell pattern
 
 8. **Create MerchantCell (rename from description)**
-   - File: `src/components/features/transactions/cells/MerchantCell.tsx`
-   - Simple text cell
-   - Inherits EditableCell pattern
+    - File: `src/components/features/transactions/cells/MerchantCell.tsx`
+    - Simple text cell
+    - Inherits EditableCell pattern
 
 9. **Fix column alignments in all cells**
-   - Modify: All cell components
-   - Add `align` prop consistent with data-model.md
+    - Modify: All cell components
+    - Add `align` prop consistent with data-model.md
 
 ### Phase C: Table Structure
 
@@ -124,23 +125,23 @@ Follow this order to minimize merge conflicts and enable incremental testing.
 ```tsx
 // ❌ OLD: Mode switching
 function OldCell({ value, isEditing, onEditStart }) {
-  if (isEditing) {
-    return <input value={value} />;
-  }
-  return <span onDoubleClick={onEditStart}>{value}</span>;
+    if (isEditing) {
+        return <input value={value} />;
+    }
+    return <span onDoubleClick={onEditStart}>{value}</span>;
 }
 
 // ✅ NEW: Always editable
 function NewCell({ value, onChange }) {
-  const [local, setLocal] = useState(value);
-  return (
-    <input
-      value={local}
-      onChange={(e) => setLocal(e.target.value)}
-      onBlur={() => local !== value && onChange(local)}
-      className="border-transparent focus:border-primary"
-    />
-  );
+    const [local, setLocal] = useState(value);
+    return (
+        <input
+            value={local}
+            onChange={(e) => setLocal(e.target.value)}
+            onBlur={() => local !== value && onChange(local)}
+            className="border-transparent focus:border-primary"
+        />
+    );
 }
 ```
 
@@ -149,14 +150,14 @@ function NewCell({ value, onChange }) {
 ```tsx
 // Selection state is tracked by ID, not by rendered rows
 const { selectedIds, toggleRow, selectAll } = useTableSelection({
-  filteredIds: allFilteredTransactionIds, // Not just visible ones!
+    filteredIds: allFilteredTransactionIds, // Not just visible ones!
 });
 
 // Each row checks its own selection status
 <TransactionRow
-  isSelected={selectedIds.has(transaction.id)}
-  onSelectionChange={(checked, shiftKey) => toggleRow(transaction.id, shiftKey)}
-/>
+    isSelected={selectedIds.has(transaction.id)}
+    onSelectionChange={(checked, shiftKey) => toggleRow(transaction.id, shiftKey)}
+/>;
 ```
 
 ### Keyboard Navigation
@@ -164,11 +165,11 @@ const { selectedIds, toggleRow, selectAll } = useTableSelection({
 ```tsx
 // Container handles keyboard events
 <div onKeyDown={handleKeyDown}>
-  {rows.map(row => (
-    <TransactionRow
-      focusedColumn={focusedCell?.rowId === row.id ? focusedCell.column : undefined}
-    />
-  ))}
+    {rows.map((row) => (
+        <TransactionRow
+            focusedColumn={focusedCell?.rowId === row.id ? focusedCell.column : undefined}
+        />
+    ))}
 </div>
 
 // Arrow keys move focus (when not editing)
@@ -182,14 +183,14 @@ const { selectedIds, toggleRow, selectAll } = useTableSelection({
 ```tsx
 // All updates in single setState = single CRDT operation
 const { setTags } = useBulkEdit({
-  selectedIds,
-  onUpdate: (updates) => {
-    setState((draft) => {
-      for (const [id, update] of updates) {
-        Object.assign(draft.transactions[id], update);
-      }
-    });
-  },
+    selectedIds,
+    onUpdate: (updates) => {
+        setState((draft) => {
+            for (const [id, update] of updates) {
+                Object.assign(draft.transactions[id], update);
+            }
+        });
+    },
 });
 ```
 
@@ -198,12 +199,14 @@ const { setTags } = useBulkEdit({
 ## Testing Checklist
 
 ### Unit Tests
+
 - [ ] `date-format.ts` - locale formatting, edge cases
 - [ ] `useTableSelection` - select all, range select, toggle
 - [ ] `useKeyboardNavigation` - arrow keys, edit mode transitions
 - [ ] `useBulkEdit` - batching, progress tracking
 
 ### E2E Tests
+
 - [ ] Single-click edits cell (no double-click)
 - [ ] Tab moves to next cell and saves
 - [ ] Escape reverts changes
@@ -223,19 +226,21 @@ const { setTags } = useBulkEdit({
 2. **Focus Management**: When expanding description row, don't steal focus. Let user continue with current task.
 
 3. **Temporal API Types**: Import types from polyfill:
-   ```typescript
-   import { Temporal } from "@js-temporal/polyfill";
-   // NOT from @types/temporal-polyfill
-   ```
+
+    ```typescript
+    import { Temporal } from "@js-temporal/polyfill";
+    // NOT from @types/temporal-polyfill
+    ```
 
 4. **loro-mirror Draft Mutations**: Always mutate the draft, never return new objects:
-   ```typescript
-   // ✅ Correct
-   setState(draft => { draft.transactions[id].merchant = "New"; });
-   
-   // ❌ Wrong
-   setState(state => ({ ...state, transactions: { ... } }));
-   ```
+
+    ```typescript
+    // ✅ Correct
+    setState(draft => { draft.transactions[id].merchant = "New"; });
+
+    // ❌ Wrong
+    setState(state => ({ ...state, transactions: { ... } }));
+    ```
 
 5. **Column Order**: Always follow FR-033a:
    `Checkbox → Date → Merchant → Account → Tags → Status → Amount → Balance → Actions`

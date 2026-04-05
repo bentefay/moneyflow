@@ -5,10 +5,10 @@
  */
 
 export {
-	AccountActionMessage,
-	type AccountActionMessageProps,
-	AccountTab,
-	type AccountTabProps,
+    AccountActionMessage,
+    type AccountActionMessageProps,
+    AccountTab,
+    type AccountTabProps,
 } from "./AccountTab";
 export { DuplicatesTab, type DuplicatesTabProps } from "./DuplicatesTab";
 export { FormattingTab, type FormattingTabProps } from "./FormattingTab";

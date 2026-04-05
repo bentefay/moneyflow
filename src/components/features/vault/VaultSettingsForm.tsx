@@ -12,11 +12,13 @@
 
 import { Input } from "@/components/ui/input";
 import { useVaultAction, useVaultPreferences } from "@/lib/crdt/context";
+import { DEFAULT_CURRENCY, DEFAULT_VAULT_NAME } from "@/lib/crdt/defaults";
+
 import { CurrencySelector } from "./CurrencySelector";
 
 export interface VaultSettingsFormProps {
-	/** Additional CSS classes */
-	className?: string;
+    /** Additional CSS classes */
+    className?: string;
 }
 
 /**
@@ -24,65 +26,66 @@ export interface VaultSettingsFormProps {
  * Changes are automatically persisted to the vault's CRDT document.
  */
 export function VaultSettingsForm({ className }: VaultSettingsFormProps) {
-	const preferences = useVaultPreferences();
-	const vaultName = preferences?.name ?? "My Vault";
-	const defaultCurrency = preferences?.defaultCurrency ?? "USD";
+    const preferences = useVaultPreferences();
+    const vaultName = preferences?.name ?? DEFAULT_VAULT_NAME;
+    const defaultCurrency = preferences?.defaultCurrency ?? DEFAULT_CURRENCY;
 
-	// Create mutation action for updating vault name
-	const setVaultName = useVaultAction((state, name: string) => {
-		state.preferences.name = name;
-	});
+    // Create mutation action for updating vault name
+    const setVaultName = useVaultAction((state, name: string) => {
+        state.preferences.name = name;
+    });
 
-	// Create mutation action for updating default currency
-	const setDefaultCurrency = useVaultAction((state, currency: string) => {
-		state.preferences.defaultCurrency = currency;
-	});
+    // Create mutation action for updating default currency
+    const setDefaultCurrency = useVaultAction((state, currency: string) => {
+        state.preferences.defaultCurrency = currency;
+    });
 
-	return (
-		<div className={className}>
-			<div className="max-w-md space-y-8">
-				{/* Vault Info Section */}
-				<section>
-					<h2 className="mb-4 font-medium text-lg">Vault Information</h2>
-					<div className="space-y-4">
-						<div>
-							<label htmlFor="vault-name" className="font-medium text-sm">
-								Vault Name
-							</label>
-							<p className="mt-1 mb-2 text-muted-foreground text-sm">
-								A friendly name to identify this vault.
-							</p>
-							<Input
-								id="vault-name"
-								value={vaultName}
-								onChange={(e) => setVaultName(e.target.value)}
-								placeholder="My Vault"
-								className="max-w-xs"
-							/>
-						</div>
-					</div>
-				</section>
+    return (
+        <div className={className}>
+            <div className="max-w-md space-y-8">
+                {/* Vault Info Section */}
+                <section>
+                    <h2 className="mb-4 text-lg font-medium">Vault Information</h2>
+                    <div className="space-y-4">
+                        <div>
+                            <label htmlFor="vault-name" className="text-sm font-medium">
+                                Vault Name
+                            </label>
+                            <p className="text-muted-foreground mt-1 mb-2 text-sm">
+                                A friendly name to identify this vault.
+                            </p>
+                            <Input
+                                id="vault-name"
+                                value={vaultName}
+                                onChange={(e) => setVaultName(e.target.value)}
+                                placeholder="My Vault"
+                                className="max-w-xs"
+                            />
+                        </div>
+                    </div>
+                </section>
 
-				{/* Currency Settings Section */}
-				<section>
-					<h2 className="mb-4 font-medium text-lg">Currency Settings</h2>
-					<div className="space-y-4">
-						<div>
-							<label htmlFor="default-currency" className="font-medium text-sm">
-								Default Currency
-							</label>
-							<p className="mt-1 mb-2 text-muted-foreground text-sm">
-								New accounts will use this currency by default. Existing accounts are not affected.
-							</p>
-							<CurrencySelector
-								value={defaultCurrency}
-								onChange={setDefaultCurrency}
-								className="max-w-xs"
-							/>
-						</div>
-					</div>
-				</section>
-			</div>
-		</div>
-	);
+                {/* Currency Settings Section */}
+                <section>
+                    <h2 className="mb-4 text-lg font-medium">Currency Settings</h2>
+                    <div className="space-y-4">
+                        <div>
+                            <label htmlFor="default-currency" className="text-sm font-medium">
+                                Default Currency
+                            </label>
+                            <p className="text-muted-foreground mt-1 mb-2 text-sm">
+                                New accounts will use this currency by default. Existing accounts
+                                are not affected.
+                            </p>
+                            <CurrencySelector
+                                value={defaultCurrency}
+                                onChange={setDefaultCurrency}
+                                className="max-w-xs"
+                            />
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    );
 }

@@ -41,13 +41,13 @@ All authenticated procedures verify Ed25519 signatures:
 ```typescript
 // In trpc.ts
 export const authedProcedure = publicProcedure.use(async ({ ctx, next }) => {
-  const { pubkeyHash, signature, timestamp, message } = ctx.auth;
+    const { pubkeyHash, signature, timestamp, message } = ctx.auth;
 
-  // Verify signature matches pubkeyHash
-  // Verify timestamp is recent (prevent replay)
-  // Verify message matches request
+    // Verify signature matches pubkeyHash
+    // Verify timestamp is recent (prevent replay)
+    // Verify message matches request
 
-  return next({ ctx: { ...ctx, pubkeyHash } });
+    return next({ ctx: { ...ctx, pubkeyHash } });
 });
 ```
 
@@ -60,13 +60,13 @@ import { router, authedProcedure } from "../trpc";
 import { createVaultSchema, updateVaultSchema } from "../schemas/vault";
 
 export const vaultRouter = router({
-  create: authedProcedure.input(createVaultSchema).mutation(async ({ ctx, input }) => {
-    // Implementation
-  }),
+    create: authedProcedure.input(createVaultSchema).mutation(async ({ ctx, input }) => {
+        // Implementation
+    }),
 
-  list: authedProcedure.query(async ({ ctx }) => {
-    // Implementation
-  }),
+    list: authedProcedure.query(async ({ ctx }) => {
+        // Implementation
+    }),
 });
 ```
 
@@ -77,9 +77,9 @@ export const vaultRouter = router({
 import { z } from "zod";
 
 export const createVaultSchema = z.object({
-  name: z.string().min(1).max(100),
-  encryptedSnapshot: z.string(), // Base64 encrypted data
-  wrappedKey: z.string(), // Wrapped vault key for creator
+    name: z.string().min(1).max(100),
+    encryptedSnapshot: z.string(), // Base64 encrypted data
+    wrappedKey: z.string(), // Wrapped vault key for creator
 });
 
 export type CreateVaultInput = z.infer<typeof createVaultSchema>;
@@ -102,17 +102,17 @@ Use TRPCError for consistent error responses:
 import { TRPCError } from "@trpc/server";
 
 if (!vault) {
-  throw new TRPCError({
-    code: "NOT_FOUND",
-    message: "Vault not found",
-  });
+    throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "Vault not found",
+    });
 }
 
 if (!hasAccess) {
-  throw new TRPCError({
-    code: "FORBIDDEN",
-    message: "You don't have access to this vault",
-  });
+    throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "You don't have access to this vault",
+    });
 }
 ```
 
@@ -126,11 +126,11 @@ import { createCaller } from "../routers/_app";
 const caller = createCaller({ db: testDb, pubkeyHash: "test-user" });
 
 it("creates vault", async () => {
-  const result = await caller.vault.create({
-    name: "Test Vault",
-    encryptedSnapshot: "...",
-    wrappedKey: "...",
-  });
-  expect(result.id).toBeDefined();
+    const result = await caller.vault.create({
+        name: "Test Vault",
+        encryptedSnapshot: "...",
+        wrappedKey: "...",
+    });
+    expect(result.id).toBeDefined();
 });
 ```

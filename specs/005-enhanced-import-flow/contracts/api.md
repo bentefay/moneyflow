@@ -16,22 +16,22 @@ the existing CRDT sync mechanism.
 export type OldTransactionMode = "ignore-all" | "ignore-duplicates" | "do-not-ignore";
 
 export interface FilterConfig {
-  mode: OldTransactionMode;
-  cutoffDays: number;
+    mode: OldTransactionMode;
+    cutoffDays: number;
 }
 
 export interface FilterResult<T> {
-  included: T[];
-  excluded: T[];
-  stats: FilterStats;
+    included: T[];
+    excluded: T[];
+    stats: FilterStats;
 }
 
 export interface FilterStats {
-  totalCount: number;
-  includedCount: number;
-  excludedCount: number;
-  oldDuplicatesCount: number;
-  oldNonDuplicatesCount: number;
+    totalCount: number;
+    includedCount: number;
+    excludedCount: number;
+    oldDuplicatesCount: number;
+    oldNonDuplicatesCount: number;
 }
 
 /**
@@ -49,9 +49,9 @@ export interface FilterStats {
  * });
  */
 export function filterOldTransactions<T extends { date: string; isDuplicate?: boolean }>(
-  transactions: T[],
-  newestExistingDate: string | null,
-  config: FilterConfig
+    transactions: T[],
+    newestExistingDate: string | null,
+    config: FilterConfig
 ): FilterResult<T>;
 ```
 
@@ -66,24 +66,24 @@ export type DateMatchMode = "exact" | "within";
 export type DescriptionMatchMode = "exact" | "similar";
 
 export interface DuplicateDetectionConfig {
-  dateMatchMode: DateMatchMode;
-  maxDateDiffDays: number;
-  descriptionMatchMode: DescriptionMatchMode;
-  minDescriptionSimilarity: number;
-  maxAmountDiff: MoneyMinorUnits;
-  minConfidence: number;
+    dateMatchMode: DateMatchMode;
+    maxDateDiffDays: number;
+    descriptionMatchMode: DescriptionMatchMode;
+    minDescriptionSimilarity: number;
+    maxAmountDiff: MoneyMinorUnits;
+    minConfidence: number;
 }
 
 export interface DuplicateCheckResult {
-  rowIndex: number;
-  isDuplicate: boolean;
-  matchedTransactionId: string | null;
-  confidence: number;
-  matchDetails: {
-    dateScore: number;
-    descriptionScore: number;
-    amountMatches: boolean;
-  };
+    rowIndex: number;
+    isDuplicate: boolean;
+    matchedTransactionId: string | null;
+    confidence: number;
+    matchDetails: {
+        dateScore: number;
+        descriptionScore: number;
+        amountMatches: boolean;
+    };
 }
 
 /**
@@ -95,9 +95,9 @@ export interface DuplicateCheckResult {
  * @returns Duplicate check result with confidence score
  */
 export function checkDuplicate(
-  imported: ParsedTransaction,
-  existing: Transaction[],
-  config: DuplicateDetectionConfig
+    imported: ParsedTransaction,
+    existing: Transaction[],
+    config: DuplicateDetectionConfig
 ): DuplicateCheckResult;
 
 /**
@@ -109,9 +109,9 @@ export function checkDuplicate(
  * @returns Array of results in same order as input
  */
 export function checkDuplicates(
-  imported: ParsedTransaction[],
-  existing: Transaction[],
-  config: DuplicateDetectionConfig
+    imported: ParsedTransaction[],
+    existing: Transaction[],
+    config: DuplicateDetectionConfig
 ): DuplicateCheckResult[];
 ```
 
@@ -123,27 +123,27 @@ export function checkDuplicates(
 // src/lib/import/templates.ts
 
 export interface TemplateService {
-  /**
-   * Find templates matching a file signature (filename pattern, column headers).
-   * Returns templates sorted by lastUsedAt descending.
-   */
-  findMatchingTemplates(fileName: string, headers: string[]): ImportTemplate[];
+    /**
+     * Find templates matching a file signature (filename pattern, column headers).
+     * Returns templates sorted by lastUsedAt descending.
+     */
+    findMatchingTemplates(fileName: string, headers: string[]): ImportTemplate[];
 
-  /**
-   * Get the most recently used template for auto-selection.
-   */
-  getMostRecentTemplate(): ImportTemplate | null;
+    /**
+     * Get the most recently used template for auto-selection.
+     */
+    getMostRecentTemplate(): ImportTemplate | null;
 
-  /**
-   * Save template settings. Creates new if templateId is null.
-   * Updates lastUsedAt timestamp.
-   */
-  saveTemplate(templateId: string | null, name: string, config: ImportConfig): ImportTemplate;
+    /**
+     * Save template settings. Creates new if templateId is null.
+     * Updates lastUsedAt timestamp.
+     */
+    saveTemplate(templateId: string | null, name: string, config: ImportConfig): ImportTemplate;
 
-  /**
-   * Find account matching OFX account ID.
-   */
-  findAccountByNumber(accountNumber: string): Account | null;
+    /**
+     * Find account matching OFX account ID.
+     */
+    findAccountByNumber(accountNumber: string): Account | null;
 }
 ```
 
@@ -155,27 +155,27 @@ export interface TemplateService {
 // src/hooks/use-import-state.ts
 
 export interface UseImportStateReturn {
-  // State
-  session: ImportSession | null;
-  isLoading: boolean;
-  error: Error | null;
+    // State
+    session: ImportSession | null;
+    isLoading: boolean;
+    error: Error | null;
 
-  // Actions
-  loadFile: (file: File) => Promise<void>;
-  setConfig: (updates: Partial<ImportConfig>) => void;
-  selectAccount: (accountId: string) => void;
-  selectTemplate: (templateId: string | null) => void;
+    // Actions
+    loadFile: (file: File) => Promise<void>;
+    setConfig: (updates: Partial<ImportConfig>) => void;
+    selectAccount: (accountId: string) => void;
+    selectTemplate: (templateId: string | null) => void;
 
-  // Computed
-  previewTransactions: PreviewTransaction[];
-  duplicateStats: { total: number; duplicates: number; filtered: number };
-  canImport: boolean;
-  validationErrors: ValidationError[];
+    // Computed
+    previewTransactions: PreviewTransaction[];
+    duplicateStats: { total: number; duplicates: number; filtered: number };
+    canImport: boolean;
+    validationErrors: ValidationError[];
 
-  // Final actions
-  importTransactions: () => Promise<ImportResult>;
-  saveAsTemplate: (name: string) => Promise<ImportTemplate>;
-  cancel: () => void;
+    // Final actions
+    importTransactions: () => Promise<ImportResult>;
+    saveAsTemplate: (name: string) => Promise<ImportTemplate>;
+    cancel: () => void;
 }
 
 export function useImportState(vaultId: string): UseImportStateReturn;
@@ -188,39 +188,39 @@ export function useImportState(vaultId: string): UseImportStateReturn;
 ```typescript
 // src/components/features/import/ImportPanel.tsx
 interface ImportPanelProps {
-  vaultId: string;
-  onComplete: () => void;
-  onCancel: () => void;
+    vaultId: string;
+    onComplete: () => void;
+    onCancel: () => void;
 }
 
 // src/components/features/import/ImportTable.tsx
 interface ImportTableProps {
-  rawRows: string[][];
-  previewTransactions: PreviewTransaction[];
-  columnMappings: Record<string, string>;
-  onRowClick?: (rowIndex: number) => void;
+    rawRows: string[][];
+    previewTransactions: PreviewTransaction[];
+    columnMappings: Record<string, string>;
+    onRowClick?: (rowIndex: number) => void;
 }
 
 // src/components/features/import/ConfigTabs.tsx
 interface ConfigTabsProps {
-  config: ImportConfig;
-  onChange: (updates: Partial<ImportConfig>) => void;
-  headers: string[]; // For column mapping
+    config: ImportConfig;
+    onChange: (updates: Partial<ImportConfig>) => void;
+    headers: string[]; // For column mapping
 }
 
 // src/components/features/import/tabs/DuplicatesTab.tsx
 interface DuplicatesTabProps {
-  config: DuplicateDetectionConfig;
-  onChange: (updates: Partial<DuplicateDetectionConfig>) => void;
-  stats: { checked: number; duplicates: number };
+    config: DuplicateDetectionConfig;
+    onChange: (updates: Partial<DuplicateDetectionConfig>) => void;
+    stats: { checked: number; duplicates: number };
 }
 
 // src/components/features/import/tabs/AccountTab.tsx
 interface AccountTabProps {
-  accounts: Account[];
-  selectedAccountId: string | null;
-  detectedAccountNumber: string | null;
-  onSelect: (accountId: string) => void;
+    accounts: Account[];
+    selectedAccountId: string | null;
+    detectedAccountNumber: string | null;
+    onSelect: (accountId: string) => void;
 }
 ```
 

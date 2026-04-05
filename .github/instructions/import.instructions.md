@@ -60,11 +60,11 @@ The CSV parser auto-detects:
 
 ```typescript
 const result = parseCSV(content, {
-  hasHeaders: true,
-  separator: ",",
-  dateFormat: "MM/dd/yyyy",
-  decimalSeparator: ".",
-  thousandSeparator: ",",
+    hasHeaders: true,
+    separator: ",",
+    dateFormat: "MM/dd/yyyy",
+    decimalSeparator: ".",
+    thousandSeparator: ",",
 });
 ```
 
@@ -74,8 +74,8 @@ Handles OFX 1.x (SGML) and OFX 2.x (XML) formats:
 
 ```typescript
 if (isOFXFormat(content)) {
-  const result = parseOFX(content);
-  // result.transactions, result.accountInfo
+    const result = parseOFX(content);
+    // result.transactions, result.accountInfo
 }
 ```
 
@@ -85,9 +85,9 @@ Uses Levenshtein distance for fuzzy matching:
 
 ```typescript
 const config: DuplicateDetectionConfig = {
-  dateWindowDays: 3, // ±3 days
-  amountTolerance: 0.01, // 1 cent
-  descriptionThreshold: 0.8, // 80% similarity
+    dateWindowDays: 3, // ±3 days
+    amountTolerance: 0.01, // 1 cent
+    descriptionThreshold: 0.8, // 80% similarity
 };
 
 const matches = detectDuplicates(newTransactions, existingTransactions, config);
@@ -108,13 +108,13 @@ Return structured errors, don't throw:
 
 ```typescript
 interface ParseResult {
-  success: boolean;
-  transactions?: Transaction[];
-  errors?: Array<{
-    row: number;
-    field: string;
-    message: string;
-  }>;
+    success: boolean;
+    transactions?: Transaction[];
+    errors?: Array<{
+        row: number;
+        field: string;
+        message: string;
+    }>;
 }
 ```
 

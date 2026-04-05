@@ -14,11 +14,11 @@ description: Real-time sync with Supabase, Loro CRDT, and IndexedDB. Use when wo
 
 ## Persistence Flow
 
-| Event            | IndexedDB              | Server                    |
-| ---------------- | ---------------------- | ------------------------- |
-| Local change     | **Immediate**          | **Throttled** (~2s)       |
-| Tab hidden/close | Immediate              | Flush pending             |
-| Cold start       | Load snapshot → usable | Background sync           |
+| Event            | IndexedDB              | Server              |
+| ---------------- | ---------------------- | ------------------- |
+| Local change     | **Immediate**          | **Throttled** (~2s) |
+| Tab hidden/close | Immediate              | Flush pending       |
+| Cold start       | Load snapshot → usable | Background sync     |
 
 ## Critical Rules
 

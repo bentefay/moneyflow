@@ -12,38 +12,38 @@ The existing `importTemplateSchema` gains new fields for duplicate detection and
 ```typescript
 // src/lib/crdt/schema.ts - Extended ImportTemplate
 {
-  id: string; // UUID
-  name: string; // User-assigned name
+    id: string; // UUID
+    name: string; // User-assigned name
 
-  // Existing fields
-  columnMappings: Record<string, string>;
-  formatting: {
-    hasHeaders: boolean; // Default: true
-    thousandSeparator: string; // Default: ","
-    decimalSeparator: string; // Default: "."
-    dateFormat: string; // Default: "yyyy-MM-dd"
-    collapseWhitespace: boolean; // NEW - Default: false
-  }
+    // Existing fields
+    columnMappings: Record<string, string>;
+    formatting: {
+        hasHeaders: boolean; // Default: true
+        thousandSeparator: string; // Default: ","
+        decimalSeparator: string; // Default: "."
+        dateFormat: string; // Default: "yyyy-MM-dd"
+        collapseWhitespace: boolean; // NEW - Default: false
+    }
 
-  // NEW: Duplicate detection settings
-  duplicateDetection: {
-    dateMatchMode: "exact" | "within"; // Default: "within"
-    maxDateDiffDays: number; // Default: 3 (only when mode="within")
-    descriptionMatchMode: "exact" | "similar"; // Default: "similar"
-    minDescriptionSimilarity: number; // Default: 0.6 (only when mode="similar")
-  }
+    // NEW: Duplicate detection settings
+    duplicateDetection: {
+        dateMatchMode: "exact" | "within"; // Default: "within"
+        maxDateDiffDays: number; // Default: 3 (only when mode="within")
+        descriptionMatchMode: "exact" | "similar"; // Default: "similar"
+        minDescriptionSimilarity: number; // Default: 0.6 (only when mode="similar")
+    }
 
-  // NEW: Old transaction filtering
-  oldTransactionFilter: {
-    mode: "ignore-all" | "ignore-duplicates" | "do-not-ignore"; // Default: "ignore-duplicates"
-    cutoffDays: number; // Default: 10
-  }
+    // NEW: Old transaction filtering
+    oldTransactionFilter: {
+        mode: "ignore-all" | "ignore-duplicates" | "do-not-ignore"; // Default: "ignore-duplicates"
+        cutoffDays: number; // Default: 10
+    }
 
-  // NEW: Usage tracking for auto-selection
-  lastUsedAt: number | null; // Unix timestamp of last import
+    // NEW: Usage tracking for auto-selection
+    lastUsedAt: number | null; // Unix timestamp of last import
 
-  // Soft delete
-  deletedAt: number | null;
+    // Soft delete
+    deletedAt: number | null;
 }
 ```
 
@@ -67,11 +67,11 @@ required.
 ```typescript
 // Existing account schema (relevant fields)
 {
-  id: string;
-  name: string;
-  accountNumber: string | null; // Used for OFX <ACCTID> matching
-  currency: string;
-  // ... other fields
+    id: string;
+    name: string;
+    accountNumber: string | null; // Used for OFX <ACCTID> matching
+    currency: string;
+    // ... other fields
 }
 ```
 
@@ -92,39 +92,39 @@ React state.
 ```typescript
 // src/lib/import/types.ts
 interface ImportSession {
-  // File metadata
-  fileId: string; // Random ID for this import session
-  fileName: string;
-  fileType: "csv" | "ofx";
-  rawContent: string; // Original file content
+    // File metadata
+    fileId: string; // Random ID for this import session
+    fileName: string;
+    fileType: "csv" | "ofx";
+    rawContent: string; // Original file content
 
-  // Parsed data
-  rawRows: string[][]; // For CSV: [row][column]
-  parsedTransactions: ParsedTransaction[];
+    // Parsed data
+    rawRows: string[][]; // For CSV: [row][column]
+    parsedTransactions: ParsedTransaction[];
 
-  // Configuration (from selected template, editable)
-  templateId: string | null;
-  config: ImportConfig;
+    // Configuration (from selected template, editable)
+    templateId: string | null;
+    config: ImportConfig;
 
-  // Account selection
-  selectedAccountId: string | null;
-  detectedAccountNumber: string | null; // From OFX <ACCTID>
+    // Account selection
+    selectedAccountId: string | null;
+    detectedAccountNumber: string | null; // From OFX <ACCTID>
 
-  // Computed state
-  previewTransactions: PreviewTransaction[];
-  duplicateResults: DuplicateCheckResult[];
-  filteredOut: ParsedTransaction[]; // Transactions excluded by filter
+    // Computed state
+    previewTransactions: PreviewTransaction[];
+    duplicateResults: DuplicateCheckResult[];
+    filteredOut: ParsedTransaction[]; // Transactions excluded by filter
 
-  // Validation
-  validationErrors: ValidationError[];
-  canImport: boolean;
+    // Validation
+    validationErrors: ValidationError[];
+    canImport: boolean;
 }
 
 interface ImportConfig {
-  formatting: FormattingSettings;
-  duplicateDetection: DuplicateDetectionSettings;
-  oldTransactionFilter: FilterSettings;
-  columnMappings: Record<string, string>;
+    formatting: FormattingSettings;
+    duplicateDetection: DuplicateDetectionSettings;
+    oldTransactionFilter: FilterSettings;
+    columnMappings: Record<string, string>;
 }
 ```
 
@@ -136,18 +136,18 @@ Represents a transaction in the preview table with computed status.
 
 ```typescript
 interface PreviewTransaction {
-  rowIndex: number; // Original row in raw data
+    rowIndex: number; // Original row in raw data
 
-  // Core fields (displayed in preview)
-  date: string; // ISO 8601 date
-  description: string; // Cleaned/normalized description
-  amount: MoneyMinorUnits; // Integer in minor units
+    // Core fields (displayed in preview)
+    date: string; // ISO 8601 date
+    description: string; // Cleaned/normalized description
+    amount: MoneyMinorUnits; // Integer in minor units
 
-  // Status indicators
-  status: "valid" | "invalid" | "duplicate" | "filtered";
-  duplicateOf: string | null; // ID of matching existing transaction
-  duplicateConfidence: number; // 0.0-1.0
-  validationErrors: string[]; // e.g., ["Invalid date format"]
+    // Status indicators
+    status: "valid" | "invalid" | "duplicate" | "filtered";
+    duplicateOf: string | null; // ID of matching existing transaction
+    duplicateConfidence: number; // 0.0-1.0
+    validationErrors: string[]; // e.g., ["Invalid date format"]
 }
 ```
 
@@ -160,19 +160,19 @@ Extends existing config with user-controllable match modes.
 ```typescript
 // src/lib/import/duplicates.ts
 interface DuplicateDetectionConfig {
-  // Date matching
-  dateMatchMode: "exact" | "within";
-  maxDateDiffDays: number; // Only used when mode="within"
+    // Date matching
+    dateMatchMode: "exact" | "within";
+    maxDateDiffDays: number; // Only used when mode="within"
 
-  // Description matching
-  descriptionMatchMode: "exact" | "similar";
-  minDescriptionSimilarity: number; // Only used when mode="similar"
+    // Description matching
+    descriptionMatchMode: "exact" | "similar";
+    minDescriptionSimilarity: number; // Only used when mode="similar"
 
-  // Amount matching (unchanged)
-  maxAmountDiff: MoneyMinorUnits; // Default: 1 (cent)
+    // Amount matching (unchanged)
+    maxAmountDiff: MoneyMinorUnits; // Default: 1 (cent)
 
-  // Threshold for flagging as duplicate
-  minConfidence: number; // Default: 0.7
+    // Threshold for flagging as duplicate
+    minConfidence: number; // Default: 0.7
 }
 ```
 
@@ -185,15 +185,15 @@ Output of old transaction filtering.
 ```typescript
 // src/lib/import/filter.ts
 interface FilterResult<T> {
-  included: T[]; // Transactions to show in preview
-  excluded: T[]; // Transactions filtered out (shown grayed/hidden)
-  stats: {
-    totalCount: number;
-    includedCount: number;
-    excludedCount: number;
-    oldDuplicatesCount: number; // When mode="ignore-duplicates"
-    oldNonDuplicatesCount: number; // Old but NOT duplicates (still included)
-  };
+    included: T[]; // Transactions to show in preview
+    excluded: T[]; // Transactions filtered out (shown grayed/hidden)
+    stats: {
+        totalCount: number;
+        includedCount: number;
+        excludedCount: number;
+        oldDuplicatesCount: number; // When mode="ignore-duplicates"
+        oldNonDuplicatesCount: number; // Old but NOT duplicates (still included)
+    };
 }
 ```
 

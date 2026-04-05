@@ -23,17 +23,17 @@ Comprehensive UX overhaul of the transaction table to enable seamless inline edi
 
 _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
-| Principle | Status | Notes |
-|-----------|--------|-------|
-| I. Security & Privacy | ✅ Pass | No new server-side data; all edits remain client-encrypted |
-| II. Multi-Party Integrity | ✅ Pass | Bulk edits use CRDT; allocations unchanged |
-| III. Data Portability | ✅ Pass | No changes to import/export |
-| IV. Auditability | ✅ Pass | Loro tracks all changes |
-| V. User-Owned Data | ✅ Pass | No new vendor dependencies |
-| VI. Performance & Beauty | ✅ Pass | Always-editable cells eliminate jitter; targets defined |
-| VII. Robustness | ✅ Pass | Unit tests for hooks; E2E for user flows |
-| VIII. LLM-Agent Friendly | ✅ Pass | Components follow existing patterns |
-| IX. Code Clarity | ✅ Pass | Pure functions, immutable patterns, clear naming |
+| Principle                 | Status  | Notes                                                      |
+| ------------------------- | ------- | ---------------------------------------------------------- |
+| I. Security & Privacy     | ✅ Pass | No new server-side data; all edits remain client-encrypted |
+| II. Multi-Party Integrity | ✅ Pass | Bulk edits use CRDT; allocations unchanged                 |
+| III. Data Portability     | ✅ Pass | No changes to import/export                                |
+| IV. Auditability          | ✅ Pass | Loro tracks all changes                                    |
+| V. User-Owned Data        | ✅ Pass | No new vendor dependencies                                 |
+| VI. Performance & Beauty  | ✅ Pass | Always-editable cells eliminate jitter; targets defined    |
+| VII. Robustness           | ✅ Pass | Unit tests for hooks; E2E for user flows                   |
+| VIII. LLM-Agent Friendly  | ✅ Pass | Components follow existing patterns                        |
+| IX. Code Clarity          | ✅ Pass | Pure functions, immutable patterns, clear naming           |
 
 **Gate Status**: ✅ PASSED (Pre-Phase 0 and Post-Phase 1)
 
@@ -135,20 +135,20 @@ See [data-model.md](./data-model.md) for complete entity definitions.
 ```typescript
 // Selection state - managed in React
 interface SelectionState {
-  selectedIds: Set<string>;
-  lastSelectedId: string | null;
-  isAllSelected: boolean; // True when header checkbox is checked
+    selectedIds: Set<string>;
+    lastSelectedId: string | null;
+    isAllSelected: boolean; // True when header checkbox is checked
 }
 
 // Expanded descriptions - managed in React
 interface ExpandedState {
-  expandedIds: Set<string>; // Transaction IDs with description row visible
+    expandedIds: Set<string>; // Transaction IDs with description row visible
 }
 
 // Keyboard focus - managed in React
 interface FocusState {
-  focusedCell: { rowId: string; column: string } | null;
-  isEditing: boolean;
+    focusedCell: { rowId: string; column: string } | null;
+    isEditing: boolean;
 }
 ```
 

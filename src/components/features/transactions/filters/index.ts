@@ -6,8 +6,8 @@
 
 export { type DateRange, DateRangeFilter, type DateRangeFilterProps } from "./DateRangeFilter";
 export {
-	type FilterOption,
-	MultiSelectFilter,
-	type MultiSelectFilterProps,
+    type FilterOption,
+    MultiSelectFilter,
+    type MultiSelectFilterProps,
 } from "./MultiSelectFilter";
 export { SearchFilter, type SearchFilterProps } from "./SearchFilter";

@@ -8,6 +8,7 @@
 **No new API contracts required for this feature.**
 
 All changes are client-side only:
+
 - CRDT schema modifications (loro-mirror)
 - React component updates
 - Domain logic helpers
@@ -16,12 +17,12 @@ The existing tRPC API for vault operations remains unchanged—encrypted CRDT op
 
 ## Existing Contracts (Unchanged)
 
-| Endpoint | Purpose | Change |
-|----------|---------|--------|
-| `vault.pushOps` | Push encrypted CRDT operations | None |
-| `vault.pullOps` | Pull encrypted CRDT operations | None |
-| `vault.saveSnapshot` | Save encrypted vault snapshot | None |
-| `vault.getSnapshot` | Get encrypted vault snapshot | None |
+| Endpoint             | Purpose                        | Change |
+| -------------------- | ------------------------------ | ------ |
+| `vault.pushOps`      | Push encrypted CRDT operations | None   |
+| `vault.pullOps`      | Pull encrypted CRDT operations | None   |
+| `vault.saveSnapshot` | Save encrypted vault snapshot  | None   |
+| `vault.getSnapshot`  | Get encrypted vault snapshot   | None   |
 
 ## Why No New Contracts?
 
