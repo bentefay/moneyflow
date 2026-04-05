@@ -49,7 +49,7 @@
         "date-fns": "^4.1.0",
         "idb": "^8.0.3",
         "libsodium-wrappers": "^0.7.15",
-        "lodash-es": "^4.17.22",
+        "lodash-es": "^4.18.1",
         "loro-crdt": "1.10.8",
         "loro-mirror": "2.1.0",
         "loro-mirror-react": "2.1.0",
