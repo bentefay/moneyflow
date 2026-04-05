@@ -96,14 +96,14 @@ importers:
         specifier: ^4.17.22
         version: 4.17.22
       loro-crdt:
-        specifier: ^1.10.3
-        version: 1.10.3
+        specifier: 1.10.8
+        version: 1.10.8
       loro-mirror:
-        specifier: file:../loro-mirror/packages/core
-        version: file:../loro-mirror/packages/core(loro-crdt@1.10.3)
+        specifier: 2.1.0
+        version: 2.1.0(loro-crdt@1.10.8)
       loro-mirror-react:
-        specifier: file:../loro-mirror/packages/react
-        version: file:../loro-mirror/packages/react(loro-crdt@1.10.3)(loro-mirror@file:../loro-mirror/packages/core(loro-crdt@1.10.3))(react@19.2.3)
+        specifier: 2.1.0
+        version: 2.1.0(loro-crdt@1.10.8)(loro-mirror@2.1.0(loro-crdt@1.10.8))(react@19.2.3)
       lucide-react:
         specifier: ^0.562.0
         version: 0.562.0(react@19.2.3)
@@ -3629,18 +3629,18 @@ packages:
   lodash-es@4.17.22:
     resolution: {integrity: sha512-XEawp1t0gxSi9x01glktRZ5HDy0HXqrM0x5pXQM98EaI0NxO6jVM7omDOxsuEo5UIASAnm2bRp1Jt/e0a2XU8Q==}
 
-  loro-crdt@1.10.3:
-    resolution: {integrity: sha512-vzWkVw7mWrKTilPjrgAhhzjAyOn3/DaUPJxdK9lunpEI1Y+uQMDBt/pEtRiovKFtGXo4tUVfULnFc7H/ufGwkQ==}
+  loro-crdt@1.10.8:
+    resolution: {integrity: sha512-GvH8fSJST1VDHRGzlQml80pBYoFbIP4ULeV1S8fD4ffmA8m+icoPORyVUW2AkJBY3dxKIcMMn0WqaJmpCmnbkQ==}
 
-  loro-mirror-react@file:../loro-mirror/packages/react:
-    resolution: {directory: ../loro-mirror/packages/react, type: directory}
+  loro-mirror-react@2.1.0:
+    resolution: {integrity: sha512-eLbFodDYJ1nUIVVyPt9DhoswHbAIi36Fld18Kawmc/4ayEM0f/QfETChdNg+aPnjJJYyKShHlf3x17Anqj/1Ww==}
     peerDependencies:
       loro-crdt: ^1.8.0
-      loro-mirror: workspace:*
+      loro-mirror: 2.1.0
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
-  loro-mirror@file:../loro-mirror/packages/core:
-    resolution: {directory: ../loro-mirror/packages/core, type: directory}
+  loro-mirror@2.1.0:
+    resolution: {integrity: sha512-sOq962AHnCGUaW1SA1av6vFPGwFphM8rzd/wzCK5rMquM4g3t+KGCLhBn+AxOdTfaqHdJfM0H3M9t+GxWsbmhw==}
     peerDependencies:
       loro-crdt: ^1.8.0
 
@@ -7739,18 +7739,18 @@ snapshots:
 
   lodash-es@4.17.22: {}
 
-  loro-crdt@1.10.3: {}
+  loro-crdt@1.10.8: {}
 
-  loro-mirror-react@file:../loro-mirror/packages/react(loro-crdt@1.10.3)(loro-mirror@file:../loro-mirror/packages/core(loro-crdt@1.10.3))(react@19.2.3):
+  loro-mirror-react@2.1.0(loro-crdt@1.10.8)(loro-mirror@2.1.0(loro-crdt@1.10.8))(react@19.2.3):
     dependencies:
-      loro-crdt: 1.10.3
-      loro-mirror: file:../loro-mirror/packages/core(loro-crdt@1.10.3)
+      loro-crdt: 1.10.8
+      loro-mirror: 2.1.0(loro-crdt@1.10.8)
       react: 19.2.3
 
-  loro-mirror@file:../loro-mirror/packages/core(loro-crdt@1.10.3):
+  loro-mirror@2.1.0(loro-crdt@1.10.8):
     dependencies:
       immer: 10.2.0
-      loro-crdt: 1.10.3
+      loro-crdt: 1.10.8
 
   lru-cache@11.2.4: {}
 

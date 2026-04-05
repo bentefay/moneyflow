@@ -211,7 +211,6 @@ describe("initializeVaultDefaults", () => {
                 },
             },
             validateUpdates: true,
-            throwOnValidationError: true,
         });
 
         mirror.setState((draft: VaultInput) => {
@@ -253,7 +252,6 @@ describe("initializeVaultDefaults", () => {
                 },
             },
             validateUpdates: true,
-            throwOnValidationError: true,
         });
 
         // First add a custom person with the default person ID
@@ -298,7 +296,6 @@ describe("initializeVaultDefaults", () => {
                 },
             },
             validateUpdates: true,
-            throwOnValidationError: true,
         });
 
         // First add defaults
@@ -339,7 +336,6 @@ describe("initializeVaultDefaults", () => {
             schema: vaultSchema,
             initialState: getDefaultVaultState(),
             validateUpdates: true,
-            throwOnValidationError: true,
         });
 
         // Write preferences to the Loro doc explicitly

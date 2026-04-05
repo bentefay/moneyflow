@@ -118,28 +118,33 @@ import type { SchemaOptions } from "loro-mirror";
  * options like `{ required: false }` propagate through to the returned
  * schema type, preserving optionality in InferType / InferInputType.
  *
+ * loro-mirror v2 infers transformed fields as `T | undefined` unless the
+ * schema options include `defaultValue`. Each helper spreads a sensible
+ * CRDT-level default that the caller's options override via spread order.
+ *
  * Usage:
- *   richSchema.PlainDate({ required: true })
- *   richSchema.Instant()
- *   richSchema.MoneyMinorUnits({ defaultValue: 0 })
+ *   richSchema.PlainDate({ required: true })   // → PlainDate
+ *   richSchema.PlainDate({ required: false })   // → PlainDate | undefined
+ *   richSchema.Instant()                        // → Instant
+ *   richSchema.Percentage()                     // → Percentage
  *   richSchema.StringEnum(["a", "b"] as const, { required: true })
  */
 export const richSchema = {
-    PlainDate: <O extends SchemaOptions>(opts?: O) =>
-        schema.String(opts).transform(plainDateTransform),
+    PlainDate: <O extends SchemaOptions>(opts: O) =>
+        schema.String({ defaultValue: "1970-01-01", ...opts }).transform(plainDateTransform),
 
-    Instant: <O extends SchemaOptions>(opts?: O) =>
-        schema.Number(opts).transform(instantFromMillisTransform),
+    Instant: <O extends SchemaOptions>(opts: O) =>
+        schema.Number({ defaultValue: 0, ...opts }).transform(instantFromMillisTransform),
 
-    MoneyMinorUnits: <O extends SchemaOptions>(opts?: O) =>
-        schema.Number(opts).transform(moneyMinorUnitsTransform),
+    MoneyMinorUnits: <O extends SchemaOptions>(opts: O) =>
+        schema.Number({ defaultValue: 0, ...opts }).transform(moneyMinorUnitsTransform),
 
-    Percentage: <O extends SchemaOptions>(opts?: O) =>
-        schema.Number(opts).transform(percentageTransform),
+    Percentage: <O extends SchemaOptions>(opts: O) =>
+        schema.Number({ defaultValue: 0, ...opts }).transform(percentageTransform),
 
-    CurrencyCode: <O extends SchemaOptions>(opts?: O) =>
-        schema.String(opts).transform(currencyCodeTransform),
+    CurrencyCode: <O extends SchemaOptions>(opts: O) =>
+        schema.String({ defaultValue: "USD", ...opts }).transform(currencyCodeTransform),
 
-    StringEnum: <T extends string, O extends SchemaOptions>(values: readonly T[], opts?: O) =>
-        schema.String(opts).transform(createEnumTransform(values)),
+    StringEnum: <T extends string, O extends SchemaOptions>(values: readonly T[], opts: O) =>
+        schema.String({ defaultValue: values[0], ...opts }).transform(createEnumTransform(values)),
 };

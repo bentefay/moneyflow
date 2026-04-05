@@ -96,7 +96,7 @@ export function createVaultMirror(options: CreateVaultMirrorOptions = {}): {
         schema: vaultSchema,
         initialState,
         validateUpdates: true,
-        throwOnValidationError: true,
+
         debug,
         checkStateConsistency,
     });
@@ -127,7 +127,7 @@ export function createVaultMirrorFromSnapshot(
         doc,
         schema: vaultSchema,
         validateUpdates: true,
-        throwOnValidationError: true,
+
         debug: options.debug ?? false,
         checkStateConsistency: options.checkStateConsistency ?? false,
     });

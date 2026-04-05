@@ -150,7 +150,6 @@ export async function ensureDefaultVault(
         doc,
         schema: vaultSchema,
         validateUpdates: true,
-        throwOnValidationError: true,
     });
 
     // new Mirror({ initialState }) doesn't appear to sync to the doc, so we use setState

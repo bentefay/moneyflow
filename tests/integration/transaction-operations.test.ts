@@ -302,7 +302,6 @@ describe("Mirror Integration - Import Batch Flow", () => {
             schema: vaultSchema,
             initialState: getDefaultVaultState(),
             validateUpdates: true,
-            throwOnValidationError: true,
         });
 
         const creationInstant = Temporal.Now.instant();
@@ -419,7 +418,6 @@ describe("Mirror Integration - Import Batch Flow", () => {
             schema: vaultSchema,
             initialState: getDefaultVaultState(),
             validateUpdates: true,
-            throwOnValidationError: true,
         });
 
         const creationInstant = Temporal.Now.instant();
@@ -483,7 +481,6 @@ describe("Mirror Integration - Import Batch Flow", () => {
             doc: doc2,
             schema: vaultSchema,
             validateUpdates: true,
-            throwOnValidationError: true,
         });
 
         // Phase 4: Read state from restored Mirror
@@ -536,7 +533,6 @@ describe("Mirror Integration - Import Batch Flow", () => {
             schema: vaultSchema,
             initialState: getDefaultVaultState(),
             validateUpdates: true,
-            throwOnValidationError: true,
         });
 
         const creationInstant = Temporal.Now.instant();
@@ -575,7 +571,6 @@ describe("Mirror Integration - Import Batch Flow", () => {
             schema: vaultSchema,
             initialState: getDefaultVaultState(),
             validateUpdates: true,
-            throwOnValidationError: true,
         });
 
         // Read state

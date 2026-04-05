@@ -65,7 +65,7 @@ export const accountSchema = schema.LoroMap({
     }),
     /** Balance in minor units for this account's currency (e.g., cents for USD, yen for JPY) */
     balance: richSchema.MoneyMinorUnits({ defaultValue: 0 }),
-    ownerships: schema.LoroMapRecord(richSchema.Percentage()), // personId -> ownership percentage
+    ownerships: schema.LoroMapRecord(richSchema.Percentage({})), // personId -> ownership percentage
     deletedAt: richSchema.Instant({ required: false }),
 });
 
@@ -108,7 +108,7 @@ export const nestedDuplicateSchema = schema.LoroMap({
     tagIds: schema.LoroList(schema.String(), (id) => id),
     statusId: schema.String({ required: true }),
     importId: schema.String({ required: false }),
-    allocations: schema.LoroMapRecord(richSchema.Percentage()),
+    allocations: schema.LoroMapRecord(richSchema.Percentage({})),
     creationInstant: richSchema.Instant({ required: true }),
     importRowIndex: schema.Number({ required: false }),
     deletedAt: richSchema.Instant({ required: false }),
@@ -130,7 +130,7 @@ export const transactionSchema = schema.LoroMap({
     tagIds: schema.LoroList(schema.String(), (id) => id), // Tag IDs as LoroList for concurrent adds
     statusId: schema.String({ required: true }),
     importId: schema.String({ required: false }), // Optional reference to import batch
-    allocations: schema.LoroMapRecord(richSchema.Percentage()), // personId -> percentage
+    allocations: schema.LoroMapRecord(richSchema.Percentage({})), // personId -> percentage
     creationInstant: richSchema.Instant({ required: true }), // When transaction entered system
     importRowIndex: schema.Number({ required: false }), // Row position in source file (null for manual transactions)
     suspectedDuplicates: schema.LoroList(nestedDuplicateSchema, (d) => d.id), // Nested duplicates (one level only)
@@ -288,7 +288,7 @@ export const automationApplicationSchema = schema.LoroMap({
     previousValues: schema.LoroMap({
         tagIds: schema.LoroList(schema.String(), (id) => id),
         statusId: schema.String({ required: false }),
-        allocations: schema.LoroMapRecord(richSchema.Percentage()),
+        allocations: schema.LoroMapRecord(richSchema.Percentage({})),
     }),
 });
 
