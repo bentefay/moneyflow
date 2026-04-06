@@ -23,7 +23,7 @@ export const TARGET_FIELDS = [
     { id: "memo", label: "Memo", required: false },
     { id: "checkNumber", label: "Check Number", required: false },
     { id: "balance", label: "Balance", required: false },
-    { id: "ignore", label: "(Ignore)", required: false },
+    { id: "ignore", label: "(Ignore)", required: false }
 ] as const;
 
 export type TargetFieldId = (typeof TARGET_FIELDS)[number]["id"];
@@ -61,7 +61,7 @@ export function ColumnMappingStep({
     sampleRows,
     mappings,
     onMappingsChange,
-    className,
+    className
 }: ColumnMappingStepProps) {
     // Compute which target fields are already mapped
     const usedTargetFields = useMemo(() => {
@@ -79,7 +79,7 @@ export function ColumnMappingStep({
         const newMappings = [...mappings];
         newMappings[index] = {
             ...newMappings[index],
-            targetField,
+            targetField
         };
         onMappingsChange(newMappings);
     };
@@ -122,7 +122,7 @@ export function ColumnMappingStep({
             return {
                 sourceColumn: header,
                 targetField,
-                samples: sampleRows.map((row) => row[idx] || "").slice(0, 3),
+                samples: sampleRows.map((row) => row[idx] || "").slice(0, 3)
             };
         });
 
@@ -303,7 +303,7 @@ export function initializeColumnMappings(
     return headers.map((header, idx) => ({
         sourceColumn: header,
         targetField: "",
-        samples: sampleRows.map((row) => row[idx] || "").slice(0, 3),
+        samples: sampleRows.map((row) => row[idx] || "").slice(0, 3)
     }));
 }
 
@@ -321,6 +321,6 @@ export function validateColumnMappings(mappings: ColumnMapping[]): {
 
     return {
         valid: missingFields.length === 0,
-        missingFields,
+        missingFields
     };
 }

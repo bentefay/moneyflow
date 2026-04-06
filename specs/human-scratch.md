@@ -151,17 +151,75 @@
 - [] We should be using loro ephemeral state for tracking presence and active transaction.
 
 - [] Add description aliases - these are much like tags in that there is a single curated list of
-  aliases. Stored as an optional ID on each transaction. There is a page where description aliases
-  can be created, deleted and renamed. As part of this feature, we change the description field on  
-  transactions to make it read only - it can't be changed for imported transactions. Instead, the
-  description cell in the transactions table changes so it shows the original description text as
-  the placeholder for a searchable select. The select is where you can search and find, or inline
-  create (important), a description alias. Once an alias is set the original description text should
-  show on hover (use shadcn tooltip efficiently). When manually creating transactions, the original
-  description text is never set - you're always searching and choosing an existing alias, or
-  creating a new alias (use the same UI as for editing existing rows). The create UX should be as
-  simple as always showing the currently entered text with a (create) tag next to it in the select
-  list, and pressing enter or clicking it creates it.
+  aliases. Stored as an optional ID on each transaction. There is a page ("Tx Descriptions" nav
+  item) where description aliases can be created, deleted and renamed. As part of this feature, we
+  change the description field on transactions to make it read only - the raw imported description
+  text can't be changed. Instead, the description cell in the transactions table becomes a hybrid
+  text input / autocomplete.
+
+    **Cell UX:** The description cell is a text input that always shows text — either the alias name
+    (if one is set) or the original imported description (if no alias yet). It behaves like
+    InlineEditableText: click once to position cursor, then edit. As the user types, an autocomplete
+    dropdown appears showing existing aliases that match. The dropdown only mounts on hover or
+    keyboard navigation into the cell (not on every row) to keep the virtualized table performant.
+
+    **Seamless alias creation:** The alias system is invisible to the user until it matters:
+    - User imports transactions. Descriptions show as regular text. No aliases exist yet.
+    - User clicks a description, edits it, presses Enter or blurs. If the text doesn't match an
+      existing alias, one is automatically created and applied. No modal, no extra steps.
+    - If the text matches an existing alias in the dropdown, user can click it to apply that alias.
+    - First-time alias assignment (no previous alias) never shows a modal.
+
+    **Editing an aliased description:** User clicks the cell, edits the text. On Enter/blur:
+    - If the current alias only has 1 transaction (total across alias + symlinks `transactionIds`
+      size is 1), the alias is simply renamed. No modal. Still seamless.
+    - If the current alias has multiple transactions, a modal appears.
+
+    **When an alias is set:** The original imported description text shows on hover via tooltip
+    (shadcn tooltip). For manually created transactions there is no original description — only the
+    alias name.
+
+    **Manual transaction creation:** Same text input with autocomplete. Type a description, and on
+    submit it creates or selects an alias. No raw description text is stored.
+
+    **Alias change modal:** Only appears when the current alias has multiple transactions (total
+    `transactionIds` across alias + its symlinks > 1). Triggered on Enter/blur when the text has
+    changed, or when selecting a different alias from the dropdown:
+    - If changing to a different alias (existing or new text): "Change just this one", "Change all",
+      "Cancel".
+    - If clearing the alias: "Remove from just this one", "Remove from all", "Cancel".
+    - First option is selected by default. Tab cycles between options. Enter confirms and closes.
+
+    **Symlink model for "Change all":**
+    - A description alias can be either a real alias (has `name`) or a symlink (has `targetAliasId`
+      pointing to a real alias).
+    - Real aliases track `symlinkIds: LoroList(String)` as backlinks to their symlinks.
+    - Each alias/symlink tracks `transactionIds` (set of transaction IDs pointing directly at it).
+      Used for modal skip logic and GC worker.
+    - "Change all" makes the old alias a symlink to the new alias. O(1) operation.
+    - "Change just this one" updates `descriptionAliasId` on the transaction only. Moves the
+      transaction ID between the old and new alias's `transactionIds` sets.
+    - "Remove from just this one" sets `descriptionAliasId = undefined` on the transaction. Removes
+      the transaction ID from the alias's `transactionIds` set.
+    - "Remove from all" soft-deletes the alias (sets `deletedAt`). Transactions pointing to it
+      render as having no alias (resolve deleted/missing alias as empty).
+    - Invariant: no symlink chains. When alias B becomes a symlink to alias C, all existing symlinks
+      pointing at B are repointed to C. C's `symlinkIds` gains B plus all of B's former symlinks.
+      B's `symlinkIds` is cleared.
+    - New transactions must always point to the final (real) alias, never a symlink.
+    - Symlink resolution on read is O(1) - single hash map lookup.
+
+    **Background GC worker:** See separate task below.
+
+- [] Background GC worker - a requestAnimationFrame-based worker that incrementally processes a
+  bounded number of transactions per frame. Responsibilities: (a) merge adjacent transaction buckets
+  with same year/month/day (CRDT merge artifacts), (b) update transactions pointing to description
+  alias symlinks to point to the final alias, then hard-delete symlinks with no remaining
+  references. This is a performance refinement - description aliases work correctly without it via
+  symlink resolution on read.
+
+- [] Add undo and redo buttons and standard ctrl + z / ctrl + shift + z / ctrl + y bindings. Use the
+  standard loro UndoManager for this.
 
 - [] Change how automations work. They work differently for each field. For description aliases,
   when you apply a description alias to a transaction on the transactions page where the description

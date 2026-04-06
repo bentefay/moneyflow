@@ -12,6 +12,7 @@ import type {
     Account,
     AccountTransactionTree,
     DayBucket,
+    DescriptionAlias,
     MonthBucket,
     Person,
     Status,
@@ -19,7 +20,7 @@ import type {
     Transaction,
     TransactionStore,
     VaultState,
-    YearBucket,
+    YearBucket
 } from "./schema";
 
 // ============================================
@@ -290,8 +291,8 @@ export function findTransactionById(
                                 location: {
                                     accountId,
                                     date: tx.date,
-                                    transactionId,
-                                },
+                                    transactionId
+                                }
                             };
                         }
                         // Check nested duplicates
@@ -302,8 +303,8 @@ export function findTransactionById(
                                 location: {
                                     accountId,
                                     date: tx.date, // Use parent's date for location
-                                    transactionId,
-                                },
+                                    transactionId
+                                }
                             };
                         }
                     }
@@ -532,7 +533,7 @@ export function paginateTransactions(
         totalPages,
         currentPage: page,
         hasNextPage: page < totalPages - 1,
-        hasPreviousPage: page > 0,
+        hasPreviousPage: page > 0
     };
 }
 
@@ -583,7 +584,7 @@ export function cursorPaginateTransactions(
                 ? filtered.length > limit
                 : cursor
                   ? transactions.findIndex((tx) => tx.id === cursor) > limit
-                  : false,
+                  : false
     };
 }
 
@@ -624,7 +625,7 @@ export function queryTransactions(
     // Apply remaining filters
     const filtered = filterTransactions(transactions, {
         ...queryOptions,
-        accountIds: undefined, // Already handled
+        accountIds: undefined // Already handled
     });
 
     if (paginationOptions) {
@@ -638,7 +639,7 @@ export function queryTransactions(
         totalPages: 1,
         currentPage: 0,
         hasNextPage: false,
-        hasPreviousPage: false,
+        hasPreviousPage: false
     };
 }
 
@@ -658,6 +659,13 @@ export function getActiveAccounts(state: VaultState): Account[] {
  */
 export function getActiveTags(state: VaultState): Tag[] {
     return getActiveItems(state.tags);
+}
+
+/**
+ * Get all active description aliases
+ */
+export function getActiveDescriptionAliases(state: VaultState): DescriptionAlias[] {
+    return getActiveItems(state.descriptionAliases);
 }
 
 /**

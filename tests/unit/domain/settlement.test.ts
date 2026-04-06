@@ -14,7 +14,7 @@ import {
     calculateSettlementBalances,
     getBalancesForPerson,
     getNetBalanceForPerson,
-    type SettlementBalance,
+    type SettlementBalance
 } from "@/lib/domain/settlement";
 
 // ============================================================================
@@ -43,7 +43,7 @@ function createTransaction(
         statusId,
         allocations,
         creationInstant: Date.now(),
-        deletedAt,
+        deletedAt
     } as unknown as Transaction;
 }
 
@@ -55,8 +55,8 @@ function createStatus(id: string, treatAsPaid = false): Record<string, Status | 
         [id]: {
             id,
             name: id,
-            behavior: treatAsPaid ? "treatAsPaid" : undefined,
-        } as unknown as Status,
+            behavior: treatAsPaid ? "treatAsPaid" : undefined
+        } as unknown as Status
     };
 }
 
@@ -94,7 +94,7 @@ describe("calculateSettlementBalances", () => {
                 { alice: 50, bob: 50 },
                 "account-1",
                 Date.now()
-            ),
+            )
         ];
         const statuses = { ...createStatus("settled", true) };
         const accountCurrencies = { "account-1": "USD" };
@@ -129,7 +129,7 @@ describe("calculateSettlementBalances", () => {
     it("handles multiple transactions", () => {
         const transactions = [
             createTransaction("tx1", -1000, "settled", { alice: 100 }),
-            createTransaction("tx2", -500, "settled", { bob: 100 }),
+            createTransaction("tx2", -500, "settled", { bob: 100 })
         ];
         const statuses = { ...createStatus("settled", true) };
         const accountCurrencies = { "account-1": "USD" };
@@ -142,7 +142,7 @@ describe("calculateSettlementBalances", () => {
 
     it("uses correct currency from account", () => {
         const transactions = [
-            createTransaction("tx1", -1000, "settled", { alice: 70, bob: 30 }, "eur-account"),
+            createTransaction("tx1", -1000, "settled", { alice: 70, bob: 30 }, "eur-account")
         ];
         const statuses = { ...createStatus("settled", true) };
         const accountCurrencies = { "eur-account": "EUR" };
@@ -157,7 +157,7 @@ describe("calculateSettlementBalances", () => {
 
     it("defaults to USD when account currency not found", () => {
         const transactions = [
-            createTransaction("tx1", -1000, "settled", { alice: 70, bob: 30 }, "unknown-account"),
+            createTransaction("tx1", -1000, "settled", { alice: 70, bob: 30 }, "unknown-account")
         ];
         const statuses = { ...createStatus("settled", true) };
         const accountCurrencies = {};
@@ -189,8 +189,8 @@ describe("getNetBalanceForPerson", () => {
                 personId: "alice",
                 owedToPersonId: "bob",
                 amount: 500 as MoneyMinorUnits,
-                currency: "USD",
-            },
+                currency: "USD"
+            }
         ];
 
         const result = getNetBalanceForPerson("alice", balances);
@@ -204,8 +204,8 @@ describe("getNetBalanceForPerson", () => {
                 personId: "bob",
                 owedToPersonId: "alice",
                 amount: 500 as MoneyMinorUnits,
-                currency: "USD",
-            },
+                currency: "USD"
+            }
         ];
 
         const result = getNetBalanceForPerson("alice", balances);
@@ -219,14 +219,14 @@ describe("getNetBalanceForPerson", () => {
                 personId: "alice",
                 owedToPersonId: "bob",
                 amount: 1000 as MoneyMinorUnits,
-                currency: "USD",
+                currency: "USD"
             },
             {
                 personId: "charlie",
                 owedToPersonId: "alice",
                 amount: 300 as MoneyMinorUnits,
-                currency: "USD",
-            },
+                currency: "USD"
+            }
         ];
 
         const result = getNetBalanceForPerson("alice", balances);
@@ -243,7 +243,7 @@ describe("getNetBalanceForPerson", () => {
                         personId: fc.constantFrom("alice", "bob", "charlie"),
                         owedToPersonId: fc.constantFrom("alice", "bob", "charlie"),
                         amount: fc.integer({ min: 0, max: 10000 }),
-                        currency: fc.constant("USD"),
+                        currency: fc.constant("USD")
                     }),
                     { minLength: 0, maxLength: 10 }
                 ),
@@ -251,7 +251,7 @@ describe("getNetBalanceForPerson", () => {
                 (balances, targetPerson) => {
                     const typedBalances = balances.map((b) => ({
                         ...b,
-                        amount: b.amount as MoneyMinorUnits,
+                        amount: b.amount as MoneyMinorUnits
                     }));
 
                     const result = getNetBalanceForPerson(targetPerson, typedBalances);
@@ -286,8 +286,8 @@ describe("getBalancesForPerson", () => {
                 personId: "bob",
                 owedToPersonId: "charlie",
                 amount: 500 as MoneyMinorUnits,
-                currency: "USD",
-            },
+                currency: "USD"
+            }
         ];
 
         const result = getBalancesForPerson("alice", balances);
@@ -301,14 +301,14 @@ describe("getBalancesForPerson", () => {
                 personId: "alice",
                 owedToPersonId: "bob",
                 amount: 500 as MoneyMinorUnits,
-                currency: "USD",
+                currency: "USD"
             },
             {
                 personId: "bob",
                 owedToPersonId: "charlie",
                 amount: 300 as MoneyMinorUnits,
-                currency: "USD",
-            },
+                currency: "USD"
+            }
         ];
 
         const result = getBalancesForPerson("alice", balances);
@@ -323,14 +323,14 @@ describe("getBalancesForPerson", () => {
                 personId: "bob",
                 owedToPersonId: "alice",
                 amount: 500 as MoneyMinorUnits,
-                currency: "USD",
+                currency: "USD"
             },
             {
                 personId: "charlie",
                 owedToPersonId: "bob",
                 amount: 300 as MoneyMinorUnits,
-                currency: "USD",
-            },
+                currency: "USD"
+            }
         ];
 
         const result = getBalancesForPerson("alice", balances);
@@ -345,20 +345,20 @@ describe("getBalancesForPerson", () => {
                 personId: "alice",
                 owedToPersonId: "bob",
                 amount: 500 as MoneyMinorUnits,
-                currency: "USD",
+                currency: "USD"
             },
             {
                 personId: "charlie",
                 owedToPersonId: "alice",
                 amount: 300 as MoneyMinorUnits,
-                currency: "USD",
+                currency: "USD"
             },
             {
                 personId: "bob",
                 owedToPersonId: "charlie",
                 amount: 200 as MoneyMinorUnits,
-                currency: "USD",
-            },
+                currency: "USD"
+            }
         ];
 
         const result = getBalancesForPerson("alice", balances);
@@ -374,7 +374,7 @@ describe("getBalancesForPerson", () => {
                         personId: fc.constantFrom("alice", "bob", "charlie"),
                         owedToPersonId: fc.constantFrom("alice", "bob", "charlie"),
                         amount: fc.integer({ min: 0, max: 10000 }),
-                        currency: fc.constant("USD"),
+                        currency: fc.constant("USD")
                     }),
                     { minLength: 0, maxLength: 10 }
                 ),
@@ -382,7 +382,7 @@ describe("getBalancesForPerson", () => {
                 (balances, targetPerson) => {
                     const typedBalances = balances.map((b) => ({
                         ...b,
-                        amount: b.amount as MoneyMinorUnits,
+                        amount: b.amount as MoneyMinorUnits
                     }));
 
                     const result = getBalancesForPerson(targetPerson, typedBalances);

@@ -182,7 +182,7 @@ test.describe("Tags", () => {
     });
 
     test("hierarchy journey: parent-child relationships and circular reference prevention", async ({
-        page,
+        page
     }) => {
         await createNewIdentity(page);
         await goToTags(page);

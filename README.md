@@ -1,15 +1,21 @@
 # MoneyFlow
 
-A client-side encrypted, real-time collaborative household expense tracker. All financial data is encrypted on your device before storage—the server never sees your plaintext data.
+A client-side encrypted, real-time collaborative household expense tracker. All financial data is
+encrypted on your device before storage—the server never sees your plaintext data.
 
 ## ✨ Features
 
-- **🔒 Zero-Knowledge Security**: End-to-end encryption using XChaCha20-Poly1305. Your data is encrypted locally before it leaves your device.
-- **📊 Single View of All Finances**: Consolidate transactions from multiple banks and accounts in one place.
-- **🏷️ Smart Categorization**: Tag and filter transactions with hierarchical categories. Automation rules learn to categorize for you.
-- **👥 Shared Finance Management**: Track ownership and split expenses with household members. Real-time collaboration via CRDT sync.
+- **🔒 Zero-Knowledge Security**: End-to-end encryption using XChaCha20-Poly1305. Your data is
+  encrypted locally before it leaves your device.
+- **📊 Single View of All Finances**: Consolidate transactions from multiple banks and accounts in
+  one place.
+- **🏷️ Smart Categorization**: Tag and filter transactions with hierarchical categories. Automation
+  rules learn to categorize for you.
+- **👥 Shared Finance Management**: Track ownership and split expenses with household members.
+  Real-time collaboration via CRDT sync.
 - **📥 Easy Data Import**: Import CSV or OFX files from any bank. Duplicate detection included.
-- **🔑 Key-Only Authentication**: No passwords to remember or reset. Your 12-word recovery phrase IS your identity.
+- **🔑 Key-Only Authentication**: No passwords to remember or reset. Your 12-word recovery phrase IS
+  your identity.
 
 ## 🚀 Quick Start
 
@@ -141,7 +147,8 @@ MoneyFlow implements a **zero-knowledge architecture**:
 4. **Sharing**: Vault keys are shared via X25519 key exchange (ECIES)
 5. **Sync**: Server only stores and relays encrypted binary blobs—never sees plaintext
 
-See [specs/001-core-mvp/data-model.md](specs/001-core-mvp/data-model.md) for detailed cryptographic design.
+See [specs/001-core-mvp/data-model.md](specs/001-core-mvp/data-model.md) for detailed cryptographic
+design.
 
 ## 🤝 Contributing
 

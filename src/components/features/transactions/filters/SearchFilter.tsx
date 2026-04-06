@@ -31,7 +31,7 @@ export function SearchFilter({
     onChange,
     placeholder = "Search transactions...",
     debounceMs = 300,
-    className,
+    className
 }: SearchFilterProps) {
     const [localValue, setLocalValue] = useState(value);
     const inputRef = useRef<HTMLInputElement>(null);

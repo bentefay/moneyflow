@@ -14,7 +14,7 @@ import {
     SelectContent,
     SelectItem,
     SelectTrigger,
-    SelectValue,
+    SelectValue
 } from "@/components/ui/select";
 import type { Tag } from "@/lib/crdt/schema";
 import { cn } from "@/lib/utils";
@@ -82,7 +82,7 @@ export function ParentTagSelector({
     value,
     onChange,
     availableTags,
-    className,
+    className
 }: ParentTagSelectorProps) {
     // Build hierarchical list
     const hierarchicalTags = useMemo(() => buildHierarchicalList(availableTags), [availableTags]);

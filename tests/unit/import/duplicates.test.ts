@@ -14,7 +14,7 @@ import {
     type DuplicateCheckTransaction,
     type DuplicateDetectionConfig,
     detectDuplicates,
-    detectInternalDuplicates,
+    detectInternalDuplicates
 } from "@/lib/import/duplicates";
 import type { ISODateString } from "@/types";
 
@@ -40,7 +40,7 @@ function createTransaction(
         date: isoDate("2024-01-15"),
         amount: cents(-5000), // -$50.00 in cents
         description: "COFFEE SHOP",
-        ...overrides,
+        ...overrides
     };
 }
 
@@ -68,11 +68,11 @@ describe("checkDuplicate", () => {
         it("matches transactions on same date", () => {
             const tx1 = createTransaction({
                 id: "tx-1",
-                date: isoDate("2024-01-15"),
+                date: isoDate("2024-01-15")
             });
             const tx2 = createTransaction({
                 id: "tx-2",
-                date: isoDate("2024-01-15"),
+                date: isoDate("2024-01-15")
             });
 
             const match = checkDuplicate(tx1, tx2);
@@ -82,17 +82,17 @@ describe("checkDuplicate", () => {
         it("matches transactions within 3 day tolerance with within mode", () => {
             const tx1 = createTransaction({
                 id: "tx-1",
-                date: isoDate("2024-01-15"),
+                date: isoDate("2024-01-15")
             });
             const tx2 = createTransaction({
                 id: "tx-2",
-                date: isoDate("2024-01-17"),
+                date: isoDate("2024-01-17")
             });
 
             const config: DuplicateDetectionConfig = {
                 ...DEFAULT_DUPLICATE_CONFIG,
                 dateMatchMode: "within",
-                maxDateDiffDays: 3,
+                maxDateDiffDays: 3
             };
 
             const match = checkDuplicate(tx1, tx2, config);
@@ -102,11 +102,11 @@ describe("checkDuplicate", () => {
         it("rejects transactions beyond date tolerance", () => {
             const tx1 = createTransaction({
                 id: "tx-1",
-                date: isoDate("2024-01-15"),
+                date: isoDate("2024-01-15")
             });
             const tx2 = createTransaction({
                 id: "tx-2",
-                date: isoDate("2024-01-20"),
+                date: isoDate("2024-01-20")
             });
 
             const match = checkDuplicate(tx1, tx2);
@@ -148,11 +148,11 @@ describe("checkDuplicate", () => {
         it("matches identical descriptions", () => {
             const tx1 = createTransaction({
                 id: "tx-1",
-                description: "AMAZON PURCHASE",
+                description: "AMAZON PURCHASE"
             });
             const tx2 = createTransaction({
                 id: "tx-2",
-                description: "AMAZON PURCHASE",
+                description: "AMAZON PURCHASE"
             });
 
             const match = checkDuplicate(tx1, tx2);
@@ -162,17 +162,17 @@ describe("checkDuplicate", () => {
         it("matches similar descriptions with similar mode", () => {
             const tx1 = createTransaction({
                 id: "tx-1",
-                description: "AMAZON.COM*AMZN.COM/BI",
+                description: "AMAZON.COM*AMZN.COM/BI"
             });
             const tx2 = createTransaction({
                 id: "tx-2",
-                description: "AMAZON.COM*AMZN.COM",
+                description: "AMAZON.COM*AMZN.COM"
             });
 
             const config: DuplicateDetectionConfig = {
                 ...DEFAULT_DUPLICATE_CONFIG,
                 descriptionMatchMode: "similar",
-                minDescriptionSimilarity: 0.6,
+                minDescriptionSimilarity: 0.6
             };
 
             const match = checkDuplicate(tx1, tx2, config);
@@ -197,13 +197,13 @@ describe("checkDuplicate", () => {
                 id: "tx-1",
                 date: isoDate("2024-01-15"),
                 amount: cents(-5000),
-                description: "COFFEE SHOP DOWNTOWN",
+                description: "COFFEE SHOP DOWNTOWN"
             });
             const tx2 = createTransaction({
                 id: "tx-2",
                 date: isoDate("2024-01-20"), // Too far
                 amount: cents(-7500), // Different amount
-                description: "DIFFERENT MERCHANT", // Different description
+                description: "DIFFERENT MERCHANT" // Different description
             });
 
             const match = checkDuplicate(tx1, tx2);
@@ -215,17 +215,17 @@ describe("checkDuplicate", () => {
         it("respects custom date tolerance", () => {
             const tx1 = createTransaction({
                 id: "tx-1",
-                date: isoDate("2024-01-15"),
+                date: isoDate("2024-01-15")
             });
             const tx2 = createTransaction({
                 id: "tx-2",
-                date: isoDate("2024-01-20"),
+                date: isoDate("2024-01-20")
             });
 
             const config: DuplicateDetectionConfig = {
                 ...DEFAULT_DUPLICATE_CONFIG,
                 dateMatchMode: "within",
-                maxDateDiffDays: 7,
+                maxDateDiffDays: 7
             };
 
             const match = checkDuplicate(tx1, tx2, config);
@@ -238,7 +238,7 @@ describe("checkDuplicate", () => {
 
             const config: DuplicateDetectionConfig = {
                 ...DEFAULT_DUPLICATE_CONFIG,
-                maxAmountDiff: cents(500), // 500 cents = $5.00 tolerance
+                maxAmountDiff: cents(500) // 500 cents = $5.00 tolerance
             };
 
             const match = checkDuplicate(tx1, tx2, config);
@@ -249,7 +249,7 @@ describe("checkDuplicate", () => {
             const tx1 = createTransaction({ id: "tx-1", description: "COFFEE SHOP" });
             const tx2 = createTransaction({
                 id: "tx-2",
-                description: "COFFEE SHOP DOWNTOWN",
+                description: "COFFEE SHOP DOWNTOWN"
             });
 
             // Use similar mode so we get partial matches
@@ -257,14 +257,14 @@ describe("checkDuplicate", () => {
                 ...DEFAULT_DUPLICATE_CONFIG,
                 descriptionMatchMode: "similar",
                 minDescriptionSimilarity: 0.5,
-                minConfidence: 0.99,
+                minConfidence: 0.99
             };
 
             const lenientConfig: DuplicateDetectionConfig = {
                 ...DEFAULT_DUPLICATE_CONFIG,
                 descriptionMatchMode: "similar",
                 minDescriptionSimilarity: 0.5,
-                minConfidence: 0.3,
+                minConfidence: 0.3
             };
 
             expect(checkDuplicate(tx1, tx2, strictConfig)).toBeNull();
@@ -276,16 +276,16 @@ describe("checkDuplicate", () => {
         it("exact mode requires same day", () => {
             const tx1 = createTransaction({
                 id: "tx-1",
-                date: isoDate("2024-01-15"),
+                date: isoDate("2024-01-15")
             });
             const tx2 = createTransaction({
                 id: "tx-2",
-                date: isoDate("2024-01-16"),
+                date: isoDate("2024-01-16")
             });
 
             const exactConfig: DuplicateDetectionConfig = {
                 ...DEFAULT_DUPLICATE_CONFIG,
-                dateMatchMode: "exact",
+                dateMatchMode: "exact"
             };
 
             const match = checkDuplicate(tx1, tx2, exactConfig);
@@ -295,16 +295,16 @@ describe("checkDuplicate", () => {
         it("exact mode matches same day", () => {
             const tx1 = createTransaction({
                 id: "tx-1",
-                date: isoDate("2024-01-15"),
+                date: isoDate("2024-01-15")
             });
             const tx2 = createTransaction({
                 id: "tx-2",
-                date: isoDate("2024-01-15"),
+                date: isoDate("2024-01-15")
             });
 
             const exactConfig: DuplicateDetectionConfig = {
                 ...DEFAULT_DUPLICATE_CONFIG,
-                dateMatchMode: "exact",
+                dateMatchMode: "exact"
             };
 
             const match = checkDuplicate(tx1, tx2, exactConfig);
@@ -315,17 +315,17 @@ describe("checkDuplicate", () => {
         it("within mode allows date tolerance", () => {
             const tx1 = createTransaction({
                 id: "tx-1",
-                date: isoDate("2024-01-15"),
+                date: isoDate("2024-01-15")
             });
             const tx2 = createTransaction({
                 id: "tx-2",
-                date: isoDate("2024-01-17"),
+                date: isoDate("2024-01-17")
             });
 
             const withinConfig: DuplicateDetectionConfig = {
                 ...DEFAULT_DUPLICATE_CONFIG,
                 dateMatchMode: "within",
-                maxDateDiffDays: 3,
+                maxDateDiffDays: 3
             };
 
             const match = checkDuplicate(tx1, tx2, withinConfig);
@@ -338,16 +338,16 @@ describe("checkDuplicate", () => {
         it("exact mode requires case-insensitive match", () => {
             const tx1 = createTransaction({
                 id: "tx-1",
-                description: "AMAZON PURCHASE",
+                description: "AMAZON PURCHASE"
             });
             const tx2 = createTransaction({
                 id: "tx-2",
-                description: "amazon purchase",
+                description: "amazon purchase"
             });
 
             const exactConfig: DuplicateDetectionConfig = {
                 ...DEFAULT_DUPLICATE_CONFIG,
-                descriptionMatchMode: "exact",
+                descriptionMatchMode: "exact"
             };
 
             const match = checkDuplicate(tx1, tx2, exactConfig);
@@ -358,16 +358,16 @@ describe("checkDuplicate", () => {
         it("exact mode rejects different descriptions", () => {
             const tx1 = createTransaction({
                 id: "tx-1",
-                description: "AMAZON PURCHASE",
+                description: "AMAZON PURCHASE"
             });
             const tx2 = createTransaction({
                 id: "tx-2",
-                description: "AMAZON.COM*AMZN",
+                description: "AMAZON.COM*AMZN"
             });
 
             const exactConfig: DuplicateDetectionConfig = {
                 ...DEFAULT_DUPLICATE_CONFIG,
-                descriptionMatchMode: "exact",
+                descriptionMatchMode: "exact"
             };
 
             const match = checkDuplicate(tx1, tx2, exactConfig);
@@ -377,17 +377,17 @@ describe("checkDuplicate", () => {
         it("similar mode uses Levenshtein similarity", () => {
             const tx1 = createTransaction({
                 id: "tx-1",
-                description: "AMAZON.COM*AMZN.COM/BI",
+                description: "AMAZON.COM*AMZN.COM/BI"
             });
             const tx2 = createTransaction({
                 id: "tx-2",
-                description: "AMAZON.COM*AMZN.COM",
+                description: "AMAZON.COM*AMZN.COM"
             });
 
             const similarConfig: DuplicateDetectionConfig = {
                 ...DEFAULT_DUPLICATE_CONFIG,
                 descriptionMatchMode: "similar",
-                minDescriptionSimilarity: 0.6,
+                minDescriptionSimilarity: 0.6
             };
 
             const match = checkDuplicate(tx1, tx2, similarConfig);
@@ -402,7 +402,7 @@ describe("checkDuplicate", () => {
             const strictSimilarConfig: DuplicateDetectionConfig = {
                 ...DEFAULT_DUPLICATE_CONFIG,
                 descriptionMatchMode: "similar",
-                minDescriptionSimilarity: 0.9, // Very strict threshold
+                minDescriptionSimilarity: 0.9 // Very strict threshold
             };
 
             const match = checkDuplicate(tx1, tx2, strictSimilarConfig);
@@ -465,25 +465,25 @@ describe("detectDuplicates", () => {
             createTransaction({
                 id: "new-1",
                 date: isoDate("2024-01-15"),
-                description: "TX A",
+                description: "TX A"
             }),
             createTransaction({
                 id: "new-2",
                 date: isoDate("2024-01-20"),
-                description: "TX B",
-            }),
+                description: "TX B"
+            })
         ];
         const existingTxs = [
             createTransaction({
                 id: "existing-1",
                 date: isoDate("2024-01-15"),
-                description: "TX A",
+                description: "TX A"
             }),
             createTransaction({
                 id: "existing-2",
                 date: isoDate("2024-01-20"),
-                description: "TX B",
-            }),
+                description: "TX B"
+            })
         ];
 
         const matches = detectDuplicates(newTxs, existingTxs);
@@ -494,7 +494,7 @@ describe("detectDuplicates", () => {
         const newTxs = [createTransaction({ id: "new-1", description: "COFFEE SHOP" })];
         const existingTxs = [
             createTransaction({ id: "existing-1", description: "COFFEE SHOP" }), // Exact match
-            createTransaction({ id: "existing-2", description: "COFFEE STORE" }), // Similar
+            createTransaction({ id: "existing-2", description: "COFFEE STORE" }) // Similar
         ];
 
         const matches = detectDuplicates(newTxs, existingTxs);
@@ -524,7 +524,7 @@ describe("detectDuplicates", () => {
         const config: DuplicateDetectionConfig = {
             ...DEFAULT_DUPLICATE_CONFIG,
             dateMatchMode: "within",
-            maxDateDiffDays: 3,
+            maxDateDiffDays: 3
         };
 
         const matches = detectDuplicates(newTxs, existingTxs, config);
@@ -544,20 +544,20 @@ describe("detectInternalDuplicates", () => {
                 id: "tx-1",
                 date: isoDate("2024-01-15"),
                 amount: cents(-5000),
-                description: "COFFEE SHOP DOWNTOWN",
+                description: "COFFEE SHOP DOWNTOWN"
             }),
             createTransaction({
                 id: "tx-2",
                 date: isoDate("2024-02-20"),
                 amount: cents(-12500),
-                description: "GROCERY STORE MAIN ST",
+                description: "GROCERY STORE MAIN ST"
             }),
             createTransaction({
                 id: "tx-3",
                 date: isoDate("2024-03-10"),
                 amount: cents(-30000),
-                description: "AUTO SERVICE CENTER",
-            }),
+                description: "AUTO SERVICE CENTER"
+            })
         ];
 
         const matches = detectInternalDuplicates(transactions);
@@ -567,7 +567,7 @@ describe("detectInternalDuplicates", () => {
     it("detects duplicate pair in list", () => {
         const transactions = [
             createTransaction({ id: "tx-1", description: "COFFEE SHOP" }),
-            createTransaction({ id: "tx-2", description: "COFFEE SHOP" }),
+            createTransaction({ id: "tx-2", description: "COFFEE SHOP" })
         ];
 
         const matches = detectInternalDuplicates(transactions);
@@ -581,7 +581,7 @@ describe("detectInternalDuplicates", () => {
         const transactions = [
             createTransaction({ id: "tx-1", description: "SAME" }),
             createTransaction({ id: "tx-2", description: "SAME" }),
-            createTransaction({ id: "tx-3", description: "SAME" }),
+            createTransaction({ id: "tx-3", description: "SAME" })
         ];
 
         const matches = detectInternalDuplicates(transactions);
@@ -630,7 +630,7 @@ describe("duplicate detection properties", () => {
         }),
         // Generate integer cents (-$100.00 to $100.00)
         amount: fc.integer({ min: -10000, max: 10000 }).map((n) => cents(n)),
-        description: fc.string({ minLength: 3, maxLength: 30 }),
+        description: fc.string({ minLength: 3, maxLength: 30 })
     });
 
     // Property: identical transactions always match
@@ -714,7 +714,7 @@ describe("detectDuplicates performance", () => {
                 id: `${idPrefix}-${i}`,
                 date: isoDate(dateStr),
                 amount: cents(-1000 - (i % 100)), // Varying amounts
-                description: `Transaction ${i}`,
+                description: `Transaction ${i}`
             });
         }
 

@@ -1,7 +1,7 @@
 # Tasks: Vault Settings & Navigation Improvements
 
-**Input**: Design documents from `/specs/002-vault-settings/`
-**Prerequisites**: plan.md ✅, spec.md ✅, research.md ✅, data-model.md ✅, quickstart.md ✅
+**Input**: Design documents from `/specs/002-vault-settings/` **Prerequisites**: plan.md ✅, spec.md
+✅, research.md ✅, data-model.md ✅, quickstart.md ✅
 
 **Tests**: Included - E2E tests for navigation flows and settings persistence.
 
@@ -26,7 +26,8 @@
 
 ## Phase 2: Foundational (Navigation Infrastructure)
 
-**Purpose**: Core navigation changes that affect multiple user stories - MUST complete before user stories
+**Purpose**: Core navigation changes that affect multiple user stories - MUST complete before user
+stories
 
 **⚠️ CRITICAL**: These tasks change shared navigation and routing that all user stories depend on
 
@@ -42,16 +43,21 @@
 
 ## Phase 3: User Story 1 - Configure Vault Default Currency (Priority: P1) 🎯 MVP
 
-**Goal**: Users can set a default currency on the Vault Settings page that persists and is used for new accounts
+**Goal**: Users can set a default currency on the Vault Settings page that persists and is used for
+new accounts
 
-**Independent Test**: Open settings page, change currency to EUR, refresh page, verify EUR is still selected
+**Independent Test**: Open settings page, change currency to EUR, refresh page, verify EUR is still
+selected
 
 ### Implementation for User Story 1
 
-- [x] T008 [P] [US1] Create CurrencySelector component with search in `src/components/features/vault/CurrencySelector.tsx`
-- [x] T009 [P] [US1] Create VaultSettingsForm component in `src/components/features/vault/VaultSettingsForm.tsx`
+- [x] T008 [P] [US1] Create CurrencySelector component with search in
+      `src/components/features/vault/CurrencySelector.tsx`
+- [x] T009 [P] [US1] Create VaultSettingsForm component in
+      `src/components/features/vault/VaultSettingsForm.tsx`
 - [x] T010 [US1] Create Vault Settings page in `src/app/(app)/settings/page.tsx`
-- [x] T011 [US1] Update AccountsTable to use vault default currency for new accounts in `src/components/features/accounts/AccountsTable.tsx`
+- [x] T011 [US1] Update AccountsTable to use vault default currency for new accounts in
+      `src/components/features/accounts/AccountsTable.tsx`
 
 **Checkpoint**: User Story 1 complete - users can configure and use vault default currency
 
@@ -61,13 +67,15 @@
 
 **Goal**: Settings navigation item correctly links to settings page and shows current preferences
 
-**Independent Test**: Click "Vault Settings" in sidebar, verify page loads with current currency displayed
+**Independent Test**: Click "Vault Settings" in sidebar, verify page loads with current currency
+displayed
 
 ### Implementation for User Story 2
 
 - [x] T012 [US2] Verify settings page accessible via `/settings` route (covered by T010)
 
-**Note**: This user story is primarily satisfied by Phase 2 navigation changes (T003) and US1 implementation (T010). No additional tasks needed.
+**Note**: This user story is primarily satisfied by Phase 2 navigation changes (T003) and US1
+implementation (T010). No additional tasks needed.
 
 **Checkpoint**: User Story 2 complete - settings accessible from navigation
 
@@ -81,8 +89,10 @@
 
 ### Implementation for User Story 3
 
-- [x] T013 [US3] Update unlock page to redirect to `/transactions` in `src/app/(onboarding)/unlock/page.tsx`
-- [x] T014 [P] [US3] Update invite accept page to redirect to `/transactions` in `src/app/(onboarding)/invite/[token]/page.tsx`
+- [x] T013 [US3] Update unlock page to redirect to `/transactions` in
+      `src/app/(onboarding)/unlock/page.tsx`
+- [x] T014 [P] [US3] Update invite accept page to redirect to `/transactions` in
+      `src/app/(onboarding)/invite/[token]/page.tsx`
 
 **Checkpoint**: User Story 3 complete - existing vault users land on transactions
 
@@ -90,15 +100,20 @@
 
 ## Phase 6: User Story 4 - View Account Details Clearly (Priority: P2)
 
-**Goal**: Accounts table has properly aligned columns and shows placeholder for missing account numbers
+**Goal**: Accounts table has properly aligned columns and shows placeholder for missing account
+numbers
 
-**Independent Test**: View accounts page, verify columns are aligned and accounts without numbers show "No account number yet"
+**Independent Test**: View accounts page, verify columns are aligned and accounts without numbers
+show "No account number yet"
 
 ### Implementation for User Story 4
 
-- [x] T015 [US4] Add "No account number yet" placeholder in `src/components/features/accounts/AccountRow.tsx`
-- [x] T016 [P] [US4] Fix column alignment in AccountsTable header in `src/components/features/accounts/AccountsTable.tsx`
-- [x] T017 [US4] Ensure actions column has explicit width in AccountRow in `src/components/features/accounts/AccountRow.tsx`
+- [x] T015 [US4] Add "No account number yet" placeholder in
+      `src/components/features/accounts/AccountRow.tsx`
+- [x] T016 [P] [US4] Fix column alignment in AccountsTable header in
+      `src/components/features/accounts/AccountsTable.tsx`
+- [x] T017 [US4] Ensure actions column has explicit width in AccountRow in
+      `src/components/features/accounts/AccountRow.tsx`
 
 **Checkpoint**: User Story 4 complete - accounts table is properly aligned with placeholders
 
@@ -114,7 +129,8 @@
 
 - [x] T018 [US5] Audit all navigation items for consistent styling in `src/app/(app)/layout.tsx`
 
-**Note**: Primary fix (cursor-pointer on Lock) is in T006. This task verifies consistency across all items.
+**Note**: Primary fix (cursor-pointer on Lock) is in T006. This task verifies consistency across all
+items.
 
 **Checkpoint**: User Story 5 complete - all nav items have consistent interaction cues
 
@@ -128,7 +144,8 @@
 
 ### Implementation for User Story 1a
 
-- [x] T019 [US1] Update new-user page to redirect to `/settings` in `src/app/(onboarding)/new-user/page.tsx`
+- [x] T019 [US1] Update new-user page to redirect to `/settings` in
+      `src/app/(onboarding)/new-user/page.tsx`
 
 **Checkpoint**: New users land on settings page after vault creation
 
@@ -139,8 +156,10 @@
 **Purpose**: E2E tests and final validation
 
 - [x] T020 [P] Create E2E test for new user settings flow in `tests/e2e/vault-settings.spec.ts`
-- [x] T021 [P] Create E2E test for existing user transactions landing in `tests/e2e/vault-settings.spec.ts`
-- [x] T022 [P] Create E2E test for currency selection persistence in `tests/e2e/vault-settings.spec.ts`
+- [x] T021 [P] Create E2E test for existing user transactions landing in
+      `tests/e2e/vault-settings.spec.ts`
+- [x] T022 [P] Create E2E test for currency selection persistence in
+      `tests/e2e/vault-settings.spec.ts`
 - [x] T023 Run quickstart.md verification checklist
 - [x] T024 Run `pnpm lint && pnpm format && pnpm typecheck && pnpm test && pnpm test:e2e`
 
@@ -220,6 +239,5 @@
 | 8     | T019      | New vault landing (US1a)                    |
 | 9     | T020-T024 | E2E tests & validation                      |
 
-**Total**: 24 tasks
-**Parallel opportunities**: 10 tasks marked [P]
-**MVP scope**: Phases 1-3, 8 (T001-T011, T019) = 13 tasks
+**Total**: 24 tasks **Parallel opportunities**: 10 tasks marked [P] **MVP scope**: Phases 1-3, 8
+(T001-T011, T019) = 13 tasks

@@ -38,7 +38,7 @@ async function createSignedRequest(
     const timestamp = Date.now().toString();
     const bodyHash = body
         ? sodium.to_base64(
-              sodium.crypto_generichash(32, JSON.stringify(body)),
+              sodium.crypto_generichash(32, JSON.stringify(body), null),
               sodium.base64_variants.ORIGINAL
           )
         : "";
@@ -51,9 +51,9 @@ async function createSignedRequest(
         headers: {
             "X-Pubkey": publicKeyToBase64(signingPublicKey),
             "X-Timestamp": timestamp,
-            "X-Signature": sodium.to_base64(signature, sodium.base64_variants.ORIGINAL),
+            "X-Signature": sodium.to_base64(signature, sodium.base64_variants.ORIGINAL)
         },
-        body,
+        body
     };
 }
 
@@ -109,7 +109,7 @@ describe("verifyRequest", () => {
         const headers = {
             "X-Pubkey": publicKeyToBase64(user.signing.publicKey),
             "X-Timestamp": "not-a-number",
-            "X-Signature": "dummy",
+            "X-Signature": "dummy"
         };
 
         const result = await verifyRequest("GET", "/api/test", undefined, headers);
@@ -132,7 +132,7 @@ describe("verifyRequest", () => {
         const headers = {
             "X-Pubkey": publicKeyToBase64(user.signing.publicKey),
             "X-Timestamp": oldTimestamp,
-            "X-Signature": sodium.to_base64(signature, sodium.base64_variants.ORIGINAL),
+            "X-Signature": sodium.to_base64(signature, sodium.base64_variants.ORIGINAL)
         };
 
         const result = await verifyRequest(method, path, undefined, headers, 5 * 60 * 1000);
@@ -151,7 +151,7 @@ describe("verifyRequest", () => {
         // Sign with user1's key but claim to be user2
         const timestamp = Date.now().toString();
         const bodyHash = sodium.to_base64(
-            sodium.crypto_generichash(32, JSON.stringify(body)),
+            sodium.crypto_generichash(32, JSON.stringify(body), null),
             sodium.base64_variants.ORIGINAL
         );
         const message = `${method}\n${path}\n${timestamp}\n${bodyHash}`;
@@ -161,7 +161,7 @@ describe("verifyRequest", () => {
         const headers = {
             "X-Pubkey": publicKeyToBase64(user2.signing.publicKey), // Wrong public key
             "X-Timestamp": timestamp,
-            "X-Signature": sodium.to_base64(signature, sodium.base64_variants.ORIGINAL),
+            "X-Signature": sodium.to_base64(signature, sodium.base64_variants.ORIGINAL)
         };
 
         const result = await verifyRequest(method, path, body, headers);

@@ -172,7 +172,7 @@ export function evaluateAutomation(
     return {
         matched: true,
         changes,
-        automationId: automation.id,
+        automationId: automation.id
     };
 }
 
@@ -219,7 +219,7 @@ export function applyAutomationsToTransactions(
         if (result.matched && result.automationId) {
             results.set(transaction.id, {
                 changes: result.changes,
-                automationId: result.automationId,
+                automationId: result.automationId
             });
         }
     }
@@ -257,7 +257,7 @@ export function createAutomationFromTransaction(
             column: "description",
             operator: "contains",
             value: transaction.description,
-            caseSensitive: false,
+            caseSensitive: false
         });
     } else if (transaction.notes) {
         // Fallback to notes
@@ -266,7 +266,7 @@ export function createAutomationFromTransaction(
             column: "notes",
             operator: "contains",
             value: transaction.notes,
-            caseSensitive: false,
+            caseSensitive: false
         });
     }
 
@@ -276,7 +276,7 @@ export function createAutomationFromTransaction(
         actions.push({
             id: crypto.randomUUID(),
             type: "setTags",
-            value: [...tagIds],
+            value: [...tagIds]
         });
     }
 
@@ -284,7 +284,7 @@ export function createAutomationFromTransaction(
         actions.push({
             id: crypto.randomUUID(),
             type: "setStatus",
-            value: transaction.statusId,
+            value: transaction.statusId
         });
     }
 
@@ -293,7 +293,7 @@ export function createAutomationFromTransaction(
         actions.push({
             id: crypto.randomUUID(),
             type: "setAllocation",
-            value: { ...allocations },
+            value: { ...allocations }
         });
     }
 
@@ -303,7 +303,7 @@ export function createAutomationFromTransaction(
         conditions,
         actions,
         order: 0,
-        excludedTransactionIds: [],
+        excludedTransactionIds: []
     };
 }
 
@@ -355,7 +355,7 @@ export function createAutomationApplication(
         transactionId,
         automationId,
         appliedAt: Temporal.Now.instant(),
-        previousValues,
+        previousValues
     };
 }
 

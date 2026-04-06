@@ -14,12 +14,12 @@ export default defineConfig({
             provider: "v8",
             reporter: ["text", "json", "html"],
             include: ["src/**/*.ts", "src/**/*.tsx"],
-            exclude: ["src/**/*.d.ts", "src/components/ui/**"],
-        },
+            exclude: ["src/**/*.d.ts", "src/components/ui/**"]
+        }
     },
     resolve: {
         alias: {
-            "@": path.resolve(__dirname, "./src"),
-        },
-    },
+            "@": path.resolve(__dirname, "./src")
+        }
+    }
 });

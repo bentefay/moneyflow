@@ -48,14 +48,14 @@ export async function createContext(opts: {
     const authHeaders = {
         "x-pubkey": headers.get("x-pubkey") ?? undefined,
         "x-timestamp": headers.get("x-timestamp") ?? undefined,
-        "x-signature": headers.get("x-signature") ?? undefined,
+        "x-signature": headers.get("x-signature") ?? undefined
     };
 
     return {
         pubkeyHash: null, // Set by auth middleware after verification
         publicKey: authHeaders["x-pubkey"] ?? null,
         headers: authHeaders,
-        req: { method, path, body },
+        req: { method, path, body }
     };
 }
 
@@ -71,11 +71,11 @@ const t = initTRPC.context<TRPCContext>().create({
                 ...shape.data,
                 // Include additional error info in development
                 ...(process.env.NODE_ENV === "development" && {
-                    stack: error.cause instanceof Error ? error.cause.stack : undefined,
-                }),
-            },
+                    stack: error.cause instanceof Error ? error.cause.stack : undefined
+                })
+            }
         };
-    },
+    }
 });
 
 /**
@@ -98,7 +98,7 @@ export const authMiddleware = middleware(async ({ ctx, next }) => {
     if (!headers["x-pubkey"] || !headers["x-timestamp"] || !headers["x-signature"]) {
         throw new TRPCError({
             code: "UNAUTHORIZED",
-            message: "Missing authentication headers",
+            message: "Missing authentication headers"
         });
     }
 
@@ -110,7 +110,7 @@ export const authMiddleware = middleware(async ({ ctx, next }) => {
         {
             "X-Pubkey": headers["x-pubkey"],
             "X-Timestamp": headers["x-timestamp"],
-            "X-Signature": headers["x-signature"],
+            "X-Signature": headers["x-signature"]
         },
         5 * 60 * 1000 // 5 minute max age
     );
@@ -118,7 +118,7 @@ export const authMiddleware = middleware(async ({ ctx, next }) => {
     if (!result.verified) {
         throw new TRPCError({
             code: "UNAUTHORIZED",
-            message: result.error ?? "Signature verification failed",
+            message: result.error ?? "Signature verification failed"
         });
     }
 
@@ -127,8 +127,8 @@ export const authMiddleware = middleware(async ({ ctx, next }) => {
         ctx: {
             ...ctx,
             pubkeyHash: result.pubkeyHash!,
-            publicKey: headers["x-pubkey"],
-        },
+            publicKey: headers["x-pubkey"]
+        }
     });
 });
 

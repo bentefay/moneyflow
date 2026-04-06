@@ -11,7 +11,7 @@ import { Mirror } from "loro-mirror";
 import {
     DEFAULT_AUTOMATION_CREATION_PREFERENCE,
     DEFAULT_CURRENCY,
-    DEFAULT_VAULT_NAME,
+    DEFAULT_VAULT_NAME
 } from "./defaults";
 import { migrateVaultSentinels } from "./migration";
 import { type VaultState, vaultSchema } from "./schema";
@@ -46,8 +46,8 @@ export const DEFAULT_VAULT_STATE = {
     preferences: {
         name: DEFAULT_VAULT_NAME,
         automationCreationPreference: DEFAULT_AUTOMATION_CREATION_PREFERENCE,
-        defaultCurrency: DEFAULT_CURRENCY,
-    },
+        defaultCurrency: DEFAULT_CURRENCY
+    }
 } as const;
 
 /**
@@ -84,7 +84,7 @@ export function createVaultMirror(options: CreateVaultMirrorOptions = {}): {
         doc = new LoroDoc(),
         initialState = DEFAULT_VAULT_STATE,
         debug = false,
-        checkStateConsistency = false,
+        checkStateConsistency = false
     } = options;
 
     // Enable timestamp recording for version vectors
@@ -98,7 +98,7 @@ export function createVaultMirror(options: CreateVaultMirrorOptions = {}): {
         validateUpdates: true,
 
         debug,
-        checkStateConsistency,
+        checkStateConsistency
     });
 
     return { mirror, doc };
@@ -129,7 +129,7 @@ export function createVaultMirrorFromSnapshot(
         validateUpdates: true,
 
         debug: options.debug ?? false,
-        checkStateConsistency: options.checkStateConsistency ?? false,
+        checkStateConsistency: options.checkStateConsistency ?? false
     });
 
     // Migrate legacy sentinel values (deletedAt: 0, behavior: "", currency: "")

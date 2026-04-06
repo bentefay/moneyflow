@@ -1,7 +1,8 @@
 # CRDT Research for MoneyFlow
 
 **Date**: 2025-12-23  
-**Context**: Event-sourced household expense tracking with multi-user real-time collaboration and client-side encryption
+**Context**: Event-sourced household expense tracking with multi-user real-time collaboration and
+client-side encryption
 
 ---
 
@@ -9,18 +10,23 @@
 
 ### Decision: Use Loro CRDT Library
 
-**Primary approach**: Use `loro-crdt` (v1.0+) for all collaborative data. Loro exports opaque binary updates that we encrypt before syncing - the server only sees ciphertext.
+**Primary approach**: Use `loro-crdt` (v1.0+) for all collaborative data. Loro exports opaque binary
+updates that we encrypt before syncing - the server only sees ciphertext.
 
 **Rationale**:
 
 1. **Production-ready**: Loro 1.0 is stable with 5.2k GitHub stars and active development
 2. **Perfect encryption fit**: `doc.export()` returns `Uint8Array` that can be encrypted directly
-3. **Updates ARE events**: Loro's update model is functionally equivalent to event sourcing - immutable change sets that can be batched and synced
+3. **Updates ARE events**: Loro's update model is functionally equivalent to event sourcing -
+   immutable change sets that can be batched and synced
 4. **Rich CRDT types**: LWW-Map, List, MovableList, Tree, Text, Counter - all battle-tested
 5. **Built-in features**: Version vectors, time travel, undo/redo, efficient delta sync
-6. **Less code to maintain**: 150KB of well-tested algorithms vs. custom implementations with edge cases
+6. **Less code to maintain**: 150KB of well-tested algorithms vs. custom implementations with edge
+   cases
 
-**Key insight**: Loro's sync model (`export({mode: "update"})`) produces opaque bytes that function exactly like events. We encrypt these bytes, store them, and sync them. The "event sourcing" happens inside Loro - we don't need to implement it ourselves.
+**Key insight**: Loro's sync model (`export({mode: "update"})`) produces opaque bytes that function
+exactly like events. We encrypt these bytes, store them, and sync them. The "event sourcing" happens
+inside Loro - we don't need to implement it ourselves.
 
 ---
 
@@ -208,7 +214,7 @@ txTags.push("tag-groceries");
 const lastVersion = loadLastSyncedVersion(); // VersionVector
 const update: Uint8Array = doc.export({
     mode: "update",
-    from: lastVersion,
+    from: lastVersion
 });
 
 // 2. Encrypt the update (server never sees content)
@@ -218,7 +224,7 @@ const encrypted = await encrypt(update, vaultKey);
 await supabase.from("vault_updates").insert({
     vault_id: vaultId,
     encrypted_data: encrypted,
-    version: doc.version(), // For ordering
+    version: doc.version() // For ordering
 });
 
 // 4. Save current version for next sync
@@ -254,7 +260,7 @@ const encrypted = await encrypt(snapshot, vaultKey);
 await supabase.from("vault_snapshots").upsert({
     vault_id: vaultId,
     encrypted_data: encrypted,
-    version: doc.version(),
+    version: doc.version()
 });
 
 // === LOADING (Initial or Reconnect) ===
@@ -349,8 +355,8 @@ function getTransaction(doc: LoroDoc, id: string): TransactionData | null {
 
 ## 4. Understanding Loro Internals (Reference)
 
-> **Note**: You don't need to implement these - Loro handles all this internally.
-> This section is for understanding what Loro does under the hood.
+> **Note**: You don't need to implement these - Loro handles all this internally. This section is
+> for understanding what Loro does under the hood.
 
 ### Why Loro Uses Fugue Algorithm
 
@@ -391,7 +397,9 @@ Loro supports shallow snapshots for compaction:
 
 ### loro-mirror + loro-mirror-react: Complete Store Abstraction
 
-We use `loro-mirror` (core) + `loro-mirror-react` (React bindings) as our primary interface to Loro. This provides a complete store abstraction for **both reads and writes** with schema validation - no need to interact with the low-level `loro-crdt` API directly.
+We use `loro-mirror` (core) + `loro-mirror-react` (React bindings) as our primary interface to Loro.
+This provides a complete store abstraction for **both reads and writes** with schema validation - no
+need to interact with the low-level `loro-crdt` API directly.
 
 **Packages:**
 
@@ -484,7 +492,7 @@ export const vaultSchema = schema({
             allocations: schema.LoroMap({}).catchall(schema.Number()),
             createdAt: schema.Number(),
             updatedAt: schema.Number({ required: false }),
-            deletedAt: schema.Number({ required: false }),
+            deletedAt: schema.Number({ required: false })
         })
     ),
     accounts: schema.LoroMap({}).catchall(
@@ -495,26 +503,26 @@ export const vaultSchema = schema({
             type: schema.String(),
             balance: schema.Number({ defaultValue: 0 }),
             // Ownership: personId -> percentage (must sum to 100)
-            ownership: schema.LoroMap({}).catchall(schema.Number()),
+            ownership: schema.LoroMap({}).catchall(schema.Number())
         })
     ),
     people: schema.LoroMap({}).catchall(
         schema.LoroMap({
             name: schema.String(),
-            email: schema.String({ required: false }),
+            email: schema.String({ required: false })
         })
     ),
     tags: schema.LoroMap({}).catchall(
         schema.LoroMap({
             name: schema.String(),
             parentId: schema.String({ required: false }),
-            isTransfer: schema.Boolean({ defaultValue: false }),
+            isTransfer: schema.Boolean({ defaultValue: false })
         })
     ),
     statuses: schema.LoroMap({}).catchall(
         schema.LoroMap({
             name: schema.String(),
-            treatAsPaid: schema.Boolean({ defaultValue: false }),
+            treatAsPaid: schema.Boolean({ defaultValue: false })
         })
     ),
     automations: schema.LoroMap({}).catchall(
@@ -522,15 +530,15 @@ export const vaultSchema = schema({
             name: schema.String(),
             conditions: schema.LoroList(schema.Any()), // Complex condition objects
             actions: schema.LoroList(schema.Any()), // Complex action objects
-            order: schema.Number({ defaultValue: 0 }),
+            order: schema.Number({ defaultValue: 0 })
         })
     ),
     imports: schema.LoroMap({}).catchall(
         schema.LoroMap({
             filename: schema.String(),
-            createdAt: schema.Number(),
+            createdAt: schema.Number()
         })
-    ),
+    )
 });
 
 // Infer TypeScript type from schema
@@ -626,7 +634,7 @@ export function useTransactionActions() {
             statusId: data.statusId ?? "for-review",
             tags: data.tagIds ?? [],
             allocations: data.allocations ?? {},
-            createdAt: Date.now(),
+            createdAt: Date.now()
         };
         return id;
     }, []);
@@ -669,14 +677,16 @@ export function useTransactionActions() {
         updateTransaction,
         deleteTransaction,
         addTag,
-        removeTag,
+        removeTag
     };
 }
 ```
 
 ### React Integration with loro-mirror-react
 
-Components read state via `useLoroSelector()` or `useLoroState()`. Writes go through `useLoroAction()`. Updates are synchronous and the mirror automatically re-renders subscribed components.
+Components read state via `useLoroSelector()` or `useLoroState()`. Writes go through
+`useLoroAction()`. Updates are synchronous and the mirror automatically re-renders subscribed
+components.
 
 ```typescript
 // === hooks/use-transactions.ts ===
@@ -857,7 +867,7 @@ const SNAPSHOT_POLICIES = {
     idleTimeoutMs: 5 * 60 * 1000, // 5 minutes
 
     // Maximum time without snapshot
-    maxAgeMs: 24 * 60 * 60 * 1000, // 24 hours
+    maxAgeMs: 24 * 60 * 60 * 1000 // 24 hours
 };
 ```
 
@@ -875,7 +885,7 @@ async function saveSnapshot(): Promise<void> {
     await supabase.from("vault_snapshots").upsert({
         vault_id: getVaultId(),
         encrypted_data: bytesToBase64(encrypted),
-        version: bytesToBase64(vault.version()),
+        version: bytesToBase64(vault.version())
     });
 }
 
@@ -983,7 +993,8 @@ src/
 ## References
 
 - [Loro Mirror GitHub](https://github.com/loro-dev/loro-mirror) - Schema + state management
-- [Loro Mirror React](https://github.com/loro-dev/loro-mirror/tree/main/packages/react) - React hooks
+- [Loro Mirror React](https://github.com/loro-dev/loro-mirror/tree/main/packages/react) - React
+  hooks
 - [Loro Documentation](https://loro.dev/docs) - Core CRDT docs
 - [Loro GitHub](https://github.com/loro-dev/loro) - Source and examples
 - [CRDTs for Mortals](https://www.youtube.com/watch?v=DEcwa68f-jY) - James Long (excellent intro)

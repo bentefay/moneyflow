@@ -41,4 +41,5 @@ Uses Levenshtein distance: date window ±3 days, amount tolerance 1 cent, descri
 
 ## Testing
 
-Test with real bank exports covering different date formats (US/EU/ISO), number formats, edge cases, large files.
+Test with real bank exports covering different date formats (US/EU/ISO), number formats, edge cases,
+large files.

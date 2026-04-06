@@ -4,10 +4,11 @@
 
 ### I. Security & Privacy First
 
-User financial data MUST be encrypted end-to-end; the server (and operators) MUST NOT have access
-to decrypted transaction data. All cryptographic operations MUST occur client-side.
+User financial data MUST be encrypted end-to-end; the server (and operators) MUST NOT have access to
+decrypted transaction data. All cryptographic operations MUST occur client-side.
 
-- All sensitive data (transactions, allocations, balances) MUST be encrypted before leaving the client
+- All sensitive data (transactions, allocations, balances) MUST be encrypted before leaving the
+  client
 - Encryption keys MUST be derived from user credentials and MUST NOT be stored server-side
 - No plaintext financial data in server logs, analytics, or error reports
 - Authentication MUST use secure, modern protocols (no plaintext passwords transmitted)
@@ -31,18 +32,21 @@ parents, roommates) with periodic net settlement. Calculation errors erode trust
 
 ### III. Data Portability & Import Flexibility
 
-Users MUST be able to import transaction data from any financial institution without requiring
-API integrations or credentials sharing.
+Users MUST be able to import transaction data from any financial institution without requiring API
+integrations or credentials sharing.
 
-- Support copy-paste import from bank web interfaces (HTML table parsing) — future scope; MVP supports CSV/OFX only
+- Support copy-paste import from bank web interfaces (HTML table parsing) — future scope; MVP
+  supports CSV/OFX only
 - Support CSV upload with flexible column mapping
 - Support manual transaction entry as fallback
 - Imported data MUST be normalized to a canonical format
-- Duplicate detection MUST prevent double-counting: MVP uses same amount + date + merchant/description similarity (Levenshtein < 3); advanced fuzzy matching is future scope
+- Duplicate detection MUST prevent double-counting: MVP uses same amount + date +
+  merchant/description similarity (Levenshtein < 3); advanced fuzzy matching is future scope
 - Future: Desktop automation for scraping (open source, user-auditable)
 
 **Rationale**: Bank API access is fragmented, credential-sharing is a security risk, and most users
-can access their bank's website. Painless import without compromising security is a key differentiator.
+can access their bank's website. Painless import without compromising security is a key
+differentiator.
 
 ### IV. Auditability & Transparency
 
@@ -67,19 +71,20 @@ Users MUST have complete ownership and control of their financial data.
 - Offline-capable: core functionality MUST work without network connectivity
 - Self-hosting option SHOULD be supported for privacy-conscious users
 
-**Rationale**: Financial data spans years or decades. Users must not be trapped if MoneyFlow
-changes pricing, policies, or ceases operation.
+**Rationale**: Financial data spans years or decades. Users must not be trapped if MoneyFlow changes
+pricing, policies, or ceases operation.
 
 ### VI. Performance, Beauty & Craft
 
 MoneyFlow MUST be fast, beautiful, and delightful to use. Quality of experience is non-negotiable.
 
-- **Performance**: Every interaction MUST feel instant (<100ms perceived latency); no loading spinners
-  for common operations; offline-first architecture ensures responsiveness regardless of network
+- **Performance**: Every interaction MUST feel instant (<100ms perceived latency); no loading
+  spinners for common operations; offline-first architecture ensures responsiveness regardless of
+  network
 - **Beauty**: UI MUST be visually refined with consistent design language, thoughtful typography,
   smooth animations, and attention to pixel-level detail; no "developer UI"
-- **Mobile Responsive**: UI MUST be usable on mobile devices; layouts MUST adapt gracefully to
-  small screens (scrollable tables, stacked layouts); not mobile-first, but mobile-friendly
+- **Mobile Responsive**: UI MUST be usable on mobile devices; layouts MUST adapt gracefully to small
+  screens (scrollable tables, stacked layouts); not mobile-first, but mobile-friendly
 - **Ease of Use**: Complex financial workflows MUST be simplified; progressive disclosure over
   overwhelming options; sensible defaults that work for 90% of cases
 - **Craft**: Keyboard shortcuts for power users; micro-interactions that spark joy; polish the
@@ -102,17 +107,17 @@ MoneyFlow MUST be rock-solid. Financial software has zero tolerance for bugs or 
   mocking; aim for fewer high-value, readable tests that verify behavior, not implementation
 - **Test Harnesses**: Create test harnesses that make tests easy to understand; for pure functions,
   use declarative table-driven tests where it's immediately obvious which cases are covered
-- **Test Coverage**: All financial calculations MUST have comprehensive tests; edge cases
-  (rounding, zero amounts, negative balances) MUST be explicitly tested
+- **Test Coverage**: All financial calculations MUST have comprehensive tests; edge cases (rounding,
+  zero amounts, negative balances) MUST be explicitly tested
 - **Integration Testing**: End-to-end flows (import → allocate → settle) MUST be tested as a whole
 - **Property-Based Testing**: Settlement calculations SHOULD use property-based tests to verify
   invariants (e.g., allocations always sum to 100%, settlements are zero-sum between parties)
-- **Local Development**: The entire stack MUST be runnable locally; use Vercel CLI for Next.js
-  and Supabase CLI for database/auth/realtime; no cloud dependency required for development
+- **Local Development**: The entire stack MUST be runnable locally; use Vercel CLI for Next.js and
+  Supabase CLI for database/auth/realtime; no cloud dependency required for development
 - **Regression Prevention**: Every bug fix MUST include a test that would have caught it
 - **Data Integrity**: Database migrations MUST be tested; backup/restore MUST be verified
-- **Graceful Degradation**: Network failures, malformed imports, and unexpected data MUST be
-  handled gracefully with clear error messages, never crashes or data loss
+- **Graceful Degradation**: Network failures, malformed imports, and unexpected data MUST be handled
+  gracefully with clear error messages, never crashes or data loss
 - **Continuous Integration**: All tests MUST pass before merge; no "fix it later" exceptions
 
 **Rationale**: Users are trusting MoneyFlow with their financial relationships. A calculation error
@@ -125,22 +130,22 @@ Local-first development ensures fast iteration and prevents "works on my machine
 MoneyFlow MUST be designed for effective collaboration with LLM coding agents. The codebase
 structure, documentation, and conventions should optimize for AI-assisted development.
 
-- **Global Instructions**: Primary agent guidance lives in `.github/copilot-instructions.md`;
-  this file is always loaded by GitHub Copilot and provides architecture, conventions, and
-  always-apply rules
+- **Global Instructions**: Primary agent guidance lives in `.github/copilot-instructions.md`; this
+  file is always loaded by GitHub Copilot and provides architecture, conventions, and always-apply
+  rules
 - **Path-Specific Instructions**: Domain-specific guidance lives in `.github/instructions/` as
   `NAME.instructions.md` files with YAML frontmatter specifying `applyTo` glob patterns; these
   automatically apply when Copilot works on matching files and combine with global instructions
-- **Avoid Scattered Files**: Do NOT use `AGENTS.md` files throughout the codebase; centralize
-  all agent instructions in `.github/` for discoverability and consistency
+- **Avoid Scattered Files**: Do NOT use `AGENTS.md` files throughout the codebase; centralize all
+  agent instructions in `.github/` for discoverability and consistency
 - **Focused Documentation**: Agent instruction files SHOULD be 200-500 lines max; use headers,
   bullet points, and prioritize critical information first; agents have limited context windows
-- **Why Over What**: Document _rationale_ for decisions, not just rules; agents can read code to
-  see "what", but struggle to infer "why" without explicit documentation
+- **Why Over What**: Document _rationale_ for decisions, not just rules; agents can read code to see
+  "what", but struggle to infer "why" without explicit documentation
 - **Reference, Don't Duplicate**: Point to specs and detailed docs rather than copying content;
   reduces drift and keeps instruction files focused on actionable guidance
-- **Consistent Patterns**: Use the same patterns throughout the codebase; consistency reduces
-  the context agents need to make correct decisions; document deviations explicitly
+- **Consistent Patterns**: Use the same patterns throughout the codebase; consistency reduces the
+  context agents need to make correct decisions; document deviations explicitly
 - **Self-Describing Code**: Prefer explicit over clever; named constants over magic numbers;
   descriptive function names over comments; code that reads like documentation
 - **Spec-Driven Development**: Feature specs in `/specs/` serve as source of truth; agents should
@@ -159,11 +164,11 @@ structure, documentation, and conventions should optimize for AI-assisted develo
     └── components.instructions.md   # applyTo: "src/components/**"
 ```
 
-**Rationale**: LLM agents are increasingly central to software development. A codebase designed
-for human-only comprehension leaves value on the table. By optimizing for agent collaboration—clear
-documentation, consistent patterns, explicit rationale—we get faster development, fewer errors,
-and better knowledge transfer. Centralized instructions in `.github/` are discoverable, auditable,
-and automatically applied, unlike scattered AGENTS.md files that drift and fragment.
+**Rationale**: LLM agents are increasingly central to software development. A codebase designed for
+human-only comprehension leaves value on the table. By optimizing for agent collaboration—clear
+documentation, consistent patterns, explicit rationale—we get faster development, fewer errors, and
+better knowledge transfer. Centralized instructions in `.github/` are discoverable, auditable, and
+automatically applied, unlike scattered AGENTS.md files that drift and fragment.
 
 ### IX. Code Clarity
 
@@ -172,12 +177,12 @@ Code MUST be clear, readable, and self-documenting. Clarity is not optional—it
 - **Purity**: Favour pure functions with explicit inputs and outputs; side effects should be
   isolated and obvious; given the same inputs, a function should always return the same output
 - **Immutability**: Favour immutable data structures; avoid mutation where practical
-- **loro-mirror Exception**: ALWAYS use draft-style mutations with loro-mirror `setState()`;
-  this allows loro-mirror to track exactly which fields changed and generate optimal CRDT
-  operations; never return new objects from setState callbacks
-- **Naming**: Use clear, descriptive names; NEVER abbreviate unless the abbreviation is
-  universally understood (e.g., `id`, `url`, `html`); `transaction` not `tx` or `txn`;
-  `encrypted` not `enc`; `calculate` not `calc`; longer names are fine—clarity beats brevity
+- **loro-mirror Exception**: ALWAYS use draft-style mutations with loro-mirror `setState()`; this
+  allows loro-mirror to track exactly which fields changed and generate optimal CRDT operations;
+  never return new objects from setState callbacks
+- **Naming**: Use clear, descriptive names; NEVER abbreviate unless the abbreviation is universally
+  understood (e.g., `id`, `url`, `html`); `transaction` not `tx` or `txn`; `encrypted` not `enc`;
+  `calculate` not `calc`; longer names are fine—clarity beats brevity
 - **Comments**: Use comments ONLY when:
     1. The intent is not clear from the code itself (explain _why_, not _what_)
     2. The comment will help an LLM agent make better changes in the future
@@ -198,7 +203,8 @@ Security is not optional. The following constraints apply to all features:
 
 - **Encryption**: XChaCha20-Poly1305 or equivalent for data at rest; TLS 1.3 for data in transit
 - **Key Management**: User-derived keys only; no server-side key escrow
-- **Authentication**: MFA deferred for key-only authentication model; seed phrase serves as single strong factor (128-bit entropy)
+- **Authentication**: MFA deferred for key-only authentication model; seed phrase serves as single
+  strong factor (128-bit entropy)
 - **Session Management**: Configurable timeout, secure token handling
 - **Audit Logging**: Security events logged (login attempts, data exports, sharing changes)
 - **Dependency Security**: Regular vulnerability scanning; no dependencies with known critical CVEs

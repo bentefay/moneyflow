@@ -47,16 +47,9 @@ import {
 } from "@/lib/crdt/context";
 import type { InsertTransactionInput } from "@/lib/crdt/mutations";
 import { filterTransactions } from "@/lib/crdt/queries";
-import type {
-    Account,
-    DescriptionAlias,
-    Person,
-    Status,
-    Tag,
-    Transaction
-} from "@/lib/crdt/schema";
+import type { Account, Person, Status, Tag, Transaction } from "@/lib/crdt/schema";
 import { getNextTagColor } from "@/lib/domain";
-import { asMinorUnits, type MoneyMinorUnits } from "@/lib/domain/currency";
+import { asMinorUnits } from "@/lib/domain/currency";
 import {
     getActiveRealAliases,
     getAliasTotalTransactionCount,

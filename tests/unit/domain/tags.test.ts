@@ -20,7 +20,7 @@ import {
     getTagPathString,
     isTagDescendant,
     validateTagHierarchy,
-    wouldCreateCircularReference,
+    wouldCreateCircularReference
 } from "@/lib/domain/tags";
 
 // ============================================================================
@@ -54,7 +54,7 @@ function createTag(
         name,
         parentTagId,
         isTransfer,
-        deletedAt,
+        deletedAt
     };
 }
 
@@ -83,7 +83,7 @@ function createTestHierarchy(): TestTag[] {
         createTag("transport", "Transport"),
         createTag("gas", "Gas", "transport"),
         createTag("transit", "Public Transit", "transport"),
-        createTag("entertainment", "Entertainment", undefined, true),
+        createTag("entertainment", "Entertainment", undefined, true)
     ];
 }
 
@@ -99,7 +99,7 @@ describe("getTagDepth", () => {
         { tagId: "groceries", expected: 1, description: "first level child" },
         { tagId: "organic", expected: 2, description: "second level child" },
         { tagId: "fastfood", expected: 2, description: "another second level" },
-        { tagId: "nonexistent", expected: 0, description: "non-existent tag" },
+        { tagId: "nonexistent", expected: 0, description: "non-existent tag" }
     ];
 
     for (const { tagId, expected, description } of depthTests) {
@@ -203,15 +203,15 @@ describe("isTagDescendant", () => {
             childId: "food",
             ancestorId: "groceries",
             expected: false,
-            description: "reverse relationship",
+            description: "reverse relationship"
         },
         { childId: "food", ancestorId: "food", expected: false, description: "same tag" },
         {
             childId: "transport",
             ancestorId: "food",
             expected: false,
-            description: "different subtree",
-        },
+            description: "different subtree"
+        }
     ];
 
     for (const { childId, ancestorId, expected, description } of descendantTests) {
@@ -366,7 +366,7 @@ describe("filterActiveTags", () => {
         const tags = [
             createTag("a", "Active"),
             createTag("b", "Deleted", undefined, false, Date.now()),
-            createTag("c", "Also Active"),
+            createTag("c", "Also Active")
         ];
 
         const active = filterActiveTags(tags);
@@ -406,7 +406,7 @@ describe("validateTagHierarchy", () => {
     it("detects circular reference", () => {
         const tags: TestTag[] = [
             { id: "a", name: "A", parentTagId: "b", isTransfer: false },
-            { id: "b", name: "B", parentTagId: "a", isTransfer: false },
+            { id: "b", name: "B", parentTagId: "a", isTransfer: false }
         ];
         const issues = validateTagHierarchy(tags);
         expect(issues.some((i) => i.includes("circular"))).toBe(true);
@@ -424,7 +424,7 @@ describe("property-based tests", () => {
         name: fc.string({ minLength: 1, maxLength: 50 }),
         parentTagId: fc.constant(undefined),
         isTransfer: fc.boolean(),
-        deletedAt: fc.constant(undefined),
+        deletedAt: fc.constant(undefined)
     });
 
     it("root tags always have depth 0", () => {

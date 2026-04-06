@@ -55,7 +55,7 @@ function normalizeBodyForSigning(
                     // Cast to SuperJSONResult - superjson expects specific shape
                     input = superjson.deserialize({
                         json: item.json as Parameters<typeof superjson.deserialize>[0]["json"],
-                        meta: item.meta as Parameters<typeof superjson.deserialize>[0]["meta"],
+                        meta: item.meta as Parameters<typeof superjson.deserialize>[0]["meta"]
                     });
                 } catch {
                     input = item.json;
@@ -75,7 +75,7 @@ function normalizeBodyForSigning(
                 // Cast to SuperJSONResult - superjson expects specific shape
                 input = superjson.deserialize({
                     json: body.json as Parameters<typeof superjson.deserialize>[0]["json"],
-                    meta: body.meta as Parameters<typeof superjson.deserialize>[0]["meta"],
+                    meta: body.meta as Parameters<typeof superjson.deserialize>[0]["meta"]
                 });
             } catch {
                 input = body.json;
@@ -141,8 +141,8 @@ function logError(path: string | undefined, error: TRPCError) {
         isOperational,
         ...(process.env.NODE_ENV === "development" && {
             stack: error.stack,
-            cause: error.cause instanceof Error ? error.cause.message : undefined,
-        }),
+            cause: error.cause instanceof Error ? error.cause.message : undefined
+        })
     };
 
     // Always log errors, adjust format based on environment
@@ -189,11 +189,11 @@ async function handler(req: Request) {
                 // Use the endpoint path for signature verification (must match what client signs)
                 path: "/api/trpc",
                 // Use normalized body for signature verification (must match what client signs)
-                body: normalizedBody,
+                body: normalizedBody
             }),
         onError: ({ path, error }) => {
             logError(path, error);
-        },
+        }
     });
 }
 

@@ -5,7 +5,9 @@
 
 ## Overview
 
-This feature requires **no changes** to the persisted CRDT schema. The `Transaction` entity already has `description` (imported text from bank) and `notes` (user memo) fields. All new state is UI-only (React state).
+This feature requires **no changes** to the persisted CRDT schema. The `Transaction` entity already
+has `description` (imported text from bank) and `notes` (user memo) fields. All new state is UI-only
+(React state).
 
 ## Existing CRDT Schema (No Changes)
 
@@ -23,7 +25,7 @@ export const transactionSchema = schema.LoroMap({
     importId: schema.String(),
     allocations: schema.LoroMapRecord(schema.Number()),
     duplicateOf: schema.String(),
-    deletedAt: schema.Number(),
+    deletedAt: schema.Number()
 });
 ```
 
@@ -126,7 +128,7 @@ const COLUMN_CONFIG: ColumnDef[] = [
         width: "w-10",
         align: "center",
         editable: false,
-        sortable: false,
+        sortable: false
     },
     { id: "date", header: "Date", width: "w-28", align: "left", editable: true, sortable: true },
     {
@@ -135,7 +137,7 @@ const COLUMN_CONFIG: ColumnDef[] = [
         width: "flex-1",
         align: "left",
         editable: true,
-        sortable: true,
+        sortable: true
     },
     {
         id: "account",
@@ -143,7 +145,7 @@ const COLUMN_CONFIG: ColumnDef[] = [
         width: "w-32",
         align: "left",
         editable: true,
-        sortable: true,
+        sortable: true
     },
     { id: "tags", header: "Tags", width: "w-40", align: "center", editable: true, sortable: false },
     {
@@ -152,7 +154,7 @@ const COLUMN_CONFIG: ColumnDef[] = [
         width: "w-28",
         align: "center",
         editable: true,
-        sortable: true,
+        sortable: true
     },
     {
         id: "amount",
@@ -160,7 +162,7 @@ const COLUMN_CONFIG: ColumnDef[] = [
         width: "w-28",
         align: "right",
         editable: true,
-        sortable: true,
+        sortable: true
     },
     {
         id: "balance",
@@ -168,9 +170,9 @@ const COLUMN_CONFIG: ColumnDef[] = [
         width: "w-28",
         align: "right",
         editable: false,
-        sortable: false,
+        sortable: false
     },
-    { id: "actions", header: "", width: "w-20", align: "center", editable: false, sortable: false },
+    { id: "actions", header: "", width: "w-20", align: "center", editable: false, sortable: false }
 ];
 ```
 

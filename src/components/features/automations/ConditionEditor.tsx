@@ -19,7 +19,7 @@ import {
     SelectContent,
     SelectItem,
     SelectTrigger,
-    SelectValue,
+    SelectValue
 } from "@/components/ui/select";
 
 export interface ConditionData {
@@ -48,7 +48,7 @@ export const CONDITION_COLUMNS = [
     { value: "description", label: "Description" },
     { value: "notes", label: "Notes" },
     { value: "amount", label: "Amount" },
-    { value: "accountId", label: "Account" },
+    { value: "accountId", label: "Account" }
 ] as const;
 
 /** Available operators for conditions */
@@ -57,7 +57,7 @@ export const CONDITION_OPERATORS = [
     { value: "regex", label: "Matches Regex" },
     { value: "equals", label: "Equals" },
     { value: "startsWith", label: "Starts With" },
-    { value: "endsWith", label: "Ends With" },
+    { value: "endsWith", label: "Ends With" }
 ] as const;
 
 /**
@@ -68,7 +68,7 @@ export function ConditionEditor({
     onChange,
     onRemove,
     canRemove = true,
-    className,
+    className
 }: ConditionEditorProps) {
     const handleColumnChange = useCallback(
         (column: string) => {

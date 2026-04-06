@@ -34,7 +34,7 @@ import {
     DuplicatesTab,
     FormattingTab,
     MappingTab,
-    TemplateTab,
+    TemplateTab
 } from "./tabs";
 
 // ============================================================================
@@ -109,7 +109,7 @@ export function ImportPanel({
     onSaveTemplate,
     onUpdateTemplate,
     onDeleteTemplate,
-    className,
+    className
 }: ImportPanelProps) {
     // State
     const [showFiltered, setShowFiltered] = useState(true);
@@ -128,12 +128,12 @@ export function ImportPanel({
         reset,
         previewTransactions,
         summaryStats,
-        canImport,
+        canImport
     } = useImportState({
         existingTransactions,
         accounts,
         templates,
-        defaultCurrency,
+        defaultCurrency
     });
 
     // Get selected account's currency for proper amount formatting
@@ -187,7 +187,7 @@ export function ImportPanel({
                     description: tx.description,
                     amount: tx.amount,
                     accountId: session.selectedAccountId!,
-                    duplicateOf: tx.duplicateOf,
+                    duplicateOf: tx.duplicateOf
                 }));
 
             if (transactionsToImport.length === 0) {
@@ -197,7 +197,7 @@ export function ImportPanel({
 
             // Create transactions in CRDT
             onCreateTransactions(transactionsToImport, session.fileName, {
-                accountAction: session.accountAction,
+                accountAction: session.accountAction
             });
 
             // Auto-save or auto-update template
@@ -228,7 +228,7 @@ export function ImportPanel({
         onImportComplete,
         onSaveTemplate,
         onUpdateTemplate,
-        reset,
+        reset
     ]);
 
     // Extract sample data for formatting tab
@@ -367,7 +367,7 @@ export function ImportPanel({
                     columnMappings={Object.fromEntries(
                         Object.entries(session.config.columnMappings).map(([idx, field]) => [
                             field,
-                            parseInt(idx, 10),
+                            parseInt(idx, 10)
                         ])
                     )}
                     showFiltered={showFiltered}
@@ -422,7 +422,7 @@ export function ImportPanel({
                             formatting={session.config.formatting}
                             onFormattingChange={(updates) =>
                                 setConfig({
-                                    formatting: { ...session.config.formatting, ...updates },
+                                    formatting: { ...session.config.formatting, ...updates }
                                 })
                             }
                             sampleDates={sampleDates}
@@ -439,8 +439,8 @@ export function ImportPanel({
                                 setConfig({
                                     duplicateDetection: {
                                         ...session.config.duplicateDetection,
-                                        ...updates,
-                                    },
+                                        ...updates
+                                    }
                                 })
                             }
                             oldTransactionFilter={session.config.oldTransactionFilter}
@@ -448,8 +448,8 @@ export function ImportPanel({
                                 setConfig({
                                     oldTransactionFilter: {
                                         ...session.config.oldTransactionFilter,
-                                        ...updates,
-                                    },
+                                        ...updates
+                                    }
                                 })
                             }
                             existingTransactions={existingTransactions}

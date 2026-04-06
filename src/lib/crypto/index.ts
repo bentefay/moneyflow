@@ -21,7 +21,7 @@ export {
     encryptString,
     generateVaultKey,
     KEY_BYTES,
-    NONCE_BYTES,
+    NONCE_BYTES
 } from "./encryption";
 // Identity management
 export {
@@ -30,7 +30,7 @@ export {
     type NewIdentity,
     storeIdentitySession,
     type UnlockedIdentity,
-    unlockWithSeed,
+    unlockWithSeed
 } from "./identity";
 // Keypair derivation
 export {
@@ -44,7 +44,7 @@ export {
     initCrypto,
     privateKeyToBase64,
     publicKeyToBase64,
-    type SigningKeypair,
+    type SigningKeypair
 } from "./keypair";
 // Asymmetric key wrapping
 export {
@@ -55,7 +55,7 @@ export {
     unwrapKey,
     unwrapKeyFromBase64,
     wrapKey,
-    wrapKeyToBase64,
+    wrapKeyToBase64
 } from "./keywrap";
 // Vault re-keying
 export {
@@ -63,7 +63,7 @@ export {
     type RekeyResult,
     type RemainingMember,
     reencryptSnapshot,
-    rekeyVault,
+    rekeyVault
 } from "./rekey";
 // Seed phrase utilities
 export {
@@ -72,7 +72,7 @@ export {
     mnemonicToMasterSeed,
     normalizeMnemonic,
     splitMnemonic,
-    validateSeedPhrase,
+    validateSeedPhrase
 } from "./seed";
 // Session storage
 export {
@@ -85,7 +85,7 @@ export {
     getSessionSecretKey,
     hasSession,
     type SessionData,
-    storeSession,
+    storeSession
 } from "./session";
 // Request signing
 export {
@@ -95,5 +95,5 @@ export {
     signString,
     verifyRequest,
     verifySignature,
-    verifyStringSignature,
+    verifyStringSignature
 } from "./signing";

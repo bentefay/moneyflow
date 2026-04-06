@@ -10,5 +10,5 @@ export {
     type EnsureVaultResult,
     ensureDefaultVault,
     setActiveVaultStorage,
-    type VaultApiMethods,
+    type VaultApiMethods
 } from "./ensure-default";

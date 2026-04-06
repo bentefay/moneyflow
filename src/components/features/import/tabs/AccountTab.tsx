@@ -64,7 +64,7 @@ export function AccountActionMessage({
     fileType = "ofx",
     detectedAccountNumber,
     targetAccountName,
-    className,
+    className
 }: AccountActionMessageProps) {
     if (!accountAction) return null;
 
@@ -164,7 +164,7 @@ export function AccountTab({
     isRequired = false,
     detectedAccountNumber,
     accountAction,
-    className,
+    className
 }: AccountTabProps) {
     // Filter to active accounts only
     const activeAccounts = useMemo(() => accounts.filter((a) => !a.deletedAt), [accounts]);

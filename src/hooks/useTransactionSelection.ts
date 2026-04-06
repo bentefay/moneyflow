@@ -52,7 +52,7 @@ export interface UseTransactionSelectionReturn {
  */
 export function useTransactionSelection({
     transactionIds,
-    initialSelection = new Set(),
+    initialSelection = new Set()
 }: UseTransactionSelectionOptions): UseTransactionSelectionReturn {
     const [selectedIds, setSelectedIds] = useState<Set<string>>(initialSelection);
     const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
@@ -157,6 +157,6 @@ export function useTransactionSelection({
         toggleSelectAll,
         isSelected,
         setSelection,
-        lastSelectedId,
+        lastSelectedId
     };
 }

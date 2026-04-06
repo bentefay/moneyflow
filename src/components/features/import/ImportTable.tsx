@@ -76,25 +76,25 @@ function getStatusDisplay(status: RowStatus): {
             return {
                 icon: CheckCircle2,
                 color: "text-green-600 dark:text-green-400",
-                label: "Valid",
+                label: "Valid"
             };
         case "invalid":
             return {
                 icon: AlertCircle,
                 color: "text-destructive",
-                label: "Error",
+                label: "Error"
             };
         case "duplicate":
             return {
                 icon: Copy,
                 color: "text-amber-600 dark:text-amber-400",
-                label: "Duplicate",
+                label: "Duplicate"
             };
         case "filtered":
             return {
                 icon: Clock,
                 color: "text-muted-foreground",
-                label: "Old",
+                label: "Old"
             };
     }
 }
@@ -117,7 +117,7 @@ export function ImportTable({
     showFiltered = true,
     onToggleFiltered,
     maxDisplayRows = 100,
-    className,
+    className
 }: ImportTableProps) {
     // Build set of mapped column indices for highlighting
     const mappedIndices = useMemo(() => new Set(Object.values(columnMappings)), [columnMappings]);
@@ -150,7 +150,7 @@ export function ImportTable({
             result.push({
                 rowIndex: i,
                 rawRow: dataRows[i],
-                preview: preview ?? null,
+                preview: preview ?? null
             });
         }
 

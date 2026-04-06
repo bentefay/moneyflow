@@ -4,21 +4,28 @@ applyTo: "tests/e2e/**"
 
 # E2E Test Guidelines
 
-Playwright tests implementing Constitution VII: high-level tests with harnesses over excessive mocking.
+Playwright tests implementing Constitution VII: high-level tests with harnesses over excessive
+mocking.
 
-Favour creating journey style e2e tests that cover critical user flows end-to-end, including backend integration, over
-e2e tests that repetitively run slow initialization flows to test small units of functionality.
+Favour creating journey style e2e tests that cover critical user flows end-to-end, including backend
+integration, over e2e tests that repetitively run slow initialization flows to test small units of
+functionality.
 
-Use Playwright's test.step() to break complex flows into logical sections for readability and debugging.
+Use Playwright's test.step() to break complex flows into logical sections for readability and
+debugging.
 
-Use the next.js and playwright MCP servers to help with debugging. Assume the next.js server is already running (pnpm dev). The server automatically
-picks up changes. NEVER assume it is running with old code. Always fix flaky tests when you discover them. It doesn't matter if they were flaky before your change. Fix them now.
+Use the next.js and playwright MCP servers to help with debugging. Assume the next.js server is
+already running (pnpm dev). The server automatically picks up changes. NEVER assume it is running
+with old code. Always fix flaky tests when you discover them. It doesn't matter if they were flaky
+before your change. Fix them now.
 
 ## Auto-Approved Terminal Commands
 
 - `pnpm playwright test --reporter=line --max-failures=1 2>&1` - Run with fail-fast
-- `pnpm playwright test --reporter=json --max-failures=1 2>&1` - Use json reporter if you need structured output
-- `pnpm playwright test --workers=4 --repeat-each=5 --reporter=line 2>&1 ` - Use --repeat-each for flaky tests
+- `pnpm playwright test --reporter=json --max-failures=1 2>&1` - Use json reporter if you need
+  structured output
+- `pnpm playwright test --workers=4 --repeat-each=5 --reporter=line 2>&1 ` - Use --repeat-each for
+  flaky tests
 - Do NOT use `--debug` as it opens the GUI and will block forever.
 
 ## Shared Helpers

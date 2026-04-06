@@ -1,7 +1,7 @@
 # Tasks: Optional Account Currency & Accounts Page Improvements
 
-**Input**: Design documents from `/specs/003-account-currency-styling/`
-**Prerequisites**: plan.md ✅, spec.md ✅, research.md ✅, data-model.md ✅, quickstart.md ✅
+**Input**: Design documents from `/specs/003-account-currency-styling/` **Prerequisites**: plan.md
+✅, spec.md ✅, research.md ✅, data-model.md ✅, quickstart.md ✅
 
 ## Format: `[ID] [P?] [Story?] Description`
 
@@ -30,11 +30,15 @@
 - [x] T002 Make currency field optional in accountSchema in src/lib/crdt/schema.ts
 - [x] T003 [P] Add DEFAULT_PERSON_ID constant and DEFAULT_PERSON object in src/lib/crdt/defaults.ts
 - [x] T004 [P] Add resolveAccountCurrency() helper function in src/lib/domain/currency.ts
-- [x] T005 Modify DEFAULT_ACCOUNT to use undefined currency and reference DEFAULT_PERSON_ID for 100% ownership in src/lib/crdt/defaults.ts
-- [x] T006 Update getDefaultVaultState() to include default person in people collection in src/lib/crdt/defaults.ts
-- [x] T007 Update initializeVaultDefaults() to add default person if missing in src/lib/crdt/defaults.ts
+- [x] T005 Modify DEFAULT_ACCOUNT to use undefined currency and reference DEFAULT_PERSON_ID for 100%
+      ownership in src/lib/crdt/defaults.ts
+- [x] T006 Update getDefaultVaultState() to include default person in people collection in
+      src/lib/crdt/defaults.ts
+- [x] T007 Update initializeVaultDefaults() to add default person if missing in
+      src/lib/crdt/defaults.ts
 - [x] T008 [P] Add unit tests for resolveAccountCurrency() in tests/unit/domain/currency.test.ts
-- [x] T009 [P] Add unit tests for default person and account ownership in tests/unit/crdt/defaults.test.ts
+- [x] T009 [P] Add unit tests for default person and account ownership in
+      tests/unit/crdt/defaults.test.ts
 
 **Checkpoint**: Foundation ready—schema updated, default person exists, currency resolution works ✅
 
@@ -48,11 +52,16 @@
 
 ### Implementation for User Story 1
 
-- [x] T010 [US1] Add vaultDefaultCurrency prop to AccountRow component in src/components/features/accounts/AccountRow.tsx
-- [x] T011 [US1] Import and use resolveAccountCurrency() for currency display in src/components/features/accounts/AccountRow.tsx
-- [x] T012 [US1] Add visual indicator (muted text + "(default)") for inherited currency in src/components/features/accounts/AccountRow.tsx
-- [x] T013 [US1] Pass vault default currency from AccountsTable to AccountRow in src/components/features/accounts/AccountsTable.tsx
-- [x] T014 [P] [US1] Add E2E test for currency display with inheritance indicator in tests/e2e/accounts.spec.ts
+- [x] T010 [US1] Add vaultDefaultCurrency prop to AccountRow component in
+      src/components/features/accounts/AccountRow.tsx
+- [x] T011 [US1] Import and use resolveAccountCurrency() for currency display in
+      src/components/features/accounts/AccountRow.tsx
+- [x] T012 [US1] Add visual indicator (muted text + "(default)") for inherited currency in
+      src/components/features/accounts/AccountRow.tsx
+- [x] T013 [US1] Pass vault default currency from AccountsTable to AccountRow in
+      src/components/features/accounts/AccountsTable.tsx
+- [x] T014 [P] [US1] Add E2E test for currency display with inheritance indicator in
+      tests/e2e/accounts.spec.ts
 
 **Checkpoint**: Accounts page shows currency with clear inherited/explicit distinction ✅
 
@@ -66,8 +75,10 @@
 
 ### Implementation for User Story 2
 
-- [x] T015 [US2] Verify ensure-default.ts uses updated getDefaultVaultState() with person in src/lib/vault/ensure-default.ts
-- [x] T016 [P] [US2] Add E2E test for new vault creation with default person and ownership in tests/e2e/onboarding-vault.spec.ts
+- [x] T015 [US2] Verify ensure-default.ts uses updated getDefaultVaultState() with person in
+      src/lib/vault/ensure-default.ts
+- [x] T016 [P] [US2] Add E2E test for new vault creation with default person and ownership in
+      tests/e2e/onboarding-vault.spec.ts
 
 **Checkpoint**: New users see "Me (100%)" on default account—no "missing owner" errors ✅
 
@@ -81,9 +92,12 @@
 
 ### Implementation for User Story 3
 
-- [x] T017 [US3] Adjust column widths in AccountsTable header (Currency: w-12 → w-20) in src/components/features/accounts/AccountsTable.tsx
-- [x] T018 [US3] Adjust corresponding column widths in AccountRow to match header in src/components/features/accounts/AccountRow.tsx
-- [x] T019 [P] [US3] ~~Add visual regression test snapshot~~ SKIPPED - No visual testing infrastructure in project; functional E2E tests cover the behavior
+- [x] T017 [US3] Adjust column widths in AccountsTable header (Currency: w-12 → w-20) in
+      src/components/features/accounts/AccountsTable.tsx
+- [x] T018 [US3] Adjust corresponding column widths in AccountRow to match header in
+      src/components/features/accounts/AccountRow.tsx
+- [x] T019 [P] [US3] ~~Add visual regression test snapshot~~ SKIPPED - No visual testing
+      infrastructure in project; functional E2E tests cover the behavior
 
 **Checkpoint**: Accounts page columns are properly spaced and aligned ✅
 
@@ -97,8 +111,10 @@
 
 ### Implementation for User Story 4
 
-- [x] T020 [US4] Update account creation logic to allow undefined currency in src/components/features/accounts/AccountsTable.tsx
-- [x] T021 [P] [US4] Add E2E test for creating account without explicit currency in tests/e2e/accounts.spec.ts
+- [x] T020 [US4] Update account creation logic to allow undefined currency in
+      src/components/features/accounts/AccountsTable.tsx
+- [x] T021 [P] [US4] Add E2E test for creating account without explicit currency in
+      tests/e2e/accounts.spec.ts
 
 **Checkpoint**: New accounts can be created with inherited currency ✅
 
@@ -112,11 +128,16 @@
 
 ### Implementation for User Story 5
 
-- [x] T022 [US5] Create CurrencySelect component with "Use vault default" option in src/components/features/accounts/CurrencySelect.tsx
-- [x] T023 [US5] Refactor AccountRow to use per-field editing state instead of global isEditing in src/components/features/accounts/AccountRow.tsx
-- [x] T024 [US5] Add inline currency editing using CurrencySelect in src/components/features/accounts/AccountRow.tsx
-- [x] T025 [US5] Ensure Enter saves, Escape cancels for all inline editors in src/components/features/accounts/AccountRow.tsx
-- [x] T026 [P] [US5] Add E2E test for inline editing all account fields in tests/e2e/accounts.spec.ts
+- [x] T022 [US5] Create CurrencySelect component with "Use vault default" option in
+      src/components/features/accounts/CurrencySelect.tsx
+- [x] T023 [US5] Refactor AccountRow to use per-field editing state instead of global isEditing in
+      src/components/features/accounts/AccountRow.tsx
+- [x] T024 [US5] Add inline currency editing using CurrencySelect in
+      src/components/features/accounts/AccountRow.tsx
+- [x] T025 [US5] Ensure Enter saves, Escape cancels for all inline editors in
+      src/components/features/accounts/AccountRow.tsx
+- [x] T026 [P] [US5] Add E2E test for inline editing all account fields in
+      tests/e2e/accounts.spec.ts
 
 **Checkpoint**: All account fields editable inline with proper keyboard handling ✅
 
@@ -197,7 +218,8 @@ After Phase 2 completes:
 
 ### Full Feature
 
-Continue with: 7. Complete Phase 5: US3 (Column Alignment) 8. Complete Phase 6: US4 (Create Account Currency) 9. Complete Phase 7: US5 (Inline Editing) 10. Complete Phase 8: Polish
+Continue with: 7. Complete Phase 5: US3 (Column Alignment) 8. Complete Phase 6: US4 (Create Account
+Currency) 9. Complete Phase 7: US5 (Inline Editing) 10. Complete Phase 8: Polish
 
 ---
 

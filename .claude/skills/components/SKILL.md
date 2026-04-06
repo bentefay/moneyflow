@@ -1,6 +1,8 @@
 ---
 name: components
-description: UI component patterns for React 19, shadcn/ui, and Tailwind. Use when working on files in src/components/.
+description:
+    UI component patterns for React 19, shadcn/ui, and Tailwind. Use when working on files in
+    src/components/.
 ---
 
 # Components Guidelines

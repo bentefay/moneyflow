@@ -361,7 +361,7 @@ describe("parseOFX", () => {
             { amount: "-100.50", expected: -100.5 },
             { amount: "2500.00", expected: 2500 },
             { amount: "-0.01", expected: -0.01 },
-            { amount: "0", expected: 0 },
+            { amount: "0", expected: 0 }
         ];
 
         for (const tc of amountTestCases) {
@@ -533,14 +533,14 @@ describe("isOFXFormat", () => {
         { name: "OFXHEADER", content: "OFXHEADER:100\n<OFX>" },
         { name: "<OFX> tag", content: "<OFX><DATA></DATA></OFX>" },
         { name: "<OFX with attributes", content: '<OFX VERSION="2.0">' },
-        { name: "<?OFX processing instruction", content: '<?OFX OFXHEADER="200"?>' },
+        { name: "<?OFX processing instruction", content: '<?OFX OFXHEADER="200"?>' }
     ];
 
     const negativeTestCases = [
         { name: "CSV", content: "date,amount\n2024-01-01,100" },
         { name: "JSON", content: '{"transactions":[]}' },
         { name: "plain text", content: "This is just some text" },
-        { name: "empty", content: "" },
+        { name: "empty", content: "" }
     ];
 
     for (const tc of positiveTestCases) {

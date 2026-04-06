@@ -30,7 +30,7 @@ export {
     useVaultSelector,
     useVaultState,
     VaultContext,
-    VaultProvider,
+    VaultProvider
 } from "./context";
 // Vault defaults initialization
 export {
@@ -40,7 +40,7 @@ export {
     DEFAULT_STATUSES,
     getDefaultVaultState,
     hasVaultDefaults,
-    initializeVaultDefaults,
+    initializeVaultDefaults
 } from "./defaults";
 // Mirror instance creation
 export {
@@ -49,7 +49,7 @@ export {
     createVaultMirror,
     createVaultMirrorFromSnapshot,
     DEFAULT_VAULT_STATE,
-    type VaultMirror,
+    type VaultMirror
 } from "./mirror";
 // Query utilities
 export {
@@ -72,7 +72,7 @@ export {
     paginateTransactions,
     queryTransactions,
     type TagTreeNode,
-    type TransactionQueryOptions,
+    type TransactionQueryOptions
 } from "./queries";
 // Rich schema transforms
 export { richSchema } from "./rich-schema";
@@ -110,7 +110,7 @@ export {
     type VaultPreferences,
     type VaultState,
     vaultPreferencesSchema,
-    vaultSchema,
+    vaultSchema
 } from "./schema";
 // Encrypted snapshot serialization
 export {
@@ -123,7 +123,7 @@ export {
     type EncryptedUpdate,
     encryptUserData,
     loadEncryptedSnapshot,
-    type SnapshotMetadata,
+    type SnapshotMetadata
 } from "./snapshot";
 // Binary sync utilities
 export {
@@ -138,7 +138,7 @@ export {
     importUpdates,
     LoroDoc,
     type VersionState,
-    type VersionVector,
+    type VersionVector
 } from "./sync";
 // Utilities
 export { getEntriesOfLoroMap, type WithCid } from "./utils";

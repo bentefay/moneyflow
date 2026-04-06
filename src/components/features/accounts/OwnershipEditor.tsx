@@ -18,7 +18,7 @@ import {
     normalizeOwnerships,
     removeOwner,
     sumOwnerships,
-    validateOwnerships,
+    validateOwnerships
 } from "@/lib/domain/ownership";
 import { cn } from "@/lib/utils";
 
@@ -45,7 +45,7 @@ export function OwnershipEditor({
     ownerships,
     onChange,
     disabled = false,
-    className,
+    className
 }: OwnershipEditorProps) {
     const allPeople = useActivePeople();
     const [isAddingOwner, setIsAddingOwner] = useState(false);

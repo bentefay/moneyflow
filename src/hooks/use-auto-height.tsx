@@ -11,7 +11,7 @@ export function useAutoHeight<T extends HTMLElement = HTMLDivElement>(
     deps: React.DependencyList = [],
     options: AutoHeightOptions = {
         includeParentBox: true,
-        includeSelfBox: false,
+        includeSelfBox: false
     }
 ) {
     const ref = React.useRef<T | null>(null);

@@ -187,7 +187,7 @@ export function buildHierarchicalTagList<T extends TagLike>(tags: T[]): TagWithD
             result.push({
                 tag: child,
                 depth,
-                parentName: parent?.name,
+                parentName: parent?.name
             });
             traverse(child.id, depth + 1);
         }

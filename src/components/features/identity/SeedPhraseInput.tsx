@@ -25,7 +25,7 @@ import {
     useEffect,
     useMemo,
     useRef,
-    useState,
+    useState
 } from "react";
 
 import { Input } from "@/components/ui/input";
@@ -86,7 +86,7 @@ export function SeedPhraseInput({
     layout = "3x4",
     className,
     autoFocus = true,
-    disabled = false,
+    disabled = false
 }: SeedPhraseInputProps) {
     // Parse value into array of 12 words
     const initialWords = useMemo(() => {

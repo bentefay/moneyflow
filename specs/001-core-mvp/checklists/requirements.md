@@ -33,5 +33,6 @@
 
 - All checklist items pass ✅
 - Specification is ready for `/speckit.plan` to create the technical implementation plan
-- Bot verification assumption (A-001) notes free services like hCaptcha or Cloudflare Turnstile as options
+- Bot verification assumption (A-001) notes free services like hCaptcha or Cloudflare Turnstile as
+  options
 - Out of scope items clearly documented for future features

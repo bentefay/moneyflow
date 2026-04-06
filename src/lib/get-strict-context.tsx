@@ -4,7 +4,7 @@ function getStrictContext<T>(
     name?: string
 ): readonly [
     ({ value, children }: { value: T; children?: React.ReactNode }) => React.JSX.Element,
-    () => T,
+    () => T
 ] {
     const Context = React.createContext<T | undefined>(undefined);
 

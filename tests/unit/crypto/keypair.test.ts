@@ -15,7 +15,7 @@ import {
     deriveKeysFromSeed,
     initCrypto,
     privateKeyToBase64,
-    publicKeyToBase64,
+    publicKeyToBase64
 } from "@/lib/crypto/keypair";
 import { generateSeedPhrase, mnemonicToMasterSeed } from "@/lib/crypto/seed";
 

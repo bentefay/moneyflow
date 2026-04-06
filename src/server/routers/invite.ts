@@ -22,7 +22,7 @@ import {
     inviteCreateInput,
     inviteGetByPubkeyInput,
     inviteListInput,
-    inviteRevokeInput,
+    inviteRevokeInput
 } from "../schemas/invite";
 import { protectedProcedure, publicProcedure, router } from "../trpc";
 
@@ -49,14 +49,14 @@ export const inviteRouter = router({
         if (memberError || !membership) {
             throw new TRPCError({
                 code: "NOT_FOUND",
-                message: "Vault not found or access denied",
+                message: "Vault not found or access denied"
             });
         }
 
         if (membership.role !== "owner") {
             throw new TRPCError({
                 code: "FORBIDDEN",
-                message: "Only the owner can create invites",
+                message: "Only the owner can create invites"
             });
         }
 
@@ -71,7 +71,7 @@ export const inviteRouter = router({
                 encrypted_vault_key: input.encryptedVaultKey,
                 role: input.role as VaultRole,
                 created_by: ctx.pubkeyHash,
-                expires_at: expiresAt,
+                expires_at: expiresAt
             })
             .select("id, expires_at")
             .single();
@@ -81,7 +81,7 @@ export const inviteRouter = router({
             if (insertError.code === "23505") {
                 throw new TRPCError({
                     code: "CONFLICT",
-                    message: "Invite already exists (regenerate secret)",
+                    message: "Invite already exists (regenerate secret)"
                 });
             }
             throw new Error(`Failed to create invite: ${insertError.message}`);
@@ -89,7 +89,7 @@ export const inviteRouter = router({
 
         return {
             inviteId: invite.id,
-            expiresAt: invite.expires_at,
+            expiresAt: invite.expires_at
         };
     }),
 
@@ -112,7 +112,7 @@ export const inviteRouter = router({
             if (error.code === "PGRST116") {
                 throw new TRPCError({
                     code: "NOT_FOUND",
-                    message: "Invalid invite",
+                    message: "Invalid invite"
                 });
             }
             throw new Error(`Failed to get invite: ${error.message}`);
@@ -127,7 +127,7 @@ export const inviteRouter = router({
         ) {
             throw new TRPCError({
                 code: "BAD_REQUEST",
-                message: "Invite has expired",
+                message: "Invite has expired"
             });
         }
 
@@ -136,7 +136,7 @@ export const inviteRouter = router({
             vaultId: invite.vault_id,
             encryptedVaultKey: invite.encrypted_vault_key,
             role: invite.role,
-            expiresAt: invite.expires_at,
+            expiresAt: invite.expires_at
         };
     }),
 
@@ -159,7 +159,7 @@ export const inviteRouter = router({
         if (inviteError || !invite) {
             throw new TRPCError({
                 code: "NOT_FOUND",
-                message: "Invalid invite",
+                message: "Invalid invite"
             });
         }
 
@@ -171,7 +171,7 @@ export const inviteRouter = router({
         ) {
             throw new TRPCError({
                 code: "BAD_REQUEST",
-                message: "Invite has expired",
+                message: "Invite has expired"
             });
         }
 
@@ -186,7 +186,7 @@ export const inviteRouter = router({
         if (existingMembership) {
             throw new TRPCError({
                 code: "BAD_REQUEST",
-                message: "You are already a member of this vault",
+                message: "You are already a member of this vault"
             });
         }
 
@@ -196,7 +196,7 @@ export const inviteRouter = router({
             pubkey_hash: ctx.pubkeyHash,
             role: invite.role,
             encrypted_vault_key: input.encryptedVaultKey,
-            enc_public_key: input.encPublicKey,
+            enc_public_key: input.encPublicKey
         });
 
         if (memberError) {
@@ -208,7 +208,7 @@ export const inviteRouter = router({
 
         return {
             vaultId: invite.vault_id,
-            role: invite.role,
+            role: invite.role
         };
     }),
 
@@ -231,14 +231,14 @@ export const inviteRouter = router({
         if (memberError || !membership) {
             throw new TRPCError({
                 code: "NOT_FOUND",
-                message: "Vault not found or access denied",
+                message: "Vault not found or access denied"
             });
         }
 
         if (membership.role !== "owner") {
             throw new TRPCError({
                 code: "FORBIDDEN",
-                message: "Only the owner can view invites",
+                message: "Only the owner can view invites"
             });
         }
 
@@ -261,7 +261,7 @@ export const inviteRouter = router({
                 Temporal.Instant.compare(
                     Temporal.Instant.from(invite.expires_at),
                     Temporal.Now.instant()
-                ) < 0,
+                ) < 0
         }));
     }),
 
@@ -283,7 +283,7 @@ export const inviteRouter = router({
         if (inviteError || !invite) {
             throw new TRPCError({
                 code: "NOT_FOUND",
-                message: "Invite not found",
+                message: "Invite not found"
             });
         }
 
@@ -298,7 +298,7 @@ export const inviteRouter = router({
         if (memberError || !membership || membership.role !== "owner") {
             throw new TRPCError({
                 code: "FORBIDDEN",
-                message: "Only the owner can revoke invites",
+                message: "Only the owner can revoke invites"
             });
         }
 
@@ -312,5 +312,5 @@ export const inviteRouter = router({
         }
 
         return { success: true };
-    }),
+    })
 });

@@ -116,7 +116,7 @@ export async function ensureDefaultVault(
             return {
                 vaultId: vaults[0].id,
                 name: DEFAULT_VAULT_NAME, // We don't have the name from server
-                created: false,
+                created: false
             };
         }
     }
@@ -135,7 +135,7 @@ export async function ensureDefaultVault(
     // 3. Create vault on server
     const { vaultId } = await api.createVault({
         encryptedVaultKey: sodium.to_base64(wrappedKey, sodium.base64_variants.ORIGINAL),
-        encPublicKey: session.encPublicKey,
+        encPublicKey: session.encPublicKey
     });
 
     // 4. Initialize LoroDoc with default state
@@ -149,7 +149,7 @@ export async function ensureDefaultVault(
     const mirror = new Mirror({
         doc,
         schema: vaultSchema,
-        validateUpdates: true,
+        validateUpdates: true
     });
 
     // new Mirror({ initialState }) doesn't appear to sync to the doc, so we use setState
@@ -180,7 +180,7 @@ export async function ensureDefaultVault(
         version: 1,
         hlcTimestamp: generateHlcTimestamp(),
         encryptedData: sodium.to_base64(encryptedData, sodium.base64_variants.ORIGINAL),
-        versionVector,
+        versionVector
     });
 
     console.log(`Created default vault: ${vaultId}`);
@@ -189,7 +189,7 @@ export async function ensureDefaultVault(
         vaultId,
         name: DEFAULT_VAULT_NAME,
         created: true,
-        vaultKey,
+        vaultKey
     };
 }
 

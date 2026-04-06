@@ -27,13 +27,13 @@ export interface PresenceAvatarProps {
 const sizeClasses = {
     sm: "h-6 w-6 text-xs",
     md: "h-8 w-8 text-sm",
-    lg: "h-10 w-10 text-base",
+    lg: "h-10 w-10 text-base"
 } as const;
 
 const indicatorSizeClasses = {
     sm: "h-2 w-2",
     md: "h-2.5 w-2.5",
-    lg: "h-3 w-3",
+    lg: "h-3 w-3"
 } as const;
 
 /**
@@ -45,7 +45,7 @@ export function PresenceAvatar({
     isOnline = false,
     size = "md",
     className,
-    showIndicator = true,
+    showIndicator = true
 }: PresenceAvatarProps) {
     const displayName = name || userId;
     const initials = getInitials(displayName);
@@ -66,7 +66,7 @@ export function PresenceAvatar({
                 )}
                 style={{
                     backgroundColor,
-                    color: textColor,
+                    color: textColor
                 }}
             >
                 {initials}

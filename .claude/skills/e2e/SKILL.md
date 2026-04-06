@@ -8,7 +8,8 @@ description: Playwright E2E testing patterns. Use when working on files in tests
 ## Philosophy
 
 - Journey-style tests covering critical flows end-to-end
-- **Strongly prefer adding `test.step()` to existing tests** over creating new tests - keeps suite fast and avoids duplicating slow setup flows
+- **Strongly prefer adding `test.step()` to existing tests** over creating new tests - keeps suite
+  fast and avoids duplicating slow setup flows
 - Fix flaky tests immediately, regardless of when introduced
 
 ## Commands

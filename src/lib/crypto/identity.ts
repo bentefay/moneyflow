@@ -12,7 +12,7 @@ import {
     generateSeedPhrase,
     mnemonicToMasterSeed,
     normalizeMnemonic,
-    validateSeedPhrase,
+    validateSeedPhrase
 } from "./seed";
 import { type SessionData, storeSession } from "./session";
 
@@ -50,7 +50,7 @@ export interface UnlockedIdentity {
  * @returns Hex-encoded BLAKE2b-256 hash (64 characters)
  */
 export function computePubkeyHash(publicKey: Uint8Array): string {
-    const hash = sodium.crypto_generichash(32, publicKey);
+    const hash = sodium.crypto_generichash(32, publicKey, null);
     return sodium.to_hex(hash);
 }
 
@@ -102,7 +102,7 @@ export function storeIdentitySession(identity: NewIdentity | UnlockedIdentity): 
             identity.keys.encryption.privateKey,
             sodium.base64_variants.ORIGINAL
         ),
-        pubkeyHash: identity.pubkeyHash,
+        pubkeyHash: identity.pubkeyHash
     };
     storeSession(sessionData);
 }

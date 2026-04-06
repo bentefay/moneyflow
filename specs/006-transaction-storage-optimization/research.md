@@ -5,7 +5,8 @@
 
 ## Overview
 
-This document captures research findings and design decisions for restructuring transaction storage from flat to hierarchical.
+This document captures research findings and design decisions for restructuring transaction storage
+from flat to hierarchical.
 
 ---
 
@@ -79,7 +80,8 @@ function getTransactionsForDay(month: MonthBucket, day: number): Transaction[] {
 
 - **Date descending**: Newest transactions first (user expectation)
 - **creationInstant descending**: Within same day, newest import first (most relevant to review)
-- **importRowIndex ascending**: Within same import, preserve source file order (matches bank statement)
+- **importRowIndex ascending**: Within same import, preserve source file order (matches bank
+  statement)
 
 ### New Fields Required
 
@@ -115,7 +117,8 @@ transactions.sort((a, b) => {
 
 ### Rationale
 
-Current approach (monthly bucketing) is O(n × m/12). New hierarchical structure enables true O(n + m):
+Current approach (monthly bucketing) is O(n × m/12). New hierarchical structure enables true O(n +
+m):
 
 1. Sort import transactions by date
 2. Iterate through existing transactions in date order (already sorted in structure)
@@ -177,7 +180,8 @@ function detectDuplicates(
 
 - **Grouping**: Duplicates display with parent - no separate lookup needed
 - **Full data**: Nested transactions have all fields for comparison and swap
-- **Swap operation**: User can mark duplicate as "original" - becomes parent, old parent becomes duplicate
+- **Swap operation**: User can mark duplicate as "original" - becomes parent, old parent becomes
+  duplicate
 - **Cascade delete**: Delete parent → delete all nested duplicates
 - **One level only**: Duplicates cannot have their own duplicates
 
@@ -206,8 +210,10 @@ function detectDuplicates(
 ### Rationale
 
 - Storing aggregates creates CRDT conflict risk (two devices add transactions → aggregate conflicts)
-- `useVaultSelector` provides fine-grained reactivity - only recomputes when selected subtree changes
-- Hierarchical structure enables efficient computation - sum year totals instead of scanning all transactions
+- `useVaultSelector` provides fine-grained reactivity - only recomputes when selected subtree
+  changes
+- Hierarchical structure enables efficient computation - sum year totals instead of scanning all
+  transactions
 
 ### Caching Approach
 
@@ -225,7 +231,7 @@ const monthlyTotals = useVaultSelector((state) => {
             Object.entries(yearBucket.months).map(([month, monthBucket]) => ({
                 year: parseInt(year),
                 month: parseInt(month),
-                total: sumTransactions(monthBucket),
+                total: sumTransactions(monthBucket)
             }))
         )
         .flat();

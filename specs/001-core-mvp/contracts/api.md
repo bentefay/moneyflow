@@ -12,9 +12,11 @@ MoneyFlow's API uses **tRPC** for end-to-end type safety. The server only handle
 2. **Real-time Notifications** - Supabase Realtime for sync
 3. **Invite Management** - Create and redeem vault invitations
 
-**Authentication**: Key-only auth via Ed25519 signatures. No email, no passwords, no Supabase Auth. Every request is signed with the user's private key.
+**Authentication**: Key-only auth via Ed25519 signatures. No email, no passwords, no Supabase Auth.
+Every request is signed with the user's private key.
 
-**Important**: The server never sees decrypted financial data. All encryption/decryption happens client-side.
+**Important**: The server never sees decrypted financial data. All encryption/decryption happens
+client-side.
 
 ---
 
@@ -110,7 +112,7 @@ export async function createContext(opts: { headers: Headers }): Promise<Context
                 // Set pubkey_hash for RLS policies
                 await supabase.rpc("set_config", {
                     setting: "request.pubkey_hash",
-                    value: pubkeyHash,
+                    value: pubkeyHash
                 });
             }
         } catch (e) {
@@ -124,12 +126,12 @@ export async function createContext(opts: { headers: Headers }): Promise<Context
         supabase,
         pubkeyHash,
         publicKey,
-        headers: opts.headers,
+        headers: opts.headers
     };
 }
 
 const t = initTRPC.context<Context>().create({
-    transformer: superjson,
+    transformer: superjson
 });
 
 export const router = t.router;
@@ -140,11 +142,11 @@ const isAuthed = t.middleware(({ ctx, next }) => {
     if (!ctx.pubkeyHash) {
         throw new TRPCError({
             code: "UNAUTHORIZED",
-            message: "Invalid or missing signature",
+            message: "Invalid or missing signature"
         });
     }
     return next({
-        ctx: { ...ctx, pubkeyHash: ctx.pubkeyHash, publicKey: ctx.publicKey! },
+        ctx: { ...ctx, pubkeyHash: ctx.pubkeyHash, publicKey: ctx.publicKey! }
     });
 });
 
@@ -164,12 +166,12 @@ const isVaultMember = t.middleware(async ({ ctx, input, next }) => {
     if (!membership) {
         throw new TRPCError({
             code: "FORBIDDEN",
-            message: "Not a member of this vault",
+            message: "Not a member of this vault"
         });
     }
 
     return next({
-        ctx: { ...ctx, vaultRole: membership.role as "owner" | "member" },
+        ctx: { ...ctx, vaultRole: membership.role as "owner" | "member" }
     });
 });
 
@@ -180,7 +182,7 @@ const isVaultOwner = t.middleware(({ ctx, next }) => {
     if (ctx.vaultRole !== "owner") {
         throw new TRPCError({
             code: "FORBIDDEN",
-            message: "Only owners can perform this action",
+            message: "Only owners can perform this action"
         });
     }
     return next();
@@ -200,17 +202,17 @@ import { z } from "zod";
 export const getUserDataInput = z.object({}); // Uses pubkeyHash from context
 
 export const upsertUserDataInput = z.object({
-    encryptedData: z.string(), // Encrypted: { vaults, settings }
+    encryptedData: z.string() // Encrypted: { vaults, settings }
 });
 
 // server/schemas/vault.ts
 export const createVaultInput = z.object({
     encryptedVaultKey: z.string(), // Vault key wrapped with user's X25519 pubkey
-    encPublicKey: z.string(), // User's X25519 public key (base64) for re-keying operations
+    encPublicKey: z.string() // User's X25519 public key (base64) for re-keying operations
 });
 
 export const vaultIdInput = z.object({
-    vaultId: z.string().uuid(),
+    vaultId: z.string().uuid()
 });
 
 // server/schemas/sync.ts
@@ -218,19 +220,19 @@ export const createSnapshotInput = z.object({
     vaultId: z.string().uuid(),
     version: z.number().int().positive(),
     hlcTimestamp: z.string(),
-    encryptedData: z.string(),
+    encryptedData: z.string()
 });
 
 export const createUpdateInput = z.object({
     vaultId: z.string().uuid(),
     baseSnapshotVersion: z.number().int().nonnegative(),
     hlcTimestamp: z.string(),
-    encryptedData: z.string(),
+    encryptedData: z.string()
 });
 
 export const getUpdatesInput = z.object({
     vaultId: z.string().uuid(),
-    afterSnapshotVersion: z.number().int().nonnegative(),
+    afterSnapshotVersion: z.number().int().nonnegative()
 });
 
 // server/schemas/invite.ts
@@ -239,23 +241,23 @@ export const createInviteInput = z.object({
     invitePubkey: z.string(), // Derived from invite secret
     encryptedVaultKey: z.string(), // Vault key wrapped with invite pubkey
     role: z.enum(["owner", "member"]),
-    expiresInDays: z.number().int().min(1).max(30).default(7),
+    expiresInDays: z.number().int().min(1).max(30).default(7)
 });
 
 export const getInviteInput = z.object({
-    invitePubkey: z.string(),
+    invitePubkey: z.string()
 });
 
 export const redeemInviteInput = z.object({
     invitePubkey: z.string(),
     encryptedVaultKey: z.string(), // Re-wrapped with user's own pubkey
-    encPublicKey: z.string(), // User's X25519 public key (base64) for re-keying operations
+    encPublicKey: z.string() // User's X25519 public key (base64) for re-keying operations
 });
 
 // server/schemas/membership.ts
 export const removeMemberInput = z.object({
     vaultId: z.string().uuid(),
-    pubkeyHash: z.string(),
+    pubkeyHash: z.string()
 });
 ```
 
@@ -302,8 +304,8 @@ export const userRouter = router({
         return {
             data: {
                 encryptedData: data.encrypted_data,
-                updatedAt: data.updated_at,
-            },
+                updatedAt: data.updated_at
+            }
         };
     }),
 
@@ -314,13 +316,13 @@ export const userRouter = router({
         const { error } = await ctx.supabase.from("user_data").upsert({
             pubkey_hash: ctx.pubkeyHash,
             encrypted_data: input.encryptedData,
-            updated_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
         });
 
         if (error) throw error;
 
         return { success: true };
-    }),
+    })
 });
 ```
 
@@ -354,7 +356,7 @@ export const vaultRouter = router({
             pubkey_hash: ctx.pubkeyHash,
             role: "owner",
             encrypted_vault_key: input.encryptedVaultKey,
-            enc_public_key: input.encPublicKey,
+            enc_public_key: input.encPublicKey
         });
 
         if (memberError) {
@@ -387,10 +389,10 @@ export const vaultRouter = router({
             vault: {
                 ...vault,
                 encryptedVaultKey: membership?.encrypted_vault_key,
-                role: membership?.role,
-            },
+                role: membership?.role
+            }
         };
-    }),
+    })
 });
 ```
 
@@ -403,7 +405,7 @@ import {
     createSnapshotInput,
     createUpdateInput,
     getUpdatesInput,
-    vaultIdInput,
+    vaultIdInput
 } from "../schemas/sync";
 import { TRPCError } from "@trpc/server";
 
@@ -428,8 +430,8 @@ export const syncRouter = router({
                 version: snapshot.version,
                 hlcTimestamp: snapshot.hlc_timestamp,
                 encryptedData: snapshot.encrypted_data,
-                createdAt: snapshot.created_at,
-            },
+                createdAt: snapshot.created_at
+            }
         };
     }),
 
@@ -443,7 +445,7 @@ export const syncRouter = router({
                 vault_id: input.vaultId,
                 version: input.version,
                 hlc_timestamp: input.hlcTimestamp,
-                encrypted_data: input.encryptedData,
+                encrypted_data: input.encryptedData
             })
             .select()
             .single();
@@ -451,7 +453,7 @@ export const syncRouter = router({
         if (error?.code === "23505") {
             throw new TRPCError({
                 code: "CONFLICT",
-                message: "Snapshot version already exists",
+                message: "Snapshot version already exists"
             });
         }
         if (error) throw error;
@@ -460,8 +462,8 @@ export const syncRouter = router({
             snapshot: {
                 id: data.id,
                 version: data.version,
-                createdAt: data.created_at,
-            },
+                createdAt: data.created_at
+            }
         };
     }),
 
@@ -483,8 +485,8 @@ export const syncRouter = router({
                     baseSnapshotVersion: u.base_snapshot_version,
                     hlcTimestamp: u.hlc_timestamp,
                     encryptedData: u.encrypted_data,
-                    createdAt: u.created_at,
-                })) ?? [],
+                    createdAt: u.created_at
+                })) ?? []
         };
     }),
 
@@ -499,7 +501,7 @@ export const syncRouter = router({
                 base_snapshot_version: input.baseSnapshotVersion,
                 hlc_timestamp: input.hlcTimestamp,
                 encrypted_data: input.encryptedData,
-                author_pubkey_hash: ctx.pubkeyHash,
+                author_pubkey_hash: ctx.pubkeyHash
             })
             .select()
             .single();
@@ -507,7 +509,7 @@ export const syncRouter = router({
         if (error) throw error;
 
         return { update: { id: data.id, createdAt: data.created_at } };
-    }),
+    })
 });
 ```
 
@@ -537,7 +539,7 @@ export const inviteRouter = router({
                 encrypted_vault_key: input.encryptedVaultKey,
                 role: input.role,
                 created_by: ctx.pubkeyHash,
-                expires_at: expiresAt.toISOString(),
+                expires_at: expiresAt.toISOString()
             })
             .select()
             .single();
@@ -545,7 +547,7 @@ export const inviteRouter = router({
         if (error?.code === "23505") {
             throw new TRPCError({
                 code: "CONFLICT",
-                message: "Invite already exists",
+                message: "Invite already exists"
             });
         }
         if (error) throw error;
@@ -554,8 +556,8 @@ export const inviteRouter = router({
             invite: {
                 id: data.id,
                 vaultId: data.vault_id,
-                expiresAt: data.expires_at,
-            },
+                expiresAt: data.expires_at
+            }
         };
     }),
 
@@ -573,7 +575,7 @@ export const inviteRouter = router({
         if (!invite) {
             throw new TRPCError({
                 code: "NOT_FOUND",
-                message: "Invite not found or expired",
+                message: "Invite not found or expired"
             });
         }
 
@@ -583,8 +585,8 @@ export const inviteRouter = router({
                 vaultId: invite.vault_id,
                 encryptedVaultKey: invite.encrypted_vault_key,
                 role: invite.role,
-                expiresAt: invite.expires_at,
-            },
+                expiresAt: invite.expires_at
+            }
         };
     }),
 
@@ -606,7 +608,7 @@ export const inviteRouter = router({
         if (!invite) {
             throw new TRPCError({
                 code: "NOT_FOUND",
-                message: "Invite not found or expired",
+                message: "Invite not found or expired"
             });
         }
 
@@ -621,7 +623,7 @@ export const inviteRouter = router({
         if (existing) {
             throw new TRPCError({
                 code: "CONFLICT",
-                message: "Already a member of this vault",
+                message: "Already a member of this vault"
             });
         }
 
@@ -630,7 +632,7 @@ export const inviteRouter = router({
             vault_id: invite.vault_id,
             pubkey_hash: ctx.pubkeyHash,
             role: invite.role,
-            encrypted_vault_key: input.encryptedVaultKey,
+            encrypted_vault_key: input.encryptedVaultKey
         });
 
         if (memberError) throw memberError;
@@ -641,10 +643,10 @@ export const inviteRouter = router({
         return {
             membership: {
                 vaultId: invite.vault_id,
-                role: invite.role,
-            },
+                role: invite.role
+            }
         };
-    }),
+    })
 });
 ```
 
@@ -673,8 +675,8 @@ export const membershipRouter = router({
                     pubkeyHash: m.pubkey_hash,
                     encPublicKey: m.enc_public_key, // X25519 key for re-keying
                     role: m.role,
-                    joinedAt: m.created_at,
-                })) ?? [],
+                    joinedAt: m.created_at
+                })) ?? []
         };
     }),
 
@@ -696,7 +698,7 @@ export const membershipRouter = router({
         if (!isSelfRemoval && ctx.vaultRole !== "owner") {
             throw new TRPCError({
                 code: "FORBIDDEN",
-                message: "Only owners can remove other members",
+                message: "Only owners can remove other members"
             });
         }
 
@@ -711,7 +713,7 @@ export const membershipRouter = router({
             if (count === 1 && isSelfRemoval) {
                 throw new TRPCError({
                     code: "BAD_REQUEST",
-                    message: "Cannot remove the only owner. Transfer ownership first.",
+                    message: "Cannot remove the only owner. Transfer ownership first."
                 });
             }
         }
@@ -723,7 +725,7 @@ export const membershipRouter = router({
             .eq("pubkey_hash", input.pubkeyHash);
 
         return { success: true };
-    }),
+    })
 });
 ```
 
@@ -743,7 +745,7 @@ export const appRouter = router({
     vault: vaultRouter,
     sync: syncRouter,
     invite: inviteRouter,
-    membership: membershipRouter,
+    membership: membershipRouter
 });
 
 export type AppRouter = typeof appRouter;
@@ -796,11 +798,11 @@ export function createTRPCClient(getSession: () => SessionData | null) {
                         "X-Signature": sodium.to_base64(signature),
                         "X-Method": method,
                         "X-Path": path,
-                        "X-Body-Hash": bodyHash,
+                        "X-Body-Hash": bodyHash
                     };
-                },
-            }),
-        ],
+                }
+            })
+        ]
     });
 }
 ```
@@ -973,7 +975,7 @@ export function useVaultSync(vaultId: string, onUpdate: (update: EncryptedUpdate
                     event: "INSERT",
                     schema: "public",
                     table: "vault_updates",
-                    filter: `vault_id=eq.${vaultId}`,
+                    filter: `vault_id=eq.${vaultId}`
                 },
                 (payload) => {
                     onUpdate(payload.new as EncryptedUpdate);
@@ -1022,7 +1024,7 @@ import { Redis } from "@upstash/redis";
 
 const ratelimit = new Ratelimit({
     redis: Redis.fromEnv(),
-    limiter: Ratelimit.slidingWindow(10, "15 m"),
+    limiter: Ratelimit.slidingWindow(10, "15 m")
 });
 
 const rateLimited = t.middleware(async ({ ctx, next, path }) => {

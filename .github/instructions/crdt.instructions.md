@@ -44,7 +44,7 @@ Sync Flow:
     // ❌ WRONG - returning new objects breaks change tracking
     setState((state) => ({
         ...state,
-        transactions: { ...state.transactions, [id]: transaction },
+        transactions: { ...state.transactions, [id]: transaction }
     }));
     ```
 
@@ -66,7 +66,7 @@ Entities follow this pattern:
 export const entitySchema = schema.LoroMap({
     id: schema.String({ required: true }),
     // ... entity fields
-    deletedAt: schema.Number(), // 0 = not deleted, >0 = timestamp
+    deletedAt: schema.Number() // 0 = not deleted, >0 = timestamp
 });
 ```
 

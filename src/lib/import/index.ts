@@ -11,7 +11,7 @@ export {
     detectSeparator,
     parseCSV,
     parseDate,
-    parseNumber,
+    parseNumber
 } from "./csv";
 export {
     checkDuplicate,
@@ -20,21 +20,21 @@ export {
     type DuplicateDetectionConfig,
     type DuplicateMatch,
     detectDuplicates,
-    detectInternalDuplicates,
+    detectInternalDuplicates
 } from "./duplicates";
 export {
     calculateCutoffDate,
     type FilterableTransaction,
     filterOldTransactions,
     getFilterModeDescription,
-    isBeforeCutoff,
+    isBeforeCutoff
 } from "./filter";
 export {
     isSimilar,
     levenshtein,
     normalizedSimilarity,
     normalizeForComparison,
-    similarity,
+    similarity
 } from "./levenshtein";
 export {
     isOFXFormat,
@@ -47,7 +47,7 @@ export {
     type ParsedOFXData,
     type ParsedOFXStatement,
     type ParsedOFXTransaction,
-    parseOFX,
+    parseOFX
 } from "./ofx";
 export {
     type ExistingTransaction,
@@ -57,7 +57,7 @@ export {
     type ProcessOFXImportResult,
     processCSVImport,
     processImport,
-    processOFXImport,
+    processOFXImport
 } from "./processor";
 export {
     type DateMatchMode,
@@ -80,5 +80,5 @@ export {
     type OldTransactionMode,
     type PreviewTransaction,
     type PreviewTransactionStatus,
-    type ValidationError,
+    type ValidationError
 } from "./types";

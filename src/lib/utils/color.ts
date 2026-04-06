@@ -25,7 +25,7 @@ const AVATAR_COLORS = [
     "#a855f7", // purple
     "#d946ef", // fuchsia
     "#ec4899", // pink
-    "#f43f5e", // rose
+    "#f43f5e" // rose
 ] as const;
 
 /**

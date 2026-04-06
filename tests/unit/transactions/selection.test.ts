@@ -11,7 +11,7 @@ describe("useTableSelection (controlled mode)", () => {
             const { result } = renderHook(() =>
                 useTableSelection({
                     filteredIds,
-                    selectedIds: new Set(),
+                    selectedIds: new Set()
                 })
             );
 
@@ -26,7 +26,7 @@ describe("useTableSelection (controlled mode)", () => {
             const { result } = renderHook(() =>
                 useTableSelection({
                     filteredIds,
-                    selectedIds,
+                    selectedIds
                 })
             );
 
@@ -43,7 +43,7 @@ describe("useTableSelection (controlled mode)", () => {
                 useTableSelection({
                     filteredIds,
                     selectedIds: new Set(),
-                    onSelectionChange,
+                    onSelectionChange
                 })
             );
 
@@ -60,7 +60,7 @@ describe("useTableSelection (controlled mode)", () => {
                 useTableSelection({
                     filteredIds,
                     selectedIds: new Set(["tx-2"]),
-                    onSelectionChange,
+                    onSelectionChange
                 })
             );
 
@@ -79,7 +79,7 @@ describe("useTableSelection (controlled mode)", () => {
                     useTableSelection({
                         filteredIds,
                         selectedIds,
-                        onSelectionChange,
+                        onSelectionChange
                     }),
                 { initialProps: { selectedIds: new Set<string>() } }
             );
@@ -111,7 +111,7 @@ describe("useTableSelection (controlled mode)", () => {
                     useTableSelection({
                         filteredIds,
                         selectedIds,
-                        onSelectionChange,
+                        onSelectionChange
                     }),
                 { initialProps: { selectedIds: new Set<string>() } }
             );
@@ -138,7 +138,7 @@ describe("useTableSelection (controlled mode)", () => {
                 useTableSelection({
                     filteredIds,
                     selectedIds: new Set(),
-                    onSelectionChange,
+                    onSelectionChange
                 })
             );
 
@@ -155,7 +155,7 @@ describe("useTableSelection (controlled mode)", () => {
                 useTableSelection({
                     filteredIds,
                     selectedIds: new Set(filteredIds),
-                    onSelectionChange,
+                    onSelectionChange
                 })
             );
 
@@ -172,7 +172,7 @@ describe("useTableSelection (controlled mode)", () => {
                 useTableSelection({
                     filteredIds,
                     selectedIds: new Set(["tx-2"]),
-                    onSelectionChange,
+                    onSelectionChange
                 })
             );
 
@@ -191,7 +191,7 @@ describe("useTableSelection (controlled mode)", () => {
                 useTableSelection({
                     filteredIds,
                     selectedIds: new Set(filteredIds),
-                    onSelectionChange,
+                    onSelectionChange
                 })
             );
 
@@ -209,7 +209,7 @@ describe("useTableSelection (controlled mode)", () => {
                     useTableSelection({
                         filteredIds,
                         selectedIds,
-                        onSelectionChange,
+                        onSelectionChange
                     }),
                 { initialProps: { selectedIds: new Set<string>() } }
             );
@@ -234,7 +234,7 @@ describe("useTableSelection (controlled mode)", () => {
                 ({ selectedIds }) =>
                     useTableSelection({
                         filteredIds,
-                        selectedIds,
+                        selectedIds
                     }),
                 { initialProps: { selectedIds: new Set<string>() } }
             );
@@ -256,7 +256,7 @@ describe("useTableSelection (controlled mode)", () => {
             const { result } = renderHook(() =>
                 useTableSelection({
                     filteredIds: [],
-                    selectedIds: new Set(),
+                    selectedIds: new Set()
                 })
             );
 
@@ -272,7 +272,7 @@ describe("useTableSelection (controlled mode)", () => {
                 ({ filteredIds }) =>
                     useTableSelection({
                         filteredIds,
-                        selectedIds,
+                        selectedIds
                     }),
                 { initialProps: { filteredIds } }
             );

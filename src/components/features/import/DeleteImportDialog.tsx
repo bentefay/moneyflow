@@ -8,7 +8,7 @@ import {
     AlertDialogDescription,
     AlertDialogFooter,
     AlertDialogHeader,
-    AlertDialogTitle,
+    AlertDialogTitle
 } from "@/components/ui/alert-dialog";
 
 interface DeleteImportDialogProps {
@@ -30,7 +30,7 @@ export function DeleteImportDialog({
     onOpenChange,
     filename,
     transactionCount,
-    onConfirm,
+    onConfirm
 }: DeleteImportDialogProps) {
     const handleConfirm = () => {
         onConfirm();

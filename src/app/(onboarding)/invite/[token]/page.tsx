@@ -107,13 +107,13 @@ export default function InvitePage() {
                 try {
                     const utils = trpc.useUtils();
                     const result = await utils.invite.getByPubkey.fetch({
-                        invitePubkey: invitePubkeyBase64,
+                        invitePubkey: invitePubkeyBase64
                     });
 
                     // Store invite info for display
                     setInviteInfo({
                         vaultId: result.vaultId,
-                        role: result.role as "owner" | "member",
+                        role: result.role as "owner" | "member"
                     });
 
                     setState("ready");
@@ -180,7 +180,7 @@ export default function InvitePage() {
             await acceptMutation.mutateAsync({
                 invitePubkey: invitePubkeyBase64,
                 encryptedVaultKey: placeholderWrappedKey,
-                encPublicKey: userEncPublicKeyBase64,
+                encPublicKey: userEncPublicKeyBase64
             });
 
             setState("success");

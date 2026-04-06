@@ -62,7 +62,7 @@ export function createTRPCClient() {
                     // For GET requests, the body will be empty on the server side
                     const body = opList.map((op) => ({
                         path: op.path,
-                        input: op.input,
+                        input: op.input
                     }));
 
                     // signRequest returns headers directly and gets session internally
@@ -73,8 +73,8 @@ export function createTRPCClient() {
                     );
 
                     return signedHeaders;
-                },
-            }),
-        ],
+                }
+            })
+        ]
     });
 }

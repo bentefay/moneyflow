@@ -21,7 +21,7 @@ import {
     hasUnpushedOps,
     loadLocalSnapshot,
     markOpsPushed,
-    saveLocalSnapshot,
+    saveLocalSnapshot
 } from "@/lib/sync/persistence";
 
 // Reset database between tests
@@ -86,7 +86,7 @@ describe("Cold Start Flow", () => {
             await saveLocalSnapshot({
                 vault_id: vaultId,
                 encrypted_data: encryptedSnapshot,
-                version_vector: getVersionVector(doc),
+                version_vector: getVersionVector(doc)
             });
 
             // Load the snapshot
@@ -119,7 +119,7 @@ describe("Cold Start Flow", () => {
             await saveLocalSnapshot({
                 vault_id: vaultId,
                 encrypted_data: encryptedSnapshot,
-                version_vector: getVersionVector(doc),
+                version_vector: getVersionVector(doc)
             });
 
             // Simulate cold start: load snapshot
@@ -156,7 +156,7 @@ describe("Cold Start Flow", () => {
                 vault_id: vaultId,
                 version_vector: "{}",
                 encrypted_data: "data1",
-                pushed: false,
+                pushed: false
             });
 
             expect(await hasUnpushedOps(vaultId)).toBe(true);
@@ -174,7 +174,7 @@ describe("Cold Start Flow", () => {
                 vault_id: "vault-a",
                 version_vector: "{}",
                 encrypted_data: "data-a",
-                pushed: false,
+                pushed: false
             });
 
             // Add pushed op to vault B
@@ -183,7 +183,7 @@ describe("Cold Start Flow", () => {
                 vault_id: "vault-b",
                 version_vector: "{}",
                 encrypted_data: "data-b",
-                pushed: true,
+                pushed: true
             });
 
             expect(await hasUnpushedOps("vault-a")).toBe(true);
@@ -201,7 +201,7 @@ describe("Cold Start Flow", () => {
                 vault_id: vaultId,
                 version_vector: '{"peer1": 1}',
                 encrypted_data: "data1",
-                pushed: false,
+                pushed: false
             });
 
             await appendOp({
@@ -209,7 +209,7 @@ describe("Cold Start Flow", () => {
                 vault_id: vaultId,
                 version_vector: '{"peer1": 2}',
                 encrypted_data: "data2",
-                pushed: false,
+                pushed: false
             });
 
             await appendOp({
@@ -217,7 +217,7 @@ describe("Cold Start Flow", () => {
                 vault_id: vaultId,
                 version_vector: '{"peer1": 3}',
                 encrypted_data: "data3",
-                pushed: true, // Already pushed
+                pushed: true // Already pushed
             });
 
             const unpushed = await getUnpushedOps(vaultId);
@@ -234,7 +234,7 @@ describe("Cold Start Flow", () => {
                 vault_id: vaultId,
                 version_vector: "{}",
                 encrypted_data: "data1",
-                pushed: false,
+                pushed: false
             });
 
             await appendOp({
@@ -242,7 +242,7 @@ describe("Cold Start Flow", () => {
                 vault_id: vaultId,
                 version_vector: "{}",
                 encrypted_data: "data2",
-                pushed: false,
+                pushed: false
             });
 
             // Simulate successful server push for op-1 only
@@ -262,7 +262,7 @@ describe("Cold Start Flow", () => {
             await saveLocalSnapshot({
                 vault_id: vaultId,
                 encrypted_data: createEncryptedData("old-data"),
-                version_vector: '{"peer1": 1}',
+                version_vector: '{"peer1": 1}'
             });
 
             // Simulate receiving a newer snapshot from server
@@ -270,7 +270,7 @@ describe("Cold Start Flow", () => {
             await saveLocalSnapshot({
                 vault_id: vaultId,
                 encrypted_data: newSnapshotData,
-                version_vector: '{"peer1": 10}',
+                version_vector: '{"peer1": 10}'
             });
 
             const loaded = await loadLocalSnapshot(vaultId);
@@ -287,7 +287,7 @@ describe("Cold Start Flow", () => {
             await saveLocalSnapshot({
                 vault_id: vaultId,
                 encrypted_data: "snapshot-data",
-                version_vector: "{}",
+                version_vector: "{}"
             });
 
             await appendOp({
@@ -295,7 +295,7 @@ describe("Cold Start Flow", () => {
                 vault_id: vaultId,
                 version_vector: "{}",
                 encrypted_data: "op-data",
-                pushed: false,
+                pushed: false
             });
 
             // Verify data exists
@@ -315,13 +315,13 @@ describe("Cold Start Flow", () => {
             await saveLocalSnapshot({
                 vault_id: "vault-a",
                 encrypted_data: "snapshot-a",
-                version_vector: "{}",
+                version_vector: "{}"
             });
 
             await saveLocalSnapshot({
                 vault_id: "vault-b",
                 encrypted_data: "snapshot-b",
-                version_vector: "{}",
+                version_vector: "{}"
             });
 
             // Clear only vault-a
@@ -348,7 +348,7 @@ describe("Version Vector Handling", () => {
         await saveLocalSnapshot({
             vault_id: vaultId,
             encrypted_data: "data",
-            version_vector: versionVector,
+            version_vector: versionVector
         });
 
         const loaded = await loadLocalSnapshot(vaultId);
@@ -364,7 +364,7 @@ describe("Version Vector Handling", () => {
             vault_id: vaultId,
             version_vector: versionVector,
             encrypted_data: "data",
-            pushed: false,
+            pushed: false
         });
 
         const ops = await getUnpushedOps(vaultId);
@@ -386,20 +386,20 @@ describe("Concurrent Operations", () => {
                 id: `${vaultId}-op-1`,
                 vault_id: vaultId,
                 version_vector: "{}",
-                encrypted_data: "data1",
+                encrypted_data: "data1"
             }),
             appendOp({
                 id: `${vaultId}-op-2`,
                 vault_id: vaultId,
                 version_vector: "{}",
-                encrypted_data: "data2",
+                encrypted_data: "data2"
             }),
             appendOp({
                 id: `${vaultId}-op-3`,
                 vault_id: vaultId,
                 version_vector: "{}",
-                encrypted_data: "data3",
-            }),
+                encrypted_data: "data3"
+            })
         ]);
 
         const ops = await getUnpushedOps(vaultId);
@@ -413,13 +413,13 @@ describe("Concurrent Operations", () => {
         await saveLocalSnapshot({
             vault_id: vaultId,
             encrypted_data: "data-1",
-            version_vector: '{"v": 1}',
+            version_vector: '{"v": 1}'
         });
 
         await saveLocalSnapshot({
             vault_id: vaultId,
             encrypted_data: "data-2",
-            version_vector: '{"v": 2}',
+            version_vector: '{"v": 2}'
         });
 
         // Last write should win
@@ -445,7 +445,7 @@ describe("Error Recovery", () => {
         await saveLocalSnapshot({
             vault_id: vaultId,
             encrypted_data: "fresh-data",
-            version_vector: "{}",
+            version_vector: "{}"
         });
 
         const loaded = await loadLocalSnapshot(vaultId);
@@ -461,7 +461,7 @@ describe("Error Recovery", () => {
             vault_id: vaultId,
             version_vector: "{}",
             encrypted_data: "data1",
-            pushed: false,
+            pushed: false
         });
 
         await appendOp({
@@ -469,7 +469,7 @@ describe("Error Recovery", () => {
             vault_id: vaultId,
             version_vector: "{}",
             encrypted_data: "data2",
-            pushed: false,
+            pushed: false
         });
 
         await appendOp({
@@ -477,7 +477,7 @@ describe("Error Recovery", () => {
             vault_id: vaultId,
             version_vector: "{}",
             encrypted_data: "data3",
-            pushed: false,
+            pushed: false
         });
 
         // Simulate partial push (only first two succeeded)

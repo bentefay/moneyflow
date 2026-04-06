@@ -12,7 +12,7 @@ import {
     SelectContent,
     SelectItem,
     SelectTrigger,
-    SelectValue,
+    SelectValue
 } from "@/components/ui/select";
 
 export interface BehaviorSelectorProps {
@@ -27,7 +27,7 @@ export interface BehaviorSelectorProps {
 /** Available status behaviors */
 export const STATUS_BEHAVIORS = [
     { value: "", label: "None" },
-    { value: "treatAsPaid", label: "Treat as Paid" },
+    { value: "treatAsPaid", label: "Treat as Paid" }
 ] as const;
 
 /**

@@ -17,8 +17,8 @@ const eslintConfig = defineConfig([
         "playwright-report/**",
         "test-results/**",
         // Vendored animate-ui components (installed via shadcn):
-        "src/components/animate-ui/**",
-    ]),
+        "src/components/animate-ui/**"
+    ])
 ]);
 
 export default eslintConfig;

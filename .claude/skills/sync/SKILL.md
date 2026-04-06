@@ -1,6 +1,8 @@
 ---
 name: sync
-description: Real-time sync with Supabase, Loro CRDT, and IndexedDB. Use when working on files in src/lib/sync/.
+description:
+    Real-time sync with Supabase, Loro CRDT, and IndexedDB. Use when working on files in
+    src/lib/sync/.
 ---
 
 # Sync Guidelines
@@ -26,7 +28,8 @@ description: Real-time sync with Supabase, Loro CRDT, and IndexedDB. Use when wo
 2. **Server pushes throttled** - use `lodash-es` throttle, ~2s
 3. **Encrypt before storage** - never plaintext in IndexedDB or server
 4. **Version vector plaintext** - enables server filtering without decryption
-5. **`has_unpushed` flag critical** - server must send ops (not snapshot) if client has local changes
+5. **`has_unpushed` flag critical** - server must send ops (not snapshot) if client has local
+   changes
 6. **Flush on visibility change** - don't lose data on tab switch
 
 ## Key Details

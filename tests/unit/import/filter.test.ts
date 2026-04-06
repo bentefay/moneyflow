@@ -11,7 +11,7 @@ import {
     calculateCutoffDate,
     type FilterableTransaction,
     filterOldTransactions,
-    isBeforeCutoff,
+    isBeforeCutoff
 } from "@/lib/import/filter";
 import type { FilterConfig } from "@/lib/import/types";
 
@@ -90,7 +90,7 @@ describe("filterOldTransactions", () => {
             mode: "do-not-ignore",
             cutoffType: "days",
             cutoffDays,
-            cutoffDate: null,
+            cutoffDate: null
         };
 
         const testCases = [
@@ -100,17 +100,17 @@ describe("filterOldTransactions", () => {
                     tx("1", "2026-01-20"), // New
                     tx("2", "2026-01-10"), // On/after cutoff
                     tx("3", "2026-01-01", true), // Old duplicate
-                    tx("4", "2026-01-01", false), // Old non-duplicate
+                    tx("4", "2026-01-01", false) // Old non-duplicate
                 ],
                 expectedIncludedIds: ["1", "2", "3", "4"],
-                expectedExcludedIds: [],
+                expectedExcludedIds: []
             },
             {
                 name: "handles empty array",
                 transactions: [],
                 expectedIncludedIds: [],
-                expectedExcludedIds: [],
-            },
+                expectedExcludedIds: []
+            }
         ];
 
         it.each(testCases)(
@@ -131,7 +131,7 @@ describe("filterOldTransactions", () => {
             mode: "ignore-all",
             cutoffType: "days",
             cutoffDays,
-            cutoffDate: null,
+            cutoffDate: null
         };
 
         // With cutoffDays=10 from 2026-01-15: cutoff = 2026-01-06
@@ -143,23 +143,23 @@ describe("filterOldTransactions", () => {
                     tx("1", "2026-01-20"), // New - included
                     tx("2", "2026-01-06"), // Exactly at cutoff - included
                     tx("3", "2026-01-05", true), // Old (before cutoff) duplicate - excluded
-                    tx("4", "2026-01-05", false), // Old (before cutoff) non-duplicate - excluded
+                    tx("4", "2026-01-05", false) // Old (before cutoff) non-duplicate - excluded
                 ],
                 expectedIncludedIds: ["1", "2"],
-                expectedExcludedIds: ["3", "4"],
+                expectedExcludedIds: ["3", "4"]
             },
             {
                 name: "includes all when nothing is old",
                 transactions: [tx("1", "2026-01-15"), tx("2", "2026-01-10"), tx("3", "2026-01-06")],
                 expectedIncludedIds: ["1", "2", "3"],
-                expectedExcludedIds: [],
+                expectedExcludedIds: []
             },
             {
                 name: "excludes all when everything is old",
                 transactions: [tx("1", "2026-01-05"), tx("2", "2026-01-01"), tx("3", "2025-12-25")],
                 expectedIncludedIds: [],
-                expectedExcludedIds: ["1", "2", "3"],
-            },
+                expectedExcludedIds: ["1", "2", "3"]
+            }
         ];
 
         it.each(testCases)(
@@ -178,7 +178,7 @@ describe("filterOldTransactions", () => {
             mode: "ignore-duplicates",
             cutoffType: "days",
             cutoffDays,
-            cutoffDate: null,
+            cutoffDate: null
         };
 
         // With cutoffDays=10 from 2026-01-15: cutoff = 2026-01-06
@@ -192,28 +192,28 @@ describe("filterOldTransactions", () => {
                     tx("3", "2026-01-05", true), // Old duplicate - excluded
                     tx("4", "2026-01-05", false), // Old non-duplicate - included
                     tx("5", "2026-01-01", true), // Old duplicate - excluded
-                    tx("6", "2026-01-01", false), // Old non-duplicate - included
+                    tx("6", "2026-01-01", false) // Old non-duplicate - included
                 ],
                 expectedIncludedIds: ["1", "2", "4", "6"],
                 expectedExcludedIds: ["3", "5"],
                 expectedStats: {
                     oldDuplicatesCount: 2,
-                    oldNonDuplicatesCount: 2,
-                },
+                    oldNonDuplicatesCount: 2
+                }
             },
             {
                 name: "treats undefined isDuplicate as false",
                 transactions: [
                     { id: "1", date: "2026-01-01" }, // Old, isDuplicate undefined - included
-                    { id: "2", date: "2026-01-01", isDuplicate: false }, // Old, explicit false - included
+                    { id: "2", date: "2026-01-01", isDuplicate: false } // Old, explicit false - included
                 ],
                 expectedIncludedIds: ["1", "2"],
                 expectedExcludedIds: [],
                 expectedStats: {
                     oldDuplicatesCount: 0,
-                    oldNonDuplicatesCount: 2,
-                },
-            },
+                    oldNonDuplicatesCount: 2
+                }
+            }
         ];
 
         it.each(testCases)(
@@ -240,12 +240,12 @@ describe("filterOldTransactions", () => {
                 mode: "ignore-all",
                 cutoffType: "days",
                 cutoffDays: 10,
-                cutoffDate: null,
+                cutoffDate: null
             };
             const transactions = [
                 tx("1", "2020-01-01"), // Very old
                 tx("2", "2025-01-01"),
-                tx("3", "2026-01-01"),
+                tx("3", "2026-01-01")
             ];
 
             const result = filterOldTransactions(transactions, null, config);
@@ -259,13 +259,13 @@ describe("filterOldTransactions", () => {
                 mode: "ignore-all",
                 cutoffType: "days",
                 cutoffDays: 10,
-                cutoffDate: null,
+                cutoffDate: null
             };
             // With cutoffDays=10 from 2026-01-15: cutoff = 2026-01-06
             // Dates >= 2026-01-06 are included, dates < 2026-01-06 are excluded
             const transactions = [
                 tx("1", "2026-01-06"), // Exactly at cutoff - included
-                tx("2", "2026-01-05"), // One day before cutoff - excluded
+                tx("2", "2026-01-05") // One day before cutoff - excluded
             ];
 
             const result = filterOldTransactions(transactions, newestExisting, config);
@@ -279,7 +279,7 @@ describe("filterOldTransactions", () => {
                 mode: "ignore-all",
                 cutoffType: "days",
                 cutoffDays: 0,
-                cutoffDate: null,
+                cutoffDate: null
             };
             // With cutoffDays=0 from 2026-01-15: cutoff = 2026-01-16
             // Dates >= 2026-01-16 are included (strictly newer than existing)
@@ -287,7 +287,7 @@ describe("filterOldTransactions", () => {
             const transactions = [
                 tx("1", "2026-01-16"), // Strictly newer than newest - included
                 tx("2", "2026-01-15"), // Same as newest - excluded
-                tx("3", "2026-01-14"), // Older than newest - excluded
+                tx("3", "2026-01-14") // Older than newest - excluded
             ];
 
             const result = filterOldTransactions(transactions, newestExisting, config);
@@ -301,13 +301,13 @@ describe("filterOldTransactions", () => {
                 mode: "ignore-duplicates",
                 cutoffType: "days",
                 cutoffDays: 10,
-                cutoffDate: null,
+                cutoffDate: null
             };
             const transactions = [
                 tx("a", "2026-01-10"),
                 tx("b", "2026-01-04", false),
                 tx("c", "2026-01-12"),
-                tx("d", "2026-01-03", false),
+                tx("d", "2026-01-03", false)
             ];
 
             const result = filterOldTransactions(transactions, newestExisting, config);
@@ -321,12 +321,12 @@ describe("filterOldTransactions", () => {
                 mode: "ignore-duplicates",
                 cutoffType: "days",
                 cutoffDays: 10,
-                cutoffDate: null,
+                cutoffDate: null
             };
             const transactions = [
                 tx("1", "2026-01-10"),
                 tx("2", "2026-01-04", true),
-                tx("3", "2026-01-04", false),
+                tx("3", "2026-01-04", false)
             ];
 
             const result = filterOldTransactions(transactions, newestExisting, config);

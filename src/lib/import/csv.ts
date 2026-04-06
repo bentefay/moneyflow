@@ -54,7 +54,7 @@ const DEFAULT_OPTIONS: Required<CSVParseOptions> = {
     decimalSeparator: ".",
     dateFormat: "yyyy-MM-dd",
     quoteChar: '"',
-    maxRows: Infinity,
+    maxRows: Infinity
 };
 
 /**
@@ -81,7 +81,7 @@ export function parseCSV(content: string, options: CSVParseOptions = {}): CSVPar
             rows: [],
             rowCount: 0,
             truncated: false,
-            warnings: ["Empty CSV file"],
+            warnings: ["Empty CSV file"]
         };
     }
 
@@ -91,7 +91,7 @@ export function parseCSV(content: string, options: CSVParseOptions = {}): CSVPar
         quoteChar: opts.quoteChar,
         header: false, // We handle headers ourselves for more control
         skipEmptyLines: true,
-        preview: opts.maxRows !== Infinity ? opts.maxRows + (opts.hasHeaders ? 1 : 0) : 0,
+        preview: opts.maxRows !== Infinity ? opts.maxRows + (opts.hasHeaders ? 1 : 0) : 0
     });
 
     // Collect errors as warnings
@@ -108,7 +108,7 @@ export function parseCSV(content: string, options: CSVParseOptions = {}): CSVPar
             rows: [],
             rowCount: 0,
             truncated: false,
-            warnings,
+            warnings
         };
     }
 
@@ -148,7 +148,7 @@ export function parseCSV(content: string, options: CSVParseOptions = {}): CSVPar
         rows,
         rowCount: rows.length,
         truncated,
-        warnings,
+        warnings
     };
 }
 
@@ -207,7 +207,7 @@ const DATE_FORMAT_TOKENS: Record<string, { regex: string; extract: string }> = {
     MM: { regex: "(\\d{2})", extract: "month" },
     M: { regex: "(\\d{1,2})", extract: "month" },
     dd: { regex: "(\\d{2})", extract: "day" },
-    d: { regex: "(\\d{1,2})", extract: "day" },
+    d: { regex: "(\\d{1,2})", extract: "day" }
 };
 
 /**
@@ -295,7 +295,7 @@ export function parseDate(value: string, format = "yyyy-MM-dd"): Temporal.PlainD
         return Temporal.PlainDate.from({
             year: values.year,
             month: values.month,
-            day: values.day,
+            day: values.day
         });
     } catch {
         return null;
@@ -314,7 +314,7 @@ export function detectSeparator(content: string): string {
     const separators = [",", ";", "\t", "|"];
     const counts = separators.map((sep) => ({
         sep,
-        count: (firstLine.match(new RegExp(`\\${sep}`, "g")) || []).length,
+        count: (firstLine.match(new RegExp(`\\${sep}`, "g")) || []).length
     }));
 
     const best = counts.reduce((a, b) => (b.count > a.count ? b : a));
@@ -332,7 +332,7 @@ export function detectHeaders(content: string, separator = ","): boolean {
     const result = Papa.parse<string[]>(content, {
         delimiter: separator,
         header: false,
-        preview: 2,
+        preview: 2
     });
 
     const lines = result.data;
@@ -356,7 +356,7 @@ export function detectHeaders(content: string, separator = ","): boolean {
         "merchant",
         "name",
         "balance",
-        "account",
+        "account"
     ];
     const firstHasKeywords = firstRow.some((f) =>
         headerKeywords.some((k) => f.toLowerCase().includes(k))

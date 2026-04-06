@@ -216,27 +216,27 @@ export const transactionSchema = schema.LoroMap({
     creationInstant: schema.Number({ required: true }),
     importRowIndex: schema.Number(),
     suspectedDuplicates: schema.LoroList(/* recursive - see note */),
-    deletedAt: schema.Number(),
+    deletedAt: schema.Number()
 });
 
 export const dayBucketSchema = schema.LoroMap({
     day: schema.Number({ required: true }),
-    transactions: schema.LoroList(transactionSchema),
+    transactions: schema.LoroList(transactionSchema)
 });
 
 export const monthBucketSchema = schema.LoroMap({
     month: schema.Number({ required: true }),
-    days: schema.LoroList(dayBucketSchema),
+    days: schema.LoroList(dayBucketSchema)
 });
 
 export const yearBucketSchema = schema.LoroMap({
     year: schema.Number({ required: true }),
-    months: schema.LoroList(monthBucketSchema),
+    months: schema.LoroList(monthBucketSchema)
 });
 
 export const accountTransactionTreeSchema = schema.LoroMap({
     accountId: schema.String({ required: true }),
-    years: schema.LoroList(yearBucketSchema),
+    years: schema.LoroList(yearBucketSchema)
 });
 
 export const transactionStoreSchema = schema.LoroMapRecord(accountTransactionTreeSchema);
@@ -247,7 +247,8 @@ export const transactionStoreSchema = schema.LoroMapRecord(accountTransactionTre
 // transactions: transactionStoreSchema,
 ```
 
-**Note**: `suspectedDuplicates` is a LoroList of the same transaction schema, but limited to one level (duplicates cannot have their own duplicates - enforced at application level).
+**Note**: `suspectedDuplicates` is a LoroList of the same transaction schema, but limited to one
+level (duplicates cannot have their own duplicates - enforced at application level).
 
 ---
 

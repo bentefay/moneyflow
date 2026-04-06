@@ -8,7 +8,7 @@ export {
     hasActiveFilters,
     TransactionFilters,
     type TransactionFiltersProps,
-    type TransactionFiltersState,
+    type TransactionFiltersState
 } from "./TransactionFilters";
 export {
     type NewTransactionData,
@@ -16,10 +16,10 @@ export {
     type TransactionRowData,
     type TransactionRowMode,
     type TransactionRowPresence,
-    type TransactionRowProps,
+    type TransactionRowProps
 } from "./TransactionRow";
 export { TransactionTable, type TransactionTableProps } from "./TransactionTable";
 export {
     TransactionTableToolbar,
-    type TransactionTableToolbarProps,
+    type TransactionTableToolbarProps
 } from "./TransactionTableToolbar";

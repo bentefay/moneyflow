@@ -70,9 +70,9 @@ export class VaultRealtimeSync {
         this.channel = supabase.channel(`vault:${this.vaultId}`, {
             config: {
                 presence: {
-                    key: this.pubkeyHash,
-                },
-            },
+                    key: this.pubkeyHash
+                }
+            }
         });
 
         // Subscribe to vault_updates inserts
@@ -83,7 +83,7 @@ export class VaultRealtimeSync {
                     event: "INSERT",
                     schema: "public",
                     table: "vault_updates",
-                    filter: `vault_id=eq.${this.vaultId}`,
+                    filter: `vault_id=eq.${this.vaultId}`
                 },
                 (payload: RealtimePostgresChangesPayload<VaultUpdateRow>) => {
                     if (payload.new && this.onUpdate && "id" in payload.new) {
@@ -94,7 +94,7 @@ export class VaultRealtimeSync {
                             baseSnapshotVersion: row.base_snapshot_version,
                             hlcTimestamp: row.hlc_timestamp,
                             authorPubkeyHash: row.author_pubkey_hash,
-                            createdAt: row.created_at ?? Temporal.Now.instant().toString(),
+                            createdAt: row.created_at ?? Temporal.Now.instant().toString()
                         });
                     }
                 }
@@ -111,7 +111,7 @@ export class VaultRealtimeSync {
                         return {
                             userId: key,
                             joinedAt: latest.joined_at ?? Temporal.Now.instant().toString(),
-                            lastSeen: latest.last_seen ?? Temporal.Now.instant().toString(),
+                            lastSeen: latest.last_seen ?? Temporal.Now.instant().toString()
                         };
                     });
                     this.onPresence(presenceList);
@@ -123,7 +123,7 @@ export class VaultRealtimeSync {
                     // Track this user's presence
                     await this.channel?.track({
                         joined_at: Temporal.Now.instant().toString(),
-                        last_seen: Temporal.Now.instant().toString(),
+                        last_seen: Temporal.Now.instant().toString()
                     });
                 }
             });
@@ -136,7 +136,7 @@ export class VaultRealtimeSync {
         if (this.channel && this.isSubscribed) {
             await this.channel.track({
                 joined_at: Temporal.Now.instant().toString(),
-                last_seen: Temporal.Now.instant().toString(),
+                last_seen: Temporal.Now.instant().toString()
             });
         }
     }

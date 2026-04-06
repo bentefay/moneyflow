@@ -6,9 +6,13 @@
 
 ## Overview
 
-MoneyFlow uses **Loro CRDT** for conflict-free sync with client-side encryption. All domain data lives inside encrypted "Vault" documents stored as Loro CRDT state. The server only stores and syncs encrypted binary blobs—it never sees plaintext financial data.
+MoneyFlow uses **Loro CRDT** for conflict-free sync with client-side encryption. All domain data
+lives inside encrypted "Vault" documents stored as Loro CRDT state. The server only stores and syncs
+encrypted binary blobs—it never sees plaintext financial data.
 
-**Authentication Model**: Key-only auth (no email/password). Users generate a BIP39 seed phrase which derives their identity keypair. The server has zero knowledge of user identity—only opaque `pubkey_hash` values.
+**Authentication Model**: Key-only auth (no email/password). Users generate a BIP39 seed phrase
+which derives their identity keypair. The server has zero knowledge of user identity—only opaque
+`pubkey_hash` values.
 
 ### Key Architectural Decisions
 
@@ -26,7 +30,8 @@ MoneyFlow uses **Loro CRDT** for conflict-free sync with client-side encryption.
 
 ### Why Loro Instead of Custom Event Sourcing
 
-The previous design defined explicit event types (PersonCreated, TransactionUpdated, etc.). With Loro:
+The previous design defined explicit event types (PersonCreated, TransactionUpdated, etc.). With
+Loro:
 
 1. **No explicit event types needed** - Loro tracks operations internally
 2. **Built-in version vectors** - No need to implement HLC ourselves
@@ -38,13 +43,17 @@ The "events" are now Loro's internal operation log, which we export, encrypt, an
 
 ### Why loro-mirror + loro-mirror-react for React Integration
 
-Rather than interacting with the low-level Loro API directly, we use `loro-mirror` (core) + `loro-mirror-react` (React bindings):
+Rather than interacting with the low-level Loro API directly, we use `loro-mirror` (core) +
+`loro-mirror-react` (React bindings):
 
 **loro-mirror (core):**
 
-1. **Schema definition** - Define typed schemas with validation (`schema.LoroMap`, `schema.LoroList`, etc.)
+1. **Schema definition** - Define typed schemas with validation (`schema.LoroMap`,
+   `schema.LoroList`, etc.)
 2. **Bidirectional sync** - Mirror class syncs app state ↔ LoroDoc automatically
-3. **Draft-style mutations** - `setState()` accepts Immer-style draft mutations; **ALWAYS use draft style** so loro-mirror can track exactly which fields changed and generate optimal CRDT operations
+3. **Draft-style mutations** - `setState()` accepts Immer-style draft mutations; **ALWAYS use draft
+   style** so loro-mirror can track exactly which fields changed and generate optimal CRDT
+   operations
 4. **`$cid` injection** - Loro container IDs auto-injected for stable React keys
 
 **⚠️ IMPORTANT**: Always use draft-style mutations with `setState()`, never return new objects:
@@ -60,8 +69,8 @@ setState((state) => ({
     ...state,
     transactions: {
         ...state.transactions,
-        [id]: { ...state.transactions[id], amount: newAmount },
-    },
+        [id]: { ...state.transactions[id], amount: newAmount }
+    }
 }));
 ```
 
@@ -78,7 +87,8 @@ This keeps React code idiomatic while loro-mirror handles CRDT complexity undern
 
 ## 1. Authentication Model (Key-Only)
 
-MoneyFlow uses **key-only authentication**—no email, no password recovery, maximum privacy. The server never knows who users are, only opaque `pubkey_hash` identifiers.
+MoneyFlow uses **key-only authentication**—no email, no password recovery, maximum privacy. The
+server never knows who users are, only opaque `pubkey_hash` identifiers.
 
 ### 1.1 Identity Derivation
 
@@ -105,9 +115,12 @@ EACH SESSION:
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Security model**: The seed phrase IS the identity. No local storage of secrets means nothing to exfiltrate. Users should use a password manager to store their seed phrase.
+**Security model**: The seed phrase IS the identity. No local storage of secrets means nothing to
+exfiltrate. Users should use a password manager to store their seed phrase.
 
-**Future enhancement**: WebAuthn PRF extension could provide hardware-backed "remember me" functionality where supported, deriving encryption keys via biometrics without storing secrets locally.
+**Future enhancement**: WebAuthn PRF extension could provide hardware-backed "remember me"
+functionality where supported, deriving encryption keys via biometrics without storing secrets
+locally.
 
 ### 1.2 Session Storage Schema
 
@@ -126,7 +139,8 @@ interface SessionData {
 
 ### 1.3 Crypto Implementation
 
-**Key Derivation Strategy**: We use HKDF with domain separation to derive multiple keys from a single master seed. This ensures that compromising one key type doesn't compromise others.
+**Key Derivation Strategy**: We use HKDF with domain separation to derive multiple keys from a
+single master seed. This ensures that compromising one key type doesn't compromise others.
 
 ```typescript
 import sodium from "libsodium-wrappers";
@@ -195,7 +209,7 @@ function storeIdentitySession(identity: {
             secretKey: sodium.to_base64(identity.signingKeypair.privateKey),
             encPublicKey: sodium.to_base64(identity.encryptionKeypair.publicKey),
             encSecretKey: sodium.to_base64(identity.encryptionKeypair.privateKey),
-            pubkeyHash: identity.pubkeyHash,
+            pubkeyHash: identity.pubkeyHash
         })
     );
 }
@@ -227,7 +241,7 @@ async function unlockWithSeed(mnemonic: string): Promise<{
             secretKey: sodium.to_base64(signingKeypair.privateKey),
             encPublicKey: sodium.to_base64(encryptionKeypair.publicKey),
             encSecretKey: sodium.to_base64(encryptionKeypair.privateKey),
-            pubkeyHash,
+            pubkeyHash
         })
     );
 
@@ -242,7 +256,8 @@ function logout(): void {
 
 ### 1.4 Nonce Strategy
 
-**Critical**: XChaCha20-Poly1305 and XSalsa20-Poly1305 use 192-bit (24-byte) nonces. This allows safe random nonce generation without risk of collision.
+**Critical**: XChaCha20-Poly1305 and XSalsa20-Poly1305 use 192-bit (24-byte) nonces. This allows
+safe random nonce generation without risk of collision.
 
 ```typescript
 // ALWAYS use random nonces for XChaCha20-Poly1305 / XSalsa20-Poly1305
@@ -328,8 +343,8 @@ async function signRequest(
         headers: {
             "X-Pubkey": sodium.to_base64(publicKey),
             "X-Timestamp": timestamp,
-            "X-Signature": sodium.to_base64(signature),
-        },
+            "X-Signature": sodium.to_base64(signature)
+        }
     };
 }
 ```
@@ -338,7 +353,8 @@ async function signRequest(
 
 ## 1.6 Multi-Vault Architecture
 
-A user can be a member of **multiple vaults**. Each vault is a completely independent data silo (like a tenant) containing its own accounts, people, tags, transactions, and settings.
+A user can be a member of **multiple vaults**. Each vault is a completely independent data silo
+(like a tenant) containing its own accounts, people, tags, transactions, and settings.
 
 ### Conceptual Model
 
@@ -418,12 +434,14 @@ interface GlobalSettings {
 
 1. **Vault Selector** (top-right header) - Reads `globalSettings.activeVaultId`, lists `vaults[]`
 2. **Vault Context Provider** - Wraps all `/app/(app)/*` routes, provides active vault's LoroDoc
-3. **Automatic Vault Creation** - If no vaults exist after authentication, automatically create a default "My Vault"
+3. **Automatic Vault Creation** - If no vaults exist after authentication, automatically create a
+   default "My Vault"
 4. **Presence** - Scoped to active vault; switching vaults clears presence from old vault
 
 ### Automatic Vault Creation on First Login
 
-When a user creates their identity or unlocks with a seed phrase for the first time, the system **automatically creates a default vault** so they don't land on an empty state:
+When a user creates their identity or unlocks with a seed phrase for the first time, the system
+**automatically creates a default vault** so they don't land on an empty state:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -468,13 +486,15 @@ When a user creates their identity or unlocks with a seed phrase for the first t
 - **Empty collections**: accounts, people, tags, transactions, etc.
 - **Active vault**: Set as activeVaultId immediately
 
-This ensures users never see "No vault selected" after authentication - they always land in a usable state.
+This ensures users never see "No vault selected" after authentication - they always land in a usable
+state.
 
 ---
 
 ## 2. Server-Side Entities (Zero-Knowledge)
 
-These entities are stored in Supabase Postgres. The server knows **nothing** about user identity—only opaque `pubkey_hash` values. All financial data is encrypted.
+These entities are stored in Supabase Postgres. The server knows **nothing** about user
+identity—only opaque `pubkey_hash` values. All financial data is encrypted.
 
 ### 2.1 User Data (Encrypted)
 
@@ -519,7 +539,8 @@ interface DbVaultMembership {
 
 - Each user gets the vault key encrypted specifically for them
 - `enc_public_key` is stored so other members can wrap new keys for this user during re-keying
-- Revoking access = removing membership + re-keying vault (generate new vault key, re-encrypt all data, wrap new key for each remaining member using their stored `enc_public_key`)
+- Revoking access = removing membership + re-keying vault (generate new vault key, re-encrypt all
+  data, wrap new key for each remaining member using their stored `enc_public_key`)
 
 ### 2.4 VaultInvite (Pending Invitations)
 
@@ -882,7 +903,8 @@ $$ LANGUAGE sql;
 
 ## 5. Client-Side Entities (Decrypted Domain Model)
 
-These types represent the **decrypted state** that clients work with after loading and decrypting vault data. With Loro, this is accessed via `doc.toJSON()` or individual container accessors.
+These types represent the **decrypted state** that clients work with after loading and decrypting
+vault data. With Loro, this is accessed via `doc.toJSON()` or individual container accessors.
 
 ### 2.1 Loro Document Structure
 
@@ -906,7 +928,8 @@ const preferences = vault.getMap("preferences"); // Vault-scoped preferences
 
 ### 2.2 Entity Schema via Loro Containers
 
-Each entity is a nested LoroMap. For collections within entities (like tags on a transaction), we use LoroList.
+Each entity is a nested LoroMap. For collections within entities (like tags on a transaction), we
+use LoroList.
 
 ```typescript
 // Example: Creating a transaction
@@ -942,7 +965,8 @@ function createTransaction(vault: LoroDoc, data: TransactionInput): string {
 }
 ```
 
-**Note**: Loro handles all versioning, HLC, and conflict resolution internally. We don't need to define explicit event types—Loro tracks operations in its internal log.
+**Note**: Loro handles all versioning, HLC, and conflict resolution internally. We don't need to
+define explicit event types—Loro tracks operations in its internal log.
 
 ### 2.3 Supporting Types
 
@@ -971,7 +995,8 @@ type SetStatusValue = string; // Status ID
 
 ### 2.4 TypeScript Interfaces (Derived via toJSON())
 
-When you call `doc.toJSON()` or `container.toJSON()`, Loro returns plain JavaScript objects. These are the shapes:
+When you call `doc.toJSON()` or `container.toJSON()`, Loro returns plain JavaScript objects. These
+are the shapes:
 
 ```typescript
 // Full vault state (via doc.toJSON())
@@ -1167,9 +1192,13 @@ Loro handles conflicts automatically:
 
 ### 7.4 Presence Awareness (EphemeralStore)
 
-Loro's EphemeralStore provides real-time presence awareness without persisting to the CRDT document. Presence data expires automatically after 30 seconds (configurable timeout).
+Loro's EphemeralStore provides real-time presence awareness without persisting to the CRDT document.
+Presence data expires automatically after 30 seconds (configurable timeout).
 
-**Encryption**: Presence data is encrypted using the same XChaCha20-Poly1305 cipher as vault data, but with a **single-pass HKDF** (no iterations) to minimize latency. The presence key is derived from the vault key with domain `moneyflow-v1-presence`. This ensures presence data is only readable by vault members while keeping encryption fast enough for 100ms propagation targets.
+**Encryption**: Presence data is encrypted using the same XChaCha20-Poly1305 cipher as vault data,
+but with a **single-pass HKDF** (no iterations) to minimize latency. The presence key is derived
+from the vault key with domain `moneyflow-v1-presence`. This ensures presence data is only readable
+by vault members while keeping encryption fast enough for 100ms propagation targets.
 
 #### Presence Data Schema
 
@@ -1221,7 +1250,7 @@ function updatePresence(data: Partial<PresenceData>) {
         initials: getInitials(session.displayName),
         color: hashToColor(session.pubkeyHash),
         lastSeen: Date.now(),
-        ...data,
+        ...data
     };
     presence.set(session.pubkeyHash, JSON.stringify(myPresence));
 }
@@ -1233,7 +1262,7 @@ function syncPresence() {
     supabaseChannel.send({
         type: "broadcast",
         event: "presence",
-        payload: { data: Array.from(encrypted) },
+        payload: { data: Array.from(encrypted) }
     });
 }
 
@@ -1252,7 +1281,7 @@ presence.subscribe((event) => {
     const activePeers = Object.entries(allStates)
         .map(([key, value]) => ({
             key,
-            ...(JSON.parse(value as string) as PresenceData),
+            ...(JSON.parse(value as string) as PresenceData)
         }))
         .filter((p) => p.key !== session.pubkeyHash); // Exclude self
     updatePresenceUI(activePeers);
@@ -1312,7 +1341,7 @@ const PersonSchema = z.object({
     id: z.string().uuid(),
     name: z.string().min(1).max(100),
     linkedUserId: z.string().uuid().optional(),
-    deletedAt: z.number().optional(),
+    deletedAt: z.number().optional()
 });
 
 const AccountSchema = z.object({
@@ -1325,9 +1354,9 @@ const AccountSchema = z.object({
     ownerships: z
         .record(z.string().uuid(), z.number())
         .refine((o) => Object.values(o).reduce((sum, x) => sum + x, 0) === 100, {
-            message: "Ownership percentages must sum to 100",
+            message: "Ownership percentages must sum to 100"
         }),
-    deletedAt: z.number().optional(),
+    deletedAt: z.number().optional()
 });
 
 const TagSchema = z.object({
@@ -1335,7 +1364,7 @@ const TagSchema = z.object({
     name: z.string().min(1).max(50),
     parentTagId: z.string().uuid().optional(),
     isTransfer: z.boolean(),
-    deletedAt: z.number().optional(),
+    deletedAt: z.number().optional()
 });
 
 const TransactionSchema = z.object({
@@ -1349,7 +1378,7 @@ const TransactionSchema = z.object({
     statusId: z.string().uuid(),
     importId: z.string().uuid().optional(),
     allocations: z.record(z.string().uuid(), z.number()),
-    deletedAt: z.number().optional(),
+    deletedAt: z.number().optional()
 });
 
 // ... similar for other entities
@@ -1367,17 +1396,17 @@ const DEFAULT_STATUSES: Status[] = [
         id: generateUUID(),
         name: "For Review",
         behavior: null,
-        isDefault: true,
+        isDefault: true
     },
     {
         id: generateUUID(),
         name: "Paid",
         behavior: "treatAsPaid",
-        isDefault: false,
-    },
+        isDefault: false
+    }
 ];
 
 const DEFAULT_VAULT_PREFERENCES: VaultPreferences = {
-    automationCreationPreference: "createAutomatically",
+    automationCreationPreference: "createAutomatically"
 };
 ```

@@ -21,7 +21,7 @@ import {
     SelectContent,
     SelectItem,
     SelectTrigger,
-    SelectValue,
+    SelectValue
 } from "@/components/ui/select";
 import type { FormattingSettings } from "@/lib/import/types";
 import { cn } from "@/lib/utils";
@@ -61,7 +61,7 @@ const DATE_FORMAT_OPTIONS = [
     { value: "MM-dd-yyyy", label: "01-15-2024" },
     { value: "dd-MM-yyyy", label: "15-01-2024" },
     { value: "yyyy/MM/dd", label: "2024/01/15" },
-    { value: "dd.MM.yyyy", label: "15.01.2024" },
+    { value: "dd.MM.yyyy", label: "15.01.2024" }
 ];
 
 /**
@@ -72,7 +72,7 @@ const NUMBER_FORMAT_OPTIONS = [
     { thousand: ".", decimal: ",", label: "1.234,56 (EU)" },
     { thousand: " ", decimal: ",", label: "1 234,56 (FR)" },
     { thousand: "'", decimal: ".", label: "1'234.56 (CH)" },
-    { thousand: "", decimal: ".", label: "1234.56 (no separator)" },
+    { thousand: "", decimal: ".", label: "1234.56 (no separator)" }
 ];
 
 // ============================================================================
@@ -168,7 +168,7 @@ export function FormattingTab({
     sampleDates = [],
     sampleAmounts = [],
     fileType = "csv",
-    className,
+    className
 }: FormattingTabProps) {
     const isCsv = fileType === "csv";
 
@@ -205,7 +205,7 @@ export function FormattingTab({
             const [thousand, decimal] = value.split("|");
             onFormattingChange({
                 thousandSeparator: thousand,
-                decimalSeparator: decimal,
+                decimalSeparator: decimal
             });
         },
         [onFormattingChange]

@@ -28,7 +28,7 @@ import {
     createCurrencyFormatter,
     getCurrency,
     type MoneyMinorUnits,
-    resolveAccountCurrency,
+    resolveAccountCurrency
 } from "@/lib/domain/currency";
 import { isValidOwnership } from "@/lib/domain/ownership";
 import { cn } from "@/lib/utils";
@@ -64,7 +64,7 @@ const ACCOUNT_TYPES: Record<string, string> = {
     credit: "Credit Card",
     cash: "Cash",
     loan: "Loan",
-    investment: "Investment",
+    investment: "Investment"
 };
 
 /** Which field is currently being edited (or "all" for full edit mode) */
@@ -82,7 +82,7 @@ export function AccountRow({
     canDelete = true,
     isExpanded = false,
     onToggleExpand,
-    className,
+    className
 }: AccountRowProps) {
     // Per-field editing state ("all" = full edit mode from edit button)
     const [editingField, setEditingField] = useState<EditingField>(null);

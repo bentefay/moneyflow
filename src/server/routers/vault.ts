@@ -18,7 +18,7 @@ import {
     vaultDeleteInput,
     vaultGetInput,
     vaultLeaveInput,
-    vaultMembersInput,
+    vaultMembersInput
 } from "../schemas/vault";
 import { protectedProcedure, router } from "../trpc";
 
@@ -59,7 +59,7 @@ export const vaultRouter = router({
                     id: vault?.id ?? "",
                     role: m.role as "owner" | "member",
                     encryptedVaultKey: m.encrypted_vault_key,
-                    createdAt: vault?.created_at ?? m.created_at,
+                    createdAt: vault?.created_at ?? m.created_at
                 };
             })
             .filter((v) => v.id); // Filter out any with missing vault
@@ -92,7 +92,7 @@ export const vaultRouter = router({
             pubkey_hash: ctx.pubkeyHash,
             role: "owner",
             encrypted_vault_key: input.encryptedVaultKey,
-            enc_public_key: input.encPublicKey,
+            enc_public_key: input.encPublicKey
         });
 
         if (memberError) {
@@ -133,14 +133,14 @@ export const vaultRouter = router({
         if (memberError || !membership) {
             throw new TRPCError({
                 code: "NOT_FOUND",
-                message: "Vault not found or access denied",
+                message: "Vault not found or access denied"
             });
         }
 
         return {
             vault: membership.vaults,
             role: membership.role,
-            encryptedVaultKey: membership.encrypted_vault_key,
+            encryptedVaultKey: membership.encrypted_vault_key
         };
     }),
 
@@ -163,7 +163,7 @@ export const vaultRouter = router({
         if (callerError || !callerMembership) {
             throw new TRPCError({
                 code: "NOT_FOUND",
-                message: "Vault not found or access denied",
+                message: "Vault not found or access denied"
             });
         }
 
@@ -199,14 +199,14 @@ export const vaultRouter = router({
         if (memberError || !membership) {
             throw new TRPCError({
                 code: "NOT_FOUND",
-                message: "Vault not found or access denied",
+                message: "Vault not found or access denied"
             });
         }
 
         if (membership.role !== "owner") {
             throw new TRPCError({
                 code: "FORBIDDEN",
-                message: "Only the owner can delete the vault",
+                message: "Only the owner can delete the vault"
             });
         }
 
@@ -241,14 +241,14 @@ export const vaultRouter = router({
         if (memberError || !membership) {
             throw new TRPCError({
                 code: "NOT_FOUND",
-                message: "Vault not found or you are not a member",
+                message: "Vault not found or you are not a member"
             });
         }
 
         if (membership.role === "owner") {
             throw new TRPCError({
                 code: "FORBIDDEN",
-                message: "Owner cannot leave vault. Transfer ownership or delete the vault.",
+                message: "Owner cannot leave vault. Transfer ownership or delete the vault."
             });
         }
 
@@ -263,5 +263,5 @@ export const vaultRouter = router({
         }
 
         return { success: true };
-    }),
+    })
 });

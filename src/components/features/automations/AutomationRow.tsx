@@ -15,7 +15,7 @@ import {
     Pencil,
     Trash2,
     X,
-    Zap,
+    Zap
 } from "lucide-react";
 import { useCallback, useState } from "react";
 
@@ -99,7 +99,7 @@ export function AutomationRow({
     onUpdate,
     onDelete,
     canDelete = true,
-    className,
+    className
 }: AutomationRowProps) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -169,7 +169,7 @@ export function AutomationRow({
             id: crypto.randomUUID(),
             column: "description",
             operator: "contains",
-            value: "",
+            value: ""
         };
         setEditedConditions([...editedConditions, newCondition]);
     }, [editedConditions]);
@@ -197,7 +197,7 @@ export function AutomationRow({
         const newAction: ActionData = {
             id: crypto.randomUUID(),
             type: "setTags",
-            value: [],
+            value: []
         };
         setEditedActions([...editedActions, newAction]);
     }, [editedActions]);

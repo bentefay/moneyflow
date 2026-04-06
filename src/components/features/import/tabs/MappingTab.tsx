@@ -18,7 +18,7 @@ import {
     SelectContent,
     SelectItem,
     SelectTrigger,
-    SelectValue,
+    SelectValue
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
@@ -35,7 +35,7 @@ export const TARGET_FIELDS = [
     { id: "memo", label: "Memo", required: false },
     { id: "checkNumber", label: "Check Number", required: false },
     { id: "balance", label: "Balance", required: false },
-    { id: "__ignore__", label: "(Ignore)", required: false },
+    { id: "__ignore__", label: "(Ignore)", required: false }
 ] as const;
 
 export type TargetFieldId = (typeof TARGET_FIELDS)[number]["id"];
@@ -163,7 +163,7 @@ export function MappingTab({
     sampleRows,
     columnMappings,
     onMappingsChange,
-    className,
+    className
 }: MappingTabProps) {
     // Track which target fields are already used
     const usedFields = useMemo(

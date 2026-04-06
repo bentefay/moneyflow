@@ -17,7 +17,7 @@ export const ACCEPTED_FILE_TYPES = {
     "text/csv": [".csv"],
     "application/vnd.ms-excel": [".csv"],
     "application/x-ofx": [".ofx", ".qfx"],
-    "text/plain": [".ofx", ".qfx"],
+    "text/plain": [".ofx", ".qfx"]
 };
 
 export const ACCEPTED_EXTENSIONS = [".csv", ".ofx", ".qfx"];
@@ -43,7 +43,7 @@ export function FileDropzone({
     onError,
     disabled = false,
     className,
-    selectedFile,
+    selectedFile
 }: FileDropzoneProps) {
     const [isDragging, setIsDragging] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);

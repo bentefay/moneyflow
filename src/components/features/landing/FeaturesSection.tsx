@@ -12,7 +12,7 @@ import {
     Shield,
     Smartphone,
     Users,
-    Zap,
+    Zap
 } from "lucide-react";
 
 const features = [
@@ -22,7 +22,7 @@ const features = [
             "Your financial data is encrypted before it ever leaves your device. We can't see it, hackers can't steal it.",
         icon: Shield,
         color: "text-violet-600 dark:text-violet-400",
-        bgColor: "bg-violet-100 dark:bg-violet-900/30",
+        bgColor: "bg-violet-100 dark:bg-violet-900/30"
     },
     {
         name: "Household Collaboration",
@@ -30,7 +30,7 @@ const features = [
             "Share a vault with your partner or family. Everyone sees updates in real-time, with automatic conflict resolution.",
         icon: Users,
         color: "text-cyan-600 dark:text-cyan-400",
-        bgColor: "bg-cyan-100 dark:bg-cyan-900/30",
+        bgColor: "bg-cyan-100 dark:bg-cyan-900/30"
     },
     {
         name: "Offline-First",
@@ -38,7 +38,7 @@ const features = [
             "Works without internet. Make changes offline, and everything syncs automatically when you're back online.",
         icon: Zap,
         color: "text-amber-600 dark:text-amber-400",
-        bgColor: "bg-amber-100 dark:bg-amber-900/30",
+        bgColor: "bg-amber-100 dark:bg-amber-900/30"
     },
     {
         name: "Seed Phrase Security",
@@ -46,7 +46,7 @@ const features = [
             "No passwords to remember or reset. Your 12-word seed phrase is the only key to your data.",
         icon: Lock,
         color: "text-green-600 dark:text-green-400",
-        bgColor: "bg-green-100 dark:bg-green-900/30",
+        bgColor: "bg-green-100 dark:bg-green-900/30"
     },
     {
         name: "Real-Time Sync",
@@ -54,7 +54,7 @@ const features = [
             "See changes instantly as your household members add transactions. Powered by conflict-free replicated data types.",
         icon: RefreshCw,
         color: "text-blue-600 dark:text-blue-400",
-        bgColor: "bg-blue-100 dark:bg-blue-900/30",
+        bgColor: "bg-blue-100 dark:bg-blue-900/30"
     },
     {
         name: "Works Everywhere",
@@ -62,7 +62,7 @@ const features = [
             "Access from any device with a web browser. No app downloads required. Your data follows you.",
         icon: Smartphone,
         color: "text-rose-600 dark:text-rose-400",
-        bgColor: "bg-rose-100 dark:bg-rose-900/30",
+        bgColor: "bg-rose-100 dark:bg-rose-900/30"
     },
     {
         name: "Smart Budgeting",
@@ -70,7 +70,7 @@ const features = [
             "Set budgets for categories and track spending. Get gentle nudges when you're approaching limits.",
         icon: PiggyBank,
         color: "text-emerald-600 dark:text-emerald-400",
-        bgColor: "bg-emerald-100 dark:bg-emerald-900/30",
+        bgColor: "bg-emerald-100 dark:bg-emerald-900/30"
     },
     {
         name: "Spending Insights",
@@ -78,8 +78,8 @@ const features = [
             "Understand where your money goes with clear visualizations. No AI analyzing your data—just local charts.",
         icon: BarChart3,
         color: "text-orange-600 dark:text-orange-400",
-        bgColor: "bg-orange-100 dark:bg-orange-900/30",
-    },
+        bgColor: "bg-orange-100 dark:bg-orange-900/30"
+    }
 ];
 
 export function FeaturesSection() {

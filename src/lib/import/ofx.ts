@@ -17,7 +17,7 @@ import {
     type OFXBankAccount,
     type OFXCreditCardAccount,
     type OFXDocument,
-    parse,
+    parse
 } from "@f-o-t/ofx";
 import { Temporal } from "temporal-polyfill";
 
@@ -175,7 +175,7 @@ function toPlainDate(date: Date): Temporal.PlainDate {
     return Temporal.PlainDate.from({
         year: date.getFullYear(),
         month: date.getMonth() + 1,
-        day: date.getDate(),
+        day: date.getDate()
     });
 }
 
@@ -200,7 +200,7 @@ function convertTransaction(trn: LibOFXTransaction): ParsedOFXTransaction {
         name: trn.NAME ?? "",
         memo: trn.MEMO ?? "",
         checkNumber: trn.CHECKNUM,
-        refNumber: trn.REFNUM,
+        refNumber: trn.REFNUM
     };
 }
 
@@ -211,12 +211,12 @@ function convertAccount(account: OFXBankAccount | OFXCreditCardAccount): ParsedO
             accountId: account.ACCTID,
             accountType: account.ACCTTYPE,
             bankId: account.BANKID,
-            branchId: account.BRANCHID,
+            branchId: account.BRANCHID
         };
     }
     return {
         accountId: account.ACCTID,
-        accountType: "CREDITCARD",
+        accountType: "CREDITCARD"
     };
 }
 
@@ -228,15 +228,15 @@ function convertBalance(balanceInfo: BalanceInfo | undefined): ParsedOFXBalance 
         ledgerBalance: balanceInfo.ledger
             ? {
                   amount: balanceInfo.ledger.BALAMT,
-                  asOfDate: formatDateToISO(balanceInfo.ledger.DTASOF.toDate()),
+                  asOfDate: formatDateToISO(balanceInfo.ledger.DTASOF.toDate())
               }
             : undefined,
         availableBalance: balanceInfo.available
             ? {
                   amount: balanceInfo.available.BALAMT,
-                  asOfDate: formatDateToISO(balanceInfo.available.DTASOF.toDate()),
+                  asOfDate: formatDateToISO(balanceInfo.available.DTASOF.toDate())
               }
-            : undefined,
+            : undefined
     };
 }
 
@@ -275,11 +275,11 @@ function extractStatements(doc: OFXDocument): ParsedOFXStatement[] {
             dateRange: tranList
                 ? {
                       start: formatDateToISO(tranList.DTSTART.toDate()),
-                      end: formatDateToISO(tranList.DTEND.toDate()),
+                      end: formatDateToISO(tranList.DTEND.toDate())
                   }
                 : null,
             transactions: stmtTransactions.map(convertTransaction),
-            balance: convertBalance(balance),
+            balance: convertBalance(balance)
         });
     }
 
@@ -304,11 +304,11 @@ function extractStatements(doc: OFXDocument): ParsedOFXStatement[] {
             dateRange: tranList
                 ? {
                       start: formatDateToISO(tranList.DTSTART.toDate()),
-                      end: formatDateToISO(tranList.DTEND.toDate()),
+                      end: formatDateToISO(tranList.DTEND.toDate())
                   }
                 : null,
             transactions: stmtTransactions.map(convertTransaction),
-            balance: convertBalance(balance),
+            balance: convertBalance(balance)
         });
     }
 
@@ -324,7 +324,7 @@ function extractStatements(doc: OFXDocument): ParsedOFXStatement[] {
             currency: "USD",
             dateRange: null,
             transactions: allTransactions.map(convertTransaction),
-            balance: convertBalance(balance),
+            balance: convertBalance(balance)
         });
     }
 
@@ -367,8 +367,8 @@ export function parseOFX(content: string): OFXParseResult {
             ok: false,
             error: {
                 message: "Failed to parse OFX content",
-                details: details.length > 0 ? details : [zodError.message ?? "Unknown parse error"],
-            },
+                details: details.length > 0 ? details : [zodError.message ?? "Unknown parse error"]
+            }
         };
     }
 
@@ -380,10 +380,8 @@ export function parseOFX(content: string): OFXParseResult {
             ok: false,
             error: {
                 message: "No account statements found in OFX content",
-                details: [
-                    "The OFX file was parsed but contained no bank or credit card statements",
-                ],
-            },
+                details: ["The OFX file was parsed but contained no bank or credit card statements"]
+            }
         };
     }
 
@@ -398,10 +396,10 @@ export function parseOFX(content: string): OFXParseResult {
             financialInstitution: sonrs?.FI
                 ? {
                       org: sonrs.FI.ORG,
-                      fid: sonrs.FI.FID,
+                      fid: sonrs.FI.FID
                   }
-                : undefined,
-        },
+                : undefined
+        }
     };
 }
 

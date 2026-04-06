@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 const navigation = [
     { name: "Features", href: "#features" },
     { name: "Security", href: "#security" },
-    { name: "Open Source", href: "https://github.com/bentefay/moneyflow", external: true },
+    { name: "Open Source", href: "https://github.com/bentefay/moneyflow", external: true }
 ];
 
 export function Header() {

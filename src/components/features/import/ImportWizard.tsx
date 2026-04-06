@@ -16,7 +16,7 @@ import {
     type ColumnMapping,
     ColumnMappingStep,
     initializeColumnMappings,
-    validateColumnMappings,
+    validateColumnMappings
 } from "./ColumnMappingStep";
 import { FileDropzone } from "./FileDropzone";
 import { DEFAULT_FORMATTING, FormattingStep, type ImportFormatting } from "./FormattingStep";
@@ -83,7 +83,7 @@ export function ImportWizard({
     onSaveTemplate,
     onDeleteTemplate,
     existingTransactions = [],
-    className,
+    className
 }: ImportWizardProps) {
     // Wizard state
     const [step, setStep] = useState<WizardStep>("file");
@@ -138,7 +138,7 @@ export function ImportWizard({
                     description: tx.name || tx.memo,
                     errors: [],
                     isDuplicate: checkDuplicate(dateStr, tx.amount, tx.name || tx.memo),
-                    originalRow: [dateStr, tx.name, tx.memo, String(tx.amount)],
+                    originalRow: [dateStr, tx.name, tx.memo, String(tx.amount)]
                 };
             });
             setPreviewTransactions(preview);
@@ -173,7 +173,7 @@ export function ImportWizard({
 
                     // Flatten transactions from all statements
                     const allTransactions = result.data.statements.flatMap((s) => [
-                        ...s.transactions,
+                        ...s.transactions
                     ]);
 
                     if (allTransactions.length === 0) {
@@ -193,7 +193,7 @@ export function ImportWizard({
                     const result = parseCSV(content, {
                         separator,
                         hasHeaders,
-                        maxRows: 1000,
+                        maxRows: 1000
                     });
 
                     if (result.rows.length === 0) {
@@ -279,7 +279,7 @@ export function ImportWizard({
                 description,
                 errors,
                 isDuplicate,
-                originalRow: row,
+                originalRow: row
             };
         });
 
@@ -331,7 +331,7 @@ export function ImportWizard({
                         amount: tx.amount!,
                         description: tx.description,
                         memo: "",
-                        isDuplicate: tx.isDuplicate ?? false,
+                        isDuplicate: tx.isDuplicate ?? false
                     })
                 );
 
@@ -461,14 +461,14 @@ export function ImportWizard({
         ? [
               { key: "file", label: "Select File" },
               { key: "preview", label: "Preview" },
-              { key: "complete", label: "Done" },
+              { key: "complete", label: "Done" }
           ]
         : [
               { key: "file", label: "Select File" },
               { key: "mapping", label: "Map Columns" },
               { key: "formatting", label: "Format" },
               { key: "preview", label: "Preview" },
-              { key: "complete", label: "Done" },
+              { key: "complete", label: "Done" }
           ];
 
     const currentStepIndex = steps.findIndex((s) => s.key === step);

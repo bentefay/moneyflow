@@ -40,7 +40,7 @@ export function DuplicateBadge({
     originalDate,
     originalAmount,
     onResolve,
-    className,
+    className
 }: DuplicateBadgeProps) {
     const [showTooltip, setShowTooltip] = useState(false);
     const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
@@ -56,7 +56,7 @@ export function DuplicateBadge({
             const rect = buttonRef.current.getBoundingClientRect();
             setTooltipPosition({
                 top: rect.top - 8, // 8px gap above button
-                left: rect.left + rect.width / 2,
+                left: rect.left + rect.width / 2
             });
         }
     }, [showTooltip]);
@@ -99,7 +99,7 @@ export function DuplicateBadge({
                         )}
                         style={{
                             top: tooltipPosition.top,
-                            left: tooltipPosition.left,
+                            left: tooltipPosition.left
                         }}
                         onMouseEnter={() => setShowTooltip(true)}
                         onMouseLeave={() => setShowTooltip(false)}
@@ -130,7 +130,7 @@ export function DuplicateBadge({
                                             Amount:{" "}
                                             {originalAmount.toLocaleString(undefined, {
                                                 minimumFractionDigits: 2,
-                                                maximumFractionDigits: 2,
+                                                maximumFractionDigits: 2
                                             })}
                                         </p>
                                     )}
@@ -168,7 +168,7 @@ export function DuplicateBadge({
                             className="bg-popover fixed h-2 w-2 -translate-x-1/2 rotate-45 border-r border-b"
                             style={{
                                 top: tooltipPosition.top,
-                                left: tooltipPosition.left,
+                                left: tooltipPosition.left
                             }}
                         />
                     </div>,

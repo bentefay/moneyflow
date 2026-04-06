@@ -62,7 +62,7 @@ export function AddTransactionRow({
     selectedCount = 0,
     totalCount = 0,
     isFiltered = false,
-    className,
+    className
 }: AddTransactionRowProps) {
     const [isActive, setIsActive] = useState(false);
 

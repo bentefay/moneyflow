@@ -49,7 +49,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
 
     // Fetch vault list to get encrypted keys
     const vaultListQuery = trpc.vault.list.useQuery(undefined, {
-        enabled: !!activeVault?.id,
+        enabled: !!activeVault?.id
     });
 
     // Create stable LoroDoc instance
@@ -111,25 +111,25 @@ export function VaultProvider({ children }: VaultProviderProps) {
                     trpc: {
                         sync: {
                             getSnapshot: {
-                                query: (input) => trpcUtils.sync.getSnapshot.fetch(input),
+                                query: (input) => trpcUtils.sync.getSnapshot.fetch(input)
                             },
                             getUpdates: {
-                                query: (input) => trpcUtils.sync.getUpdates.fetch(input),
+                                query: (input) => trpcUtils.sync.getUpdates.fetch(input)
                             },
                             pushOps: {
-                                mutate: (input) => trpcUtils.client.sync.pushOps.mutate(input),
+                                mutate: (input) => trpcUtils.client.sync.pushOps.mutate(input)
                             },
                             pushSnapshot: {
-                                mutate: (input) => trpcUtils.client.sync.pushSnapshot.mutate(input),
-                            },
-                        },
+                                mutate: (input) => trpcUtils.client.sync.pushSnapshot.mutate(input)
+                            }
+                        }
                     },
                     onSyncStateChange: (state) => {
                         syncStatusContext.setSyncState(state);
                     },
                     onError: (error) => {
                         console.error("SyncManager error:", error);
-                    },
+                    }
                 });
 
                 syncManagerRef.current = manager;

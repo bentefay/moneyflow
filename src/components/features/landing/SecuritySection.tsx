@@ -11,26 +11,26 @@ const securityFeatures = [
         title: "End-to-End Encryption",
         description:
             "Your data is encrypted with XChaCha20-Poly1305 before leaving your device. Only people with the vault key can decrypt it.",
-        icon: Lock,
+        icon: Lock
     },
     {
         title: "Zero-Knowledge Architecture",
         description:
             "Our servers only see encrypted blobs. We literally cannot read your financial data, even if compelled by law.",
-        icon: Eye,
+        icon: Eye
     },
     {
         title: "No Account Required",
         description:
             "Your 12-word seed phrase is your identity. No email, no password, no personal information stored.",
-        icon: Key,
+        icon: Key
     },
     {
         title: "Local-First Storage",
         description:
             "Your data lives on your device first. The cloud is just for sync—you're never locked out.",
-        icon: Server,
-    },
+        icon: Server
+    }
 ];
 
 const cryptoDetails = [
@@ -39,7 +39,7 @@ const cryptoDetails = [
     "XChaCha20-Poly1305 encryption",
     "BLAKE2b for key derivation",
     "BIP-39 seed phrase standard",
-    "CRDT for conflict-free sync",
+    "CRDT for conflict-free sync"
 ];
 
 export function SecuritySection() {

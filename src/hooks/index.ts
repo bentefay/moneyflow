@@ -4,7 +4,7 @@ export type {
     IdentityActions,
     IdentityState,
     IdentityStatus,
-    UseIdentityReturn,
+    UseIdentityReturn
 } from "./use-identity";
 export { useIdentity, useIsAuthenticated, usePubkeyHash } from "./use-identity";
 export { useIsHydrated } from "./use-is-hydrated";
@@ -13,7 +13,7 @@ export {
     SyncStatusProvider,
     usePollUnsavedChanges,
     useSyncStatus,
-    useSyncStatusManager,
+    useSyncStatusManager
 } from "./use-sync-status";
 export type { UseVaultPresenceOptions, VaultPresence } from "./use-vault-presence";
 export { useVaultPresence } from "./use-vault-presence";

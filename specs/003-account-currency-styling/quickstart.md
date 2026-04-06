@@ -5,7 +5,9 @@
 
 ## Overview
 
-This feature makes account currency optional (falls back to vault default), adds a default "Me" person on vault creation, improves Accounts page column alignment, and enables inline editing for all account fields.
+This feature makes account currency optional (falls back to vault default), adds a default "Me"
+person on vault creation, improves Accounts page column alignment, and enables inline editing for
+all account fields.
 
 ## Prerequisites
 
@@ -51,7 +53,7 @@ export const DEFAULT_PERSON_ID = "person-default-me";
 export const DEFAULT_PERSON: PersonInput = {
     id: DEFAULT_PERSON_ID,
     name: "Me",
-    deletedAt: 0,
+    deletedAt: 0
 };
 
 // Modify DEFAULT_ACCOUNT
@@ -63,14 +65,14 @@ export const DEFAULT_ACCOUNT: AccountInput = {
     accountType: "checking",
     balance: 0,
     ownerships: { [DEFAULT_PERSON_ID]: 100 }, // Changed from {}
-    deletedAt: 0,
+    deletedAt: 0
 };
 
 // Modify getDefaultVaultState()
 export function getDefaultVaultState(): VaultInput {
     return {
         people: { [DEFAULT_PERSON_ID]: { ...DEFAULT_PERSON } }, // Added
-        accounts: { [DEFAULT_ACCOUNT_ID]: { ...DEFAULT_ACCOUNT } },
+        accounts: { [DEFAULT_ACCOUNT_ID]: { ...DEFAULT_ACCOUNT } }
         // ... rest unchanged
     };
 }
@@ -191,7 +193,8 @@ const { code: currency } = resolveAccountCurrency(account.currency, vaultDefault
 
 ### Existing tests failing
 
-Tests that assert `account.currency === "USD"` may fail if the account was created without explicit currency. Update to use resolution logic.
+Tests that assert `account.currency === "USD"` may fail if the account was created without explicit
+currency. Update to use resolution logic.
 
 ## Next Steps
 

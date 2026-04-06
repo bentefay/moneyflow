@@ -126,7 +126,7 @@ export function AutomationsTable({ className }: AutomationsTableProps) {
             conditions: [],
             actions: [],
             order: maxOrder + 1,
-            excludedTransactionIds: [],
+            excludedTransactionIds: []
         };
 
         updateVault({ type: "add", id, data: automationData as Partial<AutomationInput> });

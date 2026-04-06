@@ -22,7 +22,7 @@ import {
     TabsContent,
     TabsContents,
     TabsList,
-    TabsTrigger,
+    TabsTrigger
 } from "@/components/animate-ui/components/radix/tabs";
 import type { Account, ImportTemplate } from "@/lib/crdt/schema";
 import type { ImportConfig } from "@/lib/import/types";
@@ -80,7 +80,7 @@ const TABS: TabConfig[] = [
     { id: "mapping", label: "Columns", icon: Columns, showFor: ["csv"] },
     { id: "formatting", label: "Format", icon: Settings, showFor: ["csv", "ofx"] },
     { id: "duplicates", label: "Duplicates", icon: Copy, showFor: ["csv", "ofx"] },
-    { id: "account", label: "Account", icon: Landmark, showFor: ["csv", "ofx"] },
+    { id: "account", label: "Account", icon: Landmark, showFor: ["csv", "ofx"] }
 ];
 
 // ============================================================================
@@ -118,7 +118,7 @@ export function ConfigTabs({
     // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Props passed to children
     selectedAccountId: _selectedAccountId,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Props passed to children
-    onSelectAccount: _onSelectAccount,
+    onSelectAccount: _onSelectAccount
 }: ConfigTabsProps) {
     const [activeTab, setActiveTab] = useState<ConfigTabId>("template");
 

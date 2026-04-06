@@ -36,7 +36,7 @@ export function TransactionTableToolbar({
     selectedCount = 0,
     totalCount = 0,
     isFiltered = false,
-    className,
+    className
 }: TransactionTableToolbarProps) {
     return (
         <div

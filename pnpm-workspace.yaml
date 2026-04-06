@@ -1,10 +1,10 @@
 packages:
-  - .
+    - .
 
 ignoredBuiltDependencies:
-  - esbuild
-  - sharp
-  - unrs-resolver
+    - esbuild
+    - sharp
+    - unrs-resolver
 
 onlyBuiltDependencies:
-  - supabase
+    - supabase

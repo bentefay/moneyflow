@@ -33,8 +33,8 @@ export function createSupabaseClientForBrowser(): SupabaseClient<Database> {
     supabaseClient = createClient<Database>(supabaseUrl, supabaseAnonKey, {
         auth: {
             persistSession: false,
-            autoRefreshToken: false,
-        },
+            autoRefreshToken: false
+        }
     });
 
     return supabaseClient;

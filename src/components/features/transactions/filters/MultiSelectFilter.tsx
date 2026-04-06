@@ -43,7 +43,7 @@ export function MultiSelectFilter({
     onChange,
     searchable = true,
     icon,
-    className,
+    className
 }: MultiSelectFilterProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");

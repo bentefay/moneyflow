@@ -1,25 +1,37 @@
 # Implementation Plan: MoneyFlow Core MVP
 
-**Branch**: `001-core-mvp` | **Date**: 2025-12-23 | **Spec**: [spec.md](spec.md)
-**Input**: Feature specification from `/specs/001-core-mvp/spec.md`
+**Branch**: `001-core-mvp` | **Date**: 2025-12-23 | **Spec**: [spec.md](spec.md) **Input**: Feature
+specification from `/specs/001-core-mvp/spec.md`
 
 ## Summary
 
-Build the MoneyFlow Core MVP: a client-side encrypted, real-time collaborative household expense tracker. Users can import transactions, allocate expenses to people, and see settlement balances. All data is encrypted client-side using keys derived from user-controlled seed phrases—the server never sees plaintext financial data or user identities.
+Build the MoneyFlow Core MVP: a client-side encrypted, real-time collaborative household expense
+tracker. Users can import transactions, allocate expenses to people, and see settlement balances.
+All data is encrypted client-side using keys derived from user-controlled seed phrases—the server
+never sees plaintext financial data or user identities.
 
-**Technical Approach**: Loro CRDT library for conflict-free sync with client-side encryption. Updates are exported as binary blobs, encrypted, and relayed via Supabase Realtime. Key-only authentication using BIP39 seed phrases and Ed25519 request signing (no server-side identity). Next.js 15 on Vercel with Server Components, shadcn/ui, and Remeda for functional programming patterns.
+**Technical Approach**: Loro CRDT library for conflict-free sync with client-side encryption.
+Updates are exported as binary blobs, encrypted, and relayed via Supabase Realtime. Key-only
+authentication using BIP39 seed phrases and Ed25519 request signing (no server-side identity).
+Next.js 15 on Vercel with Server Components, shadcn/ui, and Remeda for functional programming
+patterns.
 
 ## Technical Context
 
 **Language/Version**: TypeScript 5.x, Node.js 20.x  
-**Primary Dependencies**: Next.js 15, React 19, Supabase (Postgres + Realtime), shadcn/ui, Remeda, libsodium, **loro-mirror**, **loro-mirror-react**, **tRPC v11**, **bip39**  
-**API Layer**: tRPC for end-to-end type-safe API with Ed25519 signature verification. Zod schemas shared between client validation and tRPC input validation.  
-**CRDT Strategy**: `loro-mirror` provides schema-validated state ↔ Loro sync. `loro-mirror-react` provides React hooks (`useLoroSelector`, `useLoroAction`, `createLoroContext`). Immer-style mutations, synchronous updates (~150KB WASM)  
+**Primary Dependencies**: Next.js 15, React 19, Supabase (Postgres + Realtime), shadcn/ui, Remeda,
+libsodium, **loro-mirror**, **loro-mirror-react**, **tRPC v11**, **bip39**  
+**API Layer**: tRPC for end-to-end type-safe API with Ed25519 signature verification. Zod schemas
+shared between client validation and tRPC input validation.  
+**CRDT Strategy**: `loro-mirror` provides schema-validated state ↔ Loro sync. `loro-mirror-react`
+provides React hooks (`useLoroSelector`, `useLoroAction`, `createLoroContext`). Immer-style
+mutations, synchronous updates (~150KB WASM)  
 **Storage**: Supabase Postgres (encrypted blobs) + Supabase Realtime (WebSocket sync)  
 **Testing**: Vitest (unit), Playwright (e2e), property-based tests for financial calculations  
 **Target Platform**: Web (responsive), deployed on Vercel  
 **Project Type**: Web application (Next.js monolith with API routes)  
-**Performance Goals**: <100ms perceived latency (Constitution VI), <500ms sync (FR-073), <2s automation eval on 10k txns  
+**Performance Goals**: <100ms perceived latency (Constitution VI), <500ms sync (FR-073), <2s
+automation eval on 10k txns  
 **Constraints**: Offline-capable, client-side encryption only, no server access to plaintext  
 **Scale/Scope**: MVP targeting 10 concurrent users per vault, 10k transactions per vault
 
@@ -99,7 +111,9 @@ tests/
 └── e2e/                      # Playwright e2e tests
 ```
 
-**Structure Decision**: Next.js App Router monolith. All business logic runs client-side (encryption requirement). Server only handles encrypted blob storage and sync—no authentication state, no user identity.
+**Structure Decision**: Next.js App Router monolith. All business logic runs client-side (encryption
+requirement). Server only handles encrypted blob storage and sync—no authentication state, no user
+identity.
 
 ## Complexity Tracking
 

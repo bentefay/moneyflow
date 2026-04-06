@@ -85,7 +85,7 @@ export default function UnlockPage() {
                         stageDurations={{
                             fading: 400,
                             expanding: 800,
-                            revealing: 500,
+                            revealing: 500
                         }}
                     >
                         <UnlockCircle

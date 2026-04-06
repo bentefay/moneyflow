@@ -19,7 +19,8 @@ Transactions are organized as:
 Account → Year → Month → Day → Transactions
 ```
 
-This replaces the flat `transactions: LoroMapRecord<Transaction>` with a nested structure that enables:
+This replaces the flat `transactions: LoroMapRecord<Transaction>` with a nested structure that
+enables:
 
 - O(1) account filtering
 - Fine-grained memoization
@@ -36,7 +37,8 @@ The overall view is sorted by date descending, then by the above.
 
 ### Nested Duplicates
 
-Suspected duplicates are stored inside the parent transaction's `suspectedDuplicates` list, not as standalone transactions with a reference.
+Suspected duplicates are stored inside the parent transaction's `suspectedDuplicates` list, not as
+standalone transactions with a reference.
 
 ---
 
@@ -66,7 +68,7 @@ import { findTransaction } from "@/lib/crdt/queries";
 const tx = findTransaction(store, {
     accountId: "acc-123",
     date: "2024-01-15",
-    transactionId: "tx-456",
+    transactionId: "tx-456"
 });
 ```
 
@@ -87,9 +89,9 @@ insertTransaction({
         accountId: "acc-123",
         statusId: "status-for-review",
         creationInstant: Date.now(),
-        importRowIndex: null, // manual transaction
+        importRowIndex: null // manual transaction
         // ... other fields
-    },
+    }
 });
 
 // Insert as suspected duplicate
@@ -100,8 +102,8 @@ insertTransaction({
     suspectedDuplicateOf: {
         accountId: "acc-123",
         date: "2024-01-15",
-        transactionId: "tx-original",
-    },
+        transactionId: "tx-original"
+    }
 });
 ```
 
@@ -115,12 +117,12 @@ updateTransaction({
     location: {
         accountId: "acc-123",
         date: "2024-01-15",
-        transactionId: "tx-456",
+        transactionId: "tx-456"
     },
     updates: {
         description: "Updated description",
-        amount: -500,
-    },
+        amount: -500
+    }
 });
 ```
 
@@ -134,9 +136,9 @@ moveTransaction({
     location: {
         accountId: "acc-123",
         date: "2024-01-15",
-        transactionId: "tx-456",
+        transactionId: "tx-456"
     },
-    newDate: "2024-01-14",
+    newDate: "2024-01-14"
 });
 ```
 
@@ -150,8 +152,8 @@ deleteTransaction({
     location: {
         accountId: "acc-123",
         date: "2024-01-15",
-        transactionId: "tx-parent",
-    },
+        transactionId: "tx-parent"
+    }
 });
 
 // Delete duplicate only (from within parent's list)
@@ -159,8 +161,8 @@ deleteTransaction({
     location: {
         accountId: "acc-123",
         date: "2024-01-15",
-        transactionId: "tx-duplicate",
-    },
+        transactionId: "tx-duplicate"
+    }
 });
 ```
 
@@ -174,9 +176,9 @@ unnestDuplicate({
     parentLocation: {
         accountId: "acc-123",
         date: "2024-01-15",
-        transactionId: "tx-parent",
+        transactionId: "tx-parent"
     },
-    duplicateId: "tx-duplicate",
+    duplicateId: "tx-duplicate"
 });
 
 // "Mark as original" - swap parent and duplicate
@@ -184,9 +186,9 @@ swapDuplicate({
     parentLocation: {
         accountId: "acc-123",
         date: "2024-01-15",
-        transactionId: "tx-parent",
+        transactionId: "tx-parent"
     },
-    duplicateId: "tx-duplicate",
+    duplicateId: "tx-duplicate"
 });
 ```
 
@@ -209,7 +211,8 @@ const transactionsWithDuplicates = useVaultSelector((state) =>
 
 ### Duplicate Day Buckets
 
-If two devices create the same day bucket concurrently, both entries exist in the LoroList. Query helpers automatically union transactions from same-date buckets:
+If two devices create the same day bucket concurrently, both entries exist in the LoroList. Query
+helpers automatically union transactions from same-date buckets:
 
 ```typescript
 // This is handled internally - you don't need to worry about it
@@ -220,7 +223,9 @@ function getDayBuckets(month: MonthBucket, day: number): DayBucket[] {
 
 ### Concurrent Imports
 
-If two devices import the same file simultaneously, duplicates won't be detected (both run against pre-import state). This is a known limitation - future enhancement will add post-import duplicate scanning.
+If two devices import the same file simultaneously, duplicates won't be detected (both run against
+pre-import state). This is a known limitation - future enhancement will add post-import duplicate
+scanning.
 
 ---
 
@@ -237,7 +242,7 @@ describe("hierarchical transaction storage", () => {
         const store = createEmptyStore();
 
         insertTransaction(store, {
-            transaction: createTransaction({ date: "2024-03-15" }),
+            transaction: createTransaction({ date: "2024-03-15" })
         });
 
         expect(store.accounts["acc-1"].years).toHaveLength(1);

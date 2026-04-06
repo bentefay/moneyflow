@@ -24,10 +24,10 @@ describe("parseCSV", () => {
                     headers: ["name", "amount"],
                     rows: [
                         ["Coffee", "5.00"],
-                        ["Gas", "45.00"],
+                        ["Gas", "45.00"]
                     ],
-                    rowCount: 2,
-                },
+                    rowCount: 2
+                }
             },
             {
                 name: "empty CSV",
@@ -35,8 +35,8 @@ describe("parseCSV", () => {
                 expected: {
                     headers: [],
                     rows: [],
-                    rowCount: 0,
-                },
+                    rowCount: 0
+                }
             },
             {
                 name: "headers only",
@@ -44,8 +44,8 @@ describe("parseCSV", () => {
                 expected: {
                     headers: ["col1", "col2", "col3"],
                     rows: [],
-                    rowCount: 0,
-                },
+                    rowCount: 0
+                }
             },
             {
                 name: "single column",
@@ -53,8 +53,8 @@ describe("parseCSV", () => {
                 expected: {
                     headers: ["item"],
                     rows: [["apple"], ["banana"]],
-                    rowCount: 2,
-                },
+                    rowCount: 2
+                }
             },
             {
                 name: "empty fields",
@@ -63,11 +63,11 @@ describe("parseCSV", () => {
                     headers: ["a", "b", "c"],
                     rows: [
                         ["1", "", "3"],
-                        ["", "2", ""],
+                        ["", "2", ""]
                     ],
-                    rowCount: 2,
-                },
-            },
+                    rowCount: 2
+                }
+            }
         ];
 
         for (const tc of testCases) {
@@ -87,33 +87,33 @@ describe("parseCSV", () => {
                 input: 'name,description\nItem,"Has, comma"',
                 expected: {
                     headers: ["name", "description"],
-                    rows: [["Item", "Has, comma"]],
-                },
+                    rows: [["Item", "Has, comma"]]
+                }
             },
             {
                 name: "quoted field with newline",
                 input: 'name,notes\nItem,"Line 1\nLine 2"',
                 expected: {
                     headers: ["name", "notes"],
-                    rows: [["Item", "Line 1\nLine 2"]],
-                },
+                    rows: [["Item", "Line 1\nLine 2"]]
+                }
             },
             {
                 name: "escaped quotes",
                 input: 'name,value\nTest,"He said ""hello"""',
                 expected: {
                     headers: ["name", "value"],
-                    rows: [["Test", 'He said "hello"']],
-                },
+                    rows: [["Test", 'He said "hello"']]
+                }
             },
             {
                 name: "empty quoted field",
                 input: 'a,b\n"",x',
                 expected: {
                     headers: ["a", "b"],
-                    rows: [["", "x"]], // "" parses to empty string per RFC 4180
-                },
-            },
+                    rows: [["", "x"]] // "" parses to empty string per RFC 4180
+                }
+            }
         ];
 
         for (const tc of testCases) {
@@ -151,7 +151,7 @@ describe("parseCSV", () => {
             expect(result.headers).toEqual(["Column 1", "Column 2", "Column 3"]);
             expect(result.rows).toEqual([
                 ["1", "2", "3"],
-                ["4", "5", "6"],
+                ["4", "5", "6"]
             ]);
         });
 
@@ -188,7 +188,7 @@ describe("parseCSV", () => {
             const result = parseCSV("a,b\r\n1,2\r\n3,4");
             expect(result.rows).toEqual([
                 ["1", "2"],
-                ["3", "4"],
+                ["3", "4"]
             ]);
         });
 
@@ -196,7 +196,7 @@ describe("parseCSV", () => {
             const result = parseCSV("a,b\r1,2\r3,4");
             expect(result.rows).toEqual([
                 ["1", "2"],
-                ["3", "4"],
+                ["3", "4"]
             ]);
         });
     });
@@ -215,7 +215,7 @@ describe("parseCSV", () => {
                 "Category",
                 "Type",
                 "Amount",
-                "Memo",
+                "Memo"
             ]);
             expect(result.rowCount).toBe(2);
             expect(result.rows[0][2]).toBe("COFFEE SHOP");
@@ -258,7 +258,7 @@ describe("parseNumber", () => {
             { input: "0.00", expected: 0 },
             { input: ".5", expected: 0.5 },
             { input: "1,234.56", expected: 1234.56 },
-            { input: "1,234,567.89", expected: 1234567.89 },
+            { input: "1,234,567.89", expected: 1234567.89 }
         ];
 
         for (const tc of testCases) {
@@ -274,7 +274,7 @@ describe("parseNumber", () => {
             { input: "€100.00", expected: 100 },
             { input: "£50.00", expected: 50 },
             { input: "¥1000", expected: 1000 },
-            { input: "₹500", expected: 500 },
+            { input: "₹500", expected: 500 }
         ];
 
         for (const tc of testCases) {
@@ -330,7 +330,7 @@ describe("parseNumber", () => {
                     min: -999999.99,
                     max: 999999.99,
                     noNaN: true,
-                    noDefaultInfinity: true,
+                    noDefaultInfinity: true
                 }),
                 (num) => {
                     // Format with 2 decimals and parse back
@@ -356,33 +356,33 @@ describe("parseDate", () => {
             {
                 input: "2024-01-15",
                 format: "yyyy-MM-dd",
-                expected: Temporal.PlainDate.from("2024-01-15"),
+                expected: Temporal.PlainDate.from("2024-01-15")
             },
             {
                 input: "01/15/2024",
                 format: "MM/dd/yyyy",
-                expected: Temporal.PlainDate.from("2024-01-15"),
+                expected: Temporal.PlainDate.from("2024-01-15")
             },
             {
                 input: "15/01/2024",
                 format: "dd/MM/yyyy",
-                expected: Temporal.PlainDate.from("2024-01-15"),
+                expected: Temporal.PlainDate.from("2024-01-15")
             },
             {
                 input: "15.01.2024",
                 format: "dd.MM.yyyy",
-                expected: Temporal.PlainDate.from("2024-01-15"),
+                expected: Temporal.PlainDate.from("2024-01-15")
             },
             {
                 input: "1/5/2024",
                 format: "M/d/yyyy",
-                expected: Temporal.PlainDate.from("2024-01-05"),
+                expected: Temporal.PlainDate.from("2024-01-05")
             },
             {
                 input: "24-01-15",
                 format: "yy-MM-dd",
-                expected: Temporal.PlainDate.from("2024-01-15"),
-            },
+                expected: Temporal.PlainDate.from("2024-01-15")
+            }
         ];
 
         for (const tc of testCases) {
@@ -456,7 +456,7 @@ describe("detectSeparator", () => {
         { input: "a\tb\tc\n1\t2\t3", expected: "\t" },
         { input: "a|b|c\n1|2|3", expected: "|" },
         { input: "a,b;c\n1,2;3", expected: "," }, // More commas wins
-        { input: "abc\n123", expected: "," }, // Default fallback
+        { input: "abc\n123", expected: "," } // Default fallback
     ];
 
     for (const tc of testCases) {

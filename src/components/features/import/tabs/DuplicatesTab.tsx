@@ -21,7 +21,7 @@ import {
     SelectContent,
     SelectItem,
     SelectTrigger,
-    SelectValue,
+    SelectValue
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import type { Transaction } from "@/lib/crdt/schema";
@@ -30,7 +30,7 @@ import type {
     CutoffType,
     DuplicateDetectionSettings,
     FilterConfig,
-    OldTransactionMode,
+    OldTransactionMode
 } from "@/lib/import/types";
 import { cn } from "@/lib/utils";
 
@@ -93,7 +93,7 @@ export function DuplicatesTab({
     existingTransactions,
     duplicateCount = 0,
     filteredCount = 0,
-    className,
+    className
 }: DuplicatesTabProps) {
     // Calculate default cutoff date (newest existing transaction)
     const defaultCutoffDate = useMemo(() => {
@@ -105,7 +105,7 @@ export function DuplicatesTab({
     const handleDateModeChange = useCallback(
         (value: string) => {
             onDuplicateDetectionChange({
-                dateMatchMode: value as "exact" | "within",
+                dateMatchMode: value as "exact" | "within"
             });
         },
         [onDuplicateDetectionChange]
@@ -114,7 +114,7 @@ export function DuplicatesTab({
     const handleDateDaysChange = useCallback(
         (value: number[]) => {
             onDuplicateDetectionChange({
-                maxDateDiffDays: value[0],
+                maxDateDiffDays: value[0]
             });
         },
         [onDuplicateDetectionChange]
@@ -123,7 +123,7 @@ export function DuplicatesTab({
     const handleDescModeChange = useCallback(
         (value: string) => {
             onDuplicateDetectionChange({
-                descriptionMatchMode: value as "exact" | "similar",
+                descriptionMatchMode: value as "exact" | "similar"
             });
         },
         [onDuplicateDetectionChange]
@@ -132,7 +132,7 @@ export function DuplicatesTab({
     const handleSimilarityChange = useCallback(
         (value: number[]) => {
             onDuplicateDetectionChange({
-                minDescriptionSimilarity: value[0] / 100,
+                minDescriptionSimilarity: value[0] / 100
             });
         },
         [onDuplicateDetectionChange]
@@ -277,7 +277,7 @@ export function DuplicatesTab({
                             </div>
                             <Slider
                                 value={[
-                                    Math.round(duplicateDetection.minDescriptionSimilarity * 100),
+                                    Math.round(duplicateDetection.minDescriptionSimilarity * 100)
                                 ]}
                                 onValueChange={handleSimilarityChange}
                                 min={50}

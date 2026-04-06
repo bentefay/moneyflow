@@ -72,7 +72,7 @@ function TagOption({
     tag,
     isSelected,
     onToggle,
-    indent = 0,
+    indent = 0
 }: {
     tag: TagData;
     isSelected: boolean;
@@ -127,7 +127,7 @@ export function InlineTagEditor({
     onCreateTag,
     onClose,
     anchorRef,
-    className,
+    className
 }: InlineTagEditorProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [isCreating, setIsCreating] = useState(false);

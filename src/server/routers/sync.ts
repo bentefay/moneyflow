@@ -28,7 +28,7 @@ import {
     pushSnapshotInput,
     pushUpdateInput,
     saveSnapshotInput,
-    syncStatusInput,
+    syncStatusInput
 } from "../schemas/sync";
 import { protectedProcedure, router } from "../trpc";
 
@@ -80,7 +80,7 @@ export const syncRouter = router({
         if (memberError || !membership) {
             throw new TRPCError({
                 code: "NOT_FOUND",
-                message: "Vault not found or access denied",
+                message: "Vault not found or access denied"
             });
         }
 
@@ -112,7 +112,7 @@ export const syncRouter = router({
             // Legacy fields for backward compatibility
             version: snapshot.version ?? 0,
             hlcTimestamp: snapshot.hlc_timestamp ?? "",
-            createdAt: snapshot.created_at,
+            createdAt: snapshot.created_at
         };
     }),
 
@@ -140,7 +140,7 @@ export const syncRouter = router({
         if (memberError || !membership) {
             throw new TRPCError({
                 code: "NOT_FOUND",
-                message: "Vault not found or access denied",
+                message: "Vault not found or access denied"
             });
         }
 
@@ -157,7 +157,7 @@ export const syncRouter = router({
             console.warn("vault_ops query failed, falling back to legacy:", opsError.message);
             return {
                 type: "ops" as const,
-                ops: [],
+                ops: []
             };
         }
 
@@ -175,8 +175,8 @@ export const syncRouter = router({
                     encryptedData: op.encrypted_data,
                     versionVector: op.version_vector,
                     authorPubkeyHash: op.author_pubkey_hash,
-                    createdAt: op.created_at,
-                })),
+                    createdAt: op.created_at
+                }))
             };
         }
 
@@ -199,7 +199,7 @@ export const syncRouter = router({
         if (isClientFresh && snapshot?.encrypted_data) {
             return {
                 type: "use_snapshot" as const,
-                snapshotVersionVector: snapshot.version_vector ?? "",
+                snapshotVersionVector: snapshot.version_vector ?? ""
             };
         }
 
@@ -208,7 +208,7 @@ export const syncRouter = router({
             if (snapshot?.version_vector) {
                 return {
                     type: "use_snapshot" as const,
-                    snapshotVersionVector: snapshot.version_vector,
+                    snapshotVersionVector: snapshot.version_vector
                 };
             }
             // No snapshot yet, must return ops
@@ -222,8 +222,8 @@ export const syncRouter = router({
                 encryptedData: op.encrypted_data,
                 versionVector: op.version_vector,
                 authorPubkeyHash: op.author_pubkey_hash,
-                createdAt: op.created_at,
-            })),
+                createdAt: op.created_at
+            }))
         };
     }),
 
@@ -247,7 +247,7 @@ export const syncRouter = router({
         if (memberError || !membership) {
             throw new TRPCError({
                 code: "NOT_FOUND",
-                message: "Vault not found or access denied",
+                message: "Vault not found or access denied"
             });
         }
 
@@ -265,7 +265,7 @@ export const syncRouter = router({
                     vault_id: input.vaultId,
                     encrypted_data: op.encryptedData,
                     version_vector: op.versionVector,
-                    author_pubkey_hash: ctx.pubkeyHash,
+                    author_pubkey_hash: ctx.pubkeyHash
                 })),
                 { onConflict: "id", ignoreDuplicates: true }
             )
@@ -276,7 +276,7 @@ export const syncRouter = router({
         }
 
         return {
-            insertedIds: ((inserted ?? []) as { id: string }[]).map((row) => row.id),
+            insertedIds: ((inserted ?? []) as { id: string }[]).map((row) => row.id)
         };
     }),
 
@@ -299,7 +299,7 @@ export const syncRouter = router({
         if (memberError || !membership) {
             throw new TRPCError({
                 code: "NOT_FOUND",
-                message: "Vault not found or access denied",
+                message: "Vault not found or access denied"
             });
         }
 
@@ -309,7 +309,7 @@ export const syncRouter = router({
             vault_id: input.vaultId,
             encrypted_data: input.encryptedData,
             version: 1, // Use version 1 for new architecture
-            hlc_timestamp: new Date().toISOString(),
+            hlc_timestamp: new Date().toISOString()
         });
 
         if (insertError) {
@@ -322,7 +322,7 @@ export const syncRouter = router({
                     version_vector: input.versionVector,
                     updated_at: new Date().toISOString(),
                     version: 1,
-                    hlc_timestamp: new Date().toISOString(),
+                    hlc_timestamp: new Date().toISOString()
                 },
                 { onConflict: "vault_id" }
             );
@@ -354,7 +354,7 @@ export const syncRouter = router({
         if (memberError || !membership) {
             throw new TRPCError({
                 code: "NOT_FOUND",
-                message: "Vault not found or access denied",
+                message: "Vault not found or access denied"
             });
         }
 
@@ -404,7 +404,7 @@ export const syncRouter = router({
             latestSnapshotVersion: snapshot?.version ?? null,
             latestSnapshotHlc: snapshot?.hlc_timestamp ?? null,
             latestSnapshotAt: snapshot?.created_at ?? null,
-            pendingUpdateCount: pendingUpdateCount ?? 0,
+            pendingUpdateCount: pendingUpdateCount ?? 0
         };
     }),
 
@@ -430,7 +430,7 @@ export const syncRouter = router({
         if (memberError || !membership) {
             throw new TRPCError({
                 code: "NOT_FOUND",
-                message: "Vault not found or access denied",
+                message: "Vault not found or access denied"
             });
         }
 
@@ -442,7 +442,7 @@ export const syncRouter = router({
                 encrypted_data: input.encryptedData,
                 version: input.version,
                 hlc_timestamp: input.hlcTimestamp,
-                version_vector: input.versionVector,
+                version_vector: input.versionVector
             })
             .select("id")
             .single();
@@ -452,7 +452,7 @@ export const syncRouter = router({
             if (insertError.code === "23505") {
                 throw new TRPCError({
                     code: "CONFLICT",
-                    message: "Snapshot version already exists",
+                    message: "Snapshot version already exists"
                 });
             }
             throw new Error(`Failed to save snapshot: ${insertError.message}`);
@@ -479,7 +479,7 @@ export const syncRouter = router({
         if (memberError || !membership) {
             throw new TRPCError({
                 code: "NOT_FOUND",
-                message: "Vault not found or access denied",
+                message: "Vault not found or access denied"
             });
         }
 
@@ -491,7 +491,7 @@ export const syncRouter = router({
                 encrypted_data: input.encryptedData,
                 base_snapshot_version: input.baseSnapshotVersion,
                 hlc_timestamp: input.hlcTimestamp,
-                author_pubkey_hash: ctx.pubkeyHash,
+                author_pubkey_hash: ctx.pubkeyHash
             })
             .select("id")
             .single();
@@ -521,7 +521,7 @@ export const syncRouter = router({
         if (memberError || !membership) {
             throw new TRPCError({
                 code: "NOT_FOUND",
-                message: "Vault not found or access denied",
+                message: "Vault not found or access denied"
             });
         }
 
@@ -557,7 +557,7 @@ export const syncRouter = router({
             latestSnapshotVersion: snapshot?.version ?? null,
             latestSnapshotHlc: snapshot?.hlc_timestamp ?? null,
             latestSnapshotAt: snapshot?.created_at ?? null,
-            pendingUpdateCount: updateCount,
+            pendingUpdateCount: updateCount
         };
-    }),
+    })
 });

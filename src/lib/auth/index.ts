@@ -2,7 +2,7 @@ export type {
     AuthGuardProps,
     UseAuthGuardOptions,
     UseAuthGuardReturn,
-    WithAuthGuardOptions,
+    WithAuthGuardOptions
 } from "./guard";
 export {
     AuthGuard,
@@ -13,5 +13,5 @@ export {
     PUBLIC_ROUTES,
     UNLOCK_ROUTE,
     useAuthGuard,
-    withAuthGuard,
+    withAuthGuard
 } from "./guard";

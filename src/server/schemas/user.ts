@@ -45,13 +45,13 @@ export const encryptedDataSchema = z
 // ============================================================================
 
 export const userExistsInput = z.object({
-    pubkeyHash: pubkeyHashSchema,
+    pubkeyHash: pubkeyHashSchema
 });
 
 export type UserExistsInput = z.infer<typeof userExistsInput>;
 
 export const userExistsOutput = z.object({
-    exists: z.boolean(),
+    exists: z.boolean()
 });
 
 export type UserExistsOutput = z.infer<typeof userExistsOutput>;
@@ -77,14 +77,14 @@ export const userRegisterInput = z.object({
      * Optional encrypted data to store immediately.
      * Usually empty on first registration; populated later.
      */
-    encryptedData: encryptedDataSchema.optional(),
+    encryptedData: encryptedDataSchema.optional()
 });
 
 export type UserRegisterInput = z.infer<typeof userRegisterInput>;
 
 export const userRegisterOutput = z.object({
     success: z.boolean(),
-    isNew: z.boolean().describe("True if a new user was created, false if already existed"),
+    isNew: z.boolean().describe("True if a new user was created, false if already existed")
 });
 
 export type UserRegisterOutput = z.infer<typeof userRegisterOutput>;
@@ -100,7 +100,7 @@ export type UserRegisterOutput = z.infer<typeof userRegisterOutput>;
  * Returns user data if exists, creates and returns if not.
  */
 export const userGetOrCreateInput = z.object({
-    pubkeyHash: pubkeyHashSchema,
+    pubkeyHash: pubkeyHashSchema
 });
 
 export type UserGetOrCreateInput = z.infer<typeof userGetOrCreateInput>;
@@ -109,7 +109,7 @@ export const userGetOrCreateOutput = z.object({
     isNew: z.boolean(),
     encryptedData: encryptedDataSchema.nullable(),
     createdAt: z.string().datetime(),
-    updatedAt: z.string().datetime(),
+    updatedAt: z.string().datetime()
 });
 
 export type UserGetOrCreateOutput = z.infer<typeof userGetOrCreateOutput>;
@@ -129,9 +129,9 @@ export const getUserDataOutput = z.object({
     data: z
         .object({
             encryptedData: encryptedDataSchema.nullable(),
-            updatedAt: z.string().datetime(),
+            updatedAt: z.string().datetime()
         })
-        .nullable(),
+        .nullable()
 });
 
 export type GetUserDataOutput = z.infer<typeof getUserDataOutput>;
@@ -151,13 +151,13 @@ export type GetUserDataOutput = z.infer<typeof getUserDataOutput>;
  * All decryption happens client-side.
  */
 export const upsertUserDataInput = z.object({
-    encryptedData: encryptedDataSchema,
+    encryptedData: encryptedDataSchema
 });
 
 export type UpsertUserDataInput = z.infer<typeof upsertUserDataInput>;
 
 export const upsertUserDataOutput = z.object({
-    success: z.boolean(),
+    success: z.boolean()
 });
 
 export type UpsertUserDataOutput = z.infer<typeof upsertUserDataOutput>;

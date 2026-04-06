@@ -15,7 +15,7 @@ describe("useKeyboardNavigation", () => {
         "status",
         "amount",
         "balance",
-        "actions",
+        "actions"
     ];
     const focusableColumns: ColumnId[] = ["date", "description", "tags", "status", "amount"];
 
@@ -26,7 +26,7 @@ describe("useKeyboardNavigation", () => {
         onFocusChange: vi.fn(),
         onActivate: vi.fn(),
         onSave: vi.fn(),
-        onCancel: vi.fn(),
+        onCancel: vi.fn()
     });
 
     const createKeyboardEvent = (
@@ -37,7 +37,7 @@ describe("useKeyboardNavigation", () => {
             key,
             preventDefault: vi.fn(),
             stopPropagation: vi.fn(),
-            ...options,
+            ...options
         }) as unknown as React.KeyboardEvent;
 
     describe("initial state", () => {
@@ -60,11 +60,11 @@ describe("useKeyboardNavigation", () => {
 
             expect(result.current.focusedCell).toEqual({
                 rowId: "row-1",
-                column: "date",
+                column: "date"
             });
             expect(props.onFocusChange).toHaveBeenCalledWith({
                 rowId: "row-1",
-                column: "date",
+                column: "date"
             });
         });
 
@@ -136,7 +136,7 @@ describe("useKeyboardNavigation", () => {
             expect(result.current.isEditing).toBe(true);
             expect(props.onActivate).toHaveBeenCalledWith({
                 rowId: "row-1",
-                column: "date",
+                column: "date"
             });
         });
 
@@ -215,7 +215,7 @@ describe("useKeyboardNavigation", () => {
 
             expect(result.current.focusedCell).toEqual({
                 rowId: "row-1",
-                column: "date",
+                column: "date"
             });
             expect(event.preventDefault).toHaveBeenCalled();
         });
@@ -234,7 +234,7 @@ describe("useKeyboardNavigation", () => {
 
             expect(result.current.focusedCell).toEqual({
                 rowId: "row-1",
-                column: "date",
+                column: "date"
             });
         });
 
@@ -252,7 +252,7 @@ describe("useKeyboardNavigation", () => {
 
             expect(result.current.focusedCell).toEqual({
                 rowId: "row-2",
-                column: "date",
+                column: "date"
             });
         });
 
@@ -270,7 +270,7 @@ describe("useKeyboardNavigation", () => {
 
             expect(result.current.focusedCell).toEqual({
                 rowId: "row-1",
-                column: "date",
+                column: "date"
             });
         });
 
@@ -288,7 +288,7 @@ describe("useKeyboardNavigation", () => {
 
             expect(result.current.focusedCell).toEqual({
                 rowId: "row-1",
-                column: "description",
+                column: "description"
             });
         });
 
@@ -306,7 +306,7 @@ describe("useKeyboardNavigation", () => {
 
             expect(result.current.focusedCell).toEqual({
                 rowId: "row-1",
-                column: "amount",
+                column: "amount"
             });
         });
 
@@ -341,7 +341,7 @@ describe("useKeyboardNavigation", () => {
 
             expect(result.current.focusedCell).toEqual({
                 rowId: "row-1",
-                column: "description",
+                column: "description"
             });
         });
 
@@ -359,7 +359,7 @@ describe("useKeyboardNavigation", () => {
 
             expect(result.current.focusedCell).toEqual({
                 rowId: "row-2",
-                column: "date",
+                column: "date"
             });
         });
 
@@ -413,7 +413,7 @@ describe("useKeyboardNavigation", () => {
             // Focus should remain unchanged - still on row-2
             expect(result.current.focusedCell).toEqual({
                 rowId: "row-2",
-                column: "date",
+                column: "date"
             });
             expect(result.current.isEditing).toBe(true);
         });
@@ -437,11 +437,11 @@ describe("useKeyboardNavigation", () => {
             expect(result.current.isEditing).toBe(false);
             expect(result.current.focusedCell).toEqual({
                 rowId: "row-1",
-                column: "date",
+                column: "date"
             }); // Focus remains
             expect(props.onCancel).toHaveBeenCalledWith({
                 rowId: "row-1",
-                column: "date",
+                column: "date"
             });
         });
 
@@ -464,7 +464,7 @@ describe("useKeyboardNavigation", () => {
             expect(result.current.isEditing).toBe(false);
             expect(props.onSave).toHaveBeenCalledWith({
                 rowId: "row-1",
-                column: "date",
+                column: "date"
             });
         });
 
@@ -487,11 +487,11 @@ describe("useKeyboardNavigation", () => {
             expect(result.current.isEditing).toBe(false);
             expect(props.onSave).toHaveBeenCalledWith({
                 rowId: "row-1",
-                column: "date",
+                column: "date"
             });
             expect(result.current.focusedCell).toEqual({
                 rowId: "row-1",
-                column: "description",
+                column: "description"
             });
         });
     });

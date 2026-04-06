@@ -17,7 +17,7 @@ import {
     DEFAULT_STATUSES,
     getDefaultVaultState,
     hasVaultDefaults,
-    initializeVaultDefaults,
+    initializeVaultDefaults
 } from "@/lib/crdt/defaults";
 import { type VaultInput, vaultSchema } from "@/lib/crdt/schema";
 
@@ -33,7 +33,7 @@ describe("DEFAULT_PERSON", () => {
             id: "person-default-me",
             name: "Me",
             linkedUserId: undefined,
-            deletedAt: undefined,
+            deletedAt: undefined
         });
     });
 });
@@ -54,7 +54,7 @@ describe("DEFAULT_ACCOUNT", () => {
             accountType: "checking",
             balance: 0,
             ownerships: { [DEFAULT_PERSON_ID]: 100 }, // Me owns 100%
-            deletedAt: undefined,
+            deletedAt: undefined
         });
     });
 
@@ -86,7 +86,7 @@ describe("DEFAULT_STATUSES", () => {
             name: "For Review",
             behavior: undefined, // No special behavior
             isDefault: true,
-            deletedAt: undefined,
+            deletedAt: undefined
         });
     });
 
@@ -97,7 +97,7 @@ describe("DEFAULT_STATUSES", () => {
             name: "Paid",
             behavior: "treatAsPaid",
             isDefault: true,
-            deletedAt: undefined,
+            deletedAt: undefined
         });
     });
 
@@ -207,10 +207,10 @@ describe("initializeVaultDefaults", () => {
                 preferences: {
                     name: "My Vault",
                     automationCreationPreference: "manual",
-                    defaultCurrency: "USD",
-                },
+                    defaultCurrency: "USD"
+                }
             },
-            validateUpdates: true,
+            validateUpdates: true
         });
 
         mirror.setState((draft: VaultInput) => {
@@ -248,10 +248,10 @@ describe("initializeVaultDefaults", () => {
                 preferences: {
                     name: "My Vault",
                     automationCreationPreference: "manual",
-                    defaultCurrency: "USD",
-                },
+                    defaultCurrency: "USD"
+                }
             },
-            validateUpdates: true,
+            validateUpdates: true
         });
 
         // First add a custom person with the default person ID
@@ -260,7 +260,7 @@ describe("initializeVaultDefaults", () => {
                 id: DEFAULT_PERSON_ID,
                 name: "Custom Name",
                 linkedUserId: undefined,
-                deletedAt: undefined,
+                deletedAt: undefined
             };
         });
 
@@ -292,10 +292,10 @@ describe("initializeVaultDefaults", () => {
                 preferences: {
                     name: "My Vault",
                     automationCreationPreference: "manual",
-                    defaultCurrency: "USD",
-                },
+                    defaultCurrency: "USD"
+                }
             },
-            validateUpdates: true,
+            validateUpdates: true
         });
 
         // First add defaults
@@ -335,7 +335,7 @@ describe("initializeVaultDefaults", () => {
             doc,
             schema: vaultSchema,
             initialState: getDefaultVaultState(),
-            validateUpdates: true,
+            validateUpdates: true
         });
 
         // Write preferences to the Loro doc explicitly

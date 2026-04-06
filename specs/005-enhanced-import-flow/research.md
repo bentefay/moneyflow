@@ -139,9 +139,9 @@ export const importTemplateSchema = schema.LoroMap({
         hasHeaders: schema.Boolean({ defaultValue: true }),
         thousandSeparator: schema.String({ defaultValue: "," }),
         decimalSeparator: schema.String({ defaultValue: "." }),
-        dateFormat: schema.String({ defaultValue: "yyyy-MM-dd" }),
+        dateFormat: schema.String({ defaultValue: "yyyy-MM-dd" })
     }),
-    deletedAt: schema.Number(),
+    deletedAt: schema.Number()
 });
 ```
 

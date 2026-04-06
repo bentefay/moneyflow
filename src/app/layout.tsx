@@ -8,22 +8,22 @@ import "./globals.css";
 
 const geistSans = Geist({
     variable: "--font-geist-sans",
-    subsets: ["latin"],
+    subsets: ["latin"]
 });
 
 const geistMono = Geist_Mono({
     variable: "--font-geist-mono",
-    subsets: ["latin"],
+    subsets: ["latin"]
 });
 
 export const metadata: Metadata = {
     title: "MoneyFlow",
     description:
-        "Track shared household expenses with real-time collaboration and end-to-end encryption.",
+        "Track shared household expenses with real-time collaboration and end-to-end encryption."
 };
 
 export default function RootLayout({
-    children,
+    children
 }: Readonly<{
     children: React.ReactNode;
 }>) {

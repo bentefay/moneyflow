@@ -151,7 +151,7 @@ export const DEFAULT_FORMATTING_SETTINGS: FormattingSettings = {
     thousandSeparator: ",",
     decimalSeparator: ".",
     dateFormat: "yyyy-MM-dd",
-    collapseWhitespace: false,
+    collapseWhitespace: false
 };
 
 // ============================================================================
@@ -179,7 +179,7 @@ export const DEFAULT_DUPLICATE_DETECTION_SETTINGS: DuplicateDetectionSettings = 
     dateMatchMode: "exact",
     maxDateDiffDays: 0,
     descriptionMatchMode: "exact",
-    minDescriptionSimilarity: 1,
+    minDescriptionSimilarity: 1
 };
 
 /**
@@ -189,7 +189,7 @@ export const DEFAULT_FILTER_SETTINGS: FilterConfig = {
     mode: "ignore-duplicates",
     cutoffType: "days",
     cutoffDays: 10,
-    cutoffDate: null,
+    cutoffDate: null
 };
 
 /**
@@ -199,7 +199,7 @@ export const DEFAULT_IMPORT_CONFIG: ImportConfig = {
     formatting: DEFAULT_FORMATTING_SETTINGS,
     duplicateDetection: DEFAULT_DUPLICATE_DETECTION_SETTINGS,
     oldTransactionFilter: DEFAULT_FILTER_SETTINGS,
-    columnMappings: {},
+    columnMappings: {}
 };
 
 // ============================================================================

@@ -197,7 +197,7 @@ export const GlobalSettingsSchema = z.object({
     /** UI theme preference */
     theme: ThemeSchema,
     /** Default currency for imports when not specified by account or file (ISO 4217) */
-    defaultCurrency: CurrencyCodeSchema.default("USD"),
+    defaultCurrency: CurrencyCodeSchema.default("USD")
 });
 export type GlobalSettings = z.infer<typeof GlobalSettingsSchema>;
 
@@ -210,7 +210,7 @@ export const VaultReferenceSchema = z.object({
     /** Vault encryption key wrapped with user's X25519 public key */
     wrappedKey: z.string().min(1),
     /** Cached vault name for UI (convenience, may be stale) */
-    name: z.string().optional(),
+    name: z.string().optional()
 });
 export type VaultReference = z.infer<typeof VaultReferenceSchema>;
 
@@ -221,7 +221,7 @@ export const UserDataSchema = z.object({
     /** User's vault memberships with wrapped keys */
     vaults: z.array(VaultReferenceSchema),
     /** Global (user-level) settings */
-    globalSettings: GlobalSettingsSchema,
+    globalSettings: GlobalSettingsSchema
 });
 export type UserData = z.infer<typeof UserDataSchema>;
 

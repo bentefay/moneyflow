@@ -5,7 +5,7 @@ import {
     type LegacyAnimationControls,
     motion,
     type TargetAndTransition,
-    type Transition,
+    type Transition
 } from "motion/react";
 import * as React from "react";
 
@@ -29,7 +29,7 @@ function AutoHeight({
         stiffness: 300,
         damping: 30,
         bounce: 0,
-        restDelta: 0.01,
+        restDelta: 0.01
     },
     style,
     animate,

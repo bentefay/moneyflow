@@ -13,7 +13,7 @@ export function formatDate(isoDate: string, locale?: string): string {
     return date.toLocaleString(locale ?? navigator.language, {
         month: "short",
         day: "numeric",
-        year: "numeric",
+        year: "numeric"
     });
 }
 
@@ -31,7 +31,7 @@ export function formatDateCompact(isoDate: string, locale?: string): string {
     if (date.year === now.year) {
         return date.toLocaleString(locale ?? navigator.language, {
             month: "short",
-            day: "numeric",
+            day: "numeric"
         });
     }
 
@@ -68,7 +68,7 @@ export function formatTransactionDate(
         // Use toLocaleString for order/separator, then strip leading zeros from day/month
         const formatted = date.toLocaleString(resolvedLocale, {
             day: "numeric",
-            month: "numeric",
+            month: "numeric"
         });
         return stripLeadingZeros(formatted);
     }
@@ -79,7 +79,7 @@ export function formatTransactionDate(
         const formatted = date.toLocaleString(resolvedLocale, {
             day: "numeric",
             month: "numeric",
-            year: "2-digit",
+            year: "2-digit"
         });
         return stripLeadingZerosExceptYear(formatted);
     }
@@ -88,7 +88,7 @@ export function formatTransactionDate(
     return date.toLocaleString(resolvedLocale, {
         day: "2-digit",
         month: "2-digit",
-        year: "numeric",
+        year: "numeric"
     });
 }
 
@@ -158,7 +158,7 @@ export function parseDate(dateString: string, locale?: string): string | null {
     return Temporal.PlainDate.from({
         year: parsed.getFullYear(),
         month: parsed.getMonth() + 1,
-        day: parsed.getDate(),
+        day: parsed.getDate()
     }).toString();
 }
 
@@ -182,7 +182,7 @@ export function getWeekStartDay(locale?: string): number {
         "zh-TW",
         "he-IL",
         "ar-SA",
-        "pt-BR",
+        "pt-BR"
     ]);
 
     // Check exact locale match first

@@ -9,7 +9,7 @@ import {
     CTASection,
     FeaturesSection,
     HeroSection,
-    SecuritySection,
+    SecuritySection
 } from "@/components/features/landing";
 
 export default function LandingPage() {

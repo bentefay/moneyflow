@@ -17,7 +17,7 @@ import {
     CommandGroup,
     CommandInput,
     CommandItem,
-    CommandList,
+    CommandList
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Currencies } from "@/lib/domain/currencies";
@@ -44,7 +44,7 @@ export function CurrencySelector({
     value,
     onChange,
     className,
-    disabled = false,
+    disabled = false
 }: CurrencySelectorProps) {
     const [open, setOpen] = useState(false);
 

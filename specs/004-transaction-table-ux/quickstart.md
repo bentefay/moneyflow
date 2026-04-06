@@ -150,7 +150,7 @@ function NewCell({ value, onChange }) {
 ```tsx
 // Selection state is tracked by ID, not by rendered rows
 const { selectedIds, toggleRow, selectAll } = useTableSelection({
-    filteredIds: allFilteredTransactionIds, // Not just visible ones!
+    filteredIds: allFilteredTransactionIds // Not just visible ones!
 });
 
 // Each row checks its own selection status
@@ -190,7 +190,7 @@ const { setTags } = useBulkEdit({
                 Object.assign(draft.transactions[id], update);
             }
         });
-    },
+    }
 });
 ```
 
@@ -221,9 +221,11 @@ const { setTags } = useBulkEdit({
 
 ## Common Gotchas
 
-1. **Virtualization + Selection**: Don't rely on rendered rows for selection count. Always use `filteredIds.length`.
+1. **Virtualization + Selection**: Don't rely on rendered rows for selection count. Always use
+   `filteredIds.length`.
 
-2. **Focus Management**: When expanding description row, don't steal focus. Let user continue with current task.
+2. **Focus Management**: When expanding description row, don't steal focus. Let user continue with
+   current task.
 
 3. **Temporal API Types**: Import types from polyfill:
 

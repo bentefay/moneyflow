@@ -73,7 +73,7 @@ export function useBulkEdit({
     onWarnThreshold,
     onOperationStart,
     onOperationComplete,
-    onOperationError,
+    onOperationError
 }: UseBulkEditOptions = {}): UseBulkEditReturn {
     const [isProcessing, setIsProcessing] = useState(false);
     const [progress, setProgress] = useState<BulkEditProgress | null>(null);
@@ -108,7 +108,7 @@ export function useBulkEdit({
             setProgress({
                 current: 0,
                 total: selectedIds.length,
-                operation,
+                operation
             });
 
             onOperationStart?.(operation, selectedIds.length);
@@ -125,7 +125,7 @@ export function useBulkEdit({
                     setProgress({
                         current: i + 1,
                         total: selectedIds.length,
-                        operation,
+                        operation
                     });
                 }
 
@@ -203,7 +203,7 @@ export function useBulkEdit({
             setProgress({
                 current: 0,
                 total: selectedIds.length,
-                operation: "delete",
+                operation: "delete"
             });
 
             onOperationStart?.("delete", selectedIds.length);
@@ -219,7 +219,7 @@ export function useBulkEdit({
                     setProgress({
                         current: i + 1,
                         total: selectedIds.length,
-                        operation: "delete",
+                        operation: "delete"
                     });
                 }
 
@@ -251,6 +251,6 @@ export function useBulkEdit({
         setAmount,
         setStatus,
         deleteSelected,
-        cancel,
+        cancel
     };
 }

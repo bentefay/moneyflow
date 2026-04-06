@@ -18,7 +18,7 @@ import {
     hasUnpushedOps,
     loadLocalSnapshot,
     markOpsPushed,
-    saveLocalSnapshot,
+    saveLocalSnapshot
 } from "@/lib/sync/persistence";
 
 // Use unique vault IDs per test to avoid database conflicts
@@ -65,7 +65,7 @@ describe("Offline Operations", () => {
                     vault_id: vaultId,
                     version_vector: JSON.stringify({ peer1: i }),
                     encrypted_data: createEncryptedData(`change-${i}`),
-                    pushed: false,
+                    pushed: false
                 });
             }
 
@@ -84,7 +84,7 @@ describe("Offline Operations", () => {
                     vault_id: vaultId,
                     version_vector: JSON.stringify({ peer1: i }),
                     encrypted_data: createEncryptedData(`change-${i}`),
-                    pushed: false,
+                    pushed: false
                 });
                 // Small delay to ensure different timestamps
                 await new Promise((resolve) => setTimeout(resolve, 10));
@@ -95,7 +95,7 @@ describe("Offline Operations", () => {
             expect(unpushed.map((op) => op.id)).toEqual([
                 `${vaultId}-op-1`,
                 `${vaultId}-op-2`,
-                `${vaultId}-op-3`,
+                `${vaultId}-op-3`
             ]);
         });
 
@@ -110,7 +110,7 @@ describe("Offline Operations", () => {
                     vault_id: vaultId,
                     version_vector: JSON.stringify({ peer1: i }),
                     encrypted_data: createEncryptedData(`change-${i}`),
-                    pushed: false,
+                    pushed: false
                 });
             }
 
@@ -127,7 +127,7 @@ describe("Offline Operations", () => {
             await saveLocalSnapshot({
                 vault_id: vaultId,
                 encrypted_data: createEncryptedData("snapshot-data"),
-                version_vector: '{"peer1": 5}',
+                version_vector: '{"peer1": 5}'
             });
 
             await appendOp({
@@ -135,7 +135,7 @@ describe("Offline Operations", () => {
                 vault_id: vaultId,
                 version_vector: '{"peer1": 6}',
                 encrypted_data: createEncryptedData("new-change"),
-                pushed: false,
+                pushed: false
             });
 
             // Simulate session restart (close and reopen DB)
@@ -171,7 +171,7 @@ describe("Coming Online", () => {
                     vault_id: vaultId,
                     version_vector: JSON.stringify({ peer1: i }),
                     encrypted_data: createEncryptedData(`change-${i}`),
-                    pushed: false,
+                    pushed: false
                 });
             }
 
@@ -198,7 +198,7 @@ describe("Coming Online", () => {
                     vault_id: vaultId,
                     version_vector: JSON.stringify({ peer1: i }),
                     encrypted_data: createEncryptedData(`change-${i}`),
-                    pushed: false,
+                    pushed: false
                 });
             }
 
@@ -218,7 +218,7 @@ describe("Coming Online", () => {
                 vault_id: vaultId,
                 version_vector: "{}",
                 encrypted_data: createEncryptedData("change-1"),
-                pushed: false,
+                pushed: false
             });
 
             // First sync attempt fails (op stays unpushed)
@@ -248,7 +248,7 @@ describe("Coming Online", () => {
                     vault_id: vaultId,
                     version_vector: JSON.stringify({ peer2: i }),
                     encrypted_data: createEncryptedData(`remote-change-${i}`),
-                    pushed: true, // Remote ops are already "pushed" from our perspective
+                    pushed: true // Remote ops are already "pushed" from our perspective
                 });
             }
 
@@ -269,7 +269,7 @@ describe("Coming Online", () => {
                 vault_id: vaultId,
                 version_vector: '{"peer1": 1}',
                 encrypted_data: createEncryptedData("local-change"),
-                pushed: false,
+                pushed: false
             });
 
             // Remote op from server
@@ -278,7 +278,7 @@ describe("Coming Online", () => {
                 vault_id: vaultId,
                 version_vector: '{"peer2": 1}',
                 encrypted_data: createEncryptedData("remote-change"),
-                pushed: true,
+                pushed: true
             });
 
             const allOps = await getAllOps(vaultId);
@@ -303,7 +303,7 @@ describe("Snapshot Management", () => {
         await saveLocalSnapshot({
             vault_id: vaultId,
             encrypted_data: createEncryptedData("snapshot"),
-            version_vector: "{}",
+            version_vector: "{}"
         });
 
         // Wait a bit to ensure ops come after snapshot
@@ -316,7 +316,7 @@ describe("Snapshot Management", () => {
                 vault_id: vaultId,
                 version_vector: JSON.stringify({ peer1: i }),
                 encrypted_data: createEncryptedData(`data-${i}`),
-                pushed: true,
+                pushed: true
             });
         }
 
@@ -332,14 +332,14 @@ describe("Snapshot Management", () => {
         await saveLocalSnapshot({
             vault_id: vaultId,
             encrypted_data: createEncryptedData("old-snapshot"),
-            version_vector: '{"peer1": 0}',
+            version_vector: '{"peer1": 0}'
         });
 
         // Simulate threshold exceeded, new snapshot created
         await saveLocalSnapshot({
             vault_id: vaultId,
             encrypted_data: createEncryptedData("new-snapshot"),
-            version_vector: '{"peer1": 500}',
+            version_vector: '{"peer1": 500}'
         });
 
         const snapshot = await loadLocalSnapshot(vaultId);
@@ -360,7 +360,7 @@ describe("Network State Transitions", () => {
         await saveLocalSnapshot({
             vault_id: vaultId,
             encrypted_data: createEncryptedData("initial-snapshot"),
-            version_vector: '{"peer1": 5}',
+            version_vector: '{"peer1": 5}'
         });
 
         // Phase 2: Make offline changes
@@ -373,7 +373,7 @@ describe("Network State Transitions", () => {
                 vault_id: vaultId,
                 version_vector: JSON.stringify({ peer1: 5 + i }),
                 encrypted_data: createEncryptedData(`offline-change-${i}`),
-                pushed: false,
+                pushed: false
             });
         }
 
@@ -388,7 +388,7 @@ describe("Network State Transitions", () => {
                 vault_id: vaultId,
                 version_vector: JSON.stringify({ peer2: i }),
                 encrypted_data: createEncryptedData(`remote-change-${i}`),
-                pushed: true,
+                pushed: true
             });
         }
 
@@ -410,7 +410,7 @@ describe("Network State Transitions", () => {
             vault_id: vaultId,
             version_vector: '{"peer1": 1}',
             encrypted_data: createEncryptedData("change-1"),
-            pushed: false,
+            pushed: false
         });
         await markOpsPushed([`${vaultId}-op-1`]);
 
@@ -420,14 +420,14 @@ describe("Network State Transitions", () => {
             vault_id: vaultId,
             version_vector: '{"peer1": 2}',
             encrypted_data: createEncryptedData("change-2"),
-            pushed: false,
+            pushed: false
         });
         await appendOp({
             id: `${vaultId}-op-3`,
             vault_id: vaultId,
             version_vector: '{"peer1": 3}',
             encrypted_data: createEncryptedData("change-3"),
-            pushed: false,
+            pushed: false
         });
 
         expect(await hasUnpushedOps(vaultId)).toBe(true);
@@ -458,7 +458,7 @@ describe("Multi-Peer Sync", () => {
             vault_id: vaultId,
             version_vector: '{"peer1": 1}',
             encrypted_data: createEncryptedData("peer1-change"),
-            pushed: false,
+            pushed: false
         });
 
         // Ops from peer2 (received from server)
@@ -467,7 +467,7 @@ describe("Multi-Peer Sync", () => {
             vault_id: vaultId,
             version_vector: '{"peer2": 1}',
             encrypted_data: createEncryptedData("peer2-change"),
-            pushed: true,
+            pushed: true
         });
 
         // Ops from peer3 (received from server)
@@ -476,7 +476,7 @@ describe("Multi-Peer Sync", () => {
             vault_id: vaultId,
             version_vector: '{"peer3": 1}',
             encrypted_data: createEncryptedData("peer3-change"),
-            pushed: true,
+            pushed: true
         });
 
         const allOps = await getAllOps(vaultId);
@@ -494,7 +494,7 @@ describe("Multi-Peer Sync", () => {
         const ops = [
             { id: `${vaultId}-op-1`, vv: { peer1: 1, peer2: 0 } },
             { id: `${vaultId}-op-2`, vv: { peer1: 1, peer2: 1 } },
-            { id: `${vaultId}-op-3`, vv: { peer1: 2, peer2: 1 } },
+            { id: `${vaultId}-op-3`, vv: { peer1: 2, peer2: 1 } }
         ];
 
         for (const op of ops) {
@@ -503,7 +503,7 @@ describe("Multi-Peer Sync", () => {
                 vault_id: vaultId,
                 version_vector: JSON.stringify(op.vv),
                 encrypted_data: createEncryptedData("data"),
-                pushed: true,
+                pushed: true
             });
         }
 

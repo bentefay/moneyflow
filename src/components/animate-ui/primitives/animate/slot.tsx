@@ -52,7 +52,7 @@ function mergeProps<T extends HTMLElement>(
     if (childProps.style || slotProps.style) {
         merged.style = {
             ...(childProps.style as React.CSSProperties),
-            ...(slotProps.style as React.CSSProperties),
+            ...(slotProps.style as React.CSSProperties)
         };
     }
 

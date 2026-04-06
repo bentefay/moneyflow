@@ -14,7 +14,7 @@ import {
     type ExistingTransaction,
     processCSVImport,
     processImport,
-    processOFXImport,
+    processOFXImport
 } from "@/lib/import/processor";
 import type { ISODateString } from "@/types";
 
@@ -37,13 +37,13 @@ const DEFAULT_FORMATTING: ImportFormatting = {
     decimalSeparator: ".",
     dateFormat: "yyyy-MM-dd",
     negateAmounts: false,
-    amountInCents: false,
+    amountInCents: false
 };
 
 const STANDARD_MAPPINGS: ColumnMapping[] = [
     { sourceColumn: "Date", targetField: "date", samples: [] },
     { sourceColumn: "Description", targetField: "description", samples: [] },
-    { sourceColumn: "Amount", targetField: "amount", samples: [] },
+    { sourceColumn: "Amount", targetField: "amount", samples: [] }
 ];
 
 const SIMPLE_CSV = `Date,Description,Amount
@@ -162,7 +162,7 @@ describe("processCSVImport", () => {
             { sourceColumn: "Merchant", targetField: "merchant", samples: [] },
             { sourceColumn: "Memo", targetField: "memo", samples: [] },
             { sourceColumn: "Amount", targetField: "amount", samples: [] },
-            { sourceColumn: "Category", targetField: "category", samples: [] },
+            { sourceColumn: "Category", targetField: "category", samples: [] }
         ];
 
         it("processes all columns correctly", () => {
@@ -203,7 +203,7 @@ describe("processCSVImport", () => {
 
             const usFormatting: ImportFormatting = {
                 ...DEFAULT_FORMATTING,
-                dateFormat: "MM/dd/yyyy",
+                dateFormat: "MM/dd/yyyy"
             };
 
             const result = processCSVImport(usDateCSV, STANDARD_MAPPINGS, usFormatting);
@@ -214,7 +214,7 @@ describe("processCSVImport", () => {
         it("negates amounts when option is set", () => {
             const result = processCSVImport(SIMPLE_CSV, STANDARD_MAPPINGS, {
                 ...DEFAULT_FORMATTING,
-                negateAmounts: true,
+                negateAmounts: true
             });
 
             expect(result.transactions[0].amount).toBe(550); // Was -550, now positive
@@ -227,7 +227,7 @@ describe("processCSVImport", () => {
 
             const result = processCSVImport(centsCSV, STANDARD_MAPPINGS, {
                 ...DEFAULT_FORMATTING,
-                amountInCents: true,
+                amountInCents: true
             });
 
             // When amountInCents is true, we don't multiply by 100
@@ -289,8 +289,8 @@ bad-date,COFFEE,-5.50`;
                     id: "existing-1",
                     date: isoDate("2024-01-15"),
                     amount: cents(-550), // -$5.50 in cents
-                    description: "COFFEE SHOP",
-                },
+                    description: "COFFEE SHOP"
+                }
             ];
 
             const result = processCSVImport(
@@ -375,8 +375,8 @@ describe("processOFXImport", () => {
                 id: "existing-1",
                 date: isoDate("2024-01-15"),
                 amount: cents(-550), // -$5.50 in cents
-                description: "COFFEE SHOP", // OFX NAME field is used for duplicate matching
-            },
+                description: "COFFEE SHOP" // OFX NAME field is used for duplicate matching
+            }
         ];
 
         const result = processOFXImport(SIMPLE_OFX, { existingTransactions });
@@ -460,8 +460,8 @@ describe("processImport", () => {
                 id: "existing-1",
                 date: isoDate("2024-01-15"),
                 amount: cents(-550), // -$5.50 in cents
-                description: "COFFEE SHOP",
-            },
+                description: "COFFEE SHOP"
+            }
         ];
 
         // For OFX, the NAME field is used for duplicate matching (becomes description)
@@ -470,8 +470,8 @@ describe("processImport", () => {
                 id: "existing-1",
                 date: isoDate("2024-01-15"),
                 amount: cents(-550), // -$5.50 in cents
-                description: "COFFEE SHOP", // OFX NAME field
-            },
+                description: "COFFEE SHOP" // OFX NAME field
+            }
         ];
 
         const csvResult = processImport(
@@ -510,12 +510,12 @@ describe("real-world bank exports", () => {
             { sourceColumn: "Description", targetField: "merchant", samples: [] },
             { sourceColumn: "Category", targetField: "category", samples: [] },
             { sourceColumn: "Amount", targetField: "amount", samples: [] },
-            { sourceColumn: "Memo", targetField: "memo", samples: [] },
+            { sourceColumn: "Memo", targetField: "memo", samples: [] }
         ];
 
         const chaseFormatting: ImportFormatting = {
             ...DEFAULT_FORMATTING,
-            dateFormat: "MM/dd/yyyy",
+            dateFormat: "MM/dd/yyyy"
         };
 
         const result = processCSVImport(chaseCSV, chaseMappings, chaseFormatting);
@@ -535,12 +535,12 @@ describe("real-world bank exports", () => {
         const boaMappings: ColumnMapping[] = [
             { sourceColumn: "Date", targetField: "date", samples: [] },
             { sourceColumn: "Description", targetField: "description", samples: [] },
-            { sourceColumn: "Amount", targetField: "amount", samples: [] },
+            { sourceColumn: "Amount", targetField: "amount", samples: [] }
         ];
 
         const boaFormatting: ImportFormatting = {
             ...DEFAULT_FORMATTING,
-            dateFormat: "MM/dd/yyyy",
+            dateFormat: "MM/dd/yyyy"
         };
 
         const result = processCSVImport(boaCSV, boaMappings, boaFormatting);

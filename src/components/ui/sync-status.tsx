@@ -50,7 +50,7 @@ const stateConfig: Record<SyncState, StateConfig> = {
         bgColor: "bg-green-100 dark:bg-green-900/30",
         textColor: "text-green-600 dark:text-green-400",
         showSpinner: false,
-        icon: CloudCheck,
+        icon: CloudCheck
     },
     saving: {
         label: "Saving...",
@@ -58,7 +58,7 @@ const stateConfig: Record<SyncState, StateConfig> = {
         bgColor: "bg-yellow-100 dark:bg-yellow-900/30",
         textColor: "text-yellow-600 dark:text-yellow-400",
         showSpinner: true,
-        icon: CloudUpload,
+        icon: CloudUpload
     },
     syncing: {
         label: "Syncing...",
@@ -66,7 +66,7 @@ const stateConfig: Record<SyncState, StateConfig> = {
         bgColor: "bg-blue-100 dark:bg-blue-900/30",
         textColor: "text-blue-600 dark:text-blue-400",
         showSpinner: true,
-        icon: RefreshCw,
+        icon: RefreshCw
     },
     error: {
         label: "Sync error",
@@ -74,8 +74,8 @@ const stateConfig: Record<SyncState, StateConfig> = {
         bgColor: "bg-red-100 dark:bg-red-900/30",
         textColor: "text-red-600 dark:text-red-400",
         showSpinner: false,
-        icon: CloudOff,
-    },
+        icon: CloudOff
+    }
 };
 
 /**
@@ -86,7 +86,7 @@ export function SyncStatus({
     hasUnsavedChanges = false,
     className,
     showLabel = true,
-    iconMode = false,
+    iconMode = false
 }: SyncStatusProps) {
     const config = stateConfig[state];
 

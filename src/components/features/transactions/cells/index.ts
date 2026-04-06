@@ -10,17 +10,17 @@ export { InlineEditableDate, type InlineEditableDateProps } from "./InlineEditab
 export {
     InlineEditableStatus,
     type InlineEditableStatusProps,
-    type StatusOption,
+    type StatusOption
 } from "./InlineEditableStatus";
 export {
     InlineEditableTags,
     type InlineEditableTagsProps,
-    type TagOption,
+    type TagOption
 } from "./InlineEditableTags";
 export { InlineEditableText, type InlineEditableTextProps } from "./InlineEditableText";
 export {
     type AllocationData,
     PersonAllocationCell,
     type PersonAllocationCellProps,
-    type PersonData,
+    type PersonData
 } from "./PersonAllocationCell";

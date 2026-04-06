@@ -12,7 +12,7 @@ import {
     decryptFromStorage,
     decryptJSON,
     encryptForStorage,
-    encryptJSON,
+    encryptJSON
 } from "../crypto/encryption";
 import { exportShallowSnapshot, exportSnapshot, exportUpdates, getVersionEncoded } from "./sync";
 
@@ -81,8 +81,8 @@ export async function createEncryptedSnapshot(
         metadata: {
             version,
             versionVector: versionVectorBase64,
-            createdAt: Temporal.Now.instant().epochMilliseconds,
-        },
+            createdAt: Temporal.Now.instant().epochMilliseconds
+        }
     };
 }
 
@@ -121,8 +121,8 @@ export async function createEncryptedShallowSnapshot(
         metadata: {
             version,
             versionVector: versionVectorBase64,
-            createdAt: Temporal.Now.instant().epochMilliseconds,
-        },
+            createdAt: Temporal.Now.instant().epochMilliseconds
+        }
     };
 }
 
@@ -182,7 +182,7 @@ export async function createEncryptedUpdate(
     return {
         encryptedData,
         baseSnapshotVersion,
-        hlcTimestamp,
+        hlcTimestamp
     };
 }
 

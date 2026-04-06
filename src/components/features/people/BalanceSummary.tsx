@@ -19,7 +19,7 @@ import {
     asMinorUnits,
     createCurrencyFormatter,
     getCurrency,
-    type MoneyMinorUnits,
+    type MoneyMinorUnits
 } from "@/lib/domain/currency";
 import { calculateSettlementBalances, type SettlementBalance } from "@/lib/domain/settlement";
 import { cn } from "@/lib/utils";
@@ -51,7 +51,7 @@ export function BalanceSummary({
     accountCurrencies,
     currentPersonId,
     displayCurrency = "USD",
-    className,
+    className
 }: BalanceSummaryProps) {
     // Calculate settlement balances
     const balances = useMemo(() => {
@@ -88,7 +88,7 @@ export function BalanceSummary({
                     personId: balance.amount > 0 ? balance.personId : balance.owedToPersonId!,
                     owedToPersonId: balance.amount > 0 ? balance.owedToPersonId : balance.personId,
                     amount: Math.abs(balance.amount as number) as MoneyMinorUnits,
-                    currency: balance.currency,
+                    currency: balance.currency
                 });
             }
         }

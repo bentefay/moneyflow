@@ -58,7 +58,7 @@ export function SeedPhraseDisplay({
     className,
     showCopyButton = true,
     showRevealToggle = true,
-    showWarning = true,
+    showWarning = true
 }: SeedPhraseDisplayProps) {
     const [isRevealed, setIsRevealed] = useState(initiallyRevealed);
     const [isCopied, setIsCopied] = useState(false);

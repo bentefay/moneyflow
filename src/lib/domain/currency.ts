@@ -167,7 +167,7 @@ export function createCurrencyFactory(currency: Currency) {
             separator: ",",
             increment: rounding > 0 ? rounding : undefined,
             fromCents: opts?.fromCents ?? false,
-            errorOnInvalid: true,
+            errorOnInvalid: true
         });
     };
 
@@ -363,7 +363,7 @@ export function createCurrencyFormatter(
         currency: currency.code,
         currencyDisplay,
         useGrouping,
-        signDisplay,
+        signDisplay
     });
 
     const multiplier = 10 ** currency.decimal_digits;
@@ -376,7 +376,7 @@ export function createCurrencyFormatter(
         },
         formatMajorUnits(amount: number): string {
             return numberFormat.format(amount);
-        },
+        }
     };
 }
 

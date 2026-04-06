@@ -41,7 +41,7 @@ export interface UseTableSelectionReturn {
 export function useTableSelection({
     filteredIds,
     selectedIds,
-    onSelectionChange,
+    onSelectionChange
 }: UseTableSelectionOptions): UseTableSelectionReturn {
     // Track last selected ID for shift-click range selection
     const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
@@ -62,7 +62,7 @@ export function useTableSelection({
         return {
             isAllSelected: filteredCount > 0 && selectedInFiltered === filteredCount,
             isSomeSelected: selectedInFiltered > 0 && selectedInFiltered < filteredCount,
-            selectedCount: count,
+            selectedCount: count
         };
     }, [selectedIds, filteredIds]);
 
@@ -71,7 +71,7 @@ export function useTableSelection({
         console.log("[useTableSelection] selectAll called:", {
             isAllSelected,
             filteredIdsCount: filteredIds.length,
-            selectedIdsCount: selectedIds.size,
+            selectedIdsCount: selectedIds.size
         });
         if (isAllSelected) {
             // Deselect all filtered
@@ -145,6 +145,6 @@ export function useTableSelection({
         selectedCount,
         selectAll,
         toggleRow,
-        clearSelection,
+        clearSelection
     };
 }

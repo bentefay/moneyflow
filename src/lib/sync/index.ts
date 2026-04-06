@@ -10,7 +10,7 @@ export {
     hasUnpushedOps,
     loadLocalSnapshot,
     markOpsPushed,
-    saveLocalSnapshot,
+    saveLocalSnapshot
 } from "./persistence";
 export type { OnPresenceStateChange, PresenceData } from "./presence";
 export { createEphemeralPresenceManager, EphemeralPresenceManager } from "./presence";

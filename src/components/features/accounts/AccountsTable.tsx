@@ -16,7 +16,7 @@ import {
     useActiveAccounts,
     useActivePeople,
     useVaultAction,
-    useVaultPreferences,
+    useVaultPreferences
 } from "@/lib/crdt/context";
 import type { Account, AccountInput, Person } from "@/lib/crdt/schema";
 import { createEqualOwnerships } from "@/lib/domain/ownership";
@@ -117,7 +117,7 @@ export function AccountsTable({ className }: AccountsTableProps) {
             accountType: "checking",
             currency: "", // Empty string = inherit from vault default
             balance: 0,
-            ownerships: defaultOwnerships,
+            ownerships: defaultOwnerships
         };
 
         addAccount(newAccount as AccountInput);

@@ -53,7 +53,7 @@ export async function signRequest(
     // Hash the body if present
     const bodyHash = body
         ? sodium.to_base64(
-              sodium.crypto_generichash(32, JSON.stringify(body)),
+              sodium.crypto_generichash(32, JSON.stringify(body), null),
               sodium.base64_variants.ORIGINAL
           )
         : "";
@@ -70,7 +70,7 @@ export async function signRequest(
     return {
         "X-Pubkey": session.publicKey,
         "X-Timestamp": timestamp,
-        "X-Signature": sodium.to_base64(signature, sodium.base64_variants.ORIGINAL),
+        "X-Signature": sodium.to_base64(signature, sodium.base64_variants.ORIGINAL)
     };
 }
 
@@ -122,7 +122,7 @@ export async function verifyRequest(
         // Hash the body if present
         const bodyHash = body
             ? sodium.to_base64(
-                  sodium.crypto_generichash(32, JSON.stringify(body)),
+                  sodium.crypto_generichash(32, JSON.stringify(body), null),
                   sodium.base64_variants.ORIGINAL
               )
             : "";
@@ -146,7 +146,7 @@ export async function verifyRequest(
         }
 
         // Compute pubkeyHash (hex-encoded to match computePubkeyHash in identity.ts)
-        const pubkeyHash = sodium.to_hex(sodium.crypto_generichash(32, publicKey));
+        const pubkeyHash = sodium.to_hex(sodium.crypto_generichash(32, publicKey, null));
 
         return { verified: true, pubkeyHash };
     } catch (e) {

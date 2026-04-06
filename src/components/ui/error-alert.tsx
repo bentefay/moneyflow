@@ -38,7 +38,7 @@ export function ErrorAlert({
     title = "Something went wrong",
     message,
     details,
-    className,
+    className
 }: ErrorAlertProps) {
     const [isExpanded, setIsExpanded] = useState(false);
 

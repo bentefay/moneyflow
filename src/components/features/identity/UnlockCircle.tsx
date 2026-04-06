@@ -54,7 +54,7 @@ export function UnlockCircle({
     onUnlock,
     isUnlocking = false,
     error = null,
-    className,
+    className
 }: UnlockCircleProps) {
     const [phrase, setPhrase] = useState("");
     const [isValid, setIsValid] = useState(false);

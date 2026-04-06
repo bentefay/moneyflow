@@ -20,7 +20,7 @@ import {
     evaluateCondition,
     evaluateConditions,
     getUndoChanges,
-    validateRegex,
+    validateRegex
 } from "@/lib/domain/automation";
 import { asMinorUnits } from "@/lib/domain/currency";
 
@@ -39,7 +39,7 @@ function createTransaction(overrides: Partial<Omit<Transaction, "$cid">> = {}): 
         allocations: {} as Record<string, number>,
         duplicateOf: "",
         deletedAt: 0,
-        ...overrides,
+        ...overrides
     } as unknown as Transaction;
 }
 
@@ -52,7 +52,7 @@ function createAutomation(overrides: Record<string, unknown> = {}): Automation {
         actions: [] as ActionData[],
         order: 0,
         excludedTransactionIds: [] as string[],
-        deletedAt: 0,
+        deletedAt: 0
     };
     return { ...base, ...overrides } as unknown as Automation;
 }
@@ -87,10 +87,10 @@ describe("evaluateCondition", () => {
                     column: "description",
                     operator: "contains",
                     value: "amazon",
-                    caseSensitive: false,
+                    caseSensitive: false
                 },
                 transaction: createTransaction({ description: "Amazon" }),
-                expected: true,
+                expected: true
             },
             {
                 name: "does not match when description does not contain value",
@@ -99,10 +99,10 @@ describe("evaluateCondition", () => {
                     column: "description",
                     operator: "contains",
                     value: "walmart",
-                    caseSensitive: false,
+                    caseSensitive: false
                 },
                 transaction: createTransaction({ description: "Amazon" }),
-                expected: false,
+                expected: false
             },
             {
                 name: "respects case sensitivity",
@@ -111,10 +111,10 @@ describe("evaluateCondition", () => {
                     column: "description",
                     operator: "contains",
                     value: "amazon",
-                    caseSensitive: true,
+                    caseSensitive: true
                 },
                 transaction: createTransaction({ description: "Amazon" }),
-                expected: false,
+                expected: false
             },
             {
                 name: "matches notes field",
@@ -123,11 +123,11 @@ describe("evaluateCondition", () => {
                     column: "notes",
                     operator: "contains",
                     value: "supplies",
-                    caseSensitive: false,
+                    caseSensitive: false
                 },
                 transaction: createTransaction({ notes: "Office Supplies" }),
-                expected: true,
-            },
+                expected: true
+            }
         ];
 
         for (const { name, condition, transaction, expected } of tests) {
@@ -151,10 +151,10 @@ describe("evaluateCondition", () => {
                     column: "description",
                     operator: "equals",
                     value: "amazon",
-                    caseSensitive: false,
+                    caseSensitive: false
                 },
                 transaction: createTransaction({ description: "Amazon" }),
-                expected: true,
+                expected: true
             },
             {
                 name: "does not match partial value",
@@ -163,11 +163,11 @@ describe("evaluateCondition", () => {
                     column: "description",
                     operator: "equals",
                     value: "amaz",
-                    caseSensitive: false,
+                    caseSensitive: false
                 },
                 transaction: createTransaction({ description: "Amazon" }),
-                expected: false,
-            },
+                expected: false
+            }
         ];
 
         for (const { name, condition, transaction, expected } of tests) {
@@ -184,7 +184,7 @@ describe("evaluateCondition", () => {
                 column: "description",
                 operator: "startsWith",
                 value: "ama",
-                caseSensitive: false,
+                caseSensitive: false
             };
             expect(evaluateCondition(condition, createTransaction({ description: "Amazon" }))).toBe(
                 true
@@ -197,7 +197,7 @@ describe("evaluateCondition", () => {
                 column: "description",
                 operator: "startsWith",
                 value: "zon",
-                caseSensitive: false,
+                caseSensitive: false
             };
             expect(evaluateCondition(condition, createTransaction({ description: "Amazon" }))).toBe(
                 false
@@ -212,7 +212,7 @@ describe("evaluateCondition", () => {
                 column: "description",
                 operator: "endsWith",
                 value: "zon",
-                caseSensitive: false,
+                caseSensitive: false
             };
             expect(evaluateCondition(condition, createTransaction({ description: "Amazon" }))).toBe(
                 true
@@ -225,7 +225,7 @@ describe("evaluateCondition", () => {
                 column: "description",
                 operator: "endsWith",
                 value: "ama",
-                caseSensitive: false,
+                caseSensitive: false
             };
             expect(evaluateCondition(condition, createTransaction({ description: "Amazon" }))).toBe(
                 false
@@ -240,7 +240,7 @@ describe("evaluateCondition", () => {
                 column: "description",
                 operator: "regex",
                 value: "^Am.*n$",
-                caseSensitive: false,
+                caseSensitive: false
             };
             expect(evaluateCondition(condition, createTransaction({ description: "Amazon" }))).toBe(
                 true
@@ -253,7 +253,7 @@ describe("evaluateCondition", () => {
                 column: "description",
                 operator: "regex",
                 value: "[", // Invalid regex
-                caseSensitive: false,
+                caseSensitive: false
             };
             expect(evaluateCondition(condition, createTransaction({ description: "Amazon" }))).toBe(
                 false
@@ -266,7 +266,7 @@ describe("evaluateCondition", () => {
                 column: "description",
                 operator: "regex",
                 value: "amazon",
-                caseSensitive: true,
+                caseSensitive: true
             };
             expect(evaluateCondition(condition, createTransaction({ description: "Amazon" }))).toBe(
                 false
@@ -281,7 +281,7 @@ describe("evaluateCondition", () => {
                 column: "amount",
                 operator: "contains",
                 value: "-5000",
-                caseSensitive: false,
+                caseSensitive: false
             };
             expect(
                 evaluateCondition(condition, createTransaction({ amount: asMinorUnits(-5000) }))
@@ -302,15 +302,15 @@ describe("evaluateConditions", () => {
                 column: "description",
                 operator: "contains",
                 value: "amazon",
-                caseSensitive: false,
+                caseSensitive: false
             },
             {
                 id: "c2",
                 column: "notes",
                 operator: "contains",
                 value: "supplies",
-                caseSensitive: false,
-            },
+                caseSensitive: false
+            }
         ];
         expect(evaluateConditions(conditions, createTransaction())).toBe(true);
     });
@@ -322,15 +322,15 @@ describe("evaluateConditions", () => {
                 column: "description",
                 operator: "contains",
                 value: "amazon",
-                caseSensitive: false,
+                caseSensitive: false
             },
             {
                 id: "c2",
                 column: "notes",
                 operator: "contains",
                 value: "electronics",
-                caseSensitive: false,
-            },
+                caseSensitive: false
+            }
         ];
         expect(evaluateConditions(conditions, createTransaction())).toBe(false);
     });
@@ -351,7 +351,7 @@ describe("applyActions", () => {
 
     it("sets allocations", () => {
         const actions: ActionData[] = [
-            { id: "a1", type: "setAllocation", value: { "person-1": 60, "person-2": 40 } },
+            { id: "a1", type: "setAllocation", value: { "person-1": 60, "person-2": 40 } }
         ];
         const changes = applyActions(actions, createTransaction());
         expect(changes.allocations).toEqual({ "person-1": 60, "person-2": 40 });
@@ -360,7 +360,7 @@ describe("applyActions", () => {
     it("applies multiple actions", () => {
         const actions: ActionData[] = [
             { id: "a1", type: "setTags", value: ["tag-1"] },
-            { id: "a2", type: "setStatus", value: "status-paid" },
+            { id: "a2", type: "setStatus", value: "status-paid" }
         ];
         const changes = applyActions(actions, createTransaction());
         expect(changes.tagIds).toEqual(["tag-1"]);
@@ -383,10 +383,10 @@ describe("evaluateAutomation", () => {
                     column: "description",
                     operator: "contains",
                     value: "amazon",
-                    caseSensitive: false,
-                },
+                    caseSensitive: false
+                }
             ] as ConditionData[],
-            actions: [{ id: "a1", type: "setTags", value: ["shopping"] }] as ActionData[],
+            actions: [{ id: "a1", type: "setTags", value: ["shopping"] }] as ActionData[]
         });
         const result = evaluateAutomation(automation, createTransaction());
         expect(result.matched).toBe(true);
@@ -402,10 +402,10 @@ describe("evaluateAutomation", () => {
                     column: "description",
                     operator: "contains",
                     value: "amazon",
-                    caseSensitive: false,
-                },
+                    caseSensitive: false
+                }
             ] as ConditionData[],
-            excludedTransactionIds: ["tx-1"],
+            excludedTransactionIds: ["tx-1"]
         });
         const result = evaluateAutomation(automation, createTransaction({ id: "tx-1" }));
         expect(result.matched).toBe(false);
@@ -423,10 +423,10 @@ describe("evaluateAutomations", () => {
                         column: "description",
                         operator: "equals",
                         value: "walmart",
-                        caseSensitive: false,
-                    },
+                        caseSensitive: false
+                    }
                 ] as ConditionData[],
-                order: 1,
+                order: 1
             }),
             createAutomation({
                 id: "auto-2",
@@ -436,14 +436,14 @@ describe("evaluateAutomations", () => {
                         column: "description",
                         operator: "contains",
                         value: "amazon",
-                        caseSensitive: false,
-                    },
+                        caseSensitive: false
+                    }
                 ] as ConditionData[],
                 actions: [
-                    { id: "a1", type: "setTags", value: ["online-shopping"] },
+                    { id: "a1", type: "setTags", value: ["online-shopping"] }
                 ] as ActionData[],
-                order: 2,
-            }),
+                order: 2
+            })
         ];
         const result = evaluateAutomations(automations, createTransaction());
         expect(result.matched).toBe(true);
@@ -461,11 +461,11 @@ describe("evaluateAutomations", () => {
                         column: "description",
                         operator: "contains",
                         value: "amazon",
-                        caseSensitive: false,
-                    },
+                        caseSensitive: false
+                    }
                 ] as ConditionData[],
-                deletedAt: Date.now(),
-            }),
+                deletedAt: Date.now()
+            })
         ];
         const result = evaluateAutomations(automations, createTransaction());
         expect(result.matched).toBe(false);
@@ -547,8 +547,8 @@ describe("getUndoChanges", () => {
             appliedAt: Temporal.Now.instant(),
             previousValues: {
                 tagIds: ["old-tag"],
-                statusId: "old-status",
-            },
+                statusId: "old-status"
+            }
         };
 
         const changes = getUndoChanges(application);
@@ -568,11 +568,11 @@ describe("applyAutomationsWithTracking", () => {
                         column: "description",
                         operator: "contains",
                         value: "amazon",
-                        caseSensitive: false,
-                    },
+                        caseSensitive: false
+                    }
                 ] as ConditionData[],
-                actions: [{ id: "a1", type: "setTags", value: ["shopping"] }] as ActionData[],
-            }),
+                actions: [{ id: "a1", type: "setTags", value: ["shopping"] }] as ActionData[]
+            })
         ];
         const transactions = [createTransaction({ id: "tx-1" }), createTransaction({ id: "tx-2" })];
 
@@ -597,10 +597,10 @@ describe("applyAutomationsWithTracking", () => {
                         column: "description",
                         operator: "equals",
                         value: "walmart",
-                        caseSensitive: false,
-                    },
-                ] as ConditionData[],
-            }),
+                        caseSensitive: false
+                    }
+                ] as ConditionData[]
+            })
         ];
         const transactions = [createTransaction({ description: "Amazon" })];
 

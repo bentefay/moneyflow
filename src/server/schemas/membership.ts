@@ -15,7 +15,7 @@ import {
     encPublicKeySchema,
     encryptedVaultKeySchema,
     vaultIdSchema,
-    vaultRoleSchema,
+    vaultRoleSchema
 } from "./vault";
 
 // ============================================================================
@@ -33,7 +33,7 @@ export const memberSchema = z.object({
     /** X25519 public key for re-keying (needed when removing other members) */
     encPublicKey: encPublicKeySchema.nullable(),
     /** When this member joined */
-    createdAt: z.string(),
+    createdAt: z.string()
 });
 
 export type Member = z.infer<typeof memberSchema>;
@@ -46,13 +46,13 @@ export type Member = z.infer<typeof memberSchema>;
  * List all members of a vault.
  */
 export const membershipListInput = z.object({
-    vaultId: vaultIdSchema,
+    vaultId: vaultIdSchema
 });
 
 export type MembershipListInput = z.infer<typeof membershipListInput>;
 
 export const membershipListOutput = z.object({
-    members: z.array(memberSchema),
+    members: z.array(memberSchema)
 });
 
 export type MembershipListOutput = z.infer<typeof membershipListOutput>;
@@ -74,7 +74,7 @@ export type MembershipListOutput = z.infer<typeof membershipListOutput>;
 export const membershipRemoveInput = z.object({
     vaultId: vaultIdSchema,
     /** pubkey_hash of the member to remove */
-    pubkeyHash: z.string().min(1, "pubkeyHash is required"),
+    pubkeyHash: z.string().min(1, "pubkeyHash is required")
 });
 
 export type MembershipRemoveInput = z.infer<typeof membershipRemoveInput>;
@@ -85,9 +85,9 @@ export const membershipRemoveOutput = z.object({
     remainingMembers: z.array(
         z.object({
             pubkeyHash: z.string(),
-            encPublicKey: z.string(),
+            encPublicKey: z.string()
         })
-    ),
+    )
 });
 
 export type MembershipRemoveOutput = z.infer<typeof membershipRemoveOutput>;
@@ -111,15 +111,15 @@ export const membershipRekeyInput = z.object({
     memberKeys: z.array(
         z.object({
             pubkeyHash: z.string(),
-            encryptedVaultKey: encryptedVaultKeySchema,
+            encryptedVaultKey: encryptedVaultKeySchema
         })
-    ),
+    )
 });
 
 export type MembershipRekeyInput = z.infer<typeof membershipRekeyInput>;
 
 export const membershipRekeyOutput = z.object({
-    success: z.boolean(),
+    success: z.boolean()
 });
 
 export type MembershipRekeyOutput = z.infer<typeof membershipRekeyOutput>;

@@ -9,9 +9,12 @@
 
 **Question**: How to make a schema field optional that previously had a default value?
 
-**Finding**: In loro-mirror, `schema.String()` without `{ required: true }` or `{ defaultValue: "..." }` allows `undefined` values. The current `currency: schema.String({ defaultValue: "USD" })` makes the field always have a value.
+**Finding**: In loro-mirror, `schema.String()` without `{ required: true }` or
+`{ defaultValue: "..." }` allows `undefined` values. The current
+`currency: schema.String({ defaultValue: "USD" })` makes the field always have a value.
 
-**Decision**: Change to `currency: schema.String()` (no options) to allow undefined. The resolution logic handles fallback at display time.
+**Decision**: Change to `currency: schema.String()` (no options) to allow undefined. The resolution
+logic handles fallback at display time.
 
 **Code Reference**:
 
@@ -27,14 +30,16 @@ currency: schema.String(),
 
 **Question**: Best practices for table inline editing with shadcn/ui?
 
-**Finding**: The existing `AccountRow.tsx` already implements inline editing for name, account number, and type fields:
+**Finding**: The existing `AccountRow.tsx` already implements inline editing for name, account
+number, and type fields:
 
 - Uses `useState` for `isEditing` mode
 - Input/Select components replace display text when editing
 - Save on button click, cancel on Cancel button or Escape
 - `onClick={(e) => e.stopPropagation()}` prevents row expansion during edits
 
-**Decision**: Extend existing pattern to currency field. Add per-field click-to-edit instead of single "edit mode" for better UX.
+**Decision**: Extend existing pattern to currency field. Add per-field click-to-edit instead of
+single "edit mode" for better UX.
 
 **Pattern**:
 
@@ -52,7 +57,9 @@ const [editingField, setEditingField] = useState<'name' | 'type' | 'currency' | 
 
 **Question**: How to show "Use vault default" as first option?
 
-**Finding**: The shadcn/ui `Select` component supports custom option rendering. The first option should be semantically distinct (null/undefined value) with dynamic label showing current vault default.
+**Finding**: The shadcn/ui `Select` component supports custom option rendering. The first option
+should be semantically distinct (null/undefined value) with dynamic label showing current vault
+default.
 
 **Decision**: Create `CurrencySelect` component that:
 
@@ -75,9 +82,12 @@ interface CurrencySelectProps {
 
 **Question**: How do existing accounts with explicit currency behave after schema change?
 
-**Finding**: Existing accounts already have `currency` set (e.g., "USD"). Removing the `defaultValue` from schema doesn't affect existing data—it only affects new accounts created without explicitly setting currency.
+**Finding**: Existing accounts already have `currency` set (e.g., "USD"). Removing the
+`defaultValue` from schema doesn't affect existing data—it only affects new accounts created without
+explicitly setting currency.
 
-**Decision**: No migration needed. Existing accounts continue to work. New accounts can omit currency to inherit from vault.
+**Decision**: No migration needed. Existing accounts continue to work. New accounts can omit
+currency to inherit from vault.
 
 ## Key Decisions Summary
 

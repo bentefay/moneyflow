@@ -20,7 +20,7 @@ import {
     SelectContent,
     SelectItem,
     SelectTrigger,
-    SelectValue,
+    SelectValue
 } from "@/components/ui/select";
 import type { ImportTemplate } from "@/lib/crdt/schema";
 import { cn } from "@/lib/utils";
@@ -84,7 +84,7 @@ export function TemplateTab({
     onDelete,
     onDuplicate,
     onReset,
-    className,
+    className
 }: TemplateTabProps) {
     const [isCreating, setIsCreating] = useState(false);
     const [isDuplicating, setIsDuplicating] = useState(false);

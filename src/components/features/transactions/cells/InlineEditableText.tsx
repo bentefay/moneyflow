@@ -45,7 +45,7 @@ export function InlineEditableText({
     inputClassName,
     placeholder = "",
     disabled = false,
-    "data-testid": testId,
+    "data-testid": testId
 }: InlineEditableTextProps) {
     const [localValue, setLocalValue] = useState(value);
     const [isFocused, setIsFocused] = useState(false);

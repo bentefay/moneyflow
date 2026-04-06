@@ -9,7 +9,7 @@ describe("useBulkEdit", () => {
         onWarnThreshold: vi.fn(),
         onOperationStart: vi.fn(),
         onOperationComplete: vi.fn(),
-        onOperationError: vi.fn(),
+        onOperationError: vi.fn()
     });
 
     // Create a mock mutation that resolves immediately
@@ -183,7 +183,7 @@ describe("useBulkEdit", () => {
             expect(result.current.progress).toEqual({
                 current: 0,
                 total: 3,
-                operation: "setTags",
+                operation: "setTags"
             });
 
             // Resolve first mutation
@@ -195,7 +195,7 @@ describe("useBulkEdit", () => {
             expect(result.current.progress).toEqual({
                 current: 1,
                 total: 3,
-                operation: "setTags",
+                operation: "setTags"
             });
 
             // Resolve second mutation
@@ -207,7 +207,7 @@ describe("useBulkEdit", () => {
             expect(result.current.progress).toEqual({
                 current: 2,
                 total: 3,
-                operation: "setTags",
+                operation: "setTags"
             });
 
             // Resolve last mutation

@@ -5,7 +5,8 @@
 
 ## Overview
 
-This feature primarily uses existing data structures. The vault preferences entity already exists in the CRDT schema—no schema changes required.
+This feature primarily uses existing data structures. The vault preferences entity already exists in
+the CRDT schema—no schema changes required.
 
 ## Existing Entities (No Changes)
 
@@ -18,7 +19,7 @@ export const vaultPreferencesSchema = schema.LoroMap({
     /** Automation creation preference */
     automationCreationPreference: schema.String({ defaultValue: "manual" }),
     /** Default currency for new accounts and imports (ISO 4217 code) */
-    defaultCurrency: schema.String({ defaultValue: "USD" }),
+    defaultCurrency: schema.String({ defaultValue: "USD" })
 });
 ```
 
@@ -92,7 +93,7 @@ function useCreateAccount() {
     const addAccount = useVaultAction((state, data: AccountInput) => {
         state.accounts[data.id] = {
             ...data,
-            currency: data.currency ?? defaultCurrency, // Use vault default
+            currency: data.currency ?? defaultCurrency // Use vault default
         };
     });
 

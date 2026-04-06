@@ -21,7 +21,7 @@ import type { LoroDoc, VersionVector } from "loro-crdt";
 import {
     createEncryptedShallowSnapshot,
     decryptUpdate,
-    loadEncryptedSnapshot,
+    loadEncryptedSnapshot
 } from "@/lib/crdt/snapshot";
 import { getVersionEncoded } from "@/lib/crdt/sync";
 import { createVaultRealtimeSync, type VaultRealtimeSync } from "@/lib/supabase/realtime";
@@ -33,7 +33,7 @@ import {
     hasUnpushedOps,
     loadLocalSnapshot,
     markOpsPushed,
-    saveLocalSnapshot,
+    saveLocalSnapshot
 } from "./persistence";
 
 /** Ops count threshold for creating snapshot */
@@ -160,7 +160,7 @@ export class SyncManager {
         // Create throttled server sync
         this.throttledServerSync = throttle(() => this.pushToServer(), SERVER_SYNC_THROTTLE_MS, {
             leading: false,
-            trailing: true,
+            trailing: true
         });
     }
 
@@ -190,7 +190,7 @@ export class SyncManager {
 
                     // Apply the update
                     await this.applyRemoteUpdate(update.encryptedData);
-                },
+                }
             });
 
             // Set up document change listener for auto-sync
@@ -230,7 +230,7 @@ export class SyncManager {
                         vault_id: this.vaultId,
                         encrypted_data: encryptedData,
                         version_vector: versionVector,
-                        pushed: false,
+                        pushed: false
                     });
 
                     // 3. Update UI to show "saving" state
@@ -340,7 +340,7 @@ export class SyncManager {
             const response = await this.trpc.sync.getUpdates.query({
                 vaultId: this.vaultId,
                 versionVector,
-                hasUnpushed,
+                hasUnpushed
             });
 
             if (response.type === "use_snapshot") {
@@ -352,7 +352,7 @@ export class SyncManager {
                     await saveLocalSnapshot({
                         vault_id: this.vaultId,
                         encrypted_data: snapshot.encryptedData,
-                        version_vector: snapshot.versionVector,
+                        version_vector: snapshot.versionVector
                     });
                     console.log("SyncManager: Loaded snapshot from server");
                 }
@@ -391,7 +391,7 @@ export class SyncManager {
             const decryptedDoc = await loadEncryptedSnapshot(
                 {
                     encryptedData,
-                    metadata: { version: 0, versionVector: "", createdAt: 0 },
+                    metadata: { version: 0, versionVector: "", createdAt: 0 }
                 },
                 this.vaultKey
             );
@@ -453,8 +453,8 @@ export class SyncManager {
                 ops: unpushedOps.map((op) => ({
                     id: op.id,
                     encryptedData: op.encrypted_data,
-                    versionVector: op.version_vector,
-                })),
+                    versionVector: op.version_vector
+                }))
             });
 
             // Mark as pushed in IndexedDB
@@ -513,14 +513,14 @@ export class SyncManager {
             await this.trpc.sync.pushSnapshot.mutate({
                 vaultId: this.vaultId,
                 encryptedData: encryptedSnapshot.encryptedData,
-                versionVector,
+                versionVector
             });
 
             // Save locally
             await saveLocalSnapshot({
                 vault_id: this.vaultId,
                 encrypted_data: encryptedSnapshot.encryptedData,
-                version_vector: versionVector,
+                version_vector: versionVector
             });
 
             console.log("SyncManager: Snapshot created and pushed");

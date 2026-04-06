@@ -16,7 +16,7 @@ import { Temporal } from "temporal-polyfill";
 import {
     type CurrencyCode,
     isValidCurrencyCode,
-    type MoneyMinorUnits,
+    type MoneyMinorUnits
 } from "@/lib/domain/currency";
 import type { Percentage } from "@/types";
 
@@ -34,7 +34,7 @@ export const plainDateTransform: TransformDefinition<string, Temporal.PlainDate>
     validate: (value) => {
         if (!(value instanceof Temporal.PlainDate)) return "Expected Temporal.PlainDate";
         return true;
-    },
+    }
 };
 
 /**
@@ -47,7 +47,7 @@ export const instantFromMillisTransform: TransformDefinition<number, Temporal.In
     validate: (value) => {
         if (!(value instanceof Temporal.Instant)) return "Expected Temporal.Instant";
         return true;
-    },
+    }
 };
 
 /**
@@ -60,7 +60,7 @@ export const moneyMinorUnitsTransform: TransformDefinition<number, MoneyMinorUni
     validate: (value) => {
         if (!Number.isInteger(value)) return "MoneyMinorUnits must be an integer";
         return true;
-    },
+    }
 };
 
 /**
@@ -69,7 +69,7 @@ export const moneyMinorUnitsTransform: TransformDefinition<number, MoneyMinorUni
  */
 export const percentageTransform: TransformDefinition<number, Percentage> = {
     decode: (value) => value as Percentage,
-    encode: (value) => value as number,
+    encode: (value) => value as number
 };
 
 /**
@@ -82,7 +82,7 @@ export const currencyCodeTransform: TransformDefinition<string, CurrencyCode> = 
     validate: (value) => {
         if (!isValidCurrencyCode(value as string)) return `Invalid currency code: ${value}`;
         return true;
-    },
+    }
 };
 
 /**
@@ -101,7 +101,7 @@ export function createEnumTransform<T extends string>(
                 return `Expected one of: ${values.join(", ")}; got: ${value}`;
             }
             return true;
-        },
+        }
     };
 }
 
@@ -146,5 +146,5 @@ export const richSchema = {
         schema.String({ defaultValue: "USD", ...opts }).transform(currencyCodeTransform),
 
     StringEnum: <T extends string, O extends SchemaOptions>(values: readonly T[], opts: O) =>
-        schema.String({ defaultValue: values[0], ...opts }).transform(createEnumTransform(values)),
+        schema.String({ defaultValue: values[0], ...opts }).transform(createEnumTransform(values))
 };

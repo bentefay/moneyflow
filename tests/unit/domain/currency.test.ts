@@ -20,7 +20,7 @@ import {
     JPY,
     toMinorUnits,
     toMinorUnitsForCurrency,
-    USD,
+    USD
 } from "@/lib/domain/currency";
 
 describe("Currency factories", () => {
@@ -326,36 +326,36 @@ describe("Intl.NumberFormat helpers", () => {
 
         it("respects currencyDisplay option", () => {
             const fmtCode = createCurrencyFormatter(Currencies.USD, "en-US", {
-                currencyDisplay: "code",
+                currencyDisplay: "code"
             });
             expect(fmtCode.format(asMinorUnits(10000))).toContain("USD");
 
             const fmtName = createCurrencyFormatter(Currencies.USD, "en-US", {
-                currencyDisplay: "name",
+                currencyDisplay: "name"
             });
             expect(fmtName.format(asMinorUnits(10000)).toLowerCase()).toContain("dollar");
         });
 
         it("respects useGrouping option", () => {
             const withGrouping = createCurrencyFormatter(Currencies.USD, "en-US", {
-                useGrouping: true,
+                useGrouping: true
             });
             expect(withGrouping.format(asMinorUnits(123456789))).toContain(",");
 
             const noGrouping = createCurrencyFormatter(Currencies.USD, "en-US", {
-                useGrouping: false,
+                useGrouping: false
             });
             expect(noGrouping.format(asMinorUnits(123456789))).not.toContain(",");
         });
 
         it("respects signDisplay option", () => {
             const always = createCurrencyFormatter(Currencies.USD, "en-US", {
-                signDisplay: "always",
+                signDisplay: "always"
             });
             expect(always.format(asMinorUnits(10000))).toContain("+");
 
             const never = createCurrencyFormatter(Currencies.USD, "en-US", {
-                signDisplay: "never",
+                signDisplay: "never"
             });
             expect(never.format(asMinorUnits(-10000))).not.toContain("-");
         });
@@ -480,44 +480,44 @@ describe("resolveAccountCurrency", () => {
                 name: "explicit EUR, vault USD",
                 account: "EUR",
                 vault: "USD",
-                expected: { code: "EUR", isInherited: false },
+                expected: { code: "EUR", isInherited: false }
             },
             {
                 name: "explicit JPY, vault undefined",
                 account: "JPY",
                 vault: undefined,
-                expected: { code: "JPY", isInherited: false },
+                expected: { code: "JPY", isInherited: false }
             },
             {
                 name: "undefined account, vault GBP",
                 account: undefined,
                 vault: "GBP",
-                expected: { code: "GBP", isInherited: true },
+                expected: { code: "GBP", isInherited: true }
             },
             {
                 name: "undefined account, vault AUD",
                 account: undefined,
                 vault: "AUD",
-                expected: { code: "AUD", isInherited: true },
+                expected: { code: "AUD", isInherited: true }
             },
             {
                 name: "both undefined",
                 account: undefined,
                 vault: undefined,
-                expected: { code: "USD", isInherited: true },
+                expected: { code: "USD", isInherited: true }
             },
             {
                 name: "empty account, vault CAD",
                 account: "",
                 vault: "CAD",
-                expected: { code: "CAD", isInherited: true },
+                expected: { code: "CAD", isInherited: true }
             },
             {
                 name: "empty account, empty vault",
                 account: "",
                 vault: "",
-                expected: { code: "USD", isInherited: true },
-            },
+                expected: { code: "USD", isInherited: true }
+            }
         ];
 
         it.each(cases)("$name", ({ account, vault, expected }) => {

@@ -8,21 +8,21 @@ export {
     type BulkEditProgress,
     type UseBulkEditOptions,
     type UseBulkEditReturn,
-    useBulkEdit,
+    useBulkEdit
 } from "./useBulkEdit";
 export {
     type UseGridCellNavigationOptions,
     type UseGridCellNavigationReturn,
-    useGridCellNavigation,
+    useGridCellNavigation
 } from "./useGridCellNavigation";
 export {
     type FocusedCell,
     type UseKeyboardNavigationOptions,
     type UseKeyboardNavigationReturn,
-    useKeyboardNavigation,
+    useKeyboardNavigation
 } from "./useKeyboardNavigation";
 export {
     type UseTableSelectionOptions,
     type UseTableSelectionReturn,
-    useTableSelection,
+    useTableSelection
 } from "./useTableSelection";

@@ -12,7 +12,7 @@ import {
     getNextTagColor,
     isValidHexColor,
     normalizeTagColor,
-    TAG_COLOR_PALETTE,
+    TAG_COLOR_PALETTE
 } from "@/lib/domain/tag-colors";
 
 describe("Tag Color Utilities", () => {

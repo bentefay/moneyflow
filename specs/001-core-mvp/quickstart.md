@@ -287,5 +287,6 @@ vercel --prod
 - [shadcn/ui](https://ui.shadcn.com/)
 - [Remeda](https://remedajs.com/)
 - [libsodium.js](https://github.com/nickt/libsodium.js)
-- [@noble/hashes](https://github.com/paulmillr/noble-hashes) - HKDF for domain-separated key derivation
+- [@noble/hashes](https://github.com/paulmillr/noble-hashes) - HKDF for domain-separated key
+  derivation
 - [Temporal API Polyfill](https://github.com/tc39/proposal-temporal)

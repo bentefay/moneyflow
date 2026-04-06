@@ -22,7 +22,7 @@ import type {
     TransactionInput,
     TransactionStore,
     YearBucket,
-    YearBucketInput,
+    YearBucketInput
 } from "./schema";
 
 // ============================================
@@ -123,7 +123,7 @@ export function getOrCreateAccountTree(
     if (!store[accountId]) {
         const tree: AccountTransactionTreeInput = {
             accountId,
-            years: [],
+            years: []
         };
         store[accountId] = withCid(tree);
     }
@@ -326,7 +326,7 @@ export function insertTransaction(store: TransactionStore, input: InsertTransact
                 allocations: transaction.allocations,
                 creationInstant: transaction.creationInstant,
                 importRowIndex: transaction.importRowIndex,
-                deletedAt: transaction.deletedAt,
+                deletedAt: transaction.deletedAt
             };
             if (!parentTx.suspectedDuplicates) {
                 (parentTx as { suspectedDuplicates: NestedDuplicate[] }).suspectedDuplicates = [];
@@ -347,7 +347,7 @@ export function insertTransaction(store: TransactionStore, input: InsertTransact
     // Create full transaction with empty suspectedDuplicates if not provided
     const fullTransaction: TransactionInput = {
         ...transaction,
-        suspectedDuplicates: transaction.suspectedDuplicates ?? [],
+        suspectedDuplicates: transaction.suspectedDuplicates ?? []
     };
 
     // Insert at correct sorted position
@@ -514,11 +514,13 @@ export function unnestDuplicate(store: TransactionStore, input: UnnestDuplicateI
     const duplicate = parentTx.suspectedDuplicates.splice(dupIndex, 1)[0];
 
     // Insert as standalone transaction at its own date
+    // Note: NestedDuplicate doesn't carry descriptionAliasId, so we add it as undefined
     insertTransaction(store, {
         transaction: {
             ...duplicate,
-            suspectedDuplicates: [],
-        } as Transaction,
+            descriptionAliasId: undefined,
+            suspectedDuplicates: []
+        } as Transaction
     });
 }
 
@@ -572,7 +574,7 @@ export function swapDuplicate(store: TransactionStore, input: SwapDuplicateInput
         allocations: { ...parentTx.allocations },
         creationInstant: parentTx.creationInstant,
         importRowIndex: parentTx.importRowIndex,
-        deletedAt: parentTx.deletedAt,
+        deletedAt: parentTx.deletedAt
     };
 
     // Move remaining duplicates and old parent to new parent's list
@@ -591,16 +593,18 @@ export function swapDuplicate(store: TransactionStore, input: SwapDuplicateInput
             allocations: { ...d.allocations },
             creationInstant: d.creationInstant,
             importRowIndex: d.importRowIndex,
-            deletedAt: d.deletedAt,
-        })),
+            deletedAt: d.deletedAt
+        }))
     ];
 
     // Insert new parent as standalone at its own date with all duplicates
+    // Note: NestedDuplicate doesn't carry descriptionAliasId, so we add it as undefined
     insertTransaction(store, {
         transaction: {
             id: newParent.id,
             date: newParent.date,
             description: newParent.description,
+            descriptionAliasId: undefined,
             notes: newParent.notes,
             amount: newParent.amount,
             accountId: newParent.accountId,
@@ -611,8 +615,8 @@ export function swapDuplicate(store: TransactionStore, input: SwapDuplicateInput
             creationInstant: newParent.creationInstant,
             importRowIndex: newParent.importRowIndex,
             deletedAt: newParent.deletedAt,
-            suspectedDuplicates: allDuplicates.map((d) => withCid(d)),
-        },
+            suspectedDuplicates: allDuplicates.map((d) => withCid(d))
+        }
     });
 
     // Prune empty buckets from old parent location

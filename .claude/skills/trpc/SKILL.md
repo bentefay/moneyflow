@@ -31,7 +31,7 @@ export const vaultRouter = router({
 export const createVaultSchema = z.object({
     name: z.string().min(1).max(100),
     encryptedSnapshot: z.string(),
-    wrappedKey: z.string(),
+    wrappedKey: z.string()
 });
 ```
 
@@ -48,6 +48,6 @@ export const createVaultSchema = z.object({
 ```typescript
 throw new TRPCError({
     code: "NOT_FOUND", // or "FORBIDDEN"
-    message: "Vault not found",
+    message: "Vault not found"
 });
 ```

@@ -49,7 +49,7 @@ function getPresets(): DateRangePreset[] {
                 const start = new Date(today);
                 start.setDate(start.getDate() - 14);
                 return { start: formatDate(start), end: formatDate(today) };
-            },
+            }
         },
         {
             label: "Last 30 days",
@@ -57,7 +57,7 @@ function getPresets(): DateRangePreset[] {
                 const start = new Date(today);
                 start.setDate(start.getDate() - 30);
                 return { start: formatDate(start), end: formatDate(today) };
-            },
+            }
         },
         {
             label: "Last 90 days",
@@ -65,14 +65,14 @@ function getPresets(): DateRangePreset[] {
                 const start = new Date(today);
                 start.setDate(start.getDate() - 90);
                 return { start: formatDate(start), end: formatDate(today) };
-            },
+            }
         },
         {
             label: "Month to date",
             getValue: () => {
                 const start = new Date(today.getFullYear(), today.getMonth(), 1);
                 return { start: formatDate(start), end: formatDate(today) };
-            },
+            }
         },
         {
             label: "Last month",
@@ -80,14 +80,14 @@ function getPresets(): DateRangePreset[] {
                 const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
                 const end = new Date(today.getFullYear(), today.getMonth(), 0);
                 return { start: formatDate(start), end: formatDate(end) };
-            },
+            }
         },
         {
             label: "Year to date",
             getValue: () => {
                 const start = new Date(today.getFullYear(), 0, 1);
                 return { start: formatDate(start), end: formatDate(today) };
-            },
+            }
         },
         {
             label: "Last year",
@@ -95,12 +95,12 @@ function getPresets(): DateRangePreset[] {
                 const start = new Date(today.getFullYear() - 1, 0, 1);
                 const end = new Date(today.getFullYear() - 1, 11, 31);
                 return { start: formatDate(start), end: formatDate(end) };
-            },
+            }
         },
         {
             label: "All time",
-            getValue: () => ({ start: null, end: null }),
-        },
+            getValue: () => ({ start: null, end: null })
+        }
     ];
 }
 
@@ -158,7 +158,7 @@ export function DateRangeFilter({ value, onChange, className }: DateRangeFilterP
     const handleApplyCustom = () => {
         onChange({
             start: customStart || null,
-            end: customEnd || null,
+            end: customEnd || null
         });
         setIsOpen(false);
     };

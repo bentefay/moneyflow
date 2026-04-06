@@ -3,20 +3,25 @@
 **Branch**: `002-vault-settings` | **Date**: 31 December 2025 | **Spec**: [spec.md](spec.md)
 **Input**: Feature specification from `/specs/002-vault-settings/spec.md`
 
-**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
+**Note**: This template is filled in by the `/speckit.plan` command. See
+`.specify/templates/commands/plan.md` for the execution workflow.
 
 ## Summary
 
-Add a Vault Settings page where users can configure vault-level preferences (starting with default currency), improve navigation by renaming "Settings" → "Vault Settings" and defaulting to Transactions instead of Dashboard, fix Accounts page column alignment, and ensure consistent interactive styling across all sidebar menu items.
+Add a Vault Settings page where users can configure vault-level preferences (starting with default
+currency), improve navigation by renaming "Settings" → "Vault Settings" and defaulting to
+Transactions instead of Dashboard, fix Accounts page column alignment, and ensure consistent
+interactive styling across all sidebar menu items.
 
 ## Technical Context
 
 **Language/Version**: TypeScript 5.x, Node.js 20.x  
-**Primary Dependencies**: Next.js 15 (App Router), React 19, loro-mirror/loro-crdt, shadcn/ui, Tailwind CSS  
+**Primary Dependencies**: Next.js 15 (App Router), React 19, loro-mirror/loro-crdt, shadcn/ui,
+Tailwind CSS  
 **Storage**: Supabase (Postgres), loro-crdt (CRDT state in vault document)  
 **Testing**: Vitest (unit/integration), Playwright (E2E)  
-**Target Platform**: Web (responsive, mobile-friendly)
-**Project Type**: Web application (Next.js App Router)  
+**Target Platform**: Web (responsive, mobile-friendly) **Project Type**: Web application (Next.js
+App Router)  
 **Performance Goals**: <100ms perceived latency for all interactions  
 **Constraints**: Offline-capable, client-side encrypted data, CRDT sync via Supabase Realtime  
 **Scale/Scope**: Single-page settings UI, navigation updates, CSS fixes
@@ -86,7 +91,9 @@ tests/
     └── vault-settings.spec.ts         # CREATE: E2E test for settings flow
 ```
 
-**Structure Decision**: Uses existing Next.js App Router structure. New settings page at `src/app/(app)/settings/page.tsx`. Form component in `src/components/features/vault/`. No new API routes needed—all state changes go through loro-mirror CRDT mutations.
+**Structure Decision**: Uses existing Next.js App Router structure. New settings page at
+`src/app/(app)/settings/page.tsx`. Form component in `src/components/features/vault/`. No new API
+routes needed—all state changes go through loro-mirror CRDT mutations.
 
 ## Complexity Tracking
 

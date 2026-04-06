@@ -11,7 +11,7 @@ import type { ActionData, ConditionData } from "@/components/features/automation
 import type { Automation, Transaction } from "@/lib/crdt/schema";
 import {
     applyAutomationsToTransactions,
-    applyAutomationsWithTracking,
+    applyAutomationsWithTracking
 } from "@/lib/domain/automation";
 
 // Generate test data
@@ -36,7 +36,7 @@ function generateTransactions(count: number): Transaction[] {
         "Clothing Store",
         "Restaurant ABC",
         "Coffee Shop",
-        "Bookstore",
+        "Bookstore"
     ];
 
     const notesOptions = [
@@ -49,7 +49,7 @@ function generateTransactions(count: number): Transaction[] {
         "Home goods",
         "Food and beverage",
         "Entertainment",
-        "Healthcare",
+        "Healthcare"
     ];
 
     const transactions: Transaction[] = [];
@@ -71,7 +71,7 @@ function generateTransactions(count: number): Transaction[] {
             importId: "import-perf-test",
             allocations: {} as Record<string, number>,
             duplicateOf: "",
-            deletedAt: 0,
+            deletedAt: 0
         } as unknown as Transaction);
     }
 
@@ -89,7 +89,7 @@ function generateAutomations(count: number): Automation[] {
         "whole foods",
         "netflix",
         "spotify",
-        "electric",
+        "electric"
     ];
 
     const automations: Automation[] = [];
@@ -105,16 +105,16 @@ function generateAutomations(count: number): Automation[] {
                     column: "description",
                     operator: i % 3 === 0 ? "regex" : "contains",
                     value: i % 3 === 0 ? `^${pattern}` : pattern,
-                    caseSensitive: false,
-                },
+                    caseSensitive: false
+                }
             ] as ConditionData[],
             actions: [
                 { id: `a-${i}-1`, type: "setTags", value: [`tag-${i}`] },
-                { id: `a-${i}-2`, type: "setStatus", value: "status-paid" },
+                { id: `a-${i}-2`, type: "setStatus", value: "status-paid" }
             ] as ActionData[],
             order: i,
             excludedTransactionIds: [] as string[],
-            deletedAt: 0,
+            deletedAt: 0
         } as unknown as Automation);
     }
 
@@ -243,22 +243,22 @@ describe("Automation Performance", () => {
                         column: "description" as const,
                         operator: "regex" as const,
                         value: `^(amazon|walmart|target|starbucks|shell).*${i}?`,
-                        caseSensitive: false,
+                        caseSensitive: false
                     },
                     {
                         id: `c2-${i}`,
                         column: "notes" as const,
                         operator: "regex" as const,
                         value: `(purchase|payment|subscription)`,
-                        caseSensitive: false,
-                    },
+                        caseSensitive: false
+                    }
                 ] as ConditionData[],
                 actions: [
-                    { id: `a-${i}`, type: "setTags" as const, value: [`tag-regex-${i}`] },
+                    { id: `a-${i}`, type: "setTags" as const, value: [`tag-regex-${i}`] }
                 ] as ActionData[],
                 order: i,
                 excludedTransactionIds: [] as string[],
-                deletedAt: undefined,
+                deletedAt: undefined
             })) as Automation[];
 
             const startTime = performance.now();
@@ -305,14 +305,14 @@ describe("Automation Performance", () => {
                             column: "description",
                             operator: "equals",
                             value: "ZZZZZ-WILL-NEVER-MATCH-ZZZZZ",
-                            caseSensitive: true,
-                        },
+                            caseSensitive: true
+                        }
                     ] as ConditionData[],
                     actions: [{ id: "a1", type: "setTags", value: ["never"] }] as ActionData[],
                     order: 1,
                     excludedTransactionIds: [] as string[],
-                    deletedAt: 0,
-                } as unknown as Automation,
+                    deletedAt: 0
+                } as unknown as Automation
             ];
 
             const startTime = performance.now();

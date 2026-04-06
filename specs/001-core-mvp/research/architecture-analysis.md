@@ -1,7 +1,8 @@
 # Architecture Analysis: Local-First Encrypted Financial App
 
 **Date**: 2025-12-23  
-**Context**: Detailed analysis of proposed MoneyFlow architecture with recommendations for each concern
+**Context**: Detailed analysis of proposed MoneyFlow architecture with recommendations for each
+concern
 
 ---
 
@@ -25,7 +26,8 @@ The proposed architecture is **fundamentally sound** but requires refinement in 
 
 ### Your Question
 
-> Is vector clock the right choice, or should we use something simpler (Lamport timestamp, Hybrid Logical Clock)?
+> Is vector clock the right choice, or should we use something simpler (Lamport timestamp, Hybrid
+> Logical Clock)?
 
 ### Analysis
 
@@ -77,7 +79,7 @@ function createHLC(nodeId: string, previous?: HLCTimestamp): HLCTimestamp {
     return {
         wallTime: previous.wallTime,
         logical: previous.logical + 1,
-        nodeId,
+        nodeId
     };
 }
 
@@ -207,7 +209,7 @@ async function deriveKeyFromPassword(
         timeCost: 3, // 3 iterations
         parallelism: 4, // 4 threads
         hashLength: keyLength,
-        type: 2, // Argon2id
+        type: 2 // Argon2id
     };
 
     return argon2.hash(password, salt, params);
@@ -229,7 +231,7 @@ async function deriveKey(password: string, salt: Uint8Array): Promise<Uint8Array
         iterations: 3,
         memorySize: 65536, // 64 MB
         hashLength: 32,
-        outputType: "binary",
+        outputType: "binary"
     });
     return hash;
 }
@@ -336,7 +338,7 @@ async function changePassword(oldPassword: string, newPassword: string) {
     // 6. Update user document atomically
     await updateUser({
         salt: newSalt,
-        encryptedVaultKey: newEncryptedVaultKey,
+        encryptedVaultKey: newEncryptedVaultKey
         // Optionally: invalidate other sessions
     });
 
@@ -371,7 +373,8 @@ This is the most complex part of encrypted multi-user systems. Options:
 
 ### Recommended Approach: Asymmetric Key Wrapping
 
-Each user has a **key pair** (public/private). The vault key is wrapped (encrypted) separately for each user who has access.
+Each user has a **key pair** (public/private). The vault key is wrapped (encrypted) separately for
+each user who has access.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -404,7 +407,7 @@ async function registerUser(email: string, password: string) {
             name: "RSA-OAEP",
             modulusLength: 4096,
             publicExponent: new Uint8Array([1, 0, 1]),
-            hash: "SHA-256",
+            hash: "SHA-256"
         },
         true, // extractable
         ["encrypt", "decrypt"]
@@ -426,7 +429,7 @@ async function registerUser(email: string, password: string) {
         email,
         salt,
         encryptedPrivateKey,
-        publicKey,
+        publicKey
         // No vault access yet
     });
 }
@@ -460,7 +463,7 @@ async function inviteUserToVault(inviteeEmail: string, vaultId: string) {
     await addVaultAccess({
         vaultId,
         userId: invitee.id,
-        wrappedVaultKey,
+        wrappedVaultKey
     });
 
     // Invitee can now decrypt vault using their private key
@@ -566,7 +569,7 @@ const defaultConfig: BatchConfig = {
     debounceMs: 1000, // 1 second of inactivity triggers flush
     maxWaitMs: 5000, // Never wait more than 5 seconds
     maxEvents: 100, // Flush if 100 events queued
-    maxSizeBytes: 64 * 1024, // Flush if batch exceeds 64KB
+    maxSizeBytes: 64 * 1024 // Flush if batch exceeds 64KB
 };
 
 class EventBatcher {
@@ -827,7 +830,7 @@ const compactionTriggers = {
 
     // On-demand
     onClientRequest: true, // Client can request compaction
-    onUserIdle: true, // Compact when vault has no active users
+    onUserIdle: true // Compact when vault has no active users
 };
 ```
 

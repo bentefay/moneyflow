@@ -16,7 +16,7 @@ import {
     SelectContent,
     SelectItem,
     SelectTrigger,
-    SelectValue,
+    SelectValue
 } from "@/components/ui/select";
 import type { Person, Status, Tag } from "@/lib/crdt/schema";
 
@@ -49,7 +49,7 @@ export interface ActionEditorProps {
 export const ACTION_TYPES = [
     { value: "setTags", label: "Set Tags" },
     { value: "setStatus", label: "Set Status" },
-    { value: "setAllocation", label: "Set Allocation" },
+    { value: "setAllocation", label: "Set Allocation" }
 ] as const;
 
 /**
@@ -63,7 +63,7 @@ export function ActionEditor({
     statuses,
     people,
     canRemove = true,
-    className,
+    className
 }: ActionEditorProps) {
     const handleTypeChange = useCallback(
         (type: string) => {

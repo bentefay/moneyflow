@@ -92,13 +92,13 @@ export function deriveKeysFromSeed(masterSeed: Uint8Array): DerivedKeys {
         signing: {
             publicKey: signingKeypairRaw.publicKey,
             privateKey: signingKeypairRaw.privateKey,
-            keyType: "Ed25519",
+            keyType: "Ed25519"
         },
         encryption: {
             publicKey: encryptionKeypairRaw.publicKey,
             privateKey: encryptionKeypairRaw.privateKey,
-            keyType: "X25519",
-        },
+            keyType: "X25519"
+        }
     };
 }
 

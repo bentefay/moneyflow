@@ -51,7 +51,7 @@ export function TemplateSelector({
     onSelect,
     onSave,
     onDelete,
-    className,
+    className
 }: TemplateSelectorProps) {
     const [isCreating, setIsCreating] = useState(false);
     const [newTemplateName, setNewTemplateName] = useState("");
@@ -185,6 +185,6 @@ export function applyTemplateToMappings(
     return headers.map((header, idx) => ({
         sourceColumn: header,
         targetField: (template.columnMappings[header] || "") as ColumnMapping["targetField"],
-        samples: sampleRows.map((row) => row[idx] || "").slice(0, 3),
+        samples: sampleRows.map((row) => row[idx] || "").slice(0, 3)
     }));
 }

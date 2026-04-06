@@ -21,7 +21,8 @@
 
 - [x] T001 Install Temporal polyfill: `pnpm add temporal-polyfill`
 - [x] T002 [P] Create date formatting utility in src/lib/utils/date-format.ts
-- [x] T003 [P] Create column configuration constants in src/components/features/transactions/column-config.ts
+- [x] T003 [P] Create column configuration constants in
+      src/components/features/transactions/column-config.ts
 - [x] T004 [P] Create unit tests for date formatting in tests/unit/transactions/date-format.test.ts
 
 ---
@@ -32,14 +33,19 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [x] T005 Create useTableSelection hook in src/components/features/transactions/hooks/useTableSelection.ts
+- [x] T005 Create useTableSelection hook in
+      src/components/features/transactions/hooks/useTableSelection.ts
 - [x] T006 [P] Create unit tests for selection hook in tests/unit/transactions/selection.test.ts
-- [x] T007 Create useKeyboardNavigation hook in src/components/features/transactions/hooks/useKeyboardNavigation.ts
-- [x] T008 [P] Create unit tests for keyboard navigation in tests/unit/transactions/keyboard-navigation.test.ts
+- [x] T007 Create useKeyboardNavigation hook in
+      src/components/features/transactions/hooks/useKeyboardNavigation.ts
+- [x] T008 [P] Create unit tests for keyboard navigation in
+      tests/unit/transactions/keyboard-navigation.test.ts
 - [x] T009 Create useBulkEdit hook in src/components/features/transactions/hooks/useBulkEdit.ts
 - [x] T009a [P] Create unit tests for useBulkEdit hook in tests/unit/transactions/bulk-edit.test.ts
-- [x] T010 Create EditableCell base component in src/components/features/transactions/cells/EditableCell.tsx
-- [x] T011 Create CheckboxCell component in src/components/features/transactions/cells/CheckboxCell.tsx
+- [x] T010 Create EditableCell base component in
+      src/components/features/transactions/cells/EditableCell.tsx
+- [x] T011 Create CheckboxCell component in
+      src/components/features/transactions/cells/CheckboxCell.tsx
 
 **Checkpoint**: Foundation ready - user story implementation can begin
 
@@ -47,14 +53,17 @@
 
 ## Phase 3: User Story 1 - Inline Cell Editing (Priority: P1) 🎯 MVP
 
-**Goal**: Users can edit any cell with single-click (spreadsheet-style), no mode switch, no layout shift
+**Goal**: Users can edit any cell with single-click (spreadsheet-style), no mode switch, no layout
+shift
 
 **Independent Test**: Click any cell → edit value → verify persistence and sync
 
 ### Tests for User Story 1
 
-- [x] T012 [P] [US1] Add inline edit E2E test in tests/e2e/transactions.spec.ts (click to focus, Enter saves, Escape reverts)
-- [x] T013 [P] [US1] Add Tab navigation E2E test in tests/e2e/transactions.spec.ts (Tab saves and moves to next cell)
+- [x] T012 [P] [US1] Add inline edit E2E test in tests/e2e/transactions.spec.ts (click to focus,
+      Enter saves, Escape reverts)
+- [x] T013 [P] [US1] Add Tab navigation E2E test in tests/e2e/transactions.spec.ts (Tab saves and
+      moves to next cell)
 - [x] T014a [P] [US1] Add date cell edit E2E test in tests/e2e/transactions.spec.ts
 - [x] T015 [P] [US1] Add amount cell edit E2E test in tests/e2e/transactions.spec.ts
 - [x] T016 [P] [US1] Add status cell edit E2E test in tests/e2e/transactions.spec.ts
@@ -62,16 +71,24 @@
 
 ### Implementation for User Story 1
 
-- [x] T014 [US1] Create InlineEditableText component (spreadsheet-style) in src/components/features/transactions/cells/InlineEditableText.tsx
-- [x] T014b [US1] Create InlineEditableDate component in src/components/features/transactions/cells/InlineEditableDate.tsx
-- [x] T014c [US1] Create InlineEditableAmount component in src/components/features/transactions/cells/InlineEditableAmount.tsx
-- [x] T014d [US1] Create InlineEditableStatus component in src/components/features/transactions/cells/InlineEditableStatus.tsx
-- [x] T014e [US1] Create InlineEditableTags component in src/components/features/transactions/cells/InlineEditableTags.tsx
-- [x] T018 [US1] Update TransactionRow to use InlineEditable\* components for all cells in src/components/features/transactions/TransactionRow.tsx
+- [x] T014 [US1] Create InlineEditableText component (spreadsheet-style) in
+      src/components/features/transactions/cells/InlineEditableText.tsx
+- [x] T014b [US1] Create InlineEditableDate component in
+      src/components/features/transactions/cells/InlineEditableDate.tsx
+- [x] T014c [US1] Create InlineEditableAmount component in
+      src/components/features/transactions/cells/InlineEditableAmount.tsx
+- [x] T014d [US1] Create InlineEditableStatus component in
+      src/components/features/transactions/cells/InlineEditableStatus.tsx
+- [x] T014e [US1] Create InlineEditableTags component in
+      src/components/features/transactions/cells/InlineEditableTags.tsx
+- [x] T018 [US1] Update TransactionRow to use InlineEditable\* components for all cells in
+      src/components/features/transactions/TransactionRow.tsx
 - [x] T018a [US1] Wire onFieldUpdate callback through TransactionTable to page-level handler
-- [x] T019 [US1] Integrate useKeyboardNavigation into TransactionTable in src/components/features/transactions/TransactionTable.tsx (Arrow key navigation between rows)
+- [x] T019 [US1] Integrate useKeyboardNavigation into TransactionTable in
+      src/components/features/transactions/TransactionTable.tsx (Arrow key navigation between rows)
 
-**Checkpoint**: All cells are spreadsheet-style editable (click to focus, Enter saves, Escape reverts, Tab moves to next cell) ✅
+**Checkpoint**: All cells are spreadsheet-style editable (click to focus, Enter saves, Escape
+reverts, Tab moves to next cell) ✅
 
 ---
 
@@ -79,22 +96,29 @@
 
 **Goal**: Leftmost checkbox column with select-all and shift-click range selection
 
-**Independent Test**: Check individual checkboxes, use header checkbox, verify selection state persists through scroll
+**Independent Test**: Check individual checkboxes, use header checkbox, verify selection state
+persists through scroll
 
 ### Tests for User Story 2
 
-- [x] T020 [P] [US2] Add checkbox selection E2E test in tests/e2e/transactions.spec.ts (individual, header, range)
-- [x] T021 [P] [US2] Add header checkbox indeterminate state E2E test in tests/e2e/transactions.spec.ts
+- [x] T020 [P] [US2] Add checkbox selection E2E test in tests/e2e/transactions.spec.ts (individual,
+      header, range)
+- [x] T021 [P] [US2] Add header checkbox indeterminate state E2E test in
+      tests/e2e/transactions.spec.ts
 
 ### Implementation for User Story 2
 
-- [x] T022 [US2] Create TransactionTableHeader component in src/components/features/transactions/TransactionTableHeader.tsx
-- [x] T023 [US2] Add checkbox column to TransactionRow in src/components/features/transactions/TransactionRow.tsx
-- [x] T024 [US2] Integrate useTableSelection into TransactionTable in src/components/features/transactions/TransactionTable.tsx
+- [x] T022 [US2] Create TransactionTableHeader component in
+      src/components/features/transactions/TransactionTableHeader.tsx
+- [x] T023 [US2] Add checkbox column to TransactionRow in
+      src/components/features/transactions/TransactionRow.tsx
+- [x] T024 [US2] Integrate useTableSelection into TransactionTable in
+      src/components/features/transactions/TransactionTable.tsx
 - [x] T025 [US2] Wire header checkbox to select-all-filtered logic in TransactionTable
 - [ ] T025a [US2] Add warning toast when select-all exceeds 500 transactions
 
-**Checkpoint**: Checkbox column visible, header checkbox selects all filtered, shift-click range works ✅
+**Checkpoint**: Checkbox column visible, header checkbox selects all filtered, shift-click range
+works ✅
 
 ---
 
@@ -102,7 +126,8 @@
 
 **Goal**: Bulk edit toolbar with tags/description/amount buttons for 2+ selected transactions
 
-**Independent Test**: Select multiple transactions, use bulk toolbar, verify all selected are updated
+**Independent Test**: Select multiple transactions, use bulk toolbar, verify all selected are
+updated
 
 ### Tests for User Story 3
 
@@ -112,8 +137,10 @@
 
 ### Implementation for User Story 3
 
-- [x] T029 [US3] Add Set Description button to BulkEditToolbar in src/components/features/transactions/BulkEditToolbar.tsx
-- [ ] T030 [US3] Add Set Amount button to BulkEditToolbar in src/components/features/transactions/BulkEditToolbar.tsx
+- [x] T029 [US3] Add Set Description button to BulkEditToolbar in
+      src/components/features/transactions/BulkEditToolbar.tsx
+- [ ] T030 [US3] Add Set Amount button to BulkEditToolbar in
+      src/components/features/transactions/BulkEditToolbar.tsx
 - [ ] T031 [US3] Add progress indicator to BulkEditToolbar for large operations
 - [x] T032 [US3] Connect BulkEditToolbar to useBulkEdit hook in TransactionTable
 
@@ -129,11 +156,13 @@
 
 ### Tests for User Story 4
 
-- [ ] T033 [P] [US4] Add inline tag creation E2E test in tests/e2e/transactions.spec.ts (Create button always visible)
+- [ ] T033 [P] [US4] Add inline tag creation E2E test in tests/e2e/transactions.spec.ts (Create
+      button always visible)
 
 ### Implementation for User Story 4
 
-- [ ] T034 [US4] Update InlineTagEditor to always show Create button in src/components/features/transactions/InlineTagEditor.tsx
+- [ ] T034 [US4] Update InlineTagEditor to always show Create button in
+      src/components/features/transactions/InlineTagEditor.tsx
 - [ ] T035 [US4] Wire Create action to vault tags in InlineTagEditor
 
 **Checkpoint**: Create button visible in tag dropdown regardless of matches
@@ -144,7 +173,8 @@
 
 **Goal**: Merchant as primary column, description as expandable row below
 
-**Independent Test**: View merchant in main row, click "add description", verify expanded row appears
+**Independent Test**: View merchant in main row, click "add description", verify expanded row
+appears
 
 ### Tests for User Story 5
 
@@ -152,10 +182,13 @@
 
 ### Implementation for User Story 5
 
-- [ ] T037 [US5] Create MerchantCell component in src/components/features/transactions/cells/MerchantCell.tsx
-- [ ] T038 [US5] Create TransactionDescriptionRow component in src/components/features/transactions/TransactionDescriptionRow.tsx
+- [ ] T037 [US5] Create MerchantCell component in
+      src/components/features/transactions/cells/MerchantCell.tsx
+- [ ] T038 [US5] Create TransactionDescriptionRow component in
+      src/components/features/transactions/TransactionDescriptionRow.tsx
 - [ ] T039 [US5] Add expanded description state management to TransactionTable
-- [ ] T040 [US5] Update TransactionRow to support description expansion in src/components/features/transactions/TransactionRow.tsx
+- [ ] T040 [US5] Update TransactionRow to support description expansion in
+      src/components/features/transactions/TransactionRow.tsx
 - [ ] T041 [US5] Update search/filter to search both merchant and description fields
 
 **Checkpoint**: Merchant shows in main row, description expands below, search hits both
@@ -174,7 +207,8 @@
 
 ### Implementation for User Story 6
 
-- [ ] T043 [US6] Refactor AccountCell to use EditableCell with dropdown in src/components/features/transactions/cells/AccountCell.tsx
+- [ ] T043 [US6] Refactor AccountCell to use EditableCell with dropdown in
+      src/components/features/transactions/cells/AccountCell.tsx
 - [ ] T044 [US6] Add Account column to TransactionRow and TransactionTableHeader
 
 **Checkpoint**: Account column visible, editable via dropdown
@@ -195,7 +229,8 @@
 
 - [ ] T046 [US7] Update TransactionTableHeader to use alignment from column-config.ts
 - [ ] T047 [US7] Update all cell components to use alignment from column-config.ts
-- [ ] T048 [US7] Verify column order: Checkbox → Date → Merchant → Account → Tags → Status → Amount → Balance → Actions
+- [ ] T048 [US7] Verify column order: Checkbox → Date → Merchant → Account → Tags → Status → Amount
+      → Balance → Actions
 
 **Checkpoint**: All headers and cells align consistently per column type
 
@@ -209,7 +244,8 @@
 
 ### Tests for User Story 8
 
-- [ ] T049 [P] [US8] Extend date-format.test.ts with locale-specific edge cases (de-DE, ja-JP, ar-SA)
+- [ ] T049 [P] [US8] Extend date-format.test.ts with locale-specific edge cases (de-DE, ja-JP,
+      ar-SA)
 
 ### Implementation for User Story 8
 
@@ -228,11 +264,13 @@
 
 ### Tests for User Story 9
 
-- [ ] T052 [P] [US9] Add actions column E2E test in tests/e2e/transactions.spec.ts (add description, delete with confirm)
+- [ ] T052 [P] [US9] Add actions column E2E test in tests/e2e/transactions.spec.ts (add description,
+      delete with confirm)
 
 ### Implementation for User Story 9
 
-- [ ] T053 [US9] Create ActionsCell component in src/components/features/transactions/cells/ActionsCell.tsx
+- [ ] T053 [US9] Create ActionsCell component in
+      src/components/features/transactions/cells/ActionsCell.tsx
 - [ ] T054 [US9] Add delete confirmation dialog to ActionsCell
 - [ ] T055 [US9] Wire ActionsCell to TransactionRow
 - [ ] T056 [US9] Add tooltips to action buttons
@@ -245,7 +283,8 @@
 
 **Purpose**: Integration, documentation, and final validation
 
-- [ ] T057 Update useTransactionSelection hook to delegate to useTableSelection in src/hooks/useTransactionSelection.ts
+- [ ] T057 Update useTransactionSelection hook to delegate to useTableSelection in
+      src/hooks/useTransactionSelection.ts
 - [ ] T058 [P] Run full E2E test suite to verify all user stories integrate correctly
 - [ ] T059 [P] Update copilot-instructions.md with new component patterns
 - [ ] T060 Run quickstart.md validation checklist

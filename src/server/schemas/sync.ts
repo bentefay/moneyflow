@@ -62,7 +62,7 @@ export const versionSchema = z.number().int().nonnegative();
 // ============================================================================
 
 export const getSnapshotInput = z.object({
-    vaultId: vaultIdSchema,
+    vaultId: vaultIdSchema
 });
 
 export type GetSnapshotInput = z.infer<typeof getSnapshotInput>;
@@ -75,7 +75,7 @@ export const snapshotSchema = z.object({
     // Legacy fields for backward compatibility
     version: versionSchema.optional(),
     hlcTimestamp: hlcTimestampSchema.optional(),
-    createdAt: z.string().optional(),
+    createdAt: z.string().optional()
 });
 
 export type Snapshot = z.infer<typeof snapshotSchema>;
@@ -91,13 +91,13 @@ export type GetSnapshotOutput = z.infer<typeof getSnapshotOutput>;
 export const pushSnapshotInput = z.object({
     vaultId: vaultIdSchema,
     encryptedData: encryptedDataSchema,
-    versionVector: versionVectorSchema,
+    versionVector: versionVectorSchema
 });
 
 export type PushSnapshotInput = z.infer<typeof pushSnapshotInput>;
 
 export const pushSnapshotOutput = z.object({
-    success: z.boolean(),
+    success: z.boolean()
 });
 
 export type PushSnapshotOutput = z.infer<typeof pushSnapshotOutput>;
@@ -111,13 +111,13 @@ export const saveSnapshotInput = z.object({
     encryptedData: encryptedDataSchema,
     version: z.number().int().positive(),
     hlcTimestamp: hlcTimestampSchema,
-    versionVector: versionVectorSchema,
+    versionVector: versionVectorSchema
 });
 
 export type SaveSnapshotInput = z.infer<typeof saveSnapshotInput>;
 
 export const saveSnapshotOutput = z.object({
-    snapshotId: z.string().uuid(),
+    snapshotId: z.string().uuid()
 });
 
 export type SaveSnapshotOutput = z.infer<typeof saveSnapshotOutput>;
@@ -131,7 +131,7 @@ export const getUpdatesInput = z.object({
     /** Client's current version vector (JSON string) */
     versionVector: versionVectorSchema,
     /** Whether client has unpushed local changes */
-    hasUnpushed: z.boolean(),
+    hasUnpushed: z.boolean()
 });
 
 export type GetUpdatesInput = z.infer<typeof getUpdatesInput>;
@@ -145,20 +145,20 @@ export const opsResponseSchema = z.object({
             encryptedData: encryptedDataSchema,
             versionVector: versionVectorSchema,
             authorPubkeyHash: z.string(),
-            createdAt: z.string(),
+            createdAt: z.string()
         })
-    ),
+    )
 });
 
 /** Response when server tells client to use snapshot instead */
 export const useSnapshotResponseSchema = z.object({
     type: z.literal("use_snapshot"),
-    snapshotVersionVector: versionVectorSchema,
+    snapshotVersionVector: versionVectorSchema
 });
 
 export const getUpdatesOutput = z.discriminatedUnion("type", [
     opsResponseSchema,
-    useSnapshotResponseSchema,
+    useSnapshotResponseSchema
 ]);
 
 export type GetUpdatesOutput = z.infer<typeof getUpdatesOutput>;
@@ -173,16 +173,16 @@ export const pushOpsInput = z.object({
         z.object({
             id: z.string().uuid(),
             encryptedData: encryptedDataSchema,
-            versionVector: versionVectorSchema,
+            versionVector: versionVectorSchema
         })
-    ),
+    )
 });
 
 export type PushOpsInput = z.infer<typeof pushOpsInput>;
 
 export const pushOpsOutput = z.object({
     /** IDs of ops successfully inserted */
-    insertedIds: z.array(z.string().uuid()),
+    insertedIds: z.array(z.string().uuid())
 });
 
 export type PushOpsOutput = z.infer<typeof pushOpsOutput>;
@@ -195,13 +195,13 @@ export const pushUpdateInput = z.object({
     vaultId: vaultIdSchema,
     encryptedData: encryptedDataSchema,
     baseSnapshotVersion: versionSchema,
-    hlcTimestamp: hlcTimestampSchema,
+    hlcTimestamp: hlcTimestampSchema
 });
 
 export type PushUpdateInput = z.infer<typeof pushUpdateInput>;
 
 export const pushUpdateOutput = z.object({
-    updateId: z.string().uuid(),
+    updateId: z.string().uuid()
 });
 
 export type PushUpdateOutput = z.infer<typeof pushUpdateOutput>;
@@ -211,7 +211,7 @@ export type PushUpdateOutput = z.infer<typeof pushUpdateOutput>;
 // ============================================================================
 
 export const syncStatusInput = z.object({
-    vaultId: vaultIdSchema,
+    vaultId: vaultIdSchema
 });
 
 export type SyncStatusInput = z.infer<typeof syncStatusInput>;
@@ -229,7 +229,7 @@ export const syncStatusOutput = z.object({
     latestSnapshotVersion: versionSchema.nullable(),
     latestSnapshotHlc: hlcTimestampSchema.nullable(),
     latestSnapshotAt: z.string().nullable(),
-    pendingUpdateCount: z.number().int().nonnegative(),
+    pendingUpdateCount: z.number().int().nonnegative()
 });
 
 export type SyncStatusOutput = z.infer<typeof syncStatusOutput>;

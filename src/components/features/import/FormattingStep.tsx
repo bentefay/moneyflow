@@ -35,7 +35,7 @@ export const DATE_FORMAT_OPTIONS = [
     { value: "d/M/yyyy", label: "15/1/2024 (EU short)" },
     { value: "MM-dd-yyyy", label: "01-15-2024" },
     { value: "dd-MM-yyyy", label: "15-01-2024" },
-    { value: "yyyy/MM/dd", label: "2024/01/15" },
+    { value: "yyyy/MM/dd", label: "2024/01/15" }
 ];
 
 /**
@@ -46,7 +46,7 @@ export const DEFAULT_FORMATTING: ImportFormatting = {
     decimalSeparator: ".",
     dateFormat: "yyyy-MM-dd",
     amountInCents: false,
-    negateAmounts: false,
+    negateAmounts: false
 };
 
 export interface FormattingStepProps {
@@ -70,12 +70,12 @@ export function FormattingStep({
     onFormattingChange,
     sampleDates = [],
     sampleAmounts = [],
-    className,
+    className
 }: FormattingStepProps) {
     const handleChange = <K extends keyof ImportFormatting>(key: K, value: ImportFormatting[K]) => {
         onFormattingChange({
             ...formatting,
-            [key]: value,
+            [key]: value
         });
     };
 

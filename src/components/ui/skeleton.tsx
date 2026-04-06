@@ -51,7 +51,7 @@ export function SkeletonText({ lines = 1, className }: { lines?: number; classNa
  */
 export function SkeletonAvatar({
     size = "md",
-    className,
+    className
 }: {
     size?: "sm" | "md" | "lg";
     className?: string;
@@ -59,7 +59,7 @@ export function SkeletonAvatar({
     const sizeClasses = {
         sm: "h-8 w-8",
         md: "h-10 w-10",
-        lg: "h-12 w-12",
+        lg: "h-12 w-12"
     };
 
     return <Skeleton className={cn("rounded-full", sizeClasses[size], className)} />;
@@ -84,7 +84,7 @@ export function SkeletonCard({ className }: { className?: string }) {
  */
 export function SkeletonTableRow({
     columns = 5,
-    className,
+    className
 }: {
     columns?: number;
     className?: string;
@@ -384,7 +384,7 @@ export function DashboardSkeleton() {
  * Full page loading skeleton
  */
 export function PageSkeleton({
-    type = "default",
+    type = "default"
 }: {
     type?:
         | "default"

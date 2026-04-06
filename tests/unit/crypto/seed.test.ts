@@ -13,7 +13,7 @@ import {
     mnemonicToMasterSeed,
     normalizeMnemonic,
     splitMnemonic,
-    validateSeedPhrase,
+    validateSeedPhrase
 } from "@/lib/crypto/seed";
 
 describe("generateSeedPhrase", () => {
@@ -38,12 +38,12 @@ describe("validateSeedPhrase", () => {
         {
             name: "accepts valid 12-word mnemonic",
             mnemonic:
-                "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+                "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
         },
         {
             name: "accepts freshly generated mnemonic",
-            mnemonic: generateSeedPhrase(),
-        },
+            mnemonic: generateSeedPhrase()
+        }
     ] as const;
 
     const invalidCases = [
@@ -56,8 +56,8 @@ describe("validateSeedPhrase", () => {
         {
             name: "rejects mixed invalid/valid",
             mnemonic:
-                "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon wrong",
-        },
+                "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon wrong"
+        }
     ] as const;
 
     validCases.forEach(({ name, mnemonic }) => {
@@ -115,14 +115,14 @@ describe("normalizeMnemonic", () => {
         {
             name: "collapses multiple spaces",
             input: "abandon    abandon",
-            expected: "abandon abandon",
+            expected: "abandon abandon"
         },
         {
             name: "handles mixed case and extra spaces",
             input: "  ABANDON   Abandon  ",
-            expected: "abandon abandon",
+            expected: "abandon abandon"
         },
-        { name: "preserves valid mnemonic", input: "abandon about", expected: "abandon about" },
+        { name: "preserves valid mnemonic", input: "abandon about", expected: "abandon about" }
     ] as const;
 
     cases.forEach(({ name, input, expected }) => {

@@ -77,7 +77,7 @@ export function useToast() {
     return {
         toast: context.addToast,
         dismiss: context.removeToast,
-        toasts: context.toasts,
+        toasts: context.toasts
     };
 }
 
@@ -86,7 +86,7 @@ export function useToast() {
  */
 function ToastContainer({
     toasts,
-    onRemove,
+    onRemove
 }: {
     toasts: ToastData[];
     onRemove: (id: string) => void;
@@ -114,7 +114,7 @@ function Toast({ toast, onDismiss }: { toast: ToastData; onDismiss: () => void }
         info: "bg-background border-border",
         success: "bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-900",
         warning: "bg-yellow-50 border-yellow-200 dark:bg-yellow-950/30 dark:border-yellow-900",
-        error: "bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-900",
+        error: "bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-900"
     };
 
     const iconByType = {
@@ -177,7 +177,7 @@ function Toast({ toast, onDismiss }: { toast: ToastData; onDismiss: () => void }
                     d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
             </svg>
-        ),
+        )
     };
 
     return (

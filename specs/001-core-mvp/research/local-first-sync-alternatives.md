@@ -1,13 +1,16 @@
 # Local-First Sync Alternatives Research
 
 **Date**: December 2025  
-**Context**: MoneyFlow - Financial app requiring client-side encrypted JSON data, real-time multi-user sync, event-sourced data model with CRDTs, offline-first capability, deployed on Next.js/Vercel
+**Context**: MoneyFlow - Financial app requiring client-side encrypted JSON data, real-time
+multi-user sync, event-sourced data model with CRDTs, offline-first capability, deployed on
+Next.js/Vercel
 
 ---
 
 ## Executive Summary
 
-After evaluating 8 sync solutions against MoneyFlow's unique requirements (client-side encryption where server sees only encrypted blobs), the recommended approaches are:
+After evaluating 8 sync solutions against MoneyFlow's unique requirements (client-side encryption
+where server sees only encrypted blobs), the recommended approaches are:
 
 | Rank | Solution                                | Verdict                                                     |
 | ---- | --------------------------------------- | ----------------------------------------------------------- |
@@ -15,7 +18,8 @@ After evaluating 8 sync solutions against MoneyFlow's unique requirements (clien
 | 🥈   | **PowerSync**                           | Strong alternative - proven E2EE support, excellent offline |
 | 🥉   | **Yjs with custom storage**             | Good for CRDT needs - but more complex setup                |
 
-**Key Finding**: Most sync solutions assume the server needs to read/query data. MoneyFlow's encrypted blob model means simpler solutions often work better.
+**Key Finding**: Most sync solutions assume the server needs to read/query data. MoneyFlow's
+encrypted blob model means simpler solutions often work better.
 
 ---
 
@@ -75,13 +79,15 @@ After evaluating 8 sync solutions against MoneyFlow's unique requirements (clien
 ❌ Race conditions when multiple users edit simultaneously
 ```
 
-**Verdict**: ❌ **Not suitable** - The 60-second minimum cache and lack of real-time makes this unworkable for collaborative editing.
+**Verdict**: ❌ **Not suitable** - The 60-second minimum cache and lack of real-time makes this
+unworkable for collaborative editing.
 
 ---
 
 ### 2. Supabase Realtime Only (Without ElectricSQL)
 
-**What it is**: Supabase's WebSocket-based realtime system for broadcasting messages and database changes.
+**What it is**: Supabase's WebSocket-based realtime system for broadcasting messages and database
+changes.
 
 **Components**:
 
@@ -171,7 +177,8 @@ const channel = supabase
 - Free tier: 500MB DB, 2GB realtime bandwidth
 - Pro: $25/mo for 8GB DB, 50GB bandwidth
 
-**Verdict**: ✅ **Recommended** - Best balance of simplicity, encryption compatibility, and features for MoneyFlow's architecture.
+**Verdict**: ✅ **Recommended** - Best balance of simplicity, encryption compatibility, and features
+for MoneyFlow's architecture.
 
 ---
 
@@ -259,13 +266,15 @@ await sendToServer(encrypted);
 - **Automerge**: Good for complex nested documents
 - **For basic financial data**: Custom CRDTs are simpler (as per your CRDT research)
 
-**Verdict**: ✅ **Good option** - Consider if you need more complex CRDT semantics than LWW. Overkill for simple financial records.
+**Verdict**: ✅ **Good option** - Consider if you need more complex CRDT semantics than LWW.
+Overkill for simple financial records.
 
 ---
 
 ### 4. PowerSync
 
-**What it is**: A sync engine that replicates Postgres/MySQL/MongoDB to client-side SQLite, with real-time streaming.
+**What it is**: A sync engine that replicates Postgres/MySQL/MongoDB to client-side SQLite, with
+real-time streaming.
 
 **How it works**:
 
@@ -366,13 +375,15 @@ await db.execute("INSERT INTO local_messages (id, content) VALUES (?, ?)", [row.
 └─────────────────────────────────────────────────────────┘
 ```
 
-**Verdict**: ✅ **Strong alternative** - Excellent choice if you want a more batteries-included solution with proven E2EE support.
+**Verdict**: ✅ **Strong alternative** - Excellent choice if you want a more batteries-included
+solution with proven E2EE support.
 
 ---
 
 ### 5. Zero (zero.rocicorp.dev)
 
-**What it is**: A sync engine from Rocicorp (makers of Replicache) that distributes queries to the client with automatic caching and syncing.
+**What it is**: A sync engine from Rocicorp (makers of Replicache) that distributes queries to the
+client with automatic caching and syncing.
 
 **How it works**:
 
@@ -413,13 +424,15 @@ Zero's architecture fundamentally requires server-side data access:
 - Self-deployment required
 - Active development, may have breaking changes
 
-**Verdict**: ❌ **Not suitable** - Zero's query-based architecture requires the server to read and understand data, making it incompatible with client-side-only encryption.
+**Verdict**: ❌ **Not suitable** - Zero's query-based architecture requires the server to read and
+understand data, making it incompatible with client-side-only encryption.
 
 ---
 
 ### 6. Replicache
 
-**What it is**: A client-side sync framework for building realtime, collaborative web apps with zero-latency UI.
+**What it is**: A client-side sync framework for building realtime, collaborative web apps with
+zero-latency UI.
 
 **Status**: ⚠️ **Maintenance mode**
 
@@ -437,14 +450,14 @@ const rep = new Replicache({
     mutators: {
         async createTransaction(tx, args) {
             await tx.put(`tx/${args.id}`, args);
-        },
+        }
     },
     push: async (mutations) => {
         // Send mutations to your backend
     },
     pull: async () => {
         // Fetch latest state from backend
-    },
+    }
 });
 ```
 
@@ -460,13 +473,15 @@ const rep = new Replicache({
 - Mutations queued during offline
 - Automatic sync on reconnection
 
-**Verdict**: ⚠️ **Viable but deprecated** - Works for encrypted data but migration to Zero is recommended. However, Zero doesn't support encryption, so this is a dead-end path.
+**Verdict**: ⚠️ **Viable but deprecated** - Works for encrypted data but migration to Zero is
+recommended. However, Zero doesn't support encryption, so this is a dead-end path.
 
 ---
 
 ### 7. Liveblocks
 
-**What it is**: A collaboration platform providing presence, storage, and realtime features for building apps like Figma/Notion.
+**What it is**: A collaboration platform providing presence, storage, and realtime features for
+building apps like Figma/Notion.
 
 **Key Features**:
 
@@ -518,13 +533,15 @@ The platform explicitly processes data on their servers for features to work.
 - Starter: $99/mo
 - Pro: Custom pricing
 
-**Verdict**: ❌ **Not suitable** - Liveblocks is designed for collaborative features where the server understands the data. Not compatible with encrypted blob storage.
+**Verdict**: ❌ **Not suitable** - Liveblocks is designed for collaborative features where the
+server understands the data. Not compatible with encrypted blob storage.
 
 ---
 
 ### 8. Simple Custom Approach (Event Log)
 
-**What it is**: Build your own sync using Supabase/Postgres for storage, WebSocket for notifications, and IndexedDB for offline.
+**What it is**: Build your own sync using Supabase/Postgres for storage, WebSocket for
+notifications, and IndexedDB for offline.
 
 **Architecture**:
 
@@ -631,7 +648,8 @@ class VaultSync {
 - No pre-built offline queue
 - Testing burden is on you
 
-**Verdict**: ✅ **Recommended** - For MoneyFlow's specific requirements (encrypted events, CRDT merge, event sourcing), a custom implementation using Supabase primitives offers the best fit.
+**Verdict**: ✅ **Recommended** - For MoneyFlow's specific requirements (encrypted events, CRDT
+merge, event sourcing), a custom implementation using Supabase primitives offers the best fit.
 
 ---
 

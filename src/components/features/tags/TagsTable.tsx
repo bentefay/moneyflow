@@ -66,7 +66,7 @@ function buildHierarchicalTagList(tags: Tag[]): TagWithDepth[] {
             result.push({
                 tag: child,
                 depth,
-                parentName: parent?.name,
+                parentName: parent?.name
             });
             traverse(child.id, depth + 1);
         }
@@ -173,8 +173,8 @@ export function TagsTable({ className }: TagsTableProps) {
                 name: trimmedName,
                 color,
                 parentTagId: newTagParentId || undefined,
-                isTransfer: newTagIsTransfer,
-            },
+                isTransfer: newTagIsTransfer
+            }
         });
 
         setNewTagName("");

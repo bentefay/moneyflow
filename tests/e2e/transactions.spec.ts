@@ -53,7 +53,7 @@ async function createTestTransaction(
     // Escape regex special chars and use word boundary or end-of-string to avoid partial matches
     const escapedDescription = data.description.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const transactionRow = page.getByRole("row", {
-        name: new RegExp(`${escapedDescription}(Default|$|\\s)`),
+        name: new RegExp(`${escapedDescription}(Default|$|\\s)`)
     });
     await expect(transactionRow).toBeVisible({ timeout: 5000 });
 
@@ -63,7 +63,7 @@ async function createTestTransaction(
 
     // Wait for add row to disappear (cancelled)
     await expect(page.locator('[data-testid="add-transaction-row"]')).not.toBeVisible({
-        timeout: 5000,
+        timeout: 5000
     });
 }
 
@@ -217,7 +217,7 @@ test.describe("Transactions", () => {
             await test.step("create a test transaction", async () => {
                 await createTestTransaction(page, {
                     description: "Test Coffee Shop",
-                    amount: "-5.50",
+                    amount: "-5.50"
                 });
             });
 
@@ -270,7 +270,7 @@ test.describe("Transactions", () => {
             await test.step("create a test transaction", async () => {
                 await createTestTransaction(page, {
                     description: "Tab Test Store",
-                    amount: "-10.00",
+                    amount: "-10.00"
                 });
             });
 
@@ -305,7 +305,7 @@ test.describe("Transactions", () => {
             await test.step("create a test transaction", async () => {
                 await createTestTransaction(page, {
                     description: "Date Format Test",
-                    amount: "-50.00",
+                    amount: "-50.00"
                 });
             });
 
@@ -331,7 +331,7 @@ test.describe("Transactions", () => {
             await test.step("create a test transaction", async () => {
                 await createTestTransaction(page, {
                     description: "Date Test Store",
-                    amount: "-25.00",
+                    amount: "-25.00"
                 });
             });
 
@@ -396,7 +396,7 @@ test.describe("Transactions", () => {
             await test.step("create a test transaction", async () => {
                 await createTestTransaction(page, {
                     description: "Amount Test Store",
-                    amount: "-100.00",
+                    amount: "-100.00"
                 });
             });
 
@@ -449,7 +449,7 @@ test.describe("Transactions", () => {
             await test.step("create a test transaction", async () => {
                 await createTestTransaction(page, {
                     description: "Status Test Store",
-                    amount: "-50.00",
+                    amount: "-50.00"
                 });
             });
 
@@ -514,7 +514,7 @@ test.describe("Transactions", () => {
             await test.step("create a test transaction", async () => {
                 await createTestTransaction(page, {
                     description: "Account Test Store",
-                    amount: "-60.00",
+                    amount: "-60.00"
                 });
             });
 
@@ -590,7 +590,7 @@ test.describe("Transactions", () => {
             await test.step("create a test transaction", async () => {
                 await createTestTransaction(page, {
                     description: "Tags Test Store",
-                    amount: "-75.00",
+                    amount: "-75.00"
                 });
             });
 
@@ -624,7 +624,7 @@ test.describe("Transactions", () => {
         });
 
         test("T033: inline tag creation - Create button visible when searching", async ({
-            page,
+            page
         }) => {
             await createNewIdentity(page);
             await goToTransactions(page);
@@ -632,7 +632,7 @@ test.describe("Transactions", () => {
             await test.step("create a test transaction", async () => {
                 await createTestTransaction(page, {
                     description: "Tag Creation Test",
-                    amount: "-50.00",
+                    amount: "-50.00"
                 });
             });
 
@@ -700,7 +700,7 @@ test.describe("Transactions", () => {
             await test.step("create a test transaction", async () => {
                 await createTestTransaction(page, {
                     description: "Exact Match Test",
-                    amount: "-25.00",
+                    amount: "-25.00"
                 });
             });
 
@@ -859,7 +859,7 @@ test.describe("Transactions", () => {
             await test.step("create transactions", async () => {
                 await createTestTransaction(page, {
                     description: "Boundary Test",
-                    amount: "-25.00",
+                    amount: "-25.00"
                 });
                 await createTestTransaction(page, { description: "Other Row", amount: "-35.00" });
             });
@@ -904,11 +904,11 @@ test.describe("Transactions", () => {
             await test.step("create transactions", async () => {
                 await createTestTransaction(page, {
                     description: "Status Nav 1",
-                    amount: "-10.00",
+                    amount: "-10.00"
                 });
                 await createTestTransaction(page, {
                     description: "Status Nav 2",
-                    amount: "-20.00",
+                    amount: "-20.00"
                 });
             });
 
@@ -943,14 +943,12 @@ test.describe("Transactions", () => {
             await test.step("create transaction and add notes", async () => {
                 await createTestTransaction(page, {
                     description: "Desc Nav Test",
-                    amount: "-50.00",
+                    amount: "-50.00"
                 });
 
                 // Find the row by its description (not position, since order may vary)
                 const row = page.locator('[data-testid="transaction-row"]').filter({
-                    has: page.locator(
-                        '[data-testid="description-editable"][value="Desc Nav Test"]'
-                    ),
+                    has: page.locator('[data-testid="description-editable"][value="Desc Nav Test"]')
                 });
 
                 // Expand and add notes
@@ -969,9 +967,7 @@ test.describe("Transactions", () => {
             await test.step("navigate down from description to notes", async () => {
                 // Find the row with expanded notes by its description
                 const targetRow = page.locator('[data-testid="transaction-row"]').filter({
-                    has: page.locator(
-                        '[data-testid="description-editable"][value="Desc Nav Test"]'
-                    ),
+                    has: page.locator('[data-testid="description-editable"][value="Desc Nav Test"]')
                 });
                 const descriptionInput = targetRow.locator('[data-testid="description-editable"]');
 
@@ -993,9 +989,7 @@ test.describe("Transactions", () => {
 
                 // Should go back to the "Desc Nav Test" row's description
                 const targetRow = page.locator('[data-testid="transaction-row"]').filter({
-                    has: page.locator(
-                        '[data-testid="description-editable"][value="Desc Nav Test"]'
-                    ),
+                    has: page.locator('[data-testid="description-editable"][value="Desc Nav Test"]')
                 });
                 const descriptionInput = targetRow.locator('[data-testid="description-editable"]');
                 await expect(descriptionInput).toBeFocused();
@@ -1009,7 +1003,7 @@ test.describe("Transactions", () => {
             await test.step("create a transaction", async () => {
                 await createTestTransaction(page, {
                     description: "Date Enter Test",
-                    amount: "-40.00",
+                    amount: "-40.00"
                 });
             });
 
@@ -1035,7 +1029,7 @@ test.describe("Transactions", () => {
 
     test.describe("US2: Checkbox Selection", () => {
         test("T020: clicking row checkbox selects transaction without editing", async ({
-            page,
+            page
         }) => {
             await createNewIdentity(page);
             await goToTransactions(page);
@@ -1043,11 +1037,11 @@ test.describe("Transactions", () => {
             await test.step("create test transactions", async () => {
                 await createTestTransaction(page, {
                     description: "Checkbox Test 1",
-                    amount: "-25.00",
+                    amount: "-25.00"
                 });
                 await createTestTransaction(page, {
                     description: "Checkbox Test 2",
-                    amount: "-35.00",
+                    amount: "-35.00"
                 });
             });
 
@@ -1089,7 +1083,7 @@ test.describe("Transactions", () => {
             await test.step("create test transaction", async () => {
                 await createTestTransaction(page, {
                     description: "No Select Test",
-                    amount: "-50.00",
+                    amount: "-50.00"
                 });
             });
 
@@ -1123,21 +1117,21 @@ test.describe("Transactions", () => {
             await test.step("create multiple test transactions", async () => {
                 await createTestTransaction(page, {
                     description: "Select All 1",
-                    amount: "-10.00",
+                    amount: "-10.00"
                 });
                 await createTestTransaction(page, {
                     description: "Select All 2",
-                    amount: "-20.00",
+                    amount: "-20.00"
                 });
                 await createTestTransaction(page, {
                     description: "Select All 3",
-                    amount: "-30.00",
+                    amount: "-30.00"
                 });
             });
 
             await test.step("click header checkbox to select all", async () => {
                 const headerCheckbox = page.getByRole("checkbox", {
-                    name: "Select all transactions",
+                    name: "Select all transactions"
                 });
                 await expect(headerCheckbox).toBeVisible();
 
@@ -1178,15 +1172,15 @@ test.describe("Transactions", () => {
             await test.step("create multiple test transactions", async () => {
                 await createTestTransaction(page, {
                     description: "Indeterminate 1",
-                    amount: "-10.00",
+                    amount: "-10.00"
                 });
                 await createTestTransaction(page, {
                     description: "Indeterminate 2",
-                    amount: "-20.00",
+                    amount: "-20.00"
                 });
                 await createTestTransaction(page, {
                     description: "Indeterminate 3",
-                    amount: "-30.00",
+                    amount: "-30.00"
                 });
             });
 
@@ -1366,11 +1360,11 @@ test.describe("Transactions", () => {
             await test.step("create test transactions", async () => {
                 await createTestTransaction(page, {
                     description: "Bulk Status 1",
-                    amount: "-10.00",
+                    amount: "-10.00"
                 });
                 await createTestTransaction(page, {
                     description: "Bulk Status 2",
-                    amount: "-20.00",
+                    amount: "-20.00"
                 });
             });
 
@@ -1409,11 +1403,11 @@ test.describe("Transactions", () => {
             await test.step("create test transactions", async () => {
                 await createTestTransaction(page, {
                     description: "Clear Test 1",
-                    amount: "-10.00",
+                    amount: "-10.00"
                 });
                 await createTestTransaction(page, {
                     description: "Clear Test 2",
-                    amount: "-20.00",
+                    amount: "-20.00"
                 });
             });
 
@@ -1443,7 +1437,7 @@ test.describe("Transactions", () => {
                 await createTestTransaction(page, { description: "Escape Test", amount: "-10.00" });
                 await createTestTransaction(page, {
                     description: "Escape Test 2",
-                    amount: "-20.00",
+                    amount: "-20.00"
                 });
 
                 const headerCheckbox = page.locator('[data-testid="header-checkbox"] button');
@@ -1467,14 +1461,12 @@ test.describe("Transactions", () => {
             await test.step("verify no changes applied", async () => {
                 // Transactions should keep original description names - verify both exist
                 const escapeTestRow = page.locator('[data-testid="transaction-row"]').filter({
-                    has: page.locator('[data-testid="description-editable"][value="Escape Test"]'),
+                    has: page.locator('[data-testid="description-editable"][value="Escape Test"]')
                 });
                 await expect(escapeTestRow).toBeVisible();
 
                 const escapeTest2Row = page.locator('[data-testid="transaction-row"]').filter({
-                    has: page.locator(
-                        '[data-testid="description-editable"][value="Escape Test 2"]'
-                    ),
+                    has: page.locator('[data-testid="description-editable"][value="Escape Test 2"]')
                 });
                 await expect(escapeTest2Row).toBeVisible();
             });
@@ -1487,7 +1479,7 @@ test.describe("Transactions", () => {
 
     test.describe("US5: Description/Notes Separation", () => {
         test("T037: description column displays primary text, notes in expandable row", async ({
-            page,
+            page
         }) => {
             await createNewIdentity(page);
             await goToTransactions(page);
@@ -1495,7 +1487,7 @@ test.describe("Transactions", () => {
             await test.step("create transaction with description", async () => {
                 await createTestTransaction(page, {
                     description: "Starbucks",
-                    amount: "-5.00",
+                    amount: "-5.00"
                 });
             });
 
@@ -1540,7 +1532,7 @@ test.describe("Transactions", () => {
             await test.step("create transaction and expand", async () => {
                 await createTestTransaction(page, {
                     description: "Amazon",
-                    amount: "-99.00",
+                    amount: "-99.00"
                 });
 
                 const row = page.locator('[data-testid="transaction-row"]').first();
@@ -1590,7 +1582,7 @@ test.describe("Transactions", () => {
             await test.step("create transaction without notes", async () => {
                 await createTestTransaction(page, {
                     description: "Icon Test Store",
-                    amount: "-10.00",
+                    amount: "-10.00"
                 });
             });
 
@@ -1630,7 +1622,7 @@ test.describe("Transactions", () => {
             await test.step("create transaction with description and add notes", async () => {
                 await createTestTransaction(page, {
                     description: "UniqueStoreName",
-                    amount: "-50.00",
+                    amount: "-50.00"
                 });
 
                 // add notes

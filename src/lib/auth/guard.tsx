@@ -113,7 +113,7 @@ export function useAuthGuard(options: UseAuthGuardOptions = {}): UseAuthGuardRet
     return {
         isAuthenticated: authenticated,
         isLoading: false, // Synchronous check, no loading state
-        pubkeyHash,
+        pubkeyHash
     };
 }
 
@@ -141,7 +141,7 @@ export function withAuthGuard<P extends object>(
     function AuthGuardedComponent(props: P) {
         const { isAuthenticated, isLoading } = useAuthGuard({
             redirect: true,
-            redirectTo,
+            redirectTo
         });
 
         if (isLoading) {
@@ -183,11 +183,11 @@ export interface AuthGuardProps {
 export function AuthGuard({
     children,
     fallback,
-    redirectTo = UNLOCK_ROUTE,
+    redirectTo = UNLOCK_ROUTE
 }: AuthGuardProps): ReactNode {
     const { isAuthenticated, isLoading } = useAuthGuard({
         redirect: true,
-        redirectTo,
+        redirectTo
     });
 
     if (isLoading) {

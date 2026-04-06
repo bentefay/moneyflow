@@ -256,5 +256,5 @@ const REGION_TO_CURRENCY: Record<string, string> = {
     PA: "USD", // Panama (uses USD)
     CR: "CRC", // Costa Rica
     DO: "DOP", // Dominican Republic
-    JM: "JMD", // Jamaica
+    JM: "JMD" // Jamaica
 };

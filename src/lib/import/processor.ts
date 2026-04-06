@@ -105,7 +105,7 @@ export function processCSVImport(
         hasHeaders: true,
         thousandSeparator: formatting.thousandSeparator,
         decimalSeparator: formatting.decimalSeparator,
-        dateFormat: formatting.dateFormat,
+        dateFormat: formatting.dateFormat
     };
     const parseResult = parseCSV(content, csvOptions);
 
@@ -188,7 +188,7 @@ export function processCSVImport(
             errors.push({
                 rowIndex: i,
                 row,
-                errors: rowErrors,
+                errors: rowErrors
             });
             continue;
         }
@@ -202,7 +202,7 @@ export function processCSVImport(
             notes: memo || descriptionCol,
             checkNumber,
             categoryHint,
-            isDuplicate: false,
+            isDuplicate: false
         });
     }
 
@@ -211,7 +211,7 @@ export function processCSVImport(
         id: t.id,
         date: t.date,
         amount: t.amount,
-        description: t.description || t.notes, // Use description/notes for duplicate comparison
+        description: t.description || t.notes // Use description/notes for duplicate comparison
     }));
     const duplicateMatches = detectDuplicates(transactionsForDuplicateCheck, existingTransactions);
 
@@ -234,8 +234,8 @@ export function processCSVImport(
             totalRows: parseResult.rows.length,
             validRows: transactions.length,
             errorRows: errors.length,
-            duplicateCount,
-        },
+            duplicateCount
+        }
     };
 }
 
@@ -281,7 +281,7 @@ export function processOFXImport(
             parseResult.error.details.length > 0 ? `: ${parseResult.error.details.join(", ")}` : "";
         return {
             ok: false,
-            error: `${parseResult.error.message}${errorDetails}`,
+            error: `${parseResult.error.message}${errorDetails}`
         };
     }
 
@@ -292,7 +292,7 @@ export function processOFXImport(
     if (expectedCurrency && detectedCurrency.toUpperCase() !== expectedCurrency.toUpperCase()) {
         return {
             ok: false,
-            error: `Currency mismatch: OFX file contains ${detectedCurrency} transactions, but the target account uses ${expectedCurrency}. Import to an account with matching currency.`,
+            error: `Currency mismatch: OFX file contains ${detectedCurrency} transactions, but the target account uses ${expectedCurrency}. Import to an account with matching currency.`
         };
     }
 
@@ -311,7 +311,7 @@ export function processOFXImport(
         ) {
             return {
                 ok: false,
-                error: `Currency mismatch: OFX statement contains ${statementCurrency} transactions, but the target account uses ${expectedCurrency}. Import to an account with matching currency.`,
+                error: `Currency mismatch: OFX statement contains ${statementCurrency} transactions, but the target account uses ${expectedCurrency}. Import to an account with matching currency.`
             };
         }
 
@@ -327,7 +327,7 @@ export function processOFXImport(
                 description: tx.name,
                 notes: tx.memo,
                 checkNumber: tx.checkNumber,
-                isDuplicate: false,
+                isDuplicate: false
             });
             transactionIndex++;
         }
@@ -338,7 +338,7 @@ export function processOFXImport(
         id: t.id,
         date: t.date,
         amount: t.amount,
-        description: t.description || t.notes || "", // Use description/notes for duplicate comparison
+        description: t.description || t.notes || "" // Use description/notes for duplicate comparison
     }));
     const duplicateMatches = detectDuplicates(transactionsForDuplicateCheck, existingTransactions);
 
@@ -363,10 +363,10 @@ export function processOFXImport(
                 totalRows: allTransactions.length,
                 validRows: allTransactions.length,
                 errorRows: 0,
-                duplicateCount,
-            },
+                duplicateCount
+            }
         },
-        currency: detectedCurrency,
+        currency: detectedCurrency
     };
 }
 
@@ -399,11 +399,11 @@ export function processImport(
         return processOFXImport(content, {
             existingTransactions,
             fallbackCurrency: currencyCode,
-            expectedCurrency,
+            expectedCurrency
         });
     }
     return {
         ok: true,
-        data: processCSVImport(content, mappings, formatting, existingTransactions, currencyCode),
+        data: processCSVImport(content, mappings, formatting, existingTransactions, currencyCode)
     };
 }

@@ -32,8 +32,10 @@
 - [x] T007 Define yearBucketSchema in src/lib/crdt/schema.ts
 - [x] T008 Define accountTransactionTreeSchema in src/lib/crdt/schema.ts
 - [x] T009 Define transactionStoreSchema in src/lib/crdt/schema.ts
-- [x] T010 Update vaultSchema to use new hierarchical transactionStoreSchema in src/lib/crdt/schema.ts
-- [x] T011 Export new types (DayBucket, MonthBucket, YearBucket, AccountTransactionTree, TransactionStore) from src/lib/crdt/schema.ts
+- [x] T010 Update vaultSchema to use new hierarchical transactionStoreSchema in
+      src/lib/crdt/schema.ts
+- [x] T011 Export new types (DayBucket, MonthBucket, YearBucket, AccountTransactionTree,
+      TransactionStore) from src/lib/crdt/schema.ts
 
 ---
 
@@ -43,25 +45,39 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T012 Create src/lib/crdt/mutations.ts with insertTransaction function (creates buckets lazily, inserts at sorted position)
-- [ ] T013 Add updateTransaction function to src/lib/crdt/mutations.ts (lookup by date+id, mutate in place)
-- [ ] T014 Add moveTransaction function to src/lib/crdt/mutations.ts (delete from old bucket, insert into new)
-- [ ] T015 Add deleteTransaction function to src/lib/crdt/mutations.ts (with cascade for suspectedDuplicates, prune empty buckets)
-- [ ] T016 Add pruneBucket helper to src/lib/crdt/mutations.ts (remove empty day/month/year buckets up the tree)
-- [ ] T017 Add getOrCreateDayBucket helper to src/lib/crdt/mutations.ts (handles CRDT duplicate bucket lookup)
-- [ ] T018 Create getAccountTransactions query in src/lib/crdt/queries.ts (returns sorted transactions for account)
-- [ ] T019 Create getAllTransactions query in src/lib/crdt/queries.ts (merges all accounts, maintains sort)
+- [ ] T012 Create src/lib/crdt/mutations.ts with insertTransaction function (creates buckets lazily,
+      inserts at sorted position)
+- [ ] T013 Add updateTransaction function to src/lib/crdt/mutations.ts (lookup by date+id, mutate in
+      place)
+- [ ] T014 Add moveTransaction function to src/lib/crdt/mutations.ts (delete from old bucket, insert
+      into new)
+- [ ] T015 Add deleteTransaction function to src/lib/crdt/mutations.ts (with cascade for
+      suspectedDuplicates, prune empty buckets)
+- [ ] T016 Add pruneBucket helper to src/lib/crdt/mutations.ts (remove empty day/month/year buckets
+      up the tree)
+- [ ] T017 Add getOrCreateDayBucket helper to src/lib/crdt/mutations.ts (handles CRDT duplicate
+      bucket lookup)
+- [ ] T018 Create getAccountTransactions query in src/lib/crdt/queries.ts (returns sorted
+      transactions for account)
+- [ ] T019 Create getAllTransactions query in src/lib/crdt/queries.ts (merges all accounts,
+      maintains sort)
 - [ ] T020 Create findTransaction query in src/lib/crdt/queries.ts (lookup by accountId + date + id)
-- [ ] T021 Create findTransactionById query in src/lib/crdt/queries.ts (fallback O(n) scan when location unknown)
-- [ ] T022 Create filterTransactions helper in src/lib/crdt/queries.ts (date range, tags, status, search, duplicates filter)
-- [ ] T023 Create getTransactionsWithDuplicates query in src/lib/crdt/queries.ts (for "Show Duplicates" filter)
-- [ ] T024 Create getTransactionsInDateRange query in src/lib/crdt/queries.ts (for duplicate detection)
-- [ ] T025 Add handleDuplicateBuckets helper in src/lib/crdt/queries.ts (union transactions from same-date buckets for CRDT conflicts)
+- [ ] T021 Create findTransactionById query in src/lib/crdt/queries.ts (fallback O(n) scan when
+      location unknown)
+- [ ] T022 Create filterTransactions helper in src/lib/crdt/queries.ts (date range, tags, status,
+      search, duplicates filter)
+- [ ] T023 Create getTransactionsWithDuplicates query in src/lib/crdt/queries.ts (for "Show
+      Duplicates" filter)
+- [ ] T024 Create getTransactionsInDateRange query in src/lib/crdt/queries.ts (for duplicate
+      detection)
+- [ ] T025 Add handleDuplicateBuckets helper in src/lib/crdt/queries.ts (union transactions from
+      same-date buckets for CRDT conflicts)
 - [ ] T026 Wire mutation functions to useVaultAction in src/lib/crdt/context.tsx
 - [ ] T027 Create unit tests for hierarchical schema in tests/unit/crdt/hierarchical-schema.test.ts
 - [ ] T028 Create unit tests for mutation functions in tests/unit/crdt/transaction-mutations.test.ts
 - [ ] T029 Create unit tests for query functions in tests/unit/crdt/transaction-queries.test.ts
-- [ ] T030 Add property-based tests for ordering invariants (date desc, creationInstant desc, importRowIndex asc) in tests/unit/crdt/transaction-ordering.test.ts
+- [ ] T030 Add property-based tests for ordering invariants (date desc, creationInstant desc,
+      importRowIndex asc) in tests/unit/crdt/transaction-ordering.test.ts
 
 **Checkpoint**: Core mutations and queries working. All user story work can now begin.
 
@@ -69,19 +85,28 @@
 
 ## Phase 3: User Story 1 - View Transactions at Scale (Priority: P1) 🎯 MVP
 
-**Goal**: Users with 100k+ transactions can view and scroll without delay, filter by account instantly.
+**Goal**: Users with 100k+ transactions can view and scroll without delay, filter by account
+instantly.
 
-**Independent Test**: Load 100k transactions, open transactions view, measure render time <500ms, scroll at 60fps, account filter <100ms.
+**Independent Test**: Load 100k transactions, open transactions view, measure render time <500ms,
+scroll at 60fps, account filter <100ms.
 
 ### Implementation for User Story 1
 
-- [ ] T031 [US1] Update transactions page to use getAccountTransactions/getAllTransactions in src/app/(app)/transactions/page.tsx
-- [ ] T032 [US1] Remove sorting logic from transactions page (already sorted by structure) in src/app/(app)/transactions/page.tsx
-- [ ] T033 [US1] Update TransactionTable to receive pre-sorted data in src/components/features/transactions/TransactionTable.tsx
-- [ ] T034 [US1] Update useVaultSelector calls to use new query structure in src/app/(app)/transactions/page.tsx
-- [ ] T035 [US1] Verify virtual scrolling still works with hierarchical data in src/components/features/transactions/TransactionTable.tsx
-- [ ] T036 [US1] Update account filter to select subtree instead of filtering in src/app/(app)/transactions/page.tsx
-- [ ] T037 [US1] Add performance benchmark test for 100k transactions in tests/integration/transaction-performance.test.ts
+- [ ] T031 [US1] Update transactions page to use getAccountTransactions/getAllTransactions in
+      src/app/(app)/transactions/page.tsx
+- [ ] T032 [US1] Remove sorting logic from transactions page (already sorted by structure) in
+      src/app/(app)/transactions/page.tsx
+- [ ] T033 [US1] Update TransactionTable to receive pre-sorted data in
+      src/components/features/transactions/TransactionTable.tsx
+- [ ] T034 [US1] Update useVaultSelector calls to use new query structure in
+      src/app/(app)/transactions/page.tsx
+- [ ] T035 [US1] Verify virtual scrolling still works with hierarchical data in
+      src/components/features/transactions/TransactionTable.tsx
+- [ ] T036 [US1] Update account filter to select subtree instead of filtering in
+      src/app/(app)/transactions/page.tsx
+- [ ] T037 [US1] Add performance benchmark test for 100k transactions in
+      tests/integration/transaction-performance.test.ts
 
 **Checkpoint**: Transaction viewing works at scale with hierarchical structure.
 
@@ -91,20 +116,30 @@
 
 **Goal**: Import 500 transactions into 50k existing in <3s, only affected months re-render.
 
-**Independent Test**: Import 500 transactions, measure completion time, verify unchanged months don't recompute.
+**Independent Test**: Import 500 transactions, measure completion time, verify unchanged months
+don't recompute.
 
 ### Implementation for User Story 2
 
-- [ ] T038 [US2] Update import processor to set creationInstant from import timestamp in src/lib/import/processor.ts
-- [ ] T039 [US2] Update import processor to set importRowIndex from row position in src/lib/import/processor.ts
-- [ ] T040 [US2] Update import processor to use insertTransaction mutation in src/lib/import/processor.ts
+- [ ] T038 [US2] Update import processor to set creationInstant from import timestamp in
+      src/lib/import/processor.ts
+- [ ] T039 [US2] Update import processor to set importRowIndex from row position in
+      src/lib/import/processor.ts
+- [ ] T040 [US2] Update import processor to use insertTransaction mutation in
+      src/lib/import/processor.ts
 - [ ] T041 [US2] Implement linear duplicate detection algorithm in src/lib/import/duplicates.ts
-- [ ] T042 [US2] Update detectDuplicates to use sorted merge-scan with date window in src/lib/import/duplicates.ts
-- [ ] T043 [US2] Update detectDuplicates to only compare within target account in src/lib/import/duplicates.ts
-- [ ] T044 [US2] When duplicate detected, nest in parent's suspectedDuplicates instead of setting duplicateOf in src/lib/import/processor.ts
-- [ ] T045 [US2] Update import completion to use new hierarchical structure in src/app/(app)/imports/new/page.tsx
-- [ ] T046 [US2] Add unit tests for linear duplicate detection in tests/unit/import/duplicates.test.ts
-- [ ] T047 [US2] Add property-based test for O(n+m) complexity in tests/unit/import/duplicates.test.ts
+- [ ] T042 [US2] Update detectDuplicates to use sorted merge-scan with date window in
+      src/lib/import/duplicates.ts
+- [ ] T043 [US2] Update detectDuplicates to only compare within target account in
+      src/lib/import/duplicates.ts
+- [ ] T044 [US2] When duplicate detected, nest in parent's suspectedDuplicates instead of setting
+      duplicateOf in src/lib/import/processor.ts
+- [ ] T045 [US2] Update import completion to use new hierarchical structure in
+      src/app/(app)/imports/new/page.tsx
+- [ ] T046 [US2] Add unit tests for linear duplicate detection in
+      tests/unit/import/duplicates.test.ts
+- [ ] T047 [US2] Add property-based test for O(n+m) complexity in
+      tests/unit/import/duplicates.test.ts
 
 **Checkpoint**: Imports complete quickly with linear duplicate detection.
 
@@ -114,13 +149,17 @@
 
 **Goal**: Single edit completes in <100ms, only affected day recomputes.
 
-**Independent Test**: Edit transaction description in 100k vault, verify <100ms, verify only day bucket touched.
+**Independent Test**: Edit transaction description in 100k vault, verify <100ms, verify only day
+bucket touched.
 
 ### Implementation for User Story 3
 
-- [ ] T048 [US3] Update transaction edit handler to use updateTransaction mutation in src/app/(app)/transactions/page.tsx
-- [ ] T049 [US3] Ensure edit passes date+id for efficient lookup in src/components/features/transactions/TransactionRow.tsx
-- [ ] T050 [US3] Verify fine-grained reactivity (only day bucket subscribers update) in src/app/(app)/transactions/page.tsx
+- [ ] T048 [US3] Update transaction edit handler to use updateTransaction mutation in
+      src/app/(app)/transactions/page.tsx
+- [ ] T049 [US3] Ensure edit passes date+id for efficient lookup in
+      src/components/features/transactions/TransactionRow.tsx
+- [ ] T050 [US3] Verify fine-grained reactivity (only day bucket subscribers update) in
+      src/app/(app)/transactions/page.tsx
 
 **Checkpoint**: Edits are instant with fine-grained reactivity.
 
@@ -134,9 +173,12 @@
 
 ### Implementation for User Story 4
 
-- [ ] T051 [US4] Update date edit handler to use moveTransaction mutation in src/app/(app)/transactions/page.tsx
-- [ ] T052 [US4] Verify transaction appears in new position sorted by creationInstant in src/components/features/transactions/TransactionTable.tsx
-- [ ] T053 [US4] Add integration test for date change with bucket pruning in tests/integration/transaction-operations.test.ts
+- [ ] T051 [US4] Update date edit handler to use moveTransaction mutation in
+      src/app/(app)/transactions/page.tsx
+- [ ] T052 [US4] Verify transaction appears in new position sorted by creationInstant in
+      src/components/features/transactions/TransactionTable.tsx
+- [ ] T053 [US4] Add integration test for date change with bucket pruning in
+      tests/integration/transaction-operations.test.ts
 
 **Checkpoint**: Date edits work correctly with bucket management.
 
@@ -146,14 +188,17 @@
 
 **Goal**: Deleting import removes all its transactions and prunes empty buckets.
 
-**Independent Test**: Delete import with 100 transactions across 30 days, verify all removed, empty buckets pruned.
+**Independent Test**: Delete import with 100 transactions across 30 days, verify all removed, empty
+buckets pruned.
 
 ### Implementation for User Story 5
 
 - [ ] T054 [US5] Create deleteTransactionsByImport mutation in src/lib/crdt/mutations.ts
 - [ ] T055 [US5] Update import deletion handler to use new mutation in src/hooks/use-import-state.ts
-- [ ] T056 [US5] Verify cascade includes suspectedDuplicates for deleted transactions in src/lib/crdt/mutations.ts
-- [ ] T057 [US5] Add integration test for import deletion with bucket pruning in tests/integration/transaction-operations.test.ts
+- [ ] T056 [US5] Verify cascade includes suspectedDuplicates for deleted transactions in
+      src/lib/crdt/mutations.ts
+- [ ] T057 [US5] Add integration test for import deletion with bucket pruning in
+      tests/integration/transaction-operations.test.ts
 
 **Checkpoint**: Import deletion cleans up properly.
 
@@ -163,14 +208,19 @@
 
 **Goal**: Balance computes in <200ms first load, <50ms cached, unchanged months don't recompute.
 
-**Independent Test**: View balance after editing one transaction, verify only affected month recomputes.
+**Independent Test**: View balance after editing one transaction, verify only affected month
+recomputes.
 
 ### Implementation for User Story 6
 
-- [ ] T058 [US6] Update balance calculation to use hierarchical structure in src/lib/domain/balance.ts
-- [ ] T059 [US6] Leverage useVaultSelector for month-level memoization in balance computations in src/lib/domain/balance.ts
-- [ ] T060 [US6] Update any components displaying balances to use new selectors in src/app/(app)/transactions/page.tsx
-- [ ] T061 [US6] Add performance test for balance calculation in tests/integration/transaction-performance.test.ts
+- [ ] T058 [US6] Update balance calculation to use hierarchical structure in
+      src/lib/domain/balance.ts
+- [ ] T059 [US6] Leverage useVaultSelector for month-level memoization in balance computations in
+      src/lib/domain/balance.ts
+- [ ] T060 [US6] Update any components displaying balances to use new selectors in
+      src/app/(app)/transactions/page.tsx
+- [ ] T061 [US6] Add performance test for balance calculation in
+      tests/integration/transaction-performance.test.ts
 
 **Checkpoint**: Aggregates compute efficiently with fine-grained caching.
 
@@ -180,20 +230,28 @@
 
 **Goal**: Duplicates displayed grouped with parent, user can unnest, swap, or delete.
 
-**Independent Test**: Import with duplicates, verify grouped display, test unnest/swap/delete actions.
+**Independent Test**: Import with duplicates, verify grouped display, test unnest/swap/delete
+actions.
 
 ### Implementation for User Story 7
 
 - [ ] T062 [US7] Add unnestDuplicate mutation to src/lib/crdt/mutations.ts
 - [ ] T063 [US7] Add swapDuplicate mutation to src/lib/crdt/mutations.ts
-- [ ] T064 [US7] Update TransactionRow to render nested suspectedDuplicates in src/components/features/transactions/TransactionRow.tsx
-- [ ] T065 [US7] Add visual distinction (yellow badge/formatting) for nested duplicates in src/components/features/transactions/TransactionRow.tsx
-- [ ] T066 [US7] Update DuplicateBadge with "Not a duplicate" action (calls unnestDuplicate) in src/components/features/transactions/DuplicateBadge.tsx
-- [ ] T067 [US7] Add "Mark as original" action to DuplicateBadge (calls swapDuplicate) in src/components/features/transactions/DuplicateBadge.tsx
-- [ ] T068 [US7] Update "Show Duplicates" filter to use getTransactionsWithDuplicates in src/components/features/transactions/TransactionFilters.tsx
-- [ ] T069 [US7] Update delete handlers for parent (cascade) vs duplicate (single) in src/app/(app)/transactions/page.tsx
+- [ ] T064 [US7] Update TransactionRow to render nested suspectedDuplicates in
+      src/components/features/transactions/TransactionRow.tsx
+- [ ] T065 [US7] Add visual distinction (yellow badge/formatting) for nested duplicates in
+      src/components/features/transactions/TransactionRow.tsx
+- [ ] T066 [US7] Update DuplicateBadge with "Not a duplicate" action (calls unnestDuplicate) in
+      src/components/features/transactions/DuplicateBadge.tsx
+- [ ] T067 [US7] Add "Mark as original" action to DuplicateBadge (calls swapDuplicate) in
+      src/components/features/transactions/DuplicateBadge.tsx
+- [ ] T068 [US7] Update "Show Duplicates" filter to use getTransactionsWithDuplicates in
+      src/components/features/transactions/TransactionFilters.tsx
+- [ ] T069 [US7] Update delete handlers for parent (cascade) vs duplicate (single) in
+      src/app/(app)/transactions/page.tsx
 - [ ] T070 [US7] Add E2E test for duplicate review flow in tests/e2e/transactions.spec.ts
-- [ ] T071 [US7] Add unit tests for unnest and swap mutations in tests/unit/crdt/duplicate-mutations.test.ts
+- [ ] T071 [US7] Add unit tests for unnest and swap mutations in
+      tests/unit/crdt/duplicate-mutations.test.ts
 
 **Checkpoint**: Full duplicate management UX working.
 
@@ -203,11 +261,15 @@
 
 **Purpose**: Final cleanup, edge cases, and validation
 
-- [ ] T072 [P] Handle edge case: year boundary imports (Dec 31 to Jan 1) in src/lib/import/processor.ts
+- [ ] T072 [P] Handle edge case: year boundary imports (Dec 31 to Jan 1) in
+      src/lib/import/processor.ts
 - [ ] T073 [P] Handle edge case: date edit across month/year boundaries in src/lib/crdt/mutations.ts
-- [ ] T074 [P] Handle edge case: swap duplicate with different date than parent in src/lib/crdt/mutations.ts
-- [ ] T075 [P] Add CRDT conflict handling tests (concurrent bucket creation) in tests/unit/crdt/crdt-conflicts.test.ts
-- [ ] T076 Run all checks: pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm test:e2e
+- [ ] T074 [P] Handle edge case: swap duplicate with different date than parent in
+      src/lib/crdt/mutations.ts
+- [ ] T075 [P] Add CRDT conflict handling tests (concurrent bucket creation) in
+      tests/unit/crdt/crdt-conflicts.test.ts
+- [ ] T076 Run all checks: pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm
+      test:e2e
 - [ ] T077 Verify quickstart.md examples work correctly
 - [ ] T078 Commit all changes with descriptive message
 
@@ -302,7 +364,8 @@ Task: "Create getTransactionsWithDuplicates query in src/lib/crdt/queries.ts"
 #### tests/unit/crdt/transaction-mutations.test.ts (T028)
 
 - Test insertTransaction creates buckets lazily (year → month → day)
-- Test insertTransaction inserts at correct sorted position (creationInstant desc, importRowIndex asc)
+- Test insertTransaction inserts at correct sorted position (creationInstant desc, importRowIndex
+  asc)
 - Test updateTransaction finds transaction by date+id and mutates in place
 - Test moveTransaction removes from old bucket and inserts into new
 - Test deleteTransaction with cascade=true deletes all suspectedDuplicates

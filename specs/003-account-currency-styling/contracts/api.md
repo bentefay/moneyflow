@@ -13,7 +13,8 @@ All changes are client-side only:
 - React component updates
 - Domain logic helpers
 
-The existing tRPC API for vault operations remains unchanged—encrypted CRDT ops continue to flow through the same `vault.pushOps` and `vault.pullOps` endpoints.
+The existing tRPC API for vault operations remains unchanged—encrypted CRDT ops continue to flow
+through the same `vault.pushOps` and `vault.pullOps` endpoints.
 
 ## Existing Contracts (Unchanged)
 
@@ -26,8 +27,12 @@ The existing tRPC API for vault operations remains unchanged—encrypted CRDT op
 
 ## Why No New Contracts?
 
-1. **Data model changes are CRDT-internal**: The `currency` field becoming optional and the new default person are schema changes within the encrypted Loro document. The server never decrypts this data.
+1. **Data model changes are CRDT-internal**: The `currency` field becoming optional and the new
+   default person are schema changes within the encrypted Loro document. The server never decrypts
+   this data.
 
-2. **All business logic is client-side**: Currency resolution, display formatting, and inline editing are all handled in React components and domain helpers.
+2. **All business logic is client-side**: Currency resolution, display formatting, and inline
+   editing are all handled in React components and domain helpers.
 
-3. **Backward compatible**: Existing vaults with explicit currencies continue to work. New vaults get the default "Me" person through `getDefaultVaultState()`.
+3. **Backward compatible**: Existing vaults with explicit currencies continue to work. New vaults
+   get the default "Me" person through `getDefaultVaultState()`.

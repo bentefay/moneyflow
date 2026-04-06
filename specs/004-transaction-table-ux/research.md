@@ -9,7 +9,8 @@
 
 ### Rationale
 
-The Temporal API is at Stage 3 in TC39 and not yet shipped in any major browser (as of December 2025). However, it provides significant advantages for date handling:
+The Temporal API is at Stage 3 in TC39 and not yet shipped in any major browser (as of December
+2025). However, it provides significant advantages for date handling:
 
 1. **Explicit timezone handling** - No more UTC/local confusion
 2. **ISO 8601 string parsing** - Native support for YYYY-MM-DD format we use
@@ -34,7 +35,7 @@ export function formatDate(isoDate: string, locale?: string): string {
     return date.toLocaleString(locale ?? navigator.language, {
         month: "short",
         day: "numeric",
-        year: "numeric",
+        year: "numeric"
     });
 }
 
@@ -44,7 +45,8 @@ const formatted = formatDate(transaction.date); // "Dec 31, 2025" for en-US
 
 ### Performance Note
 
-Polyfill should be imported at app root to avoid repeated initialization. The polyfill is tree-shakeable—only import what we use.
+Polyfill should be imported at app root to avoid repeated initialization. The polyfill is
+tree-shakeable—only import what we use.
 
 ---
 
@@ -54,7 +56,8 @@ Polyfill should be imported at app root to avoid repeated initialization. The po
 
 ### Rationale
 
-TanStack Virtual doesn't manage selection—it only manages which rows are rendered. Selection state must be tracked separately as a `Set<string>` of transaction IDs.
+TanStack Virtual doesn't manage selection—it only manages which rows are rendered. Selection state
+must be tracked separately as a `Set<string>` of transaction IDs.
 
 ### Key Insight
 
@@ -210,7 +213,8 @@ The previous implementation had `isEditing` state that caused mode switching. Th
 
 ### Rationale
 
-loro-mirror's `setState` batches all mutations in a single callback into one CRDT operation. This is already the optimal pattern.
+loro-mirror's `setState` batches all mutations in a single callback into one CRDT operation. This is
+already the optimal pattern.
 
 ### Implementation Pattern
 

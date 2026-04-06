@@ -12,7 +12,7 @@ import {
     computePubkeyHash,
     createIdentity,
     storeIdentitySession,
-    unlockWithSeed,
+    unlockWithSeed
 } from "@/lib/crypto/identity";
 import { deriveKeysFromSeed, initCrypto } from "@/lib/crypto/keypair";
 import { generateSeedPhrase, mnemonicToMasterSeed, validateSeedPhrase } from "@/lib/crypto/seed";
@@ -29,7 +29,7 @@ beforeAll(async () => {
         getItem: (key: string) => mockSessionStorage.get(key) ?? null,
         setItem: (key: string, value: string) => mockSessionStorage.set(key, value),
         removeItem: (key: string) => mockSessionStorage.delete(key),
-        clear: () => mockSessionStorage.clear(),
+        clear: () => mockSessionStorage.clear()
     });
 });
 

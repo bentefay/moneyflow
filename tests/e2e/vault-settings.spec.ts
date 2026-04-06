@@ -14,7 +14,7 @@ import {
     createNewIdentity,
     enterSeedPhrase,
     goToSettings,
-    goToTransactions,
+    goToTransactions
 } from "./helpers";
 
 // ============================================================================

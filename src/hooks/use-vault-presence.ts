@@ -75,7 +75,7 @@ export function useVaultPresence(
                 ...p,
                 isOnline:
                     now.epochMilliseconds - Temporal.Instant.from(p.lastSeen).epochMilliseconds <
-                    offlineThreshold,
+                    offlineThreshold
             }));
             setPresence(withOnlineStatus);
         },
@@ -110,7 +110,7 @@ export function useVaultPresence(
             onPresence: handlePresence,
             onUpdate: (update) => {
                 onUpdateRef.current?.(update);
-            },
+            }
         });
 
         setIsConnected(true);
@@ -161,6 +161,6 @@ export function useVaultPresence(
         /** Force a presence update */
         updatePresence,
         /** Disconnect from realtime */
-        disconnect,
+        disconnect
     };
 }

@@ -80,7 +80,7 @@ export function ImportSummary({
     canImport,
     needsAccountSelection,
     selectedAccountName,
-    className,
+    className
 }: ImportSummaryProps) {
     const { totalRows, validCount, errorCount, duplicateCount, filteredCount } = stats;
 

@@ -90,7 +90,7 @@ export function BulkEditToolbar({
     availableStatuses = [],
     availableAccounts = [],
     progress,
-    className,
+    className
 }: BulkEditToolbarProps) {
     const [activeDropdown, setActiveDropdown] = useState<ActiveDropdown>(null);
     const [confirmDelete, setConfirmDelete] = useState(false);

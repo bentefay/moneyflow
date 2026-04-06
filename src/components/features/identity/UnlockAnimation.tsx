@@ -58,7 +58,7 @@ export interface UnlockAnimationProps {
 const defaultDurations = {
     fading: 400,
     expanding: 800,
-    revealing: 500,
+    revealing: 500
 };
 
 // ============================================================================
@@ -70,7 +70,7 @@ export function UnlockAnimation({
     onComplete,
     stageDurations = {},
     children,
-    className,
+    className
 }: UnlockAnimationProps) {
     const [stage, setStage] = useState<UnlockAnimationStage>("idle");
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -78,7 +78,7 @@ export function UnlockAnimation({
     const durations = useMemo(
         () => ({
             ...defaultDurations,
-            ...stageDurations,
+            ...stageDurations
         }),
         [stageDurations]
     );
@@ -193,7 +193,7 @@ export function UnlockAnimation({
                     getAuroraRingStyles()
                 )}
                 style={{
-                    transitionDuration: `${durations.expanding}ms`,
+                    transitionDuration: `${durations.expanding}ms`
                 }}
                 aria-hidden="true"
             />
@@ -203,7 +203,7 @@ export function UnlockAnimation({
                 className={cn("relative z-10", "transition-all ease-out", getCircleStyles())}
                 style={{
                     transitionDuration:
-                        stage === "fading" ? `${durations.fading}ms` : `${durations.expanding}ms`,
+                        stage === "fading" ? `${durations.fading}ms` : `${durations.expanding}ms`
                 }}
             >
                 {children}
@@ -222,7 +222,7 @@ export function UnlockAnimation({
                             )}
                             style={{
                                 transform: `rotate(${i * 30}deg) translateX(0)`,
-                                animationDelay: `${i * 50}ms`,
+                                animationDelay: `${i * 50}ms`
                             }}
                         />
                     ))}

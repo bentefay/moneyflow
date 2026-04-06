@@ -17,7 +17,7 @@ import { Temporal } from "temporal-polyfill";
 import { autoDetectColumnMappings } from "@/components/features/import/ColumnMappingStep";
 import {
     detectDateFormat,
-    detectNumberFormat,
+    detectNumberFormat
 } from "@/components/features/import/tabs/FormattingTab";
 import type { Account, ImportTemplate, Transaction } from "@/lib/crdt/schema";
 import type { MoneyMinorUnits } from "@/lib/domain/currency";
@@ -35,7 +35,7 @@ import {
     type ImportSession,
     type ImportSummaryStats,
     type PreviewTransaction,
-    type ValidationError,
+    type ValidationError
 } from "@/lib/import/types";
 import type { ISODateString } from "@/types";
 
@@ -103,7 +103,7 @@ function parseRawRows(content: string): { rows: string[][]; headers: string[]; s
     const result = Papa.parse<string[]>(content, {
         delimiter: separator,
         header: false,
-        skipEmptyLines: true,
+        skipEmptyLines: true
     });
 
     const rows = result.data;
@@ -131,7 +131,7 @@ function toDuplicateCheckFormat(transactions: Transaction[]): DuplicateCheckTran
             id: tx.id,
             date: tx.date.toString() as ISODateString,
             amount: tx.amount,
-            description: tx.description ?? "",
+            description: tx.description ?? ""
         }));
 }
 
@@ -210,7 +210,7 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
                             rawRows.push([
                                 tx.datePosted.toString(),
                                 tx.name || tx.memo || "",
-                                tx.amount.toString(),
+                                tx.amount.toString()
                             ]);
                         }
                     }
@@ -241,20 +241,20 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
                         ...DEFAULT_IMPORT_CONFIG,
                         formatting: {
                             ...DEFAULT_IMPORT_CONFIG.formatting,
-                            collapseWhitespace: recentTemplate.formatting.collapseWhitespace,
+                            collapseWhitespace: recentTemplate.formatting.collapseWhitespace
                         },
                         duplicateDetection: recentTemplate.duplicateDetection,
                         oldTransactionFilter: {
                             ...recentTemplate.oldTransactionFilter,
                             cutoffDate:
-                                recentTemplate.oldTransactionFilter.cutoffDate?.toString() ?? null,
+                                recentTemplate.oldTransactionFilter.cutoffDate?.toString() ?? null
                         },
                         // OFX has fixed column mappings
                         columnMappings: {
                             "0": "date",
                             "1": "description",
-                            "2": "amount",
-                        },
+                            "2": "amount"
+                        }
                     };
                 } else if (recentTemplate) {
                     // CSV with template: apply all settings
@@ -265,9 +265,9 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
                         oldTransactionFilter: {
                             ...recentTemplate.oldTransactionFilter,
                             cutoffDate:
-                                recentTemplate.oldTransactionFilter.cutoffDate?.toString() ?? null,
+                                recentTemplate.oldTransactionFilter.cutoffDate?.toString() ?? null
                         },
-                        columnMappings: { ...recentTemplate.columnMappings },
+                        columnMappings: { ...recentTemplate.columnMappings }
                     };
                 } else {
                     // No template: use defaults
@@ -280,7 +280,7 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
                     config.columnMappings = {
                         "0": "date",
                         "1": "description",
-                        "2": "amount",
+                        "2": "amount"
                     };
                 } else if (!recentTemplate) {
                     // For CSV files without a template, auto-detect columns from headers
@@ -346,7 +346,7 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
                                 accountAction = {
                                     type: "apply-id",
                                     accountId: accountWithoutId.id,
-                                    accountNumber: detectedAccountNumber,
+                                    accountNumber: detectedAccountNumber
                                 };
                             } else {
                                 // All accounts have IDs, need to create new
@@ -361,7 +361,7 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
                                 accountAction = {
                                     type: "create-new",
                                     accountName: `Account ${n}`,
-                                    accountNumber: detectedAccountNumber,
+                                    accountNumber: detectedAccountNumber
                                 };
                                 // No account selected - will create on import
                                 selectedAccountId = null;
@@ -399,7 +399,7 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
                     duplicateResults: [],
                     filteredOut: [],
                     validationErrors: [],
-                    canImport: false,
+                    canImport: false
                 };
 
                 setSession(newSession);
@@ -425,17 +425,17 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
                     ...updates,
                     formatting: {
                         ...prev.config.formatting,
-                        ...updates.formatting,
+                        ...updates.formatting
                     },
                     duplicateDetection: {
                         ...prev.config.duplicateDetection,
-                        ...updates.duplicateDetection,
+                        ...updates.duplicateDetection
                     },
                     oldTransactionFilter: {
                         ...prev.config.oldTransactionFilter,
-                        ...updates.oldTransactionFilter,
-                    },
-                },
+                        ...updates.oldTransactionFilter
+                    }
+                }
             };
         });
     }, []);
@@ -466,7 +466,7 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
                             newAccountAction = {
                                 type: "apply-id",
                                 accountId: selectedAccount.id,
-                                accountNumber: prev.detectedAccountNumber,
+                                accountNumber: prev.detectedAccountNumber
                             };
                         } else {
                             // User selected an account with a different ID
@@ -502,13 +502,13 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
                         defaultConfig.columnMappings = {
                             "0": "date",
                             "1": "description",
-                            "2": "amount",
+                            "2": "amount"
                         };
                     }
                     return {
                         ...prev,
                         templateId: null,
-                        config: defaultConfig,
+                        config: defaultConfig
                     };
                 }
 
@@ -526,17 +526,17 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
                             ...prev.config,
                             formatting: {
                                 ...prev.config.formatting,
-                                collapseWhitespace: template.formatting.collapseWhitespace,
+                                collapseWhitespace: template.formatting.collapseWhitespace
                             },
                             duplicateDetection: template.duplicateDetection,
                             oldTransactionFilter: {
                                 ...template.oldTransactionFilter,
                                 cutoffDate:
-                                    template.oldTransactionFilter.cutoffDate?.toString() ?? null,
+                                    template.oldTransactionFilter.cutoffDate?.toString() ?? null
                             },
                             // Keep OFX column mappings
-                            columnMappings: prev.config.columnMappings,
-                        },
+                            columnMappings: prev.config.columnMappings
+                        }
                     };
                 }
 
@@ -550,11 +550,10 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
                         duplicateDetection: template.duplicateDetection,
                         oldTransactionFilter: {
                             ...template.oldTransactionFilter,
-                            cutoffDate:
-                                template.oldTransactionFilter.cutoffDate?.toString() ?? null,
+                            cutoffDate: template.oldTransactionFilter.cutoffDate?.toString() ?? null
                         },
-                        columnMappings: { ...template.columnMappings },
-                    },
+                        columnMappings: { ...template.columnMappings }
+                    }
                 };
             });
         },
@@ -584,7 +583,7 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
                 duplicateResults: [] as DuplicateCheckResult[],
                 filteredOut: [] as PreviewTransaction[],
                 validationErrors: [] as ValidationError[],
-                canImport: false,
+                canImport: false
             };
         }
 
@@ -670,7 +669,7 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
                 status: rowErrors.length > 0 ? "invalid" : "valid",
                 duplicateOf: null,
                 duplicateConfidence: 0,
-                validationErrors: rowErrors,
+                validationErrors: rowErrors
             });
 
             // Collect validation errors
@@ -685,7 +684,7 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
             id: `preview-${p.rowIndex}`,
             date: p.date as ISODateString,
             amount: p.amount,
-            description: p.description,
+            description: p.description
         }));
 
         const duplicateConfig = {
@@ -693,7 +692,7 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
             dateMatchMode: duplicateDetection.dateMatchMode,
             maxDateDiffDays: duplicateDetection.maxDateDiffDays,
             descriptionMatchMode: duplicateDetection.descriptionMatchMode,
-            minDescriptionSimilarity: duplicateDetection.minDescriptionSimilarity,
+            minDescriptionSimilarity: duplicateDetection.minDescriptionSimilarity
         };
 
         const matches = detectDuplicates(duplicateCheckTxs, existingForDuplicates, duplicateConfig);
@@ -720,8 +719,8 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
                     matchDetails: {
                         dateScore: match.matchDetails.dateMatch ? 1 : 0,
                         descriptionScore: match.matchDetails.descriptionSimilarity,
-                        amountMatches: match.matchDetails.amountMatch,
-                    },
+                        amountMatches: match.matchDetails.amountMatch
+                    }
                 });
             }
         }
@@ -730,7 +729,7 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
         type FilterableTx = PreviewTransaction & { isDuplicate: boolean };
         const filterablePreviews: FilterableTx[] = previews.map((p) => ({
             ...p,
-            isDuplicate: p.status === "duplicate",
+            isDuplicate: p.status === "duplicate"
         }));
 
         const filterResult = filterOldTransactions(
@@ -752,7 +751,7 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
             errors.push({
                 rowIndex: -1,
                 field: "account",
-                message: "Please select an account for CSV import",
+                message: "Please select an account for CSV import"
             });
         } else if (!selectedAccountId && fileType === "ofx") {
             errors.push({ rowIndex: -1, field: "account", message: "Please select an account" });
@@ -770,7 +769,7 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
             duplicateResults,
             filteredOut: filterResult.excluded as PreviewTransaction[],
             validationErrors: errors,
-            canImport,
+            canImport
         };
     }, [session, existingForDuplicates, newestExistingDate, accounts, defaultCurrency]);
 
@@ -785,7 +784,7 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
             validCount: previewTransactions.filter((p) => p.status === "valid").length,
             errorCount: previewTransactions.filter((p) => p.status === "invalid").length,
             duplicateCount: previewTransactions.filter((p) => p.status === "duplicate").length,
-            filteredCount: previewTransactions.filter((p) => p.status === "filtered").length,
+            filteredCount: previewTransactions.filter((p) => p.status === "filtered").length
         };
     }, [computedPreview]);
 
@@ -805,6 +804,6 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
         previewTransactions: computedPreview.previewTransactions,
         summaryStats,
         canImport: computedPreview.canImport,
-        validationErrors: computedPreview.validationErrors,
+        validationErrors: computedPreview.validationErrors
     };
 }

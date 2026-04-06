@@ -267,7 +267,7 @@ test.describe("Import Panel", () => {
     });
 
     test("CSV import creates transactions and auto-saves template on first import", async ({
-        page,
+        page
     }) => {
         await createNewIdentity(page);
 
@@ -292,7 +292,7 @@ test.describe("Import Panel", () => {
             await autoDetectBtn.click();
             // Wait for mappings to apply - check for the green "All required fields mapped" message
             await expect(page.getByText(/All required fields mapped/i)).toBeVisible({
-                timeout: 5000,
+                timeout: 5000
             });
         });
 
@@ -319,7 +319,7 @@ test.describe("Import Panel", () => {
 
             // Should show all 5 imported transactions - check for rows containing description text
             await expect(page.getByRole("row", { name: /Coffee Shop/i })).toBeVisible({
-                timeout: 5000,
+                timeout: 5000
             });
             await expect(page.getByRole("row", { name: /Direct Deposit/i })).toBeVisible();
             await expect(page.getByText("5 transactions")).toBeVisible();

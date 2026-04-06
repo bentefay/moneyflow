@@ -40,7 +40,9 @@ The subagent should report pass/fail for each command, with relevant error outpu
 (not full logs — just the failures).
 
 - If any verification step fails: report the failures to `team-lead` immediately. Do not proceed to
-  code review.
+  code review. Report ALL failures as issues that must be fixed — never stash or revert changes to
+  check whether failures are "pre-existing". Never dismiss failures as "not caused by the
+  implementation". The implementor is responsible for leaving everything green.
 - If all verification passes: proceed to Step 2.
 
 ### Step 2: Read the diff
@@ -77,6 +79,8 @@ For each file or logical unit of change, evaluate against:
 
 **Tests**
 
+- Were unit tests written for new pure functions and domain logic?
+- Were E2E tests written for new user-facing features and flows?
 - Are tests meaningful — do they test real scenarios?
 - Are critical edge cases covered?
 - Are there important paths with no test coverage?
@@ -92,6 +96,20 @@ For each file or logical unit of change, evaluate against:
 - Performance antipatterns with measurable impact (N+1, O(n^2), unbounded I/O)
 - Resource leaks, concurrency issues
 - Silent error swallowing
+
+### Step 3b: Manual feature testing
+
+Use Playwright to manually test the new feature flows. First, verify the dev server is already
+running (check that `localhost:3000` or the configured port responds). If it's not running, ask
+`team-lead` to ask the user to start it — do not start it yourself.
+
+Once confirmed running, write and run a short Playwright test file that exercises the key
+user-facing flows introduced by the change. Run it using the project's test commands (e.g.,
+`pnpm test:e2e <file>`). Never use `npx playwright` directly — always use the scripts defined in
+package.json. This is not about running the existing E2E suite — it's about you, as reviewer,
+confirming that the feature actually works as intended beyond what automated tests cover.
+
+If the feature doesn't work as expected, report the failure with reproduction steps.
 
 ### Step 4: Verify every finding
 

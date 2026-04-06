@@ -119,7 +119,7 @@ export function ActiveVaultProvider({ children, initialVault }: ActiveVaultProvi
         isLoading: false, // Reserved for future async loading
         setActiveVault,
         clearActiveVault,
-        hasActiveVault: activeVault !== null,
+        hasActiveVault: activeVault !== null
     };
 
     return <ActiveVaultContext.Provider value={value}>{children}</ActiveVaultContext.Provider>;

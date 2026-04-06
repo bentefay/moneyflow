@@ -13,7 +13,7 @@ import {
     levenshtein,
     normalizedSimilarity,
     normalizeForComparison,
-    similarity,
+    similarity
 } from "@/lib/import/levenshtein";
 
 // ============================================================================
@@ -38,7 +38,7 @@ describe("levenshtein", () => {
             { a: "abc", b: "xyz", expected: 3 },
             { a: "book", b: "back", expected: 2 },
             { a: "AMAZON", b: "amazon", expected: 0 }, // Case-insensitive
-            { a: "  hello  ", b: "hello", expected: 0 }, // Whitespace trimmed
+            { a: "  hello  ", b: "hello", expected: 0 } // Whitespace trimmed
         ];
 
         for (const tc of testCases) {
@@ -213,7 +213,7 @@ describe("normalizeForComparison", () => {
         { input: "  ", expected: "" },
         { input: "Numbers123", expected: "numbers123" },
         { input: "email@example.com", expected: "email example com" },
-        { input: "AMAZON.COM*AMZN.COM/BI", expected: "amazon com amzn com bi" },
+        { input: "AMAZON.COM*AMZN.COM/BI", expected: "amazon com amzn com bi" }
     ];
 
     for (const tc of testCases) {

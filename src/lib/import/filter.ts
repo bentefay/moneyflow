@@ -106,7 +106,7 @@ export function filterOldTransactions<T extends FilterableTransaction>(
         includedCount: 0,
         excludedCount: 0,
         oldDuplicatesCount: 0,
-        oldNonDuplicatesCount: 0,
+        oldNonDuplicatesCount: 0
     };
 
     // If mode is "do-not-ignore", include everything
@@ -115,7 +115,7 @@ export function filterOldTransactions<T extends FilterableTransaction>(
         return {
             included: [...transactions],
             excluded: [],
-            stats,
+            stats
         };
     }
 
@@ -140,7 +140,7 @@ export function filterOldTransactions<T extends FilterableTransaction>(
         return {
             included: [...transactions],
             excluded: [],
-            stats,
+            stats
         };
     }
 

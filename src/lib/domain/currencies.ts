@@ -8,7 +8,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "USD",
-        name_plural: "US dollars",
+        name_plural: "US dollars"
     },
     CAD: {
         symbol: "CA$",
@@ -17,7 +17,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "CAD",
-        name_plural: "Canadian dollars",
+        name_plural: "Canadian dollars"
     },
     EUR: {
         symbol: "€",
@@ -26,7 +26,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "EUR",
-        name_plural: "euros",
+        name_plural: "euros"
     },
     BTC: {
         symbol: "BTC",
@@ -35,7 +35,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 8,
         rounding: 0,
         code: "BTC",
-        name_plural: "Bitcoins",
+        name_plural: "Bitcoins"
     },
     AED: {
         symbol: "AED",
@@ -44,7 +44,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "AED",
-        name_plural: "UAE dirhams",
+        name_plural: "UAE dirhams"
     },
     AFN: {
         symbol: "Af",
@@ -53,7 +53,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "AFN",
-        name_plural: "Afghan Afghanis",
+        name_plural: "Afghan Afghanis"
     },
     ALL: {
         symbol: "ALL",
@@ -62,7 +62,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "ALL",
-        name_plural: "Albanian lekë",
+        name_plural: "Albanian lekë"
     },
     AMD: {
         symbol: "AMD",
@@ -71,7 +71,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "AMD",
-        name_plural: "Armenian drams",
+        name_plural: "Armenian drams"
     },
     ARS: {
         symbol: "AR$",
@@ -80,7 +80,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "ARS",
-        name_plural: "Argentine pesos",
+        name_plural: "Argentine pesos"
     },
     AUD: {
         symbol: "AU$",
@@ -89,7 +89,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "AUD",
-        name_plural: "Australian dollars",
+        name_plural: "Australian dollars"
     },
     AZN: {
         symbol: "man.",
@@ -98,7 +98,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "AZN",
-        name_plural: "Azerbaijani manats",
+        name_plural: "Azerbaijani manats"
     },
     BAM: {
         symbol: "KM",
@@ -107,7 +107,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "BAM",
-        name_plural: "Bosnia-Herzegovina convertible marks",
+        name_plural: "Bosnia-Herzegovina convertible marks"
     },
     BDT: {
         symbol: "Tk",
@@ -116,7 +116,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "BDT",
-        name_plural: "Bangladeshi takas",
+        name_plural: "Bangladeshi takas"
     },
     BGN: {
         symbol: "BGN",
@@ -125,7 +125,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "BGN",
-        name_plural: "Bulgarian leva",
+        name_plural: "Bulgarian leva"
     },
     BHD: {
         symbol: "BD",
@@ -134,7 +134,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 3,
         rounding: 0,
         code: "BHD",
-        name_plural: "Bahraini dinars",
+        name_plural: "Bahraini dinars"
     },
     BIF: {
         symbol: "FBu",
@@ -143,7 +143,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 0,
         rounding: 0,
         code: "BIF",
-        name_plural: "Burundian francs",
+        name_plural: "Burundian francs"
     },
     BND: {
         symbol: "BN$",
@@ -152,7 +152,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "BND",
-        name_plural: "Brunei dollars",
+        name_plural: "Brunei dollars"
     },
     BOB: {
         symbol: "Bs",
@@ -161,7 +161,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "BOB",
-        name_plural: "Bolivian bolivianos",
+        name_plural: "Bolivian bolivianos"
     },
     BRL: {
         symbol: "R$",
@@ -170,7 +170,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "BRL",
-        name_plural: "Brazilian reals",
+        name_plural: "Brazilian reals"
     },
     BWP: {
         symbol: "BWP",
@@ -179,7 +179,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "BWP",
-        name_plural: "Botswanan pulas",
+        name_plural: "Botswanan pulas"
     },
     BYR: {
         symbol: "BYR",
@@ -188,7 +188,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 0,
         rounding: 0,
         code: "BYR",
-        name_plural: "Belarusian rubles",
+        name_plural: "Belarusian rubles"
     },
     BZD: {
         symbol: "BZ$",
@@ -197,7 +197,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "BZD",
-        name_plural: "Belize dollars",
+        name_plural: "Belize dollars"
     },
     CDF: {
         symbol: "CDF",
@@ -206,7 +206,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "CDF",
-        name_plural: "Congolese francs",
+        name_plural: "Congolese francs"
     },
     CHF: {
         symbol: "CHF",
@@ -215,7 +215,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0.05,
         code: "CHF",
-        name_plural: "Swiss francs",
+        name_plural: "Swiss francs"
     },
     CLP: {
         symbol: "CL$",
@@ -224,7 +224,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 0,
         rounding: 0,
         code: "CLP",
-        name_plural: "Chilean pesos",
+        name_plural: "Chilean pesos"
     },
     CNY: {
         symbol: "CN¥",
@@ -233,7 +233,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "CNY",
-        name_plural: "Chinese yuan",
+        name_plural: "Chinese yuan"
     },
     COP: {
         symbol: "CO$",
@@ -242,7 +242,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "COP",
-        name_plural: "Colombian pesos",
+        name_plural: "Colombian pesos"
     },
     CRC: {
         symbol: "₡",
@@ -251,7 +251,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "CRC",
-        name_plural: "Costa Rican colóns",
+        name_plural: "Costa Rican colóns"
     },
     CVE: {
         symbol: "CV$",
@@ -260,7 +260,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "CVE",
-        name_plural: "Cape Verdean escudos",
+        name_plural: "Cape Verdean escudos"
     },
     CZK: {
         symbol: "Kč",
@@ -269,7 +269,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "CZK",
-        name_plural: "Czech Republic korunas",
+        name_plural: "Czech Republic korunas"
     },
     DJF: {
         symbol: "Fdj",
@@ -278,7 +278,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 0,
         rounding: 0,
         code: "DJF",
-        name_plural: "Djiboutian francs",
+        name_plural: "Djiboutian francs"
     },
     DKK: {
         symbol: "Dkr",
@@ -287,7 +287,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "DKK",
-        name_plural: "Danish kroner",
+        name_plural: "Danish kroner"
     },
     DOP: {
         symbol: "RD$",
@@ -296,7 +296,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "DOP",
-        name_plural: "Dominican pesos",
+        name_plural: "Dominican pesos"
     },
     DZD: {
         symbol: "DA",
@@ -305,7 +305,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "DZD",
-        name_plural: "Algerian dinars",
+        name_plural: "Algerian dinars"
     },
     EEK: {
         symbol: "Ekr",
@@ -314,7 +314,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "EEK",
-        name_plural: "Estonian kroons",
+        name_plural: "Estonian kroons"
     },
     EGP: {
         symbol: "EGP",
@@ -323,7 +323,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "EGP",
-        name_plural: "Egyptian pounds",
+        name_plural: "Egyptian pounds"
     },
     ERN: {
         symbol: "Nfk",
@@ -332,7 +332,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "ERN",
-        name_plural: "Eritrean nakfas",
+        name_plural: "Eritrean nakfas"
     },
     ETB: {
         symbol: "Br",
@@ -341,7 +341,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "ETB",
-        name_plural: "Ethiopian birrs",
+        name_plural: "Ethiopian birrs"
     },
     GBP: {
         symbol: "£",
@@ -350,7 +350,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "GBP",
-        name_plural: "British pounds sterling",
+        name_plural: "British pounds sterling"
     },
     GEL: {
         symbol: "GEL",
@@ -359,7 +359,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "GEL",
-        name_plural: "Georgian laris",
+        name_plural: "Georgian laris"
     },
     GHS: {
         symbol: "GH₵",
@@ -368,7 +368,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "GHS",
-        name_plural: "Ghanaian cedis",
+        name_plural: "Ghanaian cedis"
     },
     GNF: {
         symbol: "FG",
@@ -377,7 +377,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 0,
         rounding: 0,
         code: "GNF",
-        name_plural: "Guinean francs",
+        name_plural: "Guinean francs"
     },
     GTQ: {
         symbol: "GTQ",
@@ -386,7 +386,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "GTQ",
-        name_plural: "Guatemalan quetzals",
+        name_plural: "Guatemalan quetzals"
     },
     HKD: {
         symbol: "HK$",
@@ -395,7 +395,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "HKD",
-        name_plural: "Hong Kong dollars",
+        name_plural: "Hong Kong dollars"
     },
     HNL: {
         symbol: "HNL",
@@ -404,7 +404,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "HNL",
-        name_plural: "Honduran lempiras",
+        name_plural: "Honduran lempiras"
     },
     HRK: {
         symbol: "kn",
@@ -413,7 +413,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "HRK",
-        name_plural: "Croatian kunas",
+        name_plural: "Croatian kunas"
     },
     HUF: {
         symbol: "Ft",
@@ -422,7 +422,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "HUF",
-        name_plural: "Hungarian forints",
+        name_plural: "Hungarian forints"
     },
     IDR: {
         symbol: "Rp",
@@ -431,7 +431,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "IDR",
-        name_plural: "Indonesian rupiahs",
+        name_plural: "Indonesian rupiahs"
     },
     ILS: {
         symbol: "₪",
@@ -440,7 +440,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "ILS",
-        name_plural: "Israeli new sheqels",
+        name_plural: "Israeli new sheqels"
     },
     INR: {
         symbol: "Rs",
@@ -449,7 +449,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "INR",
-        name_plural: "Indian rupees",
+        name_plural: "Indian rupees"
     },
     IQD: {
         symbol: "IQD",
@@ -458,7 +458,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 3,
         rounding: 0,
         code: "IQD",
-        name_plural: "Iraqi dinars",
+        name_plural: "Iraqi dinars"
     },
     IRR: {
         symbol: "IRR",
@@ -467,7 +467,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "IRR",
-        name_plural: "Iranian rials",
+        name_plural: "Iranian rials"
     },
     ISK: {
         symbol: "Ikr",
@@ -476,7 +476,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 0,
         rounding: 0,
         code: "ISK",
-        name_plural: "Icelandic krónur",
+        name_plural: "Icelandic krónur"
     },
     JMD: {
         symbol: "J$",
@@ -485,7 +485,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "JMD",
-        name_plural: "Jamaican dollars",
+        name_plural: "Jamaican dollars"
     },
     JOD: {
         symbol: "JD",
@@ -494,7 +494,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 3,
         rounding: 0,
         code: "JOD",
-        name_plural: "Jordanian dinars",
+        name_plural: "Jordanian dinars"
     },
     JPY: {
         symbol: "¥",
@@ -503,7 +503,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 0,
         rounding: 0,
         code: "JPY",
-        name_plural: "Japanese yen",
+        name_plural: "Japanese yen"
     },
     KES: {
         symbol: "Ksh",
@@ -512,7 +512,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "KES",
-        name_plural: "Kenyan shillings",
+        name_plural: "Kenyan shillings"
     },
     KHR: {
         symbol: "KHR",
@@ -521,7 +521,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "KHR",
-        name_plural: "Cambodian riels",
+        name_plural: "Cambodian riels"
     },
     KMF: {
         symbol: "CF",
@@ -530,7 +530,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 0,
         rounding: 0,
         code: "KMF",
-        name_plural: "Comorian francs",
+        name_plural: "Comorian francs"
     },
     KRW: {
         symbol: "₩",
@@ -539,7 +539,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 0,
         rounding: 0,
         code: "KRW",
-        name_plural: "South Korean won",
+        name_plural: "South Korean won"
     },
     KWD: {
         symbol: "KD",
@@ -548,7 +548,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 3,
         rounding: 0,
         code: "KWD",
-        name_plural: "Kuwaiti dinars",
+        name_plural: "Kuwaiti dinars"
     },
     KZT: {
         symbol: "KZT",
@@ -557,7 +557,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "KZT",
-        name_plural: "Kazakhstani tenges",
+        name_plural: "Kazakhstani tenges"
     },
     LAK: {
         symbol: "₭",
@@ -566,7 +566,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "LAK",
-        name_plural: "Lao kips",
+        name_plural: "Lao kips"
     },
     LBP: {
         symbol: "LB£",
@@ -575,7 +575,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "LBP",
-        name_plural: "Lebanese pounds",
+        name_plural: "Lebanese pounds"
     },
     LKR: {
         symbol: "SLRs",
@@ -584,7 +584,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "LKR",
-        name_plural: "Sri Lankan rupees",
+        name_plural: "Sri Lankan rupees"
     },
     LTL: {
         symbol: "Lt",
@@ -593,7 +593,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "LTL",
-        name_plural: "Lithuanian litai",
+        name_plural: "Lithuanian litai"
     },
     LVL: {
         symbol: "Ls",
@@ -602,7 +602,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "LVL",
-        name_plural: "Latvian lati",
+        name_plural: "Latvian lati"
     },
     LYD: {
         symbol: "LD",
@@ -611,7 +611,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 3,
         rounding: 0,
         code: "LYD",
-        name_plural: "Libyan dinars",
+        name_plural: "Libyan dinars"
     },
     MAD: {
         symbol: "MAD",
@@ -620,7 +620,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "MAD",
-        name_plural: "Moroccan dirhams",
+        name_plural: "Moroccan dirhams"
     },
     MDL: {
         symbol: "MDL",
@@ -629,7 +629,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "MDL",
-        name_plural: "Moldovan lei",
+        name_plural: "Moldovan lei"
     },
     MGA: {
         symbol: "MGA",
@@ -638,7 +638,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "MGA",
-        name_plural: "Malagasy Ariaries",
+        name_plural: "Malagasy Ariaries"
     },
     MKD: {
         symbol: "MKD",
@@ -647,7 +647,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "MKD",
-        name_plural: "Macedonian denari",
+        name_plural: "Macedonian denari"
     },
     MMK: {
         symbol: "MMK",
@@ -656,7 +656,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "MMK",
-        name_plural: "Myanma kyats",
+        name_plural: "Myanma kyats"
     },
     MOP: {
         symbol: "MOP$",
@@ -665,7 +665,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "MOP",
-        name_plural: "Macanese patacas",
+        name_plural: "Macanese patacas"
     },
     MUR: {
         symbol: "MURs",
@@ -674,7 +674,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "MUR",
-        name_plural: "Mauritian rupees",
+        name_plural: "Mauritian rupees"
     },
     MXN: {
         symbol: "MX$",
@@ -683,7 +683,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "MXN",
-        name_plural: "Mexican pesos",
+        name_plural: "Mexican pesos"
     },
     MYR: {
         symbol: "RM",
@@ -692,7 +692,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "MYR",
-        name_plural: "Malaysian ringgits",
+        name_plural: "Malaysian ringgits"
     },
     MZN: {
         symbol: "MTn",
@@ -701,7 +701,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "MZN",
-        name_plural: "Mozambican meticals",
+        name_plural: "Mozambican meticals"
     },
     NAD: {
         symbol: "N$",
@@ -710,7 +710,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "NAD",
-        name_plural: "Namibian dollars",
+        name_plural: "Namibian dollars"
     },
     NGN: {
         symbol: "₦",
@@ -719,7 +719,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "NGN",
-        name_plural: "Nigerian nairas",
+        name_plural: "Nigerian nairas"
     },
     NIO: {
         symbol: "C$",
@@ -728,7 +728,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "NIO",
-        name_plural: "Nicaraguan córdobas",
+        name_plural: "Nicaraguan córdobas"
     },
     NOK: {
         symbol: "Nkr",
@@ -737,7 +737,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "NOK",
-        name_plural: "Norwegian kroner",
+        name_plural: "Norwegian kroner"
     },
     NPR: {
         symbol: "NPRs",
@@ -746,7 +746,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "NPR",
-        name_plural: "Nepalese rupees",
+        name_plural: "Nepalese rupees"
     },
     NZD: {
         symbol: "NZ$",
@@ -755,7 +755,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "NZD",
-        name_plural: "New Zealand dollars",
+        name_plural: "New Zealand dollars"
     },
     OMR: {
         symbol: "OMR",
@@ -764,7 +764,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 3,
         rounding: 0,
         code: "OMR",
-        name_plural: "Omani rials",
+        name_plural: "Omani rials"
     },
     PAB: {
         symbol: "B/.",
@@ -773,7 +773,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "PAB",
-        name_plural: "Panamanian balboas",
+        name_plural: "Panamanian balboas"
     },
     PEN: {
         symbol: "S/.",
@@ -782,7 +782,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "PEN",
-        name_plural: "Peruvian nuevos soles",
+        name_plural: "Peruvian nuevos soles"
     },
     PHP: {
         symbol: "₱",
@@ -791,7 +791,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "PHP",
-        name_plural: "Philippine pesos",
+        name_plural: "Philippine pesos"
     },
     PKR: {
         symbol: "PKRs",
@@ -800,7 +800,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "PKR",
-        name_plural: "Pakistani rupees",
+        name_plural: "Pakistani rupees"
     },
     PLN: {
         symbol: "zł",
@@ -809,7 +809,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "PLN",
-        name_plural: "Polish zlotys",
+        name_plural: "Polish zlotys"
     },
     PYG: {
         symbol: "₲",
@@ -818,7 +818,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 0,
         rounding: 0,
         code: "PYG",
-        name_plural: "Paraguayan guaranis",
+        name_plural: "Paraguayan guaranis"
     },
     QAR: {
         symbol: "QR",
@@ -827,7 +827,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "QAR",
-        name_plural: "Qatari rials",
+        name_plural: "Qatari rials"
     },
     RON: {
         symbol: "RON",
@@ -836,7 +836,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "RON",
-        name_plural: "Romanian lei",
+        name_plural: "Romanian lei"
     },
     RSD: {
         symbol: "din.",
@@ -845,7 +845,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "RSD",
-        name_plural: "Serbian dinars",
+        name_plural: "Serbian dinars"
     },
     RUB: {
         symbol: "RUB",
@@ -854,7 +854,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "RUB",
-        name_plural: "Russian rubles",
+        name_plural: "Russian rubles"
     },
     RWF: {
         symbol: "RWF",
@@ -863,7 +863,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 0,
         rounding: 0,
         code: "RWF",
-        name_plural: "Rwandan francs",
+        name_plural: "Rwandan francs"
     },
     SAR: {
         symbol: "SR",
@@ -872,7 +872,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "SAR",
-        name_plural: "Saudi riyals",
+        name_plural: "Saudi riyals"
     },
     SDG: {
         symbol: "SDG",
@@ -881,7 +881,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "SDG",
-        name_plural: "Sudanese pounds",
+        name_plural: "Sudanese pounds"
     },
     SEK: {
         symbol: "Skr",
@@ -890,7 +890,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "SEK",
-        name_plural: "Swedish kronor",
+        name_plural: "Swedish kronor"
     },
     SGD: {
         symbol: "S$",
@@ -899,7 +899,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "SGD",
-        name_plural: "Singapore dollars",
+        name_plural: "Singapore dollars"
     },
     SOS: {
         symbol: "Ssh",
@@ -908,7 +908,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "SOS",
-        name_plural: "Somali shillings",
+        name_plural: "Somali shillings"
     },
     SYP: {
         symbol: "SY£",
@@ -917,7 +917,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "SYP",
-        name_plural: "Syrian pounds",
+        name_plural: "Syrian pounds"
     },
     THB: {
         symbol: "฿",
@@ -926,7 +926,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "THB",
-        name_plural: "Thai baht",
+        name_plural: "Thai baht"
     },
     TND: {
         symbol: "DT",
@@ -935,7 +935,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 3,
         rounding: 0,
         code: "TND",
-        name_plural: "Tunisian dinars",
+        name_plural: "Tunisian dinars"
     },
     TOP: {
         symbol: "T$",
@@ -944,7 +944,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "TOP",
-        name_plural: "Tongan paʻanga",
+        name_plural: "Tongan paʻanga"
     },
     TRY: {
         symbol: "TL",
@@ -953,7 +953,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "TRY",
-        name_plural: "Turkish Lira",
+        name_plural: "Turkish Lira"
     },
     TTD: {
         symbol: "TT$",
@@ -962,7 +962,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "TTD",
-        name_plural: "Trinidad and Tobago dollars",
+        name_plural: "Trinidad and Tobago dollars"
     },
     TWD: {
         symbol: "NT$",
@@ -971,7 +971,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "TWD",
-        name_plural: "New Taiwan dollars",
+        name_plural: "New Taiwan dollars"
     },
     TZS: {
         symbol: "TSh",
@@ -980,7 +980,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "TZS",
-        name_plural: "Tanzanian shillings",
+        name_plural: "Tanzanian shillings"
     },
     UAH: {
         symbol: "₴",
@@ -989,7 +989,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "UAH",
-        name_plural: "Ukrainian hryvnias",
+        name_plural: "Ukrainian hryvnias"
     },
     UGX: {
         symbol: "USh",
@@ -998,7 +998,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 0,
         rounding: 0,
         code: "UGX",
-        name_plural: "Ugandan shillings",
+        name_plural: "Ugandan shillings"
     },
     UYU: {
         symbol: "$U",
@@ -1007,7 +1007,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "UYU",
-        name_plural: "Uruguayan pesos",
+        name_plural: "Uruguayan pesos"
     },
     UZS: {
         symbol: "UZS",
@@ -1016,7 +1016,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "UZS",
-        name_plural: "Uzbekistan som",
+        name_plural: "Uzbekistan som"
     },
     VEF: {
         symbol: "Bs.F.",
@@ -1025,7 +1025,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "VEF",
-        name_plural: "Venezuelan bolívars",
+        name_plural: "Venezuelan bolívars"
     },
     VND: {
         symbol: "₫",
@@ -1034,7 +1034,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 0,
         rounding: 0,
         code: "VND",
-        name_plural: "Vietnamese dong",
+        name_plural: "Vietnamese dong"
     },
     XAF: {
         symbol: "FCFA",
@@ -1043,7 +1043,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 0,
         rounding: 0,
         code: "XAF",
-        name_plural: "CFA francs BEAC",
+        name_plural: "CFA francs BEAC"
     },
     XOF: {
         symbol: "CFA",
@@ -1052,7 +1052,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 0,
         rounding: 0,
         code: "XOF",
-        name_plural: "CFA francs BCEAO",
+        name_plural: "CFA francs BCEAO"
     },
     YER: {
         symbol: "YR",
@@ -1061,7 +1061,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "YER",
-        name_plural: "Yemeni rials",
+        name_plural: "Yemeni rials"
     },
     ZAR: {
         symbol: "R",
@@ -1070,7 +1070,7 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 2,
         rounding: 0,
         code: "ZAR",
-        name_plural: "South African rand",
+        name_plural: "South African rand"
     },
     ZMK: {
         symbol: "ZK",
@@ -1079,8 +1079,8 @@ export const Currencies: Record<string, Currency> = {
         decimal_digits: 0,
         rounding: 0,
         code: "ZMK",
-        name_plural: "Zambian kwachas",
-    },
+        name_plural: "Zambian kwachas"
+    }
 };
 
 /**

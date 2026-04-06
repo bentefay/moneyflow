@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
     detectDefaultCurrency,
     getBrowserLocale,
-    getCurrencyFromLocale,
+    getCurrencyFromLocale
 } from "@/lib/domain/detect-currency";
 
 describe("detect-currency", () => {
@@ -22,7 +22,7 @@ describe("detect-currency", () => {
         it("returns first language from navigator.languages", () => {
             vi.stubGlobal("navigator", {
                 languages: ["de-DE", "en-US"],
-                language: "en-US",
+                language: "en-US"
             });
 
             expect(getBrowserLocale()).toBe("de-DE");
@@ -31,7 +31,7 @@ describe("detect-currency", () => {
         it("falls back to navigator.language when languages is empty", () => {
             vi.stubGlobal("navigator", {
                 languages: [],
-                language: "fr-FR",
+                language: "fr-FR"
             });
 
             expect(getBrowserLocale()).toBe("fr-FR");
@@ -40,7 +40,7 @@ describe("detect-currency", () => {
         it("falls back to navigator.language when languages is undefined", () => {
             vi.stubGlobal("navigator", {
                 languages: undefined,
-                language: "ja-JP",
+                language: "ja-JP"
             });
 
             expect(getBrowserLocale()).toBe("ja-JP");
@@ -49,7 +49,7 @@ describe("detect-currency", () => {
         it("returns en-US as ultimate fallback", () => {
             vi.stubGlobal("navigator", {
                 languages: undefined,
-                language: undefined,
+                language: undefined
             });
 
             expect(getBrowserLocale()).toBe("en-US");
@@ -138,7 +138,7 @@ describe("detect-currency", () => {
         it("returns currency based on navigator.languages", () => {
             vi.stubGlobal("navigator", {
                 languages: ["de-DE", "en-US"],
-                language: "en-US",
+                language: "en-US"
             });
 
             expect(detectDefaultCurrency()).toBe("EUR");
@@ -147,7 +147,7 @@ describe("detect-currency", () => {
         it("returns currency based on navigator.language", () => {
             vi.stubGlobal("navigator", {
                 languages: [],
-                language: "ja-JP",
+                language: "ja-JP"
             });
 
             expect(detectDefaultCurrency()).toBe("JPY");
@@ -156,7 +156,7 @@ describe("detect-currency", () => {
         it("returns USD when locale has no region", () => {
             vi.stubGlobal("navigator", {
                 languages: ["en"],
-                language: "en",
+                language: "en"
             });
 
             expect(detectDefaultCurrency()).toBe("USD");
@@ -165,7 +165,7 @@ describe("detect-currency", () => {
         it("returns USD for unknown regions", () => {
             vi.stubGlobal("navigator", {
                 languages: ["en-XX"],
-                language: "en-XX",
+                language: "en-XX"
             });
 
             expect(detectDefaultCurrency()).toBe("USD");
@@ -240,7 +240,7 @@ describe("detect-currency", () => {
             ["en-CA", "CAD", "Canada (English)"],
             ["fr-CA", "CAD", "Canada (French)"],
             ["ru-RU", "RUB", "Russia"],
-            ["uk-UA", "UAH", "Ukraine"],
+            ["uk-UA", "UAH", "Ukraine"]
         ];
 
         it.each(testCases)("returns %s for %s (%s)", (locale, expectedCurrency) => {

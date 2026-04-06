@@ -23,7 +23,7 @@ import {
     upsertUserDataInput,
     userExistsInput,
     userGetOrCreateInput,
-    userRegisterInput,
+    userRegisterInput
 } from "../schemas/user";
 import { protectedProcedure, publicProcedure, router } from "../trpc";
 
@@ -62,7 +62,7 @@ function handleDatabaseError(error: unknown, operation: string): never {
             code: "INTERNAL_SERVER_ERROR",
             message: "Unable to connect to database",
             // Attach cause for server-side logging but it won't be sent to client
-            cause: error,
+            cause: error
         });
     }
 
@@ -70,7 +70,7 @@ function handleDatabaseError(error: unknown, operation: string): never {
     throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
         message: "Database operation failed",
-        cause: error,
+        cause: error
     });
 }
 
@@ -147,7 +147,7 @@ export const userRouter = router({
         const { error } = await supabase.from("user_data").insert({
             pubkey_hash: input.pubkeyHash,
             encrypted_data: input.encryptedData ?? "",
-            updated_at: Temporal.Now.instant().toString(),
+            updated_at: Temporal.Now.instant().toString()
         });
 
         if (error) {
@@ -198,7 +198,7 @@ export const userRouter = router({
             return {
                 isNew: false,
                 encryptedData: existing.encrypted_data,
-                updatedAt: existing.updated_at,
+                updatedAt: existing.updated_at
             };
         }
 
@@ -209,7 +209,7 @@ export const userRouter = router({
             .insert({
                 pubkey_hash: input.pubkeyHash,
                 encrypted_data: "",
-                updated_at: now,
+                updated_at: now
             })
             .select("encrypted_data, updated_at")
             .single();
@@ -233,7 +233,7 @@ export const userRouter = router({
                 return {
                     isNew: false,
                     encryptedData: raceUser.encrypted_data,
-                    updatedAt: raceUser.updated_at,
+                    updatedAt: raceUser.updated_at
                 };
             }
 
@@ -243,7 +243,7 @@ export const userRouter = router({
         return {
             isNew: true,
             encryptedData: newUser.encrypted_data,
-            updatedAt: newUser.updated_at,
+            updatedAt: newUser.updated_at
         };
     }),
 
@@ -278,8 +278,8 @@ export const userRouter = router({
         return {
             data: {
                 encryptedData: data.encrypted_data,
-                updatedAt: data.updated_at,
-            },
+                updatedAt: data.updated_at
+            }
         };
     }),
 
@@ -302,7 +302,7 @@ export const userRouter = router({
             {
                 pubkey_hash: ctx.pubkeyHash,
                 encrypted_data: input.encryptedData,
-                updated_at: Temporal.Now.instant().toString(),
+                updated_at: Temporal.Now.instant().toString()
             },
             { onConflict: "pubkey_hash" }
         );
@@ -348,5 +348,5 @@ export const userRouter = router({
         }
 
         return data ?? [];
-    }),
+    })
 });

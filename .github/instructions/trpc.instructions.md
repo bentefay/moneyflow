@@ -66,7 +66,7 @@ export const vaultRouter = router({
 
     list: authedProcedure.query(async ({ ctx }) => {
         // Implementation
-    }),
+    })
 });
 ```
 
@@ -79,7 +79,7 @@ import { z } from "zod";
 export const createVaultSchema = z.object({
     name: z.string().min(1).max(100),
     encryptedSnapshot: z.string(), // Base64 encrypted data
-    wrappedKey: z.string(), // Wrapped vault key for creator
+    wrappedKey: z.string() // Wrapped vault key for creator
 });
 
 export type CreateVaultInput = z.infer<typeof createVaultSchema>;
@@ -104,14 +104,14 @@ import { TRPCError } from "@trpc/server";
 if (!vault) {
     throw new TRPCError({
         code: "NOT_FOUND",
-        message: "Vault not found",
+        message: "Vault not found"
     });
 }
 
 if (!hasAccess) {
     throw new TRPCError({
         code: "FORBIDDEN",
-        message: "You don't have access to this vault",
+        message: "You don't have access to this vault"
     });
 }
 ```
@@ -129,7 +129,7 @@ it("creates vault", async () => {
     const result = await caller.vault.create({
         name: "Test Vault",
         encryptedSnapshot: "...",
-        wrappedKey: "...",
+        wrappedKey: "..."
     });
     expect(result.id).toBeDefined();
 });

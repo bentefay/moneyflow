@@ -36,7 +36,7 @@ export function CurrencySelect({
     vaultDefaultCurrency,
     onChange,
     className,
-    disabled = false,
+    disabled = false
 }: CurrencySelectProps) {
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState("");

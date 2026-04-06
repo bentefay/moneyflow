@@ -57,7 +57,7 @@ export function PreviewStep({
     duplicateCount,
     onToggleDuplicate,
     maxDisplay = 50,
-    className,
+    className
 }: PreviewStepProps) {
     const displayedTransactions = useMemo(
         () => transactions.slice(0, maxDisplay),
@@ -164,7 +164,7 @@ export function PreviewStep({
                                         >
                                             {tx.amount.toLocaleString(undefined, {
                                                 minimumFractionDigits: 2,
-                                                maximumFractionDigits: 2,
+                                                maximumFractionDigits: 2
                                             })}
                                         </span>
                                     ) : (
@@ -251,6 +251,6 @@ export function PreviewStep({
 export function formatAmount(amount: number): string {
     return amount.toLocaleString(undefined, {
         minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
+        maximumFractionDigits: 2
     });
 }

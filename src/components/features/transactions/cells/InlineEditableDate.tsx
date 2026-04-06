@@ -46,7 +46,7 @@ function formatDateFull(date: Date | undefined, locale?: string): string {
     return date.toLocaleDateString(locale ?? navigator.language, {
         day: "2-digit",
         month: "2-digit",
-        year: "numeric",
+        year: "numeric"
     });
 }
 
@@ -83,7 +83,7 @@ export function InlineEditableDate({
     className,
     inputClassName,
     disabled = false,
-    "data-testid": testId,
+    "data-testid": testId
 }: InlineEditableDateProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isFocused, setIsFocused] = useState(false);

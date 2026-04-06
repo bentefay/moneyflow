@@ -111,7 +111,7 @@ export async function getDB(): Promise<IDBPDatabase<VaultDBSchema>> {
             if (!db.objectStoreNames.contains("sync_meta")) {
                 db.createObjectStore("sync_meta", { keyPath: "key" });
             }
-        },
+        }
     });
 
     return dbInstance;
@@ -153,7 +153,7 @@ export async function appendOp(
     const fullOp: LocalOp = {
         ...op,
         pushed: op.pushed ? 1 : 0,
-        created_at: Date.now(),
+        created_at: Date.now()
     };
     await db.put("ops", fullOp);
 }
@@ -228,7 +228,7 @@ export async function countOpsSinceSnapshot(vaultId: string): Promise<{
 
     return {
         count: ops.length,
-        bytes: ops.reduce((sum, op) => sum + op.encrypted_data.length, 0),
+        bytes: ops.reduce((sum, op) => sum + op.encrypted_data.length, 0)
     };
 }
 
@@ -262,7 +262,7 @@ export async function saveLocalSnapshot(
     const db = await getDB();
     const fullSnapshot: LocalSnapshot = {
         ...snapshot,
-        updated_at: Date.now(),
+        updated_at: Date.now()
     };
     await db.put("snapshots", fullSnapshot);
 }
@@ -299,7 +299,7 @@ export async function setSyncMeta(
     await db.put("sync_meta", {
         key: `${vaultId}:${key}`,
         vault_id: vaultId,
-        value,
+        value
     });
 }
 

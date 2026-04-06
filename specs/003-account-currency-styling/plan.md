@@ -5,7 +5,9 @@
 
 ## Summary
 
-Make account currency optional with vault default fallback, add default "Me" person on vault creation as 100% owner of default account, improve Accounts page column alignment, and enable inline editing for all account fields (name, number, type, currency).
+Make account currency optional with vault default fallback, add default "Me" person on vault
+creation as 100% owner of default account, improve Accounts page column alignment, and enable inline
+editing for all account fields (name, number, type, currency).
 
 ## Technical Context
 
@@ -13,8 +15,8 @@ Make account currency optional with vault default fallback, add default "Me" per
 **Primary Dependencies**: Next.js 15, React 19, loro-crdt + loro-mirror, shadcn/ui + Tailwind CSS  
 **Storage**: Supabase (Postgres) + IndexedDB (client-side persistence)  
 **Testing**: Vitest (unit), Playwright (E2E)  
-**Target Platform**: Web (desktop-first, mobile-friendly)
-**Project Type**: Web application (Next.js App Router)  
+**Target Platform**: Web (desktop-first, mobile-friendly) **Project Type**: Web application (Next.js
+App Router)  
 **Performance Goals**: <100ms perceived latency for inline edits (CRDT optimistic updates)  
 **Constraints**: Offline-capable, client-side encryption for all vault data  
 **Scale/Scope**: Single vault per session, real-time sync between vault members
@@ -83,7 +85,8 @@ tests/
     └── accounts.spec.ts        # ADD/MODIFY: E2E tests for inline editing, currency display
 ```
 
-**Structure Decision**: Web application structure—all changes are frontend-only (CRDT schema, React components, domain logic). No backend/API changes required.
+**Structure Decision**: Web application structure—all changes are frontend-only (CRDT schema, React
+components, domain logic). No backend/API changes required.
 
 ## Complexity Tracking
 
@@ -95,8 +98,10 @@ tests/
 
 ### Research Tasks
 
-1. **loro-mirror optional fields**: How to make a schema field optional that previously had a default value? Does `defaultValue` make it required?
-2. **Inline editing patterns**: Best practices for table inline editing with shadcn/ui (Input, Select, keyboard handling)
+1. **loro-mirror optional fields**: How to make a schema field optional that previously had a
+   default value? Does `defaultValue` make it required?
+2. **Inline editing patterns**: Best practices for table inline editing with shadcn/ui (Input,
+   Select, keyboard handling)
 3. **Currency selector UX**: How to show "Use vault default (USD)" as first option in a dropdown
 
 ### Key Decisions
@@ -120,14 +125,14 @@ tests/
 // BEFORE
 export const accountSchema = schema.LoroMap({
     // ...
-    currency: schema.String({ defaultValue: "USD" }),
+    currency: schema.String({ defaultValue: "USD" })
     // ...
 });
 
 // AFTER
 export const accountSchema = schema.LoroMap({
     // ...
-    currency: schema.String(), // Optional - falls back to vault default if undefined
+    currency: schema.String() // Optional - falls back to vault default if undefined
     // ...
 });
 ```
@@ -142,7 +147,7 @@ export const DEFAULT_PERSON_ID = "person-default-me";
 export const DEFAULT_PERSON: PersonInput = {
     id: DEFAULT_PERSON_ID,
     name: "Me",
-    deletedAt: 0,
+    deletedAt: 0
 };
 
 // MODIFY: Default account to reference default person
@@ -154,14 +159,14 @@ export const DEFAULT_ACCOUNT: AccountInput = {
     accountType: "checking",
     balance: 0,
     ownerships: { [DEFAULT_PERSON_ID]: 100 }, // Me owns 100%
-    deletedAt: 0,
+    deletedAt: 0
 };
 
 // MODIFY: getDefaultVaultState() to include default person
 export function getDefaultVaultState(): VaultInput {
     return {
         people: { [DEFAULT_PERSON_ID]: { ...DEFAULT_PERSON } },
-        accounts: { [DEFAULT_ACCOUNT_ID]: { ...DEFAULT_ACCOUNT } },
+        accounts: { [DEFAULT_ACCOUNT_ID]: { ...DEFAULT_ACCOUNT } }
         // ... rest unchanged
     };
 }

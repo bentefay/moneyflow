@@ -5,7 +5,8 @@
 
 ## Research Summary
 
-This feature is largely straightforward as it builds on existing infrastructure. Research confirms no new technologies or patterns are needed—all components exist in the codebase.
+This feature is largely straightforward as it builds on existing infrastructure. Research confirms
+no new technologies or patterns are needed—all components exist in the codebase.
 
 ## Findings
 
@@ -18,20 +19,22 @@ This feature is largely straightforward as it builds on existing infrastructure.
 ```typescript
 export const vaultPreferencesSchema = schema.LoroMap({
     automationCreationPreference: schema.String({ defaultValue: "manual" }),
-    defaultCurrency: schema.String({ defaultValue: "USD" }),
+    defaultCurrency: schema.String({ defaultValue: "USD" })
 });
 ```
 
 **Alternatives considered**:
 
-- Create a separate settings document → Rejected: Unnecessary complexity, preferences belong in vault
+- Create a separate settings document → Rejected: Unnecessary complexity, preferences belong in
+  vault
 - Store in Supabase directly → Rejected: Violates client-side encryption principle
 
 ### 2. Currency List Source (EXISTS)
 
 **Decision**: Use existing `Currencies` object from `src/lib/domain/currencies.ts`
 
-**Rationale**: Comprehensive list of 160+ currencies with proper ISO 4217 codes, symbols, and decimal digit configuration. Already used throughout the app.
+**Rationale**: Comprehensive list of 160+ currencies with proper ISO 4217 codes, symbols, and
+decimal digit configuration. Already used throughout the app.
 
 **Alternatives considered**:
 
@@ -42,7 +45,8 @@ export const vaultPreferencesSchema = schema.LoroMap({
 
 **Decision**: Use existing `useVaultPreferences()` hook from `src/lib/crdt/context.tsx`
 
-**Rationale**: Hook already exists and returns `state.preferences`. For mutations, use `useVaultAction()`:
+**Rationale**: Hook already exists and returns `state.preferences`. For mutations, use
+`useVaultAction()`:
 
 ```typescript
 const setDefaultCurrency = useVaultAction((state, currency: string) => {
@@ -56,7 +60,8 @@ const setDefaultCurrency = useVaultAction((state, currency: string) => {
 
 **Decision**: Use Next.js `redirect()` function in page component for /dashboard → /transactions
 
-**Rationale**: Standard Next.js App Router pattern. The redirect happens server-side for direct URL access.
+**Rationale**: Standard Next.js App Router pattern. The redirect happens server-side for direct URL
+access.
 
 **Implementation**:
 
@@ -77,7 +82,8 @@ export default function DashboardPage() {
 
 **Decision**: Navigate to `/settings` after vault creation, `/transactions` for existing vaults
 
-**Rationale**: New vaults should configure default currency first. Existing vaults go straight to work.
+**Rationale**: New vaults should configure default currency first. Existing vaults go straight to
+work.
 
 **Implementation locations**:
 
@@ -101,9 +107,11 @@ export default function DashboardPage() {
 
 ### 7. Sidebar Menu Styling Consistency
 
-**Decision**: Add `cursor-pointer` to Lock button and ensure all nav items use same component pattern
+**Decision**: Add `cursor-pointer` to Lock button and ensure all nav items use same component
+pattern
 
-**Issue**: Lock button is a `<button>` while other nav items are `<Link>`. Button doesn't have cursor-pointer.
+**Issue**: Lock button is a `<button>` while other nav items are `<Link>`. Button doesn't have
+cursor-pointer.
 
 **Fix**: Add `cursor-pointer` to the Lock button's className. Both use same hover styles already.
 
@@ -113,7 +121,8 @@ export default function DashboardPage() {
 
 **Rationale**: 160+ currencies need search/filter. shadcn's combobox pattern provides this.
 
-**Implementation**: Create `CurrencySelector.tsx` in `src/components/features/vault/` using the existing cmdk package (already installed).
+**Implementation**: Create `CurrencySelector.tsx` in `src/components/features/vault/` using the
+existing cmdk package (already installed).
 
 ## Open Questions (Resolved)
 

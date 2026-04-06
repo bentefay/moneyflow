@@ -57,7 +57,7 @@ const defaultContextValue: SyncStatusContextValue = {
     setSyncState: () => {},
     setHasUnsavedChanges: () => {},
     setIsConnected: () => {},
-    registerForceSync: () => {},
+    registerForceSync: () => {}
 };
 
 const SyncStatusContext = createContext<SyncStatusContextValue>(defaultContextValue);
@@ -88,7 +88,7 @@ export function SyncStatusProvider({ children }: { children: React.ReactNode }) 
         setSyncState,
         setHasUnsavedChanges,
         setIsConnected,
-        registerForceSync,
+        registerForceSync
     };
 
     return <SyncStatusContext.Provider value={value}>{children}</SyncStatusContext.Provider>;
@@ -103,7 +103,7 @@ export function useSyncStatus(): SyncStatus {
         state: context.state,
         hasUnsavedChanges: context.hasUnsavedChanges,
         isConnected: context.isConnected,
-        forceSync: context.forceSync,
+        forceSync: context.forceSync
     };
 }
 

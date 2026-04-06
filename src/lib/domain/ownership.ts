@@ -52,14 +52,14 @@ export function validateOwnerships(ownerships: Record<string, number>): {
             return {
                 valid: false,
                 error: `Ownership percentage for ${personId} cannot be negative`,
-                sum: sumOwnerships(ownerships),
+                sum: sumOwnerships(ownerships)
             };
         }
         if (pct > 100) {
             return {
                 valid: false,
                 error: `Ownership percentage for ${personId} cannot exceed 100%`,
-                sum: sumOwnerships(ownerships),
+                sum: sumOwnerships(ownerships)
             };
         }
     }
@@ -71,7 +71,7 @@ export function validateOwnerships(ownerships: Record<string, number>): {
         return {
             valid: false,
             error: `Ownerships must sum to 100%, currently ${sum.toFixed(2)}%`,
-            sum,
+            sum
         };
     }
 

@@ -20,7 +20,7 @@ import {
     type NewIdentity,
     storeIdentitySession,
     type UnlockedIdentity,
-    unlockWithSeed,
+    unlockWithSeed
 } from "@/lib/crypto/identity";
 import { clearSession, getSession, hasSession, type SessionData } from "@/lib/crypto/session";
 import { trpc } from "@/lib/trpc";
@@ -131,7 +131,7 @@ function parseError(err: unknown): IdentityError {
     if (rawMessage.includes("Unable to connect to database")) {
         return {
             message: "Unable to connect to the database. Please make sure the server is running.",
-            details: stack || rawMessage,
+            details: stack || rawMessage
         };
     }
 
@@ -139,7 +139,7 @@ function parseError(err: unknown): IdentityError {
     if (rawMessage.includes("Database operation failed")) {
         return {
             message: "A database error occurred. Please try again.",
-            details: stack || rawMessage,
+            details: stack || rawMessage
         };
     }
 
@@ -147,14 +147,14 @@ function parseError(err: unknown): IdentityError {
     if (rawMessage.includes("500") || rawMessage.includes("Internal Server Error")) {
         return {
             message: "The server encountered an error. Please try again later.",
-            details: stack || rawMessage,
+            details: stack || rawMessage
         };
     }
 
     // Default: show the raw message
     return {
         message: rawMessage,
-        details: stack,
+        details: stack
     };
 }
 
@@ -222,7 +222,7 @@ export function useIdentity(): UseIdentityReturn {
             try {
                 // Register with server
                 const result = await registerMutation.mutateAsync({
-                    pubkeyHash: identity.pubkeyHash,
+                    pubkeyHash: identity.pubkeyHash
                 });
 
                 // Store session now that user has confirmed
@@ -243,8 +243,8 @@ export function useIdentity(): UseIdentityReturn {
                     api: {
                         listVaults: () => utils.vault.list.fetch(),
                         createVault: (input) => createVaultMutation.mutateAsync(input),
-                        saveSnapshot: (input) => saveSnapshotMutation.mutateAsync(input),
-                    },
+                        saveSnapshot: (input) => saveSnapshotMutation.mutateAsync(input)
+                    }
                 });
 
                 // Set the vault as active
@@ -280,7 +280,7 @@ export function useIdentity(): UseIdentityReturn {
 
             // Register with server
             const result = await registerMutation.mutateAsync({
-                pubkeyHash: identity.pubkeyHash,
+                pubkeyHash: identity.pubkeyHash
             });
 
             // Store session
@@ -300,8 +300,8 @@ export function useIdentity(): UseIdentityReturn {
                 api: {
                     listVaults: () => utils.vault.list.fetch(),
                     createVault: (input) => createVaultMutation.mutateAsync(input),
-                    saveSnapshot: (input) => saveSnapshotMutation.mutateAsync(input),
-                },
+                    saveSnapshot: (input) => saveSnapshotMutation.mutateAsync(input)
+                }
             });
             setActiveVaultStorage({ id: vaultResult.vaultId, name: vaultResult.name });
 
@@ -335,7 +335,7 @@ export function useIdentity(): UseIdentityReturn {
 
                 // Get or create user on server
                 const result = await getOrCreateMutation.mutateAsync({
-                    pubkeyHash: identity.pubkeyHash,
+                    pubkeyHash: identity.pubkeyHash
                 });
 
                 // Update state
@@ -352,8 +352,8 @@ export function useIdentity(): UseIdentityReturn {
                     api: {
                         listVaults: () => utils.vault.list.fetch(),
                         createVault: (input) => createVaultMutation.mutateAsync(input),
-                        saveSnapshot: (input) => saveSnapshotMutation.mutateAsync(input),
-                    },
+                        saveSnapshot: (input) => saveSnapshotMutation.mutateAsync(input)
+                    }
                 });
 
                 // Set the vault as active
@@ -418,7 +418,7 @@ export function useIdentity(): UseIdentityReturn {
         createNew,
         unlock,
         lock,
-        clearError,
+        clearError
     };
 }
 

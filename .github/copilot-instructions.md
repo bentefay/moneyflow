@@ -4,9 +4,13 @@
 
 - **Read "Commands" before running shell commands** - Environment-specific gotchas that cause hangs.
 - Favour a functional programming style with pure functions and immutable data structures.
-- **Tests are not optional**: Write unit tests for pure functions, E2E tests for user flows. A feature is not complete without tests.
-- **Don't reinvent the wheel**: Use established libraries for well-known algorithms (e.g., Levenshtein distance, CSV parsing, date handling). Custom implementations are bugs waiting to happen.
-- .github/copilot-instructions.md must be updated alongside code changes to keep instructions current.
+- **Tests are not optional**: Write unit tests for pure functions, E2E tests for user flows. A
+  feature is not complete without tests.
+- **Don't reinvent the wheel**: Use established libraries for well-known algorithms (e.g.,
+  Levenshtein distance, CSV parsing, date handling). Custom implementations are bugs waiting to
+  happen.
+- .github/copilot-instructions.md must be updated alongside code changes to keep instructions
+  current.
 - .github/instructions/\* must be created/updated as new folders/domains are added.
 
 ## Before Completing Any Task
@@ -25,8 +29,10 @@ A task is not complete until committed.
 
 ## Active Technologies
 
-- TypeScript 5.x, Node.js 20.x + Next.js 15 (App Router), React 19, loro-mirror, shadcn/ui, animate-ui tabs (005-enhanced-import-flow)
-- Loro CRDT (client-side), Supabase (server sync), IndexedDB (persistence) (005-enhanced-import-flow)
+- TypeScript 5.x, Node.js 20.x + Next.js 15 (App Router), React 19, loro-mirror, shadcn/ui,
+  animate-ui tabs (005-enhanced-import-flow)
+- Loro CRDT (client-side), Supabase (server sync), IndexedDB (persistence)
+  (005-enhanced-import-flow)
 
 - TypeScript 5.x, Node.js 20.x
 - Next.js 15 (App Router), React 19
@@ -87,30 +93,35 @@ Keep this section updated with commands for this environment:
 
 ### 1. Client-Side Encryption
 
-All financial data is encrypted on the client before storage. The server never sees plaintext.
-See: `.github/instructions/crypto.instructions.md`
+All financial data is encrypted on the client before storage. The server never sees plaintext. See:
+`.github/instructions/crypto.instructions.md`
 
 ### 2. CRDT State Management
 
-Vault state is a Loro CRDT document. Use loro-mirror's draft-style mutations.
-See: `.github/instructions/crdt.instructions.md`
+Vault state is a Loro CRDT document. Use loro-mirror's draft-style mutations. See:
+`.github/instructions/crdt.instructions.md`
 
 ### 3. Real-Time Sync
 
-Changes sync via Supabase Realtime with encrypted CRDT updates.
-See: `.github/instructions/sync.instructions.md`
+Changes sync via Supabase Realtime with encrypted CRDT updates. See:
+`.github/instructions/sync.instructions.md`
 
 ### 3a. Persistence Architecture (Phase 6a)
 
 Vault sync uses a tiered persistence model for reliability and performance:
 
-1. **IndexedDB (Immediate)**: Every local change is immediately encrypted and stored in IndexedDB with `pushed: 0`. This provides crash safety.
+1. **IndexedDB (Immediate)**: Every local change is immediately encrypted and stored in IndexedDB
+   with `pushed: 0`. This provides crash safety.
 
-2. **Server Sync (Throttled)**: A 2-second throttled sync pushes unpushed ops to `vault_ops` table. Uses `lodash-es` throttle with `{ leading: false, trailing: true }`.
+2. **Server Sync (Throttled)**: A 2-second throttled sync pushes unpushed ops to `vault_ops` table.
+   Uses `lodash-es` throttle with `{ leading: false, trailing: true }`.
 
-3. **Shallow Snapshots**: When op count exceeds 500 or bytes exceed 5MB, a shallow snapshot is created and pushed. Shallow snapshots contain only current state (no history) for fast cold starts.
+3. **Shallow Snapshots**: When op count exceeds 500 or bytes exceed 5MB, a shallow snapshot is
+   created and pushed. Shallow snapshots contain only current state (no history) for fast cold
+   starts.
 
-4. **Browser Handlers**: `visibilitychange` flushes pending sync, `beforeunload` warns if unpushed ops exist.
+4. **Browser Handlers**: `visibilitychange` flushes pending sync, `beforeunload` warns if unpushed
+   ops exist.
 
 Key files:
 
@@ -127,12 +138,13 @@ See: `specs/001-core-mvp/plan.md` Phase 6a
 
 ### 4. Ed25519 Authentication
 
-API requests are signed with Ed25519 keys derived from seed phrase. No passwords.
-See: `.github/instructions/trpc.instructions.md`
+API requests are signed with Ed25519 keys derived from seed phrase. No passwords. See:
+`.github/instructions/trpc.instructions.md`
 
 ### 5. Automatic Vault Creation on First Login
 
-When a user creates their identity or unlocks for the first time, the system **automatically creates a default "My Vault"** so they never see an empty state. This happens:
+When a user creates their identity or unlocks for the first time, the system **automatically creates
+a default "My Vault"** so they never see an empty state. This happens:
 
 - After confirming seed phrase on `/new-user`
 - After unlocking on `/unlock` if user has no vaults (edge case)
@@ -144,14 +156,15 @@ The vault is initialized with:
 - Default account with currency inherited from vault settings
 - Default currency inferred from browser locale (e.g., "en-GB" → GBP, "de-DE" → EUR)
 
-See: `src/lib/vault/ensure-default.ts`, `src/lib/crdt/defaults.ts`, `src/lib/domain/detect-currency.ts`
+See: `src/lib/vault/ensure-default.ts`, `src/lib/crdt/defaults.ts`,
+`src/lib/domain/detect-currency.ts`
 
 ### 6. Money as Integer Minor Units
 
-All monetary amounts are stored as integers in minor units (cents for USD, yen for JPY).
-Use `toMinorUnitsForCurrency()` for conversion based on currency's decimal places.
-Currency resolution: OFX CURDEF → Account currency → User default → Vault default → USD.
-See: `src/lib/domain/currency.ts`
+All monetary amounts are stored as integers in minor units (cents for USD, yen for JPY). Use
+`toMinorUnitsForCurrency()` for conversion based on currency's decimal places. Currency resolution:
+OFX CURDEF → Account currency → User default → Vault default → USD. See:
+`src/lib/domain/currency.ts`
 
 ### 7. Use Established Libraries
 
@@ -163,11 +176,14 @@ Do NOT write custom implementations of well-known algorithms. Use battle-tested 
 - **Date handling**: `date-fns` or native `Temporal` (when available)
 - **UUID generation**: `crypto.randomUUID()` (native)
 
-Custom algorithm implementations introduce subtle bugs, lack edge case handling, and waste time on solved problems. If you need functionality that seems algorithmic, search npm first.
+Custom algorithm implementations introduce subtle bugs, lack edge case handling, and waste time on
+solved problems. If you need functionality that seems algorithmic, search npm first.
 
 ## Testing Requirements
 
-Tests MUST be written alongside features. See Constitution VII for philosophy. Always load .github/instructions/e2e.instructions.md when writing e2e tests. Do NOT use playwright with the --debug flag, as it blocks forever and doesn't work for agents.
+Tests MUST be written alongside features. See Constitution VII for philosophy. Always load
+.github/instructions/e2e.instructions.md when writing e2e tests. Do NOT use playwright with the
+--debug flag, as it blocks forever and doesn't work for agents.
 
 | Type        | Location               | Style                                                                       |
 | ----------- | ---------------------- | --------------------------------------------------------------------------- |
@@ -177,6 +193,8 @@ Tests MUST be written alongside features. See Constitution VII for philosophy. A
 
 ## Recent Changes
 
-- 005-enhanced-import-flow: Added TypeScript 5.x, Node.js 20.x + Next.js 15 (App Router), React 19, loro-mirror, shadcn/ui, animate-ui tabs
+- 005-enhanced-import-flow: Added TypeScript 5.x, Node.js 20.x + Next.js 15 (App Router), React 19,
+  loro-mirror, shadcn/ui, animate-ui tabs
 
-- 004-transaction-table-ux: Added TypeScript 5.x, Node.js 20.x + Next.js 15 (App Router), React 19, loro-mirror, TanStack Virtual, shadcn/ui, Tailwind CSS
+- 004-transaction-table-ux: Added TypeScript 5.x, Node.js 20.x + Next.js 15 (App Router), React 19,
+  loro-mirror, TanStack Virtual, shadcn/ui, Tailwind CSS

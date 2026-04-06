@@ -14,7 +14,7 @@ import {
     SelectContent,
     SelectItem,
     SelectTrigger,
-    SelectValue,
+    SelectValue
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
@@ -54,7 +54,7 @@ export function InlineEditableStatus({
     onSave,
     className,
     disabled = false,
-    "data-testid": testId,
+    "data-testid": testId
 }: InlineEditableStatusProps) {
     const [open, setOpen] = useState(false);
 

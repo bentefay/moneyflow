@@ -30,7 +30,7 @@ import {
     DEFAULT_AUTOMATION_CREATION_PREFERENCE,
     DEFAULT_AUTOMATION_ORDER,
     DEFAULT_CURRENCY,
-    DEFAULT_VAULT_NAME,
+    DEFAULT_VAULT_NAME
 } from "./defaults";
 import { richSchema } from "./rich-schema";
 
@@ -45,7 +45,7 @@ export const personSchema = schema.LoroMap({
     id: schema.String({ required: true }),
     name: schema.String({ required: true }),
     linkedUserId: schema.String({ required: false }), // Optional: links to a user's pubkeyHash
-    deletedAt: richSchema.Instant({ required: false }), // Soft delete timestamp
+    deletedAt: richSchema.Instant({ required: false }) // Soft delete timestamp
 });
 
 /**
@@ -61,12 +61,12 @@ export const accountSchema = schema.LoroMap({
     /** ISO 4217 currency code (e.g., "USD", "EUR", "JPY"). Optional - falls back to vault default if undefined. */
     currency: richSchema.CurrencyCode({ required: false }),
     accountType: richSchema.StringEnum(["checking", "savings", "credit", "cash", "loan"], {
-        defaultValue: DEFAULT_ACCOUNT_TYPE,
+        defaultValue: DEFAULT_ACCOUNT_TYPE
     }),
     /** Balance in minor units for this account's currency (e.g., cents for USD, yen for JPY) */
     balance: richSchema.MoneyMinorUnits({ defaultValue: 0 }),
     ownerships: schema.LoroMapRecord(richSchema.Percentage({})), // personId -> ownership percentage
-    deletedAt: richSchema.Instant({ required: false }),
+    deletedAt: richSchema.Instant({ required: false })
 });
 
 /**
@@ -78,7 +78,26 @@ export const tagSchema = schema.LoroMap({
     color: schema.String({ required: false }), // Hex color (e.g., "#3b82f6"), auto-assigned on creation
     parentTagId: schema.String({ required: false }), // Optional parent for hierarchy
     isTransfer: schema.Boolean({ defaultValue: false }), // Transfer tags exclude from "expenses"
-    deletedAt: richSchema.Instant({ required: false }),
+    deletedAt: richSchema.Instant({ required: false })
+});
+
+/**
+ * Description alias schema - curated names replacing raw imported transaction descriptions
+ *
+ * Aliases form a symlink graph: a "real" alias has no targetAliasId, while a
+ * "symlink" alias points to a real alias via targetAliasId. Symlinks are one-hop
+ * only — a symlink never points to another symlink.
+ *
+ * - transactionIds: transactions currently pointing at this alias
+ * - symlinkIds: other aliases that are symlinks to this alias (backlinks)
+ */
+export const descriptionAliasSchema = schema.LoroMap({
+    id: schema.String({ required: true }),
+    name: schema.String({ required: true }),
+    targetAliasId: schema.String({ required: false }), // symlink pointer
+    symlinkIds: schema.LoroMapRecord(schema.Boolean({ defaultValue: true })), // backlinks
+    transactionIds: schema.LoroMapRecord(schema.Boolean({ defaultValue: true })), // txs pointing here
+    deletedAt: richSchema.Instant({ required: false })
 });
 
 /**
@@ -89,7 +108,7 @@ export const statusSchema = schema.LoroMap({
     name: schema.String({ required: true }),
     behavior: richSchema.StringEnum(["treatAsPaid"], { required: false }),
     isDefault: schema.Boolean({ defaultValue: false }),
-    deletedAt: richSchema.Instant({ required: false }),
+    deletedAt: richSchema.Instant({ required: false })
 });
 
 /**
@@ -111,7 +130,7 @@ export const nestedDuplicateSchema = schema.LoroMap({
     allocations: schema.LoroMapRecord(richSchema.Percentage({})),
     creationInstant: richSchema.Instant({ required: true }),
     importRowIndex: schema.Number({ required: false }),
-    deletedAt: richSchema.Instant({ required: false }),
+    deletedAt: richSchema.Instant({ required: false })
 });
 
 /**
@@ -124,6 +143,7 @@ export const transactionSchema = schema.LoroMap({
     id: schema.String({ required: true }),
     date: richSchema.PlainDate({ required: true }), // Calendar date
     description: schema.String({ defaultValue: "" }), // Imported text from bank file (OFX NAME, CSV description)
+    descriptionAliasId: schema.String({ required: false }), // Optional reference to a description alias
     notes: schema.String({ defaultValue: "" }), // User's notes/memo
     amount: richSchema.MoneyMinorUnits({ required: true }), // Integer cents (positive = income, negative = expense)
     accountId: schema.String({ required: true }),
@@ -134,7 +154,7 @@ export const transactionSchema = schema.LoroMap({
     creationInstant: richSchema.Instant({ required: true }), // When transaction entered system
     importRowIndex: schema.Number({ required: false }), // Row position in source file (null for manual transactions)
     suspectedDuplicates: schema.LoroList(nestedDuplicateSchema, (d) => d.id), // Nested duplicates (one level only)
-    deletedAt: richSchema.Instant({ required: false }),
+    deletedAt: richSchema.Instant({ required: false })
 });
 
 /**
@@ -144,7 +164,7 @@ export const transactionSchema = schema.LoroMap({
  */
 export const dayBucketSchema = schema.LoroMap({
     day: schema.Number({ required: true }), // 1-31
-    transactions: schema.LoroList(transactionSchema, (t) => t.id),
+    transactions: schema.LoroList(transactionSchema, (t) => t.id)
 });
 
 /**
@@ -154,7 +174,7 @@ export const dayBucketSchema = schema.LoroMap({
  */
 export const monthBucketSchema = schema.LoroMap({
     month: schema.Number({ required: true }), // 1-12
-    days: schema.LoroList(dayBucketSchema, (d) => String(d.day)),
+    days: schema.LoroList(dayBucketSchema, (d) => String(d.day))
 });
 
 /**
@@ -164,7 +184,7 @@ export const monthBucketSchema = schema.LoroMap({
  */
 export const yearBucketSchema = schema.LoroMap({
     year: schema.Number({ required: true }), // e.g., 2024
-    months: schema.LoroList(monthBucketSchema, (m) => String(m.month)),
+    months: schema.LoroList(monthBucketSchema, (m) => String(m.month))
 });
 
 /**
@@ -174,7 +194,7 @@ export const yearBucketSchema = schema.LoroMap({
  */
 export const accountTransactionTreeSchema = schema.LoroMap({
     accountId: schema.String({ required: true }),
-    years: schema.LoroList(yearBucketSchema, (y) => String(y.year)),
+    years: schema.LoroList(yearBucketSchema, (y) => String(y.year))
 });
 
 /**
@@ -193,7 +213,7 @@ export const importSchema = schema.LoroMap({
     filename: schema.String({ required: true }),
     transactionCount: schema.Number({ defaultValue: 0 }),
     createdAt: richSchema.Instant({ required: true }),
-    deletedAt: richSchema.Instant({ required: false }),
+    deletedAt: richSchema.Instant({ required: false })
 });
 
 /**
@@ -208,34 +228,34 @@ export const importTemplateSchema = schema.LoroMap({
         thousandSeparator: schema.String({ defaultValue: "," }),
         decimalSeparator: schema.String({ defaultValue: "." }),
         dateFormat: schema.String({ defaultValue: "yyyy-MM-dd" }),
-        collapseWhitespace: schema.Boolean({ defaultValue: false }),
+        collapseWhitespace: schema.Boolean({ defaultValue: false })
     }),
     duplicateDetection: schema.LoroMap({
         dateMatchMode: richSchema.StringEnum(["exact", "within"], {
-            defaultValue: DEFAULT_DUPLICATE_DETECTION_SETTINGS.dateMatchMode,
+            defaultValue: DEFAULT_DUPLICATE_DETECTION_SETTINGS.dateMatchMode
         }),
         maxDateDiffDays: schema.Number({
-            defaultValue: DEFAULT_DUPLICATE_DETECTION_SETTINGS.maxDateDiffDays,
+            defaultValue: DEFAULT_DUPLICATE_DETECTION_SETTINGS.maxDateDiffDays
         }),
         descriptionMatchMode: richSchema.StringEnum(["exact", "similar"], {
-            defaultValue: DEFAULT_DUPLICATE_DETECTION_SETTINGS.descriptionMatchMode,
+            defaultValue: DEFAULT_DUPLICATE_DETECTION_SETTINGS.descriptionMatchMode
         }),
         minDescriptionSimilarity: schema.Number({
-            defaultValue: DEFAULT_DUPLICATE_DETECTION_SETTINGS.minDescriptionSimilarity,
-        }),
+            defaultValue: DEFAULT_DUPLICATE_DETECTION_SETTINGS.minDescriptionSimilarity
+        })
     }),
     oldTransactionFilter: schema.LoroMap({
         mode: richSchema.StringEnum(["ignore-all", "ignore-duplicates", "do-not-ignore"], {
-            defaultValue: DEFAULT_FILTER_SETTINGS.mode,
+            defaultValue: DEFAULT_FILTER_SETTINGS.mode
         }),
         cutoffType: richSchema.StringEnum(["days", "date"], {
-            defaultValue: DEFAULT_FILTER_SETTINGS.cutoffType,
+            defaultValue: DEFAULT_FILTER_SETTINGS.cutoffType
         }),
         cutoffDays: schema.Number({ defaultValue: DEFAULT_FILTER_SETTINGS.cutoffDays }),
-        cutoffDate: richSchema.PlainDate({ required: false }), // When cutoffType="date", undefined otherwise
+        cutoffDate: richSchema.PlainDate({ required: false }) // When cutoffType="date", undefined otherwise
     }),
     lastUsedAt: richSchema.Instant({ required: false }), // When this template was last used
-    deletedAt: richSchema.Instant({ required: false }),
+    deletedAt: richSchema.Instant({ required: false })
 });
 
 /**
@@ -244,11 +264,11 @@ export const importTemplateSchema = schema.LoroMap({
 export const automationConditionSchema = schema.LoroMap({
     id: schema.String({ required: true }),
     column: richSchema.StringEnum(["description", "notes", "amount", "accountId"], {
-        required: true,
+        required: true
     }),
     operator: richSchema.StringEnum(["contains", "regex"], { required: true }),
     value: schema.String({ required: true }),
-    caseSensitive: schema.Boolean({ defaultValue: false }),
+    caseSensitive: schema.Boolean({ defaultValue: false })
 });
 
 /**
@@ -257,9 +277,9 @@ export const automationConditionSchema = schema.LoroMap({
 export const automationActionSchema = schema.LoroMap({
     id: schema.String({ required: true }),
     type: richSchema.StringEnum(["setTags", "setAllocation", "setStatus"], {
-        required: true,
+        required: true
     }),
-    value: schema.Any(), // Type depends on action type
+    value: schema.Any() // Type depends on action type
 });
 
 /**
@@ -272,7 +292,7 @@ export const automationSchema = schema.LoroMap({
     actions: schema.LoroList(automationActionSchema, (a) => a.id),
     order: schema.Number({ defaultValue: DEFAULT_AUTOMATION_ORDER }), // Execution priority
     excludedTransactionIds: schema.LoroList(schema.String(), (id) => id),
-    deletedAt: richSchema.Instant({ required: false }),
+    deletedAt: richSchema.Instant({ required: false })
 });
 
 /**
@@ -288,8 +308,8 @@ export const automationApplicationSchema = schema.LoroMap({
     previousValues: schema.LoroMap({
         tagIds: schema.LoroList(schema.String(), (id) => id),
         statusId: schema.String({ required: false }),
-        allocations: schema.LoroMapRecord(richSchema.Percentage({})),
-    }),
+        allocations: schema.LoroMapRecord(richSchema.Percentage({}))
+    })
 });
 
 /**
@@ -300,10 +320,10 @@ export const vaultPreferencesSchema = schema.LoroMap({
     name: schema.String({ defaultValue: DEFAULT_VAULT_NAME }),
     /** Automation creation preference */
     automationCreationPreference: richSchema.StringEnum(["createAutomatically", "manual"], {
-        defaultValue: DEFAULT_AUTOMATION_CREATION_PREFERENCE,
+        defaultValue: DEFAULT_AUTOMATION_CREATION_PREFERENCE
     }),
     /** Default currency for new accounts and imports (ISO 4217 code) */
-    defaultCurrency: richSchema.CurrencyCode({ defaultValue: DEFAULT_CURRENCY }),
+    defaultCurrency: richSchema.CurrencyCode({ defaultValue: DEFAULT_CURRENCY })
 });
 
 // ============================================
@@ -320,13 +340,14 @@ export const vaultSchema = schema({
     people: schema.LoroMapRecord(personSchema),
     accounts: schema.LoroMapRecord(accountSchema),
     tags: schema.LoroMapRecord(tagSchema),
+    descriptionAliases: schema.LoroMapRecord(descriptionAliasSchema),
     statuses: schema.LoroMapRecord(statusSchema),
     transactions: transactionStoreSchema,
     imports: schema.LoroMapRecord(importSchema),
     importTemplates: schema.LoroMapRecord(importTemplateSchema),
     automations: schema.LoroMapRecord(automationSchema),
     automationApplications: schema.LoroMapRecord(automationApplicationSchema),
-    preferences: vaultPreferencesSchema,
+    preferences: vaultPreferencesSchema
 });
 
 // ============================================
@@ -350,6 +371,7 @@ export type VaultInput = InferInputType<typeof vaultSchema>;
 export type Person = InferType<typeof personSchema>;
 export type Account = InferType<typeof accountSchema>;
 export type Tag = InferType<typeof tagSchema>;
+export type DescriptionAlias = InferType<typeof descriptionAliasSchema>;
 export type Status = InferType<typeof statusSchema>;
 export type Transaction = InferType<typeof transactionSchema>;
 export type Import = InferType<typeof importSchema>;
@@ -372,6 +394,7 @@ export type TransactionStore = InferType<typeof transactionStoreSchema>;
 export type PersonInput = InferInputType<typeof personSchema>;
 export type AccountInput = InferInputType<typeof accountSchema>;
 export type TagInput = InferInputType<typeof tagSchema>;
+export type DescriptionAliasInput = InferInputType<typeof descriptionAliasSchema>;
 export type StatusInput = InferInputType<typeof statusSchema>;
 export type TransactionInput = InferInputType<typeof transactionSchema>;
 export type ImportInput = InferInputType<typeof importSchema>;

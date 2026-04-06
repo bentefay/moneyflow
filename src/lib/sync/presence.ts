@@ -73,9 +73,9 @@ export class EphemeralPresenceManager {
         this.channel = supabase.channel(`presence:${this.vaultId}`, {
             config: {
                 presence: {
-                    key: this.userId,
-                },
-            },
+                    key: this.userId
+                }
+            }
         });
 
         // Listen for presence sync events
@@ -118,7 +118,7 @@ export class EphemeralPresenceManager {
                 focusedTransactionId: latest.focusedTransactionId as string | undefined,
                 editingField: latest.editingField as PresenceData["editingField"],
                 cursor: latest.cursor as PresenceData["cursor"],
-                updatedAt: (latest.updatedAt as number) ?? Temporal.Now.instant().epochMilliseconds,
+                updatedAt: (latest.updatedAt as number) ?? Temporal.Now.instant().epochMilliseconds
             });
         }
 
@@ -145,7 +145,7 @@ export class EphemeralPresenceManager {
      */
     setEditingField(transactionId: string, fieldName: string): void {
         this.updatePresence({
-            editingField: { transactionId, fieldName },
+            editingField: { transactionId, fieldName }
         });
     }
 
@@ -185,7 +185,7 @@ export class EphemeralPresenceManager {
 
         await this.channel.track({
             ...this.localPresence,
-            updatedAt: Temporal.Now.instant().epochMilliseconds,
+            updatedAt: Temporal.Now.instant().epochMilliseconds
         });
     }
 

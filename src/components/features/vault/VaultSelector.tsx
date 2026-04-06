@@ -59,7 +59,7 @@ export function VaultSelector({
     className,
     classNames,
     iconMode = false,
-    showAvatar = false,
+    showAvatar = false
 }: VaultSelectorProps) {
     const { activeVault, setActiveVault } = useActiveVault();
     const [isOpen, setIsOpen] = useState(false);
@@ -216,7 +216,7 @@ function RoleBadge({ role }: { role: VaultOption["role"] }) {
     const colors = {
         owner: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
         admin: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-        member: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
+        member: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
     };
 
     return (
@@ -235,7 +235,7 @@ function VaultDropdownMenu({
     currentVaultName,
     onSelect,
     onCreateVault,
-    onClose,
+    onClose
 }: {
     vaults: VaultOption[];
     activeVault: { id: string } | null;
@@ -310,7 +310,7 @@ function getVaultColor(name: string): { bg: string; text: string } {
         { bg: "bg-pink-100 dark:bg-pink-900/40", text: "text-pink-700 dark:text-pink-300" },
         { bg: "bg-cyan-100 dark:bg-cyan-900/40", text: "text-cyan-700 dark:text-cyan-300" },
         { bg: "bg-yellow-100 dark:bg-yellow-900/40", text: "text-yellow-700 dark:text-yellow-300" },
-        { bg: "bg-indigo-100 dark:bg-indigo-900/40", text: "text-indigo-700 dark:text-indigo-300" },
+        { bg: "bg-indigo-100 dark:bg-indigo-900/40", text: "text-indigo-700 dark:text-indigo-300" }
     ];
 
     // Simple hash function

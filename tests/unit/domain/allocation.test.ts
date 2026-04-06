@@ -104,7 +104,7 @@ export function validateOwnership(ownerships: Record<string, number>): {
     if (Math.abs(sum - 100) > 0.001) {
         return {
             valid: false,
-            error: `Ownership percentages must sum to 100% (got ${sum.toFixed(2)}%)`,
+            error: `Ownership percentages must sum to 100% (got ${sum.toFixed(2)}%)`
         };
     }
 
@@ -112,7 +112,7 @@ export function validateOwnership(ownerships: Record<string, number>): {
         if (pct < 0 || pct > 100) {
             return {
                 valid: false,
-                error: `Ownership for ${personId} must be between 0% and 100%`,
+                error: `Ownership for ${personId} must be between 0% and 100%`
             };
         }
     }
@@ -151,7 +151,7 @@ const validOwnershipArb = fc
         if (total === 0) return { personA: 100, personB: 0 };
         return {
             personA: (a / total) * 100,
-            personB: (b / total) * 100,
+            personB: (b / total) * 100
         };
     });
 
@@ -358,7 +358,7 @@ describe("normalizeAllocations", () => {
                     fc.double({ min: 0.1, max: 100, noNaN: true }),
                     {
                         minKeys: 1,
-                        maxKeys: 3,
+                        maxKeys: 3
                     }
                 ),
                 (allocations) => {
@@ -378,7 +378,7 @@ describe("normalizeAllocations", () => {
                     fc.double({ min: 1, max: 100, noNaN: true }),
                     {
                         minKeys: 2,
-                        maxKeys: 2,
+                        maxKeys: 2
                     }
                 ),
                 (allocations) => {
@@ -439,7 +439,7 @@ describe("calculateShares", () => {
                 amountArb,
                 fc.dictionary(fc.constantFrom("a", "b", "c"), percentageArb, {
                     minKeys: 1,
-                    maxKeys: 3,
+                    maxKeys: 3
                 }),
                 (amount, allocations) => {
                     const shares = calculateShares(amount, allocations);

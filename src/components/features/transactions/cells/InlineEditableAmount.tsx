@@ -71,7 +71,7 @@ export function InlineEditableAmount({
     className,
     inputClassName,
     disabled = false,
-    "data-testid": testId,
+    "data-testid": testId
 }: InlineEditableAmountProps) {
     // Convert minor units to display string
     const displayValue = useMemo(() => formatForDisplay(value, currency), [value, currency]);

@@ -8,7 +8,7 @@ export {
     AccountActionMessage,
     type AccountActionMessageProps,
     AccountTab,
-    type AccountTabProps,
+    type AccountTabProps
 } from "./AccountTab";
 export { DuplicatesTab, type DuplicatesTabProps } from "./DuplicatesTab";
 export { FormattingTab, type FormattingTabProps } from "./FormattingTab";

@@ -37,7 +37,7 @@ export function PresenceAvatarGroup({
     users,
     max = 4,
     size = "md",
-    className,
+    className
 }: PresenceAvatarGroupProps) {
     // Sort online users first
     const sortedUsers = [...users].sort((a, b) => {
@@ -52,13 +52,13 @@ export function PresenceAvatarGroup({
     const overlapClasses = {
         sm: "-ml-2",
         md: "-ml-3",
-        lg: "-ml-4",
+        lg: "-ml-4"
     } as const;
 
     const overflowSizeClasses = {
         sm: "h-6 w-6 text-xs",
         md: "h-8 w-8 text-sm",
-        lg: "h-10 w-10 text-base",
+        lg: "h-10 w-10 text-base"
     } as const;
 
     if (users.length === 0) {

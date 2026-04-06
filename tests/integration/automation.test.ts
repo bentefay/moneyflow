@@ -19,7 +19,7 @@ import {
     applyAutomationsWithTracking,
     createAutomationFromTransaction,
     evaluateAutomations,
-    getUndoChanges,
+    getUndoChanges
 } from "@/lib/domain/automation";
 
 // Test fixtures
@@ -37,7 +37,7 @@ const fixtures = {
             importId: "import-1",
             allocations: {} as Record<string, number>,
             duplicateOf: "",
-            deletedAt: 0,
+            deletedAt: 0
         } as unknown as Transaction,
         starbucks: {
             id: "tx-starbucks-1",
@@ -51,7 +51,7 @@ const fixtures = {
             importId: "import-1",
             allocations: {} as Record<string, number>,
             duplicateOf: "",
-            deletedAt: 0,
+            deletedAt: 0
         } as unknown as Transaction,
         salary: {
             id: "tx-salary-1",
@@ -65,7 +65,7 @@ const fixtures = {
             importId: "import-1",
             allocations: {} as Record<string, number>,
             duplicateOf: "",
-            deletedAt: 0,
+            deletedAt: 0
         } as unknown as Transaction,
         groceries: {
             id: "tx-groceries-1",
@@ -79,8 +79,8 @@ const fixtures = {
             importId: "import-1",
             allocations: {} as Record<string, number>,
             duplicateOf: "",
-            deletedAt: 0,
-        } as unknown as Transaction,
+            deletedAt: 0
+        } as unknown as Transaction
     },
     automations: {
         amazonShopping: {
@@ -92,15 +92,15 @@ const fixtures = {
                     column: "description",
                     operator: "contains",
                     value: "amazon",
-                    caseSensitive: false,
-                },
+                    caseSensitive: false
+                }
             ] as ConditionData[],
             actions: [
-                { id: "a1", type: "setTags", value: ["tag-shopping", "tag-online"] },
+                { id: "a1", type: "setTags", value: ["tag-shopping", "tag-online"] }
             ] as ActionData[],
             order: 1,
             excludedTransactionIds: [] as string[],
-            deletedAt: 0,
+            deletedAt: 0
         } as unknown as Automation,
         coffeeFood: {
             id: "auto-coffee",
@@ -111,16 +111,16 @@ const fixtures = {
                     column: "description",
                     operator: "regex",
                     value: "starbucks|dunkin|coffee",
-                    caseSensitive: false,
-                },
+                    caseSensitive: false
+                }
             ] as ConditionData[],
             actions: [
                 { id: "a1", type: "setTags", value: ["tag-food"] },
-                { id: "a2", type: "setStatus", value: "status-paid" },
+                { id: "a2", type: "setStatus", value: "status-paid" }
             ] as ActionData[],
             order: 2,
             excludedTransactionIds: [] as string[],
-            deletedAt: 0,
+            deletedAt: 0
         } as unknown as Automation,
         incomeRule: {
             id: "auto-income",
@@ -131,17 +131,17 @@ const fixtures = {
                     column: "notes",
                     operator: "contains",
                     value: "salary",
-                    caseSensitive: false,
-                },
+                    caseSensitive: false
+                }
             ] as ConditionData[],
             actions: [
                 { id: "a1", type: "setTags", value: ["tag-income"] },
                 { id: "a2", type: "setStatus", value: "status-paid" },
-                { id: "a3", type: "setAllocation", value: { "person-1": 100 } },
+                { id: "a3", type: "setAllocation", value: { "person-1": 100 } }
             ] as ActionData[],
             order: 3,
             excludedTransactionIds: [] as string[],
-            deletedAt: 0,
+            deletedAt: 0
         } as unknown as Automation,
         catchAllFood: {
             id: "auto-food-catchall",
@@ -152,15 +152,15 @@ const fixtures = {
                     column: "notes",
                     operator: "regex",
                     value: "groceries|food|restaurant|cafe",
-                    caseSensitive: false,
-                },
+                    caseSensitive: false
+                }
             ] as ConditionData[],
             actions: [{ id: "a1", type: "setTags", value: ["tag-food"] }] as ActionData[],
             order: 10, // Lower priority
             excludedTransactionIds: [] as string[],
-            deletedAt: 0,
-        } as unknown as Automation,
-    },
+            deletedAt: 0
+        } as unknown as Automation
+    }
 };
 
 describe("Automation Engine Integration", () => {
@@ -187,7 +187,7 @@ describe("Automation Engine Integration", () => {
             const automations = [
                 fixtures.automations.amazonShopping,
                 fixtures.automations.coffeeFood,
-                fixtures.automations.catchAllFood,
+                fixtures.automations.catchAllFood
             ];
 
             // Starbucks matches both coffeeFood and catchAllFood
@@ -203,7 +203,7 @@ describe("Automation Engine Integration", () => {
             const automations = [
                 fixtures.automations.amazonShopping,
                 fixtures.automations.coffeeFood,
-                fixtures.automations.catchAllFood,
+                fixtures.automations.catchAllFood
             ];
 
             const result = evaluateAutomations(automations, fixtures.transactions.groceries);
@@ -218,7 +218,7 @@ describe("Automation Engine Integration", () => {
         it("skips excluded transactions", () => {
             const automationWithExclusion = {
                 ...fixtures.automations.amazonShopping,
-                excludedTransactionIds: ["tx-amazon-1"],
+                excludedTransactionIds: ["tx-amazon-1"]
             } as Automation;
 
             const result = evaluateAutomations(
@@ -232,7 +232,7 @@ describe("Automation Engine Integration", () => {
         it("still matches non-excluded transactions", () => {
             const automationWithExclusion = {
                 ...fixtures.automations.amazonShopping,
-                excludedTransactionIds: ["tx-other"],
+                excludedTransactionIds: ["tx-other"]
             } as Automation;
 
             const result = evaluateAutomations(
@@ -249,13 +249,13 @@ describe("Automation Engine Integration", () => {
             const automations = [
                 fixtures.automations.amazonShopping,
                 fixtures.automations.coffeeFood,
-                fixtures.automations.incomeRule,
+                fixtures.automations.incomeRule
             ];
             const transactions = [
                 fixtures.transactions.amazon,
                 fixtures.transactions.starbucks,
                 fixtures.transactions.salary,
-                fixtures.transactions.groceries, // No matching automation
+                fixtures.transactions.groceries // No matching automation
             ];
 
             const results = applyAutomationsToTransactions(automations, transactions);
@@ -275,7 +275,7 @@ describe("Automation Engine Integration", () => {
                 ...fixtures.transactions.salary,
                 tagIds: ["existing-tag"] as string[],
                 statusId: "status-review",
-                allocations: { "person-2": 50, "person-3": 50 } as Record<string, number>,
+                allocations: { "person-2": 50, "person-3": 50 } as Record<string, number>
             } as unknown as Transaction;
 
             const { applications } = applyAutomationsWithTracking(automations, [transaction]);
@@ -285,7 +285,7 @@ describe("Automation Engine Integration", () => {
             expect(applications[0].previousValues.statusId).toBe("status-review");
             expect(applications[0].previousValues.allocations).toEqual({
                 "person-2": 50,
-                "person-3": 50,
+                "person-3": 50
             });
         });
 
@@ -293,7 +293,7 @@ describe("Automation Engine Integration", () => {
             const transaction = {
                 ...fixtures.transactions.salary,
                 tagIds: ["old-tag"] as string[],
-                statusId: "old-status",
+                statusId: "old-status"
             } as unknown as Transaction;
 
             const application: AutomationApplicationData = {
@@ -303,8 +303,8 @@ describe("Automation Engine Integration", () => {
                 appliedAt: Temporal.Now.instant(),
                 previousValues: {
                     tagIds: ["old-tag"],
-                    statusId: "old-status",
-                },
+                    statusId: "old-status"
+                }
             };
 
             const undoChanges = getUndoChanges(application);
@@ -320,7 +320,7 @@ describe("Automation Engine Integration", () => {
                 ...fixtures.transactions.amazon,
                 tagIds: ["tag-shopping", "tag-electronics"] as string[],
                 statusId: "status-paid",
-                allocations: { "person-1": 60, "person-2": 40 } as Record<string, number>,
+                allocations: { "person-1": 60, "person-2": 40 } as Record<string, number>
             } as unknown as Transaction;
 
             const automation = createAutomationFromTransaction(
@@ -348,7 +348,7 @@ describe("Automation Engine Integration", () => {
             const txNoDescription: Transaction = {
                 ...fixtures.transactions.amazon,
                 description: "",
-                notes: "Bank Transfer - Rent Payment",
+                notes: "Bank Transfer - Rent Payment"
             };
 
             const automation = createAutomationFromTransaction(txNoDescription, "Rent Rule");
@@ -362,7 +362,7 @@ describe("Automation Engine Integration", () => {
         it("ignores deleted automations", () => {
             const deletedAutomation: Automation = {
                 ...fixtures.automations.amazonShopping,
-                deletedAt: Temporal.Now.instant(),
+                deletedAt: Temporal.Now.instant()
             };
 
             const result = evaluateAutomations([deletedAutomation], fixtures.transactions.amazon);
@@ -373,7 +373,7 @@ describe("Automation Engine Integration", () => {
         it("processes remaining automations after deleted ones", () => {
             const automations: Automation[] = [
                 { ...fixtures.automations.amazonShopping, deletedAt: Temporal.Now.instant() },
-                fixtures.automations.catchAllFood, // Not deleted, but won't match Amazon
+                fixtures.automations.catchAllFood // Not deleted, but won't match Amazon
             ];
 
             const result = evaluateAutomations(automations, fixtures.transactions.amazon);
@@ -394,13 +394,13 @@ describe("Automation Engine Integration", () => {
                         column: "description",
                         operator: "regex",
                         value: "amazon|walmart|target|costco",
-                        caseSensitive: false,
-                    },
+                        caseSensitive: false
+                    }
                 ] as ConditionData[],
                 actions: [{ id: "a1", type: "setTags", value: ["tag-retail"] }] as ActionData[],
                 order: 1,
                 excludedTransactionIds: [] as string[],
-                deletedAt: 0,
+                deletedAt: 0
             } as unknown as Automation;
 
             expect(
@@ -418,15 +418,15 @@ describe("Automation Engine Integration", () => {
                         column: "amount",
                         operator: "regex",
                         value: "^-[1-9]\\d{4,}$", // -10000 or less (more negative)
-                        caseSensitive: false,
-                    },
+                        caseSensitive: false
+                    }
                 ] as ConditionData[],
                 actions: [
-                    { id: "a1", type: "setTags", value: ["tag-large-expense"] },
+                    { id: "a1", type: "setTags", value: ["tag-large-expense"] }
                 ] as ActionData[],
                 order: 1,
                 excludedTransactionIds: [] as string[],
-                deletedAt: 0,
+                deletedAt: 0
             } as unknown as Automation;
 
             // -15000 matches (5 digit negative)

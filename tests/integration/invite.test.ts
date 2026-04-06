@@ -13,12 +13,12 @@ import {
     inviteCreateInput,
     inviteGetByPubkeyInput,
     inviteListInput,
-    inviteRevokeInput,
+    inviteRevokeInput
 } from "@/server/schemas/invite";
 import {
     membershipListInput,
     membershipRekeyInput,
-    membershipRemoveInput,
+    membershipRemoveInput
 } from "@/server/schemas/membership";
 
 // ============================================================================
@@ -33,7 +33,7 @@ describe("Invite Schemas", () => {
                 invitePubkey: btoa("test-public-key-32bytes-padding"),
                 encryptedVaultKey: btoa("encrypted-vault-key-data"),
                 role: "member" as const,
-                expiresInHours: 48,
+                expiresInHours: 48
             };
 
             const result = inviteCreateInput.safeParse(input);
@@ -44,7 +44,7 @@ describe("Invite Schemas", () => {
             const input = {
                 vaultId: "not-a-uuid",
                 invitePubkey: btoa("test-public-key"),
-                encryptedVaultKey: btoa("encrypted-vault-key"),
+                encryptedVaultKey: btoa("encrypted-vault-key")
             };
 
             const result = inviteCreateInput.safeParse(input);
@@ -55,7 +55,7 @@ describe("Invite Schemas", () => {
             const input = {
                 vaultId: "550e8400-e29b-41d4-a716-446655440000",
                 invitePubkey: "",
-                encryptedVaultKey: btoa("encrypted-vault-key"),
+                encryptedVaultKey: btoa("encrypted-vault-key")
             };
 
             const result = inviteCreateInput.safeParse(input);
@@ -66,7 +66,7 @@ describe("Invite Schemas", () => {
             const input = {
                 vaultId: "550e8400-e29b-41d4-a716-446655440000",
                 invitePubkey: "not-valid-base64!!!",
-                encryptedVaultKey: btoa("encrypted-vault-key"),
+                encryptedVaultKey: btoa("encrypted-vault-key")
             };
 
             const result = inviteCreateInput.safeParse(input);
@@ -77,7 +77,7 @@ describe("Invite Schemas", () => {
             const input = {
                 vaultId: "550e8400-e29b-41d4-a716-446655440000",
                 invitePubkey: btoa("test-public-key"),
-                encryptedVaultKey: btoa("encrypted-vault-key"),
+                encryptedVaultKey: btoa("encrypted-vault-key")
             };
 
             const result = inviteCreateInput.parse(input);
@@ -88,7 +88,7 @@ describe("Invite Schemas", () => {
             const input = {
                 vaultId: "550e8400-e29b-41d4-a716-446655440000",
                 invitePubkey: btoa("test-public-key"),
-                encryptedVaultKey: btoa("encrypted-vault-key"),
+                encryptedVaultKey: btoa("encrypted-vault-key")
             };
 
             const result = inviteCreateInput.parse(input);
@@ -100,7 +100,7 @@ describe("Invite Schemas", () => {
                 vaultId: "550e8400-e29b-41d4-a716-446655440000",
                 invitePubkey: btoa("test-public-key"),
                 encryptedVaultKey: btoa("encrypted-vault-key"),
-                expiresInHours: 0,
+                expiresInHours: 0
             };
 
             const result = inviteCreateInput.safeParse(input);
@@ -112,7 +112,7 @@ describe("Invite Schemas", () => {
                 vaultId: "550e8400-e29b-41d4-a716-446655440000",
                 invitePubkey: btoa("test-public-key"),
                 encryptedVaultKey: btoa("encrypted-vault-key"),
-                expiresInHours: 169,
+                expiresInHours: 169
             };
 
             const result = inviteCreateInput.safeParse(input);
@@ -125,7 +125,7 @@ describe("Invite Schemas", () => {
             const input = {
                 invitePubkey: btoa("test-public-key"),
                 encryptedVaultKey: btoa("encrypted-vault-key"),
-                encPublicKey: btoa("user-encryption-public-key"),
+                encPublicKey: btoa("user-encryption-public-key")
             };
 
             const result = inviteAcceptInput.safeParse(input);
@@ -135,7 +135,7 @@ describe("Invite Schemas", () => {
         it("requires encPublicKey", () => {
             const input = {
                 invitePubkey: btoa("test-public-key"),
-                encryptedVaultKey: btoa("encrypted-vault-key"),
+                encryptedVaultKey: btoa("encrypted-vault-key")
             };
 
             const result = inviteAcceptInput.safeParse(input);
@@ -146,7 +146,7 @@ describe("Invite Schemas", () => {
     describe("inviteGetByPubkeyInput", () => {
         it("accepts valid input", () => {
             const input = {
-                invitePubkey: btoa("test-public-key"),
+                invitePubkey: btoa("test-public-key")
             };
 
             const result = inviteGetByPubkeyInput.safeParse(input);
@@ -155,7 +155,7 @@ describe("Invite Schemas", () => {
 
         it("rejects empty pubkey", () => {
             const input = {
-                invitePubkey: "",
+                invitePubkey: ""
             };
 
             const result = inviteGetByPubkeyInput.safeParse(input);
@@ -166,7 +166,7 @@ describe("Invite Schemas", () => {
     describe("inviteListInput", () => {
         it("accepts valid vault ID", () => {
             const input = {
-                vaultId: "550e8400-e29b-41d4-a716-446655440000",
+                vaultId: "550e8400-e29b-41d4-a716-446655440000"
             };
 
             const result = inviteListInput.safeParse(input);
@@ -177,7 +177,7 @@ describe("Invite Schemas", () => {
     describe("inviteRevokeInput", () => {
         it("accepts valid invite ID", () => {
             const input = {
-                inviteId: "550e8400-e29b-41d4-a716-446655440000",
+                inviteId: "550e8400-e29b-41d4-a716-446655440000"
             };
 
             const result = inviteRevokeInput.safeParse(input);
@@ -186,7 +186,7 @@ describe("Invite Schemas", () => {
 
         it("rejects invalid UUID", () => {
             const input = {
-                inviteId: "not-a-uuid",
+                inviteId: "not-a-uuid"
             };
 
             const result = inviteRevokeInput.safeParse(input);
@@ -199,7 +199,7 @@ describe("Membership Schemas", () => {
     describe("membershipListInput", () => {
         it("accepts valid vault ID", () => {
             const input = {
-                vaultId: "550e8400-e29b-41d4-a716-446655440000",
+                vaultId: "550e8400-e29b-41d4-a716-446655440000"
             };
 
             const result = membershipListInput.safeParse(input);
@@ -211,7 +211,7 @@ describe("Membership Schemas", () => {
         it("accepts valid input", () => {
             const input = {
                 vaultId: "550e8400-e29b-41d4-a716-446655440000",
-                pubkeyHash: "abc123pubkeyhash",
+                pubkeyHash: "abc123pubkeyhash"
             };
 
             const result = membershipRemoveInput.safeParse(input);
@@ -221,7 +221,7 @@ describe("Membership Schemas", () => {
         it("rejects empty pubkeyHash", () => {
             const input = {
                 vaultId: "550e8400-e29b-41d4-a716-446655440000",
-                pubkeyHash: "",
+                pubkeyHash: ""
             };
 
             const result = membershipRemoveInput.safeParse(input);
@@ -236,13 +236,13 @@ describe("Membership Schemas", () => {
                 memberKeys: [
                     {
                         pubkeyHash: "user1pubkeyhash",
-                        encryptedVaultKey: btoa("wrapped-key-1"),
+                        encryptedVaultKey: btoa("wrapped-key-1")
                     },
                     {
                         pubkeyHash: "user2pubkeyhash",
-                        encryptedVaultKey: btoa("wrapped-key-2"),
-                    },
-                ],
+                        encryptedVaultKey: btoa("wrapped-key-2")
+                    }
+                ]
             };
 
             const result = membershipRekeyInput.safeParse(input);
@@ -252,7 +252,7 @@ describe("Membership Schemas", () => {
         it("accepts empty memberKeys array", () => {
             const input = {
                 vaultId: "550e8400-e29b-41d4-a716-446655440000",
-                memberKeys: [],
+                memberKeys: []
             };
 
             const result = membershipRekeyInput.safeParse(input);
@@ -265,9 +265,9 @@ describe("Membership Schemas", () => {
                 memberKeys: [
                     {
                         pubkeyHash: "user1pubkeyhash",
-                        encryptedVaultKey: "not-valid-base64!!!",
-                    },
-                ],
+                        encryptedVaultKey: "not-valid-base64!!!"
+                    }
+                ]
             };
 
             const result = membershipRekeyInput.safeParse(input);
@@ -283,7 +283,7 @@ describe("Membership Schemas", () => {
 describe("Invite Key Wrapping Flow", () => {
     it("should generate valid invite pubkey from secret", async () => {
         // Import sodium
-        const sodium = await import("libsodium-wrappers");
+        const { default: sodium } = await import("libsodium-wrappers");
         await sodium.ready;
 
         // Generate invite secret (like InviteLinkGenerator does)
@@ -307,7 +307,7 @@ describe("Invite Key Wrapping Flow", () => {
     });
 
     it("should produce consistent keypair from same secret", async () => {
-        const sodium = await import("libsodium-wrappers");
+        const { default: sodium } = await import("libsodium-wrappers");
         await sodium.ready;
 
         const inviteSecret = sodium.randombytes_buf(32);
@@ -321,7 +321,7 @@ describe("Invite Key Wrapping Flow", () => {
     });
 
     it("should validate URL-safe base64 encoding for invite secret", async () => {
-        const sodium = await import("libsodium-wrappers");
+        const { default: sodium } = await import("libsodium-wrappers");
         await sodium.ready;
 
         const inviteSecret = sodium.randombytes_buf(32);

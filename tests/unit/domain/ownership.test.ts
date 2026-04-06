@@ -17,7 +17,7 @@ import {
     removeOwner,
     sumOwnerships,
     updateOwnerPercentage,
-    validateOwnerships,
+    validateOwnerships
 } from "@/lib/domain/ownership";
 
 // ============================================================================
@@ -42,7 +42,7 @@ const validOwnershipsArb = (minOwners = 1, maxOwners = 5) =>
         fc
             .array(fc.float({ min: Math.fround(0.01), max: Math.fround(100), noNaN: true }), {
                 minLength: personIds.length,
-                maxLength: personIds.length,
+                maxLength: personIds.length
             })
             .map((rawPcts) => {
                 // Normalize to sum to 100
@@ -106,47 +106,47 @@ describe("validateOwnerships", () => {
                 name: "empty ownerships are invalid",
                 input: {},
                 expectedValid: false,
-                expectedError: "Account must have at least one owner",
+                expectedError: "Account must have at least one owner"
             },
             {
                 name: "single owner at 100% is valid",
                 input: { alice: 100 },
-                expectedValid: true,
+                expectedValid: true
             },
             {
                 name: "two owners at 50% each is valid",
                 input: { alice: 50, bob: 50 },
-                expectedValid: true,
+                expectedValid: true
             },
             {
                 name: "three owners summing to 100% is valid",
                 input: { alice: 33.33, bob: 33.33, charlie: 33.34 },
-                expectedValid: true,
+                expectedValid: true
             },
             {
                 name: "ownerships summing to 99% are invalid",
                 input: { alice: 50, bob: 49 },
                 expectedValid: false,
-                expectedError: "Ownerships must sum to 100%",
+                expectedError: "Ownerships must sum to 100%"
             },
             {
                 name: "ownerships summing to 101% are invalid",
                 input: { alice: 51, bob: 50 },
                 expectedValid: false,
-                expectedError: "Ownerships must sum to 100%",
+                expectedError: "Ownerships must sum to 100%"
             },
             {
                 name: "negative percentage is invalid",
                 input: { alice: -10, bob: 110 },
                 expectedValid: false,
-                expectedError: "cannot be negative",
+                expectedError: "cannot be negative"
             },
             {
                 name: "percentage over 100 is invalid",
                 input: { alice: 150 },
                 expectedValid: false,
-                expectedError: "cannot exceed 100%",
-            },
+                expectedError: "cannot exceed 100%"
+            }
         ];
 
         for (const { name, input, expectedValid, expectedError } of testCases) {
@@ -222,7 +222,7 @@ describe("normalizeOwnerships", () => {
                         ),
                         {
                             minLength: 1,
-                            maxLength: 5,
+                            maxLength: 5
                         }
                     )
                     .map((entries) => Object.fromEntries(entries)),

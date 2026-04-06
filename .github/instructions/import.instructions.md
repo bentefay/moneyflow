@@ -64,7 +64,7 @@ const result = parseCSV(content, {
     separator: ",",
     dateFormat: "MM/dd/yyyy",
     decimalSeparator: ".",
-    thousandSeparator: ",",
+    thousandSeparator: ","
 });
 ```
 
@@ -87,7 +87,7 @@ Uses Levenshtein distance for fuzzy matching:
 const config: DuplicateDetectionConfig = {
     dateWindowDays: 3, // ±3 days
     amountTolerance: 0.01, // 1 cent
-    descriptionThreshold: 0.8, // 80% similarity
+    descriptionThreshold: 0.8 // 80% similarity
 };
 
 const matches = detectDuplicates(newTransactions, existingTransactions, config);

@@ -18,7 +18,7 @@ import {
     encryptString,
     generateVaultKey,
     KEY_BYTES,
-    NONCE_BYTES,
+    NONCE_BYTES
 } from "@/lib/crypto/encryption";
 import { initCrypto } from "@/lib/crypto/keypair";
 
@@ -161,7 +161,7 @@ describe("encryptString / decryptString", () => {
         { name: "simple text", value: "Hello, World!" },
         { name: "unicode", value: "Hello, 世界! 🌍" },
         { name: "long string", value: "x".repeat(10000) },
-        { name: "special characters", value: "Line1\nLine2\tTab\"Quote'" },
+        { name: "special characters", value: "Line1\nLine2\tTab\"Quote'" }
     ] as const;
 
     cases.forEach(({ name, value }) => {
@@ -193,7 +193,7 @@ describe("encryptJSON / decryptJSON", () => {
         { name: "string", value: "hello" },
         { name: "array", value: [1, 2, 3] },
         { name: "object", value: { key: "value", nested: { a: 1 } } },
-        { name: "complex object", value: { users: [{ id: 1, name: "Alice" }], count: 1 } },
+        { name: "complex object", value: { users: [{ id: 1, name: "Alice" }], count: 1 } }
     ] as const;
 
     cases.forEach(({ name, value }) => {

@@ -6,7 +6,7 @@ import {
     getTodayISO,
     getWeekStartDay,
     isValidISODate,
-    parseDate,
+    parseDate
 } from "@/lib/utils/date-format";
 
 describe("formatDate", () => {
@@ -20,7 +20,7 @@ describe("formatDate", () => {
         { input: "2025-12-31", locale: "de-DE", expected: "31. Dez. 2025" },
         // Edge cases
         { input: "2000-01-01", locale: "en-US", expected: "Jan 1, 2000" },
-        { input: "2099-12-31", locale: "en-US", expected: "Dec 31, 2099" },
+        { input: "2099-12-31", locale: "en-US", expected: "Dec 31, 2099" }
     ] as const;
 
     it.each(testCases)(
@@ -68,7 +68,7 @@ describe("parseDate", () => {
         // Common formats (via native Date fallback)
         { input: "Dec 31, 2025", expected: "2025-12-31" },
         { input: "December 31, 2025", expected: "2025-12-31" },
-        { input: "12/31/2025", expected: "2025-12-31" },
+        { input: "12/31/2025", expected: "2025-12-31" }
     ] as const;
 
     it.each(validCases)("parses '$input' to $expected", ({ input, expected }) => {
@@ -93,7 +93,7 @@ describe("getWeekStartDay", () => {
         { locale: "en-GB", expected: 1 },
         { locale: "de-DE", expected: 1 },
         { locale: "fr-FR", expected: 1 },
-        { locale: "es-ES", expected: 1 },
+        { locale: "es-ES", expected: 1 }
     ] as const;
 
     it.each(testCases)("returns $expected for locale $locale", ({ locale, expected }) => {
@@ -123,7 +123,7 @@ describe("isValidISODate", () => {
         "2025/12/31", // wrong format
         "25-12-31", // short year
         "2025-1-1", // missing leading zeros
-        "",
+        ""
     ];
 
     it.each(invalidCases)("returns false for invalid date '%s'", (input) => {

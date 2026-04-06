@@ -1,6 +1,7 @@
 ---
 name: crdt
-description: Loro CRDT state management with loro-mirror. Use when working on files in src/lib/crdt/.
+description:
+    Loro CRDT state management with loro-mirror. Use when working on files in src/lib/crdt/.
 ---
 
 # CRDT Guidelines
@@ -16,7 +17,7 @@ setState((state) => {
 // WRONG - returning new objects breaks change tracking
 setState((state) => ({
     ...state,
-    transactions: { ...state.transactions, [id]: transaction },
+    transactions: { ...state.transactions, [id]: transaction }
 }));
 ```
 
@@ -29,9 +30,9 @@ setState((state) => ({
 
 ## Rich Domain Types (via `rich-schema.ts` transforms)
 
-Schema fields use `richSchema.*` helpers that apply bidirectional transforms between
-CRDT primitives and domain types. The `richSchema` factory methods must be generic over
-`O extends SchemaOptions` to preserve `required: false` optionality.
+Schema fields use `richSchema.*` helpers that apply bidirectional transforms between CRDT primitives
+and domain types. The `richSchema` factory methods must be generic over `O extends SchemaOptions` to
+preserve `required: false` optionality.
 
 | richSchema helper               | CRDT primitive | Domain type          |
 | ------------------------------- | -------------- | -------------------- |
@@ -49,7 +50,7 @@ export const entitySchema = schema.LoroMap({
     id: schema.String({ required: true }),
     name: schema.String({ required: true }),
     // Optional fields use { required: false } — value type becomes T | undefined
-    deletedAt: richSchema.Instant({ required: false }),
+    deletedAt: richSchema.Instant({ required: false })
 });
 ```
 

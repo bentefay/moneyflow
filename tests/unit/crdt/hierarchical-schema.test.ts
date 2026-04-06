@@ -15,7 +15,7 @@ import {
     type NestedDuplicate,
     type Transaction,
     type TransactionStore,
-    type YearBucket,
+    type YearBucket
 } from "@/lib/crdt/schema";
 
 describe("Transaction type", () => {
@@ -36,7 +36,7 @@ describe("Transaction type", () => {
             creationInstant: Date.now(),
             importRowIndex: 0,
             suspectedDuplicates: [],
-            deletedAt: 0,
+            deletedAt: 0
         } as unknown as Transaction;
 
         expect(mockTx.id).toBe("tx-1");
@@ -85,7 +85,7 @@ describe("NestedDuplicate type", () => {
             allocations: {},
             creationInstant: Date.now(),
             importRowIndex: 1,
-            deletedAt: 0,
+            deletedAt: 0
         } as unknown as NestedDuplicate;
 
         expect(mockDup.id).toBe("dup-1");
@@ -107,7 +107,7 @@ describe("NestedDuplicate type", () => {
             allocations: {},
             creationInstant: Date.now(),
             importRowIndex: 0,
-            deletedAt: 0,
+            deletedAt: 0
         } as unknown as NestedDuplicate;
 
         // All transaction fields except suspectedDuplicates should exist
@@ -135,7 +135,7 @@ describe("NestedDuplicate type", () => {
             allocations: {},
             creationInstant: 12345,
             importRowIndex: 10,
-            deletedAt: 0,
+            deletedAt: 0
         } as unknown as NestedDuplicate;
 
         expect(dup.creationInstant).toBe(12345);
@@ -147,7 +147,7 @@ describe("DayBucket type", () => {
     it("has correct shape", () => {
         const mockDay = {
             day: 15,
-            transactions: [],
+            transactions: []
         } as unknown as DayBucket;
 
         expect(mockDay.day).toBe(15);
@@ -169,7 +169,7 @@ describe("MonthBucket type", () => {
     it("has correct shape", () => {
         const mockMonth = {
             month: 1,
-            days: [],
+            days: []
         } as unknown as MonthBucket;
 
         expect(mockMonth.month).toBe(1);
@@ -191,7 +191,7 @@ describe("YearBucket type", () => {
     it("has correct shape", () => {
         const mockYear = {
             year: 2024,
-            months: [],
+            months: []
         } as unknown as YearBucket;
 
         expect(mockYear.year).toBe(2024);
@@ -213,7 +213,7 @@ describe("AccountTransactionTree type", () => {
     it("has correct shape", () => {
         const mockTree = {
             accountId: "acc-1",
-            years: [],
+            years: []
         } as unknown as AccountTransactionTree;
 
         expect(mockTree.accountId).toBe("acc-1");
@@ -223,7 +223,7 @@ describe("AccountTransactionTree type", () => {
     it("has accountId field", () => {
         const tree = {
             accountId: "acc-1",
-            years: [],
+            years: []
         } as unknown as AccountTransactionTree;
         expect(typeof tree.accountId).toBe("string");
     });
@@ -231,7 +231,7 @@ describe("AccountTransactionTree type", () => {
     it("has years field", () => {
         const tree = {
             accountId: "acc-1",
-            years: [],
+            years: []
         } as unknown as AccountTransactionTree;
         expect(Array.isArray(tree.years)).toBe(true);
     });

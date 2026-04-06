@@ -42,7 +42,7 @@ export function StatusRow({
     onDelete,
     onSetDefault,
     canDelete = true,
-    className,
+    className
 }: StatusRowProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [editedName, setEditedName] = useState(status.name);

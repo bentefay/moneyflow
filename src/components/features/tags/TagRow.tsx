@@ -51,7 +51,7 @@ export function TagRow({
     onUpdate,
     onDelete,
     canDelete = true,
-    className,
+    className
 }: TagRowProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [editedName, setEditedName] = useState(tag.name);
@@ -114,7 +114,7 @@ export function TagRow({
         editedColor,
         editedParentId,
         editedIsTransfer,
-        onUpdate,
+        onUpdate
     ]);
 
     // Handle canceling inline edits

@@ -37,7 +37,8 @@ account.currency → vault.preferences.defaultCurrency → "USD"
 | linkedUserId | `undefined`           |
 | deletedAt    | `0`                   |
 
-**Rationale**: Every new vault starts with a "Me" person so the default account can have valid ownership.
+**Rationale**: Every new vault starts with a "Me" person so the default account can have valid
+ownership.
 
 ### Default Account (Modified)
 

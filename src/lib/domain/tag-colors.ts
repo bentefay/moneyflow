@@ -25,7 +25,7 @@ export const TAG_COLOR_PALETTE = [
     "#eab308", // yellow-500
     "#64748b", // slate-500
     "#22c55e", // green-500
-    "#0ea5e9", // sky-500
+    "#0ea5e9" // sky-500
 ] as const;
 
 export type TagColor = (typeof TAG_COLOR_PALETTE)[number] | string;

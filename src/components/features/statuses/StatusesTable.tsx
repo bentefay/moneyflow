@@ -123,7 +123,7 @@ export function StatusesTable({ className }: StatusesTableProps) {
         const statusData: Record<string, unknown> = {
             id,
             name: trimmedName,
-            isDefault: false,
+            isDefault: false
         };
 
         if (newBehavior && newBehavior !== "none") {

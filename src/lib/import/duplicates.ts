@@ -20,7 +20,7 @@ import { normalizedSimilarity } from "./levenshtein";
 import {
     type DateMatchMode,
     DEFAULT_DUPLICATE_DETECTION_SETTINGS,
-    type DescriptionMatchMode,
+    type DescriptionMatchMode
 } from "./types";
 
 /**
@@ -79,7 +79,7 @@ export interface DuplicateDetectionConfig {
 export const DEFAULT_DUPLICATE_CONFIG: DuplicateDetectionConfig = {
     ...DEFAULT_DUPLICATE_DETECTION_SETTINGS,
     maxAmountDiff: 1 as MoneyMinorUnits, // Allow 1 cent difference for rounding
-    minConfidence: 0.7, // Overall 70% confidence
+    minConfidence: 0.7 // Overall 70% confidence
 };
 
 /**
@@ -108,7 +108,7 @@ function calculateConfidence(
     const weights = {
         date: 0.25,
         amount: 0.35,
-        description: 0.4,
+        description: 0.4
     };
 
     let score = 0;
@@ -201,8 +201,8 @@ export function checkDuplicate(
         matchDetails: {
             dateMatch,
             amountMatch,
-            descriptionSimilarity,
-        },
+            descriptionSimilarity
+        }
     };
 }
 

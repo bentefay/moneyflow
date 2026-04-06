@@ -44,7 +44,7 @@ export default function ImportsPage() {
             filename: imp.filename,
             transactionCount: imp.transactionCount,
             createdAt: imp.createdAt,
-            deletedAt: imp.deletedAt,
+            deletedAt: imp.deletedAt
         }));
 
     // Soft-delete import record only
@@ -86,7 +86,7 @@ export default function ImportsPage() {
                     JSON.stringify({
                         name: file.name,
                         content: reader.result,
-                        type: file.type,
+                        type: file.type
                     })
                 );
                 router.push("/imports/new");

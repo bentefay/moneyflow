@@ -69,9 +69,10 @@ curates context but may miss things.
   — don't fix it.
 - **Be honest.** If a test fails, report the failure. If you're not sure something is right, say so.
   The orchestrator will verify independently anyway.
-- **Distinguish your failures from pre-existing ones.** If a build or test fails, check whether the
-  failure is in code you changed. If it's pre-existing or in an unrelated area, report it to the
-  orchestrator rather than trying to fix it. If a test is flaky (passes on re-run), note it.
+- **Fix all failures.** If a build, test, lint, or typecheck fails, fix it — even if the failure
+  looks pre-existing or unrelated to your changes. You are responsible for leaving everything green.
+  Never stash or revert your changes to check whether a failure is "pre-existing". Never dismiss a
+  failure as "not caused by me". Just fix it.
 
 ---
 

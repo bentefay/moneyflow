@@ -4,14 +4,16 @@ applyTo: "src/lib/sync/**"
 
 # Sync Module Guidelines
 
-Real-time synchronization between clients using Supabase Realtime, Loro CRDT, and IndexedDB local caching.
+Real-time synchronization between clients using Supabase Realtime, Loro CRDT, and IndexedDB local
+caching.
 
 ## Design Decisions
 
 ### Core Principles
 
 1. **Server is source of truth** - IndexedDB is a cache that mirrors server state
-2. **All ops kept forever** - No pruning; storage is cheap, enables full audit trail and any-point sync
+2. **All ops kept forever** - No pruning; storage is cheap, enables full audit trail and any-point
+   sync
 3. **Shallow snapshots for fast start** - Performance optimization only, not a compaction mechanism
 4. **Encryption at rest** - Server sees encrypted blobs + unencrypted version metadata for filtering
 
@@ -44,7 +46,8 @@ Real-time synchronization between clients using Supabase Realtime, Loro CRDT, an
    d. Push any local unpushed ops
 ```
 
-**Key insight:** If client has no unpushed ops and server snapshot is newer, download fresh snapshot instead of applying many ops.
+**Key insight:** If client has no unpushed ops and server snapshot is newer, download fresh snapshot
+instead of applying many ops.
 
 ### Snapshot Refresh
 
@@ -76,7 +79,8 @@ In background, client creates new shallow snapshot and updates server when (chec
 
 - **loro-mirror auto-commits** on `setState()` - no manual commit debouncing needed
 - **`subscribeLocalUpdates`** fires after each commit with binary update bytes
-- **`has_unpushed` flag is critical** - server must send ops (not snapshot) if client has local changes to merge
+- **`has_unpushed` flag is critical** - server must send ops (not snapshot) if client has local
+  changes to merge
 - **Use `lodash-es` throttle** - don't roll custom timing utilities
 - **Version vector stored plaintext** - enables server-side filtering without decryption
 
@@ -224,7 +228,7 @@ async function backgroundSync(doc: LoroDoc, vaultId: string) {
     const response = await trpc.sync.getUpdates({
         vault_id: vaultId,
         version_vector: encodeVersion(localVersion),
-        has_unpushed: hasUnpushed,
+        has_unpushed: hasUnpushed
     });
 
     if (response.type === "use_snapshot") {

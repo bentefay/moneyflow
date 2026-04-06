@@ -83,13 +83,13 @@ export const vaultCreateInput = z.object({
      * When a member is removed, the vault key can be re-encrypted
      * for all remaining members using their stored enc_public_key.
      */
-    encPublicKey: encPublicKeySchema,
+    encPublicKey: encPublicKeySchema
 });
 
 export type VaultCreateInput = z.infer<typeof vaultCreateInput>;
 
 export const vaultCreateOutput = z.object({
-    vaultId: vaultIdSchema,
+    vaultId: vaultIdSchema
 });
 
 export type VaultCreateOutput = z.infer<typeof vaultCreateOutput>;
@@ -99,7 +99,7 @@ export type VaultCreateOutput = z.infer<typeof vaultCreateOutput>;
 // ============================================================================
 
 export const vaultGetInput = z.object({
-    vaultId: vaultIdSchema,
+    vaultId: vaultIdSchema
 });
 
 export type VaultGetInput = z.infer<typeof vaultGetInput>;
@@ -107,10 +107,10 @@ export type VaultGetInput = z.infer<typeof vaultGetInput>;
 export const vaultGetOutput = z.object({
     vault: z.object({
         id: vaultIdSchema,
-        createdAt: z.string(),
+        createdAt: z.string()
     }),
     role: vaultRoleSchema,
-    encryptedVaultKey: encryptedVaultKeySchema,
+    encryptedVaultKey: encryptedVaultKeySchema
 });
 
 export type VaultGetOutput = z.infer<typeof vaultGetOutput>;
@@ -133,9 +133,9 @@ export const vaultListOutput = z.object({
             id: vaultIdSchema,
             role: vaultRoleSchema,
             encryptedVaultKey: encryptedVaultKeySchema,
-            createdAt: z.string(),
+            createdAt: z.string()
         })
-    ),
+    )
 });
 
 export type VaultListOutput = z.infer<typeof vaultListOutput>;
@@ -145,13 +145,13 @@ export type VaultListOutput = z.infer<typeof vaultListOutput>;
 // ============================================================================
 
 export const vaultDeleteInput = z.object({
-    vaultId: vaultIdSchema,
+    vaultId: vaultIdSchema
 });
 
 export type VaultDeleteInput = z.infer<typeof vaultDeleteInput>;
 
 export const vaultDeleteOutput = z.object({
-    success: z.boolean(),
+    success: z.boolean()
 });
 
 export type VaultDeleteOutput = z.infer<typeof vaultDeleteOutput>;
@@ -161,13 +161,13 @@ export type VaultDeleteOutput = z.infer<typeof vaultDeleteOutput>;
 // ============================================================================
 
 export const vaultLeaveInput = z.object({
-    vaultId: vaultIdSchema,
+    vaultId: vaultIdSchema
 });
 
 export type VaultLeaveInput = z.infer<typeof vaultLeaveInput>;
 
 export const vaultLeaveOutput = z.object({
-    success: z.boolean(),
+    success: z.boolean()
 });
 
 export type VaultLeaveOutput = z.infer<typeof vaultLeaveOutput>;
@@ -177,7 +177,7 @@ export type VaultLeaveOutput = z.infer<typeof vaultLeaveOutput>;
 // ============================================================================
 
 export const vaultMembersInput = z.object({
-    vaultId: vaultIdSchema,
+    vaultId: vaultIdSchema
 });
 
 export type VaultMembersInput = z.infer<typeof vaultMembersInput>;
@@ -185,13 +185,13 @@ export type VaultMembersInput = z.infer<typeof vaultMembersInput>;
 export const vaultMemberSchema = z.object({
     pubkeyHash: z.string(),
     role: vaultRoleSchema,
-    createdAt: z.string(),
+    createdAt: z.string()
 });
 
 export type VaultMember = z.infer<typeof vaultMemberSchema>;
 
 export const vaultMembersOutput = z.object({
-    members: z.array(vaultMemberSchema),
+    members: z.array(vaultMemberSchema)
 });
 
 export type VaultMembersOutput = z.infer<typeof vaultMembersOutput>;

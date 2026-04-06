@@ -45,7 +45,7 @@ export function PeopleTable({
     vaultKey,
     encSecretKey,
     isOwner = false,
-    className,
+    className
 }: PeopleTableProps) {
     const [isAdding, setIsAdding] = useState(false);
     const [newPersonName, setNewPersonName] = useState("");
@@ -139,8 +139,8 @@ export function PeopleTable({
             id,
             data: {
                 id,
-                name: newPersonName.trim(),
-            },
+                name: newPersonName.trim()
+            }
         });
 
         setNewPersonName("");

@@ -61,7 +61,7 @@ export const DEFAULT_PERSON: PersonInput = {
     id: DEFAULT_PERSON_ID,
     name: "Me",
     linkedUserId: undefined,
-    deletedAt: undefined,
+    deletedAt: undefined
 };
 
 /**
@@ -85,7 +85,7 @@ export const DEFAULT_ACCOUNT: AccountInput = {
     accountType: DEFAULT_ACCOUNT_TYPE,
     balance: asMinorUnits(0),
     ownerships: { [DEFAULT_PERSON_ID]: asPercentage(100) }, // Me owns 100%
-    deletedAt: undefined,
+    deletedAt: undefined
 };
 
 /**
@@ -93,7 +93,7 @@ export const DEFAULT_ACCOUNT: AccountInput = {
  */
 export const DEFAULT_STATUS_IDS = {
     FOR_REVIEW: "status-for-review",
-    PAID: "status-paid",
+    PAID: "status-paid"
 } as const;
 
 /**
@@ -111,15 +111,15 @@ export const DEFAULT_STATUSES: Record<string, StatusInput> = {
         name: "For Review",
         behavior: undefined,
         isDefault: true,
-        deletedAt: undefined,
+        deletedAt: undefined
     },
     [DEFAULT_STATUS_IDS.PAID]: {
         id: DEFAULT_STATUS_IDS.PAID,
         name: "Paid",
         behavior: "treatAsPaid",
         isDefault: true,
-        deletedAt: undefined,
-    },
+        deletedAt: undefined
+    }
 };
 
 /**
@@ -151,6 +151,7 @@ export function getDefaultVaultState(options?: DefaultVaultStateOptions): VaultI
         people: { [DEFAULT_PERSON_ID]: { ...DEFAULT_PERSON } },
         accounts: { [DEFAULT_ACCOUNT_ID]: { ...DEFAULT_ACCOUNT } },
         tags: {},
+        descriptionAliases: {},
         statuses: { ...DEFAULT_STATUSES },
         transactions: {},
         imports: {},
@@ -160,8 +161,8 @@ export function getDefaultVaultState(options?: DefaultVaultStateOptions): VaultI
         preferences: {
             name: DEFAULT_VAULT_NAME,
             automationCreationPreference: DEFAULT_AUTOMATION_CREATION_PREFERENCE,
-            defaultCurrency: currency,
-        },
+            defaultCurrency: currency
+        }
     };
 }
 
@@ -207,7 +208,7 @@ export function initializeVaultDefaults(
         draft.preferences = {
             name: DEFAULT_VAULT_NAME,
             automationCreationPreference: DEFAULT_AUTOMATION_CREATION_PREFERENCE,
-            defaultCurrency: currency,
+            defaultCurrency: currency
         };
     }
 }

@@ -1,18 +1,21 @@
 # Implementation Plan: Transaction Storage Optimization
 
-**Branch**: `006-transaction-storage-optimization` | **Date**: 2026-01-10 | **Spec**: [spec.md](./spec.md)
-**Input**: Feature specification from `/specs/006-transaction-storage-optimization/spec.md`
+**Branch**: `006-transaction-storage-optimization` | **Date**: 2026-01-10 | **Spec**:
+[spec.md](./spec.md) **Input**: Feature specification from
+`/specs/006-transaction-storage-optimization/spec.md`
 
 ## Summary
 
-Restructure transaction storage from a flat `LoroMapRecord<Transaction>` to a hierarchical `Account → Year → Month → Day → LoroList<Transaction>` structure to enable:
+Restructure transaction storage from a flat `LoroMapRecord<Transaction>` to a hierarchical
+`Account → Year → Month → Day → LoroList<Transaction>` structure to enable:
 
 - O(1) account filtering (select subtree instead of scanning all)
 - Fine-grained memoization (unchanged months don't recompute)
 - Efficient imports without full re-sort
 - Linear-time duplicate detection via sorted merge
 
-Additionally, refactor duplicate handling from `duplicateOf` reference to nested `suspectedDuplicates` list for better UX (grouped display, swap/unnest operations).
+Additionally, refactor duplicate handling from `duplicateOf` reference to nested
+`suspectedDuplicates` list for better UX (grouped display, swap/unnest operations).
 
 ## Technical Context
 
@@ -105,7 +108,8 @@ tests/
     └── transactions.spec.ts             # Update: E2E for new duplicate UX
 ```
 
-**Structure Decision**: Web application structure - all code in `src/` with feature-organized components. Tests mirror source structure in `tests/`.
+**Structure Decision**: Web application structure - all code in `src/` with feature-organized
+components. Tests mirror source structure in `tests/`.
 
 ## Complexity Tracking
 

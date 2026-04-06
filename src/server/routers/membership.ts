@@ -20,7 +20,7 @@ import { createSupabaseClient } from "@/lib/supabase/server";
 import {
     membershipListInput,
     membershipRekeyInput,
-    membershipRemoveInput,
+    membershipRemoveInput
 } from "../schemas/membership";
 import { protectedProcedure, router } from "../trpc";
 
@@ -45,7 +45,7 @@ export const membershipRouter = router({
         if (callerError || !callerMembership) {
             throw new TRPCError({
                 code: "NOT_FOUND",
-                message: "Vault not found or access denied",
+                message: "Vault not found or access denied"
             });
         }
 
@@ -64,8 +64,8 @@ export const membershipRouter = router({
                 pubkeyHash: m.pubkey_hash,
                 role: m.role as "owner" | "member",
                 encPublicKey: m.enc_public_key,
-                createdAt: m.created_at,
-            })),
+                createdAt: m.created_at
+            }))
         };
     }),
 
@@ -92,14 +92,14 @@ export const membershipRouter = router({
         if (callerError || !callerMembership) {
             throw new TRPCError({
                 code: "NOT_FOUND",
-                message: "Vault not found or access denied",
+                message: "Vault not found or access denied"
             });
         }
 
         if (callerMembership.role !== "owner") {
             throw new TRPCError({
                 code: "FORBIDDEN",
-                message: "Only the owner can remove members",
+                message: "Only the owner can remove members"
             });
         }
 
@@ -107,7 +107,7 @@ export const membershipRouter = router({
         if (input.pubkeyHash === ctx.pubkeyHash) {
             throw new TRPCError({
                 code: "BAD_REQUEST",
-                message: "Cannot remove yourself. Use leave or delete instead.",
+                message: "Cannot remove yourself. Use leave or delete instead."
             });
         }
 
@@ -122,7 +122,7 @@ export const membershipRouter = router({
         if (targetError || !targetMember) {
             throw new TRPCError({
                 code: "NOT_FOUND",
-                message: "Member not found",
+                message: "Member not found"
             });
         }
 
@@ -153,8 +153,8 @@ export const membershipRouter = router({
                 .filter((m) => m.enc_public_key) // Only members with enc_public_key can receive new keys
                 .map((m) => ({
                     pubkeyHash: m.pubkey_hash,
-                    encPublicKey: m.enc_public_key!,
-                })),
+                    encPublicKey: m.enc_public_key!
+                }))
         };
     }),
 
@@ -180,14 +180,14 @@ export const membershipRouter = router({
         if (callerError || !callerMembership) {
             throw new TRPCError({
                 code: "NOT_FOUND",
-                message: "Vault not found or access denied",
+                message: "Vault not found or access denied"
             });
         }
 
         if (callerMembership.role !== "owner") {
             throw new TRPCError({
                 code: "FORBIDDEN",
-                message: "Only the owner can re-key the vault",
+                message: "Only the owner can re-key the vault"
             });
         }
 
@@ -207,5 +207,5 @@ export const membershipRouter = router({
         }
 
         return { success: true };
-    }),
+    })
 });

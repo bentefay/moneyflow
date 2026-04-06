@@ -8,7 +8,7 @@ export {
     ACTION_TYPES,
     type ActionData,
     ActionEditor,
-    type ActionEditorProps,
+    type ActionEditorProps
 } from "./ActionEditor";
 export { AutomationRow, type AutomationRowProps } from "./AutomationRow";
 export { AutomationsTable } from "./AutomationsTable";
@@ -17,5 +17,5 @@ export {
     CONDITION_OPERATORS,
     type ConditionData,
     ConditionEditor,
-    type ConditionEditorProps,
+    type ConditionEditorProps
 } from "./ConditionEditor";

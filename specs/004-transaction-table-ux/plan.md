@@ -5,17 +5,23 @@
 
 ## Summary
 
-Comprehensive UX overhaul of the transaction table to enable seamless inline editing, checkbox-based bulk selection, and improved visual hierarchy. Key changes: always-editable cell appearance, leftmost checkbox column with select-all-filtered, bulk edit for tags/description/amount, merchant/description field separation with expandable description rows, dedicated Account column, column alignment fixes, Temporal API date formatting, and Actions column.
+Comprehensive UX overhaul of the transaction table to enable seamless inline editing, checkbox-based
+bulk selection, and improved visual hierarchy. Key changes: always-editable cell appearance,
+leftmost checkbox column with select-all-filtered, bulk edit for tags/description/amount,
+merchant/description field separation with expandable description rows, dedicated Account column,
+column alignment fixes, Temporal API date formatting, and Actions column.
 
 ## Technical Context
 
 **Language/Version**: TypeScript 5.x, Node.js 20.x  
-**Primary Dependencies**: Next.js 15 (App Router), React 19, loro-mirror, TanStack Virtual, shadcn/ui, Tailwind CSS  
+**Primary Dependencies**: Next.js 15 (App Router), React 19, loro-mirror, TanStack Virtual,
+shadcn/ui, Tailwind CSS  
 **Storage**: Loro CRDT via loro-mirror (client-side), Supabase (encrypted sync)  
 **Testing**: Vitest (unit), Playwright (E2E), fast-check (property-based)  
 **Target Platform**: Web (responsive, not mobile-first)  
 **Project Type**: Web application (Next.js monorepo)  
-**Performance Goals**: <100ms perceived latency for cell edits, bulk select 500 txns in <100ms, bulk edit 100 txns in <2s  
+**Performance Goals**: <100ms perceived latency for cell edits, bulk select 500 txns in <100ms, bulk
+edit 100 txns in <2s  
 **Constraints**: Offline-capable, <500ms sync latency, virtualized rendering for 10k+ rows  
 **Scale/Scope**: 10k+ transactions per vault, multi-user concurrent editing
 
@@ -94,7 +100,8 @@ tests/
 │   └── transactions.spec.ts                 # MODIFY: Add inline edit, bulk edit tests
 ```
 
-**Structure Decision**: Follows existing Next.js App Router structure. New components co-located with existing transaction components. Hooks extracted for testability and reuse.
+**Structure Decision**: Follows existing Next.js App Router structure. New components co-located
+with existing transaction components. Hooks extracted for testability and reuse.
 
 ## Complexity Tracking
 

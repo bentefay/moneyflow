@@ -27,7 +27,7 @@ import {
     SelectContent,
     SelectItem,
     SelectTrigger,
-    SelectValue,
+    SelectValue
 } from "@/components/ui/select";
 import { initCrypto } from "@/lib/crypto/keypair";
 import { wrapKey } from "@/lib/crypto/keywrap";
@@ -55,7 +55,7 @@ export function InviteLinkGenerator({
     vaultKey,
     encSecretKey,
     isOwner,
-    className,
+    className
 }: InviteLinkGeneratorProps) {
     const [inviteUrl, setInviteUrl] = useState<string | null>(null);
     const [expiresAt, setExpiresAt] = useState<string | null>(null);
@@ -107,7 +107,7 @@ export function InviteLinkGenerator({
                 invitePubkey: invitePubkeyBase64,
                 encryptedVaultKey: wrappedVaultKeyBase64,
                 role,
-                expiresInHours: expiryHours,
+                expiresInHours: expiryHours
             });
 
             // 5. Create invite URL with secret in fragment
@@ -144,7 +144,7 @@ export function InviteLinkGenerator({
         const date = new Date(isoString);
         return date.toLocaleString(undefined, {
             dateStyle: "medium",
-            timeStyle: "short",
+            timeStyle: "short"
         });
     };
 

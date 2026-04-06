@@ -25,7 +25,7 @@ import {
     loadLocalSnapshot,
     markOpsPushed,
     saveLocalSnapshot,
-    setSyncMeta,
+    setSyncMeta
 } from "@/lib/sync/persistence";
 
 // Reset database between tests
@@ -70,7 +70,7 @@ describe("appendOp", () => {
             id: "op-1",
             vault_id: vaultId,
             version_vector: '{"peer1": 1}',
-            encrypted_data: "base64encodeddata",
+            encrypted_data: "base64encodeddata"
         });
 
         const ops = await getAllOps(vaultId);
@@ -80,7 +80,7 @@ describe("appendOp", () => {
             vault_id: vaultId,
             version_vector: '{"peer1": 1}',
             encrypted_data: "base64encodeddata",
-            pushed: 0, // 0 = false
+            pushed: 0 // 0 = false
         });
         expect(ops[0].created_at).toBeGreaterThan(0);
     });
@@ -91,7 +91,7 @@ describe("appendOp", () => {
             vault_id: "vault-123",
             version_vector: "{}",
             encrypted_data: "data",
-            pushed: true,
+            pushed: true
         });
 
         const ops = await getAllOps("vault-123");
@@ -108,7 +108,7 @@ describe("getUnpushedOps", () => {
             vault_id: vaultId,
             version_vector: "{}",
             encrypted_data: "data1",
-            pushed: false,
+            pushed: false
         });
 
         await appendOp({
@@ -116,7 +116,7 @@ describe("getUnpushedOps", () => {
             vault_id: vaultId,
             version_vector: "{}",
             encrypted_data: "data2",
-            pushed: true,
+            pushed: true
         });
 
         await appendOp({
@@ -124,7 +124,7 @@ describe("getUnpushedOps", () => {
             vault_id: vaultId,
             version_vector: "{}",
             encrypted_data: "data3",
-            pushed: false,
+            pushed: false
         });
 
         const unpushed = await getUnpushedOps(vaultId);
@@ -137,7 +137,7 @@ describe("getUnpushedOps", () => {
             id: "op-1",
             vault_id: "vault-123",
             version_vector: "{}",
-            encrypted_data: "data",
+            encrypted_data: "data"
         });
 
         const unpushed = await getUnpushedOps("vault-456");
@@ -151,7 +151,7 @@ describe("hasUnpushedOps", () => {
             id: "op-1",
             vault_id: "vault-123",
             version_vector: "{}",
-            encrypted_data: "data",
+            encrypted_data: "data"
         });
 
         expect(await hasUnpushedOps("vault-123")).toBe(true);
@@ -163,7 +163,7 @@ describe("hasUnpushedOps", () => {
             vault_id: "vault-123",
             version_vector: "{}",
             encrypted_data: "data",
-            pushed: true,
+            pushed: true
         });
 
         expect(await hasUnpushedOps("vault-123")).toBe(false);
@@ -182,14 +182,14 @@ describe("markOpsPushed", () => {
             id: "op-1",
             vault_id: vaultId,
             version_vector: "{}",
-            encrypted_data: "data1",
+            encrypted_data: "data1"
         });
 
         await appendOp({
             id: "op-2",
             vault_id: vaultId,
             version_vector: "{}",
-            encrypted_data: "data2",
+            encrypted_data: "data2"
         });
 
         await markOpsPushed(["op-1"]);
@@ -207,7 +207,7 @@ describe("markOpsPushed", () => {
             id: "op-1",
             vault_id: "vault-123",
             version_vector: "{}",
-            encrypted_data: "data",
+            encrypted_data: "data"
         });
 
         // Should not throw
@@ -230,7 +230,7 @@ describe("getOpsSince", () => {
             id: "op-old",
             vault_id: vaultId,
             version_vector: "{}",
-            encrypted_data: "old",
+            encrypted_data: "old"
         });
 
         vi.setSystemTime(now);
@@ -239,7 +239,7 @@ describe("getOpsSince", () => {
             id: "op-new",
             vault_id: vaultId,
             version_vector: "{}",
-            encrypted_data: "new",
+            encrypted_data: "new"
         });
 
         vi.useRealTimers();
@@ -258,14 +258,14 @@ describe("countOpsSinceSnapshot", () => {
             id: "op-1",
             vault_id: vaultId,
             version_vector: "{}",
-            encrypted_data: "12345678",
+            encrypted_data: "12345678"
         });
 
         await appendOp({
             id: "op-2",
             vault_id: vaultId,
             version_vector: "{}",
-            encrypted_data: "123456789012",
+            encrypted_data: "123456789012"
         });
 
         const result = await countOpsSinceSnapshot(vaultId);
@@ -280,7 +280,7 @@ describe("countOpsSinceSnapshot", () => {
         await saveLocalSnapshot({
             vault_id: vaultId,
             version_vector: "{}",
-            encrypted_data: "snapshot",
+            encrypted_data: "snapshot"
         });
 
         // Wait a bit then add ops
@@ -290,7 +290,7 @@ describe("countOpsSinceSnapshot", () => {
             id: "op-1",
             vault_id: vaultId,
             version_vector: "{}",
-            encrypted_data: "after-snapshot",
+            encrypted_data: "after-snapshot"
         });
 
         const result = await countOpsSinceSnapshot(vaultId);
@@ -306,14 +306,14 @@ describe("clearOps", () => {
             id: "op-1",
             vault_id: vaultId,
             version_vector: "{}",
-            encrypted_data: "data",
+            encrypted_data: "data"
         });
 
         await appendOp({
             id: "op-2",
             vault_id: vaultId,
             version_vector: "{}",
-            encrypted_data: "data",
+            encrypted_data: "data"
         });
 
         await clearOps(vaultId);
@@ -327,14 +327,14 @@ describe("clearOps", () => {
             id: "op-1",
             vault_id: "vault-123",
             version_vector: "{}",
-            encrypted_data: "data",
+            encrypted_data: "data"
         });
 
         await appendOp({
             id: "op-2",
             vault_id: "vault-456",
             version_vector: "{}",
-            encrypted_data: "data",
+            encrypted_data: "data"
         });
 
         await clearOps("vault-123");
@@ -358,14 +358,14 @@ describe("saveLocalSnapshot", () => {
         await saveLocalSnapshot({
             vault_id: vaultId,
             version_vector: '{"peer1": 5}',
-            encrypted_data: "encrypted-snapshot",
+            encrypted_data: "encrypted-snapshot"
         });
 
         const snapshot = await loadLocalSnapshot(vaultId);
         expect(snapshot).toMatchObject({
             vault_id: vaultId,
             version_vector: '{"peer1": 5}',
-            encrypted_data: "encrypted-snapshot",
+            encrypted_data: "encrypted-snapshot"
         });
         expect(snapshot?.updated_at).toBeGreaterThan(0);
     });
@@ -376,13 +376,13 @@ describe("saveLocalSnapshot", () => {
         await saveLocalSnapshot({
             vault_id: vaultId,
             version_vector: '{"peer1": 1}',
-            encrypted_data: "old",
+            encrypted_data: "old"
         });
 
         await saveLocalSnapshot({
             vault_id: vaultId,
             version_vector: '{"peer1": 5}',
-            encrypted_data: "new",
+            encrypted_data: "new"
         });
 
         const snapshot = await loadLocalSnapshot(vaultId);
@@ -405,7 +405,7 @@ describe("deleteLocalSnapshot", () => {
         await saveLocalSnapshot({
             vault_id: vaultId,
             version_vector: "{}",
-            encrypted_data: "data",
+            encrypted_data: "data"
         });
 
         await deleteLocalSnapshot(vaultId);
@@ -482,13 +482,13 @@ describe("clearVaultData", () => {
             id: "op-1",
             vault_id: vaultId,
             version_vector: "{}",
-            encrypted_data: "data",
+            encrypted_data: "data"
         });
 
         await saveLocalSnapshot({
             vault_id: vaultId,
             version_vector: "{}",
-            encrypted_data: "snapshot",
+            encrypted_data: "snapshot"
         });
 
         await setSyncMeta(vaultId, "key", "value");

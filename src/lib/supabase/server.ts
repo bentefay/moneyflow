@@ -42,7 +42,7 @@ export function createSupabaseClientFresh(): SupabaseClient<Database> {
     return createClient<Database>(supabaseUrl, supabaseServiceKey, {
         auth: {
             persistSession: false,
-            autoRefreshToken: false,
-        },
+            autoRefreshToken: false
+        }
     });
 }

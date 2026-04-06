@@ -76,7 +76,7 @@ export const inviteCreateInput = z.object({
     /** Role to grant the invitee */
     role: vaultRoleSchema.default("member"),
     /** Hours until invite expires (default 48) */
-    expiresInHours: expiryHoursSchema,
+    expiresInHours: expiryHoursSchema
 });
 
 export type InviteCreateInput = z.infer<typeof inviteCreateInput>;
@@ -85,7 +85,7 @@ export const inviteCreateOutput = z.object({
     /** ID of the created invite */
     inviteId: inviteIdSchema,
     /** When the invite expires */
-    expiresAt: z.string(),
+    expiresAt: z.string()
 });
 
 export type InviteCreateOutput = z.infer<typeof inviteCreateOutput>;
@@ -102,7 +102,7 @@ export type InviteCreateOutput = z.infer<typeof inviteCreateOutput>;
  */
 export const inviteGetByPubkeyInput = z.object({
     /** Ephemeral X25519 public key (derived from invite secret) */
-    invitePubkey: invitePubkeySchema,
+    invitePubkey: invitePubkeySchema
 });
 
 export type InviteGetByPubkeyInput = z.infer<typeof inviteGetByPubkeyInput>;
@@ -117,7 +117,7 @@ export const inviteGetByPubkeyOutput = z.object({
     /** Role that will be granted */
     role: vaultRoleSchema,
     /** When the invite expires */
-    expiresAt: z.string(),
+    expiresAt: z.string()
 });
 
 export type InviteGetByPubkeyOutput = z.infer<typeof inviteGetByPubkeyOutput>;
@@ -141,7 +141,7 @@ export const inviteAcceptInput = z.object({
     /** Vault key re-wrapped for user's X25519 public key */
     encryptedVaultKey: encryptedVaultKeySchema,
     /** User's X25519 public key for future vault re-keying operations */
-    encPublicKey: encPublicKeySchema,
+    encPublicKey: encPublicKeySchema
 });
 
 export type InviteAcceptInput = z.infer<typeof inviteAcceptInput>;
@@ -150,7 +150,7 @@ export const inviteAcceptOutput = z.object({
     /** Vault that was joined */
     vaultId: z.string().uuid(),
     /** Role granted to the user */
-    role: vaultRoleSchema,
+    role: vaultRoleSchema
 });
 
 export type InviteAcceptOutput = z.infer<typeof inviteAcceptOutput>;
@@ -163,7 +163,7 @@ export type InviteAcceptOutput = z.infer<typeof inviteAcceptOutput>;
  * List active invites for a vault (owner only).
  */
 export const inviteListInput = z.object({
-    vaultId: z.string().uuid(),
+    vaultId: z.string().uuid()
 });
 
 export type InviteListInput = z.infer<typeof inviteListInput>;
@@ -173,7 +173,7 @@ export const inviteListItemSchema = z.object({
     role: vaultRoleSchema,
     expiresAt: z.string(),
     createdAt: z.string(),
-    isExpired: z.boolean(),
+    isExpired: z.boolean()
 });
 
 export type InviteListItem = z.infer<typeof inviteListItemSchema>;
@@ -190,13 +190,13 @@ export type InviteListOutput = z.infer<typeof inviteListOutput>;
  * Revoke an invite (owner only).
  */
 export const inviteRevokeInput = z.object({
-    inviteId: inviteIdSchema,
+    inviteId: inviteIdSchema
 });
 
 export type InviteRevokeInput = z.infer<typeof inviteRevokeInput>;
 
 export const inviteRevokeOutput = z.object({
-    success: z.boolean(),
+    success: z.boolean()
 });
 
 export type InviteRevokeOutput = z.infer<typeof inviteRevokeOutput>;

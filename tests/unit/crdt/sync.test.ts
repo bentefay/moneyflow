@@ -17,7 +17,7 @@ import {
     getVersionEncoded,
     hasChangesSince,
     importData,
-    importUpdates,
+    importUpdates
 } from "@/lib/crdt/sync";
 
 // Helper to create a test document with some data

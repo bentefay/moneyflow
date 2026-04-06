@@ -12,7 +12,7 @@ export {
     calculateSettlementBalances as calculateSimpleSettlementBalances,
     calculateTableRunningBalances,
     type TransactionWithBalance,
-    useRunningBalances,
+    useRunningBalances
 } from "./balance";
 export {
     addOwner,
@@ -23,13 +23,13 @@ export {
     removeOwner,
     sumOwnerships,
     updateOwnerPercentage,
-    validateOwnerships,
+    validateOwnerships
 } from "./ownership";
 export {
     calculateSettlementBalances,
     getBalancesForPerson,
     getNetBalanceForPerson,
-    type SettlementBalance,
+    type SettlementBalance
 } from "./settlement";
 export {
     DEFAULT_TAG_COLOR,
@@ -38,5 +38,5 @@ export {
     isValidHexColor,
     normalizeTagColor,
     TAG_COLOR_PALETTE,
-    type TagColor,
+    type TagColor
 } from "./tag-colors";

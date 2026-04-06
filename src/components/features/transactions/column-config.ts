@@ -42,7 +42,7 @@ export const COLUMN_CONFIG: ColumnDef[] = [
         width: "w-10",
         align: "center",
         editable: false,
-        sortable: false,
+        sortable: false
     },
     {
         id: "date",
@@ -50,7 +50,7 @@ export const COLUMN_CONFIG: ColumnDef[] = [
         width: "w-28",
         align: "left",
         editable: true,
-        sortable: true,
+        sortable: true
     },
     {
         id: "description",
@@ -58,7 +58,7 @@ export const COLUMN_CONFIG: ColumnDef[] = [
         width: "flex-1",
         align: "left",
         editable: true,
-        sortable: true,
+        sortable: true
     },
     {
         id: "account",
@@ -66,7 +66,7 @@ export const COLUMN_CONFIG: ColumnDef[] = [
         width: "w-32",
         align: "left",
         editable: true,
-        sortable: true,
+        sortable: true
     },
     {
         id: "tags",
@@ -74,7 +74,7 @@ export const COLUMN_CONFIG: ColumnDef[] = [
         width: "w-40",
         align: "center",
         editable: true,
-        sortable: false,
+        sortable: false
     },
     {
         id: "status",
@@ -82,7 +82,7 @@ export const COLUMN_CONFIG: ColumnDef[] = [
         width: "w-28",
         align: "center",
         editable: true,
-        sortable: true,
+        sortable: true
     },
     {
         id: "amount",
@@ -90,7 +90,7 @@ export const COLUMN_CONFIG: ColumnDef[] = [
         width: "w-28",
         align: "right",
         editable: true,
-        sortable: true,
+        sortable: true
     },
     {
         id: "balance",
@@ -98,7 +98,7 @@ export const COLUMN_CONFIG: ColumnDef[] = [
         width: "w-28",
         align: "right",
         editable: false,
-        sortable: false,
+        sortable: false
     },
     {
         id: "actions",
@@ -106,8 +106,8 @@ export const COLUMN_CONFIG: ColumnDef[] = [
         width: "w-20",
         align: "center",
         editable: false,
-        sortable: false,
-    },
+        sortable: false
+    }
 ];
 
 /** Column IDs that can receive keyboard focus for navigation */

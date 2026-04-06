@@ -63,7 +63,7 @@ export function useKeyboardNavigation({
     onFocusChange,
     onActivate,
     onSave,
-    onCancel,
+    onCancel
 }: UseKeyboardNavigationOptions): UseKeyboardNavigationReturn {
     // Note: columnIds reserved for future tab-between-cells navigation
     void columnIds;
@@ -249,7 +249,7 @@ export function useKeyboardNavigation({
             moveToNextCell,
             clearFocus,
             onSave,
-            onCancel,
+            onCancel
         ]
     );
 
@@ -275,6 +275,6 @@ export function useKeyboardNavigation({
         stopEditing,
         handleKeyDown,
         isFocused,
-        isFocusedEditing,
+        isFocusedEditing
     };
 }

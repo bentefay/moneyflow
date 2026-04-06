@@ -9,7 +9,7 @@ import {
     DialogContent,
     DialogDescription,
     DialogHeader,
-    DialogTitle,
+    DialogTitle
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
@@ -163,5 +163,5 @@ export {
     CommandGroup,
     CommandItem,
     CommandShortcut,
-    CommandSeparator,
+    CommandSeparator
 };

@@ -42,7 +42,7 @@ const ribbons = Array.from({ length: 36 }, (_, i) => {
         breathe: 2 + ((i * 3) % 5), // 2-7 seconds
         delay: -(i / 36) * 17, // Evenly spaced
         opacity: 0.45 + ((i * 11) % 25) / 100, // 0.45-0.7
-        reverse: (i * 17) % 3 === 0, // ~1/3 rotate in opposite direction
+        reverse: (i * 17) % 3 === 0 // ~1/3 rotate in opposite direction
     };
 });
 
@@ -56,7 +56,7 @@ export function AuroraBackground({
     intensity = 0.7,
     variant = "default",
     className,
-    containerClassName,
+    containerClassName
 }: AuroraBackgroundProps) {
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -75,7 +75,7 @@ export function AuroraBackground({
                         "#4ade80",
                         "#2dd4bf",
                         "#a7f3d0",
-                        "#6ee7b7",
+                        "#6ee7b7"
                     ];
                 case "unlocking":
                     return [
@@ -88,7 +88,7 @@ export function AuroraBackground({
                         "#34d399",
                         "#22d3ee",
                         "#5eead4",
-                        "#99f6e4",
+                        "#99f6e4"
                     ];
                 default:
                     return [
@@ -101,7 +101,7 @@ export function AuroraBackground({
                         "#34d399",
                         "#0891b2",
                         "#5eead4",
-                        "#67e8f9",
+                        "#67e8f9"
                     ];
             }
         })();
@@ -151,7 +151,7 @@ export function AuroraBackground({
                                 ? `${ribbon.reverse ? "aurora-spin-reverse" : "aurora-spin"} ${ribbon.duration}s linear infinite, aurora-breathe ${ribbon.breathe}s ease-in-out infinite`
                                 : "none",
                             animationDelay: `${ribbon.delay}s, ${ribbon.delay * 0.7}s`,
-                            transformOrigin: "center center",
+                            transformOrigin: "center center"
                         }}
                     />
                 ))}
@@ -161,7 +161,7 @@ export function AuroraBackground({
                     className="absolute top-1/2 left-1/2 h-[60%] w-[60%] -translate-x-1/2 -translate-y-1/2"
                     style={{
                         background: `radial-gradient(circle at center, ${colors[0]}50 0%, transparent 50%)`,
-                        opacity: intensity * 0.6,
+                        opacity: intensity * 0.6
                     }}
                 />
             </div>

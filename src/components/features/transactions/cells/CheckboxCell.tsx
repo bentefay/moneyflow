@@ -36,7 +36,7 @@ export function CheckboxCell({
     disabled = false,
     indeterminate = false,
     ariaLabel,
-    className,
+    className
 }: CheckboxCellProps) {
     // Handle click - either shift+click for range or normal toggle
     const handleClick = useCallback(

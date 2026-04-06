@@ -1,13 +1,15 @@
 # TanStack DB + ElectricSQL + Supabase Research
 
 **Date**: December 2025  
-**Context**: Evaluating sync stack for MoneyFlow local-first financial app with client-side encryption
+**Context**: Evaluating sync stack for MoneyFlow local-first financial app with client-side
+encryption
 
 ---
 
 ## Executive Summary
 
-This stack is **partially viable** for MoneyFlow's encrypted local-first sync use case, but requires careful architectural decisions around encryption and conflict handling.
+This stack is **partially viable** for MoneyFlow's encrypted local-first sync use case, but requires
+careful architectural decisions around encryption and conflict handling.
 
 | Component   | Production Ready  | Encryption Compatible |
 | ----------- | ----------------- | --------------------- |
@@ -21,7 +23,8 @@ This stack is **partially viable** for MoneyFlow's encrypted local-first sync us
 
 ### Overview
 
-TanStack DB is a **reactive client-first store** for building fast, modern web/mobile apps. It extends TanStack Query with:
+TanStack DB is a **reactive client-first store** for building fast, modern web/mobile apps. It
+extends TanStack Query with:
 
 - **Collections**: Typed sets of objects populated via sync/fetch
 - **Live Queries**: Sub-millisecond reactive queries using differential dataflow (d2ts)
@@ -79,8 +82,8 @@ Postgres → Electric Sync Service → HTTP/JSON → Client
         url: "http://electric:3000/v1/shape",
         params: {
             table: "todos",
-            where: `user_id = '${userId}'`,
-        },
+            where: `user_id = '${userId}'`
+        }
     });
     ```
 - **Read-path sync only**: Electric syncs FROM Postgres TO clients
@@ -145,15 +148,15 @@ const vaultCollection = createCollection(
             url: "https://electric.your-app.com/v1/shape",
             params: {
                 table: "vaults",
-                where: `user_id = '${userId}'`,
-            },
+                where: `user_id = '${userId}'`
+            }
         },
         getKey: (item) => item.id,
         schema: vaultSchema,
         onInsert: async ({ transaction }) => {
             // Handle write via your API
             await api.vaults.create(transaction.mutations[0].changes);
-        },
+        }
     })
 );
 
@@ -171,7 +174,8 @@ const { data } = useLiveQuery((q) =>
 
 Electric explicitly documents end-to-end encryption as a valid pattern:
 
-> "Electric syncs ciphertext as well as it syncs plaintext. You can encrypt and decrypt data in HTTP middleware or in the local client."
+> "Electric syncs ciphertext as well as it syncs plaintext. You can encrypt and decrypt data in HTTP
+> middleware or in the local client."
 
 ### Implementation Pattern
 
@@ -183,7 +187,7 @@ async function createEncryptedVault(data: VaultData) {
     await api.vaults.create({
         id: crypto.randomUUID(),
         ciphertext: encrypted.ciphertext,
-        iv: encrypted.iv,
+        iv: encrypted.iv
     });
 }
 
@@ -191,7 +195,7 @@ async function createEncryptedVault(data: VaultData) {
 function useDecryptedVaults() {
     const { data: encryptedVaults } = useShape({
         url: `${ELECTRIC_URL}/v1/shape`,
-        params: { table: "encrypted_vaults" },
+        params: { table: "encrypted_vaults" }
     });
 
     const [decryptedVaults, setDecrypted] = useState([]);
@@ -292,7 +296,8 @@ CREATE TABLE encrypted_vaults (
 
 - **ElectricSQL alone**: Ready for production
 - **TanStack DB + Electric**: Suitable for new projects accepting BETA risk
-- **For MoneyFlow**: Consider starting with Electric + simpler state management, migrate to TanStack DB when stable
+- **For MoneyFlow**: Consider starting with Electric + simpler state management, migrate to TanStack
+  DB when stable
 
 ---
 
@@ -354,7 +359,8 @@ For encrypted, event-sourced, multi-user sync, also evaluate:
 - CRDTs: You must implement conflict resolution
 - Event sourcing: Compatible, but not built-in
 
-The stack works for encrypted local-first sync, but MoneyFlow's CRDT/event-sourcing requirements need custom implementation on top of this infrastructure.
+The stack works for encrypted local-first sync, but MoneyFlow's CRDT/event-sourcing requirements
+need custom implementation on top of this infrastructure.
 
 ---
 

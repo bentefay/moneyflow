@@ -18,7 +18,7 @@ import {
     CommandGroup,
     CommandInput,
     CommandItem,
-    CommandList,
+    CommandList
 } from "@/components/ui/command";
 import { DEFAULT_TAG_COLOR, getContrastingTextColor } from "@/lib/domain";
 import { cn } from "@/lib/utils";
@@ -56,7 +56,7 @@ export interface InlineEditableTagsProps {
 function TagPill({
     tag,
     onRemove,
-    disabled,
+    disabled
 }: {
     tag: TagOption;
     onRemove: () => void;
@@ -107,7 +107,7 @@ export function InlineEditableTags({
     onCreateTag,
     className,
     disabled = false,
-    "data-testid": testId,
+    "data-testid": testId
 }: InlineEditableTagsProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -123,7 +123,7 @@ export function InlineEditableTags({
             const rect = containerRef.current.getBoundingClientRect();
             setDropdownPosition({
                 top: rect.bottom + 4, // 4px gap below trigger
-                left: rect.left,
+                left: rect.left
             });
         }
     }, [isOpen]);
@@ -298,7 +298,7 @@ export function InlineEditableTags({
                         className="bg-popover fixed z-[9999] w-56 rounded-md border shadow-lg"
                         style={{
                             top: dropdownPosition.top,
-                            left: dropdownPosition.left,
+                            left: dropdownPosition.left
                         }}
                     >
                         <Command shouldFilter={false}>

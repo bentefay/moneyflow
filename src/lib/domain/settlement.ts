@@ -94,7 +94,7 @@ export function calculateSettlementBalances(
                     const existing = debts.get(key);
                     debts.set(key, {
                         amount: (existing?.amount || 0) + otherShare,
-                        currency,
+                        currency
                     });
                 }
             }
@@ -141,7 +141,7 @@ export function calculateSettlementBalances(
             personId: debtorId,
             owedToPersonId: creditorId,
             amount: amount as MoneyMinorUnits,
-            currency,
+            currency
         };
     });
 }

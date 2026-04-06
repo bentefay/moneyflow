@@ -44,12 +44,12 @@ export function TRPCProvider({ children }: TRPCProviderProps) {
                                 }
                             }
                             return failureCount < 3;
-                        },
+                        }
                     },
                     mutations: {
-                        retry: false,
-                    },
-                },
+                        retry: false
+                    }
+                }
             })
     );
 

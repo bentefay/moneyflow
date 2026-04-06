@@ -25,7 +25,7 @@ export const appRouter = router({
     /** CRDT sync operations */
     sync: syncRouter,
     /** Vault invitations */
-    invite: inviteRouter,
+    invite: inviteRouter
 });
 
 /**

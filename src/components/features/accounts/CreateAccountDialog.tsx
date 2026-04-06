@@ -16,7 +16,7 @@ import {
     DialogDescription,
     DialogFooter,
     DialogHeader,
-    DialogTitle,
+    DialogTitle
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,7 +25,7 @@ import {
     SelectContent,
     SelectItem,
     SelectTrigger,
-    SelectValue,
+    SelectValue
 } from "@/components/ui/select";
 import { useActivePeople, useVaultAction } from "@/lib/crdt/context";
 import type { AccountInput } from "@/lib/crdt/schema";
@@ -49,7 +49,7 @@ const ACCOUNT_TYPES = [
     { value: "credit", label: "Credit Card" },
     { value: "cash", label: "Cash" },
     { value: "loan", label: "Loan" },
-    { value: "investment", label: "Investment" },
+    { value: "investment", label: "Investment" }
 ] as const;
 
 /**
@@ -88,7 +88,7 @@ export function CreateAccountDialog({ open, onOpenChange, onCreated }: CreateAcc
             currency,
             balance: asMinorUnits(0),
             ownerships: ownershipsAsPercentage,
-            deletedAt: undefined,
+            deletedAt: undefined
         };
 
         addAccount(newAccount);

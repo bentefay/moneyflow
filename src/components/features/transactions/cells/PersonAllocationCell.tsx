@@ -60,7 +60,7 @@ export function PersonAllocationCell({
     onChange,
     onEditStart,
     onEditEnd,
-    className,
+    className
 }: PersonAllocationCellProps) {
     const [localAllocations, setLocalAllocations] = useState<AllocationData[]>(allocations);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -81,7 +81,7 @@ export function PersonAllocationCell({
             // Normalize allocations to sum to 100%
             const normalized = localAllocations.map((a) => ({
                 ...a,
-                percentage: Math.round((a.percentage / total) * 100),
+                percentage: Math.round((a.percentage / total) * 100)
             }));
             // Fix rounding errors
             const diff = 100 - normalized.reduce((sum, a) => sum + a.percentage, 0);

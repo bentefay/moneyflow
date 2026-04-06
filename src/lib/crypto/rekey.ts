@@ -57,13 +57,13 @@ export async function rekeyVault(remainingMembers: RemainingMember[]): Promise<R
     const memberKeys = await Promise.all(
         remainingMembers.map(async (member) => ({
             pubkeyHash: member.pubkeyHash,
-            encryptedVaultKey: await sealKeyToBase64(newVaultKey, member.encPublicKey),
+            encryptedVaultKey: await sealKeyToBase64(newVaultKey, member.encPublicKey)
         }))
     );
 
     return {
         newVaultKey,
-        memberKeys,
+        memberKeys
     };
 }
 
@@ -136,6 +136,6 @@ export async function performCompleteRekey(
 
     return {
         ...result,
-        newEncryptedSnapshot,
+        newEncryptedSnapshot
     };
 }

@@ -15,7 +15,7 @@ import {
     SelectContent,
     SelectItem,
     SelectTrigger,
-    SelectValue,
+    SelectValue
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
@@ -43,7 +43,7 @@ export function AutomationDropdown({
     value,
     onChange,
     disabled = false,
-    className,
+    className
 }: AutomationDropdownProps) {
     return (
         <Select
@@ -88,7 +88,7 @@ export interface AutomationPreferenceCardProps {
 export function AutomationPreferenceCard({
     value,
     onChange,
-    className,
+    className
 }: AutomationPreferenceCardProps) {
     return (
         <div className={cn("space-y-4", className)}>

@@ -40,7 +40,7 @@ export function PersonRow({
     onUpdate,
     onDelete,
     canDelete = true,
-    className,
+    className
 }: PersonRowProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [editedName, setEditedName] = useState(person.name);

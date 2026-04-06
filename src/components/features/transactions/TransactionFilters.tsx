@@ -51,7 +51,7 @@ export function createEmptyFilters(): TransactionFiltersState {
         accountIds: [],
         statusIds: [],
         search: "",
-        showDuplicatesOnly: false,
+        showDuplicatesOnly: false
     };
 }
 
@@ -81,7 +81,7 @@ export function TransactionFilters({
     availablePeople = [],
     availableAccounts = [],
     availableStatuses = [],
-    className,
+    className
 }: TransactionFiltersProps) {
     const updateFilter = <K extends keyof TransactionFiltersState>(
         key: K,

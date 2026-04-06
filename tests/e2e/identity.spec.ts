@@ -68,7 +68,7 @@ test.describe("Identity", () => {
 
     test("new user journey: generate seed phrase, confirm, and access settings", async ({
         page,
-        context,
+        context
     }) => {
         // Grant clipboard permissions for copy test
         await context.grantPermissions(["clipboard-read", "clipboard-write"]);
@@ -239,7 +239,7 @@ test.describe("Identity", () => {
                 "abandon",
                 "abandon",
                 "abandon",
-                "wrong",
+                "wrong"
             ];
             await enterSeedPhrase(page, invalidPhrase);
 

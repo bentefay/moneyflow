@@ -17,7 +17,7 @@ import {
     unwrapKey,
     unwrapKeyFromBase64,
     wrapKey,
-    wrapKeyToBase64,
+    wrapKeyToBase64
 } from "@/lib/crypto/keywrap";
 import { generateSeedPhrase, mnemonicToMasterSeed } from "@/lib/crypto/seed";
 

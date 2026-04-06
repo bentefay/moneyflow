@@ -6,13 +6,13 @@ import * as React from "react";
 
 import {
     AutoHeight,
-    type AutoHeightProps,
+    type AutoHeightProps
 } from "@/components/animate-ui/primitives/effects/auto-height";
 import {
     Highlight,
     HighlightItem,
     type HighlightItemProps,
-    type HighlightProps,
+    type HighlightProps
 } from "@/components/animate-ui/primitives/effects/highlight";
 import { useControlledState } from "@/hooks/use-controlled-state";
 import { getStrictContext } from "@/lib/get-strict-context";
@@ -30,7 +30,7 @@ function Tabs(props: TabsProps) {
     const [value, setValue] = useControlledState({
         value: props.value,
         defaultValue: props.defaultValue,
-        onChange: props.onValueChange,
+        onChange: props.onValueChange
     });
 
     return (
@@ -123,7 +123,7 @@ type TabsContentsProps = TabsContentsAutoProps | TabsContentsLayoutProps;
 const defaultTransition: Transition = {
     type: "spring",
     stiffness: 200,
-    damping: 30,
+    damping: 30
 };
 
 function isAutoMode(props: TabsContentsProps): props is TabsContentsAutoProps {
@@ -174,5 +174,5 @@ export {
     type TabsListProps,
     type TabsTriggerProps,
     type TabsContentProps,
-    type TabsContentsProps,
+    type TabsContentsProps
 };

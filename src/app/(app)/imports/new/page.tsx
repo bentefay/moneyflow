@@ -14,26 +14,20 @@ import { Temporal } from "temporal-polyfill";
 import {
     type ImportContext,
     ImportPanel,
-    type ImportTransactionData,
+    type ImportTransactionData
 } from "@/components/features/import/ImportPanel";
 import {
     useActiveAccounts,
     useActiveStatuses,
     useActiveTransactions,
     useImportTemplates,
-    useTransactionActions,
     useVaultAction,
-    useVaultPreferences,
+    useVaultPreferences
 } from "@/lib/crdt/context";
 import { DEFAULT_CURRENCY } from "@/lib/crdt/defaults";
 import { type InsertTransactionInput, insertTransaction } from "@/lib/crdt/mutations";
 import { findTransactionById } from "@/lib/crdt/queries";
-import type {
-    Account,
-    ImportTemplate as ImportTemplateRecord,
-    Status,
-    Transaction,
-} from "@/lib/crdt/schema";
+import type { Account, ImportTemplate as ImportTemplateRecord, Status } from "@/lib/crdt/schema";
 import { asMinorUnits, type MoneyMinorUnits } from "@/lib/domain/currency";
 import type { ImportConfig } from "@/lib/import/types";
 
@@ -136,7 +130,7 @@ export default function NewImportPage() {
                 id: data.id,
                 name: data.name,
                 accountNumber: data.accountNumber,
-                currency: data.currency,
+                currency: data.currency
             } as unknown as (typeof state.accounts)[string];
         }
     );
@@ -175,7 +169,7 @@ export default function NewImportPage() {
                 id: data.importId,
                 filename: data.fileName,
                 transactionCount: data.transactions.length,
-                createdAt: data.creationInstant,
+                createdAt: data.creationInstant
             } as unknown as (typeof state.imports)[string];
 
             // Create transactions using hierarchical structure
@@ -188,7 +182,7 @@ export default function NewImportPage() {
                         suspectedDuplicateOf = {
                             accountId: parentResult.transaction.accountId,
                             date: parentResult.transaction.date,
-                            transactionId: parentResult.transaction.id,
+                            transactionId: parentResult.transaction.id
                         };
                     }
                 }
@@ -206,9 +200,9 @@ export default function NewImportPage() {
                         importId: data.importId,
                         allocations: {},
                         creationInstant: data.creationInstant,
-                        importRowIndex: tx.importRowIndex,
+                        importRowIndex: tx.importRowIndex
                     } as unknown as InsertTransactionInput["transaction"],
-                    suspectedDuplicateOf,
+                    suspectedDuplicateOf
                 });
             }
         }
@@ -250,14 +244,14 @@ export default function NewImportPage() {
                     id: newAccountId,
                     name: context.accountAction.accountName,
                     accountNumber: context.accountAction.accountNumber,
-                    currency: defaultCurrency,
+                    currency: defaultCurrency
                 });
                 accountIdToUse = newAccountId;
             } else if (context.accountAction?.type === "apply-id") {
                 // Update existing account with detected ID
                 updateAccountNumber({
                     accountId: context.accountAction.accountId,
-                    accountNumber: context.accountAction.accountNumber,
+                    accountNumber: context.accountAction.accountNumber
                 });
             }
 
@@ -271,7 +265,7 @@ export default function NewImportPage() {
                 accountId: accountIdToUse ?? tx.accountId,
                 statusId: defaultStatusId,
                 importRowIndex: index,
-                duplicateOf: tx.duplicateOf,
+                duplicateOf: tx.duplicateOf
             }));
 
             // Create import batch and all transactions in one action
@@ -279,7 +273,7 @@ export default function NewImportPage() {
                 importId,
                 fileName,
                 creationInstant,
-                transactions: transactionsToCreate,
+                transactions: transactionsToCreate
             });
 
             return importId;
@@ -315,11 +309,11 @@ export default function NewImportPage() {
                               thousandSeparator: ",", // default
                               decimalSeparator: ".", // default
                               dateFormat: "yyyy-MM-dd", // default
-                              collapseWhitespace: config.formatting.collapseWhitespace,
+                              collapseWhitespace: config.formatting.collapseWhitespace
                           },
                 duplicateDetection: config.duplicateDetection,
                 oldTransactionFilter: config.oldTransactionFilter,
-                lastUsedAt: Temporal.Now.instant(),
+                lastUsedAt: Temporal.Now.instant()
             } as unknown as ImportTemplateRecord);
         },
         [addImportTemplate]
