@@ -1,4 +1,5 @@
 ---
+description: TypeScript coding conventions
 paths:
     - "**/*.ts"
     - "**/*.tsx"
@@ -8,8 +9,8 @@ paths:
 
 ## Type Safety
 
-- **Never use `as` or `any`.** When unavoidable, isolate in a small helper function with a type
-  guard. Always iterate on a type-safe approach first.
+- **Never use `as`, `any`, or `!` (non-nullish assertion).** When unavoidable, isolate in a small
+  helper function with a type guard. Always iterate on a type-safe approach first.
 - **Model types richly.** Use discriminated unions, branded tiny types (`TinyType<Value, Tag>`), and
   `as const` literals. Types are natural extension points — add them early.
 - **Leverage the type system fully.** Mapped types, conditional types, `satisfies`, generic
@@ -35,8 +36,9 @@ paths:
 
 - **Favour immutable data.** `as const`, `readonly`, const arrays. Create new values rather than
   mutating.
-- **Favour pure functions.** Side-effect-free utilities that transform and return. See
-  `cli/lib/collections/` for canonical examples.
+- **Favour pure functions.** Side-effect-free utilities that transform and return.
+- **Strongly prefer `const` over `let`.** Derive adjusted values into new named bindings rather than
+  reassigning. Use inline named functions or IIFEs for complex transformations that can then return.
 - **No global mutable state.** Module-level values must be read-only after initialisation (unless
   absolutely necessary).
 - **Contain unsafe work.** When mutation or type coercion is needed for performance or interop,
