@@ -16,7 +16,7 @@ import {
     getAllTransactions,
     getTransactionsInDateRange,
     getTransactionsWithDuplicates,
-    hasDayBucket,
+    hasDayBucket
 } from "@/lib/crdt/queries";
 import type { Transaction, TransactionInput, TransactionStore } from "@/lib/crdt/schema";
 import { asMinorUnits } from "@/lib/domain/currency";
@@ -39,8 +39,9 @@ function createTransaction(
         allocations: {},
         creationInstant: Temporal.Instant.fromEpochMilliseconds(Date.now()),
         importRowIndex: 0,
+        descriptionAliasId: undefined,
         deletedAt: undefined,
-        ...overrides,
+        ...overrides
     };
 }
 
@@ -73,7 +74,7 @@ describe("getAccountTransactions", () => {
         const store = populateStore([
             createTransaction({ id: "tx-jan", date: Temporal.PlainDate.from("2024-01-15") }),
             createTransaction({ id: "tx-mar", date: Temporal.PlainDate.from("2024-03-20") }),
-            createTransaction({ id: "tx-feb", date: Temporal.PlainDate.from("2024-02-10") }),
+            createTransaction({ id: "tx-feb", date: Temporal.PlainDate.from("2024-02-10") })
         ]);
 
         const result = getAccountTransactions(store, "acc-1");
@@ -87,13 +88,13 @@ describe("getAccountTransactions", () => {
             createTransaction({
                 id: "tx-old",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                creationInstant: Temporal.Instant.fromEpochMilliseconds(now - 1000),
+                creationInstant: Temporal.Instant.fromEpochMilliseconds(now - 1000)
             }),
             createTransaction({
                 id: "tx-new",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                creationInstant: Temporal.Instant.fromEpochMilliseconds(now),
-            }),
+                creationInstant: Temporal.Instant.fromEpochMilliseconds(now)
+            })
         ]);
 
         const result = getAccountTransactions(store, "acc-1");
@@ -110,14 +111,14 @@ describe("getAccountTransactions", () => {
                 id: "tx-row-5",
                 date: Temporal.PlainDate.from("2024-01-15"),
                 creationInstant: Temporal.Instant.fromEpochMilliseconds(now),
-                importRowIndex: 5,
+                importRowIndex: 5
             }),
             createTransaction({
                 id: "tx-row-2",
                 date: Temporal.PlainDate.from("2024-01-15"),
                 creationInstant: Temporal.Instant.fromEpochMilliseconds(now),
-                importRowIndex: 2,
-            }),
+                importRowIndex: 2
+            })
         ]);
 
         const result = getAccountTransactions(store, "acc-1");
@@ -130,10 +131,10 @@ describe("getAccountTransactions", () => {
     it("only returns transactions for specified account", () => {
         const store = createEmptyStore();
         insertTransaction(store, {
-            transaction: createTransaction({ id: "tx-acc1", accountId: "acc-1" }),
+            transaction: createTransaction({ id: "tx-acc1", accountId: "acc-1" })
         });
         insertTransaction(store, {
-            transaction: createTransaction({ id: "tx-acc2", accountId: "acc-2" }),
+            transaction: createTransaction({ id: "tx-acc2", accountId: "acc-2" })
         });
 
         const result = getAccountTransactions(store, "acc-1");
@@ -150,15 +151,15 @@ describe("getAllTransactions", () => {
             transaction: createTransaction({
                 id: "tx-acc1",
                 accountId: "acc-1",
-                date: Temporal.PlainDate.from("2024-01-15"),
-            }),
+                date: Temporal.PlainDate.from("2024-01-15")
+            })
         });
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-acc2",
                 accountId: "acc-2",
-                date: Temporal.PlainDate.from("2024-02-20"),
-            }),
+                date: Temporal.PlainDate.from("2024-02-20")
+            })
         });
 
         const result = getAllTransactions(store);
@@ -181,13 +182,13 @@ describe("getAllTransactions", () => {
 describe("findTransaction", () => {
     it("finds transaction by location", () => {
         const store = populateStore([
-            createTransaction({ id: "tx-1", date: Temporal.PlainDate.from("2024-01-15") }),
+            createTransaction({ id: "tx-1", date: Temporal.PlainDate.from("2024-01-15") })
         ]);
 
         const result = findTransaction(store, {
             accountId: "acc-1",
             date: Temporal.PlainDate.from("2024-01-15"),
-            transactionId: "tx-1",
+            transactionId: "tx-1"
         });
 
         expect(result?.id).toBe("tx-1");
@@ -198,25 +199,25 @@ describe("findTransaction", () => {
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-parent",
-                date: Temporal.PlainDate.from("2024-01-15"),
-            }),
+                date: Temporal.PlainDate.from("2024-01-15")
+            })
         });
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-dup",
-                date: Temporal.PlainDate.from("2024-01-15"),
+                date: Temporal.PlainDate.from("2024-01-15")
             }),
             suspectedDuplicateOf: {
                 accountId: "acc-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-parent",
-            },
+                transactionId: "tx-parent"
+            }
         });
 
         const result = findTransaction(store, {
             accountId: "acc-1",
             date: Temporal.PlainDate.from("2024-01-15"),
-            transactionId: "tx-dup",
+            transactionId: "tx-dup"
         });
 
         expect(result?.id).toBe("tx-dup");
@@ -228,7 +229,7 @@ describe("findTransaction", () => {
         const result = findTransaction(store, {
             accountId: "acc-1",
             date: Temporal.PlainDate.from("2024-01-15"),
-            transactionId: "tx-nonexistent",
+            transactionId: "tx-nonexistent"
         });
 
         expect(result).toBeUndefined();
@@ -236,13 +237,13 @@ describe("findTransaction", () => {
 
     it("returns undefined for wrong date", () => {
         const store = populateStore([
-            createTransaction({ id: "tx-1", date: Temporal.PlainDate.from("2024-01-15") }),
+            createTransaction({ id: "tx-1", date: Temporal.PlainDate.from("2024-01-15") })
         ]);
 
         const result = findTransaction(store, {
             accountId: "acc-1",
             date: Temporal.PlainDate.from("2024-01-16"), // Wrong date
-            transactionId: "tx-1",
+            transactionId: "tx-1"
         });
 
         expect(result).toBeUndefined();
@@ -253,7 +254,7 @@ describe("findTransactionById", () => {
     it("finds transaction by ID alone", () => {
         const store = populateStore([
             createTransaction({ id: "tx-1", date: Temporal.PlainDate.from("2024-01-15") }),
-            createTransaction({ id: "tx-2", date: Temporal.PlainDate.from("2024-02-20") }),
+            createTransaction({ id: "tx-2", date: Temporal.PlainDate.from("2024-02-20") })
         ]);
 
         const result = findTransactionById(store, "tx-2");
@@ -262,7 +263,7 @@ describe("findTransactionById", () => {
         expect(result?.location).toEqual({
             accountId: "acc-1",
             date: Temporal.PlainDate.from("2024-02-20"),
-            transactionId: "tx-2",
+            transactionId: "tx-2"
         });
     });
 
@@ -271,19 +272,19 @@ describe("findTransactionById", () => {
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-parent",
-                date: Temporal.PlainDate.from("2024-01-15"),
-            }),
+                date: Temporal.PlainDate.from("2024-01-15")
+            })
         });
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-dup",
-                date: Temporal.PlainDate.from("2024-01-15"),
+                date: Temporal.PlainDate.from("2024-01-15")
             }),
             suspectedDuplicateOf: {
                 accountId: "acc-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-parent",
-            },
+                transactionId: "tx-parent"
+            }
         });
 
         const result = findTransactionById(store, "tx-dup");
@@ -306,12 +307,12 @@ describe("getTransactionsInDateRange", () => {
             createTransaction({ id: "tx-jan-10", date: Temporal.PlainDate.from("2024-01-10") }),
             createTransaction({ id: "tx-jan-20", date: Temporal.PlainDate.from("2024-01-20") }),
             createTransaction({ id: "tx-feb-05", date: Temporal.PlainDate.from("2024-02-05") }),
-            createTransaction({ id: "tx-mar-01", date: Temporal.PlainDate.from("2024-03-01") }),
+            createTransaction({ id: "tx-mar-01", date: Temporal.PlainDate.from("2024-03-01") })
         ]);
 
         const result = getTransactionsInDateRange(store, "acc-1", {
             start: Temporal.PlainDate.from("2024-01-15"),
-            end: Temporal.PlainDate.from("2024-02-15"),
+            end: Temporal.PlainDate.from("2024-02-15")
         });
 
         // Should include jan-20 and feb-05, sorted ascending
@@ -320,12 +321,12 @@ describe("getTransactionsInDateRange", () => {
 
     it("returns empty array for no matches", () => {
         const store = populateStore([
-            createTransaction({ id: "tx-1", date: Temporal.PlainDate.from("2024-01-15") }),
+            createTransaction({ id: "tx-1", date: Temporal.PlainDate.from("2024-01-15") })
         ]);
 
         const result = getTransactionsInDateRange(store, "acc-1", {
             start: Temporal.PlainDate.from("2024-06-01"),
-            end: Temporal.PlainDate.from("2024-06-30"),
+            end: Temporal.PlainDate.from("2024-06-30")
         });
 
         expect(result).toEqual([]);
@@ -334,12 +335,12 @@ describe("getTransactionsInDateRange", () => {
     it("includes boundary dates", () => {
         const store = populateStore([
             createTransaction({ id: "tx-start", date: Temporal.PlainDate.from("2024-01-15") }),
-            createTransaction({ id: "tx-end", date: Temporal.PlainDate.from("2024-01-20") }),
+            createTransaction({ id: "tx-end", date: Temporal.PlainDate.from("2024-01-20") })
         ]);
 
         const result = getTransactionsInDateRange(store, "acc-1", {
             start: Temporal.PlainDate.from("2024-01-15"),
-            end: Temporal.PlainDate.from("2024-01-20"),
+            end: Temporal.PlainDate.from("2024-01-20")
         });
 
         expect(result.length).toBe(2);
@@ -352,25 +353,25 @@ describe("getTransactionsWithDuplicates", () => {
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-with-dup",
-                date: Temporal.PlainDate.from("2024-01-15"),
-            }),
+                date: Temporal.PlainDate.from("2024-01-15")
+            })
         });
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-dup",
-                date: Temporal.PlainDate.from("2024-01-15"),
+                date: Temporal.PlainDate.from("2024-01-15")
             }),
             suspectedDuplicateOf: {
                 accountId: "acc-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-with-dup",
-            },
+                transactionId: "tx-with-dup"
+            }
         });
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-no-dup",
-                date: Temporal.PlainDate.from("2024-01-16"),
-            }),
+                date: Temporal.PlainDate.from("2024-01-16")
+            })
         });
 
         const result = getTransactionsWithDuplicates(store);
@@ -387,20 +388,20 @@ describe("getTransactionsWithDuplicates", () => {
             transaction: createTransaction({
                 id: "tx-acc1",
                 accountId: "acc-1",
-                date: Temporal.PlainDate.from("2024-01-15"),
-            }),
+                date: Temporal.PlainDate.from("2024-01-15")
+            })
         });
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-dup1",
                 accountId: "acc-1",
-                date: Temporal.PlainDate.from("2024-01-15"),
+                date: Temporal.PlainDate.from("2024-01-15")
             }),
             suspectedDuplicateOf: {
                 accountId: "acc-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-acc1",
-            },
+                transactionId: "tx-acc1"
+            }
         });
 
         // Account 2 with duplicate
@@ -408,20 +409,20 @@ describe("getTransactionsWithDuplicates", () => {
             transaction: createTransaction({
                 id: "tx-acc2",
                 accountId: "acc-2",
-                date: Temporal.PlainDate.from("2024-01-15"),
-            }),
+                date: Temporal.PlainDate.from("2024-01-15")
+            })
         });
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-dup2",
                 accountId: "acc-2",
-                date: Temporal.PlainDate.from("2024-01-15"),
+                date: Temporal.PlainDate.from("2024-01-15")
             }),
             suspectedDuplicateOf: {
                 accountId: "acc-2",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-acc2",
-            },
+                transactionId: "tx-acc2"
+            }
         });
 
         const result = getTransactionsWithDuplicates(store, "acc-1");
@@ -434,7 +435,7 @@ describe("getTransactionsWithDuplicates", () => {
 describe("hasDayBucket", () => {
     it("returns true if day bucket exists", () => {
         const store = populateStore([
-            createTransaction({ id: "tx-1", date: Temporal.PlainDate.from("2024-01-15") }),
+            createTransaction({ id: "tx-1", date: Temporal.PlainDate.from("2024-01-15") })
         ]);
 
         expect(hasDayBucket(store, "acc-1", Temporal.PlainDate.from("2024-01-15"))).toBe(true);
@@ -448,7 +449,7 @@ describe("hasDayBucket", () => {
 
     it("returns false for different date", () => {
         const store = populateStore([
-            createTransaction({ id: "tx-1", date: Temporal.PlainDate.from("2024-01-15") }),
+            createTransaction({ id: "tx-1", date: Temporal.PlainDate.from("2024-01-15") })
         ]);
 
         expect(hasDayBucket(store, "acc-1", Temporal.PlainDate.from("2024-01-16"))).toBe(false);
@@ -476,8 +477,9 @@ describe("filterTransactions", () => {
                 allocations: { "person-1": asPercentage(100) },
                 creationInstant: Temporal.Instant.fromEpochMilliseconds(now),
                 importRowIndex: 0,
-                deletedAt: undefined,
-            },
+                descriptionAliasId: undefined,
+                deletedAt: undefined
+            }
         });
 
         insertTransaction(store, {
@@ -494,8 +496,9 @@ describe("filterTransactions", () => {
                 allocations: {},
                 creationInstant: Temporal.Instant.fromEpochMilliseconds(now - 1000),
                 importRowIndex: 0,
-                deletedAt: undefined,
-            },
+                descriptionAliasId: undefined,
+                deletedAt: undefined
+            }
         });
 
         insertTransaction(store, {
@@ -512,8 +515,9 @@ describe("filterTransactions", () => {
                 allocations: {},
                 creationInstant: Temporal.Instant.fromEpochMilliseconds(now - 2000),
                 importRowIndex: 0,
-                deletedAt: Temporal.Instant.fromEpochMilliseconds(now),
-            },
+                descriptionAliasId: undefined,
+                deletedAt: Temporal.Instant.fromEpochMilliseconds(now)
+            }
         });
 
         return getAllTransactions(store);
@@ -543,8 +547,8 @@ describe("filterTransactions", () => {
         const result = filterTransactions(transactions, {
             dateRange: {
                 start: Temporal.PlainDate.from("2024-01-01"),
-                end: Temporal.PlainDate.from("2024-01-31"),
-            },
+                end: Temporal.PlainDate.from("2024-01-31")
+            }
         });
 
         expect(result.length).toBe(1);
@@ -555,7 +559,7 @@ describe("filterTransactions", () => {
         const transactions = createMockTransactions();
 
         const result = filterTransactions(transactions, {
-            tagIds: ["tag-food"],
+            tagIds: ["tag-food"]
         });
 
         expect(result.length).toBe(1);
@@ -566,7 +570,7 @@ describe("filterTransactions", () => {
         const transactions = createMockTransactions();
 
         const result = filterTransactions(transactions, {
-            statusIds: ["status-for-review"],
+            statusIds: ["status-for-review"]
         });
 
         expect(result.length).toBe(1);
@@ -577,7 +581,7 @@ describe("filterTransactions", () => {
         const transactions = createMockTransactions();
 
         const result = filterTransactions(transactions, {
-            personIds: ["person-1"],
+            personIds: ["person-1"]
         });
 
         expect(result.length).toBe(1);
@@ -588,7 +592,7 @@ describe("filterTransactions", () => {
         const transactions = createMockTransactions();
 
         const result = filterTransactions(transactions, {
-            search: "coffee",
+            search: "coffee"
         });
 
         expect(result.length).toBe(1);
@@ -599,7 +603,7 @@ describe("filterTransactions", () => {
         const transactions = createMockTransactions();
 
         const result = filterTransactions(transactions, {
-            search: "morning",
+            search: "morning"
         });
 
         expect(result.length).toBe(1);
@@ -610,7 +614,7 @@ describe("filterTransactions", () => {
         const transactions = createMockTransactions();
 
         const result = filterTransactions(transactions, {
-            search: "COFFEE",
+            search: "COFFEE"
         });
 
         expect(result.length).toBe(1);
@@ -630,7 +634,7 @@ describe("filterTransactions", () => {
 
         const result = filterTransactions(transactions, {
             sortBy: "date",
-            sortDirection: "asc",
+            sortDirection: "asc"
         });
 
         expect(result[0].id).toBe("tx-1"); // Jan
@@ -642,7 +646,7 @@ describe("filterTransactions", () => {
 
         const result = filterTransactions(transactions, {
             sortBy: "amount",
-            sortDirection: "asc",
+            sortDirection: "asc"
         });
 
         expect(result[0].amount).toBe(asMinorUnits(-500));
@@ -669,6 +673,7 @@ describe("filterTransactions", () => {
                 allocations: {},
                 creationInstant: Temporal.Instant.fromEpochMilliseconds(now),
                 importRowIndex: 0,
+                descriptionAliasId: undefined,
                 deletedAt: undefined,
                 suspectedDuplicates: [
                     {
@@ -684,10 +689,10 @@ describe("filterTransactions", () => {
                         allocations: {},
                         creationInstant: Temporal.Instant.fromEpochMilliseconds(now),
                         importRowIndex: 0,
-                        deletedAt: undefined,
-                    },
-                ],
-            },
+                        deletedAt: undefined
+                    }
+                ]
+            }
         });
 
         // Transaction without duplicates
@@ -705,14 +710,15 @@ describe("filterTransactions", () => {
                 allocations: {},
                 creationInstant: Temporal.Instant.fromEpochMilliseconds(now),
                 importRowIndex: 0,
-                deletedAt: undefined,
-            },
+                descriptionAliasId: undefined,
+                deletedAt: undefined
+            }
         });
 
         // Get all transactions and filter
         const transactions = getAllTransactions(store);
         const result = filterTransactions(transactions, {
-            showDuplicatesOnly: true,
+            showDuplicatesOnly: true
         });
 
         expect(result.length).toBe(1);

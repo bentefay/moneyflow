@@ -18,7 +18,7 @@ const dateArbitrary = fc
     .record({
         year: fc.integer({ min: 2020, max: 2030 }),
         month: fc.integer({ min: 1, max: 12 }),
-        day: fc.integer({ min: 1, max: 28 }), // Use 28 to avoid invalid dates
+        day: fc.integer({ min: 1, max: 28 }) // Use 28 to avoid invalid dates
     })
     .map(({ year, month, day }) => Temporal.PlainDate.from({ year, month, day }));
 
@@ -35,14 +35,15 @@ const transactionArbitrary = fc
         statusId: fc.constantFrom("status-for-review", "status-paid"),
         importId: fc.oneof(fc.uuid(), fc.constant("")), // Empty string for manual transactions
         creationInstant: fc.integer({ min: 1000000000000, max: 2000000000000 }),
-        importRowIndex: fc.integer({ min: 0, max: 1000 }),
+        importRowIndex: fc.integer({ min: 0, max: 1000 })
     })
     .map((tx) => ({
         ...tx,
         amount: asMinorUnits(tx.amount),
         creationInstant: Temporal.Instant.fromEpochMilliseconds(tx.creationInstant),
         allocations: {},
-        deletedAt: undefined,
+        descriptionAliasId: undefined,
+        deletedAt: undefined
     }));
 
 // Helper to create empty store
@@ -91,7 +92,7 @@ describe("Transaction Ordering Invariants", () => {
                     const sameDate = Temporal.PlainDate.from("2024-01-15");
                     const sameDateTxs = transactions.map((tx) => ({
                         ...tx,
-                        date: sameDate,
+                        date: sameDate
                     }));
 
                     const store = populateStore(sameDateTxs);
@@ -122,7 +123,7 @@ describe("Transaction Ordering Invariants", () => {
             fc.property(
                 fc.array(fc.integer({ min: 0, max: 100 }), {
                     minLength: 2,
-                    maxLength: 10,
+                    maxLength: 10
                 }),
                 (rowIndices) => {
                     const now = Temporal.Instant.fromEpochMilliseconds(Date.now());
@@ -142,7 +143,8 @@ describe("Transaction Ordering Invariants", () => {
                         allocations: {},
                         creationInstant: now,
                         importRowIndex: idx,
-                        deletedAt: undefined,
+                        descriptionAliasId: undefined,
+                        deletedAt: undefined
                     }));
 
                     const store = populateStore(transactions);
@@ -188,7 +190,8 @@ describe("Transaction Ordering Invariants", () => {
                 allocations: {},
                 creationInstant: now,
                 importRowIndex: Number.MAX_SAFE_INTEGER, // Manual - sorts last
-                deletedAt: undefined,
+                descriptionAliasId: undefined,
+                deletedAt: undefined
             },
             {
                 id: "tx-import",
@@ -203,8 +206,9 @@ describe("Transaction Ordering Invariants", () => {
                 allocations: {},
                 creationInstant: now,
                 importRowIndex: 5,
-                deletedAt: undefined,
-            },
+                descriptionAliasId: undefined,
+                deletedAt: undefined
+            }
         ];
 
         const store = populateStore(transactions);
@@ -353,7 +357,8 @@ describe("Edge Cases", () => {
                 allocations: {},
                 creationInstant: Temporal.Instant.fromEpochMilliseconds(Date.now()),
                 importRowIndex: 0,
-                deletedAt: undefined,
+                descriptionAliasId: undefined,
+                deletedAt: undefined
             },
             {
                 id: "tx-jan-01",
@@ -368,8 +373,9 @@ describe("Edge Cases", () => {
                 allocations: {},
                 creationInstant: Temporal.Instant.fromEpochMilliseconds(Date.now()),
                 importRowIndex: 0,
-                deletedAt: undefined,
-            },
+                descriptionAliasId: undefined,
+                deletedAt: undefined
+            }
         ];
 
         const store = populateStore(transactions);
@@ -395,7 +401,8 @@ describe("Edge Cases", () => {
                 allocations: {},
                 creationInstant: Temporal.Instant.fromEpochMilliseconds(Date.now()),
                 importRowIndex: 0,
-                deletedAt: undefined,
+                descriptionAliasId: undefined,
+                deletedAt: undefined
             },
             {
                 id: "tx-feb-01",
@@ -410,8 +417,9 @@ describe("Edge Cases", () => {
                 allocations: {},
                 creationInstant: Temporal.Instant.fromEpochMilliseconds(Date.now()),
                 importRowIndex: 0,
-                deletedAt: undefined,
-            },
+                descriptionAliasId: undefined,
+                deletedAt: undefined
+            }
         ];
 
         const store = populateStore(transactions);
@@ -440,7 +448,8 @@ describe("Edge Cases", () => {
             allocations: {},
             creationInstant: Temporal.Instant.fromEpochMilliseconds(now - i * 1000),
             importRowIndex: 0,
-            deletedAt: undefined,
+            descriptionAliasId: undefined,
+            deletedAt: undefined
         }));
 
         const start = performance.now();

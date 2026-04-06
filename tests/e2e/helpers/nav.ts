@@ -46,6 +46,13 @@ export async function goToImports(page: Page): Promise<void> {
     await page.getByRole("heading", { name: "Imports", level: 1 }).waitFor({ timeout: 15000 });
 }
 
+export async function goToTxDescriptions(page: Page): Promise<void> {
+    await page.goto("/tx-descriptions");
+    await page
+        .getByRole("heading", { name: "Tx Descriptions", level: 1 })
+        .waitFor({ timeout: 15000 });
+}
+
 export async function goToImportNew(page: Page): Promise<void> {
     await page.goto("/imports/new");
     await page.getByRole("heading", { name: /Import Transactions/i }).waitFor({ timeout: 15000 });

@@ -24,13 +24,13 @@ import {
     swapDuplicate,
     type TransactionLocation,
     unnestDuplicate,
-    updateTransaction,
+    updateTransaction
 } from "@/lib/crdt/mutations";
 import type {
     AccountTransactionTree,
     AccountTransactionTreeInput,
     TransactionInput,
-    TransactionStore,
+    TransactionStore
 } from "@/lib/crdt/schema";
 import { asMinorUnits } from "@/lib/domain/currency";
 
@@ -51,8 +51,9 @@ function createTransaction(
         allocations: {},
         creationInstant: Temporal.Instant.fromEpochMilliseconds(Date.now()),
         importRowIndex: 0,
+        descriptionAliasId: undefined,
         deletedAt: undefined,
-        ...overrides,
+        ...overrides
     };
 }
 
@@ -146,7 +147,7 @@ describe("insertTransaction", () => {
         const store = createEmptyStore();
         const tx = createTransaction({
             date: Temporal.PlainDate.from("2024-03-15"),
-            accountId: "acc-1",
+            accountId: "acc-1"
         });
 
         insertTransaction(store, { transaction: tx });
@@ -170,15 +171,15 @@ describe("insertTransaction", () => {
             transaction: createTransaction({
                 id: "tx-old",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                creationInstant: Temporal.Instant.fromEpochMilliseconds(now - 1000),
-            }),
+                creationInstant: Temporal.Instant.fromEpochMilliseconds(now - 1000)
+            })
         });
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-new",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                creationInstant: Temporal.Instant.fromEpochMilliseconds(now),
-            }),
+                creationInstant: Temporal.Instant.fromEpochMilliseconds(now)
+            })
         });
 
         const tree = store["acc-1"] as AccountTransactionTree;
@@ -198,16 +199,16 @@ describe("insertTransaction", () => {
                 id: "tx-row-5",
                 date: Temporal.PlainDate.from("2024-01-15"),
                 creationInstant: Temporal.Instant.fromEpochMilliseconds(now),
-                importRowIndex: 5,
-            }),
+                importRowIndex: 5
+            })
         });
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-row-2",
                 date: Temporal.PlainDate.from("2024-01-15"),
                 creationInstant: Temporal.Instant.fromEpochMilliseconds(now),
-                importRowIndex: 2,
-            }),
+                importRowIndex: 2
+            })
         });
 
         const tree = store["acc-1"] as AccountTransactionTree;
@@ -224,22 +225,22 @@ describe("insertTransaction", () => {
         // Insert parent
         const parentTx = createTransaction({
             id: "tx-parent",
-            date: Temporal.PlainDate.from("2024-01-15"),
+            date: Temporal.PlainDate.from("2024-01-15")
         });
         insertTransaction(store, { transaction: parentTx });
 
         // Insert duplicate
         const dupTx = createTransaction({
             id: "tx-dup",
-            date: Temporal.PlainDate.from("2024-01-15"),
+            date: Temporal.PlainDate.from("2024-01-15")
         });
         insertTransaction(store, {
             transaction: dupTx,
             suspectedDuplicateOf: {
                 accountId: "acc-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-parent",
-            },
+                transactionId: "tx-parent"
+            }
         });
 
         const tree = store["acc-1"] as AccountTransactionTree;
@@ -262,17 +263,17 @@ describe("updateTransaction", () => {
             transaction: createTransaction({
                 id: "tx-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                description: "Original",
-            }),
+                description: "Original"
+            })
         });
 
         updateTransaction(store, {
             location: {
                 accountId: "acc-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-1",
+                transactionId: "tx-1"
             },
-            updates: { description: "Updated" },
+            updates: { description: "Updated" }
         });
 
         const tree = store["acc-1"] as AccountTransactionTree;
@@ -287,29 +288,29 @@ describe("updateTransaction", () => {
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-parent",
-                date: Temporal.PlainDate.from("2024-01-15"),
-            }),
+                date: Temporal.PlainDate.from("2024-01-15")
+            })
         });
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-dup",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                description: "Original Dup",
+                description: "Original Dup"
             }),
             suspectedDuplicateOf: {
                 accountId: "acc-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-parent",
-            },
+                transactionId: "tx-parent"
+            }
         });
 
         updateTransaction(store, {
             location: {
                 accountId: "acc-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-dup",
+                transactionId: "tx-dup"
             },
-            updates: { description: "Updated Dup" },
+            updates: { description: "Updated Dup" }
         });
 
         const tree = store["acc-1"] as AccountTransactionTree;
@@ -324,17 +325,17 @@ describe("moveTransaction", () => {
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-1",
-                date: Temporal.PlainDate.from("2024-01-15"),
-            }),
+                date: Temporal.PlainDate.from("2024-01-15")
+            })
         });
 
         moveTransaction(store, {
             location: {
                 accountId: "acc-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-1",
+                transactionId: "tx-1"
             },
-            newDate: Temporal.PlainDate.from("2024-02-20"),
+            newDate: Temporal.PlainDate.from("2024-02-20")
         });
 
         // Should not be in old location
@@ -353,17 +354,17 @@ describe("moveTransaction", () => {
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-1",
-                date: Temporal.PlainDate.from("2024-01-15"),
-            }),
+                date: Temporal.PlainDate.from("2024-01-15")
+            })
         });
 
         moveTransaction(store, {
             location: {
                 accountId: "acc-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-1",
+                transactionId: "tx-1"
             },
-            newDate: Temporal.PlainDate.from("2024-02-20"),
+            newDate: Temporal.PlainDate.from("2024-02-20")
         });
 
         const tree = store["acc-1"] as AccountTransactionTree;
@@ -383,27 +384,27 @@ describe("deleteTransaction", () => {
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-parent",
-                date: Temporal.PlainDate.from("2024-01-15"),
-            }),
+                date: Temporal.PlainDate.from("2024-01-15")
+            })
         });
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-dup",
-                date: Temporal.PlainDate.from("2024-01-15"),
+                date: Temporal.PlainDate.from("2024-01-15")
             }),
             suspectedDuplicateOf: {
                 accountId: "acc-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-parent",
-            },
+                transactionId: "tx-parent"
+            }
         });
 
         deleteTransaction(store, {
             location: {
                 accountId: "acc-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-parent",
-            },
+                transactionId: "tx-parent"
+            }
         });
 
         // Both should be gone
@@ -418,38 +419,38 @@ describe("deleteTransaction", () => {
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-parent",
-                date: Temporal.PlainDate.from("2024-01-15"),
-            }),
+                date: Temporal.PlainDate.from("2024-01-15")
+            })
         });
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-dup1",
-                date: Temporal.PlainDate.from("2024-01-15"),
+                date: Temporal.PlainDate.from("2024-01-15")
             }),
             suspectedDuplicateOf: {
                 accountId: "acc-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-parent",
-            },
+                transactionId: "tx-parent"
+            }
         });
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-dup2",
-                date: Temporal.PlainDate.from("2024-01-15"),
+                date: Temporal.PlainDate.from("2024-01-15")
             }),
             suspectedDuplicateOf: {
                 accountId: "acc-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-parent",
-            },
+                transactionId: "tx-parent"
+            }
         });
 
         deleteTransaction(store, {
             location: {
                 accountId: "acc-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-dup1",
-            },
+                transactionId: "tx-dup1"
+            }
         });
 
         const tree = store["acc-1"] as AccountTransactionTree;
@@ -467,16 +468,16 @@ describe("deleteTransaction", () => {
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-1",
-                date: Temporal.PlainDate.from("2024-01-15"),
-            }),
+                date: Temporal.PlainDate.from("2024-01-15")
+            })
         });
 
         deleteTransaction(store, {
             location: {
                 accountId: "acc-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-1",
-            },
+                transactionId: "tx-1"
+            }
         });
 
         // Account tree should be removed entirely
@@ -492,28 +493,28 @@ describe("unnestDuplicate", () => {
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-parent",
-                date: Temporal.PlainDate.from("2024-01-15"),
-            }),
+                date: Temporal.PlainDate.from("2024-01-15")
+            })
         });
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-dup",
-                date: Temporal.PlainDate.from("2024-01-14"), // Different date
+                date: Temporal.PlainDate.from("2024-01-14") // Different date
             }),
             suspectedDuplicateOf: {
                 accountId: "acc-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-parent",
-            },
+                transactionId: "tx-parent"
+            }
         });
 
         unnestDuplicate(store, {
             parentLocation: {
                 accountId: "acc-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-parent",
+                transactionId: "tx-parent"
             },
-            duplicateId: "tx-dup",
+            duplicateId: "tx-dup"
         });
 
         // Parent should have no duplicates
@@ -537,29 +538,29 @@ describe("swapDuplicate", () => {
             transaction: createTransaction({
                 id: "tx-parent",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                creationInstant: Temporal.Instant.fromEpochMilliseconds(now),
-            }),
+                creationInstant: Temporal.Instant.fromEpochMilliseconds(now)
+            })
         });
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-dup",
                 date: Temporal.PlainDate.from("2024-01-14"), // Different date
-                creationInstant: Temporal.Instant.fromEpochMilliseconds(now + 1000),
+                creationInstant: Temporal.Instant.fromEpochMilliseconds(now + 1000)
             }),
             suspectedDuplicateOf: {
                 accountId: "acc-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-parent",
-            },
+                transactionId: "tx-parent"
+            }
         });
 
         swapDuplicate(store, {
             parentLocation: {
                 accountId: "acc-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-parent",
+                transactionId: "tx-parent"
             },
-            duplicateId: "tx-dup",
+            duplicateId: "tx-dup"
         });
 
         // Old parent location should be empty
@@ -588,22 +589,22 @@ describe("deleteTransactionsByImport", () => {
             transaction: createTransaction({
                 id: "tx-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                importId: "import-A",
-            }),
+                importId: "import-A"
+            })
         });
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-2",
                 date: Temporal.PlainDate.from("2024-01-16"),
-                importId: "import-A",
-            }),
+                importId: "import-A"
+            })
         });
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-3",
                 date: Temporal.PlainDate.from("2024-01-17"),
-                importId: "import-B",
-            }),
+                importId: "import-B"
+            })
         });
 
         deleteTransactionsByImport(store, "import-A");
@@ -630,20 +631,20 @@ describe("deleteTransactionsByImport", () => {
             transaction: createTransaction({
                 id: "tx-parent",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                importId: undefined,
-            }),
+                importId: undefined
+            })
         });
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-dup",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                importId: "import-A",
+                importId: "import-A"
             }),
             suspectedDuplicateOf: {
                 accountId: "acc-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-parent",
-            },
+                transactionId: "tx-parent"
+            }
         });
 
         deleteTransactionsByImport(store, "import-A");
@@ -665,14 +666,14 @@ describe("pruneBuckets", () => {
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-1",
-                date: Temporal.PlainDate.from("2024-01-15"),
-            }),
+                date: Temporal.PlainDate.from("2024-01-15")
+            })
         });
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-2",
-                date: Temporal.PlainDate.from("2024-01-20"),
-            }),
+                date: Temporal.PlainDate.from("2024-01-20")
+            })
         });
 
         // Manually remove the transaction from day 15
@@ -695,14 +696,14 @@ describe("pruneBuckets", () => {
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-1",
-                date: Temporal.PlainDate.from("2024-01-15"),
-            }),
+                date: Temporal.PlainDate.from("2024-01-15")
+            })
         });
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-2",
-                date: Temporal.PlainDate.from("2024-02-15"),
-            }),
+                date: Temporal.PlainDate.from("2024-02-15")
+            })
         });
 
         const tree = store["acc-1"] as AccountTransactionTree;
@@ -724,8 +725,8 @@ describe("pruneBuckets", () => {
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-1",
-                date: Temporal.PlainDate.from("2024-01-15"),
-            }),
+                date: Temporal.PlainDate.from("2024-01-15")
+            })
         });
 
         const tree = store["acc-1"] as AccountTransactionTree;
@@ -742,8 +743,8 @@ describe("pruneBuckets", () => {
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-1",
-                date: Temporal.PlainDate.from("2024-01-15"),
-            }),
+                date: Temporal.PlainDate.from("2024-01-15")
+            })
         });
 
         const tree = store["acc-1"] as AccountTransactionTree;
@@ -762,14 +763,14 @@ describe("findTransactionInStore", () => {
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-1",
-                date: Temporal.PlainDate.from("2024-01-15"),
-            }),
+                date: Temporal.PlainDate.from("2024-01-15")
+            })
         });
 
         const found = findTransactionInStore(store, {
             accountId: "acc-1",
             date: Temporal.PlainDate.from("2024-01-15"),
-            transactionId: "tx-1",
+            transactionId: "tx-1"
         });
 
         expect(found?.id).toBe("tx-1");
@@ -780,25 +781,25 @@ describe("findTransactionInStore", () => {
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-parent",
-                date: Temporal.PlainDate.from("2024-01-15"),
-            }),
+                date: Temporal.PlainDate.from("2024-01-15")
+            })
         });
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-dup",
-                date: Temporal.PlainDate.from("2024-01-15"),
+                date: Temporal.PlainDate.from("2024-01-15")
             }),
             suspectedDuplicateOf: {
                 accountId: "acc-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-parent",
-            },
+                transactionId: "tx-parent"
+            }
         });
 
         const found = findTransactionInStore(store, {
             accountId: "acc-1",
             date: Temporal.PlainDate.from("2024-01-15"),
-            transactionId: "tx-dup",
+            transactionId: "tx-dup"
         });
 
         expect(found?.id).toBe("tx-dup");
@@ -810,7 +811,7 @@ describe("findTransactionInStore", () => {
         const found = findTransactionInStore(store, {
             accountId: "acc-1",
             date: Temporal.PlainDate.from("2024-01-15"),
-            transactionId: "tx-nonexistent",
+            transactionId: "tx-nonexistent"
         });
 
         expect(found).toBeUndefined();
@@ -823,26 +824,26 @@ describe("findParentTransaction", () => {
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-parent",
-                date: Temporal.PlainDate.from("2024-01-15"),
-            }),
+                date: Temporal.PlainDate.from("2024-01-15")
+            })
         });
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-dup",
-                date: Temporal.PlainDate.from("2024-01-15"),
+                date: Temporal.PlainDate.from("2024-01-15")
             }),
             suspectedDuplicateOf: {
                 accountId: "acc-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-parent",
-            },
+                transactionId: "tx-parent"
+            }
         });
 
         // Should find parent
         const foundParent = findParentTransaction(store, {
             accountId: "acc-1",
             date: Temporal.PlainDate.from("2024-01-15"),
-            transactionId: "tx-parent",
+            transactionId: "tx-parent"
         });
         expect(foundParent?.id).toBe("tx-parent");
 
@@ -850,7 +851,7 @@ describe("findParentTransaction", () => {
         const foundDup = findParentTransaction(store, {
             accountId: "acc-1",
             date: Temporal.PlainDate.from("2024-01-15"),
-            transactionId: "tx-dup",
+            transactionId: "tx-dup"
         });
         expect(foundDup).toBeUndefined();
     });

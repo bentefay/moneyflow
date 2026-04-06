@@ -24,7 +24,8 @@ import {
     Receipt,
     Settings,
     Tags,
-    Users,
+    TextCursorInput,
+    Users
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -58,9 +59,10 @@ const mainNavItems: NavItem[] = [
     { href: "/accounts", label: "Accounts", icon: Building2 },
     { href: "/people", label: "People", icon: Users },
     { href: "/tags", label: "Tags", icon: Tags },
+    { href: "/tx-descriptions", label: "Tx Descriptions", icon: TextCursorInput },
     { href: "/statuses", label: "Statuses", icon: CheckCircle2 },
     { href: "/automations", label: "Automations", icon: Bot },
-    { href: "/imports", label: "Imports", icon: FileDown },
+    { href: "/imports", label: "Imports", icon: FileDown }
 ];
 
 const bottomNavItems: NavItem[] = [{ href: "/settings", label: "Vault Settings", icon: Settings }];
@@ -182,7 +184,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
                         <PresenceAvatarGroup
                             users={onlineUsers.map((u) => ({
                                 userId: u.userId,
-                                isOnline: true,
+                                isOnline: true
                             }))}
                             size="sm"
                         />
@@ -309,7 +311,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
                                 <PresenceAvatarGroup
                                     users={onlineUsers.map((u) => ({
                                         userId: u.userId,
-                                        isOnline: true,
+                                        isOnline: true
                                     }))}
                                     size="sm"
                                 />
@@ -330,7 +332,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 function NavLink({
     item,
     isCollapsed,
-    onClick,
+    onClick
 }: {
     item: NavItem;
     isCollapsed: boolean;

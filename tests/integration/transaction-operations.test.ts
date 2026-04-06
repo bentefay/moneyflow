@@ -34,8 +34,9 @@ function createTransaction(
         allocations: {},
         creationInstant: Temporal.Instant.fromEpochMilliseconds(Date.now()),
         importRowIndex: 0,
+        descriptionAliasId: undefined,
         deletedAt: undefined,
-        ...overrides,
+        ...overrides
     };
 }
 
@@ -53,7 +54,7 @@ describe("Date Change Operations", () => {
         const tx = createTransaction({
             id: "tx-1",
             date: Temporal.PlainDate.from("2024-01-15"),
-            creationInstant: Temporal.Instant.fromEpochMilliseconds(now),
+            creationInstant: Temporal.Instant.fromEpochMilliseconds(now)
         });
         insertTransaction(store, { transaction: tx });
 
@@ -66,9 +67,9 @@ describe("Date Change Operations", () => {
             location: {
                 accountId: "acc-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-1",
+                transactionId: "tx-1"
             },
-            newDate: Temporal.PlainDate.from("2024-02-20"),
+            newDate: Temporal.PlainDate.from("2024-02-20")
         });
 
         // Verify transaction is in new location
@@ -91,16 +92,16 @@ describe("Date Change Operations", () => {
                 id: "tx-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
                 description: "First",
-                creationInstant: Temporal.Instant.fromEpochMilliseconds(now),
-            }),
+                creationInstant: Temporal.Instant.fromEpochMilliseconds(now)
+            })
         });
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-2",
                 date: Temporal.PlainDate.from("2024-01-15"),
                 description: "Second",
-                creationInstant: Temporal.Instant.fromEpochMilliseconds(now - 1000),
-            }),
+                creationInstant: Temporal.Instant.fromEpochMilliseconds(now - 1000)
+            })
         });
 
         // Move first to different date
@@ -108,9 +109,9 @@ describe("Date Change Operations", () => {
             location: {
                 accountId: "acc-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-1",
+                transactionId: "tx-1"
             },
-            newDate: Temporal.PlainDate.from("2024-02-20"),
+            newDate: Temporal.PlainDate.from("2024-02-20")
         });
 
         // Verify original bucket still exists with remaining transaction
@@ -138,15 +139,15 @@ describe("Date Change Operations", () => {
             transaction: createTransaction({
                 id: "tx-jan",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                creationInstant: Temporal.Instant.fromEpochMilliseconds(now),
-            }),
+                creationInstant: Temporal.Instant.fromEpochMilliseconds(now)
+            })
         });
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-mar",
                 date: Temporal.PlainDate.from("2024-03-15"),
-                creationInstant: Temporal.Instant.fromEpochMilliseconds(now - 1000),
-            }),
+                creationInstant: Temporal.Instant.fromEpochMilliseconds(now - 1000)
+            })
         });
 
         // Move Jan transaction to Feb (between existing dates)
@@ -154,9 +155,9 @@ describe("Date Change Operations", () => {
             location: {
                 accountId: "acc-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-jan",
+                transactionId: "tx-jan"
             },
-            newDate: Temporal.PlainDate.from("2024-02-15"),
+            newDate: Temporal.PlainDate.from("2024-02-15")
         });
 
         // Verify sort order (date desc: Mar, Feb, Jan gone)
@@ -181,8 +182,8 @@ describe("Import Deletion Operations", () => {
                     date: Temporal.PlainDate.from(`2024-01-${String(day).padStart(2, "0")}`),
                     importId,
                     creationInstant: Temporal.Instant.fromEpochMilliseconds(now),
-                    importRowIndex: day - 1,
-                }),
+                    importRowIndex: day - 1
+                })
             });
         }
 
@@ -192,8 +193,8 @@ describe("Import Deletion Operations", () => {
                 id: "tx-manual",
                 date: Temporal.PlainDate.from("2024-01-03"),
                 importId: "",
-                creationInstant: Temporal.Instant.fromEpochMilliseconds(now + 1000),
-            }),
+                creationInstant: Temporal.Instant.fromEpochMilliseconds(now + 1000)
+            })
         });
 
         // Verify setup
@@ -206,8 +207,8 @@ describe("Import Deletion Operations", () => {
                 location: {
                     accountId: "acc-1",
                     date: Temporal.PlainDate.from(`2024-01-${String(day).padStart(2, "0")}`),
-                    transactionId: `tx-import-${day}`,
-                },
+                    transactionId: `tx-import-${day}`
+                }
             });
         }
 
@@ -237,8 +238,8 @@ describe("Account Change Operations", () => {
                 id: "tx-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
                 accountId: "acc-1",
-                creationInstant: Temporal.Instant.fromEpochMilliseconds(now),
-            }),
+                creationInstant: Temporal.Instant.fromEpochMilliseconds(now)
+            })
         });
 
         // Verify initial state
@@ -250,10 +251,10 @@ describe("Account Change Operations", () => {
             location: {
                 accountId: "acc-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-1",
+                transactionId: "tx-1"
             },
             newDate: Temporal.PlainDate.from("2024-01-15"),
-            newAccountId: "acc-2",
+            newAccountId: "acc-2"
         });
 
         // Verify moved
@@ -272,8 +273,8 @@ describe("Account Change Operations", () => {
                 id: "tx-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
                 accountId: "acc-1",
-                creationInstant: Temporal.Instant.fromEpochMilliseconds(now),
-            }),
+                creationInstant: Temporal.Instant.fromEpochMilliseconds(now)
+            })
         });
 
         // Move to acc-2
@@ -281,10 +282,10 @@ describe("Account Change Operations", () => {
             location: {
                 accountId: "acc-1",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                transactionId: "tx-1",
+                transactionId: "tx-1"
             },
             newDate: Temporal.PlainDate.from("2024-01-15"),
-            newAccountId: "acc-2",
+            newAccountId: "acc-2"
         });
 
         // acc-1 should be pruned (empty)
@@ -301,7 +302,7 @@ describe("Mirror Integration - Import Batch Flow", () => {
             doc,
             schema: vaultSchema,
             initialState: getDefaultVaultState(),
-            validateUpdates: true,
+            validateUpdates: true
         });
 
         const creationInstant = Temporal.Now.instant();
@@ -315,7 +316,7 @@ describe("Mirror Integration - Import Batch Flow", () => {
                 filename: "test.csv",
                 transactionCount: 3,
                 createdAt: creationInstant,
-                deletedAt: undefined,
+                deletedAt: undefined
             };
 
             // Create transactions using hierarchical structure (same as import page)
@@ -327,7 +328,7 @@ describe("Mirror Integration - Import Batch Flow", () => {
                     amount: asMinorUnits(1000),
                     accountId: "account-default",
                     statusId: "status-for-review",
-                    importRowIndex: 0,
+                    importRowIndex: 0
                 },
                 {
                     id: "tx-2",
@@ -336,7 +337,7 @@ describe("Mirror Integration - Import Batch Flow", () => {
                     amount: asMinorUnits(2000),
                     accountId: "account-default",
                     statusId: "status-for-review",
-                    importRowIndex: 1,
+                    importRowIndex: 1
                 },
                 {
                     id: "tx-3",
@@ -345,8 +346,8 @@ describe("Mirror Integration - Import Batch Flow", () => {
                     amount: asMinorUnits(3000),
                     accountId: "account-default",
                     statusId: "status-for-review",
-                    importRowIndex: 2,
-                },
+                    importRowIndex: 2
+                }
             ];
 
             const store = state.transactions as unknown as TransactionStore;
@@ -365,8 +366,9 @@ describe("Mirror Integration - Import Batch Flow", () => {
                         allocations: {},
                         creationInstant,
                         importRowIndex: tx.importRowIndex,
-                        deletedAt: undefined,
-                    },
+                        descriptionAliasId: undefined,
+                        deletedAt: undefined
+                    }
                 });
             }
         });
@@ -417,7 +419,7 @@ describe("Mirror Integration - Import Batch Flow", () => {
             doc: doc1,
             schema: vaultSchema,
             initialState: getDefaultVaultState(),
-            validateUpdates: true,
+            validateUpdates: true
         });
 
         const creationInstant = Temporal.Now.instant();
@@ -429,7 +431,7 @@ describe("Mirror Integration - Import Batch Flow", () => {
                 filename: "test.csv",
                 transactionCount: 2,
                 createdAt: creationInstant,
-                deletedAt: undefined,
+                deletedAt: undefined
             };
 
             const store = state.transactions as unknown as TransactionStore;
@@ -447,8 +449,9 @@ describe("Mirror Integration - Import Batch Flow", () => {
                     allocations: {},
                     creationInstant,
                     importRowIndex: 0,
-                    deletedAt: undefined,
-                },
+                    descriptionAliasId: undefined,
+                    deletedAt: undefined
+                }
             });
 
             insertTransaction(store, {
@@ -465,8 +468,9 @@ describe("Mirror Integration - Import Batch Flow", () => {
                     allocations: {},
                     creationInstant,
                     importRowIndex: 1,
-                    deletedAt: undefined,
-                },
+                    descriptionAliasId: undefined,
+                    deletedAt: undefined
+                }
             });
         });
 
@@ -480,7 +484,7 @@ describe("Mirror Integration - Import Batch Flow", () => {
         const mirror2 = new Mirror({
             doc: doc2,
             schema: vaultSchema,
-            validateUpdates: true,
+            validateUpdates: true
         });
 
         // Phase 4: Read state from restored Mirror
@@ -497,7 +501,7 @@ describe("Mirror Integration - Import Batch Flow", () => {
                             allTxs.push({
                                 id: tx.id,
                                 date: tx.date,
-                                creationInstant: tx.creationInstant,
+                                creationInstant: tx.creationInstant
                             });
                         }
                     }
@@ -532,7 +536,7 @@ describe("Mirror Integration - Import Batch Flow", () => {
             doc: doc1,
             schema: vaultSchema,
             initialState: getDefaultVaultState(),
-            validateUpdates: true,
+            validateUpdates: true
         });
 
         const creationInstant = Temporal.Now.instant();
@@ -553,8 +557,9 @@ describe("Mirror Integration - Import Batch Flow", () => {
                     allocations: {},
                     creationInstant,
                     importRowIndex: 0,
-                    deletedAt: undefined,
-                },
+                    descriptionAliasId: undefined,
+                    deletedAt: undefined
+                }
             });
         });
 
@@ -570,7 +575,7 @@ describe("Mirror Integration - Import Batch Flow", () => {
             doc: doc2,
             schema: vaultSchema,
             initialState: getDefaultVaultState(),
-            validateUpdates: true,
+            validateUpdates: true
         });
 
         // Read state

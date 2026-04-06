@@ -14,4 +14,5 @@ export {
     goToSettings,
     goToTags,
     goToTransactions,
+    goToTxDescriptions
 } from "./nav";

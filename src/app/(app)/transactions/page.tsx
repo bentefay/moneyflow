@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { DescriptionAliasChangeModal } from "@/components/features/description-aliases/DescriptionAliasChangeModal";
 import {
     BulkEditToolbar,
     createEmptyFilters,
@@ -21,7 +22,7 @@ import {
     type TransactionFiltersState,
     type TransactionRowData,
     TransactionTable,
-    TransactionTableToolbar,
+    TransactionTableToolbar
 } from "@/components/features/transactions";
 import { useToast } from "@/components/ui/toast";
 import { useActiveVault } from "@/hooks/use-active-vault";
@@ -38,15 +39,30 @@ import {
     useActivePeople,
     useActiveTags,
     useActiveTransactions,
+    useDescriptionAliases,
+    useDescriptionAliasActions,
     useStatuses,
     useTransactionActions,
-    useVaultAction,
+    useVaultAction
 } from "@/lib/crdt/context";
 import type { InsertTransactionInput } from "@/lib/crdt/mutations";
 import { filterTransactions } from "@/lib/crdt/queries";
-import type { Account, Person, Status, Tag, Transaction } from "@/lib/crdt/schema";
+import type {
+    Account,
+    DescriptionAlias,
+    Person,
+    Status,
+    Tag,
+    Transaction
+} from "@/lib/crdt/schema";
 import { getNextTagColor } from "@/lib/domain";
 import { asMinorUnits, type MoneyMinorUnits } from "@/lib/domain/currency";
+import {
+    getActiveRealAliases,
+    getAliasTotalTransactionCount,
+    makeSymlinkMutations,
+    resolveAlias
+} from "@/lib/domain/description-aliases";
 
 // Number of transactions to load per page
 const PAGE_SIZE = 50;
@@ -67,6 +83,7 @@ export default function TransactionsPage() {
     const transactions = useActiveTransactions();
     const accounts = useActiveAccounts();
     const tags = useActiveTags();
+    const aliases = useDescriptionAliases();
     const statuses = useStatuses();
     const people = useActivePeople();
 
@@ -83,7 +100,7 @@ export default function TransactionsPage() {
         updateTransaction,
         moveTransaction,
         deleteTransaction,
-        unnestDuplicate,
+        unnestDuplicate
     } = useTransactionActions();
 
     // Legacy vault actions for non-transaction mutations
@@ -93,9 +110,22 @@ export default function TransactionsPage() {
             name: tag.name,
             color: tag.color,
             parentTagId: "",
-            isTransfer: false,
+            isTransfer: false
         } as unknown as (typeof state.tags)[string];
     });
+
+    // Description alias mutations
+    const { addAlias, updateAlias, deleteAlias } = useDescriptionAliasActions();
+
+    // Available real aliases for autocomplete
+    const availableAliasOptions = useMemo(
+        () =>
+            getActiveRealAliases(aliases).map((a) => ({
+                id: a.id,
+                name: a.name
+            })),
+        [aliases]
+    );
 
     // Filter state
     const [filters, setFilters] = useState<TransactionFiltersState>(createEmptyFilters());
@@ -118,7 +148,7 @@ export default function TransactionsPage() {
         if (selectedCount > LARGE_SELECTION_THRESHOLD) {
             toast({
                 message: `Selected ${selectedCount} transactions. Large selections may be slow.`,
-                type: "warning",
+                type: "warning"
             });
         }
     }, [selectedCount, toast]);
@@ -138,7 +168,7 @@ export default function TransactionsPage() {
                     : undefined,
                 end: filters.dateRange.end
                     ? Temporal.PlainDate.from(filters.dateRange.end)
-                    : undefined,
+                    : undefined
             },
             tagIds: filters.tagIds.length > 0 ? filters.tagIds : undefined,
             personIds: filters.personIds.length > 0 ? filters.personIds : undefined,
@@ -149,7 +179,7 @@ export default function TransactionsPage() {
             excludeDeleted: true,
             // Data is pre-sorted, but filterTransactions preserves order when sortBy is "date" and sortDirection is "desc"
             sortBy: "date",
-            sortDirection: "desc",
+            sortDirection: "desc"
         });
     }, [transactions, filters]);
 
@@ -173,6 +203,10 @@ export default function TransactionsPage() {
                 const stat = statuses[tx.statusId];
                 // Check if this transaction has suspected duplicates (is a parent with nested dups)
                 const hasDuplicates = tx.suspectedDuplicates && tx.suspectedDuplicates.length > 0;
+                // Resolve description alias through symlinks
+                const resolvedAlias = tx.descriptionAliasId
+                    ? resolveAlias(tx.descriptionAliasId, aliases)
+                    : undefined;
                 return {
                     id: tx.id,
                     date: tx.date.toString(),
@@ -189,7 +223,7 @@ export default function TransactionsPage() {
                         return {
                             id,
                             name: typeof tag === "object" ? tag.name : "Unknown",
-                            color: typeof tag === "object" ? tag.color : undefined,
+                            color: typeof tag === "object" ? tag.color : undefined
                         };
                     }),
                     balance: 0, // Will be calculated separately
@@ -197,9 +231,13 @@ export default function TransactionsPage() {
                     possibleDuplicateOf: hasDuplicates ? "has-duplicates" : undefined,
                     // Include the nested duplicates for rendering
                     suspectedDuplicates: tx.suspectedDuplicates,
+                    // Description alias fields
+                    descriptionAliasId: tx.descriptionAliasId,
+                    descriptionAliasName: resolvedAlias?.name,
+                    originalDescription: tx.description || undefined
                 };
             }),
-        [displayedTransactions, accounts, statuses, tags]
+        [displayedTransactions, accounts, statuses, tags, aliases]
     );
 
     // Account options for AddTransactionRow
@@ -210,7 +248,7 @@ export default function TransactionsPage() {
                 .map((acc) => ({
                     id: acc.id,
                     name: acc.name,
-                    currency: acc.currency,
+                    currency: acc.currency
                 })),
         [accounts]
     );
@@ -240,8 +278,8 @@ export default function TransactionsPage() {
                     allocations: {},
                     importId: "",
                     creationInstant: now,
-                    importRowIndex: 0, // Manual transactions get index 0
-                } as InsertTransactionInput["transaction"],
+                    importRowIndex: 0 // Manual transactions get index 0
+                } as InsertTransactionInput["transaction"]
             });
         },
         [insertTransaction, defaultStatusId]
@@ -258,8 +296,8 @@ export default function TransactionsPage() {
                     location: {
                         accountId: tx.accountId,
                         date: tx.date,
-                        transactionId: tx.id,
-                    },
+                        transactionId: tx.id
+                    }
                 });
             }
         }
@@ -276,9 +314,9 @@ export default function TransactionsPage() {
                         location: {
                             accountId: tx.accountId,
                             date: tx.date,
-                            transactionId: tx.id,
+                            transactionId: tx.id
                         },
-                        updates: { tagIds },
+                        updates: { tagIds }
                     });
                 }
             }
@@ -296,9 +334,9 @@ export default function TransactionsPage() {
                         location: {
                             accountId: tx.accountId,
                             date: tx.date,
-                            transactionId: tx.id,
+                            transactionId: tx.id
                         },
-                        updates: { statusId },
+                        updates: { statusId }
                     });
                 }
             }
@@ -317,10 +355,10 @@ export default function TransactionsPage() {
                         location: {
                             accountId: tx.accountId,
                             date: tx.date,
-                            transactionId: tx.id,
+                            transactionId: tx.id
                         },
                         newDate: tx.date,
-                        newAccountId: accountId,
+                        newAccountId: accountId
                     });
                 }
             }
@@ -338,9 +376,9 @@ export default function TransactionsPage() {
                         location: {
                             accountId: tx.accountId,
                             date: tx.date,
-                            transactionId: tx.id,
+                            transactionId: tx.id
                         },
-                        updates: { notes },
+                        updates: { notes }
                     });
                 }
             }
@@ -358,9 +396,9 @@ export default function TransactionsPage() {
                         location: {
                             accountId: tx.accountId,
                             date: tx.date,
-                            transactionId: tx.id,
+                            transactionId: tx.id
                         },
-                        updates: { amount: asMinorUnits(amount) },
+                        updates: { amount: asMinorUnits(amount) }
                     });
                 }
             }
@@ -382,6 +420,223 @@ export default function TransactionsPage() {
         [addTag, tags]
     );
 
+    // Description alias state for modal
+    const [aliasModalState, setAliasModalState] = useState<{
+        open: boolean;
+        mode: "change" | "remove";
+        transactionId: string;
+        newText?: string;
+        newAliasId?: string;
+    }>({ open: false, mode: "change", transactionId: "" });
+
+    // Handle description commit text (user typed and pressed Enter/blurred)
+    const handleDescriptionCommitText = useCallback(
+        (txId: string, text: string) => {
+            const tx = transactions.find((t) => t.id === txId);
+            if (!tx) return;
+
+            const trimmedText = text.trim();
+            if (!trimmedText) return;
+
+            const currentAliasId = tx.descriptionAliasId;
+
+            if (!currentAliasId) {
+                // No current alias - create new alias and apply
+                const aliasId = generateId();
+                addAlias({
+                    id: aliasId,
+                    name: trimmedText,
+                    targetAliasId: undefined,
+                    symlinkIds: {},
+                    transactionIds: { [txId]: true },
+                    deletedAt: undefined
+                });
+                updateTransaction({
+                    location: { accountId: tx.accountId, date: tx.date, transactionId: tx.id },
+                    updates: { descriptionAliasId: aliasId }
+                });
+                return;
+            }
+
+            // Has current alias - check transaction count
+            const totalCount = getAliasTotalTransactionCount(currentAliasId, aliases);
+            if (totalCount <= 1) {
+                // Only 1 transaction - rename the alias directly
+                const resolved = resolveAlias(currentAliasId, aliases);
+                if (resolved) {
+                    updateAlias({ id: resolved.id, updates: { name: trimmedText } });
+                }
+            } else {
+                // Multiple transactions - show modal
+                setAliasModalState({
+                    open: true,
+                    mode: "change",
+                    transactionId: txId,
+                    newText: trimmedText
+                });
+            }
+        },
+        [transactions, aliases, addAlias, updateAlias, updateTransaction]
+    );
+
+    // Handle selecting an existing alias from dropdown
+    const handleDescriptionSelectAlias = useCallback(
+        (txId: string, aliasId: string) => {
+            const tx = transactions.find((t) => t.id === txId);
+            if (!tx) return;
+
+            const currentAliasId = tx.descriptionAliasId;
+
+            if (!currentAliasId) {
+                // No current alias - apply directly
+                updateTransaction({
+                    location: { accountId: tx.accountId, date: tx.date, transactionId: tx.id },
+                    updates: { descriptionAliasId: aliasId }
+                });
+                // Add to alias's transactionIds
+                updateAlias({ id: aliasId, updates: {} });
+                const alias = aliases[aliasId];
+                if (typeof alias === "object") {
+                    updateAlias({
+                        id: aliasId,
+                        updates: { transactionIds: { ...alias.transactionIds, [txId]: true } }
+                    });
+                }
+                return;
+            }
+
+            // Has current alias - check count
+            const totalCount = getAliasTotalTransactionCount(currentAliasId, aliases);
+            if (totalCount <= 1) {
+                // Single tx - change directly
+                // Remove from old alias
+                const oldAlias = aliases[currentAliasId];
+                if (typeof oldAlias === "object") {
+                    const newTxIds = { ...oldAlias.transactionIds };
+                    delete newTxIds[txId];
+                    updateAlias({ id: currentAliasId, updates: { transactionIds: newTxIds } });
+                }
+                // Add to new alias
+                const newAlias = aliases[aliasId];
+                if (typeof newAlias === "object") {
+                    updateAlias({
+                        id: aliasId,
+                        updates: { transactionIds: { ...newAlias.transactionIds, [txId]: true } }
+                    });
+                }
+                updateTransaction({
+                    location: { accountId: tx.accountId, date: tx.date, transactionId: tx.id },
+                    updates: { descriptionAliasId: aliasId }
+                });
+            } else {
+                // Multiple - show modal
+                setAliasModalState({
+                    open: true,
+                    mode: "change",
+                    transactionId: txId,
+                    newAliasId: aliasId
+                });
+            }
+        },
+        [transactions, aliases, updateAlias, updateTransaction]
+    );
+
+    // Modal: "just this one" handler
+    const handleAliasJustThis = useCallback(() => {
+        const { transactionId, newText, newAliasId } = aliasModalState;
+        const tx = transactions.find((t) => t.id === transactionId);
+        if (!tx) return;
+
+        const currentAliasId = tx.descriptionAliasId;
+
+        // Remove tx from old alias's transactionIds
+        if (currentAliasId) {
+            const oldAlias = aliases[currentAliasId];
+            if (typeof oldAlias === "object") {
+                const newTxIds = { ...oldAlias.transactionIds };
+                delete newTxIds[transactionId];
+                updateAlias({ id: currentAliasId, updates: { transactionIds: newTxIds } });
+            }
+        }
+
+        if (newText) {
+            // Create new alias for this transaction
+            const aliasId = generateId();
+            addAlias({
+                id: aliasId,
+                name: newText,
+                targetAliasId: undefined,
+                symlinkIds: {},
+                transactionIds: { [transactionId]: true },
+                deletedAt: undefined
+            });
+            updateTransaction({
+                location: { accountId: tx.accountId, date: tx.date, transactionId: tx.id },
+                updates: { descriptionAliasId: aliasId }
+            });
+        } else if (newAliasId) {
+            // Apply the selected alias
+            const alias = aliases[newAliasId];
+            if (typeof alias === "object") {
+                updateAlias({
+                    id: newAliasId,
+                    updates: { transactionIds: { ...alias.transactionIds, [transactionId]: true } }
+                });
+            }
+            updateTransaction({
+                location: { accountId: tx.accountId, date: tx.date, transactionId: tx.id },
+                updates: { descriptionAliasId: newAliasId }
+            });
+        }
+
+        setAliasModalState({ open: false, mode: "change", transactionId: "" });
+    }, [aliasModalState, transactions, aliases, addAlias, updateAlias, updateTransaction]);
+
+    // Modal: "all" handler
+    const handleAliasAll = useCallback(() => {
+        const { transactionId, newText, newAliasId } = aliasModalState;
+        const tx = transactions.find((t) => t.id === transactionId);
+        if (!tx) return;
+
+        const currentAliasId = tx.descriptionAliasId;
+        if (!currentAliasId) return;
+
+        if (newText) {
+            // Rename the existing alias (affects all transactions)
+            const resolved = resolveAlias(currentAliasId, aliases);
+            if (resolved) {
+                updateAlias({ id: resolved.id, updates: { name: newText } });
+            }
+        } else if (newAliasId) {
+            // Make old alias a symlink to new alias using makeSymlinkMutations
+            const mutations = makeSymlinkMutations(currentAliasId, newAliasId, aliases);
+
+            // Repoint existing symlinks
+            for (const { symlinkId, newTargetId } of mutations.repointerSymlinks) {
+                updateAlias({ id: symlinkId, updates: { targetAliasId: newTargetId } });
+            }
+
+            // Add all symlinks to target
+            const targetAlias = aliases[newAliasId];
+            if (typeof targetAlias === "object") {
+                const newSymlinkIds = { ...targetAlias.symlinkIds };
+                for (const id of mutations.addSymlinksToTarget) {
+                    newSymlinkIds[id] = true;
+                }
+                updateAlias({ id: newAliasId, updates: { symlinkIds: newSymlinkIds } });
+            }
+
+            // Source becomes symlink
+            const { sourceId, targetId } = mutations.sourceBecomesSymlink;
+            updateAlias({
+                id: sourceId,
+                updates: { targetAliasId: targetId, symlinkIds: {} }
+            });
+        }
+
+        setAliasModalState({ open: false, mode: "change", transactionId: "" });
+    }, [aliasModalState, transactions, aliases, updateAlias]);
+
     // Handle single transaction delete
     const handleSingleDelete = useCallback(
         (id: string) => {
@@ -391,8 +646,8 @@ export default function TransactionsPage() {
                     location: {
                         accountId: tx.accountId,
                         date: tx.date,
-                        transactionId: tx.id,
-                    },
+                        transactionId: tx.id
+                    }
                 });
             }
             // Clear selection if the deleted transaction was selected
@@ -418,9 +673,9 @@ export default function TransactionsPage() {
                         parentLocation: {
                             accountId: tx.accountId,
                             date: tx.date,
-                            transactionId: tx.id,
+                            transactionId: tx.id
                         },
-                        duplicateId: id,
+                        duplicateId: id
                     });
                     return;
                 }
@@ -450,10 +705,10 @@ export default function TransactionsPage() {
                     location: {
                         accountId: tx.accountId,
                         date: tx.date,
-                        transactionId: tx.id,
+                        transactionId: tx.id
                     },
                     newDate: newPlainDate ?? tx.date,
-                    newAccountId: accountChanged ? newAccountId : undefined,
+                    newAccountId: accountChanged ? newAccountId : undefined
                 });
                 // Remove date and accountId from updates since moveTransaction handles them
                 delete updates.date;
@@ -490,11 +745,11 @@ export default function TransactionsPage() {
                 const location = {
                     accountId: accountChanged ? newAccountId! : tx.accountId,
                     date: dateChanged ? newPlainDate! : tx.date,
-                    transactionId: tx.id,
+                    transactionId: tx.id
                 };
                 updateTransaction({
                     location,
-                    updates: transactionUpdates,
+                    updates: transactionUpdates
                 });
             }
         },
@@ -508,7 +763,7 @@ export default function TransactionsPage() {
                 .filter((t): t is Tag & { $cid: string } => typeof t === "object")
                 .map((t) => ({
                     id: t.id,
-                    label: t.name,
+                    label: t.name
                 })),
         [tags]
     );
@@ -521,7 +776,7 @@ export default function TransactionsPage() {
                 .map((t) => ({
                     id: t.id,
                     name: t.name,
-                    color: t.color,
+                    color: t.color
                 })),
         [tags]
     );
@@ -533,7 +788,7 @@ export default function TransactionsPage() {
                 .filter((s): s is Status & { $cid: string } => typeof s === "object")
                 .map((s) => ({
                     id: s.id,
-                    label: s.name,
+                    label: s.name
                 })),
         [statuses]
     );
@@ -546,7 +801,7 @@ export default function TransactionsPage() {
                 .map((s) => ({
                     id: s.id,
                     name: s.name,
-                    behavior: s.behavior as "treatAsPaid" | null | undefined,
+                    behavior: s.behavior as "treatAsPaid" | null | undefined
                 })),
         [statuses]
     );
@@ -556,7 +811,7 @@ export default function TransactionsPage() {
         () =>
             accountOptions.map((acc) => ({
                 id: acc.id,
-                label: acc.name,
+                label: acc.name
             })),
         [accountOptions]
     );
@@ -568,7 +823,7 @@ export default function TransactionsPage() {
                 .filter((p): p is Person & { $cid: string } => typeof p === "object")
                 .map((p) => ({
                     id: p.id,
-                    label: p.name,
+                    label: p.name
                 })),
         [people]
     );
@@ -605,6 +860,9 @@ export default function TransactionsPage() {
                     availableStatuses={statusOptionsForInlineEdit}
                     availableTags={tagOptionsForInlineEdit}
                     onCreateTag={handleCreateTag}
+                    availableAliases={availableAliasOptions}
+                    onDescriptionCommitText={handleDescriptionCommitText}
+                    onDescriptionSelectAlias={handleDescriptionSelectAlias}
                     onSelectionChange={setSelectedIds}
                     onLoadMore={handleLoadMore}
                     hasMore={hasMore}
@@ -635,6 +893,17 @@ export default function TransactionsPage() {
                     availableAccounts={accountOptionsForFilter}
                 />
             )}
+
+            {/* Description Alias Change Modal */}
+            <DescriptionAliasChangeModal
+                open={aliasModalState.open}
+                onClose={() =>
+                    setAliasModalState({ open: false, mode: "change", transactionId: "" })
+                }
+                mode={aliasModalState.mode}
+                onJustThis={handleAliasJustThis}
+                onAll={handleAliasAll}
+            />
         </div>
     );
 }

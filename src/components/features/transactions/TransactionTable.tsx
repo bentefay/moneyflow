@@ -21,7 +21,7 @@ import {
     type NewTransactionData,
     TransactionRow,
     type TransactionRowData,
-    type TransactionRowPresence,
+    type TransactionRowPresence
 } from "./TransactionRow";
 
 /**
@@ -49,6 +49,12 @@ export interface TransactionTableProps {
     availableTags?: TagOption[];
     /** Callback when a new tag should be created */
     onCreateTag?: (name: string) => Promise<TagOption>;
+    /** Available description aliases for autocomplete */
+    availableAliases?: import("./cells/InlineEditableDescriptionAlias").DescriptionAliasOption[];
+    /** Callback when user commits description text */
+    onDescriptionCommitText?: (txId: string, text: string) => void;
+    /** Callback when user selects an existing alias from dropdown */
+    onDescriptionSelectAlias?: (txId: string, aliasId: string) => void;
     /** Callback when selection changes */
     onSelectionChange?: (ids: Set<string>) => void;
     /** Callback when a transaction is clicked */
@@ -96,7 +102,7 @@ interface TransactionTableHeaderProps {
 function TransactionTableHeader({
     isAllSelected,
     isSomeSelected,
-    onSelectAll,
+    onSelectAll
 }: TransactionTableHeaderProps) {
     return (
         <div
@@ -164,6 +170,9 @@ export function TransactionTable({
     availableStatuses = [],
     availableTags = [],
     onCreateTag,
+    availableAliases = [],
+    onDescriptionCommitText,
+    onDescriptionSelectAlias,
     onSelectionChange,
     onTransactionClick,
     onTransactionFocus,
@@ -178,7 +187,7 @@ export function TransactionTable({
     onCancelAddTransaction,
     defaultAccountId,
     defaultStatusId,
-    className,
+    className
 }: TransactionTableProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const [focusedId, setFocusedId] = useState<string | null>(null);
@@ -195,7 +204,7 @@ export function TransactionTable({
     const { isAllSelected, isSomeSelected, selectAll, toggleRow } = useTableSelection({
         filteredIds,
         selectedIds,
-        onSelectionChange,
+        onSelectionChange
     });
 
     // Keyboard shortcuts for duplicate resolution and deletion
@@ -263,7 +272,7 @@ export function TransactionTable({
         transactions,
         onResolveDuplicate,
         onTransactionDelete,
-        onSelectionChange,
+        onSelectionChange
     ]);
 
     // Handle single row click (navigation/focus only - selection is handled by checkbox)
@@ -314,7 +323,7 @@ export function TransactionTable({
         count: transactions.length,
         getScrollElement: () => containerRef.current,
         estimateSize: () => ROW_HEIGHT,
-        overscan: OVERSCAN,
+        overscan: OVERSCAN
     });
 
     // Get virtual items for rendering
@@ -354,6 +363,7 @@ export function TransactionTable({
                         availableStatuses={availableStatuses}
                         availableTags={availableTags}
                         onCreateTag={onCreateTag}
+                        availableAliases={availableAliases}
                         onAdd={onAddTransaction}
                         onCancel={onCancelAddTransaction}
                         defaultAccountId={defaultAccountId}
@@ -383,7 +393,7 @@ export function TransactionTable({
                                     ref={virtualizer.measureElement}
                                     className="absolute top-0 left-0 w-full"
                                     style={{
-                                        transform: `translateY(${virtualRow.start}px)`,
+                                        transform: `translateY(${virtualRow.start}px)`
                                     }}
                                 >
                                     <TransactionRow
@@ -396,6 +406,22 @@ export function TransactionTable({
                                         availableStatuses={availableStatuses}
                                         availableTags={availableTags}
                                         onCreateTag={onCreateTag}
+                                        availableAliases={availableAliases}
+                                        onDescriptionCommitText={
+                                            onDescriptionCommitText
+                                                ? (text) =>
+                                                      onDescriptionCommitText(transaction.id, text)
+                                                : undefined
+                                        }
+                                        onDescriptionSelectAlias={
+                                            onDescriptionSelectAlias
+                                                ? (aliasId) =>
+                                                      onDescriptionSelectAlias(
+                                                          transaction.id,
+                                                          aliasId
+                                                      )
+                                                : undefined
+                                        }
                                         onClick={() => handleRowClick(transaction.id)}
                                         onFocus={() => {
                                             setFocusedId(transaction.id);
@@ -405,7 +431,7 @@ export function TransactionTable({
                                             onTransactionUpdate
                                                 ? (field, value) =>
                                                       onTransactionUpdate(transaction.id, {
-                                                          [field]: value,
+                                                          [field]: value
                                                       })
                                                 : undefined
                                         }

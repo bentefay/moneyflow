@@ -24,6 +24,10 @@ import { hashToColor } from "@/lib/utils/color";
 import { CheckboxCell } from "./cells/CheckboxCell";
 import { InlineEditableAmount } from "./cells/InlineEditableAmount";
 import { InlineEditableDate } from "./cells/InlineEditableDate";
+import {
+    InlineEditableDescriptionAlias,
+    type DescriptionAliasOption
+} from "./cells/InlineEditableDescriptionAlias";
 import { InlineEditableStatus, type StatusOption } from "./cells/InlineEditableStatus";
 import { InlineEditableTags, type TagOption } from "./cells/InlineEditableTags";
 import { InlineEditableText } from "./cells/InlineEditableText";
@@ -52,6 +56,12 @@ export interface TransactionRowData {
     balance?: number;
     /** ID of suspected duplicate transaction */
     possibleDuplicateOf?: string;
+    /** Description alias ID (if set) */
+    descriptionAliasId?: string;
+    /** Resolved alias name (through symlinks) */
+    descriptionAliasName?: string;
+    /** Original imported description text (for tooltip) */
+    originalDescription?: string;
 }
 
 export interface TransactionRowPresence {
@@ -84,6 +94,12 @@ export interface TransactionRowProps {
     availableTags?: TagOption[];
     /** Callback when a new tag should be created */
     onCreateTag?: (name: string) => Promise<TagOption>;
+    /** Available description aliases for autocomplete */
+    availableAliases?: DescriptionAliasOption[];
+    /** Callback when user commits description text (for alias creation/rename/modal) */
+    onDescriptionCommitText?: (text: string) => void;
+    /** Callback when user selects an existing alias from dropdown */
+    onDescriptionSelectAlias?: (aliasId: string) => void;
     /** Callback when row is clicked (for navigation/focus, not selection) */
     onClick?: () => void;
     /** Callback when row is focused */
@@ -139,6 +155,9 @@ export function TransactionRow({
     availableStatuses = [],
     availableTags = [],
     onCreateTag,
+    availableAliases = [],
+    onDescriptionCommitText,
+    onDescriptionSelectAlias,
     onClick,
     onFocus,
     onResolveDuplicate,
@@ -151,7 +170,7 @@ export function TransactionRow({
     onCancel,
     defaultAccountId,
     defaultStatusId,
-    className,
+    className
 }: TransactionRowProps) {
     const isAddMode = mode === "add";
 
@@ -199,7 +218,7 @@ export function TransactionRow({
                       const tag = availableTags.find((t) => t.id === id);
                       return tag ? { id: tag.id, name: tag.name } : null;
                   })
-                  .filter((t): t is { id: string; name: string } => t !== null),
+                  .filter((t): t is { id: string; name: string } => t !== null)
           }
         : transaction!;
 
@@ -296,7 +315,7 @@ export function TransactionRow({
             amount: addAmount,
             accountId: effectiveAddAccountId,
             statusId: effectiveAddStatusId || undefined,
-            tagIds: addTagIds.length > 0 ? addTagIds : undefined,
+            tagIds: addTagIds.length > 0 ? addTagIds : undefined
         });
 
         // Reset for next entry
@@ -314,7 +333,7 @@ export function TransactionRow({
         effectiveAddAccountId,
         effectiveAddStatusId,
         addTagIds,
-        onAdd,
+        onAdd
     ]);
 
     // Add mode: cancel handler
@@ -451,10 +470,27 @@ export function TransactionRow({
                 </div>
 
                 {/* Description */}
+                {/* Description */}
                 <div data-cell="description" className="min-w-0">
-                    <InlineEditableText
-                        value={effectiveData.description}
-                        onSave={(value) => handleFieldUpdateForMode("description", value)}
+                    <InlineEditableDescriptionAlias
+                        value={effectiveData.descriptionAliasName ?? effectiveData.description}
+                        descriptionAliasId={effectiveData.descriptionAliasId}
+                        originalDescription={effectiveData.originalDescription}
+                        availableAliases={availableAliases}
+                        onCommitText={(text) => {
+                            if (isAddMode) {
+                                handleFieldUpdateForMode("description", text);
+                            } else {
+                                onDescriptionCommitText?.(text);
+                            }
+                        }}
+                        onSelectAlias={(aliasId) => {
+                            if (isAddMode) {
+                                handleFieldUpdateForMode("description", aliasId);
+                            } else {
+                                onDescriptionSelectAlias?.(aliasId);
+                            }
+                        }}
                         className="truncate font-medium"
                         inputClassName="font-medium"
                         placeholder={isAddMode ? "Description..." : "No description"}
