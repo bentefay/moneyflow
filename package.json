@@ -15,10 +15,10 @@
         "test:e2e": "playwright install && playwright test --reporter=list",
         "test:e2e:ui": "playwright install && playwright test --ui",
         "test:e2e:report": "playwright install && playwright test",
-        "db:start": "pnpx supabase start",
-        "db:stop": "pnpx supabase stop",
-        "db:reset": "pnpx supabase db reset",
-        "db:types": "pnpx supabase gen types typescript --local > src/lib/supabase/database.types.ts"
+        "db:start": "supabase start",
+        "db:stop": "supabase stop",
+        "db:reset": "supabase db reset",
+        "db:types": "supabase gen types typescript --local > src/lib/supabase/database.types.ts"
     },
     "dependencies": {
         "@f-o-t/ofx": "^2.3.0",
