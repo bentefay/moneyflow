@@ -22,13 +22,13 @@
       than the scroll width) in the transaction table at small break points
 
 - [x] Can you implement a few features related to the top app menu bar on the left?
-    - The vault selector and saving indicator should be visible when the menu is collapsed, with nice
-      icons. Specifically, lets switch the coloured circles to larger coloured circles with icons
-      inside. Use lucide icons. Add a tooltip so it's obvious what they are even when collapsed. Then
-      show the circle with icon only when collapsed. The vault indicator should just be an icon that
-      opens the select popup. The whole vault name doesn't need to be visible.
-    - At small breakpoints the left bar should switch to a top bar with the MoneyFlow icon logo and a
-      menu that you can click to open a menu page.
+    - The vault selector and saving indicator should be visible when the menu is collapsed, with
+      nice icons. Specifically, lets switch the coloured circles to larger coloured circles with
+      icons inside. Use lucide icons. Add a tooltip so it's obvious what they are even when
+      collapsed. Then show the circle with icon only when collapsed. The vault indicator should just
+      be an icon that opens the select popup. The whole vault name doesn't need to be visible.
+    - At small breakpoints the left bar should switch to a top bar with the MoneyFlow icon logo and
+      a menu that you can click to open a menu page.
 
 - [x] When creating a vault the default currency should be inferred from time zone or culture
       (https://gist.github.com/mizrael/50c10be8ec92264751187d7705362eb2)? I'm guessing time zone is
@@ -102,8 +102,8 @@
       component
     - Current: Custom HTML5 drag-and-drop implementation in
       src/components/features/import/FileDropzone.tsx
-    - Evaluate: Bundle size impact, features (progress, resumable uploads, file previews), integration
-      complexity
+    - Evaluate: Bundle size impact, features (progress, resumable uploads, file previews),
+      integration complexity
     - Specifically using the useDropzone hook (if it provides any value)
     - Nevermind - the current implementation is already really good, and we only need the most basic
       features (we don't need uploading, resumable uploads, etc.)
@@ -114,12 +114,12 @@
 
 - [x] Before release (and needing to make backwards compatible changes), we should make sure we are
       storing transactions and other state in a way that supports efficient lookup and modification
-      given our access patterns. Should we store transactions as an ordered movable list and always use
-      both date and transaction id to locate transaction for update using binary search on date (i.e.
-      never look up by id alone).
+      given our access patterns. Should we store transactions as an ordered movable list and always
+      use both date and transaction id to locate transaction for update using binary search on date
+      (i.e. never look up by id alone).
     - Ordering within date should be preserved when importing. Perhaps we should store the source's
-      transaction ordering within each date as an additional sub date index on each transaction so we
-      can preserve ordering?
+      transaction ordering within each date as an additional sub date index on each transaction so
+      we can preserve ordering?
 
     - Should we should store transactions as follows:
 
@@ -133,31 +133,35 @@
       number, byPersonAmountsOwing: Map<personId, number> }
     ```
 
-    - I'm wondering specifically whether this might prevent the need to modify a potentially enormous
-      list if we keep transactions flattened. Potentially faster for aggregation, less churn on  
-      indices and better memory reuse? We can then do linear time merge for rendering, and much faster
-      searching by account? Imports should be very efficient using this structure (linear time).
-    - We should make sure that if we are mapping from the immutable loro data structures to in-memory
-      structures for rendering, that we memoize and reuse as much as possible to avoid garbage
-      collection churn and unnecessary re-renders. With this structure we can potentially even reuse  
+    - I'm wondering specifically whether this might prevent the need to modify a potentially
+      enormous list if we keep transactions flattened. Potentially faster for aggregation, less
+      churn on  
+      indices and better memory reuse? We can then do linear time merge for rendering, and much
+      faster searching by account? Imports should be very efficient using this structure (linear
+      time).
+    - We should make sure that if we are mapping from the immutable loro data structures to
+      in-memory structures for rendering, that we memoize and reuse as much as possible to avoid
+      garbage collection churn and unnecessary re-renders. With this structure we can potentially
+      even reuse  
       all the existing monthly and yearly structures if they are unchanged during an import?
-    - When doing performance optimisation, duplicate detection should be updated to be O(n + m) by sorting
-      the import transactions and linearly scanning the existing (n) and new (m) transactions (plus the allowed date closeness in days n)
+    - When doing performance optimisation, duplicate detection should be updated to be O(n + m) by
+      sorting the import transactions and linearly scanning the existing (n) and new (m)
+      transactions (plus the allowed date closeness in days n)
 
 - [] We should be using loro ephemeral state for tracking presence and active transaction.
 
 - [] Add description aliases - these are much like tags in that there is a single curated list of
   aliases. Stored as an optional ID on each transaction. There is a page where description aliases
-  can be created, deleted and renamed. As part of this feature, we change the description field on
+  can be created, deleted and renamed. As part of this feature, we change the description field on  
   transactions to make it read only - it can't be changed for imported transactions. Instead, the
   description cell in the transactions table changes so it shows the original description text as
   the placeholder for a searchable select. The select is where you can search and find, or inline
-  create (important), a description alias. The original description text should show on hover (use
-  shadcn tooltip efficiently). When manually creating transactions, the original description text is
-  never set - you're always searching and choosing an existing alias, or creating a new alias (use
-  the same UI as for editing existing rows). The create UX should be as simple as always showing the
-  currently entered text with a (create) tag next to it in the select list, and pressing enter or
-  clicking it creates it.
+  create (important), a description alias. Once an alias is set the original description text should
+  show on hover (use shadcn tooltip efficiently). When manually creating transactions, the original
+  description text is never set - you're always searching and choosing an existing alias, or
+  creating a new alias (use the same UI as for editing existing rows). The create UX should be as
+  simple as always showing the currently entered text with a (create) tag next to it in the select
+  list, and pressing enter or clicking it creates it.
 
 - [] Change how automations work. They work differently for each field. For description aliases,
   when you apply a description alias to a transaction on the transactions page where the description
@@ -245,8 +249,9 @@
   enable useFlushSync
 
 - [] Is there a way we can make the recovery phrase more compatible with password managers? It would
-  be great if password managers automatically offer to save and fill the recovery phrase when creating
-  or logging in to a vault.
+  be great if password managers automatically offer to save and fill the recovery phrase when
+  creating or logging in to a vault.
 
-- [] Support using a passkey instead of, or in addition to, the recovery phrase, using the new PRF extension. Change the vault
-  creation and login flows to support passkey as a second option using an ---- OR ---- style UI.
+- [] Support using a passkey instead of, or in addition to, the recovery phrase, using the new PRF
+  extension. Change the vault creation and login flows to support passkey as a second option using
+  an ---- OR ---- style UI.

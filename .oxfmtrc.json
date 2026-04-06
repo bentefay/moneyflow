@@ -16,5 +16,7 @@
     "sortImports": {},
     "sortTailwindcss": {
         "functions": ["clsx", "cn", "cva", "tw"]
-    }
+    },
+    "maxLineLength": 100,
+    "proseWrap": "always"
 }
