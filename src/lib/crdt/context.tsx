@@ -60,6 +60,13 @@ export function useTags() {
 }
 
 /**
+ * Hook to get all description aliases in the vault
+ */
+export function useDescriptionAliases() {
+    return useVaultSelector((state) => state.descriptionAliases);
+}
+
+/**
  * Hook to get all statuses in the vault
  */
 export function useStatuses() {
@@ -183,6 +190,19 @@ export function useActiveTags() {
 }
 
 /**
+ * Hook to get active (non-deleted) description aliases
+ */
+export function useActiveDescriptionAliases() {
+    return useVaultSelector((state) =>
+        Object.fromEntries(
+            Object.entries(state.descriptionAliases).filter(
+                ([, a]) => typeof a === "object" && !a.deletedAt
+            )
+        )
+    );
+}
+
+/**
  * Hook to get active (non-deleted) transactions from hierarchical structure.
  * Returns a flat array of transactions sorted by date desc.
  */
@@ -257,7 +277,7 @@ import {
     type UnnestDuplicateInput,
     type UpdateTransactionInput,
     unnestDuplicate as unnestDup,
-    updateTransaction as updateTx,
+    updateTransaction as updateTx
 } from "./mutations";
 
 /**
@@ -300,6 +320,41 @@ export function useTransactionActions() {
         deleteTransaction,
         unnestDuplicate,
         swapDuplicate,
-        deleteTransactionsByImport,
+        deleteTransactionsByImport
     };
+}
+
+// ============================================
+// DESCRIPTION ALIAS MUTATION HOOKS
+// ============================================
+
+import type { DescriptionAliasInput } from "./schema";
+
+/**
+ * Hook providing description alias mutation actions.
+ */
+export function useDescriptionAliasActions() {
+    const addAlias = useVaultAction((state, alias: DescriptionAliasInput) => {
+        state.descriptionAliases[alias.id] =
+            alias as unknown as (typeof state.descriptionAliases)[string];
+    }, []);
+
+    const updateAlias = useVaultAction(
+        (state, input: { id: string; updates: Partial<DescriptionAliasInput> }) => {
+            const alias = state.descriptionAliases[input.id];
+            if (alias && typeof alias === "object") {
+                Object.assign(alias, input.updates);
+            }
+        },
+        []
+    );
+
+    const deleteAlias = useVaultAction((state, id: string) => {
+        const alias = state.descriptionAliases[id];
+        if (alias && typeof alias === "object") {
+            alias.deletedAt = Temporal.Now.instant();
+        }
+    }, []);
+
+    return { addAlias, updateAlias, deleteAlias };
 }

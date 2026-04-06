@@ -494,7 +494,6 @@ export default function TransactionsPage() {
                     updates: { descriptionAliasId: aliasId }
                 });
                 // Add to alias's transactionIds
-                updateAlias({ id: aliasId, updates: {} });
                 const alias = aliases[aliasId];
                 if (typeof alias === "object") {
                     updateAlias({
@@ -608,8 +607,12 @@ export default function TransactionsPage() {
                 updateAlias({ id: resolved.id, updates: { name: newText } });
             }
         } else if (newAliasId) {
+            // Resolve to the real alias (in case currentAliasId is a symlink)
+            const resolvedCurrent = resolveAlias(currentAliasId, aliases);
+            const realCurrentId = resolvedCurrent?.id ?? currentAliasId;
+
             // Make old alias a symlink to new alias using makeSymlinkMutations
-            const mutations = makeSymlinkMutations(currentAliasId, newAliasId, aliases);
+            const mutations = makeSymlinkMutations(realCurrentId, newAliasId, aliases);
 
             // Repoint existing symlinks
             for (const { symlinkId, newTargetId } of mutations.repointerSymlinks) {

@@ -470,7 +470,6 @@ export function TransactionRow({
                 </div>
 
                 {/* Description */}
-                {/* Description */}
                 <div data-cell="description" className="min-w-0">
                     <InlineEditableDescriptionAlias
                         value={effectiveData.descriptionAliasName ?? effectiveData.description}
@@ -486,7 +485,8 @@ export function TransactionRow({
                         }}
                         onSelectAlias={(aliasId) => {
                             if (isAddMode) {
-                                handleFieldUpdateForMode("description", aliasId);
+                                const alias = availableAliases.find((a) => a.id === aliasId);
+                                handleFieldUpdateForMode("description", alias?.name ?? aliasId);
                             } else {
                                 onDescriptionSelectAlias?.(aliasId);
                             }

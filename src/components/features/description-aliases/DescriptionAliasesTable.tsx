@@ -16,7 +16,6 @@ import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDescriptionAliases, useVaultAction } from "@/lib/crdt/context";
 import type { DescriptionAlias, DescriptionAliasInput } from "@/lib/crdt/schema";
-import { getEntriesOfLoroMap } from "@/lib/crdt/utils";
 import { getActiveRealAliases } from "@/lib/domain/description-aliases";
 import { cn } from "@/lib/utils";
 
@@ -47,9 +46,8 @@ export function DescriptionAliasesTable({ className }: DescriptionAliasesTablePr
             switch (action.type) {
                 case "add":
                     if (action.data) {
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        (draft.descriptionAliases as any)[action.id] =
-                            action.data as DescriptionAliasInput;
+                        draft.descriptionAliases[action.id] =
+                            action.data as unknown as (typeof draft.descriptionAliases)[string];
                     }
                     break;
                 case "update":
