@@ -15,14 +15,16 @@ BASE and new artifact paths.
 
 - **Package / revision:** P00 / 01
 - **Scope IDs:** control; no scratch marker
-- **State:** queued; root must set `implementing` before dispatch
+- **State:** changes_requested after immutable `reviews/P00-review-01.md` FAIL; revision 01 evidence
+  remains frozen at SHA-256 `73349df979f97d0c4fb4eb7318a81695e794aa5d721d3fe2807934a9321f819c`
 - **Task:** `tasks/P00-baseline.md`
-- **Original package BASE:** pending — root must capture literal 40-character SHA
+- **Original package BASE:** `0ea864f5d0142530b2d524add228d3b51f162876`
 - **Allowed implementation paths:** none
 - **Sole implementer artifact:** `evidence/P00/implementation-01.md`
 - **Commit contract:** no product commit; expected `HEAD == BASE`; evidence remains uncommitted for
   review
-- **Pre-existing dirty/untracked paths:** pending exact inventory
+- **Pre-existing dirty/untracked paths:** unstaged modified `specs/human-scratch.md`; no staged or
+  untracked paths; branch `main` is one commit ahead of `origin/main`
 - **Acceptance focus:** truthful reproducible baseline; both frozen sources and all 22 first-class
   requirement/package mappings; services/tool/browser versions; full test/flake state; headless
   product/accessibility smoke
@@ -33,9 +35,10 @@ BASE and new artifact paths.
 Root fills this only after implementation handoff:
 
 - **Reviewer:** a `human_scratch_reviewer` instance distinct from the implementer
-- **Literal reviewed BASE:** pending
-- **Literal reviewed HEAD:** pending
-- **Range type:** pending (`empty` only when BASE exactly equals HEAD; otherwise `non-empty`)
+- **Literal reviewed BASE:** `0ea864f5d0142530b2d524add228d3b51f162876`
+- **Literal reviewed HEAD:** `0ea864f5d0142530b2d524add228d3b51f162876`
+- **Range type:** `empty`; P00 forbids product/test commits, and root must reconcile any deviation
+  before review
 - **Implementation evidence:** `evidence/P00/implementation-01.md`
 - **Sole reviewer artifact:** `reviews/P00-review-01.md`
 - **Prior review files:** none; immutable if later present
@@ -47,7 +50,9 @@ Root fills this only after implementation handoff:
 
 ## Next root action
 
-At Goal start, verify rolling scratch SHA/21 normalized blocks, immutable canonical FS SHA `0d0e2a…`
-with exactly 715 lines and 25,441 bytes, all 22 mappings and dirty paths. Capture literal BASE,
-replace every `pending`, set P00 `implementing`, then dispatch the collector. Do not dispatch P01
-until P00 has an independent persisted PASS and root integration-control commit.
+Persist immutable `evidence/P00/implementation-01.md` and `reviews/P00-review-01.md` with the
+failed-review ledger state, record that exact control commit, then rewrite this handoff for P00
+revision 02 using `evidence/P00/implementation-02.md` and `reviews/P00-review-02.md`. Revision 02
+must explicitly reproduce and route the mobile-menu Escape focus-loss red; no P00 product fix is
+allowed. Do not dispatch P01 until P00 has an independent persisted PASS and root
+integration-control commit.
