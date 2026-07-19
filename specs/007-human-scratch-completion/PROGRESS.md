@@ -7,9 +7,9 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P04 revision 01 (`changes_requested`)
-- **Next action:** rewrite the handoff and dispatch P04 revision 02 with the exact reviewed 13-path
-  remediation authority
+- **Current package:** P04 revision 02 (`reviewing`)
+- **Next action:** root integrates the independently approved P04 evidence/review and D-010/risk
+  state; package PASS and HS-014 marker remain forbidden until that commit exists
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -20,8 +20,8 @@ review evidence.
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** three passed (HS-002, HS-017, HS-018); 19 queued
-- **Last ledger update:** 2026-07-20T06:02:43+10:00; immutable P04 revision-01 failure artifacts,
-  Q-002 and risk state persisted in `8a3e80702bd6cf9aa8d96899c840923363481e5e`
+- **Last ledger update:** 2026-07-20T06:37:29+10:00; P04 revision 02 independently recommended PASS
+  at exact HEAD `dbcf180e829c81a218e9a73791e40902c4f9eb31`; integration pending
 
 ## Package ledger
 
@@ -31,7 +31,7 @@ review evidence.
 | P01     | HS-002         | Upgrade dependencies by compatible safe chains                                      | P00                  | passed       | 02  | `d54a6285dd9b9f0824927b3d8a3a4e14c5315c73..71aa257bb9bdad736fb7ef7315854fce42c5cbb4` | `evidence/P01/implementation-02.md` | `reviews/P01-review-02.md` | `c2b89b6676271142ad6802dcf2a30acf8899df48` |
 | P02     | HS-017         | Animate UI evaluation, ADR, and representative migration only if justified          | P01                  | passed       | 02  | `19d73035b33b639f9927d2f78a55d74c44f65544..213100fadf5acea30aad7e90998bd575cdcd508c` | `evidence/P02/implementation-02.md` | `reviews/P02-review-02.md` | `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7` |
 | P03     | HS-018         | TanStack Virtual PR #1100 release gate and `useFlushSync`                           | P01                  | passed       | 01  | `c60f605bd811d8920122a66f3d6743d8a3ac044d..b8d4b448f52022970ca388654be14d24e347deb5` | `evidence/P03/implementation-01.md` | `reviews/P03-review-01.md` | `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34` |
-| P04     | HS-014         | Database/table/RLS threat model, migrations, and permission remediation             | P01                  | changes_requested | 01 | `9de8b0e8c41087b96523ecc55faa10bf19ec0ff9..20a489dc51542ee0c681cfba0a33aee820d70221` | `evidence/P04/implementation-01.md` | `reviews/P04-review-01.md` | failure artifacts `8a3e80702bd6cf9aa8d96899c840923363481e5e` |
+| P04     | HS-014         | Database/table/RLS threat model, migrations, and permission remediation             | P01                  | reviewing | 02 | `9de8b0e8c41087b96523ecc55faa10bf19ec0ff9..dbcf180e829c81a218e9a73791e40902c4f9eb31` | `evidence/P04/implementation-02.md` | `reviews/P04-review-02.md` | pending                                    |
 | P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P06     | HS-010         | Remove unused user-state storage and dead API surface                               | P04                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P07     | HS-011         | Evidence-led person/member/invite UX architecture and acceptance decision           | P04, P06             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -95,7 +95,7 @@ required marker rollbacks before the next dispatch.
 | HS-011      | human scratch block               | P07, P08                     | authorized marker after all package PASSes | queued       | —                                                                                                                       |
 | HS-012      | human scratch block               | P08                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-013      | human scratch block               | P15                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
-| HS-014      | human scratch block               | P04                          | authorized marker after package PASS       | changes_requested | revision-01 FAIL: `evidence/P04/implementation-01.md`; `reviews/P04-review-01.md`                                  |
+| HS-014      | human scratch block               | P04                          | authorized marker after package PASS       | reviewing | revision-01 FAIL immutable; `evidence/P04/implementation-02.md`; `reviews/P04-review-02.md` pending                    |
 | HS-015      | human scratch block               | P05                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-016      | human scratch block               | P20A                         | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-017      | human scratch block               | P02                          | authorized marker after package PASS       | passed       | P02 integration `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7`; `reviews/P02-review-02.md`; marker `dcd03b23… -> 5d283ab1…` |
@@ -213,6 +213,34 @@ remains `db97178a…`, 350 lines and 24,242 bytes, and FS-001 remains exact.
 revision-01 evidence, review, Q-002, R-003/R-013/R-024 and failure state persisted in control commit
 `8a3e80702bd6cf9aa8d96899c840923363481e5e`; review-01 is now immutable. Revision-02 dispatch may
 proceed after the artifact-commit reference is durably recorded; no marker or frozen-source change.
+
+**2026-07-20T06:04:00+10:00 — P04/02 `changes_requested -> implementing`:** Original BASE
+`9de8b0e8c41087b96523ecc55faa10bf19ec0ff9`; pre-implementation HEAD
+`ae6b1797e5c874fc48114f309bb9a7e02220a246` includes revision-01 product and immutable failure/control
+commits. Exact 13-path authority from review-01; sole new evidence `evidence/P04/implementation-02.md`;
+close F-001/F-002 with canonical signed POST, verified self-only user access, registration-session
+rollback safety and counterfactual URL/procedure/input tests. Revision-01 artifacts remain immutable;
+scratch stays `db97178a…` with no HS-014 marker.
+
+**2026-07-20T06:30:16+10:00 — P04/02 `implementing -> ready_for_review -> reviewing`:** Exact
+revision-02 product/test HEAD `dbcf180e829c81a218e9a73791e40902c4f9eb31`; exactly 13 authorized
+paths; evidence SHA-256 `987faf8217f57cd5294eda05884e402e22972d80a9f86d5ca11a6c9bb104509f`.
+Reported green: focused 32/32, unit 1,166/1,166, fresh pgTAP 49/49, seeded upgrade 14/14,
+authorized E2E 14/14, critical repeats 9/9, full E2E 80/80 retries zero, build and installed CLI
+new/existing/outsider request inspection. Exact cumulative review range is
+`9de8b0e8c41087b96523ecc55faa10bf19ec0ff9..dbcf180e829c81a218e9a73791e40902c4f9eb31`;
+new immutable output `reviews/P04-review-02.md`; review-01 remains immutable. Scratch stays
+`db97178a…` and HS-014 remains unchecked.
+
+**2026-07-20T06:37:29+10:00 — P04/02 `reviewing -> reviewing`:** Independent PASS recommendation;
+review SHA-256 `60c42330718eeb942f48a1d073b1c5c81b1de8dd0dd35108383f9d8ce863c210`; exact cumulative
+range, 13-path boundary, evidence/prior-review hashes, F-001/F-002 source and counterfactual test
+closure verified. Reviewer independently passed focused 32/32, unit 1,166/1,166, lint/type and fresh
+pgTAP 49/49; its interrupted seeded-upgrade/E2E/CLI reruns are candidly limited and corroborated by
+the frozen implementation evidence plus checked-in tests. Root restored the interrupted local DB to
+clean migrations 005+006 with no seed before integration. No finding or Q; P05/P08 and
+R-024/P20B/P21 routes retained; exact write boundary and frozen sources verified. Integration and
+HS-014 marker remain pending.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual

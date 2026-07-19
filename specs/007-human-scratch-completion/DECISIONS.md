@@ -146,6 +146,35 @@ need evidence, alternatives, security/UX impact, and a reversal path.
 - **Reversal/migration path:** Re-evaluate only against a future released adapter API with the same
   exact source/type/runtime and large-list gates; never vendor an unreleased implementation.
 
+## D-010 — Server-verified identity and one permanent encrypted operation source
+
+- **Date:** 2026-07-20
+- **Package / scope:** P04 / HS-014
+- **Status:** accepted
+- **Evidence:** `evidence/P04/implementation-02.md` and independent
+  `reviews/P04-review-02.md` PASS over
+  `9de8b0e8c41087b96523ecc55faa10bf19ec0ff9..dbcf180e829c81a218e9a73791e40902c4f9eb31`;
+  immutable revision-01 FAIL `reviews/P04-review-01.md` records the corrected counterexamples.
+- **Alternatives:** Trust a client/hash header; continue unsigned GET selection; rely on browser RLS
+  while the server uses service role; retain two authoritative update stores; or destructively
+  delete operation history with a vault.
+- **Decision and reason:** The tRPC server is the authorization boundary. Every application request
+  uses a canonical signed POST representation binding exact ordered operation/input, a timestamp and
+  a one-use nonce; the server derives identity only from verified key proof. Direct anon/auth table
+  access is denied, and service-role operations scope the verified caller and exact vault. `vault_ops`
+  is the insert-only permanent encrypted source; one replaceable snapshot is cache; legacy updates
+  migrate losslessly to ops and remain quarantined for rollback; vault deletion removes access but
+  preserves operations.
+- **Security, data, UX, and compatibility impact:** Claimed-hash row selection, query-input URLs,
+  replay, broad direct grants, invite races, destructive operation cascades and duplicate published
+  sources are closed. New/existing identity flows remain compatible and clear temporary state on
+  failure. P05 still owns live Realtime authorization and P08 owns real invite/key-wrap UI; neither
+  is pre-claimed by this decision.
+- **Reversal/migration path:** POST override and self-only router inputs are local reversible API
+  choices with no stored-key rewrite. Migration rollback preserves nonce, legacy quarantine,
+  membership, snapshot and permanent-operation data and must never restore unsafe grants, claimed
+  identity settings, cascade deletion or a second authoritative operation store.
+
 ## Decision template
 
 ### D-XXX — Title
