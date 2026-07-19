@@ -5,56 +5,60 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Implementation dispatch
 
-- **Package / revision:** P02 / 02
-- **Scope IDs:** HS-017; no scratch marker until independent package PASS and root integration
-- **State:** passed/integrated in `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7`; HS-017 marker
-  finalized `dcd03b23… -> 5d283ab1…`
-- **Task:** `tasks/HS-017-animate-ui-evaluation.md`
-- **Original package BASE:** `19d73035b33b639f9927d2f78a55d74c44f65544`
-- **Pre-implementation HEAD:** `72710249b4ba2c515d159ce3560e68af3ac0b011`
-- **Allowed implementation paths:** `src/components/features/import/ConfigTabs.tsx` and
-  `tests/e2e/import.spec.ts` only. Do not edit any Animate UI primitive/wrapper, dependency,
-  unrelated source/test, `.claude/**`, `.codex/**`, `supabase/**`, task/control file, scratch or
-  FS-001.
-- **Sole implementer artifact:** `evidence/P02/implementation-02.md`
-- **Commit contract:** commit authorized product/test changes only with exact-path staging; leave
-  evidence uncommitted. A decision-only `BASE == HEAD` range is valid. Never use `git add -A` or
-  `git add .`.
-- **Pre-existing dirty/untracked paths:** root-owned unstaged `PROGRESS.md` and `HANDOFF.md`, plus
-  sole untracked assigned evidence; no staged paths; branch `main` is twenty-five commits ahead of
-  `origin/main`
-- **Required I-001 remediation:** every one of Template, Columns, Format, Duplicates and Account
-  retains a deterministic accessible tab name at 320 px while visual compactness remains; the
-  selected tabpanel must retain its programmatic label relationship. Use the smallest semantic fix,
-  such as visually hidden text that becomes visible at `sm`, without duplicate spoken labels.
-- **Regression:** extend the real import journey at a 320x720 viewport to assert all five tab names,
-  each selected state/ArrowRight transition and the active panel's accessible name/relationship.
-  Prove the test fails on revision 01 and passes after the fix; repeat with retries disabled.
-- **Retained acceptance:** carry the complete decline ADR/source/bundle/manual conclusions forward;
-  explicitly correct the revision-01 mobile semantics claim. Preserve Q-001 and the R-009/P13/P21
-  T021c route. Run focused/full checks and real installed-CLI 320 px accessibility snapshot plus
-  desktop, reduced-motion, dark, zoom, console/network and cleanup checks proportionate to the fix.
+- **Package / revision:** P03 / 01
+- **Scope IDs:** HS-018; no scratch marker unless the requirement actually passes after independent
+  review. A proven unreleased gate becomes `blocked_external`, not completion.
+- **State:** independently recommended PASS; root integration pending; review SHA-256
+  `9bd95d3fe197b2a3a02ad6f6ff161bc031ad8d4f3ecc035bf7fe35ce568b9824`
+- **Task:** `tasks/HS-018-tanstack-virtual.md`
+- **Original package BASE:** `c60f605bd811d8920122a66f3d6743d8a3ac044d`
+- **Pre-implementation HEAD:** `c60f605bd811d8920122a66f3d6743d8a3ac044d`
+- **Allowed implementation paths if and only if a stable compatible safe-chain release contains PR
+  #1100:** `package.json`, `pnpm-lock.yaml`,
+  `src/components/features/transactions/TransactionTable.tsx`, and task-relevant tests under
+  `tests/**`. If the release gate is closed, make no product/test/dependency change.
+- **Sole implementer artifact:** `evidence/P03/implementation-01.md`
+- **Commit contract:** commit only authorized product/test/dependency changes with exact-path
+  staging; leave evidence uncommitted. `BASE == HEAD` is valid for a proven closed external gate.
+  Never use `git add -A` or `git add .`.
+- **Pre-existing dirty/untracked paths:** root-owned unstaged `PROGRESS.md`/`HANDOFF.md` plus sole
+  untracked evidence; no staged paths; branch `main` is twenty-nine commits ahead of `origin/main`
+- **Release gate:** use current primary sources to identify PR #1100's exact merge commit, every
+  containing stable package release, current stable and installed `@tanstack/react-virtual`, and
+  Safe Chain eligibility. Inspect installed/published package source and declarations to prove
+  whether `useFlushSync` is actually exposed; never infer inclusion from semver or changelog alone.
+- **Released path:** upgrade to the newest compatible safe-chain eligible stable containing the PR,
+  explicitly enable `useFlushSync` on every relevant current virtualizer, add meaningful
+  unit/integration/E2E coverage, and prove no warnings, hydration issues, scroll jumps, focus loss,
+  resize loops or performance regression with large-list measurements.
+- **Closed-gate path:** retain the safe installed version; record dated PR/release/package-source
+  evidence, exact recheck triggers before milestones/P21, and do not vendor or simulate the API.
+- **Validation:** cover rapid large-table scroll, resize, editing/focus at overscan edges,
+  add/remove/filter, navigation/refresh/duplicate tab, desktop/mobile/reduced-motion, console
+  flushSync/ResizeObserver/hydration warnings, position stability, jank and cleanup. If no released
+  API exists, reproduce current baseline sufficiently to support the external-gate verdict.
 - **Question route:** complete proposals in assigned evidence; root alone appends QUESTIONS
 
 ## Review dispatch
 
-This section is the active independent revision-02 review dispatch.
+This section records the completed independent review pending root integration.
 
 - **Reviewer:** a `human_scratch_reviewer` instance distinct from the implementer
-- **Literal reviewed BASE:** `19d73035b33b639f9927d2f78a55d74c44f65544`
-- **Literal reviewed HEAD:** `213100fadf5acea30aad7e90998bd575cdcd508c`
-- **Range type:** `non-empty`; full original BASE through revision-01 control/artifacts and
-  revision-02 implementation commit
-- **Implementation evidence:** `evidence/P02/implementation-02.md`
-- **Sole reviewer artifact:** `reviews/P02-review-02.md`
-- **Prior review files:** `reviews/P02-review-01.md`; immutable FAIL
+- **Literal reviewed BASE:** `c60f605bd811d8920122a66f3d6743d8a3ac044d`
+- **Literal reviewed HEAD:** `b8d4b448f52022970ca388654be14d24e347deb5`
+- **Range type:** `non-empty`; exactly three authorized implementation/test paths
+- **Implementation evidence:** `evidence/P03/implementation-01.md`
+- **Sole reviewer artifact:** `reviews/P03-review-01.md`
+- **Prior review files:** none
 - **Reviewer writes:** assigned review file only; no evidence/ledger/product/test/scratch writes
-- **Failure route:** persist review, P02 `changes_requested`, next paths
-  `evidence/P02/implementation-03.md` and `reviews/P02-review-03.md`
-- **PASS authority:** reviewer recommends PASS; root alone verifies/transcribes/integrates and sets
-  `passed`
-- **Verdict:** PASS; no new findings or Q proposals; Q-001/R-022 and R-009/P13/P21 remain open
+- **Failure route:** persist review, P03 `changes_requested`, next paths
+  `evidence/P03/implementation-02.md` and `reviews/P03-review-02.md`
+- **PASS/blocked authority:** reviewer recommends; root alone verifies, transcribes, integrates and
+  sets `passed` or `blocked_external`
+- **Verdict:** PASS; no Q; retain P14/P21 persistence, R-008/P16D/P21 jank and R-009/P13/P21 flake
+  routes
 
 ## Next root action
 
-Verify the finalized P02/HS-017 boundary, then rewrite this handoff for P03 revision 01.
+Integrate exact P03 evidence/review and root decision/risk routes. Only then set P03 passed and
+prepare/execute HS-018's marker.

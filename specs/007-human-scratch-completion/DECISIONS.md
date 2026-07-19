@@ -129,6 +129,23 @@ need evidence, alternatives, security/UX impact, and a reversal path.
   consumer, exact source/license pin, API parity, subtle reduced motion, route-bundle cost and full
   accessibility.
 
+## D-009 — P03 uses the released explicit TanStack flush-sync option
+
+- **Date:** 2026-07-20
+- **Package / scope:** P03 / HS-018
+- **Status:** accepted
+- **Evidence:** `evidence/P03/implementation-01.md` and independent `reviews/P03-review-01.md` PASS.
+- **Alternatives:** Treat PR #1100 as unreleased; infer release inclusion from semver; rely on the
+  adapter's implicit default; or vendor the upstream change.
+- **Decision and reason:** PR #1100 merged as `1686256e…`, first shipped in stable 3.13.15, and is
+  present in current/installed Safe-Chain-eligible 3.14.6. Published and installed source/runtime/
+  declarations expose `useFlushSync`; the sole product virtualizer explicitly passes `true`.
+- **Security, data, UX, and compatibility impact:** The explicit option preserves current runtime
+  semantics and passes large-list warning/focus/scroll gates. It does not resolve the separately
+  routed 1,000-row persistence overflow or current continuous-scroll jank.
+- **Reversal/migration path:** Re-evaluate only against a future released adapter API with the same
+  exact source/type/runtime and large-list gates; never vendor an unreleased implementation.
+
 ## Decision template
 
 ### D-XXX — Title
