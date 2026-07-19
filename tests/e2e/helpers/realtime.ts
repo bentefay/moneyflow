@@ -345,12 +345,23 @@ export function getRealtimeSubscriptionCounts(): RealtimeSubscriptionCounts {
                count(*) FILTER (WHERE EXISTS (
                    SELECT 1
                    FROM public.realtime_grants grant_row
+                   JOIN public.vault_memberships membership
+                     ON membership.vault_id = grant_row.vault_id
+                    AND membership.pubkey_hash = grant_row.pubkey_hash
+                    AND membership.role = grant_row.vault_role
+                   JOIN public.vaults vault ON vault.id = grant_row.vault_id
                    WHERE grant_row.id::text = subscription.claims ->> 'jti'
                      AND grant_row.vault_id::text = subscription.claims ->> 'vault_id'
                      AND grant_row.vault_role = subscription.claims ->> 'vault_role'
-                     AND grant_row.purpose = subscription.claims ->> 'realtime_purpose'
+                     AND grant_row.purpose = 'sync'
                      AND grant_row.revoked_at IS NULL
                      AND grant_row.expires_at > clock_timestamp()
+                     AND vault.deleted_at IS NULL
+                     AND subscription.claims ->> 'role' = 'authenticated'
+                     AND subscription.claims ->> 'realtime_table' = 'vault_ops'
+                     AND subscription.claims ->> 'realtime_purpose' = 'sync'
+                     AND subscription.claims ->> 'realtime_topic' =
+                         'vault:' || grant_row.vault_id::text || ':sync'
                ))::integer
         FROM realtime.subscription subscription
         WHERE subscription.entity = 'public.vault_ops'::regclass
