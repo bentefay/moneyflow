@@ -8,8 +8,8 @@ literal field is `pending`. Workers may read but never edit it.
 - **Package / revision:** P01 / 01
 - **Scope IDs:** HS-002; authorized scratch marker only after independent package PASS and root
   integration
-- **State:** changes_requested after immutable `reviews/P01-review-01.md` FAIL; evidence remains
-  frozen at SHA-256 `74360f86886a1abb10095b8ddb516789fdcee7525844889d7fcc178d7aa06a64`
+- **State:** changes_requested after immutable `reviews/P01-review-01.md` FAIL; evidence, review and
+  failed-review state persisted in `94d7c77c9ee21390af0bb4a70b2f1abaa014ec75`
 - **Task:** `tasks/HS-002-dependency-upgrades.md`
 - **Original package BASE:** `d54a6285dd9b9f0824927b3d8a3a4e14c5315c73`
 - **Allowed implementation paths:** `.nvmrc`; `package.json`; `pnpm-lock.yaml`;
@@ -49,8 +49,6 @@ This section is the active independent review dispatch.
 
 ## Next root action
 
-Persist immutable `evidence/P01/implementation-01.md` and `reviews/P01-review-01.md` with the
-failed-review ledger state, record the exact control commit, then rewrite this handoff for P01
-revision 02. Revision 02 must use the actual eligible pnpm release, correct release-age evidence,
-remove/teardown Supabase channels safely across same-vault lock/unlock, and add deterministic
-regression coverage. Do not authorize the HS-002 marker.
+Rewrite this handoff for P01 revision 02. Revision 02 must use the actual eligible pnpm release,
+correct release-age evidence, remove/teardown Supabase channels safely across same-vault
+lock/unlock, and add deterministic regression coverage. Do not authorize the HS-002 marker.
