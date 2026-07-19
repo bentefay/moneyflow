@@ -15,10 +15,11 @@
  */
 
 import { LoroDoc } from "loro-crdt";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { useActiveVault } from "@/hooks/use-active-vault";
 import { useSyncStatusManager } from "@/hooks/use-sync-status";
+import { useAuthGuard } from "@/lib/auth";
 import { VaultProvider as BaseVaultProvider } from "@/lib/crdt/context";
 import { getDefaultVaultState } from "@/lib/crdt/defaults";
 import { base64ToPrivateKey, initCrypto } from "@/lib/crypto";
@@ -29,6 +30,7 @@ import { trpc } from "@/lib/trpc";
 
 interface VaultProviderProps {
     children: React.ReactNode;
+    registerDisconnect?: (disconnect: () => Promise<void>) => () => void;
 }
 
 const subscribeToHydration = () => () => {};
@@ -37,7 +39,7 @@ const subscribeToHydration = () => () => {};
  * Provider component that initializes the vault LoroDoc and provides
  * CRDT state management to the app.
  */
-export function VaultProvider({ children }: VaultProviderProps) {
+export function VaultProvider({ children, registerDisconnect }: VaultProviderProps) {
     const isClient = useSyncExternalStore(
         subscribeToHydration,
         () => true,
@@ -54,9 +56,10 @@ export function VaultProvider({ children }: VaultProviderProps) {
 
     // Get active vault from context
     const { activeVault, setActiveVault } = useActiveVault();
+    const { pubkeyHash } = useAuthGuard({ redirect: false });
 
-    // Get sync status context for updating state
-    const syncStatusContext = useSyncStatusManager();
+    // Depend on stable context callbacks, never on the reconstructed context value.
+    const { setSyncState, setIsConnected, registerForceSync } = useSyncStatusManager();
 
     // Fetch the current identity's vaults even when local storage has no valid selection.
     // This lets us recover from stale identity-scoped browser state.
@@ -67,6 +70,36 @@ export function VaultProvider({ children }: VaultProviderProps) {
 
     // Get tRPC utils for sync manager
     const trpcUtils = trpc.useUtils();
+    const trpcUtilsRef = useRef(trpcUtils);
+    useEffect(() => {
+        trpcUtilsRef.current = trpcUtils;
+    }, [trpcUtils]);
+    const getSnapshot = useCallback(
+        (input: { vaultId: string }) => trpcUtilsRef.current.sync.getSnapshot.fetch(input),
+        []
+    );
+    const getUpdates = useCallback(
+        (input: { vaultId: string; versionVector: string; hasUnpushed: boolean }) =>
+            trpcUtilsRef.current.sync.getUpdates.fetch(input),
+        []
+    );
+    const pushOps = useCallback(
+        (input: {
+            vaultId: string;
+            ops: Array<{ id: string; encryptedData: string; versionVector: string }>;
+        }) => trpcUtilsRef.current.client.sync.pushOps.mutate(input),
+        []
+    );
+    const pushSnapshot = useCallback(
+        (input: { vaultId: string; encryptedData: string; versionVector: string }) =>
+            trpcUtilsRef.current.client.sync.pushSnapshot.mutate(input),
+        []
+    );
+
+    const vaultId = activeVault?.id ?? null;
+    const encryptedVaultKey =
+        vaultListQuery.data?.vaults.find((vault) => vault.id === vaultId)?.encryptedVaultKey ??
+        null;
 
     // Reconcile the persisted selection with vaults the current identity can access.
     // Without this, a vault ID left by another identity makes initialization return early
@@ -87,21 +120,14 @@ export function VaultProvider({ children }: VaultProviderProps) {
 
     // Initialize SyncManager when we have vault info
     useEffect(() => {
-        const vaultId = activeVault?.id;
-        if (!isClient || !vaultId || !vaultListQuery.data) return;
-
-        const vaultInfo = vaultListQuery.data.vaults.find((v) => v.id === vaultId);
-        if (!vaultInfo?.encryptedVaultKey) return;
+        if (!isClient || !vaultId || !encryptedVaultKey || !pubkeyHash) return;
         const initializingVaultId = vaultId;
-        const encryptedVaultKey = vaultInfo.encryptedVaultKey;
-
-        // Cleanup previous sync manager if vault changed
-        if (syncManagerRef.current) {
-            void syncManagerRef.current.disconnect();
-            syncManagerRef.current = null;
-        }
+        const initializingEncryptedVaultKey = encryptedVaultKey;
+        const initializingPubkeyHash = pubkeyHash;
 
         let cancelled = false;
+        let effectManager: SyncManager | null = null;
+        let unregisterDisconnect: (() => void) | null = null;
 
         async function initialize() {
             try {
@@ -110,14 +136,18 @@ export function VaultProvider({ children }: VaultProviderProps) {
                 if (!session) {
                     throw new Error("No session - user must be authenticated");
                 }
+                if (session.pubkeyHash !== initializingPubkeyHash) {
+                    throw new Error("Authenticated identity changed during vault initialization");
+                }
 
                 // Decrypt vault key - convert session's base64 secret to Uint8Array
                 const encSecretKeyBytes = base64ToPrivateKey(session.encSecretKey);
                 const vaultKey = await unwrapKeyFromBase64(
-                    encryptedVaultKey,
+                    initializingEncryptedVaultKey,
                     session.encPublicKey, // Sender was self (own public key)
                     encSecretKeyBytes
                 );
+                if (cancelled) return;
 
                 // Create LoroDoc
                 const doc = new LoroDoc();
@@ -125,34 +155,36 @@ export function VaultProvider({ children }: VaultProviderProps) {
                 // Create SyncManager
                 const manager = createSyncManager({
                     vaultId: initializingVaultId,
-                    pubkeyHash: session.pubkeyHash,
+                    pubkeyHash: initializingPubkeyHash,
                     vaultKey,
                     doc,
                     trpc: {
                         sync: {
                             getSnapshot: {
-                                query: (input) => trpcUtils.sync.getSnapshot.fetch(input)
+                                query: getSnapshot
                             },
                             getUpdates: {
-                                query: (input) => trpcUtils.sync.getUpdates.fetch(input)
+                                query: getUpdates
                             },
                             pushOps: {
-                                mutate: (input) => trpcUtils.client.sync.pushOps.mutate(input)
+                                mutate: pushOps
                             },
                             pushSnapshot: {
-                                mutate: (input) => trpcUtils.client.sync.pushSnapshot.mutate(input)
+                                mutate: pushSnapshot
                             }
                         }
                     },
                     onSyncStateChange: (state) => {
-                        syncStatusContext.setSyncState(state);
+                        setSyncState(state);
                     },
                     onError: (error) => {
                         console.error("SyncManager error:", error);
                     }
                 });
 
+                effectManager = manager;
                 syncManagerRef.current = manager;
+                unregisterDisconnect = registerDisconnect?.(() => manager.disconnect()) ?? null;
 
                 // Initialize (loads from IndexedDB/server)
                 await manager.initialize();
@@ -164,13 +196,17 @@ export function VaultProvider({ children }: VaultProviderProps) {
 
                 setInitializedVault({ vaultId: initializingVaultId, doc });
                 setInitFailure(null);
-                syncStatusContext.setIsConnected(true);
+                setIsConnected(true);
 
                 // Register force sync handler
-                syncStatusContext.registerForceSync(async () => {
+                registerForceSync(async () => {
                     await manager.forceSync();
                 });
             } catch (error) {
+                unregisterDisconnect?.();
+                unregisterDisconnect = null;
+                if (syncManagerRef.current === effectManager) syncManagerRef.current = null;
+                await effectManager?.disconnect().catch(() => undefined);
                 if (!cancelled) {
                     console.error("Failed to initialize vault:", error);
                     setInitializedVault(null);
@@ -187,13 +223,28 @@ export function VaultProvider({ children }: VaultProviderProps) {
 
         return () => {
             cancelled = true;
-            const manager = syncManagerRef.current;
-            if (manager) {
+            unregisterDisconnect?.();
+            unregisterDisconnect = null;
+            if (effectManager && syncManagerRef.current === effectManager) {
                 syncManagerRef.current = null;
-                void manager.disconnect();
             }
+            void effectManager?.disconnect();
+            setIsConnected(false);
         };
-    }, [isClient, activeVault?.id, vaultListQuery.data, trpcUtils, syncStatusContext]);
+    }, [
+        isClient,
+        vaultId,
+        encryptedVaultKey,
+        pubkeyHash,
+        getSnapshot,
+        getUpdates,
+        pushOps,
+        pushSnapshot,
+        setSyncState,
+        setIsConnected,
+        registerForceSync,
+        registerDisconnect
+    ]);
 
     // Loading state
     if (!isClient) {

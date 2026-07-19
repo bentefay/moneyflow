@@ -10,6 +10,7 @@
 import { expect, type Page, test } from "@playwright/test";
 
 import { createNewIdentity, enterSeedPhrase, goToSettings, goToTransactions } from "./helpers";
+import { observeRealtimeLifecycle } from "./helpers/realtime";
 
 // ============================================================================
 // Settings-Specific Helpers
@@ -125,9 +126,13 @@ test.describe("Vault Settings", () => {
     });
 
     test.describe("Existing User Flow", () => {
-        test("same-vault lock then unlock renders on the first attempt", async ({ page }) => {
+        test("same-vault lock then unlock renders on the first attempt", async ({
+            page
+        }, testInfo) => {
             const browserErrors: string[] = [];
             const trpcRequests: Array<{ method: string; url: string; body: string | null }> = [];
+            const realtimeLifecycle = observeRealtimeLifecycle(page);
+            page.once("close", realtimeLifecycle.stop);
             page.on("console", (message) => {
                 if (message.type() === "error") browserErrors.push(message.text());
             });
@@ -170,6 +175,18 @@ test.describe("Vault Settings", () => {
                 expect(browserErrors).toEqual([]);
             });
 
+            await test.step("attribute same-vault lock and unlock lifecycle", async () => {
+                const counts = realtimeLifecycle.snapshot();
+                testInfo.annotations.push({
+                    type: "realtime-lock-lifecycle",
+                    description: JSON.stringify(counts)
+                });
+                expect(counts.authorize.sync).toBeLessThanOrEqual(2);
+                expect(counts.authorize.presence).toBeLessThanOrEqual(2);
+                expect(counts.revoke.sync).toBeGreaterThanOrEqual(1);
+                expect(counts.revoke.presence).toBeGreaterThanOrEqual(1);
+            });
+
             await test.step("Keep unlock identity and vault metadata out of request URLs", async () => {
                 expect(trpcRequests.length).toBeGreaterThan(0);
                 for (const request of trpcRequests) {
@@ -188,6 +205,8 @@ test.describe("Vault Settings", () => {
                 expect(unlockRequest?.body).toBeTruthy();
                 expect(unlockRequest?.body).not.toContain("pubkeyHash");
             });
+
+            realtimeLifecycle.stop();
         });
     });
 

@@ -8,6 +8,11 @@ import {
     removeFixtureMember,
     shareActiveVaultWithMember
 } from "./helpers";
+import {
+    getRealtimeGrantAggregates,
+    observeRealtimeFrames,
+    observeRealtimeLifecycle
+} from "./helpers/realtime";
 
 const importedDescription = "Realtime encrypted import";
 const editedDescription = "Realtime encrypted edit";
@@ -18,7 +23,7 @@ function descriptionInput(page: import("@playwright/test").Page, value: string) 
 
 test("private vault_ops push synchronizes import, edit and delete and stops after removal", async ({
     browser
-}) => {
+}, testInfo) => {
     test.setTimeout(120_000);
     const ownerContext = await browser.newContext({ baseURL: "http://localhost:3000" });
     const memberContext = await browser.newContext({ baseURL: "http://localhost:3000" });
@@ -26,6 +31,9 @@ test("private vault_ops push synchronizes import, edit and delete and stops afte
     const member = await memberContext.newPage();
     const runtimeProblems: string[] = [];
     const socketSafety: Array<{ secureShape: boolean; sensitiveScopeInUrl: boolean }> = [];
+    const ownerLifecycle = observeRealtimeLifecycle(owner);
+    const memberLifecycle = observeRealtimeLifecycle(member);
+    const memberFrames = observeRealtimeFrames(member);
 
     for (const page of [owner, member]) {
         page.on("console", (message) => {
@@ -62,7 +70,27 @@ test("private vault_ops push synchronizes import, edit and delete and stops afte
             });
         });
 
+        await test.step("attribute initial sync and Presence lifecycle without identifiers", async () => {
+            const browserLifecycle = {
+                owner: ownerLifecycle.snapshot(),
+                member: memberLifecycle.snapshot()
+            };
+            const grants = {
+                owner: await getRealtimeGrantAggregates(fixture.ownerHash, fixture.vaultId),
+                member: await getRealtimeGrantAggregates(fixture.memberHash, fixture.vaultId)
+            };
+            testInfo.annotations.push({
+                type: "realtime-lifecycle",
+                description: JSON.stringify({ browserLifecycle, grants })
+            });
+            expect(browserLifecycle.owner.authorize.sync).toBeLessThanOrEqual(2);
+            expect(browserLifecycle.member.authorize.sync).toBeLessThanOrEqual(2);
+            expect(browserLifecycle.owner.authorize.presence).toBeLessThanOrEqual(4);
+            expect(browserLifecycle.member.authorize.presence).toBeLessThanOrEqual(4);
+        });
+
         await test.step("push an imported encrypted operation without member refresh", async () => {
+            const memberFrameBaseline = memberFrames.snapshot().postgresChanges;
             await goToImportNew(owner);
             await owner.locator('input[type="file"]').setInputFiles({
                 name: "realtime-security.csv",
@@ -81,6 +109,12 @@ test("private vault_ops push synchronizes import, edit and delete and stops afte
             await expect(importButton).toBeEnabled();
             await importButton.click();
             await expect(owner).toHaveURL(/\/transactions/);
+            await expect
+                .poll(() => memberFrames.snapshot().postgresChanges, {
+                    message: "member receives a sanitized postgres_changes event kind",
+                    timeout: 15_000
+                })
+                .toBeGreaterThan(memberFrameBaseline);
             await expect(descriptionInput(member, importedDescription)).toBeVisible({
                 timeout: 15_000
             });
@@ -136,6 +170,9 @@ test("private vault_ops push synchronizes import, edit and delete and stops afte
         expect(socketSafety.some((socket) => socket.sensitiveScopeInUrl)).toBe(false);
         expect(runtimeProblems).toEqual([]);
     } finally {
+        ownerLifecycle.stop();
+        memberLifecycle.stop();
+        memberFrames.stop();
         await ownerContext.close();
         await memberContext.close();
     }

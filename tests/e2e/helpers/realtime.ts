@@ -1,6 +1,7 @@
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
-import type { Page } from "@playwright/test";
+import type { Page, Request, WebSocket } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 
 import { base64ToPrivateKey } from "@/lib/crypto/keypair";
@@ -10,6 +11,111 @@ interface BrowserIdentitySession {
     pubkeyHash: string;
     encPublicKey: string;
     encSecretKey: string;
+}
+
+type RealtimePurpose = "sync" | "presence";
+type RealtimeProcedure = "authorize" | "revoke";
+
+export interface RealtimeLifecycleCounts {
+    authorize: Record<RealtimePurpose, number>;
+    revoke: Record<RealtimePurpose, number>;
+}
+
+export interface RealtimeGrantCounts {
+    total: number;
+    live: number;
+    revoked: number;
+    expiredUnrevoked: number;
+}
+
+export interface RealtimeFrameCounts {
+    postgresChanges: number;
+}
+
+export type RealtimeGrantAggregates = Record<RealtimePurpose, RealtimeGrantCounts>;
+
+function emptyLifecycleCounts(): RealtimeLifecycleCounts {
+    return {
+        authorize: { sync: 0, presence: 0 },
+        revoke: { sync: 0, presence: 0 }
+    };
+}
+
+function readRealtimePurpose(body: string | null): RealtimePurpose | null {
+    if (body?.includes('"purpose":"sync"')) return "sync";
+    if (body?.includes('"purpose":"presence"')) return "presence";
+    return null;
+}
+
+/**
+ * Records only procedure/purpose aggregates. Signed bodies, vaults and identities stay in memory
+ * and never enter returned diagnostics or Playwright artifacts.
+ */
+export function observeRealtimeLifecycle(page: Page): {
+    snapshot: () => RealtimeLifecycleCounts;
+    stop: () => void;
+} {
+    const counts = emptyLifecycleCounts();
+    const listener = (request: Request) => {
+        const match = request.url().match(/\/api\/trpc\/realtime\.(authorize|revoke)(?:\?|$)/);
+        const procedure = match?.[1] as RealtimeProcedure | undefined;
+        const purpose = readRealtimePurpose(request.postData());
+        if (procedure && purpose) counts[procedure][purpose] += 1;
+    };
+    page.on("request", listener);
+
+    return {
+        snapshot: () => ({
+            authorize: { ...counts.authorize },
+            revoke: { ...counts.revoke }
+        }),
+        stop: () => page.off("request", listener)
+    };
+}
+
+/** Records only aggregate event kinds from incoming Realtime frames, never frame payloads. */
+export function observeRealtimeFrames(page: Page): {
+    snapshot: () => RealtimeFrameCounts;
+    stop: () => void;
+} {
+    let postgresChanges = 0;
+    const socketListeners = new Map<WebSocket, (event: { payload: string | Buffer }) => void>();
+    const socketListener = (socket: WebSocket) => {
+        if (!socket.url().includes("/realtime/v1/websocket")) return;
+        const frameListener = ({ payload }: { payload: string | Buffer }) => {
+            try {
+                const frame: unknown = JSON.parse(
+                    typeof payload === "string" ? payload : payload.toString("utf8")
+                );
+                const event = Array.isArray(frame)
+                    ? frame[3]
+                    : isUnknownRecord(frame)
+                      ? frame.event
+                      : null;
+                if (event === "postgres_changes") postgresChanges += 1;
+            } catch {
+                // Binary/non-JSON frames have no event kind to aggregate.
+            }
+        };
+        socketListeners.set(socket, frameListener);
+        socket.on("framereceived", frameListener);
+    };
+    page.on("websocket", socketListener);
+
+    return {
+        snapshot: () => ({ postgresChanges }),
+        stop: () => {
+            page.off("websocket", socketListener);
+            for (const [socket, listener] of socketListeners) {
+                socket.off("framereceived", listener);
+            }
+            socketListeners.clear();
+        }
+    };
+}
+
+function emptyGrantCounts(): RealtimeGrantCounts {
+    return { total: 0, live: 0, revoked: 0, expiredUnrevoked: 0 };
 }
 
 function isUnknownRecord(value: unknown): value is Record<string, unknown> {
@@ -137,6 +243,66 @@ export async function countRealtimeGrants(pubkeyHash: string, vaultId: string): 
         .eq("purpose", "sync");
     if (error) throw new Error("Realtime grant fixture query failed");
     return count ?? 0;
+}
+
+/** Returns sanitized lifecycle aggregates without grant, identity or vault identifiers. */
+export async function getRealtimeGrantAggregates(
+    pubkeyHash: string,
+    vaultId: string
+): Promise<RealtimeGrantAggregates> {
+    const result: RealtimeGrantAggregates = {
+        sync: emptyGrantCounts(),
+        presence: emptyGrantCounts()
+    };
+    if (!/^[0-9a-f]{64}$/.test(pubkeyHash) || !/^[0-9a-f-]{36}$/.test(vaultId)) {
+        throw new Error("Realtime grant lifecycle fixture scope is invalid");
+    }
+
+    const query = `COPY (
+        SELECT purpose,
+               count(*)::integer,
+               count(*) FILTER (WHERE revoked_at IS NULL AND expires_at > clock_timestamp())::integer,
+               count(*) FILTER (WHERE revoked_at IS NOT NULL)::integer,
+               count(*) FILTER (WHERE revoked_at IS NULL AND expires_at <= clock_timestamp())::integer
+        FROM public.realtime_grants
+        WHERE pubkey_hash = '${pubkeyHash}' AND vault_id = '${vaultId}'::uuid
+        GROUP BY purpose
+        ORDER BY purpose
+    ) TO STDOUT WITH (FORMAT csv);`;
+    let output: string;
+    try {
+        output = execFileSync(
+            "docker",
+            [
+                "exec",
+                "-i",
+                "supabase_db_moneyflow",
+                "psql",
+                "-U",
+                "postgres",
+                "-d",
+                "postgres",
+                "-X",
+                "-q"
+            ],
+            { input: query, encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] }
+        );
+    } catch {
+        throw new Error("Realtime grant lifecycle fixture query failed");
+    }
+
+    for (const line of output.trim().split("\n")) {
+        if (!line) continue;
+        const [purpose, total, live, revoked, expiredUnrevoked] = line.split(",");
+        if (purpose !== "sync" && purpose !== "presence") continue;
+        result[purpose] = {
+            total: Number(total),
+            live: Number(live),
+            revoked: Number(revoked),
+            expiredUnrevoked: Number(expiredUnrevoked)
+        };
+    }
+    return result;
 }
 
 export async function removeFixtureMember(

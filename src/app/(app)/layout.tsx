@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import { PresenceAvatarGroup } from "@/components/features/presence/PresenceAvatarGroup";
 import { VaultSelector } from "@/components/features/vault/VaultSelector";
@@ -68,6 +68,17 @@ const mainNavItems: NavItem[] = [
 const bottomNavItems: NavItem[] = [{ href: "/settings", label: "Vault Settings", icon: Settings }];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
+    const vaultDisconnectRef = useRef<(() => Promise<void>) | null>(null);
+    const registerVaultDisconnect = useCallback((disconnect: () => Promise<void>) => {
+        vaultDisconnectRef.current = disconnect;
+        return () => {
+            if (vaultDisconnectRef.current === disconnect) vaultDisconnectRef.current = null;
+        };
+    }, []);
+    const disconnectVault = useCallback(async () => {
+        await vaultDisconnectRef.current?.();
+    }, []);
+
     return (
         <AuthGuard
             fallback={
@@ -77,17 +88,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             }
         >
             <ActiveVaultProvider>
-                <VaultProvider>
-                    <SyncStatusProvider>
-                        <AppLayoutContent>{children}</AppLayoutContent>
-                    </SyncStatusProvider>
-                </VaultProvider>
+                <SyncStatusProvider>
+                    <VaultProvider registerDisconnect={registerVaultDisconnect}>
+                        <AppLayoutContent disconnectVault={disconnectVault}>
+                            {children}
+                        </AppLayoutContent>
+                    </VaultProvider>
+                </SyncStatusProvider>
             </ActiveVaultProvider>
         </AuthGuard>
     );
 }
 
-function AppLayoutContent({ children }: { children: React.ReactNode }) {
+function AppLayoutContent({
+    children,
+    disconnectVault
+}: {
+    children: React.ReactNode;
+    disconnectVault: () => Promise<void>;
+}) {
     const router = useRouter();
     const { pubkeyHash } = useAuthGuard({ redirect: false });
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -109,7 +128,11 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
     }, [vaultListQuery.data]);
 
     // Track presence in active vault
-    const { onlineUsers, isConnected } = useVaultPresence(activeVault?.id ?? null, pubkeyHash);
+    const {
+        onlineUsers,
+        isConnected,
+        disconnect: disconnectPresence
+    } = useVaultPresence(activeVault?.id ?? null, pubkeyHash);
 
     // Get sync status from context
     const { state: syncState } = useSyncStatus();
@@ -119,7 +142,8 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 
     const isVaultsLoading = vaultListQuery.isLoading;
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        await Promise.all([disconnectVault(), disconnectPresence()]);
         clearSession();
         router.replace("/unlock");
     };
