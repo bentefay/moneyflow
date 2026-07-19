@@ -11,7 +11,13 @@
 
 import { expect, test } from "@playwright/test";
 
-import { createNewIdentity, goToAccounts, goToTags, goToTransactions } from "./helpers";
+import {
+    createNewIdentity,
+    goToAccounts,
+    goToImportNew,
+    goToTags,
+    goToTransactions
+} from "./helpers";
 
 // ============================================================================
 // Helper: Create a test transaction
@@ -81,6 +87,18 @@ async function toggleCheckbox(
     await checkbox.click({ modifiers });
 }
 
+/**
+ * Create a large, deterministic CSV entirely in memory for virtualization coverage.
+ */
+function createLargeTransactionCSV(rowCount: number): string {
+    const rows = Array.from(
+        { length: rowCount },
+        (_, index) =>
+            `2026-01-01,Virtual Transaction ${index.toString().padStart(4, "0")},-${index + 1}.00`
+    );
+    return ["Date,Description,Amount", ...rows].join("\n");
+}
+
 // ============================================================================
 // Tests
 // ============================================================================
@@ -115,6 +133,152 @@ test.describe("Transactions", () => {
             // The default account should be visible in the table
             await expect(page.getByText("Default", { exact: true })).toBeVisible();
         });
+    });
+
+    test("virtualized large list preserves position, focus, editing, filtering and navigation", async ({
+        page,
+        context
+    }) => {
+        const runtimeProblems: string[] = [];
+        const taskWarningPattern =
+            /flushSync|ResizeObserver|hydration|Maximum call stack|Failed to save local update/i;
+        page.on("console", (message) => {
+            if (
+                (message.type() === "warning" || message.type() === "error") &&
+                taskWarningPattern.test(message.text())
+            ) {
+                runtimeProblems.push(`${message.type()}: ${message.text()}`);
+            }
+        });
+        page.on("pageerror", (error) => runtimeProblems.push(`pageerror: ${error.message}`));
+
+        await createNewIdentity(page);
+
+        await test.step("import 500 deterministic transactions through the real flow", async () => {
+            await goToImportNew(page);
+            await page.locator('input[type="file"]').setInputFiles({
+                name: "virtualized-transactions.csv",
+                mimeType: "text/csv",
+                buffer: Buffer.from(createLargeTransactionCSV(500))
+            });
+
+            await expect(page.getByText("CSV • 501 rows", { exact: true })).toBeVisible({
+                timeout: 10_000
+            });
+            await page.getByRole("tab", { name: /Columns/i }).click();
+            await page.getByRole("button", { name: /Auto-detect/i }).click();
+            await expect(page.getByText(/All required fields mapped/i)).toBeVisible();
+
+            await page.getByRole("tab", { name: /Account/i }).click();
+            await page.locator("#account-select").click();
+            await page.getByRole("option", { name: /Default/i }).click();
+
+            const importButton = page.getByRole("button", { name: /Import 500 Transactions/i });
+            await expect(importButton).toBeEnabled();
+            await importButton.click();
+            await expect(page).toHaveURL(/\/transactions/);
+            await expect(page.getByText("500 transactions", { exact: true })).toBeVisible({
+                timeout: 15_000
+            });
+        });
+
+        await test.step("rapidly reach the overscan edge with bounded DOM and measured latency", async () => {
+            const scrollContainer = page.getByTestId("transaction-table").locator("..");
+            const edgeWrapper = page.locator('[data-index="499"]');
+            const startedAt = Date.now();
+
+            await expect
+                .poll(
+                    async () => {
+                        await scrollContainer.evaluate((element) => {
+                            element.scrollTop = element.scrollHeight;
+                            element.dispatchEvent(new Event("scroll"));
+                        });
+                        return edgeWrapper.count();
+                    },
+                    { timeout: 10_000, intervals: [100] }
+                )
+                .toBe(1);
+
+            const expansionDurationMs = Date.now() - startedAt;
+            expect(expansionDurationMs).toBeLessThan(10_000);
+            await expect(edgeWrapper).toBeVisible();
+            expect(await page.getByTestId("transaction-row").count()).toBeLessThan(40);
+
+            await scrollContainer.evaluate((element) => {
+                element.scrollTop = 0;
+                element.dispatchEvent(new Event("scroll"));
+            });
+            await expect(page.locator('[data-index="0"]')).toBeVisible();
+
+            await scrollContainer.evaluate((element) => {
+                element.scrollTop = element.scrollHeight;
+                element.dispatchEvent(new Event("scroll"));
+            });
+            await expect(edgeWrapper).toBeVisible();
+        });
+
+        await test.step("resize and edit the focused overscan-edge row without losing focus", async () => {
+            const edgeDescription = page
+                .locator('[data-index="499"]')
+                .getByTestId("description-editable");
+
+            await edgeDescription.click();
+            await expect(edgeDescription).toBeFocused();
+            await page.setViewportSize({ width: 1_000, height: 700 });
+            await expect(edgeDescription).toBeFocused();
+
+            await edgeDescription.fill("Virtualized Edge Edited");
+            await edgeDescription.press("Enter");
+            await expect(edgeDescription).toHaveValue("Virtualized Edge Edited");
+        });
+
+        await test.step("filter the large list and restore its edited row", async () => {
+            const search = page.getByTestId("search-filter");
+            await search.fill("Virtual Transaction 0499");
+            await search.press("Enter");
+
+            await expect(page.getByText("1 transaction (filtered)", { exact: true })).toBeVisible();
+            await expect(page.getByRole("row", { name: /Virtualized Edge Edited/i })).toBeVisible();
+
+            await page.getByRole("button", { name: "Clear search" }).click();
+            await expect(page.getByText("500 transactions", { exact: true })).toBeVisible();
+        });
+
+        await test.step("preserve the large list across navigation, refresh and a duplicate tab", async () => {
+            await goToAccounts(page);
+            await goToTransactions(page);
+            await expect(page.getByText("500 transactions", { exact: true })).toBeVisible();
+
+            await page.reload();
+            await expect(page.getByText("500 transactions", { exact: true })).toBeVisible();
+
+            const duplicatePagePromise = context.waitForEvent("page");
+            await page.evaluate(() => {
+                window.open(window.location.href, "_blank");
+            });
+            const duplicatePage = await duplicatePagePromise;
+            const duplicateWarnings: string[] = [];
+            duplicatePage.on("console", (message) => {
+                if (
+                    (message.type() === "warning" || message.type() === "error") &&
+                    taskWarningPattern.test(message.text())
+                ) {
+                    duplicateWarnings.push(`${message.type()}: ${message.text()}`);
+                }
+            });
+            duplicatePage.on("pageerror", (error) =>
+                duplicateWarnings.push(`pageerror: ${error.message}`)
+            );
+
+            await expect(
+                duplicatePage.getByText("500 transactions", { exact: true })
+            ).toBeVisible();
+            expect(duplicateWarnings).toEqual([]);
+            await duplicatePage.close();
+        });
+
+        expect(runtimeProblems).toEqual([]);
     });
 
     test("account selector opens and shows create option", async ({ page }) => {

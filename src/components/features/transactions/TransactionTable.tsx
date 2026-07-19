@@ -323,7 +323,8 @@ export function TransactionTable({
         count: transactions.length,
         getScrollElement: () => containerRef.current,
         estimateSize: () => ROW_HEIGHT,
-        overscan: OVERSCAN
+        overscan: OVERSCAN,
+        useFlushSync: true
     });
 
     // Get virtual items for rendering
