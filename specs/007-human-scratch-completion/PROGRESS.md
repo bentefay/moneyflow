@@ -7,9 +7,9 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P05 revision 03 (`changes_requested`)
-- **Next action:** durably record the revision-03 artifact commit, then dispatch the diagnostic-only
-  P05 revision 04 after exact empty-project verification
+- **Current package:** P05 revision 04 (`changes_requested`)
+- **Next action:** persist immutable revision-04 failure artifacts and Q-006, then dispatch the
+  one-spec-file P05 revision 05
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -20,8 +20,8 @@ review evidence.
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** four passed (HS-002, HS-014, HS-017, HS-018); 18 queued
-- **Last ledger update:** 2026-07-20T08:47:20+10:00; P05 revision-03 evidence, FAIL review, Q-005 and
-  risk state persisted in `1a513eb2490948211767a910ecd0f7c7ee1d5803`
+- **Last ledger update:** 2026-07-20T09:15:40+10:00; P05 revision 04 independent review FAIL at exact
+  HEAD `4233b59c930117e7b160ac142a6f953b988b2dc8`
 
 ## Package ledger
 
@@ -32,7 +32,7 @@ review evidence.
 | P02     | HS-017         | Animate UI evaluation, ADR, and representative migration only if justified          | P01                  | passed       | 02  | `19d73035b33b639f9927d2f78a55d74c44f65544..213100fadf5acea30aad7e90998bd575cdcd508c` | `evidence/P02/implementation-02.md` | `reviews/P02-review-02.md` | `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7` |
 | P03     | HS-018         | TanStack Virtual PR #1100 release gate and `useFlushSync`                           | P01                  | passed       | 01  | `c60f605bd811d8920122a66f3d6743d8a3ac044d..b8d4b448f52022970ca388654be14d24e347deb5` | `evidence/P03/implementation-01.md` | `reviews/P03-review-01.md` | `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34` |
 | P04     | HS-014         | Database/table/RLS threat model, migrations, and permission remediation             | P01                  | passed | 02 | `9de8b0e8c41087b96523ecc55faa10bf19ec0ff9..dbcf180e829c81a218e9a73791e40902c4f9eb31` | `evidence/P04/implementation-02.md` | `reviews/P04-review-02.md` | `b905ecb810334ed9697f57140047964135ade6ea` |
-| P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | changes_requested | 03 | `007651beb814d98646aa2e786801b647e2abd0b5..ec7dcf8b29ce93f46f73a904e7420ddf49317b11` | `evidence/P05/implementation-03.md` | `reviews/P05-review-03.md` | failure artifacts `1a513eb2490948211767a910ecd0f7c7ee1d5803` |
+| P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | changes_requested | 04 | `007651beb814d98646aa2e786801b647e2abd0b5..4233b59c930117e7b160ac142a6f953b988b2dc8` | `evidence/P05/implementation-04.md` | `reviews/P05-review-04.md` | pending                                    |
 | P06     | HS-010         | Remove unused user-state storage and dead API surface                               | P04                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P07     | HS-011         | Evidence-led person/member/invite UX architecture and acceptance decision           | P04, P06             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -96,7 +96,7 @@ required marker rollbacks before the next dispatch.
 | HS-012      | human scratch block               | P08                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-013      | human scratch block               | P15                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-014      | human scratch block               | P04                          | authorized marker after package PASS       | passed | P04 integration `b905ecb810334ed9697f57140047964135ade6ea`; `reviews/P04-review-02.md`; marker `db97178a… -> c74a2a78…` |
-| HS-015      | human scratch block               | P05                          | authorized marker after package PASS       | changes_requested | revisions-01/02/03 FAIL immutable; Q-005 authorizes diagnostic-only revision 04; no marker                   |
+| HS-015      | human scratch block               | P05                          | authorized marker after package PASS       | changes_requested | revisions-01/02/03/04 FAIL immutable; Q-006 authorizes one-file revision 05; no marker                   |
 | HS-016      | human scratch block               | P20A                         | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-017      | human scratch block               | P02                          | authorized marker after package PASS       | passed       | P02 integration `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7`; `reviews/P02-review-02.md`; marker `dcd03b23… -> 5d283ab1…` |
 | HS-018      | human scratch block               | P03                          | authorized marker after package PASS       | passed       | P03 integration `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34`; `reviews/P03-review-01.md`; marker `5d283ab1… -> db97178a…` |
@@ -362,6 +362,42 @@ revision-03 evidence/review, Q-005, R-004/R-021 and failure state persisted in
 `1a513eb2490948211767a910ecd0f7c7ee1d5803`; all three P05 FAIL reviews are immutable. Revision-04
 dispatch may proceed after this artifact-commit reference is durably recorded and the exact local
 project is re-verified empty; no frozen source or marker changed.
+
+**2026-07-20T08:49:14+10:00 — P05/04 `changes_requested -> implementing`:** Original BASE remains
+`007651beb814d98646aa2e786801b647e2abd0b5`; pre-implementation HEAD
+`abbb4f52439025401d3ca858f9809b41daddcbe3` includes all immutable P05 revision-01/02/03 product and
+failure/control commits. Root independently verified the exact running `moneyflow` local project is
+disposable: auth users, all public application/authz tables, Realtime subscriptions, grants and
+permanent ops are zero. Q-005 authorizes exact-project `supabase stop --no-backup`/`start` followed
+by normal migrations and exactly one writable path, `tests/e2e/helpers/realtime.ts`, to harden the
+sanitized exact-current-grant predicate. If clean pinned recreation retains image/schema mismatch,
+stop with a complete pin proposal. No product/config/dependency/migration/unit/transport/CRDT/Loro
+or HS-015 marker authority; scratch remains `c74a2a78…`.
+
+**2026-07-20T09:05:29+10:00 — P05/04 `implementing -> ready_for_review -> reviewing`:** Exact HEAD
+`4233b59c930117e7b160ac142a6f953b988b2dc8`; revision diff is only the authorized helper (12
+insertions/1 deletion). Evidence SHA-256
+`fc7832cc801210332c960b38d37bdfc87c6c3ae5d9709c10ccf6ed3d8928fb2c`. Guarded empty-project
+recreation produces Realtime v2.112.6 with 79 matching internal migrations, four active filter
+fields and no mismatch. Ordinary runs register at least two authenticated exact-live-grant
+subscriptions and genuinely deliver the imported op/UI update. The next inline edit writes its
+permanent op but hits the 120-second global timeout; a bounded timing run proves the spec reuses an
+original-value-qualified locator after `fill` changed that value, spending 109.747 seconds at
+`locator.press`. Q-PROPOSAL-P05-04-01 requests adding only `tests/e2e/realtime-security.spec.ts`
+for a stable/re-resolved Enter target, without timeout/assertion weakening. Static helper/type gates,
+final compatible empty DB and cleanup pass; broader acceptance stops at this deterministic test
+owner. New immutable output `reviews/P05-review-04.md`; no PASS claim or HS-015 marker.
+
+**2026-07-20T09:15:40+10:00 — P05/04 `reviewing -> changes_requested`:** Independent FAIL review
+SHA-256 `dd629bc49ca8e0694406b113fbd3eb23996da6def212a852ed94a289a1449d33`. Compatible
+Realtime v2.112.6/79/four-field/no-mismatch service state, strengthened helper, exact-grant
+subscriptions and genuine incoming import/UI delivery are accepted; fresh 87/87, upgrade 27/27,
+unit 1,170/1,170 and static gates pass. F-001 High remains solely test-owned: the old-value locator
+is lazily re-resolved after `fill`, so Enter never occurs and the unchanged 120-second timeout
+expires with two permanent ops. Q-PROPOSAL-P05-04-01 is transcribed as Q-006 with exact sole
+revision-05 path `tests/e2e/realtime-security.spec.ts`; no timeout/assertion weakening or helper/
+product/config/dependency/migration/unit/transport/CRDT/Loro expansion. R-004/R-009/R-021 updated;
+HS-015 remains unchecked at `c74a2a78…`.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual

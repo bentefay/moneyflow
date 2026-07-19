@@ -201,6 +201,45 @@ No unresolved product questions were answered by scaffold creation.
   Human input is useful only if this verified-empty local project is unexpectedly non-disposable or
   repository policy prefers a deliberate toolchain upgrade.
 
+## Q-006 — Repair the self-invalidating Realtime edit locator
+
+- **Raised:** 2026-07-20, P05 revision 04, `human_scratch_reviewer`; independently confirms the
+  implementer's revision-05 owner proposal
+- **Source proposal:**
+  `reviews/P05-review-04.md#q-proposal-p05-04-01--repair-only-the-self-invalidating-inline-edit-locator`;
+  supporting evidence in `evidence/P05/implementation-04.md`
+- **Context and evidence:** A compatible local service now registers authenticated exact-grant
+  subscriptions and genuinely delivers the imported operation to the member UI without refresh.
+  The journey then fills the owner editor with a new value but reuses a lazy locator constrained to
+  the old value for Enter. Independent zero-retry reproduction consumes the unchanged two-minute
+  timeout in that step; the snapshot shows the new value focused and the database contains import
+  plus edit operations.
+- **Why the frozen requirement/repository does not fully decide it:** Revision 04 authorized only
+  the aggregate helper. It proved the spec-owned blocker but could not edit the journey file.
+- **Options considered:** (A) re-resolve the editor by its new value and retain every assertion and
+  timeout; (B) use another locator stable across value changes with explicit uniqueness/focus; (C)
+  increase timeouts/retries; or (D) widen product/transport code. A is the smallest exact fix; B is
+  acceptable only if it cannot depend lazily on the old value, while C hides the empty locator and
+  D contradicts registered/incoming-frame evidence.
+- **Default selected for continued work:** Choose A. Revision 05 may write only
+  `tests/e2e/realtime-security.spec.ts`. After filling, re-resolve
+  `descriptionInput(owner, editedDescription)`, optionally assert it is uniquely focused, and press
+  Enter. The revision-04 helper is read-only. Do not force the action, use ambiguous `.first()`, add
+  waits/retries, increase timeouts, weaken assertions or edit product/config/dependency/migration/
+  unit/other E2E/SyncManager/CRDT/Loro paths.
+- **Decision hierarchy basis:** HS-015 genuine live import/edit/delete and removal denial control;
+  current incoming-frame evidence excludes product transport before the failing call. Repository
+  E2E rules require stable selectors and behavior assertions without arbitrary waits.
+- **Impact and risk:** Re-resolving by the new value remains precise in this isolated flow but must
+  be unique before Enter. An ambiguous locator or weakened timeout could produce false green live-
+  delivery evidence. Delete, refresh/removal and cleanup remain unproven until the corrected run
+  reaches them.
+- **How to reverse or migrate:** The one-file test correction has no schema, service or encrypted-
+  data impact and is independently revertible. Any later product failure requires its own exact
+  counterexample and owner proposal.
+- **Does a human still need to decide after completion?:** No. Human review is optional only for a
+  different equally stable selector convention.
+
 ## Question template
 
 ### Q-XXX — Short title
