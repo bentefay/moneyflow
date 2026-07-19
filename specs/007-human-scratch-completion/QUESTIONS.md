@@ -67,6 +67,45 @@ No unresolved product questions were answered by scaffold creation.
 - **Does a human still need to decide after completion?:** No product preference is unresolved;
   root authorizes the exact reviewed revision-02 range and verifies no silent caller-path expansion.
 
+## Q-003 — Correct Realtime provider topology, identify churn, and bootstrap local E2E
+
+- **Raised:** 2026-07-20, P05 revision 01, `human_scratch_reviewer`; supersedes implementer
+  `Q-PROPOSAL-P05-01-01`
+- **Source proposal:**
+  `reviews/P05-review-01.md#q-proposal-p05-01-02--correct-provider-topology-identify-churn-and-bootstrap-local-e2e`;
+  superseded source in `evidence/P05/implementation-01.md`
+- **Context and evidence:** Correctly signed E2E reproduces missed permanent-op member delivery,
+  Presence join errors, repeated live grants and incomplete revocation. `SyncStatusProvider` is
+  nested below `VaultProvider`, so the consumer receives static no-op defaults; the implementer's
+  proposed live-context identity cause cannot operate. Current churn may instead come from query
+  data, tRPC utilities, the Presence hook or a combination. Plain Playwright startup also lacks the
+  required local signing secret.
+- **Why the frozen requirement/repository does not fully decide it:** HS-015 fixes the live delivery
+  and cleanup outcome but not React provider ownership or local-secret injection. Revision-01
+  authority excludes the topology and Playwright files and does not justify guessing another owner
+  or weakening private authorization/status behavior.
+- **Options considered:** (A) put `SyncStatusProvider` above `VaultProvider`, use stable specific
+  provider dependencies and sanitized lifecycle attribution; (B) memoize context without reordering;
+  (C) apply only the provider dependency edit; (D) suppress status callbacks or accept pull/expiry.
+  Only A repairs the disconnected status contract and proves the real trigger.
+- **Default selected for continued work:** Dispatch revision 02 with exactly
+  `src/app/(app)/layout.tsx`, `src/components/providers/vault-provider.tsx`,
+  `playwright.config.ts`, `tests/e2e/helpers/realtime.ts`,
+  `tests/e2e/realtime-security.spec.ts`, and `tests/e2e/vault-settings.spec.ts`. Attribute every
+  sync/Presence initialize/cleanup before correcting stable dependencies; stop with a new proposal
+  if another owning path is proven necessary.
+- **Decision hierarchy basis:** Explicit live delivery/security/cleanup, then the connected status
+  contract, evidence-backed diagnosis, least privilege and smallest reversible expansion.
+- **Impact and risk:** Provider reordering can expose stale or overly broad dependencies, producing
+  storms or retaining a manager across a real identity/vault change. Test bootstrap could disclose a
+  secret or normalize an unsafe production fallback. Exact lifecycle, production fail-closed,
+  URL/log, membership-removal and cross-vault tests remain mandatory.
+- **How to reverse or migrate:** These topology/dependency/test-config changes require no data
+  migration. Revert them if instrumentation worsens lifecycle behavior, retain the revision-01
+  grant schema/transport, and propose only the newly proven owner; existing grants expire in 60s.
+- **Does a human still need to decide after completion?:** No. Root applies the reversible default;
+  optional human review may choose different status ownership or local-development secret policy.
+
 ## Question template
 
 ### Q-XXX — Short title

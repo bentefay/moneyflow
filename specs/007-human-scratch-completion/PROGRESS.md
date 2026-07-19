@@ -7,8 +7,9 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P04 revision 02 and HS-014 (`passed`)
-- **Next action:** verify the finalized P04/HS-014 boundary, then prepare P05 revision 01
+- **Current package:** P05 revision 01 (`changes_requested`)
+- **Next action:** persist immutable FAIL artifacts, Q-003 and risk state, then dispatch P05
+  revision 02 with the corrected exact six-path authority
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -19,9 +20,8 @@ review evidence.
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** four passed (HS-002, HS-014, HS-017, HS-018); 18 queued
-- **Last ledger update:** 2026-07-20T06:40:00+10:00; HS-014 marker finalized
-  `db97178a044343f9a99aba1596590986c4324586ec5a64f8426590da95833aeb` ->
-  `c74a2a782543d00880fa30a771be4e39c75d89889e484ee46570fb4a6cf0ecdd`
+- **Last ledger update:** 2026-07-20T07:33:48+10:00; P05 revision 01 independently FAILed on live
+  delivery/cleanup, provider topology diagnosis and hermetic local/CI bootstrap; Q-003 transcribed
 
 ## Package ledger
 
@@ -32,7 +32,7 @@ review evidence.
 | P02     | HS-017         | Animate UI evaluation, ADR, and representative migration only if justified          | P01                  | passed       | 02  | `19d73035b33b639f9927d2f78a55d74c44f65544..213100fadf5acea30aad7e90998bd575cdcd508c` | `evidence/P02/implementation-02.md` | `reviews/P02-review-02.md` | `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7` |
 | P03     | HS-018         | TanStack Virtual PR #1100 release gate and `useFlushSync`                           | P01                  | passed       | 01  | `c60f605bd811d8920122a66f3d6743d8a3ac044d..b8d4b448f52022970ca388654be14d24e347deb5` | `evidence/P03/implementation-01.md` | `reviews/P03-review-01.md` | `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34` |
 | P04     | HS-014         | Database/table/RLS threat model, migrations, and permission remediation             | P01                  | passed | 02 | `9de8b0e8c41087b96523ecc55faa10bf19ec0ff9..dbcf180e829c81a218e9a73791e40902c4f9eb31` | `evidence/P04/implementation-02.md` | `reviews/P04-review-02.md` | `b905ecb810334ed9697f57140047964135ade6ea` |
-| P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
+| P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | changes_requested | 01 | `007651beb814d98646aa2e786801b647e2abd0b5..29e4a1014d1cfa8ad5614b5fdadeba1890523554` | `evidence/P05/implementation-01.md` | `reviews/P05-review-01.md` | pending                                    |
 | P06     | HS-010         | Remove unused user-state storage and dead API surface                               | P04                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P07     | HS-011         | Evidence-led person/member/invite UX architecture and acceptance decision           | P04, P06             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -96,7 +96,7 @@ required marker rollbacks before the next dispatch.
 | HS-012      | human scratch block               | P08                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-013      | human scratch block               | P15                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-014      | human scratch block               | P04                          | authorized marker after package PASS       | passed | P04 integration `b905ecb810334ed9697f57140047964135ade6ea`; `reviews/P04-review-02.md`; marker `db97178a… -> c74a2a78…` |
-| HS-015      | human scratch block               | P05                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
+| HS-015      | human scratch block               | P05                          | authorized marker after package PASS       | changes_requested | revision-01 FAIL: `evidence/P05/implementation-01.md`; `reviews/P05-review-01.md`                                  |
 | HS-016      | human scratch block               | P20A                         | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-017      | human scratch block               | P02                          | authorized marker after package PASS       | passed       | P02 integration `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7`; `reviews/P02-review-02.md`; marker `dcd03b23… -> 5d283ab1…` |
 | HS-018      | human scratch block               | P03                          | authorized marker after package PASS       | passed       | P03 integration `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34`; `reviews/P03-review-01.md`; marker `5d283ab1… -> db97178a…` |
@@ -252,6 +252,34 @@ HS-014 `completion_pending` durably prepared from scratch SHA `db97178a…`; no 
 `b905ecb810334ed9697f57140047964135ade6ea`; private comparison copy removed; all 21 normalized
 blocks byte-match SCOPE; checked set is exactly HS-002/HS-014/HS-017/HS-018; FS-001 remains exact.
 Scratch SHA `db97178a… -> c74a2a78…`, 350 lines and 24,243 bytes.
+
+**2026-07-20T06:42:37+10:00 — P05/01 `queued -> implementing`:** Dependency P04/HS-014 passed;
+exact BASE/pre-implementation HEAD `007651beb814d98646aa2e786801b647e2abd0b5`; sole evidence
+`evidence/P05/implementation-01.md`. Current primary-source ADR must precede mutation and separate
+origin/TLS controls from authorization. Required implementation binds short-lived credentials to
+P04 verified identity, exact current vault membership/table/purpose, subscribes only permanent
+`vault_ops`, and proves expiry/removal/reconnect plus genuine push-driven two-context sync. Scratch
+remains `c74a2a78…`; no HS-015 marker.
+
+**2026-07-20T07:17:55+10:00 — P05/01 `implementing -> ready_for_review -> reviewing`:** Exact HEAD
+`29e4a1014d1cfa8ad5614b5fdadeba1890523554`; 19 authorized product/config/migration/test paths;
+evidence SHA-256 `1016c7c479e20c9bc29da3e03d80a21bbdac34a78316e6e1f55539029a9f9066`.
+Reported green: focused 8/8, unit 1,170/1,170, fresh pgTAP 69/69, upgrade 18/18, lint/type/build.
+Retries-zero E2E is candidly 79/81: genuine member delivery misses 15 seconds and existing
+vault-settings captures the same repeated manager/Presence teardown failure. Q-PROPOSAL-P05-01-01
+requests exact revision-02 `vault-provider.tsx` authority after 11 sync/12 presence grants in
+seconds; no scope widening or HS-015 marker. New immutable output `reviews/P05-review-01.md`.
+
+**2026-07-20T07:33:48+10:00 — P05/01 `reviewing -> changes_requested`:** Independent FAIL review
+SHA-256 `52350e039f75934e59ec6f431fba4d041ef9df6f4e685411608fe86e06436ba5`. F-001 Critical
+reproduces genuine corrected-secret E2E 7/9 and isolated 0/1: permanent owner op is not pushed to the
+member within 15 seconds, Presence/401 teardown errors recur and grants remain live. F-002 High
+proves implementer Q-01-01's cause is impossible because `SyncStatusProvider` is below its consumer;
+status callbacks are static no-ops and current churn remains unattributed. F-003 Medium proves plain
+local/CI Playwright lacks a hermetic JWT-secret bootstrap and fails 0/9. Reviewer independently
+passes focused 8/8, unit 1,170/1,170, fresh pgTAP 69/69, upgrade 18/18, lint/type/build; database and
+generated/browser state cleaned. Corrected Q-PROPOSAL-P05-01-02 transcribed as Q-003 with exact six
+revision-02 paths; implementer proposal is superseded. No HS-015 marker; scratch stays `c74a2a78…`.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
