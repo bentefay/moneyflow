@@ -8,9 +8,9 @@ literal field is `pending`. Workers may read but never edit it.
 - **Package / revision:** P01 / 02
 - **Scope IDs:** HS-002; authorized scratch marker only after independent package PASS and root
   integration
-- **State:** independently recommended PASS; root integration pending; revision 02 evidence frozen
-  at SHA-256 `9c16fc6b47dcca39f88b824b7ad995591a8d8731e87842a26d98f6cff315e8cf`; revision 01 failure
-  artifacts remain immutable in `94d7c77c9ee21390af0bb4a70b2f1abaa014ec75`
+- **State:** passed and integrated in `c2b89b6676271142ad6802dcf2a30acf8899df48`; HS-002
+  `completion_pending` for exact `[] -> [x]` from scratch SHA-256
+  `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b`; no dispatch allowed
 - **Task:** `tasks/HS-002-dependency-upgrades.md`
 - **Original package BASE:** `d54a6285dd9b9f0824927b3d8a3a4e14c5315c73`
 - **Pre-implementation HEAD:** `fe00b2c5d574fffbb9bb92e1b8955bce9ec2a20f`
@@ -40,7 +40,7 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Review dispatch
 
-This section records the completed independent review pending root integration.
+This section records the completed and integrated independent review.
 
 - **Reviewer:** a `human_scratch_reviewer` instance distinct from the implementer
 - **Literal reviewed BASE:** `d54a6285dd9b9f0824927b3d8a3a4e14c5315c73`
@@ -55,11 +55,11 @@ This section records the completed independent review pending root integration.
   `evidence/P01/implementation-03.md` and `reviews/P01-review-03.md`
 - **Verdict:** PASS; review SHA-256
   `8a6f65b346c8c129d38b179a9fc04a7514dd634922c382bf123d8593b53b720f`; no findings or Q proposals
-- **PASS authority:** root verified the recommendation boundary; root alone integrates and sets
-  `passed`
+- **PASS integration:** `c2b89b6676271142ad6802dcf2a30acf8899df48`; P01 is `passed`
 
 ## Next root action
 
-Integrate the exact P01 revision 02 evidence/review, authorized `.claude/CLAUDE.md` transcription,
-and root decision/risk records. Only after that commit may root set P01 `passed`, durably prepare
-the HS-002 `completion_pending` event, and execute its exact marker transaction.
+Execute the prepared HS-002 marker transaction exactly: verify the current rolling SHA and all 21
+normalized blocks, copy scratch to a private `mktemp` path, apply only the first-line `[] -> [x]`,
+require a one-line diff, remove the copy, reverify both frozen sources, and atomically finalize the
+event/requirement/rolling SHA. Do not dispatch P02 until the pending event is cleared.
