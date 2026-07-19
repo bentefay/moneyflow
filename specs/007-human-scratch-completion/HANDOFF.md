@@ -7,7 +7,8 @@ literal field is `pending`. Workers may read but never edit it.
 
 - **Package / revision:** P05 / 01
 - **Scope IDs:** HS-015; no scratch marker before independent package PASS and root integration
-- **State:** changes_requested
+- **State:** changes_requested after immutable `reviews/P05-review-01.md` FAIL; evidence, review,
+  Q-003 and failure state persisted in `c8f2954f6119316af77dd56c6db9a2fae27ea4f2`
 - **Task:** `tasks/HS-015-realtime-security.md`
 - **Original package BASE:** `007651beb814d98646aa2e786801b647e2abd0b5`
 - **Pre-implementation HEAD:** `007651beb814d98646aa2e786801b647e2abd0b5`
@@ -91,6 +92,5 @@ This section records the immutable completed revision-01 review.
 
 ## Next root action
 
-Persist revision-01 evidence/review, Q-003 and failure-control state with exact-path staging. Then
-record the artifact commit and rewrite for P05 revision 02 using only the corrected six paths; do not
+Rewrite for P05 revision 02 using only the corrected six paths and the same original BASE. Do not
 authorize an HS-015 marker.
