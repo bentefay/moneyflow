@@ -316,7 +316,7 @@
 
 - [] The transactions table and imports list page should be a drop zone to trigger an import.
 
-- [] Review tables and row level permissions - why are there two ops and snapshot tables? Is the
+- [x] Review tables and row level permissions - why are there two ops and snapshot tables? Is the
   hashed public key used to enforce row level permissions consistently? (i.e. you are authenticed by
   your public key hash, this is always sent with TLS and never stored in plain in urls or anyway
   (can't be intercepted), and then your row level access is determined by whether you have

@@ -8,7 +8,7 @@ literal field is `pending`. Workers may read but never edit it.
 - **Package / revision:** P04 / 02
 - **Scope IDs:** HS-014; no scratch marker before independent package PASS and root integration
 - **State:** passed/integrated in `b905ecb810334ed9697f57140047964135ade6ea`; HS-014 marker
-  `completion_pending` from scratch SHA `db97178a…`
+  finalized `db97178a… -> c74a2a78…`
 - **Task:** `tasks/HS-014-database-rls-audit.md`
 - **Original package BASE:** `9de8b0e8c41087b96523ecc55faa10bf19ec0ff9`
 - **Pre-implementation HEAD:** `ae6b1797e5c874fc48114f309bb9a7e02220a246`
@@ -77,6 +77,6 @@ This section is active; revision-02 evidence and the cumulative literal range ar
 
 ## Next root action
 
-Execute and finalize only the exact HS-014 first-line `[] -> [x]` marker under PROCESS. Revalidate
-the rolling SHA, authorized checked set, all 21 normalized blocks and immutable FS-001 before any
-P05 dispatch.
+Verify the finalized P04/HS-014 boundary, then rewrite for P05 revision 01. P05 must retain P04's
+server-verified identity, permanent `vault_ops` source and direct-role restrictions while delivering
+the authenticated/server-mediated Realtime design and multi-client reconnect evidence.
