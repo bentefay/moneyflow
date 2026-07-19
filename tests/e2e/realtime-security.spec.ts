@@ -137,7 +137,10 @@ test("private vault_ops push synchronizes import, edit and delete and stops afte
             await member.bringToFront();
             const description = descriptionInput(owner, importedDescription);
             await description.fill(editedDescription);
-            await description.press("Enter");
+            const editedDescriptionInput = descriptionInput(owner, editedDescription);
+            await expect(editedDescriptionInput).toHaveCount(1);
+            await expect(editedDescriptionInput).toBeFocused();
+            await editedDescriptionInput.press("Enter");
             await expect(descriptionInput(member, editedDescription)).toBeVisible({
                 timeout: 15_000
             });
