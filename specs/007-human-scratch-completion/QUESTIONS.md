@@ -106,6 +106,53 @@ No unresolved product questions were answered by scaffold creation.
 - **Does a human still need to decide after completion?:** No. Root applies the reversible default;
   optional human review may choose different status ownership or local-development secret policy.
 
+## Q-004 — Support concurrent Realtime grants and the actual private join
+
+- **Raised:** 2026-07-20, P05 revision 02, `human_scratch_implementer`; independently confirmed by
+  `human_scratch_reviewer`
+- **Source proposal:**
+  `evidence/P05/implementation-02.md#q-proposal-p05-02-01--concurrent-grants-and-actual-private-join-authorization`;
+  confirmed in
+  `reviews/P05-review-02.md#q-proposal-p05-02-01-confirmation--concurrent-grants-and-actual-private-join-authorization`
+- **Context and evidence:** Corrected provider topology and ordinary hermetic startup reach the real
+  two-context journey, but the member receives zero Postgres event kinds for 15 seconds and private
+  Presence is repeatedly unauthorized. Migration 007 revokes every same-scope sibling grant on
+  each mint and accepts mutually exclusive extensions even though the installed client's private
+  Presence join carries default Broadcast configuration plus enabled Presence. Sanitized lifecycle
+  aggregates show bounded cleanup and locate the failure before SyncManager, CRDT, Loro or React.
+- **Why the frozen requirement/repository does not fully decide it:** HS-015 requires concurrent
+  tabs, secure private Presence, genuine no-refresh delivery and bounded revocation, but revision-02
+  authority contains no migration or database-audit path. The zero-frame result provides no basis
+  for widening into transport or CRDT code.
+- **Options considered:** (A) forward-migrate to independently revocable concurrent short-lived
+  grants, rotating only an explicit predecessor and minimally authorizing the exact extensions for
+  each private purpose; (B) coordinate credentials/channels across tabs; (C) suppress React overlap
+  while preserving one global live grant; or (D) accept pull/expiry instead of live delivery. A is
+  the narrow direct correction; B adds broad ownership, C breaks genuine duplicate tabs and D
+  violates HS-015.
+- **Default selected for continued work:** Choose A. Dispatch revision 03 with exactly the six
+  revision-02 paths plus `supabase/migrations/008_realtime_authorization_lifecycle.sql`,
+  `tests/database/rls-audit.sql`, and `tests/database/legacy-upgrade-audit.sql`. Migration 008 must
+  preserve independent active siblings, rotate only an explicitly presented predecessor, bound or
+  prune stale rows, and minimally permit the installed client's actual private extension set while
+  retaining exact identity/vault/role/purpose/topic/membership/expiry constraints. Fresh and
+  005-to-latest audits must prove simultaneous grants, independent refresh/revoke, expiry/removal,
+  stale-row bounds and cross-vault/purpose/extension denial.
+- **Decision hierarchy basis:** Explicit HS-015 live-delivery, duplicate-client and secure shared
+  Presence requirements control, followed by least privilege, current membership/removal, data
+  permanence and the smallest forward-only correction. Incoming-frame evidence excludes later
+  processing layers.
+- **Impact and risk:** Concurrent grants increase usable credentials within the 60-second window,
+  requiring exact per-grant revocation, expiry, membership revalidation and stale-row bounds. An
+  over-broad extension policy could cross purpose boundaries, so adversarial topic/purpose tests
+  remain mandatory.
+- **How to reverse or migrate:** Migration 008 changes authorization functions/policies rather than
+  encrypted user data. A later forward migration may tighten concurrency caps or extension mapping;
+  individual grants can be revoked or expire. The six topology/config/test changes remain locally
+  reversible.
+- **Does a human still need to decide after completion?:** No product preference blocks continued
+  work. Human review is optional only if the owner wants a different explicit concurrent-device cap.
+
 ## Question template
 
 ### Q-XXX — Short title

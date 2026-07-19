@@ -5,92 +5,75 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Implementation dispatch
 
-- **Package / revision:** P05 / 01
+- **Package / revision:** P05 / 02
 - **Scope IDs:** HS-015; no scratch marker before independent package PASS and root integration
-- **State:** changes_requested after immutable `reviews/P05-review-01.md` FAIL; evidence, review,
-  Q-003 and failure state persisted in `c8f2954f6119316af77dd56c6db9a2fae27ea4f2`
+- **State:** changes_requested
 - **Task:** `tasks/HS-015-realtime-security.md`
 - **Original package BASE:** `007651beb814d98646aa2e786801b647e2abd0b5`
-- **Pre-implementation HEAD:** `007651beb814d98646aa2e786801b647e2abd0b5`
-- **Allowed implementation paths:** `.env.local.example`, `package.json`, `pnpm-lock.yaml`,
-  `supabase/config.toml`, `supabase/migrations/**`, `src/lib/supabase/**`,
-  `src/lib/sync/{manager,presence,index}.ts`, `src/hooks/use-vault-presence.ts`,
-  `src/server/routers/{_app,realtime}.ts`, `src/server/schemas/realtime.ts`,
-  `tests/database/**`, `tests/unit/sync/**`, `tests/integration/realtime-auth.test.ts`,
-  `tests/integration/sync-coldstart.test.ts`, `tests/integration/sync-offline.test.ts`,
-  `tests/e2e/helpers/**`, `tests/e2e/sync-persistence.spec.ts`,
-  `tests/e2e/tab-duplication.spec.ts`, `tests/e2e/vault-settings.spec.ts`, and a new
-  `tests/e2e/realtime-security.spec.ts`. Any other product/test/config path requires a complete
-  proposal and later revision; do not widen silently.
-- **Sole implementer artifact:** `evidence/P05/implementation-01.md`; write the dated primary-source
-  protocol/authorization/origin ADR and red baseline before any mutation
-- **Commit contract:** commit authorized product/migration/test/config changes only with exact-path
+- **Pre-implementation HEAD:** `72c90d132110d02641502b64d6263920abe0749d`
+- **Allowed implementation paths:** exactly `src/app/(app)/layout.tsx`,
+  `src/components/providers/vault-provider.tsx`, `playwright.config.ts`,
+  `tests/e2e/helpers/realtime.ts`, `tests/e2e/realtime-security.spec.ts`, and
+  `tests/e2e/vault-settings.spec.ts`. No transport/router/schema/migration/unit/other test path is
+  writable. If sanitized attribution proves another owner is necessary, stop with a complete new
+  proposal for revision 03 rather than widening or suppressing behavior.
+- **Sole implementer artifact:** `evidence/P05/implementation-02.md`
+- **Commit contract:** commit only the six authorized product/test-config/test paths using exact
   staging; leave evidence uncommitted. Never broad-stage or edit ledgers/tasks/reviews/scratch/
-  FS-001/.claude/.codex.
+  FS-001/.claude/.codex or immutable revision-01 artifacts.
 - **Pre-existing dirty/untracked paths:** root-owned unstaged `PROGRESS.md` and `HANDOFF.md`, plus
-  assigned uncommitted `evidence/P05/implementation-01.md`; no staged paths
-- **Protocol decision:** distinguish browser CORS/redirect allow-lists, WebSocket origin/TLS and
-  actual channel/data authorization using current primary Supabase docs and installed source. The
-  server must mint only short-lived least-privilege credentials after P04 verified identity and an
-  exact current vault membership/role check; no service credential or untrusted hash reaches the
-  browser. Record expiry, refresh, replay/reuse, revocation/removal and clock-skew behavior.
-- **Data/source invariant:** subscribe only to permanent encrypted `vault_ops`; never the legacy
-  compatibility view/table. Snapshots remain pull/cache only. Server independently authorizes all
-  writes. Any authorized direct read is scoped to the token's exact vault/table/purpose and cannot
-  enumerate another vault.
-- **Lifecycle invariant:** connect, refresh before expiry, background/foreground, duplicate tab,
-  reconnect, offline catch-up, same-vault lock/unlock and membership removal must be serialized and
-  bounded. Expired/revoked/outsider/cross-vault credentials fail without payload flash, stale
-  presence, reconnect storm, infinite spinner or silent missed op. Teardown must remove channels,
-  timers, listeners, credentials and browser state.
-- **Presence boundary:** secure the shared transport and private-channel authorization needed by
-  later presence work, but do not claim HS-003/P10's encrypted active-transaction UX. Do not expose
-  signing keys, token material, public-key hashes, financial plaintext or vault/query inputs in
-  URLs/logs/artifacts.
-- **Automated evidence:** token mint/shape/expiry/refresh/wrong-vault/removed-member tests; current
-  publication/table assertions; owner/member/outsider subscription and payload isolation; two-real-
-  context push-driven encrypted edit/import/delete without reload; token expiry/reconnect/offline
-  catch-up/removal; repeated retries-zero journey; fresh/upgrade database, unit, type, lint, build
-  and full E2E.
-- **Manual charter:** repository-installed headless CLI only, with isolated owner/member/outsider and
-  duplicate/background sessions. Observe a genuine live push without refresh, expiry/reconnect and
-  safe denial; inspect console, failed requests and socket/server logs for legacy traffic, origins,
-  storms, secrets/identities/inputs in URLs and unauthorized payloads; close/delete all sessions and
-  artifacts. If current UI cannot create the real member, use a documented deterministic test
-  fixture for transport proof and retain the P08 UI/key-wrap route without faking it.
-- **Inherited boundaries:** preserve D-010, P04 append-only ops and verified signed POST identity;
-  R-024 remains P20B/P21 and does not authorize frozen Markdown edits. Recheck all 21 normalized
-  scratch blocks and immutable FS-001 on return.
-- **Question route:** use complete proposals in sole evidence; root alone appends QUESTIONS. Apply
-  the decision hierarchy and continue unless genuine destructive/new-secret authority is required.
+  assigned uncommitted `evidence/P05/implementation-02.md`; no staged paths
+- **F-001 correction:** make the existing real two-context import/edit/delete test pass solely by
+  genuine no-refresh push. Preserve current permanent-op, private authorization, console, member-
+  removal and cleanup assertions. Prove bounded sync/Presence grant creation, explicit final revoke,
+  expiry refresh without storms, reconnect/offline catch-up, lock/unlock and real vault switch.
+- **F-002 correction:** first add sanitized per-purpose/effect lifecycle attribution in the
+  authorized E2E paths. Move `SyncStatusProvider` above `VaultProvider`; then make the provider
+  initialize effect depend only on stable specific status callbacks, tRPC operations and primitive
+  vault/key identity. Preserve correct recreation on actual identity/vault/key changes and connect
+  real manager transitions to the status UI. Do not assume the implementer revision-01 diagnosis;
+  if Presence or another source owner proves necessary, stop and propose it.
+- **F-003 correction:** make ordinary local/CI Playwright startup hermetic for the known running
+  Supabase stack without committing, printing, browser-prefixing or persisting the Realtime signing
+  secret. A test-only process-memory bootstrap may supply the web server; otherwise fail fast with
+  an actionable preflight before browser work. Production application behavior must remain fail-
+  closed and deployment-secret-owned; no product fallback.
+- **Validation:** retain revision-01 focused 8/8, unit 1,170/1,170, fresh 69/69 and upgrade 18/18;
+  run authorized red-before/green-after, repeated real two-context push and lock/unlock, full retries-
+  zero E2E, lint/type/build/format/diff, and installed CLI owner/member/outsider/background charter.
+  Inspect request/socket/console/grant aggregates without secret, identity, vault or payload leakage.
+- **Inherited boundaries:** revision-01 evidence/review are immutable; P08 still owns invite/key-wrap
+  UI, P10 owns encrypted active-transaction Presence UX, and R-024 remains P20B/P21. Recheck rolling
+  scratch SHA/21 blocks and immutable FS-001.
+- **Question route:** complete proposals in sole evidence; root alone appends QUESTIONS. Apply the
+  decision hierarchy and continue unless another exact owner is proved necessary.
 
-## Review dispatch
+## Review result
 
-This section records the immutable completed revision-01 review.
+Revision-02 evidence/review and the cumulative literal range are frozen.
 
 - **Reviewer:** distinct `human_scratch_reviewer`
 - **Literal reviewed BASE:** `007651beb814d98646aa2e786801b647e2abd0b5`
-- **Literal reviewed HEAD:** `29e4a1014d1cfa8ad5614b5fdadeba1890523554`
-- **Range type:** non-empty revision-01 product/config/migration/test range
-- **Implementation evidence:** `evidence/P05/implementation-01.md`
-- **Sole reviewer artifact:** `reviews/P05-review-01.md`
-- **Prior review files:** none
-- **Reviewer writes:** review file only; no other writes/commits
-- **Review result:** FAIL; SHA-256
+- **Literal reviewed HEAD:** `e865023f6001704be0304bed4e75e76956854ea6`
+- **Range type:** non-empty cumulative original BASE through revision-02 HEAD
+- **Implementation evidence:** `evidence/P05/implementation-02.md`
+- **Sole reviewer artifact:** `reviews/P05-review-02.md`
+- **Prior review files:** immutable `reviews/P05-review-01.md` FAIL, SHA-256
   `52350e039f75934e59ec6f431fba4d041ef9df6f4e685411608fe86e06436ba5`
-- **Blocking findings:** F-001 Critical live delivery/Presence/cleanup remains red; F-002 High
-  implementer provider-only diagnosis is source-impossible under current topology; F-003 Medium
-  ordinary local/CI startup lacks hermetic secret bootstrap. Reviewer Q-PROPOSAL-P05-01-02
-  supersedes implementer Q-01-01 and recommends an exact six-path revision 02.
-- **Required review focus:** independently reproduce protocol/primary-source claims, grant and
-  membership boundaries, permanent-op subscription, revocation/expiry/reconnect behavior, origin/
-  TLS/URL inspection, full gates, cleanup and exact frozen-source/write boundaries. Reproduce and
-  diagnose the preserved two-context live-delivery/Presence failure; confirm or reject the exact
-  one-file revision-02 provider recommendation. Later P08/P10 work cannot substitute for P05 proof.
-- **Failure route:** persist immutable artifacts, set `changes_requested`, use revision-02 paths
+- **Verdict:** FAIL, SHA-256
+  `1bce7bce9d94b628d2068cb06edb2248f5c849f40c05afabb87af9cd70f810dd`; F-002/F-003 closed,
+  F-001 remains Critical and migration-owned
+- **Reviewer writes:** review file only; no other writes/commits
+- **Required review focus:** independently review original BASE through newest HEAD; verify F-002/
+  F-003 corrections, reproduce the ordinary zero-frame/Presence red, validate sanitized attribution
+  and decide whether migration 007 concurrent-grant/private-extension policy is the exact remaining
+  owner. Confirm proposed migration 008 plus two audit paths, exact six-path boundary, cleanup,
+  prior hashes and frozen sources. No later package can waive P05 live delivery.
+- **Failure route:** persist immutable revision-02 artifacts and use revision-03 paths
 - **PASS authority:** reviewer recommends; root verifies/transcribes/integrates and sets `passed`
 
 ## Next root action
 
-Rewrite for P05 revision 02 using only the corrected six paths and the same original BASE. Do not
-authorize an HS-015 marker.
+Persist immutable revision-02 evidence/review plus Q-004 and failure ledgers using exact staging.
+Then durably record that artifact commit, rewrite this handoff for P05 revision 03, verify frozen
+sources/worktree boundaries, and dispatch the implementer with exactly the confirmed nine paths.
