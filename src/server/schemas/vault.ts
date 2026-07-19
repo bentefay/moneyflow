@@ -25,6 +25,7 @@ export const vaultIdSchema = z.string().uuid("Must be a valid UUID");
 export const encryptedVaultKeySchema = z
     .string()
     .min(1, "Encrypted vault key cannot be empty")
+    .max(4096, "Encrypted vault key is too large")
     .refine(
         (val) => {
             try {
@@ -54,6 +55,7 @@ export type VaultRole = z.infer<typeof vaultRoleSchema>;
 export const encPublicKeySchema = z
     .string()
     .min(1, "Encryption public key cannot be empty")
+    .max(128, "Encryption public key is too large")
     .refine(
         (val) => {
             try {
@@ -183,7 +185,7 @@ export const vaultMembersInput = z.object({
 export type VaultMembersInput = z.infer<typeof vaultMembersInput>;
 
 export const vaultMemberSchema = z.object({
-    pubkeyHash: z.string(),
+    pubkeyHash: z.string().regex(/^[a-f0-9]{64}$/),
     role: vaultRoleSchema,
     createdAt: z.string()
 });

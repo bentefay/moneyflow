@@ -11,7 +11,7 @@ import { Temporal } from "temporal-polyfill";
 import { createSupabaseClientForBrowser } from "./client";
 import type { Database } from "./types";
 
-type VaultUpdateRow = Database["public"]["Tables"]["vault_updates"]["Row"];
+type VaultUpdateRow = Database["public"]["Views"]["vault_updates"]["Row"];
 
 export type VaultRealtimePurpose = "sync" | "presence";
 
@@ -146,6 +146,15 @@ export class VaultRealtimeSync {
                     (payload: RealtimePostgresChangesPayload<VaultUpdateRow>) => {
                         if (payload.new && this.onUpdate && "id" in payload.new) {
                             const row = payload.new as VaultUpdateRow;
+                            if (
+                                row.id == null ||
+                                row.encrypted_data == null ||
+                                row.base_snapshot_version == null ||
+                                row.hlc_timestamp == null ||
+                                row.author_pubkey_hash == null
+                            ) {
+                                return;
+                            }
                             this.onUpdate({
                                 id: row.id,
                                 encryptedData: row.encrypted_data,

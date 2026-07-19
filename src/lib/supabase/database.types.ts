@@ -28,6 +28,27 @@ export type Database = {
     };
     public: {
         Tables: {
+            request_nonces: {
+                Row: {
+                    expires_at: string;
+                    nonce: string;
+                    pubkey_hash: string;
+                    request_timestamp_ms: number;
+                };
+                Insert: {
+                    expires_at: string;
+                    nonce: string;
+                    pubkey_hash: string;
+                    request_timestamp_ms: number;
+                };
+                Update: {
+                    expires_at?: string;
+                    nonce?: string;
+                    pubkey_hash?: string;
+                    request_timestamp_ms?: number;
+                };
+                Relationships: [];
+            };
             user_data: {
                 Row: {
                     encrypted_data: string;
@@ -134,6 +155,9 @@ export type Database = {
                     created_at: string | null;
                     encrypted_data: string;
                     id: string;
+                    legacy_base_snapshot_version: number | null;
+                    legacy_hlc_timestamp: string | null;
+                    legacy_update_id: string | null;
                     vault_id: string;
                     version_vector: string;
                 };
@@ -142,6 +166,9 @@ export type Database = {
                     created_at?: string | null;
                     encrypted_data: string;
                     id?: string;
+                    legacy_base_snapshot_version?: number | null;
+                    legacy_hlc_timestamp?: string | null;
+                    legacy_update_id?: string | null;
                     vault_id: string;
                     version_vector: string;
                 };
@@ -150,6 +177,9 @@ export type Database = {
                     created_at?: string | null;
                     encrypted_data?: string;
                     id?: string;
+                    legacy_base_snapshot_version?: number | null;
+                    legacy_hlc_timestamp?: string | null;
+                    legacy_update_id?: string | null;
                     vault_id?: string;
                     version_vector?: string;
                 };
@@ -204,7 +234,7 @@ export type Database = {
                     }
                 ];
             };
-            vault_updates: {
+            vault_updates_legacy: {
                 Row: {
                     author_pubkey_hash: string;
                     base_snapshot_version: number;
@@ -234,7 +264,7 @@ export type Database = {
                 };
                 Relationships: [
                     {
-                        foreignKeyName: "vault_updates_vault_id_fkey";
+                        foreignKeyName: "vault_updates_legacy_vault_id_fkey";
                         columns: ["vault_id"];
                         isOneToOne: false;
                         referencedRelation: "vaults";
@@ -245,35 +275,108 @@ export type Database = {
             vaults: {
                 Row: {
                     created_at: string | null;
+                    deleted_at: string | null;
                     id: string;
                 };
                 Insert: {
                     created_at?: string | null;
+                    deleted_at?: string | null;
                     id?: string;
                 };
                 Update: {
                     created_at?: string | null;
+                    deleted_at?: string | null;
                     id?: string;
                 };
                 Relationships: [];
             };
         };
         Views: {
-            [_ in never]: never;
+            vault_updates: {
+                Row: {
+                    author_pubkey_hash: string | null;
+                    base_snapshot_version: number | null;
+                    created_at: string | null;
+                    encrypted_data: string | null;
+                    hlc_timestamp: string | null;
+                    id: string | null;
+                    vault_id: string | null;
+                };
+                Insert: {
+                    author_pubkey_hash?: string | null;
+                    base_snapshot_version?: never;
+                    created_at?: string | null;
+                    encrypted_data?: string | null;
+                    hlc_timestamp?: never;
+                    id?: string | null;
+                    vault_id?: string | null;
+                };
+                Update: {
+                    author_pubkey_hash?: string | null;
+                    base_snapshot_version?: never;
+                    created_at?: string | null;
+                    encrypted_data?: string | null;
+                    hlc_timestamp?: never;
+                    id?: string | null;
+                    vault_id?: string | null;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: "vault_ops_vault_id_fkey";
+                        columns: ["vault_id"];
+                        isOneToOne: false;
+                        referencedRelation: "vaults";
+                        referencedColumns: ["id"];
+                    }
+                ];
+            };
         };
         Functions: {
-            cleanup_expired_invites: { Args: never; Returns: undefined };
-            current_pubkey_hash: { Args: never; Returns: string };
-            get_ops_stats_since_snapshot: {
-                Args: { p_vault_id: string };
+            accept_vault_invite: {
+                Args: {
+                    p_enc_public_key: string;
+                    p_encrypted_vault_key: string;
+                    p_invite_pubkey: string;
+                    p_pubkey_hash: string;
+                };
                 Returns: {
-                    op_count: number;
-                    snapshot_updated_at: string;
-                    total_bytes: number;
+                    role: string;
+                    vault_id: string;
                 }[];
             };
-            is_vault_member: { Args: { p_vault_id: string }; Returns: boolean };
-            is_vault_owner: { Args: { p_vault_id: string }; Returns: boolean };
+            append_vault_ops: {
+                Args: { p_author_pubkey_hash: string; p_ops: Json; p_vault_id: string };
+                Returns: string[];
+            };
+            claim_request_nonce: {
+                Args: {
+                    p_nonce: string;
+                    p_pubkey_hash: string;
+                    p_request_timestamp_ms: number;
+                };
+                Returns: boolean;
+            };
+            cleanup_expired_invites: { Args: never; Returns: undefined };
+            create_vault_for_owner: {
+                Args: {
+                    p_enc_public_key: string;
+                    p_encrypted_vault_key: string;
+                    p_owner_pubkey_hash: string;
+                };
+                Returns: string;
+            };
+            rekey_vault_members: {
+                Args: {
+                    p_member_keys: Json;
+                    p_owner_pubkey_hash: string;
+                    p_vault_id: string;
+                };
+                Returns: boolean;
+            };
+            soft_delete_vault: {
+                Args: { p_owner_pubkey_hash: string; p_vault_id: string };
+                Returns: boolean;
+            };
         };
         Enums: {
             [_ in never]: never;

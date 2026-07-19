@@ -48,7 +48,10 @@ export const vaultRouter = router({
             .eq("pubkey_hash", ctx.pubkeyHash);
 
         if (memberError) {
-            throw new Error(`Failed to list vaults: ${memberError.message}`);
+            throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Unable to list vaults"
+            });
         }
 
         // Transform to output format
@@ -75,33 +78,20 @@ export const vaultRouter = router({
     create: protectedProcedure.input(vaultCreateInput).mutation(async ({ ctx, input }) => {
         const supabase = await createSupabaseClient();
 
-        // Create vault (just id and created_at - zero knowledge)
-        const { data: vault, error: vaultError } = await supabase
-            .from("vaults")
-            .insert({})
-            .select("id")
-            .single();
-
-        if (vaultError) {
-            throw new Error(`Failed to create vault: ${vaultError.message}`);
-        }
-
-        // Add creator as owner member with enc_public_key for re-keying
-        const { error: memberError } = await supabase.from("vault_memberships").insert({
-            vault_id: vault.id,
-            pubkey_hash: ctx.pubkeyHash,
-            role: "owner",
-            encrypted_vault_key: input.encryptedVaultKey,
-            enc_public_key: input.encPublicKey
+        const { data: vaultId, error: vaultError } = await supabase.rpc("create_vault_for_owner", {
+            p_owner_pubkey_hash: ctx.pubkeyHash,
+            p_encrypted_vault_key: input.encryptedVaultKey,
+            p_enc_public_key: input.encPublicKey
         });
 
-        if (memberError) {
-            // Rollback vault creation
-            await supabase.from("vaults").delete().eq("id", vault.id);
-            throw new Error(`Failed to add membership: ${memberError.message}`);
+        if (vaultError || !vaultId) {
+            throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Unable to create vault"
+            });
         }
 
-        return { vaultId: vault.id };
+        return { vaultId };
     }),
 
     /**
@@ -174,7 +164,10 @@ export const vaultRouter = router({
             .eq("vault_id", input.vaultId);
 
         if (membersError) {
-            throw new Error(`Failed to get members: ${membersError.message}`);
+            throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Unable to list vault members"
+            });
         }
 
         return members;
@@ -210,13 +203,16 @@ export const vaultRouter = router({
             });
         }
 
-        const { error: deleteError } = await supabase
-            .from("vaults")
-            .delete()
-            .eq("id", input.vaultId);
+        const { data: deleted, error: deleteError } = await supabase.rpc("soft_delete_vault", {
+            p_vault_id: input.vaultId,
+            p_owner_pubkey_hash: ctx.pubkeyHash
+        });
 
-        if (deleteError) {
-            throw new Error(`Failed to delete vault: ${deleteError.message}`);
+        if (deleteError || deleted !== true) {
+            throw new TRPCError({
+                code: "NOT_FOUND",
+                message: "Vault not found or access denied"
+            });
         }
 
         return { success: true };
@@ -259,7 +255,10 @@ export const vaultRouter = router({
             .eq("pubkey_hash", ctx.pubkeyHash);
 
         if (deleteError) {
-            throw new Error(`Failed to leave vault: ${deleteError.message}`);
+            throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Unable to leave vault"
+            });
         }
 
         return { success: true };

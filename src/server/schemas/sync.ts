@@ -26,6 +26,7 @@ export const vaultIdSchema = z.string().uuid("Must be a valid UUID");
 export const encryptedDataSchema = z
     .string()
     .min(1, "Encrypted data cannot be empty")
+    .max(10 * 1024 * 1024, "Encrypted data is too large")
     .refine(
         (val) => {
             try {
@@ -42,7 +43,10 @@ export const encryptedDataSchema = z
  * Version vector as JSON string
  * Loro's version vector serialized to JSON for server-side filtering
  */
-export const versionVectorSchema = z.string().min(1, "Version vector required");
+export const versionVectorSchema = z
+    .string()
+    .min(1, "Version vector required")
+    .max(1024 * 1024, "Version vector is too large");
 
 /**
  * HLC (Hybrid Logical Clock) timestamp string - DEPRECATED
@@ -139,15 +143,17 @@ export type GetUpdatesInput = z.infer<typeof getUpdatesInput>;
 /** Response when server returns ops */
 export const opsResponseSchema = z.object({
     type: z.literal("ops"),
-    ops: z.array(
-        z.object({
-            id: z.string().uuid(),
-            encryptedData: encryptedDataSchema,
-            versionVector: versionVectorSchema,
-            authorPubkeyHash: z.string(),
-            createdAt: z.string()
-        })
-    )
+    ops: z
+        .array(
+            z.object({
+                id: z.string().uuid(),
+                encryptedData: encryptedDataSchema,
+                versionVector: versionVectorSchema,
+                authorPubkeyHash: z.string(),
+                createdAt: z.string()
+            })
+        )
+        .max(1000, "Too many operations in one batch")
 });
 
 /** Response when server tells client to use snapshot instead */

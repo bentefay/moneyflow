@@ -8,6 +8,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "./types";
+import { requireSecureSupabaseUrl } from "./url";
 
 let supabaseServer: SupabaseClient<Database> | null = null;
 
@@ -39,7 +40,9 @@ export function createSupabaseClientFresh(): SupabaseClient<Database> {
         );
     }
 
-    return createClient<Database>(supabaseUrl, supabaseServiceKey, {
+    const secureSupabaseUrl = requireSecureSupabaseUrl(supabaseUrl, process.env.NODE_ENV);
+
+    return createClient<Database>(secureSupabaseUrl, supabaseServiceKey, {
         auth: {
             persistSession: false,
             autoRefreshToken: false

@@ -56,7 +56,10 @@ export const membershipRouter = router({
             .eq("vault_id", input.vaultId);
 
         if (membersError) {
-            throw new Error(`Failed to get members: ${membersError.message}`);
+            throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Unable to list vault members"
+            });
         }
 
         return {
@@ -134,7 +137,10 @@ export const membershipRouter = router({
             .eq("pubkey_hash", input.pubkeyHash);
 
         if (deleteError) {
-            throw new Error(`Failed to remove member: ${deleteError.message}`);
+            throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Unable to remove vault member"
+            });
         }
 
         // Return remaining members for re-keying
@@ -144,7 +150,10 @@ export const membershipRouter = router({
             .eq("vault_id", input.vaultId);
 
         if (remainingError) {
-            throw new Error(`Failed to get remaining members: ${remainingError.message}`);
+            throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Unable to list remaining vault members"
+            });
         }
 
         return {
@@ -191,19 +200,20 @@ export const membershipRouter = router({
             });
         }
 
-        // Update each member's encrypted_vault_key
-        for (const memberKey of input.memberKeys) {
-            const { error: updateError } = await supabase
-                .from("vault_memberships")
-                .update({ encrypted_vault_key: memberKey.encryptedVaultKey })
-                .eq("vault_id", input.vaultId)
-                .eq("pubkey_hash", memberKey.pubkeyHash);
+        const { data: updated, error: updateError } = await supabase.rpc("rekey_vault_members", {
+            p_vault_id: input.vaultId,
+            p_owner_pubkey_hash: ctx.pubkeyHash,
+            p_member_keys: input.memberKeys.map((memberKey) => ({
+                pubkey_hash: memberKey.pubkeyHash,
+                encrypted_vault_key: memberKey.encryptedVaultKey
+            }))
+        });
 
-            if (updateError) {
-                throw new Error(
-                    `Failed to update key for ${memberKey.pubkeyHash}: ${updateError.message}`
-                );
-            }
+        if (updateError || updated !== true) {
+            throw new TRPCError({
+                code: "BAD_REQUEST",
+                message: "Vault member keys must cover every current member exactly once"
+            });
         }
 
         return { success: true };

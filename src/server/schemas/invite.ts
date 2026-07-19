@@ -31,6 +31,7 @@ export const inviteIdSchema = z.string().uuid("Must be a valid UUID");
 export const invitePubkeySchema = z
     .string()
     .min(1, "Invite public key cannot be empty")
+    .max(128, "Invite public key is too large")
     .refine(
         (val) => {
             try {

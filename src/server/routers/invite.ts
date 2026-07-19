@@ -84,7 +84,10 @@ export const inviteRouter = router({
                     message: "Invite already exists (regenerate secret)"
                 });
             }
-            throw new Error(`Failed to create invite: ${insertError.message}`);
+            throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Unable to create invite"
+            });
         }
 
         return {
@@ -115,7 +118,10 @@ export const inviteRouter = router({
                     message: "Invalid invite"
                 });
             }
-            throw new Error(`Failed to get invite: ${error.message}`);
+            throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Unable to load invite"
+            });
         }
 
         // Check if expired
@@ -126,8 +132,8 @@ export const inviteRouter = router({
             ) < 0
         ) {
             throw new TRPCError({
-                code: "BAD_REQUEST",
-                message: "Invite has expired"
+                code: "NOT_FOUND",
+                message: "Invalid invite"
             });
         }
 
@@ -148,67 +154,22 @@ export const inviteRouter = router({
      */
     accept: protectedProcedure.input(inviteAcceptInput).mutation(async ({ ctx, input }) => {
         const supabase = await createSupabaseClient();
+        const { data: accepted, error: acceptError } = await supabase
+            .rpc("accept_vault_invite", {
+                p_invite_pubkey: input.invitePubkey,
+                p_pubkey_hash: ctx.pubkeyHash,
+                p_encrypted_vault_key: input.encryptedVaultKey,
+                p_enc_public_key: input.encPublicKey
+            })
+            .maybeSingle();
 
-        // Get invite
-        const { data: invite, error: inviteError } = await supabase
-            .from("vault_invites")
-            .select("id, vault_id, role, expires_at")
-            .eq("invite_pubkey", input.invitePubkey)
-            .single();
-
-        if (inviteError || !invite) {
-            throw new TRPCError({
-                code: "NOT_FOUND",
-                message: "Invalid invite"
-            });
+        if (acceptError || !accepted) {
+            throw new TRPCError({ code: "NOT_FOUND", message: "Invalid invite" });
         }
-
-        if (
-            Temporal.Instant.compare(
-                Temporal.Instant.from(invite.expires_at),
-                Temporal.Now.instant()
-            ) < 0
-        ) {
-            throw new TRPCError({
-                code: "BAD_REQUEST",
-                message: "Invite has expired"
-            });
-        }
-
-        // Check if already a member
-        const { data: existingMembership } = await supabase
-            .from("vault_memberships")
-            .select("id")
-            .eq("vault_id", invite.vault_id)
-            .eq("pubkey_hash", ctx.pubkeyHash)
-            .single();
-
-        if (existingMembership) {
-            throw new TRPCError({
-                code: "BAD_REQUEST",
-                message: "You are already a member of this vault"
-            });
-        }
-
-        // Add membership with vault key wrapped for user's pubkey and their enc_public_key
-        const { error: memberError } = await supabase.from("vault_memberships").insert({
-            vault_id: invite.vault_id,
-            pubkey_hash: ctx.pubkeyHash,
-            role: invite.role,
-            encrypted_vault_key: input.encryptedVaultKey,
-            enc_public_key: input.encPublicKey
-        });
-
-        if (memberError) {
-            throw new Error(`Failed to join vault: ${memberError.message}`);
-        }
-
-        // Delete the invite (single use)
-        await supabase.from("vault_invites").delete().eq("id", invite.id);
 
         return {
-            vaultId: invite.vault_id,
-            role: invite.role
+            vaultId: accepted.vault_id,
+            role: accepted.role
         };
     }),
 
@@ -249,7 +210,10 @@ export const inviteRouter = router({
             .order("created_at", { ascending: false });
 
         if (listError) {
-            throw new Error(`Failed to list invites: ${listError.message}`);
+            throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Unable to list invites"
+            });
         }
 
         return (invites ?? []).map((invite) => ({
@@ -297,8 +261,8 @@ export const inviteRouter = router({
 
         if (memberError || !membership || membership.role !== "owner") {
             throw new TRPCError({
-                code: "FORBIDDEN",
-                message: "Only the owner can revoke invites"
+                code: "NOT_FOUND",
+                message: "Invite not found or access denied"
             });
         }
 
@@ -308,7 +272,10 @@ export const inviteRouter = router({
             .eq("id", input.inviteId);
 
         if (deleteError) {
-            throw new Error(`Failed to revoke invite: ${deleteError.message}`);
+            throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Unable to revoke invite"
+            });
         }
 
         return { success: true };

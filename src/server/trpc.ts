@@ -9,6 +9,7 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 
 import { verifyRequest } from "@/lib/crypto/signing";
+import { createSupabaseClient } from "@/lib/supabase/server";
 
 /**
  * Context available to all tRPC procedures.
@@ -22,6 +23,7 @@ export interface TRPCContext {
     headers: {
         "x-pubkey"?: string;
         "x-timestamp"?: string;
+        "x-nonce"?: string;
         "x-signature"?: string;
     };
     /** HTTP request info */
@@ -48,6 +50,7 @@ export async function createContext(opts: {
     const authHeaders = {
         "x-pubkey": headers.get("x-pubkey") ?? undefined,
         "x-timestamp": headers.get("x-timestamp") ?? undefined,
+        "x-nonce": headers.get("x-nonce") ?? undefined,
         "x-signature": headers.get("x-signature") ?? undefined
     };
 
@@ -95,7 +98,12 @@ export const authMiddleware = middleware(async ({ ctx, next }) => {
     const { headers, req } = ctx;
 
     // Check for required auth headers
-    if (!headers["x-pubkey"] || !headers["x-timestamp"] || !headers["x-signature"]) {
+    if (
+        !headers["x-pubkey"] ||
+        !headers["x-timestamp"] ||
+        !headers["x-nonce"] ||
+        !headers["x-signature"]
+    ) {
         throw new TRPCError({
             code: "UNAUTHORIZED",
             message: "Missing authentication headers"
@@ -110,6 +118,7 @@ export const authMiddleware = middleware(async ({ ctx, next }) => {
         {
             "X-Pubkey": headers["x-pubkey"],
             "X-Timestamp": headers["x-timestamp"],
+            "X-Nonce": headers["x-nonce"],
             "X-Signature": headers["x-signature"]
         },
         5 * 60 * 1000 // 5 minute max age
@@ -122,11 +131,25 @@ export const authMiddleware = middleware(async ({ ctx, next }) => {
         });
     }
 
+    const supabase = await createSupabaseClient();
+    const { data: nonceAccepted, error: nonceError } = await supabase.rpc("claim_request_nonce", {
+        p_pubkey_hash: result.pubkeyHash,
+        p_nonce: result.nonce,
+        p_request_timestamp_ms: result.requestTimestampMs
+    });
+
+    if (nonceError || nonceAccepted !== true) {
+        throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Request authentication failed"
+        });
+    }
+
     // Continue with authenticated context
     return next({
         ctx: {
             ...ctx,
-            pubkeyHash: result.pubkeyHash!,
+            pubkeyHash: result.pubkeyHash,
             publicKey: headers["x-pubkey"]
         }
     });

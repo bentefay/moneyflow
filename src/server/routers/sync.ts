@@ -38,28 +38,6 @@ const SERVER_OP_COUNT_THRESHOLD = 500;
 /** Max bytes of ops to return before telling client to use snapshot */
 const SERVER_BYTE_THRESHOLD = 5 * 1024 * 1024; // 5MB
 
-// Type for vault_ops table row (until types are regenerated)
-interface VaultOp {
-    id: string;
-    vault_id: string;
-    encrypted_data: string;
-    version_vector: string;
-    author_pubkey_hash: string;
-    created_at: string;
-}
-
-// Type for vault_snapshots with new columns (until types are regenerated)
-interface VaultSnapshotExtended {
-    id: string;
-    vault_id: string;
-    encrypted_data: string;
-    created_at: string;
-    version?: number;
-    hlc_timestamp?: string;
-    version_vector?: string;
-    updated_at?: string;
-}
-
 export const syncRouter = router({
     /**
      * Get the latest snapshot for a vault.
@@ -87,32 +65,34 @@ export const syncRouter = router({
         // Get snapshot (use existing columns that are known to exist)
         const { data: snapshotRaw, error: snapshotError } = await supabase
             .from("vault_snapshots")
-            .select("id, version, hlc_timestamp, encrypted_data, created_at")
+            .select(
+                "id, version, hlc_timestamp, encrypted_data, created_at, version_vector, updated_at"
+            )
             .eq("vault_id", input.vaultId)
             .order("version", { ascending: false })
             .limit(1)
             .maybeSingle();
 
         if (snapshotError) {
-            throw new Error(`Failed to get snapshot: ${snapshotError.message}`);
+            throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Unable to load synchronization snapshot"
+            });
         }
 
         if (!snapshotRaw) {
             return null;
         }
 
-        // Cast to extended type (version_vector and updated_at may not exist yet)
-        const snapshot = snapshotRaw as VaultSnapshotExtended;
-
         return {
-            id: snapshot.id,
-            versionVector: snapshot.version_vector ?? "",
-            encryptedData: snapshot.encrypted_data,
-            updatedAt: snapshot.updated_at ?? snapshot.created_at,
+            id: snapshotRaw.id,
+            versionVector: snapshotRaw.version_vector,
+            encryptedData: snapshotRaw.encrypted_data,
+            updatedAt: snapshotRaw.updated_at,
             // Legacy fields for backward compatibility
-            version: snapshot.version ?? 0,
-            hlcTimestamp: snapshot.hlc_timestamp ?? "",
-            createdAt: snapshot.created_at
+            version: snapshotRaw.version,
+            hlcTimestamp: snapshotRaw.hlc_timestamp,
+            createdAt: snapshotRaw.created_at
         };
     }),
 
@@ -144,24 +124,18 @@ export const syncRouter = router({
             });
         }
 
-        // Try to fetch ops from vault_ops table (new architecture)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: opsRaw, error: opsError } = await (supabase as any)
+        const { data: ops, error: opsError } = await supabase
             .from("vault_ops")
             .select("id, encrypted_data, version_vector, author_pubkey_hash, created_at")
             .eq("vault_id", input.vaultId)
             .order("created_at", { ascending: true });
 
         if (opsError) {
-            // If vault_ops doesn't exist yet, fall back to legacy vault_updates
-            console.warn("vault_ops query failed, falling back to legacy:", opsError.message);
-            return {
-                type: "ops" as const,
-                ops: []
-            };
+            throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Unable to load synchronization data"
+            });
         }
-
-        const ops = (opsRaw ?? []) as VaultOp[];
 
         // Calculate total bytes
         const totalBytes = ops.reduce((sum, op) => sum + (op.encrypted_data?.length ?? 0), 0);
@@ -183,32 +157,30 @@ export const syncRouter = router({
         // Get snapshot version vector for comparison
         const { data: snapshotRaw } = await supabase
             .from("vault_snapshots")
-            .select("id, version, hlc_timestamp, encrypted_data, created_at")
+            .select("id, encrypted_data, version_vector, updated_at")
             .eq("vault_id", input.vaultId)
             .order("version", { ascending: false })
             .limit(1)
             .maybeSingle();
-
-        const snapshot = snapshotRaw as VaultSnapshotExtended | null;
 
         // Decision: if client has empty version vector (fresh state), use snapshot if available
         // This handles the case where a vault was just created with initial snapshot but no ops yet
         const clientVersionVector = input.versionVector ?? "";
         const isClientFresh = clientVersionVector === "" || clientVersionVector === "AA=="; // empty base64
 
-        if (isClientFresh && snapshot?.encrypted_data) {
+        if (isClientFresh && snapshotRaw?.encrypted_data) {
             return {
                 type: "use_snapshot" as const,
-                snapshotVersionVector: snapshot.version_vector ?? ""
+                snapshotVersionVector: snapshotRaw.version_vector
             };
         }
 
         // Decision: if too many ops or too many bytes, tell client to use snapshot
         if (ops.length > SERVER_OP_COUNT_THRESHOLD || totalBytes > SERVER_BYTE_THRESHOLD) {
-            if (snapshot?.version_vector) {
+            if (snapshotRaw?.version_vector) {
                 return {
                     type: "use_snapshot" as const,
-                    snapshotVersionVector: snapshot.version_vector
+                    snapshotVersionVector: snapshotRaw.version_vector
                 };
             }
             // No snapshot yet, must return ops
@@ -255,28 +227,25 @@ export const syncRouter = router({
             return { insertedIds: [] };
         }
 
-        // Batch insert ops with ON CONFLICT DO NOTHING (idempotent)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: inserted, error: insertError } = await (supabase as any)
-            .from("vault_ops")
-            .upsert(
-                input.ops.map((op) => ({
-                    id: op.id,
-                    vault_id: input.vaultId,
-                    encrypted_data: op.encryptedData,
-                    version_vector: op.versionVector,
-                    author_pubkey_hash: ctx.pubkeyHash
-                })),
-                { onConflict: "id", ignoreDuplicates: true }
-            )
-            .select("id");
+        const { data: inserted, error: insertError } = await supabase.rpc("append_vault_ops", {
+            p_vault_id: input.vaultId,
+            p_author_pubkey_hash: ctx.pubkeyHash,
+            p_ops: input.ops.map((op) => ({
+                id: op.id,
+                encrypted_data: op.encryptedData,
+                version_vector: op.versionVector
+            }))
+        });
 
         if (insertError) {
-            throw new Error(`Failed to insert ops: ${insertError.message}`);
+            throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Unable to save synchronization operations"
+            });
         }
 
         return {
-            insertedIds: ((inserted ?? []) as { id: string }[]).map((row) => row.id)
+            insertedIds: inserted ?? []
         };
     }),
 
@@ -303,34 +272,24 @@ export const syncRouter = router({
             });
         }
 
-        // For now, insert a new snapshot with the existing schema
-        // Once migration runs, we can use upsert with vault_id as conflict
-        const { error: insertError } = await supabase.from("vault_snapshots").insert({
-            vault_id: input.vaultId,
-            encrypted_data: input.encryptedData,
-            version_vector: input.versionVector,
-            version: 1, // Use version 1 for new architecture
-            hlc_timestamp: new Date().toISOString()
-        });
+        const now = new Date().toISOString();
+        const { error: upsertError } = await supabase.from("vault_snapshots").upsert(
+            {
+                vault_id: input.vaultId,
+                encrypted_data: input.encryptedData,
+                version_vector: input.versionVector,
+                updated_at: now,
+                version: 1,
+                hlc_timestamp: now
+            },
+            { onConflict: "vault_id" }
+        );
 
-        if (insertError) {
-            // Try upsert if insert fails (might be unique constraint on vault_id after migration)
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const { error: upsertError } = await (supabase as any).from("vault_snapshots").upsert(
-                {
-                    vault_id: input.vaultId,
-                    encrypted_data: input.encryptedData,
-                    version_vector: input.versionVector,
-                    updated_at: new Date().toISOString(),
-                    version: 1,
-                    hlc_timestamp: new Date().toISOString()
-                },
-                { onConflict: "vault_id" }
-            );
-
-            if (upsertError) {
-                throw new Error(`Failed to save snapshot: ${upsertError.message}`);
-            }
+        if (upsertError) {
+            throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Unable to save synchronization snapshot"
+            });
         }
 
         return { success: true };
@@ -362,37 +321,31 @@ export const syncRouter = router({
         // Get snapshot info
         const { data: snapshotRaw } = await supabase
             .from("vault_snapshots")
-            .select("id, version, hlc_timestamp, created_at")
+            .select("id, version, hlc_timestamp, created_at, version_vector, updated_at")
             .eq("vault_id", input.vaultId)
             .order("version", { ascending: false })
             .limit(1)
             .maybeSingle();
 
-        const snapshot = snapshotRaw as VaultSnapshotExtended | null;
+        const snapshot = snapshotRaw;
 
-        // Try to count ops (will fail gracefully if table doesn't exist)
-        let opsSinceSnapshot = 0;
-        let bytesSinceSnapshot = 0;
+        const { data: ops, error: opsError } = await supabase
+            .from("vault_ops")
+            .select("encrypted_data")
+            .eq("vault_id", input.vaultId);
 
-        try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const { data: opsData } = await (supabase as any)
-                .from("vault_ops")
-                .select("encrypted_data")
-                .eq("vault_id", input.vaultId);
-
-            const ops = (opsData ?? []) as { encrypted_data: string }[];
-            opsSinceSnapshot = ops.length;
-            bytesSinceSnapshot = ops.reduce((sum, op) => sum + (op.encrypted_data?.length ?? 0), 0);
-        } catch {
-            // vault_ops doesn't exist yet
+        if (opsError) {
+            throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Unable to load synchronization status"
+            });
         }
 
-        // Legacy: count pending updates (for backward compatibility)
-        const { count: pendingUpdateCount } = await supabase
-            .from("vault_updates")
-            .select("*", { count: "exact", head: true })
-            .eq("vault_id", input.vaultId);
+        const opsSinceSnapshot = (ops ?? []).length;
+        const bytesSinceSnapshot = (ops ?? []).reduce(
+            (sum, op) => sum + op.encrypted_data.length,
+            0
+        );
 
         return {
             hasSnapshot: !!snapshot,
@@ -405,7 +358,7 @@ export const syncRouter = router({
             latestSnapshotVersion: snapshot?.version ?? null,
             latestSnapshotHlc: snapshot?.hlc_timestamp ?? null,
             latestSnapshotAt: snapshot?.created_at ?? null,
-            pendingUpdateCount: pendingUpdateCount ?? 0
+            pendingUpdateCount: opsSinceSnapshot
         };
     }),
 
@@ -435,28 +388,28 @@ export const syncRouter = router({
             });
         }
 
-        // Insert snapshot
+        const now = new Date().toISOString();
         const { data: snapshot, error: insertError } = await supabase
             .from("vault_snapshots")
-            .insert({
-                vault_id: input.vaultId,
-                encrypted_data: input.encryptedData,
-                version: input.version,
-                hlc_timestamp: input.hlcTimestamp,
-                version_vector: input.versionVector
-            })
+            .upsert(
+                {
+                    vault_id: input.vaultId,
+                    encrypted_data: input.encryptedData,
+                    version: input.version,
+                    hlc_timestamp: input.hlcTimestamp,
+                    version_vector: input.versionVector,
+                    updated_at: now
+                },
+                { onConflict: "vault_id" }
+            )
             .select("id")
             .single();
 
         if (insertError) {
-            // Version conflict - snapshot with this version already exists
-            if (insertError.code === "23505") {
-                throw new TRPCError({
-                    code: "CONFLICT",
-                    message: "Snapshot version already exists"
-                });
-            }
-            throw new Error(`Failed to save snapshot: ${insertError.message}`);
+            throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Unable to save synchronization snapshot"
+            });
         }
 
         return { snapshotId: snapshot.id };
@@ -484,24 +437,27 @@ export const syncRouter = router({
             });
         }
 
-        // Insert update to legacy vault_updates table
-        const { data: update, error: insertError } = await supabase
-            .from("vault_updates")
-            .insert({
-                vault_id: input.vaultId,
-                encrypted_data: input.encryptedData,
-                base_snapshot_version: input.baseSnapshotVersion,
-                hlc_timestamp: input.hlcTimestamp,
-                author_pubkey_hash: ctx.pubkeyHash
-            })
-            .select("id")
-            .single();
+        const updateId = crypto.randomUUID();
+        const { error: insertError } = await supabase.rpc("append_vault_ops", {
+            p_vault_id: input.vaultId,
+            p_author_pubkey_hash: ctx.pubkeyHash,
+            p_ops: [
+                {
+                    id: updateId,
+                    encrypted_data: input.encryptedData,
+                    version_vector: input.hlcTimestamp
+                }
+            ]
+        });
 
         if (insertError) {
-            throw new Error(`Failed to push update: ${insertError.message}`);
+            throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Unable to save synchronization operation"
+            });
         }
 
-        return { updateId: update.id };
+        return { updateId };
     }),
 
     /**
@@ -535,21 +491,16 @@ export const syncRouter = router({
             .limit(1)
             .single();
 
-        // Count updates since snapshot
-        let updateCount = 0;
-        if (snapshot) {
-            const { count } = await supabase
-                .from("vault_updates")
-                .select("*", { count: "exact", head: true })
-                .eq("vault_id", input.vaultId)
-                .gte("base_snapshot_version", snapshot.version);
-            updateCount = count ?? 0;
-        } else {
-            const { count } = await supabase
-                .from("vault_updates")
-                .select("*", { count: "exact", head: true })
-                .eq("vault_id", input.vaultId);
-            updateCount = count ?? 0;
+        const { count: updateCount, error: countError } = await supabase
+            .from("vault_ops")
+            .select("*", { count: "exact", head: true })
+            .eq("vault_id", input.vaultId);
+
+        if (countError) {
+            throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Unable to load synchronization status"
+            });
         }
 
         return {
@@ -558,7 +509,7 @@ export const syncRouter = router({
             latestSnapshotVersion: snapshot?.version ?? null,
             latestSnapshotHlc: snapshot?.hlc_timestamp ?? null,
             latestSnapshotAt: snapshot?.created_at ?? null,
-            pendingUpdateCount: updateCount
+            pendingUpdateCount: updateCount ?? 0
         };
     })
 });

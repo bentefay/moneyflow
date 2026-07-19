@@ -165,6 +165,10 @@ function logError(path: string | undefined, error: TRPCError) {
 async function handler(req: Request) {
     const url = new URL(req.url);
 
+    if (process.env.NODE_ENV === "production" && url.protocol !== "https:") {
+        return new Response("Secure transport required", { status: 400 });
+    }
+
     // Parse request body for context
     let body: unknown;
     let normalizedBody: unknown;

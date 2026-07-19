@@ -43,4 +43,4 @@ export type VaultInvite = Database["public"]["Tables"]["vault_invites"]["Row"];
 export type VaultSnapshot = Database["public"]["Tables"]["vault_snapshots"]["Row"];
 
 /** Vault update row type */
-export type VaultUpdate = Database["public"]["Tables"]["vault_updates"]["Row"];
+export type VaultUpdate = Database["public"]["Views"]["vault_updates"]["Row"];

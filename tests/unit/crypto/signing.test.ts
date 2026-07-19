@@ -36,14 +36,16 @@ async function createSignedRequest(
     await initCrypto(); // Ensure sodium is ready
 
     const timestamp = Date.now().toString();
-    const bodyHash = body
-        ? sodium.to_base64(
-              sodium.crypto_generichash(32, JSON.stringify(body), null),
-              sodium.base64_variants.ORIGINAL
-          )
-        : "";
+    const nonce = sodium.to_base64(sodium.randombytes_buf(32), sodium.base64_variants.ORIGINAL);
+    const bodyHash =
+        body === undefined
+            ? ""
+            : sodium.to_base64(
+                  sodium.crypto_generichash(32, JSON.stringify(body), null),
+                  sodium.base64_variants.ORIGINAL
+              );
 
-    const message = `${method}\n${path}\n${timestamp}\n${bodyHash}`;
+    const message = `${method}\n${path}\n${timestamp}\n${nonce}\n${bodyHash}`;
     const messageBytes = new Uint8Array(Buffer.from(message));
     const signature = sodium.crypto_sign_detached(messageBytes, signingPrivateKey);
 
@@ -51,6 +53,7 @@ async function createSignedRequest(
         headers: {
             "X-Pubkey": publicKeyToBase64(signingPublicKey),
             "X-Timestamp": timestamp,
+            "X-Nonce": nonce,
             "X-Signature": sodium.to_base64(signature, sodium.base64_variants.ORIGINAL)
         },
         body
@@ -109,6 +112,10 @@ describe("verifyRequest", () => {
         const headers = {
             "X-Pubkey": publicKeyToBase64(user.signing.publicKey),
             "X-Timestamp": "not-a-number",
+            "X-Nonce": sodium.to_base64(
+                sodium.randombytes_buf(32),
+                sodium.base64_variants.ORIGINAL
+            ),
             "X-Signature": "dummy"
         };
 
@@ -125,13 +132,15 @@ describe("verifyRequest", () => {
 
         // Create request with old timestamp
         const oldTimestamp = (Date.now() - 10 * 60 * 1000).toString(); // 10 minutes ago
-        const message = `${method}\n${path}\n${oldTimestamp}\n`;
+        const nonce = sodium.to_base64(sodium.randombytes_buf(32), sodium.base64_variants.ORIGINAL);
+        const message = `${method}\n${path}\n${oldTimestamp}\n${nonce}\n`;
         const messageBytes = new Uint8Array(Buffer.from(message));
         const signature = sodium.crypto_sign_detached(messageBytes, user.signing.privateKey);
 
         const headers = {
             "X-Pubkey": publicKeyToBase64(user.signing.publicKey),
             "X-Timestamp": oldTimestamp,
+            "X-Nonce": nonce,
             "X-Signature": sodium.to_base64(signature, sodium.base64_variants.ORIGINAL)
         };
 
@@ -150,17 +159,19 @@ describe("verifyRequest", () => {
 
         // Sign with user1's key but claim to be user2
         const timestamp = Date.now().toString();
+        const nonce = sodium.to_base64(sodium.randombytes_buf(32), sodium.base64_variants.ORIGINAL);
         const bodyHash = sodium.to_base64(
             sodium.crypto_generichash(32, JSON.stringify(body), null),
             sodium.base64_variants.ORIGINAL
         );
-        const message = `${method}\n${path}\n${timestamp}\n${bodyHash}`;
+        const message = `${method}\n${path}\n${timestamp}\n${nonce}\n${bodyHash}`;
         const messageBytes = new Uint8Array(Buffer.from(message));
         const signature = sodium.crypto_sign_detached(messageBytes, user1.signing.privateKey);
 
         const headers = {
             "X-Pubkey": publicKeyToBase64(user2.signing.publicKey), // Wrong public key
             "X-Timestamp": timestamp,
+            "X-Nonce": nonce,
             "X-Signature": sodium.to_base64(signature, sodium.base64_variants.ORIGINAL)
         };
 
@@ -206,6 +217,27 @@ describe("verifyRequest", () => {
         );
 
         const result = await verifyRequest(method, tamperedPath, undefined, headers);
+
+        expect(result.verified).toBe(false);
+        expect(result.error).toBe("Invalid signature");
+    });
+
+    it("rejects a tampered nonce", async () => {
+        const user = await createTestUser();
+        const body = [{ path: "sync.pushOps", input: { vaultId: crypto.randomUUID(), ops: [] } }];
+        const { headers } = await createSignedRequest(
+            "POST",
+            "/api/trpc",
+            body,
+            user.signing.privateKey,
+            user.signing.publicKey
+        );
+        const tamperedHeaders = {
+            ...headers,
+            "X-Nonce": sodium.to_base64(sodium.randombytes_buf(32), sodium.base64_variants.ORIGINAL)
+        };
+
+        const result = await verifyRequest("POST", "/api/trpc", body, tamperedHeaders);
 
         expect(result.verified).toBe(false);
         expect(result.error).toBe("Invalid signature");

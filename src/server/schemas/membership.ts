@@ -27,7 +27,7 @@ import {
  */
 export const memberSchema = z.object({
     /** User's pubkey hash (opaque identifier) */
-    pubkeyHash: z.string(),
+    pubkeyHash: z.string().regex(/^[a-f0-9]{64}$/),
     /** Role in the vault */
     role: vaultRoleSchema,
     /** X25519 public key for re-keying (needed when removing other members) */
@@ -74,7 +74,7 @@ export type MembershipListOutput = z.infer<typeof membershipListOutput>;
 export const membershipRemoveInput = z.object({
     vaultId: vaultIdSchema,
     /** pubkey_hash of the member to remove */
-    pubkeyHash: z.string().min(1, "pubkeyHash is required")
+    pubkeyHash: z.string().regex(/^[a-f0-9]{64}$/, "pubkeyHash is invalid")
 });
 
 export type MembershipRemoveInput = z.infer<typeof membershipRemoveInput>;
@@ -84,7 +84,7 @@ export const membershipRemoveOutput = z.object({
     /** Remaining members who need new vault keys */
     remainingMembers: z.array(
         z.object({
-            pubkeyHash: z.string(),
+            pubkeyHash: z.string().regex(/^[a-f0-9]{64}$/),
             encPublicKey: z.string()
         })
     )
@@ -108,12 +108,20 @@ export type MembershipRemoveOutput = z.infer<typeof membershipRemoveOutput>;
 export const membershipRekeyInput = z.object({
     vaultId: vaultIdSchema,
     /** New wrapped vault keys for each remaining member */
-    memberKeys: z.array(
-        z.object({
-            pubkeyHash: z.string(),
-            encryptedVaultKey: encryptedVaultKeySchema
+    memberKeys: z
+        .array(
+            z.object({
+                pubkeyHash: z.string().regex(/^[a-f0-9]{64}$/),
+                encryptedVaultKey: encryptedVaultKeySchema
+            })
+        )
+        .min(1)
+        .superRefine((memberKeys, context) => {
+            const uniqueHashes = new Set(memberKeys.map((memberKey) => memberKey.pubkeyHash));
+            if (uniqueHashes.size !== memberKeys.length) {
+                context.addIssue({ code: "custom", message: "Member keys must be unique" });
+            }
         })
-    )
 });
 
 export type MembershipRekeyInput = z.infer<typeof membershipRekeyInput>;

@@ -17,7 +17,37 @@ import { getSession } from "./session";
 export interface SignedRequestHeaders {
     "X-Pubkey": string;
     "X-Timestamp": string;
+    "X-Nonce": string;
     "X-Signature": string;
+}
+
+interface RequestVerificationSuccess {
+    verified: true;
+    pubkeyHash: string;
+    nonce: string;
+    requestTimestampMs: number;
+    error?: never;
+}
+
+interface RequestVerificationFailure {
+    verified: false;
+    error: string;
+    pubkeyHash?: never;
+    nonce?: never;
+    requestTimestampMs?: never;
+}
+
+export type RequestVerificationResult = RequestVerificationSuccess | RequestVerificationFailure;
+
+function hashRequestBody(body: unknown): string {
+    if (body === undefined) {
+        return "";
+    }
+
+    return sodium.to_base64(
+        sodium.crypto_generichash(32, JSON.stringify(body), null),
+        sodium.base64_variants.ORIGINAL
+    );
 }
 
 /**
@@ -46,32 +76,30 @@ export async function signRequest(
         throw new Error("No session - user must be unlocked");
     }
 
-    const secretKey = sodium.from_base64(session.secretKey, sodium.base64_variants.ORIGINAL);
-
     const timestamp = Temporal.Now.instant().epochMilliseconds.toString();
-
-    // Hash the body if present
-    const bodyHash = body
-        ? sodium.to_base64(
-              sodium.crypto_generichash(32, JSON.stringify(body), null),
-              sodium.base64_variants.ORIGINAL
-          )
-        : "";
+    const nonceBytes = sodium.randombytes_buf(32);
+    const nonce = sodium.to_base64(nonceBytes, sodium.base64_variants.ORIGINAL);
+    const bodyHash = hashRequestBody(body);
 
     // Create message to sign
-    const message = `${method}\n${path}\n${timestamp}\n${bodyHash}`;
+    const message = `${method}\n${path}\n${timestamp}\n${nonce}\n${bodyHash}`;
 
-    // Sign with Ed25519
-    // Ensure we have native Uint8Arrays (needed for libsodium in jsdom environments)
     const messageBytes = Uint8Array.from(new TextEncoder().encode(message));
-    const secretKeyNative = Uint8Array.from(secretKey);
-    const signature = sodium.crypto_sign_detached(messageBytes, secretKeyNative);
+    const secretKey = sodium.from_base64(session.secretKey, sodium.base64_variants.ORIGINAL);
 
-    return {
-        "X-Pubkey": session.publicKey,
-        "X-Timestamp": timestamp,
-        "X-Signature": sodium.to_base64(signature, sodium.base64_variants.ORIGINAL)
-    };
+    try {
+        const signature = sodium.crypto_sign_detached(messageBytes, secretKey);
+
+        return {
+            "X-Pubkey": session.publicKey,
+            "X-Timestamp": timestamp,
+            "X-Nonce": nonce,
+            "X-Signature": sodium.to_base64(signature, sodium.base64_variants.ORIGINAL)
+        };
+    } finally {
+        sodium.memzero(secretKey);
+        sodium.memzero(nonceBytes);
+    }
 }
 
 /**
@@ -91,25 +119,31 @@ export async function verifyRequest(
     headers: {
         "X-Pubkey"?: string;
         "X-Timestamp"?: string;
+        "X-Nonce"?: string;
         "X-Signature"?: string;
     },
     maxAgeMs: number = 5 * 60 * 1000
-): Promise<{ verified: boolean; pubkeyHash?: string; error?: string }> {
+): Promise<RequestVerificationResult> {
     await initCrypto();
 
-    const { "X-Pubkey": pubkey, "X-Timestamp": timestamp, "X-Signature": signature } = headers;
+    const {
+        "X-Pubkey": pubkey,
+        "X-Timestamp": timestamp,
+        "X-Nonce": nonce,
+        "X-Signature": signature
+    } = headers;
 
     // Check required headers
-    if (!pubkey || !timestamp || !signature) {
+    if (!pubkey || !timestamp || !nonce || !signature) {
         return { verified: false, error: "Missing authentication headers" };
     }
 
     // Check timestamp freshness
-    const requestTime = parseInt(timestamp, 10);
-    if (isNaN(requestTime)) {
+    if (!/^\d{13}$/.test(timestamp)) {
         return { verified: false, error: "Invalid timestamp" };
     }
 
+    const requestTime = Number(timestamp);
     const now = Temporal.Now.instant().epochMilliseconds;
     if (Math.abs(now - requestTime) > maxAgeMs) {
         return { verified: false, error: "Request expired" };
@@ -118,17 +152,20 @@ export async function verifyRequest(
     try {
         const publicKey = sodium.from_base64(pubkey, sodium.base64_variants.ORIGINAL);
         const sig = sodium.from_base64(signature, sodium.base64_variants.ORIGINAL);
+        const nonceBytes = sodium.from_base64(nonce, sodium.base64_variants.ORIGINAL);
 
-        // Hash the body if present
-        const bodyHash = body
-            ? sodium.to_base64(
-                  sodium.crypto_generichash(32, JSON.stringify(body), null),
-                  sodium.base64_variants.ORIGINAL
-              )
-            : "";
+        if (
+            publicKey.length !== sodium.crypto_sign_PUBLICKEYBYTES ||
+            sig.length !== sodium.crypto_sign_BYTES ||
+            nonceBytes.length !== 32
+        ) {
+            return { verified: false, error: "Invalid authentication headers" };
+        }
+
+        const bodyHash = hashRequestBody(body);
 
         // Recreate message
-        const message = `${method}\n${path}\n${timestamp}\n${bodyHash}`;
+        const message = `${method}\n${path}\n${timestamp}\n${nonce}\n${bodyHash}`;
 
         // Verify signature
         // Ensure we have native Uint8Arrays (needed for libsodium in jsdom environments)
@@ -148,9 +185,9 @@ export async function verifyRequest(
         // Compute pubkeyHash (hex-encoded to match computePubkeyHash in identity.ts)
         const pubkeyHash = sodium.to_hex(sodium.crypto_generichash(32, publicKey, null));
 
-        return { verified: true, pubkeyHash };
-    } catch (e) {
-        return { verified: false, error: `Verification error: ${e}` };
+        return { verified: true, pubkeyHash, nonce, requestTimestampMs: requestTime };
+    } catch {
+        return { verified: false, error: "Invalid authentication headers" };
     }
 }
 

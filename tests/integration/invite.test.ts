@@ -211,7 +211,7 @@ describe("Membership Schemas", () => {
         it("accepts valid input", () => {
             const input = {
                 vaultId: "550e8400-e29b-41d4-a716-446655440000",
-                pubkeyHash: "abc123pubkeyhash"
+                pubkeyHash: "a".repeat(64)
             };
 
             const result = membershipRemoveInput.safeParse(input);
@@ -235,11 +235,11 @@ describe("Membership Schemas", () => {
                 vaultId: "550e8400-e29b-41d4-a716-446655440000",
                 memberKeys: [
                     {
-                        pubkeyHash: "user1pubkeyhash",
+                        pubkeyHash: "1".repeat(64),
                         encryptedVaultKey: btoa("wrapped-key-1")
                     },
                     {
-                        pubkeyHash: "user2pubkeyhash",
+                        pubkeyHash: "2".repeat(64),
                         encryptedVaultKey: btoa("wrapped-key-2")
                     }
                 ]
@@ -249,14 +249,14 @@ describe("Membership Schemas", () => {
             expect(result.success).toBe(true);
         });
 
-        it("accepts empty memberKeys array", () => {
+        it("rejects empty memberKeys array", () => {
             const input = {
                 vaultId: "550e8400-e29b-41d4-a716-446655440000",
                 memberKeys: []
             };
 
             const result = membershipRekeyInput.safeParse(input);
-            expect(result.success).toBe(true);
+            expect(result.success).toBe(false);
         });
 
         it("rejects invalid encryptedVaultKey", () => {
@@ -264,7 +264,7 @@ describe("Membership Schemas", () => {
                 vaultId: "550e8400-e29b-41d4-a716-446655440000",
                 memberKeys: [
                     {
-                        pubkeyHash: "user1pubkeyhash",
+                        pubkeyHash: "1".repeat(64),
                         encryptedVaultKey: "not-valid-base64!!!"
                     }
                 ]
