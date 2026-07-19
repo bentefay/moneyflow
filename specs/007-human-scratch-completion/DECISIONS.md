@@ -67,6 +67,24 @@ need evidence, alternatives, security/UX impact, and a reversal path.
   P21 audit must exercise conservation, negative values, deterministic ties, invalid data,
   historical people and source traceability.
 
+## D-006 — P00 accepts reproducible reds only as routed baseline facts
+
+- **Date:** 2026-07-20
+- **Package / scope:** P00 / control
+- **Status:** accepted
+- **Evidence:** `evidence/P00/implementation-02.md` and independent `reviews/P00-review-02.md` PASS.
+- **Alternatives:** Fix product defects inside P00; omit known reds; or treat a green automated
+  suite as sufficient baseline evidence.
+- **Decision and reason:** P00 records reproducible defects without product edits only when the
+  evidence is complete, truthful and routes ownership to the earliest applicable package. Revision
+  01 failed for a false focus-restoration claim; revision 02 passed after independently reproducing
+  and routing the actual focus loss.
+- **Security, data, UX, and compatibility impact:** No defect is waived as delivered. Focus loss,
+  reduced motion, dialog warnings, dark behavior, toolchain drift and future security/data work
+  remain open gates for their owning packages and P21.
+- **Reversal/migration path:** Owning packages remediate and independently review each red; a later
+  audit finding invalidates affected package acceptance through PROCESS rollback/rereview.
+
 ## Decision template
 
 ### D-XXX — Title
