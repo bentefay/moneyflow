@@ -32,7 +32,7 @@
 
 ## Tech Stack
 
-- TypeScript 5.x, Node.js 20.x, Next.js 15 (App Router), React 19
+- TypeScript 6.x, Node.js 22.x LTS (Node.js 24.x supported), Next.js 16 (App Router), React 19
 - Loro CRDT + loro-mirror (client state), Supabase (server sync), IndexedDB (persistence)
 - shadcn/ui + Tailwind CSS
 - tRPC v11 + Zod

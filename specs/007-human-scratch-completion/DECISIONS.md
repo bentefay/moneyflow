@@ -85,6 +85,31 @@ need evidence, alternatives, security/UX impact, and a reversal path.
 - **Reversal/migration path:** Owning packages remediate and independently review each red; a later
   audit finding invalidates affected package acceptance through PROCESS rollback/rereview.
 
+## D-007 — P01 resolves latest-safe dependency currency against the installed 48-hour policy
+
+- **Date:** 2026-07-20
+- **Package / scope:** P01 / HS-002
+- **Status:** accepted
+- **Evidence:** `evidence/P01/implementation-02.md` and independent `reviews/P01-review-02.md` PASS
+  over `d54a6285dd9b9f0824927b3d8a3a4e14c5315c73..71aa257bb9bdad736fb7ef7315854fce42c5cbb4`.
+- **Alternatives:** Treat registry `latest` as authoritative despite Safe Chain suppression; retain
+  review 01's unverified 24-hour assumption; or upgrade to releases younger than the installed
+  policy permits.
+- **Decision and reason:** “Latest safe-chain supported” means the newest stable mutually compatible
+  release eligible under the effective installed Safe Chain policy at the frozen cutoff. With Safe
+  Chain 1.5.13 and no configuration or environment override, the primary-source default is 48 hours;
+  pnpm 11.13.1 and Vercel 56.3.1 were therefore current eligible releases. The revision-01
+  “unpublished” narrative and 24-hour review premise are superseded, while its frozen pins remain
+  correct.
+- **Security, data, UX, and compatibility impact:** The compatible Node 22 LTS/Node 24-supported,
+  TypeScript 6, Next 16 and React 19 graph passes frozen installs, dedupe, production audit, build,
+  1,141 tests and 78 no-retry E2E cases. Serialized owning-client Realtime channel removal also
+  closes the same-vault lock/unlock collision without reload. Eleven known audit advisories remain
+  confined to the Vercel development chain; production audit is clean.
+- **Reversal/migration path:** P21 repeats dependency currency, audit and runtime validation against
+  the then-effective Safe Chain policy. A later incompatible or unsafe release routes to a new
+  reviewed remediation range; P01 acceptance is rolled back if its assumptions no longer hold.
+
 ## Decision template
 
 ### D-XXX — Title
