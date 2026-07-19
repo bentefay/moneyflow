@@ -7,7 +7,9 @@ literal field is `pending`. Workers may read but never edit it.
 
 - **Package / revision:** P05 / 04
 - **Scope IDs:** HS-015; no scratch marker before independent package PASS and root integration
-- **State:** changes_requested
+- **State:** changes_requested after immutable `reviews/P05-review-04.md` FAIL; revision-04
+  evidence, review, Q-006 and risk state persisted in
+  `3070cbf86692f70aceab33456261004482955701`
 - **Task:** `tasks/HS-015-realtime-security.md`
 - **Original package BASE:** `007651beb814d98646aa2e786801b647e2abd0b5`
 - **Pre-implementation HEAD:** `abbb4f52439025401d3ca858f9809b41daddcbe3`; includes immutable
@@ -87,6 +89,5 @@ Revision-04 evidence/review and the cumulative literal range are frozen.
 
 ## Next root action
 
-Persist immutable revision-04 evidence/review, Q-006 and failure ledgers using exact staging. Then
-durably record that artifact commit, rewrite for P05 revision 05 and dispatch only the Realtime spec
-locator correction. No HS-015 marker is authorized.
+Commit this durable artifact-commit reference, rewrite for P05 revision 05 and dispatch only the
+Realtime spec locator correction. No HS-015 marker is authorized.
