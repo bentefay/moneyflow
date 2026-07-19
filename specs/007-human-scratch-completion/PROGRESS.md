@@ -7,9 +7,9 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P05 revision 04 (`changes_requested`)
-- **Next action:** durably record the revision-04 artifact commit, then dispatch the one-spec-file
-  P05 revision 05
+- **Current package:** P05 revision 05 (`changes_requested`)
+- **Next action:** persist immutable revision-05 failure artifacts and Q-007, then dispatch the
+  baseline-relative same-spec P05 revision 06
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -20,8 +20,8 @@ review evidence.
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** four passed (HS-002, HS-014, HS-017, HS-018); 18 queued
-- **Last ledger update:** 2026-07-20T09:17:04+10:00; P05 revision-04 evidence, FAIL review, Q-006 and
-  risk state persisted in `3070cbf86692f70aceab33456261004482955701`
+- **Last ledger update:** 2026-07-20T09:31:09+10:00; P05 revision 05 independent review FAIL at exact
+  HEAD `0d24c802bc8c6dab93a6e1a1c1e1167e95b98583`
 
 ## Package ledger
 
@@ -32,7 +32,7 @@ review evidence.
 | P02     | HS-017         | Animate UI evaluation, ADR, and representative migration only if justified          | P01                  | passed       | 02  | `19d73035b33b639f9927d2f78a55d74c44f65544..213100fadf5acea30aad7e90998bd575cdcd508c` | `evidence/P02/implementation-02.md` | `reviews/P02-review-02.md` | `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7` |
 | P03     | HS-018         | TanStack Virtual PR #1100 release gate and `useFlushSync`                           | P01                  | passed       | 01  | `c60f605bd811d8920122a66f3d6743d8a3ac044d..b8d4b448f52022970ca388654be14d24e347deb5` | `evidence/P03/implementation-01.md` | `reviews/P03-review-01.md` | `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34` |
 | P04     | HS-014         | Database/table/RLS threat model, migrations, and permission remediation             | P01                  | passed | 02 | `9de8b0e8c41087b96523ecc55faa10bf19ec0ff9..dbcf180e829c81a218e9a73791e40902c4f9eb31` | `evidence/P04/implementation-02.md` | `reviews/P04-review-02.md` | `b905ecb810334ed9697f57140047964135ade6ea` |
-| P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | changes_requested | 04 | `007651beb814d98646aa2e786801b647e2abd0b5..4233b59c930117e7b160ac142a6f953b988b2dc8` | `evidence/P05/implementation-04.md` | `reviews/P05-review-04.md` | failure artifacts `3070cbf86692f70aceab33456261004482955701` |
+| P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | changes_requested | 05 | `007651beb814d98646aa2e786801b647e2abd0b5..0d24c802bc8c6dab93a6e1a1c1e1167e95b98583` | `evidence/P05/implementation-05.md` | `reviews/P05-review-05.md` | pending                                    |
 | P06     | HS-010         | Remove unused user-state storage and dead API surface                               | P04                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P07     | HS-011         | Evidence-led person/member/invite UX architecture and acceptance decision           | P04, P06             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -96,7 +96,7 @@ required marker rollbacks before the next dispatch.
 | HS-012      | human scratch block               | P08                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-013      | human scratch block               | P15                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-014      | human scratch block               | P04                          | authorized marker after package PASS       | passed | P04 integration `b905ecb810334ed9697f57140047964135ade6ea`; `reviews/P04-review-02.md`; marker `db97178a… -> c74a2a78…` |
-| HS-015      | human scratch block               | P05                          | authorized marker after package PASS       | changes_requested | revisions-01/02/03/04 FAIL immutable; Q-006 authorizes one-file revision 05; no marker                   |
+| HS-015      | human scratch block               | P05                          | authorized marker after package PASS       | changes_requested | revisions-01/02/03/04/05 FAIL immutable; Q-007 authorizes same-spec revision 06; no marker                   |
 | HS-016      | human scratch block               | P20A                         | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-017      | human scratch block               | P02                          | authorized marker after package PASS       | passed       | P02 integration `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7`; `reviews/P02-review-02.md`; marker `dcd03b23… -> 5d283ab1…` |
 | HS-018      | human scratch block               | P03                          | authorized marker after package PASS       | passed       | P03 integration `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34`; `reviews/P03-review-01.md`; marker `5d283ab1… -> db97178a…` |
@@ -404,6 +404,40 @@ revision-04 evidence/review, Q-006, R-004/R-009/R-021 and failure state persiste
 `3070cbf86692f70aceab33456261004482955701`; all four P05 FAIL reviews are immutable. Revision-05
 dispatch may proceed after this artifact-commit reference is durably recorded; no frozen source or
 marker changed.
+
+**2026-07-20T09:18:22+10:00 — P05/05 `changes_requested -> implementing`:** Original BASE remains
+`007651beb814d98646aa2e786801b647e2abd0b5`; pre-implementation HEAD
+`913b01381e0cbef49200368c40fb990e3873514a` includes all immutable P05 revision-01/02/03/04 product
+and failure/control commits. Q-006 authorizes exactly `tests/e2e/realtime-security.spec.ts`: after
+fill, re-resolve the unique new-value editor and press Enter without forced action, wait, retry,
+timeout/assertion weakening or any other path. Run the complete real import/edit/delete, lifecycle,
+security, fresh/upgrade, full browser/static and installed CLI acceptance on the compatible service.
+No helper/product/config/dependency/migration/unit/transport/CRDT/Loro or HS-015 marker authority;
+scratch remains `c74a2a78…`.
+
+**2026-07-20T09:25:45+10:00 — P05/05 `implementing -> ready_for_review -> reviewing`:** Exact HEAD
+`0d24c802bc8c6dab93a6e1a1c1e1167e95b98583`; revision diff is only the authorized spec (4
+insertions/1 deletion). Evidence SHA-256
+`a3177aa1cabe07835c170e5c37eb8da7dc3f074fc82e90d6f03fe3245729349f`. The stable new-value
+locator passes genuine incoming import, edit and encrypted delete, then the unchanged expiry poll
+fails immediately because legacy `countRealtimeGrants` uses a service-role REST HEAD that migration
+007 intentionally denies (HTTP 403); post-run aggregates show 15 grants/7 permanent ops. Complete
+Q-PROPOSAL-P05-05-01 requests the same sole spec path to replace only that import/poll source with
+the already-used validated `getRealtimeGrantAggregates(...).sync.total`, preserving 70 seconds and
+`>=2`. No helper/migration/privilege/product widening or later-gate claim; compatible service, final
+empty DB, cleanup and frozen sources pass. New immutable output `reviews/P05-review-05.md`; no PASS
+claim or HS-015 marker.
+
+**2026-07-20T09:31:09+10:00 — P05/05 `reviewing -> changes_requested`:** Independent FAIL review
+SHA-256 `53edd79c1472196338ff721d9c8ded29ea8df35645d704813675dd5c1e42f460`. Locator closure and
+genuine import/edit/delete are accepted; migration 007's service-role table denial and rotation RPC
+grant are confirmed. F-001 High requires replacing the forbidden HEAD with the existing legal
+aggregate. F-002 High rejects the implementer's fixed `>=2` because initial pre-refresh identity
+groups already total 2/3. Reviewer Q-PROPOSAL-P05-05-02 is transcribed as Q-007: the sole revision-
+06 spec captures initial owner sync total and requires later total at least
+`Math.max(2, initial + 1)` under unchanged 70-second/1-second polling. No helper/privilege/migration/
+product/config/dependency/transport/other-test widening or marker; R-004/R-009 updated and scratch
+remains `c74a2a78…`.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual

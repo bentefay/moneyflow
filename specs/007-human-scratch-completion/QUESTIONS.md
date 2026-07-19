@@ -240,6 +240,45 @@ No unresolved product questions were answered by scaffold creation.
 - **Does a human still need to decide after completion?:** No. Human review is optional only for a
   different equally stable selector convention.
 
+## Q-007 — Prove credential refresh against an initial sanitized baseline
+
+- **Raised:** 2026-07-20, P05 revision 05, `human_scratch_reviewer`; corrects implementer
+  `Q-PROPOSAL-P05-05-01`
+- **Source proposal:**
+  `reviews/P05-review-05.md#q-proposal-p05-05-02--observe-a-new-owner-sync-grant-relative-to-the-initial-sanitized-baseline`;
+  corrected source in `evidence/P05/implementation-05.md`
+- **Context and evidence:** Genuine incoming import/edit/delete now pass. The next observer receives
+  an intentional HTTP 403 because `service_role` has rotate/revoke RPC execution but no direct
+  `realtime_grants` table SELECT. The legal aggregate fixture is already used in the spec. However,
+  independent pre-refresh identity-group totals are already 2 and 3 at 15 seconds, so the
+  implementer's fixed `>=2` replacement would pass before the roughly 40-second refresh point.
+- **Why the frozen requirement/repository does not fully decide it:** Revision 05 authorized only
+  the stable edit locator. It exposed but could not replace the forbidden observer or make the
+  refresh assertion causal.
+- **Options considered:** (A) capture the initial owner sync total and poll the legal aggregate
+  until it exceeds that baseline under the existing 70-second bound; (B) retain fixed `>=2`; (C)
+  edit the helper; (D) grant direct table SELECT; or (E) skip/retry the gate. A is the smallest
+  truthful evidence; B is pre-satisfied, C is unnecessary, D weakens non-enumeration and E waives
+  refresh acceptance.
+- **Default selected for continued work:** Choose A. Revision 06 may write only
+  `tests/e2e/realtime-security.spec.ts`. Remove the `countRealtimeGrants` import, retain the initial
+  `grants.owner.sync.total` integer from the existing attribution step, and poll
+  `getRealtimeGrantAggregates(...).sync.total` every second for at most the unchanged 70 seconds
+  until it is at least `Math.max(2, initialOwnerSyncTotal + 1)`. Retain every other assertion and
+  timeout. Do not edit the helper/export, privileges, migration, product, config, dependency,
+  transport, other E2E, unit, SyncManager, CRDT or Loro paths.
+- **Decision hierarchy basis:** HS-015 requires actual expiry/refresh plus non-enumeration. Existing
+  aggregate-fixture precedent and least privilege control, while baseline-relative observation is
+  necessary for causal evidence.
+- **Impact and risk:** The test waits for one new grant instead of passing on initial lifecycle
+  overlap. It may consume the already-authorized 70-second window but adds no timeout or retry. A
+  failure will expose a real refresh defect rather than conceal it.
+- **How to reverse or migrate:** The spec-only observer change is independently revertible with no
+  schema, service, encrypted-data or product impact. Any later failure requires its own sanitized
+  counterexample and exact owner.
+- **Does a human still need to decide after completion?:** No. Human input is optional only if a
+  stricter post-green aggregate, such as explicit predecessor revocation, is desired later.
+
 ## Question template
 
 ### Q-XXX — Short title
