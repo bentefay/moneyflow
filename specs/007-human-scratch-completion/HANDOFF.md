@@ -15,8 +15,8 @@ BASE and new artifact paths.
 
 - **Package / revision:** P00 / 01
 - **Scope IDs:** control; no scratch marker
-- **State:** changes_requested after immutable `reviews/P00-review-01.md` FAIL; revision 01 evidence
-  remains frozen at SHA-256 `73349df979f97d0c4fb4eb7318a81695e794aa5d721d3fe2807934a9321f819c`
+- **State:** changes_requested after immutable `reviews/P00-review-01.md` FAIL; revision 01
+  evidence, review and failed-review state persisted in `00d47a420c3b6c7f66d6e89a9f8d95c2cc927c4c`
 - **Task:** `tasks/P00-baseline.md`
 - **Original package BASE:** `0ea864f5d0142530b2d524add228d3b51f162876`
 - **Allowed implementation paths:** none
@@ -50,9 +50,7 @@ Root fills this only after implementation handoff:
 
 ## Next root action
 
-Persist immutable `evidence/P00/implementation-01.md` and `reviews/P00-review-01.md` with the
-failed-review ledger state, record that exact control commit, then rewrite this handoff for P00
-revision 02 using `evidence/P00/implementation-02.md` and `reviews/P00-review-02.md`. Revision 02
-must explicitly reproduce and route the mobile-menu Escape focus-loss red; no P00 product fix is
-allowed. Do not dispatch P01 until P00 has an independent persisted PASS and root
-integration-control commit.
+Rewrite this handoff for P00 revision 02 using `evidence/P00/implementation-02.md` and
+`reviews/P00-review-02.md`. Revision 02 must explicitly reproduce and route the mobile-menu Escape
+focus-loss red; no P00 product fix is allowed. Do not dispatch P01 until P00 has an independent
+persisted PASS and root integration-control commit.
