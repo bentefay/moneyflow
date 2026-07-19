@@ -8,8 +8,8 @@ review evidence.
 
 - **Goal status:** in progress
 - **Current package:** P04 revision 01 (`changes_requested`)
-- **Next action:** persist the immutable FAIL artifacts and dispatch P04 revision 02 with the exact
-  reviewed 13-path remediation authority
+- **Next action:** rewrite the handoff and dispatch P04 revision 02 with the exact reviewed 13-path
+  remediation authority
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -20,8 +20,8 @@ review evidence.
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** three passed (HS-002, HS-017, HS-018); 19 queued
-- **Last ledger update:** 2026-07-20T06:01:41+10:00; P04 revision 01 independently FAILed on exact
-  request binding and verified user-identity selection; Q-002 transcribed
+- **Last ledger update:** 2026-07-20T06:02:43+10:00; immutable P04 revision-01 failure artifacts,
+  Q-002 and risk state persisted in `8a3e80702bd6cf9aa8d96899c840923363481e5e`
 
 ## Package ledger
 
@@ -31,7 +31,7 @@ review evidence.
 | P01     | HS-002         | Upgrade dependencies by compatible safe chains                                      | P00                  | passed       | 02  | `d54a6285dd9b9f0824927b3d8a3a4e14c5315c73..71aa257bb9bdad736fb7ef7315854fce42c5cbb4` | `evidence/P01/implementation-02.md` | `reviews/P01-review-02.md` | `c2b89b6676271142ad6802dcf2a30acf8899df48` |
 | P02     | HS-017         | Animate UI evaluation, ADR, and representative migration only if justified          | P01                  | passed       | 02  | `19d73035b33b639f9927d2f78a55d74c44f65544..213100fadf5acea30aad7e90998bd575cdcd508c` | `evidence/P02/implementation-02.md` | `reviews/P02-review-02.md` | `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7` |
 | P03     | HS-018         | TanStack Virtual PR #1100 release gate and `useFlushSync`                           | P01                  | passed       | 01  | `c60f605bd811d8920122a66f3d6743d8a3ac044d..b8d4b448f52022970ca388654be14d24e347deb5` | `evidence/P03/implementation-01.md` | `reviews/P03-review-01.md` | `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34` |
-| P04     | HS-014         | Database/table/RLS threat model, migrations, and permission remediation             | P01                  | changes_requested | 01 | `9de8b0e8c41087b96523ecc55faa10bf19ec0ff9..20a489dc51542ee0c681cfba0a33aee820d70221` | `evidence/P04/implementation-01.md` | `reviews/P04-review-01.md` | pending                                    |
+| P04     | HS-014         | Database/table/RLS threat model, migrations, and permission remediation             | P01                  | changes_requested | 01 | `9de8b0e8c41087b96523ecc55faa10bf19ec0ff9..20a489dc51542ee0c681cfba0a33aee820d70221` | `evidence/P04/implementation-01.md` | `reviews/P04-review-01.md` | failure artifacts `8a3e80702bd6cf9aa8d96899c840923363481e5e` |
 | P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P06     | HS-010         | Remove unused user-state storage and dead API surface                               | P04                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P07     | HS-011         | Evidence-led person/member/invite UX architecture and acceptance decision           | P04, P06             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -208,6 +208,11 @@ artifact; the final offline review established the blockers and exact 13-path re
 Q-002 transcribes the complete reviewed proposal; P05/P08 remain later-package evidence and
 R-024/P20B/P21 retains the frozen-marker formatter route. No HS-014 marker is authorized; scratch
 remains `db97178a…`, 350 lines and 24,242 bytes, and FS-001 remains exact.
+
+**2026-07-20T06:02:43+10:00 — P04/01 `changes_requested -> changes_requested`:** Immutable
+revision-01 evidence, review, Q-002, R-003/R-013/R-024 and failure state persisted in control commit
+`8a3e80702bd6cf9aa8d96899c840923363481e5e`; review-01 is now immutable. Revision-02 dispatch may
+proceed after the artifact-commit reference is durably recorded; no marker or frozen-source change.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual

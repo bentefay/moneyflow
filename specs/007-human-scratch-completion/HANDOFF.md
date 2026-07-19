@@ -7,7 +7,8 @@ literal field is `pending`. Workers may read but never edit it.
 
 - **Package / revision:** P04 / 01
 - **Scope IDs:** HS-014; no scratch marker before independent package PASS and root integration
-- **State:** changes_requested
+- **State:** changes_requested after immutable `reviews/P04-review-01.md` FAIL; evidence, review,
+  Q-002 and failure state persisted in `8a3e80702bd6cf9aa8d96899c840923363481e5e`
 - **Task:** `tasks/HS-014-database-rls-audit.md`
 - **Original package BASE:** `9de8b0e8c41087b96523ecc55faa10bf19ec0ff9`
 - **Pre-implementation HEAD:** `9de8b0e8c41087b96523ecc55faa10bf19ec0ff9`
@@ -74,6 +75,6 @@ This section records the immutable completed revision-01 review.
 
 ## Next root action
 
-Persist revision-01 evidence/review and failure-control state with exact-path staging. Then rewrite
-this handoff for P04 revision 02 from the original BASE, including the review's exact 13-path
-authority, new evidence/review paths and mandatory F-001/F-002 counterfactual tests.
+Rewrite this handoff for P04 revision 02 from the original BASE, including the review's exact
+13-path authority, new evidence/review paths and mandatory F-001/F-002 counterfactual tests. Do not
+authorize the HS-014 marker.
