@@ -128,36 +128,77 @@ export type Database = {
                     }
                 ];
             };
+            vault_ops: {
+                Row: {
+                    author_pubkey_hash: string;
+                    created_at: string | null;
+                    encrypted_data: string;
+                    id: string;
+                    vault_id: string;
+                    version_vector: string;
+                };
+                Insert: {
+                    author_pubkey_hash: string;
+                    created_at?: string | null;
+                    encrypted_data: string;
+                    id?: string;
+                    vault_id: string;
+                    version_vector: string;
+                };
+                Update: {
+                    author_pubkey_hash?: string;
+                    created_at?: string | null;
+                    encrypted_data?: string;
+                    id?: string;
+                    vault_id?: string;
+                    version_vector?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: "vault_ops_vault_id_fkey";
+                        columns: ["vault_id"];
+                        isOneToOne: false;
+                        referencedRelation: "vaults";
+                        referencedColumns: ["id"];
+                    }
+                ];
+            };
             vault_snapshots: {
                 Row: {
                     created_at: string | null;
                     encrypted_data: string;
                     hlc_timestamp: string;
                     id: string;
+                    updated_at: string | null;
                     vault_id: string;
                     version: number;
+                    version_vector: string;
                 };
                 Insert: {
                     created_at?: string | null;
                     encrypted_data: string;
                     hlc_timestamp: string;
                     id?: string;
+                    updated_at?: string | null;
                     vault_id: string;
                     version: number;
+                    version_vector: string;
                 };
                 Update: {
                     created_at?: string | null;
                     encrypted_data?: string;
                     hlc_timestamp?: string;
                     id?: string;
+                    updated_at?: string | null;
                     vault_id?: string;
                     version?: number;
+                    version_vector?: string;
                 };
                 Relationships: [
                     {
                         foreignKeyName: "vault_snapshots_vault_id_fkey";
                         columns: ["vault_id"];
-                        isOneToOne: false;
+                        isOneToOne: true;
                         referencedRelation: "vaults";
                         referencedColumns: ["id"];
                     }
@@ -223,6 +264,14 @@ export type Database = {
         Functions: {
             cleanup_expired_invites: { Args: never; Returns: undefined };
             current_pubkey_hash: { Args: never; Returns: string };
+            get_ops_stats_since_snapshot: {
+                Args: { p_vault_id: string };
+                Returns: {
+                    op_count: number;
+                    snapshot_updated_at: string;
+                    total_bytes: number;
+                }[];
+            };
             is_vault_member: { Args: { p_vault_id: string }; Returns: boolean };
             is_vault_owner: { Args: { p_vault_id: string }; Returns: boolean };
         };
@@ -243,12 +292,12 @@ export type Tables<
     DefaultSchemaTableNameOrOptions extends
         | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
         | { schema: keyof DatabaseWithoutInternals },
-    TableName extends DefaultSchemaTableNameOrOptions extends {
+    TableName extends (DefaultSchemaTableNameOrOptions extends {
         schema: keyof DatabaseWithoutInternals;
     }
         ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
               DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-        : never = never
+        : never) = never
 > = DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals;
 }
@@ -272,11 +321,11 @@ export type TablesInsert<
     DefaultSchemaTableNameOrOptions extends
         | keyof DefaultSchema["Tables"]
         | { schema: keyof DatabaseWithoutInternals },
-    TableName extends DefaultSchemaTableNameOrOptions extends {
+    TableName extends (DefaultSchemaTableNameOrOptions extends {
         schema: keyof DatabaseWithoutInternals;
     }
         ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-        : never = never
+        : never) = never
 > = DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals;
 }
@@ -297,11 +346,11 @@ export type TablesUpdate<
     DefaultSchemaTableNameOrOptions extends
         | keyof DefaultSchema["Tables"]
         | { schema: keyof DatabaseWithoutInternals },
-    TableName extends DefaultSchemaTableNameOrOptions extends {
+    TableName extends (DefaultSchemaTableNameOrOptions extends {
         schema: keyof DatabaseWithoutInternals;
     }
         ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-        : never = never
+        : never) = never
 > = DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals;
 }
@@ -322,11 +371,11 @@ export type Enums<
     DefaultSchemaEnumNameOrOptions extends
         | keyof DefaultSchema["Enums"]
         | { schema: keyof DatabaseWithoutInternals },
-    EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    EnumName extends (DefaultSchemaEnumNameOrOptions extends {
         schema: keyof DatabaseWithoutInternals;
     }
         ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-        : never = never
+        : never) = never
 > = DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals;
 }
@@ -339,11 +388,11 @@ export type CompositeTypes<
     PublicCompositeTypeNameOrOptions extends
         | keyof DefaultSchema["CompositeTypes"]
         | { schema: keyof DatabaseWithoutInternals },
-    CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
         schema: keyof DatabaseWithoutInternals;
     }
         ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-        : never = never
+        : never) = never
 > = PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals;
 }

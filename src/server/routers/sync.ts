@@ -308,6 +308,7 @@ export const syncRouter = router({
         const { error: insertError } = await supabase.from("vault_snapshots").insert({
             vault_id: input.vaultId,
             encrypted_data: input.encryptedData,
+            version_vector: input.versionVector,
             version: 1, // Use version 1 for new architecture
             hlc_timestamp: new Date().toISOString()
         });
