@@ -8,8 +8,9 @@ literal field is `pending`. Workers may read but never edit it.
 - **Package / revision:** P03 / 01
 - **Scope IDs:** HS-018; no scratch marker unless the requirement actually passes after independent
   review. A proven unreleased gate becomes `blocked_external`, not completion.
-- **State:** independently recommended PASS; root integration pending; review SHA-256
-  `9bd95d3fe197b2a3a02ad6f6ff161bc031ad8d4f3ecc035bf7fe35ce568b9824`
+- **State:** passed/integrated in `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34`; HS-018
+  `completion_pending` from scratch SHA
+  `5d283ab12623e950dd7bf76a1c502b020ecbc2604c97df2e62e40ebd53472efc`
 - **Task:** `tasks/HS-018-tanstack-virtual.md`
 - **Original package BASE:** `c60f605bd811d8920122a66f3d6743d8a3ac044d`
 - **Pre-implementation HEAD:** `c60f605bd811d8920122a66f3d6743d8a3ac044d`
@@ -60,5 +61,4 @@ This section records the completed independent review pending root integration.
 
 ## Next root action
 
-Integrate exact P03 evidence/review and root decision/risk routes. Only then set P03 passed and
-prepare/execute HS-018's marker.
+Execute/finalize the prepared HS-018 marker exactly; no next-package dispatch until cleared.
