@@ -148,7 +148,19 @@
       sorting the import transactions and linearly scanning the existing (n) and new (m)
       transactions (plus the allowed date closeness in days n)
 
-- [] We should be using loro ephemeral state for tracking presence and active transaction.
+- [] When clicking "Add Transaction" on the Transactions tab, it should just add a new empty row
+  with all normal affordances. If we need to support empty descriptions as a result, that's fine.
+  The current behaviour where you have to click the checkbox or x is too confusing. So specifically,
+  it is just a normal, selectable row without the tick or cross buttons at the end. Pressing arrow
+  keys moves between rows like normal. More than one empty row can be created.
+
+- [x] Upgrade to the very latest safe-chain supported version of all dependencies
+
+- [] Do a sweep of the full code base for code quality based on our style guide
+
+- [] We should be using loro ephemeral state for tracking presence and active transaction. Make sure
+  you understand https://loro.dev/llms-full.txt and https://github.com/loro-dev/loro-mirror before
+  implementing.
 
 - [] Add description aliases - these are much like tags in that there is a single curated list of
   aliases. Stored as an optional ID on each transaction. There is a page ("Tx Descriptions" nav
@@ -159,15 +171,27 @@
 
     **Cell UX:** The description cell is a text input that always shows text — either the alias name
     (if one is set) or the original imported description (if no alias yet). It behaves like
-    InlineEditableText: click once to position cursor, then edit. As the user types, an autocomplete
-    dropdown appears showing existing aliases that match. The dropdown only mounts on hover or
-    keyboard navigation into the cell (not on every row) to keep the virtualized table performant.
+    InlineEditableText: _click once_ to position cursor, then edit. In other words, there is no
+    friction - the user can click any description in the table and have their cursor immediately at
+    that position in the clicked description. As the user types, an autocomplete dropdown appears
+    showing existing aliases that match. The dropdown only mounts on hover or keyboard navigation
+    into the cell (not on every row) to keep the virtualized table performant. The first item in the
+    autocomplete is NOT selected by default. The user must press down to focus the first element,
+    then enter to select it and have it populated into the description. Pressing up and down
+    navigates through the autocompleted, and enter accepts an item. Esc closes the autocomplete.
+    When the autocomplete is closed, pressing the up and down arrows moves focus to the next or
+    previous row (the normal behaviour).
 
     **Seamless alias creation:** The alias system is invisible to the user until it matters:
     - User imports transactions. Descriptions show as regular text. No aliases exist yet.
     - User clicks a description, edits it, presses Enter or blurs. If the text doesn't match an
       existing alias, one is automatically created and applied. No modal, no extra steps.
-    - If the text matches an existing alias in the dropdown, user can click it to apply that alias.
+    - If the partially typed text matches an existing alias in the dropdown, user can click it to
+      apply that alias (the visible description updates to the full alias). If the typed text
+      matches the alias, it is attached to the alias, even if the autocomplete option is not
+      clicked.
+    - For added transactions (rather than imported), a description automatically becomes an alias on
+      blur/enter.
     - First-time alias assignment (no previous alias) never shows a modal.
 
     **Editing an aliased description:** User clicks the cell, edits the text. On Enter/blur:
@@ -176,8 +200,8 @@
     - If the current alias has multiple transactions, a modal appears.
 
     **When an alias is set:** The original imported description text shows on hover via tooltip
-    (shadcn tooltip). For manually created transactions there is no original description — only the
-    alias name.
+    (shadcn tooltip) if the alias and description are different. For manually created transactions
+    there is no original description — only the alias name.
 
     **Manual transaction creation:** Same text input with autocomplete. Type a description, and on
     submit it creates or selects an alias. No raw description text is stored.
@@ -221,43 +245,54 @@
 - [] Add undo and redo buttons and standard ctrl + z / ctrl + shift + z / ctrl + y bindings. Use the
   standard loro UndoManager for this.
 
-- [] Change how automations work. They work differently for each field. For description aliases,
-  when you apply a description alias to a transaction on the transactions page where the description
-  text doesn't already match a rule, some controls appear inline below the field in the table. A
-  select that contains the options: 1. updating all 2. updating new 3. update all 4. update new.
-  There is a button with a tick icon next to the select. There is also an "only if $x" checkbox
-  (that restricts the rule to exact match on that amount x of the transaction) and "only this
-  account" checkbox (that restricts the rule to just the selected account). A tooltip should explain
-  that update all means update all existing and new transactions with the exact same description
-  text to have the alias. Update new means update only newer transactions (greater date than the
-  current transaction). The prefix "Updating" implies the change will apply automatically when the
-  row loses focus, or if you click the tick button. "Update" implies you have to manually click the
-  tick button. The created rule will apply for that exact description text (and optionally account
-  id and or amount) and will run for newly imported transactions. It does not apply to manually
-  created transactions, as they don't have description text (just a description alias). We remember
-  the user's choice of select and check boxes in a new user preferences part of the vault. There can
-  only be one rule for each description text with no account or amount constraints. This can be
-  superseded by rules matching description text for specific amounts, followed by rules for each
-  account, followed by rules for each account for each amount (there is a natural precedence). Rules
-  set the field on a transaction. There is no explicit link between the rule and the transaction.
-  However, for each transaction, we calculate the highest precedence rule that matches (i.e. the
-  description text is an exact match, and optionally the account and amount), if there is one. If
-  the transaction has the description alias implied by the rule, and the transaction is not
-  currently being edited, we show a small robot icon button that you can click to view and edit or
-  delete the rule inline in a popup. If the rule matches but the description alias is not the same
-  as the rule would imply, the robot icon is red (but otherwise works the same). In this case the
-  popup also has an "apply to this transaction" button. This should reuse the exact same UI as the
-  automations page. This UI should have an "apply to all" and "apply to new imports" button. If the
-  UI is open in the context of a transaction, apply to new imports implies newer that the current
-  transaction. If we're not in the context of a transaction, it means all new imports moving
-  forward. When a description alias is changed on a transaction in the transactions table, and it
-  has a matching rule (as calculated above to show the robot button), we then offer then same 4
-  select choices and checkboxes. This time, if applied, we update the rule rather than create one.
-  Automation rules for description, tags and person percentage attribution work similarly. For tags
-  there is an additional select after "only this account" that has two options: "add tags" or "set
-  tags" (that will clear existing tags). For person percentage attribution there is a column per
-  person. The rule applies to the whole set of percentage columns. It should span all the columns.
-  Unlike description alias rules, these other rules do apply to manually created transactions.
+- [] Change how automations work. They work differently for each field.
+    - For description aliases, when you apply a description alias to a transaction on the
+      transactions page where the description text doesn't already match a rule, some controls
+      appear.
+        - The controls should not cause the table to resize, should not occlude anything, and should
+          be close to the user's mouse - so they should either appear in an unfocused popup or
+          hovering to the right or below the description. The controls include:
+            - A select that contains the options: 1. updating all 2. updating new 3. update all 4.
+              update new.
+            - There is a button with a tick icon next to the select.
+            - There is also an "only if $x" checkbox (that restricts the rule to exact match on that
+              amount x of the transaction) and "only this account" checkbox (that restricts the rule
+              to just the selected account).
+            - A tooltip should explain that update all means update all existing and new
+              transactions with the exact same description text to have the alias. Update new means
+              update only newer transactions (greater date than the current transaction). The prefix
+              "Updating" implies the change will apply automatically when the row loses focus, or if
+              you click the tick button. "Update" implies you have to manually click the tick
+              button.
+        - The created rule will apply for that exact description text (and optionally account id and
+          or amount) moving forward, and will run for newly imported transactions. It does not apply
+          to manually created transactions, as they don't have description text (just a description
+          alias). We remember the user's last choices for the select and check boxes in a new user
+          preferences part of the vault. There can only be one rule for each description text with
+          no account or amount constraints. This can be superseded by rules matching description
+          text for specific amounts, followed by rules for each account, followed by rules for each
+          account for each amount (there is a natural precedence).
+    - Rules set the field on a transaction. There is no explicit link between the rule and the
+      transaction. However, for each transaction, we calculate the highest precedence rule that
+      matches (i.e. the description text is an exact match, and optionally the account and amount),
+      if there is one. If the transaction has the description alias implied by the rule, and the
+      transaction is not currently being edited, we show a small robot icon button that you can
+      click to view and edit or delete the rule inline in a popup. If the rule matches but the
+      description alias is not the same as the rule would imply, the robot icon is red (but
+      otherwise works the same). In this case the popup also has an "apply to this transaction"
+      button. This should reuse the exact same UI as the automations page. This UI should have an
+      "apply to all" and "apply to new imports" button. If the UI is open in the context of a
+      transaction, apply to new imports implies newer that the current transaction. If we're not in
+      the context of a transaction, it means all new imports moving forward. When a description
+      alias is changed on a transaction in the transactions table, and it has a matching rule (as
+      calculated above to show the robot button), we then offer then same 4 select choices and
+      checkboxes. This time, if applied, we update the rule rather than create one. Automation rules
+      for description, tags and person percentage attribution work similarly. For tags there is an
+      additional select after "only this account" that has two options: "add tags" or "set tags"
+      (that will clear existing tags). For person percentage attribution there is a column per
+      person. The rule applies to the whole set of percentage columns. It should span all the
+      columns. Unlike description alias rules, these other rules do apply to manually created
+      transactions.
 
 - [] We should save an importId on imported transactions. If the amount is edited we should save the
   amount in a originalAmount field and show that as a tooltip on the amount cell in the transactions

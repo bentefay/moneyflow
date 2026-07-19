@@ -8,9 +8,10 @@ literal field is `pending`. Workers may read but never edit it.
 - **Package / revision:** P01 / 02
 - **Scope IDs:** HS-002; authorized scratch marker only after independent package PASS and root
   integration
-- **State:** passed and integrated in `c2b89b6676271142ad6802dcf2a30acf8899df48`; HS-002
-  `completion_pending` for exact `[] -> [x]` from scratch SHA-256
-  `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b`; no dispatch allowed
+- **State:** passed and integrated in `c2b89b6676271142ad6802dcf2a30acf8899df48`; HS-002 marker
+  finalized `[] -> [x]`, scratch SHA-256
+  `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` ->
+  `dcd03b23aab92da4b0944d683ef4c0a363a56e70d6fc8775066502ed5f626ca7`
 - **Task:** `tasks/HS-002-dependency-upgrades.md`
 - **Original package BASE:** `d54a6285dd9b9f0824927b3d8a3a4e14c5315c73`
 - **Pre-implementation HEAD:** `fe00b2c5d574fffbb9bb92e1b8955bce9ec2a20f`
@@ -59,7 +60,6 @@ This section records the completed and integrated independent review.
 
 ## Next root action
 
-Execute the prepared HS-002 marker transaction exactly: verify the current rolling SHA and all 21
-normalized blocks, copy scratch to a private `mktemp` path, apply only the first-line `[] -> [x]`,
-require a one-line diff, remove the copy, reverify both frozen sources, and atomically finalize the
-event/requirement/rolling SHA. Do not dispatch P02 until the pending event is cleared.
+Verify the finalized P01/HS-002 boundary and frozen sources, then rewrite this handoff for P02
+revision 01 using `tasks/HS-017-animate-ui.md`, a new exact evidence path, and the post-marker HEAD
+as BASE/pre-implementation sentinel before dispatching `human_scratch_implementer`.
