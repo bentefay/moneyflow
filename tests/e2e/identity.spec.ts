@@ -201,6 +201,19 @@ test.describe("Identity", () => {
     }) => {
         const blocker = await context.newPage();
         const deleter = await context.newPage();
+        let vaultListResponseAt: number | undefined;
+        let snapshotRequestAt: number | undefined;
+
+        page.on("response", (response) => {
+            if (response.url().includes("/api/trpc/vault.list")) {
+                vaultListResponseAt = Date.now();
+            }
+        });
+        page.on("request", (request) => {
+            if (request.url().includes("/api/trpc/sync.getSnapshot")) {
+                snapshotRequestAt ??= Date.now();
+            }
+        });
 
         try {
             await blocker.goto("/");
@@ -241,6 +254,10 @@ test.describe("Identity", () => {
             await expect(
                 page.getByRole("heading", { name: "Vault Settings", level: 1 })
             ).toBeVisible();
+
+            expect(vaultListResponseAt).toBeDefined();
+            expect(snapshotRequestAt).toBeDefined();
+            expect(snapshotRequestAt! - vaultListResponseAt!).toBeLessThan(1000);
 
             // Degraded mode must remain writable: when IndexedDB is unavailable, CRDT updates
             // are retained in memory and sent directly to the server.

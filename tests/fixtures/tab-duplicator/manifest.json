@@ -1,0 +1,15 @@
+{
+    "manifest_version": 3,
+    "name": "MoneyFlow tab duplication test helper",
+    "version": "1.0.0",
+    "permissions": ["tabs"],
+    "background": {
+        "service_worker": "background.js"
+    },
+    "content_scripts": [
+        {
+            "matches": ["http://localhost:3000/*"],
+            "js": ["content.js"]
+        }
+    ]
+}

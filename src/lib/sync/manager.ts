@@ -42,6 +42,7 @@ const SNAPSHOT_OP_THRESHOLD = 500;
 const SNAPSHOT_BYTE_THRESHOLD = 5 * 1024 * 1024;
 /** Server sync throttle interval (ms) */
 const SERVER_SYNC_THROTTLE_MS = 2000;
+const LOCAL_CACHE_GRACE_MS = 250;
 
 /**
  * Options for creating a sync manager.
@@ -318,19 +319,115 @@ export class SyncManager {
      * Load initial state from IndexedDB and/or server.
      */
     private async loadInitialState(): Promise<void> {
-        // Try to load from IndexedDB first. A blocked database must not prevent the server-backed
-        // vault from opening; this can happen when a stale browser tab holds an old connection.
+        // IndexedDB is an optional cache, while the server is authoritative. Start the local read
+        // immediately, but do not let a request silently queued behind another tab hold the loading
+        // screen open. A healthy local cache gets a short head start below; only then do we request
+        // the server snapshot so normal startup does not download it unnecessarily.
+        const localStatePromise = Promise.all([
+            loadLocalSnapshot(this.vaultId),
+            getUnpushedOps(this.vaultId)
+        ]).then(
+            ([snapshot, unpushed]) => ({
+                ok: true as const,
+                snapshot,
+                unpushed
+            }),
+            (error: unknown) => ({ ok: false as const, error })
+        );
+
         let localSnapshot: Awaited<ReturnType<typeof loadLocalSnapshot>> = undefined;
         let localUnpushed: Awaited<ReturnType<typeof getUnpushedOps>> = [];
-        try {
-            [localSnapshot, localUnpushed] = await Promise.all([
-                loadLocalSnapshot(this.vaultId),
-                getUnpushedOps(this.vaultId)
+        type ServerSnapshot = Awaited<
+            ReturnType<NonNullable<SyncManagerOptions["trpc"]>["sync"]["getSnapshot"]["query"]>
+        >;
+        type ServerSnapshotResult =
+            | { ok: true; snapshot: ServerSnapshot }
+            | { ok: false; error: unknown };
+
+        let prefetchedServerSnapshot: ServerSnapshot | undefined;
+        let prefetchedServerSnapshotPromise: Promise<ServerSnapshotResult> | undefined;
+        let serverSnapshotWasApplied = false;
+
+        if (!this.trpc) {
+            const localState = await localStatePromise;
+            if (localState.ok) {
+                localSnapshot = localState.snapshot;
+                localUnpushed = localState.unpushed;
+            } else {
+                this.disableLocalPersistence(localState.error);
+            }
+        } else {
+            const startServerSnapshot = () => {
+                prefetchedServerSnapshotPromise ??= this.trpc!.sync.getSnapshot.query({
+                    vaultId: this.vaultId
+                }).then(
+                    (snapshot) => ({ ok: true as const, snapshot }),
+                    (error: unknown) => ({ ok: false as const, error })
+                );
+                return prefetchedServerSnapshotPromise;
+            };
+
+            const localStateOrGrace = await Promise.race([
+                localStatePromise.then((result) => ({ source: "local" as const, result })),
+                new Promise<{ source: "grace" }>((resolve) =>
+                    window.setTimeout(() => resolve({ source: "grace" }), LOCAL_CACHE_GRACE_MS)
+                )
             ]);
-        } catch (error) {
-            this.disableLocalPersistence(error);
+
+            if (localStateOrGrace.source === "local") {
+                if (localStateOrGrace.result.ok) {
+                    localSnapshot = localStateOrGrace.result.snapshot;
+                    localUnpushed = localStateOrGrace.result.unpushed;
+                } else {
+                    this.disableLocalPersistence(localStateOrGrace.result.error);
+                    const serverSnapshot = await startServerSnapshot();
+                    if (serverSnapshot.ok) prefetchedServerSnapshot = serverSnapshot.snapshot;
+                }
+            } else {
+                // The grace period elapsed. Race the still-pending cache read against the server;
+                // this preserves offline startup if the network fails while bounding online load.
+                const firstResult = await Promise.race([
+                    localStatePromise.then((result) => ({ source: "local" as const, result })),
+                    startServerSnapshot().then((result) => ({
+                        source: "server" as const,
+                        result
+                    }))
+                ]);
+
+                if (firstResult.source === "local") {
+                    if (firstResult.result.ok) {
+                        localSnapshot = firstResult.result.snapshot;
+                        localUnpushed = firstResult.result.unpushed;
+                    } else {
+                        this.disableLocalPersistence(firstResult.result.error);
+                        const serverSnapshot = await startServerSnapshot();
+                        if (serverSnapshot.ok) prefetchedServerSnapshot = serverSnapshot.snapshot;
+                    }
+                } else if (firstResult.result.ok) {
+                    prefetchedServerSnapshot = firstResult.result.snapshot;
+                    this.disableLocalPersistence(
+                        new Error("Local vault cache did not open before server data was available")
+                    );
+                } else {
+                    const localState = await localStatePromise;
+                    if (localState.ok) {
+                        localSnapshot = localState.snapshot;
+                        localUnpushed = localState.unpushed;
+                    } else {
+                        this.disableLocalPersistence(localState.error);
+                    }
+                }
+            }
+
+            if (!localSnapshot && prefetchedServerSnapshot) {
+                await this.applySnapshot(prefetchedServerSnapshot.encryptedData);
+                serverSnapshotWasApplied = true;
+                console.log("SyncManager: Loaded prefetched snapshot from server");
+            }
         }
-        const hasLocal = localSnapshot != null || localUnpushed.length > 0;
+
+        const hasLocal =
+            localSnapshot != null || localUnpushed.length > 0 || serverSnapshotWasApplied;
 
         if (localSnapshot) {
             // Load local snapshot
@@ -375,10 +472,16 @@ export class SyncManager {
             });
 
             if (response.type === "use_snapshot") {
-                // Server says to use snapshot (too many ops)
-                const snapshot = await this.trpc.sync.getSnapshot.query({ vaultId: this.vaultId });
+                // Server says to use snapshot (too many ops). Reuse the snapshot request started
+                // alongside IndexedDB, retrying only if that prefetch failed.
+                const prefetched = await prefetchedServerSnapshotPromise;
+                const snapshot = prefetched?.ok
+                    ? prefetched.snapshot
+                    : await this.trpc.sync.getSnapshot.query({ vaultId: this.vaultId });
                 if (snapshot) {
-                    await this.applySnapshot(snapshot.encryptedData);
+                    if (!serverSnapshotWasApplied) {
+                        await this.applySnapshot(snapshot.encryptedData);
+                    }
                     // The server is authoritative. Cache locally when available, but do not block
                     // app startup when browser storage is unavailable.
                     if (this.localPersistenceAvailable) {

@@ -172,7 +172,7 @@ export function VaultSelector({
                         {showAvatar && (
                             <span
                                 className={cn(
-                                    "flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold",
+                                    "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
                                     vaultColor.bg,
                                     vaultColor.text
                                 )}
@@ -180,7 +180,7 @@ export function VaultSelector({
                                 {firstLetter}
                             </span>
                         )}
-                        <span className="flex-1 text-left">{displayName}</span>
+                        <span className="min-w-0 flex-1 truncate text-left">{displayName}</span>
                         <RoleBadge role={selectedVault.role} />
                     </>
                 ) : (
@@ -188,7 +188,7 @@ export function VaultSelector({
                 )}
                 <ChevronDown
                     className={cn(
-                        "text-muted-foreground h-4 w-4 transition-transform",
+                        "text-muted-foreground h-4 w-4 shrink-0 transition-transform",
                         isOpen && "rotate-180"
                     )}
                 />
@@ -220,7 +220,12 @@ function RoleBadge({ role }: { role: VaultOption["role"] }) {
     };
 
     return (
-        <span className={cn("rounded px-1.5 py-0.5 text-xs font-medium capitalize", colors[role])}>
+        <span
+            className={cn(
+                "shrink-0 rounded px-1.5 py-0.5 text-xs font-medium capitalize",
+                colors[role]
+            )}
+        >
             {role}
         </span>
     );

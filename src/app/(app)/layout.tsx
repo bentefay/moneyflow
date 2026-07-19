@@ -158,12 +158,14 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
                     variant="ghost"
                     onClick={handleLogout}
                     className={cn(
-                        "text-muted-foreground hover:text-accent-foreground w-full justify-start font-medium",
+                        "text-muted-foreground hover:text-accent-foreground w-full min-w-0 justify-start overflow-hidden font-medium",
                         !isMobile && isCollapsed && "justify-center"
                     )}
                 >
-                    <LogOut className="h-4 w-4" />
-                    {(isMobile || !isCollapsed) && <span>Lock</span>}
+                    <LogOut className="h-4 w-4 shrink-0" />
+                    {(isMobile || !isCollapsed) && (
+                        <span className="min-w-0 overflow-hidden whitespace-nowrap">Lock</span>
+                    )}
                 </Button>
             </nav>
         </>
@@ -239,7 +241,10 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
                 {/* Logo & Collapse Toggle */}
                 <div className="flex h-12 items-center justify-between border-b px-4">
                     {!isCollapsed && (
-                        <Link href="/transactions" className="text-lg font-semibold">
+                        <Link
+                            href="/transactions"
+                            className="min-w-0 overflow-hidden text-lg font-semibold whitespace-nowrap"
+                        >
                             MoneyFlow
                         </Link>
                     )}
@@ -250,6 +255,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
                                 size="icon-sm"
                                 onClick={() => setIsCollapsed(!isCollapsed)}
                                 aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                                className="shrink-0"
                             >
                                 {isCollapsed ? (
                                     <ChevronRight className="h-4 w-4" />
@@ -288,10 +294,12 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 
                 {/* Vault Selector & Status - Expanded Mode */}
                 {!isCollapsed && (
-                    <div className="items-full flex flex-col border-b p-3">
+                    <div className="flex min-w-0 flex-col items-stretch border-b p-3">
                         <VaultSelector
-                            classNames={{ button: "w-full" }}
-                            className="w-full"
+                            classNames={{
+                                button: "w-full min-w-0 overflow-hidden whitespace-nowrap"
+                            }}
+                            className="min-w-0"
                             vaults={vaultOptions}
                             currentVaultName={currentVaultName}
                             isLoading={isVaultsLoading}
@@ -300,7 +308,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
                             }}
                             showAvatar
                         />
-                        <div className="ml-1 flex items-center justify-between gap-4 self-start rounded-b-lg border border-gray-100 bg-gray-50 py-1 pr-4 pl-2">
+                        <div className="ml-1 flex max-w-full min-w-0 items-center justify-between gap-4 self-start overflow-hidden rounded-b-lg border border-gray-100 bg-gray-50 py-1 pr-4 pl-2 whitespace-nowrap">
                             <SyncStatus
                                 state={syncState}
                                 hasUnsavedChanges={hasUnsavedChanges}
@@ -347,15 +355,17 @@ function NavLink({
             href={item.href}
             onClick={onClick}
             className={cn(
-                "hover:bg-accent hover:text-accent-foreground flex items-center gap-3 rounded-md px-3 py-2 text-sm",
+                "hover:bg-accent hover:text-accent-foreground flex min-w-0 items-center gap-3 overflow-hidden rounded-md px-3 py-2 text-sm whitespace-nowrap",
                 isCollapsed && "justify-center",
                 isActive
                     ? "bg-accent text-accent-foreground font-semibold"
                     : "text-muted-foreground font-medium"
             )}
         >
-            <Icon className="h-4 w-4" />
-            {!isCollapsed && <span>{item.label}</span>}
+            <Icon className="h-4 w-4 shrink-0" />
+            {!isCollapsed && (
+                <span className="min-w-0 overflow-hidden whitespace-nowrap">{item.label}</span>
+            )}
         </Link>
     );
 
