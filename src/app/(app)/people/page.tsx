@@ -11,20 +11,13 @@ import { useMemo } from "react";
 
 import { PeopleTable } from "@/components/features/people";
 import { useActiveVault } from "@/hooks/use-active-vault";
-import { useIdentity } from "@/hooks/use-identity";
-import { useVaultPresence } from "@/hooks/use-vault-presence";
 import { getSessionEncSecretKey } from "@/lib/crypto/session";
 
 /**
  * People page component.
  */
 export default function PeoplePage() {
-    // Vault & identity for presence
     const { activeVault } = useActiveVault();
-    const { pubkeyHash } = useIdentity();
-
-    // Presence (only active when vault & identity are available)
-    useVaultPresence(activeVault?.id ?? null, pubkeyHash ?? null);
 
     // Get encryption secret key for invite generation
     const encSecretKey = useMemo(() => {

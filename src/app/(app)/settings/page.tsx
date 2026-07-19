@@ -8,18 +8,8 @@
  */
 
 import { VaultSettingsForm } from "@/components/features/vault/VaultSettingsForm";
-import { useActiveVault } from "@/hooks/use-active-vault";
-import { useIdentity } from "@/hooks/use-identity";
-import { useVaultPresence } from "@/hooks/use-vault-presence";
 
 export default function SettingsPage() {
-    // Vault & identity for presence
-    const { activeVault } = useActiveVault();
-    const { pubkeyHash } = useIdentity();
-
-    // Presence (only active when vault & identity are available)
-    useVaultPresence(activeVault?.id ?? null, pubkeyHash ?? null);
-
     return (
         <div className="flex h-full flex-col">
             {/* Page header */}

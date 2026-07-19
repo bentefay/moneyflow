@@ -5,7 +5,10 @@ export default defineConfig({
     fullyParallel: true,
     forbidOnly: !!process.env.CI,
     retries: process.env.CI ? 2 : 0,
-    workers: process.env.CI ? 1 : undefined,
+    // The local Next.js/Supabase stack becomes navigation-bound with Playwright's
+    // default 50% CPU worker count (16 on common dev hosts). Four workers keeps
+    // parallel coverage while avoiding load-induced timeouts.
+    workers: process.env.CI ? 1 : 4,
     reporter: "html",
     timeout: 30000,
     use: {

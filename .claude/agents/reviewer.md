@@ -99,15 +99,16 @@ For each file or logical unit of change, evaluate against:
 
 ### Step 3b: Manual feature testing
 
-Use Playwright to manually test the new feature flows. First, verify the dev server is already
-running (check that `localhost:3000` or the configured port responds). If it's not running, ask
-`team-lead` to ask the user to start it — do not start it yourself.
+Use the repository-installed Playwright CLI to manually test the new feature flows. First, verify
+the dev server is already running (check that `localhost:3000` or the configured port responds). If
+it's not running, ask `team-lead` to ask the user to start it — do not start it yourself.
 
-Once confirmed running, write and run a short Playwright test file that exercises the key
-user-facing flows introduced by the change. Run it using the project's test commands (e.g.,
-`pnpm test:e2e <file>`). Never use `npx playwright` directly — always use the scripts defined in
-package.json. This is not about running the existing E2E suite — it's about you, as reviewer,
-confirming that the feature actually works as intended beyond what automated tests cover.
+Once confirmed running, use a unique non-persistent session
+(`pnpm exec playwright-cli -s=<session> open http://localhost:3000`) to exercise the key user-facing
+flows. Verify persistence with `reload`, then inspect `console error` and `requests`. Close the
+session and run `delete-data` when finished. Do not use Playwright MCP, `npx`, an ad-hoc script, or
+a temporary test file. This is not about running the existing E2E suite — it is a separate manual
+check that the feature works as intended beyond automated coverage.
 
 If the feature doesn't work as expected, report the failure with reproduction steps.
 

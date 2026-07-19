@@ -237,24 +237,32 @@ export function useIdentity(): UseIdentityReturn {
                 setSession(newSession);
                 setIsNewUser(result.isNew);
 
+                // Identity-scoped client state may still belong to a previously unlocked
+                // keypair. Clear the selected vault and invalidate its cached server list
+                // before choosing a vault for the new session.
+                setActiveVaultStorage(null);
+                await utils.vault.list.invalidate();
+
                 // Ensure user has a default vault (creates one if none exist)
                 // This is required for the authenticated app experience.
                 const vaultResult = await ensureDefaultVault({
                     api: {
-                        listVaults: () => utils.vault.list.fetch(),
+                        // Use the raw client so identity changes cannot reuse a fresh React Query
+                        // result belonging to the previous session.
+                        listVaults: () => utils.client.vault.list.query(),
                         createVault: (input) => createVaultMutation.mutateAsync(input),
                         saveSnapshot: (input) => saveSnapshotMutation.mutateAsync(input)
-                    }
+                    },
+                    // A newly registered identity cannot legitimately own an existing vault.
+                    // Skipping the list also makes the transition immune to stale cached data.
+                    force: result.isNew
                 });
 
                 // Set the vault as active
                 setActiveVaultStorage({ id: vaultResult.vaultId, name: vaultResult.name });
 
-                // Invalidate vault.list cache so dashboard will fetch fresh data
-                // This is critical because the cache may have empty list from before vault creation
-                if (vaultResult.created) {
-                    await utils.vault.list.invalidate();
-                }
+                // Always refetch under the current identity when the app layout mounts.
+                await utils.vault.list.invalidate();
 
                 setStatus("unlocked");
             } catch (err) {
@@ -295,20 +303,21 @@ export function useIdentity(): UseIdentityReturn {
             setSession(newSession);
             setIsNewUser(result.isNew);
 
+            setActiveVaultStorage(null);
+            await utils.vault.list.invalidate();
+
             // Ensure user has a default vault
             const vaultResult = await ensureDefaultVault({
                 api: {
-                    listVaults: () => utils.vault.list.fetch(),
+                    listVaults: () => utils.client.vault.list.query(),
                     createVault: (input) => createVaultMutation.mutateAsync(input),
                     saveSnapshot: (input) => saveSnapshotMutation.mutateAsync(input)
-                }
+                },
+                force: result.isNew
             });
             setActiveVaultStorage({ id: vaultResult.vaultId, name: vaultResult.name });
 
-            // Invalidate vault.list cache so dashboard will fetch fresh data
-            if (vaultResult.created) {
-                await utils.vault.list.invalidate();
-            }
+            await utils.vault.list.invalidate();
 
             setStatus("unlocked");
 
@@ -347,23 +356,26 @@ export function useIdentity(): UseIdentityReturn {
                 setSession(newSession);
                 setIsNewUser(result.isNew);
 
+                setActiveVaultStorage(null);
+                await utils.vault.list.invalidate();
+
                 // Ensure user has a default vault (edge case: returning user with no vaults)
                 const vaultResult = await ensureDefaultVault({
                     api: {
-                        listVaults: () => utils.vault.list.fetch(),
+                        listVaults: () => utils.client.vault.list.query(),
                         createVault: (input) => createVaultMutation.mutateAsync(input),
                         saveSnapshot: (input) => saveSnapshotMutation.mutateAsync(input)
-                    }
+                    },
+                    force: result.isNew
                 });
 
                 // Set the vault as active
                 setActiveVaultStorage({ id: vaultResult.vaultId, name: vaultResult.name });
 
-                // Invalidate vault.list cache so dashboard will fetch fresh data
-                if (vaultResult.created) {
+                if (vaultResult.created && !result.isNew) {
                     console.log(`Created default vault for returning user: ${vaultResult.vaultId}`);
-                    await utils.vault.list.invalidate();
                 }
+                await utils.vault.list.invalidate();
 
                 setStatus("unlocked");
 

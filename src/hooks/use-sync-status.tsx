@@ -133,7 +133,9 @@ export function usePollUnsavedChanges(vaultId: string | null, pollInterval = 100
         }
 
         // Check immediately
-        hasUnpushedOps(vaultId).then(setHasUnsaved);
+        hasUnpushedOps(vaultId)
+            .then(setHasUnsaved)
+            .catch(() => setHasUnsaved(false));
 
         // Poll periodically
         const interval = setInterval(async () => {

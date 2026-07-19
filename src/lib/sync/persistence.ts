@@ -81,8 +81,26 @@ interface VaultDBSchema extends DBSchema {
 
 const DB_NAME = "moneyflow-vault";
 const DB_VERSION = 1;
+const DB_OPEN_TIMEOUT_MS = 2000;
 
 let dbInstance: IDBPDatabase<VaultDBSchema> | null = null;
+let dbOpenPromise: Promise<IDBPDatabase<VaultDBSchema>> | null = null;
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+        const timeout = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+        promise.then(
+            (value) => {
+                window.clearTimeout(timeout);
+                resolve(value);
+            },
+            (error: unknown) => {
+                window.clearTimeout(timeout);
+                reject(error);
+            }
+        );
+    });
+}
 
 /**
  * Get or create the IndexedDB instance
@@ -92,29 +110,57 @@ export async function getDB(): Promise<IDBPDatabase<VaultDBSchema>> {
         return dbInstance;
     }
 
-    dbInstance = await openDB<VaultDBSchema>(DB_NAME, DB_VERSION, {
-        upgrade(db) {
-            // Ops store
-            if (!db.objectStoreNames.contains("ops")) {
-                const opsStore = db.createObjectStore("ops", { keyPath: "id" });
-                opsStore.createIndex("by-vault", "vault_id");
-                opsStore.createIndex("by-vault-pushed", ["vault_id", "pushed"]);
-                opsStore.createIndex("by-vault-created", ["vault_id", "created_at"]);
-            }
+    if (!dbOpenPromise) {
+        let openedDb: IDBPDatabase<VaultDBSchema> | null = null;
+        dbOpenPromise = openDB<VaultDBSchema>(DB_NAME, DB_VERSION, {
+            upgrade(db) {
+                // Ops store
+                if (!db.objectStoreNames.contains("ops")) {
+                    const opsStore = db.createObjectStore("ops", { keyPath: "id" });
+                    opsStore.createIndex("by-vault", "vault_id");
+                    opsStore.createIndex("by-vault-pushed", ["vault_id", "pushed"]);
+                    opsStore.createIndex("by-vault-created", ["vault_id", "created_at"]);
+                }
 
-            // Snapshots store (one per vault)
-            if (!db.objectStoreNames.contains("snapshots")) {
-                db.createObjectStore("snapshots", { keyPath: "vault_id" });
-            }
+                // Snapshots store (one per vault)
+                if (!db.objectStoreNames.contains("snapshots")) {
+                    db.createObjectStore("snapshots", { keyPath: "vault_id" });
+                }
 
-            // Sync metadata store
-            if (!db.objectStoreNames.contains("sync_meta")) {
-                db.createObjectStore("sync_meta", { keyPath: "key" });
+                // Sync metadata store
+                if (!db.objectStoreNames.contains("sync_meta")) {
+                    db.createObjectStore("sync_meta", { keyPath: "key" });
+                }
+            },
+            blocked() {
+                console.warn("IndexedDB open is blocked by another MoneyFlow tab");
+            },
+            blocking() {
+                // Let another tab upgrade or delete the cache instead of leaving its request
+                // blocked indefinitely.
+                openedDb?.close();
+                if (dbInstance === openedDb) dbInstance = null;
+            },
+            terminated() {
+                if (dbInstance === openedDb) dbInstance = null;
             }
-        }
-    });
+        })
+            .then((db) => {
+                openedDb = db;
+                dbInstance = db;
+                return db;
+            })
+            .catch((error: unknown) => {
+                dbOpenPromise = null;
+                throw error;
+            });
+    }
 
-    return dbInstance;
+    return withTimeout(
+        dbOpenPromise,
+        DB_OPEN_TIMEOUT_MS,
+        "Local vault storage is blocked by another tab or unavailable"
+    );
 }
 
 /**
@@ -125,6 +171,7 @@ export async function closeDB(): Promise<void> {
         dbInstance.close();
         dbInstance = null;
     }
+    dbOpenPromise = null;
 }
 
 /**

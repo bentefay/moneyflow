@@ -14,19 +14,24 @@ functionality.
 Use Playwright's test.step() to break complex flows into logical sections for readability and
 debugging.
 
-Use the next.js and playwright MCP servers to help with debugging. Assume the next.js server is
-already running (pnpm dev). The server automatically picks up changes. NEVER assume it is running
-with old code. Always fix flaky tests when you discover them. It doesn't matter if they were flaky
-before your change. Fix them now.
+Use the repository-installed `playwright-cli` for manual browser debugging; do not use Playwright
+MCP, `npx`, ad-hoc scripts, or temporary tests. Assume the next.js server is already running
+(`pnpm dev`). The server automatically picks up changes. NEVER assume it is running with old code.
+Always fix flaky tests when you discover them. It doesn't matter if they were flaky before your
+change. Fix them now.
 
 ## Auto-Approved Terminal Commands
 
-- `pnpm playwright test --reporter=line --max-failures=1 2>&1` - Run with fail-fast
-- `pnpm playwright test --reporter=json --max-failures=1 2>&1` - Use json reporter if you need
-  structured output
-- `pnpm playwright test --workers=4 --repeat-each=5 --reporter=line 2>&1 ` - Use --repeat-each for
-  flaky tests
-- Do NOT use `--debug` as it opens the GUI and will block forever.
+- `pnpm exec playwright test --retries=0 --reporter=line --max-failures=1 2>&1` - Run with fail-fast
+- `pnpm exec playwright test --retries=0 --reporter=json --max-failures=1 2>&1` - Use json reporter
+  if you need structured output
+- `pnpm exec playwright test --retries=0 --workers=4 --repeat-each=5 --reporter=line 2>&1` - Use
+  --repeat-each for flaky tests
+- `pnpm exec playwright-cli -s=<session> open http://localhost:3000` - Start a manual session
+- `pnpm exec playwright-cli -s=<session> snapshot` - Inspect the current page and element refs
+- `pnpm exec playwright-cli -s=<session> console error` - Check browser errors
+- `pnpm exec playwright-cli -s=<session> requests` - Check failed or pending requests
+- Do NOT use `--debug`, `--ui`, `--headed`, or `show`; they open a GUI and can block forever.
 
 ## Shared Helpers
 

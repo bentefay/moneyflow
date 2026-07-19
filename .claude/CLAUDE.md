@@ -25,8 +25,9 @@
 - `pnpm typecheck` - type checking
 - `pnpm lint` - ESLint
 - `pnpm format` / `pnpm format:check` - oxfmt formatting
+- `pnpm exec playwright-cli -s=<session> open http://localhost:3000` - manual browser testing
 - Use `bat -P` rather than `cat` (aliased to bat with pager)
-- Never run `playwright --debug` (opens GUI, blocks forever)
+- Never run Playwright with `--debug`, `--ui`, `--headed`, or `show` (opens a GUI and can block)
 - Never use parentheses in commit messages
 
 ## Tech Stack

@@ -102,7 +102,7 @@ export function useVaultPresence(
         }
 
         // Create new sync instance
-        const sync = createVaultRealtimeSync(vaultId, pubkeyHash);
+        const sync = createVaultRealtimeSync(vaultId, pubkeyHash, "presence");
         syncRef.current = sync;
 
         // Subscribe with callbacks

@@ -53,6 +53,25 @@ async function enterSeedPhrase(page: Page, words: string[]): Promise<void> {
     }
 }
 
+/** Complete account creation from the new-user intro and return the selected vault ID. */
+async function createAccountFromIntro(page: Page): Promise<string> {
+    await page.getByTestId("generate-button").click();
+    await page.getByTestId("seed-phrase-word").first().waitFor({ state: "visible" });
+    await page.getByTestId("confirm-checkbox").check();
+    await page.getByTestId("continue-button").click();
+
+    await page.waitForURL("**/settings", { timeout: 15000 });
+    await expect(page.getByRole("heading", { name: "Vault Settings", level: 1 })).toBeVisible({
+        timeout: 15000
+    });
+
+    return page.evaluate(() => {
+        const stored = localStorage.getItem("moneyflow_active_vault");
+        if (!stored) throw new Error("No active vault was stored after onboarding");
+        return (JSON.parse(stored) as { id: string }).id;
+    });
+}
+
 // ============================================================================
 // Journey Tests
 // ============================================================================
@@ -131,6 +150,117 @@ test.describe("Identity", () => {
             // New users land on settings page after vault creation
             await page.waitForURL("**/settings", { timeout: 15000 });
         });
+    });
+
+    test("creating another account in the same tab does not reuse the previous vault", async ({
+        page
+    }) => {
+        const consoleErrors: string[] = [];
+        page.on("console", (message) => {
+            if (message.type() === "error") consoleErrors.push(message.text());
+        });
+
+        await page.goto("/new-user");
+        const firstVaultId = await createAccountFromIntro(page);
+
+        // Start another onboarding flow in the same tab without clearing browser storage.
+        // The next identity must not receive the first keypair's persisted vault selection.
+        await page.goto("/new-user");
+        await expect(page.getByTestId("generate-button")).toBeVisible();
+        const secondVaultId = await createAccountFromIntro(page);
+
+        expect(secondVaultId).not.toBe(firstVaultId);
+        expect(consoleErrors.some((message) => message.includes("Key unwrap failed"))).toBe(false);
+    });
+
+    test("stale active-vault storage is repaired for the current identity", async ({ page }) => {
+        await page.goto("/new-user");
+        const expectedVaultId = await createAccountFromIntro(page);
+
+        await page.evaluate(() => {
+            localStorage.setItem(
+                "moneyflow_active_vault",
+                JSON.stringify({ id: "vault-from-a-different-identity" })
+            );
+        });
+        await page.reload();
+
+        await expect(page.getByRole("heading", { name: "Vault Settings", level: 1 })).toBeVisible({
+            timeout: 15000
+        });
+        const repairedVaultId = await page.evaluate(() => {
+            const stored = localStorage.getItem("moneyflow_active_vault");
+            return stored ? (JSON.parse(stored) as { id: string }).id : null;
+        });
+        expect(repairedVaultId).toBe(expectedVaultId);
+    });
+
+    test("onboarding loads from the server when IndexedDB is blocked", async ({
+        page,
+        context
+    }) => {
+        const blocker = await context.newPage();
+        const deleter = await context.newPage();
+
+        try {
+            await blocker.goto("/");
+            await blocker.evaluate(
+                () =>
+                    new Promise<void>((resolve, reject) => {
+                        const request = indexedDB.open("moneyflow-vault", 1);
+                        request.onupgradeneeded = () => {
+                            const db = request.result;
+                            const ops = db.createObjectStore("ops", { keyPath: "id" });
+                            ops.createIndex("by-vault", "vault_id");
+                            ops.createIndex("by-vault-pushed", ["vault_id", "pushed"]);
+                            ops.createIndex("by-vault-created", ["vault_id", "created_at"]);
+                            db.createObjectStore("snapshots", { keyPath: "vault_id" });
+                            db.createObjectStore("sync_meta", { keyPath: "key" });
+                        };
+                        request.onsuccess = () => {
+                            (
+                                globalThis as typeof globalThis & { blockingDb?: IDBDatabase }
+                            ).blockingDb = request.result;
+                            resolve();
+                        };
+                        request.onerror = () => reject(request.error);
+                    })
+            );
+
+            // Queue a deletion behind the open connection. Further database opens now wait
+            // indefinitely unless the app bounds local-cache startup and falls back to Supabase.
+            await deleter.goto("/");
+            await deleter.evaluate(() => {
+                (
+                    globalThis as typeof globalThis & { pendingDelete?: IDBOpenDBRequest }
+                ).pendingDelete = indexedDB.deleteDatabase("moneyflow-vault");
+            });
+
+            await page.goto("/new-user");
+            await createAccountFromIntro(page);
+            await expect(
+                page.getByRole("heading", { name: "Vault Settings", level: 1 })
+            ).toBeVisible();
+
+            // Degraded mode must remain writable: when IndexedDB is unavailable, CRDT updates
+            // are retained in memory and sent directly to the server.
+            const pushedUpdate = page.waitForResponse(
+                (response) => response.url().includes("/api/trpc/sync.pushOps") && response.ok(),
+                { timeout: 10000 }
+            );
+            await page.getByRole("textbox", { name: "Vault Name" }).fill("Server-backed vault");
+            await pushedUpdate;
+        } finally {
+            await blocker
+                .evaluate(() => {
+                    (
+                        globalThis as typeof globalThis & { blockingDb?: IDBDatabase }
+                    ).blockingDb?.close();
+                })
+                .catch(() => {});
+            await blocker.close();
+            await deleter.close();
+        }
     });
 
     test("unlock journey: enter seed phrase and access transactions", async ({ page, context }) => {

@@ -42,15 +42,14 @@ export function VaultProvider({ children }: VaultProviderProps) {
     const [initError, setInitError] = useState<string | null>(null);
 
     // Get active vault from context
-    const { activeVault } = useActiveVault();
+    const { activeVault, setActiveVault } = useActiveVault();
 
     // Get sync status context for updating state
     const syncStatusContext = useSyncStatusManager();
 
-    // Fetch vault list to get encrypted keys
-    const vaultListQuery = trpc.vault.list.useQuery(undefined, {
-        enabled: !!activeVault?.id
-    });
+    // Fetch the current identity's vaults even when local storage has no valid selection.
+    // This lets us recover from stale identity-scoped browser state.
+    const vaultListQuery = trpc.vault.list.useQuery();
 
     // Create stable LoroDoc instance
     const docRef = useRef<LoroDoc | null>(null);
@@ -63,6 +62,26 @@ export function VaultProvider({ children }: VaultProviderProps) {
     useEffect(() => {
         setIsClient(true);
     }, []);
+
+    // Reconcile the persisted selection with vaults the current identity can access.
+    // Without this, a vault ID left by another identity makes initialization return early
+    // forever and the app displays an endless spinner.
+    useEffect(() => {
+        if (!isClient || !vaultListQuery.data) return;
+
+        const vaults = vaultListQuery.data.vaults;
+        if (vaults.length === 0) {
+            setInitError("No accessible vaults were found for this account");
+            return;
+        }
+
+        const activeVaultIsAccessible = vaults.some((vault) => vault.id === activeVault?.id);
+        if (!activeVaultIsAccessible) {
+            setInitError(null);
+            setIsInitialized(false);
+            setActiveVault({ id: vaults[0].id });
+        }
+    }, [isClient, activeVault?.id, setActiveVault, vaultListQuery.data]);
 
     // Initialize SyncManager when we have vault info
     useEffect(() => {
@@ -178,20 +197,46 @@ export function VaultProvider({ children }: VaultProviderProps) {
         );
     }
 
-    // No vault selected
-    if (!activeVault?.id) {
-        return (
-            <div className="flex h-screen items-center justify-center">
-                <p className="text-muted-foreground">No vault selected</p>
-            </div>
-        );
-    }
-
     // Loading vault data
     if (vaultListQuery.isLoading) {
         return (
             <div className="flex h-screen items-center justify-center">
                 <div className="border-primary h-8 w-8 animate-spin rounded-full border-4 border-t-transparent" />
+            </div>
+        );
+    }
+
+    if (vaultListQuery.isError) {
+        return (
+            <div className="flex h-screen flex-col items-center justify-center gap-4">
+                <p className="text-destructive">Failed to load vaults</p>
+                <p className="text-muted-foreground text-sm">{vaultListQuery.error.message}</p>
+            </div>
+        );
+    }
+
+    if (!vaultListQuery.data) {
+        return (
+            <div className="flex h-screen items-center justify-center">
+                <div className="border-primary h-8 w-8 animate-spin rounded-full border-4 border-t-transparent" />
+            </div>
+        );
+    }
+
+    // Wait for the reconciliation effect to select an accessible vault. If the
+    // identity truly has none, show a terminal state rather than spinning forever.
+    if (!activeVault?.id) {
+        if (vaultListQuery.data.vaults.length > 0) {
+            return (
+                <div className="flex h-screen items-center justify-center">
+                    <div className="border-primary h-8 w-8 animate-spin rounded-full border-4 border-t-transparent" />
+                </div>
+            );
+        }
+
+        return (
+            <div className="flex h-screen items-center justify-center">
+                <p className="text-muted-foreground">No vault available</p>
             </div>
         );
     }

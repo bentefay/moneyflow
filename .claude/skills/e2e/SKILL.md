@@ -14,12 +14,32 @@ description: Playwright E2E testing patterns. Use when working on files in tests
 
 ## Commands
 
+`@playwright/test` is the automated test runner:
+
 ```bash
-pnpm playwright test --reporter=line --max-failures=1 2>&1
-pnpm playwright test --workers=4 --repeat-each=5 --reporter=line 2>&1  # flaky detection
+pnpm exec playwright test --retries=0 --reporter=line --max-failures=1 2>&1
+pnpm exec playwright test --retries=0 --workers=4 --repeat-each=5 --reporter=line 2>&1
 ```
 
-**NEVER use `--debug` or `--ui`** - opens GUI, blocks forever. This is a common mistake.
+`@playwright/cli` is the separate manual/agent browser CLI. Use the repository-installed binary, not
+Playwright MCP, `npx`, an ad-hoc Node script, or a temporary test file:
+
+```bash
+pnpm exec playwright-cli --help
+pnpm exec playwright-cli -s=<unique-session> open http://localhost:3000
+pnpm exec playwright-cli -s=<unique-session> snapshot
+pnpm exec playwright-cli -s=<unique-session> console error
+pnpm exec playwright-cli -s=<unique-session> requests
+pnpm exec playwright-cli -s=<unique-session> close
+pnpm exec playwright-cli -s=<unique-session> delete-data
+```
+
+Use a uniquely named, non-persistent session for each smoke test. Exercise the UI through CLI
+commands, verify persistence with `reload`, inspect console and failed network requests, then close
+the session, delete its data, and remove generated `.playwright-cli/` artifacts. Manual CLI smoke
+coverage complements the automated suite; neither substitutes for the other.
+
+**NEVER use `--debug`, `--ui`, `--headed`, or `show`** - they open a GUI and can block agents.
 
 ## Selectors (priority order)
 

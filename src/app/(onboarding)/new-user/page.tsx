@@ -12,7 +12,6 @@
 "use client";
 
 import { AlertTriangle, ArrowRight, CheckCircle2, Loader2, Sparkles } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 
 import { AuroraBackground, SeedPhraseDisplay } from "@/components/features/identity";
@@ -35,7 +34,6 @@ type Step = "intro" | "generate" | "confirm" | "complete";
 // ============================================================================
 
 export default function NewUserPage() {
-    const router = useRouter();
     const { generateNew, registerIdentity, error } = useIdentity();
 
     const [step, setStep] = useState<Step>("intro");
@@ -77,13 +75,15 @@ export default function NewUserPage() {
             // Register with server only after user confirms they saved the phrase
             await registerIdentity(pendingIdentity.current);
             setStep("complete");
-            // New users land on settings to configure vault defaults
-            router.push("/settings");
+            // Changing identity invalidates all in-memory authenticated state. Use a full
+            // navigation so React Query and the app providers cannot reuse the prior identity's
+            // cached vault list or active VaultProvider tree.
+            window.location.assign("/settings");
         } catch {
             // Error is handled by useIdentity hook
             setIsRegistering(false);
         }
-    }, [registerIdentity, router]);
+    }, [registerIdentity]);
 
     // -------------------------------------------------------------------------
     // Render step content

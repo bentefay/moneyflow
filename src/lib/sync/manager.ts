@@ -146,6 +146,11 @@ export class SyncManager {
     private throttledServerSync: ReturnType<typeof throttle> | null = null;
     private visibilityHandler: (() => void) | null = null;
     private beforeUnloadHandler: ((e: BeforeUnloadEvent) => void) | null = null;
+    private localPersistenceAvailable = true;
+    private memoryOps = new Map<
+        string,
+        { id: string; encryptedData: string; versionVector: string }
+    >();
 
     constructor(options: SyncManagerOptions) {
         this.vaultId = options.vaultId;
@@ -224,14 +229,25 @@ export class SyncManager {
                     const versionVector = this.getVersionVectorString();
                     const opId = crypto.randomUUID();
 
-                    // 2. Save to IndexedDB immediately (with pushed=false)
-                    await appendOp({
-                        id: opId,
-                        vault_id: this.vaultId,
-                        encrypted_data: encryptedData,
-                        version_vector: versionVector,
-                        pushed: false
-                    });
+                    // 2. Save to IndexedDB immediately (with pushed=false). If browser storage is
+                    // blocked, retain the operation in memory and sync it directly to the server.
+                    if (this.localPersistenceAvailable) {
+                        try {
+                            await appendOp({
+                                id: opId,
+                                vault_id: this.vaultId,
+                                encrypted_data: encryptedData,
+                                version_vector: versionVector,
+                                pushed: false
+                            });
+                        } catch (error) {
+                            this.disableLocalPersistence(error);
+                        }
+                    }
+
+                    if (!this.localPersistenceAvailable) {
+                        this.memoryOps.set(opId, { id: opId, encryptedData, versionVector });
+                    }
 
                     // 3. Update UI to show "saving" state
                     this.setSyncState("saving");
@@ -262,7 +278,14 @@ export class SyncManager {
 
         // Warn on beforeunload if there are unpushed changes
         this.beforeUnloadHandler = async (e: BeforeUnloadEvent) => {
-            const hasUnpushed = await hasUnpushedOps(this.vaultId);
+            let hasUnpushed = this.memoryOps.size > 0;
+            if (this.localPersistenceAvailable) {
+                try {
+                    hasUnpushed ||= await hasUnpushedOps(this.vaultId);
+                } catch (error) {
+                    this.disableLocalPersistence(error);
+                }
+            }
             if (hasUnpushed) {
                 // Attempt to flush
                 this.throttledServerSync?.flush();
@@ -295,10 +318,19 @@ export class SyncManager {
      * Load initial state from IndexedDB and/or server.
      */
     private async loadInitialState(): Promise<void> {
-        // Try to load from IndexedDB first
-        const localSnapshot = await loadLocalSnapshot(this.vaultId);
-        const localUnpushed = await getUnpushedOps(this.vaultId);
-        const hasLocal = localSnapshot !== null || localUnpushed.length > 0;
+        // Try to load from IndexedDB first. A blocked database must not prevent the server-backed
+        // vault from opening; this can happen when a stale browser tab holds an old connection.
+        let localSnapshot: Awaited<ReturnType<typeof loadLocalSnapshot>> = undefined;
+        let localUnpushed: Awaited<ReturnType<typeof getUnpushedOps>> = [];
+        try {
+            [localSnapshot, localUnpushed] = await Promise.all([
+                loadLocalSnapshot(this.vaultId),
+                getUnpushedOps(this.vaultId)
+            ]);
+        } catch (error) {
+            this.disableLocalPersistence(error);
+        }
+        const hasLocal = localSnapshot != null || localUnpushed.length > 0;
 
         if (localSnapshot) {
             // Load local snapshot
@@ -332,8 +364,7 @@ export class SyncManager {
         }
 
         try {
-            // Check if we have unpushed ops
-            const hasUnpushed = await hasUnpushedOps(this.vaultId);
+            const hasUnpushed = localUnpushed.length > 0;
             const versionVector = this.getVersionVectorString();
 
             // Get updates from server
@@ -348,12 +379,19 @@ export class SyncManager {
                 const snapshot = await this.trpc.sync.getSnapshot.query({ vaultId: this.vaultId });
                 if (snapshot) {
                     await this.applySnapshot(snapshot.encryptedData);
-                    // Save to local IndexedDB
-                    await saveLocalSnapshot({
-                        vault_id: this.vaultId,
-                        encrypted_data: snapshot.encryptedData,
-                        version_vector: snapshot.versionVector
-                    });
+                    // The server is authoritative. Cache locally when available, but do not block
+                    // app startup when browser storage is unavailable.
+                    if (this.localPersistenceAvailable) {
+                        try {
+                            await saveLocalSnapshot({
+                                vault_id: this.vaultId,
+                                encrypted_data: snapshot.encryptedData,
+                                version_vector: snapshot.versionVector
+                            });
+                        } catch (error) {
+                            this.disableLocalPersistence(error);
+                        }
+                    }
                     console.log("SyncManager: Loaded snapshot from server");
                 }
             } else if (response.type === "ops") {
@@ -439,8 +477,26 @@ export class SyncManager {
         this.setSyncState("syncing");
 
         try {
-            // Get unpushed ops from IndexedDB
-            const unpushedOps = await getUnpushedOps(this.vaultId);
+            let localOps: Awaited<ReturnType<typeof getUnpushedOps>> = [];
+            if (this.localPersistenceAvailable) {
+                try {
+                    localOps = await getUnpushedOps(this.vaultId);
+                } catch (error) {
+                    this.disableLocalPersistence(error);
+                }
+            }
+
+            const memoryOps = [...this.memoryOps.values()];
+            const unpushedOps = [
+                ...localOps.map((op) => ({
+                    id: op.id,
+                    encryptedData: op.encrypted_data,
+                    versionVector: op.version_vector
+                })),
+                ...memoryOps
+            ].filter(
+                (op, index, ops) => ops.findIndex((candidate) => candidate.id === op.id) === index
+            );
 
             if (unpushedOps.length === 0) {
                 this.setSyncState("idle");
@@ -448,22 +504,25 @@ export class SyncManager {
             }
 
             // Push to server
-            const result = await this.trpc.sync.pushOps.mutate({
+            await this.trpc.sync.pushOps.mutate({
                 vaultId: this.vaultId,
-                ops: unpushedOps.map((op) => ({
-                    id: op.id,
-                    encryptedData: op.encrypted_data,
-                    versionVector: op.version_vector
-                }))
+                ops: unpushedOps
             });
 
-            // Mark as pushed in IndexedDB
-            if (result.insertedIds.length > 0) {
-                await markOpsPushed(result.insertedIds);
+            // A successful idempotent request means every attempted ID is now on the server,
+            // including IDs that already existed and were therefore not returned as inserted.
+            const pushedIds = unpushedOps.map((op) => op.id);
+            for (const id of pushedIds) this.memoryOps.delete(id);
+            if (this.localPersistenceAvailable && pushedIds.length > 0) {
+                try {
+                    await markOpsPushed(pushedIds);
+                } catch (error) {
+                    this.disableLocalPersistence(error);
+                }
             }
 
             // Check if we should create a snapshot
-            await this.maybeCreateSnapshot();
+            if (this.localPersistenceAvailable) await this.maybeCreateSnapshot();
 
             // Update last synced version
             this.lastSyncedVersion = this.doc.version();
@@ -516,12 +575,18 @@ export class SyncManager {
                 versionVector
             });
 
-            // Save locally
-            await saveLocalSnapshot({
-                vault_id: this.vaultId,
-                encrypted_data: encryptedSnapshot.encryptedData,
-                version_vector: versionVector
-            });
+            // Save locally when the browser cache is available.
+            if (this.localPersistenceAvailable) {
+                try {
+                    await saveLocalSnapshot({
+                        vault_id: this.vaultId,
+                        encrypted_data: encryptedSnapshot.encryptedData,
+                        version_vector: versionVector
+                    });
+                } catch (error) {
+                    this.disableLocalPersistence(error);
+                }
+            }
 
             console.log("SyncManager: Snapshot created and pushed");
         } catch (error) {
@@ -554,6 +619,15 @@ export class SyncManager {
     async forceSync(): Promise<void> {
         this.lastSyncedVersion = null;
         await this.pushToServer();
+    }
+
+    private disableLocalPersistence(error: unknown): void {
+        if (!this.localPersistenceAvailable) return;
+        this.localPersistenceAvailable = false;
+        console.warn(
+            "Local vault cache unavailable; continuing with direct server sync:",
+            error instanceof Error ? error.message : String(error)
+        );
     }
 
     /**

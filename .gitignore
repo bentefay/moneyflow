@@ -37,6 +37,7 @@ coverage/
 .nyc_output/
 playwright-report/
 test-results/
+.playwright-cli/
 
 # TypeScript
 *.tsbuildinfo

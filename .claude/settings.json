@@ -13,9 +13,9 @@
             "Bash(pnpm test:e2e:*)",
             "Bash(git commit:*)",
             "Bash(pnpm exec playwright test:*)",
+            "Bash(pnpm exec playwright-cli:*)",
             "Bash(find:*)",
             "Bash(tail:*)",
-            "Bash(pnpm playwright:*)",
             "Bash(pnpm vitest:*)"
         ]
     },

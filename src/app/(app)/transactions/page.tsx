@@ -25,15 +25,11 @@ import {
     TransactionTableToolbar
 } from "@/components/features/transactions";
 import { useToast } from "@/components/ui/toast";
-import { useActiveVault } from "@/hooks/use-active-vault";
-import { useIdentity } from "@/hooks/use-identity";
-
 /** Threshold for showing warning when selecting all */
 const LARGE_SELECTION_THRESHOLD = 500;
 
 import { Temporal } from "temporal-polyfill";
 
-import { useVaultPresence } from "@/hooks/use-vault-presence";
 import {
     useActiveAccounts,
     useActivePeople,
@@ -79,13 +75,6 @@ export default function TransactionsPage() {
     const aliases = useDescriptionAliases();
     const statuses = useStatuses();
     const people = useActivePeople();
-
-    // Vault & identity for presence
-    const { activeVault } = useActiveVault();
-    const { pubkeyHash } = useIdentity();
-
-    // Presence (only active when vault & identity are available)
-    useVaultPresence(activeVault?.id ?? null, pubkeyHash ?? null);
 
     // Transaction mutations from hierarchical structure
     const {

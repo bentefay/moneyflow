@@ -9,19 +9,12 @@
 import { AutomationsTable } from "@/components/features/automations";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useActiveVault } from "@/hooks/use-active-vault";
-import { useIdentity } from "@/hooks/use-identity";
-import { useVaultPresence } from "@/hooks/use-vault-presence";
 
 /**
  * Automations management page component.
  */
 export default function AutomationsPage() {
-    // Vault & identity for presence
     const { activeVault } = useActiveVault();
-    const { pubkeyHash } = useIdentity();
-
-    // Presence (only active when vault & identity are available)
-    useVaultPresence(activeVault?.id ?? null, pubkeyHash ?? null);
 
     return (
         <div className="flex h-full flex-col">

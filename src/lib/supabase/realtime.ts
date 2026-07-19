@@ -13,6 +13,8 @@ import type { Database } from "./types";
 
 type VaultUpdateRow = Database["public"]["Tables"]["vault_updates"]["Row"];
 
+export type VaultRealtimePurpose = "sync" | "presence";
+
 /**
  * Callback for receiving new updates.
  */
@@ -43,13 +45,15 @@ export class VaultRealtimeSync {
     private channel: RealtimeChannel | null = null;
     private vaultId: string;
     private pubkeyHash: string;
+    private purpose: VaultRealtimePurpose;
     private onUpdate: OnUpdateCallback | null = null;
     private onPresence: OnPresenceCallback | null = null;
     private isSubscribed = false;
 
-    constructor(vaultId: string, pubkeyHash: string) {
+    constructor(vaultId: string, pubkeyHash: string, purpose: VaultRealtimePurpose = "sync") {
         this.vaultId = vaultId;
         this.pubkeyHash = pubkeyHash;
+        this.purpose = purpose;
     }
 
     /**
@@ -66,8 +70,9 @@ export class VaultRealtimeSync {
 
         const supabase = createSupabaseClientForBrowser();
 
-        // Create channel for this vault
-        this.channel = supabase.channel(`vault:${this.vaultId}`, {
+        // Supabase reuses channels by topic. Sync and presence need separate topics so each
+        // subscriber can register its callbacks before subscribe() without colliding.
+        this.channel = supabase.channel(`vault:${this.vaultId}:${this.purpose}`, {
             config: {
                 presence: {
                     key: this.pubkeyHash
@@ -75,9 +80,8 @@ export class VaultRealtimeSync {
             }
         });
 
-        // Subscribe to vault_updates inserts
-        this.channel
-            .on<VaultUpdateRow>(
+        if (this.onUpdate) {
+            this.channel.on<VaultUpdateRow>(
                 "postgres_changes",
                 {
                     event: "INSERT",
@@ -98,9 +102,11 @@ export class VaultRealtimeSync {
                         });
                     }
                 }
-            )
-            // Track presence
-            .on("presence", { event: "sync" }, () => {
+            );
+        }
+
+        if (this.onPresence) {
+            this.channel.on("presence", { event: "sync" }, () => {
                 if (this.channel && this.onPresence) {
                     const state = this.channel.presenceState();
                     const presenceList = Object.entries(state).map(([key, presences]) => {
@@ -116,17 +122,19 @@ export class VaultRealtimeSync {
                     });
                     this.onPresence(presenceList);
                 }
-            })
-            .subscribe(async (status) => {
-                if (status === "SUBSCRIBED") {
-                    this.isSubscribed = true;
-                    // Track this user's presence
-                    await this.channel?.track({
-                        joined_at: Temporal.Now.instant().toString(),
-                        last_seen: Temporal.Now.instant().toString()
-                    });
-                }
             });
+        }
+
+        this.channel.subscribe(async (status) => {
+            if (status === "SUBSCRIBED") {
+                this.isSubscribed = true;
+                // Track this user's presence
+                await this.channel?.track({
+                    joined_at: Temporal.Now.instant().toString(),
+                    last_seen: Temporal.Now.instant().toString()
+                });
+            }
+        });
     }
 
     /**
@@ -165,6 +173,10 @@ export class VaultRealtimeSync {
 /**
  * Create a realtime sync instance for a vault.
  */
-export function createVaultRealtimeSync(vaultId: string, pubkeyHash: string): VaultRealtimeSync {
-    return new VaultRealtimeSync(vaultId, pubkeyHash);
+export function createVaultRealtimeSync(
+    vaultId: string,
+    pubkeyHash: string,
+    purpose: VaultRealtimePurpose = "sync"
+): VaultRealtimeSync {
+    return new VaultRealtimeSync(vaultId, pubkeyHash, purpose);
 }

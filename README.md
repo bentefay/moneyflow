@@ -69,6 +69,14 @@ pnpm test:e2e
 
 # E2E tests with UI
 pnpm test:e2e:ui
+
+# Manual browser smoke testing (agent-friendly, no Playwright MCP)
+pnpm browser:install
+pnpm exec playwright-cli -s=smoke open http://localhost:3000
+pnpm exec playwright-cli -s=smoke snapshot
+pnpm exec playwright-cli -s=smoke console error
+pnpm exec playwright-cli -s=smoke close
+pnpm exec playwright-cli -s=smoke delete-data
 ```
 
 ## 📁 Project Structure

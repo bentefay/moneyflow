@@ -68,24 +68,17 @@ async function createTestTransaction(
 }
 
 /**
- * Toggle a Radix checkbox by focusing and pressing Space.
- * Radix checkboxes don't respond to Playwright's click() method,
- * so we use keyboard interaction instead.
+ * Toggle a Radix checkbox with a real pointer click. This exercises the component's
+ * click handler and supports modifiers for range-selection tests.
  *
  * @param checkbox - The checkbox locator
- * @param modifiers - Optional keyboard modifiers (e.g., ["Shift"] for shift-click)
+ * @param modifiers - Optional pointer modifiers (e.g., ["Shift"] for shift-click)
  */
 async function toggleCheckbox(
     checkbox: import("@playwright/test").Locator,
     modifiers?: ("Shift" | "Control" | "Alt" | "Meta")[]
 ) {
-    await checkbox.focus();
-    if (modifiers?.includes("Shift")) {
-        // For Shift+Space, hold Shift while pressing Space
-        await checkbox.press("Shift+Space");
-    } else {
-        await checkbox.press("Space");
-    }
+    await checkbox.click({ modifiers });
 }
 
 // ============================================================================
@@ -745,13 +738,18 @@ test.describe("Transactions", () => {
                 await createTestTransaction(page, { description: "Row 1 Store", amount: "-10.00" });
                 await createTestTransaction(page, { description: "Row 2 Store", amount: "-20.00" });
                 await createTestTransaction(page, { description: "Row 3 Store", amount: "-30.00" });
+
+                // The row appears before the derived toolbar count and sort order always settle.
+                // Wait for the complete table state before testing positional navigation.
+                await expect(page.getByText("3 transactions", { exact: true })).toBeVisible();
             });
 
             await test.step("focus first row description and press arrow down", async () => {
+                // Use the stable value rather than a live `.first()` locator: a late CRDT render
+                // can reorder newly inserted rows between click and focus assertion.
                 const firstRowDescription = page
-                    .locator('[data-testid="transaction-row"]')
-                    .first()
-                    .locator('[data-testid="description-editable"]');
+                    .getByRole("row", { name: /Row 3 Store/ })
+                    .getByTestId("description-editable");
 
                 await firstRowDescription.click();
                 await expect(firstRowDescription).toBeFocused();
@@ -761,9 +759,8 @@ test.describe("Transactions", () => {
 
                 // Second row description should now be focused
                 const secondRowDescription = page
-                    .locator('[data-testid="transaction-row"]')
-                    .nth(1)
-                    .locator('[data-testid="description-editable"]');
+                    .getByRole("row", { name: /Row 2 Store/ })
+                    .getByTestId("description-editable");
 
                 await expect(secondRowDescription).toBeFocused();
             });
@@ -772,9 +769,8 @@ test.describe("Transactions", () => {
                 await page.keyboard.press("ArrowDown");
 
                 const thirdRowDescription = page
-                    .locator('[data-testid="transaction-row"]')
-                    .nth(2)
-                    .locator('[data-testid="description-editable"]');
+                    .getByRole("row", { name: /Row 1 Store/ })
+                    .getByTestId("description-editable");
 
                 await expect(thirdRowDescription).toBeFocused();
             });
@@ -783,9 +779,8 @@ test.describe("Transactions", () => {
                 await page.keyboard.press("ArrowUp");
 
                 const secondRowDescription = page
-                    .locator('[data-testid="transaction-row"]')
-                    .nth(1)
-                    .locator('[data-testid="description-editable"]');
+                    .getByRole("row", { name: /Row 2 Store/ })
+                    .getByTestId("description-editable");
 
                 await expect(secondRowDescription).toBeFocused();
             });
@@ -862,14 +857,17 @@ test.describe("Transactions", () => {
                     amount: "-25.00"
                 });
                 await createTestTransaction(page, { description: "Other Row", amount: "-35.00" });
+
+                await expect(page.getByText("2 transactions", { exact: true })).toBeVisible();
             });
 
             await test.step("position cursor in middle of text - arrow keys move cursor not focus", async () => {
-                const row = page.locator('[data-testid="transaction-row"]').first();
-                const descriptionInput = row.locator('[data-testid="description-editable"]');
+                const descriptionInput = page
+                    .getByRole("row", { name: /Other Row/ })
+                    .getByTestId("description-editable");
 
                 await descriptionInput.click();
-                // Position cursor in the middle (after "Bound")
+                // Position cursor in the middle (after "Other")
                 await page.keyboard.press("Home");
                 await page.keyboard.press("ArrowRight");
                 await page.keyboard.press("ArrowRight");
@@ -889,9 +887,8 @@ test.describe("Transactions", () => {
                 await page.keyboard.press("ArrowDown");
 
                 const secondRowDescription = page
-                    .locator('[data-testid="transaction-row"]')
-                    .nth(1)
-                    .locator('[data-testid="description-editable"]');
+                    .getByRole("row", { name: /Boundary Test/ })
+                    .getByTestId("description-editable");
 
                 await expect(secondRowDescription).toBeFocused();
             });
@@ -910,11 +907,14 @@ test.describe("Transactions", () => {
                     description: "Status Nav 2",
                     amount: "-20.00"
                 });
+
+                await expect(page.getByText("2 transactions", { exact: true })).toBeVisible();
             });
 
             await test.step("focus status cell and verify arrow down navigates to next row", async () => {
-                const firstRow = page.locator('[data-testid="transaction-row"]').first();
-                const firstStatus = firstRow.locator('[data-testid="status-editable"]');
+                const firstStatus = page
+                    .getByRole("row", { name: /Status Nav 2/ })
+                    .getByTestId("status-editable");
 
                 // Click to focus (not open)
                 await firstStatus.focus();
@@ -927,8 +927,9 @@ test.describe("Transactions", () => {
                 await page.keyboard.press("ArrowDown");
 
                 // Second row status should be focused
-                const secondRow = page.locator('[data-testid="transaction-row"]').nth(1);
-                const secondStatus = secondRow.locator('[data-testid="status-editable"]');
+                const secondStatus = page
+                    .getByRole("row", { name: /Status Nav 1/ })
+                    .getByTestId("status-editable");
                 await expect(secondStatus).toBeFocused();
 
                 // Dropdown should still be closed
@@ -1043,10 +1044,12 @@ test.describe("Transactions", () => {
                     description: "Checkbox Test 2",
                     amount: "-35.00"
                 });
+
+                await expect(page.getByText("2 transactions", { exact: true })).toBeVisible();
             });
 
             await test.step("click checkbox to select first row", async () => {
-                const firstRow = page.locator('[data-testid="transaction-row"]').first();
+                const firstRow = page.getByRole("row", { name: /Checkbox Test 2/ });
                 const checkboxButton = firstRow.locator('[data-testid="row-checkbox"] button');
 
                 await expect(checkboxButton).toBeVisible();
@@ -1065,7 +1068,7 @@ test.describe("Transactions", () => {
             });
 
             await test.step("clicking checkbox again deselects", async () => {
-                const firstRow = page.locator('[data-testid="transaction-row"]').first();
+                const firstRow = page.getByRole("row", { name: /Checkbox Test 2/ });
                 const checkboxButton = firstRow.locator('[data-testid="row-checkbox"] button');
 
                 await toggleCheckbox(checkboxButton);
@@ -1127,6 +1130,10 @@ test.describe("Transactions", () => {
                     description: "Select All 3",
                     amount: "-30.00"
                 });
+
+                // A new row can render before the filtered transaction list used by select-all
+                // has committed. The toolbar count reflects the state the handler will select.
+                await expect(page.getByText("3 transactions", { exact: true })).toBeVisible();
             });
 
             await test.step("click header checkbox to select all", async () => {
@@ -1409,10 +1416,14 @@ test.describe("Transactions", () => {
                     description: "Clear Test 2",
                     amount: "-20.00"
                 });
+
+                await expect(page.getByText("2 transactions", { exact: true })).toBeVisible();
             });
 
             await test.step("select transactions and verify toolbar appears", async () => {
-                const headerCheckbox = page.locator('[data-testid="header-checkbox"] button');
+                const headerCheckbox = page.getByRole("checkbox", {
+                    name: "Select all transactions"
+                });
                 await toggleCheckbox(headerCheckbox);
 
                 const toolbar = page.locator('[data-testid="bulk-edit-toolbar"]');
@@ -1420,7 +1431,9 @@ test.describe("Transactions", () => {
             });
 
             await test.step("clear selection with header checkbox", async () => {
-                const headerCheckbox = page.locator('[data-testid="header-checkbox"] button');
+                const headerCheckbox = page.getByRole("checkbox", {
+                    name: "Deselect all transactions"
+                });
                 await toggleCheckbox(headerCheckbox);
 
                 // Toolbar should disappear

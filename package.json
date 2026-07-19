@@ -12,9 +12,11 @@
         "format:check": "oxfmt --check",
         "test": "vitest run",
         "test:watch": "vitest",
-        "test:e2e": "playwright install && playwright test --reporter=list",
-        "test:e2e:ui": "playwright install && playwright test --ui",
-        "test:e2e:report": "playwright install && playwright test",
+        "test:e2e": "playwright install chromium && playwright test --reporter=list",
+        "test:e2e:ui": "playwright install chromium && playwright test --ui",
+        "test:e2e:report": "playwright install chromium && playwright test",
+        "browser": "playwright-cli",
+        "browser:install": "playwright-cli install-browser chromium",
         "db:start": "pnpm exec supabase start",
         "db:stop": "pnpm exec supabase stop",
         "db:reset": "pnpm exec supabase db reset",
@@ -69,6 +71,7 @@
         "zod": "4.3.6"
     },
     "devDependencies": {
+        "@playwright/cli": "0.1.17",
         "@playwright/test": "1.59.1",
         "@tailwindcss/postcss": "4.2.2",
         "@testing-library/dom": "10.4.1",

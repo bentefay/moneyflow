@@ -18,7 +18,7 @@
         pkgs = nixpkgs.legacyPackages.${system};
 
         # Safe-chain binary (pre-built from Aikido releases)
-        safe-chain-version = "1.4.7";
+        safe-chain-version = "1.5.13";
 
         safe-chain-platformMap = {
           "x86_64-linux" = "linuxstatic-x64";
@@ -30,10 +30,10 @@
         safe-chain-platform = safe-chain-platformMap.${system};
 
         safe-chain-hashes = {
-          "x86_64-linux" = "14hgabcwyfg87cch71k8sdn071x532ahn3w5mfcqnqjy9h8qc014";
-          "aarch64-linux" = "1wg7yhzqdhs36dzcs3a5147vym53wg99hc7p9h58sdm9s0f920m0";
-          "x86_64-darwin" = "0kc2myvqhk5xc1a3gixfdln1aj9zyrfjxmvq8sn9fm4j61ip2mfp";
-          "aarch64-darwin" = "093qs22isx7kizfhb9p4im6gqx1yffvh6a2yxjvj7vdbf1gqwd5r";
+          "x86_64-linux" = "sha256-4bvstimrPP7hK0HJ+xVm/n4+6qnY1B4rQHB7Y7Qr5Yc=";
+          "aarch64-linux" = "sha256-BPmSzEwdCwY9DFfxj6IRGQ3KtBmGP4hfxwsXtSoIrog=";
+          "x86_64-darwin" = "sha256-ucQBMSLRnBDfIUPUkeXvEm7aPZM8wcGMnue9LR21GYs=";
+          "aarch64-darwin" = "sha256-JsI+OmqLc6WyUeGXA7IOBkol3ECXST781IbKeZ3hqCA=";
         };
 
         safe-chain = pkgs.stdenv.mkDerivation {
@@ -51,7 +51,9 @@
           dontStrip = true;
 
           installPhase = ''
-            install -m755 -D $src $out/bin/safe-chain
+            # Keep the binary outside bin/ so safe-chain stores its generated
+            # certificate under the writable user directory, not the Nix store.
+            install -m755 -D $src $out/libexec/safe-chain-bin
           '';
 
           meta = with pkgs.lib; {
@@ -62,15 +64,20 @@
           };
         };
 
-        # Safe-chain wrapped pnpm with dlx blocked
+        # Safe-chain wrapped pnpm with dlx blocked. Lifecycle-only commands run
+        # directly so their children do not inherit safe-chain's registry proxy.
         pnpm-safe = pkgs.writeShellScriptBin "pnpm" ''
           case "$1" in
             dlx)
               echo "pnpm dlx: blocked by safe-chain policy. Install as a devDependency instead." >&2
               exit 1
               ;;
+            run|exec|node|test|start|stop|restart)
+              exec ${pkgs.pnpm}/bin/pnpm "$@"
+              ;;
           esac
-          PATH="${pkgs.pnpm}/bin:${pkgs.nodejs_22}/bin:$PATH" exec ${safe-chain}/bin/safe-chain pnpm "$@"
+          unset PKG_EXECPATH
+          PATH="${pkgs.pnpm}/bin:${pkgs.nodejs_22}/bin:$PATH" exec ${safe-chain}/libexec/safe-chain-bin pnpm "$@"
         '';
 
         # Block pnpx (alias for pnpm dlx)
@@ -106,7 +113,8 @@
               exit 1
               ;;
             --version|-v)
-              exec ${safe-chain}/bin/safe-chain "$@"
+              unset PKG_EXECPATH
+              exec ${safe-chain}/libexec/safe-chain-bin "$@"
               ;;
             *)
               echo "safe-chain $1: blocked. The flake handles safe-chain integration." >&2
@@ -139,6 +147,13 @@
           shellHook = ''
             uv sync --quiet
             export PATH="$PWD/.venv/bin:$PATH"
+            ${pkgs.lib.optionalString pkgs.stdenv.isLinux ''
+              # Playwright 1.59 predates Ubuntu 26.04 detection. Its Ubuntu 24.04
+              # browser build is compatible and avoids requiring a system Chrome.
+              export PLAYWRIGHT_HOST_PLATFORM_OVERRIDE="ubuntu24.04-${
+                if pkgs.stdenv.hostPlatform.isAarch64 then "arm64" else "x64"
+              }"
+            ''}
 
             # Background check for safe-chain updates (minor/major only)
             (
