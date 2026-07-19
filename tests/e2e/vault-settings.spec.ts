@@ -9,13 +9,7 @@
 
 import { expect, type Page, test } from "@playwright/test";
 
-import {
-    clearSession,
-    createNewIdentity,
-    enterSeedPhrase,
-    goToSettings,
-    goToTransactions
-} from "./helpers";
+import { createNewIdentity, enterSeedPhrase, goToSettings, goToTransactions } from "./helpers";
 
 // ============================================================================
 // Settings-Specific Helpers
@@ -131,26 +125,40 @@ test.describe("Vault Settings", () => {
     });
 
     test.describe("Existing User Flow", () => {
-        test("should land on transactions page after unlock", async ({ page }) => {
-            // Create identity first
-            const seedWords = await createNewIdentity(page);
+        test("same-vault lock then unlock renders on the first attempt", async ({ page }) => {
+            const browserErrors: string[] = [];
+            page.on("console", (message) => {
+                if (message.type() === "error") browserErrors.push(message.text());
+            });
+            page.on("pageerror", (error) => browserErrors.push(error.message));
 
-            // Lock the session (clear and go to unlock)
-            await clearSession(page);
-            await page.goto("/unlock");
-            await page.waitForLoadState("networkidle");
+            const seedWords = await test.step("Create the identity and active vault", async () =>
+                createNewIdentity(page));
 
-            // Unlock with seed phrase
-            await enterSeedPhrase(page, seedWords);
+            await test.step("Lock through the authenticated application control", async () => {
+                await page.getByRole("button", { name: "Lock", exact: true }).click();
+                await expect(page).toHaveURL(/\/unlock$/);
+            });
 
-            // Wait for button to be enabled after entering valid seed phrase
-            const unlockButton = page.getByRole("button", { name: /unlock/i });
-            await expect(unlockButton).toBeEnabled({ timeout: 5000 });
-            await unlockButton.click();
+            await test.step("Unlock the same vault without reloading the browser client", async () => {
+                await enterSeedPhrase(page, seedWords, true);
+                const unlockButton = page.getByRole("button", { name: /unlock/i });
+                await expect(unlockButton).toBeEnabled();
+                await unlockButton.click();
+                await expect(page).toHaveURL(/\/transactions$/, { timeout: 15000 });
+            });
 
-            // Should land on transactions, not dashboard or settings
-            await page.waitForURL("**/transactions", { timeout: 15000 });
-            await expect(page).toHaveURL(/\/transactions$/);
+            await test.step("Render the initialized vault on the first post-unlock page", async () => {
+                await expect(
+                    page.getByRole("textbox", { name: /search description/i })
+                ).toBeVisible({ timeout: 15000 });
+                await expect(page.getByRole("button", { name: "Add transaction" })).toBeVisible();
+                await expect(page.getByRole("status")).toHaveAccessibleName("Saved");
+                await expect(page.getByText("Failed to load vault", { exact: false })).toHaveCount(
+                    0
+                );
+                expect(browserErrors).toEqual([]);
+            });
         });
     });
 

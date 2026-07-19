@@ -104,27 +104,45 @@ export function useVaultPresence(
         // Create new sync instance
         const sync = createVaultRealtimeSync(vaultId, pubkeyHash, "presence");
         syncRef.current = sync;
+        let cancelled = false;
 
-        // Subscribe with callbacks
-        sync.subscribe({
-            onPresence: handlePresence,
-            onUpdate: (update) => {
-                onUpdateRef.current?.(update);
+        async function connect() {
+            try {
+                await sync.subscribe({
+                    onPresence: handlePresence,
+                    onUpdate: (update) => {
+                        onUpdateRef.current?.(update);
+                    }
+                });
+
+                if (cancelled) {
+                    await sync.unsubscribe();
+                    return;
+                }
+
+                setIsConnected(true);
+                heartbeatRef.current = setInterval(() => {
+                    void sync.updatePresence();
+                }, heartbeatInterval);
+            } catch (error) {
+                if (cancelled) return;
+                console.error("Failed to connect vault presence:", error);
+                setIsConnected(false);
             }
-        });
+        }
 
-        setIsConnected(true);
-
-        // Start heartbeat
-        heartbeatRef.current = setInterval(() => {
-            sync.updatePresence();
-        }, heartbeatInterval);
+        void connect();
 
         // Cleanup on unmount or change
         return () => {
-            sync.unsubscribe();
+            cancelled = true;
+            if (syncRef.current === sync) {
+                syncRef.current = null;
+            }
+            void sync.unsubscribe();
             if (heartbeatRef.current) {
                 clearInterval(heartbeatRef.current);
+                heartbeatRef.current = null;
             }
         };
     }, [vaultId, pubkeyHash, heartbeatInterval, handlePresence]);

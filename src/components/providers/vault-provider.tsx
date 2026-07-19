@@ -97,7 +97,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
 
         // Cleanup previous sync manager if vault changed
         if (syncManagerRef.current) {
-            syncManagerRef.current.disconnect();
+            void syncManagerRef.current.disconnect();
             syncManagerRef.current = null;
         }
 
@@ -157,16 +157,19 @@ export function VaultProvider({ children }: VaultProviderProps) {
                 // Initialize (loads from IndexedDB/server)
                 await manager.initialize();
 
-                if (!cancelled) {
-                    setInitializedVault({ vaultId: initializingVaultId, doc });
-                    setInitFailure(null);
-                    syncStatusContext.setIsConnected(true);
-
-                    // Register force sync handler
-                    syncStatusContext.registerForceSync(async () => {
-                        await manager.forceSync();
-                    });
+                if (cancelled) {
+                    await manager.disconnect();
+                    return;
                 }
+
+                setInitializedVault({ vaultId: initializingVaultId, doc });
+                setInitFailure(null);
+                syncStatusContext.setIsConnected(true);
+
+                // Register force sync handler
+                syncStatusContext.registerForceSync(async () => {
+                    await manager.forceSync();
+                });
             } catch (error) {
                 if (!cancelled) {
                     console.error("Failed to initialize vault:", error);
@@ -180,13 +183,14 @@ export function VaultProvider({ children }: VaultProviderProps) {
             }
         }
 
-        initialize();
+        void initialize();
 
         return () => {
             cancelled = true;
-            if (syncManagerRef.current) {
-                syncManagerRef.current.disconnect();
+            const manager = syncManagerRef.current;
+            if (manager) {
                 syncManagerRef.current = null;
+                void manager.disconnect();
             }
         };
     }, [isClient, activeVault?.id, vaultListQuery.data, trpcUtils, syncStatusContext]);

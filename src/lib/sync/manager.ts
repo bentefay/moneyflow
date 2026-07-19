@@ -142,6 +142,7 @@ export class SyncManager {
     private snapshotVersion = 0;
     private isSyncing = false;
     private isInitialized = false;
+    private disconnectRequested = false;
     private autoSyncEnabled = true;
     private unsubscribeLocalUpdates: (() => void) | null = null;
     private throttledServerSync: ReturnType<typeof throttle> | null = null;
@@ -175,7 +176,7 @@ export class SyncManager {
      * Loads initial state from IndexedDB/server and subscribes to updates.
      */
     async initialize(): Promise<void> {
-        if (this.isInitialized) {
+        if (this.isInitialized || this.disconnectRequested) {
             return;
         }
 
@@ -184,10 +185,11 @@ export class SyncManager {
         try {
             // Load initial state (IndexedDB first, then server)
             await this.loadInitialState();
+            if (this.disconnectRequested) return;
 
             // Subscribe to realtime updates
             this.realtime = createVaultRealtimeSync(this.vaultId, this.pubkeyHash);
-            this.realtime.subscribe({
+            await this.realtime.subscribe({
                 onUpdate: async (update) => {
                     // Skip our own updates
                     if (update.authorPubkeyHash === this.pubkeyHash) {
@@ -198,6 +200,11 @@ export class SyncManager {
                     await this.applyRemoteUpdate(update.encryptedData);
                 }
             });
+            if (this.disconnectRequested) {
+                await this.realtime.unsubscribe();
+                this.realtime = null;
+                return;
+            }
 
             // Set up document change listener for auto-sync
             this.setupAutoSync();
@@ -208,6 +215,7 @@ export class SyncManager {
             this.isInitialized = true;
             this.setSyncState("idle");
         } catch (error) {
+            if (this.disconnectRequested) return;
             this.setSyncState("error");
             this.onError?.(error instanceof Error ? error : new Error(String(error)));
             throw error;
@@ -744,6 +752,8 @@ export class SyncManager {
      * Disconnect and cleanup.
      */
     async disconnect(): Promise<void> {
+        this.disconnectRequested = true;
+
         // Cancel throttled sync
         this.throttledServerSync?.cancel();
         this.throttledServerSync = null;
