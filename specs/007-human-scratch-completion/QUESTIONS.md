@@ -153,6 +153,54 @@ No unresolved product questions were answered by scaffold creation.
 - **Does a human still need to decide after completion?:** No product preference blocks continued
   work. Human review is optional only if the owner wants a different explicit concurrent-device cap.
 
+## Q-005 — Recreate compatible local Realtime state before changing transport
+
+- **Raised:** 2026-07-20, P05 revision 03, `human_scratch_reviewer`; rejects implementer
+  `Q-PROPOSAL-P05-03-01` and selects reviewer `Q-PROPOSAL-P05-03-02`
+- **Source proposal:**
+  `reviews/P05-review-03.md#q-proposal-p05-03-01-adjudication--rejected-transport-mode-correction`
+  and
+  `reviews/P05-review-03.md#q-proposal-p05-03-02--recreate-compatible-local-realtime-state-and-harden-only-exact-registration-evidence`;
+  rejected source in `evidence/P05/implementation-03.md`
+- **Context and evidence:** The ordinary journey emits Postgres Changes joins/bindings but registers
+  zero subscriptions. Running Realtime v2.80.7 reports 68 cached internal migrations against 79 in
+  the persistent database; its three-field filter encoding conflicts with the database's four-field
+  `realtime.user_defined_filter` shape and yields a sanitized out-of-range system error. A public
+  channel follows the same CDC registration path and reproduces the error, so toggling `private`
+  cannot fix it. Migration 008 and private Presence are independently correct.
+- **Why the frozen requirement/repository does not fully decide it:** HS-015 requires genuine live
+  delivery but does not specify repair of stale local Supabase internal volumes. Revision 03 does
+  not authorize service recreation, dependency pins or correction of its incomplete exact-current-
+  grant diagnostic.
+- **Options considered:** (A) verify the exact local database is empty/disposable, recreate the
+  pinned services without backup, harden only the aggregate subscription query and rerun acceptance;
+  (B) immediately update the pinned CLI/image contract; (C) toggle sync channel privacy; or (D)
+  accept polling/zero registration. A is the narrow evidence-backed default; B lacks clean-start
+  incompatibility evidence, C is disproved and D violates HS-015.
+- **Default selected for continued work:** Choose A. Revision 04 may write only
+  `tests/e2e/helpers/realtime.ts`. After re-verifying zero local grants, subscriptions and permanent
+  ops for this exact project, run `pnpm exec supabase stop --no-backup` and
+  `pnpm exec supabase start`; do not target broad Docker state or another project. Verify the image,
+  internal migration count and active filter composite agree with no mismatch, then apply 005–008
+  normally. Make `liveExactGrant` require exact sync/table/topic claims, current matching membership
+  role and a non-deleted vault while returning sanitized aggregate integers only. If clean start
+  recreates the mismatch, stop with a proposal for exact `package.json`/`pnpm-lock.yaml` pin
+  authority; do not silently change dependencies or product code.
+- **Decision hierarchy basis:** HS-015 genuine live delivery and immediate unauthorized-reader
+  denial control, followed by least privilege, reproducible pinned tooling, data preservation and
+  the smallest evidence-backed correction. The failure is below product channel construction.
+- **Impact and risk:** `stop --no-backup` deletes local Supabase data, so it is allowed only after
+  exact-project empty/disposable checks and must never target shared or production state. The helper
+  remains test-only and sanitized. No config/dependency path is authorized without proof that a
+  clean pinned environment is incompatible.
+- **How to reverse or migrate:** The helper-only change is independently revertible. Local services
+  are recreated by the pinned start command and normal migrations. A clean-start mismatch routes to
+  a later exact pin proposal; any compatible-environment product failure must produce its own
+  counterexample and owner.
+- **Does a human still need to decide after completion?:** No product choice blocks continuation.
+  Human input is useful only if this verified-empty local project is unexpectedly non-disposable or
+  repository policy prefers a deliberate toolchain upgrade.
+
 ## Question template
 
 ### Q-XXX — Short title
