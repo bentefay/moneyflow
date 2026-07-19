@@ -15,9 +15,7 @@ BASE and new artifact paths.
 
 - **Package / revision:** P00 / 02
 - **Scope IDs:** control; no scratch marker
-- **State:** independent PASS recommended; root integration pending. Revision 02 evidence SHA-256 is
-  `3ad9f4fe264d47b6d93c29b9c34cb60e03d230299cc6e5bd4ec0b8f2150d50b7` and review SHA-256 is
-  `0f5129c9e2068cc0b8939ac27ec224b1843b34c613e6c951b0864bf81abe82f6`
+- **State:** passed after integration-control commit `7eb78075e0be7b6a881e59f03d2bfd2e202fc0f8`
 - **Task:** `tasks/P00-baseline.md`
 - **Original package BASE:** `0ea864f5d0142530b2d524add228d3b51f162876`
 - **Allowed implementation paths:** none
@@ -51,7 +49,6 @@ Root fills this only after implementation handoff:
 
 ## Next root action
 
-Persist `evidence/P00/implementation-02.md`, `reviews/P00-review-02.md`, verified BASELINE and root
-risk/decision/progress transcriptions in an exact-path integration-control commit. Record that
-literal commit and set P00 `passed` only afterward. Then rewrite this handoff for P01; do not
-dispatch P01 before the P00 pass record is durable.
+Verify the frozen-source boundary and P01 dependency, then rewrite this file completely for P01
+revision 01 with literal BASE, allowed implementation paths, exact evidence/review paths and exact
+dirty inventory. Do not dispatch until every P01 field is literal and P01 is `implementing`.
