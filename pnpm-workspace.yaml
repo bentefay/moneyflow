@@ -6,3 +6,16 @@ allowBuilds:
     sharp: false
     supabase: true
     unrs-resolver: false
+
+overrides:
+    "@babel/core@<7.29.1": 7.29.7
+    "@tootallnate/once@<2.0.1": 2.0.1
+    "ajv@>=7.0.0-alpha.0 <8.18.0": 8.20.0
+    "brace-expansion@>=5.0.0 <5.0.6": 5.0.7
+    "js-yaml@>=4.0.0 <=4.1.1": 4.3.0
+    "minimatch@>=10.0.0 <10.2.3": 10.2.5
+    "path-to-regexp@>=4.0.0 <6.3.0": 6.3.0
+    "path-to-regexp@>=8.0.0 <8.4.0": 8.4.2
+    "postcss@<8.5.10": 8.5.19
+    "smol-toml@<1.6.1": 1.7.0
+    "tar@<7.5.16": 7.5.20
