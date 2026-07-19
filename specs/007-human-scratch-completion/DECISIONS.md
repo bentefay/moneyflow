@@ -110,6 +110,25 @@ need evidence, alternatives, security/UX impact, and a reversal path.
   the then-effective Safe Chain policy. A later incompatible or unsafe release routes to a new
   reviewed remediation range; P01 acceptance is rolled back if its assumptions no longer hold.
 
+## D-008 — Decline broader Animate UI adoption under a component-specific rollout gate
+
+- **Date:** 2026-07-20
+- **Package / scope:** P02 / HS-017
+- **Status:** accepted
+- **Evidence:** `evidence/P02/implementation-02.md` and independent `reviews/P02-review-02.md` PASS.
+- **Alternatives:** Copy Dialog, Alert Dialog, Dropdown Menu or Tooltip now; remove the existing
+  route-local tabs; or retain the corrected tabs and direct Radix wrappers.
+- **Decision and reason:** Retain the corrected route-local Animate UI tabs, decline broader
+  copying, and require the evidence's ten component-specific rollout gates for future adoption. The
+  four candidates add motion, API, portal, bundle, maintenance and notice ownership without a proven
+  consumer benefit; the retained tabs now preserve five mobile accessible names and labelled panels.
+- **Security, data, UX, and compatibility impact:** No data/security surface changes. Mobile tab
+  semantics are repaired; reduced-motion and controlled-trigger focus limitations remain explicit
+  future gates. Q-001/R-022 remains open before release.
+- **Reversal/migration path:** A future package may adopt one candidate after proving a real
+  consumer, exact source/license pin, API parity, subtle reduced motion, route-bundle cost and full
+  accessibility.
+
 ## Decision template
 
 ### D-XXX — Title

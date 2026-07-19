@@ -5,61 +5,57 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Implementation dispatch
 
-- **Package / revision:** P02 / 01
+- **Package / revision:** P02 / 02
 - **Scope IDs:** HS-017; no scratch marker until independent package PASS and root integration
-- **State:** changes_requested after immutable `reviews/P02-review-01.md` FAIL; evidence/review,
-  Q-001 and R-009/R-022 persisted in `67311b9f716611bb2a5e655460f7ae638203c10a`
+- **State:** independently recommended PASS; root integration pending; review SHA-256
+  `01b5318b91e8cd898a7ab009b789809ab9d307e4c2279f113d1613bfe33cc998`
 - **Task:** `tasks/HS-017-animate-ui-evaluation.md`
 - **Original package BASE:** `19d73035b33b639f9927d2f78a55d74c44f65544`
-- **Pre-implementation HEAD:** `19d73035b33b639f9927d2f78a55d74c44f65544`
-- **Allowed implementation paths:** `package.json`, `pnpm-lock.yaml`,
-  `src/components/animate-ui/**`, `src/components/ui/dialog.tsx`,
-  `src/components/ui/alert-dialog.tsx`, `src/components/ui/dropdown-menu.tsx`,
-  `src/components/ui/tooltip.tsx`, directly affected representative consumers under `src/**`, and
-  task-relevant tests under `tests/**`. Product changes are optional and legal only if the ADR
-  justifies one representative low-risk adoption. Do not edit `.claude/**`, `.codex/**`,
-  `supabase/**`, task/control files, scratch or FS-001.
-- **Sole implementer artifact:** `evidence/P02/implementation-01.md`; this must contain the complete
-  reproducible ADR whether adoption is accepted or declined
+- **Pre-implementation HEAD:** `72710249b4ba2c515d159ce3560e68af3ac0b011`
+- **Allowed implementation paths:** `src/components/features/import/ConfigTabs.tsx` and
+  `tests/e2e/import.spec.ts` only. Do not edit any Animate UI primitive/wrapper, dependency,
+  unrelated source/test, `.claude/**`, `.codex/**`, `supabase/**`, task/control file, scratch or
+  FS-001.
+- **Sole implementer artifact:** `evidence/P02/implementation-02.md`
 - **Commit contract:** commit authorized product/test changes only with exact-path staging; leave
   evidence uncommitted. A decision-only `BASE == HEAD` range is valid. Never use `git add -A` or
   `git add .`.
 - **Pre-existing dirty/untracked paths:** root-owned unstaged `PROGRESS.md` and `HANDOFF.md`, plus
-  the sole untracked assigned evidence; no staged paths; branch `main` is twenty-two commits ahead
-  of `origin/main`
-- **Decision evidence:** inventory tabs plus dialog, alert-dialog, dropdown-menu and tooltip;
-  compare exact current/latest Animate UI primary-source registry files/version with current Radix
-  wrappers for animation, accessibility, focus/keyboard/screen-reader behavior, reduced motion,
-  portals/z-index, dark mode, bundle/tree-shaking, React 19/Next 16 compatibility, maintenance
-  ownership and visual quality. Record a reversible accept/decline decision and rollout standard.
-- **Validation:** exercise tabs and all four candidates with pointer/keyboard, trap/restore,
-  Escape/outside click, nested/scrolling portals, 320px/mobile, 200% zoom, dark and reduced-motion;
-  inspect hydration/console/network and animation interruption/jank. If code changes, add meaningful
-  component/E2E regressions, build/bundle comparison and retries-disabled repeats; if no code
-  changes, independently reproducible behavior and a complete ADR are still required.
+  sole untracked assigned evidence; no staged paths; branch `main` is twenty-five commits ahead of
+  `origin/main`
+- **Required I-001 remediation:** every one of Template, Columns, Format, Duplicates and Account
+  retains a deterministic accessible tab name at 320 px while visual compactness remains; the
+  selected tabpanel must retain its programmatic label relationship. Use the smallest semantic fix,
+  such as visually hidden text that becomes visible at `sm`, without duplicate spoken labels.
+- **Regression:** extend the real import journey at a 320x720 viewport to assert all five tab names,
+  each selected state/ArrowRight transition and the active panel's accessible name/relationship.
+  Prove the test fails on revision 01 and passes after the fix; repeat with retries disabled.
+- **Retained acceptance:** carry the complete decline ADR/source/bundle/manual conclusions forward;
+  explicitly correct the revision-01 mobile semantics claim. Preserve Q-001 and the R-009/P13/P21
+  T021c route. Run focused/full checks and real installed-CLI 320 px accessibility snapshot plus
+  desktop, reduced-motion, dark, zoom, console/network and cleanup checks proportionate to the fix.
 - **Question route:** complete proposals in assigned evidence; root alone appends QUESTIONS
 
 ## Review dispatch
 
-This section records the completed failed independent review.
+This section is the active independent revision-02 review dispatch.
 
 - **Reviewer:** a `human_scratch_reviewer` instance distinct from the implementer
 - **Literal reviewed BASE:** `19d73035b33b639f9927d2f78a55d74c44f65544`
-- **Literal reviewed HEAD:** `19d73035b33b639f9927d2f78a55d74c44f65544`
-- **Range type:** `empty`; reviewer must establish with `git diff --exit-code BASE HEAD`
-- **Implementation evidence:** `evidence/P02/implementation-01.md`
-- **Sole reviewer artifact:** `reviews/P02-review-01.md`
-- **Prior review files:** none
+- **Literal reviewed HEAD:** `213100fadf5acea30aad7e90998bd575cdcd508c`
+- **Range type:** `non-empty`; full original BASE through revision-01 control/artifacts and
+  revision-02 implementation commit
+- **Implementation evidence:** `evidence/P02/implementation-02.md`
+- **Sole reviewer artifact:** `reviews/P02-review-02.md`
+- **Prior review files:** `reviews/P02-review-01.md`; immutable FAIL
 - **Reviewer writes:** assigned review file only; no evidence/ledger/product/test/scratch writes
 - **Failure route:** persist review, P02 `changes_requested`, next paths
-  `evidence/P02/implementation-02.md` and `reviews/P02-review-02.md`
-- **Verdict:** FAIL; I-001: at 320 px all five retained import tabs and the active panel are unnamed
-  because their only labels are `hidden sm:inline`; revision 02 must add persistent programmatic
-  names and a retries-disabled 320 px regression
-- **Question route:** transcribe `Q-PROPOSAL-P02-01` as canonical Q-001; I-001 requires no human
-  choice
+  `evidence/P02/implementation-03.md` and `reviews/P02-review-03.md`
+- **PASS authority:** reviewer recommends PASS; root alone verifies/transcribes/integrates and sets
+  `passed`
+- **Verdict:** PASS; no new findings or Q proposals; Q-001/R-022 and R-009/P13/P21 remain open
 
 ## Next root action
 
-Rewrite this handoff for P02 revision 02 over the original BASE, using exact new artifact paths and
-the narrow mobile accessible-name remediation. Do not authorize HS-017's marker.
+Integrate the exact revision-02 evidence/review. Only after that commit may root set P02 passed,
+durably prepare HS-017 `completion_pending`, and execute its marker.
