@@ -10,6 +10,7 @@ import {
 } from "./helpers";
 import {
     getRealtimeGrantAggregates,
+    getRealtimeSubscriptionCounts,
     observeRealtimeFrames,
     observeRealtimeLifecycle
 } from "./helpers/realtime";
@@ -79,14 +80,26 @@ test("private vault_ops push synchronizes import, edit and delete and stops afte
                 owner: await getRealtimeGrantAggregates(fixture.ownerHash, fixture.vaultId),
                 member: await getRealtimeGrantAggregates(fixture.memberHash, fixture.vaultId)
             };
+            const subscriptions = getRealtimeSubscriptionCounts();
+            const memberFrameRegistration = memberFrames.snapshot();
             testInfo.annotations.push({
                 type: "realtime-lifecycle",
-                description: JSON.stringify({ browserLifecycle, grants })
+                description: JSON.stringify({
+                    browserLifecycle,
+                    grants,
+                    subscriptions,
+                    memberFrameRegistration
+                })
             });
             expect(browserLifecycle.owner.authorize.sync).toBeLessThanOrEqual(2);
             expect(browserLifecycle.member.authorize.sync).toBeLessThanOrEqual(2);
             expect(browserLifecycle.owner.authorize.presence).toBeLessThanOrEqual(4);
             expect(browserLifecycle.member.authorize.presence).toBeLessThanOrEqual(4);
+            expect(memberFrameRegistration.postgresChangeJoins).toBeGreaterThanOrEqual(1);
+            expect(memberFrameRegistration.postgresChangeBindings).toBeGreaterThanOrEqual(1);
+            expect(subscriptions.total).toBeGreaterThanOrEqual(2);
+            expect(subscriptions.authenticated).toBe(subscriptions.total);
+            expect(subscriptions.liveExactGrant).toBe(subscriptions.total);
         });
 
         await test.step("push an imported encrypted operation without member refresh", async () => {

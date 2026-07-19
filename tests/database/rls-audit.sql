@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT plan(69);
+SELECT plan(87);
 
 SELECT has_table('public', 'request_nonces', 'replay table exists');
 SELECT has_table('public', 'vault_updates_legacy', 'legacy rows are quarantined');
@@ -15,6 +15,7 @@ SELECT has_function('public', 'append_vault_ops', ARRAY['uuid', 'text', 'jsonb']
 SELECT has_function('public', 'rotate_realtime_grant', ARRAY['text', 'uuid', 'text', 'uuid', 'integer']);
 SELECT has_function('public', 'revoke_realtime_grant', ARRAY['text', 'uuid', 'text', 'uuid']);
 SELECT has_function('public', 'realtime_grant_allows', ARRAY['uuid', 'text']);
+SELECT has_function('public', 'realtime_topic_send_allowed', ARRAY['text', 'text']);
 SELECT hasnt_function('public', 'current_pubkey_hash', ARRAY[]::text[]);
 SELECT hasnt_function('public', 'is_vault_member', ARRAY['uuid']);
 SELECT hasnt_function('public', 'is_vault_owner', ARRAY['uuid']);
@@ -138,6 +139,28 @@ BEGIN
 END;
 $$;
 SELECT ok(NOT public.realtime_grant_allows((SELECT id FROM created_vault), 'sync'), 'snapshot/table substitution is denied');
+CREATE TEMP TABLE sibling_owner_realtime_grant AS
+SELECT * FROM public.rotate_realtime_grant(
+    repeat('1', 64),
+    (SELECT id FROM created_vault),
+    'sync',
+    '00000000-0000-0000-0000-000000000000',
+    60
+);
+DO $$
+BEGIN
+    PERFORM set_config(
+        'request.jwt.claims',
+        jsonb_set(
+            jsonb_set(public.current_realtime_claims(), '{jti}', to_jsonb((SELECT grant_id FROM owner_realtime_grant)::text)),
+            '{realtime_table}',
+            '"vault_ops"'
+        )::text,
+        true
+    );
+END;
+$$;
+SELECT ok(public.realtime_grant_allows((SELECT id FROM created_vault), 'sync'), 'a sibling initial mint leaves the first grant usable');
 CREATE TEMP TABLE rotated_owner_realtime_grant AS
 SELECT * FROM public.rotate_realtime_grant(
     repeat('1', 64),
@@ -162,9 +185,19 @@ $$;
 SELECT ok(NOT public.realtime_grant_allows((SELECT id FROM created_vault), 'sync'), 'rotation immediately revokes the prior grant');
 SELECT is(
     (SELECT count(*) FROM public.realtime_grants WHERE vault_id = (SELECT id FROM created_vault) AND pubkey_hash = repeat('1', 64) AND purpose = 'sync' AND revoked_at IS NULL),
-    1::bigint,
-    'only one exact live grant survives rotation'
+    2::bigint,
+    'explicit rotation replaces only its predecessor and preserves a live sibling'
 );
+DO $$
+BEGIN
+    PERFORM set_config(
+        'request.jwt.claims',
+        jsonb_set(public.current_realtime_claims(), '{jti}', to_jsonb((SELECT grant_id FROM sibling_owner_realtime_grant)::text))::text,
+        true
+    );
+END;
+$$;
+SELECT ok(public.realtime_grant_allows((SELECT id FROM created_vault), 'sync'), 'sibling grant stays usable after another connection refreshes');
 DO $$
 BEGIN
     PERFORM set_config(
@@ -175,6 +208,138 @@ BEGIN
 END;
 $$;
 SELECT ok(public.realtime_grant_allows((SELECT id FROM created_vault), 'sync'), 'rotated grant authorizes the unchanged exact scope');
+SELECT ok(
+    public.realtime_topic_allowed('vault:' || (SELECT id FROM created_vault)::text || ':sync', 'broadcast'),
+    'sync topic receives only its required private Broadcast authorization'
+);
+SELECT ok(
+    NOT public.realtime_topic_allowed('vault:' || (SELECT id FROM created_vault)::text || ':sync', 'presence'),
+    'sync topic cannot receive Presence messages'
+);
+SELECT ok(
+    public.realtime_topic_send_allowed('vault:' || (SELECT id FROM created_vault)::text || ':sync', 'broadcast'),
+    'sync topic preserves its existing Broadcast send authorization'
+);
+SELECT ok(
+    NOT public.realtime_topic_send_allowed('vault:' || (SELECT id FROM created_vault)::text || ':sync', 'presence'),
+    'sync topic cannot send Presence messages'
+);
+DO $$
+BEGIN
+    PERFORM set_config(
+        'request.jwt.claims',
+        jsonb_set(public.current_realtime_claims(), '{vault_role}', '"member"')::text,
+        true
+    );
+END;
+$$;
+SELECT ok(NOT public.realtime_grant_allows((SELECT id FROM created_vault), 'sync'), 'vault-role substitution is denied');
+DO $$
+BEGIN
+    PERFORM set_config(
+        'request.jwt.claims',
+        jsonb_set(
+            jsonb_set(public.current_realtime_claims(), '{vault_role}', '"owner"'),
+            '{realtime_purpose}',
+            '"presence"'
+        )::text,
+        true
+    );
+END;
+$$;
+SELECT ok(NOT public.realtime_grant_allows((SELECT id FROM created_vault), 'presence'), 'grant-purpose substitution is denied');
+CREATE TEMP TABLE owner_presence_grant AS
+SELECT * FROM public.rotate_realtime_grant(
+    repeat('1', 64),
+    (SELECT id FROM created_vault),
+    'presence',
+    '00000000-0000-0000-0000-000000000000',
+    60
+);
+DO $$
+BEGIN
+    PERFORM set_config(
+        'request.jwt.claims',
+        jsonb_build_object(
+            'jti', (SELECT grant_id FROM owner_presence_grant),
+            'role', 'authenticated',
+            'vault_id', (SELECT id FROM created_vault),
+            'realtime_table', 'vault_ops',
+            'realtime_purpose', 'presence',
+            'realtime_topic', 'vault:' || (SELECT id FROM created_vault)::text || ':presence',
+            'vault_role', 'owner'
+        )::text,
+        true
+    );
+END;
+$$;
+SELECT ok(
+    public.realtime_topic_allowed('vault:' || (SELECT id FROM created_vault)::text || ':presence', 'presence'),
+    'Presence topic can receive Presence state'
+);
+SELECT ok(
+    public.realtime_topic_allowed('vault:' || (SELECT id FROM created_vault)::text || ':presence', 'broadcast'),
+    'Presence topic passes the installed private join Broadcast read check'
+);
+SELECT ok(
+    public.realtime_topic_send_allowed('vault:' || (SELECT id FROM created_vault)::text || ':presence', 'presence'),
+    'Presence topic can publish Presence state'
+);
+SELECT ok(
+    NOT public.realtime_topic_send_allowed('vault:' || (SELECT id FROM created_vault)::text || ':presence', 'broadcast'),
+    'Presence purpose cannot publish Broadcast payloads'
+);
+SELECT ok(
+    NOT public.realtime_topic_allowed('vault:' || (SELECT id FROM second_vault)::text || ':presence', 'presence'),
+    'Presence policy denies a substituted topic vault'
+);
+UPDATE public.realtime_grants
+SET expires_at = clock_timestamp() - interval '1 second'
+WHERE id = (SELECT grant_id FROM owner_presence_grant);
+SELECT ok(
+    NOT public.realtime_topic_allowed('vault:' || (SELECT id FROM created_vault)::text || ':presence', 'presence'),
+    'expired Presence grant is denied'
+);
+INSERT INTO public.realtime_grants (
+    id, vault_id, pubkey_hash, vault_role, purpose, expires_at, revoked_at, created_at
+) VALUES
+    (
+        '40000000-0000-4000-8000-000000000001',
+        (SELECT id FROM created_vault), repeat('1', 64), 'owner', 'presence',
+        clock_timestamp() - interval '10 minutes', NULL, clock_timestamp() - interval '11 minutes'
+    ),
+    (
+        '40000000-0000-4000-8000-000000000002',
+        (SELECT id FROM created_vault), repeat('1', 64), 'owner', 'presence',
+        clock_timestamp() + interval '1 minute', clock_timestamp() - interval '10 minutes',
+        clock_timestamp() - interval '11 minutes'
+    ),
+    (
+        '40000000-0000-4000-8000-000000000003',
+        (SELECT id FROM created_vault), repeat('1', 64), 'owner', 'presence',
+        clock_timestamp() + interval '1 minute', clock_timestamp(), clock_timestamp()
+    );
+CREATE TEMP TABLE pruned_owner_presence_grant AS
+SELECT * FROM public.rotate_realtime_grant(
+    repeat('1', 64),
+    (SELECT id FROM created_vault),
+    'presence',
+    '00000000-0000-0000-0000-000000000000',
+    60
+);
+SELECT is(
+    (SELECT count(*) FROM public.realtime_grants WHERE id IN (
+        '40000000-0000-4000-8000-000000000001',
+        '40000000-0000-4000-8000-000000000002'
+    )),
+    0::bigint,
+    'initial mint prunes abandoned expired and old revoked sibling rows'
+);
+SELECT is(
+    (SELECT count(*) FROM public.realtime_grants WHERE id = '40000000-0000-4000-8000-000000000003'),
+    1::bigint,
+    'pruning retains recent revoked rows for diagnostics'
+);
 SELECT throws_ok(
     $$SELECT * FROM public.rotate_realtime_grant(repeat('3', 64), (SELECT id FROM created_vault), 'sync', '00000000-0000-0000-0000-000000000000', 60)$$,
     '42501',
@@ -244,6 +409,16 @@ SELECT ok(
     'owner grant revokes by exact identity/vault/purpose/id'
 );
 SELECT ok(NOT public.realtime_grant_allows((SELECT id FROM created_vault), 'sync'), 'revoked grant cannot read another payload');
+DO $$
+BEGIN
+    PERFORM set_config(
+        'request.jwt.claims',
+        jsonb_set(public.current_realtime_claims(), '{jti}', to_jsonb((SELECT grant_id FROM sibling_owner_realtime_grant)::text))::text,
+        true
+    );
+END;
+$$;
+SELECT ok(public.realtime_grant_allows((SELECT id FROM created_vault), 'sync'), 'revoking one grant leaves its active sibling usable');
 SELECT results_eq(
     $$SELECT public.append_vault_ops((SELECT id FROM created_vault), repeat('1', 64), '[{"id":"30000000-0000-4000-8000-000000000001","encrypted_data":"b3duZXItb3A=","version_vector":"owner-vector"}]')$$,
     $$VALUES ('30000000-0000-4000-8000-000000000001'::uuid)$$,

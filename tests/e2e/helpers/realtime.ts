@@ -30,6 +30,14 @@ export interface RealtimeGrantCounts {
 
 export interface RealtimeFrameCounts {
     postgresChanges: number;
+    postgresChangeJoins: number;
+    postgresChangeBindings: number;
+}
+
+export interface RealtimeSubscriptionCounts {
+    total: number;
+    authenticated: number;
+    liveExactGrant: number;
 }
 
 export type RealtimeGrantAggregates = Record<RealtimePurpose, RealtimeGrantCounts>;
@@ -79,35 +87,59 @@ export function observeRealtimeFrames(page: Page): {
     stop: () => void;
 } {
     let postgresChanges = 0;
-    const socketListeners = new Map<WebSocket, (event: { payload: string | Buffer }) => void>();
+    let postgresChangeJoins = 0;
+    let postgresChangeBindings = 0;
+    const socketListeners = new Map<
+        WebSocket,
+        {
+            received: (event: { payload: string | Buffer }) => void;
+            sent: (event: { payload: string | Buffer }) => void;
+        }
+    >();
     const socketListener = (socket: WebSocket) => {
         if (!socket.url().includes("/realtime/v1/websocket")) return;
-        const frameListener = ({ payload }: { payload: string | Buffer }) => {
+        const readFrame = (payload: string | Buffer): unknown =>
+            JSON.parse(typeof payload === "string" ? payload : payload.toString("utf8"));
+        const readEvent = (frame: unknown): unknown =>
+            Array.isArray(frame) ? frame[3] : isUnknownRecord(frame) ? frame.event : null;
+        const received = ({ payload }: { payload: string | Buffer }) => {
             try {
-                const frame: unknown = JSON.parse(
-                    typeof payload === "string" ? payload : payload.toString("utf8")
-                );
-                const event = Array.isArray(frame)
-                    ? frame[3]
-                    : isUnknownRecord(frame)
-                      ? frame.event
-                      : null;
-                if (event === "postgres_changes") postgresChanges += 1;
+                if (readEvent(readFrame(payload)) === "postgres_changes") postgresChanges += 1;
             } catch {
                 // Binary/non-JSON frames have no event kind to aggregate.
             }
         };
-        socketListeners.set(socket, frameListener);
-        socket.on("framereceived", frameListener);
+        const sent = ({ payload }: { payload: string | Buffer }) => {
+            try {
+                const frame = readFrame(payload);
+                if (readEvent(frame) !== "phx_join") return;
+                const joinPayload = Array.isArray(frame)
+                    ? frame[4]
+                    : isUnknownRecord(frame)
+                      ? frame.payload
+                      : null;
+                if (!isUnknownRecord(joinPayload) || !isUnknownRecord(joinPayload.config)) return;
+                const bindings = joinPayload.config.postgres_changes;
+                if (!Array.isArray(bindings)) return;
+                postgresChangeJoins += 1;
+                postgresChangeBindings += bindings.length;
+            } catch {
+                // Binary/non-JSON frames have no join configuration to aggregate.
+            }
+        };
+        socketListeners.set(socket, { received, sent });
+        socket.on("framereceived", received);
+        socket.on("framesent", sent);
     };
     page.on("websocket", socketListener);
 
     return {
-        snapshot: () => ({ postgresChanges }),
+        snapshot: () => ({ postgresChanges, postgresChangeJoins, postgresChangeBindings }),
         stop: () => {
             page.off("websocket", socketListener);
-            for (const [socket, listener] of socketListeners) {
-                socket.off("framereceived", listener);
+            for (const [socket, listeners] of socketListeners) {
+                socket.off("framereceived", listeners.received);
+                socket.off("framesent", listeners.sent);
             }
             socketListeners.clear();
         }
@@ -303,6 +335,57 @@ export async function getRealtimeGrantAggregates(
         };
     }
     return result;
+}
+
+/** Returns sanitized permanent-op subscription counts without claims or identifiers. */
+export function getRealtimeSubscriptionCounts(): RealtimeSubscriptionCounts {
+    const query = `COPY (
+        SELECT count(*)::integer,
+               count(*) FILTER (WHERE subscription.claims ->> 'role' = 'authenticated')::integer,
+               count(*) FILTER (WHERE EXISTS (
+                   SELECT 1
+                   FROM public.realtime_grants grant_row
+                   WHERE grant_row.id::text = subscription.claims ->> 'jti'
+                     AND grant_row.vault_id::text = subscription.claims ->> 'vault_id'
+                     AND grant_row.vault_role = subscription.claims ->> 'vault_role'
+                     AND grant_row.purpose = subscription.claims ->> 'realtime_purpose'
+                     AND grant_row.revoked_at IS NULL
+                     AND grant_row.expires_at > clock_timestamp()
+               ))::integer
+        FROM realtime.subscription subscription
+        WHERE subscription.entity = 'public.vault_ops'::regclass
+    ) TO STDOUT WITH (FORMAT csv);`;
+    let output: string;
+    try {
+        output = execFileSync(
+            "docker",
+            [
+                "exec",
+                "-i",
+                "supabase_db_moneyflow",
+                "psql",
+                "-U",
+                "postgres",
+                "-d",
+                "postgres",
+                "-X",
+                "-q"
+            ],
+            { input: query, encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] }
+        );
+    } catch {
+        throw new Error("Realtime subscription fixture query failed");
+    }
+
+    const [total, authenticated, liveExactGrant] = output.trim().split(",").map(Number);
+    if (
+        !Number.isInteger(total) ||
+        !Number.isInteger(authenticated) ||
+        !Number.isInteger(liveExactGrant)
+    ) {
+        throw new Error("Realtime subscription fixture result is invalid");
+    }
+    return { total, authenticated, liveExactGrant };
 }
 
 export async function removeFixtureMember(
