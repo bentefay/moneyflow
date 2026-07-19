@@ -122,6 +122,12 @@
     body {
         @apply bg-background text-foreground;
     }
+    select:not(:disabled) {
+        @apply cursor-pointer;
+    }
+    select:disabled {
+        @apply cursor-not-allowed;
+    }
 }
 
 /* Aurora animation keyframes */

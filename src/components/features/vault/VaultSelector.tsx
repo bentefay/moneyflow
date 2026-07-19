@@ -117,7 +117,7 @@ export function VaultSelector({
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold transition-all",
+                    "flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-sm font-semibold transition-all",
                     "hover:ring-ring focus:ring-ring hover:ring-2 hover:ring-offset-2 focus:ring-2 focus:ring-offset-2 focus:outline-none",
                     vaultColor.bg,
                     vaultColor.text,
@@ -158,7 +158,7 @@ export function VaultSelector({
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className={cn(
-                    "flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium",
+                    "flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium",
                     "hover:bg-accent focus:ring-ring focus:ring-2 focus:ring-offset-2 focus:outline-none",
                     isLoading && "cursor-wait opacity-50",
                     classNames?.button
@@ -260,7 +260,7 @@ function VaultDropdownMenu({
                                 key={vault.id}
                                 onClick={() => onSelect(vault)}
                                 className={cn(
-                                    "flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm",
+                                    "flex w-full cursor-pointer items-center gap-2 rounded-sm px-3 py-2 text-sm",
                                     "hover:bg-accent focus:bg-accent focus:outline-none",
                                     isActive && "bg-accent"
                                 )}
@@ -284,7 +284,7 @@ function VaultDropdownMenu({
                             onClose();
                         }}
                         className={cn(
-                            "flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm",
+                            "flex w-full cursor-pointer items-center gap-2 rounded-sm px-3 py-2 text-sm",
                             "hover:bg-accent focus:bg-accent focus:outline-none"
                         )}
                     >

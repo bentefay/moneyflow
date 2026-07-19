@@ -106,7 +106,7 @@ export function CurrencySelect({
                     <button
                         type="button"
                         className={cn(
-                            "flex w-full items-center rounded px-2 py-1.5 text-left text-sm",
+                            "flex w-full cursor-pointer items-center rounded px-2 py-1.5 text-left text-sm",
                             "hover:bg-accent focus:bg-accent focus:outline-none",
                             isInherited && "bg-accent/50"
                         )}
@@ -125,7 +125,7 @@ export function CurrencySelect({
                             key={currency.code}
                             type="button"
                             className={cn(
-                                "flex w-full items-center rounded px-2 py-1.5 text-left text-sm",
+                                "flex w-full cursor-pointer items-center rounded px-2 py-1.5 text-left text-sm",
                                 "hover:bg-accent focus:bg-accent focus:outline-none",
                                 value === currency.code && !isInherited && "bg-accent/50"
                             )}
