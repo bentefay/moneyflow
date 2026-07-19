@@ -1,0 +1,450 @@
+{
+    "schemaVersion": 2,
+    "requirementCount": 22,
+    "sources": [
+        {
+            "id": "SRC-HUMAN-SCRATCH",
+            "path": "specs/human-scratch.md",
+            "ancestryCommit": "6c3456ce701228a15b193f11cf3c0c270aa8a56f",
+            "frozenWorkingCopySha256": "b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b",
+            "frozenAt": "2026-07-19",
+            "selector": {
+                "kind": "orderedTopLevelBlocks",
+                "count": 21,
+                "sourceTextField": "sourceTextLines"
+            },
+            "completionMechanic": "After all mapped packages pass, root may change only that requirement's leading - [] marker to - [x] and must record rolling whole-file hashes."
+        },
+        {
+            "id": "SRC-TRANSACTION-PERCENTAGE-ALLOCATIONS-SETTLEMENT",
+            "path": "specs/008-transaction-percentage-allocations-settlement/spec.md",
+            "sha256": "0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c",
+            "lineCount": 715,
+            "byteCount": 25441,
+            "frozenAt": "2026-07-19",
+            "selector": {
+                "kind": "wholeFile",
+                "lineRange": "1-715"
+            },
+            "completionMechanic": "The source is immutable and has no checkbox or source edit; completion is recorded only in the requirement/package ledgers after identical implementation and independent-review gates."
+        }
+    ],
+    "requirementLifecycle": {
+        "appliesEquallyToEveryRequirement": true,
+        "states": [
+            "queued",
+            "implementing",
+            "ready_for_review",
+            "reviewing",
+            "changes_requested",
+            "passed",
+            "blocked_external"
+        ],
+        "passGate": "Every mapped package must satisfy PROCESS evidence, exact BASE..HEAD, independent revisioned review, root integration, and definition-of-done gates.",
+        "prefixSemantics": "Requirement ID prefixes record source provenance only and do not change priority, lifecycle, evidence, review, or definition of done."
+    },
+    "requirements": [
+        {
+            "id": "HS-001",
+            "sourceId": "SRC-HUMAN-SCRATCH",
+            "heading": "Normal empty Add Transaction rows",
+            "sourceLineRange": "151-155",
+            "task": "tasks/HS-001-add-transaction-rows.md",
+            "packages": ["P13"],
+            "sourceTextLines": [
+                "- [] When clicking \"Add Transaction\" on the Transactions tab, it should just add a new empty row",
+                "  with all normal affordances. If we need to support empty descriptions as a result, that's fine.",
+                "  The current behaviour where you have to click the checkbox or x is too confusing. So specifically,",
+                "  it is just a normal, selectable row without the tick or cross buttons at the end. Pressing arrow",
+                "  keys moves between rows like normal. More than one empty row can be created."
+            ]
+        },
+        {
+            "id": "HS-002",
+            "sourceId": "SRC-HUMAN-SCRATCH",
+            "heading": "Safe-chain dependency upgrades",
+            "sourceLineRange": "157",
+            "task": "tasks/HS-002-dependency-upgrades.md",
+            "packages": ["P01"],
+            "sourceTextLines": [
+                "- [] Upgrade to the very latest safe-chain supported version of all dependencies"
+            ]
+        },
+        {
+            "id": "HS-021",
+            "sourceId": "SRC-HUMAN-SCRATCH",
+            "heading": "Full code-quality style-guide sweep",
+            "sourceLineRange": "159",
+            "task": "tasks/HS-021-code-quality-sweep.md",
+            "packages": ["P20B"],
+            "sourceTextLines": [
+                "- [] Do a sweep of the full code base for code quality based on our style guide"
+            ]
+        },
+        {
+            "id": "HS-003",
+            "sourceId": "SRC-HUMAN-SCRATCH",
+            "heading": "Loro ephemeral presence and active transaction",
+            "sourceLineRange": "161-163",
+            "task": "tasks/HS-003-loro-ephemeral-presence.md",
+            "packages": ["P10"],
+            "sourceTextLines": [
+                "- [] We should be using loro ephemeral state for tracking presence and active transaction. Make sure",
+                "  you understand https://loro.dev/llms-full.txt and https://github.com/loro-dev/loro-mirror before",
+                "  implementing."
+            ]
+        },
+        {
+            "id": "HS-004",
+            "sourceId": "SRC-HUMAN-SCRATCH",
+            "heading": "Description aliases",
+            "sourceLineRange": "165-236",
+            "task": "tasks/HS-004-description-aliases.md",
+            "packages": ["P11A", "P11B", "P11C"],
+            "sourceTextLines": [
+                "- [] Add description aliases - these are much like tags in that there is a single curated list of",
+                "  aliases. Stored as an optional ID on each transaction. There is a page (\"Tx Descriptions\" nav",
+                "  item) where description aliases can be created, deleted and renamed. As part of this feature, we",
+                "  change the description field on transactions to make it read only - the raw imported description",
+                "  text can't be changed. Instead, the description cell in the transactions table becomes a hybrid",
+                "  text input / autocomplete.",
+                "",
+                "    **Cell UX:** The description cell is a text input that always shows text — either the alias name",
+                "    (if one is set) or the original imported description (if no alias yet). It behaves like",
+                "    InlineEditableText: _click once_ to position cursor, then edit. In other words, there is no",
+                "    friction - the user can click any description in the table and have their cursor immediately at",
+                "    that position in the clicked description. As the user types, an autocomplete dropdown appears",
+                "    showing existing aliases that match. The dropdown only mounts on hover or keyboard navigation",
+                "    into the cell (not on every row) to keep the virtualized table performant. The first item in the",
+                "    autocomplete is NOT selected by default. The user must press down to focus the first element,",
+                "    then enter to select it and have it populated into the description. Pressing up and down",
+                "    navigates through the autocompleted, and enter accepts an item. Esc closes the autocomplete.",
+                "    When the autocomplete is closed, pressing the up and down arrows moves focus to the next or",
+                "    previous row (the normal behaviour).",
+                "",
+                "    **Seamless alias creation:** The alias system is invisible to the user until it matters:",
+                "    - User imports transactions. Descriptions show as regular text. No aliases exist yet.",
+                "    - User clicks a description, edits it, presses Enter or blurs. If the text doesn't match an",
+                "      existing alias, one is automatically created and applied. No modal, no extra steps.",
+                "    - If the partially typed text matches an existing alias in the dropdown, user can click it to",
+                "      apply that alias (the visible description updates to the full alias). If the typed text",
+                "      matches the alias, it is attached to the alias, even if the autocomplete option is not",
+                "      clicked.",
+                "    - For added transactions (rather than imported), a description automatically becomes an alias on",
+                "      blur/enter.",
+                "    - First-time alias assignment (no previous alias) never shows a modal.",
+                "",
+                "    **Editing an aliased description:** User clicks the cell, edits the text. On Enter/blur:",
+                "    - If the current alias only has 1 transaction (total across alias + symlinks `transactionIds`",
+                "      size is 1), the alias is simply renamed. No modal. Still seamless.",
+                "    - If the current alias has multiple transactions, a modal appears.",
+                "",
+                "    **When an alias is set:** The original imported description text shows on hover via tooltip",
+                "    (shadcn tooltip) if the alias and description are different. For manually created transactions",
+                "    there is no original description — only the alias name.",
+                "",
+                "    **Manual transaction creation:** Same text input with autocomplete. Type a description, and on",
+                "    submit it creates or selects an alias. No raw description text is stored.",
+                "",
+                "    **Alias change modal:** Only appears when the current alias has multiple transactions (total",
+                "    `transactionIds` across alias + its symlinks > 1). Triggered on Enter/blur when the text has",
+                "    changed, or when selecting a different alias from the dropdown:",
+                "    - If changing to a different alias (existing or new text): \"Change just this one\", \"Change all\",",
+                "      \"Cancel\".",
+                "    - If clearing the alias: \"Remove from just this one\", \"Remove from all\", \"Cancel\".",
+                "    - First option is selected by default. Tab cycles between options. Enter confirms and closes.",
+                "",
+                "    **Symlink model for \"Change all\":**",
+                "    - A description alias can be either a real alias (has `name`) or a symlink (has `targetAliasId`",
+                "      pointing to a real alias).",
+                "    - Real aliases track `symlinkIds: LoroList(String)` as backlinks to their symlinks.",
+                "    - Each alias/symlink tracks `transactionIds` (set of transaction IDs pointing directly at it).",
+                "      Used for modal skip logic and GC worker.",
+                "    - \"Change all\" makes the old alias a symlink to the new alias. O(1) operation.",
+                "    - \"Change just this one\" updates `descriptionAliasId` on the transaction only. Moves the",
+                "      transaction ID between the old and new alias's `transactionIds` sets.",
+                "    - \"Remove from just this one\" sets `descriptionAliasId = undefined` on the transaction. Removes",
+                "      the transaction ID from the alias's `transactionIds` set.",
+                "    - \"Remove from all\" soft-deletes the alias (sets `deletedAt`). Transactions pointing to it",
+                "      render as having no alias (resolve deleted/missing alias as empty).",
+                "    - Invariant: no symlink chains. When alias B becomes a symlink to alias C, all existing symlinks",
+                "      pointing at B are repointed to C. C's `symlinkIds` gains B plus all of B's former symlinks.",
+                "      B's `symlinkIds` is cleared.",
+                "    - New transactions must always point to the final (real) alias, never a symlink.",
+                "    - Symlink resolution on read is O(1) - single hash map lookup.",
+                "",
+                "    **Background GC worker:** See separate task below."
+            ]
+        },
+        {
+            "id": "HS-005",
+            "sourceId": "SRC-HUMAN-SCRATCH",
+            "heading": "Background GC worker",
+            "sourceLineRange": "238-243",
+            "task": "tasks/HS-005-background-gc.md",
+            "packages": ["P12"],
+            "sourceTextLines": [
+                "- [] Background GC worker - a requestAnimationFrame-based worker that incrementally processes a",
+                "  bounded number of transactions per frame. Responsibilities: (a) merge adjacent transaction buckets",
+                "  with same year/month/day (CRDT merge artifacts), (b) update transactions pointing to description",
+                "  alias symlinks to point to the final alias, then hard-delete symlinks with no remaining",
+                "  references. This is a performance refinement - description aliases work correctly without it via",
+                "  symlink resolution on read."
+            ]
+        },
+        {
+            "id": "HS-006",
+            "sourceId": "SRC-HUMAN-SCRATCH",
+            "heading": "Loro undo and redo",
+            "sourceLineRange": "245-246",
+            "task": "tasks/HS-006-undo-redo.md",
+            "packages": ["P09"],
+            "sourceTextLines": [
+                "- [] Add undo and redo buttons and standard ctrl + z / ctrl + shift + z / ctrl + y bindings. Use the",
+                "  standard loro UndoManager for this."
+            ]
+        },
+        {
+            "id": "HS-007",
+            "sourceId": "SRC-HUMAN-SCRATCH",
+            "heading": "Automation redesign",
+            "sourceLineRange": "248-295",
+            "task": "tasks/HS-007-automation-redesign.md",
+            "packages": ["P17A", "P17B", "P17C", "P17D"],
+            "sourceTextLines": [
+                "- [] Change how automations work. They work differently for each field.",
+                "    - For description aliases, when you apply a description alias to a transaction on the",
+                "      transactions page where the description text doesn't already match a rule, some controls",
+                "      appear.",
+                "        - The controls should not cause the table to resize, should not occlude anything, and should",
+                "          be close to the user's mouse - so they should either appear in an unfocused popup or",
+                "          hovering to the right or below the description. The controls include:",
+                "            - A select that contains the options: 1. updating all 2. updating new 3. update all 4.",
+                "              update new.",
+                "            - There is a button with a tick icon next to the select.",
+                "            - There is also an \"only if $x\" checkbox (that restricts the rule to exact match on that",
+                "              amount x of the transaction) and \"only this account\" checkbox (that restricts the rule",
+                "              to just the selected account).",
+                "            - A tooltip should explain that update all means update all existing and new",
+                "              transactions with the exact same description text to have the alias. Update new means",
+                "              update only newer transactions (greater date than the current transaction). The prefix",
+                "              \"Updating\" implies the change will apply automatically when the row loses focus, or if",
+                "              you click the tick button. \"Update\" implies you have to manually click the tick",
+                "              button.",
+                "        - The created rule will apply for that exact description text (and optionally account id and",
+                "          or amount) moving forward, and will run for newly imported transactions. It does not apply",
+                "          to manually created transactions, as they don't have description text (just a description",
+                "          alias). We remember the user's last choices for the select and check boxes in a new user",
+                "          preferences part of the vault. There can only be one rule for each description text with",
+                "          no account or amount constraints. This can be superseded by rules matching description",
+                "          text for specific amounts, followed by rules for each account, followed by rules for each",
+                "          account for each amount (there is a natural precedence).",
+                "    - Rules set the field on a transaction. There is no explicit link between the rule and the",
+                "      transaction. However, for each transaction, we calculate the highest precedence rule that",
+                "      matches (i.e. the description text is an exact match, and optionally the account and amount),",
+                "      if there is one. If the transaction has the description alias implied by the rule, and the",
+                "      transaction is not currently being edited, we show a small robot icon button that you can",
+                "      click to view and edit or delete the rule inline in a popup. If the rule matches but the",
+                "      description alias is not the same as the rule would imply, the robot icon is red (but",
+                "      otherwise works the same). In this case the popup also has an \"apply to this transaction\"",
+                "      button. This should reuse the exact same UI as the automations page. This UI should have an",
+                "      \"apply to all\" and \"apply to new imports\" button. If the UI is open in the context of a",
+                "      transaction, apply to new imports implies newer that the current transaction. If we're not in",
+                "      the context of a transaction, it means all new imports moving forward. When a description",
+                "      alias is changed on a transaction in the transactions table, and it has a matching rule (as",
+                "      calculated above to show the robot button), we then offer then same 4 select choices and",
+                "      checkboxes. This time, if applied, we update the rule rather than create one. Automation rules",
+                "      for description, tags and person percentage attribution work similarly. For tags there is an",
+                "      additional select after \"only this account\" that has two options: \"add tags\" or \"set tags\"",
+                "      (that will clear existing tags). For person percentage attribution there is a column per",
+                "      person. The rule applies to the whole set of percentage columns. It should span all the",
+                "      columns. Unlike description alias rules, these other rules do apply to manually created",
+                "      transactions."
+            ]
+        },
+        {
+            "id": "HS-008",
+            "sourceId": "SRC-HUMAN-SCRATCH",
+            "heading": "Import lineage and reversible deletion",
+            "sourceLineRange": "297-300",
+            "task": "tasks/HS-008-import-lineage.md",
+            "packages": ["P14"],
+            "sourceTextLines": [
+                "- [] We should save an importId on imported transactions. If the amount is edited we should save the",
+                "  amount in a originalAmount field and show that as a tooltip on the amount cell in the transactions",
+                "  table. Deleting an import deletes the associated transactions (essentially letting you undo an",
+                "  import)."
+            ]
+        },
+        {
+            "id": "HS-009",
+            "sourceId": "SRC-HUMAN-SCRATCH",
+            "heading": "Person allocation bounds",
+            "sourceLineRange": "302",
+            "task": "tasks/HS-009-allocation-bounds.md",
+            "packages": ["P16A", "P16C", "P16D"],
+            "sourceTextLines": [
+                "- [] People percent allocations should not be able to exceed + or - 100"
+            ]
+        },
+        {
+            "id": "HS-010",
+            "sourceId": "SRC-HUMAN-SCRATCH",
+            "heading": "Remove unused user state",
+            "sourceLineRange": "304-305",
+            "task": "tasks/HS-010-remove-user-state.md",
+            "packages": ["P06"],
+            "sourceTextLines": [
+                "- [] We should drop the user state column from the user table until we use it (we'd want it to use",
+                "  the same sync and crdt logic, which is unnecessary complexity at this point)."
+            ]
+        },
+        {
+            "id": "HS-011",
+            "sourceId": "SRC-HUMAN-SCRATCH",
+            "heading": "Person, member, and invite UX",
+            "sourceLineRange": "307-311",
+            "task": "tasks/HS-011-membership-invite-ux.md",
+            "packages": ["P07", "P08"],
+            "sourceTextLines": [
+                "- [] What is the current UX for adding a new user to a vault? I thought we had an invite flow? But I",
+                "  can't see it? Does it make sense that each user must be a person in the vault? You can then",
+                "  optionally invite that person to join the vault as a user? So the person page is also used for",
+                "  managing users that have access to the vault? Or perhaps users with access should live in vault",
+                "  settings?"
+            ]
+        },
+        {
+            "id": "HS-012",
+            "sourceId": "SRC-HUMAN-SCRATCH",
+            "heading": "Automatically linked person per user",
+            "sourceLineRange": "313-315",
+            "task": "tasks/HS-012-auto-person-link.md",
+            "packages": ["P08"],
+            "sourceTextLines": [
+                "- [] There should be a person created for each user automatically, person should have an optional",
+                "  user id (pub key hash?) and the person name should become optional and uses the user name as a",
+                "  fallback if it has an associated user."
+            ]
+        },
+        {
+            "id": "HS-013",
+            "sourceId": "SRC-HUMAN-SCRATCH",
+            "heading": "Import drop zones",
+            "sourceLineRange": "317",
+            "task": "tasks/HS-013-import-drop-zones.md",
+            "packages": ["P15"],
+            "sourceTextLines": [
+                "- [] The transactions table and imports list page should be a drop zone to trigger an import."
+            ]
+        },
+        {
+            "id": "HS-014",
+            "sourceId": "SRC-HUMAN-SCRATCH",
+            "heading": "Database tables and row-level permissions",
+            "sourceLineRange": "319-323",
+            "task": "tasks/HS-014-database-rls-audit.md",
+            "packages": ["P04"],
+            "sourceTextLines": [
+                "- [] Review tables and row level permissions - why are there two ops and snapshot tables? Is the",
+                "  hashed public key used to enforce row level permissions consistently? (i.e. you are authenticed by",
+                "  your public key hash, this is always sent with TLS and never stored in plain in urls or anyway",
+                "  (can't be intercepted), and then your row level access is determined by whether you have",
+                "  permission to access that vault?)"
+            ]
+        },
+        {
+            "id": "HS-015",
+            "sourceId": "SRC-HUMAN-SCRATCH",
+            "heading": "Secure Supabase WebSocket connection",
+            "sourceLineRange": "325-326",
+            "task": "tasks/HS-015-realtime-security.md",
+            "packages": ["P05"],
+            "sourceTextLines": [
+                "- [] How are we handling the client connection to supabase for websockets? Does this work with CORS?",
+                "  Is it properly secured based on pub key hash access to vault?"
+            ]
+        },
+        {
+            "id": "HS-016",
+            "sourceId": "SRC-HUMAN-SCRATCH",
+            "heading": "Truthful marketing pages",
+            "sourceLineRange": "328-331",
+            "task": "tasks/HS-016-marketing-pages.md",
+            "packages": ["P20A"],
+            "sourceTextLines": [
+                "- [] Update the marketing pages to include all these features. Be clear, succinct and not too",
+                "  \"markety\". It's private. It's for categorising and allocating your transactions, not budgeting.",
+                "  Supports importing CSV and ofx. Multiple people can collaborate in real-time. It intelligently",
+                "  applies your tags, aliases and allocations to new imports."
+            ]
+        },
+        {
+            "id": "HS-017",
+            "sourceId": "SRC-HUMAN-SCRATCH",
+            "heading": "Animate UI component investigation",
+            "sourceLineRange": "333-339",
+            "task": "tasks/HS-017-animate-ui-evaluation.md",
+            "packages": ["P02"],
+            "sourceTextLines": [
+                "- [] Investigate animate-ui shadcn registry components (https://animate-ui.com/docs/components)",
+                "    - We've already used it for the import tabs - good to use it more broadly for consistency and",
+                "      because it looks great!",
+                "    - Focus on /radix/ components: Dialog, Alert Dialog, Dropdown Menu, Tooltip, etc.",
+                "    - Evaluate: Animation quality, accessibility, bundle size, compatibility with existing shadcn/ui",
+                "      setup",
+                "    - Compare with current @radix-ui/\\* primitives + tw-animate-css setup"
+            ]
+        },
+        {
+            "id": "HS-018",
+            "sourceId": "SRC-HUMAN-SCRATCH",
+            "heading": "TanStack Virtual useFlushSync release",
+            "sourceLineRange": "341-342",
+            "task": "tasks/HS-018-tanstack-virtual.md",
+            "packages": ["P03"],
+            "sourceTextLines": [
+                "- [] Update tanstack virtual once https://github.com/TanStack/virtual/pull/1100 is released and",
+                "  enable useFlushSync"
+            ]
+        },
+        {
+            "id": "HS-019",
+            "sourceId": "SRC-HUMAN-SCRATCH",
+            "heading": "Password-manager-compatible recovery phrase",
+            "sourceLineRange": "344-346",
+            "task": "tasks/HS-019-password-manager-recovery.md",
+            "packages": ["P18"],
+            "sourceTextLines": [
+                "- [] Is there a way we can make the recovery phrase more compatible with password managers? It would",
+                "  be great if password managers automatically offer to save and fill the recovery phrase when",
+                "  creating or logging in to a vault."
+            ]
+        },
+        {
+            "id": "HS-020",
+            "sourceId": "SRC-HUMAN-SCRATCH",
+            "heading": "WebAuthn PRF passkeys",
+            "sourceLineRange": "348-350",
+            "task": "tasks/HS-020-passkey-prf.md",
+            "packages": ["P19"],
+            "sourceTextLines": [
+                "- [] Support using a passkey instead of, or in addition to, the recovery phrase, using the new PRF",
+                "  extension. Change the vault creation and login flows to support passkey as a second option using",
+                "  an ---- OR ---- style UI."
+            ]
+        },
+        {
+            "id": "FS-001",
+            "sourceId": "SRC-TRANSACTION-PERCENTAGE-ALLOCATIONS-SETTLEMENT",
+            "heading": "Transaction Percentage Allocations and Settlement",
+            "sourceSelector": {
+                "kind": "wholeFile",
+                "lineRange": "1-715"
+            },
+            "task": "tasks/FS-001-transaction-percentage-allocations-settlement.md",
+            "packages": ["P16A", "P16B", "P16C", "P16D", "P16E"],
+            "sourceCompletion": "immutableNoSourceMutation"
+        }
+    ]
+}
