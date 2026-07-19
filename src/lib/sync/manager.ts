@@ -153,6 +153,7 @@ export class SyncManager {
         string,
         { id: string; encryptedData: string; versionVector: string }
     >();
+    private remoteOperationQueue: Promise<void> = Promise.resolve();
 
     constructor(options: SyncManagerOptions) {
         this.vaultId = options.vaultId;
@@ -188,7 +189,7 @@ export class SyncManager {
             if (this.disconnectRequested) return;
 
             // Subscribe to realtime updates
-            this.realtime = createVaultRealtimeSync(this.vaultId, this.pubkeyHash);
+            this.realtime = createVaultRealtimeSync(this.vaultId, "sync");
             await this.realtime.subscribe({
                 onUpdate: async (update) => {
                     // Skip our own updates
@@ -197,14 +198,22 @@ export class SyncManager {
                     }
 
                     // Apply the update
-                    await this.applyRemoteUpdate(update.encryptedData);
-                }
+                    await this.enqueueRemoteOperation(() =>
+                        this.applyRemoteUpdate(update.encryptedData)
+                    );
+                },
+                onReconnect: () => this.enqueueRemoteOperation(() => this.catchUpFromServer())
             });
             if (this.disconnectRequested) {
                 await this.realtime.unsubscribe();
                 this.realtime = null;
                 return;
             }
+
+            // Realtime is not a delivery guarantee. Pull once after the channel has joined to close
+            // the window between the initial server read and replication readiness.
+            await this.enqueueRemoteOperation(() => this.catchUpFromServer());
+            if (this.disconnectRequested) return;
 
             // Set up document change listener for auto-sync
             this.setupAutoSync();
@@ -281,7 +290,9 @@ export class SyncManager {
         this.visibilityHandler = () => {
             if (document.visibilityState === "hidden") {
                 this.throttledServerSync?.flush();
+                return;
             }
+            void this.enqueueRemoteOperation(() => this.catchUpFromServer());
         };
         document.addEventListener("visibilitychange", this.visibilityHandler);
 
@@ -555,12 +566,15 @@ export class SyncManager {
      * Apply a remote update to the local document.
      */
     private async applyRemoteUpdate(encryptedData: string): Promise<void> {
+        if (this.disconnectRequested) return;
         try {
             // Temporarily disable auto-sync to prevent echo
             this.autoSyncEnabled = false;
 
             // Decrypt the update
             const decryptedUpdate = await decryptUpdate({ encryptedData }, this.vaultKey);
+
+            if (this.disconnectRequested) return;
 
             // Import the update into the document
             this.doc.import(decryptedUpdate);
@@ -573,6 +587,51 @@ export class SyncManager {
             this.autoSyncEnabled = true;
             console.error("Failed to apply remote update:", error);
             this.onError?.(error instanceof Error ? error : new Error(String(error)));
+        }
+    }
+
+    /** Serialize replicated payloads and catch-up pulls so reconnects cannot reorder imports. */
+    private enqueueRemoteOperation(operation: () => Promise<void>): Promise<void> {
+        const queued = this.remoteOperationQueue
+            .catch(() => undefined)
+            .then(async () => {
+                if (!this.disconnectRequested) await operation();
+            });
+        this.remoteOperationQueue = queued;
+        return queued;
+    }
+
+    /** Pull the durable source after joins/foregrounding because Realtime delivery is best effort. */
+    private async catchUpFromServer(): Promise<void> {
+        if (!this.trpc || this.disconnectRequested) return;
+
+        let hasUnpushed = this.memoryOps.size > 0;
+        if (this.localPersistenceAvailable) {
+            try {
+                hasUnpushed ||= await hasUnpushedOps(this.vaultId);
+            } catch (error) {
+                this.disableLocalPersistence(error);
+            }
+        }
+
+        const response = await this.trpc.sync.getUpdates.query({
+            vaultId: this.vaultId,
+            versionVector: this.getVersionVectorString(),
+            hasUnpushed
+        });
+        if (response.type === "ops") {
+            for (const op of response.ops) {
+                if (this.disconnectRequested) return;
+                await this.applyRemoteUpdate(op.encryptedData);
+            }
+            return;
+        }
+
+        if (!hasUnpushed) {
+            const snapshot = await this.trpc.sync.getSnapshot.query({ vaultId: this.vaultId });
+            if (snapshot && !this.disconnectRequested) {
+                await this.applySnapshot(snapshot.encryptedData);
+            }
         }
     }
 
@@ -730,6 +789,7 @@ export class SyncManager {
     async forceSync(): Promise<void> {
         this.lastSyncedVersion = null;
         await this.pushToServer();
+        await this.enqueueRemoteOperation(() => this.catchUpFromServer());
     }
 
     private disableLocalPersistence(error: unknown): void {
@@ -777,6 +837,8 @@ export class SyncManager {
         // Disconnect realtime
         await this.realtime?.unsubscribe();
         this.realtime = null;
+
+        await this.remoteOperationQueue.catch(() => undefined);
 
         this.isInitialized = false;
         this.autoSyncEnabled = false;

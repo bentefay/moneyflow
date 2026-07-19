@@ -30,15 +30,6 @@ export interface UseVaultPresenceOptions {
     heartbeatInterval?: number;
     /** Consider offline after N milliseconds without heartbeat (default: 60000) */
     offlineThreshold?: number;
-    /** Called when receiving updates from other users */
-    onUpdate?: (update: {
-        id: string;
-        encryptedData: string;
-        baseSnapshotVersion: number;
-        hlcTimestamp: string;
-        authorPubkeyHash: string;
-        createdAt: string;
-    }) => void;
 }
 
 /**
@@ -54,18 +45,12 @@ export function useVaultPresence(
     pubkeyHash: string | null,
     options: UseVaultPresenceOptions = {}
 ) {
-    const { heartbeatInterval = 30000, offlineThreshold = 60000, onUpdate } = options;
+    const { heartbeatInterval = 30000, offlineThreshold = 60000 } = options;
 
     const [presence, setPresence] = useState<VaultPresence[]>([]);
     const [isConnected, setIsConnected] = useState(false);
     const syncRef = useRef<VaultRealtimeSync | null>(null);
     const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
-    const onUpdateRef = useRef(onUpdate);
-
-    // Keep onUpdate ref current
-    useEffect(() => {
-        onUpdateRef.current = onUpdate;
-    }, [onUpdate]);
 
     // Handle presence updates with online status
     const handlePresence: OnPresenceCallback = useCallback(
@@ -102,17 +87,14 @@ export function useVaultPresence(
         }
 
         // Create new sync instance
-        const sync = createVaultRealtimeSync(vaultId, pubkeyHash, "presence");
+        const sync = createVaultRealtimeSync(vaultId, "presence");
         syncRef.current = sync;
         let cancelled = false;
 
         async function connect() {
             try {
                 await sync.subscribe({
-                    onPresence: handlePresence,
-                    onUpdate: (update) => {
-                        onUpdateRef.current?.(update);
-                    }
+                    onPresence: handlePresence
                 });
 
                 if (cancelled) {

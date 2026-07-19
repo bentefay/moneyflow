@@ -6,6 +6,13 @@
 
 export { clearSession, createNewIdentity, enterSeedPhrase, extractSeedPhrase } from "./auth";
 export {
+    countRealtimeGrants,
+    readActiveVaultId,
+    readBrowserIdentity,
+    removeFixtureMember,
+    shareActiveVaultWithMember
+} from "./realtime";
+export {
     goToAccounts,
     goToDashboard,
     goToImportNew,

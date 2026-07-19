@@ -12,6 +12,22 @@ import { requireSecureSupabaseUrl } from "./url";
 
 let supabaseClient: SupabaseClient<Database> | null = null;
 
+function getBrowserSupabaseConfiguration(): { url: string; anonKey: string } {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error(
+            "Missing Supabase environment variables. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY."
+        );
+    }
+
+    return {
+        url: requireSecureSupabaseUrl(supabaseUrl, process.env.NODE_ENV),
+        anonKey: supabaseAnonKey
+    };
+}
+
 /**
  * Get the Supabase browser client (singleton).
  *
@@ -22,18 +38,9 @@ export function createSupabaseClientForBrowser(): SupabaseClient<Database> {
         return supabaseClient;
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const configuration = getBrowserSupabaseConfiguration();
 
-    if (!supabaseUrl || !supabaseAnonKey) {
-        throw new Error(
-            "Missing Supabase environment variables. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY."
-        );
-    }
-
-    const secureSupabaseUrl = requireSecureSupabaseUrl(supabaseUrl, process.env.NODE_ENV);
-
-    supabaseClient = createClient<Database>(secureSupabaseUrl, supabaseAnonKey, {
+    supabaseClient = createClient<Database>(configuration.url, configuration.anonKey, {
         auth: {
             persistSession: false,
             autoRefreshToken: false
@@ -41,6 +48,26 @@ export function createSupabaseClientForBrowser(): SupabaseClient<Database> {
     });
 
     return supabaseClient;
+}
+
+/**
+ * Create an isolated Realtime client whose callback supplies a vault-scoped short-lived token.
+ * Isolation prevents one vault or purpose from replacing another channel's socket credential.
+ */
+export function createSupabaseClientForRealtime(
+    accessToken: () => Promise<string>
+): SupabaseClient<Database> {
+    const configuration = getBrowserSupabaseConfiguration();
+    return createClient<Database>(configuration.url, configuration.anonKey, {
+        accessToken,
+        auth: {
+            persistSession: false,
+            autoRefreshToken: false
+        },
+        realtime: {
+            params: { eventsPerSecond: 10 }
+        }
+    });
 }
 
 export type { Database };

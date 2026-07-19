@@ -1,9 +1,10 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT plan(49);
+SELECT plan(69);
 
 SELECT has_table('public', 'request_nonces', 'replay table exists');
 SELECT has_table('public', 'vault_updates_legacy', 'legacy rows are quarantined');
+SELECT has_table('public', 'realtime_grants', 'short-lived realtime grants exist');
 SELECT has_view('public', 'vault_updates', 'rolling compatibility view exists');
 SELECT has_function('public', 'claim_request_nonce', ARRAY['text', 'text', 'bigint']);
 SELECT has_function('public', 'accept_vault_invite', ARRAY['text', 'text', 'text', 'text']);
@@ -11,6 +12,9 @@ SELECT has_function('public', 'create_vault_for_owner', ARRAY['text', 'text', 't
 SELECT has_function('public', 'soft_delete_vault', ARRAY['uuid', 'text']);
 SELECT has_function('public', 'rekey_vault_members', ARRAY['uuid', 'text', 'jsonb']);
 SELECT has_function('public', 'append_vault_ops', ARRAY['uuid', 'text', 'jsonb']);
+SELECT has_function('public', 'rotate_realtime_grant', ARRAY['text', 'uuid', 'text', 'uuid', 'integer']);
+SELECT has_function('public', 'revoke_realtime_grant', ARRAY['text', 'uuid', 'text', 'uuid']);
+SELECT has_function('public', 'realtime_grant_allows', ARRAY['uuid', 'text']);
 SELECT hasnt_function('public', 'current_pubkey_hash', ARRAY[]::text[]);
 SELECT hasnt_function('public', 'is_vault_member', ARRAY['uuid']);
 SELECT hasnt_function('public', 'is_vault_owner', ARRAY['uuid']);
@@ -20,7 +24,9 @@ SELECT ok(NOT has_table_privilege('authenticated', 'public.user_data', 'SELECT')
 SELECT ok(NOT has_table_privilege('anon', 'public.vault_invites', 'SELECT'), 'anon cannot enumerate invites');
 SELECT ok(NOT has_table_privilege('authenticated', 'public.vault_invites', 'DELETE'), 'authenticated cannot delete invites');
 SELECT ok(NOT has_table_privilege('anon', 'public.vault_ops', 'SELECT'), 'anon cannot read ops');
+SELECT ok(has_table_privilege('authenticated', 'public.vault_ops', 'SELECT'), 'authenticated role can reach scoped ops RLS');
 SELECT ok(NOT has_table_privilege('authenticated', 'public.vault_ops', 'INSERT'), 'authenticated cannot spoof ops');
+SELECT ok(NOT has_table_privilege('authenticated', 'public.realtime_grants', 'SELECT'), 'browser cannot enumerate grants');
 SELECT ok(has_table_privilege('service_role', 'public.vault_ops', 'SELECT'), 'service role can read authorized ops');
 SELECT ok(has_table_privilege('service_role', 'public.vault_ops', 'INSERT'), 'service role can append authorized ops');
 SELECT ok(NOT has_table_privilege('service_role', 'public.vault_ops', 'UPDATE'), 'service role cannot rewrite ops');
@@ -28,12 +34,15 @@ SELECT ok(NOT has_table_privilege('service_role', 'public.vault_ops', 'DELETE'),
 SELECT ok(NOT has_table_privilege('service_role', 'public.vaults', 'DELETE'), 'service role cannot hard-delete vaults');
 SELECT ok(has_function_privilege('service_role', 'public.claim_request_nonce(text,text,bigint)', 'EXECUTE'), 'service role can claim verified nonce');
 SELECT ok(NOT has_function_privilege('anon', 'public.claim_request_nonce(text,text,bigint)', 'EXECUTE'), 'anon cannot claim a hash');
+SELECT ok(has_function_privilege('service_role', 'public.rotate_realtime_grant(text,uuid,text,uuid,integer)', 'EXECUTE'), 'service role can rotate verified grants');
+SELECT ok(NOT has_function_privilege('authenticated', 'public.rotate_realtime_grant(text,uuid,text,uuid,integer)', 'EXECUTE'), 'browser cannot mint grants in SQL');
 SELECT is(
     (SELECT string_agg(tablename, ',' ORDER BY tablename) FROM pg_publication_tables WHERE pubname = 'supabase_realtime'),
     'vault_ops',
     'only permanent ops are published'
 );
-SELECT is((SELECT count(*) FROM pg_policies WHERE policyname = 'Direct API access denied'), 8::bigint, 'all tables explicitly deny direct API roles');
+SELECT is((SELECT count(*) FROM pg_policies WHERE policyname = 'Direct API access denied'), 7::bigint, 'non-realtime tables explicitly deny direct API roles');
+SELECT is((SELECT count(*) FROM pg_policies WHERE policyname = 'Exact live Realtime grant reads vault ops'), 1::bigint, 'vault ops have one exact live-grant read policy');
 
 SELECT ok(public.claim_request_nonce(repeat('a', 64), repeat('b', 44), (extract(epoch FROM clock_timestamp()) * 1000)::bigint), 'fresh verified nonce is claimed');
 SELECT ok(NOT public.claim_request_nonce(repeat('a', 64), repeat('b', 44), (extract(epoch FROM clock_timestamp()) * 1000)::bigint), 'replay is rejected atomically');
@@ -88,6 +97,153 @@ SELECT results_eq(
     $$VALUES ('bmV3LW93bmVy'::text), ('bmV3LW1lbWJlcg=='::text)$$,
     'all wrapped keys update together'
 );
+
+CREATE TEMP TABLE second_vault AS
+SELECT public.create_vault_for_owner(repeat('3', 64), 'd3JhcHBlZA==', 'cHVibGlj') AS id;
+
+CREATE TEMP TABLE owner_realtime_grant AS
+SELECT * FROM public.rotate_realtime_grant(
+    repeat('1', 64),
+    (SELECT id FROM created_vault),
+    'sync',
+    '00000000-0000-0000-0000-000000000000',
+    60
+);
+DO $$
+BEGIN
+    PERFORM set_config(
+        'request.jwt.claims',
+        jsonb_build_object(
+            'jti', (SELECT grant_id FROM owner_realtime_grant),
+            'role', 'authenticated',
+            'vault_id', (SELECT id FROM created_vault),
+            'realtime_table', 'vault_ops',
+            'realtime_purpose', 'sync',
+            'realtime_topic', 'vault:' || (SELECT id FROM created_vault)::text || ':sync',
+            'vault_role', 'owner'
+        )::text,
+        true
+    );
+END;
+$$;
+SELECT ok(public.realtime_grant_allows((SELECT id FROM created_vault), 'sync'), 'owner grant authorizes its exact permanent-op scope');
+SELECT ok(NOT public.realtime_grant_allows((SELECT id FROM second_vault), 'sync'), 'grant cannot cross into another vault');
+DO $$
+BEGIN
+    PERFORM set_config(
+        'request.jwt.claims',
+        jsonb_set(public.current_realtime_claims(), '{realtime_table}', '"vault_snapshots"')::text,
+        true
+    );
+END;
+$$;
+SELECT ok(NOT public.realtime_grant_allows((SELECT id FROM created_vault), 'sync'), 'snapshot/table substitution is denied');
+CREATE TEMP TABLE rotated_owner_realtime_grant AS
+SELECT * FROM public.rotate_realtime_grant(
+    repeat('1', 64),
+    (SELECT id FROM created_vault),
+    'sync',
+    (SELECT grant_id FROM owner_realtime_grant),
+    60
+);
+DO $$
+BEGIN
+    PERFORM set_config(
+        'request.jwt.claims',
+        jsonb_set(
+            jsonb_set(public.current_realtime_claims(), '{jti}', to_jsonb((SELECT grant_id FROM owner_realtime_grant)::text)),
+            '{realtime_table}',
+            '"vault_ops"'
+        )::text,
+        true
+    );
+END;
+$$;
+SELECT ok(NOT public.realtime_grant_allows((SELECT id FROM created_vault), 'sync'), 'rotation immediately revokes the prior grant');
+SELECT is(
+    (SELECT count(*) FROM public.realtime_grants WHERE vault_id = (SELECT id FROM created_vault) AND pubkey_hash = repeat('1', 64) AND purpose = 'sync' AND revoked_at IS NULL),
+    1::bigint,
+    'only one exact live grant survives rotation'
+);
+DO $$
+BEGIN
+    PERFORM set_config(
+        'request.jwt.claims',
+        jsonb_set(public.current_realtime_claims(), '{jti}', to_jsonb((SELECT grant_id FROM rotated_owner_realtime_grant)::text))::text,
+        true
+    );
+END;
+$$;
+SELECT ok(public.realtime_grant_allows((SELECT id FROM created_vault), 'sync'), 'rotated grant authorizes the unchanged exact scope');
+SELECT throws_ok(
+    $$SELECT * FROM public.rotate_realtime_grant(repeat('3', 64), (SELECT id FROM created_vault), 'sync', '00000000-0000-0000-0000-000000000000', 60)$$,
+    '42501',
+    'realtime grant denied',
+    'outsider cannot mint a realtime grant'
+);
+
+CREATE TEMP TABLE member_realtime_grant AS
+SELECT * FROM public.rotate_realtime_grant(
+    repeat('2', 64),
+    (SELECT id FROM created_vault),
+    'sync',
+    '00000000-0000-0000-0000-000000000000',
+    60
+);
+DO $$
+BEGIN
+    PERFORM set_config(
+        'request.jwt.claims',
+        jsonb_build_object(
+            'jti', (SELECT grant_id FROM member_realtime_grant),
+            'role', 'authenticated',
+            'vault_id', (SELECT id FROM created_vault),
+            'realtime_table', 'vault_ops',
+            'realtime_purpose', 'sync',
+            'realtime_topic', 'vault:' || (SELECT id FROM created_vault)::text || ':sync',
+            'vault_role', 'member'
+        )::text,
+        true
+    );
+END;
+$$;
+SELECT ok(public.realtime_grant_allows((SELECT id FROM created_vault), 'sync'), 'member grant authorizes the same encrypted stream');
+DELETE FROM public.vault_memberships
+WHERE vault_id = (SELECT id FROM created_vault) AND pubkey_hash = repeat('2', 64);
+SELECT ok(NOT public.realtime_grant_allows((SELECT id FROM created_vault), 'sync'), 'membership removal invalidates an unexpired grant immediately');
+INSERT INTO public.vault_memberships (
+    vault_id, pubkey_hash, encrypted_vault_key, role, enc_public_key
+) VALUES (
+    (SELECT id FROM created_vault), repeat('2', 64), 'bmV3LW1lbWJlcg==', 'member', 'bmV3LXB1YmxpYw=='
+);
+
+DO $$
+BEGIN
+    PERFORM set_config(
+        'request.jwt.claims',
+        jsonb_build_object(
+            'jti', (SELECT grant_id FROM rotated_owner_realtime_grant),
+            'role', 'authenticated',
+            'vault_id', (SELECT id FROM created_vault),
+            'realtime_table', 'vault_ops',
+            'realtime_purpose', 'sync',
+            'realtime_topic', 'vault:' || (SELECT id FROM created_vault)::text || ':sync',
+            'vault_role', 'owner'
+        )::text,
+        true
+    );
+END;
+$$;
+SELECT ok(
+    public.revoke_realtime_grant(
+        repeat('1', 64),
+        (SELECT id FROM created_vault),
+        'sync',
+        (SELECT grant_id FROM rotated_owner_realtime_grant)
+    ),
+    'owner grant revokes by exact identity/vault/purpose/id'
+);
+SELECT ok(NOT public.realtime_grant_allows((SELECT id FROM created_vault), 'sync'), 'revoked grant cannot read another payload');
 SELECT results_eq(
     $$SELECT public.append_vault_ops((SELECT id FROM created_vault), repeat('1', 64), '[{"id":"30000000-0000-4000-8000-000000000001","encrypted_data":"b3duZXItb3A=","version_vector":"owner-vector"}]')$$,
     $$VALUES ('30000000-0000-4000-8000-000000000001'::uuid)$$,
@@ -104,8 +260,6 @@ SELECT throws_ok(
     'vault access denied',
     'outsider cannot append operations'
 );
-CREATE TEMP TABLE second_vault AS
-SELECT public.create_vault_for_owner(repeat('3', 64), 'd3JhcHBlZA==', 'cHVibGlj') AS id;
 SELECT throws_ok(
     $$SELECT public.append_vault_ops((SELECT id FROM second_vault), repeat('3', 64), '[{"id":"30000000-0000-4000-8000-000000000001","encrypted_data":"dGFtcGVy","version_vector":"other-vector"}]')$$,
     '23505',

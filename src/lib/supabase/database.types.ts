@@ -28,6 +28,47 @@ export type Database = {
     };
     public: {
         Tables: {
+            realtime_grants: {
+                Row: {
+                    created_at: string;
+                    expires_at: string;
+                    id: string;
+                    pubkey_hash: string;
+                    purpose: string;
+                    revoked_at: string | null;
+                    vault_id: string;
+                    vault_role: string;
+                };
+                Insert: {
+                    created_at?: string;
+                    expires_at: string;
+                    id: string;
+                    pubkey_hash: string;
+                    purpose: string;
+                    revoked_at?: string | null;
+                    vault_id: string;
+                    vault_role: string;
+                };
+                Update: {
+                    created_at?: string;
+                    expires_at?: string;
+                    id?: string;
+                    pubkey_hash?: string;
+                    purpose?: string;
+                    revoked_at?: string | null;
+                    vault_id?: string;
+                    vault_role?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: "realtime_grants_vault_id_fkey";
+                        columns: ["vault_id"];
+                        isOneToOne: false;
+                        referencedRelation: "vaults";
+                        referencedColumns: ["id"];
+                    }
+                ];
+            };
             request_nonces: {
                 Row: {
                     expires_at: string;
@@ -365,6 +406,15 @@ export type Database = {
                 };
                 Returns: string;
             };
+            current_realtime_claims: { Args: never; Returns: Json };
+            realtime_grant_allows: {
+                Args: { p_purpose: string; p_vault_id: string };
+                Returns: boolean;
+            };
+            realtime_topic_allowed: {
+                Args: { p_extension: string; p_topic: string };
+                Returns: boolean;
+            };
             rekey_vault_members: {
                 Args: {
                     p_member_keys: Json;
@@ -372,6 +422,29 @@ export type Database = {
                     p_vault_id: string;
                 };
                 Returns: boolean;
+            };
+            revoke_realtime_grant: {
+                Args: {
+                    p_grant_id: string;
+                    p_pubkey_hash: string;
+                    p_purpose: string;
+                    p_vault_id: string;
+                };
+                Returns: boolean;
+            };
+            rotate_realtime_grant: {
+                Args: {
+                    p_previous_grant_id: string;
+                    p_pubkey_hash: string;
+                    p_purpose: string;
+                    p_ttl_seconds: number;
+                    p_vault_id: string;
+                };
+                Returns: {
+                    expires_at: string;
+                    grant_id: string;
+                    vault_role: string;
+                }[];
             };
             soft_delete_vault: {
                 Args: { p_owner_pubkey_hash: string; p_vault_id: string };

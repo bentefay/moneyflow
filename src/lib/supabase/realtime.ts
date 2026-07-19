@@ -1,72 +1,46 @@
 /**
- * Supabase Realtime Sync
+ * Vault-scoped Supabase Realtime transport.
  *
- * Real-time synchronization of CRDT updates using Supabase Realtime.
- * Subscribes to vault_updates for live collaboration.
+ * Credentials are minted through the signed tRPC boundary, held only in memory, and supplied to an
+ * isolated client so one vault/purpose cannot authorize another socket. Realtime carries only
+ * permanent encrypted vault operations; snapshots remain server-pulled cache material.
  */
 
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { Temporal } from "temporal-polyfill";
 
-import { createSupabaseClientForBrowser } from "./client";
+import { createTRPCClient } from "@/lib/trpc/client";
+import type { RealtimeCredential, RealtimePurpose } from "@/server/schemas/realtime";
+
+import { createSupabaseClientForRealtime } from "./client";
 import type { Database } from "./types";
 
-type VaultUpdateRow = Database["public"]["Views"]["vault_updates"]["Row"];
+type VaultOpRow = Database["public"]["Tables"]["vault_ops"]["Row"];
+type RealtimeClient = ReturnType<typeof createSupabaseClientForRealtime>;
 
-export type VaultRealtimePurpose = "sync" | "presence";
+export type VaultRealtimePurpose = RealtimePurpose;
 
-type BrowserSupabaseClient = ReturnType<typeof createSupabaseClientForBrowser>;
-
-const channelOperationQueues = new WeakMap<BrowserSupabaseClient, Map<string, Promise<void>>>();
-
-function enqueueChannelOperation(
-    client: BrowserSupabaseClient,
-    topic: string,
-    operation: () => Promise<void>
-): Promise<void> {
-    let clientQueue = channelOperationQueues.get(client);
-    if (!clientQueue) {
-        clientQueue = new Map();
-        channelOperationQueues.set(client, clientQueue);
-    }
-
-    const previousOperation = clientQueue.get(topic) ?? Promise.resolve();
-    const currentOperation = previousOperation.catch(() => undefined).then(operation);
-    clientQueue.set(topic, currentOperation);
-
-    return currentOperation.finally(() => {
-        if (clientQueue.get(topic) === currentOperation) {
-            clientQueue.delete(topic);
-        }
-    });
+export interface RealtimeAuthorizationApi {
+    authorize(input: {
+        vaultId: string;
+        purpose: RealtimePurpose;
+        previousGrantId?: string;
+    }): Promise<RealtimeCredential>;
+    revoke(input: {
+        vaultId: string;
+        purpose: RealtimePurpose;
+        grantId: string;
+    }): Promise<{ revoked: boolean }>;
 }
 
-async function removeChannelsForTopic(client: BrowserSupabaseClient, topic: string): Promise<void> {
-    const realtimeTopic = `realtime:${topic}`;
-    const retainedChannels = client
-        .getChannels()
-        .filter((channel) => channel.topic === realtimeTopic);
-
-    for (const retainedChannel of retainedChannels) {
-        await client.removeChannel(retainedChannel);
-    }
-}
-
-/**
- * Callback for receiving new updates.
- */
 export type OnUpdateCallback = (update: {
     id: string;
     encryptedData: string;
-    baseSnapshotVersion: number;
-    hlcTimestamp: string;
+    versionVector: string;
     authorPubkeyHash: string;
     createdAt: string;
-}) => void;
+}) => void | Promise<void>;
 
-/**
- * Callback for presence changes.
- */
 export type OnPresenceCallback = (
     presence: {
         userId: string;
@@ -75,185 +49,270 @@ export type OnPresenceCallback = (
     }[]
 ) => void;
 
-/**
- * Manages real-time sync for a vault.
- */
+function createAuthorizationApi(): RealtimeAuthorizationApi {
+    const client = createTRPCClient();
+    return {
+        authorize: (input) => client.realtime.authorize.mutate(input),
+        revoke: (input) => client.realtime.revoke.mutate(input)
+    };
+}
+
+function isUnknownRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isVaultOpRow(value: unknown): value is VaultOpRow {
+    return (
+        isUnknownRecord(value) &&
+        typeof value.id === "string" &&
+        typeof value.vault_id === "string" &&
+        typeof value.encrypted_data === "string" &&
+        typeof value.version_vector === "string" &&
+        typeof value.author_pubkey_hash === "string"
+    );
+}
+
+function readPresenceTimestamp(value: unknown, key: "joined_at" | "last_seen"): string {
+    if (!isUnknownRecord(value)) return Temporal.Now.instant().toString();
+    const timestamp = value[key];
+    return typeof timestamp === "string" ? timestamp : Temporal.Now.instant().toString();
+}
+
+/** Serializes short-lived token refresh and explicit revocation for one vault/purpose. */
+export class RealtimeCredentialManager {
+    private current: RealtimeCredential | null = null;
+    private pending: Promise<RealtimeCredential> | null = null;
+    private closed = false;
+
+    constructor(
+        private readonly vaultId: string,
+        private readonly purpose: RealtimePurpose,
+        private readonly api: RealtimeAuthorizationApi,
+        private readonly now: () => number = Date.now
+    ) {}
+
+    async getAccessToken(): Promise<string> {
+        if (this.closed) throw new Error("Realtime credential manager is closed");
+        if (this.current && this.now() < Date.parse(this.current.refreshAt)) {
+            return this.current.token;
+        }
+        if (!this.pending) {
+            const previousGrantId = this.current?.grantId;
+            const request = this.api
+                .authorize({
+                    vaultId: this.vaultId,
+                    purpose: this.purpose,
+                    ...(previousGrantId ? { previousGrantId } : {})
+                })
+                .then((credential) => {
+                    if (
+                        credential.vaultId !== this.vaultId ||
+                        credential.purpose !== this.purpose ||
+                        Date.parse(credential.expiresAt) <= this.now()
+                    ) {
+                        throw new Error("Realtime credential scope is invalid");
+                    }
+                    this.current = credential;
+                    return credential;
+                });
+            const pending = request.finally(() => {
+                if (this.pending === pending) this.pending = null;
+            });
+            this.pending = pending;
+        }
+        return (await this.pending).token;
+    }
+
+    async revoke(): Promise<void> {
+        if (this.closed) return;
+        this.closed = true;
+        try {
+            await this.pending;
+        } catch {
+            // A failed mint created no usable browser credential.
+        }
+        const active = this.current;
+        this.current = null;
+        this.pending = null;
+        if (active) {
+            await this.api.revoke({
+                vaultId: this.vaultId,
+                purpose: this.purpose,
+                grantId: active.grantId
+            });
+        }
+    }
+}
+
 export class VaultRealtimeSync {
     private channel: RealtimeChannel | null = null;
-    private client: BrowserSupabaseClient | null = null;
-    private topic: string | null = null;
-    private vaultId: string;
-    private pubkeyHash: string;
-    private purpose: VaultRealtimePurpose;
+    private client: RealtimeClient | null = null;
+    private credentialManager: RealtimeCredentialManager | null = null;
     private onUpdate: OnUpdateCallback | null = null;
     private onPresence: OnPresenceCallback | null = null;
     private isSubscribed = false;
+    private generation = 0;
+    private readonly presenceKey = crypto.randomUUID();
 
-    constructor(vaultId: string, pubkeyHash: string, purpose: VaultRealtimePurpose = "sync") {
-        this.vaultId = vaultId;
-        this.pubkeyHash = pubkeyHash;
-        this.purpose = purpose;
-    }
+    constructor(
+        private readonly vaultId: string,
+        private readonly purpose: RealtimePurpose = "sync",
+        private readonly authorizationApi: RealtimeAuthorizationApi = createAuthorizationApi()
+    ) {}
 
-    /**
-     * Subscribe to vault updates.
-     */
     async subscribe(options: {
         onUpdate?: OnUpdateCallback;
         onPresence?: OnPresenceCallback;
+        onReconnect?: () => void | Promise<void>;
     }): Promise<void> {
-        if (this.client) {
-            console.warn("Already subscribed to vault updates");
-            return;
-        }
+        if (this.client) return;
 
+        const generation = ++this.generation;
         this.onUpdate = options.onUpdate ?? null;
         this.onPresence = options.onPresence ?? null;
+        const credentials = new RealtimeCredentialManager(
+            this.vaultId,
+            this.purpose,
+            this.authorizationApi
+        );
+        this.credentialManager = credentials;
 
-        const client = createSupabaseClientForBrowser();
+        // Fail before opening a socket if signed membership authorization cannot mint a grant.
+        await credentials.getAccessToken();
+        if (generation !== this.generation) return;
+
+        const client = createSupabaseClientForRealtime(() => credentials.getAccessToken());
+        // SupabaseClient starts its constructor auth callback asynchronously. Await the same
+        // callback explicitly so the first phx_join cannot race ahead with the anon API key.
+        await client.realtime.setAuth();
+        if (generation !== this.generation) {
+            client.realtime.disconnect();
+            return;
+        }
         const topic = `vault:${this.vaultId}:${this.purpose}`;
+        const channel = client.channel(topic, {
+            config: {
+                private: true,
+                ...(this.purpose === "presence" ? { presence: { key: this.presenceKey } } : {})
+            }
+        });
         this.client = client;
-        this.topic = topic;
+        this.channel = channel;
 
-        await enqueueChannelOperation(client, topic, async () => {
-            // Supabase 2.110 reuses channels by topic. A React cleanup can still be waiting for
-            // the server's leave acknowledgement when the same vault remounts, so finish removing
-            // any retained channel before registering callbacks on a fresh instance.
-            await removeChannelsForTopic(client, topic);
-
-            if (this.client !== client || this.topic !== topic) {
-                return;
-            }
-
-            const channel = client.channel(topic, {
-                config: {
-                    presence: {
-                        key: this.pubkeyHash
+        if (this.purpose === "sync" && this.onUpdate) {
+            channel.on<VaultOpRow>(
+                "postgres_changes",
+                {
+                    event: "INSERT",
+                    schema: "public",
+                    table: "vault_ops",
+                    filter: `vault_id=eq.${this.vaultId}`
+                },
+                (payload: RealtimePostgresChangesPayload<VaultOpRow>) => {
+                    if (
+                        generation !== this.generation ||
+                        this.channel !== channel ||
+                        !this.onUpdate ||
+                        !isVaultOpRow(payload.new) ||
+                        payload.new.vault_id !== this.vaultId
+                    ) {
+                        return;
                     }
-                }
-            });
-            this.channel = channel;
-
-            if (this.onUpdate) {
-                channel.on<VaultUpdateRow>(
-                    "postgres_changes",
-                    {
-                        event: "INSERT",
-                        schema: "public",
-                        table: "vault_updates",
-                        filter: `vault_id=eq.${this.vaultId}`
-                    },
-                    (payload: RealtimePostgresChangesPayload<VaultUpdateRow>) => {
-                        if (payload.new && this.onUpdate && "id" in payload.new) {
-                            const row = payload.new as VaultUpdateRow;
-                            if (
-                                row.id == null ||
-                                row.encrypted_data == null ||
-                                row.base_snapshot_version == null ||
-                                row.hlc_timestamp == null ||
-                                row.author_pubkey_hash == null
-                            ) {
-                                return;
-                            }
-                            this.onUpdate({
-                                id: row.id,
-                                encryptedData: row.encrypted_data,
-                                baseSnapshotVersion: row.base_snapshot_version,
-                                hlcTimestamp: row.hlc_timestamp,
-                                authorPubkeyHash: row.author_pubkey_hash,
-                                createdAt: row.created_at ?? Temporal.Now.instant().toString()
-                            });
-                        }
-                    }
-                );
-            }
-
-            if (this.onPresence) {
-                channel.on("presence", { event: "sync" }, () => {
-                    if (this.channel !== channel || !this.onPresence) return;
-
-                    const state = channel.presenceState();
-                    const presenceList = Object.entries(state).map(([key, presences]) => {
-                        const latest = presences[presences.length - 1] as {
-                            joined_at?: string;
-                            last_seen?: string;
-                        };
-                        return {
-                            userId: key,
-                            joinedAt: latest.joined_at ?? Temporal.Now.instant().toString(),
-                            lastSeen: latest.last_seen ?? Temporal.Now.instant().toString()
-                        };
+                    void this.onUpdate({
+                        id: payload.new.id,
+                        encryptedData: payload.new.encrypted_data,
+                        versionVector: payload.new.version_vector,
+                        authorPubkeyHash: payload.new.author_pubkey_hash,
+                        createdAt: payload.new.created_at ?? Temporal.Now.instant().toString()
                     });
-                    this.onPresence(presenceList);
-                });
-            }
+                }
+            );
+        }
 
-            channel.subscribe(async (status) => {
-                if (status !== "SUBSCRIBED" || this.channel !== channel) return;
-
-                this.isSubscribed = true;
-                await channel.track({
-                    joined_at: Temporal.Now.instant().toString(),
-                    last_seen: Temporal.Now.instant().toString()
+        if (this.purpose === "presence" && this.onPresence) {
+            channel.on("presence", { event: "sync" }, () => {
+                if (
+                    generation !== this.generation ||
+                    this.channel !== channel ||
+                    !this.onPresence
+                ) {
+                    return;
+                }
+                const state = channel.presenceState();
+                const presence = Object.entries(state).flatMap(([key, entries]) => {
+                    const latest = entries.at(-1);
+                    return latest
+                        ? [
+                              {
+                                  userId: key,
+                                  joinedAt: readPresenceTimestamp(latest, "joined_at"),
+                                  lastSeen: readPresenceTimestamp(latest, "last_seen")
+                              }
+                          ]
+                        : [];
                 });
+                this.onPresence(presence);
+            });
+        }
+
+        await new Promise<void>((resolve, reject) => {
+            let connectedOnce = false;
+            channel.subscribe((status) => {
+                if (generation !== this.generation || this.channel !== channel) return;
+                if (status === "SUBSCRIBED") {
+                    this.isSubscribed = true;
+                    if (this.purpose === "presence") void this.updatePresence();
+                    if (connectedOnce) void options.onReconnect?.();
+                    connectedOnce = true;
+                    resolve();
+                    return;
+                }
+                if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+                    this.isSubscribed = false;
+                    if (!connectedOnce) reject(new Error("Realtime connection failed"));
+                    return;
+                }
+                if (status === "CLOSED") this.isSubscribed = false;
             });
         });
     }
 
-    /**
-     * Update presence timestamp (call periodically).
-     */
     async updatePresence(): Promise<void> {
-        if (this.channel && this.isSubscribed) {
-            await this.channel.track({
-                joined_at: Temporal.Now.instant().toString(),
-                last_seen: Temporal.Now.instant().toString()
-            });
-        }
+        if (!this.channel || !this.isSubscribed || this.purpose !== "presence") return;
+        const now = Temporal.Now.instant().toString();
+        await this.channel.track({ joined_at: now, last_seen: now });
     }
 
-    /**
-     * Unsubscribe from vault updates.
-     */
     async unsubscribe(): Promise<void> {
+        ++this.generation;
         const channel = this.channel;
         const client = this.client;
-        const topic = this.topic;
+        const credentials = this.credentialManager;
 
         this.channel = null;
         this.client = null;
-        this.topic = null;
-        this.isSubscribed = false;
+        this.credentialManager = null;
         this.onUpdate = null;
         this.onPresence = null;
+        this.isSubscribed = false;
 
-        if (!client || !topic) return;
-
-        await enqueueChannelOperation(client, topic, async () => {
-            if (channel) {
-                await client.removeChannel(channel);
-                return;
-            }
-
-            await removeChannelsForTopic(client, topic);
-        });
+        try {
+            if (client && channel) await client.removeChannel(channel);
+        } finally {
+            client?.realtime.disconnect();
+            await credentials?.revoke();
+        }
     }
 
-    /**
-     * Check if currently subscribed.
-     */
     get subscribed(): boolean {
         return this.isSubscribed;
     }
 }
 
-/**
- * Create a realtime sync instance for a vault.
- */
 export function createVaultRealtimeSync(
     vaultId: string,
-    pubkeyHash: string,
-    purpose: VaultRealtimePurpose = "sync"
+    purpose: RealtimePurpose = "sync",
+    authorizationApi?: RealtimeAuthorizationApi
 ): VaultRealtimeSync {
-    return new VaultRealtimeSync(vaultId, pubkeyHash, purpose);
+    return new VaultRealtimeSync(vaultId, purpose, authorizationApi);
 }

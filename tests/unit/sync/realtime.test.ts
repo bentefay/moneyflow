@@ -1,146 +1,216 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createVaultRealtimeSync } from "@/lib/supabase/realtime";
+import {
+    createVaultRealtimeSync,
+    RealtimeCredentialManager,
+    type RealtimeAuthorizationApi
+} from "@/lib/supabase/realtime";
 
 const mocks = vi.hoisted(() => {
     const channel = vi.fn();
-    const getChannels = vi.fn();
     const removeChannel = vi.fn();
+    const createClient = vi.fn();
+    const authorize = vi.fn();
+    const revoke = vi.fn();
 
     return {
         channel,
-        getChannels,
         removeChannel,
-        client: { channel, getChannels, removeChannel }
+        createClient,
+        authorize,
+        revoke,
+        client: {
+            channel,
+            getChannels: vi.fn(() => []),
+            removeChannel,
+            realtime: { disconnect: vi.fn(), setAuth: vi.fn(async () => undefined) }
+        }
     };
 });
 
 vi.mock("@/lib/supabase/client", () => ({
-    createSupabaseClientForBrowser: () => mocks.client
+    createSupabaseClientForRealtime: mocks.createClient
+}));
+
+vi.mock("@/lib/trpc/client", () => ({
+    createTRPCClient: () => ({
+        realtime: {
+            authorize: { mutate: mocks.authorize },
+            revoke: { mutate: mocks.revoke }
+        }
+    })
 }));
 
 function createChannel(topic = "realtime:test") {
-    let isSubscribed = false;
+    let subscribeCallback:
+        | ((status: "SUBSCRIBED" | "CLOSED" | "CHANNEL_ERROR", error?: Error) => void)
+        | undefined;
     const channel = {
         topic,
-        on: vi.fn(() => {
-            if (isSubscribed) {
-                throw new Error("cannot add callbacks after subscribe");
-            }
-            return channel;
-        }),
+        on: vi.fn(() => channel),
         presenceState: vi.fn(() => ({})),
-        subscribe: vi.fn(() => {
-            isSubscribed = true;
-            return channel;
-        }),
-        track: vi.fn(),
-        unsubscribe: vi.fn()
+        subscribe: vi.fn(
+            (
+                callback: (status: "SUBSCRIBED" | "CLOSED" | "CHANNEL_ERROR", error?: Error) => void
+            ) => {
+                subscribeCallback = callback;
+                callback("SUBSCRIBED");
+                return channel;
+            }
+        ),
+        track: vi.fn(async () => "ok"),
+        unsubscribe: vi.fn(async () => "ok"),
+        emitStatus: (status: "SUBSCRIBED" | "CLOSED" | "CHANNEL_ERROR") => {
+            subscribeCallback?.(status);
+        }
     };
-
-    channel.track.mockResolvedValue("ok");
-    channel.unsubscribe.mockResolvedValue("ok");
 
     return channel;
 }
 
+function credential(
+    grantId = "10000000-0000-4000-8000-000000000001",
+    expiresAt = "2026-07-20T00:01:00.000Z",
+    refreshAt = "2026-07-20T00:00:40.000Z"
+) {
+    return {
+        token: `token-${grantId}`,
+        grantId,
+        expiresAt,
+        refreshAt,
+        vaultId: "20000000-0000-4000-8000-000000000001",
+        purpose: "sync" as const
+    };
+}
+
+describe("RealtimeCredentialManager", () => {
+    it("single-flights refresh and rotates the prior opaque grant", async () => {
+        const first = credential();
+        const second = credential(
+            "10000000-0000-4000-8000-000000000002",
+            "2026-07-20T00:02:00.000Z",
+            "2026-07-20T00:01:40.000Z"
+        );
+        const authorization = Promise.withResolvers<typeof second>();
+        const api: RealtimeAuthorizationApi = {
+            authorize: vi
+                .fn()
+                .mockResolvedValueOnce(first)
+                .mockReturnValueOnce(authorization.promise),
+            revoke: vi.fn().mockResolvedValue({ revoked: true })
+        };
+        let now = Date.parse("2026-07-20T00:00:00.000Z");
+        const manager = new RealtimeCredentialManager(first.vaultId, "sync", api, () => now);
+
+        await expect(manager.getAccessToken()).resolves.toBe(first.token);
+        now = Date.parse(first.refreshAt);
+        const refreshA = manager.getAccessToken();
+        const refreshB = manager.getAccessToken();
+        authorization.resolve(second);
+
+        await expect(Promise.all([refreshA, refreshB])).resolves.toEqual([
+            second.token,
+            second.token
+        ]);
+        expect(api.authorize).toHaveBeenCalledTimes(2);
+        expect(api.authorize).toHaveBeenLastCalledWith({
+            vaultId: first.vaultId,
+            purpose: "sync",
+            previousGrantId: first.grantId
+        });
+    });
+
+    it("revokes the active grant and refuses reuse after teardown", async () => {
+        const active = credential();
+        const api: RealtimeAuthorizationApi = {
+            authorize: vi.fn().mockResolvedValue(active),
+            revoke: vi.fn().mockResolvedValue({ revoked: true })
+        };
+        const manager = new RealtimeCredentialManager(active.vaultId, "sync", api, () =>
+            Date.parse("2026-07-20T00:00:00.000Z")
+        );
+
+        await manager.getAccessToken();
+        await manager.revoke();
+
+        expect(api.revoke).toHaveBeenCalledWith({
+            vaultId: active.vaultId,
+            purpose: "sync",
+            grantId: active.grantId
+        });
+        await expect(manager.getAccessToken()).rejects.toThrow("closed");
+    });
+});
+
 describe("VaultRealtimeSync", () => {
     beforeEach(() => {
-        mocks.channel.mockReset();
-        mocks.channel.mockImplementation(() => createChannel());
-        mocks.getChannels.mockReset();
-        mocks.getChannels.mockReturnValue([]);
-        mocks.removeChannel.mockReset();
+        vi.clearAllMocks();
+        mocks.createClient.mockReturnValue(mocks.client);
+        mocks.channel.mockImplementation((topic: string) => createChannel(`realtime:${topic}`));
         mocks.removeChannel.mockResolvedValue("ok");
+        mocks.authorize.mockResolvedValue(credential());
+        mocks.revoke.mockResolvedValue({ revoked: true });
     });
 
-    it("uses separate Supabase topics for data sync and presence", async () => {
-        await createVaultRealtimeSync("vault-1", "user-1").subscribe({ onUpdate: vi.fn() });
-        await createVaultRealtimeSync("vault-1", "user-1", "presence").subscribe({
-            onPresence: vi.fn()
+    it("authorizes a private exact-vault vault_ops subscription", async () => {
+        const onUpdate = vi.fn();
+        const realtime = createVaultRealtimeSync("20000000-0000-4000-8000-000000000001", "sync");
+        await realtime.subscribe({ onUpdate });
+
+        expect(mocks.authorize).toHaveBeenCalledWith({
+            vaultId: "20000000-0000-4000-8000-000000000001",
+            purpose: "sync"
         });
-
-        expect(mocks.channel.mock.calls.map(([topic]) => topic)).toEqual([
-            "vault:vault-1:sync",
-            "vault:vault-1:presence"
-        ]);
-    });
-
-    it("registers only the callbacks requested by each subscriber", async () => {
-        const syncChannel = createChannel();
-        const presenceChannel = createChannel();
-        mocks.channel.mockReturnValueOnce(syncChannel).mockReturnValueOnce(presenceChannel);
-
-        await createVaultRealtimeSync("vault-1", "user-1").subscribe({ onUpdate: vi.fn() });
-        await createVaultRealtimeSync("vault-1", "user-1", "presence").subscribe({
-            onPresence: vi.fn()
-        });
-
-        expect(syncChannel.on).toHaveBeenCalledTimes(1);
-        expect(syncChannel.on).toHaveBeenCalledWith(
+        expect(mocks.channel).toHaveBeenCalledWith(
+            "vault:20000000-0000-4000-8000-000000000001:sync",
+            { config: { private: true } }
+        );
+        const channel = mocks.channel.mock.results[0].value;
+        expect(channel.on).toHaveBeenCalledExactlyOnceWith(
             "postgres_changes",
-            expect.objectContaining({ table: "vault_updates", filter: "vault_id=eq.vault-1" }),
-            expect.any(Function)
-        );
-        expect(presenceChannel.on).toHaveBeenCalledTimes(1);
-        expect(presenceChannel.on).toHaveBeenCalledWith(
-            "presence",
-            { event: "sync" },
+            {
+                event: "INSERT",
+                schema: "public",
+                table: "vault_ops",
+                filter: "vault_id=eq.20000000-0000-4000-8000-000000000001"
+            },
             expect.any(Function)
         );
     });
 
-    it("removes the channel through its owning Supabase client", async () => {
-        const channel = createChannel("realtime:vault:vault-1:sync");
-        mocks.channel.mockReturnValue(channel);
+    it("keeps presence private without exposing an identity as the channel key", async () => {
+        const presenceCredential = {
+            ...credential(),
+            purpose: "presence" as const
+        };
+        mocks.authorize.mockResolvedValue(presenceCredential);
 
-        const realtime = createVaultRealtimeSync("vault-1", "user-1");
+        await createVaultRealtimeSync(presenceCredential.vaultId, "presence").subscribe({
+            onPresence: vi.fn()
+        });
+
+        expect(mocks.channel).toHaveBeenCalledWith(`vault:${presenceCredential.vaultId}:presence`, {
+            config: {
+                private: true,
+                presence: { key: expect.any(String) }
+            }
+        });
+        expect(JSON.stringify(mocks.channel.mock.calls)).not.toContain("pubkeyHash");
+    });
+
+    it("removes the channel, disconnects its isolated client and revokes its grant", async () => {
+        const realtime = createVaultRealtimeSync("20000000-0000-4000-8000-000000000001", "sync");
         await realtime.subscribe({ onUpdate: vi.fn() });
+        const channel = mocks.channel.mock.results[0].value;
         await realtime.unsubscribe();
 
         expect(mocks.removeChannel).toHaveBeenCalledExactlyOnceWith(channel);
-        expect(channel.unsubscribe).not.toHaveBeenCalled();
+        expect(mocks.client.realtime.disconnect).toHaveBeenCalledOnce();
+        expect(mocks.revoke).toHaveBeenCalledWith({
+            vaultId: "20000000-0000-4000-8000-000000000001",
+            purpose: "sync",
+            grantId: "10000000-0000-4000-8000-000000000001"
+        });
         expect(realtime.subscribed).toBe(false);
-    });
-
-    it("finishes an in-flight teardown before remounting the same topic", async () => {
-        const channels: ReturnType<typeof createChannel>[] = [];
-        const removal = Promise.withResolvers<void>();
-
-        mocks.getChannels.mockImplementation(() => channels);
-        mocks.channel.mockImplementation((topic: string) => {
-            const realtimeTopic = `realtime:${topic}`;
-            const existing = channels.find((channel) => channel.topic === realtimeTopic);
-            if (existing) return existing;
-
-            const channel = createChannel(realtimeTopic);
-            channels.push(channel);
-            return channel;
-        });
-        mocks.removeChannel.mockImplementation(async (channel) => {
-            await removal.promise;
-            const channelIndex = channels.indexOf(channel);
-            if (channelIndex >= 0) channels.splice(channelIndex, 1);
-            return "ok";
-        });
-
-        const first = createVaultRealtimeSync("vault-1", "user-1");
-        await first.subscribe({ onUpdate: vi.fn() });
-
-        const teardown = first.unsubscribe();
-        const second = createVaultRealtimeSync("vault-1", "user-1");
-        const remount = second.subscribe({ onUpdate: vi.fn() });
-
-        await vi.waitFor(() => {
-            expect(mocks.removeChannel).toHaveBeenCalledTimes(1);
-        });
-        expect(mocks.channel).toHaveBeenCalledTimes(1);
-
-        removal.resolve();
-        await teardown;
-        await remount;
-
-        expect(mocks.channel).toHaveBeenCalledTimes(2);
-        expect(second.subscribed).toBe(false);
     });
 });

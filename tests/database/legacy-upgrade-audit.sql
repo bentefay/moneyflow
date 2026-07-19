@@ -1,8 +1,10 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT plan(14);
+SELECT plan(18);
 
 SELECT is((SELECT count(*) FROM public.vault_updates_legacy), 2::bigint, 'all legacy rows remain quarantined');
+SELECT has_table('public', 'realtime_grants', 'upgrade creates realtime grant table');
+SELECT has_function('public', 'rotate_realtime_grant', ARRAY['text', 'uuid', 'text', 'uuid', 'integer']);
 SELECT is((SELECT count(*) FROM public.vault_ops), 3::bigint, 'existing op and both legacy rows are permanent');
 SELECT is((SELECT count(*) FROM public.vault_ops WHERE legacy_update_id IS NOT NULL), 2::bigint, 'every legacy row has provenance');
 SELECT results_eq(
@@ -40,6 +42,8 @@ SELECT is((SELECT encrypted_data FROM public.vault_snapshots WHERE id = '1200000
 SELECT is((SELECT role FROM public.vault_memberships WHERE id = '11000000-0000-4000-8000-000000000001'), 'owner', 'membership survives upgrade');
 SELECT is((SELECT count(*) FROM public.vault_updates), 3::bigint, 'compatibility view exposes the permanent source');
 SELECT is((SELECT string_agg(tablename, ',' ORDER BY tablename) FROM pg_publication_tables WHERE pubname = 'supabase_realtime'), 'vault_ops', 'legacy publication is removed');
+SELECT ok(has_table_privilege('authenticated', 'public.vault_ops', 'SELECT'), 'upgrade grants only scoped RLS read reachability');
+SELECT ok(NOT has_table_privilege('authenticated', 'public.vault_ops', 'INSERT'), 'upgrade retains server-mediated append writes');
 
 SELECT * FROM finish();
 ROLLBACK;

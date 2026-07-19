@@ -8,6 +8,7 @@
 import { router } from "../trpc";
 import { inviteRouter } from "./invite";
 import { membershipRouter } from "./membership";
+import { realtimeRouter } from "./realtime";
 import { syncRouter } from "./sync";
 import { userRouter } from "./user";
 import { vaultRouter } from "./vault";
@@ -24,6 +25,8 @@ export const appRouter = router({
     membership: membershipRouter,
     /** CRDT sync operations */
     sync: syncRouter,
+    /** Short-lived vault-scoped Supabase Realtime authorization */
+    realtime: realtimeRouter,
     /** Vault invitations */
     invite: inviteRouter
 });
