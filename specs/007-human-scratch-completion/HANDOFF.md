@@ -5,59 +5,75 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Implementation dispatch
 
-- **Package / revision:** P03 / 01
-- **Scope IDs:** HS-018; no scratch marker unless the requirement actually passes after independent
-  review. A proven unreleased gate becomes `blocked_external`, not completion.
-- **State:** passed/integrated in `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34`; HS-018 marker
-  finalized `5d283ab1… -> db97178a…`
-- **Task:** `tasks/HS-018-tanstack-virtual.md`
-- **Original package BASE:** `c60f605bd811d8920122a66f3d6743d8a3ac044d`
-- **Pre-implementation HEAD:** `c60f605bd811d8920122a66f3d6743d8a3ac044d`
-- **Allowed implementation paths if and only if a stable compatible safe-chain release contains PR
-  #1100:** `package.json`, `pnpm-lock.yaml`,
-  `src/components/features/transactions/TransactionTable.tsx`, and task-relevant tests under
-  `tests/**`. If the release gate is closed, make no product/test/dependency change.
-- **Sole implementer artifact:** `evidence/P03/implementation-01.md`
-- **Commit contract:** commit only authorized product/test/dependency changes with exact-path
-  staging; leave evidence uncommitted. `BASE == HEAD` is valid for a proven closed external gate.
-  Never use `git add -A` or `git add .`.
-- **Pre-existing dirty/untracked paths:** root-owned unstaged `PROGRESS.md`/`HANDOFF.md` plus sole
-  untracked evidence; no staged paths; branch `main` is twenty-nine commits ahead of `origin/main`
-- **Release gate:** use current primary sources to identify PR #1100's exact merge commit, every
-  containing stable package release, current stable and installed `@tanstack/react-virtual`, and
-  Safe Chain eligibility. Inspect installed/published package source and declarations to prove
-  whether `useFlushSync` is actually exposed; never infer inclusion from semver or changelog alone.
-- **Released path:** upgrade to the newest compatible safe-chain eligible stable containing the PR,
-  explicitly enable `useFlushSync` on every relevant current virtualizer, add meaningful
-  unit/integration/E2E coverage, and prove no warnings, hydration issues, scroll jumps, focus loss,
-  resize loops or performance regression with large-list measurements.
-- **Closed-gate path:** retain the safe installed version; record dated PR/release/package-source
-  evidence, exact recheck triggers before milestones/P21, and do not vendor or simulate the API.
-- **Validation:** cover rapid large-table scroll, resize, editing/focus at overscan edges,
-  add/remove/filter, navigation/refresh/duplicate tab, desktop/mobile/reduced-motion, console
-  flushSync/ResizeObserver/hydration warnings, position stability, jank and cleanup. If no released
-  API exists, reproduce current baseline sufficiently to support the external-gate verdict.
-- **Question route:** complete proposals in assigned evidence; root alone appends QUESTIONS
+- **Package / revision:** P04 / 01
+- **Scope IDs:** HS-014; no scratch marker before independent package PASS and root integration
+- **State:** changes_requested
+- **Task:** `tasks/HS-014-database-rls-audit.md`
+- **Original package BASE:** `9de8b0e8c41087b96523ecc55faa10bf19ec0ff9`
+- **Pre-implementation HEAD:** `9de8b0e8c41087b96523ecc55faa10bf19ec0ff9`
+- **Allowed implementation paths:** `supabase/migrations/**`, `supabase/config.toml`,
+  `src/lib/supabase/**`, `src/lib/crypto/signing.ts`, `src/server/trpc.ts`,
+  `src/server/routers/{vault,membership,invite,sync}.ts`, corresponding `src/server/schemas/**`,
+  directly required `src/app/api/**` request-boundary code, and task-relevant `tests/**`. Any other
+  source/UI path requires a complete evidence proposal for a later revision; do not edit it now.
+- **Sole implementer artifact:** `evidence/P04/implementation-01.md`; it must contain the complete
+  threat-model/data-flow/table-retention/rollback ADR before documenting mutations
+- **Commit contract:** commit authorized product/migration/test changes only with exact-path
+  staging; leave evidence uncommitted. Never broad-stage or edit ledgers/tasks/reviews/scratch/
+  FS-001/.claude/.codex.
+- **Pre-existing dirty/untracked paths:** root-owned unstaged `PROGRESS.md` and `HANDOFF.md`, plus
+  the assigned uncommitted evidence file only; no staged paths
+- **Inventory and design:** enumerate every table, policy, function, trigger, grant, index,
+  publication and router operation. Define identity/signature proof, verified hash derivation, TLS,
+  service-role bypass, RLS, router authorization, ops as permanent encrypted source, snapshots as
+  cache, invite/member lifecycle, legacy retention/migration, rollback and existing-client behavior.
+- **Security invariant:** no untrusted header/client claim may select the public-key hash. Server
+  derives it only after verified signatures with replay protection. Financial plaintext, keys and
+  secrets never enter DB/log/URL. Owner/member/outsider/invite roles are least privilege and
+  cross-vault isolation is deterministic despite service-role RLS bypass.
+- **Migration:** preserve permanent encrypted ops/audit history, remove or quarantine legacy
+  duplication only through safe upgrade/fresh migration behavior, correct every affected policy/
+  function/grant/index/router check, regenerate types where required, and include explicit rollback
+  notes. No destructive data loss or silent existing-client breakage.
+- **Automated evidence:** fresh/upgrade/rollback-safe fixtures; exhaustive router/RLS matrix for
+  owner/member/outsider, spoofed hash/signature, replay, invite states and cross-vault read/write/
+  delete; persistence/sync regression and full high-risk suite.
+- **Manual charter:** isolated owner/member/outsider sessions create/sync/import/edit/delete and
+  attempt direct cross-vault routes; refresh, opener duplicate, reconnect/offline; inspect UI flash,
+  errors, console and request URLs/metadata/Supabase traffic for plaintext, keys, secrets and leaked
+  existence. Use repository-installed headless CLI and clean all state/artifacts.
+- **Question route:** use complete proposals in sole evidence; root alone appends QUESTIONS. Apply
+  preservation/least privilege and continue unless genuinely destructive authority is required.
 
 ## Review dispatch
 
-This section records the completed independent review pending root integration.
+This section records the immutable completed revision-01 review.
 
-- **Reviewer:** a `human_scratch_reviewer` instance distinct from the implementer
-- **Literal reviewed BASE:** `c60f605bd811d8920122a66f3d6743d8a3ac044d`
-- **Literal reviewed HEAD:** `b8d4b448f52022970ca388654be14d24e347deb5`
-- **Range type:** `non-empty`; exactly three authorized implementation/test paths
-- **Implementation evidence:** `evidence/P03/implementation-01.md`
-- **Sole reviewer artifact:** `reviews/P03-review-01.md`
+- **Reviewer:** distinct `human_scratch_reviewer`
+- **Literal reviewed BASE:** `9de8b0e8c41087b96523ecc55faa10bf19ec0ff9`
+- **Literal reviewed HEAD:** `20a489dc51542ee0c681cfba0a33aee820d70221`
+- **Range type:** non-empty original package BASE through revision-01 HEAD
+- **Implementation evidence:** `evidence/P04/implementation-01.md`
+- **Sole reviewer artifact:** `reviews/P04-review-01.md`
 - **Prior review files:** none
-- **Reviewer writes:** assigned review file only; no evidence/ledger/product/test/scratch writes
-- **Failure route:** persist review, P03 `changes_requested`, next paths
-  `evidence/P03/implementation-02.md` and `reviews/P03-review-02.md`
-- **PASS/blocked authority:** reviewer recommends; root alone verifies, transcribes, integrates and
-  sets `passed` or `blocked_external`
-- **Verdict:** PASS; no Q; retain P14/P21 persistence, R-008/P16D/P21 jank and R-009/P13/P21 flake
-  routes
+- **Reviewer writes:** review file only; no other writes/commits
+- **Review result:** FAIL; review SHA-256
+  `89ffd44dccc6be9858033608c6e60656d9f33894ed3a7fe50c7d9c2d63efe947`
+- **Blocking findings:** F-001 authenticated GET signatures omit the selected operation/input while
+  tRPC serializes it in the URL; F-002 public user endpoints select/create/return service-role data
+  by a caller-claimed hash. No HS-014 marker is authorized.
+- **Required adversarial focus:** independently reproduce migration fresh/seeded-upgrade safety,
+  direct-role grants/RLS and service-role router scoping, permanent-op retention/immutability,
+  invite/replay/cross-vault behavior, real CLI isolation, and exact frozen-source/write boundaries.
+  Treat authenticated GET operation/input binding and public claimed-hash user operations as
+  mandatory acceptance gaps unless independently disproved. Confirm the narrow exact revision-02
+  path expansion, and preserve P05/P08/P20B/P21 routes rather than crediting deferred evidence.
+- **Failure route:** persist immutable artifacts, transcribe complete proposals, set
+  `changes_requested`, and use a new revision-02 evidence/review pair covering the original BASE
+- **PASS authority:** reviewer recommends; root verifies/transcribes/integrates and sets `passed`
 
 ## Next root action
 
-Verify finalized P03/HS-018 boundary, then rewrite for P04 revision 01.
+Persist revision-01 evidence/review and failure-control state with exact-path staging. Then rewrite
+this handoff for P04 revision 02 from the original BASE, including the review's exact 13-path
+authority, new evidence/review paths and mandatory F-001/F-002 counterfactual tests.

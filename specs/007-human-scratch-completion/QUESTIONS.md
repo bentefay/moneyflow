@@ -36,6 +36,37 @@ No unresolved product questions were answered by scaffold creation.
 - **Does a human still need to decide after completion?:** Yes. A repository/release owner must
   confirm distribution posture and approve the notice or replacement route.
 
+## Q-002 — Verified-request and user-identity completion range
+
+- **Raised:** 2026-07-20, P04 revision 01, `human_scratch_implementer`; independently confirmed and
+  completed by `human_scratch_reviewer`
+- **Source proposal:**
+  `evidence/P04/implementation-01.md#q-proposal-p04-01-01--complete-the-verified-request-and-public-user-boundary`;
+  completed as `reviews/P04-review-01.md#q-proposal-p04-01-01--authorize-the-verified-request-and-user-identity-completion-range`
+- **Context and evidence:** Revision 01 excludes the client transport, user router/schema and
+  identity hook. Source proves production GET proof omits operation/input while tRPC serializes it
+  in URLs; public user APIs use claimed hashes; both new-registration paths have no stored signing
+  session until after their mutation.
+- **Why the frozen requirement/repository does not fully decide it:** HS-014 mandates verified
+  identity and URL privacy, but the revision-01 path contract forbids the files needed to satisfy
+  them without breaking onboarding.
+- **Options considered:** Leave the gaps; patch middleware only; retain public claimed-hash
+  compatibility; sign the full GET URL; or authorize canonical signed POST plus verified self-only
+  user procedures and their callers/tests.
+- **Default selected for continued work:** Dispatch P04 revision 02 with exactly the review's 13
+  paths; force canonical POST, derive user identity only from verified context, preserve the hook's
+  page-facing contract, and require counterfactual plus new/existing-user no-retry evidence.
+- **Decision hierarchy basis:** Explicit frozen requirement, then verified identity, least
+  privilege, URL privacy, data preservation and the narrowest reversible path expansion.
+- **Impact and risk:** Until independently approved, authenticated query selection is not bound to
+  its proof and public callers can enumerate, squat or select user rows, including retrieving stored
+  encrypted data. P04 and HS-014 remain incomplete.
+- **How to reverse or migrate:** `methodOverride: "POST"` is a local transport setting; removing
+  claimed router inputs needs no data migration because stored keys remain unchanged. Any temporary
+  compatibility route must expose neither existence/blob data nor another identity claim.
+- **Does a human still need to decide after completion?:** No product preference is unresolved;
+  root authorizes the exact reviewed revision-02 range and verifies no silent caller-path expansion.
+
 ## Question template
 
 ### Q-XXX — Short title
