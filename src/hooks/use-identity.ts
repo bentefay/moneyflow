@@ -13,6 +13,7 @@
 
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
@@ -80,8 +81,9 @@ export interface IdentityActions {
      * Call this after user confirms they've written down their seed phrase.
      *
      * Flow:
-     * 1. Register with server
-     * 2. Store session
+     * 1. Install the confirmed signing identity
+     * 2. Register with verified proof
+     * 3. Expose the unlocked session only after setup succeeds
      */
     registerIdentity: (identity: NewIdentity) => Promise<void>;
 
@@ -97,8 +99,8 @@ export interface IdentityActions {
      * Flow:
      * 1. Validate and derive keys from seed
      * 2. Check if user exists on server
-     * 3. Register if new (shouldn't happen for returning users)
-     * 4. Store session
+     * 3. Get or create only the verified user's record
+     * 4. Expose the unlocked session only after setup succeeds
      */
     unlock: (mnemonic: string) => Promise<UnlockedIdentity>;
 
@@ -167,6 +169,7 @@ export function useIdentity(): UseIdentityReturn {
     const [session, setSession] = useState<SessionData | null>(null);
     const [isNewUser, setIsNewUser] = useState(false);
     const [error, setError] = useState<IdentityError | null>(null);
+    const queryClient = useQueryClient();
 
     // tRPC mutations for server registration
     const registerMutation = trpc.user.register.useMutation();
@@ -178,6 +181,19 @@ export function useIdentity(): UseIdentityReturn {
     // tRPC mutations for vault operations (used by ensureDefaultVault)
     const createVaultMutation = trpc.vault.create.useMutation();
     const saveSnapshotMutation = trpc.sync.saveSnapshot.useMutation();
+
+    /**
+     * Clear every client-side selector and cache that could belong to another signing identity.
+     * This runs before an identity transition and again if any transition step fails.
+     */
+    const clearIdentityClientState = useCallback(async (): Promise<void> => {
+        setSession(null);
+        setIsNewUser(false);
+        setActiveVaultStorage(null);
+        clearSession();
+        await queryClient.cancelQueries();
+        queryClient.clear();
+    }, [queryClient]);
 
     // -------------------------------------------------------------------------
     // Check existing session on mount
@@ -229,13 +245,11 @@ export function useIdentity(): UseIdentityReturn {
             setError(null);
 
             try {
-                // Register with server
-                const result = await registerMutation.mutateAsync({
-                    pubkeyHash: identity.pubkeyHash
-                });
-
-                // Store session now that user has confirmed
+                // The phrase was confirmed by the caller. Install the new identity only after
+                // clearing any prior identity's selected vault/cache, then prove it to the server.
+                await clearIdentityClientState();
                 storeIdentitySession(identity);
+                const result = await registerMutation.mutateAsync({});
 
                 // Update state
                 const newSession = getSession();
@@ -245,12 +259,6 @@ export function useIdentity(): UseIdentityReturn {
 
                 setSession(newSession);
                 setIsNewUser(result.isNew);
-
-                // Identity-scoped client state may still belong to a previously unlocked
-                // keypair. Clear the selected vault and invalidate its cached server list
-                // before choosing a vault for the new session.
-                setActiveVaultStorage(null);
-                await utils.vault.list.invalidate();
 
                 // Ensure user has a default vault (creates one if none exist)
                 // This is required for the authenticated app experience.
@@ -275,12 +283,19 @@ export function useIdentity(): UseIdentityReturn {
 
                 setStatus("unlocked");
             } catch (err) {
+                await clearIdentityClientState();
                 setStatus("locked");
                 setError(parseError(err));
                 throw err;
             }
         },
-        [registerMutation, utils, createVaultMutation, saveSnapshotMutation]
+        [
+            registerMutation,
+            clearIdentityClientState,
+            utils,
+            createVaultMutation,
+            saveSnapshotMutation
+        ]
     );
 
     // -------------------------------------------------------------------------
@@ -292,16 +307,14 @@ export function useIdentity(): UseIdentityReturn {
         setError(null);
 
         try {
+            await clearIdentityClientState();
+
             // Generate new identity (does NOT store session)
             const identity = await createIdentity();
 
-            // Register with server
-            const result = await registerMutation.mutateAsync({
-                pubkeyHash: identity.pubkeyHash
-            });
-
-            // Store session
+            // Install the generated signing identity before the protected registration request.
             storeIdentitySession(identity);
+            const result = await registerMutation.mutateAsync({});
 
             // Update state
             const newSession = getSession();
@@ -311,9 +324,6 @@ export function useIdentity(): UseIdentityReturn {
 
             setSession(newSession);
             setIsNewUser(result.isNew);
-
-            setActiveVaultStorage(null);
-            await utils.vault.list.invalidate();
 
             // Ensure user has a default vault
             const vaultResult = await ensureDefaultVault({
@@ -332,11 +342,18 @@ export function useIdentity(): UseIdentityReturn {
 
             return identity;
         } catch (err) {
+            await clearIdentityClientState();
             setStatus("locked");
             setError(parseError(err));
             throw err;
         }
-    }, [registerMutation, utils, createVaultMutation, saveSnapshotMutation]);
+    }, [
+        clearIdentityClientState,
+        registerMutation,
+        utils,
+        createVaultMutation,
+        saveSnapshotMutation
+    ]);
 
     // -------------------------------------------------------------------------
     // Unlock with existing seed phrase
@@ -348,13 +365,13 @@ export function useIdentity(): UseIdentityReturn {
             setError(null);
 
             try {
+                await clearIdentityClientState();
+
                 // Derive keys from seed (stores session automatically)
                 const identity = await unlockWithSeed(mnemonic);
 
-                // Get or create user on server
-                const result = await getOrCreateMutation.mutateAsync({
-                    pubkeyHash: identity.pubkeyHash
-                });
+                // Get or create only the identity established by the signed request.
+                const result = await getOrCreateMutation.mutateAsync({});
 
                 // Update state
                 const newSession = getSession();
@@ -364,9 +381,6 @@ export function useIdentity(): UseIdentityReturn {
 
                 setSession(newSession);
                 setIsNewUser(result.isNew);
-
-                setActiveVaultStorage(null);
-                await utils.vault.list.invalidate();
 
                 // Ensure user has a default vault (edge case: returning user with no vaults)
                 const vaultResult = await ensureDefaultVault({
@@ -381,21 +395,25 @@ export function useIdentity(): UseIdentityReturn {
                 // Set the vault as active
                 setActiveVaultStorage({ id: vaultResult.vaultId, name: vaultResult.name });
 
-                if (vaultResult.created && !result.isNew) {
-                    console.log(`Created default vault for returning user: ${vaultResult.vaultId}`);
-                }
                 await utils.vault.list.invalidate();
 
                 setStatus("unlocked");
 
                 return identity;
             } catch (err) {
+                await clearIdentityClientState();
                 setStatus("locked");
                 setError(parseError(err));
                 throw err;
             }
         },
-        [getOrCreateMutation, utils, createVaultMutation, saveSnapshotMutation]
+        [
+            clearIdentityClientState,
+            getOrCreateMutation,
+            utils,
+            createVaultMutation,
+            saveSnapshotMutation
+        ]
     );
 
     // -------------------------------------------------------------------------
@@ -404,11 +422,14 @@ export function useIdentity(): UseIdentityReturn {
 
     const lock = useCallback(() => {
         clearSession();
+        setActiveVaultStorage(null);
+        void queryClient.cancelQueries();
+        queryClient.clear();
         setSession(null);
         setIsNewUser(false);
         setStatus("locked");
         setError(null);
-    }, []);
+    }, [queryClient]);
 
     // -------------------------------------------------------------------------
     // Clear error

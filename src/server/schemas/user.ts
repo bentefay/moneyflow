@@ -10,18 +10,6 @@
 
 import { z } from "zod";
 
-// ============================================================================
-// Base Schemas (reusable primitives)
-// ============================================================================
-
-/**
- * 64-character hex string representing BLAKE2b hash of Ed25519 public key
- */
-export const pubkeyHashSchema = z
-    .string()
-    .length(64)
-    .regex(/^[a-f0-9]+$/i, "Must be a valid hex string");
-
 /**
  * Base64-encoded encrypted data blob
  */
@@ -41,12 +29,14 @@ export const encryptedDataSchema = z
     );
 
 // ============================================================================
-// User Existence Check (Public - before auth)
+// Verified Self-Only Inputs
 // ============================================================================
 
-export const userExistsInput = z.object({
-    pubkeyHash: pubkeyHashSchema
-});
+/**
+ * Identity is never accepted from procedure input. Strict empty objects reject compatibility
+ * callers that attempt to smuggle a claimed hash alongside a valid signature.
+ */
+export const userExistsInput = z.object({}).strict();
 
 export type UserExistsInput = z.infer<typeof userExistsInput>;
 
@@ -57,28 +47,24 @@ export const userExistsOutput = z.object({
 export type UserExistsOutput = z.infer<typeof userExistsOutput>;
 
 // ============================================================================
-// User Registration (Public - creates user record)
+// User Registration (Authenticated - creates the verified user's record)
 // ============================================================================
 
 /**
  * Register a new user.
  *
- * Called after generating a seed phrase and deriving keypair.
- * The pubkey_hash becomes the user's immutable identity.
+ * Called only after the client has installed the confirmed identity long enough to sign the
+ * request. Signature middleware derives the immutable pubkey hash.
  */
-export const userRegisterInput = z.object({
-    /**
-     * BLAKE2b hash of Ed25519 public key (hex, 64 chars).
-     * This is the user's permanent identity.
-     */
-    pubkeyHash: pubkeyHashSchema,
-
-    /**
-     * Optional encrypted data to store immediately.
-     * Usually empty on first registration; populated later.
-     */
-    encryptedData: encryptedDataSchema.optional()
-});
+export const userRegisterInput = z
+    .object({
+        /**
+         * Optional encrypted data to store immediately.
+         * Usually empty on first registration; populated later.
+         */
+        encryptedData: encryptedDataSchema.optional()
+    })
+    .strict();
 
 export type UserRegisterInput = z.infer<typeof userRegisterInput>;
 
@@ -99,16 +85,13 @@ export type UserRegisterOutput = z.infer<typeof userRegisterOutput>;
  * Idempotent operation - safe to call multiple times.
  * Returns user data if exists, creates and returns if not.
  */
-export const userGetOrCreateInput = z.object({
-    pubkeyHash: pubkeyHashSchema
-});
+export const userGetOrCreateInput = z.object({}).strict();
 
 export type UserGetOrCreateInput = z.infer<typeof userGetOrCreateInput>;
 
 export const userGetOrCreateOutput = z.object({
     isNew: z.boolean(),
     encryptedData: encryptedDataSchema.nullable(),
-    createdAt: z.string().datetime(),
     updatedAt: z.string().datetime()
 });
 

@@ -6,17 +6,22 @@
 
 import type { TRPCError } from "@trpc/server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
-import superjson from "superjson";
 import { Temporal } from "temporal-polyfill";
 
 import { appRouter } from "@/server/routers/_app";
 import { createContext } from "@/server/trpc";
 
+function isUnknownRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 /**
  * Transform a tRPC batch request body into the simplified format used for signing.
  *
- * The client signs a simplified body: [{ path: 'procedure.name', input: {...} }]
- * But tRPC sends: { "0": { "json": {...}, "meta": {...} }, ... } with procedure names in URL
+ * The client signs an ordered body containing the procedure path and exact SuperJSON wire input.
+ * tRPC sends the inputs as { "0": { "json": {...}, "meta": {...} }, ... } and keeps procedure
+ * names in the URL path, so the server combines those two actual transport values without
+ * reserializing them.
  *
  * We need to reconstruct the signed format from the URL and body.
  */
@@ -24,64 +29,51 @@ function normalizeBodyForSigning(
     rawBody: unknown,
     url: URL
 ): Array<{ path: string; input: unknown }> | undefined {
-    if (!rawBody || typeof rawBody !== "object") {
+    if (!isUnknownRecord(rawBody)) {
         return undefined;
     }
 
-    // Extract procedure names from URL query param "batch"
-    // URL format: /api/trpc/vault.create,sync.saveSnapshot?batch=1&input={...}
-    // Or: /api/trpc/vault.create?input={...}
-    const pathname = url.pathname;
-    const procedurePart = pathname.replace("/api/trpc/", "");
-    const procedureNames = procedurePart ? procedurePart.split(",") : [];
-
-    // Handle batch format: { "0": { "json": ... }, "1": { "json": ... } }
-    const body = rawBody as Record<string, unknown>;
-
-    // Check if it's a batch request (keys are numeric strings)
-    const keys = Object.keys(body);
-    const isBatch = keys.every((k) => /^\d+$/.test(k));
-
-    if (isBatch) {
-        // Batch request
-        return keys.map((key, index) => {
-            const item = body[key] as { json?: unknown; meta?: unknown } | undefined;
-            const procedureName = procedureNames[index] || procedureNames[0] || "";
-
-            // Deserialize with superjson if meta is present
-            let input: unknown = item?.json;
-            if (item?.meta && item?.json) {
-                try {
-                    // Cast to SuperJSONResult - superjson expects specific shape
-                    input = superjson.deserialize({
-                        json: item.json as Parameters<typeof superjson.deserialize>[0]["json"],
-                        meta: item.meta as Parameters<typeof superjson.deserialize>[0]["meta"]
-                    });
-                } catch {
-                    input = item.json;
-                }
-            }
-
-            return { path: procedureName, input };
-        });
+    // URL format: /api/trpc/vault.create,sync.saveSnapshot?batch=1
+    const prefix = "/api/trpc/";
+    if (!url.pathname.startsWith(prefix)) {
+        return undefined;
     }
 
-    // Single request format: { "json": ..., "meta": ... }
-    if ("json" in body) {
-        const procedureName = procedureNames[0] || "";
-        let input: unknown = body.json;
-        if (body.meta && body.json) {
-            try {
-                // Cast to SuperJSONResult - superjson expects specific shape
-                input = superjson.deserialize({
-                    json: body.json as Parameters<typeof superjson.deserialize>[0]["json"],
-                    meta: body.meta as Parameters<typeof superjson.deserialize>[0]["meta"]
-                });
-            } catch {
-                input = body.json;
-            }
+    const procedureNames = url.pathname.slice(prefix.length).split(",");
+    if (
+        procedureNames.length === 0 ||
+        procedureNames.some((name) => name.length === 0 || name.length > 200)
+    ) {
+        return undefined;
+    }
+
+    const body = rawBody;
+    const keys = Object.keys(body);
+    const isIndexedBatch = keys.length > 0 && keys.every((key, index) => key === index.toString());
+
+    if (isIndexedBatch) {
+        if (keys.length !== procedureNames.length) {
+            return undefined;
         }
-        return [{ path: procedureName, input }];
+
+        const operations: Array<{ path: string; input: unknown }> = [];
+        for (const [index, key] of keys.entries()) {
+            const path = procedureNames[index];
+            const input = body[key];
+            if (path === undefined || !isUnknownRecord(input) || !("json" in input)) {
+                return undefined;
+            }
+            operations.push({ path, input });
+        }
+        return operations;
+    }
+
+    // Preserve the non-batch wire representation for compatible single-operation clients.
+    if (procedureNames.length === 1 && "json" in body) {
+        const path = procedureNames[0];
+        if (path !== undefined) {
+            return [{ path, input: body }];
+        }
     }
 
     return undefined;
@@ -186,6 +178,8 @@ async function handler(req: Request) {
         endpoint: "/api/trpc",
         req,
         router: appRouter,
+        // The client deliberately uses POST for queries so authenticated inputs never enter URLs.
+        allowMethodOverride: true,
         createContext: async () =>
             createContext({
                 headers: req.headers,

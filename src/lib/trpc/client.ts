@@ -42,6 +42,9 @@ export function createTRPCClient() {
             httpBatchLink({
                 url: `${getBaseUrl()}/api/trpc`,
                 transformer: superjson,
+                // Queries must never put their serialized input in URLs. Using POST for every
+                // operation also gives client and server one exact signed wire representation.
+                methodOverride: "POST",
                 async headers({ opList }) {
                     const session = getSession();
 
@@ -50,27 +53,17 @@ export function createTRPCClient() {
                         return {};
                     }
 
-                    // Determine if this will be a GET or POST request
-                    // tRPC uses GET for queries, POST for mutations
-                    // A batch with any mutations becomes POST
-                    const hasMutations = opList.some((op) => op.type === "mutation");
-                    const method = hasMutations ? "POST" : "GET";
                     const path = "/api/trpc";
 
-                    // Create a simplified body for signing
-                    // This represents the batch of operations
-                    // For GET requests, the body will be empty on the server side
+                    // Bind exactly the ordered procedure list and the same SuperJSON wire inputs
+                    // that httpBatchLink writes into its POST body.
                     const body = opList.map((op) => ({
                         path: op.path,
-                        input: op.input
+                        input: superjson.serialize(op.input)
                     }));
 
                     // signRequest returns headers directly and gets session internally
-                    const signedHeaders = await signRequest(
-                        method,
-                        path,
-                        method === "GET" ? undefined : body
-                    );
+                    const signedHeaders = await signRequest("POST", path, body);
 
                     return signedHeaders;
                 }

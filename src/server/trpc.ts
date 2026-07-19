@@ -8,7 +8,7 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 
-import { verifyRequest } from "@/lib/crypto/signing";
+import { isSignedTRPCOperationList, verifyRequest } from "@/lib/crypto/signing";
 import { createSupabaseClient } from "@/lib/supabase/server";
 
 /**
@@ -96,6 +96,20 @@ export const middleware = t.middleware;
  */
 export const authMiddleware = middleware(async ({ ctx, next }) => {
     const { headers, req } = ctx;
+
+    if (req.method !== "POST") {
+        throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Authenticated requests must use POST"
+        });
+    }
+
+    if (!isSignedTRPCOperationList(req.body)) {
+        throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Request authentication failed"
+        });
+    }
 
     // Check for required auth headers
     if (

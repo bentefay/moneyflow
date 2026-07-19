@@ -39,6 +39,34 @@ interface RequestVerificationFailure {
 
 export type RequestVerificationResult = RequestVerificationSuccess | RequestVerificationFailure;
 
+export interface SignedTRPCOperation {
+    readonly path: string;
+    readonly input: unknown;
+}
+
+function isUnknownRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Protect authenticated middleware from accepting a generic or malformed signed body.
+ * Every operation must bind an exact procedure path and serialized wire input.
+ */
+export function isSignedTRPCOperationList(body: unknown): body is readonly SignedTRPCOperation[] {
+    return (
+        Array.isArray(body) &&
+        body.length > 0 &&
+        body.every(
+            (operation) =>
+                isUnknownRecord(operation) &&
+                typeof operation.path === "string" &&
+                operation.path.length > 0 &&
+                operation.path.length <= 200 &&
+                "input" in operation
+        )
+    );
+}
+
 function hashRequestBody(body: unknown): string {
     if (body === undefined) {
         return "";
@@ -54,7 +82,7 @@ function hashRequestBody(body: unknown): string {
  * Signs an API request for authentication.
  *
  * The message format is:
- *   {method}\n{path}\n{timestamp}\n{bodyHash}
+ *   {method}\n{path}\n{timestamp}\n{nonce}\n{bodyHash}
  *
  * Where bodyHash is BLAKE2b-256 of the JSON body (empty string if no body).
  *

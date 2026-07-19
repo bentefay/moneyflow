@@ -8,6 +8,17 @@ import { createNewIdentity, goToAccounts, goToSettings, goToTags } from "./helpe
 
 test.describe("Onboarding", () => {
     test("creates and selects a vault as part of onboarding", async ({ page }) => {
+        const trpcRequests: Array<{ method: string; url: string; body: string | null }> = [];
+        page.on("request", (request) => {
+            if (request.url().includes("/api/trpc/")) {
+                trpcRequests.push({
+                    method: request.method(),
+                    url: request.url(),
+                    body: request.postData()
+                });
+            }
+        });
+
         await test.step("create identity with automatic vault creation", async () => {
             await createNewIdentity(page);
         });
@@ -22,6 +33,54 @@ test.describe("Onboarding", () => {
             // The vault selector should no longer show the placeholder label.
             await expect(page.getByRole("button", { name: /select vault/i })).not.toBeVisible();
         });
+
+        await test.step("verify authenticated input uses signed POST bodies, never URLs", async () => {
+            expect(trpcRequests.length).toBeGreaterThan(0);
+            for (const request of trpcRequests) {
+                const url = new URL(request.url);
+                expect(request.method).toBe("POST");
+                expect(url.searchParams.has("input")).toBe(false);
+                expect(url.href).not.toContain("pubkeyHash");
+                expect(url.href).not.toContain("vaultId");
+                expect(url.href).not.toContain("versionVector");
+                expect(url.href).not.toContain("hasUnpushed");
+            }
+
+            const registration = trpcRequests.find((request) =>
+                new URL(request.url).pathname.includes("user.register")
+            );
+            expect(registration?.body).toBeTruthy();
+            expect(registration?.body).not.toContain("pubkeyHash");
+        });
+    });
+
+    test("failed registration leaves no signing session, selected vault, or unlocked state", async ({
+        page
+    }) => {
+        await page.route("**/api/trpc/user.register?*", async (route) => {
+            await route.abort("connectionfailed");
+        });
+
+        await page.goto("/new-user");
+        await page.getByTestId("generate-button").click();
+        await page.getByTestId("seed-phrase-word").first().waitFor({ state: "visible" });
+        await page.getByTestId("confirm-checkbox").check();
+        await page.getByTestId("continue-button").click();
+
+        await expect(
+            page.getByRole("alert").filter({ hasText: "Unable to create account" })
+        ).toBeVisible();
+        await expect(page.getByTestId("continue-button")).toBeEnabled();
+        await expect(page).toHaveURL(/\/new-user$/);
+
+        const retainedIdentityState = await page.evaluate(() => ({
+            signingSession: sessionStorage.getItem("moneyflow_session"),
+            activeVault: localStorage.getItem("moneyflow_active_vault")
+        }));
+        expect(retainedIdentityState).toEqual({ signingSession: null, activeVault: null });
+
+        await page.goto("/settings");
+        await expect(page).toHaveURL(/\/unlock$/);
     });
 
     test("new vault has default person and account with ownership", async ({ page }) => {

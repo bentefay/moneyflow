@@ -127,10 +127,20 @@ test.describe("Vault Settings", () => {
     test.describe("Existing User Flow", () => {
         test("same-vault lock then unlock renders on the first attempt", async ({ page }) => {
             const browserErrors: string[] = [];
+            const trpcRequests: Array<{ method: string; url: string; body: string | null }> = [];
             page.on("console", (message) => {
                 if (message.type() === "error") browserErrors.push(message.text());
             });
             page.on("pageerror", (error) => browserErrors.push(error.message));
+            page.on("request", (request) => {
+                if (request.url().includes("/api/trpc/")) {
+                    trpcRequests.push({
+                        method: request.method(),
+                        url: request.url(),
+                        body: request.postData()
+                    });
+                }
+            });
 
             const seedWords = await test.step("Create the identity and active vault", async () =>
                 createNewIdentity(page));
@@ -158,6 +168,25 @@ test.describe("Vault Settings", () => {
                     0
                 );
                 expect(browserErrors).toEqual([]);
+            });
+
+            await test.step("Keep unlock identity and vault metadata out of request URLs", async () => {
+                expect(trpcRequests.length).toBeGreaterThan(0);
+                for (const request of trpcRequests) {
+                    const url = new URL(request.url);
+                    expect(request.method).toBe("POST");
+                    expect(url.searchParams.has("input")).toBe(false);
+                    expect(url.href).not.toContain("pubkeyHash");
+                    expect(url.href).not.toContain("vaultId");
+                    expect(url.href).not.toContain("versionVector");
+                    expect(url.href).not.toContain("hasUnpushed");
+                }
+
+                const unlockRequest = trpcRequests.find((request) =>
+                    new URL(request.url).pathname.includes("user.getOrCreate")
+                );
+                expect(unlockRequest?.body).toBeTruthy();
+                expect(unlockRequest?.body).not.toContain("pubkeyHash");
             });
         });
     });

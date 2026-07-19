@@ -12,10 +12,28 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { computePubkeyHash } from "@/lib/crypto/identity";
 import { deriveKeysFromSeed, initCrypto, publicKeyToBase64 } from "@/lib/crypto/keypair";
 import { generateSeedPhrase, mnemonicToMasterSeed } from "@/lib/crypto/seed";
-import { verifyRequest, verifySignature, verifyStringSignature } from "@/lib/crypto/signing";
+import {
+    isSignedTRPCOperationList,
+    verifyRequest,
+    verifySignature,
+    verifyStringSignature
+} from "@/lib/crypto/signing";
 
 beforeAll(async () => {
     await initCrypto();
+});
+
+describe("isSignedTRPCOperationList", () => {
+    it("requires a non-empty exact path and serialized input for every operation", () => {
+        expect(
+            isSignedTRPCOperationList([
+                { path: "sync.getUpdates", input: { json: { vaultId: crypto.randomUUID() } } }
+            ])
+        ).toBe(true);
+        expect(isSignedTRPCOperationList([])).toBe(false);
+        expect(isSignedTRPCOperationList([{ path: "sync.getUpdates" }])).toBe(false);
+        expect(isSignedTRPCOperationList([{ path: "", input: { json: null } }])).toBe(false);
+    });
 });
 
 // Helper to create test user keys

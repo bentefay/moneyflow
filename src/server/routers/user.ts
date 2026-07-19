@@ -25,7 +25,7 @@ import {
     userGetOrCreateInput,
     userRegisterInput
 } from "../schemas/user";
-import { protectedProcedure, publicProcedure, router } from "../trpc";
+import { protectedProcedure, router } from "../trpc";
 
 // ============================================================================
 // Error Handling Helpers
@@ -49,28 +49,24 @@ function isConnectionError(error: unknown): boolean {
 }
 
 /**
- * Handle database errors by logging details and throwing sanitized errors.
+ * Handle database errors without exposing database details, identities or stored data.
  * This prevents leaking internal implementation details to clients.
  */
 function handleDatabaseError(error: unknown, operation: string): never {
-    // Log full error details server-side
-    console.error(`[${operation}] Database error:`, error);
+    console.error(`[${operation}] Database operation failed`);
 
     // Determine error category and throw sanitized error
     if (isConnectionError(error)) {
         throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
-            message: "Unable to connect to database",
-            // Attach cause for server-side logging but it won't be sent to client
-            cause: error
+            message: "Unable to connect to database"
         });
     }
 
     // Generic database error
     throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
-        message: "Database operation failed",
-        cause: error
+        message: "Database operation failed"
     });
 }
 
@@ -80,15 +76,9 @@ function handleDatabaseError(error: unknown, operation: string): never {
 
 export const userRouter = router({
     /**
-     * Check if a user exists by pubkey_hash.
-     *
-     * Used before full unlock to determine:
-     * - New user → show seed phrase confirmation flow
-     * - Existing user → direct unlock
-     *
-     * Public procedure - no signature required (checking before user has identity loaded).
+     * Check whether the verified user has a record. This never accepts another identity claim.
      */
-    exists: publicProcedure.input(userExistsInput).query(async ({ input }) => {
+    exists: protectedProcedure.input(userExistsInput).query(async ({ ctx }) => {
         let supabase;
         try {
             supabase = await createSupabaseClient();
@@ -99,7 +89,7 @@ export const userRouter = router({
         const { data, error } = await supabase
             .from("user_data")
             .select("pubkey_hash")
-            .eq("pubkey_hash", input.pubkeyHash)
+            .eq("pubkey_hash", ctx.pubkeyHash)
             .maybeSingle();
 
         if (error) {
@@ -115,12 +105,9 @@ export const userRouter = router({
      * Creates a user_data record with the pubkey_hash.
      * Returns whether this was a new registration or existing user.
      *
-     * Public procedure - called during initial identity creation before
-     * the client has a signature (signing requires the full keypair).
-     *
      * Note: This is idempotent - calling with same pubkey_hash is safe.
      */
-    register: publicProcedure.input(userRegisterInput).mutation(async ({ input }) => {
+    register: protectedProcedure.input(userRegisterInput).mutation(async ({ ctx, input }) => {
         let supabase;
         try {
             supabase = await createSupabaseClient();
@@ -132,7 +119,7 @@ export const userRouter = router({
         const { data: existing, error: selectError } = await supabase
             .from("user_data")
             .select("pubkey_hash")
-            .eq("pubkey_hash", input.pubkeyHash)
+            .eq("pubkey_hash", ctx.pubkeyHash)
             .maybeSingle();
 
         if (selectError) {
@@ -145,7 +132,7 @@ export const userRouter = router({
 
         // Create new user
         const { error } = await supabase.from("user_data").insert({
-            pubkey_hash: input.pubkeyHash,
+            pubkey_hash: ctx.pubkeyHash,
             encrypted_data: input.encryptedData ?? "",
             updated_at: Temporal.Now.instant().toString()
         });
@@ -168,14 +155,14 @@ export const userRouter = router({
      * Returns existing user data or creates new user and returns empty data.
      * This is the preferred method for unlock flow:
      * 1. User enters seed phrase
-     * 2. Client derives keypair and pubkey_hash
+     * 2. Client derives the keypair and installs its signing session
      * 3. Client calls getOrCreate
      * 4. If isNew, show welcome/setup
      * 5. If existing, load encrypted data
      *
-     * Public procedure - same reason as register.
+     * The verified context is the only identity selector.
      */
-    getOrCreate: publicProcedure.input(userGetOrCreateInput).mutation(async ({ input }) => {
+    getOrCreate: protectedProcedure.input(userGetOrCreateInput).mutation(async ({ ctx }) => {
         let supabase;
         try {
             supabase = await createSupabaseClient();
@@ -187,7 +174,7 @@ export const userRouter = router({
         const { data: existing, error: selectError } = await supabase
             .from("user_data")
             .select("encrypted_data, updated_at")
-            .eq("pubkey_hash", input.pubkeyHash)
+            .eq("pubkey_hash", ctx.pubkeyHash)
             .maybeSingle();
 
         if (selectError) {
@@ -207,7 +194,7 @@ export const userRouter = router({
         const { data: newUser, error: insertError } = await supabase
             .from("user_data")
             .insert({
-                pubkey_hash: input.pubkeyHash,
+                pubkey_hash: ctx.pubkeyHash,
                 encrypted_data: "",
                 updated_at: now
             })
@@ -220,7 +207,7 @@ export const userRouter = router({
                 const { data: raceUser, error: raceError } = await supabase
                     .from("user_data")
                     .select("encrypted_data, updated_at")
-                    .eq("pubkey_hash", input.pubkeyHash)
+                    .eq("pubkey_hash", ctx.pubkeyHash)
                     .single();
 
                 if (raceError || !raceUser) {
