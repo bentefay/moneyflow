@@ -279,6 +279,40 @@ No unresolved product questions were answered by scaffold creation.
 - **Does a human still need to decide after completion?:** No. Human input is optional only if a
   stricter post-green aggregate, such as explicit predecessor revocation, is desired later.
 
+## Q-008 — Attribute same-vault lock/unlock using pre-lock deltas
+
+- **Raised:** 2026-07-20, P05 revision 06, `human_scratch_implementer`; independently confirmed by
+  `human_scratch_reviewer`
+- **Source proposal:**
+  `evidence/P05/implementation-06.md#q-proposal-p05-06-01--attribute-lockunlock-lifecycle-relative-to-its-pre-lock-baseline`;
+  confirmed in `reviews/P05-review-06.md`
+- **Context and evidence:** Focused Realtime is 3/3 and passes in the full suite. The sole full and
+  isolated failure is cumulative Presence authorization 4 against 2. The observer starts before
+  identity creation; sanitized chronology shows two valid onboarding Presence grants and two after
+  unlock, while sync/revocation and UI behavior pass.
+- **Why the frozen requirement/repository does not fully decide it:** Revision 06 authorized only
+  the causal refresh observer in the Realtime spec. It proved but could not edit the separate
+  vault-settings attribution window.
+- **Options considered:** (A) snapshot after identity and assert final-minus-baseline deltas using
+  unchanged bounds; (B) raise the cumulative bound to four; (C) start observation after identity;
+  or (D) weaken/skip/retry. A retains all evidence and isolates the named interval. B allows
+  unrelated growth, C can miss late onboarding work and D waives lifecycle control.
+- **Default selected for continued work:** Choose A. Revision 07 may write only
+  `tests/e2e/vault-settings.spec.ts`. Immediately after awaited identity creation and before Lock,
+  capture the current lifecycle snapshot. In final attribution, subtract matching pre-lock counters
+  and apply the existing sync/Presence authorize `<=2` and revoke `>=1` assertions to those deltas.
+  Do not raise bounds, move observer creation, add sleeps/retries or edit helper, revision-06 spec,
+  provider/product/transport/migration/privileges/config/dependencies/other tests/CRDT/Loro paths.
+- **Decision hierarchy basis:** HS-015 requires bounded reconnect and safe teardown, while the test
+  specifically names same-vault lock/unlock. Causal before/after deltas enforce exactly that interval.
+- **Impact and risk:** The test still rejects more than two authorizations or fewer than one revoke
+  per purpose during lock/unlock. Only aggregate integers are retained; a remaining delta failure
+  must route to its actual owner rather than relax thresholds.
+- **How to reverse or migrate:** The one-file test attribution change is independently revertible
+  with no schema, service, encrypted-data or product impact.
+- **Does a human still need to decide after completion?:** No. Separate onboarding bounds may be
+  considered later but are not required to measure this named interval correctly.
+
 ## Question template
 
 ### Q-XXX — Short title
