@@ -7,8 +7,8 @@ literal field is `pending`. Workers may read but never edit it.
 
 - **Package / revision:** P02 / 02
 - **Scope IDs:** HS-017; no scratch marker until independent package PASS and root integration
-- **State:** independently recommended PASS; root integration pending; review SHA-256
-  `01b5318b91e8cd898a7ab009b789809ab9d307e4c2279f113d1613bfe33cc998`
+- **State:** passed/integrated in `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7`; HS-017 marker
+  finalized `dcd03b23… -> 5d283ab1…`
 - **Task:** `tasks/HS-017-animate-ui-evaluation.md`
 - **Original package BASE:** `19d73035b33b639f9927d2f78a55d74c44f65544`
 - **Pre-implementation HEAD:** `72710249b4ba2c515d159ce3560e68af3ac0b011`
@@ -57,5 +57,4 @@ This section is the active independent revision-02 review dispatch.
 
 ## Next root action
 
-Integrate the exact revision-02 evidence/review. Only after that commit may root set P02 passed,
-durably prepare HS-017 `completion_pending`, and execute its marker.
+Verify the finalized P02/HS-017 boundary, then rewrite this handoff for P03 revision 01.

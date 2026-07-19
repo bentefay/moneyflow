@@ -330,7 +330,7 @@
   Supports importing CSV and ofx. Multiple people can collaborate in real-time. It intelligently
   applies your tags, aliases and allocations to new imports.
 
-- [] Investigate animate-ui shadcn registry components (https://animate-ui.com/docs/components)
+- [x] Investigate animate-ui shadcn registry components (https://animate-ui.com/docs/components)
     - We've already used it for the import tabs - good to use it more broadly for consistency and
       because it looks great!
     - Focus on /radix/ components: Dialog, Alert Dialog, Dropdown Menu, Tooltip, etc.

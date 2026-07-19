@@ -7,22 +7,21 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P02 revision 02 (`passed`); HS-017 marker `completion_pending`
-- **Next action:** execute and finalize exact HS-017 `[] -> [x]`; no dispatch while pending
+- **Current package:** P02 revision 02 and HS-017 (`passed`)
+- **Next action:** verify the finalized boundary, then prepare P03 revision 01
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
   `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines and 25,441 bytes
-- **Rolling scratch SHA-256:** `dcd03b23aab92da4b0944d683ef4c0a363a56e70d6fc8775066502ed5f626ca7`
-- **Authorized checked HS IDs:** HS-002
-- **Active completion marker event:** HS-017 `completion_pending`; intended `[] -> [x]`; before
-  SHA-256 `dcd03b23aab92da4b0944d683ef4c0a363a56e70d6fc8775066502ed5f626ca7`; review
-  `reviews/P02-review-02.md`; integration `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7`
+- **Rolling scratch SHA-256:** `5d283ab12623e950dd7bf76a1c502b020ecbc2604c97df2e62e40ebd53472efc`
+- **Authorized checked HS IDs:** HS-002, HS-017
+- **Active completion marker event:** none
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
-- **Requirement state:** one passed (HS-002); HS-017 `completion_pending`; 20 queued
-- **Last ledger update:** 2026-07-20T04:29:00+10:00; P02 PASS integrated in
-  `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7`; HS-017 marker durably prepared
+- **Requirement state:** two passed (HS-002, HS-017); 20 queued
+- **Last ledger update:** 2026-07-20T04:32:00+10:00; recovered and finalized HS-017 marker
+  `dcd03b23aab92da4b0944d683ef4c0a363a56e70d6fc8775066502ed5f626ca7` ->
+  `5d283ab12623e950dd7bf76a1c502b020ecbc2604c97df2e62e40ebd53472efc`
 
 ## Package ledger
 
@@ -81,30 +80,30 @@ only here after P16A–E pass. A failed P21 may move already-passed package rows
 requirement row to `changes_requested`; root records the complete impact set and finishes all
 required marker rollbacks before the next dispatch.
 
-| Requirement | Frozen source                     | Packages                     | Completion recording                       | Status             | Evidence                                                                                                                |
-| ----------- | --------------------------------- | ---------------------------- | ------------------------------------------ | ------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| HS-001      | human scratch block               | P13                          | authorized marker after package PASS       | queued             | —                                                                                                                       |
-| HS-002      | human scratch block               | P01                          | authorized marker after package PASS       | passed             | P01 integration `c2b89b6676271142ad6802dcf2a30acf8899df48`; `reviews/P01-review-02.md`; marker `b91ca932… -> dcd03b23…` |
-| HS-003      | human scratch block               | P10                          | authorized marker after package PASS       | queued             | —                                                                                                                       |
-| HS-004      | human scratch block               | P11A, P11B, P11C             | authorized marker after all package PASSes | queued             | —                                                                                                                       |
-| HS-005      | human scratch block               | P12                          | authorized marker after package PASS       | queued             | —                                                                                                                       |
-| HS-006      | human scratch block               | P09                          | authorized marker after package PASS       | queued             | —                                                                                                                       |
-| HS-007      | human scratch block               | P17A, P17B, P17C, P17D       | authorized marker after all package PASSes | queued             | —                                                                                                                       |
-| HS-008      | human scratch block               | P14                          | authorized marker after package PASS       | queued             | —                                                                                                                       |
-| HS-009      | human scratch block               | P16A, P16C, P16D             | authorized marker after all package PASSes | queued             | —                                                                                                                       |
-| HS-010      | human scratch block               | P06                          | authorized marker after package PASS       | queued             | —                                                                                                                       |
-| HS-011      | human scratch block               | P07, P08                     | authorized marker after all package PASSes | queued             | —                                                                                                                       |
-| HS-012      | human scratch block               | P08                          | authorized marker after package PASS       | queued             | —                                                                                                                       |
-| HS-013      | human scratch block               | P15                          | authorized marker after package PASS       | queued             | —                                                                                                                       |
-| HS-014      | human scratch block               | P04                          | authorized marker after package PASS       | queued             | —                                                                                                                       |
-| HS-015      | human scratch block               | P05                          | authorized marker after package PASS       | queued             | —                                                                                                                       |
-| HS-016      | human scratch block               | P20A                         | authorized marker after package PASS       | queued             | —                                                                                                                       |
-| HS-017      | human scratch block               | P02                          | authorized marker after package PASS       | completion_pending | P02 PASS `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7`; `reviews/P02-review-02.md`; marker pending                         |
-| HS-018      | human scratch block               | P03                          | authorized marker after package PASS       | queued             | —                                                                                                                       |
-| HS-019      | human scratch block               | P18                          | authorized marker after package PASS       | queued             | —                                                                                                                       |
-| HS-020      | human scratch block               | P19                          | authorized marker after package PASS       | queued             | —                                                                                                                       |
-| HS-021      | human scratch block               | P20B                         | authorized marker after package PASS       | queued             | —                                                                                                                       |
-| FS-001      | immutable whole-file feature spec | P16A, P16B, P16C, P16D, P16E | ledger completion; source never edited     | queued             | —                                                                                                                       |
+| Requirement | Frozen source                     | Packages                     | Completion recording                       | Status | Evidence                                                                                                                |
+| ----------- | --------------------------------- | ---------------------------- | ------------------------------------------ | ------ | ----------------------------------------------------------------------------------------------------------------------- |
+| HS-001      | human scratch block               | P13                          | authorized marker after package PASS       | queued | —                                                                                                                       |
+| HS-002      | human scratch block               | P01                          | authorized marker after package PASS       | passed | P01 integration `c2b89b6676271142ad6802dcf2a30acf8899df48`; `reviews/P01-review-02.md`; marker `b91ca932… -> dcd03b23…` |
+| HS-003      | human scratch block               | P10                          | authorized marker after package PASS       | queued | —                                                                                                                       |
+| HS-004      | human scratch block               | P11A, P11B, P11C             | authorized marker after all package PASSes | queued | —                                                                                                                       |
+| HS-005      | human scratch block               | P12                          | authorized marker after package PASS       | queued | —                                                                                                                       |
+| HS-006      | human scratch block               | P09                          | authorized marker after package PASS       | queued | —                                                                                                                       |
+| HS-007      | human scratch block               | P17A, P17B, P17C, P17D       | authorized marker after all package PASSes | queued | —                                                                                                                       |
+| HS-008      | human scratch block               | P14                          | authorized marker after package PASS       | queued | —                                                                                                                       |
+| HS-009      | human scratch block               | P16A, P16C, P16D             | authorized marker after all package PASSes | queued | —                                                                                                                       |
+| HS-010      | human scratch block               | P06                          | authorized marker after package PASS       | queued | —                                                                                                                       |
+| HS-011      | human scratch block               | P07, P08                     | authorized marker after all package PASSes | queued | —                                                                                                                       |
+| HS-012      | human scratch block               | P08                          | authorized marker after package PASS       | queued | —                                                                                                                       |
+| HS-013      | human scratch block               | P15                          | authorized marker after package PASS       | queued | —                                                                                                                       |
+| HS-014      | human scratch block               | P04                          | authorized marker after package PASS       | queued | —                                                                                                                       |
+| HS-015      | human scratch block               | P05                          | authorized marker after package PASS       | queued | —                                                                                                                       |
+| HS-016      | human scratch block               | P20A                         | authorized marker after package PASS       | queued | —                                                                                                                       |
+| HS-017      | human scratch block               | P02                          | authorized marker after package PASS       | passed | P02 integration `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7`; `reviews/P02-review-02.md`; marker `dcd03b23… -> 5d283ab1…` |
+| HS-018      | human scratch block               | P03                          | authorized marker after package PASS       | queued | —                                                                                                                       |
+| HS-019      | human scratch block               | P18                          | authorized marker after package PASS       | queued | —                                                                                                                       |
+| HS-020      | human scratch block               | P19                          | authorized marker after package PASS       | queued | —                                                                                                                       |
+| HS-021      | human scratch block               | P20B                         | authorized marker after package PASS       | queued | —                                                                                                                       |
+| FS-001      | immutable whole-file feature spec | P16A, P16B, P16C, P16D, P16E | ledger completion; source never edited     | queued | —                                                                                                                       |
 
 ## Package event log
 
@@ -151,6 +150,12 @@ and R-009/P13/P21 remain open; exact HEAD/write boundary/cleanup verified; root 
 reviewed HEAD/evidence/review; D-008/R-010 integrated in `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7`;
 Q-001/R-022 and R-009 routes retained; HS-017 completion pending | pending `[] -> [x]` / before
 `dcd03b23…` |
+
+**2026-07-20T04:32:00+10:00 — HS-017 `completion_pending -> passed`:** Recovery found only the
+prepared HS-017 marker already changed, as permitted by PROCESS. All 21 normalized blocks match
+SCOPE; checked set is exactly HS-002/HS-017; FS-001 remains exact. Finalized `[] -> [x]`, SHA
+`dcd03b23… -> 5d283ab1…`, review `reviews/P02-review-02.md`, integration
+`d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7`.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
