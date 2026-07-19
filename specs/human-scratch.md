@@ -338,7 +338,7 @@
       setup
     - Compare with current @radix-ui/\* primitives + tw-animate-css setup
 
-- [] Update tanstack virtual once https://github.com/TanStack/virtual/pull/1100 is released and
+- [x] Update tanstack virtual once https://github.com/TanStack/virtual/pull/1100 is released and
   enable useFlushSync
 
 - [] Is there a way we can make the recovery phrase more compatible with password managers? It would
