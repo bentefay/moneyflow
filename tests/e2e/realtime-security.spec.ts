@@ -1,7 +1,6 @@
 import { expect, test } from "@playwright/test";
 
 import {
-    countRealtimeGrants,
     createNewIdentity,
     goToImportNew,
     goToTransactions,
@@ -71,36 +70,38 @@ test("private vault_ops push synchronizes import, edit and delete and stops afte
             });
         });
 
-        await test.step("attribute initial sync and Presence lifecycle without identifiers", async () => {
-            const browserLifecycle = {
-                owner: ownerLifecycle.snapshot(),
-                member: memberLifecycle.snapshot()
-            };
-            const grants = {
-                owner: await getRealtimeGrantAggregates(fixture.ownerHash, fixture.vaultId),
-                member: await getRealtimeGrantAggregates(fixture.memberHash, fixture.vaultId)
-            };
-            const subscriptions = getRealtimeSubscriptionCounts();
-            const memberFrameRegistration = memberFrames.snapshot();
-            testInfo.annotations.push({
-                type: "realtime-lifecycle",
-                description: JSON.stringify({
-                    browserLifecycle,
-                    grants,
-                    subscriptions,
-                    memberFrameRegistration
-                })
+        const initialOwnerSyncTotal =
+            await test.step("attribute initial sync and Presence lifecycle without identifiers", async () => {
+                const browserLifecycle = {
+                    owner: ownerLifecycle.snapshot(),
+                    member: memberLifecycle.snapshot()
+                };
+                const grants = {
+                    owner: await getRealtimeGrantAggregates(fixture.ownerHash, fixture.vaultId),
+                    member: await getRealtimeGrantAggregates(fixture.memberHash, fixture.vaultId)
+                };
+                const subscriptions = getRealtimeSubscriptionCounts();
+                const memberFrameRegistration = memberFrames.snapshot();
+                testInfo.annotations.push({
+                    type: "realtime-lifecycle",
+                    description: JSON.stringify({
+                        browserLifecycle,
+                        grants,
+                        subscriptions,
+                        memberFrameRegistration
+                    })
+                });
+                expect(browserLifecycle.owner.authorize.sync).toBeLessThanOrEqual(2);
+                expect(browserLifecycle.member.authorize.sync).toBeLessThanOrEqual(2);
+                expect(browserLifecycle.owner.authorize.presence).toBeLessThanOrEqual(4);
+                expect(browserLifecycle.member.authorize.presence).toBeLessThanOrEqual(4);
+                expect(memberFrameRegistration.postgresChangeJoins).toBeGreaterThanOrEqual(1);
+                expect(memberFrameRegistration.postgresChangeBindings).toBeGreaterThanOrEqual(1);
+                expect(subscriptions.total).toBeGreaterThanOrEqual(2);
+                expect(subscriptions.authenticated).toBe(subscriptions.total);
+                expect(subscriptions.liveExactGrant).toBe(subscriptions.total);
+                return grants.owner.sync.total;
             });
-            expect(browserLifecycle.owner.authorize.sync).toBeLessThanOrEqual(2);
-            expect(browserLifecycle.member.authorize.sync).toBeLessThanOrEqual(2);
-            expect(browserLifecycle.owner.authorize.presence).toBeLessThanOrEqual(4);
-            expect(browserLifecycle.member.authorize.presence).toBeLessThanOrEqual(4);
-            expect(memberFrameRegistration.postgresChangeJoins).toBeGreaterThanOrEqual(1);
-            expect(memberFrameRegistration.postgresChangeBindings).toBeGreaterThanOrEqual(1);
-            expect(subscriptions.total).toBeGreaterThanOrEqual(2);
-            expect(subscriptions.authenticated).toBe(subscriptions.total);
-            expect(subscriptions.liveExactGrant).toBe(subscriptions.total);
-        });
 
         await test.step("push an imported encrypted operation without member refresh", async () => {
             const memberFrameBaseline = memberFrames.snapshot().postgresChanges;
@@ -159,11 +160,16 @@ test("private vault_ops push synchronizes import, edit and delete and stops afte
 
         await test.step("refresh the short-lived credential in-band without a reconnect storm", async () => {
             await expect
-                .poll(() => countRealtimeGrants(fixture.ownerHash, fixture.vaultId), {
-                    timeout: 70_000,
-                    intervals: [1_000]
-                })
-                .toBeGreaterThanOrEqual(2);
+                .poll(
+                    async () =>
+                        (await getRealtimeGrantAggregates(fixture.ownerHash, fixture.vaultId)).sync
+                            .total,
+                    {
+                        timeout: 70_000,
+                        intervals: [1_000]
+                    }
+                )
+                .toBeGreaterThanOrEqual(Math.max(2, initialOwnerSyncTotal + 1));
         });
 
         await test.step("remove membership and deny future payloads safely", async () => {
