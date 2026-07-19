@@ -89,7 +89,7 @@
         "fake-indexeddb": "6.2.5",
         "fast-check": "4.9.0",
         "jsdom": "29.1.1",
-        "oxfmt": "0.59.0",
+        "oxfmt": "0.57.0",
         "oxlint": "1.74.0",
         "supabase": "2.109.1",
         "tailwindcss": "4.3.3",
