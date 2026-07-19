@@ -138,6 +138,41 @@ test.describe("Import Panel", () => {
             await expect(page.getByText(/6 rows/i)).toBeVisible();
         });
 
+        await test.step("preserve named keyboard tabs and labelled panels on mobile", async () => {
+            await page.setViewportSize({ width: 320, height: 720 });
+
+            const tabNames = ["Template", "Columns", "Format", "Duplicates", "Account"] as const;
+            const templateTab = page.getByRole("tab", { name: "Template", exact: true });
+
+            await expect(templateTab).toHaveCount(1);
+            await templateTab.focus();
+
+            for (const tabName of tabNames) {
+                const tab = page.getByRole("tab", { name: tabName, exact: true });
+                const panel = page.getByRole("tabpanel", { name: tabName, exact: true });
+
+                await expect(tab).toHaveCount(1);
+                await expect(tab).toBeFocused();
+                await expect(tab).toHaveAttribute("aria-selected", "true");
+                await expect(panel).toBeVisible();
+
+                const tabId = await tab.getAttribute("id");
+                const panelId = await panel.getAttribute("id");
+
+                expect(tabId).toBeTruthy();
+                expect(panelId).toBeTruthy();
+                await expect(tab).toHaveAttribute("aria-controls", panelId ?? "missing-panel-id");
+                await expect(panel).toHaveAttribute("aria-labelledby", tabId ?? "missing-tab-id");
+
+                await tab.press("ArrowRight");
+            }
+
+            await expect(templateTab).toBeFocused();
+            await expect(templateTab).toHaveAttribute("aria-selected", "true");
+
+            await page.setViewportSize({ width: 1280, height: 720 });
+        });
+
         await test.step("verify tabbed configuration panel", async () => {
             // Should show config tabs
             await expect(page.getByRole("tab", { name: /Template/i })).toBeVisible();

@@ -137,7 +137,7 @@ export function ConfigTabs({
                     {visibleTabs.map((tab) => (
                         <TabsTrigger key={tab.id} value={tab.id} className="gap-1.5">
                             <tab.icon className="h-4 w-4" />
-                            <span className="hidden sm:inline">{tab.label}</span>
+                            <span className="sr-only sm:not-sr-only">{tab.label}</span>
                         </TabsTrigger>
                     ))}
                 </TabsList>
