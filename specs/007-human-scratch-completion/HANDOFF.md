@@ -7,10 +7,8 @@ literal field is `pending`. Workers may read but never edit it.
 
 - **Package / revision:** P02 / 01
 - **Scope IDs:** HS-017; no scratch marker until independent package PASS and root integration
-- **State:** changes_requested after immutable `reviews/P02-review-01.md` FAIL; evidence SHA-256
-  `0806cf0cf3918fb56103833c5d61812cdb4465cbe3a7ea69e2f048d1afdead36`; review SHA-256
-  `2ef03fd7a06459ca5483d5bd9004cf59d54077474e2185bcb5c69391a17e35cf`; artifact integration in
-  progress
+- **State:** changes_requested after immutable `reviews/P02-review-01.md` FAIL; evidence/review,
+  Q-001 and R-009/R-022 persisted in `67311b9f716611bb2a5e655460f7ae638203c10a`
 - **Task:** `tasks/HS-017-animate-ui-evaluation.md`
 - **Original package BASE:** `19d73035b33b639f9927d2f78a55d74c44f65544`
 - **Pre-implementation HEAD:** `19d73035b33b639f9927d2f78a55d74c44f65544`
@@ -63,6 +61,5 @@ This section records the completed failed independent review.
 
 ## Next root action
 
-Persist the exact revision-01 evidence/review, Q-001, R-009/R-022 and failure state. Record that
-artifact commit, then rewrite this handoff for P02 revision 02 over the original BASE with exact new
-artifact paths and the narrow mobile accessible-name remediation. Do not authorize HS-017's marker.
+Rewrite this handoff for P02 revision 02 over the original BASE, using exact new artifact paths and
+the narrow mobile accessible-name remediation. Do not authorize HS-017's marker.
