@@ -7,7 +7,8 @@ literal field is `pending`. Workers may read but never edit it.
 
 - **Package / revision:** P04 / 02
 - **Scope IDs:** HS-014; no scratch marker before independent package PASS and root integration
-- **State:** reviewing
+- **State:** passed/integrated in `b905ecb810334ed9697f57140047964135ade6ea`; HS-014 marker
+  `completion_pending` from scratch SHA `db97178a…`
 - **Task:** `tasks/HS-014-database-rls-audit.md`
 - **Original package BASE:** `9de8b0e8c41087b96523ecc55faa10bf19ec0ff9`
 - **Pre-implementation HEAD:** `ae6b1797e5c874fc48114f309bb9a7e02220a246`
@@ -76,6 +77,6 @@ This section is active; revision-02 evidence and the cumulative literal range ar
 
 ## Next root action
 
-Root verifies and integrates revision-02 evidence/review, D-010 and applicable risk state with
-exact-path staging. Only after that integration commit exists may P04 become passed and the HS-014
-completion marker be durably prepared.
+Execute and finalize only the exact HS-014 first-line `[] -> [x]` marker under PROCESS. Revalidate
+the rolling SHA, authorized checked set, all 21 normalized blocks and immutable FS-001 before any
+P05 dispatch.
