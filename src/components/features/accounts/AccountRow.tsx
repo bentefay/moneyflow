@@ -93,6 +93,16 @@ export function AccountRow({
     >(account.accountType || "checking");
     const [editedCurrency, setEditedCurrency] = useState(account.currency || "");
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [previousAccount, setPreviousAccount] = useState(account);
+
+    // Adjust draft state during render when an externally updated account arrives.
+    if (account !== previousAccount) {
+        setPreviousAccount(account);
+        setEditedName(account.name);
+        setEditedAccountNumber(account.accountNumber || "");
+        setEditedType(account.accountType || "checking");
+        setEditedCurrency(account.currency || "");
+    }
 
     // Whether in full edit mode (all fields editable at once)
     const isEditMode = editingField === "all";
@@ -138,14 +148,6 @@ export function AccountRow({
             typeSelectRef.current.focus();
         }
     }, [editingField]);
-
-    // Reset edited values when account changes
-    useEffect(() => {
-        setEditedName(account.name);
-        setEditedAccountNumber(account.accountNumber || "");
-        setEditedType(account.accountType || "checking");
-        setEditedCurrency(account.currency || "");
-    }, [account]);
 
     // Save name field
     const saveName = useCallback(() => {

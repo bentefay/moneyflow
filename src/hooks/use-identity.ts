@@ -184,13 +184,22 @@ export function useIdentity(): UseIdentityReturn {
     // -------------------------------------------------------------------------
 
     useEffect(() => {
-        const existingSession = getSession();
-        if (existingSession) {
-            setSession(existingSession);
-            setStatus("unlocked");
-        } else {
-            setStatus("locked");
-        }
+        let cancelled = false;
+        queueMicrotask(() => {
+            if (cancelled) return;
+
+            const existingSession = getSession();
+            if (existingSession) {
+                setSession(existingSession);
+                setStatus("unlocked");
+            } else {
+                setStatus("locked");
+            }
+        });
+
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
     // -------------------------------------------------------------------------

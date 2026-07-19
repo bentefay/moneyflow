@@ -28,7 +28,6 @@ import { trpc } from "@/lib/trpc/client";
 
 type RedeemState =
     | "checking-auth"
-    | "loading"
     | "ready"
     | "accepting"
     | "success"
@@ -64,14 +63,12 @@ export default function InvitePage() {
             // User needs to unlock first - redirect to unlock with return URL
             const returnUrl = encodeURIComponent(`/invite/${inviteId}${window.location.hash}`);
             router.replace(`/unlock?returnTo=${returnUrl}`);
-        } else if (authStatus === "unlocked") {
-            setState("loading");
         }
     }, [authStatus, inviteId, router]);
 
-    // Process invite when state changes to loading
+    // Process the invite once authentication is available.
     useEffect(() => {
-        if (state !== "loading") return;
+        if (authStatus !== "unlocked" || state !== "checking-auth") return;
 
         async function processInvite() {
             try {
@@ -139,7 +136,7 @@ export default function InvitePage() {
         }
 
         processInvite();
-    }, [state]);
+    }, [authStatus, state]);
 
     // Handle accept invite
     const handleAccept = useCallback(async () => {
@@ -207,14 +204,14 @@ export default function InvitePage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     {/* Checking auth state */}
-                    {state === "checking-auth" && (
+                    {state === "checking-auth" && authStatus !== "unlocked" && (
                         <div className="flex items-center justify-center py-8">
                             <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
                         </div>
                     )}
 
                     {/* Loading invite */}
-                    {state === "loading" && (
+                    {state === "checking-auth" && authStatus === "unlocked" && (
                         <div className="flex flex-col items-center gap-2 py-8">
                             <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
                             <p className="text-muted-foreground text-sm">Verifying invite...</p>

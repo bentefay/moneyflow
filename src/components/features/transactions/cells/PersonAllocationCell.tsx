@@ -63,12 +63,14 @@ export function PersonAllocationCell({
     className
 }: PersonAllocationCellProps) {
     const [localAllocations, setLocalAllocations] = useState<AllocationData[]>(allocations);
+    const [previousAllocations, setPreviousAllocations] = useState(allocations);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // Sync local allocations with prop
-    useEffect(() => {
+    // Adjust the draft during render when external allocations change.
+    if (allocations !== previousAllocations) {
+        setPreviousAllocations(allocations);
         setLocalAllocations(allocations);
-    }, [allocations]);
+    }
 
     const handleDoubleClick = () => {
         onEditStart?.();

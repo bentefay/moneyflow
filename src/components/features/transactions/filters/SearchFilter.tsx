@@ -34,13 +34,15 @@ export function SearchFilter({
     className
 }: SearchFilterProps) {
     const [localValue, setLocalValue] = useState(value);
+    const [previousValue, setPreviousValue] = useState(value);
     const inputRef = useRef<HTMLInputElement>(null);
     const debounceRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
-    // Sync with external value
-    useEffect(() => {
+    // Adjust the draft during render when an external search value arrives.
+    if (value !== previousValue) {
+        setPreviousValue(value);
         setLocalValue(value);
-    }, [value]);
+    }
 
     // Debounce the onChange callback
     useEffect(() => {

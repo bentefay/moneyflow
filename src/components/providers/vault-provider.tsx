@@ -15,7 +15,7 @@
  */
 
 import { LoroDoc } from "loro-crdt";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { useActiveVault } from "@/hooks/use-active-vault";
 import { useSyncStatusManager } from "@/hooks/use-sync-status";
@@ -31,15 +31,26 @@ interface VaultProviderProps {
     children: React.ReactNode;
 }
 
+const subscribeToHydration = () => () => {};
+
 /**
  * Provider component that initializes the vault LoroDoc and provides
  * CRDT state management to the app.
  */
 export function VaultProvider({ children }: VaultProviderProps) {
-    // Track client-side hydration and initialization
-    const [isClient, setIsClient] = useState(false);
-    const [isInitialized, setIsInitialized] = useState(false);
-    const [initError, setInitError] = useState<string | null>(null);
+    const isClient = useSyncExternalStore(
+        subscribeToHydration,
+        () => true,
+        () => false
+    );
+    const [initializedVault, setInitializedVault] = useState<{
+        vaultId: string;
+        doc: LoroDoc;
+    } | null>(null);
+    const [initFailure, setInitFailure] = useState<{
+        vaultId: string;
+        message: string;
+    } | null>(null);
 
     // Get active vault from context
     const { activeVault, setActiveVault } = useActiveVault();
@@ -52,16 +63,10 @@ export function VaultProvider({ children }: VaultProviderProps) {
     const vaultListQuery = trpc.vault.list.useQuery();
 
     // Create stable LoroDoc instance
-    const docRef = useRef<LoroDoc | null>(null);
     const syncManagerRef = useRef<SyncManager | null>(null);
 
     // Get tRPC utils for sync manager
     const trpcUtils = trpc.useUtils();
-
-    // Initialize on client side
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
 
     // Reconcile the persisted selection with vaults the current identity can access.
     // Without this, a vault ID left by another identity makes initialization return early
@@ -71,14 +76,11 @@ export function VaultProvider({ children }: VaultProviderProps) {
 
         const vaults = vaultListQuery.data.vaults;
         if (vaults.length === 0) {
-            setInitError("No accessible vaults were found for this account");
             return;
         }
 
         const activeVaultIsAccessible = vaults.some((vault) => vault.id === activeVault?.id);
         if (!activeVaultIsAccessible) {
-            setInitError(null);
-            setIsInitialized(false);
             setActiveVault({ id: vaults[0].id });
         }
     }, [isClient, activeVault?.id, setActiveVault, vaultListQuery.data]);
@@ -90,13 +92,13 @@ export function VaultProvider({ children }: VaultProviderProps) {
 
         const vaultInfo = vaultListQuery.data.vaults.find((v) => v.id === vaultId);
         if (!vaultInfo?.encryptedVaultKey) return;
+        const initializingVaultId = vaultId;
+        const encryptedVaultKey = vaultInfo.encryptedVaultKey;
 
         // Cleanup previous sync manager if vault changed
         if (syncManagerRef.current) {
             syncManagerRef.current.disconnect();
             syncManagerRef.current = null;
-            docRef.current = null;
-            setIsInitialized(false);
         }
 
         let cancelled = false;
@@ -112,18 +114,17 @@ export function VaultProvider({ children }: VaultProviderProps) {
                 // Decrypt vault key - convert session's base64 secret to Uint8Array
                 const encSecretKeyBytes = base64ToPrivateKey(session.encSecretKey);
                 const vaultKey = await unwrapKeyFromBase64(
-                    vaultInfo!.encryptedVaultKey,
+                    encryptedVaultKey,
                     session.encPublicKey, // Sender was self (own public key)
                     encSecretKeyBytes
                 );
 
                 // Create LoroDoc
                 const doc = new LoroDoc();
-                docRef.current = doc;
 
                 // Create SyncManager
                 const manager = createSyncManager({
-                    vaultId: vaultId!, // Already guarded above, but TS can't narrow in nested function
+                    vaultId: initializingVaultId,
                     pubkeyHash: session.pubkeyHash,
                     vaultKey,
                     doc,
@@ -157,8 +158,8 @@ export function VaultProvider({ children }: VaultProviderProps) {
                 await manager.initialize();
 
                 if (!cancelled) {
-                    setIsInitialized(true);
-                    setInitError(null);
+                    setInitializedVault({ vaultId: initializingVaultId, doc });
+                    setInitFailure(null);
                     syncStatusContext.setIsConnected(true);
 
                     // Register force sync handler
@@ -169,10 +170,12 @@ export function VaultProvider({ children }: VaultProviderProps) {
             } catch (error) {
                 if (!cancelled) {
                     console.error("Failed to initialize vault:", error);
-                    setInitError(
-                        error instanceof Error ? error.message : "Failed to initialize vault"
-                    );
-                    setIsInitialized(false);
+                    setInitializedVault(null);
+                    setInitFailure({
+                        vaultId: initializingVaultId,
+                        message:
+                            error instanceof Error ? error.message : "Failed to initialize vault"
+                    });
                 }
             }
         }
@@ -241,6 +244,8 @@ export function VaultProvider({ children }: VaultProviderProps) {
         );
     }
 
+    const initError = initFailure?.vaultId === activeVault.id ? initFailure.message : null;
+
     // Error state
     if (initError) {
         return (
@@ -252,7 +257,9 @@ export function VaultProvider({ children }: VaultProviderProps) {
     }
 
     // Waiting for initialization
-    if (!isInitialized || !docRef.current) {
+    const initializedDoc =
+        initializedVault?.vaultId === activeVault.id ? initializedVault.doc : null;
+    if (!initializedDoc) {
         return (
             <div className="flex h-screen items-center justify-center">
                 <div className="border-primary h-8 w-8 animate-spin rounded-full border-4 border-t-transparent" />
@@ -262,7 +269,7 @@ export function VaultProvider({ children }: VaultProviderProps) {
 
     return (
         <BaseVaultProvider
-            doc={docRef.current}
+            doc={initializedDoc}
             initialState={getDefaultVaultState()}
             debug={process.env.NODE_ENV === "development"}
         >
