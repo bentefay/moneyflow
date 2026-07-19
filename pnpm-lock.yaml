@@ -12,8 +12,8 @@ importers:
         specifier: 2.4.6
         version: 2.4.6
       '@noble/hashes':
-        specifier: 2.0.1
-        version: 2.0.1
+        specifier: 2.2.0
+        version: 2.2.0
       '@radix-ui/react-alert-dialog':
         specifier: 1.1.15
         version: 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -48,8 +48,8 @@ importers:
         specifier: 1.2.8
         version: 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@scure/bip39':
-        specifier: 2.0.1
-        version: 2.0.1
+        specifier: 2.2.0
+        version: 2.2.0
       '@supabase/supabase-js':
         specifier: 2.101.1
         version: 2.101.1
@@ -90,20 +90,20 @@ importers:
         specifier: 8.0.3
         version: 8.0.3
       libsodium-wrappers:
-        specifier: 0.8.2
-        version: 0.8.2
+        specifier: 0.8.4
+        version: 0.8.4
       lodash-es:
         specifier: 4.18.1
         version: 4.18.1
       loro-crdt:
-        specifier: 1.10.8
-        version: 1.10.8
+        specifier: 1.13.7
+        version: 1.13.7
       loro-mirror:
-        specifier: 2.1.0
-        version: 2.1.0(loro-crdt@1.10.8)
+        specifier: 2.2.0
+        version: 2.2.0(loro-crdt@1.13.7)
       loro-mirror-react:
-        specifier: 2.1.0
-        version: 2.1.0(loro-crdt@1.10.8)(loro-mirror@2.1.0(loro-crdt@1.10.8))(react@19.2.4)
+        specifier: 2.2.0
+        version: 2.2.0(loro-crdt@1.13.7)(loro-mirror@2.2.0(loro-crdt@1.13.7))(react@19.2.4)
       lucide-react:
         specifier: 1.7.0
         version: 1.7.0(react@19.2.4)
@@ -141,8 +141,8 @@ importers:
         specifier: 3.5.0
         version: 3.5.0
       temporal-polyfill:
-        specifier: 0.3.2
-        version: 0.3.2
+        specifier: 1.0.1
+        version: 1.0.1
       zod:
         specifier: 4.3.6
         version: 4.3.6
@@ -200,7 +200,7 @@ importers:
         version: 4.9.0
       jsdom:
         specifier: 29.1.1
-        version: 29.1.1(@noble/hashes@2.0.1)
+        version: 29.1.1(@noble/hashes@2.2.0)
       oxfmt:
         specifier: 0.59.0
         version: 0.59.0
@@ -224,7 +224,7 @@ importers:
         version: 56.3.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(rollup@4.60.1)
       vitest:
         specifier: 4.1.10
-        version: 4.1.10(@edge-runtime/vm@3.2.0)(@types/node@22.20.1)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.1.5(@types/node@22.20.1)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0))
+        version: 4.1.10(@edge-runtime/vm@3.2.0)(@types/node@22.20.1)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.1.5(@types/node@22.20.1)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0))
 
 packages:
 
@@ -1168,8 +1168,8 @@ packages:
     resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
     engines: {node: ^14.21.3 || >=16}
 
-  '@noble/hashes@2.0.1':
-    resolution: {integrity: sha512-XlOlEbQcE9fmuXxrVTXCTlG2nlRXa9Rj3rr5Ue/+tX+nmkgbX720YHh0VR3hBF9xDvwnb8D2shVGOwNx+ulArw==}
+  '@noble/hashes@2.2.0':
+    resolution: {integrity: sha512-IYqDGiTXab6FniAgnSdZwgWbomxpy9FtYvLKs7wCUs2a8RkITG+DFGO1DM9cr+E3/RgADRpFjrKVaJ1z6sjtEg==}
     engines: {node: '>= 20.19.0'}
 
   '@nodelib/fs.scandir@2.1.5':
@@ -2636,11 +2636,11 @@ packages:
   '@rtsao/scc@1.1.0':
     resolution: {integrity: sha512-zt6OdqaDoOnJ1ZYsCYGt9YmWzDXl4vQdKTyJev62gFhRGKdx7mcT54V9KIjg+d2wi9EXsPvAPKe7i7WjfVWB8g==}
 
-  '@scure/base@2.0.0':
-    resolution: {integrity: sha512-3E1kpuZginKkek01ovG8krQ0Z44E3DHPjc5S2rjJw9lZn3KSQOs8S7wqikF/AH7iRanHypj85uGyxk0XAyC37w==}
+  '@scure/base@2.2.0':
+    resolution: {integrity: sha512-b8XEupJibegiXV+tDUseI8oLQc8ei3d/4Jkb2RpbHh3MfE054ov3uIz2dhFkB3FI8iwYkEh0gGCApkrYggkPNg==}
 
-  '@scure/bip39@2.0.1':
-    resolution: {integrity: sha512-PsxdFj/d2AcJcZDX1FXN3dDgitDDTmwf78rKZq1a6c1P1Nan1X/Sxc7667zU3U+AN60g7SxxP0YCVw2H/hBycg==}
+  '@scure/bip39@2.2.0':
+    resolution: {integrity: sha512-T/Bj/YvYMNkIPq6EENO6/rcs2e7qTNuyoUXf0KBFDmp0ZDu0H2X4Lq6yC3i0c8PcWkov5EbW+yQZZbdMmk154A==}
 
   '@sinclair/typebox@0.25.24':
     resolution: {integrity: sha512-XJfwUVUKDHF5ugKwIcxEgc9k8b7HbznCp6eUfWgu710hMPNIO4aw4/zB5RogDQz8nd6gyCDpU9O/m6qYEWY6yQ==}
@@ -4399,8 +4399,8 @@ packages:
     resolution: {integrity: sha512-+bT2uH4E5LGE7h/n3evcS/sQlJXCpIp6ym8OWJ5eV6+67Dsql/LaaT7qJBAt2rzfoa/5QBGBhxDix1dMt2kQKQ==}
     engines: {node: '>= 0.8.0'}
 
-  libsodium-wrappers@0.8.2:
-    resolution: {integrity: sha512-VFLmfxkxo+U9q60tjcnSomQBRx2UzlRjKWJqvB4K1pUqsMQg4cu3QXA2nrcsj9A1qRsnJBbi2Ozx1hsiDoCkhw==}
+  libsodium-wrappers@0.8.4:
+    resolution: {integrity: sha512-mu8aAWucZjTB5O/BtGXtW4e1agy7uHxNYG7zPthmmD1jU43LCDmSWZLN4JhflbdPXj3yDO4lxM1O9hLDgIOXDw==}
 
   libsodium@0.8.2:
     resolution: {integrity: sha512-TsnGYMoZtpweT+kR+lOv5TVsnJ/9U0FZOsLFzFOMWmxqOAYXjX3fsrPAW+i1LthgDKXJnI9A8dWEanT1tnJKIw==}
@@ -4493,20 +4493,20 @@ packages:
     resolution: {integrity: sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==}
     hasBin: true
 
-  loro-crdt@1.10.8:
-    resolution: {integrity: sha512-GvH8fSJST1VDHRGzlQml80pBYoFbIP4ULeV1S8fD4ffmA8m+icoPORyVUW2AkJBY3dxKIcMMn0WqaJmpCmnbkQ==}
+  loro-crdt@1.13.7:
+    resolution: {integrity: sha512-tOvBUBSVseebXx8L5TMEdVYwgTOVZMMUtA9tQAs2vpPNRx/hClsLGhjmo9D3J4LopCVrQ6cuj3ZdBeyxQheWAg==}
 
-  loro-mirror-react@2.1.0:
-    resolution: {integrity: sha512-eLbFodDYJ1nUIVVyPt9DhoswHbAIi36Fld18Kawmc/4ayEM0f/QfETChdNg+aPnjJJYyKShHlf3x17Anqj/1Ww==}
+  loro-mirror-react@2.2.0:
+    resolution: {integrity: sha512-2JNSw2ciMzz1s77WHlZh1P/3Fwigug3ubaUHn/qz2392cOnD7r4wbMqRun+lcBBL1dUmVNfJJtlihwHAaZ+dvg==}
     peerDependencies:
-      loro-crdt: ^1.8.0
-      loro-mirror: 2.1.0
+      loro-crdt: ^1.13.3
+      loro-mirror: 2.2.0
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
-  loro-mirror@2.1.0:
-    resolution: {integrity: sha512-sOq962AHnCGUaW1SA1av6vFPGwFphM8rzd/wzCK5rMquM4g3t+KGCLhBn+AxOdTfaqHdJfM0H3M9t+GxWsbmhw==}
+  loro-mirror@2.2.0:
+    resolution: {integrity: sha512-zX/hqBrEa01Uf2cDEDHHhomkNvniDmmp6/lBNcTc08EG+feU+srSv/EB2bjB/WVr0G9HJaBGMGEqFsKnUUwiDA==}
     peerDependencies:
-      loro-crdt: ^1.8.0
+      loro-crdt: ^1.13.3
 
   lru-cache@11.2.7:
     resolution: {integrity: sha512-aY/R+aEsRelme17KGQa/1ZSIpLpNYYrhcrepKTZgE+W3WM16YMCaPwOHLHsmopZHELU0Ojin1lPVxKR0MihncA==}
@@ -5333,11 +5333,14 @@ packages:
     engines: {node: '>=18'}
     deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
-  temporal-polyfill@0.3.2:
-    resolution: {integrity: sha512-TzHthD/heRK947GNiSu3Y5gSPpeUDH34+LESnfsq8bqpFhsB79HFBX8+Z834IVX68P3EUyRPZK5bL/1fh437Eg==}
+  temporal-polyfill@1.0.1:
+    resolution: {integrity: sha512-N2SoI9olnW7BUsU8RosDphZQl9s+WJ8O7PoJMFCr/e5/1rFkVI4GNOWaSeySG+UoP04foPYsnLWbJmbXOiShZg==}
 
-  temporal-spec@0.3.1:
-    resolution: {integrity: sha512-B4TUhezh9knfSIMwt7RVggApDRJZo73uZdj8AacL2mZ8RP5KtLianh2MXxL06GN9ESYiIsiuoLQhgVfwe55Yhw==}
+  temporal-spec@1.0.0:
+    resolution: {integrity: sha512-00Ahj1e1ifaERTMOIIGpOCdOo9IEk2m6GGSMedsn9a2SIsGLdOTbmME1Htv6IM82b6VHrzSUTIVc7YHy6hdhFQ==}
+
+  temporal-utils@1.0.1:
+    resolution: {integrity: sha512-HAixuesxFQIUaQk3ptX2jhfO/FsOkgVkDDMawvp6n/fkB1q6BKfs3lURw9I+pK/2e2e/q/vrLrxmeqauBoyGMQ==}
 
   text-decoder@1.2.7:
     resolution: {integrity: sha512-vlLytXkeP4xvEq2otHeJfSQIRyWxo/oZGEbXrtEEF9Hnmrdly59sUbzZ/QgyWuLYHctCHxFF4tRQZNQ9k60ExQ==}
@@ -6193,9 +6196,9 @@ snapshots:
       '@eslint/core': 0.17.0
       levn: 0.4.1
 
-  '@exodus/bytes@1.15.0(@noble/hashes@2.0.1)':
+  '@exodus/bytes@1.15.0(@noble/hashes@2.2.0)':
     optionalDependencies:
-      '@noble/hashes': 2.0.1
+      '@noble/hashes': 2.2.0
 
   '@f-o-t/ofx@2.4.6':
     dependencies:
@@ -6480,7 +6483,7 @@ snapshots:
 
   '@noble/hashes@1.8.0': {}
 
-  '@noble/hashes@2.0.1': {}
+  '@noble/hashes@2.2.0': {}
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
@@ -7644,12 +7647,12 @@ snapshots:
 
   '@rtsao/scc@1.1.0': {}
 
-  '@scure/base@2.0.0': {}
+  '@scure/base@2.2.0': {}
 
-  '@scure/bip39@2.0.1':
+  '@scure/bip39@2.2.0':
     dependencies:
-      '@noble/hashes': 2.0.1
-      '@scure/base': 2.0.0
+      '@noble/hashes': 2.2.0
+      '@scure/base': 2.2.0
 
   '@sinclair/typebox@0.25.24': {}
 
@@ -8736,10 +8739,10 @@ snapshots:
 
   damerau-levenshtein@1.0.8: {}
 
-  data-urls@7.0.0(@noble/hashes@2.0.1):
+  data-urls@7.0.0(@noble/hashes@2.2.0):
     dependencies:
       whatwg-mimetype: 5.0.0
-      whatwg-url: 16.0.1(@noble/hashes@2.0.1)
+      whatwg-url: 16.0.1(@noble/hashes@2.2.0)
     transitivePeerDependencies:
       - '@noble/hashes'
 
@@ -9484,9 +9487,9 @@ snapshots:
     dependencies:
       hermes-estree: 0.25.1
 
-  html-encoding-sniffer@6.0.0(@noble/hashes@2.0.1):
+  html-encoding-sniffer@6.0.0(@noble/hashes@2.2.0):
     dependencies:
-      '@exodus/bytes': 1.15.0(@noble/hashes@2.0.1)
+      '@exodus/bytes': 1.15.0(@noble/hashes@2.2.0)
     transitivePeerDependencies:
       - '@noble/hashes'
 
@@ -9697,17 +9700,17 @@ snapshots:
     dependencies:
       argparse: 2.0.1
 
-  jsdom@29.1.1(@noble/hashes@2.0.1):
+  jsdom@29.1.1(@noble/hashes@2.2.0):
     dependencies:
       '@asamuzakjp/css-color': 5.1.11
       '@asamuzakjp/dom-selector': 7.1.1
       '@bramus/specificity': 2.4.2
       '@csstools/css-syntax-patches-for-csstree': 1.1.6(css-tree@3.2.1)
-      '@exodus/bytes': 1.15.0(@noble/hashes@2.0.1)
+      '@exodus/bytes': 1.15.0(@noble/hashes@2.2.0)
       css-tree: 3.2.1
-      data-urls: 7.0.0(@noble/hashes@2.0.1)
+      data-urls: 7.0.0(@noble/hashes@2.2.0)
       decimal.js: 10.6.0
-      html-encoding-sniffer: 6.0.0(@noble/hashes@2.0.1)
+      html-encoding-sniffer: 6.0.0(@noble/hashes@2.2.0)
       is-potential-custom-element-name: 1.0.1
       lru-cache: 11.5.2
       parse5: 8.0.1
@@ -9718,7 +9721,7 @@ snapshots:
       w3c-xmlserializer: 5.0.0
       webidl-conversions: 8.0.1
       whatwg-mimetype: 5.0.0
-      whatwg-url: 16.0.1(@noble/hashes@2.0.1)
+      whatwg-url: 16.0.1(@noble/hashes@2.2.0)
       xml-name-validator: 5.0.0
     transitivePeerDependencies:
       - '@noble/hashes'
@@ -9776,7 +9779,7 @@ snapshots:
       prelude-ls: 1.2.1
       type-check: 0.4.0
 
-  libsodium-wrappers@0.8.2:
+  libsodium-wrappers@0.8.4:
     dependencies:
       libsodium: 0.8.2
 
@@ -9843,18 +9846,18 @@ snapshots:
     dependencies:
       js-tokens: 4.0.0
 
-  loro-crdt@1.10.8: {}
+  loro-crdt@1.13.7: {}
 
-  loro-mirror-react@2.1.0(loro-crdt@1.10.8)(loro-mirror@2.1.0(loro-crdt@1.10.8))(react@19.2.4):
+  loro-mirror-react@2.2.0(loro-crdt@1.13.7)(loro-mirror@2.2.0(loro-crdt@1.13.7))(react@19.2.4):
     dependencies:
-      loro-crdt: 1.10.8
-      loro-mirror: 2.1.0(loro-crdt@1.10.8)
+      loro-crdt: 1.13.7
+      loro-mirror: 2.2.0(loro-crdt@1.13.7)
       react: 19.2.4
 
-  loro-mirror@2.1.0(loro-crdt@1.10.8):
+  loro-mirror@2.2.0(loro-crdt@1.13.7):
     dependencies:
       immer: 10.2.0
-      loro-crdt: 1.10.8
+      loro-crdt: 1.13.7
 
   lru-cache@11.2.7: {}
 
@@ -10851,11 +10854,14 @@ snapshots:
       minizlib: 3.1.0
       yallist: 5.0.0
 
-  temporal-polyfill@0.3.2:
+  temporal-polyfill@1.0.1:
     dependencies:
-      temporal-spec: 0.3.1
+      temporal-spec: 1.0.0
+      temporal-utils: 1.0.1
 
-  temporal-spec@0.3.1: {}
+  temporal-spec@1.0.0: {}
+
+  temporal-utils@1.0.1: {}
 
   text-decoder@1.2.7:
     dependencies:
@@ -11140,7 +11146,7 @@ snapshots:
       jiti: 2.6.1
       tsx: 4.21.0
 
-  vitest@4.1.10(@edge-runtime/vm@3.2.0)(@types/node@22.20.1)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.1.5(@types/node@22.20.1)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)):
+  vitest@4.1.10(@edge-runtime/vm@3.2.0)(@types/node@22.20.1)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.1.5(@types/node@22.20.1)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)):
     dependencies:
       '@vitest/expect': 4.1.10
       '@vitest/mocker': 4.1.10(vite@8.1.5(@types/node@22.20.1)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0))
@@ -11165,7 +11171,7 @@ snapshots:
     optionalDependencies:
       '@edge-runtime/vm': 3.2.0
       '@types/node': 22.20.1
-      jsdom: 29.1.1(@noble/hashes@2.0.1)
+      jsdom: 29.1.1(@noble/hashes@2.2.0)
     transitivePeerDependencies:
       - msw
 
@@ -11181,9 +11187,9 @@ snapshots:
 
   whatwg-mimetype@5.0.0: {}
 
-  whatwg-url@16.0.1(@noble/hashes@2.0.1):
+  whatwg-url@16.0.1(@noble/hashes@2.2.0):
     dependencies:
-      '@exodus/bytes': 1.15.0(@noble/hashes@2.0.1)
+      '@exodus/bytes': 1.15.0(@noble/hashes@2.2.0)
       tr46: 6.0.0
       webidl-conversions: 8.0.1
     transitivePeerDependencies:
