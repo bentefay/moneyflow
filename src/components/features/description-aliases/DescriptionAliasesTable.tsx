@@ -9,14 +9,12 @@
 
 import { Check, Pencil, Plus, TextCursorInput, Trash2, X } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
-import { Temporal } from "temporal-polyfill";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useDescriptionAliases, useVaultAction } from "@/lib/crdt/context";
-import type { DescriptionAlias, DescriptionAliasInput } from "@/lib/crdt/schema";
-import { getActiveRealAliases } from "@/lib/domain/description-aliases";
+import { useDescriptionAliases, useDescriptionAliasActions } from "@/lib/crdt/context";
+import type { DescriptionAliasMutationResult } from "@/lib/crdt/description-aliases";
+import { getActiveRealAliases, type RealDescriptionAlias } from "@/lib/domain/description-aliases";
 import { cn } from "@/lib/utils";
 
 export interface DescriptionAliasesTableProps {
@@ -29,92 +27,34 @@ export interface DescriptionAliasesTableProps {
 export function DescriptionAliasesTable({ className }: DescriptionAliasesTableProps) {
     const [isAdding, setIsAdding] = useState(false);
     const [newAliasName, setNewAliasName] = useState("");
+    const [addError, setAddError] = useState<string | null>(null);
 
     // Get aliases from CRDT state
     const aliases = useDescriptionAliases();
 
-    // Create CRDT mutation action
-    const updateVault = useVaultAction(
-        (
-            draft,
-            action: {
-                type: "add" | "update" | "delete";
-                id: string;
-                data?: Partial<DescriptionAliasInput>;
-            }
-        ) => {
-            switch (action.type) {
-                case "add":
-                    if (action.data) {
-                        draft.descriptionAliases[action.id] =
-                            action.data as unknown as (typeof draft.descriptionAliases)[string];
-                    }
-                    break;
-                case "update":
-                    if (draft.descriptionAliases[action.id] && action.data) {
-                        Object.assign(draft.descriptionAliases[action.id], action.data);
-                    }
-                    break;
-                case "delete":
-                    if (draft.descriptionAliases[action.id]) {
-                        draft.descriptionAliases[action.id].deletedAt = Temporal.Now.instant();
-                    }
-                    break;
-            }
-        },
-        []
-    );
+    const { createDescriptionAlias, removeAllDescriptionAliases, renameDescriptionAlias } =
+        useDescriptionAliasActions();
 
     // Get list of active real aliases (not deleted, not symlinks)
     const activeAliases = useMemo(() => {
         return getActiveRealAliases(aliases).sort((a, b) => a.name.localeCompare(b.name));
     }, [aliases]);
 
-    // Check if an alias can be deleted (no transactions and no symlinks)
-    const canDeleteAlias = useCallback(
-        (alias: DescriptionAlias): { canDelete: boolean; reason?: string } => {
-            const txCount = Object.keys(alias.transactionIds).filter((k) => k !== "$cid").length;
-            const symlinkCount = Object.keys(alias.symlinkIds).filter((k) => k !== "$cid").length;
-
-            if (txCount > 0) {
-                return {
-                    canDelete: false,
-                    reason: `Cannot delete: ${txCount} transaction${txCount > 1 ? "s" : ""} use this alias`
-                };
-            }
-            if (symlinkCount > 0) {
-                return {
-                    canDelete: false,
-                    reason: `Cannot delete: ${symlinkCount} other alias${symlinkCount > 1 ? "es" : ""} reference this alias`
-                };
-            }
-            return { canDelete: true };
-        },
-        []
-    );
-
     // Handle adding a new alias
     const handleAdd = useCallback(() => {
-        const trimmedName = newAliasName.trim();
-        if (!trimmedName) return;
+        if (!newAliasName.trim()) return;
 
         const id = crypto.randomUUID();
-        updateVault({
-            type: "add",
-            id,
-            data: {
-                id,
-                name: trimmedName,
-                targetAliasId: undefined,
-                symlinkIds: {},
-                transactionIds: {},
-                deletedAt: undefined
-            }
-        });
+        const result = createDescriptionAlias({ aliasId: id, name: newAliasName });
+        if (!result.ok) {
+            setAddError(result.error.message);
+            return;
+        }
 
+        setAddError(null);
         setNewAliasName("");
         setIsAdding(false);
-    }, [newAliasName, updateVault]);
+    }, [createDescriptionAlias, newAliasName]);
 
     // Handle keyboard events for add input
     const handleAddKeyDown = useCallback(
@@ -135,6 +75,7 @@ export function DescriptionAliasesTable({ className }: DescriptionAliasesTablePr
     const handleCancelAdd = useCallback(() => {
         setIsAdding(false);
         setNewAliasName("");
+        setAddError(null);
     }, []);
 
     return (
@@ -169,6 +110,12 @@ export function DescriptionAliasesTable({ className }: DescriptionAliasesTablePr
                         />
                     </div>
 
+                    {addError && (
+                        <p role="alert" className="text-destructive text-sm">
+                            {addError}
+                        </p>
+                    )}
+
                     <div className="flex items-center gap-2">
                         <Button size="sm" onClick={handleAdd} disabled={!newAliasName.trim()}>
                             Add Alias
@@ -192,9 +139,8 @@ export function DescriptionAliasesTable({ className }: DescriptionAliasesTablePr
                         <AliasRow
                             key={alias.id}
                             alias={alias}
-                            canDeleteResult={canDeleteAlias(alias)}
-                            onUpdate={(id, data) => updateVault({ type: "update", id, data })}
-                            onDelete={(id) => updateVault({ type: "delete", id })}
+                            onUpdate={(id, name) => renameDescriptionAlias({ aliasId: id, name })}
+                            onDelete={removeAllDescriptionAliases}
                         />
                     ))
                 )}
@@ -217,16 +163,16 @@ export function DescriptionAliasesTable({ className }: DescriptionAliasesTablePr
 // ============================================
 
 interface AliasRowProps {
-    alias: DescriptionAlias;
-    canDeleteResult: { canDelete: boolean; reason?: string };
-    onUpdate: (id: string, data: Partial<DescriptionAlias>) => void;
-    onDelete: (id: string) => void;
+    alias: RealDescriptionAlias;
+    onUpdate: (id: string, name: string) => DescriptionAliasMutationResult<string>;
+    onDelete: (id: string) => DescriptionAliasMutationResult<undefined>;
 }
 
-function AliasRow({ alias, canDeleteResult, onUpdate, onDelete }: AliasRowProps) {
+function AliasRow({ alias, onUpdate, onDelete }: AliasRowProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [editedName, setEditedName] = useState(alias.name);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [mutationError, setMutationError] = useState<string | null>(null);
 
     const handleStartEdit = useCallback(() => {
         setEditedName(alias.name);
@@ -241,15 +187,21 @@ function AliasRow({ alias, canDeleteResult, onUpdate, onDelete }: AliasRowProps)
         }
 
         if (trimmedName !== alias.name) {
-            onUpdate(alias.id, { name: trimmedName });
+            const result = onUpdate(alias.id, trimmedName);
+            if (!result.ok) {
+                setMutationError(result.error.message);
+                return;
+            }
         }
 
+        setMutationError(null);
         setIsEditing(false);
     }, [alias.id, alias.name, editedName, onUpdate]);
 
     const handleCancel = useCallback(() => {
         setEditedName(alias.name);
         setIsEditing(false);
+        setMutationError(null);
     }, [alias.name]);
 
     const handleKeyDown = useCallback(
@@ -267,7 +219,12 @@ function AliasRow({ alias, canDeleteResult, onUpdate, onDelete }: AliasRowProps)
 
     const handleDeleteClick = useCallback(() => {
         if (showDeleteConfirm) {
-            onDelete(alias.id);
+            const result = onDelete(alias.id);
+            if (!result.ok) {
+                setMutationError(result.error.message);
+                return;
+            }
+            setMutationError(null);
             setShowDeleteConfirm(false);
         } else {
             setShowDeleteConfirm(true);
@@ -337,6 +294,11 @@ function AliasRow({ alias, canDeleteResult, onUpdate, onDelete }: AliasRowProps)
                         )}
                     </>
                 )}
+                {mutationError && (
+                    <span role="alert" className="text-destructive text-xs">
+                        {mutationError}
+                    </span>
+                )}
             </div>
 
             {/* Actions */}
@@ -353,45 +315,25 @@ function AliasRow({ alias, canDeleteResult, onUpdate, onDelete }: AliasRowProps)
                             <span className="sr-only">Edit</span>
                         </Button>
 
-                        {canDeleteResult.canDelete ? (
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleDeleteClick}
-                                onBlur={handleDeleteCancel}
-                                className={cn(
-                                    "h-8 w-8 p-0",
-                                    showDeleteConfirm &&
-                                        "bg-destructive text-destructive-foreground"
-                                )}
-                            >
-                                {showDeleteConfirm ? (
-                                    <Check className="h-4 w-4" />
-                                ) : (
-                                    <Trash2 className="h-4 w-4" />
-                                )}
-                                <span className="sr-only">
-                                    {showDeleteConfirm ? "Confirm delete" : "Delete"}
-                                </span>
-                            </Button>
-                        ) : (
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <span className="inline-flex">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            disabled
-                                            className="h-8 w-8 p-0"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                            <span className="sr-only">Delete</span>
-                                        </Button>
-                                    </span>
-                                </TooltipTrigger>
-                                <TooltipContent>{canDeleteResult.reason}</TooltipContent>
-                            </Tooltip>
-                        )}
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleDeleteClick}
+                            onBlur={handleDeleteCancel}
+                            className={cn(
+                                "h-8 w-8 p-0",
+                                showDeleteConfirm && "bg-destructive text-destructive-foreground"
+                            )}
+                        >
+                            {showDeleteConfirm ? (
+                                <Check className="h-4 w-4" />
+                            ) : (
+                                <Trash2 className="h-4 w-4" />
+                            )}
+                            <span className="sr-only">
+                                {showDeleteConfirm ? "Confirm delete" : "Delete"}
+                            </span>
+                        </Button>
                     </>
                 )}
             </div>

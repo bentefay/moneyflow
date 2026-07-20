@@ -378,7 +378,8 @@ export type VaultInput = InferInputType<typeof vaultSchema>;
 export type Person = InferType<typeof personSchema>;
 export type Account = InferType<typeof accountSchema>;
 export type Tag = InferType<typeof tagSchema>;
-export type DescriptionAlias = InferType<typeof descriptionAliasSchema>;
+/** Internal serialization type. Application consumers use the legal domain selector type. */
+export type DescriptionAliasWire = InferType<typeof descriptionAliasSchema>;
 export type Status = InferType<typeof statusSchema>;
 export type Transaction = InferType<typeof transactionSchema>;
 export type Import = InferType<typeof importSchema>;
@@ -401,10 +402,6 @@ export type TransactionStore = InferType<typeof transactionStoreSchema>;
 export type PersonInput = InferInputType<typeof personSchema>;
 export type AccountInput = InferInputType<typeof accountSchema>;
 export type TagInput = InferInputType<typeof tagSchema>;
-type DescriptionAliasWireInput = InferInputType<typeof descriptionAliasSchema>;
-export type DescriptionAliasInput = Omit<DescriptionAliasWireInput, "kind"> & {
-    kind?: "real" | "symlink";
-};
 export type StatusInput = InferInputType<typeof statusSchema>;
 export type TransactionInput = InferInputType<typeof transactionSchema>;
 export type ImportInput = InferInputType<typeof importSchema>;

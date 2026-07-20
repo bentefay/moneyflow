@@ -142,6 +142,30 @@ export function createVaultMirrorFromSnapshot(
     return { mirror, doc };
 }
 
+function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
+    return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+/**
+ * Repair a fully hydrated production document before React consumers or UndoManager observe it.
+ * The temporary Mirror is disposed immediately; only system-origin Loro operations remain.
+ */
+export function repairHydratedVaultDocument(doc: LoroDoc): boolean {
+    const before = doc.version().encode();
+    const mirror = new Mirror({
+        doc,
+        schema: vaultSchema,
+        initialState: DEFAULT_VAULT_STATE,
+        validateUpdates: true
+    });
+    try {
+        migrateVaultSentinels(mirror);
+    } finally {
+        mirror.dispose();
+    }
+    return !bytesEqual(before, doc.version().encode());
+}
+
 /**
  * Applies updates to an existing vault mirror.
  *

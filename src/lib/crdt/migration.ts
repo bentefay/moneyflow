@@ -16,7 +16,7 @@ import { Temporal } from "temporal-polyfill";
 import { isValidCurrencyCode } from "@/lib/domain/currency";
 
 import type { VaultMirror } from "./mirror";
-import type { DescriptionAlias, VaultState } from "./schema";
+import type { DescriptionAliasWire, VaultState } from "./schema";
 import { getVaultSystemOrigin } from "./undo";
 
 const VALID_BEHAVIORS = new Set(["treatAsPaid"]);
@@ -25,15 +25,19 @@ function isEpochZero(instant: Temporal.Instant | undefined): instant is Temporal
     return instant != null && instant.epochMilliseconds === 0;
 }
 
-function getAlias(state: VaultState, aliasId: string): DescriptionAlias | undefined {
+function getAlias(state: VaultState, aliasId: string): DescriptionAliasWire | undefined {
     const alias = state.descriptionAliases[aliasId];
     return typeof alias === "object" && alias != null ? alias : undefined;
 }
 
-function clearReferenceMap(referenceMap: Record<string, boolean>): void {
+function clearReferenceMap(
+    referenceMap: Record<string, boolean> | undefined
+): Record<string, boolean> {
+    if (!referenceMap) return {};
     for (const id of Object.keys(referenceMap)) {
         if (id !== "$cid") delete referenceMap[id];
     }
+    return referenceMap;
 }
 
 function normalizedRecoveryName(name: unknown, aliasId: string): string {
@@ -53,9 +57,29 @@ export function repairDescriptionAliases(state: VaultState): void {
         .filter((aliasId) => getAlias(state, aliasId) != null)
         .sort();
     const activeIds = new Set(aliases.filter((aliasId) => !getAlias(state, aliasId)?.deletedAt));
+    const tombstoneTimes = new Map<string, Temporal.Instant>();
+    for (const startId of activeIds) {
+        const path: string[] = [];
+        const seen = new Set<string>();
+        let currentId = startId;
+        while (!seen.has(currentId)) {
+            seen.add(currentId);
+            path.push(currentId);
+            const targetId = getAlias(state, currentId)?.targetAliasId;
+            if (!targetId || targetId === currentId) break;
+            const target = getAlias(state, targetId);
+            if (!target) break;
+            if (target.deletedAt) {
+                for (const pathId of path) tombstoneTimes.set(pathId, target.deletedAt);
+                break;
+            }
+            currentId = targetId;
+        }
+    }
+    const repairableIds = new Set([...activeIds].filter((aliasId) => !tombstoneTimes.has(aliasId)));
     const roots = new Map<string, string>();
 
-    for (const startId of activeIds) {
+    for (const startId of repairableIds) {
         if (roots.has(startId)) continue;
         const path: string[] = [];
         const positions = new Map<string, number>();
@@ -66,7 +90,7 @@ export function repairDescriptionAliases(state: VaultState): void {
             path.push(currentId);
             const alias = getAlias(state, currentId);
             const targetId = alias?.targetAliasId;
-            if (!targetId || targetId === currentId || !activeIds.has(targetId)) {
+            if (!targetId || targetId === currentId || !repairableIds.has(targetId)) {
                 roots.set(currentId, currentId);
                 break;
             }
@@ -88,7 +112,7 @@ export function repairDescriptionAliases(state: VaultState): void {
     for (const rootId of [...new Set(roots.values())].sort()) {
         const memberIds = [
             rootId,
-            ...[...activeIds].filter(
+            ...[...repairableIds].filter(
                 (aliasId) => aliasId !== rootId && roots.get(aliasId) === rootId
             )
         ];
@@ -102,13 +126,17 @@ export function repairDescriptionAliases(state: VaultState): void {
         const alias = getAlias(state, aliasId);
         if (!alias) continue;
         alias.id = aliasId;
-        clearReferenceMap(alias.symlinkIds);
-        clearReferenceMap(alias.transactionIds);
+        Object.assign(alias, {
+            symlinkIds: clearReferenceMap(alias.symlinkIds),
+            transactionIds: clearReferenceMap(alias.transactionIds)
+        });
 
-        if (alias.deletedAt) {
+        const propagatedDeletedAt = tombstoneTimes.get(aliasId);
+        if (alias.deletedAt || propagatedDeletedAt) {
             alias.kind = "real";
             alias.name = normalizedRecoveryName(alias.name, aliasId);
             alias.targetAliasId = undefined;
+            alias.deletedAt = alias.deletedAt ?? propagatedDeletedAt;
             continue;
         }
 
@@ -123,7 +151,7 @@ export function repairDescriptionAliases(state: VaultState): void {
         }
     }
 
-    for (const aliasId of activeIds) {
+    for (const aliasId of repairableIds) {
         const alias = getAlias(state, aliasId);
         if (!alias || alias.kind !== "symlink" || !alias.targetAliasId) continue;
         const target = getAlias(state, alias.targetAliasId);

@@ -14,8 +14,8 @@ import {
     getRealAliases,
     makeSymlinkMutations,
     resolveAlias,
-    toLegalDescriptionAlias,
-    type DescriptionAliasLike
+    toDescriptionAlias,
+    type DescriptionAliasWireLike
 } from "@/lib/domain/description-aliases";
 
 // ============================================================================
@@ -31,7 +31,7 @@ function createAlias(
         transactionIds?: Record<string, boolean>;
         deletedAt?: number;
     }
-): DescriptionAliasLike {
+): DescriptionAliasWireLike {
     return {
         id,
         name,
@@ -51,7 +51,7 @@ function createAlias(
  * "deleted-alias" - deleted alias
  * "orphan-symlink"- symlink to non-existent target
  */
-function createTestCollection(): Record<string, DescriptionAliasLike | string> {
+function createTestCollection(): Record<string, DescriptionAliasWireLike | string> {
     return {
         "grocery-store": createAlias("grocery-store", "Grocery Store", {
             transactionIds: { tx1: true, tx2: true },
@@ -121,7 +121,7 @@ describe("resolveAlias", () => {
     }
 
     it("returns undefined when target is deleted", () => {
-        const aliases: Record<string, DescriptionAliasLike | string> = {
+        const aliases: Record<string, DescriptionAliasWireLike | string> = {
             symlink: createAlias("symlink", "Symlink", { targetAliasId: "target" }),
             target: createAlias("target", "Target", { deletedAt: Date.now() })
         };
@@ -129,7 +129,7 @@ describe("resolveAlias", () => {
     });
 
     it("rejects a symlink chain instead of following a second hop", () => {
-        const aliases: Record<string, DescriptionAliasLike | string> = {
+        const aliases: Record<string, DescriptionAliasWireLike | string> = {
             first: createAlias("first", "First", { targetAliasId: "second" }),
             second: createAlias("second", "Second", { targetAliasId: "real" }),
             real: createAlias("real", "Real")
@@ -138,8 +138,8 @@ describe("resolveAlias", () => {
     });
 
     it("exposes mutually exclusive legal domain states", () => {
-        const real = toLegalDescriptionAlias(createAlias("real", "Visible"));
-        const symlink = toLegalDescriptionAlias(
+        const real = toDescriptionAlias(createAlias("real", "Visible"));
+        const symlink = toDescriptionAlias(
             createAlias("link", "Hidden recovery name", { targetAliasId: "real" })
         );
         expect(real).toEqual(expect.objectContaining({ kind: "real", name: "Visible" }));
@@ -158,6 +158,24 @@ describe("resolveAlias", () => {
             }
         });
         expect(resolveAlias("old-grocery", aliases)?.id).toBe("grocery-store");
+        expect(reads).toBe(2);
+    });
+
+    it("keeps the same two-read bound with 10,000 unrelated aliases", () => {
+        const aliases: Record<string, DescriptionAliasWireLike | string> = {};
+        for (let index = 0; index < 10_000; index += 1) {
+            aliases[`alias-${index}`] = createAlias(`alias-${index}`, `Alias ${index}`);
+        }
+        aliases.link = createAlias("link", "Recovery", { targetAliasId: "alias-9999" });
+        let reads = 0;
+        const observed = new Proxy(aliases, {
+            get(target, property, receiver) {
+                reads += 1;
+                return Reflect.get(target, property, receiver);
+            }
+        });
+
+        expect(resolveAlias("link", observed)?.id).toBe("alias-9999");
         expect(reads).toBe(2);
     });
 });
@@ -199,7 +217,7 @@ describe("getAliasTotalTransactionCount", () => {
     }
 
     it("ignores $cid keys in transactionIds", () => {
-        const aliases: Record<string, DescriptionAliasLike | string> = {
+        const aliases: Record<string, DescriptionAliasWireLike | string> = {
             test: {
                 id: "test",
                 name: "Test",
@@ -296,7 +314,7 @@ describe("getActiveRealAliases", () => {
 
 describe("makeSymlinkMutations", () => {
     it("returns correct mutations for simple source-to-target", () => {
-        const aliases: Record<string, DescriptionAliasLike | string> = {
+        const aliases: Record<string, DescriptionAliasWireLike | string> = {
             source: createAlias("source", "Source", { transactionIds: { tx1: true } }),
             target: createAlias("target", "Target", { transactionIds: { tx2: true } })
         };
@@ -313,7 +331,7 @@ describe("makeSymlinkMutations", () => {
     });
 
     it("flattens existing symlinks pointing at source", () => {
-        const aliases: Record<string, DescriptionAliasLike | string> = {
+        const aliases: Record<string, DescriptionAliasWireLike | string> = {
             source: createAlias("source", "Source", {
                 symlinkIds: { existing1: true, existing2: true }
             }),
@@ -338,7 +356,7 @@ describe("makeSymlinkMutations", () => {
     });
 
     it("handles source with no existing symlinks", () => {
-        const aliases: Record<string, DescriptionAliasLike | string> = {
+        const aliases: Record<string, DescriptionAliasWireLike | string> = {
             source: createAlias("source", "Source"),
             target: createAlias("target", "Target")
         };
@@ -350,7 +368,7 @@ describe("makeSymlinkMutations", () => {
     });
 
     it("handles missing source gracefully", () => {
-        const aliases: Record<string, DescriptionAliasLike | string> = {
+        const aliases: Record<string, DescriptionAliasWireLike | string> = {
             target: createAlias("target", "Target")
         };
 

@@ -49,7 +49,6 @@ import { asMinorUnits } from "@/lib/domain/currency";
 import {
     getActiveRealAliases,
     getAliasTotalTransactionCount,
-    makeSymlinkMutations,
     resolveAlias
 } from "@/lib/domain/description-aliases";
 
@@ -97,7 +96,13 @@ export default function TransactionsPage() {
     });
 
     // Description alias mutations
-    const { addAlias, updateAlias, deleteAlias } = useDescriptionAliasActions();
+    const {
+        assignDescriptionAlias,
+        assignDescriptionAliasByExactName,
+        changeAllDescriptionAliases,
+        changeOneDescriptionAlias,
+        renameDescriptionAlias
+    } = useDescriptionAliasActions();
 
     // Available real aliases for autocomplete
     const availableAliasOptions = useMemo(
@@ -423,19 +428,10 @@ export default function TransactionsPage() {
             const currentAliasId = tx.descriptionAliasId;
 
             if (!currentAliasId) {
-                // No current alias - create new alias and apply
-                const aliasId = generateId();
-                addAlias({
-                    id: aliasId,
-                    name: trimmedText,
-                    targetAliasId: undefined,
-                    symlinkIds: {},
-                    transactionIds: { [txId]: true },
-                    deletedAt: undefined
-                });
-                updateTransaction({
+                assignDescriptionAliasByExactName({
                     location: { accountId: tx.accountId, date: tx.date, transactionId: tx.id },
-                    updates: { descriptionAliasId: aliasId }
+                    newAliasId: generateId(),
+                    name: trimmedText
                 });
                 return;
             }
@@ -446,7 +442,7 @@ export default function TransactionsPage() {
                 // Only 1 transaction - rename the alias directly
                 const resolved = resolveAlias(currentAliasId, aliases);
                 if (resolved) {
-                    updateAlias({ id: resolved.id, updates: { name: trimmedText } });
+                    renameDescriptionAlias({ aliasId: resolved.id, name: trimmedText });
                 }
             } else {
                 // Multiple transactions - show modal
@@ -458,7 +454,7 @@ export default function TransactionsPage() {
                 });
             }
         },
-        [transactions, aliases, addAlias, updateAlias, updateTransaction]
+        [transactions, aliases, assignDescriptionAliasByExactName, renameDescriptionAlias]
     );
 
     // Handle selecting an existing alias from dropdown
@@ -470,44 +466,20 @@ export default function TransactionsPage() {
             const currentAliasId = tx.descriptionAliasId;
 
             if (!currentAliasId) {
-                // No current alias - apply directly
-                updateTransaction({
+                assignDescriptionAlias({
                     location: { accountId: tx.accountId, date: tx.date, transactionId: tx.id },
-                    updates: { descriptionAliasId: aliasId }
+                    aliasId
                 });
-                // Add to alias's transactionIds
-                const alias = aliases[aliasId];
-                if (typeof alias === "object") {
-                    updateAlias({
-                        id: aliasId,
-                        updates: { transactionIds: { ...alias.transactionIds, [txId]: true } }
-                    });
-                }
                 return;
             }
 
             // Has current alias - check count
             const totalCount = getAliasTotalTransactionCount(currentAliasId, aliases);
             if (totalCount <= 1) {
-                // Single tx - change directly
-                // Remove from old alias
-                const oldAlias = aliases[currentAliasId];
-                if (typeof oldAlias === "object") {
-                    const newTxIds = { ...oldAlias.transactionIds };
-                    delete newTxIds[txId];
-                    updateAlias({ id: currentAliasId, updates: { transactionIds: newTxIds } });
-                }
-                // Add to new alias
-                const newAlias = aliases[aliasId];
-                if (typeof newAlias === "object") {
-                    updateAlias({
-                        id: aliasId,
-                        updates: { transactionIds: { ...newAlias.transactionIds, [txId]: true } }
-                    });
-                }
-                updateTransaction({
+                changeOneDescriptionAlias({
                     location: { accountId: tx.accountId, date: tx.date, transactionId: tx.id },
-                    updates: { descriptionAliasId: aliasId }
+                    expectedAliasId: currentAliasId,
+                    target: { kind: "existing", aliasId }
                 });
             } else {
                 // Multiple - show modal
@@ -519,7 +491,7 @@ export default function TransactionsPage() {
                 });
             }
         },
-        [transactions, aliases, updateAlias, updateTransaction]
+        [transactions, aliases, assignDescriptionAlias, changeOneDescriptionAlias]
     );
 
     // Modal: "just this one" handler
@@ -530,48 +502,24 @@ export default function TransactionsPage() {
 
         const currentAliasId = tx.descriptionAliasId;
 
-        // Remove tx from old alias's transactionIds
-        if (currentAliasId) {
-            const oldAlias = aliases[currentAliasId];
-            if (typeof oldAlias === "object") {
-                const newTxIds = { ...oldAlias.transactionIds };
-                delete newTxIds[transactionId];
-                updateAlias({ id: currentAliasId, updates: { transactionIds: newTxIds } });
-            }
-        }
+        if (!currentAliasId) return;
 
         if (newText) {
-            // Create new alias for this transaction
-            const aliasId = generateId();
-            addAlias({
-                id: aliasId,
-                name: newText,
-                targetAliasId: undefined,
-                symlinkIds: {},
-                transactionIds: { [transactionId]: true },
-                deletedAt: undefined
-            });
-            updateTransaction({
+            changeOneDescriptionAlias({
                 location: { accountId: tx.accountId, date: tx.date, transactionId: tx.id },
-                updates: { descriptionAliasId: aliasId }
+                expectedAliasId: currentAliasId,
+                target: { kind: "new", aliasId: generateId(), name: newText }
             });
         } else if (newAliasId) {
-            // Apply the selected alias
-            const alias = aliases[newAliasId];
-            if (typeof alias === "object") {
-                updateAlias({
-                    id: newAliasId,
-                    updates: { transactionIds: { ...alias.transactionIds, [transactionId]: true } }
-                });
-            }
-            updateTransaction({
+            changeOneDescriptionAlias({
                 location: { accountId: tx.accountId, date: tx.date, transactionId: tx.id },
-                updates: { descriptionAliasId: newAliasId }
+                expectedAliasId: currentAliasId,
+                target: { kind: "existing", aliasId: newAliasId }
             });
         }
 
         setAliasModalState({ open: false, mode: "change", transactionId: "" });
-    }, [aliasModalState, transactions, aliases, addAlias, updateAlias, updateTransaction]);
+    }, [aliasModalState, transactions, changeOneDescriptionAlias]);
 
     // Modal: "all" handler
     const handleAliasAll = useCallback(() => {
@@ -586,41 +534,27 @@ export default function TransactionsPage() {
             // Rename the existing alias (affects all transactions)
             const resolved = resolveAlias(currentAliasId, aliases);
             if (resolved) {
-                updateAlias({ id: resolved.id, updates: { name: newText } });
+                renameDescriptionAlias({ aliasId: resolved.id, name: newText });
             }
         } else if (newAliasId) {
             // Resolve to the real alias (in case currentAliasId is a symlink)
             const resolvedCurrent = resolveAlias(currentAliasId, aliases);
             const realCurrentId = resolvedCurrent?.id ?? currentAliasId;
 
-            // Make old alias a symlink to new alias using makeSymlinkMutations
-            const mutations = makeSymlinkMutations(realCurrentId, newAliasId, aliases);
-
-            // Repoint existing symlinks
-            for (const { symlinkId, newTargetId } of mutations.repointerSymlinks) {
-                updateAlias({ id: symlinkId, updates: { targetAliasId: newTargetId } });
-            }
-
-            // Add all symlinks to target
-            const targetAlias = aliases[newAliasId];
-            if (typeof targetAlias === "object") {
-                const newSymlinkIds = { ...targetAlias.symlinkIds };
-                for (const id of mutations.addSymlinksToTarget) {
-                    newSymlinkIds[id] = true;
-                }
-                updateAlias({ id: newAliasId, updates: { symlinkIds: newSymlinkIds } });
-            }
-
-            // Source becomes symlink
-            const { sourceId, targetId } = mutations.sourceBecomesSymlink;
-            updateAlias({
-                id: sourceId,
-                updates: { targetAliasId: targetId, symlinkIds: {} }
+            changeAllDescriptionAliases({
+                sourceAliasId: realCurrentId,
+                target: { kind: "existing", aliasId: newAliasId }
             });
         }
 
         setAliasModalState({ open: false, mode: "change", transactionId: "" });
-    }, [aliasModalState, transactions, aliases, updateAlias]);
+    }, [
+        aliasModalState,
+        transactions,
+        aliases,
+        renameDescriptionAlias,
+        changeAllDescriptionAliases
+    ]);
 
     // Handle single transaction delete
     const handleSingleDelete = useCallback(

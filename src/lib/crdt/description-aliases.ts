@@ -13,15 +13,18 @@ import {
     deleteTransactionsByImport,
     findTransactionInStore,
     type DeleteTransactionInput,
-    type TransactionLocation
+    type TransactionLocation,
+    type UpdateTransactionInput,
+    updateTransaction
 } from "./mutations";
-import type { DescriptionAlias, NestedDuplicate, Transaction, VaultState } from "./schema";
+import type { DescriptionAliasWire, NestedDuplicate, Transaction, VaultState } from "./schema";
 
 export type DescriptionAliasMutationErrorCode =
     | "alias-id-conflict"
     | "alias-not-found"
     | "alias-not-real"
     | "deleted-alias"
+    | "duplicate-name"
     | "empty-name"
     | "invalid-symlink-backlink"
     | "same-alias"
@@ -90,7 +93,7 @@ export function normalizeDescriptionAliasName(name: string): string {
     return name.trim().normalize("NFC");
 }
 
-function getAlias(state: VaultState, aliasId: string): DescriptionAlias | undefined {
+function getAlias(state: VaultState, aliasId: string): DescriptionAliasWire | undefined {
     const alias = state.descriptionAliases[aliasId];
     return typeof alias === "object" && alias != null ? alias : undefined;
 }
@@ -98,7 +101,7 @@ function getAlias(state: VaultState, aliasId: string): DescriptionAlias | undefi
 function getActiveAlias(
     state: VaultState,
     aliasId: string
-): DescriptionAliasMutationResult<DescriptionAlias> {
+): DescriptionAliasMutationResult<DescriptionAliasWire> {
     const alias = getAlias(state, aliasId);
     if (!alias) return err("alias-not-found", `Alias ${aliasId} does not exist`);
     if (alias.deletedAt) return err("deleted-alias", `Alias ${aliasId} is deleted`);
@@ -108,7 +111,7 @@ function getActiveAlias(
 function getFinalRealAlias(
     state: VaultState,
     aliasId: string
-): DescriptionAliasMutationResult<DescriptionAlias> {
+): DescriptionAliasMutationResult<DescriptionAliasWire> {
     const sourceResult = getActiveAlias(state, aliasId);
     if (!sourceResult.ok) return sourceResult;
     const source = sourceResult.value;
@@ -148,7 +151,7 @@ function clearReferenceMap(referenceMap: Record<string, boolean>): void {
 function moveTransactionReference(
     transaction: Transaction | NestedDuplicate,
     state: VaultState,
-    targetAlias: DescriptionAlias
+    targetAlias: DescriptionAliasWire
 ): void {
     const currentAliasId = transaction.descriptionAliasId;
     if (currentAliasId) {
@@ -179,13 +182,16 @@ function prepareTarget(
     if (getAlias(state, target.aliasId)) {
         return err("alias-id-conflict", `Alias ${target.aliasId} already exists`);
     }
+    if (findDescriptionAliasByExactName(state, normalizedName)) {
+        return err("duplicate-name", `An alias named ${normalizedName} already exists`);
+    }
     return ok({ aliasId: target.aliasId, createName: normalizedName });
 }
 
 function materializeTarget(
     state: VaultState,
     target: { readonly aliasId: string; readonly createName?: string }
-): DescriptionAlias {
+): DescriptionAliasWire {
     if (target.createName) addRealAlias(state, target.aliasId, target.createName);
     const alias = getAlias(state, target.aliasId);
     if (!alias) throw new Error("Validated alias target was not materialized");
@@ -200,6 +206,9 @@ export function createDescriptionAlias(
     if (!normalizedName) return err("empty-name", "Alias names cannot be empty");
     if (getAlias(state, input.aliasId)) {
         return err("alias-id-conflict", `Alias ${input.aliasId} already exists`);
+    }
+    if (findDescriptionAliasByExactName(state, normalizedName)) {
+        return err("duplicate-name", `An alias named ${normalizedName} already exists`);
     }
     addRealAlias(state, input.aliasId, normalizedName);
     return ok(input.aliasId);
@@ -228,6 +237,9 @@ export function createAndAssignDescriptionAlias(
     if (getAlias(state, input.aliasId)) {
         return err("alias-id-conflict", `Alias ${input.aliasId} already exists`);
     }
+    if (findDescriptionAliasByExactName(state, normalizedName)) {
+        return err("duplicate-name", `An alias named ${normalizedName} already exists`);
+    }
 
     addRealAlias(state, input.aliasId, normalizedName);
     const alias = getAlias(state, input.aliasId);
@@ -239,12 +251,12 @@ export function createAndAssignDescriptionAlias(
 export function findDescriptionAliasByExactName(
     state: VaultState,
     name: string
-): DescriptionAlias | undefined {
+): DescriptionAliasWire | undefined {
     const normalizedName = normalizeDescriptionAliasName(name);
     if (!normalizedName) return undefined;
     return Object.values(state.descriptionAliases)
         .filter(
-            (alias): alias is DescriptionAlias =>
+            (alias): alias is DescriptionAliasWire =>
                 typeof alias === "object" &&
                 alias != null &&
                 !alias.deletedAt &&
@@ -279,6 +291,10 @@ export function renameDescriptionAlias(
     }
     const normalizedName = normalizeDescriptionAliasName(input.name);
     if (!normalizedName) return err("empty-name", "Alias names cannot be empty");
+    const duplicate = findDescriptionAliasByExactName(state, normalizedName);
+    if (duplicate && duplicate.id !== aliasResult.value.id) {
+        return err("duplicate-name", `An alias named ${normalizedName} already exists`);
+    }
     aliasResult.value.name = normalizedName;
     return ok(aliasResult.value.id);
 }
@@ -315,7 +331,7 @@ export function changeAllDescriptionAliases(
         return err("same-alias", "Source and target aliases must differ");
     }
 
-    const inboundSymlinks: DescriptionAlias[] = [];
+    const inboundSymlinks: DescriptionAliasWire[] = [];
     for (const symlinkId of Object.keys(source.symlinkIds)
         .filter((id) => id !== "$cid")
         .sort()) {
@@ -365,14 +381,63 @@ export function removeAllDescriptionAliases(
     state: VaultState,
     aliasId: string
 ): DescriptionAliasMutationResult<undefined> {
-    const aliasResult = getActiveAlias(state, aliasId);
-    if (!aliasResult.ok) return aliasResult;
-    const alias = aliasResult.value;
-    if (alias.kind === "symlink" && alias.targetAliasId) {
-        const target = getAlias(state, alias.targetAliasId);
-        if (target) delete target.symlinkIds[alias.id];
+    const targetResult = getFinalRealAlias(state, aliasId);
+    if (!targetResult.ok) return targetResult;
+    const target = targetResult.value;
+    const inboundSymlinks: DescriptionAliasWire[] = [];
+    for (const symlinkId of Object.keys(target.symlinkIds)
+        .filter((id) => id !== "$cid")
+        .sort()) {
+        const symlink = getAlias(state, symlinkId);
+        if (
+            !symlink ||
+            symlink.deletedAt ||
+            symlink.kind !== "symlink" ||
+            symlink.targetAliasId !== target.id
+        ) {
+            return err(
+                "invalid-symlink-backlink",
+                `Alias ${target.id} has an invalid backlink to ${symlinkId}`
+            );
+        }
+        inboundSymlinks.push(symlink);
     }
-    alias.deletedAt = Temporal.Now.instant();
+
+    const deletedAt = Temporal.Now.instant();
+    for (const alias of [target, ...inboundSymlinks]) {
+        alias.kind = "real";
+        alias.targetAliasId = undefined;
+        clearReferenceMap(alias.symlinkIds);
+        alias.deletedAt = deletedAt;
+    }
+    return ok(undefined);
+}
+
+/** Preflight alias and ordinary transaction fields, then commit one all-or-nothing draft. */
+export function updateDescriptionAliasedTransaction(
+    state: VaultState,
+    input: UpdateTransactionInput
+): DescriptionAliasMutationResult<undefined> {
+    const transaction = findTransactionInStore(state.transactions, input.location);
+    if (!transaction) return err("transaction-not-found", "Transaction does not exist");
+
+    if ("descriptionAliasId" in input.updates) {
+        const requestedAliasId = input.updates.descriptionAliasId;
+        const aliasResult = requestedAliasId
+            ? assignDescriptionAlias(state, {
+                  location: input.location,
+                  aliasId: requestedAliasId
+              })
+            : transaction.descriptionAliasId
+              ? removeOneDescriptionAlias(state, {
+                    location: input.location,
+                    expectedAliasId: transaction.descriptionAliasId
+                })
+              : ok(undefined);
+        if (!aliasResult.ok) return aliasResult;
+    }
+
+    updateTransaction(state.transactions, input);
     return ok(undefined);
 }
 
@@ -390,7 +455,7 @@ export function deleteDescriptionAliasedTransaction(
     const transaction = findTransactionInStore(state.transactions, input.location);
     if (!transaction) return err("transaction-not-found", "Transaction does not exist");
     unlinkTransaction(state, transaction);
-    if ("suspectedDuplicates" in transaction && (input.cascade ?? true)) {
+    if ("suspectedDuplicates" in transaction) {
         for (const duplicate of transaction.suspectedDuplicates)
             unlinkTransaction(state, duplicate);
     }

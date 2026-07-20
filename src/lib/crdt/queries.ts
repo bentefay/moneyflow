@@ -8,11 +8,15 @@
 
 import { Temporal } from "temporal-polyfill";
 
+import {
+    getActiveDescriptionAliases as selectActiveDescriptionAliases,
+    type DescriptionAlias
+} from "@/lib/domain/description-aliases";
+
 import type {
     Account,
     AccountTransactionTree,
     DayBucket,
-    DescriptionAlias,
     MonthBucket,
     Person,
     Status,
@@ -665,7 +669,7 @@ export function getActiveTags(state: VaultState): Tag[] {
  * Get all active description aliases
  */
 export function getActiveDescriptionAliases(state: VaultState): DescriptionAlias[] {
-    return getActiveItems(state.descriptionAliases);
+    return selectActiveDescriptionAliases(state.descriptionAliases);
 }
 
 /**

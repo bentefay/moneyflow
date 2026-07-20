@@ -87,6 +87,18 @@ test.describe("Description Aliases", () => {
             await expect(page.getByText("Gas Station", { exact: true })).toBeVisible();
         });
 
+        await test.step("normalize names and reject NFC-equivalent duplicates", async () => {
+            await createAlias(page, "  Cafe\u0301  ");
+            await expect(page.getByText("Café", { exact: true })).toBeVisible();
+
+            await page.getByRole("button", { name: /add alias/i }).click();
+            await page.getByPlaceholder(/enter alias name/i).fill("Café");
+            await page.getByRole("button", { name: /^add alias$/i }).click();
+            await expect(page.getByText(/an alias named .* already exists/i)).toBeVisible();
+            await expect(page.locator('[data-alias-name="Café"]')).toHaveCount(1);
+            await page.getByRole("button", { name: /cancel/i }).click();
+        });
+
         await test.step("rename alias", async () => {
             await editAlias(page, "Supermarket", "Grocery Store");
             await expect(page.getByText("Grocery Store", { exact: true })).toBeVisible();

@@ -12,6 +12,13 @@ import { useCallback, useEffect, useRef } from "react";
 import type { DependencyList } from "react";
 import { Temporal } from "temporal-polyfill";
 
+import {
+    getActiveDescriptionAliases,
+    toDescriptionAliasCollection,
+    type DescriptionAliasCollection
+} from "@/lib/domain/description-aliases";
+
+import type { VaultMirror } from "./mirror";
 import type { Transaction, VaultState } from "./schema";
 import { vaultSchema } from "./schema";
 import type { VaultEditSession, VaultUserActionKind } from "./undo";
@@ -35,21 +42,38 @@ export const useVaultContext = loroContext.useLoroContext;
 export const useVaultState = loroContext.useLoroState;
 export const useVaultSelector = loroContext.useLoroSelector;
 
+/** Run one user action while keeping the Mirror recipe void and returning its captured result. */
+export function runVaultAction<Arguments extends unknown[], Result>(
+    store: Pick<VaultMirror, "setState">,
+    undoCoordinator: ReturnType<typeof useVaultUndoCoordinator>,
+    kind: VaultUserActionKind,
+    updater: (state: VaultState, ...args: Arguments) => Result,
+    ...args: Arguments
+): Result {
+    const results: Result[] = [];
+    undoCoordinator.runUserAction(kind, (origin) => {
+        store.setState(
+            (state: VaultState) => {
+                results.push(updater(state, ...args));
+            },
+            { origin }
+        );
+    });
+    for (const result of results) return result;
+    throw new Error("Vault action recipe did not execute");
+}
+
 /** Creates a memoized user mutation with explicit origin and undo grouping metadata. */
-export function useVaultAction<Arguments extends unknown[]>(
-    updater: (state: VaultState, ...args: Arguments) => void,
+export function useVaultAction<Arguments extends unknown[], Result>(
+    updater: (state: VaultState, ...args: Arguments) => Result,
     dependencies: DependencyList = [],
     kind: VaultUserActionKind = "mutation"
-): (...args: Arguments) => void {
+): (...args: Arguments) => Result {
     const store = useVaultContext();
     const undoCoordinator = useVaultUndoCoordinator();
 
     return useCallback(
-        (...args: Arguments) => {
-            undoCoordinator.runUserAction(kind, (origin) => {
-                store.setState((state: VaultState) => updater(state, ...args), { origin });
-            });
-        },
+        (...args: Arguments) => runVaultAction(store, undoCoordinator, kind, updater, ...args),
         // loro-mirror-react exposes the same dynamic dependency-list contract for action hooks.
         // eslint-disable-next-line react-hooks/use-memo, react-hooks/exhaustive-deps
         [store, undoCoordinator, updater, kind, ...dependencies]
@@ -148,7 +172,10 @@ export function useTags() {
  * Hook to get all description aliases in the vault
  */
 export function useDescriptionAliases() {
-    return useVaultSelector((state) => state.descriptionAliases);
+    return useVaultSelector(
+        (state): DescriptionAliasCollection =>
+            toDescriptionAliasCollection(state.descriptionAliases)
+    );
 }
 
 /**
@@ -278,13 +305,7 @@ export function useActiveTags() {
  * Hook to get active (non-deleted) description aliases
  */
 export function useActiveDescriptionAliases() {
-    return useVaultSelector((state) =>
-        Object.fromEntries(
-            Object.entries(state.descriptionAliases).filter(
-                ([, a]) => typeof a === "object" && !a.deletedAt
-            )
-        )
-    );
+    return useVaultSelector((state) => getActiveDescriptionAliases(state.descriptionAliases));
 }
 
 /**
@@ -361,6 +382,7 @@ import {
     removeAllDescriptionAliases as removeAllAliases,
     removeOneDescriptionAlias as removeOneAlias,
     renameDescriptionAlias as renameAlias,
+    updateDescriptionAliasedTransaction,
     type AssignDescriptionAliasByExactNameInput,
     type AssignDescriptionAliasInput,
     type ChangeAllDescriptionAliasesInput,
@@ -370,7 +392,6 @@ import {
 } from "./description-aliases";
 import {
     type DeleteTransactionInput,
-    findTransactionInStore,
     type InsertTransactionInput,
     insertTransaction as insertTx,
     type MoveTransactionInput,
@@ -379,8 +400,7 @@ import {
     swapDuplicate as swapDup,
     type UnnestDuplicateInput,
     type UpdateTransactionInput,
-    unnestDuplicate as unnestDup,
-    updateTransaction as updateTx
+    unnestDuplicate as unnestDup
 } from "./mutations";
 
 /**
@@ -397,22 +417,7 @@ export function useTransactionActions() {
     );
 
     const updateTransaction = useVaultAction(
-        (state, input: UpdateTransactionInput) => {
-            if ("descriptionAliasId" in input.updates) {
-                const transaction = findTransactionInStore(state.transactions, input.location);
-                const currentAliasId = transaction?.descriptionAliasId;
-                const requestedAliasId = input.updates.descriptionAliasId;
-                if (requestedAliasId) {
-                    assignAlias(state, { location: input.location, aliasId: requestedAliasId });
-                } else if (currentAliasId) {
-                    removeOneAlias(state, {
-                        location: input.location,
-                        expectedAliasId: currentAliasId
-                    });
-                }
-            }
-            updateTx(state.transactions, input);
-        },
+        (state, input: UpdateTransactionInput) => updateDescriptionAliasedTransaction(state, input),
         [],
         "edit"
     );
@@ -426,9 +431,7 @@ export function useTransactionActions() {
     );
 
     const deleteTransaction = useVaultAction(
-        (state, input: DeleteTransactionInput) => {
-            deleteDescriptionAliasedTransaction(state, input);
-        },
+        (state, input: DeleteTransactionInput) => deleteDescriptionAliasedTransaction(state, input),
         [],
         "delete"
     );
@@ -450,9 +453,7 @@ export function useTransactionActions() {
     );
 
     const deleteTransactionsByImport = useVaultAction(
-        (state, importId: string) => {
-            deleteDescriptionAliasedTransactionsByImport(state, importId);
-        },
+        (state, importId: string) => deleteDescriptionAliasedTransactionsByImport(state, importId),
         [],
         "delete"
     );
@@ -468,46 +469,13 @@ export function useTransactionActions() {
     };
 }
 
-// ============================================
-// DESCRIPTION ALIAS MUTATION HOOKS
-// ============================================
-
-import type { DescriptionAliasInput } from "./schema";
-
 /**
  * Hook providing description alias mutation actions.
  */
 export function useDescriptionAliasActions() {
-    const addAlias = useVaultAction(
-        (state, alias: DescriptionAliasInput) => {
-            return createAlias(state, { aliasId: alias.id, name: alias.name });
-        },
-        [],
-        "alias"
-    );
-
-    const updateAlias = useVaultAction(
-        (state, input: { id: string; updates: Partial<DescriptionAliasInput> }) => {
-            if (input.updates.name != null) {
-                renameAlias(state, { aliasId: input.id, name: input.updates.name });
-            } else if (input.updates.targetAliasId && input.updates.symlinkIds != null) {
-                // Compatibility bridge for the existing transaction page's final change-all call.
-                // Earlier backlink-plan calls are ignored; this one applies the complete graph
-                // transformation atomically. P11B will move that page to the named action directly.
-                changeAllAliases(state, {
-                    sourceAliasId: input.id,
-                    target: { kind: "existing", aliasId: input.updates.targetAliasId }
-                });
-            }
-        },
-        [],
-        "alias"
-    );
-
-    const deleteAlias = useVaultAction(
-        (state, id: string) => {
-            return removeAllAliases(state, id);
-        },
+    const createDescriptionAlias = useVaultAction(
+        (state, input: { readonly aliasId: string; readonly name: string }) =>
+            createAlias(state, input),
         [],
         "alias"
     );
@@ -556,9 +524,7 @@ export function useDescriptionAliasActions() {
     );
 
     return {
-        addAlias,
-        updateAlias,
-        deleteAlias,
+        createDescriptionAlias,
         assignDescriptionAlias,
         createAndAssignDescriptionAlias,
         assignDescriptionAliasByExactName,

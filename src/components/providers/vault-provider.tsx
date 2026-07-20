@@ -22,6 +22,7 @@ import { useSyncStatusManager } from "@/hooks/use-sync-status";
 import { useAuthGuard } from "@/lib/auth";
 import { VaultProvider as BaseVaultProvider } from "@/lib/crdt/context";
 import { getDefaultVaultState } from "@/lib/crdt/defaults";
+import { repairHydratedVaultDocument } from "@/lib/crdt/mirror";
 import { VaultUndoCoordinator, VaultUndoProvider } from "@/lib/crdt/undo";
 import { base64ToPrivateKey, initCrypto } from "@/lib/crypto";
 import { unwrapKeyFromBase64 } from "@/lib/crypto/keywrap";
@@ -35,6 +36,17 @@ interface VaultProviderProps {
 }
 
 const subscribeToHydration = () => () => {};
+
+/** Hydrate, repair, and durably flush before the provider exposes this document. */
+export async function hydrateAndRepairVaultDocument(
+    doc: LoroDoc,
+    manager: Pick<SyncManager, "forceSync" | "initialize">
+): Promise<boolean> {
+    await manager.initialize();
+    const repaired = repairHydratedVaultDocument(doc);
+    if (repaired) await manager.forceSync();
+    return repaired;
+}
 
 /**
  * Provider component that initializes the vault LoroDoc and provides
@@ -189,8 +201,8 @@ export function VaultProvider({ children, registerDisconnect }: VaultProviderPro
                 syncManagerRef.current = manager;
                 unregisterDisconnect = registerDisconnect?.(() => manager.disconnect()) ?? null;
 
-                // Initialize (loads from IndexedDB/server)
-                await manager.initialize();
+                // Load durable state, repair it under system origin, and flush before first read.
+                await hydrateAndRepairVaultDocument(doc, manager);
 
                 if (cancelled) {
                     await manager.disconnect();

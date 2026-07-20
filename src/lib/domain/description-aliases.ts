@@ -1,27 +1,15 @@
-/**
- * Description Alias Utilities
- *
- * Pure functions for working with description aliases.
- * Aliases can be "real" (no targetAliasId) or "symlinks" (point to a real alias).
- * Symlinks are one-hop only — a symlink never points to another symlink.
- */
+/** Pure legal-state utilities for curated transaction description aliases. */
 
-/**
- * Minimal alias interface for domain operations.
- * Compatible with both the full CRDT DescriptionAlias type and simpler test types.
- */
-export interface DescriptionAliasLike {
-    id: string;
-    name: string;
-    kind?: "real" | "symlink";
-    targetAliasId?: string;
-    symlinkIds: Record<string, boolean | string>;
-    transactionIds: Record<string, boolean | string>;
-    deletedAt?: unknown;
+/** Internal CRDT/wire shape. Recovery names on symlinks never cross the public read boundary. */
+export interface DescriptionAliasWireLike {
+    readonly id: string;
+    readonly name: string;
+    readonly kind?: "real" | "symlink";
+    readonly targetAliasId?: string;
+    readonly symlinkIds: Readonly<Record<string, boolean | string>>;
+    readonly transactionIds: Readonly<Record<string, boolean | string>>;
+    readonly deletedAt?: unknown;
 }
-
-/** Legal domain states. The compatibility `name` stored on a symlink is deliberately not exposed. */
-export type LegalDescriptionAlias = RealDescriptionAlias | SymlinkDescriptionAlias;
 
 export interface RealDescriptionAlias {
     readonly kind: "real";
@@ -40,23 +28,37 @@ export interface SymlinkDescriptionAlias {
     readonly deletedAt?: unknown;
 }
 
-/** Convert the CRDT wire representation into a legal discriminated domain state. */
-export function toLegalDescriptionAlias(
-    alias: DescriptionAliasLike
-): LegalDescriptionAlias | undefined {
-    const isSymlink = alias.kind === "symlink" || (alias.kind == null && !!alias.targetAliasId);
+/** Public application state: real and symlink fields are mutually exclusive. */
+export type DescriptionAlias = RealDescriptionAlias | SymlinkDescriptionAlias;
+export type DescriptionAliasCollection = Readonly<Record<string, DescriptionAlias | string>>;
+
+type DescriptionAliasReadable = DescriptionAlias | DescriptionAliasWireLike;
+type DescriptionAliasReadableCollection = Readonly<
+    Record<string, DescriptionAliasReadable | string>
+>;
+
+function hasTargetAliasId(
+    alias: DescriptionAliasReadable
+): alias is DescriptionAliasReadable & { readonly targetAliasId?: string } {
+    return "targetAliasId" in alias;
+}
+
+/** Convert a wire record into a legal state, rejecting contradictory/incomplete combinations. */
+export function toDescriptionAlias(alias: DescriptionAliasReadable): DescriptionAlias | undefined {
+    const targetAliasId = hasTargetAliasId(alias) ? alias.targetAliasId : undefined;
+    const isSymlink = alias.kind === "symlink" || (alias.kind == null && targetAliasId != null);
     if (isSymlink) {
-        return alias.targetAliasId
+        return targetAliasId
             ? {
                   kind: "symlink",
                   id: alias.id,
-                  targetAliasId: alias.targetAliasId,
+                  targetAliasId,
                   transactionIds: alias.transactionIds,
                   deletedAt: alias.deletedAt
               }
             : undefined;
     }
-    if (alias.targetAliasId) return undefined;
+    if (targetAliasId != null || !("name" in alias) || !("symlinkIds" in alias)) return undefined;
     return {
         kind: "real",
         id: alias.id,
@@ -67,134 +69,117 @@ export function toLegalDescriptionAlias(
     };
 }
 
-function isRealAlias(alias: DescriptionAliasLike): boolean {
-    return toLegalDescriptionAlias(alias)?.kind === "real";
+/** Convert the raw Mirror record into the only alias collection exposed to application consumers. */
+export function toDescriptionAliasCollection(
+    aliases: DescriptionAliasReadableCollection
+): DescriptionAliasCollection {
+    const legalEntries: Array<[string, DescriptionAlias | string]> = [];
+    for (const [id, alias] of Object.entries(aliases)) {
+        if (typeof alias === "string") {
+            if (id === "$cid") legalEntries.push([id, alias]);
+            continue;
+        }
+        const legal = toDescriptionAlias(alias);
+        if (legal) legalEntries.push([id, legal]);
+    }
+    return Object.fromEntries(legalEntries);
 }
 
-/**
- * Filter out deleted aliases from a collection.
- * Also filters out non-object values (loro-mirror may include $cid strings).
- */
-export function getActiveDescriptionAliases<T extends DescriptionAliasLike>(
-    aliases: Record<string, T | string>
-): T[] {
-    return Object.values(aliases)
-        .filter((item): item is T => typeof item === "object" && item !== null)
-        .filter((item) => !item.deletedAt);
+export function getActiveDescriptionAliases(
+    aliases: DescriptionAliasReadableCollection
+): DescriptionAlias[] {
+    return Object.values(toDescriptionAliasCollection(aliases)).filter(
+        (alias): alias is DescriptionAlias => typeof alias === "object" && !alias.deletedAt
+    );
 }
 
-/**
- * Filter aliases to only real aliases (not symlinks).
- * A real alias has no targetAliasId.
- */
-export function getRealAliases<T extends DescriptionAliasLike>(aliases: T[]): T[] {
-    return aliases.filter(isRealAlias);
+export function getRealAliases(
+    aliases: readonly DescriptionAliasReadable[]
+): RealDescriptionAlias[] {
+    return aliases
+        .map(toDescriptionAlias)
+        .filter((alias): alias is RealDescriptionAlias => alias?.kind === "real");
 }
 
-/**
- * Get active, real aliases from a collection.
- * Combines getActiveDescriptionAliases and getRealAliases.
- */
-export function getActiveRealAliases<T extends DescriptionAliasLike>(
-    aliases: Record<string, T | string>
-): T[] {
+export function getActiveRealAliases(
+    aliases: DescriptionAliasReadableCollection
+): RealDescriptionAlias[] {
     return getRealAliases(getActiveDescriptionAliases(aliases));
 }
 
-/**
- * Resolve an alias ID to its real alias.
- * If the alias is a symlink, return the target. If deleted or missing, return undefined.
- * One hop max — symlinks never chain.
- */
-export function resolveAlias<T extends DescriptionAliasLike>(
+/** Resolve with one source lookup and, for a symlink, one target lookup. */
+export function resolveAlias(
     aliasId: string,
-    aliases: Record<string, T | string>
-): T | undefined {
-    const alias = aliases[aliasId];
-    if (typeof alias !== "object" || alias === null) return undefined;
-    if (alias.deletedAt) return undefined;
+    aliases: DescriptionAliasReadableCollection
+): RealDescriptionAlias | undefined {
+    const sourceValue = aliases[aliasId];
+    if (typeof sourceValue !== "object" || sourceValue == null) return undefined;
+    const source = toDescriptionAlias(sourceValue);
+    if (!source || source.deletedAt) return undefined;
+    if (source.kind === "real") return source;
 
-    const legalAlias = toLegalDescriptionAlias(alias);
-    if (!legalAlias) return undefined;
-
-    // If it's a symlink, follow exactly one hop and reject a chain.
-    if (legalAlias.kind === "symlink") {
-        const target = aliases[legalAlias.targetAliasId];
-        if (typeof target !== "object" || target === null) return undefined;
-        if (target.deletedAt) return undefined;
-        if (!isRealAlias(target)) return undefined;
-        return target;
-    }
-
-    return alias;
+    const targetValue = aliases[source.targetAliasId];
+    if (typeof targetValue !== "object" || targetValue == null) return undefined;
+    const target = toDescriptionAlias(targetValue);
+    return target?.kind === "real" && !target.deletedAt ? target : undefined;
 }
 
-/**
- * Count total transactions across an alias and all its symlinks.
- */
-function countObjectKeys(record: Record<string, boolean | string>): number {
-    return Object.keys(record).filter((k) => k !== "$cid").length;
+function countObjectKeys(record: Readonly<Record<string, boolean | string>>): number {
+    return Object.keys(record).filter((key) => key !== "$cid").length;
 }
 
-export function getAliasTotalTransactionCount<T extends DescriptionAliasLike>(
+export function getAliasTotalTransactionCount(
     aliasId: string,
-    aliases: Record<string, T | string>
+    aliases: DescriptionAliasReadableCollection
 ): number {
-    const alias = aliases[aliasId];
-    if (typeof alias !== "object" || alias === null) return 0;
-
+    const value = aliases[aliasId];
+    if (typeof value !== "object" || value == null) return 0;
+    const alias = toDescriptionAlias(value);
+    if (!alias) return 0;
     let count = countObjectKeys(alias.transactionIds);
-
-    // Add transactions from all symlinks pointing to this alias
-    const symlinkIdKeys = Object.keys(alias.symlinkIds).filter((k) => k !== "$cid");
-    for (const symlinkId of symlinkIdKeys) {
-        const symlink = aliases[symlinkId];
-        if (typeof symlink === "object" && symlink !== null) {
+    if (alias.kind === "symlink") return count;
+    for (const symlinkId of Object.keys(alias.symlinkIds).filter((key) => key !== "$cid")) {
+        const symlinkValue = aliases[symlinkId];
+        if (typeof symlinkValue !== "object" || symlinkValue == null) continue;
+        const symlink = toDescriptionAlias(symlinkValue);
+        if (symlink?.kind === "symlink" && !symlink.deletedAt) {
             count += countObjectKeys(symlink.transactionIds);
         }
     }
-
     return count;
 }
 
-/**
- * Describes the mutations needed to make one alias a symlink to another.
- * Pure function — does not mutate. The caller applies mutations via draft.
- */
 export interface SymlinkMutation {
-    /** Symlink IDs to add to the target alias's symlinkIds */
-    addSymlinksToTarget: string[];
-    /** Symlink IDs to remove from the source alias's symlinkIds (repoint them to target) */
-    repointerSymlinks: Array<{ symlinkId: string; newTargetId: string }>;
-    /** The source alias itself becomes a symlink to target */
-    sourceBecomesSymlink: { sourceId: string; targetId: string };
-    /** Backlinks to clear from the source alias's symlinkIds */
-    clearSourceSymlinkIds: string[];
+    readonly addSymlinksToTarget: string[];
+    readonly repointerSymlinks: Array<{
+        readonly symlinkId: string;
+        readonly newTargetId: string;
+    }>;
+    readonly sourceBecomesSymlink: { readonly sourceId: string; readonly targetId: string };
+    readonly clearSourceSymlinkIds: string[];
 }
 
-export function makeSymlinkMutations<T extends DescriptionAliasLike>(
+/** @deprecated P11A callers use the atomic CRDT change-all action. */
+export function makeSymlinkMutations(
     sourceAliasId: string,
     targetAliasId: string,
-    aliases: Record<string, T | string>
+    aliases: DescriptionAliasReadableCollection
 ): SymlinkMutation {
-    const source = aliases[sourceAliasId];
-    const existingSymlinkIds: string[] =
-        typeof source === "object" && source !== null
-            ? Object.keys(source.symlinkIds).filter((k) => k !== "$cid")
+    const sourceValue = aliases[sourceAliasId];
+    const source =
+        typeof sourceValue === "object" && sourceValue != null
+            ? toDescriptionAlias(sourceValue)
+            : undefined;
+    const existingSymlinkIds =
+        source?.kind === "real"
+            ? Object.keys(source.symlinkIds).filter((key) => key !== "$cid")
             : [];
-
-    // All symlinks currently pointing at source need to repoint to target
-    const repointerSymlinks = existingSymlinkIds.map((symlinkId) => ({
-        symlinkId,
-        newTargetId: targetAliasId
-    }));
-
-    // Source's existing symlinks + source itself become symlinks to target
-    const addSymlinksToTarget = [...existingSymlinkIds, sourceAliasId];
-
     return {
-        addSymlinksToTarget,
-        repointerSymlinks,
+        addSymlinksToTarget: [...existingSymlinkIds, sourceAliasId],
+        repointerSymlinks: existingSymlinkIds.map((symlinkId) => ({
+            symlinkId,
+            newTargetId: targetAliasId
+        })),
         sourceBecomesSymlink: { sourceId: sourceAliasId, targetId: targetAliasId },
         clearSourceSymlinkIds: existingSymlinkIds
     };
