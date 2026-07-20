@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
     createVaultRealtimeSync,
@@ -144,12 +144,18 @@ describe("RealtimeCredentialManager", () => {
 
 describe("VaultRealtimeSync", () => {
     beforeEach(() => {
+        vi.useFakeTimers({ toFake: ["Date"] });
+        vi.setSystemTime(new Date("2026-07-20T00:00:00.000Z"));
         vi.clearAllMocks();
         mocks.createClient.mockReturnValue(mocks.client);
         mocks.channel.mockImplementation((topic: string) => createChannel(`realtime:${topic}`));
         mocks.removeChannel.mockResolvedValue("ok");
         mocks.authorize.mockResolvedValue(credential());
         mocks.revoke.mockResolvedValue({ revoked: true });
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
     });
 
     it("authorizes a private exact-vault vault_ops subscription", async () => {
