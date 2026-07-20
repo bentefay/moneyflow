@@ -411,6 +411,49 @@ No unresolved product questions were answered by scaffold creation.
   production, persisted-data, schema or service impact.
 - **Does a human still need to decide after completion?:** No.
 
+## Q-012 — Apply authorized same-identity operations in sibling tabs
+
+- **Raised:** 2026-07-20, P05 revision 10, `human_scratch_implementer`; independently confirmed and
+  evidence-tightened by `human_scratch_reviewer`
+- **Source proposal:** `evidence/P05/implementation-10.md#q-proposal-p05-10-01--apply-authorized-same-identity-operations-in-sibling-tabs`;
+  confirmed in `reviews/P05-review-10.md#confirmed-and-tightened-q-proposal-p05-10-01`
+- **Context and evidence:** Two authenticated same-vault tabs each have live Presence and a current
+  `vault_ops` subscription. One creates and persists exactly one transaction, but the sibling stays
+  at zero rows beyond 15 seconds with no authorization, subscription, socket or browser error.
+  `SyncManager.initialize()` drops every received op whose author public-key hash equals the local
+  identity, so it conflates a same-identity sibling with the originating manager.
+- **Why the frozen requirement/repository does not fully decide it:** HS-015 explicitly requires
+  duplicate-tab live behavior, but existing E2E separately proves true duplicated-tab hydration and
+  different-identity live sync. Neither proves a same-identity live operation, and revision 10 could
+  write only the unit-clock test.
+- **Options considered:** (A) remove the identity early return and rely on the established serialized
+  remote-import path plus an extension-backed duplicate-tab regression; (B) add per-tab identity to
+  schema/encrypted metadata/transport; (C) catch up on focus/visibility; or (D) reload/poll/retry.
+  Independent Loro probing shows A is safe: origin self-import and repeated sibling import are
+  version-stable and trigger zero `subscribeLocalUpdates` callbacks. B is disproportionate protocol
+  surface, and C/D leave or mask broken live delivery.
+- **Default selected for continued work:** Choose A. Revision 11 may write only
+  `src/lib/sync/manager.ts` and `tests/e2e/tab-duplication.spec.ts`. Remove only the comment and
+  `authorPubkeyHash === this.pubkeyHash` early return, retaining the serialized
+  `applyRemoteUpdate(update.encryptedData)` path. Extend the existing test and its true extension-
+  backed `chrome.tabs.duplicate()` helper; retain cache/hydration coverage, navigate both authenticated
+  duplicates to Transactions, attach console/page-error capture before mutation, and create one
+  transaction through normal UI. Without reload, focus-triggered catch-up, polling substitute,
+  sleep, retry or timeout increase, require both tabs to contain exactly one matching row within the
+  existing 15-second bound, exactly one permanent op for the fixture vault, zero receiver
+  `sync.pushOps` delta from its pre-mutation baseline, and zero collected browser errors. Preserve
+  the 60-second test timeout, security/grant/topic/filter/throttle/durable-catch-up/encryption
+  behavior and every other product/test path.
+- **Decision hierarchy basis:** Explicit HS-015 duplicate-tab live acceptance controls, followed by
+  independently proven CRDT idempotence/local-vs-remote behavior and the smallest reversible code
+  plus meaningful-journey regression.
+- **Impact and risk:** The origin can import its server echo and siblings can import the operation;
+  exact one-row/one-op/zero-receiver-push evidence rejects duplication or loops. Authorization and
+  payload/schema boundaries remain unchanged.
+- **How to reverse or migrate:** Revert the two-path revision-11 diff. No persisted-data, schema,
+  protocol, configuration or migration change is involved.
+- **Does a human still need to decide after completion?:** No.
+
 ## Question template
 
 ### Q-XXX — Short title
