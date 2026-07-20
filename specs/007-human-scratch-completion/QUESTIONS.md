@@ -313,6 +313,39 @@ No unresolved product questions were answered by scaffold creation.
 - **Does a human still need to decide after completion?:** No. Separate onboarding bounds may be
   considered later but are not required to measure this named interval correctly.
 
+## Q-009 — Await visible initial Presence readiness before the lock baseline
+
+- **Raised:** 2026-07-20, P05 revision 07, `human_scratch_implementer`; independently confirmed and
+  selector-corrected by `human_scratch_reviewer`
+- **Source proposal:** `evidence/P05/implementation-07.md#q-proposal-p05-07-01--await-initial-presence-readiness-before-freezing-the-pre-lock-baseline`;
+  corrected in `reviews/P05-review-07.md#corrected-q-proposal-p05-07-01`
+- **Context and evidence:** The immediate post-identity snapshot is all zero because identity setup
+  returns before asynchronous Presence authorization. Final deltas therefore equal cumulative sync
+  2/1 and Presence 4/3. Source ordering proves a visible online avatar occurs only after the retained
+  subscription is `SUBSCRIBED` and Presence state synchronizes, while both replay authorization
+  requests were observed earlier.
+- **Why the frozen requirement/repository does not fully decide it:** Revision 07 authorized the
+  immediate snapshot but not the missing behavior readiness assertion. Responsive layout also
+  renders hidden mobile and visible desktop avatars, requiring visibility filtering.
+- **Options considered:** (A) require exactly one visible online avatar before snapshot; (B) poll a
+  dev-specific counter; (C) sleep; (D) raise/skip/retry bounds; or (E) change product/provider.
+  A is causal and user-visible; B–D are brittle or weaken evidence, and E is unsupported.
+- **Default selected for continued work:** Revision 08 may write only
+  `tests/e2e/vault-settings.spec.ts`. Immediately before the existing baseline, use
+  `page.getByTitle(/\(online\)$/).filter({ visible: true })` and require count one within 15 seconds.
+  Retain observer placement, snapshot/subtraction, global timeout, all live bounds and authorize
+  `<=2`/revoke `>=1`. Do not use `.first()`, bare strict `toBeVisible`, sleeps, counter waits,
+  force/reload/retries, or edit any helper/product/provider/transport/migration/config/other path.
+- **Decision hierarchy basis:** Repository E2E guidance prefers observable behavior auto-waiting;
+  visible synchronized Presence causally closes onboarding before measuring lock/unlock.
+- **Impact and risk:** The test now fails if initial Presence is not visibly connected within the
+  existing bound and remains strict about lock/unlock deltas. Visibility filtering prevents hidden
+  responsive duplicates from causing ambiguity.
+- **How to reverse or migrate:** The spec-only assertion is independently revertible. Any remaining
+  interval failure must route sanitized deltas to its exact owner rather than relax bounds.
+- **Does a human still need to decide after completion?:** No; optional future work may expose a
+  dedicated semantic Presence-ready test hook.
+
 ## Question template
 
 ### Q-XXX — Short title

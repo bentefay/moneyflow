@@ -5,30 +5,27 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Implementation dispatch
 
-- **Package / revision:** P05 / 06
+- **Package / revision:** P05 / 07
 - **Scope IDs:** HS-015; no scratch marker before independent package PASS and root integration
-- **State:** changes_requested after immutable `reviews/P05-review-06.md` FAIL; revision-06
-  evidence, review, Q-008 and risk state persisted in
-  `253ed4b1d2ef828086420a49e85413cdb264162a`
+- **State:** changes_requested
 - **Task:** `tasks/HS-015-realtime-security.md`
 - **Original package BASE:** `007651beb814d98646aa2e786801b647e2abd0b5`
-- **Pre-implementation HEAD:** `a00eed992495f837eab34dfa0cf7cb13d62c97c5`; includes immutable
-  revision-01/02/03/04/05 product and failure/control commits
-- **Allowed implementation path:** exactly `tests/e2e/realtime-security.spec.ts`. No helper,
+- **Pre-implementation HEAD:** `9729a422ff276064693810a47448a8de18492854`; includes immutable
+  revision-01–06 product and failure/control commits
+- **Allowed implementation path:** exactly `tests/e2e/vault-settings.spec.ts`. No helper,
   product, Supabase config, dependency, migration, unit, other E2E, transport, SyncManager, CRDT or
   Loro path is writable.
-- **Sole implementer artifact:** `evidence/P05/implementation-06.md`
+- **Sole implementer artifact:** `evidence/P05/implementation-07.md`
 - **Commit contract:** commit only the exact Realtime spec path using exact staging; leave
   evidence uncommitted. Never broad-stage or edit ledgers/tasks/reviews/scratch/FS-001/.claude/
   .codex or immutable prior artifacts.
 - **Pre-existing dirty/untracked paths:** root-owned unstaged `PROGRESS.md` and `HANDOFF.md`, plus
-  assigned uncommitted `evidence/P05/implementation-06.md`; no staged paths
-- **F-001 legal observer correction:** remove only the `countRealtimeGrants` import/use. Preserve
-  migration 007's deliberate direct-table denial. Retain the initial owner sync total integer from
-  the existing sanitized attribution step, then poll
-  `getRealtimeGrantAggregates(fixture.ownerHash, fixture.vaultId).sync.total` every second for at
-  most the unchanged 70 seconds until it is at least
-  `Math.max(2, initialOwnerSyncTotal + 1)`. Do not expose scope values or edit the helper/export.
+  assigned uncommitted `evidence/P05/implementation-07.md`; no staged paths
+- **F-001 interval attribution correction:** immediately after awaited `createNewIdentity` and
+  before Lock, capture `preLockLifecycle = realtimeLifecycle.snapshot()`. In final attribution,
+  subtract the matching pre-lock sync/Presence authorize/revoke counters from the final snapshot and
+  apply the existing authorize `<=2` and revoke `>=1` assertions to those deltas. Keep cumulative
+  aggregates only as sanitized annotations if useful. Do not move observer creation or raise bounds.
 - **Assertion invariants:** preserve the unchanged 120-second global timeout and every 15-second
   live bound, real owner/member contexts, exact subscription/current-grant aggregates, incoming-frame
   ordering, private Presence, import/edit/delete UI checks and later expiry/reconnect/offline,
@@ -41,7 +38,7 @@ literal field is `pending`. Workers may read but never edit it.
   installed CLI owner/member/outsider/duplicate/background charter. Inspect requests, console,
   sockets and server logs without retaining secrets, identities, vault IDs or payloads.
 - **Stop boundary:** any remaining failure requires a complete exact next-owner proposal. Do not
-  change thresholds to a pre-satisfied value, or edit the helper, privileges, channel privacy,
+  change bounds/retries/timeouts or edit the helper, revision-06 spec, provider, product, privileges,
   transport, dependencies, config, migration, SyncManager, CRDT or Loro under this revision.
 - **Inherited boundaries:** compatible service recreation, strengthened helper, migration 008,
   private Presence, provider topology, cleanup and hermetic fail-closed startup are accepted and
@@ -53,32 +50,32 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Review result
 
-Revision-06 evidence/review and the cumulative literal range are frozen.
+Revision-07 evidence/review and the cumulative literal range are frozen.
 
 - **Reviewer:** distinct `human_scratch_reviewer`
 - **Literal reviewed BASE:** `007651beb814d98646aa2e786801b647e2abd0b5`
-- **Literal reviewed HEAD:** `95acc3b2e935b9bdf2788f301a79b490d2d5d509`
-- **Range type:** non-empty cumulative original BASE through revision-06 HEAD
-- **Implementation evidence:** `evidence/P05/implementation-06.md`, SHA-256
-  `1c71d43ea08c7b9abc030126dc4444066f92d618bd0d84cce2cfe3ab17132599`
-- **Sole reviewer artifact:** `reviews/P05-review-06.md`
-- **Prior review files:** immutable revision-01/02/03/04/05 FAIL artifacts; latest SHA-256
-  `53edd79c1472196338ff721d9c8ded29ea8df35645d704813675dd5c1e42f460`
+- **Literal reviewed HEAD:** `c2203faa84a1590263014d6426e2f854cdc036e8`
+- **Range type:** non-empty cumulative original BASE through revision-07 HEAD
+- **Implementation evidence:** `evidence/P05/implementation-07.md`, SHA-256
+  `fa6296b49fac4eec9bd3afe9be9a9cad36241b7207c5543d4dce60e4081e32dd`
+- **Sole reviewer artifact:** `reviews/P05-review-07.md`
+- **Prior review files:** immutable revision-01–06 FAIL artifacts; latest SHA-256
+  `53dd7bfe51b392cd0b4ea316e37978bafe4f75fe1d592c937d135259a7ffbfb5`
 - **Verdict:** FAIL, SHA-256
-  `53dd7bfe51b392cd0b4ea316e37978bafe4f75fe1d592c937d135259a7ffbfb5`; causal Realtime passes,
-  cumulative lock/unlock attribution remains High
+  `6698876b9b654bff6cd00e3bf54d4ac45f86cd9ba7348fc30a4b33a3048bde7c`; delta logic accepted,
+  immediate baseline remains premature
 - **Reviewer writes:** review file only; no other writes/commits
-- **Required review focus:** independently audit original BASE through exact HEAD and the sole causal
-  observer diff. Reproduce baseline-relative rotation and genuine import/edit/delete/removal; verify
-  3/3 focused, database/static/build results and 80/81 full E2E. Independently classify the isolated
-  vault-settings cumulative Presence count and confirm/correct/reject the exact revision-07 sole
-  `tests/e2e/vault-settings.spec.ts` pre-lock delta proposal without relaxing bounds. Recheck
-  compatible service, cleanup, prior hashes and frozen sources.
-- **Failure route:** persist immutable revision-06 artifacts and use only a reviewer-confirmed next
-  revision boundary
+- **Required review focus:** independently audit original BASE through exact HEAD and the sole
+  pre-lock delta diff. Reproduce the zero immediate Presence baseline and final delta 4; verify
+  createNewIdentity readiness versus `getByTitle(/\(online\)$/)` source/behavior. Confirm/correct/
+  reject the exact revision-08 same-spec visible-online readiness proposal with unchanged 15-second
+  and lifecycle bounds, no sleeps/counter waits/product widening. Recheck compatible service,
+  cleanup, prior hashes and frozen sources.
+- **Failure route:** persist immutable revision-07 artifacts and use only reviewer-confirmed scope
 - **PASS authority:** reviewer recommends; root verifies/transcribes/integrates and sets `passed`
 
 ## Next root action
 
-Commit this durable artifact-commit reference, rewrite for P05 revision 07 and dispatch only the
-vault-settings pre-lock delta correction. No HS-015 marker is authorized.
+Persist immutable revision-07 evidence/review, Q-009 and failure ledgers using exact staging. Then
+durably record that artifact commit, rewrite for P05 revision 08 and dispatch only visible-online
+readiness in the same spec. No HS-015 marker is authorized.
