@@ -54,7 +54,8 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Review dispatch
 
-This review is complete and immutable once root persists the revision-01 failure artifacts.
+This review is complete and immutable in artifact commit
+`892bf536f0188cd1637d1eda5bfb5b1a1a040a44`.
 
 - **Reviewer:** distinct `human_scratch_reviewer`
 - **Literal reviewed BASE:** `fe1871ce7dce1e831b57ee5656d38ce5c800aae3`
@@ -88,7 +89,8 @@ This review is complete and immutable once root persists the revision-01 failure
 ## Next root action
 
 Exact-stage and commit the immutable revision-01 implementation/review artifacts with Q-014,
-R-005/R-006/R-007/R-018/R-027 and the P07/HS-011 failure state. Record that artifact commit in a
-second control commit, then rewrite this handoff for P07 revision 02 and dispatch only
+R-005/R-006/R-007/R-018/R-027 and the P07/HS-011 failure state. Artifact commit
+`892bf536f0188cd1637d1eda5bfb5b1a1a040a44` is now recorded; commit this control reference, then
+rewrite this handoff for P07 revision 02 and dispatch only
 `human_scratch_implementer` to create `evidence/P07/implementation-02.md` over the same original
 empty BASE. P08 remains blocked by both P07 and the D-011/P05 recheck.
