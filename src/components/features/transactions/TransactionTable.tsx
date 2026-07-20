@@ -7,7 +7,7 @@
  * Uses TanStack Virtual for performance with 10k+ rows.
  */
 
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { defaultRangeExtractor, type Range, useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
@@ -207,6 +207,20 @@ export function TransactionTable({
 
     // Extract transaction IDs for selection hook
     const filteredIds = useMemo(() => transactions.map((t) => t.id), [transactions]);
+    const transactionIndexById = useMemo(
+        () => new Map(transactions.map((transaction, index) => [transaction.id, index])),
+        [transactions]
+    );
+    const focusedIndex = focusedId == null ? undefined : transactionIndexById.get(focusedId);
+    const extractVirtualRange = useCallback(
+        (range: Range) => {
+            const visibleIndexes = defaultRangeExtractor(range);
+            if (focusedIndex == null || visibleIndexes.includes(focusedIndex))
+                return visibleIndexes;
+            return [...visibleIndexes, focusedIndex].sort((left, right) => left - right);
+        },
+        [focusedIndex]
+    );
 
     // Use table selection hook for managing selection actions
     // The hook is controlled - it receives selectedIds from parent and calls onSelectionChange
@@ -333,6 +347,7 @@ export function TransactionTable({
         getScrollElement: () => containerRef.current,
         estimateSize: () => ROW_HEIGHT,
         overscan: OVERSCAN,
+        rangeExtractor: extractVirtualRange,
         useFlushSync: true
     });
 

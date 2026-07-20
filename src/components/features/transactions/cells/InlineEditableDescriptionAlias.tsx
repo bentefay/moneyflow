@@ -101,11 +101,12 @@ export function InlineEditableDescriptionAlias({
 
     const displayedValue = isFocused ? localValue : value;
     const filteredAliases = useMemo(() => {
+        if (!isFocused || !hasEdited || isAutocompleteDismissed) return [];
         const query = displayedValue.trim().toLocaleLowerCase();
         return query
             ? availableAliases.filter((alias) => alias.name.toLocaleLowerCase().includes(query))
             : [];
-    }, [availableAliases, displayedValue]);
+    }, [availableAliases, displayedValue, hasEdited, isAutocompleteDismissed, isFocused]);
     const isAutocompleteOpen =
         isFocused && hasEdited && !isAutocompleteDismissed && filteredAliases.length > 0;
 

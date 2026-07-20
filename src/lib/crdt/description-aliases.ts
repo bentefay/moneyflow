@@ -8,6 +8,10 @@
 
 import { Temporal } from "temporal-polyfill";
 
+import { normalizeDescriptionAliasName } from "@/lib/domain/description-aliases";
+
+export { normalizeDescriptionAliasName } from "@/lib/domain/description-aliases";
+
 import {
     deleteTransaction,
     deleteTransactionsByImport,
@@ -98,11 +102,6 @@ function err(
     message: string
 ): DescriptionAliasMutationResult<never> {
     return { ok: false, error: { code, message } };
-}
-
-/** Exact matching is trim + Unicode NFC and remains case-sensitive. */
-export function normalizeDescriptionAliasName(name: string): string {
-    return name.trim().normalize("NFC");
 }
 
 function getAlias(state: VaultState, aliasId: string): DescriptionAliasWire | undefined {

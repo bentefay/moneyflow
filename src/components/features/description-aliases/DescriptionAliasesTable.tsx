@@ -14,8 +14,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useDescriptionAliases, useDescriptionAliasActions } from "@/lib/crdt/context";
 import type { DescriptionAliasMutationResult } from "@/lib/crdt/description-aliases";
-import { getActiveRealAliases, type RealDescriptionAlias } from "@/lib/domain/description-aliases";
+import type { RealDescriptionAlias } from "@/lib/domain/description-aliases";
 import { cn } from "@/lib/utils";
+
+import { useDescriptionAliasLookup } from "./useDescriptionAliasLookup";
 
 export interface DescriptionAliasesTableProps {
     className?: string;
@@ -31,14 +33,15 @@ export function DescriptionAliasesTable({ className }: DescriptionAliasesTablePr
 
     // Get aliases from CRDT state
     const aliases = useDescriptionAliases();
+    const aliasLookup = useDescriptionAliasLookup(aliases);
 
     const { createDescriptionAlias, removeAllDescriptionAliases, renameDescriptionAlias } =
         useDescriptionAliasActions();
 
     // Get list of active real aliases (not deleted, not symlinks)
     const activeAliases = useMemo(() => {
-        return getActiveRealAliases(aliases).sort((a, b) => a.name.localeCompare(b.name));
-    }, [aliases]);
+        return [...aliasLookup.activeRealAliases].sort((a, b) => a.name.localeCompare(b.name));
+    }, [aliasLookup]);
 
     // Handle adding a new alias
     const handleAdd = useCallback(() => {

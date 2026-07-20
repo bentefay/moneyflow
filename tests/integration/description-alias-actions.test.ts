@@ -12,7 +12,7 @@ import {
     updateDescriptionAliasedTransaction,
     type DescriptionAliasMutationResult
 } from "@/lib/crdt/description-aliases";
-import { createVaultMirror } from "@/lib/crdt/mirror";
+import { createVaultMirror, createVaultMirrorFromSnapshot } from "@/lib/crdt/mirror";
 import { insertTransaction, type TransactionLocation } from "@/lib/crdt/mutations";
 import type { VaultState } from "@/lib/crdt/schema";
 import { VaultUndoCoordinator, VaultUndoProvider } from "@/lib/crdt/undo";
@@ -243,6 +243,8 @@ describe("production description alias actions", () => {
 
     it("returns typed results without replacement recipes and gives every operation one undo/redo step", async () => {
         const { doc, mirror } = createVaultMirror();
+        const localUpdates: Uint8Array[] = [];
+        const unsubscribe = doc.subscribeLocalUpdates((update) => localUpdates.push(update));
         mirror.setState((state: VaultState) => {
             for (const id of ["one", "two", "three", "delete", "imported"]) {
                 seed(state, id, id === "imported" ? "batch" : undefined);
@@ -355,6 +357,7 @@ describe("production description alias actions", () => {
 
         for (const [operationIndex, operation] of operations.entries()) {
             coordinator.clear();
+            localUpdates.length = 0;
             const before = snapshot(mirror.getState());
             let result: DescriptionAliasMutationResult<string | undefined> | undefined;
             act(() => {
@@ -362,6 +365,7 @@ describe("production description alias actions", () => {
             });
             if (!result) throw new Error("Action did not return a Result");
             expect(result.ok).toBe(true);
+            expect(localUpdates).toHaveLength(1);
             const after = snapshot(mirror.getState());
             expect(after).not.toEqual(before);
             if (operationIndex === 9) {
@@ -383,8 +387,12 @@ describe("production description alias actions", () => {
             expect(coordinator.undo()).toBe(false);
             expect(coordinator.redo()).toBe(true);
             expect(snapshot(mirror.getState())).toEqual(after);
+
+            const reopened = createVaultMirrorFromSnapshot(doc.export({ mode: "snapshot" }));
+            expect(snapshot(reopened.mirror.getState())).toEqual(after);
         }
         view.unmount();
+        unsubscribe();
         coordinator.dispose();
     });
 

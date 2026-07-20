@@ -1,9 +1,6 @@
-import { normalizeDescriptionAliasName } from "@/lib/crdt/description-aliases";
 import {
-    getAliasTotalTransactionCount,
-    resolveAlias,
-    type DescriptionAliasCollection,
-    type RealDescriptionAlias
+    normalizeDescriptionAliasName,
+    type DescriptionAliasLookup
 } from "@/lib/domain/description-aliases";
 
 export type DescriptionAliasTargetIntent =
@@ -20,36 +17,21 @@ export type DescriptionAliasCommitIntent =
     | { readonly kind: "confirm-remove" };
 
 export interface PlanDescriptionAliasCommitInput {
-    readonly aliases: DescriptionAliasCollection;
+    readonly lookup: DescriptionAliasLookup;
     readonly currentAliasId?: string;
     readonly text: string;
 }
 
-function findExactAliasId(
-    aliases: DescriptionAliasCollection,
-    normalizedName: string
-): string | undefined {
-    return Object.values(aliases)
-        .filter(
-            (alias): alias is RealDescriptionAlias =>
-                typeof alias === "object" &&
-                alias.kind === "real" &&
-                !alias.deletedAt &&
-                normalizeDescriptionAliasName(alias.name) === normalizedName
-        )
-        .sort((left, right) => left.id.localeCompare(right.id))[0]?.id;
-}
-
 /** Translate edited cell text into one explicit P11A action path without performing a write. */
 export function planDescriptionAliasCommit({
-    aliases,
+    lookup,
     currentAliasId,
     text
 }: PlanDescriptionAliasCommitInput): DescriptionAliasCommitIntent {
     const normalizedName = normalizeDescriptionAliasName(text);
     if (!currentAliasId) {
         if (!normalizedName) return { kind: "none" };
-        const exactAliasId = findExactAliasId(aliases, normalizedName);
+        const exactAliasId = lookup.findExactAliasId(normalizedName);
         return {
             kind: "assign",
             target: exactAliasId
@@ -58,9 +40,9 @@ export function planDescriptionAliasCommit({
         };
     }
 
-    const resolvedCurrent = resolveAlias(currentAliasId, aliases);
+    const resolvedCurrent = lookup.resolve(currentAliasId);
     if (!resolvedCurrent) return { kind: "none" };
-    const totalTransactions = getAliasTotalTransactionCount(resolvedCurrent.id, aliases);
+    const totalTransactions = lookup.getTotalTransactionCount(resolvedCurrent.id);
     if (!normalizedName) {
         return totalTransactions > 1 ? { kind: "confirm-remove" } : { kind: "remove-one" };
     }
@@ -68,7 +50,7 @@ export function planDescriptionAliasCommit({
         return { kind: "none" };
     }
 
-    const exactAliasId = findExactAliasId(aliases, normalizedName);
+    const exactAliasId = lookup.findExactAliasId(normalizedName);
     const target: DescriptionAliasTargetIntent = exactAliasId
         ? { kind: "existing", aliasId: exactAliasId }
         : { kind: "new", name: normalizedName };

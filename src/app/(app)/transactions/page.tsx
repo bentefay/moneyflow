@@ -17,6 +17,7 @@ import {
     planDescriptionAliasCommit,
     type DescriptionAliasTargetIntent
 } from "@/components/features/description-aliases/descriptionAliasInteraction";
+import { useDescriptionAliasLookup } from "@/components/features/description-aliases/useDescriptionAliasLookup";
 import {
     BulkEditToolbar,
     createEmptyFilters,
@@ -51,7 +52,6 @@ import { filterTransactions } from "@/lib/crdt/queries";
 import type { Account, Person, Status, Tag, Transaction } from "@/lib/crdt/schema";
 import { getNextTagColor } from "@/lib/domain";
 import { asMinorUnits } from "@/lib/domain/currency";
-import { getActiveRealAliases, resolveAlias } from "@/lib/domain/description-aliases";
 
 // Number of transactions to load per page
 const PAGE_SIZE = 50;
@@ -79,6 +79,7 @@ export default function TransactionsPage() {
     const accounts = useActiveAccounts();
     const tags = useActiveTags();
     const aliases = useDescriptionAliases();
+    const aliasLookup = useDescriptionAliasLookup(aliases);
     const statuses = useStatuses();
     const people = useActivePeople();
 
@@ -112,11 +113,11 @@ export default function TransactionsPage() {
     // Available real aliases for autocomplete
     const availableAliasOptions = useMemo(
         () =>
-            getActiveRealAliases(aliases).map((a) => ({
+            aliasLookup.activeRealAliases.map((a) => ({
                 id: a.id,
                 name: a.name
             })),
-        [aliases]
+        [aliasLookup]
     );
 
     // Filter state
@@ -197,7 +198,7 @@ export default function TransactionsPage() {
                 const hasDuplicates = tx.suspectedDuplicates && tx.suspectedDuplicates.length > 0;
                 // Resolve description alias through symlinks
                 const resolvedAlias = tx.descriptionAliasId
-                    ? resolveAlias(tx.descriptionAliasId, aliases)
+                    ? aliasLookup.resolve(tx.descriptionAliasId)
                     : undefined;
                 return {
                     id: tx.id,
@@ -229,7 +230,7 @@ export default function TransactionsPage() {
                     originalDescription: tx.description || undefined
                 };
             }),
-        [displayedTransactions, accounts, statuses, tags, aliases]
+        [displayedTransactions, accounts, statuses, tags, aliasLookup]
     );
 
     // Account options for AddTransactionRow
@@ -449,7 +450,7 @@ export default function TransactionsPage() {
 
             const location = { accountId: tx.accountId, date: tx.date, transactionId: tx.id };
             const intent = planDescriptionAliasCommit({
-                aliases,
+                lookup: aliasLookup,
                 currentAliasId: tx.descriptionAliasId,
                 text
             });
@@ -501,7 +502,7 @@ export default function TransactionsPage() {
         },
         [
             transactions,
-            aliases,
+            aliasLookup,
             assignDescriptionAlias,
             assignDescriptionAliasByExactName,
             changeOneDescriptionAlias,
@@ -567,7 +568,7 @@ export default function TransactionsPage() {
         if (mode === "remove") {
             removeAllDescriptionAliases(currentAliasId);
         } else if (target) {
-            const realCurrentId = resolveAlias(currentAliasId, aliases)?.id ?? currentAliasId;
+            const realCurrentId = aliasLookup.resolve(currentAliasId)?.id ?? currentAliasId;
             changeAllDescriptionAliases({
                 sourceAliasId: realCurrentId,
                 target: materializeAliasTarget(target)
@@ -577,7 +578,7 @@ export default function TransactionsPage() {
     }, [
         aliasModalState,
         transactions,
-        aliases,
+        aliasLookup,
         changeAllDescriptionAliases,
         closeAliasModal,
         removeAllDescriptionAliases

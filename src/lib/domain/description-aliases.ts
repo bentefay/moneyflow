@@ -1,5 +1,10 @@
 /** Pure legal-state utilities for curated transaction description aliases. */
 
+/** Q-016 exact matching is trim + Unicode NFC and remains case-sensitive. */
+export function normalizeDescriptionAliasName(name: string): string {
+    return name.trim().normalize("NFC");
+}
+
 /** Internal CRDT/wire shape. Recovery names on symlinks never cross the public read boundary. */
 export interface DescriptionAliasWireLike {
     readonly id: string;
@@ -31,6 +36,22 @@ export interface SymlinkDescriptionAlias {
 /** Public application state: real and symlink fields are mutually exclusive. */
 export type DescriptionAlias = RealDescriptionAlias | SymlinkDescriptionAlias;
 export type DescriptionAliasCollection = Readonly<Record<string, DescriptionAlias | string>>;
+
+export interface DescriptionAliasLookupStatistics {
+    readonly sourceEntryCount: number;
+    readonly activeAliasCount: number;
+    readonly activeRealAliasCount: number;
+    readonly backlinkVisitCount: number;
+}
+
+/** Stable read index built once per alias collection and reused by every visible transaction row. */
+export interface DescriptionAliasLookup {
+    readonly activeRealAliases: readonly RealDescriptionAlias[];
+    readonly statistics: DescriptionAliasLookupStatistics;
+    readonly resolve: (aliasId: string) => RealDescriptionAlias | undefined;
+    readonly findExactAliasId: (normalizedName: string) => string | undefined;
+    readonly getTotalTransactionCount: (aliasId: string) => number;
+}
 
 type DescriptionAliasReadable = DescriptionAlias | DescriptionAliasWireLike;
 type DescriptionAliasReadableCollection = Readonly<
@@ -107,6 +128,68 @@ export function getActiveRealAliases(
     return getRealAliases(getActiveDescriptionAliases(aliases));
 }
 
+function recordEntryCount(record: Readonly<Record<string, boolean | string>>): number {
+    return Object.keys(record).filter((key) => key !== "$cid").length;
+}
+
+/**
+ * Build all alias read structures in one bounded pass plus declared real-alias backlinks.
+ * Subsequent resolution, exact matching and complete group counts are O(1).
+ */
+export function createDescriptionAliasLookup(
+    aliases: DescriptionAliasReadableCollection
+): DescriptionAliasLookup {
+    const legalActiveById = new Map<string, DescriptionAlias>();
+    const activeRealAliases: RealDescriptionAlias[] = [];
+    const exactAliasIds = new Map<string, string>();
+
+    for (const [id, value] of Object.entries(aliases)) {
+        if (typeof value !== "object" || value == null) continue;
+        const alias = toDescriptionAlias(value);
+        if (!alias || alias.deletedAt) continue;
+        legalActiveById.set(id, alias);
+        if (alias.kind !== "real") continue;
+        activeRealAliases.push(alias);
+        const normalizedName = normalizeDescriptionAliasName(alias.name);
+        const existingId = exactAliasIds.get(normalizedName);
+        if (existingId == null || id.localeCompare(existingId) < 0) {
+            exactAliasIds.set(normalizedName, id);
+        }
+    }
+
+    const resolvedByAliasId = new Map<string, RealDescriptionAlias>();
+    const totalTransactionCountByRealId = new Map<string, number>();
+    let backlinkVisitCount = 0;
+    for (const alias of activeRealAliases) {
+        resolvedByAliasId.set(alias.id, alias);
+        let transactionCount = recordEntryCount(alias.transactionIds);
+        for (const symlinkId of Object.keys(alias.symlinkIds).filter((key) => key !== "$cid")) {
+            backlinkVisitCount += 1;
+            const symlink = legalActiveById.get(symlinkId);
+            if (symlink?.kind !== "symlink" || symlink.targetAliasId !== alias.id) continue;
+            resolvedByAliasId.set(symlink.id, alias);
+            transactionCount += recordEntryCount(symlink.transactionIds);
+        }
+        totalTransactionCountByRealId.set(alias.id, transactionCount);
+    }
+
+    return {
+        activeRealAliases,
+        statistics: {
+            sourceEntryCount: Object.keys(aliases).filter((key) => key !== "$cid").length,
+            activeAliasCount: legalActiveById.size,
+            activeRealAliasCount: activeRealAliases.length,
+            backlinkVisitCount
+        },
+        resolve: (aliasId) => resolvedByAliasId.get(aliasId),
+        findExactAliasId: (normalizedName) => exactAliasIds.get(normalizedName),
+        getTotalTransactionCount: (aliasId) => {
+            const resolved = resolvedByAliasId.get(aliasId);
+            return resolved ? (totalTransactionCountByRealId.get(resolved.id) ?? 0) : 0;
+        }
+    };
+}
+
 /** Resolve with one source lookup and, for a symlink, one target lookup. */
 export function resolveAlias(
     aliasId: string,
@@ -124,10 +207,6 @@ export function resolveAlias(
     return target?.kind === "real" && !target.deletedAt ? target : undefined;
 }
 
-function countObjectKeys(record: Readonly<Record<string, boolean | string>>): number {
-    return Object.keys(record).filter((key) => key !== "$cid").length;
-}
-
 export function getAliasTotalTransactionCount(
     aliasId: string,
     aliases: DescriptionAliasReadableCollection
@@ -136,14 +215,14 @@ export function getAliasTotalTransactionCount(
     if (typeof value !== "object" || value == null) return 0;
     const alias = toDescriptionAlias(value);
     if (!alias) return 0;
-    let count = countObjectKeys(alias.transactionIds);
+    let count = recordEntryCount(alias.transactionIds);
     if (alias.kind === "symlink") return count;
     for (const symlinkId of Object.keys(alias.symlinkIds).filter((key) => key !== "$cid")) {
         const symlinkValue = aliases[symlinkId];
         if (typeof symlinkValue !== "object" || symlinkValue == null) continue;
         const symlink = toDescriptionAlias(symlinkValue);
         if (symlink?.kind === "symlink" && !symlink.deletedAt) {
-            count += countObjectKeys(symlink.transactionIds);
+            count += recordEntryCount(symlink.transactionIds);
         }
     }
     return count;

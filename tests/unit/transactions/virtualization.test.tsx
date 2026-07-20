@@ -1,5 +1,6 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import type { Range } from "@tanstack/react-virtual";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { TransactionRowData } from "@/components/features/transactions/TransactionRow";
 import { TransactionTable } from "@/components/features/transactions/TransactionTable";
@@ -9,6 +10,7 @@ interface CapturedVirtualizerOptions {
     getScrollElement: () => HTMLElement | null;
     estimateSize: () => number;
     overscan: number;
+    rangeExtractor: (range: Range) => number[];
     useFlushSync?: boolean;
 }
 
@@ -29,12 +31,23 @@ const virtualizerSpy = vi.hoisted(() =>
 );
 
 vi.mock("@tanstack/react-virtual", () => ({
+    defaultRangeExtractor: (range: Range) => {
+        const start = Math.max(range.startIndex - range.overscan, 0);
+        const end = Math.min(range.endIndex + range.overscan, range.count - 1);
+        return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+    },
     useVirtualizer: virtualizerSpy
 }));
 
 vi.mock("@/components/features/transactions/TransactionRow", () => ({
-    TransactionRow: ({ transaction }: { transaction?: TransactionRowData }) => (
-        <div role="row" data-testid="transaction-row">
+    TransactionRow: ({
+        transaction,
+        onFocus
+    }: {
+        transaction?: TransactionRowData;
+        onFocus?: () => void;
+    }) => (
+        <div role="row" data-testid="transaction-row" tabIndex={0} onFocus={onFocus}>
             {transaction?.description}
         </div>
     )
@@ -50,6 +63,8 @@ function createTransactions(count: number): TransactionRowData[] {
 }
 
 describe("TransactionTable virtualization", () => {
+    beforeEach(() => virtualizerSpy.mockClear());
+
     it("explicitly enables released flushSync behavior while bounding a 10,000-row render", () => {
         render(<TransactionTable transactions={createTransactions(10_000)} />);
 
@@ -65,5 +80,21 @@ describe("TransactionTable virtualization", () => {
         expect(options.getScrollElement()).toBeInstanceOf(HTMLElement);
         expect(screen.getAllByTestId("transaction-row")).toHaveLength(11);
         expect(screen.getByRole("rowgroup")).toHaveStyle({ height: "440000px" });
+    });
+
+    it("pins at most one focused row outside the virtual range to preserve focus and caret", () => {
+        render(<TransactionTable transactions={createTransactions(10_000)} />);
+        const firstOptions = virtualizerSpy.mock.calls.at(-1)?.[0];
+        if (!firstOptions) throw new Error("Expected initial virtualizer options");
+        const distantRange = { startIndex: 100, endIndex: 110, overscan: 5, count: 10_000 };
+        const ordinaryIndexes = firstOptions.rangeExtractor(distantRange);
+        expect(ordinaryIndexes).not.toContain(0);
+
+        fireEvent.focus(screen.getAllByTestId("transaction-row")[0]);
+        const focusedOptions = virtualizerSpy.mock.calls.at(-1)?.[0];
+        if (!focusedOptions) throw new Error("Expected focused virtualizer options");
+        const focusedIndexes = focusedOptions.rangeExtractor(distantRange);
+        expect(focusedIndexes).toContain(0);
+        expect(focusedIndexes).toHaveLength(ordinaryIndexes.length + 1);
     });
 });

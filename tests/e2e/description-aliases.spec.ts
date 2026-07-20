@@ -288,6 +288,18 @@ test.describe("Description Aliases", () => {
             await expect.poll(() => pushedBodies.length).toBeGreaterThan(0);
             expect(pushedBodies.every((body) => !body.includes("Manual alias only"))).toBe(true);
         });
+
+        await test.step("imported and manual alias state survives a hard refresh", async () => {
+            await page.reload();
+            await expect(descriptionInputFor(page, /Cafe partial/)).toHaveValue("Coffee Shop");
+            await expect(descriptionInputFor(page, /^Select transaction Coffee Shop/)).toHaveValue(
+                "Coffee Shop"
+            );
+            await expect(descriptionInputFor(page, /Imported novel/)).toHaveValue("Fresh renamed");
+            await expect(descriptionInputFor(page, /Manual alias only/)).toHaveValue(
+                "Manual alias only"
+            );
+        });
     });
 
     test("shared change and remove modal choices preserve focus and atomic undo", async ({
@@ -378,6 +390,142 @@ test.describe("Description Aliases", () => {
             await page.getByRole("button", { name: "Undo" }).click();
             await expect(first).toHaveValue("Shared");
             await expect(second).toHaveValue("Shared");
+            await page.getByRole("button", { name: "Redo" }).click();
+            await expect(first).toHaveValue("Original A");
+            await expect(second).toHaveValue("Original B");
+            await page.getByRole("button", { name: "Undo" }).click();
+            await page.reload();
+            await expect(descriptions.nth(0)).toHaveValue("Shared");
+            await expect(descriptions.nth(1)).toHaveValue("Shared");
         });
+    });
+
+    test("duplicate tabs converge management, cell, destructive and offline work", async ({
+        page,
+        context
+    }) => {
+        test.setTimeout(120_000);
+        await createNewIdentity(page);
+        await goToTxDescriptions(page);
+        await createAlias(page, "Shared");
+        await createAlias(page, "Target");
+        await importDescriptionFixtures(page, [
+            { date: "2026-07-02", description: "Concurrent original A" },
+            { date: "2026-07-01", description: "Concurrent original B" }
+        ]);
+
+        const descriptions = page.getByTestId("description-editable");
+        for (const input of [descriptions.nth(0), descriptions.nth(1)]) {
+            await input.fill("Shared ");
+            await input.press("Enter");
+            await expect(input).toHaveValue("Shared");
+        }
+        await expect(page.getByRole("status", { name: "Saved" })).toBeVisible({
+            timeout: 15_000
+        });
+
+        const duplicatePagePromise = context.waitForEvent("page");
+        await page.evaluate(() => window.open(window.location.href, "_blank"));
+        const duplicate = await duplicatePagePromise;
+        await expect(duplicate.getByTestId("transaction-table-toolbar")).toBeVisible({
+            timeout: 15_000
+        });
+        const duplicateDescriptions = duplicate.getByTestId("description-editable");
+        await expect(duplicateDescriptions.nth(0)).toHaveValue("Shared");
+        await expect(duplicateDescriptions.nth(1)).toHaveValue("Shared");
+
+        await test.step("remote management rename and local exact change converge", async () => {
+            await goToTxDescriptions(duplicate);
+            await startEditAlias(duplicate, "Shared");
+            await duplicate.getByPlaceholder(/alias name/i).fill("Concurrent Shared");
+
+            const first = descriptions.nth(0);
+            await first.fill("Tar");
+            const targetOption = page.getByRole("option", { name: "Target" });
+            await Promise.all([
+                duplicate.getByRole("button", { name: /save/i }).click(),
+                targetOption.click()
+            ]);
+            await page.getByRole("button", { name: "Change just this one" }).click();
+            await expect(first).toHaveValue("Target");
+            await expect(descriptions.nth(1)).toHaveValue("Concurrent Shared", {
+                timeout: 15_000
+            });
+
+            await page.getByRole("button", { name: "Undo" }).click();
+            await expect(first).toHaveValue("Concurrent Shared");
+            await expect(descriptions.nth(1)).toHaveValue("Concurrent Shared");
+            await expect(duplicate.locator('[data-alias-name="Concurrent Shared"]')).toHaveCount(1);
+            await page.getByRole("button", { name: "Redo" }).click();
+            await expect(first).toHaveValue("Target");
+            await page.getByRole("button", { name: "Undo" }).click();
+            await expect(first).toHaveValue("Concurrent Shared");
+            await expect(descriptions.nth(1)).toHaveValue("Concurrent Shared");
+        });
+
+        await test.step("remote deletion wins over concurrent shared change-all without data loss", async () => {
+            const second = descriptions.nth(1);
+            await second.fill("Tar");
+            await page.getByRole("option", { name: "Target" }).click();
+            const managedRow = duplicate.locator('[data-alias-name="Concurrent Shared"]');
+            await managedRow.hover();
+            const deleteButton = managedRow.getByRole("button", { name: /delete/i });
+            await deleteButton.click();
+            await Promise.all([
+                deleteButton.click(),
+                page.getByRole("button", { name: "Change all" }).click()
+            ]);
+
+            await expect(duplicate.getByRole("status", { name: "Saved" })).toBeVisible({
+                timeout: 15_000
+            });
+            await expect(page.getByRole("status", { name: "Saved" })).toBeVisible({
+                timeout: 15_000
+            });
+            await page.reload();
+            await expect(second).toHaveValue("Concurrent original B", { timeout: 15_000 });
+            await expect(descriptions.nth(0)).toHaveValue("Concurrent original A");
+            await expect(duplicate.locator('[data-alias-name="Concurrent Shared"]')).toHaveCount(0);
+        });
+
+        await test.step("offline local rename reconnects and keeps remote deletion outside undo", async () => {
+            await context.setOffline(true);
+            const first = descriptions.nth(0);
+            await first.fill("Offline novel");
+            await first.press("Enter");
+            await expect(first).toHaveValue("Offline novel");
+            await context.setOffline(false);
+            await expect(page.getByRole("status", { name: "Saved" })).toBeVisible({
+                timeout: 15_000
+            });
+
+            await duplicate.goto("/transactions");
+            await expect(duplicate.getByTestId("description-editable").nth(0)).toHaveValue(
+                "Offline novel",
+                { timeout: 15_000 }
+            );
+            await page.getByRole("button", { name: "Undo" }).click();
+            await expect(first).toHaveValue("Concurrent original A");
+            await expect(descriptions.nth(1)).toHaveValue("Concurrent original B");
+            await page.getByRole("button", { name: "Redo" }).click();
+            await expect(first).toHaveValue("Offline novel");
+
+            await page.reload();
+            await duplicate.reload();
+            await expect(page.getByTestId("description-editable").nth(0)).toHaveValue(
+                "Offline novel"
+            );
+            await expect(page.getByTestId("description-editable").nth(1)).toHaveValue(
+                "Concurrent original B"
+            );
+            await expect(duplicate.getByTestId("description-editable").nth(0)).toHaveValue(
+                "Offline novel"
+            );
+            await expect(duplicate.getByTestId("description-editable").nth(1)).toHaveValue(
+                "Concurrent original B"
+            );
+        });
+
+        await duplicate.close();
     });
 });

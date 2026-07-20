@@ -16,7 +16,8 @@ import {
     goToAccounts,
     goToImportNew,
     goToTags,
-    goToTransactions
+    goToTransactions,
+    goToTxDescriptions
 } from "./helpers";
 
 // ============================================================================
@@ -139,6 +140,7 @@ test.describe("Transactions", () => {
         page,
         context
     }) => {
+        test.setTimeout(120_000);
         const runtimeProblems: string[] = [];
         const taskWarningPattern =
             /flushSync|ResizeObserver|hydration|Maximum call stack|Failed to save local update/i;
@@ -153,6 +155,18 @@ test.describe("Transactions", () => {
         page.on("pageerror", (error) => runtimeProblems.push(`pageerror: ${error.message}`));
 
         await createNewIdentity(page);
+
+        await test.step("create 100 aliases through the real management flow", async () => {
+            await goToTxDescriptions(page);
+            for (let index = 0; index < 100; index += 1) {
+                await page.getByRole("button", { name: /add alias/i }).click();
+                await page
+                    .getByPlaceholder(/enter alias name/i)
+                    .fill(`Scale Alias ${index.toString().padStart(4, "0")}`);
+                await page.getByRole("button", { name: /^add alias$/i }).click();
+            }
+            await expect(page.locator("[data-alias-name]")).toHaveCount(100);
+        });
 
         await test.step("import 500 deterministic transactions through the real flow", async () => {
             await goToImportNew(page);
@@ -216,6 +230,59 @@ test.describe("Transactions", () => {
                 element.dispatchEvent(new Event("scroll"));
             });
             await expect(edgeWrapper).toBeVisible();
+        });
+
+        await test.step("lazily filter the large alias set and pin one focused recycled row", async () => {
+            const scrollContainer = page.getByTestId("transaction-table").locator("..");
+            const firstWrapper = page.locator('[data-index="0"]');
+            const firstDescription = firstWrapper.getByTestId("description-editable");
+            await scrollContainer.evaluate((element) => {
+                element.scrollTop = 0;
+                element.dispatchEvent(new Event("scroll"));
+            });
+            await expect(firstWrapper).toBeVisible();
+
+            expect(await page.getByTestId("transaction-row").count()).toBeLessThan(40);
+            expect(await page.getByRole("listbox", { name: "Description aliases" }).count()).toBe(
+                0
+            );
+            expect(await page.getByRole("option").count()).toBe(0);
+
+            await firstDescription.focus();
+            expect(await page.getByRole("listbox", { name: "Description aliases" }).count()).toBe(
+                0
+            );
+            const filterStartedAt = Date.now();
+            await firstDescription.fill("Scale Alias 0099");
+            await expect(page.getByRole("listbox", { name: "Description aliases" })).toHaveCount(1);
+            await expect(page.getByRole("option", { name: "Scale Alias 0099" })).toHaveAttribute(
+                "aria-selected",
+                "false"
+            );
+            expect(Date.now() - filterStartedAt).toBeLessThan(2_000);
+            await firstDescription.press("Escape");
+            await expect(page.getByRole("listbox", { name: "Description aliases" })).toHaveCount(0);
+            await firstDescription.press("Escape");
+
+            await firstDescription.focus();
+            await firstDescription.evaluate((input: HTMLInputElement) =>
+                input.setSelectionRange(4, 4)
+            );
+            await scrollContainer.evaluate((element) => {
+                element.scrollTop = element.scrollHeight;
+                element.dispatchEvent(new Event("scroll"));
+            });
+            await expect(page.locator('[data-index="499"]')).toBeVisible();
+            await expect(firstWrapper).toHaveCount(1);
+            await expect(firstDescription).toBeFocused();
+            await expect
+                .poll(() =>
+                    firstDescription.evaluate((input: HTMLInputElement) => input.selectionStart)
+                )
+                .toBe(4);
+            expect(await page.getByTestId("transaction-row").count()).toBeLessThan(40);
+
+            await expect(firstDescription).toBeFocused();
         });
 
         await test.step("resize and edit the focused overscan-edge row without losing focus", async () => {
