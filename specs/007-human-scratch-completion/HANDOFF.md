@@ -70,6 +70,7 @@ This section is complete; revision-11 evidence, review and cumulative literal ra
 - **Sole reviewer artifact:** `reviews/P05-review-11.md`
 - **Review verdict:** FAIL; SHA-256
   `429b7b86c3fbceca9bbad6ae3d861037ca75a49d7a96a85c448dd7a195aa0244`
+- **Failure artifact commit:** `f6fa2c2e411546f06e7b21e12157dfbb0c411d24`
 - **Prior review files:** immutable revision-01–10 FAIL artifacts; latest SHA-256
   `51bd77e62afb1adb08cd617db974d1df85f51eda7c7b06c20cd42d838aa7c9f8`
 - **Reviewer writes:** review file only; no other writes/commits
@@ -87,7 +88,6 @@ This section is complete; revision-11 evidence, review and cumulative literal ra
 
 ## Next root action
 
-Persist immutable revision-11 evidence/review, Q-013, R-004/R-009/R-026 and the failure state. Then
-record that artifact commit and reconcile the executable verified-hidden topology gate before any
-revision-12 dispatch or evidence-backed `blocked_external` transition. No worker/product diff or
-HS-015 marker is authorized.
+Commit this durable artifact reference, then reconcile the executable verified-hidden topology gate
+before any revision-12 dispatch or evidence-backed `blocked_external` transition. No worker/product
+diff or HS-015 marker is authorized.

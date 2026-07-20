@@ -20,8 +20,8 @@ review evidence.
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** four passed (HS-002, HS-014, HS-017, HS-018); 18 queued
-- **Last ledger update:** 2026-07-20T12:11:21+10:00; P05 revision 11 independently failed because
-  its hidden-page claim is unsupported; Q-013 rejects the causally mismatched worker proposal
+- **Last ledger update:** 2026-07-20T12:12:56+10:00; immutable P05 revision-11 failure artifacts,
+  Q-013 and risk updates were persisted in `f6fa2c2e411546f06e7b21e12157dfbb0c411d24`
 
 ## Package ledger
 
@@ -665,6 +665,12 @@ transcribed as Q-013: no product/test revision-12 diff until a supported verifie
 can time the first late edge; otherwise use evidence-backed `blocked_external` and continue
 independent packages. R-004/R-009/R-026 updated; final empty compatible DB, cleanup and immutable
 sources pass. HS-015 remains unchecked.
+
+**2026-07-20T12:12:56+10:00 — P05/11 `changes_requested -> changes_requested`:** Immutable
+revision-11 evidence/review, Q-013, R-004/R-009/R-026 and failure state persisted in
+`f6fa2c2e411546f06e7b21e12157dfbb0c411d24`; all eleven P05 FAIL reviews are immutable. The
+verified-hidden mechanism must now be reconciled before revision-12 dispatch or a dated
+`blocked_external` transition; no frozen source or marker changed.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
