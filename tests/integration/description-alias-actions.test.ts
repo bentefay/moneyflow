@@ -89,6 +89,158 @@ function seedNested(state: VaultState): void {
 }
 
 describe("production description alias actions", () => {
+    it("creates manual transactions with alias-only provenance in one undo step", async () => {
+        const { doc, mirror } = createVaultMirror();
+        const coordinator = new VaultUndoCoordinator(doc);
+        const localUpdates: Uint8Array[] = [];
+        const unsubscribe = doc.subscribeLocalUpdates((update) => localUpdates.push(update));
+        let captured: ReturnType<typeof useDescriptionAliasActions> | undefined;
+
+        function CaptureActions() {
+            const aliases = useDescriptionAliasActions();
+            useEffect(() => {
+                captured = aliases;
+            }, [aliases]);
+            return null;
+        }
+
+        const view = render(
+            createElement(
+                VaultStateProvider,
+                { doc },
+                // createElement's required-children type needs the child in the typed props object.
+                // eslint-disable-next-line react/no-children-prop
+                createElement(VaultUndoProvider, {
+                    coordinator,
+                    children: createElement(CaptureActions)
+                })
+            )
+        );
+        await waitFor(() => expect(captured).toBeDefined());
+        if (!captured) throw new Error("Actions were not captured");
+        const aliases = captured;
+        coordinator.clear();
+        localUpdates.length = 0;
+
+        let result: DescriptionAliasMutationResult<string> | undefined;
+        act(() => {
+            result = aliases.insertManualDescriptionAliasedTransaction({
+                transaction: {
+                    id: "manual",
+                    date: DATE,
+                    notes: "",
+                    amount: asMinorUnits(100),
+                    accountId: "account",
+                    tagIds: [],
+                    statusId: "status",
+                    allocations: {},
+                    creationInstant: Temporal.Instant.fromEpochMilliseconds(1),
+                    importRowIndex: 0,
+                    deletedAt: undefined
+                },
+                newAliasId: "manual-alias",
+                name: "Manual alias only"
+            });
+        });
+
+        expect(result).toEqual({ ok: true, value: "manual-alias" });
+        expect(localUpdates).toHaveLength(1);
+        const transaction =
+            mirror.getState().transactions.account.years[0].months[0].days[0].transactions[0];
+        expect(transaction).toMatchObject({
+            id: "manual",
+            description: "",
+            descriptionAliasId: "manual-alias"
+        });
+        expect(transaction.importId).toBeUndefined();
+        expect(mirror.getState().descriptionAliases["manual-alias"]).toMatchObject({
+            kind: "real",
+            name: "Manual alias only",
+            transactionIds: { manual: true }
+        });
+        expect(coordinator.undo()).toBe(true);
+        expect(mirror.getState().transactions.account).toBeUndefined();
+        expect(mirror.getState().descriptionAliases["manual-alias"]).toBeUndefined();
+        expect(coordinator.undo()).toBe(false);
+        expect(coordinator.redo()).toBe(true);
+        expect(
+            mirror.getState().transactions.account.years[0].months[0].days[0].transactions[0]
+                .description
+        ).toBe("");
+
+        coordinator.clear();
+        localUpdates.length = 0;
+        const beforeFailure = snapshot(mirror.getState());
+        let failure: DescriptionAliasMutationResult<string> | undefined;
+        act(() => {
+            failure = aliases.insertManualDescriptionAliasedTransaction({
+                transaction: {
+                    id: "invalid-manual",
+                    date: DATE,
+                    notes: "",
+                    amount: asMinorUnits(100),
+                    accountId: "account",
+                    tagIds: [],
+                    statusId: "status",
+                    allocations: {},
+                    creationInstant: Temporal.Instant.fromEpochMilliseconds(2),
+                    importRowIndex: 0,
+                    deletedAt: undefined
+                },
+                newAliasId: "invalid-alias",
+                name: "   "
+            });
+        });
+        expect(failure).toMatchObject({ ok: false, error: { code: "empty-name" } });
+        expect(snapshot(mirror.getState())).toEqual(beforeFailure);
+        expect(localUpdates).toHaveLength(0);
+        expect(coordinator.undo()).toBe(false);
+
+        coordinator.clear();
+        localUpdates.length = 0;
+        act(() => {
+            result = aliases.insertManualDescriptionAliasedTransaction({
+                transaction: {
+                    id: "manual-exact",
+                    date: DATE,
+                    notes: "",
+                    amount: asMinorUnits(200),
+                    accountId: "account",
+                    tagIds: [],
+                    statusId: "status",
+                    allocations: {},
+                    creationInstant: Temporal.Instant.fromEpochMilliseconds(3),
+                    importRowIndex: 1,
+                    deletedAt: undefined
+                },
+                newAliasId: "unused-new-alias",
+                name: " Manual alias only "
+            });
+        });
+        expect(result).toEqual({ ok: true, value: "manual-alias" });
+        expect(localUpdates).toHaveLength(1);
+        expect(mirror.getState().descriptionAliases["unused-new-alias"]).toBeUndefined();
+        const manualTransactions =
+            mirror.getState().transactions.account.years[0].months[0].days[0].transactions;
+        expect(manualTransactions.find((item) => item.id === "manual-exact")).toMatchObject({
+            description: "",
+            descriptionAliasId: "manual-alias"
+        });
+        expect(coordinator.undo()).toBe(true);
+        expect(
+            mirror
+                .getState()
+                .transactions.account.years[0].months[0].days[0].transactions.some(
+                    (item) => item.id === "manual-exact"
+                )
+        ).toBe(false);
+        expect(mirror.getState().descriptionAliases["manual-alias"]).toBeDefined();
+
+        view.unmount();
+        unsubscribe();
+        coordinator.dispose();
+    });
+
     it("returns typed results without replacement recipes and gives every operation one undo/redo step", async () => {
         const { doc, mirror } = createVaultMirror();
         mirror.setState((state: VaultState) => {

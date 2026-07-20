@@ -13,6 +13,8 @@ import {
     deleteTransactionsByImport,
     findTransactionInStore,
     type DeleteTransactionInput,
+    type InsertTransactionInput,
+    insertTransaction,
     type TransactionLocation,
     type UpdateTransactionInput,
     updateTransaction
@@ -29,6 +31,7 @@ export type DescriptionAliasMutationErrorCode =
     | "invalid-symlink-backlink"
     | "same-alias"
     | "stale-alias"
+    | "transaction-id-conflict"
     | "transaction-not-found";
 
 export interface DescriptionAliasMutationError {
@@ -57,6 +60,15 @@ export interface CreateAndAssignDescriptionAliasInput {
 
 export interface AssignDescriptionAliasByExactNameInput {
     readonly location: TransactionLocation;
+    readonly newAliasId: string;
+    readonly name: string;
+}
+
+export interface InsertManualDescriptionAliasedTransactionInput {
+    readonly transaction: Omit<
+        InsertTransactionInput["transaction"],
+        "description" | "descriptionAliasId" | "importId"
+    >;
     readonly newAliasId: string;
     readonly name: string;
 }
@@ -278,6 +290,50 @@ export function assignDescriptionAliasByExactName(
               aliasId: input.newAliasId,
               name: input.name
           });
+}
+
+/** Insert a manual transaction and exact-select/create its alias in one validated CRDT action. */
+export function insertManualDescriptionAliasedTransaction(
+    state: VaultState,
+    input: InsertManualDescriptionAliasedTransactionInput
+): DescriptionAliasMutationResult<string> {
+    const normalizedName = normalizeDescriptionAliasName(input.name);
+    if (!normalizedName) return err("empty-name", "Alias names cannot be empty");
+
+    const existingAlias = findDescriptionAliasByExactName(state, normalizedName);
+    if (!existingAlias && getAlias(state, input.newAliasId)) {
+        return err("alias-id-conflict", `Alias ${input.newAliasId} already exists`);
+    }
+    const location = {
+        accountId: input.transaction.accountId,
+        date: input.transaction.date,
+        transactionId: input.transaction.id
+    };
+    if (findTransactionInStore(state.transactions, location)) {
+        return err("transaction-id-conflict", `Transaction ${input.transaction.id} already exists`);
+    }
+
+    insertTransaction(state.transactions, {
+        transaction: {
+            ...input.transaction,
+            description: "",
+            descriptionAliasId: undefined,
+            importId: undefined
+        }
+    });
+    const transaction = findTransactionInStore(state.transactions, location);
+    if (!transaction) throw new Error("Inserted manual transaction is missing from the draft");
+
+    if (existingAlias) {
+        moveTransactionReference(transaction, state, existingAlias);
+        return ok(existingAlias.id);
+    }
+    addRealAlias(state, input.newAliasId, normalizedName);
+    const createdAlias = getAlias(state, input.newAliasId);
+    if (!createdAlias)
+        throw new Error("Created manual description alias is missing from the draft");
+    moveTransactionReference(transaction, state, createdAlias);
+    return ok(createdAlias.id);
 }
 
 export function renameDescriptionAlias(

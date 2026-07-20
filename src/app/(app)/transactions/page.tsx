@@ -10,9 +10,13 @@
  * and pre-sorted data (date desc, creationInstant desc, importRowIndex asc).
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { DescriptionAliasChangeModal } from "@/components/features/description-aliases/DescriptionAliasChangeModal";
+import {
+    planDescriptionAliasCommit,
+    type DescriptionAliasTargetIntent
+} from "@/components/features/description-aliases/descriptionAliasInteraction";
 import {
     BulkEditToolbar,
     createEmptyFilters,
@@ -24,6 +28,7 @@ import {
     TransactionTable,
     TransactionTableToolbar
 } from "@/components/features/transactions";
+import type { DescriptionAliasEditOrigin } from "@/components/features/transactions/cells/InlineEditableDescriptionAlias";
 import { useToast } from "@/components/ui/toast";
 /** Threshold for showing warning when selecting all */
 const LARGE_SELECTION_THRESHOLD = 500;
@@ -41,16 +46,12 @@ import {
     useTransactionActions,
     useVaultAction
 } from "@/lib/crdt/context";
-import type { InsertTransactionInput } from "@/lib/crdt/mutations";
+import type { DescriptionAliasTarget } from "@/lib/crdt/description-aliases";
 import { filterTransactions } from "@/lib/crdt/queries";
 import type { Account, Person, Status, Tag, Transaction } from "@/lib/crdt/schema";
 import { getNextTagColor } from "@/lib/domain";
 import { asMinorUnits } from "@/lib/domain/currency";
-import {
-    getActiveRealAliases,
-    getAliasTotalTransactionCount,
-    resolveAlias
-} from "@/lib/domain/description-aliases";
+import { getActiveRealAliases, resolveAlias } from "@/lib/domain/description-aliases";
 
 // Number of transactions to load per page
 const PAGE_SIZE = 50;
@@ -58,6 +59,12 @@ const PAGE_SIZE = 50;
 /** Generate unique ID */
 function generateId(): string {
     return crypto.randomUUID();
+}
+
+function materializeAliasTarget(target: DescriptionAliasTargetIntent): DescriptionAliasTarget {
+    return target.kind === "existing"
+        ? target
+        : { kind: "new", aliasId: generateId(), name: target.name };
 }
 
 /**
@@ -76,13 +83,8 @@ export default function TransactionsPage() {
     const people = useActivePeople();
 
     // Transaction mutations from hierarchical structure
-    const {
-        insertTransaction,
-        updateTransaction,
-        moveTransaction,
-        deleteTransaction,
-        unnestDuplicate
-    } = useTransactionActions();
+    const { updateTransaction, moveTransaction, deleteTransaction, unnestDuplicate } =
+        useTransactionActions();
 
     // Legacy vault actions for non-transaction mutations
     const addTag = useVaultAction((state, tag: { id: string; name: string; color: string }) => {
@@ -101,6 +103,9 @@ export default function TransactionsPage() {
         assignDescriptionAliasByExactName,
         changeAllDescriptionAliases,
         changeOneDescriptionAlias,
+        insertManualDescriptionAliasedTransaction,
+        removeAllDescriptionAliases,
+        removeOneDescriptionAlias,
         renameDescriptionAlias
     } = useDescriptionAliasActions();
 
@@ -252,24 +257,26 @@ export default function TransactionsPage() {
     const handleAddTransaction = useCallback(
         (data: NewTransactionData) => {
             const now = Temporal.Now.instant();
-            insertTransaction({
+            const transactionId = generateId();
+            insertManualDescriptionAliasedTransaction({
                 transaction: {
-                    id: generateId(),
+                    id: transactionId,
                     date: Temporal.PlainDate.from(data.date),
-                    description: data.description,
                     notes: data.notes ?? "",
                     amount: asMinorUnits(data.amount),
                     accountId: data.accountId,
                     tagIds: data.tagIds ?? [],
                     statusId: data.statusId ?? defaultStatusId,
                     allocations: {},
-                    importId: "",
                     creationInstant: now,
-                    importRowIndex: 0 // Manual transactions get index 0
-                } as InsertTransactionInput["transaction"]
+                    importRowIndex: 0, // Manual transactions get index 0
+                    deletedAt: undefined
+                },
+                newAliasId: generateId(),
+                name: data.description
             });
         },
-        [insertTransaction, defaultStatusId]
+        [defaultStatusId, insertManualDescriptionAliasedTransaction]
     );
 
     // Handle bulk delete - uses deleteTransaction mutation
@@ -412,148 +419,168 @@ export default function TransactionsPage() {
         open: boolean;
         mode: "change" | "remove";
         transactionId: string;
-        newText?: string;
-        newAliasId?: string;
+        target?: DescriptionAliasTargetIntent;
     }>({ open: false, mode: "change", transactionId: "" });
+    const aliasModalOriginRef = useRef<DescriptionAliasEditOrigin | null>(null);
+
+    const closeAliasModal = useCallback(() => {
+        setAliasModalState({ open: false, mode: "change", transactionId: "" });
+    }, []);
+
+    const restoreAliasModalFocus = useCallback(() => {
+        const origin = aliasModalOriginRef.current;
+        aliasModalOriginRef.current = null;
+        if (!origin) return;
+        const element = origin.element.isConnected
+            ? origin.element
+            : origin.container.querySelector<HTMLInputElement>(
+                  'input[aria-label="Transaction description"]'
+              );
+        if (!element) return;
+        element.focus({ preventScroll: true });
+        element.setSelectionRange(origin.selectionStart, origin.selectionEnd);
+    }, []);
 
     // Handle description commit text (user typed and pressed Enter/blurred)
     const handleDescriptionCommitText = useCallback(
-        (txId: string, text: string) => {
+        (txId: string, text: string, origin: DescriptionAliasEditOrigin) => {
             const tx = transactions.find((t) => t.id === txId);
             if (!tx) return;
 
-            const trimmedText = text.trim();
-            if (!trimmedText) return;
-
-            const currentAliasId = tx.descriptionAliasId;
-
-            if (!currentAliasId) {
-                assignDescriptionAliasByExactName({
-                    location: { accountId: tx.accountId, date: tx.date, transactionId: tx.id },
-                    newAliasId: generateId(),
-                    name: trimmedText
-                });
-                return;
-            }
-
-            // Has current alias - check transaction count
-            const totalCount = getAliasTotalTransactionCount(currentAliasId, aliases);
-            if (totalCount <= 1) {
-                // Only 1 transaction - rename the alias directly
-                const resolved = resolveAlias(currentAliasId, aliases);
-                if (resolved) {
-                    renameDescriptionAlias({ aliasId: resolved.id, name: trimmedText });
-                }
-            } else {
-                // Multiple transactions - show modal
-                setAliasModalState({
-                    open: true,
-                    mode: "change",
-                    transactionId: txId,
-                    newText: trimmedText
-                });
+            const location = { accountId: tx.accountId, date: tx.date, transactionId: tx.id };
+            const intent = planDescriptionAliasCommit({
+                aliases,
+                currentAliasId: tx.descriptionAliasId,
+                text
+            });
+            switch (intent.kind) {
+                case "none":
+                    return;
+                case "assign":
+                    if (intent.target.kind === "existing") {
+                        assignDescriptionAlias({ location, aliasId: intent.target.aliasId });
+                    } else {
+                        assignDescriptionAliasByExactName({
+                            location,
+                            newAliasId: generateId(),
+                            name: intent.target.name
+                        });
+                    }
+                    return;
+                case "rename-one":
+                    renameDescriptionAlias({ aliasId: intent.aliasId, name: intent.name });
+                    return;
+                case "change-one":
+                    if (!tx.descriptionAliasId) return;
+                    changeOneDescriptionAlias({
+                        location,
+                        expectedAliasId: tx.descriptionAliasId,
+                        target: materializeAliasTarget(intent.target)
+                    });
+                    return;
+                case "remove-one":
+                    if (!tx.descriptionAliasId) return;
+                    removeOneDescriptionAlias({
+                        location,
+                        expectedAliasId: tx.descriptionAliasId
+                    });
+                    return;
+                case "confirm-change":
+                    aliasModalOriginRef.current = origin;
+                    setAliasModalState({
+                        open: true,
+                        mode: "change",
+                        transactionId: txId,
+                        target: intent.target
+                    });
+                    return;
+                case "confirm-remove":
+                    aliasModalOriginRef.current = origin;
+                    setAliasModalState({ open: true, mode: "remove", transactionId: txId });
             }
         },
-        [transactions, aliases, assignDescriptionAliasByExactName, renameDescriptionAlias]
+        [
+            transactions,
+            aliases,
+            assignDescriptionAlias,
+            assignDescriptionAliasByExactName,
+            changeOneDescriptionAlias,
+            removeOneDescriptionAlias,
+            renameDescriptionAlias
+        ]
     );
 
     // Handle selecting an existing alias from dropdown
     const handleDescriptionSelectAlias = useCallback(
-        (txId: string, aliasId: string) => {
-            const tx = transactions.find((t) => t.id === txId);
-            if (!tx) return;
-
-            const currentAliasId = tx.descriptionAliasId;
-
-            if (!currentAliasId) {
-                assignDescriptionAlias({
-                    location: { accountId: tx.accountId, date: tx.date, transactionId: tx.id },
-                    aliasId
-                });
-                return;
-            }
-
-            // Has current alias - check count
-            const totalCount = getAliasTotalTransactionCount(currentAliasId, aliases);
-            if (totalCount <= 1) {
-                changeOneDescriptionAlias({
-                    location: { accountId: tx.accountId, date: tx.date, transactionId: tx.id },
-                    expectedAliasId: currentAliasId,
-                    target: { kind: "existing", aliasId }
-                });
-            } else {
-                // Multiple - show modal
-                setAliasModalState({
-                    open: true,
-                    mode: "change",
-                    transactionId: txId,
-                    newAliasId: aliasId
-                });
-            }
+        (txId: string, aliasId: string, origin: DescriptionAliasEditOrigin) => {
+            const alias = availableAliasOptions.find((option) => option.id === aliasId);
+            if (alias) handleDescriptionCommitText(txId, alias.name, origin);
         },
-        [transactions, aliases, assignDescriptionAlias, changeOneDescriptionAlias]
+        [availableAliasOptions, handleDescriptionCommitText]
     );
 
     // Modal: "just this one" handler
     const handleAliasJustThis = useCallback(() => {
-        const { transactionId, newText, newAliasId } = aliasModalState;
+        const { transactionId, mode, target } = aliasModalState;
         const tx = transactions.find((t) => t.id === transactionId);
-        if (!tx) return;
-
+        if (!tx) {
+            closeAliasModal();
+            return;
+        }
         const currentAliasId = tx.descriptionAliasId;
-
-        if (!currentAliasId) return;
-
-        if (newText) {
+        if (!currentAliasId) {
+            closeAliasModal();
+            return;
+        }
+        const location = { accountId: tx.accountId, date: tx.date, transactionId: tx.id };
+        if (mode === "remove") {
+            removeOneDescriptionAlias({ location, expectedAliasId: currentAliasId });
+        } else if (target) {
             changeOneDescriptionAlias({
-                location: { accountId: tx.accountId, date: tx.date, transactionId: tx.id },
+                location,
                 expectedAliasId: currentAliasId,
-                target: { kind: "new", aliasId: generateId(), name: newText }
-            });
-        } else if (newAliasId) {
-            changeOneDescriptionAlias({
-                location: { accountId: tx.accountId, date: tx.date, transactionId: tx.id },
-                expectedAliasId: currentAliasId,
-                target: { kind: "existing", aliasId: newAliasId }
+                target: materializeAliasTarget(target)
             });
         }
-
-        setAliasModalState({ open: false, mode: "change", transactionId: "" });
-    }, [aliasModalState, transactions, changeOneDescriptionAlias]);
+        closeAliasModal();
+    }, [
+        aliasModalState,
+        transactions,
+        changeOneDescriptionAlias,
+        closeAliasModal,
+        removeOneDescriptionAlias
+    ]);
 
     // Modal: "all" handler
     const handleAliasAll = useCallback(() => {
-        const { transactionId, newText, newAliasId } = aliasModalState;
+        const { transactionId, mode, target } = aliasModalState;
         const tx = transactions.find((t) => t.id === transactionId);
-        if (!tx) return;
-
+        if (!tx) {
+            closeAliasModal();
+            return;
+        }
         const currentAliasId = tx.descriptionAliasId;
-        if (!currentAliasId) return;
-
-        if (newText) {
-            // Rename the existing alias (affects all transactions)
-            const resolved = resolveAlias(currentAliasId, aliases);
-            if (resolved) {
-                renameDescriptionAlias({ aliasId: resolved.id, name: newText });
-            }
-        } else if (newAliasId) {
-            // Resolve to the real alias (in case currentAliasId is a symlink)
-            const resolvedCurrent = resolveAlias(currentAliasId, aliases);
-            const realCurrentId = resolvedCurrent?.id ?? currentAliasId;
-
+        if (!currentAliasId) {
+            closeAliasModal();
+            return;
+        }
+        if (mode === "remove") {
+            removeAllDescriptionAliases(currentAliasId);
+        } else if (target) {
+            const realCurrentId = resolveAlias(currentAliasId, aliases)?.id ?? currentAliasId;
             changeAllDescriptionAliases({
                 sourceAliasId: realCurrentId,
-                target: { kind: "existing", aliasId: newAliasId }
+                target: materializeAliasTarget(target)
             });
         }
-
-        setAliasModalState({ open: false, mode: "change", transactionId: "" });
+        closeAliasModal();
     }, [
         aliasModalState,
         transactions,
         aliases,
-        renameDescriptionAlias,
-        changeAllDescriptionAliases
+        changeAllDescriptionAliases,
+        closeAliasModal,
+        removeAllDescriptionAliases
     ]);
 
     // Handle single transaction delete
@@ -816,12 +843,11 @@ export default function TransactionsPage() {
             {/* Description Alias Change Modal */}
             <DescriptionAliasChangeModal
                 open={aliasModalState.open}
-                onClose={() =>
-                    setAliasModalState({ open: false, mode: "change", transactionId: "" })
-                }
+                onClose={closeAliasModal}
                 mode={aliasModalState.mode}
                 onJustThis={handleAliasJustThis}
                 onAll={handleAliasAll}
+                onRestoreFocus={restoreAliasModalFocus}
             />
         </div>
     );

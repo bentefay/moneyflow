@@ -394,6 +394,7 @@ import {
     createDescriptionAlias as createAlias,
     deleteDescriptionAliasedTransaction,
     deleteDescriptionAliasedTransactionsByImport,
+    insertManualDescriptionAliasedTransaction as insertManualAliasedTransaction,
     removeAllDescriptionAliases as removeAllAliases,
     removeOneDescriptionAlias as removeOneAlias,
     renameDescriptionAlias as renameAlias,
@@ -403,6 +404,7 @@ import {
     type ChangeAllDescriptionAliasesInput,
     type ChangeOneDescriptionAliasInput,
     type CreateAndAssignDescriptionAliasInput,
+    type InsertManualDescriptionAliasedTransactionInput,
     type RemoveOneDescriptionAliasInput
 } from "./description-aliases";
 import {
@@ -511,6 +513,12 @@ export function useDescriptionAliasActions() {
         [],
         "alias"
     );
+    const insertManualDescriptionAliasedTransaction = useInternalVaultAction(
+        (state, input: InsertManualDescriptionAliasedTransactionInput) =>
+            insertManualAliasedTransaction(state, input),
+        [],
+        "add"
+    );
     const renameDescriptionAlias = useInternalVaultAction(
         (state, input: { readonly aliasId: string; readonly name: string }) =>
             renameAlias(state, input),
@@ -543,6 +551,7 @@ export function useDescriptionAliasActions() {
         assignDescriptionAlias,
         createAndAssignDescriptionAlias,
         assignDescriptionAliasByExactName,
+        insertManualDescriptionAliasedTransaction,
         renameDescriptionAlias,
         changeOneDescriptionAlias,
         changeAllDescriptionAliases,

@@ -1,18 +1,9 @@
 "use client";
 
-/**
- * Inline Editable Description Alias
- *
- * Hybrid text input / autocomplete cell for description aliases.
- * At rest: looks like InlineEditableText.
- * On focus: shows Command dropdown with matching aliases.
- * Tooltip shows original imported description when alias is set.
- */
-
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import type { ReactElement } from "react";
 import { createPortal } from "react-dom";
 
-import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -22,40 +13,68 @@ export interface DescriptionAliasOption {
     name: string;
 }
 
+export interface DescriptionAliasEditOrigin {
+    readonly element: HTMLInputElement;
+    readonly container: HTMLDivElement;
+    readonly selectionStart: number;
+    readonly selectionEnd: number;
+}
+
 export interface InlineEditableDescriptionAliasProps {
-    /** Display value: alias name or original description */
+    /** Display value: alias name or original description. */
     value: string;
-    /** Current description alias ID (if set) */
+    /** Current description alias ID, when assigned. */
     descriptionAliasId?: string;
-    /** Original imported description text (for tooltip) */
+    /** Immutable imported description used only for provenance. */
     originalDescription?: string;
-    /** Available aliases for autocomplete */
+    /** Available final real aliases for autocomplete. */
     availableAliases: DescriptionAliasOption[];
-    /** Callback when user commits text (Enter/blur) */
-    onCommitText: (text: string) => void;
-    /** Callback when user selects an existing alias from dropdown */
-    onSelectAlias: (aliasId: string) => void;
-    /** Additional class names */
+    /** Commit edited text on Enter or blur. */
+    onCommitText: (text: string, origin: DescriptionAliasEditOrigin) => void;
+    /** Select an existing final real alias. */
+    onSelectAlias: (aliasId: string, origin: DescriptionAliasEditOrigin) => void;
     className?: string;
-    /** Input class names */
     inputClassName?: string;
-    /** Placeholder when empty */
     placeholder?: string;
-    /** Whether editing is disabled */
     disabled?: boolean;
-    /** Test ID */
     "data-testid"?: string;
 }
 
-/**
- * Hybrid text input / autocomplete for description aliases.
- *
- * - Always shows text input (transparent, blends with cell)
- * - On focus: shows dropdown with matching aliases
- * - Enter/blur: commits text (triggers alias creation/rename/modal flow in parent)
- * - Select from dropdown: applies existing alias
- * - Tooltip shows original description when alias is set
- */
+function captureEditOrigin(
+    element: HTMLInputElement,
+    container: HTMLDivElement
+): DescriptionAliasEditOrigin {
+    return {
+        element,
+        container,
+        selectionStart: element.selectionStart ?? element.value.length,
+        selectionEnd: element.selectionEnd ?? element.value.length
+    };
+}
+
+function ImportedDescriptionTooltip({
+    children,
+    originalDescription
+}: {
+    readonly children: ReactElement;
+    readonly originalDescription: string;
+}) {
+    const [open, setOpen] = useState(false);
+    return (
+        <Tooltip open={open} onOpenChange={setOpen}>
+            <TooltipTrigger
+                asChild
+                onBlur={() => setOpen(false)}
+                onPointerLeave={() => setOpen(false)}
+            >
+                {children}
+            </TooltipTrigger>
+            <TooltipContent>{originalDescription}</TooltipContent>
+        </Tooltip>
+    );
+}
+
+/** Always-visible description input with a lazily mounted, no-default-selection autocomplete. */
 export function InlineEditableDescriptionAlias({
     value,
     descriptionAliasId,
@@ -71,133 +90,161 @@ export function InlineEditableDescriptionAlias({
 }: InlineEditableDescriptionAliasProps) {
     const [localValue, setLocalValue] = useState(value);
     const [isFocused, setIsFocused] = useState(false);
+    const [hasEdited, setHasEdited] = useState(false);
+    const [isAutocompleteDismissed, setIsAutocompleteDismissed] = useState(false);
+    const [activeOptionIndex, setActiveOptionIndex] = useState<number | null>(null);
     const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
     const inputRef = useRef<HTMLInputElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    const dropdownRef = useRef<HTMLDivElement>(null);
-    const isRevertingRef = useRef(false);
-    const isSelectingRef = useRef(false);
+    const submittedRef = useRef(false);
+    const listboxId = useId();
 
-    // Sync local value when prop changes (only if not focused)
-    if (value !== localValue && !isFocused) {
-        setLocalValue(value);
-    }
+    const displayedValue = isFocused ? localValue : value;
+    const filteredAliases = useMemo(() => {
+        const query = displayedValue.trim().toLocaleLowerCase();
+        return query
+            ? availableAliases.filter((alias) => alias.name.toLocaleLowerCase().includes(query))
+            : [];
+    }, [availableAliases, displayedValue]);
+    const isAutocompleteOpen =
+        isFocused && hasEdited && !isAutocompleteDismissed && filteredAliases.length > 0;
 
-    // Calculate dropdown position when focused
     useEffect(() => {
-        if (isFocused && containerRef.current) {
-            const rect = containerRef.current.getBoundingClientRect();
+        if (!isAutocompleteOpen) return;
+        const updatePosition = () => {
+            const rect = containerRef.current?.getBoundingClientRect();
+            if (!rect) return;
             setDropdownPosition({
                 top: rect.bottom + 4,
                 left: rect.left,
                 width: Math.max(rect.width, 200)
             });
-        }
-    }, [isFocused]);
-
-    // Handle click outside to close dropdown
-    useEffect(() => {
-        if (!isFocused) return;
-
-        const handleClickOutside = (e: MouseEvent) => {
-            const target = e.target as Node;
-            if (containerRef.current?.contains(target) || dropdownRef.current?.contains(target)) {
-                return;
-            }
-            // Don't close - blur handler will take care of it
         };
+        updatePosition();
+        window.addEventListener("resize", updatePosition);
+        window.addEventListener("scroll", updatePosition, true);
+        return () => {
+            window.removeEventListener("resize", updatePosition);
+            window.removeEventListener("scroll", updatePosition, true);
+        };
+    }, [isAutocompleteOpen]);
 
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [isFocused]);
+    const commitOnce = useCallback(() => {
+        const input = inputRef.current;
+        const container = containerRef.current;
+        if (!input || !container || submittedRef.current) return;
+        submittedRef.current = true;
+        if (localValue !== value) onCommitText(localValue, captureEditOrigin(input, container));
+    }, [localValue, onCommitText, value]);
 
-    const handleCommit = useCallback(() => {
-        if (isSelectingRef.current) {
-            isSelectingRef.current = false;
-            return;
-        }
-        if (localValue !== value) {
-            onCommitText(localValue);
-        }
-    }, [localValue, value, onCommitText]);
-
-    const handleRevert = useCallback(() => {
-        setLocalValue(value);
-    }, [value]);
-
-    const handleKeyDown = useCallback(
-        (e: React.KeyboardEvent<HTMLInputElement>) => {
-            if (e.key === "Enter") {
-                e.preventDefault();
-                handleCommit();
-                inputRef.current?.blur();
-            } else if (e.key === "Escape") {
-                e.preventDefault();
-                isRevertingRef.current = true;
-                handleRevert();
-                inputRef.current?.blur();
-            }
-        },
-        [handleCommit, handleRevert]
-    );
-
-    const handleFocus = useCallback(() => {
-        setIsFocused(true);
-    }, []);
-
-    const handleBlur = useCallback(() => {
-        setIsFocused(false);
-        if (isRevertingRef.current) {
-            isRevertingRef.current = false;
-            return;
-        }
-        if (isSelectingRef.current) {
-            isSelectingRef.current = false;
-            return;
-        }
-        handleCommit();
-    }, [handleCommit]);
-
-    const handleClick = useCallback((e: React.MouseEvent) => {
-        e.stopPropagation();
-    }, []);
-
-    const handleSelectAlias = useCallback(
-        (aliasId: string) => {
-            isSelectingRef.current = true;
-            onSelectAlias(aliasId);
-            setIsFocused(false);
-            inputRef.current?.blur();
+    const selectAlias = useCallback(
+        (option: DescriptionAliasOption) => {
+            const input = inputRef.current;
+            const container = containerRef.current;
+            if (!input || !container || submittedRef.current) return;
+            submittedRef.current = true;
+            setLocalValue(option.name);
+            setHasEdited(false);
+            setActiveOptionIndex(null);
+            setIsAutocompleteDismissed(true);
+            onSelectAlias(option.id, captureEditOrigin(input, container));
+            input.blur();
         },
         [onSelectAlias]
     );
 
-    // Filter aliases based on typed text
-    const filteredAliases = localValue.trim()
-        ? availableAliases.filter((a) => a.name.toLowerCase().includes(localValue.toLowerCase()))
-        : [];
-
-    const showDropdown = isFocused && filteredAliases.length > 0;
-
-    // Show tooltip for original description when alias is set and not focused
-    const showTooltip = !isFocused && !!descriptionAliasId && !!originalDescription;
+    const handleKeyDown = useCallback(
+        (event: React.KeyboardEvent<HTMLInputElement>) => {
+            if (isAutocompleteOpen && event.key === "ArrowDown") {
+                event.preventDefault();
+                event.stopPropagation();
+                setActiveOptionIndex((current) =>
+                    current == null ? 0 : (current + 1) % filteredAliases.length
+                );
+                return;
+            }
+            if (isAutocompleteOpen && event.key === "ArrowUp") {
+                event.preventDefault();
+                event.stopPropagation();
+                setActiveOptionIndex((current) =>
+                    current == null
+                        ? filteredAliases.length - 1
+                        : (current - 1 + filteredAliases.length) % filteredAliases.length
+                );
+                return;
+            }
+            if (isAutocompleteOpen && event.key === "Escape") {
+                event.preventDefault();
+                event.stopPropagation();
+                setActiveOptionIndex(null);
+                setIsAutocompleteDismissed(true);
+                return;
+            }
+            if (isAutocompleteOpen && event.key === "Enter" && activeOptionIndex != null) {
+                event.preventDefault();
+                event.stopPropagation();
+                const option = filteredAliases[activeOptionIndex];
+                if (option) selectAlias(option);
+                return;
+            }
+            if (event.key === "Enter") {
+                event.preventDefault();
+                commitOnce();
+                inputRef.current?.blur();
+                return;
+            }
+            if (event.key === "Escape") {
+                event.preventDefault();
+                setLocalValue(value);
+                submittedRef.current = true;
+                inputRef.current?.blur();
+            }
+        },
+        [activeOptionIndex, commitOnce, filteredAliases, isAutocompleteOpen, selectAlias, value]
+    );
 
     const inputElement = (
         <Input
             ref={inputRef}
             type="text"
-            value={localValue}
-            onChange={(e) => setLocalValue(e.target.value)}
+            aria-label="Transaction description"
+            aria-autocomplete="list"
+            aria-haspopup="listbox"
+            aria-expanded={isAutocompleteOpen}
+            aria-controls={isAutocompleteOpen ? listboxId : undefined}
+            aria-activedescendant={
+                activeOptionIndex == null ? undefined : `${listboxId}-option-${activeOptionIndex}`
+            }
+            value={displayedValue}
+            onChange={(event) => {
+                setLocalValue(event.target.value);
+                setHasEdited(true);
+                setActiveOptionIndex(null);
+                setIsAutocompleteDismissed(false);
+                submittedRef.current = false;
+            }}
             onKeyDown={handleKeyDown}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            onClick={handleClick}
+            onFocus={() => {
+                submittedRef.current = false;
+                setLocalValue(value);
+                setIsFocused(true);
+                setHasEdited(false);
+                setActiveOptionIndex(null);
+                setIsAutocompleteDismissed(false);
+            }}
+            onBlur={() => {
+                setIsFocused(false);
+                setHasEdited(false);
+                setActiveOptionIndex(null);
+                commitOnce();
+            }}
+            onClick={(event) => event.stopPropagation()}
             disabled={disabled}
             data-testid={testId}
             className={cn(
                 "h-7 border-transparent bg-transparent text-sm shadow-none",
                 "hover:bg-accent/30",
-                "focus:border-input focus:bg-background",
+                "focus:border-input focus:bg-background focus-visible:ring-2",
                 disabled && "cursor-not-allowed opacity-50",
                 inputClassName,
                 className
@@ -206,45 +253,53 @@ export function InlineEditableDescriptionAlias({
         />
     );
 
+    const showTooltip =
+        !!descriptionAliasId && !!originalDescription && originalDescription !== value;
+
     return (
-        <div ref={containerRef}>
+        <div ref={containerRef} className="min-w-0">
             {showTooltip ? (
-                <Tooltip>
-                    <TooltipTrigger asChild>{inputElement}</TooltipTrigger>
-                    <TooltipContent>{originalDescription}</TooltipContent>
-                </Tooltip>
+                <ImportedDescriptionTooltip originalDescription={originalDescription}>
+                    {inputElement}
+                </ImportedDescriptionTooltip>
             ) : (
                 inputElement
             )}
 
-            {/* Dropdown - rendered in portal with fixed positioning */}
-            {showDropdown &&
+            {isAutocompleteOpen &&
                 typeof document !== "undefined" &&
                 createPortal(
                     <div
-                        ref={dropdownRef}
-                        className="bg-popover fixed z-[9999] rounded-md border shadow-lg"
+                        id={listboxId}
+                        role="listbox"
+                        aria-label="Description aliases"
+                        data-testid="description-alias-options"
+                        className="bg-popover text-popover-foreground fixed z-[9999] max-h-[300px] overflow-y-auto rounded-md border p-1 shadow-lg"
                         style={{
                             top: dropdownPosition.top,
                             left: dropdownPosition.left,
                             width: dropdownPosition.width
                         }}
                     >
-                        <Command shouldFilter={false}>
-                            <CommandList>
-                                <CommandGroup>
-                                    {filteredAliases.map((alias) => (
-                                        <CommandItem
-                                            key={alias.id}
-                                            value={alias.name}
-                                            onSelect={() => handleSelectAlias(alias.id)}
-                                        >
-                                            {alias.name}
-                                        </CommandItem>
-                                    ))}
-                                </CommandGroup>
-                            </CommandList>
-                        </Command>
+                        {filteredAliases.map((alias, index) => (
+                            <button
+                                key={alias.id}
+                                id={`${listboxId}-option-${index}`}
+                                type="button"
+                                role="option"
+                                aria-selected={activeOptionIndex === index}
+                                tabIndex={-1}
+                                className={cn(
+                                    "relative flex w-full cursor-pointer items-center rounded-sm px-2 py-1.5 text-left text-sm outline-none",
+                                    activeOptionIndex === index &&
+                                        "bg-accent text-accent-foreground"
+                                )}
+                                onPointerDown={(event) => event.preventDefault()}
+                                onClick={() => selectAlias(alias)}
+                            >
+                                {alias.name}
+                            </button>
+                        ))}
                     </div>,
                     document.body
                 )}

@@ -25,12 +25,12 @@ import { CheckboxCell } from "./cells/CheckboxCell";
 import { InlineEditableAmount } from "./cells/InlineEditableAmount";
 import { InlineEditableDate } from "./cells/InlineEditableDate";
 import {
+    type DescriptionAliasEditOrigin,
     InlineEditableDescriptionAlias,
     type DescriptionAliasOption
 } from "./cells/InlineEditableDescriptionAlias";
 import { InlineEditableStatus, type StatusOption } from "./cells/InlineEditableStatus";
 import { InlineEditableTags, type TagOption } from "./cells/InlineEditableTags";
-import { InlineEditableText } from "./cells/InlineEditableText";
 import { DuplicateBadge } from "./DuplicateBadge";
 import { TRANSACTION_GRID_TEMPLATE } from "./TransactionTable";
 
@@ -97,9 +97,9 @@ export interface TransactionRowProps {
     /** Available description aliases for autocomplete */
     availableAliases?: DescriptionAliasOption[];
     /** Callback when user commits description text (for alias creation/rename/modal) */
-    onDescriptionCommitText?: (text: string) => void;
+    onDescriptionCommitText?: (text: string, origin: DescriptionAliasEditOrigin) => void;
     /** Callback when user selects an existing alias from dropdown */
-    onDescriptionSelectAlias?: (aliasId: string) => void;
+    onDescriptionSelectAlias?: (aliasId: string, origin: DescriptionAliasEditOrigin) => void;
     /** Callback when row is clicked (for navigation/focus, not selection) */
     onClick?: () => void;
     /** Callback when row is focused */
@@ -476,19 +476,19 @@ export function TransactionRow({
                         descriptionAliasId={effectiveData.descriptionAliasId}
                         originalDescription={effectiveData.originalDescription}
                         availableAliases={availableAliases}
-                        onCommitText={(text) => {
+                        onCommitText={(text, origin) => {
                             if (isAddMode) {
                                 handleFieldUpdateForMode("description", text);
                             } else {
-                                onDescriptionCommitText?.(text);
+                                onDescriptionCommitText?.(text, origin);
                             }
                         }}
-                        onSelectAlias={(aliasId) => {
+                        onSelectAlias={(aliasId, origin) => {
                             if (isAddMode) {
                                 const alias = availableAliases.find((a) => a.id === aliasId);
                                 handleFieldUpdateForMode("description", alias?.name ?? aliasId);
                             } else {
-                                onDescriptionSelectAlias?.(aliasId);
+                                onDescriptionSelectAlias?.(aliasId, origin);
                             }
                         }}
                         className="truncate font-medium"

@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { AccountOption } from "../accounts";
 import type { StatusOption, TagOption } from "./cells";
 import { CheckboxCell } from "./cells/CheckboxCell";
+import type { DescriptionAliasEditOrigin } from "./cells/InlineEditableDescriptionAlias";
 import { useGridCellNavigation } from "./hooks/useGridCellNavigation";
 import { useTableSelection } from "./hooks/useTableSelection";
 import {
@@ -52,9 +53,17 @@ export interface TransactionTableProps {
     /** Available description aliases for autocomplete */
     availableAliases?: import("./cells/InlineEditableDescriptionAlias").DescriptionAliasOption[];
     /** Callback when user commits description text */
-    onDescriptionCommitText?: (txId: string, text: string) => void;
+    onDescriptionCommitText?: (
+        txId: string,
+        text: string,
+        origin: DescriptionAliasEditOrigin
+    ) => void;
     /** Callback when user selects an existing alias from dropdown */
-    onDescriptionSelectAlias?: (txId: string, aliasId: string) => void;
+    onDescriptionSelectAlias?: (
+        txId: string,
+        aliasId: string,
+        origin: DescriptionAliasEditOrigin
+    ) => void;
     /** Callback when selection changes */
     onSelectionChange?: (ids: Set<string>) => void;
     /** Callback when a transaction is clicked */
@@ -410,16 +419,21 @@ export function TransactionTable({
                                         availableAliases={availableAliases}
                                         onDescriptionCommitText={
                                             onDescriptionCommitText
-                                                ? (text) =>
-                                                      onDescriptionCommitText(transaction.id, text)
+                                                ? (text, origin) =>
+                                                      onDescriptionCommitText(
+                                                          transaction.id,
+                                                          text,
+                                                          origin
+                                                      )
                                                 : undefined
                                         }
                                         onDescriptionSelectAlias={
                                             onDescriptionSelectAlias
-                                                ? (aliasId) =>
+                                                ? (aliasId, origin) =>
                                                       onDescriptionSelectAlias(
                                                           transaction.id,
-                                                          aliasId
+                                                          aliasId,
+                                                          origin
                                                       )
                                                 : undefined
                                         }

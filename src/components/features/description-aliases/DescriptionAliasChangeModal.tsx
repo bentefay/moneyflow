@@ -7,6 +7,8 @@
  * Offers "just this one" vs "all" options for both change and remove flows.
  */
 
+import { useCallback, useEffect, useRef } from "react";
+
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -23,6 +25,8 @@ export interface DescriptionAliasChangeModalProps {
     mode: "change" | "remove";
     onJustThis: () => void;
     onAll: () => void;
+    /** Restore focus and caret after every modal exit. */
+    onRestoreFocus: () => void;
 }
 
 export function DescriptionAliasChangeModal({
@@ -30,13 +34,41 @@ export function DescriptionAliasChangeModal({
     onClose,
     mode,
     onJustThis,
-    onAll
+    onAll,
+    onRestoreFocus
 }: DescriptionAliasChangeModalProps) {
     const isChange = mode === "change";
+    const firstActionRef = useRef<HTMLButtonElement>(null);
+    const handledRef = useRef(false);
+
+    useEffect(() => {
+        if (open) handledRef.current = false;
+    }, [open]);
+
+    const runOnce = useCallback((action: () => void) => {
+        if (handledRef.current) return;
+        handledRef.current = true;
+        action();
+    }, []);
 
     return (
-        <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-            <DialogContent showCloseButton={false}>
+        <Dialog
+            open={open}
+            onOpenChange={(isOpen) => {
+                if (!isOpen && !handledRef.current) onClose();
+            }}
+        >
+            <DialogContent
+                showCloseButton={false}
+                onOpenAutoFocus={(event) => {
+                    event.preventDefault();
+                    firstActionRef.current?.focus();
+                }}
+                onCloseAutoFocus={(event) => {
+                    event.preventDefault();
+                    onRestoreFocus();
+                }}
+            >
                 <DialogHeader>
                     <DialogTitle>
                         {isChange ? "Change Description" : "Remove Description"}
@@ -48,13 +80,18 @@ export function DescriptionAliasChangeModal({
                     </DialogDescription>
                 </DialogHeader>
                 <DialogFooter className="flex-col gap-2 sm:flex-col">
-                    <Button variant="default" onClick={onJustThis} autoFocus>
+                    <Button
+                        ref={firstActionRef}
+                        type="button"
+                        variant="default"
+                        onClick={() => runOnce(onJustThis)}
+                    >
                         {isChange ? "Change just this one" : "Remove from just this one"}
                     </Button>
-                    <Button variant="outline" onClick={onAll}>
+                    <Button type="button" variant="outline" onClick={() => runOnce(onAll)}>
                         {isChange ? "Change all" : "Remove from all"}
                     </Button>
-                    <Button variant="ghost" onClick={onClose}>
+                    <Button type="button" variant="ghost" onClick={() => runOnce(onClose)}>
                         Cancel
                     </Button>
                 </DialogFooter>
