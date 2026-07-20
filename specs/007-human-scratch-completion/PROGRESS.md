@@ -39,7 +39,7 @@ review evidence.
 | P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P09     | HS-006         | Loro UndoManager integration, controls, shortcuts and action grouping               | P01                  | passed       | 02 | `c9146fae2c5534313d21b4f34cb2b012eaeeb4ed..418234e28ac649e03ce8ad184d08a8a2f2416149` | `evidence/P09/implementation-02.md` | `reviews/P09-review-02.md` | `59bf82e894e45e034858e25255240701a3afb0b8` |
 | P10     | HS-003         | Encrypted Loro EphemeralStore presence and active transaction                       | P05, P08             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
-| P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | changes_requested | 01 | `eb5ab2e215130c358130d5411a92b51951c3c53a..4920dcbcb3d30b113c0df2811cbca3e718e22b0f` | `evidence/P11A/implementation-01.md` | `reviews/P11A-review-01.md` | failure control pending                    |
+| P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | changes_requested | 01 | `eb5ab2e215130c358130d5411a92b51951c3c53a..4920dcbcb3d30b113c0df2811cbca3e718e22b0f` | `evidence/P11A/implementation-01.md` | `reviews/P11A-review-01.md` | failure control `571b1ed05ab540d5a2e9fe5ba142d304a32137fa` |
 | P11B    | HS-004         | Alias management and transaction-cell pointer/keyboard UX                           | P11A                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P11C    | HS-004         | Alias import/manual/shared flows, performance hardening and exhaustive tests        | P11B                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -1120,6 +1120,8 @@ the normalization and provisional concurrency defaults for remediation; R-030/R-
 production-integration risk. Exact HEAD/index/write boundary, cleanup, scratch/21 blocks/six markers,
 FS-001 and SCOPE verify. Preserve revision-01 work/artifacts; revision 02 must close all findings and
 receive cumulative independent review.
+Immutable revision-01 artifacts, Q-016/Q-017 and R-030/R-031 were integrated in
+`571b1ed05ab540d5a2e9fe5ba142d304a32137fa`.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
