@@ -90,3 +90,9 @@ and capability fallback behavior.
   Reopen P05 with a no-product diagnostic revision first; record hidden visibility at mutation,
   15 seconds and completion plus sanitized socket/import/DOM elapsed times before selecting any
   writable product owner.
+- **Before-P08 recheck:** P05 revision 12 on 2026-07-20 independently reconfirmed the exact same
+  installed versions/source hashes, absent supported hidden command/API and two allowed Chrome pages
+  both `visible`, `hidden:false`, focused. Diagnostic evidence/review are
+  `evidence/P05/implementation-12.md` and `reviews/P05-review-12.md`. No hidden predicate existed, so
+  product/15-second timing was correctly not run. P05/HS-015 remains `blocked_external`; P08/P10
+  remain dependency-blocked. The next trigger is a capable installed upgrade or pre-P21.

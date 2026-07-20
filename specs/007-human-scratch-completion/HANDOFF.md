@@ -5,103 +5,82 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Implementation dispatch
 
-- **Package / revision:** P07 / 04
-- **Scope IDs:** HS-011 architecture with integrated HS-012 contract; both remain incomplete
-- **State:** passed; no HS marker because P08 remains required
-- **Tasks:** `tasks/HS-011-membership-invite-ux.md` and `tasks/HS-012-auto-person-link.md`
-- **Original package BASE:** `fe1871ce7dce1e831b57ee5656d38ce5c800aae3`
-- **Pre-implementation HEAD:** `dfffea3c19b110b6021b050b8d9e36b01ae75ab9`
-- **Range meaning:** evidence-only revision; immutable prior P07 artifacts/control commits follow
-  BASE, but the worker makes no commit and leaves every executable path unchanged.
-- **Allowed implementation paths:** none. Do not edit product, test, migration, config, dependency,
+- **Package / revision:** P05 / 12
+- **Scope IDs:** HS-015 diagnostic recheck only; no completion or product authority
+- **State:** blocked_external; revision-12 diagnostic PASS confirms unchanged gate
+- **Task:** `tasks/HS-015-supabase-realtime.md` under D-011/Q-013 and the P05 external gate in
+  `DEPENDENCIES.md`
+- **Original package BASE:** `007651beb814d98646aa2e786801b647e2abd0b5`
+- **Last reviewed product HEAD:** `7f0b0710e820b87be2ee8877a3b7693d90e5e505`
+- **Pre-implementation HEAD:** `824bb1570f1e52bcd0afcbf89040d1c0ffac50ec`
+- **Range meaning:** no-product diagnostic over preserved reviewed P05 product work plus later root-
+  integrated independent package/artifact history. Worker makes no commit and no executable diff.
+- **Allowed implementation paths:** none. Do not edit product, test, dependency, config, migration,
   ledger, prior artifact/review, scratch, FS-001, SCOPE, `.claude`, `.codex` or agent paths.
-- **Sole implementer artifact:** `evidence/P07/implementation-04.md`
+- **Sole implementer artifact:** `evidence/P05/implementation-12.md`
 - **Commit contract:** make no commit and leave HEAD/index unchanged. Write only the assigned new
-  evidence artifact; all prior artifacts are immutable.
+  evidence artifact; P05 revisions 01–11 and all later artifacts are immutable.
 - **Pre-existing dirty/untracked paths:** root-owned unstaged `PROGRESS.md`, `HANDOFF.md`,
-  `DECISIONS.md` and `RISKS.md`, plus assigned uncommitted `evidence/P07/implementation-04.md` and
-  `reviews/P07-review-04.md`; no staged or other dirty paths
-- **Authoritative correction:** implement both findings and exact revision-04 scope in
-  `reviews/P07-review-03.md`. Preserve unchanged every sound revision-03 cross-tab fence, SQL truth,
-  Q-014, linked-hybrid, capability/crypto/tenure/fragment/onboarding, privacy, migration, reversal,
-  export, accessibility and real-browser gate.
-- **Exact CRDT operation identity:** separate semantic/request/saga idempotency from each actual
-  Loro update. Two peers assigning the same values may emit different peer/counter/causal bytes;
-  each distinct durably admitted update must receive its own stable exact operation identity and be
-  permanently stored/acknowledged. Retries of the same local update reuse its exact id/ciphertext;
-  only exact-operation retransmission or an exact source operation proven in a rotation manifest may
-  be `covered`. The zero-knowledge server may compare authenticated ids/digests/metadata and return
-  stored ciphertext, never infer plaintext/value equivalence.
-- **Saga completion versus operations:** deterministic Person/map keys prevent duplicate entities;
-  creator/acceptance/repair completion truth is separately idempotent and may reference a set of
-  permanent exact operation ids. Concurrent peers' same-value operations are all retained and
-  merged; no local `pushed=false` operation may be dropped merely because another peer completed the
-  same saga outcome.
-- **Causally newer repair rounds:** bind each claim/repair round to the exact observed claim operation
-  ids plus imported Loro causal frontier/version vector (or an equivalent monotonic encrypted
-  revision). A repair update is generated only after importing that frontier and has its own exact
-  operation id. A stale claim arriving after an acknowledged repair necessarily changes the frontier
-  and produces a new causally later permanent repair. Completion requires the current claim frontier
-  be dominated, the bijection hold after merge and all local emitted updates be permanent; value-
-  only lineage cannot terminate a round.
-- **Canonical default Person/reference reconciliation:** the encrypted initial snapshot already
-  contains vault-scoped `person-default-me` and the default account assigns it 100% ownership. After
-  SQL creation truth returns the owner membership UUID, idempotently link that exact existing Person
-  and reciprocal maps; do not create a UUIDv5 replacement. Preserve its id, name, account ownership,
-  allocations and every reference. Standard creation is repair-blocked if authenticated defaults
-  are malformed/missing rather than silently creating/deleting/merging referenced People. Apply the
-  same coherent initial-default rule to every new-vault creation flow.
-- **Proof update:** two independent peers must emit same creator/acceptance/repair values with
-  unequal update bytes and both exact ops become permanent/local-pushed; response loss/reload must
-  not duplicate or strand either. Publish a stale claim only after the first repair is permanent,
-  then prove a new frontier-bound repair becomes causally later and all clients reload to a stable
-  bijection with no unpushed ops/oscillation. Creator tests inspect exact ids/maps/default-account
-  ownership: one `person-default-me`, 100% ownership pointing to it, sole owner membership link, no
-  dangling reference, one vault/selection after concurrent tabs/crashes.
-- **Complete contract update:** extend ownership/threat/schema/migration/reversal/export and clauses
-  14/16/22 plus the full proof map without dropping any retained clause. No canonical-peer fiction,
-  server plaintext equivalence, destructive Person migration, service fixture, weakened success
-  gate, product implementation or P08 readiness claim.
-- **Inherited gate:** P08 still requires independent P07 revision-04 PASS and the D-011/P05
-  supported genuinely hidden topology recheck. No HS marker is authorized.
-- **Question route:** record residual ambiguity only as a complete Q proposal in the sole evidence;
-  do not ask the human or pause.
+  `DEPENDENCIES.md`, `DECISIONS.md` and `RISKS.md`, plus assigned uncommitted
+  `evidence/P05/implementation-12.md` and `reviews/P05-review-12.md`; no staged or other dirty paths
+- **Exact recheck:** independently inventory repository/package-lock/node_modules versions for
+  `@playwright/cli`, its bundled Playwright/protocol and repository Playwright. Read installed
+  CLI help/README/type/protocol sources for any supported headless command/API that creates or
+  verifies a truly hidden page. Check ordinary browser/OS capabilities only through repository-
+  installed CLI authority. Record the date, exact versions/paths and whether the unavailable
+  condition from DEPENDENCIES changed.
+- **Permitted diagnostic:** if and only if an installed supported mechanism exists, use a unique
+  disposable headless CLI session with real same-identity sibling pages and normal product UI.
+  Verify `document.visibilityState === "hidden"` at mutation and 15 seconds without focus/reload,
+  then record sanitized elapsed socket receipt, exact Loro import and DOM publication through
+  completion. No secret/financial/vault identifiers in evidence. If no mechanism exists, prove that
+  exact limitation from installed primary sources and observed allowed page states; do not invent
+  timing or a hidden acceptance result.
+- **Forbidden substitutes:** no headed mode, temporary tests/config, custom browser launcher,
+  DevTools/emulated visibility/lifecycle, direct CDP outside installed CLI support, page removal/
+  freeze mislabeled hidden, focus/reload/poll, timeout change, arbitrary sleep, server/service row
+  fixture or `worker: true` mutation. Do not rerun broad tests unless needed to establish preserved
+  cleanup/current state.
+- **Disposition:** if real-hidden causal timing becomes available, record the first late edge and
+  exact prospective writable owner without changing it. If unavailable remains exact, recommend
+  continuing `blocked_external`, retain revision-11 green manager work and state that P08/P10 remain
+  dependency-blocked. Do not ask the human or pause; any new ambiguity is a complete Q proposal.
+- **Boundary checks:** exact HEAD/index/status, installed-source identities, cleanup, zero service
+  state, rolling scratch/21 blocks, immutable FS-001 and SCOPE.
 
 ## Review dispatch
 
-This review is complete and integrated.
+This diagnostic review is complete; root gate integration is pending.
 
 - **Reviewer:** distinct `human_scratch_reviewer`
-- **Literal reviewed BASE:** `fe1871ce7dce1e831b57ee5656d38ce5c800aae3`
-- **Literal reviewed HEAD:** `dfffea3c19b110b6021b050b8d9e36b01ae75ab9`
-- **Range type:** original BASE through unchanged pre-implementation HEAD; root-only immutable
-  failure artifacts/control commits expected; revision 04 adds no product commit
-- **Implementation evidence:** `evidence/P07/implementation-04.md`, SHA-256
-  `313ce10cfd75c25f26d6a75f9c8785bd95f2e213e48285c4e745cde7ecce93c6`
-- **Sole reviewer artifact:** `reviews/P07-review-04.md`
-- **Corrected review SHA-256:**
-  `313cc26bf5b537c9281839b40a422d3e19f4244b30e18bd9f746303951f01c13`
-- **Verdict:** PASS with no finding and no Q proposal. The reviewer corrected one pre-freeze prior-
-  review hash typo in the same assigned file; exact boundary/hashes were reverified.
-- **Integration commit:** `1f6cb96b27c8093f0ba2c319f32d3c79c8aab126`
+- **Literal reviewed BASE:** `007651beb814d98646aa2e786801b647e2abd0b5`
+- **Literal reviewed HEAD:** `824bb1570f1e52bcd0afcbf89040d1c0ffac50ec`
+- **Range type:** cumulative preserved P05 product plus later root/package history; revision 12 adds
+  no commit or executable diff
+- **Implementation evidence:** `evidence/P05/implementation-12.md`, SHA-256
+  `8f5ec6614f68db79f54d1ebf2f3ba4e4e89c2d3f1dc386c5ea61a00626a4f8fd`
+- **Sole reviewer artifact:** `reviews/P05-review-12.md`
+- **Review SHA-256:** `551b4545fc19ac2fccd0e6f84258b79d931c6973dfaaa9f0471d02dfeecc5e35`
+- **Verdict:** PASS for the diagnostic only, with no finding/Q. P05/HS-015 remains
+  `blocked_external`; P08/P10 remain dependency-blocked.
 - **Reviewer writes:** review file only; no other writes/commits
-- **Required review focus:** independently verify exact evidence/range/no executable diff. Re-audit
-  semantic versus exact CRDT operation identity, generated-once immutable local ids/ciphertexts,
-  exact retransmission/collision rules, transition re-encryption source binding, distinct peer-op
-  permanence and semantic receipt non-substitution. Verify repair-round claim-operation set/imported
-  causal frontier, late-claim new round, all peer exact ops permanent, stable no-oscillation
-  completion. Verify every new-vault path authenticates canonical `person-default-me`/`account-
-  default`, links that exact Person to returned owner UUID, preserves 100% ownership/all references,
-  rejects malformed defaults and never creates/deletes/merges a replacement. Confirm all sound
-  revision-03 fence/Q-014/security/privacy/migration/reversal/export/29-clause/real-browser gates.
-  Reject server plaintext equivalence, exact-op loss, old receipt covering late claim, duplicate/
-  dangling Person, weakened success or premature P08 dispatch. Verify hashes/index/write boundary/
-  cleanup, 21 scratch blocks, FS-001 and SCOPE.
-- **Failure route:** persist immutable revision-04 artifacts and use reviewer-confirmed next scope
-- **PASS authority:** reviewer recommends; root verifies/transcribes/integrates and sets `passed`
+- **Required review focus:** independently verify installed package/lock/runtime versions and every
+  recorded installed-source hash; audit complete CLI help/README/tab runtime/public API/protocol for
+  a supported truly hidden headless topology. Reproduce the allowed disposable two-page installed-
+  CLI observation without headed/config/temp/emulated/direct-CDP substitutes and verify both page
+  states. Confirm no hidden state means no 15-second/product timing is honestly executable, no
+  product owner can be inferred, revision-11 work stays preserved and P05/HS-015 plus P08/P10 remain
+  blocked. Reject non-selection/focus/frozen/minimized labels, speculative worker, weakened bound,
+  or any unapproved product/test mutation. Verify exact range/write/index, cleanup/zero state,
+  scratch/21 blocks, FS-001 and SCOPE.
+- **Failure/external route:** persist immutable evidence/review and exact reviewer-confirmed status;
+  no product revision without causal hidden timing
+- **PASS authority:** a diagnostic PASS means the recheck itself is complete, not that P05/HS-015
+  passed; root retains `blocked_external` unless the original hidden acceptance is independently met
 
 ## Next root action
 
-Commit this integration reference, then perform the D-011/P05 supported genuinely-hidden-topology
-no-product recheck required by DEPENDENCIES before any P08 dispatch. P07 is passed; HS-011/HS-012
-remain unchecked because P08 is still required. No product implementation or marker is authorized.
+Exact-stage and commit revision-12 evidence/review with PROGRESS/HANDOFF/DEPENDENCIES/DECISIONS/RISKS
+gate updates. Record the artifact commit in a second control commit, retain P05/HS-015
+`blocked_external`, keep P08/P10 dependency-blocked, and dispatch the next dependency-ready package.
+No product edit or marker is authorized.

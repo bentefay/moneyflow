@@ -7,9 +7,9 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P07 revision 04 (`passed`)
-- **Next action:** perform and durably record the D-011/P05 supported genuinely-hidden-topology
-  recheck required before any P08 dispatch
+- **Current package:** P05 revision 12 (`blocked_external`; diagnostic recheck passed)
+- **Next action:** integrate the exact diagnostic artifacts/gate update, then continue with
+  dependency-ready P09 while P08/P10 remain blocked
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -19,10 +19,10 @@ review evidence.
 - **Active completion marker event:** none
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
-- **Requirement state:** five passed; HS-011/HS-012 queued behind P08; HS-015 blocked externally;
-  14 other requirements queued
-- **Last ledger update:** 2026-07-20T15:15:09+10:00; P07 revision 04 passed with exact integration
-  commit `1f6cb96b27c8093f0ba2c319f32d3c79c8aab126`; no HS marker is authorized
+- **Requirement state:** five passed; HS-015 blocked externally; HS-011/HS-012 and 14 other
+  requirements queued
+- **Last ledger update:** 2026-07-20T15:30:50+10:00; P05 revision-12 diagnostic independently
+  passed while reconfirming unchanged `blocked_external` disposition
 
 ## Package ledger
 
@@ -33,7 +33,7 @@ review evidence.
 | P02     | HS-017         | Animate UI evaluation, ADR, and representative migration only if justified          | P01                  | passed       | 02  | `19d73035b33b639f9927d2f78a55d74c44f65544..213100fadf5acea30aad7e90998bd575cdcd508c` | `evidence/P02/implementation-02.md` | `reviews/P02-review-02.md` | `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7` |
 | P03     | HS-018         | TanStack Virtual PR #1100 release gate and `useFlushSync`                           | P01                  | passed       | 01  | `c60f605bd811d8920122a66f3d6743d8a3ac044d..b8d4b448f52022970ca388654be14d24e347deb5` | `evidence/P03/implementation-01.md` | `reviews/P03-review-01.md` | `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34` |
 | P04     | HS-014         | Database/table/RLS threat model, migrations, and permission remediation             | P01                  | passed | 02 | `9de8b0e8c41087b96523ecc55faa10bf19ec0ff9..dbcf180e829c81a218e9a73791e40902c4f9eb31` | `evidence/P04/implementation-02.md` | `reviews/P04-review-02.md` | `b905ecb810334ed9697f57140047964135ade6ea` |
-| P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | blocked_external | 11 | `007651beb814d98646aa2e786801b647e2abd0b5..7f0b0710e820b87be2ee8877a3b7693d90e5e505` | `evidence/P05/implementation-11.md` | `reviews/P05-review-11.md` | external gate `e96d93bde4125a106ad9ca092cedf0b0998bf04e` |
+| P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | blocked_external | 12 | `007651beb814d98646aa2e786801b647e2abd0b5..824bb1570f1e52bcd0afcbf89040d1c0ffac50ec` | `evidence/P05/implementation-12.md` | `reviews/P05-review-12.md` | pending |
 | P06     | HS-010         | Remove unused user-state storage and dead API surface                               | P04                  | passed | 01  | `a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1..95e91dbcb17ffb9600eaa6cb795336898297ebae` | `evidence/P06/implementation-01.md` | `reviews/P06-review-01.md` | `8e269ab9a6fc15ed6d845542b879e5499828134e` |
 | P07     | HS-011         | Evidence-led person/member/invite UX architecture and acceptance decision           | P04, P06             | passed | 04  | `fe1871ce7dce1e831b57ee5656d38ce5c800aae3..dfffea3c19b110b6021b050b8d9e36b01ae75ab9` | `evidence/P07/implementation-04.md` | `reviews/P07-review-04.md` | `1f6cb96b27c8093f0ba2c319f32d3c79c8aab126` |
 | P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -97,7 +97,7 @@ required marker rollbacks before the next dispatch.
 | HS-012      | human scratch block               | P08                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-013      | human scratch block               | P15                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-014      | human scratch block               | P04                          | authorized marker after package PASS       | passed | P04 integration `b905ecb810334ed9697f57140047964135ade6ea`; `reviews/P04-review-02.md`; marker `db97178a… -> c74a2a78…` |
-| HS-015      | human scratch block               | P05                          | authorized marker after package PASS       | blocked_external | revisions-01–11 FAIL immutable; D-011 hidden-topology gate; no marker                 |
+| HS-015      | human scratch block               | P05                          | authorized marker after package PASS       | blocked_external | revision-12 diagnostic PASS reconfirms D-011 unchanged; no marker |
 | HS-016      | human scratch block               | P20A                         | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-017      | human scratch block               | P02                          | authorized marker after package PASS       | passed       | P02 integration `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7`; `reviews/P02-review-02.md`; marker `dcd03b23… -> 5d283ab1…` |
 | HS-018      | human scratch block               | P03                          | authorized marker after package PASS       | passed       | P03 integration `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34`; `reviews/P03-review-01.md`; marker `5d283ab1… -> db97178a…` |
@@ -914,6 +914,40 @@ R-005/R-006/R-018/R-027 updates are integrated in
 HS-011 maps also to P08 and therefore returns to queued without a marker; HS-012 is likewise
 unchanged/unchecked. D-011/P05 requires a supported genuinely-hidden-topology no-product recheck
 before P08 can dispatch. Scratch remains `753be6b7…`; 21 blocks, FS-001 and SCOPE are exact.
+
+**2026-07-20T15:16:41+10:00 — P05/12 `blocked_external -> implementing`:** The before-P08 D-011/
+DEPENDENCIES trigger reopens P05 for a no-product diagnostic only. Original P05 BASE remains
+`007651beb814d98646aa2e786801b647e2abd0b5`; reviewed product HEAD
+`7f0b0710e820b87be2ee8877a3b7693d90e5e505` stays preserved; pre-diagnostic repository HEAD is
+`824bb1570f1e52bcd0afcbf89040d1c0ffac50ec`. Worker may write only
+`evidence/P05/implementation-12.md`, make no commit and must audit installed CLI/help/protocol/runtime
+for a supported genuinely hidden headless page. If supported, exact hidden visibility plus socket/
+import/DOM timing is required; if not, installed primary-source/allowed-page evidence must preserve
+`blocked_external`. Headed/config/temp/emulated/frozen/focus/reload/poll/worker substitutes remain
+forbidden. P08/P10, product edits and marker remain blocked; scratch is `753be6b7…`.
+
+**2026-07-20T15:22:41+10:00 — P05/12 `implementing -> ready_for_review -> reviewing`:** HEAD/index
+remain `824bb1570f1e52bcd0afcbf89040d1c0ffac50ec`/empty; no commit or executable diff. Sole evidence
+`evidence/P05/implementation-12.md` is 195 lines/12,423 bytes at SHA-256
+`8f5ec6614f68db79f54d1ebf2f3ba4e4e89c2d3f1dc386c5ea61a00626a4f8fd`. Installed versions remain
+CLI 0.1.17, bundled Playwright/Core 1.62.0-alpha-1783623505000 and repository Playwright 1.61.1;
+help/README/runtime expose tab selection/`bringToFront()` but no hide/background API, and bundled
+protocol exposes `active|frozen` only. Allowed disposable headless observation reports both pages
+`visible`, `hidden:false`, `hasFocus:true`; therefore no product/timing run was falsely performed.
+Evidence recommends unchanged `blocked_external`, revision-11 preservation and P08/P10 block; no Q.
+Formatting, cleanup, zero service rows, scratch/21 blocks, FS-001 and SCOPE pass. Sole review output
+is `reviews/P05-review-12.md`.
+
+**2026-07-20T15:30:50+10:00 — P05/12 `reviewing -> blocked_external`:** Independent diagnostic PASS
+review SHA-256 `551b4545fc19ac2fccd0e6f84258b79d931c6973dfaaa9f0471d02dfeecc5e35` reproduces every installed
+version/source identity and the allowed two-page Chrome result: both `visible`, `hidden:false`,
+`hasFocus:true`. CLI help/README/runtime/public API expose no hide/background method; bundled
+protocol has `active|frozen` only. With no hidden predicate, omitting MoneyFlow/15-second timing was
+the required honest stop; no product owner is inferred. No finding/Q. Revision-11 product work stays
+preserved, P05/HS-015 returns to `blocked_external`, HS-015 remains unchecked and P08/P10 remain
+dependency-blocked. DEPENDENCIES/D-011/R-026 receive the dated recheck; next trigger is a capable
+installed upgrade or P21. Exact range/index, formatting, cleanup, zero state, scratch/21 blocks,
+FS-001 and SCOPE pass; root artifact integration pending.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual

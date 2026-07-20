@@ -182,7 +182,9 @@ need evidence, alternatives, security/UX impact, and a reversal path.
 - **Status:** accepted external-gate disposition
 - **Evidence:** `evidence/P05/implementation-11.md`, independent
   `reviews/P05-review-11.md`, Q-013 and the installed `@playwright/cli` 0.1.17 help/README plus its
-  bundled CDP protocol declarations.
+  bundled CDP protocol declarations; before-P08 diagnostic
+  `evidence/P05/implementation-12.md` and independent `reviews/P05-review-12.md` reconfirm the exact
+  gate without executable change.
 - **Alternatives:** Enable Realtime `worker: true`; certify a merely non-selected visible page;
   emulate hidden lifecycle; weaken the 15-second bound; or stop all independent work.
 - **Decision and reason:** None is acceptable. Required headless CLI pages report visible, visible
