@@ -196,6 +196,29 @@ need evidence, alternatives, security/UX impact, and a reversal path.
 - **Reversal/migration path:** Reopen P05 with a no-product diagnostic revision at the documented
   recheck trigger. Only causal hidden timing may authorize a later exact product/test diff.
 
+## D-012 — Remove the unsynchronized generic user blob and retain only identity registration
+
+- **Date:** 2026-07-20
+- **Package / scope:** P06 / HS-010
+- **Status:** accepted
+- **Evidence:** `evidence/P06/implementation-01.md` and independent
+  `reviews/P06-review-01.md` PASS over
+  `a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1..95e91dbcb17ffb9600eaa6cb795336898297ebae`.
+- **Alternatives:** Preserve/archive/rename the blob; move it into another generic store; remove the
+  identity registry; or retain dead get/upsert/exists APIs and crypto/types for hypothetical reuse.
+- **Decision and reason:** Drop only `public.user_data.encrypted_data` and its demonstrably dead
+  state surface. The blob has no product consumer and is outside current CRDT/sync; normalized
+  membership/wrapped keys, encrypted vault ops/snapshots, signed identity, local active-vault state
+  and IndexedDB are separate. Legacy blob bytes are intentionally unrecoverable except from a pre-
+  migration backup; moving them would violate HS-010.
+- **Security, data, UX, and compatibility impact:** Identity hashes/timestamps and every normalized
+  encrypted vault value survive fresh/seeded migration evidence. Registration/get-or-create remain
+  strict signed empty-input self operations; dead service UPDATE and blob endpoints disappear.
+  Passkey credentials remain P19-owned and no replacement generic state is created.
+- **Reversal/migration path:** A down migration can recreate an empty column but cannot restore
+  deleted ciphertext. Restore a pre-009 backup if those intentionally discarded bytes are needed;
+  any future user-global state requires a separately reviewed sync/CRDT design.
+
 ## Decision template
 
 ### D-XXX — Title

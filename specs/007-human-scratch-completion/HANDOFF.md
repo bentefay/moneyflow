@@ -5,90 +5,89 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Implementation dispatch
 
-- **Package / revision:** P05 / 11
-- **Scope IDs:** HS-015; no scratch marker before independent package PASS and root integration
-- **State:** blocked_external
-- **Task:** `tasks/HS-015-realtime-security.md`
-- **Original package BASE:** `007651beb814d98646aa2e786801b647e2abd0b5`
-- **Pre-implementation HEAD:** `71b38d71aa17fa843f0c9354bf78c20a0d3b4400`; includes immutable
-  revision-01–10 product and failure/control commits
-- **Allowed implementation paths:** exactly `src/lib/sync/manager.ts` and
-  `tests/e2e/tab-duplication.spec.ts`. No other product, E2E/helper/vault-settings, unit, Supabase
-  config, dependency, migration, transport, CRDT or Loro path is writable.
-- **Sole implementer artifact:** `evidence/P05/implementation-11.md`
-- **Commit contract:** commit only the exact manager + duplicated-tab spec paths using exact staging; leave
+- **Package / revision:** P06 / 01
+- **Scope IDs:** HS-010; no scratch marker before independent package PASS and root integration
+- **State:** reviewing
+- **Task:** `tasks/HS-010-remove-user-state.md`
+- **Original package BASE:** `a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1`
+- **Pre-implementation HEAD:** `a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1`
+- **Allowed implementation paths, exactly:**
+  `supabase/migrations/009_remove_unused_user_state.sql`,
+  `src/server/routers/user.ts`, `src/server/schemas/user.ts`, `src/hooks/use-identity.ts`,
+  `src/types/index.ts`, `src/lib/crdt/snapshot.ts`, `src/lib/crdt/index.ts`,
+  `src/lib/supabase/database.types.ts`, `src/lib/supabase/types.ts`,
+  `tests/unit/server/user-router.test.ts`, `tests/unit/hooks/use-identity.test.tsx`,
+  `tests/database/rls-audit.sql`, `tests/database/legacy-upgrade-fixture.sql`,
+  `tests/database/legacy-upgrade-audit.sql`, `tests/e2e/identity.spec.ts`,
+  `tests/e2e/onboarding-vault.spec.ts` and `tests/e2e/vault-settings.spec.ts`.
+  No other source, migration, generated type, test, config or dependency path is writable.
+- **Sole implementer artifact:** `evidence/P06/implementation-01.md`
+- **Commit contract:** commit only exact authorized implementation paths with exact staging; leave
   evidence uncommitted. Never broad-stage or edit ledgers/tasks/reviews/scratch/FS-001/.claude/
   .codex or immutable prior artifacts.
 - **Pre-existing dirty/untracked paths:** root-owned unstaged `PROGRESS.md` and `HANDOFF.md`, plus
-  assigned uncommitted `evidence/P05/implementation-11.md`; no staged or other dirty paths
-- **F-001 same-identity live correction:** in `SyncManager.initialize()`, remove only the comment
-  and early return comparing `update.authorPubkeyHash` with `this.pubkeyHash`. Retain the exact-vault
-  callback and existing serialized `applyRemoteUpdate(update.encryptedData)` path unchanged. Add no
-  per-tab identifier or schema/payload/transport/CRDT/API change.
-- **True duplicate regression:** extend the existing test and its extension-backed
-  `chrome.tabs.duplicate()` helper; retain all cache/hydration assertions. Navigate both authenticated
-  duplicates to Transactions and attach console/page-error capture before mutation. Create one row
-  through normal UI, then require exactly one matching row in both tabs, exactly one permanent op for
-  the fixture vault, receiver `sync.pushOps` delta zero from its pre-mutation baseline, and zero
-  browser errors. Keep the receiver backgrounded; do not use focus catch-up.
-- **Assertion invariants:** preserve the unchanged 120-second global timeout and every 15-second
-  live bound, real owner/member contexts, exact subscription/current-grant aggregates, incoming-frame
-  ordering, private Presence, import/edit/delete UI checks and later expiry/reconnect/offline,
-  duplicate/background, lock/unlock, vault switch, membership removal and cleanup assertions.
-  Preserve the 60-second duplicate test timeout and every 15-second live bound, extension/profile
-  cleanup, grants/topics/filters, throttling, durable catch-up, encryption and all cumulative P05
-  security assertions.
-- **Environment boundary:** compatible Realtime v2.112.6 with 79 internal migrations and the four-
-  field filter composite is running; latest database is empty through migrations 005–008. Do not
-  recreate services or edit pins/config. Verify compatibility/no mismatch before and after evidence.
-- **Validation:** run focused and full unit/integration, lint/type/build/format/diff, fresh and
-  upgrade database audits, ordinary full retries-zero E2E, repeated isolated Realtime E2E and the
-  installed CLI owner/member/outsider/duplicate/background charter. Inspect requests, console,
-  sockets and server logs without retaining secrets, identities, vault IDs or payloads.
-- **Stop boundary:** any remaining failure requires a complete exact next-owner proposal. Do not
-  replace true Chrome duplication with `window.open`, `context.newPage` or storage copying; do not
-  reload/focus receiver, poll as a live substitute, sleep/retry/raise timeouts, weaken exact counts,
-  or edit any unlisted product/test/schema/config/dependency/migration/transport/CRDT/Loro path.
-- **Inherited boundaries:** compatible service recreation, strengthened helper, migration 008,
-  private Presence, provider topology, cleanup and hermetic fail-closed startup are accepted and
-  must remain unchanged. Prior evidence/reviews are immutable.
-  P08 owns invite/key-wrap UI, P10 owns encrypted active-transaction Presence UX, and R-024 remains
-  P20B/P21. Recheck rolling scratch SHA/21 blocks and immutable FS-001.
+  assigned uncommitted `evidence/P06/implementation-01.md`; no staged or other dirty paths
+- **Target proof and migration:** prove by complete usage/schema-history search that
+  `public.user_data.encrypted_data` is the unused opaque state named by HS-010, not identity,
+  membership, wrapped vault keys, session state or local active-vault/cache state. Add forward
+  migration 009 that removes only the opaque state column while preserving every identity row,
+  `pubkey_hash`, registration metadata, membership and vault data. Record irreversible legacy-blob
+  deletion and rollback implications honestly; do not archive or move the generic blob elsewhere.
+- **Dead surface removal:** retain verified self-only identity registration/get-or-create and
+  `myVaults`. Remove state-specific inputs/outputs and the demonstrably uncalled `exists`, `getData`
+  and `upsertData` procedures plus dead Zod, generated/convenience, global-settings/vault-reference
+  and encrypt/decrypt-user-data helpers only when whole-repository usage proves them dead. Registration
+  and unlock must continue using signed empty inputs and must never accept a claimed identity.
+- **Database evidence:** extend fresh RLS and seeded 005-to-009 upgrade audits to prove the legacy
+  identity survives, the opaque state column is absent, no direct anon/auth access reappears, and all
+  prior permanent ops/snapshots/memberships/migrations remain intact. Regenerate/hand-correct the
+  checked-in database type only to exact post-009 schema.
+- **Behavior invariants:** onboarding, recovery-phrase unlock, returning identity, default vault,
+  vault list/switch, refresh/duplicate, local IndexedDB cache/offline recovery and existing invite/
+  membership behavior remain intact. Network evidence must show no removed user-state endpoint,
+  plaintext or secret/input URL. Do not create passkey/credential storage; P19 owns that design.
+- **Validation:** run focused router/hook/identity tests, full unit/integration, lint/type/build/
+  format/diff, fresh and seeded-upgrade database audits, repeated retries-zero identity/onboarding/
+  vault-settings E2E, ordinary full zero-retry E2E and the installed CLI charter. Inspect sanitized
+  console/network/DB evidence and perform responsive/dark/reduced-motion/offline/duplicate checks.
+- **Stop boundary:** any hidden product consumer, destructive requirement conflict, migration loss
+  beyond the named unused blob or remaining failure requires a complete exact next-owner proposal.
+  Do not retain the blob under another name, change signing/session/vault membership/local cache,
+  implement passkeys, widen migration scope, weaken tests or edit an unlisted path.
+- **Inherited boundaries:** P04 verified identity/RLS/permanent-op rules and P05 reviewed Realtime
+  behavior remain unchanged. P05/HS-015 is externally blocked under D-011 and is not writable here.
+  P08 owns invite/key-wrap UX, P19 owns credential storage, and R-024 remains P20B/P21. Recheck the
+  rolling scratch SHA/21 blocks and immutable FS-001.
 - **Question route:** complete proposals in sole evidence; root alone appends QUESTIONS. Apply the
   decision hierarchy and continue unless another exact owner is proved necessary.
 
 ## Review dispatch
 
-This section is complete; revision-11 evidence, review and cumulative literal range are frozen.
+This section is active; revision-01 evidence and the literal range are frozen.
 
 - **Reviewer:** distinct `human_scratch_reviewer`
-- **Literal reviewed BASE:** `007651beb814d98646aa2e786801b647e2abd0b5`
-- **Literal reviewed HEAD:** `7f0b0710e820b87be2ee8877a3b7693d90e5e505`
-- **Range type:** non-empty cumulative original BASE through revision-11 HEAD
-- **Implementation evidence:** `evidence/P05/implementation-11.md`, SHA-256
-  `2e57eb4e8540b364ceb8369bef5b508b4f9cc442e430723435503ee03d1bcb90`
-- **Sole reviewer artifact:** `reviews/P05-review-11.md`
-- **Review verdict:** FAIL; SHA-256
-  `429b7b86c3fbceca9bbad6ae3d861037ca75a49d7a96a85c448dd7a195aa0244`
-- **Failure artifact commit:** `f6fa2c2e411546f06e7b21e12157dfbb0c411d24`
-- **External-gate control commit:** `e96d93bde4125a106ad9ca092cedf0b0998bf04e`
-- **Prior review files:** immutable revision-01–10 FAIL artifacts; latest SHA-256
-  `51bd77e62afb1adb08cd617db974d1df85f51eda7c7b06c20cd42d838aa7c9f8`
+- **Literal reviewed BASE:** `a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1`
+- **Literal reviewed HEAD:** `95e91dbcb17ffb9600eaa6cb795336898297ebae`
+- **Range type:** non-empty; one commit and exactly 17 authorized paths
+- **Implementation evidence:** `evidence/P06/implementation-01.md`, SHA-256
+  `78fe921dbdd49e1a5ca5a499734f434a4e9715117499082110a5fb3450ae3f52`
+- **Sole reviewer artifact:** `reviews/P06-review-01.md`
+- **Review result:** PASS recommendation; SHA-256
+  `0580e4c8fc9f14d30d4c4d21a761fb56b8ff42953decd30564dda36efe4b64df`; no finding or Q proposal
 - **Reviewer writes:** review file only; no other writes/commits
-- **Required review focus:** independently audit original BASE through exact HEAD and exact two-path
-  revision-11 diff. Verify the filter-only manager change, true extension duplicate, both exact rows,
-  one scoped op, zero receiver push and browser-error evidence under focused/repeated/full gates.
-  Reproduce the installed-CLI genuinely hidden sibling miss beyond 15 seconds and eventual no-focus
-  convergence. Instrument sanitized socket receipt, remote import and DOM publication timing enough
-  to identify the single owner. Confirm/correct/reject Q-PROPOSAL-P05-11-01's exact Realtime-client
-  worker + duplicate-spec scope; audit installed dependency support, extra-socket/refresh/CSP risks
-  and whether worker mode targets the measured delay. Recheck service, cleanup, prior hashes and
-  frozen sources.
-- **Failure route:** persist immutable revision-11 artifacts and use reviewer-confirmed next scope
+- **Required review focus:** independently audit full BASE..HEAD, usage/history proof and exact
+  one-column migration. Verify identity rows/timestamps and normalized encrypted vault state survive
+  seeded 005→009 while the named blob is intentionally unrecoverable; audit grants/RLS/type output,
+  strict signed empty identity inputs, race handling and removal of only dead procedures/types/
+  wrappers. Repeat focused router/hook, fresh/upgrade pgTAP, changed E2E and sample broad gates.
+  Manually test create/unlock/refresh/duplicate/offline/mobile preferences, absence of dead endpoints,
+  no plaintext/secret URLs and honest later-package UI limitations. Recheck cleanup, P05 external
+  boundary, hashes and frozen sources.
+- **Failure route:** persist immutable revision-01 artifacts and use reviewer-confirmed next scope
 - **PASS authority:** reviewer recommends; root verifies/transcribes/integrates and sets `passed`
 
 ## Next root action
 
-Commit this durable external-gate reference, then rewrite HANDOFF for independent P06. Recheck P05
-before P08/P10, a capable installed tool upgrade or P21. No worker/product diff or HS-015 marker is
-authorized.
+Root integrates the immutable P06 evidence/review, D-012 and applicable risk state using exact-path
+staging. Only after that integration commit exists may P06 become passed and the HS-010 completion
+marker be durably prepared.

@@ -7,9 +7,9 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P05 revision 11 (`blocked_external`)
-- **Next action:** persist the dated D-011/DEPENDENCIES external-gate disposition, then dispatch
-  independent P06 while retaining the P05 recheck trigger before P08/P10/P21
+- **Current package:** P06 revision 01 (`reviewing`)
+- **Next action:** root integrates the independently approved P06 artifacts, D-012 and risk state;
+  package PASS and HS-010 marker remain forbidden until that commit exists
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -19,9 +19,10 @@ review evidence.
 - **Active completion marker event:** none
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
-- **Requirement state:** four passed (HS-002, HS-014, HS-017, HS-018); 18 queued
-- **Last ledger update:** 2026-07-20T12:16:22+10:00; P05's D-011 external-gate disposition was
-  persisted in `e96d93bde4125a106ad9ca092cedf0b0998bf04e`
+- **Requirement state:** four passed (HS-002, HS-014, HS-017, HS-018); HS-015 blocked externally;
+  HS-010 reviewing; 16 queued
+- **Last ledger update:** 2026-07-20T13:03:52+10:00; P06 revision 01 independently recommended PASS
+  at exact HEAD `95e91dbcb17ffb9600eaa6cb795336898297ebae`; integration pending
 
 ## Package ledger
 
@@ -33,7 +34,7 @@ review evidence.
 | P03     | HS-018         | TanStack Virtual PR #1100 release gate and `useFlushSync`                           | P01                  | passed       | 01  | `c60f605bd811d8920122a66f3d6743d8a3ac044d..b8d4b448f52022970ca388654be14d24e347deb5` | `evidence/P03/implementation-01.md` | `reviews/P03-review-01.md` | `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34` |
 | P04     | HS-014         | Database/table/RLS threat model, migrations, and permission remediation             | P01                  | passed | 02 | `9de8b0e8c41087b96523ecc55faa10bf19ec0ff9..dbcf180e829c81a218e9a73791e40902c4f9eb31` | `evidence/P04/implementation-02.md` | `reviews/P04-review-02.md` | `b905ecb810334ed9697f57140047964135ade6ea` |
 | P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | blocked_external | 11 | `007651beb814d98646aa2e786801b647e2abd0b5..7f0b0710e820b87be2ee8877a3b7693d90e5e505` | `evidence/P05/implementation-11.md` | `reviews/P05-review-11.md` | external gate `e96d93bde4125a106ad9ca092cedf0b0998bf04e` |
-| P06     | HS-010         | Remove unused user-state storage and dead API surface                               | P04                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
+| P06     | HS-010         | Remove unused user-state storage and dead API surface                               | P04                  | reviewing | 01  | `a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1..95e91dbcb17ffb9600eaa6cb795336898297ebae` | `evidence/P06/implementation-01.md` | `reviews/P06-review-01.md` | pending                                    |
 | P07     | HS-011         | Evidence-led person/member/invite UX architecture and acceptance decision           | P04, P06             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P09     | HS-006         | Loro UndoManager integration, controls, shortcuts and action grouping               | P01                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -91,7 +92,7 @@ required marker rollbacks before the next dispatch.
 | HS-007      | human scratch block               | P17A, P17B, P17C, P17D       | authorized marker after all package PASSes | queued       | —                                                                                                                       |
 | HS-008      | human scratch block               | P14                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-009      | human scratch block               | P16A, P16C, P16D             | authorized marker after all package PASSes | queued       | —                                                                                                                       |
-| HS-010      | human scratch block               | P06                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
+| HS-010      | human scratch block               | P06                          | authorized marker after package PASS       | reviewing | revision-01 evidence frozen, independent review active; no marker                                                         |
 | HS-011      | human scratch block               | P07, P08                     | authorized marker after all package PASSes | queued       | —                                                                                                                       |
 | HS-012      | human scratch block               | P08                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-013      | human scratch block               | P15                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
@@ -686,6 +687,37 @@ DEPENDENCIES gate, R-026 and exact P05/HS-015 blocked state persisted in
 `e96d93bde4125a106ad9ca092cedf0b0998bf04e`. The reviewed product HEAD stays
 `7f0b0710e820b87be2ee8877a3b7693d90e5e505`; recheck triggers and safe-work boundary are durable,
 so independent P06 dispatch may proceed without weakening or falsely completing HS-015.
+
+**2026-07-20T12:18:34+10:00 — P06/01 `queued -> implementing`:** P04 dependency is passed; P05's
+external gate is independent. Original BASE and pre-implementation HEAD are exact
+`a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1`. Dispatch authorizes migration 009 plus only the listed
+router/schema/hook/dead-type/crypto-helper/database-audit/unit/E2E paths. Prove
+`user_data.encrypted_data` is unused opaque state, preserve verified identity rows/memberships/vaults
+and document irreversible blob deletion; remove dead state APIs without replacement storage. Run
+fresh/upgrade, identity/onboarding/offline/duplicate/full/CLI gates. No passkey/P05/other-path or
+marker authority; scratch remains `c74a2a78…`.
+
+**2026-07-20T12:45:08+10:00 — P06/01 `implementing -> ready_for_review -> reviewing`:** Exact
+HEAD `95e91dbcb17ffb9600eaa6cb795336898297ebae`; one commit across exactly 17 authorized paths.
+Evidence SHA-256 `78fe921dbdd49e1a5ca5a499734f434a4e9715117499082110a5fb3450ae3f52`.
+Migration 009 drops only unused `user_data.encrypted_data`, preserves identity timestamp and every
+normalized vault/membership/op/snapshot field, revokes dead service UPDATE, and removes only proven-
+dead procedures/Zod/types/crypto wrappers. Focused 10/10, unit 1,172/1,172, fresh 97/97, upgrade
+40/40, focused 3/3, repeated 63/63, full zero-retry E2E 81/81, lint/type/build/format/diff pass.
+Installed CLI confirms empty signed register/get-or-create bodies, no removed endpoints, create/
+unlock/refresh/duplicate/offline/mobile preference behavior and later-package UI limits. Final
+fresh 005–009 DB/service/cleanup/frozen sources pass; no proposal. New immutable output
+`reviews/P06-review-01.md`; no PASS or HS-010 marker.
+
+**2026-07-20T13:03:52+10:00 — P06/01 `reviewing -> reviewing`:** Independent PASS recommendation;
+review SHA-256 `0580e4c8fc9f14d30d4c4d21a761fb56b8ff42953decd30564dda36efe4b64df`.
+Exact 17-path range/evidence hash and sole-column target are verified. Reviewer independently passes
+focused 10/10, unit 1,172/1,172, fresh 97/97, seeded upgrade 40/40 plus exact identity/membership/
+snapshot SQL, changed E2E repeat 42/42, lint/type/build/type generation and installed CLI create/
+unlock/refresh/duplicate/offline/mobile/network charter. Intentional blob loss is backup-only;
+identity/normalized encrypted data and least privilege remain exact. No finding or Q; P05 external
+and P08/P19 boundaries retained; final empty DB/cleanup/frozen sources pass. Integration, P06 PASS
+and HS-010 marker remain pending.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
