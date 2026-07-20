@@ -5,114 +5,113 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Implementation dispatch
 
-- **Package / revision:** P07 / 02
-- **Scope IDs:** HS-011 architecture package only; HS-011 remains incomplete until P08 also passes
+- **Package / revision:** P07 / 03
+- **Scope IDs:** HS-011 architecture with integrated HS-012 contract; both remain incomplete
 - **State:** changes_requested
-- **Task:** `tasks/HS-011-membership-invite-ux.md`
+- **Task:** `tasks/HS-011-membership-invite-ux.md` and HS-012 contract in
+  `tasks/HS-012-auto-person-link.md`
 - **Original package BASE:** `fe1871ce7dce1e831b57ee5656d38ce5c800aae3`
-- **Pre-implementation HEAD:** `033cb8f6d37208c1ba6ac0b0907672aa18e4ad6d`
-- **Range meaning:** revision 02 is a no-product evidence correction. Root's immutable revision-01
-  artifact/control commits sit after the original BASE, but the worker makes no commit and must
-  leave the product/test/migration/config/dependency diff unchanged.
-- **Allowed implementation paths:** none. Do not edit product, migration, test, config, dependency,
-  durable ledger, prior evidence/review, scratch, FS-001, SCOPE, `.claude`, `.codex` or agent paths.
-- **Sole implementer artifact:** `evidence/P07/implementation-02.md`
+- **Pre-implementation HEAD:** `55bc57e8110c0a0b67c7e1cd470ea6bdc90c6d3d`
+- **Range meaning:** evidence-only revision; root's immutable revision-01/02 artifact/control
+  commits follow the original BASE, but the worker makes no commit and leaves every executable path
+  unchanged.
+- **Allowed implementation paths:** none. Do not edit product, test, migration, config, dependency,
+  ledger, prior artifact/review, scratch, FS-001, SCOPE, `.claude`, `.codex` or agent paths.
+- **Sole implementer artifact:** `evidence/P07/implementation-03.md`
 - **Commit contract:** make no commit and leave HEAD/index unchanged. Write only the assigned new
-  evidence artifact; revision-01 evidence/review are immutable.
+  evidence artifact; all prior evidence/reviews are immutable.
 - **Pre-existing dirty/untracked paths:** root-owned unstaged `PROGRESS.md`, `HANDOFF.md` and
-  `RISKS.md`, plus assigned uncommitted `evidence/P07/implementation-02.md` and
-  `reviews/P07-review-02.md`; no staged or other dirty paths
-- **Authoritative correction:** implement Q-014 and both findings in
-  `reviews/P07-review-01.md`. Retain the linked-hybrid ADR, authoritative Access & Members in Vault
-  Settings, optional financial Person link/status in People, member-only governance, sender-bound
-  fragment capability, stable membership identity, privacy model and every unaffected P08 clause.
-- **Lossless epoch transition:** replace discard/reinitialize semantics with an explicit state
-  machine and storage ownership for versioned per-epoch envelope/history access restricted to a
-  continuously active membership. Use authenticated sender/recipient `crypto_box` as the sole
-  envelope convention. Define a durable local transition journal that can unwrap both authorized
-  epochs, decrypt/import every local `pushed=false` old-epoch operation into the authenticated
-  epoch+1 snapshot, persist and push exactly equivalent new-epoch operations, then complete and
-  zeroize the old key. Specify retry, reload and injected-crash idempotency; no old-epoch publish
-  after advance; removed members get no new or historical authorization they did not already have.
-- **Conflict and proof:** bind epoch, snapshot watermark, permanent-operation set, recipient set,
-  pending invite revocation and grants in the server rotation transaction. A concurrent old-epoch
-  server write must make rotation retry rather than lose it. Require tests for an active offline
-  edit across another member's removal, reconnect/reload/crashes at every transition boundary,
-  exact-once preservation, old-write conflict/retry, historical-envelope authorization, removed-
-  client new-envelope/future-decrypt/old-publish denial and no plaintext journal.
-- **Capability-bound pre-membership read:** define the minimum non-enumerating endpoint bound to the
-  route invite UUID, derived invite public key and current epoch. It returns only the versioned
-  authenticated sender/envelope, encrypted current snapshot and watermark required for the client
-  to authenticate the real 32-byte vault key and snapshot before SQL membership mutation. Specify
-  expiry, tamper, replay, cross-vault, malformed-key and oracle/privacy behavior.
-- **Crash-recoverable acceptance saga:** replace impossible cross-store atomicity with (1) one SQL
-  transaction that locks/consumes the exact invite pair and epoch, idempotently creates/reactivates
-  and returns a stable membership UUID and durable acceptance truth, then (2) a durable client-side
-  acceptance state that deterministically/idempotently creates or links exactly one encrypted CRDT
-  Person keyed by that membership UUID, selects the shared vault and syncs. Every load/retry resumes
-  the saga; concurrent tabs converge; UI stays honestly `finishing` until all steps commit. Define
-  crashes before/between Person, link, selection and sync, duplicate suppression and reversal/export
-  behavior without claiming SQL can roll back encrypted CRDT state.
-- **Deterministic onboarding:** select invite-aware first-user registration that defers creation of
-  the default personal vault until explicit invite cancellation/failure. Successful acceptance
-  selects the shared vault; cancellation/failure resumes ordinary default-vault creation without
-  leaking or losing the fragment capability.
-- **Acceptance contract:** provide corrected state diagrams, ownership tables, threat/replay/privacy
-  matrix, schema/backfill/reversal consequences and a revised complete P08 clause/test map. Retain
-  all original real isolated owner/invitee/removal, accessibility, responsive, preference and 200%
-  zoom requirements. No service fixture, direct URL discovery substitute, plaintext secret,
-  success before reconciliation, or claim that P08 is dispatch-ready is allowed.
-- **Inherited gates:** P08 remains blocked until this revision independently passes and D-011/P05 is
-  rechecked with a supported genuinely hidden topology. P04 identity/RLS, P06 identity-only
-  registry, P19 passkey ownership and R-024 P20B/P21 routing remain fixed. Recheck rolling scratch
-  SHA/21 blocks, immutable FS-001 and SCOPE without editing them.
-- **Question route:** record any residual ambiguity as a complete Q proposal in the sole evidence;
+  `RISKS.md`, plus assigned uncommitted `evidence/P07/implementation-03.md` and
+  `reviews/P07-review-03.md`; no staged or other dirty paths
+- **Authoritative correction:** implement all three findings and the exact revision-03 scope in
+  `reviews/P07-review-02.md`. Preserve every sound revision-02 linked-hybrid, Q-014, capability,
+  crypto, rotation, lineage, tenure, SQL acceptance, fragment, onboarding, privacy, migration,
+  reversal, export, accessibility and real-browser requirement without weakening or restating it
+  inconsistently.
+- **Transactional cross-tab fence:** define a durable per-vault local epoch/write fence installed in
+  the same IndexedDB transaction that seals the planned source-epoch lineage set. Every local edit
+  admission and every encrypted-operation append transaction must read the persisted fence and
+  current local epoch. A racing update must serialize into exactly one safe branch: commit before
+  seal and be included; remain unapplied/deferred before document mutation; or atomically extend/
+  reopen the transition journal with its exact encrypted update/lineage before adoption. Broadcast
+  and leader locks are notification only, never correctness authority.
+- **Stale-tab and completion proof:** specify how a tab suspended before/after in-memory mutation
+  preserves its exact update when its callback observes the seal or advanced local epoch. Adoption/
+  cleanup must transactionally prove no source-epoch `pushed=false` row or deferred/unmapped lineage
+  exists, switch local epoch and leave a terminal fence that prevents any later old-epoch append.
+  Define crash/reload/idempotency at edit admission, seal, append, journal extension, adoption and
+  cleanup. Require two real same-vault tabs with injected both-sided races: before-seal included
+  once, after-seal never unmapped, stale-after-completion cannot write/publish old epoch, and every
+  legitimate edit survives exactly once.
+- **Vault-creator linkage:** restore HS-012's vault-creation branch. Define a feasible zero-knowledge,
+  crash-recoverable protocol using stable creation truth/attempt and owner membership UUID plus a
+  deterministic default Person and reciprocal encrypted membership maps. Lost SQL response,
+  refresh, concurrent creator tabs, crashes before/after initial snapshot or operation persistence,
+  and repeated creation calls must converge to one vault, one owner membership, one active default
+  Person and bijective links. No creation success before local durability and server sync; the
+  server never creates/reads CRDT Person plaintext.
+- **Distinct-invite Person contention:** define post-merge encrypted client reconciliation when two
+  valid invitations carry the same unlinked Person intent. Preserve the intended financial Person
+  and its converged winning reciprocal membership claim. Remove only the losing membership's stale
+  forward claim, deterministically create that membership's `(vaultId,membershipId)` Person and
+  repair its forward/reciprocal fields in an idempotent lineage. Keep `Finishing setup` until the
+  bijection is durable/synced. Invitation reservations may reduce races but cannot replace this
+  convergence rule. Never merge/delete financial history or expose intent to the server.
+- **Complete contract update:** extend ownership/state/threat/privacy/schema/backfill/migration/
+  reversal/export and the full 29-clause proof map with fence/creator/claim records. Tests must cover
+  creator response loss/crash/concurrent tabs/repeated calls and two isolated concurrent invitees
+  claiming one Person, proving two memberships, two active People, a bijective link set, preserved
+  financial history and no permanent repair-only finishing state. Same-invite and all prior real
+  owner/invitee/removal/transition tests remain mandatory.
+- **Inherited gates:** P08 remains non-ready until revision 03 independently passes and D-011/P05
+  verifies a supported genuinely hidden topology. No product implementation, service-fixture
+  substitute, plaintext/memory-only journal, destructive repair, weakened success gate or HS marker
+  is authorized.
+- **Question route:** record residual ambiguity only as a complete Q proposal in the sole evidence;
   do not ask the human or pause. Apply the decision hierarchy and continue.
 
 ## Review dispatch
 
-This review is complete and immutable in artifact commit
-`51cf5baf7492dfb39b606feda2dcb5277ef3877d`.
+This review is complete and becomes immutable when root persists revision-03 failure artifacts.
 
 - **Reviewer:** distinct `human_scratch_reviewer`
 - **Literal reviewed BASE:** `fe1871ce7dce1e831b57ee5656d38ce5c800aae3`
-- **Literal reviewed HEAD:** `033cb8f6d37208c1ba6ac0b0907672aa18e4ad6d`
+- **Literal reviewed HEAD:** `55bc57e8110c0a0b67c7e1cd470ea6bdc90c6d3d`
 - **Range type:** original BASE through unchanged pre-implementation HEAD; root-only immutable
-  revision-01 artifact/control commits are expected, but revision 02 adds no product commit
-- **Implementation evidence:** `evidence/P07/implementation-02.md`, SHA-256
-  `463c9139e76a65542c49ad3ef62212571e9d59cf7c198a81dbd864a9b419a85f`
-- **Sole reviewer artifact:** `reviews/P07-review-02.md`
+  failure artifacts/control commits expected; revision 03 adds no product commit
+- **Implementation evidence:** `evidence/P07/implementation-03.md`, SHA-256
+  `e071c6b240c7907f6814425f7da4dcb25f02e87b95522d9c6c95e953d85ddfbb`
+- **Sole reviewer artifact:** `reviews/P07-review-03.md`
 - **Review artifact SHA-256:**
-  `3f74108cff1bfc48fa49d0fe0e217f6ba491789851932ed229c94ffe93f6c4e3`
-- **Verdict:** FAIL. The sibling-tab local append path is not transactionally fenced against a
-  sealed transition set; the full contract drops vault-creator owner↔Person linkage; and distinct
-  invites can concurrently claim one Person and leave non-bijective links.
+  `af4857061be4e637b31b4a4ac682a1fb17e0b1fd8836b84d846b16eb8a80bff0`
+- **Verdict:** FAIL. The cross-tab fence passes, but semantic lineage aliases distinct peer-specific
+  Loro update bytes and lacks a causally newer late-claim repair round; creator reconciliation also
+  creates a Person distinct from canonical `person-default-me` without migrating its 100% account
+  ownership/references.
 - **Reviewer writes:** review file only; no other writes/commits
-- **Required review focus:** independently verify the exact evidence and original BASE..HEAD,
-  distinguishing root-only immutable revision-01 artifacts/control history from the empty revision-
-  02 product diff. Re-audit every Q-014/F-001/F-002 correction: access-generation-scoped historical
-  envelopes; sole authenticated `crypto_box` convention; rotation watermark/lineage/recipient
-  serialization; ciphertext-only crash journal; exact-byte re-encryption, stable lineage and
-  covered/inserted acknowledgement; removed/re-added denial; capability-bound non-enumerating
-  snapshot/key preflight; fragment lifecycle; atomic stable SQL acceptance truth; protected recovery;
-  deterministic encrypted CRDT Person/link/selection/sync saga; concurrency/crash idempotency and
-  deterministic deferred-default onboarding. Confirm all unaffected linked-hybrid clauses, threat/
-  privacy/schema/backfill/reversal/export and the complete 29-clause test map remain sound and
-  feasible. Reject plaintext journals, inaccessible recovery, duplicate/lost operations or People,
-  server-claimed encrypted-CRDT atomicity, secret/oracle leaks, weakened real-browser gates, or P08
-  dispatch before the D-011/P05 recheck. Verify hashes, index/write boundary, cleanup, 21 scratch
+- **Required review focus:** independently verify exact evidence/range and that revision 03 adds no
+  executable diff. Re-audit the persistent same-store edit-admission/append fence, isolated-fork
+  mutation ordering, seal/append/adoption serialization, journal revision CAS, terminal minimum
+  epoch, no-late-lineage cleanup and two-real-tab injected race proof. Verify default-vault
+  caller/purpose creation truth, one SQL vault/owner/snapshot, protected recovery, deterministic
+  owner Person/link lineage and no success before sync. Verify encrypted claim winner convergence,
+  deterministic loser Person/repair lineage, bijection, history preservation, no oscillation and
+  isolated distinct-invite race proof. Confirm ownership/threat/privacy/schema/migration/reversal/
+  export and all 29 clauses retain every sound revision-02 Q-014/security/UX gate. Reject any live-
+  before-durable mutation, check/append gap, late old op, duplicate vault/Person/link, destructive
+  financial repair, server CRDT authority, plaintext journal, fixture substitute, weakened real-
+  browser proof or premature P08 dispatch. Verify hashes/index/write boundary/cleanup, 21 scratch
   blocks, FS-001 and SCOPE.
-- **Failure route:** persist immutable revision-02 artifacts, then revision 03 must preserve every
-  sound revision-02 clause while adding a persistent per-vault transition fence checked atomically by
-  every local append, transactional no-late-lineage completion proof, crash-recoverable vault-
-  creator membership/default-Person linkage, and deterministic post-convergence same-Person claim
-  repair that gives the losing membership its deterministic Person before success
+- **Failure route:** revision 04 remains evidence-only, preserves every sound revision-03 clause,
+  distinguishes exact CRDT operation identity from request/value idempotency, permanently retains
+  every distinct update or canonical exact bytes, creates a new causally bound repair round after
+  late claims, and idempotently links the existing default `Me` to the owner membership while
+  preserving default-account ownership and every reference
 - **PASS authority:** reviewer recommends; root verifies/transcribes/integrates and sets `passed`
 
 ## Next root action
 
-Exact-stage and commit revision-02 evidence/review with PROGRESS/HANDOFF/RISKS failure state. Record
-artifact commit `51cf5baf7492dfb39b606feda2dcb5277ef3877d` in a second control commit, then
-rewrite this handoff and dispatch only `human_scratch_implementer` for evidence-only
-`evidence/P07/implementation-03.md`. No P08
-implementation or HS marker is authorized; D-011/P05 remains a separate gate.
+Exact-stage and commit revision-03 evidence/review with PROGRESS/HANDOFF/RISKS failure state, record
+the artifact commit in a second control commit, then dispatch only `human_scratch_implementer` for
+`evidence/P07/implementation-04.md`. No P08 implementation or HS marker is authorized; D-011/P05
+remains separate.
