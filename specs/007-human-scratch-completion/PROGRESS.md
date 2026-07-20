@@ -21,8 +21,8 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** six passed; HS-004 changes requested through P11A with P11B/P11C still required;
   HS-015 blocked externally; HS-011/HS-012 and 12 other requirements queued
-- **Last ledger update:** 2026-07-20T19:23:35+10:00; P11A revision 02 independently failed on four
-  remaining production/boundary/evidence findings; immutable failure integration is pending
+- **Last ledger update:** 2026-07-20T19:24:14+10:00; P11A revision 02 failure artifacts and risk
+  transcription are immutable; revision-03 handoff is next
 
 ## Package ledger
 
@@ -39,7 +39,7 @@ review evidence.
 | P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P09     | HS-006         | Loro UndoManager integration, controls, shortcuts and action grouping               | P01                  | passed       | 02 | `c9146fae2c5534313d21b4f34cb2b012eaeeb4ed..418234e28ac649e03ce8ad184d08a8a2f2416149` | `evidence/P09/implementation-02.md` | `reviews/P09-review-02.md` | `59bf82e894e45e034858e25255240701a3afb0b8` |
 | P10     | HS-003         | Encrypted Loro EphemeralStore presence and active transaction                       | P05, P08             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
-| P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | changes_requested | 02 | `eb5ab2e215130c358130d5411a92b51951c3c53a..d81c5039c41577f94791bedc4184b98940c631a6` | `evidence/P11A/implementation-02.md` | `reviews/P11A-review-02.md` | rev01 failure control `571b1ed05ab540d5a2e9fe5ba142d304a32137fa`; rev02 integration pending |
+| P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | changes_requested | 02 | `eb5ab2e215130c358130d5411a92b51951c3c53a..d81c5039c41577f94791bedc4184b98940c631a6` | `evidence/P11A/implementation-02.md` | `reviews/P11A-review-02.md` | rev02 failure control `0183a70afed010d862f4eb960d5464b09a17ecd5` |
 | P11B    | HS-004         | Alias management and transaction-cell pointer/keyboard UX                           | P11A                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P11C    | HS-004         | Alias import/manual/shared flows, performance hardening and exhaustive tests        | P11B                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -1173,6 +1173,8 @@ no-retry E2E 84/84 pass; installed-CLI management/offline/accessibility/privacy 
 Q-017 remain canonical; no new Q proposal. Exact HEAD/index/write boundary, cleanup, scratch/21
 blocks/six markers, FS-001 and SCOPE verify. Preserve revisions 01/02; revision 03 must close every
 remaining finding and receive cumulative independent review.
+Immutable revision-02 evidence/review and R-030/R-031 transcription were integrated in
+`0183a70afed010d862f4eb960d5464b09a17ecd5`.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual

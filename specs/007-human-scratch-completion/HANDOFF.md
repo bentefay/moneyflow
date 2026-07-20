@@ -9,7 +9,8 @@ literal field is `pending`. Workers may read but never edit it.
 - **Scope IDs:** HS-004 model/invariant checkpoint only; P11B/P11C remain required before HS-004
   completion or marker authority
 - **State:** changes_requested; revision-01 evidence/review immutable in
-  `571b1ed05ab540d5a2e9fe5ba142d304a32137fa`; revision-02 evidence/review are frozen and FAIL
+  `571b1ed05ab540d5a2e9fe5ba142d304a32137fa`; revision-02 evidence/review immutable in
+  `0183a70afed010d862f4eb960d5464b09a17ecd5`
 - **Task:** `tasks/HS-004-description-aliases.md`, complete frozen 72-line HS-004 block in SCOPE,
   P11A acceptance only
 - **Dependencies:** P09/HS-006 passed; P11A is independent of the blocked P05/P08/P10 branch
