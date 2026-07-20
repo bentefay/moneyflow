@@ -50,7 +50,8 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Review dispatch
 
-This diagnostic review is complete; root gate integration is pending.
+This diagnostic review/gate update is complete and immutable in
+`0f7ee5222dd23794411427fdc013cf3a5b6f8648`.
 
 - **Reviewer:** distinct `human_scratch_reviewer`
 - **Literal reviewed BASE:** `007651beb814d98646aa2e786801b647e2abd0b5`
@@ -80,7 +81,6 @@ This diagnostic review is complete; root gate integration is pending.
 
 ## Next root action
 
-Exact-stage and commit revision-12 evidence/review with PROGRESS/HANDOFF/DEPENDENCIES/DECISIONS/RISKS
-gate updates. Record the artifact commit in a second control commit, retain P05/HS-015
-`blocked_external`, keep P08/P10 dependency-blocked, and dispatch the next dependency-ready package.
-No product edit or marker is authorized.
+Commit this artifact reference, retain P05/HS-015 `blocked_external`, keep P08/P10 dependency-
+blocked, and dispatch dependency-ready P09. No product edit or marker is authorized by the
+diagnostic.

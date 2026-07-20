@@ -8,8 +8,8 @@ review evidence.
 
 - **Goal status:** in progress
 - **Current package:** P05 revision 12 (`blocked_external`; diagnostic recheck passed)
-- **Next action:** integrate the exact diagnostic artifacts/gate update, then continue with
-  dependency-ready P09 while P08/P10 remain blocked
+- **Next action:** dispatch dependency-ready P09 while P05/HS-015 and P08/P10 remain externally/
+  dependency blocked
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -21,8 +21,8 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** five passed; HS-015 blocked externally; HS-011/HS-012 and 14 other
   requirements queued
-- **Last ledger update:** 2026-07-20T15:30:50+10:00; P05 revision-12 diagnostic independently
-  passed while reconfirming unchanged `blocked_external` disposition
+- **Last ledger update:** 2026-07-20T15:31:48+10:00; P05 revision-12 diagnostic/gate update is
+  immutable in `0f7ee5222dd23794411427fdc013cf3a5b6f8648`
 
 ## Package ledger
 
@@ -33,7 +33,7 @@ review evidence.
 | P02     | HS-017         | Animate UI evaluation, ADR, and representative migration only if justified          | P01                  | passed       | 02  | `19d73035b33b639f9927d2f78a55d74c44f65544..213100fadf5acea30aad7e90998bd575cdcd508c` | `evidence/P02/implementation-02.md` | `reviews/P02-review-02.md` | `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7` |
 | P03     | HS-018         | TanStack Virtual PR #1100 release gate and `useFlushSync`                           | P01                  | passed       | 01  | `c60f605bd811d8920122a66f3d6743d8a3ac044d..b8d4b448f52022970ca388654be14d24e347deb5` | `evidence/P03/implementation-01.md` | `reviews/P03-review-01.md` | `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34` |
 | P04     | HS-014         | Database/table/RLS threat model, migrations, and permission remediation             | P01                  | passed | 02 | `9de8b0e8c41087b96523ecc55faa10bf19ec0ff9..dbcf180e829c81a218e9a73791e40902c4f9eb31` | `evidence/P04/implementation-02.md` | `reviews/P04-review-02.md` | `b905ecb810334ed9697f57140047964135ade6ea` |
-| P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | blocked_external | 12 | `007651beb814d98646aa2e786801b647e2abd0b5..824bb1570f1e52bcd0afcbf89040d1c0ffac50ec` | `evidence/P05/implementation-12.md` | `reviews/P05-review-12.md` | pending |
+| P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | blocked_external | 12 | `007651beb814d98646aa2e786801b647e2abd0b5..824bb1570f1e52bcd0afcbf89040d1c0ffac50ec` | `evidence/P05/implementation-12.md` | `reviews/P05-review-12.md` | diagnostic gate `0f7ee5222dd23794411427fdc013cf3a5b6f8648` |
 | P06     | HS-010         | Remove unused user-state storage and dead API surface                               | P04                  | passed | 01  | `a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1..95e91dbcb17ffb9600eaa6cb795336898297ebae` | `evidence/P06/implementation-01.md` | `reviews/P06-review-01.md` | `8e269ab9a6fc15ed6d845542b879e5499828134e` |
 | P07     | HS-011         | Evidence-led person/member/invite UX architecture and acceptance decision           | P04, P06             | passed | 04  | `fe1871ce7dce1e831b57ee5656d38ce5c800aae3..dfffea3c19b110b6021b050b8d9e36b01ae75ab9` | `evidence/P07/implementation-04.md` | `reviews/P07-review-04.md` | `1f6cb96b27c8093f0ba2c319f32d3c79c8aab126` |
 | P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -948,6 +948,12 @@ preserved, P05/HS-015 returns to `blocked_external`, HS-015 remains unchecked an
 dependency-blocked. DEPENDENCIES/D-011/R-026 receive the dated recheck; next trigger is a capable
 installed upgrade or P21. Exact range/index, formatting, cleanup, zero state, scratch/21 blocks,
 FS-001 and SCOPE pass; root artifact integration pending.
+
+**2026-07-20T15:31:48+10:00 — P05/12 `blocked_external -> blocked_external`:** Immutable diagnostic
+evidence/review and dated DEPENDENCIES/D-011/R-026 disposition are persisted in
+`0f7ee5222dd23794411427fdc013cf3a5b6f8648`. The before-P08 trigger is satisfied honestly but the
+external capability remains unavailable; P08/P10 stay blocked and independent P09 may proceed. No
+executable, marker or frozen-source path changed.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
