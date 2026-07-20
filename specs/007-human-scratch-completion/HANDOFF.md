@@ -72,7 +72,8 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Review dispatch
 
-This review is complete and becomes immutable when root persists revision-03 failure artifacts.
+This review is complete and immutable in artifact commit
+`196b190066f75465061a1524fc8c51d067a2ef42`.
 
 - **Reviewer:** distinct `human_scratch_reviewer`
 - **Literal reviewed BASE:** `fe1871ce7dce1e831b57ee5656d38ce5c800aae3`
@@ -112,6 +113,7 @@ This review is complete and becomes immutable when root persists revision-03 fai
 ## Next root action
 
 Exact-stage and commit revision-03 evidence/review with PROGRESS/HANDOFF/RISKS failure state, record
-the artifact commit in a second control commit, then dispatch only `human_scratch_implementer` for
+artifact commit `196b190066f75465061a1524fc8c51d067a2ef42` in a second control commit, then
+dispatch only `human_scratch_implementer` for
 `evidence/P07/implementation-04.md`. No P08 implementation or HS marker is authorized; D-011/P05
 remains separate.
