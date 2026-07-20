@@ -27,7 +27,7 @@
 | R-023 | Preservation | A 1,000-row import overflows encrypted-update base64 conversion and reloads as zero local transactions                | Replace unbounded byte-array spread in the P14 large-import persistence path; require 1,000-row navigation/reload recovery in P14 and P21                        | open      |
 | R-024 | Formatting  | Checking an authorized scratch marker changes Markdown parse shape and makes repository-wide oxfmt request a frozen-source text edit | Never reformat frozen scratch; P20B must configure/exclude marker-aware frozen scope without changing normalized text, and P21 must prove full formatting plus source checks | open      |
 | R-025 | Configuration | Realtime signing-secret setup is documented but ordinary local/CI Playwright cannot obtain it hermetically             | P05/02 independent review proves ordinary env-unset Playwright obtains the known local key in process memory, never prints/persists it, and production remains deployment-secret fail-closed | mitigated |
-| R-026 | Manual evidence | Required headless CLI reports non-selected sibling pages visible and cannot certify genuinely hidden-tab acceptance | Q-013 forbids worker/product inference; establish a supported verified-hidden timing mechanism or classify P05 blocked_external with dated recheck before dependent milestones/P21 | open |
+| R-026 | Manual evidence | Required headless CLI reports non-selected sibling pages visible and cannot certify genuinely hidden-tab acceptance | P05 is blocked_external under D-011/DEPENDENCIES; no product inference; recheck before P08/P10, a capable CLI/Playwright upgrade or P21 | external |
 
 Update risk status only with evidence. A package PASS must link mitigation for every applicable
 high-impact risk.

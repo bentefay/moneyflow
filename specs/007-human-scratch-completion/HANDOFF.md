@@ -7,7 +7,7 @@ literal field is `pending`. Workers may read but never edit it.
 
 - **Package / revision:** P05 / 11
 - **Scope IDs:** HS-015; no scratch marker before independent package PASS and root integration
-- **State:** changes_requested
+- **State:** blocked_external
 - **Task:** `tasks/HS-015-realtime-security.md`
 - **Original package BASE:** `007651beb814d98646aa2e786801b647e2abd0b5`
 - **Pre-implementation HEAD:** `71b38d71aa17fa843f0c9354bf78c20a0d3b4400`; includes immutable
@@ -88,6 +88,7 @@ This section is complete; revision-11 evidence, review and cumulative literal ra
 
 ## Next root action
 
-Commit this durable artifact reference, then reconcile the executable verified-hidden topology gate
-before any revision-12 dispatch or evidence-backed `blocked_external` transition. No worker/product
-diff or HS-015 marker is authorized.
+Persist D-011, the dated DEPENDENCIES external gate, R-026 and the P05/HS-015 `blocked_external`
+transition. Record that control commit, then rewrite HANDOFF for independent P06. Recheck P05 before
+P08/P10, a capable installed tool upgrade or P21. No worker/product diff or HS-015 marker is
+authorized.

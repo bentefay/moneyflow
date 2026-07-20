@@ -69,3 +69,24 @@ change or pretend `useFlushSync` is supported.
 WebAuthn PRF browser and virtual-authenticator support may constrain automated coverage. That can
 limit a test method but not justify faking cryptographic support; record real-device/manual evidence
 and capability fallback behavior.
+
+### P05 verified-hidden manual topology gate
+
+- **Checked:** 2026-07-20 against repository-pinned `@playwright/cli` 0.1.17, its Playwright
+  1.62.0-alpha runtime protocol, repository Playwright 1.61.1 and the mandatory PROCESS manual-test
+  rules.
+- **Exact unavailable condition:** PROCESS requires the repository-installed headless CLI and
+  forbids headed mode, temporary tests/configs and emulated visibility as acceptance evidence. The
+  installed CLI is headless by default, exposes tab selection but no hide/background command, and
+  every allowed opener/duplicate page reports `document.visibilityState === "visible"`. Its bundled
+  CDP protocol exposes only `Page.setWebLifecycleState` values `active`/`frozen`; no real-hidden
+  visibility transition exists. Independent visible-page timing is green at 2,549 ms socket/import
+  and 2,591 ms DOM, so no product owner can be inferred.
+- **Disposition:** P05/HS-015 is `blocked_external`. Preserve the reviewed revision-11 manager fix,
+  keep HS-015 unchecked and authorize no `worker: true`, timeout, focus/reload/poll or emulated-
+  hidden substitute. Continue packages not depending on P05.
+- **Recheck trigger:** before dispatching P08 or P10, at the next installed CLI/Playwright upgrade
+  that provides a verifiable real-hidden headless topology, or before P21—whichever comes first.
+  Reopen P05 with a no-product diagnostic revision first; record hidden visibility at mutation,
+  15 seconds and completion plus sanitized socket/import/DOM elapsed times before selecting any
+  writable product owner.

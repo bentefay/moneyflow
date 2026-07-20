@@ -175,6 +175,27 @@ need evidence, alternatives, security/UX impact, and a reversal path.
   membership, snapshot and permanent-operation data and must never restore unsafe grants, claimed
   identity settings, cascade deletion or a second authoritative operation store.
 
+## D-011 — Block P05 rather than mutate Realtime for an unmeasured hidden-page edge
+
+- **Date:** 2026-07-20
+- **Package / scope:** P05 / HS-015
+- **Status:** accepted external-gate disposition
+- **Evidence:** `evidence/P05/implementation-11.md`, independent
+  `reviews/P05-review-11.md`, Q-013 and the installed `@playwright/cli` 0.1.17 help/README plus its
+  bundled CDP protocol declarations.
+- **Alternatives:** Enable Realtime `worker: true`; certify a merely non-selected visible page;
+  emulate hidden lifecycle; weaken the 15-second bound; or stop all independent work.
+- **Decision and reason:** None is acceptable. Required headless CLI pages report visible, visible
+  socket/import/DOM convergence is 2.591 seconds, and worker mode moves only heartbeat timing while
+  adding per-client worker/CSP/disconnect surface. P05 is therefore `blocked_external` until a
+  repository-authorized real-hidden topology can measure the first late edge. Independent packages
+  continue under the dependency graph.
+- **Security, data, UX, and compatibility impact:** The independently green same-identity manager
+  correction and strict true-duplicate regression remain preserved. No speculative client worker,
+  timeout, reload/poll or false hidden evidence is introduced; HS-015 remains unchecked.
+- **Reversal/migration path:** Reopen P05 with a no-product diagnostic revision at the documented
+  recheck trigger. Only causal hidden timing may authorize a later exact product/test diff.
+
 ## Decision template
 
 ### D-XXX — Title
