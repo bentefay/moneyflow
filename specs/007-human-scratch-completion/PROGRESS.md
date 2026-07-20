@@ -7,8 +7,9 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P09 revision 02 and HS-006 (`passed`)
-- **Next action:** verify the clean post-marker boundary, then dispatch dependency-ready P11A
+- **Current package:** P11A revision 01 (`changes_requested`)
+- **Next action:** persist immutable revision-01 FAIL/Q/risk transcription, then dispatch P11A
+  revision 02 over the original BASE through a new HEAD to close F-01–F-06
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -18,10 +19,10 @@ review evidence.
 - **Active completion marker event:** none
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
-- **Requirement state:** six passed; HS-015 blocked externally; HS-011/HS-012
-  and 13 other requirements queued
-- **Last ledger update:** 2026-07-20T17:18:50+10:00; HS-006 marker-only completion finalized with
-  six exact authorized checked IDs and all frozen-source checks green
+- **Requirement state:** six passed; HS-004 changes requested through P11A with P11B/P11C still required;
+  HS-015 blocked externally; HS-011/HS-012 and 12 other requirements queued
+- **Last ledger update:** 2026-07-20T18:07:34+10:00; P11A revision 01 independently failed on six
+  production/invariant/evidence findings; immutable failure integration is pending
 
 ## Package ledger
 
@@ -38,7 +39,7 @@ review evidence.
 | P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P09     | HS-006         | Loro UndoManager integration, controls, shortcuts and action grouping               | P01                  | passed       | 02 | `c9146fae2c5534313d21b4f34cb2b012eaeeb4ed..418234e28ac649e03ce8ad184d08a8a2f2416149` | `evidence/P09/implementation-02.md` | `reviews/P09-review-02.md` | `59bf82e894e45e034858e25255240701a3afb0b8` |
 | P10     | HS-003         | Encrypted Loro EphemeralStore presence and active transaction                       | P05, P08             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
-| P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
+| P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | changes_requested | 01 | `eb5ab2e215130c358130d5411a92b51951c3c53a..4920dcbcb3d30b113c0df2811cbca3e718e22b0f` | `evidence/P11A/implementation-01.md` | `reviews/P11A-review-01.md` | failure control pending                    |
 | P11B    | HS-004         | Alias management and transaction-cell pointer/keyboard UX                           | P11A                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P11C    | HS-004         | Alias import/manual/shared flows, performance hardening and exhaustive tests        | P11B                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -85,7 +86,7 @@ required marker rollbacks before the next dispatch.
 | HS-001      | human scratch block               | P13                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-002      | human scratch block               | P01                          | authorized marker after package PASS       | passed       | P01 integration `c2b89b6676271142ad6802dcf2a30acf8899df48`; `reviews/P01-review-02.md`; marker `b91ca932… -> dcd03b23…` |
 | HS-003      | human scratch block               | P10                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
-| HS-004      | human scratch block               | P11A, P11B, P11C             | authorized marker after all package PASSes | queued       | —                                                                                                                       |
+| HS-004      | human scratch block               | P11A, P11B, P11C             | authorized marker after all package PASSes | changes_requested | P11A/01 FAIL F-01–F-06; P11B/P11C remain required; no marker                                                    |
 | HS-005      | human scratch block               | P12                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-006      | human scratch block               | P09                          | authorized marker after package PASS       | passed       | P09 integration `59bf82e894e45e034858e25255240701a3afb0b8`; `reviews/P09-review-02.md`; marker `753be6b7… -> c2b986fd…` |
 | HS-007      | human scratch block               | P17A, P17B, P17C, P17D       | authorized marker after all package PASSes | queued       | —                                                                                                                       |
@@ -1062,6 +1063,63 @@ HS-002/HS-006/HS-010/HS-014/HS-017/HS-018. Scratch SHA advances contiguously fro
 `c2b986fd3e952190149b2d3e87530f5cfad6f180d452c881f93984c36f2471ae`, 350 lines/24,245 bytes.
 FS-001 remains exact at `0d0e2a14…`, 715 lines/25,441 bytes; SCOPE remains `d03f33e7…`. The active
 completion event is cleared and normal dispatch may resume.
+
+**2026-07-20T17:19:58+10:00 — P11A/01 `queued -> implementing`:** P09/HS-006 is passed and P11A is
+the next dependency-ready critical-path package. Dispatch uses clean literal BASE/pre-implementation
+HEAD `eb5ab2e215130c358130d5411a92b51951c3c53a`, exact evidence
+`evidence/P11A/implementation-01.md` and future immutable review `reviews/P11A-review-01.md`. Authority
+is limited to alias schema/domain/CRDT mutation/query/migration paths and focused unit/integration/
+description-alias E2E tests; P11B interaction and P11C integrated/performance scope remain deferred.
+The implementer must establish legal real/symlink states, O(1) one-hop resolution, exact forward/
+backlink conservation, atomic one-step operations, deletion bookkeeping and deterministic idempotent
+data-preserving partial-data migration with property/concurrency/convergence evidence. Ambiguous
+normalization or destructive concurrency becomes a complete Q proposal without pausing. Dispatch-time
+dirt is root-owned HANDOFF/PROGRESS only; index/executable paths are clean. Scratch is exact at
+`c2b986fd…` with six authorized markers and 21 normalized blocks; FS-001 and SCOPE remain exact; no
+completion marker or rollback event is active.
+
+**2026-07-20T17:27:32+10:00 — P11A/01 implementation authority refinement:** Model inventory found
+that the existing `createVaultMirror` test/bootstrap path omits the `descriptionAliases` root and
+does not invoke `migrateVaultSentinels`, so real-mirror migration/invariant tests cannot exercise the
+same post-hydration state as production. Root explicitly adds only `src/lib/crdt/mirror.ts` to set the
+empty alias root and call the existing system-origin migration before consumers. This is a narrow
+P11A bootstrap/migration owner, not P11B/P11C scope. Every other original path prohibition remains;
+no product commit or review boundary exists yet.
+
+**2026-07-20T17:43:13+10:00 — P11A/01 `implementing -> ready_for_review -> reviewing`:** Literal
+HEAD `4920dcbcb3d30b113c0df2811cbca3e718e22b0f` contains exactly 12 authorized product/test paths;
+original BASE remains `eb5ab2e215130c358130d5411a92b51951c3c53a`. Sole frozen evidence
+`evidence/P11A/implementation-01.md` is 204 lines/15,149 bytes at SHA-256
+`657c055c01ccc3edf4d183a0c250a744112cf12fb90d2ec297a5071ae064f63d`. It reports a legal public
+real/symlink union, preflighted atomic full-vault mutations, final-real assignment, exact nested/
+top-level deletion bookkeeping, deterministic chain/cycle/partial-data repair and production/test
+bootstrap migration. Focused 68/68 includes 40-run random sequences, real two-peer opposing
+change-all convergence and real UndoManager/system-origin proof; full Vitest 1,200/1,200, typecheck,
+build, zero-error lint and two independent no-retry 2/2 current-management E2E runs pass. Manual
+current-surface create/Undo/Redo/reload is green after transparently correcting the local Realtime
+server environment; P11B/P11C are explicitly deferred. Two complete Q proposals cover exact
+normalization/case and concurrent destructive policy. Root verified exact paths/HEAD/index,
+`diff --check`, cleanup/no generated drift/process, scratch/21 blocks/six markers, FS-001 and SCOPE.
+Only root HANDOFF/PROGRESS and frozen evidence are dirty; exact new review output is
+`reviews/P11A-review-01.md`.
+
+**2026-07-20T18:07:34+10:00 — P11A/01 `reviewing -> changes_requested`:** Independent FAIL at
+unchanged HEAD `4920dcbcb3d30b113c0df2811cbca3e718e22b0f`; review is 283 lines/21,880 bytes at
+SHA-256 `38a390dc182086b8257f16cec92cd9ca4a87166e0a4a3a58f6163ec19b0a106d`. Six blocking findings:
+F-01 production `useVaultAction` recipes return a Result after mutating the draft, causing the Immer
+return-and-mutate runtime exception, discarding typed errors and allowing mixed-update partial writes;
+F-02 repair is wired only to helper mirrors, not the real hydrated provider; F-03 remove-all leaves
+active symlinks targeting a tombstone and repair can resurrect their visible aliases; F-04 public
+selectors/types still expose the illegal raw wire union and symlink recovery names; F-05 the shipped
+management route bypasses named normalization/actions and creates NFC-equivalent duplicates; F-06
+required operation/property/scale/provider/repair-exchange/UndoManager evidence is materially absent.
+Focused 68/68 repeated, unit 1,200/1,200, type/build/lint and management repeat 6/6 pass, but full
+no-retry E2E is honestly red 4 failed/80 passed from F-01. Current-route manual CRUD/undo/sync/privacy/
+responsive behavior is otherwise usable and P11B/P11C remain correctly deferred. Q-016/Q-017 accept
+the normalization and provisional concurrency defaults for remediation; R-030/R-031 track graph and
+production-integration risk. Exact HEAD/index/write boundary, cleanup, scratch/21 blocks/six markers,
+FS-001 and SCOPE verify. Preserve revision-01 work/artifacts; revision 02 must close all findings and
+receive cumulative independent review.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual

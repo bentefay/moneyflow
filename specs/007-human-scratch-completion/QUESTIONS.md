@@ -580,6 +580,68 @@ No unresolved product questions were answered by scaffold creation.
   platform-shortcut policy prefers B. No decision blocks continuation because A is isolated,
   tested and losslessly reversible.
 
+## Q-016 — Normalize exact alias matches with trim and NFC while preserving case
+
+- **Raised:** 2026-07-20, P11A revision 01, `human_scratch_implementer`; independently accepted as a
+  provisional remediation default by `human_scratch_reviewer`
+- **Source proposal:**
+  `evidence/P11A/implementation-01.md#q-proposal-p11a-01-01--exact-alias-normalization-and-case`;
+  confirmed in `reviews/P11A-review-01.md#q-proposal-adjudication`
+- **Context and evidence:** The frozen text requires a typed value that matches an existing alias to
+  attach it and P11A requires exact normalization/matching, but it does not define whitespace,
+  Unicode canonical equivalence or case. Direct helper tests select surrounding-whitespace removal,
+  Unicode NFC normalization and case-sensitive equality: precomposed and decomposed `Café` match,
+  while `CAFÉ` remains distinct. Revision-01 manual review also proved the shipped management route
+  does not yet use this policy and can create visually equivalent duplicates.
+- **Why the frozen requirement/repository does not fully decide it:** “Matches exactly” excludes
+  partial matching but does not resolve canonical Unicode equivalence or case identity.
+- **Options considered:** (A) trim + NFC with case-sensitive equality; (B) trim + NFC with
+  locale-independent case folding; or (C) literal UTF-16 code-unit equality with no normalization.
+- **Default selected for continued work:** Choose A. Apply the one named normalization boundary to
+  every production alias create/rename/exact-match path, including existing management CRUD.
+- **Decision hierarchy basis:** Frozen exact-match behavior controls. Existing UI already trims;
+  NFC prevents invisible canonical duplicates, while preserving case is the least destructive
+  unresolved choice.
+- **Impact and risk:** A may retain deliberate aliases differing only by case. B can silently merge
+  intended names and has language edge cases; C permits visually indistinguishable duplicates. The
+  current implementation is not approved until every production path honors A.
+- **How to reverse or migrate:** Replace the centralized comparator and rerun deterministic repair
+  under an explicit collision policy. Preserve raw imported descriptions and alias recovery names.
+- **Does a human still need to decide after completion?:** Yes, if later language/locale research
+  favors case folding. A is deterministic, reversible and data-preserving, so no decision blocks work.
+
+## Q-017 — Reject stale destructive alias intent and repair merged graphs without resurrection
+
+- **Raised:** 2026-07-20, P11A revision 01, `human_scratch_implementer`; independently accepted as a
+  provisional remediation default by `human_scratch_reviewer`
+- **Source proposal:**
+  `evidence/P11A/implementation-01.md#q-proposal-p11a-01-02--concurrent-destructive-alias-operations`;
+  confirmed in `reviews/P11A-review-01.md#q-proposal-adjudication`
+- **Context and evidence:** Change/remove one/all can race with reassignment, deletion or opposing
+  change-all. Local expected-alias preconditions can reject stale destructive intent; cross-peer
+  field merges require deterministic repair. The frozen requirement defines final graph invariants
+  but not simultaneous destructive-intent precedence. Revision-01 review proved production repair is
+  currently unreachable and remove-all can be reversed visibly by later repair.
+- **Why the frozen requirement/repository does not fully decide it:** Offline-first convergence and
+  no-chain/reference invariants decide the required outcome, but not which concurrent user's display
+  preference wins.
+- **Options considered:** (A) reject stale local actions, make deletion non-resurrecting and
+  deterministically repair merged graphs; (B) permit a last scalar writer to resurrect tombstones;
+  or (C) require distributed locks/transactions for destructive actions.
+- **Default selected for continued work:** Choose A. Local actions return typed stale errors with no
+  writes; merged repair preserves transactions/raw text and converges while tombstoned visible alias
+  groups remain removed.
+- **Decision hierarchy basis:** Frozen offline-first CRDT behavior, no-chain/reference invariants and
+  preservation of user data outrank unspecified preference ordering. A is the smallest coordination-
+  free reversible policy.
+- **Impact and risk:** A can clear a newly assigned pointer whose target was concurrently deleted,
+  leaving immutable raw text visible. Deterministic cycle election may not reflect either peer's
+  preferred name, so recovery metadata must be retained without exposing an illegal public state.
+- **How to reverse or migrate:** Add explicit epochs/tombstone precedence or a conflict UI, then run
+  versioned canonical repair. Existing IDs, raw text and hidden former names must remain available.
+- **Does a human still need to decide after completion?:** Yes, if the product later prefers explicit
+  conflict surfacing. A is convergent and preservation-first, so it remains the working default.
+
 ## Question template
 
 ### Q-XXX — Short title
