@@ -1,5 +1,5 @@
 import { act, render, waitFor } from "@testing-library/react";
-import { createElement, useEffect, useMemo } from "react";
+import { createElement, Fragment, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it, vi } from "vitest";
 
@@ -196,6 +196,354 @@ describe("production description alias lookup lifecycle", () => {
 
         view.unmount();
         coordinator.dispose();
+    });
+
+    it("publishes local and remote aliases committed while every alias consumer is unmounted", async () => {
+        const seeded = createVaultMirror();
+        seeded.mirror.setState((state: VaultState) => seedLargeLegalGraph(state));
+        seeded.mirror.dispose();
+        const coordinator = new VaultUndoCoordinator(seeded.doc);
+        coordinator.clear();
+        let aliasActions: ReturnType<typeof useDescriptionAliasActions> | undefined;
+        let currentAliases: DescriptionAliasCollection | undefined;
+        let transactionActions: ReturnType<typeof useTransactionActions> | undefined;
+
+        function PersistentActions() {
+            aliasActions = useDescriptionAliasActions();
+            transactionActions = useTransactionActions();
+            return null;
+        }
+
+        function AliasConsumer() {
+            const aliases = useDescriptionAliases();
+            currentAliases = aliases;
+            const lookup = useDescriptionAliasLookup(aliases);
+            const options = useMemo(() => {
+                lifecycleCounts.dependentOptionBuilds += 1;
+                return lookup.activeRealAliases.map((alias) => alias.name);
+            }, [lookup]);
+            return createElement(
+                "output",
+                { "data-testid": "gap-alias-state" },
+                JSON.stringify({
+                    exactLocal: lookup.findExactAliasId("Local During Gap"),
+                    exactRemote: lookup.findExactAliasId("Remote During Gap"),
+                    options
+                })
+            );
+        }
+
+        function Harness({ showConsumer }: { readonly showConsumer: boolean }) {
+            return createElement(
+                VaultProvider,
+                { doc: seeded.doc },
+                // createElement's required-children type needs the child in the typed props object.
+                // eslint-disable-next-line react/no-children-prop
+                createElement(VaultUndoProvider, {
+                    coordinator,
+                    children: createElement(
+                        Fragment,
+                        null,
+                        createElement(PersistentActions),
+                        showConsumer ? createElement(AliasConsumer) : null
+                    )
+                })
+            );
+        }
+
+        const view = render(createElement(Harness, { showConsumer: true }));
+        await waitFor(() =>
+            expect(view.getByTestId("gap-alias-state").textContent).toContain("Alias 499")
+        );
+        const initialAliases = currentAliases;
+
+        view.rerender(createElement(Harness, { showConsumer: false }));
+        resetLifecycleCounts();
+        for (const notes of ["gap one", "gap two", "gap three"]) {
+            act(() => {
+                transactionActions?.updateTransaction({
+                    location: location("editable"),
+                    updates: { notes }
+                });
+            });
+        }
+        const remoteTransactions = createVaultMirrorFromSnapshot(
+            seeded.doc.export({ mode: "snapshot" })
+        );
+        const remoteTransactionBase = seeded.doc.version();
+        remoteTransactions.mirror.setState((state: VaultState) => {
+            insertTransaction(state.transactions, {
+                transaction: {
+                    id: "gap-remote-transaction",
+                    date: DATE,
+                    description: "Gap remote raw",
+                    descriptionAliasId: undefined,
+                    notes: "",
+                    amount: asMinorUnits(400),
+                    accountId: "account",
+                    tagIds: [],
+                    statusId: "status",
+                    importId: "gap-remote-import",
+                    allocations: {},
+                    creationInstant: Temporal.Instant.fromEpochMilliseconds(4),
+                    importRowIndex: 3,
+                    deletedAt: undefined
+                }
+            });
+        });
+        act(() =>
+            seeded.doc.import(
+                remoteTransactions.doc.export({
+                    mode: "update",
+                    from: remoteTransactionBase
+                })
+            )
+        );
+        expectNoAliasLifecycleWork();
+
+        view.rerender(createElement(Harness, { showConsumer: true }));
+        await waitFor(() =>
+            expect(view.getByTestId("gap-alias-state").textContent).toContain("Alias 499")
+        );
+        expect(currentAliases).toBe(initialAliases);
+        expect(lifecycleCounts).toEqual({
+            conversions: 0,
+            dependentOptionBuilds: 1,
+            lookupBuilds: 1
+        });
+        remoteTransactions.mirror.dispose();
+
+        view.rerender(createElement(Harness, { showConsumer: false }));
+        expect(view.queryByTestId("gap-alias-state")).toBeNull();
+        resetLifecycleCounts();
+        act(() => {
+            aliasActions?.renameDescriptionAlias({
+                aliasId: "real-00042",
+                name: "Local During Gap"
+            });
+        });
+        expectNoAliasLifecycleWork();
+
+        view.rerender(createElement(Harness, { showConsumer: true }));
+        await waitFor(() =>
+            expect(view.getByTestId("gap-alias-state").textContent).toContain(
+                '"exactLocal":"real-00042"'
+            )
+        );
+        expectOneAliasLifecycleBuild();
+
+        view.rerender(createElement(Harness, { showConsumer: false }));
+        resetLifecycleCounts();
+        const remote = createVaultMirrorFromSnapshot(seeded.doc.export({ mode: "snapshot" }));
+        const remoteBase = seeded.doc.version();
+        remote.mirror.setState((state: VaultState) => {
+            createDescriptionAlias(state, {
+                aliasId: "remote-during-gap",
+                name: "Remote During Gap"
+            });
+        });
+        const remoteUpdate = remote.doc.export({ mode: "update", from: remoteBase });
+        act(() => seeded.doc.import(remoteUpdate));
+        expectNoAliasLifecycleWork();
+
+        view.rerender(createElement(Harness, { showConsumer: true }));
+        await waitFor(() =>
+            expect(view.getByTestId("gap-alias-state").textContent).toContain(
+                '"exactRemote":"remote-during-gap"'
+            )
+        );
+        expectOneAliasLifecycleBuild();
+
+        remote.mirror.dispose();
+        view.unmount();
+        coordinator.dispose();
+    });
+
+    it("observes one alias mutation between initial render and subscription setup", async () => {
+        const seeded = createVaultMirror();
+        seeded.mirror.setState((state: VaultState) => {
+            createDescriptionAlias(state, { aliasId: "setup-race", name: "Before Setup Race" });
+        });
+        seeded.mirror.dispose();
+        const coordinator = new VaultUndoCoordinator(seeded.doc);
+        coordinator.clear();
+
+        function MutateBeforeConsumerSubscription() {
+            const actions = useDescriptionAliasActions();
+            const mutated = useRef(false);
+            useLayoutEffect(() => {
+                if (mutated.current) return;
+                mutated.current = true;
+                actions.renameDescriptionAlias({
+                    aliasId: "setup-race",
+                    name: "During Setup Race"
+                });
+            }, [actions]);
+            return null;
+        }
+
+        function SetupRaceConsumer() {
+            const aliases = useDescriptionAliases();
+            const lookup = useDescriptionAliasLookup(aliases);
+            const options = useMemo(() => {
+                lifecycleCounts.dependentOptionBuilds += 1;
+                return lookup.activeRealAliases.map((alias) => alias.name);
+            }, [lookup]);
+            return createElement(
+                "output",
+                { "data-testid": "setup-race-state" },
+                JSON.stringify({
+                    exact: lookup.findExactAliasId("During Setup Race"),
+                    options
+                })
+            );
+        }
+
+        resetLifecycleCounts();
+        const view = render(
+            createElement(
+                VaultProvider,
+                { doc: seeded.doc },
+                // createElement's required-children type needs the child in the typed props object.
+                // eslint-disable-next-line react/no-children-prop
+                createElement(VaultUndoProvider, {
+                    coordinator,
+                    children: createElement(
+                        Fragment,
+                        null,
+                        createElement(MutateBeforeConsumerSubscription),
+                        createElement(SetupRaceConsumer)
+                    )
+                })
+            )
+        );
+
+        await waitFor(() =>
+            expect(view.getByTestId("setup-race-state").textContent).toContain(
+                '"exact":"setup-race"'
+            )
+        );
+        expect(lifecycleCounts).toEqual({
+            conversions: 2,
+            dependentOptionBuilds: 2,
+            lookupBuilds: 2
+        });
+
+        view.unmount();
+        coordinator.dispose();
+    });
+
+    it("retains one observer across consumer churn and releases it on provider or document cleanup", async () => {
+        const first = createVaultMirror();
+        const second = createVaultMirror();
+        first.mirror.dispose();
+        second.mirror.dispose();
+        const firstCoordinator = new VaultUndoCoordinator(first.doc);
+        const secondCoordinator = new VaultUndoCoordinator(second.doc);
+        const observe = (doc: typeof first.doc) => {
+            const originalSubscribe = doc.subscribe.bind(doc);
+            const callbackCounts: number[] = [];
+            const counts = { active: 0, released: 0, subscribed: 0 };
+            const spy = vi.spyOn(doc, "subscribe").mockImplementation((listener) => {
+                const subscriptionIndex = callbackCounts.length;
+                callbackCounts.push(0);
+                counts.active += 1;
+                counts.subscribed += 1;
+                const unsubscribe = originalSubscribe((event) => {
+                    callbackCounts[subscriptionIndex] += 1;
+                    listener(event);
+                });
+                let released = false;
+                return () => {
+                    if (released) return;
+                    released = true;
+                    counts.active -= 1;
+                    counts.released += 1;
+                    unsubscribe();
+                };
+            });
+            return { callbackCounts, counts, spy };
+        };
+        const firstObservation = observe(first.doc);
+        const secondObservation = observe(second.doc);
+
+        function Consumer() {
+            useDescriptionAliases();
+            return null;
+        }
+
+        function Harness({
+            coordinator,
+            doc,
+            showConsumer
+        }: {
+            readonly coordinator: VaultUndoCoordinator;
+            readonly doc: typeof first.doc;
+            readonly showConsumer: boolean;
+        }) {
+            return createElement(
+                VaultProvider,
+                { doc },
+                // createElement's required-children type needs the child in the typed props object.
+                // eslint-disable-next-line react/no-children-prop
+                createElement(VaultUndoProvider, {
+                    coordinator,
+                    children: showConsumer ? createElement(Consumer) : null
+                })
+            );
+        }
+
+        const view = render(
+            createElement(Harness, {
+                coordinator: firstCoordinator,
+                doc: first.doc,
+                showConsumer: true
+            })
+        );
+        expect(firstObservation.counts).toEqual({ active: 2, released: 0, subscribed: 2 });
+
+        for (const showConsumer of [false, true, false, true]) {
+            view.rerender(
+                createElement(Harness, {
+                    coordinator: firstCoordinator,
+                    doc: first.doc,
+                    showConsumer
+                })
+            );
+            expect(firstObservation.counts).toEqual({ active: 2, released: 0, subscribed: 2 });
+        }
+
+        view.rerender(
+            createElement(Harness, {
+                coordinator: secondCoordinator,
+                doc: second.doc,
+                showConsumer: true
+            })
+        );
+        expect(firstObservation.counts).toEqual({ active: 1, released: 1, subscribed: 2 });
+        expect(secondObservation.counts).toEqual({ active: 2, released: 0, subscribed: 2 });
+
+        view.unmount();
+        expect(firstObservation.counts).toEqual({ active: 1, released: 1, subscribed: 2 });
+        expect(secondObservation.counts).toEqual({ active: 1, released: 1, subscribed: 2 });
+        const taskObserverCallbacksBeforeLateUpdate = secondObservation.callbackCounts[1];
+        resetLifecycleCounts();
+        const afterDisposal = createVaultMirrorFromSnapshot(
+            second.doc.export({ mode: "snapshot" })
+        );
+        const afterDisposalBase = second.doc.version();
+        afterDisposal.mirror.setState((state: VaultState) => {
+            createDescriptionAlias(state, { aliasId: "late", name: "Late" });
+        });
+        second.doc.import(afterDisposal.doc.export({ mode: "update", from: afterDisposalBase }));
+        expectNoAliasLifecycleWork();
+        expect(secondObservation.callbackCounts[1]).toBe(taskObserverCallbacksBeforeLateUpdate);
+
+        afterDisposal.mirror.dispose();
+        firstObservation.spy.mockRestore();
+        secondObservation.spy.mockRestore();
+        firstCoordinator.dispose();
+        secondCoordinator.dispose();
     });
 
     it("preserves legal collection and lookup identity across non-alias Mirror notifications", async () => {

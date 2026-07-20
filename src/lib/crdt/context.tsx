@@ -8,7 +8,15 @@
  */
 
 import { createLoroContext } from "loro-mirror-react";
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from "react";
+import {
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef
+} from "react";
 import { useSyncExternalStore } from "react";
 import type { ComponentProps, DependencyList } from "react";
 import { Temporal } from "temporal-polyfill";
@@ -42,15 +50,30 @@ interface DescriptionAliasRevisionStore {
         expectedRevision: number
     ) => DescriptionAliasCollection;
     readonly getSnapshot: () => number;
+    readonly start: () => () => void;
     readonly subscribe: (listener: () => void) => () => void;
 }
 
 const DescriptionAliasRevisionContext = createContext<DescriptionAliasRevisionStore | null>(null);
 
+type DescriptionAliasDocument = ComponentProps<typeof loroContext.LoroProvider>["doc"];
+type DocumentFrontiers = ReturnType<DescriptionAliasDocument["frontiers"]>;
+
+function hasDescriptionAliasChanges(
+    doc: DescriptionAliasDocument,
+    from: DocumentFrontiers,
+    to: DocumentFrontiers
+): boolean {
+    return doc
+        .diff(from, to, false)
+        .some(([containerId]) => doc.getPathToContainer(containerId)?.[0] === "descriptionAliases");
+}
+
 function createDescriptionAliasRevisionStore(
-    doc: ComponentProps<typeof loroContext.LoroProvider>["doc"]
+    doc: DescriptionAliasDocument
 ): DescriptionAliasRevisionStore {
     let revision = 0;
+    let observedFrontiers = doc.frontiers();
     let unsubscribe: (() => void) | undefined;
     let cached:
         | { readonly aliases: DescriptionAliasCollection; readonly revision: number }
@@ -68,34 +91,47 @@ function createDescriptionAliasRevisionStore(
             if (cached?.revision === revision) return cached.aliases;
             const aliases = toDescriptionAliasCollection(state.descriptionAliases);
             cached = { aliases, revision };
+            observedFrontiers = doc.frontiers();
             return aliases;
         },
         getSnapshot: () => revision,
+        start: () => {
+            if (unsubscribe) throw new Error("Description alias observer is already active");
+            const previouslyObservedFrontiers = observedFrontiers;
+            const stop = doc.subscribe((event) => {
+                observedFrontiers = event.to;
+                if (event.events.some((item) => item.path[0] === "descriptionAliases")) notify();
+            });
+            unsubscribe = stop;
+
+            const currentFrontiers = doc.frontiers();
+            observedFrontiers = currentFrontiers;
+            if (hasDescriptionAliasChanges(doc, previouslyObservedFrontiers, currentFrontiers)) {
+                notify();
+            }
+
+            return () => {
+                if (unsubscribe !== stop) return;
+                unsubscribe = undefined;
+                stop();
+            };
+        },
         subscribe: (listener) => {
             listeners.add(listener);
-            if (listeners.size === 1) {
-                unsubscribe = doc.subscribe((event) => {
-                    if (event.events.some((item) => item.path[0] === "descriptionAliases")) {
-                        notify();
-                    }
-                });
-            }
             return () => {
                 listeners.delete(listener);
-                if (listeners.size !== 0) return;
-                unsubscribe?.();
-                unsubscribe = undefined;
             };
         }
     };
 }
 
-/** Provide the Mirror store plus a revision signal scoped to the raw alias container. */
+/** Provide the Mirror store plus a provider-lifetime revision signal for the raw alias container. */
 export function VaultProvider(props: ComponentProps<typeof loroContext.LoroProvider>) {
     const aliasRevisionStore = useMemo(
         () => createDescriptionAliasRevisionStore(props.doc),
         [props.doc]
     );
+    useLayoutEffect(() => aliasRevisionStore.start(), [aliasRevisionStore]);
     return (
         <DescriptionAliasRevisionContext.Provider value={aliasRevisionStore}>
             <loroContext.LoroProvider {...props} />
