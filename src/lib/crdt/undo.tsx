@@ -41,7 +41,19 @@ export interface VaultUndoSnapshot {
     canUndo: boolean;
 }
 
+export interface VaultEditSession {
+    /** Ends the history boundary while retaining every immediate CRDT commit. */
+    cancel: () => void;
+    /** Completes the edit and closes its single history boundary. */
+    commit: () => void;
+    /** Applies one input-event mutation inside this edit's history boundary. */
+    update: <Result>(operation: (origin: VaultUserOrigin) => Result) => Result;
+}
+
 type VaultUndoListener = () => void;
+type ActiveUndoGroup =
+    | { readonly kind: "action"; readonly id: number }
+    | { readonly kind: "edit"; readonly id: number };
 
 const EMPTY_UNDO_SNAPSHOT: VaultUndoSnapshot = {
     canRedo: false,
@@ -59,16 +71,17 @@ export function getVaultSystemOrigin(kind: VaultSystemOriginKind): VaultSystemOr
 /**
  * Owns the standard Loro UndoManager for one document.
  *
- * User mutations issued during one synchronous UI action share an explicit group. The group closes
- * at the next microtask, before another click or key event can begin, so bulk handlers made from
- * several existing vault actions remain atomic without time-based merging.
+ * Synchronous user actions share a group until the next microtask. Explicit edit sessions keep a
+ * group open across separate input events until their focus/commit lifecycle ends. Neither path
+ * relies on an arbitrary time window.
  */
 export class VaultUndoCoordinator {
     private readonly manager: UndoManager;
     private readonly listeners = new Set<VaultUndoListener>();
     private readonly unsubscribeDocument: () => void;
-    private actionGroupOpen = false;
+    private activeGroup: ActiveUndoGroup | null = null;
     private disposed = false;
+    private nextGroupId = 0;
     private snapshot: VaultUndoSnapshot = EMPTY_UNDO_SNAPSHOT;
 
     constructor(doc: LoroDoc) {
@@ -102,9 +115,27 @@ export class VaultUndoCoordinator {
         return operation(getVaultUserOrigin(kind));
     }
 
+    beginEditSession(): VaultEditSession {
+        if (this.disposed) {
+            throw new Error("Cannot begin an edit with a disposed vault undo coordinator");
+        }
+
+        this.closeActiveGroup();
+        const id = ++this.nextGroupId;
+        this.manager.groupStart();
+        this.activeGroup = { kind: "edit", id };
+
+        return {
+            cancel: () => this.closeEditSession(id),
+            commit: () => this.closeEditSession(id),
+            update: <Result,>(operation: (origin: VaultUserOrigin) => Result) =>
+                this.runEditSession(id, operation)
+        };
+    }
+
     undo(): boolean {
         if (this.disposed) return false;
-        this.closeActionGroup();
+        this.closeActiveGroup();
         const changed = this.manager.undo();
         this.publishSnapshot();
         return changed;
@@ -112,7 +143,7 @@ export class VaultUndoCoordinator {
 
     redo(): boolean {
         if (this.disposed) return false;
-        this.closeActionGroup();
+        this.closeActiveGroup();
         const changed = this.manager.redo();
         this.publishSnapshot();
         return changed;
@@ -120,14 +151,14 @@ export class VaultUndoCoordinator {
 
     clear(): void {
         if (this.disposed) return;
-        this.closeActionGroup();
+        this.closeActiveGroup();
         this.manager.clear();
         this.publishSnapshot();
     }
 
     dispose(): void {
         if (this.disposed) return;
-        this.closeActionGroup();
+        this.closeActiveGroup();
         this.disposed = true;
         this.unsubscribeDocument();
         this.manager.clear();
@@ -138,17 +169,43 @@ export class VaultUndoCoordinator {
     }
 
     private openActionGroup(): void {
-        if (this.actionGroupOpen) return;
+        if (this.activeGroup?.kind === "action") return;
 
+        this.closeActiveGroup();
+
+        const id = ++this.nextGroupId;
         this.manager.groupStart();
-        this.actionGroupOpen = true;
-        queueMicrotask(() => this.closeActionGroup());
+        this.activeGroup = { kind: "action", id };
+        queueMicrotask(() => {
+            if (this.activeGroup?.kind === "action" && this.activeGroup.id === id) {
+                this.closeActiveGroup();
+            }
+        });
     }
 
-    private closeActionGroup(): void {
-        if (!this.actionGroupOpen || this.disposed) return;
+    private runEditSession<Result>(
+        id: number,
+        operation: (origin: VaultUserOrigin) => Result
+    ): Result {
+        if (this.disposed) {
+            throw new Error("Cannot update an edit with a disposed vault undo coordinator");
+        }
+        if (this.activeGroup?.kind !== "edit" || this.activeGroup.id !== id) {
+            throw new Error("Cannot update a closed vault edit session");
+        }
 
-        this.actionGroupOpen = false;
+        return operation(getVaultUserOrigin("edit"));
+    }
+
+    private closeEditSession(id: number): void {
+        if (this.activeGroup?.kind !== "edit" || this.activeGroup.id !== id) return;
+        this.closeActiveGroup();
+    }
+
+    private closeActiveGroup(): void {
+        if (!this.activeGroup || this.disposed) return;
+
+        this.activeGroup = null;
         this.manager.groupEnd();
         this.publishSnapshot();
     }

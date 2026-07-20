@@ -147,6 +147,7 @@ export class SyncManager {
     private unsubscribeLocalUpdates: (() => void) | null = null;
     private throttledServerSync: ReturnType<typeof throttle> | null = null;
     private visibilityHandler: (() => void) | null = null;
+    private onlineHandler: (() => void) | null = null;
     private beforeUnloadHandler: ((e: BeforeUnloadEvent) => void) | null = null;
     private localPersistenceAvailable = true;
     private memoryOps = new Map<
@@ -154,6 +155,8 @@ export class SyncManager {
         { id: string; encryptedData: string; versionVector: string }
     >();
     private remoteOperationQueue: Promise<void> = Promise.resolve();
+    private pushRequestedWhileSyncing = false;
+    private syncState: SyncState = "idle";
 
     constructor(options: SyncManagerOptions) {
         this.vaultId = options.vaultId;
@@ -290,6 +293,15 @@ export class SyncManager {
             void this.enqueueRemoteOperation(() => this.catchUpFromServer());
         };
         document.addEventListener("visibilitychange", this.visibilityHandler);
+
+        // A failed throttled request has no trailing invocation left. Browser reconnection is the
+        // durable signal to retry immediately without requiring another mutation or focus change.
+        this.onlineHandler = () => {
+            if (this.disconnectRequested) return;
+            this.throttledServerSync?.cancel();
+            void this.pushToServer();
+        };
+        window.addEventListener("online", this.onlineHandler);
 
         // Warn on beforeunload if there are unpushed changes
         this.beforeUnloadHandler = async (e: BeforeUnloadEvent) => {
@@ -634,7 +646,11 @@ export class SyncManager {
      * Push unpushed ops to server.
      */
     private async pushToServer(): Promise<void> {
-        if (this.isSyncing || !this.trpc) {
+        if (this.disconnectRequested || !this.trpc) {
+            return;
+        }
+        if (this.isSyncing) {
+            this.pushRequestedWhileSyncing = true;
             return;
         }
 
@@ -696,10 +712,14 @@ export class SyncManager {
         } catch (error) {
             this.setSyncState("error");
             this.onError?.(error instanceof Error ? error : new Error(String(error)));
-            // Don't throw - let throttled sync retry
+            // Keep durable operations unpushed. A later local change or browser online event retries.
             console.error("Failed to push to server:", error);
         } finally {
             this.isSyncing = false;
+            if (this.pushRequestedWhileSyncing && !this.disconnectRequested) {
+                this.pushRequestedWhileSyncing = false;
+                await this.pushToServer();
+            }
         }
     }
 
@@ -812,6 +832,7 @@ export class SyncManager {
         // Cancel throttled sync
         this.throttledServerSync?.cancel();
         this.throttledServerSync = null;
+        this.pushRequestedWhileSyncing = false;
 
         // Unsubscribe from local updates
         this.unsubscribeLocalUpdates?.();
@@ -822,6 +843,10 @@ export class SyncManager {
             if (this.visibilityHandler) {
                 document.removeEventListener("visibilitychange", this.visibilityHandler);
                 this.visibilityHandler = null;
+            }
+            if (this.onlineHandler) {
+                window.removeEventListener("online", this.onlineHandler);
+                this.onlineHandler = null;
             }
             if (this.beforeUnloadHandler) {
                 window.removeEventListener("beforeunload", this.beforeUnloadHandler);
@@ -843,6 +868,7 @@ export class SyncManager {
      * Set sync state and notify listeners.
      */
     private setSyncState(state: SyncState): void {
+        this.syncState = state;
         this.onSyncStateChange?.(state);
     }
 
@@ -864,8 +890,7 @@ export class SyncManager {
      * Get current sync state.
      */
     get state(): SyncState {
-        if (this.isSyncing) return "syncing";
-        return "idle";
+        return this.syncState;
     }
 }
 

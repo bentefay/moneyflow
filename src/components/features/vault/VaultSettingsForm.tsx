@@ -11,7 +11,7 @@
  */
 
 import { Input } from "@/components/ui/input";
-import { useVaultAction, useVaultPreferences } from "@/lib/crdt/context";
+import { useVaultAction, useVaultEditAction, useVaultPreferences } from "@/lib/crdt/context";
 import { DEFAULT_CURRENCY, DEFAULT_VAULT_NAME } from "@/lib/crdt/defaults";
 
 import { CurrencySelector } from "./CurrencySelector";
@@ -31,7 +31,7 @@ export function VaultSettingsForm({ className }: VaultSettingsFormProps) {
     const defaultCurrency = preferences?.defaultCurrency ?? DEFAULT_CURRENCY;
 
     // Create mutation action for updating vault name
-    const setVaultName = useVaultAction((state, name: string) => {
+    const vaultNameEdit = useVaultEditAction((state, name: string) => {
         state.preferences.name = name;
     });
 
@@ -57,7 +57,18 @@ export function VaultSettingsForm({ className }: VaultSettingsFormProps) {
                             <Input
                                 id="vault-name"
                                 value={vaultName}
-                                onChange={(e) => setVaultName(e.target.value)}
+                                onFocus={vaultNameEdit.begin}
+                                onChange={(e) => vaultNameEdit.update(e.target.value)}
+                                onBlur={vaultNameEdit.commit}
+                                onKeyDown={(event) => {
+                                    if (event.key === "Enter") {
+                                        vaultNameEdit.commit();
+                                        event.currentTarget.blur();
+                                    } else if (event.key === "Escape") {
+                                        vaultNameEdit.cancel();
+                                        event.currentTarget.blur();
+                                    }
+                                }}
                                 placeholder="My Vault"
                                 className="max-w-xs"
                             />

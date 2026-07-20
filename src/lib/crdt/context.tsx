@@ -8,13 +8,13 @@
  */
 
 import { createLoroContext } from "loro-mirror-react";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { DependencyList } from "react";
 import { Temporal } from "temporal-polyfill";
 
 import type { Transaction, VaultState } from "./schema";
 import { vaultSchema } from "./schema";
-import type { VaultUserActionKind } from "./undo";
+import type { VaultEditSession, VaultUserActionKind } from "./undo";
 import { useVaultUndoCoordinator } from "./undo";
 
 /**
@@ -54,6 +54,67 @@ export function useVaultAction<Arguments extends unknown[]>(
         // eslint-disable-next-line react-hooks/use-memo, react-hooks/exhaustive-deps
         [store, undoCoordinator, updater, kind, ...dependencies]
     );
+}
+
+export interface VaultEditAction<Arguments extends unknown[]> {
+    /** Start a new focus-to-close logical edit boundary. */
+    begin: () => void;
+    /** Close the boundary without reverting already-persisted CRDT changes. */
+    cancel: () => void;
+    /** Complete the edit boundary. */
+    commit: () => void;
+    /** Persist one input event immediately inside the active boundary. */
+    update: (...args: Arguments) => void;
+}
+
+/** Creates an immediate CRDT mutation whose separate input events form one undoable edit. */
+export function useVaultEditAction<Arguments extends unknown[]>(
+    updater: (state: VaultState, ...args: Arguments) => void,
+    dependencies: DependencyList = []
+): VaultEditAction<Arguments> {
+    const store = useVaultContext();
+    const undoCoordinator = useVaultUndoCoordinator();
+    const sessionRef = useRef<VaultEditSession | null>(null);
+
+    const closeSession = useCallback((disposition: "cancel" | "commit") => {
+        const session = sessionRef.current;
+        sessionRef.current = null;
+        session?.[disposition]();
+    }, []);
+
+    const begin = useCallback(() => {
+        closeSession("commit");
+        sessionRef.current = undoCoordinator.beginEditSession();
+    }, [closeSession, undoCoordinator]);
+    const commit = useCallback(() => closeSession("commit"), [closeSession]);
+    const cancel = useCallback(() => closeSession("cancel"), [closeSession]);
+    const update = useCallback(
+        (...args: Arguments) => {
+            const applyUpdate = (origin: `user:${VaultUserActionKind}`) => {
+                store.setState((state: VaultState) => updater(state, ...args), { origin });
+            };
+            const session = sessionRef.current;
+            if (session) {
+                session.update(applyUpdate);
+                return;
+            }
+            undoCoordinator.runUserAction("edit", applyUpdate);
+        },
+        // loro-mirror-react exposes the same dynamic dependency-list contract for action hooks.
+        // eslint-disable-next-line react-hooks/use-memo, react-hooks/exhaustive-deps
+        [store, undoCoordinator, updater, ...dependencies]
+    );
+
+    useEffect(
+        () => () => {
+            const session = sessionRef.current;
+            sessionRef.current = null;
+            session?.commit();
+        },
+        [undoCoordinator]
+    );
+
+    return { begin, cancel, commit, update };
 }
 
 /**

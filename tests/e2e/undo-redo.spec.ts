@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-import { createNewIdentity, goToAccounts, goToImportNew, goToTxDescriptions } from "./helpers";
+import {
+    createNewIdentity,
+    goToAccounts,
+    goToImportNew,
+    goToSettings,
+    goToTxDescriptions
+} from "./helpers";
 
 const IMPORT_CSV = `Date,Description,Amount
 2026-07-01,Undo Import One,-10.00
@@ -10,6 +16,31 @@ async function createAlias(page: import("@playwright/test").Page, name: string):
     await page.getByRole("button", { name: /add alias/i }).click();
     await page.getByPlaceholder(/enter alias name/i).fill(name);
     await page.getByRole("button", { name: /^add alias$/i }).click();
+}
+
+function isUnknownRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isStringArray(value: unknown): value is string[] {
+    return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function findInsertedIds(value: unknown): string[] | undefined {
+    if (Array.isArray(value)) {
+        for (const item of value) {
+            const found = findInsertedIds(item);
+            if (found) return found;
+        }
+        return undefined;
+    }
+    if (!isUnknownRecord(value)) return undefined;
+    if (isStringArray(value.insertedIds)) return value.insertedIds;
+    for (const item of Object.values(value)) {
+        const found = findInsertedIds(item);
+        if (found) return found;
+    }
+    return undefined;
 }
 
 test("document history controls group real add, edit, delete, alias and import actions", async ({
@@ -26,6 +57,28 @@ test("document history controls group real add, edit, delete, alias and import a
         await expect(redo).toBeDisabled();
         await undo.locator("..").hover();
         await expect(page.getByText("Undo (Ctrl+Z)")).toBeVisible();
+    });
+
+    await test.step("group sequential autosaved input turns around native undo", async () => {
+        const vaultName = page.getByRole("textbox", { name: "Vault Name" });
+        await expect(vaultName).toHaveValue("My Vault");
+        await vaultName.focus();
+        await vaultName.press("Control+a");
+        await vaultName.pressSequentially("Draft Native");
+        await expect(vaultName).toHaveValue("Draft Native");
+
+        await vaultName.press("Shift+ArrowLeft");
+        await vaultName.press("X");
+        await expect(vaultName).toHaveValue("Draft NativX");
+        await vaultName.press("Control+z");
+        await expect(vaultName).toHaveValue("Draft Native");
+        await vaultName.press("Tab");
+
+        await undo.click();
+        await expect(vaultName).toHaveValue("My Vault");
+        await expect(undo).toBeDisabled();
+        await redo.click();
+        await expect(vaultName).toHaveValue("Draft Native");
     });
 
     await test.step("undo and redo an add with the visible buttons", async () => {
@@ -177,5 +230,75 @@ test("remote history stays excluded while local undo syncs to a second client", 
         await expect(secondPage.getByText("Remote Alias", { exact: true })).toBeVisible();
     } finally {
         await secondContext.close();
+    }
+});
+
+test("a failed offline undo push retries on browser reconnect without another mutation", async ({
+    browser,
+    context,
+    page
+}) => {
+    test.setTimeout(90_000);
+    await createNewIdentity(page);
+    await expect(page.getByRole("status", { name: "Saved" })).toBeVisible({ timeout: 15_000 });
+    await page.reload();
+    await goToSettings(page);
+    await expect(page.getByRole("button", { name: "Undo" })).toBeDisabled();
+
+    const sessionState = await page.evaluate(() => ({
+        activeVault: localStorage.getItem("moneyflow_active_vault"),
+        session: sessionStorage.getItem("moneyflow_session")
+    }));
+    if (!sessionState.activeVault || !sessionState.session) {
+        throw new Error("Authenticated offline peer fixture state is unavailable");
+    }
+    const authenticatedSessionState = {
+        activeVault: sessionState.activeVault,
+        session: sessionState.session
+    };
+    const peerContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+    await peerContext.addInitScript((state: { activeVault: string; session: string }) => {
+        if (location.origin !== "http://localhost:3000") return;
+        localStorage.setItem("moneyflow_active_vault", state.activeVault);
+        sessionStorage.setItem("moneyflow_session", state.session);
+    }, authenticatedSessionState);
+    const peer = await peerContext.newPage();
+
+    try {
+        await goToSettings(peer);
+        await expect(peer.getByRole("button", { name: "Undo" })).toBeDisabled();
+
+        const failedPush = page.waitForEvent("requestfailed", {
+            predicate: (request) => request.url().includes("/api/trpc/sync.pushOps"),
+            timeout: 15_000
+        });
+        await context.setOffline(true);
+        const vaultName = page.getByRole("textbox", { name: "Vault Name" });
+        await vaultName.focus();
+        await vaultName.press("Control+a");
+        await vaultName.pressSequentially("Offline Review");
+        await vaultName.press("Tab");
+        await page.getByRole("button", { name: "Undo" }).click();
+        await expect(vaultName).toHaveValue("My Vault");
+        await failedPush;
+        await expect(page.getByRole("status", { name: "Sync error" })).toBeVisible();
+
+        const successfulPush = page.waitForResponse(
+            (response) => response.url().includes("/api/trpc/sync.pushOps") && response.ok(),
+            { timeout: 15_000 }
+        );
+        await context.setOffline(false);
+        const response = await successfulPush;
+        const insertedIds = findInsertedIds(await response.json());
+
+        expect(insertedIds?.length).toBeGreaterThan(1);
+        await expect(page.getByRole("status", { name: "Saved" })).toBeVisible();
+        await expect(peer.getByRole("textbox", { name: "Vault Name" })).toHaveValue("My Vault", {
+            timeout: 15_000
+        });
+        await expect(peer.getByRole("button", { name: "Undo" })).toBeDisabled();
+    } finally {
+        await context.setOffline(false);
+        await peerContext.close();
     }
 });
