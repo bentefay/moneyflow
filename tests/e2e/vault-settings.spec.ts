@@ -149,6 +149,7 @@ test.describe("Vault Settings", () => {
 
             const seedWords = await test.step("Create the identity and active vault", async () =>
                 createNewIdentity(page));
+            const preLockLifecycle = realtimeLifecycle.snapshot();
 
             await test.step("Lock through the authenticated application control", async () => {
                 await page.getByRole("button", { name: "Lock", exact: true }).click();
@@ -177,14 +178,27 @@ test.describe("Vault Settings", () => {
 
             await test.step("attribute same-vault lock and unlock lifecycle", async () => {
                 const counts = realtimeLifecycle.snapshot();
+                const lockUnlockCounts = {
+                    authorize: {
+                        sync: counts.authorize.sync - preLockLifecycle.authorize.sync,
+                        presence: counts.authorize.presence - preLockLifecycle.authorize.presence
+                    },
+                    revoke: {
+                        sync: counts.revoke.sync - preLockLifecycle.revoke.sync,
+                        presence: counts.revoke.presence - preLockLifecycle.revoke.presence
+                    }
+                };
                 testInfo.annotations.push({
                     type: "realtime-lock-lifecycle",
-                    description: JSON.stringify(counts)
+                    description: JSON.stringify({
+                        cumulative: counts,
+                        lockUnlock: lockUnlockCounts
+                    })
                 });
-                expect(counts.authorize.sync).toBeLessThanOrEqual(2);
-                expect(counts.authorize.presence).toBeLessThanOrEqual(2);
-                expect(counts.revoke.sync).toBeGreaterThanOrEqual(1);
-                expect(counts.revoke.presence).toBeGreaterThanOrEqual(1);
+                expect(lockUnlockCounts.authorize.sync).toBeLessThanOrEqual(2);
+                expect(lockUnlockCounts.authorize.presence).toBeLessThanOrEqual(2);
+                expect(lockUnlockCounts.revoke.sync).toBeGreaterThanOrEqual(1);
+                expect(lockUnlockCounts.revoke.presence).toBeGreaterThanOrEqual(1);
             });
 
             await test.step("Keep unlock identity and vault metadata out of request URLs", async () => {
