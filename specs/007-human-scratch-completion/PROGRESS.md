@@ -7,9 +7,9 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P07 revision 01 (`changes_requested`)
-- **Next action:** persist the immutable revision-01 FAIL artifacts and Q-014, then dispatch the
-  no-code P07 revision-02 lossless epoch-transition and crash-recoverable acceptance correction
+- **Current package:** P07 revision 02 (`changes_requested`)
+- **Next action:** persist immutable revision-02 FAIL artifacts, then dispatch the evidence-only P07
+  revision-03 cross-tab fence, creator-link and Person-claim convergence correction
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -20,9 +20,8 @@ review evidence.
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** five passed; HS-011 changes requested; HS-015 blocked externally; 15 queued
-- **Last ledger update:** 2026-07-20T13:45:46+10:00; P07 revision-01 evidence, FAIL review, Q-014,
-  risks and exact failure state are immutable in
-  `892bf536f0188cd1637d1eda5bfb5b1a1a040a44`
+- **Last ledger update:** 2026-07-20T14:23:49+10:00; P07 revision 02 independently failed on an
+  unfenced sibling-tab write race and two missing HS-012 linkage/convergence cases
 
 ## Package ledger
 
@@ -35,7 +34,7 @@ review evidence.
 | P04     | HS-014         | Database/table/RLS threat model, migrations, and permission remediation             | P01                  | passed | 02 | `9de8b0e8c41087b96523ecc55faa10bf19ec0ff9..dbcf180e829c81a218e9a73791e40902c4f9eb31` | `evidence/P04/implementation-02.md` | `reviews/P04-review-02.md` | `b905ecb810334ed9697f57140047964135ade6ea` |
 | P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | blocked_external | 11 | `007651beb814d98646aa2e786801b647e2abd0b5..7f0b0710e820b87be2ee8877a3b7693d90e5e505` | `evidence/P05/implementation-11.md` | `reviews/P05-review-11.md` | external gate `e96d93bde4125a106ad9ca092cedf0b0998bf04e` |
 | P06     | HS-010         | Remove unused user-state storage and dead API surface                               | P04                  | passed | 01  | `a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1..95e91dbcb17ffb9600eaa6cb795336898297ebae` | `evidence/P06/implementation-01.md` | `reviews/P06-review-01.md` | `8e269ab9a6fc15ed6d845542b879e5499828134e` |
-| P07     | HS-011         | Evidence-led person/member/invite UX architecture and acceptance decision           | P04, P06             | changes_requested | 01  | `fe1871ce7dce1e831b57ee5656d38ce5c800aae3..fe1871ce7dce1e831b57ee5656d38ce5c800aae3` | `evidence/P07/implementation-01.md` | `reviews/P07-review-01.md` | failure artifacts `892bf536f0188cd1637d1eda5bfb5b1a1a040a44` |
+| P07     | HS-011         | Evidence-led person/member/invite UX architecture and acceptance decision           | P04, P06             | changes_requested | 02  | `fe1871ce7dce1e831b57ee5656d38ce5c800aae3..033cb8f6d37208c1ba6ac0b0907672aa18e4ad6d` | `evidence/P07/implementation-02.md` | `reviews/P07-review-02.md` | pending |
 | P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P09     | HS-006         | Loro UndoManager integration, controls, shortcuts and action grouping               | P01                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P10     | HS-003         | Encrypted Loro EphemeralStore presence and active transaction                       | P05, P08             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -93,7 +92,7 @@ required marker rollbacks before the next dispatch.
 | HS-008      | human scratch block               | P14                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-009      | human scratch block               | P16A, P16C, P16D             | authorized marker after all package PASSes | queued       | —                                                                                                                       |
 | HS-010      | human scratch block               | P06                          | authorized marker after package PASS       | passed | P06 integration `8e269ab9a6fc15ed6d845542b879e5499828134e`; `reviews/P06-review-01.md`; marker `c74a2a78… -> 753be6b7…` |
-| HS-011      | human scratch block               | P07, P08                     | authorized marker after all package PASSes | changes_requested | P07 revision-01 FAIL; Q-014 evidence-only correction required; P08 still blocked/not dispatched; no marker |
+| HS-011      | human scratch block               | P07, P08                     | authorized marker after all package PASSes | changes_requested | P07 revision-02 FAIL; evidence-only revision-03 correction required; P08 blocked/not dispatched; no marker |
 | HS-012      | human scratch block               | P08                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-013      | human scratch block               | P15                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-014      | human scratch block               | P04                          | authorized marker after package PASS       | passed | P04 integration `b905ecb810334ed9697f57140047964135ade6ea`; `reviews/P04-review-02.md`; marker `db97178a… -> c74a2a78…` |
@@ -773,6 +772,49 @@ revision-01 implementation evidence, independent FAIL review, Q-014, R-005/R-006
 and exact P07/HS-011 failure state are persisted in artifact commit
 `892bf536f0188cd1637d1eda5bfb5b1a1a040a44`. Revision 02 may proceed only after this artifact-commit
 reference is durably recorded; no product, test, migration, scratch, FS-001 or SCOPE path changed.
+
+**2026-07-20T13:46:54+10:00 — P07/02 `changes_requested -> implementing`:** Original BASE remains
+`fe1871ce7dce1e831b57ee5656d38ce5c800aae3`; pre-implementation HEAD
+`033cb8f6d37208c1ba6ac0b0907672aa18e4ad6d` contains only the preserved repository history and
+immutable revision-01 artifact/control commits after that BASE. The worker may write only
+`evidence/P07/implementation-02.md`, must make no commit, and must leave product/test/migration/
+config/dependency paths and index unchanged. Q-014 requires a lossless active-member epoch
+transition journal, per-epoch authorized envelopes, authenticated `crypto_box`, capability-bound
+pre-membership snapshot authentication, stable server-atomic membership acceptance and a resumable
+deterministic encrypted-CRDT Person/link/selection saga. All unaffected linked-hybrid clauses and
+real-browser gates remain; P08 is still blocked by P07 and D-011/P05. Scratch stays `753be6b7…`.
+
+**2026-07-20T14:05:58+10:00 — P07/02 `implementing -> ready_for_review -> reviewing`:** Worker
+made no commit and HEAD remains `033cb8f6d37208c1ba6ac0b0907672aa18e4ad6d`; original
+`fe1871ce7dce1e831b57ee5656d38ce5c800aae3..HEAD` contains only root's immutable revision-01
+artifact/control history and no product/test/migration/config/dependency path. Sole new evidence
+`evidence/P07/implementation-02.md` is 686 lines/60,110 bytes at SHA-256
+`463c9139e76a65542c49ad3ef62212571e9d59cf7c198a81dbd864a9b419a85f`. Q-014 is applied with
+access-generation-scoped per-epoch authenticated `crypto_box` history, exact lineage/watermark
+rotation serialization, ciphertext-only crash journal and idempotent covered/inserted transition;
+capability-bound snapshot/key preflight; atomic stable SQL acceptance truth; and protected,
+deterministic encrypted CRDT Person/link/selection/sync recovery. The full 29-clause linked-hybrid
+contract, privacy/migration/reversal/export and real isolated-browser proof remain; no new Q. P08 is
+explicitly non-ready pending this independent review and D-011/P05. Exact-path formatting, index,
+cleanup, empty service state, scratch/21 blocks, FS-001 and SCOPE pass; sole review output is
+`reviews/P07-review-02.md`.
+
+**2026-07-20T14:23:49+10:00 — P07/02 `reviewing -> changes_requested`:** Independent FAIL review
+SHA-256 `3f74108cff1bfc48fa49d0fe0e217f6ba491789851932ed229c94ffe93f6c4e3` confirms the central
+Q-014 SQL/client saga, capability preflight, authenticated envelopes, lineage acknowledgements,
+removed/re-added denial and onboarding corrections, but finds three remaining contract defects.
+F-001 Critical: planning does not atomically fence every sibling-tab IndexedDB append, so a stale tab
+can create an unmapped old-epoch `pushed=false` operation after enumeration. F-002 High: the full
+restatement dropped new-vault owner membership↔default-Person linkage required by HS-012. F-003
+High: two distinct invites can claim one encrypted Person and converge to non-bijective links.
+Revision 03 remains evidence-only and must add a persistent append-checked transition fence with
+late-lineage proof, a crash-recoverable vault-creator linkage saga, and deterministic post-merge
+repair that preserves the intended Person while creating the losing membership's deterministic
+Person before success. No Q proposal; all other revision-02 clauses remain frozen. Independent
+39/39 crypto, typecheck, fresh 005–009/97 pgTAP and repeated 16/16 E2E pass without pretending to
+execute the proposed protocol. CLI reconfirms no current discoverable flow and inherited 200% mobile
+regression. Cleanup, empty service state, exact HEAD/index/range, scratch/21 blocks, FS-001 and SCOPE
+pass. P08 and both HS markers remain blocked.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
