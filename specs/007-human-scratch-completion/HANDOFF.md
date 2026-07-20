@@ -7,7 +7,7 @@ literal field is `pending`. Workers may read but never edit it.
 
 - **Package / revision:** P06 / 01
 - **Scope IDs:** HS-010; no scratch marker before independent package PASS and root integration
-- **State:** reviewing
+- **State:** passed; HS-010 marker `completion_pending`
 - **Task:** `tasks/HS-010-remove-user-state.md`
 - **Original package BASE:** `a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1`
 - **Pre-implementation HEAD:** `a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1`
@@ -74,6 +74,7 @@ This section is active; revision-01 evidence and the literal range are frozen.
 - **Sole reviewer artifact:** `reviews/P06-review-01.md`
 - **Review result:** PASS recommendation; SHA-256
   `0580e4c8fc9f14d30d4c4d21a761fb56b8ff42953decd30564dda36efe4b64df`; no finding or Q proposal
+- **Integration-control commit:** `8e269ab9a6fc15ed6d845542b879e5499828134e`
 - **Reviewer writes:** review file only; no other writes/commits
 - **Required review focus:** independently audit full BASE..HEAD, usage/history proof and exact
   one-column migration. Verify identity rows/timestamps and normalized encrypted vault state survive
@@ -88,6 +89,7 @@ This section is active; revision-01 evidence and the literal range are frozen.
 
 ## Next root action
 
-Root integrates the immutable P06 evidence/review, D-012 and applicable risk state using exact-path
-staging. Only after that integration commit exists may P06 become passed and the HS-010 completion
-marker be durably prepared.
+Commit this durable PASS/marker preparation. Then change only HS-010's leading marker in
+`specs/human-scratch.md` from `- []` to `- [x]`, verify all 21 normalized blocks and the expected
+checked set/checksum, finalize the marker event and clear `completion_pending`. No dispatch is legal
+until the marker event is complete.
