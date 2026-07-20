@@ -80,7 +80,7 @@ test("private vault_ops push synchronizes import, edit and delete and stops afte
                     owner: await getRealtimeGrantAggregates(fixture.ownerHash, fixture.vaultId),
                     member: await getRealtimeGrantAggregates(fixture.memberHash, fixture.vaultId)
                 };
-                const subscriptions = getRealtimeSubscriptionCounts();
+                const subscriptions = getRealtimeSubscriptionCounts(fixture.vaultId);
                 const memberFrameRegistration = memberFrames.snapshot();
                 testInfo.annotations.push({
                     type: "realtime-lifecycle",

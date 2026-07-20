@@ -338,7 +338,14 @@ export async function getRealtimeGrantAggregates(
 }
 
 /** Returns sanitized permanent-op subscription counts without claims or identifiers. */
-export function getRealtimeSubscriptionCounts(): RealtimeSubscriptionCounts {
+export function getRealtimeSubscriptionCounts(vaultId: string): RealtimeSubscriptionCounts {
+    if (
+        !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
+            vaultId
+        )
+    ) {
+        throw new Error("Realtime subscription fixture vault ID is invalid");
+    }
     const query = `COPY (
         SELECT count(*)::integer,
                count(*) FILTER (WHERE subscription.claims ->> 'role' = 'authenticated')::integer,
@@ -365,6 +372,7 @@ export function getRealtimeSubscriptionCounts(): RealtimeSubscriptionCounts {
                ))::integer
         FROM realtime.subscription subscription
         WHERE subscription.entity = 'public.vault_ops'::regclass
+          AND subscription.claims ->> 'vault_id' = '${vaultId}'
     ) TO STDOUT WITH (FORMAT csv);`;
     let output: string;
     try {
