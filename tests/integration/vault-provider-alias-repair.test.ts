@@ -13,7 +13,7 @@ import type { VaultState } from "@/lib/crdt/schema";
 import { createEncryptedUpdate, decryptUpdate } from "@/lib/crdt/snapshot";
 import { VaultUndoCoordinator } from "@/lib/crdt/undo";
 import { SyncManager, type SyncManagerOptions } from "@/lib/sync/manager";
-import { closeDB, getUnpushedOps } from "@/lib/sync/persistence";
+import { closeDB, getAllOps, getUnpushedOps } from "@/lib/sync/persistence";
 
 const realtime = vi.hoisted(() => {
     interface RemotePayload {
@@ -145,7 +145,7 @@ describe("production vault hydration alias repair", () => {
         await manager.disconnect();
     });
 
-    it("repairs a concurrent remote delete, exchanges it before notification, and reopens cleanly", async () => {
+    it("publishes one legal remote merge, retries repair exchange, and reopens cleanly", async () => {
         const key = new Uint8Array(32);
         const base = createVaultMirror();
         base.mirror.setState((state: VaultState) => {
@@ -171,14 +171,18 @@ describe("production vault hydration alias repair", () => {
         const remoteDelete = await createEncryptedUpdate(remote.doc, key, 0, remoteBase);
 
         const events: string[] = [];
-        const pushedRepairs: Array<{ encryptedData: string }> = [];
+        const pushedAttempts: Array<Array<{ id: string; encryptedData: string }>> = [];
+        let pushAttempt = 0;
         const pushOps = vi
             .fn<NonNullable<SyncManagerOptions["trpc"]>["sync"]["pushOps"]["mutate"]>()
             .mockImplementation(async (input) => {
-                events.push("push");
-                pushedRepairs.push(...input.ops);
+                pushAttempt += 1;
+                events.push(`push-${pushAttempt}`);
+                pushedAttempts.push(input.ops);
+                if (pushAttempt === 1) throw new Error("controlled repair push failure");
                 return { insertedIds: input.ops.map((operation) => operation.id) };
             });
+        vi.spyOn(console, "error").mockImplementation(() => undefined);
         const manager = new SyncManager({
             vaultId: uniqueVaultId("remote"),
             pubkeyHash: "provider-user",
@@ -186,12 +190,27 @@ describe("production vault hydration alias repair", () => {
             doc: local.doc,
             trpc: createTrpc({ mutate: pushOps }),
             onRemoteUpdate: () => {
-                events.push("notify");
+                events.push("lifecycle");
                 expect(local.mirror.getState().descriptionAliases.late.deletedAt).toBeDefined();
                 expect(local.mirror.getState().descriptionAliases.root.deletedAt).toBeDefined();
             }
         });
         await manager.initialize();
+        const remoteUndo = new VaultUndoCoordinator(local.doc);
+
+        const observedStates: Array<{
+            rootDeleted: boolean;
+            lateDeleted: boolean;
+            lateKind: string | undefined;
+        }> = [];
+        const unsubscribe = local.mirror.subscribe((state) => {
+            events.push("mirror");
+            observedStates.push({
+                rootDeleted: state.descriptionAliases.root.deletedAt != null,
+                lateDeleted: state.descriptionAliases.late.deletedAt != null,
+                lateKind: state.descriptionAliases.late.kind
+            });
+        });
 
         await realtime.emit({
             id: "remote-delete",
@@ -201,13 +220,30 @@ describe("production vault hydration alias repair", () => {
             createdAt: "2026-07-20T00:00:00Z"
         });
 
-        expect(events).toEqual(["push", "notify"]);
-        expect(pushedRepairs).toHaveLength(1);
+        expect(observedStates).toEqual([
+            { rootDeleted: true, lateDeleted: true, lateKind: "real" }
+        ]);
+        expect(events).toEqual(["mirror", "push-1"]);
+        expect(pushOps).toHaveBeenCalledOnce();
+        expect(await getUnpushedOps(pushOps.mock.calls[0][0].vaultId)).toHaveLength(1);
+
+        window.dispatchEvent(new Event("online"));
+
+        await vi.waitFor(() => expect(pushOps).toHaveBeenCalledTimes(2));
+        await vi.waitFor(() => expect(events).toEqual(["mirror", "push-1", "push-2", "lifecycle"]));
+        const vaultId = pushOps.mock.calls[0][0].vaultId;
+        await vi.waitFor(async () => expect(await getUnpushedOps(vaultId)).toEqual([]));
+        expect(observedStates).toHaveLength(1);
+        expect(pushedAttempts[0]).toHaveLength(1);
+        expect(pushedAttempts[1]).toHaveLength(1);
+        expect(pushedAttempts[1][0].id).toBe(pushedAttempts[0][0].id);
+        expect(await getAllOps(vaultId)).toHaveLength(1);
+        expect(remoteUndo.getSnapshot().canUndo).toBe(false);
 
         const exchangedPeer = new LoroDoc();
         exchangedPeer.import(localBeforeMerge);
         exchangedPeer.import(await decryptUpdate(remoteDelete, key));
-        for (const operation of pushedRepairs) {
+        for (const operation of pushedAttempts[1]) {
             exchangedPeer.import(await decryptUpdate(operation, key));
         }
         const exchangedVersion = exchangedPeer.version().encode();
@@ -227,7 +263,12 @@ describe("production vault hydration alias repair", () => {
         const reopenedState = createVaultMirror({ doc: exchangedPeer }).mirror.getState();
         expect(reopenedState.descriptionAliases.root.deletedAt).toBeDefined();
         expect(reopenedState.descriptionAliases.late.deletedAt).toBeDefined();
+        expect(reopenedState.descriptionAliases).toEqual(
+            local.mirror.getState().descriptionAliases
+        );
 
+        unsubscribe();
+        remoteUndo.dispose();
         await reopenManager.disconnect();
         await manager.disconnect();
     });

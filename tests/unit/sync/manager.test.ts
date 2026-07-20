@@ -2,9 +2,16 @@ import { LoroDoc } from "loro-crdt";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "fake-indexeddb/auto";
 
+import { decryptUpdate } from "@/lib/crdt/snapshot";
 import { SyncManager } from "@/lib/sync/manager";
 import type { SyncManagerOptions, SyncState } from "@/lib/sync/manager";
-import { appendOp, closeDB, getUnpushedOps, hasUnpushedOps } from "@/lib/sync/persistence";
+import {
+    appendOp,
+    closeDB,
+    getAllOps,
+    getUnpushedOps,
+    hasUnpushedOps
+} from "@/lib/sync/persistence";
 
 const realtime = vi.hoisted(() => ({
     subscribe: vi.fn(async () => undefined),
@@ -91,6 +98,80 @@ describe("SyncManager browser reconnect", () => {
         expect(pushOps.mock.calls[0][0].ops).toHaveLength(2);
         expect(queuedCounts).toEqual([2]);
         expect(await getUnpushedOps(vaultId)).toEqual([]);
+        await manager.disconnect();
+    });
+
+    it("keeps failed raw update A observable until online retry persists A and B exactly once", async () => {
+        const vaultId = uniqueVaultId();
+        const key = new Uint8Array(32);
+        const doc = new LoroDoc();
+        const errors: Error[] = [];
+        const pushedBatches: Array<Array<{ id: string; encryptedData: string }>> = [];
+        const pushOps = vi
+            .fn<NonNullable<SyncManagerOptions["trpc"]>["sync"]["pushOps"]["mutate"]>()
+            .mockImplementation(async (input) => {
+                pushedBatches.push(input.ops);
+                return { insertedIds: input.ops.map((operation) => operation.id) };
+            });
+        const encryption = await import("@/lib/crypto/encryption");
+        const encryptForStorage = vi
+            .spyOn(encryption, "encryptForStorage")
+            .mockRejectedValueOnce(new Error("controlled update A encryption failure"));
+        vi.spyOn(console, "error").mockImplementation(() => undefined);
+        const manager = new SyncManager({
+            vaultId,
+            pubkeyHash: "test-user",
+            vaultKey: key,
+            doc,
+            trpc: createTrpc({ mutate: pushOps }),
+            onError: (error) => errors.push(error)
+        });
+        await manager.initialize();
+
+        doc.getMap("values").set("update-a", "first plaintext value");
+        doc.commit({ origin: "user:edit" });
+        doc.getMap("values").set("update-b", "second plaintext value");
+        doc.commit({ origin: "user:edit" });
+
+        await expect(manager.awaitLocalPersistence()).rejects.toThrow(
+            "controlled update A encryption failure"
+        );
+        await expect(manager.awaitLocalPersistence()).rejects.toThrow(
+            "controlled update A encryption failure"
+        );
+        expect(manager.state).toBe("error");
+        expect(errors).toHaveLength(1);
+        expect(encryptForStorage).toHaveBeenCalledTimes(2);
+        expect(await getAllOps(vaultId)).toHaveLength(1);
+        expect(pushOps).not.toHaveBeenCalled();
+
+        window.dispatchEvent(new Event("online"));
+
+        await vi.waitFor(() => expect(pushOps).toHaveBeenCalledOnce());
+        await vi.waitFor(async () => expect(await getUnpushedOps(vaultId)).toEqual([]));
+        await expect(manager.awaitLocalPersistence()).resolves.toBeUndefined();
+        expect(encryptForStorage).toHaveBeenCalledTimes(3);
+
+        const durableOps = await getAllOps(vaultId);
+        expect(durableOps).toHaveLength(2);
+        expect(new Set(durableOps.map((operation) => operation.id)).size).toBe(2);
+        expect(pushedBatches).toHaveLength(1);
+        expect(new Set(pushedBatches[0].map((operation) => operation.id))).toEqual(
+            new Set(durableOps.map((operation) => operation.id))
+        );
+        for (const operation of durableOps) {
+            expect(operation.encrypted_data).not.toContain("plaintext value");
+        }
+
+        const recovered = new LoroDoc();
+        for (const operation of durableOps) {
+            recovered.import(await decryptUpdate({ encryptedData: operation.encrypted_data }, key));
+        }
+        expect(recovered.getMap("values").toJSON()).toEqual({
+            "update-a": "first plaintext value",
+            "update-b": "second plaintext value"
+        });
+
         await manager.disconnect();
     });
 

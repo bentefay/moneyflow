@@ -45,6 +45,34 @@ const SNAPSHOT_BYTE_THRESHOLD = 5 * 1024 * 1024;
 const SERVER_SYNC_THROTTLE_MS = 2000;
 const LOCAL_CACHE_GRACE_MS = 250;
 
+function projectTransactionAliasReferences(value: unknown): unknown {
+    if (Array.isArray(value)) return value.map(projectTransactionAliasReferences);
+    if (typeof value !== "object" || value == null) return undefined;
+
+    const projected = Object.entries(value)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .flatMap(([key, entry]): Array<[string, unknown]> => {
+            if (key === "id" || key === "descriptionAliasId" || key === "deletedAt") {
+                return [[key, entry]];
+            }
+            const child = projectTransactionAliasReferences(entry);
+            return child == null ? [] : [[key, child]];
+        });
+    return projected.length === 0 ? undefined : Object.fromEntries(projected);
+}
+
+function hasAliasInvariantChange(live: LoroDoc, staged: LoroDoc): boolean {
+    const liveAliases = JSON.stringify(live.getMap("descriptionAliases").toJSON());
+    const stagedAliases = JSON.stringify(staged.getMap("descriptionAliases").toJSON());
+    if (liveAliases !== stagedAliases) return true;
+
+    const liveReferences = projectTransactionAliasReferences(live.getMap("transactions").toJSON());
+    const stagedReferences = projectTransactionAliasReferences(
+        staged.getMap("transactions").toJSON()
+    );
+    return JSON.stringify(liveReferences) !== JSON.stringify(stagedReferences);
+}
+
 /**
  * Options for creating a sync manager.
  */
@@ -126,6 +154,19 @@ export interface SyncManagerOptions {
  */
 export type SyncState = "idle" | "syncing" | "saving" | "error";
 
+interface PendingLocalUpdate {
+    readonly id: string;
+    readonly update: Uint8Array;
+    readonly versionVector: string;
+    attemptQueued: boolean;
+    failure?: Error;
+}
+
+interface EnqueuedLocalUpdate {
+    readonly id: string;
+    readonly persistence: Promise<void>;
+}
+
 /**
  * Manages synchronization of a Loro document with the server.
  */
@@ -155,7 +196,10 @@ export class SyncManager {
         string,
         { id: string; encryptedData: string; versionVector: string }
     >();
-    private localPersistenceQueue: Promise<void> = Promise.resolve();
+    private localPersistenceWorkQueue: Promise<void> = Promise.resolve();
+    private pendingLocalUpdates = new Map<string, PendingLocalUpdate>();
+    private pendingRemoteCompletionIds = new Set<string>();
+    private remoteStagingDoc: LoroDoc | null = null;
     private remoteOperationQueue: Promise<void> = Promise.resolve();
     private pushRequestedWhileSyncing = false;
     private syncState: SyncState = "idle";
@@ -171,10 +215,16 @@ export class SyncManager {
         this.onError = options.onError;
 
         // Create throttled server sync
-        this.throttledServerSync = throttle(() => this.pushToServer(), SERVER_SYNC_THROTTLE_MS, {
-            leading: false,
-            trailing: true
-        });
+        this.throttledServerSync = throttle(
+            () => {
+                void this.pushAfterLocalPersistence();
+            },
+            SERVER_SYNC_THROTTLE_MS,
+            {
+                leading: false,
+                trailing: true
+            }
+        );
     }
 
     /**
@@ -242,54 +292,114 @@ export class SyncManager {
         // Subscribe to local updates from the document
         this.unsubscribeLocalUpdates = this.doc.subscribeLocalUpdates((update: Uint8Array) => {
             if (!this.autoSyncEnabled) return;
-            const persistence = this.enqueueLocalUpdatePersistence(update);
+            const { persistence } = this.enqueueLocalUpdatePersistence(update);
             void persistence.catch(() => undefined);
         });
     }
 
     /** Serialize encryption and crash-safe queue append behind an explicit awaitable barrier. */
-    private enqueueLocalUpdatePersistence(update: Uint8Array): Promise<void> {
-        const versionVector = this.getVersionVectorString();
-        const opId = crypto.randomUUID();
-        const queued = this.localPersistenceQueue
-            .catch(() => undefined)
-            .then(async () => {
-                try {
-                    const encryptedData = await this.encryptUpdate(update);
-                    if (this.localPersistenceAvailable) {
-                        try {
-                            await appendOp({
-                                id: opId,
-                                vault_id: this.vaultId,
-                                encrypted_data: encryptedData,
-                                version_vector: versionVector,
-                                pushed: false
-                            });
-                        } catch (error) {
-                            this.disableLocalPersistence(error);
-                        }
-                    }
+    private enqueueLocalUpdatePersistence(update: Uint8Array): EnqueuedLocalUpdate {
+        const pending: PendingLocalUpdate = {
+            id: crypto.randomUUID(),
+            update: update.slice(),
+            versionVector: this.getVersionVectorString(),
+            attemptQueued: false
+        };
+        this.pendingLocalUpdates.set(pending.id, pending);
+        return { id: pending.id, persistence: this.scheduleLocalPersistenceAttempt(pending) };
+    }
 
-                    if (!this.localPersistenceAvailable) {
-                        this.memoryOps.set(opId, { id: opId, encryptedData, versionVector });
-                    }
+    /** Keep serial work moving while retaining failed raw updates as explicit unacknowledged work. */
+    private scheduleLocalPersistenceAttempt(pending: PendingLocalUpdate): Promise<void> {
+        if (pending.attemptQueued) return this.localPersistenceWorkQueue;
+        pending.attemptQueued = true;
 
+        const attempt = this.localPersistenceWorkQueue.then(async () => {
+            try {
+                const encryptedData = await this.encryptUpdate(pending.update);
+                if (this.localPersistenceAvailable) {
+                    try {
+                        await appendOp({
+                            id: pending.id,
+                            vault_id: this.vaultId,
+                            encrypted_data: encryptedData,
+                            version_vector: pending.versionVector,
+                            pushed: false
+                        });
+                    } catch (error) {
+                        this.disableLocalPersistence(error);
+                    }
+                }
+
+                if (!this.localPersistenceAvailable) {
+                    this.memoryOps.set(pending.id, {
+                        id: pending.id,
+                        encryptedData,
+                        versionVector: pending.versionVector
+                    });
+                }
+
+                this.pendingLocalUpdates.delete(pending.id);
+                pending.failure = undefined;
+                if (this.pendingLocalUpdates.size === 0) {
                     this.setSyncState("saving");
                     this.throttledServerSync?.();
-                } catch (error) {
-                    const failure = error instanceof Error ? error : new Error(String(error));
-                    console.error("Failed to save local update:", failure);
-                    this.onError?.(failure);
-                    throw failure;
+                } else {
+                    this.setSyncState("error");
                 }
-            });
-        this.localPersistenceQueue = queued;
-        return queued;
+            } catch (error) {
+                const failure = error instanceof Error ? error : new Error(String(error));
+                pending.failure = failure;
+                this.setSyncState("error");
+                console.error("Failed to save local update:", failure);
+                this.onError?.(failure);
+                throw failure;
+            } finally {
+                pending.attemptQueued = false;
+            }
+        });
+        this.localPersistenceWorkQueue = attempt.catch(() => undefined);
+        return attempt;
     }
 
     /** Wait until every local update observed so far is encrypted and queued for retry-safe sync. */
     async awaitLocalPersistence(): Promise<void> {
-        await this.localPersistenceQueue;
+        await this.localPersistenceWorkQueue;
+        const failed = [...this.pendingLocalUpdates.values()].find(
+            (pending) => pending.failure != null
+        );
+        if (failed?.failure) throw failed.failure;
+        if (this.pendingLocalUpdates.size > 0) {
+            throw new Error("Local updates remain unacknowledged by encrypted persistence");
+        }
+    }
+
+    /** Retry every failed raw update with its original id, then require a fully acknowledged queue. */
+    private async retryPendingLocalUpdates(): Promise<void> {
+        const attempts = [...this.pendingLocalUpdates.values()].map((pending) =>
+            this.scheduleLocalPersistenceAttempt(pending)
+        );
+        await Promise.allSettled(attempts);
+        await this.awaitLocalPersistence();
+    }
+
+    private async pushAfterLocalPersistence(): Promise<void> {
+        try {
+            await this.awaitLocalPersistence();
+        } catch {
+            return;
+        }
+        await this.pushToServer();
+    }
+
+    private async retryLocalPersistenceAndPush(): Promise<void> {
+        try {
+            await this.retryPendingLocalUpdates();
+        } catch {
+            return;
+        }
+        this.throttledServerSync?.cancel();
+        await this.pushToServer();
     }
 
     /**
@@ -313,13 +423,13 @@ export class SyncManager {
         this.onlineHandler = () => {
             if (this.disconnectRequested) return;
             this.throttledServerSync?.cancel();
-            void this.pushToServer();
+            void this.retryLocalPersistenceAndPush();
         };
         window.addEventListener("online", this.onlineHandler);
 
         // Warn on beforeunload if there are unpushed changes
         this.beforeUnloadHandler = async (e: BeforeUnloadEvent) => {
-            let hasUnpushed = this.memoryOps.size > 0;
+            let hasUnpushed = this.pendingLocalUpdates.size > 0 || this.memoryOps.size > 0;
             if (this.localPersistenceAvailable) {
                 try {
                     hasUnpushed ||= await hasUnpushedOps(this.vaultId);
@@ -578,9 +688,26 @@ export class SyncManager {
             );
             const snapshotBytes = decryptedDoc.export({ mode: "snapshot" });
             this.doc.import(snapshotBytes);
+            this.remoteStagingDoc?.free();
+            this.remoteStagingDoc = null;
         } finally {
             this.autoSyncEnabled = true;
         }
+    }
+
+    /** Reuse one detached document so a stream of remote operations is not cloned quadratically. */
+    private getRemoteStagingDoc(): LoroDoc {
+        if (!this.remoteStagingDoc) {
+            this.remoteStagingDoc = this.doc.fork();
+            return this.remoteStagingDoc;
+        }
+
+        const localUpdates = this.doc.export({
+            mode: "update",
+            from: this.remoteStagingDoc.oplogVersion()
+        });
+        this.remoteStagingDoc.import(localUpdates);
+        return this.remoteStagingDoc;
     }
 
     /**
@@ -589,33 +716,41 @@ export class SyncManager {
     private async applyRemoteUpdate(encryptedData: string): Promise<void> {
         if (this.disconnectRequested) return;
         try {
-            // Temporarily disable auto-sync to prevent echo
-            this.autoSyncEnabled = false;
-
-            // Decrypt the update
             const decryptedUpdate = await decryptUpdate({ encryptedData }, this.vaultKey);
-
             if (this.disconnectRequested) return;
 
-            // Import the update into the document
-            this.doc.import(decryptedUpdate);
+            // Merge and repair away from the subscribed application document. The single exported
+            // delta below is therefore legal at the only live Mirror notification boundary.
+            const liveVersion = this.doc.version();
+            const staged = this.getRemoteStagingDoc();
+            let repairUpdate: Uint8Array | undefined;
+            staged.import(decryptedUpdate);
+            const remoteVersion = staged.version();
+            if (hasAliasInvariantChange(this.doc, staged) && repairHydratedVaultDocument(staged)) {
+                repairUpdate = staged.export({ mode: "update", from: remoteVersion });
+            }
+            const canonicalUpdate = staged.export({ mode: "update", from: liveVersion });
 
-            // Re-enable auto-sync
-            this.autoSyncEnabled = true;
-
-            // A merged remote edge can invalidate the one-hop alias graph. Repair under the system
-            // origin, durably queue that local repair, and attempt immediate exchange before any
-            // consumer observes the remote state.
-            const repaired = repairHydratedVaultDocument(this.doc);
-            if (repaired) {
-                await this.awaitLocalPersistence();
-                this.throttledServerSync?.cancel();
-                await this.pushToServer();
+            this.autoSyncEnabled = false;
+            try {
+                this.doc.import(canonicalUpdate);
+            } finally {
+                this.autoSyncEnabled = true;
             }
 
-            this.onRemoteUpdate?.();
+            if (repairUpdate) {
+                const repairPersistence = this.enqueueLocalUpdatePersistence(repairUpdate);
+                this.pendingRemoteCompletionIds.add(repairPersistence.id);
+                await repairPersistence.persistence;
+                this.throttledServerSync?.cancel();
+                await this.pushToServer();
+            } else {
+                this.onRemoteUpdate?.();
+            }
         } catch (error) {
             this.autoSyncEnabled = true;
+            this.remoteStagingDoc?.free();
+            this.remoteStagingDoc = null;
             console.error("Failed to apply remote update:", error);
             this.onError?.(error instanceof Error ? error : new Error(String(error)));
         }
@@ -669,13 +804,13 @@ export class SyncManager {
     /**
      * Push unpushed ops to server.
      */
-    private async pushToServer(): Promise<void> {
+    private async pushToServer(): Promise<boolean> {
         if (this.disconnectRequested || !this.trpc) {
-            return;
+            return false;
         }
         if (this.isSyncing) {
             this.pushRequestedWhileSyncing = true;
-            return;
+            return false;
         }
 
         this.isSyncing = true;
@@ -705,7 +840,7 @@ export class SyncManager {
 
             if (unpushedOps.length === 0) {
                 this.setSyncState("idle");
-                return;
+                return true;
             }
 
             // Push to server
@@ -733,16 +868,31 @@ export class SyncManager {
             this.lastSyncedVersion = this.doc.version();
 
             this.setSyncState("idle");
+            this.completePendingRemoteUpdates(pushedIds);
+            return true;
         } catch (error) {
             this.setSyncState("error");
             this.onError?.(error instanceof Error ? error : new Error(String(error)));
             // Keep durable operations unpushed. A later local change or browser online event retries.
             console.error("Failed to push to server:", error);
+            return false;
         } finally {
             this.isSyncing = false;
             if (this.pushRequestedWhileSyncing && !this.disconnectRequested) {
                 this.pushRequestedWhileSyncing = false;
                 await this.pushToServer();
+            }
+        }
+    }
+
+    /** Report repaired remote completion only after its durable operation has reached the server. */
+    private completePendingRemoteUpdates(pushedIds: readonly string[]): void {
+        for (const id of pushedIds) {
+            if (!this.pendingRemoteCompletionIds.delete(id)) continue;
+            try {
+                this.onRemoteUpdate?.();
+            } catch (error) {
+                this.onError?.(error instanceof Error ? error : new Error(String(error)));
             }
         }
     }
@@ -810,6 +960,7 @@ export class SyncManager {
      * @deprecated Use the automatic sync instead
      */
     async pushChanges(): Promise<void> {
+        await this.awaitLocalPersistence();
         await this.pushToServer();
     }
 
@@ -845,6 +996,7 @@ export class SyncManager {
      * Check if there are unpushed changes.
      */
     async hasUnsavedChanges(): Promise<boolean> {
+        if (this.pendingLocalUpdates.size > 0 || this.memoryOps.size > 0) return true;
         return hasUnpushedOps(this.vaultId);
     }
 
@@ -884,9 +1036,11 @@ export class SyncManager {
         this.realtime = null;
 
         await Promise.all([
-            this.localPersistenceQueue.catch(() => undefined),
+            this.localPersistenceWorkQueue,
             this.remoteOperationQueue.catch(() => undefined)
         ]);
+        this.remoteStagingDoc?.free();
+        this.remoteStagingDoc = null;
 
         this.isInitialized = false;
         this.autoSyncEnabled = false;
