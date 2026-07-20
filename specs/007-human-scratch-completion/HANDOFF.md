@@ -7,7 +7,7 @@ literal field is `pending`. Workers may read but never edit it.
 
 - **Package / revision:** P07 / 04
 - **Scope IDs:** HS-011 architecture with integrated HS-012 contract; both remain incomplete
-- **State:** reviewing
+- **State:** passed; no HS marker because P08 remains required
 - **Tasks:** `tasks/HS-011-membership-invite-ux.md` and `tasks/HS-012-auto-person-link.md`
 - **Original package BASE:** `fe1871ce7dce1e831b57ee5656d38ce5c800aae3`
 - **Pre-implementation HEAD:** `dfffea3c19b110b6021b050b8d9e36b01ae75ab9`
@@ -69,7 +69,7 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Review dispatch
 
-This review is complete; root integration/acceptance is pending.
+This review is complete and integrated.
 
 - **Reviewer:** distinct `human_scratch_reviewer`
 - **Literal reviewed BASE:** `fe1871ce7dce1e831b57ee5656d38ce5c800aae3`
@@ -83,6 +83,7 @@ This review is complete; root integration/acceptance is pending.
   `313cc26bf5b537c9281839b40a422d3e19f4244b30e18bd9f746303951f01c13`
 - **Verdict:** PASS with no finding and no Q proposal. The reviewer corrected one pre-freeze prior-
   review hash typo in the same assigned file; exact boundary/hashes were reverified.
+- **Integration commit:** `1f6cb96b27c8093f0ba2c319f32d3c79c8aab126`
 - **Reviewer writes:** review file only; no other writes/commits
 - **Required review focus:** independently verify exact evidence/range/no executable diff. Re-audit
   semantic versus exact CRDT operation identity, generated-once immutable local ids/ciphertexts,
@@ -101,6 +102,6 @@ This review is complete; root integration/acceptance is pending.
 
 ## Next root action
 
-Exact-stage and commit revision-04 evidence/review with PROGRESS/HANDOFF, accepted D-013 and risk
-updates. Then record that integration commit and set P07 passed. Keep HS-011/HS-012 unchecked and do
-not dispatch P08 until the separate D-011/P05 supported-hidden-topology recheck passes.
+Commit this integration reference, then perform the D-011/P05 supported genuinely-hidden-topology
+no-product recheck required by DEPENDENCIES before any P08 dispatch. P07 is passed; HS-011/HS-012
+remain unchecked because P08 is still required. No product implementation or marker is authorized.

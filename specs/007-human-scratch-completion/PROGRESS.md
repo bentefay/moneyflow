@@ -7,9 +7,9 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P07 revision 04 (`reviewing`)
-- **Next action:** root integrates the exact P07 revision-04 PASS artifacts, D-013 and applicable
-  risks; P08 remains gated on the separate D-011/P05 topology recheck
+- **Current package:** P07 revision 04 (`passed`)
+- **Next action:** perform and durably record the D-011/P05 supported genuinely-hidden-topology
+  recheck required before any P08 dispatch
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -19,10 +19,10 @@ review evidence.
 - **Active completion marker event:** none
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
-- **Requirement state:** five passed; HS-011 reviewing; HS-015 blocked externally; 15 queued
-- **Last ledger update:** 2026-07-20T15:14:15+10:00; P07 revision 04 has an independently verified
-  PASS recommendation at corrected review SHA-256
-  `313cc26bf5b537c9281839b40a422d3e19f4244b30e18bd9f746303951f01c13`; root integration pending
+- **Requirement state:** five passed; HS-011/HS-012 queued behind P08; HS-015 blocked externally;
+  14 other requirements queued
+- **Last ledger update:** 2026-07-20T15:15:09+10:00; P07 revision 04 passed with exact integration
+  commit `1f6cb96b27c8093f0ba2c319f32d3c79c8aab126`; no HS marker is authorized
 
 ## Package ledger
 
@@ -35,7 +35,7 @@ review evidence.
 | P04     | HS-014         | Database/table/RLS threat model, migrations, and permission remediation             | P01                  | passed | 02 | `9de8b0e8c41087b96523ecc55faa10bf19ec0ff9..dbcf180e829c81a218e9a73791e40902c4f9eb31` | `evidence/P04/implementation-02.md` | `reviews/P04-review-02.md` | `b905ecb810334ed9697f57140047964135ade6ea` |
 | P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | blocked_external | 11 | `007651beb814d98646aa2e786801b647e2abd0b5..7f0b0710e820b87be2ee8877a3b7693d90e5e505` | `evidence/P05/implementation-11.md` | `reviews/P05-review-11.md` | external gate `e96d93bde4125a106ad9ca092cedf0b0998bf04e` |
 | P06     | HS-010         | Remove unused user-state storage and dead API surface                               | P04                  | passed | 01  | `a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1..95e91dbcb17ffb9600eaa6cb795336898297ebae` | `evidence/P06/implementation-01.md` | `reviews/P06-review-01.md` | `8e269ab9a6fc15ed6d845542b879e5499828134e` |
-| P07     | HS-011         | Evidence-led person/member/invite UX architecture and acceptance decision           | P04, P06             | reviewing | 04  | `fe1871ce7dce1e831b57ee5656d38ce5c800aae3..dfffea3c19b110b6021b050b8d9e36b01ae75ab9` | `evidence/P07/implementation-04.md` | `reviews/P07-review-04.md` | pending |
+| P07     | HS-011         | Evidence-led person/member/invite UX architecture and acceptance decision           | P04, P06             | passed | 04  | `fe1871ce7dce1e831b57ee5656d38ce5c800aae3..dfffea3c19b110b6021b050b8d9e36b01ae75ab9` | `evidence/P07/implementation-04.md` | `reviews/P07-review-04.md` | `1f6cb96b27c8093f0ba2c319f32d3c79c8aab126` |
 | P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P09     | HS-006         | Loro UndoManager integration, controls, shortcuts and action grouping               | P01                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P10     | HS-003         | Encrypted Loro EphemeralStore presence and active transaction                       | P05, P08             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -93,7 +93,7 @@ required marker rollbacks before the next dispatch.
 | HS-008      | human scratch block               | P14                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-009      | human scratch block               | P16A, P16C, P16D             | authorized marker after all package PASSes | queued       | —                                                                                                                       |
 | HS-010      | human scratch block               | P06                          | authorized marker after package PASS       | passed | P06 integration `8e269ab9a6fc15ed6d845542b879e5499828134e`; `reviews/P06-review-01.md`; marker `c74a2a78… -> 753be6b7…` |
-| HS-011      | human scratch block               | P07, P08                     | authorized marker after all package PASSes | reviewing | P07 revision-04 evidence frozen/review active; P08 blocked/not dispatched; no marker |
+| HS-011      | human scratch block               | P07, P08                     | authorized marker after all package PASSes | queued | P07 PASS/integration `1f6cb96b27c8093f0ba2c319f32d3c79c8aab126`; P08 still required/gated; no marker |
 | HS-012      | human scratch block               | P08                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-013      | human scratch block               | P15                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-014      | human scratch block               | P04                          | authorized marker after package PASS       | passed | P04 integration `b905ecb810334ed9697f57140047964135ade6ea`; `reviews/P04-review-02.md`; marker `db97178a… -> c74a2a78…` |
@@ -906,6 +906,14 @@ reversal/export/accessibility and real-browser proof remain complete. No finding
 installed-CLI current-state evidence pass. Cleanup, zero DB state, HEAD/index/range, every artifact
 hash, scratch/21 blocks, FS-001 and SCOPE pass. Root integration is pending; P08 still requires the
 D-011/P05 supported-hidden-topology recheck and HS-011/HS-012 remain unchecked.
+
+**2026-07-20T15:15:09+10:00 — P07/04 `reviewing -> passed`:** PASS definition complete at exact
+reviewed HEAD `dfffea3c19b110b6021b050b8d9e36b01ae75ab9`; evidence/review hashes, D-013 and
+R-005/R-006/R-018/R-027 updates are integrated in
+`1f6cb96b27c8093f0ba2c319f32d3c79c8aab126`. No finding/Q remains. P07 architecture passes, but
+HS-011 maps also to P08 and therefore returns to queued without a marker; HS-012 is likewise
+unchanged/unchecked. D-011/P05 requires a supported genuinely-hidden-topology no-product recheck
+before P08 can dispatch. Scratch remains `753be6b7…`; 21 blocks, FS-001 and SCOPE are exact.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
