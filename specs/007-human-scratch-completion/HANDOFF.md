@@ -5,29 +5,28 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Implementation dispatch
 
-- **Package / revision:** P05 / 07
+- **Package / revision:** P05 / 08
 - **Scope IDs:** HS-015; no scratch marker before independent package PASS and root integration
-- **State:** changes_requested after immutable `reviews/P05-review-07.md` FAIL; revision-07
-  evidence, review, Q-009 and risk state persisted in
-  `ad26cf6b752e41eeac025586183b92b40751520d`
+- **State:** changes_requested
 - **Task:** `tasks/HS-015-realtime-security.md`
 - **Original package BASE:** `007651beb814d98646aa2e786801b647e2abd0b5`
-- **Pre-implementation HEAD:** `9729a422ff276064693810a47448a8de18492854`; includes immutable
-  revision-01–06 product and failure/control commits
+- **Pre-implementation HEAD:** `6ad32a6497861f6866209f79ae842a40e143a1ad`; includes immutable
+  revision-01–07 product and failure/control commits
 - **Allowed implementation path:** exactly `tests/e2e/vault-settings.spec.ts`. No helper,
   product, Supabase config, dependency, migration, unit, other E2E, transport, SyncManager, CRDT or
   Loro path is writable.
-- **Sole implementer artifact:** `evidence/P05/implementation-07.md`
+- **Sole implementer artifact:** `evidence/P05/implementation-08.md`
 - **Commit contract:** commit only the exact Realtime spec path using exact staging; leave
   evidence uncommitted. Never broad-stage or edit ledgers/tasks/reviews/scratch/FS-001/.claude/
   .codex or immutable prior artifacts.
 - **Pre-existing dirty/untracked paths:** root-owned unstaged `PROGRESS.md` and `HANDOFF.md`, plus
-  assigned uncommitted `evidence/P05/implementation-07.md`; no staged paths
-- **F-001 interval attribution correction:** immediately after awaited `createNewIdentity` and
-  before Lock, capture `preLockLifecycle = realtimeLifecycle.snapshot()`. In final attribution,
-  subtract the matching pre-lock sync/Presence authorize/revoke counters from the final snapshot and
-  apply the existing authorize `<=2` and revoke `>=1` assertions to those deltas. Keep cumulative
-  aggregates only as sanitized annotations if useful. Do not move observer creation or raise bounds.
+  assigned uncommitted `evidence/P05/implementation-08.md`; no staged paths
+- **F-001 readiness correction:** immediately after awaited `createNewIdentity` and before the
+  existing pre-lock snapshot, define
+  `page.getByTitle(/\(online\)$/).filter({ visible: true })` and require exactly one match within
+  15 seconds. Then retain the existing snapshot/subtraction and unchanged authorize `<=2`/revoke
+  `>=1` assertions. Do not use `.first()`, bare strict visibility on hidden+visible matches, sleeps,
+  counter waits, retries, reload/force, move observer creation or raise any bound.
 - **Assertion invariants:** preserve the unchanged 120-second global timeout and every 15-second
   live bound, real owner/member contexts, exact subscription/current-grant aggregates, incoming-frame
   ordering, private Presence, import/edit/delete UI checks and later expiry/reconnect/offline,
@@ -52,31 +51,31 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Review result
 
-Revision-07 evidence/review and the cumulative literal range are frozen.
+Revision-08 evidence/review and the cumulative literal range are frozen.
 
 - **Reviewer:** distinct `human_scratch_reviewer`
 - **Literal reviewed BASE:** `007651beb814d98646aa2e786801b647e2abd0b5`
-- **Literal reviewed HEAD:** `c2203faa84a1590263014d6426e2f854cdc036e8`
-- **Range type:** non-empty cumulative original BASE through revision-07 HEAD
-- **Implementation evidence:** `evidence/P05/implementation-07.md`, SHA-256
-  `fa6296b49fac4eec9bd3afe9be9a9cad36241b7207c5543d4dce60e4081e32dd`
-- **Sole reviewer artifact:** `reviews/P05-review-07.md`
-- **Prior review files:** immutable revision-01–06 FAIL artifacts; latest SHA-256
-  `53dd7bfe51b392cd0b4ea316e37978bafe4f75fe1d592c937d135259a7ffbfb5`
+- **Literal reviewed HEAD:** `a4d62601dbb0ea17ad43308b39aabd81acbaf7fe`
+- **Range type:** non-empty cumulative original BASE through revision-08 HEAD
+- **Implementation evidence:** `evidence/P05/implementation-08.md`, SHA-256
+  `dcfb79499ab725eb4881899fcf298804123d575d557ff9b7943772f9ed0f0c8d`
+- **Sole reviewer artifact:** `reviews/P05-review-08.md`
+- **Prior review files:** immutable revision-01–07 FAIL artifacts; latest SHA-256
+  `6698876b9b654bff6cd00e3bf54d4ac45f86cd9ba7348fc30a4b33a3048bde7c`
 - **Verdict:** FAIL, SHA-256
-  `6698876b9b654bff6cd00e3bf54d4ac45f86cd9ba7348fc30a4b33a3048bde7c`; delta logic accepted,
-  immediate baseline remains premature
+  `46c4403f0d8364e49500cb8cf5e6cb8f09f151d07e69bdcb9c7f1ac6310e58d4`; readiness accepted,
+  cross-fixture global subscription attribution remains High
 - **Reviewer writes:** review file only; no other writes/commits
-- **Required review focus:** independently audit original BASE through exact HEAD and the sole
-  pre-lock delta diff. Reproduce the zero immediate Presence baseline and final delta 4; verify
-  createNewIdentity readiness versus `getByTitle(/\(online\)$/)` source/behavior. Confirm/correct/
-  reject the exact revision-08 same-spec visible-online readiness proposal with unchanged 15-second
-  and lifecycle bounds, no sleeps/counter waits/product widening. Recheck compatible service,
-  cleanup, prior hashes and frozen sources.
-- **Failure route:** persist immutable revision-07 artifacts and use only reviewer-confirmed scope
+- **Required review focus:** independently audit original BASE through exact HEAD, visible-filter
+  readiness and unchanged deltas/bounds. Reproduce focused 1/1, paired vault 3/3 and Realtime 2/3;
+  verify transient prior-vault subscription contamination and post-close zero. Confirm/correct/reject
+  exact revision-09 helper+Realtime-spec vault-scoped aggregate proposal with UUID validation,
+  unchanged equality/bounds and no wait/teardown/product widening. Recheck cleanup/hashes/sources.
+- **Failure route:** persist immutable revision-08 artifacts and use reviewer-confirmed next scope
 - **PASS authority:** reviewer recommends; root verifies/transcribes/integrates and sets `passed`
 
 ## Next root action
 
-Commit this durable artifact-commit reference, rewrite for P05 revision 08 and dispatch only
-visible-online readiness in the same spec. No HS-015 marker is authorized.
+Persist immutable revision-08 evidence/review, Q-010 and failure ledgers using exact staging. Then
+durably record that artifact commit, rewrite for P05 revision 09 and dispatch only current-vault
+aggregate scoping in the helper/caller. No HS-015 marker is authorized.

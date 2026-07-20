@@ -346,6 +346,36 @@ No unresolved product questions were answered by scaffold creation.
 - **Does a human still need to decide after completion?:** No; optional future work may expose a
   dedicated semantic Presence-ready test hook.
 
+## Q-010 — Scope subscription attribution to the current vault fixture
+
+- **Raised:** 2026-07-20, P05 revision 08, `human_scratch_implementer`; independently confirmed by
+  `human_scratch_reviewer`
+- **Source proposal:** `evidence/P05/implementation-08.md#q-proposal-p05-08-01--scope-subscription-attribution-to-the-current-vault`;
+  confirmed in `reviews/P05-review-08.md`
+- **Context and evidence:** Visible readiness passes. In an interleaved repeat, vault-settings is
+  3/3 and Realtime 2/3; the middle Realtime attribution is exactly total/authenticated/live 6/6/5
+  after a prior fixture, while subscriptions are zero after all contexts close. The helper globally
+  counts all `vault_ops` subscriptions and has no vault input.
+- **Why the frozen requirement/repository does not fully decide it:** HS-015 requires exact
+  sanitized evidence but does not define multi-fixture query scoping. Revision 08 cannot edit the
+  helper or its caller.
+- **Options considered:** (A) filter outer subscription rows to the validated current vault; (B)
+  wait for global teardown; (C) weaken equality; or (D) change product teardown. A is fixture-local
+  and preserves exact proof; B couples tests to timing, C weakens evidence and D lacks product fault.
+- **Default selected for continued work:** Revision 09 may write only
+  `tests/e2e/helpers/realtime.ts` and `tests/e2e/realtime-security.spec.ts`. Change the helper to
+  accept `vaultId`, validate exact 8-4-4-4-12 hexadecimal UUID syntax, add the outer claims
+  `vault_id` predicate alongside `public.vault_ops`, and call with `fixture.vaultId`. Preserve the
+  aggregate-only three integers, `total >=2`, both exact equalities, and every timeout/lifecycle/
+  security assertion. Add no wait/retry/teardown/product/schema/config/other-test change.
+- **Decision hierarchy basis:** Fixture-local attribution preserves strict security evidence and
+  parallel/repeat independence using the smallest reversible test-only scope.
+- **Impact and risk:** Strict validation makes SQL interpolation injection-safe; outer filtering is
+  required so all three aggregates share the same vault row set. No scope value is returned/logged.
+- **How to reverse or migrate:** The two-file E2E-only change is independently revertible with no
+  persisted-data or product impact.
+- **Does a human still need to decide after completion?:** No.
+
 ## Question template
 
 ### Q-XXX — Short title
