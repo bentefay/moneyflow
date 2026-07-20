@@ -7,9 +7,9 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P11A revision 02 (`changes_requested`)
-- **Next action:** persist immutable revision-02 FAIL/risk transcription, then dispatch P11A revision
-  03 over the original BASE through a new HEAD to close F-02/F-03/F-04/F-06
+- **Current package:** P11A revision 03 (`changes_requested`)
+- **Next action:** persist immutable revision-03 FAIL/risk transcription, then dispatch revision 04
+  to close queue failure masking and the real mirror consumer-before-repair lifecycle
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -21,8 +21,8 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** six passed; HS-004 changes requested through P11A with P11B/P11C still required;
   HS-015 blocked externally; HS-011/HS-012 and 12 other requirements queued
-- **Last ledger update:** 2026-07-20T19:24:14+10:00; P11A revision 02 failure artifacts and risk
-  transcription are immutable; revision-03 handoff is next
+- **Last ledger update:** 2026-07-20T20:10:38+10:00; P11A revision 03 independently failed on two
+  remaining lifecycle/evidence defects; immutable failure integration is pending
 
 ## Package ledger
 
@@ -39,7 +39,7 @@ review evidence.
 | P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P09     | HS-006         | Loro UndoManager integration, controls, shortcuts and action grouping               | P01                  | passed       | 02 | `c9146fae2c5534313d21b4f34cb2b012eaeeb4ed..418234e28ac649e03ce8ad184d08a8a2f2416149` | `evidence/P09/implementation-02.md` | `reviews/P09-review-02.md` | `59bf82e894e45e034858e25255240701a3afb0b8` |
 | P10     | HS-003         | Encrypted Loro EphemeralStore presence and active transaction                       | P05, P08             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
-| P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | changes_requested | 02 | `eb5ab2e215130c358130d5411a92b51951c3c53a..d81c5039c41577f94791bedc4184b98940c631a6` | `evidence/P11A/implementation-02.md` | `reviews/P11A-review-02.md` | rev02 failure control `0183a70afed010d862f4eb960d5464b09a17ecd5` |
+| P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | changes_requested | 03 | `eb5ab2e215130c358130d5411a92b51951c3c53a..722364b0417b4666de05df773933233d34e62033` | `evidence/P11A/implementation-03.md` | `reviews/P11A-review-03.md` | rev02 failure control `0183a70afed010d862f4eb960d5464b09a17ecd5`; rev03 integration pending |
 | P11B    | HS-004         | Alias management and transaction-cell pointer/keyboard UX                           | P11A                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P11C    | HS-004         | Alias import/manual/shared flows, performance hardening and exhaustive tests        | P11B                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -86,7 +86,7 @@ required marker rollbacks before the next dispatch.
 | HS-001      | human scratch block               | P13                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-002      | human scratch block               | P01                          | authorized marker after package PASS       | passed       | P01 integration `c2b89b6676271142ad6802dcf2a30acf8899df48`; `reviews/P01-review-02.md`; marker `b91ca932… -> dcd03b23…` |
 | HS-003      | human scratch block               | P10                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
-| HS-004      | human scratch block               | P11A, P11B, P11C             | authorized marker after all package PASSes | changes_requested | P11A/02 FAIL F-02/F-03/F-04/F-06; P11B/P11C remain required; no marker                                                    |
+| HS-004      | human scratch block               | P11A, P11B, P11C             | authorized marker after all package PASSes | changes_requested | P11A/03 FAIL F-02/F-03/F-06; P11B/P11C remain required; no marker                                                    |
 | HS-005      | human scratch block               | P12                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-006      | human scratch block               | P09                          | authorized marker after package PASS       | passed       | P09 integration `59bf82e894e45e034858e25255240701a3afb0b8`; `reviews/P09-review-02.md`; marker `753be6b7… -> c2b986fd…` |
 | HS-007      | human scratch block               | P17A, P17B, P17C, P17D       | authorized marker after all package PASSes | queued       | —                                                                                                                       |
@@ -1138,6 +1138,41 @@ scope. Dispatch-time dirt is root-owned HANDOFF/PROGRESS only; HEAD/index/execut
 Scratch remains `c2b986fd…` with exactly six authorized markers and all 21 normalized blocks; FS-001
 and SCOPE remain exact; no completion or rollback event is active.
 
+**2026-07-20T19:53:23+10:00 — P11A/03 `implementing -> ready_for_review -> reviewing`:** Exact
+revision-03 product/test commit `722364b0417b4666de05df773933233d34e62033` contains 12 authorized
+paths; cumulative review retains original BASE `eb5ab2e215130c358130d5411a92b51951c3c53a` and all
+immutable prior history. Frozen sole evidence `evidence/P11A/implementation-03.md` is 235 lines/
+17,213 bytes at SHA-256 `9656cee30c9260f5c44244fd40c6cecf46edd59d81a1ced19d7e350af77fb3cb`.
+It reports a serialized real SyncManager encryption/persistence queue with awaited provider and
+remote-repair barriers; immediate top-level/nested forward/reverse conservation for real/symlink
+remove-all; alias-free public generic hooks/barrel exports; real IndexedDB/encryption ordering and
+push-failure retry; aliased production-wrapper deletes; exchanged repair/reopen; and fixed-seed
+concurrent plans while retaining F-01/F-05. Focused Vitest 39/39, full Vitest 1,218/1,218, typecheck,
+build, committed-path formatting and lint with zero errors pass; alias E2E repeat is 6/6 and exact
+HEAD full no-retry E2E is 84/84. Installed-CLI normalized management/offline/history/privacy/
+responsive/dark/reduced-motion checks pass with explicit P11B/P11C deferral. Root verified exact
+HEAD, 12-path revision diff, empty index, `diff --check`, evidence hash/size, no task-owned runtime/
+generated drift, and frozen source hashes/sizes. Only root HANDOFF/PROGRESS and frozen evidence are
+dirty; sole new review output is `reviews/P11A-review-03.md`.
+
+**2026-07-20T20:10:38+10:00 — P11A/03 `reviewing -> changes_requested`:** Independent cumulative
+FAIL at unchanged HEAD `722364b0417b4666de05df773933233d34e62033`; review is 243 lines/20,273
+bytes at SHA-256 `153b51685afff22fa01bf74cb0ca49a49fef7242a1ba272e159500f5320a0085`.
+F-01/F-04/F-05 are closed, and F-03's local real/symlink remove-all now immediately conserves every
+top-level/nested pointer and reverse map in one undoable action. Two lifecycle blockers remain.
+F-02 proves `localPersistenceQueue` chains later work from `prior.catch(() => undefined)`, so queued
+update B can succeed after update A encryption fails and make `awaitLocalPersistence()` resolve while
+A is lost; no controlled crypto-failure test detects it. F-03 proves `doc.import()` synchronously
+notifies the actual loro-mirror store before SyncManager's later repair; revision-03 coverage observes
+only optional `onRemoteUpdate`, which the shipped provider does not use, so consumers can see the
+illegal intermediate graph. F-06 requires failure-sticky queue/recovery evidence and a real Mirror
+subscriber proof that no illegal state is exposed. Focused 39/39 repeated three times, full Vitest
+1,218/1,218, typecheck/build/lint/scoped format and alias E2E 6/6 pass. First full no-retry E2E was
+83/84 on an unrelated shift-click flake, isolated replay 3/3 and second full run 84/84; installed-CLI
+management/offline/privacy/reflow passes. Q-016/Q-017 remain canonical with no new proposal. Exact
+HEAD/index/write boundary, cleanup, scratch/21 blocks/six markers, FS-001 and SCOPE verify. Preserve
+revisions 01–03; revision 04 must close both remaining findings and receive cumulative review.
+
 **2026-07-20T18:40:27+10:00 — P11A/02 `implementing -> ready_for_review -> reviewing`:** Exact
 revision-02 product/test commit `d81c5039c41577f94791bedc4184b98940c631a6` contains 16 authorized
 paths; cumulative review retains original BASE `eb5ab2e215130c358130d5411a92b51951c3c53a` and all
@@ -1175,6 +1210,22 @@ blocks/six markers, FS-001 and SCOPE verify. Preserve revisions 01/02; revision 
 remaining finding and receive cumulative independent review.
 Immutable revision-02 evidence/review and R-030/R-031 transcription were integrated in
 `0183a70afed010d862f4eb960d5464b09a17ecd5`.
+
+**2026-07-20T19:26:23+10:00 — P11A/03 `changes_requested -> implementing`:** Revisions 01/02 and
+their reviews are immutable; clean pre-implementation HEAD
+`fa994d649e2cc55e1c2991c3d9b732bd75393284` includes the revision-02 artifact link. Revision 03
+retains original BASE `eb5ab2e215130c358130d5411a92b51951c3c53a` for cumulative review and uses
+exact new evidence `evidence/P11A/implementation-03.md` and future review
+`reviews/P11A-review-03.md`. Narrow new authority adds `src/lib/sync/manager.ts` and its focused
+sync tests for an awaitable encrypted local-update persistence barrier plus immediate awaited remote
+repair, and `src/lib/crdt/index.ts` to close the public raw export. It must atomically conserve all
+top-level/nested transaction forward/reverse references during real/symlink remove-all before any
+repair; enforce the legal public selector/action boundary through ordinary application imports; add
+real queue ordering/failure/retry, production-wrapper alias delete, exchanged peer repair/reopen and
+fixed-seed concurrent-plan evidence; and retain closed F-01/F-05 with full no-retry E2E. P11B/P11C
+remain out of scope. Dispatch-time dirt is root HANDOFF/PROGRESS only; index and product paths are
+clean. Scratch remains `c2b986fd…` with six authorized markers and all 21 normalized blocks; FS-001
+and SCOPE remain exact; no completion or rollback event is active.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
