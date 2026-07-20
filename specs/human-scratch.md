@@ -242,7 +242,7 @@
   references. This is a performance refinement - description aliases work correctly without it via
   symlink resolution on read.
 
-- [] Add undo and redo buttons and standard ctrl + z / ctrl + shift + z / ctrl + y bindings. Use the
+- [x] Add undo and redo buttons and standard ctrl + z / ctrl + shift + z / ctrl + y bindings. Use the
   standard loro UndoManager for this.
 
 - [] Change how automations work. They work differently for each field.
