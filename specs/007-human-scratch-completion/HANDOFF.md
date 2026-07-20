@@ -7,7 +7,7 @@ literal field is `pending`. Workers may read but never edit it.
 
 - **Package / revision:** P06 / 01
 - **Scope IDs:** HS-010; no scratch marker before independent package PASS and root integration
-- **State:** passed; HS-010 marker `completion_pending`
+- **State:** passed; HS-010 marker finalized
 - **Task:** `tasks/HS-010-remove-user-state.md`
 - **Original package BASE:** `a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1`
 - **Pre-implementation HEAD:** `a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1`
@@ -89,7 +89,5 @@ This section is active; revision-01 evidence and the literal range are frozen.
 
 ## Next root action
 
-Commit this durable PASS/marker preparation. Then change only HS-010's leading marker in
-`specs/human-scratch.md` from `- []` to `- [x]`, verify all 21 normalized blocks and the expected
-checked set/checksum, finalize the marker event and clear `completion_pending`. No dispatch is legal
-until the marker event is complete.
+Commit the exact HS-010 marker finalization, then rewrite HANDOFF for P07. P05 remains externally
+blocked with its documented recheck; no other marker or source text is authorized.

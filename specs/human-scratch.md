@@ -301,7 +301,7 @@
 
 - [] People percent allocations should not be able to exceed + or - 100
 
-- [] We should drop the user state column from the user table until we use it (we'd want it to use
+- [x] We should drop the user state column from the user table until we use it (we'd want it to use
   the same sync and crdt logic, which is unnecessary complexity at this point).
 
 - [] What is the current UX for adding a new user to a vault? I thought we had an invite flow? But I
