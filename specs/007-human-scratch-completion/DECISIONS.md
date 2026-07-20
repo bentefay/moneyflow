@@ -219,6 +219,40 @@ need evidence, alternatives, security/UX impact, and a reversal path.
   deleted ciphertext. Restore a pre-009 backup if those intentionally discarded bytes are needed;
   any future user-global state requires a separately reviewed sync/CRDT design.
 
+## D-013 — Use linked-hybrid vault access with lossless epoch and client reconciliation protocols
+
+- **Date:** 2026-07-20
+- **Package / scope:** P07 / HS-011 architecture with integrated HS-012 contract for P08
+- **Status:** accepted
+- **Evidence:** `evidence/P07/implementation-04.md` and independent
+  `reviews/P07-review-04.md` PASS over original
+  `fe1871ce7dce1e831b57ee5656d38ce5c800aae3..dfffea3c19b110b6021b050b8d9e36b01ae75ab9`,
+  incorporating immutable revision-01–03 failures and canonical Q-014.
+- **Alternatives:** Vault-Settings-only access; People-owned membership; sealed-box or sender-
+  ambiguous envelopes; discard/reset on epoch change; SQL/CRDT fake atomicity; memory-only or value-
+  semantic operation deduplication; server-visible Person profiles; destructive default-Person/
+  financial-history replacement; or waiting for every member online before removal.
+- **Decision and reason:** Use a linked hybrid: Vault Settings is authoritative for Members/Invites,
+  while People remains encrypted financial state with optional stable membership links. Use
+  sender-bound authenticated `crypto_box`, access-generation-scoped per-epoch envelope history,
+  locked server rotation and a persistent same-store edit fence/journal that preserves every exact
+  peer-specific Loro operation. Invitation and vault creation use reconstructible SQL truth followed
+  by fenced encrypted client sagas; semantic receipts never substitute for exact-op permanence.
+  Frontier-bound repair handles late/distinct Person claims, and creation links canonical
+  `person-default-me` in place while preserving 100% default-account ownership/references. This is
+  the narrowest zero-knowledge, local-first, crash-safe design satisfying HS-011/HS-012.
+- **Security, data, UX, and compatibility impact:** Member-only governance, fragment-only bearer
+  secrets, non-enumerating preflight, soft removal, removed/re-added tenure denial and honest past-
+  copy limits are explicit. Offline/sibling edits, financial People/history and creator defaults are
+  preserved; UI stays `Finishing setup` until authenticated link/sync/selection proof. P08 must
+  implement all 29 accessibility/security/migration/real-browser clauses and remains separately
+  gated by D-011/P05.
+- **Reversal/migration path:** Gate new writes/UI; backfill epoch-0 exact operations, authenticated
+  envelopes/generations and canonical safe links; revoke legacy pending invites; retain envelopes,
+  manifests, exact operations, fences/journals, truths/receipts/claims/links and pending recovery on
+  reversal. Never destructively down-migrate advanced epochs or delete referenced financial state;
+  old unfenced binaries cannot write.
+
 ## Decision template
 
 ### D-XXX — Title

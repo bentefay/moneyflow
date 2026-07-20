@@ -5,115 +5,102 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Implementation dispatch
 
-- **Package / revision:** P07 / 03
+- **Package / revision:** P07 / 04
 - **Scope IDs:** HS-011 architecture with integrated HS-012 contract; both remain incomplete
-- **State:** changes_requested
-- **Task:** `tasks/HS-011-membership-invite-ux.md` and HS-012 contract in
-  `tasks/HS-012-auto-person-link.md`
+- **State:** reviewing
+- **Tasks:** `tasks/HS-011-membership-invite-ux.md` and `tasks/HS-012-auto-person-link.md`
 - **Original package BASE:** `fe1871ce7dce1e831b57ee5656d38ce5c800aae3`
-- **Pre-implementation HEAD:** `55bc57e8110c0a0b67c7e1cd470ea6bdc90c6d3d`
-- **Range meaning:** evidence-only revision; root's immutable revision-01/02 artifact/control
-  commits follow the original BASE, but the worker makes no commit and leaves every executable path
-  unchanged.
+- **Pre-implementation HEAD:** `dfffea3c19b110b6021b050b8d9e36b01ae75ab9`
+- **Range meaning:** evidence-only revision; immutable prior P07 artifacts/control commits follow
+  BASE, but the worker makes no commit and leaves every executable path unchanged.
 - **Allowed implementation paths:** none. Do not edit product, test, migration, config, dependency,
   ledger, prior artifact/review, scratch, FS-001, SCOPE, `.claude`, `.codex` or agent paths.
-- **Sole implementer artifact:** `evidence/P07/implementation-03.md`
+- **Sole implementer artifact:** `evidence/P07/implementation-04.md`
 - **Commit contract:** make no commit and leave HEAD/index unchanged. Write only the assigned new
-  evidence artifact; all prior evidence/reviews are immutable.
-- **Pre-existing dirty/untracked paths:** root-owned unstaged `PROGRESS.md`, `HANDOFF.md` and
-  `RISKS.md`, plus assigned uncommitted `evidence/P07/implementation-03.md` and
-  `reviews/P07-review-03.md`; no staged or other dirty paths
-- **Authoritative correction:** implement all three findings and the exact revision-03 scope in
-  `reviews/P07-review-02.md`. Preserve every sound revision-02 linked-hybrid, Q-014, capability,
-  crypto, rotation, lineage, tenure, SQL acceptance, fragment, onboarding, privacy, migration,
-  reversal, export, accessibility and real-browser requirement without weakening or restating it
-  inconsistently.
-- **Transactional cross-tab fence:** define a durable per-vault local epoch/write fence installed in
-  the same IndexedDB transaction that seals the planned source-epoch lineage set. Every local edit
-  admission and every encrypted-operation append transaction must read the persisted fence and
-  current local epoch. A racing update must serialize into exactly one safe branch: commit before
-  seal and be included; remain unapplied/deferred before document mutation; or atomically extend/
-  reopen the transition journal with its exact encrypted update/lineage before adoption. Broadcast
-  and leader locks are notification only, never correctness authority.
-- **Stale-tab and completion proof:** specify how a tab suspended before/after in-memory mutation
-  preserves its exact update when its callback observes the seal or advanced local epoch. Adoption/
-  cleanup must transactionally prove no source-epoch `pushed=false` row or deferred/unmapped lineage
-  exists, switch local epoch and leave a terminal fence that prevents any later old-epoch append.
-  Define crash/reload/idempotency at edit admission, seal, append, journal extension, adoption and
-  cleanup. Require two real same-vault tabs with injected both-sided races: before-seal included
-  once, after-seal never unmapped, stale-after-completion cannot write/publish old epoch, and every
-  legitimate edit survives exactly once.
-- **Vault-creator linkage:** restore HS-012's vault-creation branch. Define a feasible zero-knowledge,
-  crash-recoverable protocol using stable creation truth/attempt and owner membership UUID plus a
-  deterministic default Person and reciprocal encrypted membership maps. Lost SQL response,
-  refresh, concurrent creator tabs, crashes before/after initial snapshot or operation persistence,
-  and repeated creation calls must converge to one vault, one owner membership, one active default
-  Person and bijective links. No creation success before local durability and server sync; the
-  server never creates/reads CRDT Person plaintext.
-- **Distinct-invite Person contention:** define post-merge encrypted client reconciliation when two
-  valid invitations carry the same unlinked Person intent. Preserve the intended financial Person
-  and its converged winning reciprocal membership claim. Remove only the losing membership's stale
-  forward claim, deterministically create that membership's `(vaultId,membershipId)` Person and
-  repair its forward/reciprocal fields in an idempotent lineage. Keep `Finishing setup` until the
-  bijection is durable/synced. Invitation reservations may reduce races but cannot replace this
-  convergence rule. Never merge/delete financial history or expose intent to the server.
-- **Complete contract update:** extend ownership/state/threat/privacy/schema/backfill/migration/
-  reversal/export and the full 29-clause proof map with fence/creator/claim records. Tests must cover
-  creator response loss/crash/concurrent tabs/repeated calls and two isolated concurrent invitees
-  claiming one Person, proving two memberships, two active People, a bijective link set, preserved
-  financial history and no permanent repair-only finishing state. Same-invite and all prior real
-  owner/invitee/removal/transition tests remain mandatory.
-- **Inherited gates:** P08 remains non-ready until revision 03 independently passes and D-011/P05
-  verifies a supported genuinely hidden topology. No product implementation, service-fixture
-  substitute, plaintext/memory-only journal, destructive repair, weakened success gate or HS marker
-  is authorized.
+  evidence artifact; all prior artifacts are immutable.
+- **Pre-existing dirty/untracked paths:** root-owned unstaged `PROGRESS.md`, `HANDOFF.md`,
+  `DECISIONS.md` and `RISKS.md`, plus assigned uncommitted `evidence/P07/implementation-04.md` and
+  `reviews/P07-review-04.md`; no staged or other dirty paths
+- **Authoritative correction:** implement both findings and exact revision-04 scope in
+  `reviews/P07-review-03.md`. Preserve unchanged every sound revision-03 cross-tab fence, SQL truth,
+  Q-014, linked-hybrid, capability/crypto/tenure/fragment/onboarding, privacy, migration, reversal,
+  export, accessibility and real-browser gate.
+- **Exact CRDT operation identity:** separate semantic/request/saga idempotency from each actual
+  Loro update. Two peers assigning the same values may emit different peer/counter/causal bytes;
+  each distinct durably admitted update must receive its own stable exact operation identity and be
+  permanently stored/acknowledged. Retries of the same local update reuse its exact id/ciphertext;
+  only exact-operation retransmission or an exact source operation proven in a rotation manifest may
+  be `covered`. The zero-knowledge server may compare authenticated ids/digests/metadata and return
+  stored ciphertext, never infer plaintext/value equivalence.
+- **Saga completion versus operations:** deterministic Person/map keys prevent duplicate entities;
+  creator/acceptance/repair completion truth is separately idempotent and may reference a set of
+  permanent exact operation ids. Concurrent peers' same-value operations are all retained and
+  merged; no local `pushed=false` operation may be dropped merely because another peer completed the
+  same saga outcome.
+- **Causally newer repair rounds:** bind each claim/repair round to the exact observed claim operation
+  ids plus imported Loro causal frontier/version vector (or an equivalent monotonic encrypted
+  revision). A repair update is generated only after importing that frontier and has its own exact
+  operation id. A stale claim arriving after an acknowledged repair necessarily changes the frontier
+  and produces a new causally later permanent repair. Completion requires the current claim frontier
+  be dominated, the bijection hold after merge and all local emitted updates be permanent; value-
+  only lineage cannot terminate a round.
+- **Canonical default Person/reference reconciliation:** the encrypted initial snapshot already
+  contains vault-scoped `person-default-me` and the default account assigns it 100% ownership. After
+  SQL creation truth returns the owner membership UUID, idempotently link that exact existing Person
+  and reciprocal maps; do not create a UUIDv5 replacement. Preserve its id, name, account ownership,
+  allocations and every reference. Standard creation is repair-blocked if authenticated defaults
+  are malformed/missing rather than silently creating/deleting/merging referenced People. Apply the
+  same coherent initial-default rule to every new-vault creation flow.
+- **Proof update:** two independent peers must emit same creator/acceptance/repair values with
+  unequal update bytes and both exact ops become permanent/local-pushed; response loss/reload must
+  not duplicate or strand either. Publish a stale claim only after the first repair is permanent,
+  then prove a new frontier-bound repair becomes causally later and all clients reload to a stable
+  bijection with no unpushed ops/oscillation. Creator tests inspect exact ids/maps/default-account
+  ownership: one `person-default-me`, 100% ownership pointing to it, sole owner membership link, no
+  dangling reference, one vault/selection after concurrent tabs/crashes.
+- **Complete contract update:** extend ownership/threat/schema/migration/reversal/export and clauses
+  14/16/22 plus the full proof map without dropping any retained clause. No canonical-peer fiction,
+  server plaintext equivalence, destructive Person migration, service fixture, weakened success
+  gate, product implementation or P08 readiness claim.
+- **Inherited gate:** P08 still requires independent P07 revision-04 PASS and the D-011/P05
+  supported genuinely hidden topology recheck. No HS marker is authorized.
 - **Question route:** record residual ambiguity only as a complete Q proposal in the sole evidence;
-  do not ask the human or pause. Apply the decision hierarchy and continue.
+  do not ask the human or pause.
 
 ## Review dispatch
 
-This review is complete and immutable in artifact commit
-`196b190066f75465061a1524fc8c51d067a2ef42`.
+This review is complete; root integration/acceptance is pending.
 
 - **Reviewer:** distinct `human_scratch_reviewer`
 - **Literal reviewed BASE:** `fe1871ce7dce1e831b57ee5656d38ce5c800aae3`
-- **Literal reviewed HEAD:** `55bc57e8110c0a0b67c7e1cd470ea6bdc90c6d3d`
+- **Literal reviewed HEAD:** `dfffea3c19b110b6021b050b8d9e36b01ae75ab9`
 - **Range type:** original BASE through unchanged pre-implementation HEAD; root-only immutable
-  failure artifacts/control commits expected; revision 03 adds no product commit
-- **Implementation evidence:** `evidence/P07/implementation-03.md`, SHA-256
-  `e071c6b240c7907f6814425f7da4dcb25f02e87b95522d9c6c95e953d85ddfbb`
-- **Sole reviewer artifact:** `reviews/P07-review-03.md`
-- **Review artifact SHA-256:**
-  `af4857061be4e637b31b4a4ac682a1fb17e0b1fd8836b84d846b16eb8a80bff0`
-- **Verdict:** FAIL. The cross-tab fence passes, but semantic lineage aliases distinct peer-specific
-  Loro update bytes and lacks a causally newer late-claim repair round; creator reconciliation also
-  creates a Person distinct from canonical `person-default-me` without migrating its 100% account
-  ownership/references.
+  failure artifacts/control commits expected; revision 04 adds no product commit
+- **Implementation evidence:** `evidence/P07/implementation-04.md`, SHA-256
+  `313ce10cfd75c25f26d6a75f9c8785bd95f2e213e48285c4e745cde7ecce93c6`
+- **Sole reviewer artifact:** `reviews/P07-review-04.md`
+- **Corrected review SHA-256:**
+  `313cc26bf5b537c9281839b40a422d3e19f4244b30e18bd9f746303951f01c13`
+- **Verdict:** PASS with no finding and no Q proposal. The reviewer corrected one pre-freeze prior-
+  review hash typo in the same assigned file; exact boundary/hashes were reverified.
 - **Reviewer writes:** review file only; no other writes/commits
-- **Required review focus:** independently verify exact evidence/range and that revision 03 adds no
-  executable diff. Re-audit the persistent same-store edit-admission/append fence, isolated-fork
-  mutation ordering, seal/append/adoption serialization, journal revision CAS, terminal minimum
-  epoch, no-late-lineage cleanup and two-real-tab injected race proof. Verify default-vault
-  caller/purpose creation truth, one SQL vault/owner/snapshot, protected recovery, deterministic
-  owner Person/link lineage and no success before sync. Verify encrypted claim winner convergence,
-  deterministic loser Person/repair lineage, bijection, history preservation, no oscillation and
-  isolated distinct-invite race proof. Confirm ownership/threat/privacy/schema/migration/reversal/
-  export and all 29 clauses retain every sound revision-02 Q-014/security/UX gate. Reject any live-
-  before-durable mutation, check/append gap, late old op, duplicate vault/Person/link, destructive
-  financial repair, server CRDT authority, plaintext journal, fixture substitute, weakened real-
-  browser proof or premature P08 dispatch. Verify hashes/index/write boundary/cleanup, 21 scratch
-  blocks, FS-001 and SCOPE.
-- **Failure route:** revision 04 remains evidence-only, preserves every sound revision-03 clause,
-  distinguishes exact CRDT operation identity from request/value idempotency, permanently retains
-  every distinct update or canonical exact bytes, creates a new causally bound repair round after
-  late claims, and idempotently links the existing default `Me` to the owner membership while
-  preserving default-account ownership and every reference
+- **Required review focus:** independently verify exact evidence/range/no executable diff. Re-audit
+  semantic versus exact CRDT operation identity, generated-once immutable local ids/ciphertexts,
+  exact retransmission/collision rules, transition re-encryption source binding, distinct peer-op
+  permanence and semantic receipt non-substitution. Verify repair-round claim-operation set/imported
+  causal frontier, late-claim new round, all peer exact ops permanent, stable no-oscillation
+  completion. Verify every new-vault path authenticates canonical `person-default-me`/`account-
+  default`, links that exact Person to returned owner UUID, preserves 100% ownership/all references,
+  rejects malformed defaults and never creates/deletes/merges a replacement. Confirm all sound
+  revision-03 fence/Q-014/security/privacy/migration/reversal/export/29-clause/real-browser gates.
+  Reject server plaintext equivalence, exact-op loss, old receipt covering late claim, duplicate/
+  dangling Person, weakened success or premature P08 dispatch. Verify hashes/index/write boundary/
+  cleanup, 21 scratch blocks, FS-001 and SCOPE.
+- **Failure route:** persist immutable revision-04 artifacts and use reviewer-confirmed next scope
 - **PASS authority:** reviewer recommends; root verifies/transcribes/integrates and sets `passed`
 
 ## Next root action
 
-Exact-stage and commit revision-03 evidence/review with PROGRESS/HANDOFF/RISKS failure state, record
-artifact commit `196b190066f75465061a1524fc8c51d067a2ef42` in a second control commit, then
-dispatch only `human_scratch_implementer` for
-`evidence/P07/implementation-04.md`. No P08 implementation or HS marker is authorized; D-011/P05
-remains separate.
+Exact-stage and commit revision-04 evidence/review with PROGRESS/HANDOFF, accepted D-013 and risk
+updates. Then record that integration commit and set P07 passed. Keep HS-011/HS-012 unchecked and do
+not dispatch P08 until the separate D-011/P05 supported-hidden-topology recheck passes.
