@@ -149,6 +149,8 @@ test.describe("Vault Settings", () => {
 
             const seedWords = await test.step("Create the identity and active vault", async () =>
                 createNewIdentity(page));
+            const onlinePresence = page.getByTitle(/\(online\)$/).filter({ visible: true });
+            await expect(onlinePresence).toHaveCount(1, { timeout: 15_000 });
             const preLockLifecycle = realtimeLifecycle.snapshot();
 
             await test.step("Lock through the authenticated application control", async () => {
