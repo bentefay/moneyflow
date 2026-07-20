@@ -257,7 +257,7 @@ describe("insertTransaction", () => {
 });
 
 describe("updateTransaction", () => {
-    it("updates transaction in place", () => {
+    it("keeps imported description immutable in the generic updater", () => {
         const store = createEmptyStore();
         insertTransaction(store, {
             transaction: createTransaction({
@@ -278,10 +278,10 @@ describe("updateTransaction", () => {
 
         const tree = store["acc-1"] as AccountTransactionTree;
         const tx = tree.years[0].months[0].days[0].transactions[0];
-        expect(tx.description).toBe("Updated");
+        expect(tx.description).toBe("Original");
     });
 
-    it("updates nested duplicate in place", () => {
+    it("keeps nested duplicate description immutable in the generic updater", () => {
         const store = createEmptyStore();
 
         // Insert parent with duplicate
@@ -315,7 +315,7 @@ describe("updateTransaction", () => {
 
         const tree = store["acc-1"] as AccountTransactionTree;
         const dup = tree.years[0].months[0].days[0].transactions[0].suspectedDuplicates?.[0];
-        expect(dup?.description).toBe("Updated Dup");
+        expect(dup?.description).toBe("Original Dup");
     });
 });
 

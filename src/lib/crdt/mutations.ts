@@ -317,6 +317,7 @@ export function insertTransaction(store: TransactionStore, input: InsertTransact
                 id: transaction.id,
                 date: transaction.date,
                 description: transaction.description,
+                descriptionAliasId: transaction.descriptionAliasId,
                 notes: transaction.notes,
                 amount: transaction.amount,
                 accountId: transaction.accountId,
@@ -410,7 +411,7 @@ export function updateTransaction(store: TransactionStore, input: UpdateTransact
         // Check parent transactions
         const txIndex = dayBucket.transactions.findIndex((t) => t.id === location.transactionId);
         if (txIndex !== -1) {
-            Object.assign(dayBucket.transactions[txIndex], updates);
+            applyMutableTransactionUpdates(dayBucket.transactions[txIndex], updates);
             return;
         }
 
@@ -420,9 +421,22 @@ export function updateTransaction(store: TransactionStore, input: UpdateTransact
                 (d) => d.id === location.transactionId
             );
             if (dupIndex !== undefined && dupIndex !== -1) {
-                Object.assign(tx.suspectedDuplicates![dupIndex], updates);
+                const duplicate = tx.suspectedDuplicates?.[dupIndex];
+                if (duplicate) applyMutableTransactionUpdates(duplicate, updates);
                 return;
             }
+        }
+    }
+}
+
+/** Raw imported descriptions and alias pointers have dedicated mutation boundaries. */
+function applyMutableTransactionUpdates(
+    transaction: Transaction | NestedDuplicate,
+    updates: UpdateTransactionInput["updates"]
+): void {
+    for (const [key, value] of Object.entries(updates)) {
+        if (key !== "description" && key !== "descriptionAliasId") {
+            Reflect.set(transaction, key, value);
         }
     }
 }
@@ -514,13 +528,12 @@ export function unnestDuplicate(store: TransactionStore, input: UnnestDuplicateI
     const duplicate = parentTx.suspectedDuplicates.splice(dupIndex, 1)[0];
 
     // Insert as standalone transaction at its own date
-    // Note: NestedDuplicate doesn't carry descriptionAliasId, so we add it as undefined
     insertTransaction(store, {
         transaction: {
             ...duplicate,
-            descriptionAliasId: undefined,
+            descriptionAliasId: duplicate.descriptionAliasId,
             suspectedDuplicates: []
-        } as Transaction
+        }
     });
 }
 
@@ -565,6 +578,7 @@ export function swapDuplicate(store: TransactionStore, input: SwapDuplicateInput
         id: parentTx.id,
         date: parentTx.date,
         description: parentTx.description,
+        descriptionAliasId: parentTx.descriptionAliasId,
         notes: parentTx.notes,
         amount: parentTx.amount,
         accountId: parentTx.accountId,
@@ -584,6 +598,7 @@ export function swapDuplicate(store: TransactionStore, input: SwapDuplicateInput
             id: d.id,
             date: d.date,
             description: d.description,
+            descriptionAliasId: d.descriptionAliasId,
             notes: d.notes,
             amount: d.amount,
             accountId: d.accountId,
@@ -598,13 +613,12 @@ export function swapDuplicate(store: TransactionStore, input: SwapDuplicateInput
     ];
 
     // Insert new parent as standalone at its own date with all duplicates
-    // Note: NestedDuplicate doesn't carry descriptionAliasId, so we add it as undefined
     insertTransaction(store, {
         transaction: {
             id: newParent.id,
             date: newParent.date,
             description: newParent.description,
-            descriptionAliasId: undefined,
+            descriptionAliasId: newParent.descriptionAliasId,
             notes: newParent.notes,
             amount: newParent.amount,
             accountId: newParent.accountId,

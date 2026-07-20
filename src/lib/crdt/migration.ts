@@ -16,13 +16,155 @@ import { Temporal } from "temporal-polyfill";
 import { isValidCurrencyCode } from "@/lib/domain/currency";
 
 import type { VaultMirror } from "./mirror";
+import type { DescriptionAlias, VaultState } from "./schema";
 import { getVaultSystemOrigin } from "./undo";
 
-const EPOCH_ZERO = Temporal.Instant.fromEpochMilliseconds(0);
 const VALID_BEHAVIORS = new Set(["treatAsPaid"]);
 
 function isEpochZero(instant: Temporal.Instant | undefined): instant is Temporal.Instant {
     return instant != null && instant.epochMilliseconds === 0;
+}
+
+function getAlias(state: VaultState, aliasId: string): DescriptionAlias | undefined {
+    const alias = state.descriptionAliases[aliasId];
+    return typeof alias === "object" && alias != null ? alias : undefined;
+}
+
+function clearReferenceMap(referenceMap: Record<string, boolean>): void {
+    for (const id of Object.keys(referenceMap)) {
+        if (id !== "$cid") delete referenceMap[id];
+    }
+}
+
+function normalizedRecoveryName(name: unknown, aliasId: string): string {
+    return (typeof name === "string" ? name.trim().normalize("NFC") : "") || aliasId;
+}
+
+/**
+ * Canonicalize the alias graph and rebuild both denormalized reference maps.
+ *
+ * Ordering by alias ID makes repair independent of insertion order. Chains flatten to their final
+ * real node; a cycle elects its lexicographically smallest active member as the real node. Broken
+ * targets become real aliases using retained recovery names. Transaction pointers are authoritative
+ * for `transactionIds`; alias pointers are authoritative for `symlinkIds`.
+ */
+export function repairDescriptionAliases(state: VaultState): void {
+    const aliases = Object.keys(state.descriptionAliases)
+        .filter((aliasId) => getAlias(state, aliasId) != null)
+        .sort();
+    const activeIds = new Set(aliases.filter((aliasId) => !getAlias(state, aliasId)?.deletedAt));
+    const roots = new Map<string, string>();
+
+    for (const startId of activeIds) {
+        if (roots.has(startId)) continue;
+        const path: string[] = [];
+        const positions = new Map<string, number>();
+        let currentId = startId;
+
+        while (!roots.has(currentId) && !positions.has(currentId)) {
+            positions.set(currentId, path.length);
+            path.push(currentId);
+            const alias = getAlias(state, currentId);
+            const targetId = alias?.targetAliasId;
+            if (!targetId || targetId === currentId || !activeIds.has(targetId)) {
+                roots.set(currentId, currentId);
+                break;
+            }
+            currentId = targetId;
+        }
+
+        const cycleStart = positions.get(currentId);
+        if (cycleStart != null && !roots.has(currentId)) {
+            const cycleRoot = [...path.slice(cycleStart)].sort()[0];
+            for (const cycleId of path.slice(cycleStart)) roots.set(cycleId, cycleRoot);
+        }
+
+        const resolvedRoot = roots.get(currentId) ?? roots.get(path[path.length - 1]);
+        if (!resolvedRoot) throw new Error("Alias repair could not determine a canonical root");
+        for (const pathId of path) roots.set(pathId, roots.get(pathId) ?? resolvedRoot);
+    }
+
+    const recoveryNames = new Map<string, string>();
+    for (const rootId of [...new Set(roots.values())].sort()) {
+        const memberIds = [
+            rootId,
+            ...[...activeIds].filter(
+                (aliasId) => aliasId !== rootId && roots.get(aliasId) === rootId
+            )
+        ];
+        const recovered = memberIds
+            .map((aliasId) => getAlias(state, aliasId)?.name)
+            .find((name) => typeof name === "string" && name.trim() !== "");
+        recoveryNames.set(rootId, normalizedRecoveryName(recovered, rootId));
+    }
+
+    for (const aliasId of aliases) {
+        const alias = getAlias(state, aliasId);
+        if (!alias) continue;
+        alias.id = aliasId;
+        clearReferenceMap(alias.symlinkIds);
+        clearReferenceMap(alias.transactionIds);
+
+        if (alias.deletedAt) {
+            alias.kind = "real";
+            alias.name = normalizedRecoveryName(alias.name, aliasId);
+            alias.targetAliasId = undefined;
+            continue;
+        }
+
+        const rootId = roots.get(aliasId);
+        if (!rootId || rootId === aliasId) {
+            alias.kind = "real";
+            alias.name = recoveryNames.get(aliasId) ?? normalizedRecoveryName(alias.name, aliasId);
+            alias.targetAliasId = undefined;
+        } else {
+            alias.kind = "symlink";
+            alias.targetAliasId = rootId;
+        }
+    }
+
+    for (const aliasId of activeIds) {
+        const alias = getAlias(state, aliasId);
+        if (!alias || alias.kind !== "symlink" || !alias.targetAliasId) continue;
+        const target = getAlias(state, alias.targetAliasId);
+        if (target && !target.deletedAt && target.kind === "real") {
+            target.symlinkIds[alias.id] = true;
+        }
+    }
+
+    for (const tree of Object.values(state.transactions)) {
+        if (typeof tree !== "object" || tree == null) continue;
+        for (const year of tree.years) {
+            for (const month of year.months) {
+                for (const day of month.days) {
+                    for (const transaction of day.transactions) {
+                        const referencedAlias =
+                            !transaction.deletedAt && transaction.descriptionAliasId
+                                ? getAlias(state, transaction.descriptionAliasId)
+                                : undefined;
+                        if (referencedAlias && !referencedAlias.deletedAt) {
+                            referencedAlias.transactionIds[transaction.id] = true;
+                        } else {
+                            transaction.descriptionAliasId = undefined;
+                        }
+                        for (const duplicate of transaction.suspectedDuplicates) {
+                            const duplicateAlias =
+                                !transaction.deletedAt &&
+                                !duplicate.deletedAt &&
+                                duplicate.descriptionAliasId
+                                    ? getAlias(state, duplicate.descriptionAliasId)
+                                    : undefined;
+                            if (duplicateAlias && !duplicateAlias.deletedAt) {
+                                duplicateAlias.transactionIds[duplicate.id] = true;
+                            } else {
+                                duplicate.descriptionAliasId = undefined;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 /**
@@ -42,7 +184,7 @@ function isEpochZero(instant: Temporal.Instant | undefined): instant is Temporal
  */
 export function migrateVaultSentinels(mirror: VaultMirror): void {
     mirror.setState(
-        (draft) => {
+        (draft: VaultState) => {
             // People: deletedAt, linkedUserId
             for (const person of Object.values(draft.people)) {
                 if (typeof person !== "object" || person == null) continue;
@@ -92,6 +234,12 @@ export function migrateVaultSentinels(mirror: VaultMirror): void {
                 if (isEpochZero(auto.deletedAt)) auto.deletedAt = undefined;
             }
 
+            // Description aliases: deletedAt (graph repair follows transaction sentinel cleanup)
+            for (const alias of Object.values(draft.descriptionAliases)) {
+                if (typeof alias !== "object" || alias == null) continue;
+                if (isEpochZero(alias.deletedAt)) alias.deletedAt = undefined;
+            }
+
             // Transactions: walk hierarchical structure
             for (const accountId of Object.keys(draft.transactions)) {
                 const tree = draft.transactions[accountId];
@@ -111,6 +259,8 @@ export function migrateVaultSentinels(mirror: VaultMirror): void {
                     }
                 }
             }
+
+            repairDescriptionAliases(draft);
         },
         { origin: getVaultSystemOrigin("migration") }
     );

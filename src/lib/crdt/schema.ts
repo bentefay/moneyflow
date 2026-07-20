@@ -93,6 +93,12 @@ export const tagSchema = schema.LoroMap({
  */
 export const descriptionAliasSchema = schema.LoroMap({
     id: schema.String({ required: true }),
+    kind: richSchema.StringEnum(["real", "symlink"], {
+        defaultValue: "real",
+        required: false
+    }),
+    // `name` is retained in the wire schema as recovery metadata. The domain boundary exposes it
+    // only for `kind: "real"`, so a symlink cannot behave as both states.
     name: schema.String({ required: true }),
     targetAliasId: schema.String({ required: false }), // symlink pointer
     symlinkIds: schema.LoroMapRecord(schema.Boolean({ defaultValue: true })), // backlinks
@@ -121,6 +127,7 @@ export const nestedDuplicateSchema = schema.LoroMap({
     id: schema.String({ required: true }),
     date: richSchema.PlainDate({ required: true }),
     description: schema.String({ defaultValue: "" }),
+    descriptionAliasId: schema.String({ required: false }),
     notes: schema.String({ defaultValue: "" }),
     amount: richSchema.MoneyMinorUnits({ required: true }),
     accountId: schema.String({ required: true }),
@@ -394,7 +401,10 @@ export type TransactionStore = InferType<typeof transactionStoreSchema>;
 export type PersonInput = InferInputType<typeof personSchema>;
 export type AccountInput = InferInputType<typeof accountSchema>;
 export type TagInput = InferInputType<typeof tagSchema>;
-export type DescriptionAliasInput = InferInputType<typeof descriptionAliasSchema>;
+type DescriptionAliasWireInput = InferInputType<typeof descriptionAliasSchema>;
+export type DescriptionAliasInput = Omit<DescriptionAliasWireInput, "kind"> & {
+    kind?: "real" | "symlink";
+};
 export type StatusInput = InferInputType<typeof statusSchema>;
 export type TransactionInput = InferInputType<typeof transactionSchema>;
 export type ImportInput = InferInputType<typeof importSchema>;

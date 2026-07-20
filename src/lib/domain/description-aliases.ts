@@ -13,10 +13,62 @@
 export interface DescriptionAliasLike {
     id: string;
     name: string;
+    kind?: "real" | "symlink";
     targetAliasId?: string;
     symlinkIds: Record<string, boolean | string>;
     transactionIds: Record<string, boolean | string>;
     deletedAt?: unknown;
+}
+
+/** Legal domain states. The compatibility `name` stored on a symlink is deliberately not exposed. */
+export type LegalDescriptionAlias = RealDescriptionAlias | SymlinkDescriptionAlias;
+
+export interface RealDescriptionAlias {
+    readonly kind: "real";
+    readonly id: string;
+    readonly name: string;
+    readonly symlinkIds: Readonly<Record<string, boolean | string>>;
+    readonly transactionIds: Readonly<Record<string, boolean | string>>;
+    readonly deletedAt?: unknown;
+}
+
+export interface SymlinkDescriptionAlias {
+    readonly kind: "symlink";
+    readonly id: string;
+    readonly targetAliasId: string;
+    readonly transactionIds: Readonly<Record<string, boolean | string>>;
+    readonly deletedAt?: unknown;
+}
+
+/** Convert the CRDT wire representation into a legal discriminated domain state. */
+export function toLegalDescriptionAlias(
+    alias: DescriptionAliasLike
+): LegalDescriptionAlias | undefined {
+    const isSymlink = alias.kind === "symlink" || (alias.kind == null && !!alias.targetAliasId);
+    if (isSymlink) {
+        return alias.targetAliasId
+            ? {
+                  kind: "symlink",
+                  id: alias.id,
+                  targetAliasId: alias.targetAliasId,
+                  transactionIds: alias.transactionIds,
+                  deletedAt: alias.deletedAt
+              }
+            : undefined;
+    }
+    if (alias.targetAliasId) return undefined;
+    return {
+        kind: "real",
+        id: alias.id,
+        name: alias.name,
+        symlinkIds: alias.symlinkIds,
+        transactionIds: alias.transactionIds,
+        deletedAt: alias.deletedAt
+    };
+}
+
+function isRealAlias(alias: DescriptionAliasLike): boolean {
+    return toLegalDescriptionAlias(alias)?.kind === "real";
 }
 
 /**
@@ -36,7 +88,7 @@ export function getActiveDescriptionAliases<T extends DescriptionAliasLike>(
  * A real alias has no targetAliasId.
  */
 export function getRealAliases<T extends DescriptionAliasLike>(aliases: T[]): T[] {
-    return aliases.filter((a) => !a.targetAliasId);
+    return aliases.filter(isRealAlias);
 }
 
 /**
@@ -62,11 +114,15 @@ export function resolveAlias<T extends DescriptionAliasLike>(
     if (typeof alias !== "object" || alias === null) return undefined;
     if (alias.deletedAt) return undefined;
 
-    // If it's a symlink, follow one hop
-    if (alias.targetAliasId) {
-        const target = aliases[alias.targetAliasId];
+    const legalAlias = toLegalDescriptionAlias(alias);
+    if (!legalAlias) return undefined;
+
+    // If it's a symlink, follow exactly one hop and reject a chain.
+    if (legalAlias.kind === "symlink") {
+        const target = aliases[legalAlias.targetAliasId];
         if (typeof target !== "object" || target === null) return undefined;
         if (target.deletedAt) return undefined;
+        if (!isRealAlias(target)) return undefined;
         return target;
     }
 

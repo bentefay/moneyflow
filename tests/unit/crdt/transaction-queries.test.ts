@@ -680,6 +680,7 @@ describe("filterTransactions", () => {
                         id: "dup-1",
                         date: Temporal.PlainDate.from("2024-01-15"),
                         description: "Duplicate",
+                        descriptionAliasId: undefined,
                         notes: "",
                         amount: asMinorUnits(1000),
                         accountId: "acc-1",

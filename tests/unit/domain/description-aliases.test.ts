@@ -14,6 +14,7 @@ import {
     getRealAliases,
     makeSymlinkMutations,
     resolveAlias,
+    toLegalDescriptionAlias,
     type DescriptionAliasLike
 } from "@/lib/domain/description-aliases";
 
@@ -125,6 +126,39 @@ describe("resolveAlias", () => {
             target: createAlias("target", "Target", { deletedAt: Date.now() })
         };
         expect(resolveAlias("symlink", aliases)).toBeUndefined();
+    });
+
+    it("rejects a symlink chain instead of following a second hop", () => {
+        const aliases: Record<string, DescriptionAliasLike | string> = {
+            first: createAlias("first", "First", { targetAliasId: "second" }),
+            second: createAlias("second", "Second", { targetAliasId: "real" }),
+            real: createAlias("real", "Real")
+        };
+        expect(resolveAlias("first", aliases)).toBeUndefined();
+    });
+
+    it("exposes mutually exclusive legal domain states", () => {
+        const real = toLegalDescriptionAlias(createAlias("real", "Visible"));
+        const symlink = toLegalDescriptionAlias(
+            createAlias("link", "Hidden recovery name", { targetAliasId: "real" })
+        );
+        expect(real).toEqual(expect.objectContaining({ kind: "real", name: "Visible" }));
+        expect(symlink).toEqual(
+            expect.objectContaining({ kind: "symlink", targetAliasId: "real" })
+        );
+        expect(symlink).not.toHaveProperty("name");
+    });
+
+    it("resolves with a constant number of collection lookups", () => {
+        let reads = 0;
+        const aliases = new Proxy(createTestCollection(), {
+            get(target, property, receiver) {
+                reads += 1;
+                return Reflect.get(target, property, receiver);
+            }
+        });
+        expect(resolveAlias("old-grocery", aliases)?.id).toBe("grocery-store");
+        expect(reads).toBe(2);
     });
 });
 

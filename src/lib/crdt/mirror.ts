@@ -40,6 +40,7 @@ export const DEFAULT_VAULT_STATE = {
     tags: {},
     statuses: {},
     transactions: {},
+    descriptionAliases: {},
     imports: {},
     importTemplates: {},
     automations: {},
@@ -100,6 +101,8 @@ export function createVaultMirror(options: CreateVaultMirrorOptions = {}): {
         debug,
         checkStateConsistency
     });
+
+    migrateVaultSentinels(mirror);
 
     return { mirror, doc };
 }

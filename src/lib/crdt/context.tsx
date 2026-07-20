@@ -350,9 +350,27 @@ export function useActiveStatuses() {
 // ============================================
 
 import {
+    assignDescriptionAlias as assignAlias,
+    assignDescriptionAliasByExactName as assignAliasByExactName,
+    changeAllDescriptionAliases as changeAllAliases,
+    changeOneDescriptionAlias as changeOneAlias,
+    createAndAssignDescriptionAlias as createAndAssignAlias,
+    createDescriptionAlias as createAlias,
+    deleteDescriptionAliasedTransaction,
+    deleteDescriptionAliasedTransactionsByImport,
+    removeAllDescriptionAliases as removeAllAliases,
+    removeOneDescriptionAlias as removeOneAlias,
+    renameDescriptionAlias as renameAlias,
+    type AssignDescriptionAliasByExactNameInput,
+    type AssignDescriptionAliasInput,
+    type ChangeAllDescriptionAliasesInput,
+    type ChangeOneDescriptionAliasInput,
+    type CreateAndAssignDescriptionAliasInput,
+    type RemoveOneDescriptionAliasInput
+} from "./description-aliases";
+import {
     type DeleteTransactionInput,
-    deleteTransactionsByImport as deleteByImport,
-    deleteTransaction as deleteTx,
+    findTransactionInStore,
     type InsertTransactionInput,
     insertTransaction as insertTx,
     type MoveTransactionInput,
@@ -380,6 +398,19 @@ export function useTransactionActions() {
 
     const updateTransaction = useVaultAction(
         (state, input: UpdateTransactionInput) => {
+            if ("descriptionAliasId" in input.updates) {
+                const transaction = findTransactionInStore(state.transactions, input.location);
+                const currentAliasId = transaction?.descriptionAliasId;
+                const requestedAliasId = input.updates.descriptionAliasId;
+                if (requestedAliasId) {
+                    assignAlias(state, { location: input.location, aliasId: requestedAliasId });
+                } else if (currentAliasId) {
+                    removeOneAlias(state, {
+                        location: input.location,
+                        expectedAliasId: currentAliasId
+                    });
+                }
+            }
             updateTx(state.transactions, input);
         },
         [],
@@ -396,7 +427,7 @@ export function useTransactionActions() {
 
     const deleteTransaction = useVaultAction(
         (state, input: DeleteTransactionInput) => {
-            deleteTx(state.transactions, input);
+            deleteDescriptionAliasedTransaction(state, input);
         },
         [],
         "delete"
@@ -420,7 +451,7 @@ export function useTransactionActions() {
 
     const deleteTransactionsByImport = useVaultAction(
         (state, importId: string) => {
-            deleteByImport(state.transactions, importId);
+            deleteDescriptionAliasedTransactionsByImport(state, importId);
         },
         [],
         "delete"
@@ -449,8 +480,7 @@ import type { DescriptionAliasInput } from "./schema";
 export function useDescriptionAliasActions() {
     const addAlias = useVaultAction(
         (state, alias: DescriptionAliasInput) => {
-            state.descriptionAliases[alias.id] =
-                alias as unknown as (typeof state.descriptionAliases)[string];
+            return createAlias(state, { aliasId: alias.id, name: alias.name });
         },
         [],
         "alias"
@@ -458,9 +488,16 @@ export function useDescriptionAliasActions() {
 
     const updateAlias = useVaultAction(
         (state, input: { id: string; updates: Partial<DescriptionAliasInput> }) => {
-            const alias = state.descriptionAliases[input.id];
-            if (alias && typeof alias === "object") {
-                Object.assign(alias, input.updates);
+            if (input.updates.name != null) {
+                renameAlias(state, { aliasId: input.id, name: input.updates.name });
+            } else if (input.updates.targetAliasId && input.updates.symlinkIds != null) {
+                // Compatibility bridge for the existing transaction page's final change-all call.
+                // Earlier backlink-plan calls are ignored; this one applies the complete graph
+                // transformation atomically. P11B will move that page to the named action directly.
+                changeAllAliases(state, {
+                    sourceAliasId: input.id,
+                    target: { kind: "existing", aliasId: input.updates.targetAliasId }
+                });
             }
         },
         [],
@@ -469,14 +506,66 @@ export function useDescriptionAliasActions() {
 
     const deleteAlias = useVaultAction(
         (state, id: string) => {
-            const alias = state.descriptionAliases[id];
-            if (alias && typeof alias === "object") {
-                alias.deletedAt = Temporal.Now.instant();
-            }
+            return removeAllAliases(state, id);
         },
         [],
         "alias"
     );
 
-    return { addAlias, updateAlias, deleteAlias };
+    const assignDescriptionAlias = useVaultAction(
+        (state, input: AssignDescriptionAliasInput) => assignAlias(state, input),
+        [],
+        "alias"
+    );
+    const createAndAssignDescriptionAlias = useVaultAction(
+        (state, input: CreateAndAssignDescriptionAliasInput) => createAndAssignAlias(state, input),
+        [],
+        "alias"
+    );
+    const assignDescriptionAliasByExactName = useVaultAction(
+        (state, input: AssignDescriptionAliasByExactNameInput) =>
+            assignAliasByExactName(state, input),
+        [],
+        "alias"
+    );
+    const renameDescriptionAlias = useVaultAction(
+        (state, input: { readonly aliasId: string; readonly name: string }) =>
+            renameAlias(state, input),
+        [],
+        "alias"
+    );
+    const changeOneDescriptionAlias = useVaultAction(
+        (state, input: ChangeOneDescriptionAliasInput) => changeOneAlias(state, input),
+        [],
+        "alias"
+    );
+    const changeAllDescriptionAliases = useVaultAction(
+        (state, input: ChangeAllDescriptionAliasesInput) => changeAllAliases(state, input),
+        [],
+        "alias"
+    );
+    const removeOneDescriptionAlias = useVaultAction(
+        (state, input: RemoveOneDescriptionAliasInput) => removeOneAlias(state, input),
+        [],
+        "alias"
+    );
+    const removeAllDescriptionAliases = useVaultAction(
+        (state, aliasId: string) => removeAllAliases(state, aliasId),
+        [],
+        "alias"
+    );
+
+    return {
+        addAlias,
+        updateAlias,
+        deleteAlias,
+        assignDescriptionAlias,
+        createAndAssignDescriptionAlias,
+        assignDescriptionAliasByExactName,
+        renameDescriptionAlias,
+        changeOneDescriptionAlias,
+        changeAllDescriptionAliases,
+        removeOneDescriptionAlias,
+        removeAllDescriptionAliases
+    };
 }
