@@ -71,6 +71,7 @@ This section is complete; revision-11 evidence, review and cumulative literal ra
 - **Review verdict:** FAIL; SHA-256
   `429b7b86c3fbceca9bbad6ae3d861037ca75a49d7a96a85c448dd7a195aa0244`
 - **Failure artifact commit:** `f6fa2c2e411546f06e7b21e12157dfbb0c411d24`
+- **External-gate control commit:** `e96d93bde4125a106ad9ca092cedf0b0998bf04e`
 - **Prior review files:** immutable revision-01–10 FAIL artifacts; latest SHA-256
   `51bd77e62afb1adb08cd617db974d1df85f51eda7c7b06c20cd42d838aa7c9f8`
 - **Reviewer writes:** review file only; no other writes/commits
@@ -88,7 +89,6 @@ This section is complete; revision-11 evidence, review and cumulative literal ra
 
 ## Next root action
 
-Persist D-011, the dated DEPENDENCIES external gate, R-026 and the P05/HS-015 `blocked_external`
-transition. Record that control commit, then rewrite HANDOFF for independent P06. Recheck P05 before
-P08/P10, a capable installed tool upgrade or P21. No worker/product diff or HS-015 marker is
+Commit this durable external-gate reference, then rewrite HANDOFF for independent P06. Recheck P05
+before P08/P10, a capable installed tool upgrade or P21. No worker/product diff or HS-015 marker is
 authorized.
