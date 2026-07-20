@@ -98,8 +98,8 @@ export interface IdentityActions {
      *
      * Flow:
      * 1. Validate and derive keys from seed
-     * 2. Check if user exists on server
-     * 3. Get or create only the verified user's record
+     * 2. Get or create only the verified user's identity row
+     * 3. Load vault membership/state through their dedicated paths
      * 4. Expose the unlocked session only after setup succeeds
      */
     unlock: (mnemonic: string) => Promise<UnlockedIdentity>;

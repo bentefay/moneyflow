@@ -1,6 +1,24 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT plan(27);
+SELECT plan(40);
+
+SELECT has_table('public', 'user_data', 'upgrade retains verified identity registry');
+SELECT has_column('public', 'user_data', 'pubkey_hash', 'upgrade retains identity hash');
+SELECT has_column('public', 'user_data', 'updated_at', 'upgrade retains registration metadata');
+SELECT hasnt_column('public', 'user_data', 'encrypted_data', 'upgrade deletes only legacy opaque user state');
+SELECT is((SELECT count(*) FROM public.user_data), 1::bigint, 'legacy identity row survives state removal');
+SELECT is((SELECT pubkey_hash FROM public.user_data), repeat('1', 64), 'legacy identity hash is byte-preserved');
+SELECT is((SELECT updated_at FROM public.user_data), '2026-01-01T00:00:00Z'::timestamptz, 'legacy registration metadata is preserved');
+SELECT ok(has_table_privilege('service_role', 'public.user_data', 'SELECT'), 'upgrade retains service identity lookup');
+SELECT ok(has_table_privilege('service_role', 'public.user_data', 'INSERT'), 'upgrade retains service identity registration');
+SELECT ok(NOT has_table_privilege('service_role', 'public.user_data', 'UPDATE'), 'upgrade removes generic user-state mutation privilege');
+SELECT ok(NOT has_table_privilege('anon', 'public.user_data', 'SELECT'), 'upgrade keeps anon identity reads denied');
+SELECT ok(NOT has_table_privilege('authenticated', 'public.user_data', 'SELECT'), 'upgrade keeps authenticated identity reads denied');
+SELECT results_eq(
+    $$SELECT version FROM supabase_migrations.schema_migrations ORDER BY version$$,
+    $$VALUES ('005'::text), ('006'::text), ('007'::text), ('008'::text), ('009'::text)$$,
+    'upgrade records every application migration through user-state removal'
+);
 
 SELECT is((SELECT count(*) FROM public.vault_updates_legacy), 2::bigint, 'all legacy rows remain quarantined');
 SELECT has_table('public', 'realtime_grants', 'upgrade creates realtime grant table');

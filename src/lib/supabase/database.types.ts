@@ -92,17 +92,14 @@ export type Database = {
             };
             user_data: {
                 Row: {
-                    encrypted_data: string;
                     pubkey_hash: string;
                     updated_at: string | null;
                 };
                 Insert: {
-                    encrypted_data: string;
                     pubkey_hash: string;
                     updated_at?: string | null;
                 };
                 Update: {
-                    encrypted_data?: string;
                     pubkey_hash?: string;
                     updated_at?: string | null;
                 };
@@ -412,6 +409,10 @@ export type Database = {
                 Returns: boolean;
             };
             realtime_topic_allowed: {
+                Args: { p_extension: string; p_topic: string };
+                Returns: boolean;
+            };
+            realtime_topic_send_allowed: {
                 Args: { p_extension: string; p_topic: string };
                 Returns: boolean;
             };

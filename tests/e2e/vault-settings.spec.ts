@@ -220,6 +220,12 @@ test.describe("Vault Settings", () => {
                 );
                 expect(unlockRequest?.body).toBeTruthy();
                 expect(unlockRequest?.body).not.toContain("pubkeyHash");
+                expect(unlockRequest?.body).not.toContain("encryptedData");
+                expect(
+                    trpcRequests.filter((request) =>
+                        /user\.(?:exists|getData|upsertData)/.test(new URL(request.url).pathname)
+                    )
+                ).toEqual([]);
             });
 
             realtimeLifecycle.stop();

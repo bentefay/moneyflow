@@ -1,10 +1,15 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT plan(87);
+SELECT plan(97);
 
 SELECT has_table('public', 'request_nonces', 'replay table exists');
 SELECT has_table('public', 'vault_updates_legacy', 'legacy rows are quarantined');
 SELECT has_table('public', 'realtime_grants', 'short-lived realtime grants exist');
+SELECT has_table('public', 'user_data', 'verified identity registry exists');
+SELECT has_column('public', 'user_data', 'pubkey_hash', 'identity hash is retained');
+SELECT has_column('public', 'user_data', 'updated_at', 'registration metadata is retained');
+SELECT hasnt_column('public', 'user_data', 'encrypted_data', 'unused opaque user state is absent');
+SELECT col_is_pk('public', 'user_data', 'pubkey_hash', 'identity hash remains the registry key');
 SELECT has_view('public', 'vault_updates', 'rolling compatibility view exists');
 SELECT has_function('public', 'claim_request_nonce', ARRAY['text', 'text', 'bigint']);
 SELECT has_function('public', 'accept_vault_invite', ARRAY['text', 'text', 'text', 'text']);
@@ -20,6 +25,9 @@ SELECT hasnt_function('public', 'current_pubkey_hash', ARRAY[]::text[]);
 SELECT hasnt_function('public', 'is_vault_member', ARRAY['uuid']);
 SELECT hasnt_function('public', 'is_vault_owner', ARRAY['uuid']);
 
+SELECT ok(has_table_privilege('service_role', 'public.user_data', 'SELECT'), 'service role can find verified identities');
+SELECT ok(has_table_privilege('service_role', 'public.user_data', 'INSERT'), 'service role can register verified identities');
+SELECT ok(NOT has_table_privilege('service_role', 'public.user_data', 'UPDATE'), 'service role cannot update removed user state');
 SELECT ok(NOT has_table_privilege('anon', 'public.user_data', 'SELECT'), 'anon cannot read users');
 SELECT ok(NOT has_table_privilege('authenticated', 'public.user_data', 'SELECT'), 'authenticated cannot read users');
 SELECT ok(NOT has_table_privilege('anon', 'public.vault_invites', 'SELECT'), 'anon cannot enumerate invites');
@@ -37,6 +45,11 @@ SELECT ok(has_function_privilege('service_role', 'public.claim_request_nonce(tex
 SELECT ok(NOT has_function_privilege('anon', 'public.claim_request_nonce(text,text,bigint)', 'EXECUTE'), 'anon cannot claim a hash');
 SELECT ok(has_function_privilege('service_role', 'public.rotate_realtime_grant(text,uuid,text,uuid,integer)', 'EXECUTE'), 'service role can rotate verified grants');
 SELECT ok(NOT has_function_privilege('authenticated', 'public.rotate_realtime_grant(text,uuid,text,uuid,integer)', 'EXECUTE'), 'browser cannot mint grants in SQL');
+
+INSERT INTO public.user_data (pubkey_hash) VALUES (repeat('9', 64));
+SELECT is((SELECT count(*) FROM public.user_data WHERE pubkey_hash = repeat('9', 64)), 1::bigint, 'fresh identity registration retains its exact row');
+SELECT ok((SELECT updated_at IS NOT NULL FROM public.user_data WHERE pubkey_hash = repeat('9', 64)), 'fresh identity registration receives metadata');
+
 SELECT is(
     (SELECT string_agg(tablename, ',' ORDER BY tablename) FROM pg_publication_tables WHERE pubname = 'supabase_realtime'),
     'vault_ops',

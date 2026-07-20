@@ -1,30 +1,21 @@
 /**
  * User Router
  *
- * Handles user identity registration and data management.
+ * Handles verified user identity registration and vault membership lookup.
  *
  * Authentication Model:
  * - Key-only auth via Ed25519 signatures
  * - pubkey_hash is the user's permanent identity
  * - No email, no passwords, no sessions
  *
- * Data Model:
- * - encrypted_data blob contains vault references and settings
- * - All encryption/decryption happens client-side
- * - Server never sees plaintext user data
+ * Vault keys and content are stored in their normalized encrypted vault-scoped tables.
  */
 
 import { TRPCError } from "@trpc/server";
-import { Temporal } from "temporal-polyfill";
 
 import { createSupabaseClient } from "@/lib/supabase/server";
 
-import {
-    upsertUserDataInput,
-    userExistsInput,
-    userGetOrCreateInput,
-    userRegisterInput
-} from "../schemas/user";
+import { userGetOrCreateInput, userRegisterInput } from "../schemas/user";
 import { protectedProcedure, router } from "../trpc";
 
 // ============================================================================
@@ -76,30 +67,6 @@ function handleDatabaseError(error: unknown, operation: string): never {
 
 export const userRouter = router({
     /**
-     * Check whether the verified user has a record. This never accepts another identity claim.
-     */
-    exists: protectedProcedure.input(userExistsInput).query(async ({ ctx }) => {
-        let supabase;
-        try {
-            supabase = await createSupabaseClient();
-        } catch (error) {
-            handleDatabaseError(error, "user.exists:connect");
-        }
-
-        const { data, error } = await supabase
-            .from("user_data")
-            .select("pubkey_hash")
-            .eq("pubkey_hash", ctx.pubkeyHash)
-            .maybeSingle();
-
-        if (error) {
-            handleDatabaseError(error, "user.exists:query");
-        }
-
-        return { exists: !!data };
-    }),
-
-    /**
      * Register a new user.
      *
      * Creates a user_data record with the pubkey_hash.
@@ -107,7 +74,7 @@ export const userRouter = router({
      *
      * Note: This is idempotent - calling with same pubkey_hash is safe.
      */
-    register: protectedProcedure.input(userRegisterInput).mutation(async ({ ctx, input }) => {
+    register: protectedProcedure.input(userRegisterInput).mutation(async ({ ctx }) => {
         let supabase;
         try {
             supabase = await createSupabaseClient();
@@ -132,9 +99,7 @@ export const userRouter = router({
 
         // Create new user
         const { error } = await supabase.from("user_data").insert({
-            pubkey_hash: ctx.pubkeyHash,
-            encrypted_data: input.encryptedData ?? "",
-            updated_at: Temporal.Now.instant().toString()
+            pubkey_hash: ctx.pubkeyHash
         });
 
         if (error) {
@@ -152,13 +117,13 @@ export const userRouter = router({
     /**
      * Get or create user - idempotent registration.
      *
-     * Returns existing user data or creates new user and returns empty data.
+     * Returns existing registration metadata or creates a new identity row.
      * This is the preferred method for unlock flow:
      * 1. User enters seed phrase
      * 2. Client derives the keypair and installs its signing session
      * 3. Client calls getOrCreate
      * 4. If isNew, show welcome/setup
-     * 5. If existing, load encrypted data
+     * 5. Load vault membership and encrypted vault state through their dedicated paths
      *
      * The verified context is the only identity selector.
      */
@@ -173,7 +138,7 @@ export const userRouter = router({
         // Try to get existing user
         const { data: existing, error: selectError } = await supabase
             .from("user_data")
-            .select("encrypted_data, updated_at")
+            .select("updated_at")
             .eq("pubkey_hash", ctx.pubkeyHash)
             .maybeSingle();
 
@@ -184,21 +149,17 @@ export const userRouter = router({
         if (existing) {
             return {
                 isNew: false,
-                encryptedData: existing.encrypted_data,
                 updatedAt: existing.updated_at
             };
         }
 
         // Create new user
-        const now = Temporal.Now.instant().toString();
         const { data: newUser, error: insertError } = await supabase
             .from("user_data")
             .insert({
-                pubkey_hash: ctx.pubkeyHash,
-                encrypted_data: "",
-                updated_at: now
+                pubkey_hash: ctx.pubkeyHash
             })
-            .select("encrypted_data, updated_at")
+            .select("updated_at")
             .single();
 
         if (insertError) {
@@ -206,7 +167,7 @@ export const userRouter = router({
             if (insertError.code === "23505") {
                 const { data: raceUser, error: raceError } = await supabase
                     .from("user_data")
-                    .select("encrypted_data, updated_at")
+                    .select("updated_at")
                     .eq("pubkey_hash", ctx.pubkeyHash)
                     .single();
 
@@ -219,7 +180,6 @@ export const userRouter = router({
 
                 return {
                     isNew: false,
-                    encryptedData: raceUser.encrypted_data,
                     updatedAt: raceUser.updated_at
                 };
             }
@@ -229,76 +189,8 @@ export const userRouter = router({
 
         return {
             isNew: true,
-            encryptedData: newUser.encrypted_data,
             updatedAt: newUser.updated_at
         };
-    }),
-
-    /**
-     * Get user's encrypted data.
-     *
-     * Returns the encrypted blob containing vault references and settings.
-     * Requires valid signature (authenticated procedure).
-     */
-    getData: protectedProcedure.query(async ({ ctx }) => {
-        let supabase;
-        try {
-            supabase = await createSupabaseClient();
-        } catch (error) {
-            handleDatabaseError(error, "user.getData:connect");
-        }
-
-        const { data, error } = await supabase
-            .from("user_data")
-            .select("encrypted_data, updated_at")
-            .eq("pubkey_hash", ctx.pubkeyHash)
-            .maybeSingle();
-
-        if (error) {
-            handleDatabaseError(error, "user.getData:query");
-        }
-
-        if (!data) {
-            return { data: null };
-        }
-
-        return {
-            data: {
-                encryptedData: data.encrypted_data,
-                updatedAt: data.updated_at
-            }
-        };
-    }),
-
-    /**
-     * Update user's encrypted data.
-     *
-     * Replaces the entire encrypted blob.
-     * Client is responsible for merge logic before calling.
-     * Requires valid signature.
-     */
-    upsertData: protectedProcedure.input(upsertUserDataInput).mutation(async ({ ctx, input }) => {
-        let supabase;
-        try {
-            supabase = await createSupabaseClient();
-        } catch (error) {
-            handleDatabaseError(error, "user.upsertData:connect");
-        }
-
-        const { error } = await supabase.from("user_data").upsert(
-            {
-                pubkey_hash: ctx.pubkeyHash,
-                encrypted_data: input.encryptedData,
-                updated_at: Temporal.Now.instant().toString()
-            },
-            { onConflict: "pubkey_hash" }
-        );
-
-        if (error) {
-            handleDatabaseError(error, "user.upsertData:upsert");
-        }
-
-        return { success: true };
     }),
 
     /**

@@ -8,12 +8,7 @@
 import type { LoroDoc, VersionVector } from "loro-crdt";
 import { Temporal } from "temporal-polyfill";
 
-import {
-    decryptFromStorage,
-    decryptJSON,
-    encryptForStorage,
-    encryptJSON
-} from "../crypto/encryption";
+import { decryptFromStorage, encryptForStorage } from "../crypto/encryption";
 import { exportShallowSnapshot, exportSnapshot, exportUpdates, getVersionEncoded } from "./sync";
 
 /**
@@ -246,29 +241,4 @@ export async function applyEncryptedUpdates(
     for (const update of sorted) {
         await applyEncryptedUpdate(doc, update, vaultKey);
     }
-}
-
-/**
- * Encrypts user data (vault list, settings) for server storage.
- *
- * This is stored in user_data.encrypted_data and contains
- * the list of vaults the user belongs to.
- *
- * @param userData - User data object
- * @param userKey - User's encryption key (derived from seed)
- * @returns Base64-encoded encrypted data
- */
-export async function encryptUserData<T>(userData: T, userKey: Uint8Array): Promise<string> {
-    return encryptJSON(userData, userKey);
-}
-
-/**
- * Decrypts user data from server storage.
- *
- * @param encryptedData - Base64-encoded encrypted data
- * @param userKey - User's encryption key
- * @returns Decrypted user data
- */
-export async function decryptUserData<T>(encryptedData: string, userKey: Uint8Array): Promise<T> {
-    return decryptJSON<T>(encryptedData, userKey);
 }

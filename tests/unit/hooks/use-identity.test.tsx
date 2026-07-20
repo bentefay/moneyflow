@@ -182,7 +182,6 @@ describe("useIdentity verified registration lifecycle", () => {
             sessionDuringMutation = getSession();
             return {
                 isNew: false,
-                encryptedData: null,
                 updatedAt: "2026-07-20T00:00:00.000Z"
             };
         });

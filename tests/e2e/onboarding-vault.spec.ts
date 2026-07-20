@@ -51,6 +51,12 @@ test.describe("Onboarding", () => {
             );
             expect(registration?.body).toBeTruthy();
             expect(registration?.body).not.toContain("pubkeyHash");
+            expect(registration?.body).not.toContain("encryptedData");
+
+            const removedUserStateRequests = trpcRequests.filter((request) =>
+                /user\.(?:exists|getData|upsertData)/.test(new URL(request.url).pathname)
+            );
+            expect(removedUserStateRequests).toEqual([]);
         });
     });
 

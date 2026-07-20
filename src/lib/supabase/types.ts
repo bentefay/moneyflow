@@ -27,9 +27,6 @@ export type VaultRole = "owner" | "member";
 /** Vault invite roles */
 export type InviteRole = "owner" | "member";
 
-/** User data row type */
-export type UserData = Database["public"]["Tables"]["user_data"]["Row"];
-
 /** Vault row type */
 export type Vault = Database["public"]["Tables"]["vaults"]["Row"];
 

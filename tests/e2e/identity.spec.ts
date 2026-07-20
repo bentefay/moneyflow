@@ -285,6 +285,13 @@ test.describe("Identity", () => {
         await context.grantPermissions(["clipboard-read", "clipboard-write"]);
 
         let savedSeedPhrase: string[] = [];
+        const userRequests: Array<{ path: string; body: string | null }> = [];
+        page.on("request", (request) => {
+            const url = new URL(request.url());
+            if (url.pathname.includes("/api/trpc/user.")) {
+                userRequests.push({ path: url.pathname, body: request.postData() });
+            }
+        });
 
         await test.step("create identity first (setup)", async () => {
             await page.goto("/new-user");
@@ -411,6 +418,23 @@ test.describe("Identity", () => {
 
             // Existing users (unlock) land on transactions
             await page.waitForURL("**/transactions", { timeout: 15000 });
+        });
+
+        await test.step("use only empty signed identity registration inputs", async () => {
+            expect(userRequests.some((request) => request.path.includes("user.register"))).toBe(
+                true
+            );
+            const getOrCreateRequest = userRequests.find((request) =>
+                request.path.includes("user.getOrCreate")
+            );
+            expect(getOrCreateRequest?.body).toBeTruthy();
+            expect(getOrCreateRequest?.body).not.toContain("pubkeyHash");
+            expect(getOrCreateRequest?.body).not.toContain("encryptedData");
+            expect(
+                userRequests.filter((request) =>
+                    /user\.(?:exists|getData|upsertData)/.test(request.path)
+                )
+            ).toEqual([]);
         });
     });
 

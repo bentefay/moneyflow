@@ -1,3 +1,9 @@
+INSERT INTO public.user_data (pubkey_hash, encrypted_data, updated_at) VALUES (
+    repeat('1', 64),
+    'bGVnYWN5LW9wYXF1ZS11c2VyLXN0YXRl',
+    '2026-01-01T00:00:00Z'
+);
+
 INSERT INTO public.vaults (id) VALUES ('10000000-0000-4000-8000-000000000001');
 INSERT INTO public.vault_memberships (
     id, vault_id, pubkey_hash, encrypted_vault_key, role, enc_public_key

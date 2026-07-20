@@ -118,10 +118,8 @@ export {
     applyEncryptedUpdates,
     createEncryptedSnapshot,
     createEncryptedUpdate,
-    decryptUserData,
     type EncryptedSnapshot,
     type EncryptedUpdate,
-    encryptUserData,
     loadEncryptedSnapshot,
     type SnapshotMetadata
 } from "./snapshot";

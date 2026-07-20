@@ -8,7 +8,8 @@ const mocks = vi.hoisted(() => ({
     select: vi.fn(),
     eq: vi.fn(),
     maybeSingle: vi.fn(),
-    insert: vi.fn()
+    insert: vi.fn(),
+    single: vi.fn()
 }));
 
 vi.mock("@/lib/crypto/signing", () => ({
@@ -21,7 +22,7 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 import { userRouter } from "@/server/routers/user";
-import { userExistsInput, userRegisterInput } from "@/server/schemas/user";
+import { userGetOrCreateInput, userRegisterInput } from "@/server/schemas/user";
 import type { TRPCContext } from "@/server/trpc";
 
 const verifiedHash = "a".repeat(64);
@@ -54,7 +55,8 @@ beforeEach(() => {
         select: mocks.select,
         eq: mocks.eq,
         maybeSingle: mocks.maybeSingle,
-        insert: mocks.insert
+        insert: mocks.insert,
+        single: mocks.single
     };
 
     mocks.createSupabaseClient.mockResolvedValue({
@@ -65,8 +67,12 @@ beforeEach(() => {
     mocks.from.mockReturnValue(query);
     mocks.select.mockReturnValue(query);
     mocks.eq.mockReturnValue(query);
+    mocks.insert.mockReturnValue(query);
     mocks.maybeSingle.mockResolvedValue({ data: null, error: null });
-    mocks.insert.mockResolvedValue({ error: null });
+    mocks.single.mockResolvedValue({
+        data: { updated_at: "2026-07-20T00:00:00.000Z" },
+        error: null
+    });
     mocks.verifyRequest.mockResolvedValue({
         verified: true,
         pubkeyHash: verifiedHash,
@@ -76,9 +82,17 @@ beforeEach(() => {
 });
 
 describe("user router verified identity boundary", () => {
-    it("rejects anonymous claimed-hash existence checks before service-role access", async () => {
+    it("exposes only registration and normalized membership procedures", () => {
+        expect(Object.keys(userRouter._def.procedures).sort()).toEqual([
+            "getOrCreate",
+            "myVaults",
+            "register"
+        ]);
+    });
+
+    it("rejects anonymous registration before service-role access", async () => {
         await expect(
-            userRouter.createCaller(createContext(false)).exists({})
+            userRouter.createCaller(createContext(false)).register({})
         ).rejects.toMatchObject({
             code: "UNAUTHORIZED"
         });
@@ -92,33 +106,42 @@ describe("user router verified identity boundary", () => {
         });
 
         expect(mocks.eq).toHaveBeenCalledWith("pubkey_hash", verifiedHash);
-        expect(mocks.insert).toHaveBeenCalledWith(
-            expect.objectContaining({ pubkey_hash: verifiedHash })
-        );
+        expect(mocks.insert).toHaveBeenCalledWith({ pubkey_hash: verifiedHash });
     });
 
     it("rejects an authenticated attempt to claim a different hash", async () => {
         const claimedInput = { pubkeyHash: otherHash };
 
-        expect(userExistsInput.safeParse(claimedInput).success).toBe(false);
         expect(userRegisterInput.safeParse(claimedInput).success).toBe(false);
+        expect(userGetOrCreateInput.safeParse(claimedInput).success).toBe(false);
         expect(mocks.from).not.toHaveBeenCalled();
     });
 
-    it("fetches an existing encrypted blob only for the verified identity", async () => {
+    it("gets existing registration metadata only for the verified identity", async () => {
         mocks.maybeSingle.mockResolvedValue({
-            data: { encrypted_data: "ZW5jcnlwdGVk", updated_at: "2026-07-20T00:00:00.000Z" },
+            data: { updated_at: "2026-07-20T00:00:00.000Z" },
             error: null
         });
 
         await expect(userRouter.createCaller(createContext(true)).getOrCreate({})).resolves.toEqual(
             {
                 isNew: false,
-                encryptedData: "ZW5jcnlwdGVk",
                 updatedAt: "2026-07-20T00:00:00.000Z"
             }
         );
         expect(mocks.eq).toHaveBeenCalledWith("pubkey_hash", verifiedHash);
         expect(mocks.eq).not.toHaveBeenCalledWith("pubkey_hash", otherHash);
+    });
+
+    it("creates a missing identity without a generic state payload", async () => {
+        await expect(userRouter.createCaller(createContext(true)).getOrCreate({})).resolves.toEqual(
+            {
+                isNew: true,
+                updatedAt: "2026-07-20T00:00:00.000Z"
+            }
+        );
+
+        expect(mocks.insert).toHaveBeenCalledWith({ pubkey_hash: verifiedHash });
+        expect(mocks.select).toHaveBeenCalledWith("updated_at");
     });
 });
