@@ -5,30 +5,27 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Implementation dispatch
 
-- **Package / revision:** P05 / 08
+- **Package / revision:** P05 / 09
 - **Scope IDs:** HS-015; no scratch marker before independent package PASS and root integration
-- **State:** changes_requested after immutable `reviews/P05-review-08.md` FAIL; revision-08
-  evidence, review, Q-010 and risk state persisted in
-  `ce587d2b2d4b9a15aa1ca28f8cb5ca1ab1d1f464`
+- **State:** changes_requested
 - **Task:** `tasks/HS-015-realtime-security.md`
 - **Original package BASE:** `007651beb814d98646aa2e786801b647e2abd0b5`
-- **Pre-implementation HEAD:** `6ad32a6497861f6866209f79ae842a40e143a1ad`; includes immutable
-  revision-01–07 product and failure/control commits
-- **Allowed implementation path:** exactly `tests/e2e/vault-settings.spec.ts`. No helper,
-  product, Supabase config, dependency, migration, unit, other E2E, transport, SyncManager, CRDT or
-  Loro path is writable.
-- **Sole implementer artifact:** `evidence/P05/implementation-08.md`
+- **Pre-implementation HEAD:** `cdf147d0dfdeec66f2722fafd802123c06bed09b`; includes immutable
+  revision-01–08 product and failure/control commits
+- **Allowed implementation paths:** exactly `tests/e2e/helpers/realtime.ts` and
+  `tests/e2e/realtime-security.spec.ts`. No vault-settings, product, Supabase config, dependency,
+  migration, unit, other E2E, transport, SyncManager, CRDT or Loro path is writable.
+- **Sole implementer artifact:** `evidence/P05/implementation-09.md`
 - **Commit contract:** commit only the exact Realtime spec path using exact staging; leave
   evidence uncommitted. Never broad-stage or edit ledgers/tasks/reviews/scratch/FS-001/.claude/
   .codex or immutable prior artifacts.
 - **Pre-existing dirty/untracked paths:** root-owned unstaged `PROGRESS.md` and `HANDOFF.md`, plus
-  assigned uncommitted `evidence/P05/implementation-08.md`; no staged paths
-- **F-001 readiness correction:** immediately after awaited `createNewIdentity` and before the
-  existing pre-lock snapshot, define
-  `page.getByTitle(/\(online\)$/).filter({ visible: true })` and require exactly one match within
-  15 seconds. Then retain the existing snapshot/subtraction and unchanged authorize `<=2`/revoke
-  `>=1` assertions. Do not use `.first()`, bare strict visibility on hidden+visible matches, sleeps,
-  counter waits, retries, reload/force, move observer creation or raise any bound.
+  assigned uncommitted `evidence/P05/implementation-09.md`; no staged paths
+- **F-001 fixture-local attribution:** change `getRealtimeSubscriptionCounts` to accept `vaultId`,
+  reject unless it matches exact 8-4-4-4-12 hexadecimal UUID syntax, and add an outer claims
+  `vault_id` equality alongside the existing `public.vault_ops` predicate. Call it with
+  `fixture.vaultId`. Outer placement must scope total/authenticated/liveExactGrant equally. Preserve
+  the three-integer aggregate return and never return/log scope or raw claims.
 - **Assertion invariants:** preserve the unchanged 120-second global timeout and every 15-second
   live bound, real owner/member contexts, exact subscription/current-grant aggregates, incoming-frame
   ordering, private Presence, import/edit/delete UI checks and later expiry/reconnect/offline,
@@ -41,8 +38,8 @@ literal field is `pending`. Workers may read but never edit it.
   installed CLI owner/member/outsider/duplicate/background charter. Inspect requests, console,
   sockets and server logs without retaining secrets, identities, vault IDs or payloads.
 - **Stop boundary:** any remaining failure requires a complete exact next-owner proposal. Do not
-  change bounds/retries/timeouts or edit the helper, revision-06 spec, provider, product, privileges,
-  transport, dependencies, config, migration, SyncManager, CRDT or Loro under this revision.
+  add waits/retries/teardown changes, weaken equalities/bounds or edit vault-settings, product,
+  privileges, transport, dependencies, config, migration, SyncManager, CRDT or Loro.
 - **Inherited boundaries:** compatible service recreation, strengthened helper, migration 008,
   private Presence, provider topology, cleanup and hermetic fail-closed startup are accepted and
   must remain unchanged. Prior evidence/reviews are immutable.
@@ -51,32 +48,32 @@ literal field is `pending`. Workers may read but never edit it.
 - **Question route:** complete proposals in sole evidence; root alone appends QUESTIONS. Apply the
   decision hierarchy and continue unless another exact owner is proved necessary.
 
-## Review result
+## Review dispatch
 
-Revision-08 evidence/review and the cumulative literal range are frozen.
+This section is complete; the revision-09 evidence, review and cumulative literal range are frozen.
 
 - **Reviewer:** distinct `human_scratch_reviewer`
 - **Literal reviewed BASE:** `007651beb814d98646aa2e786801b647e2abd0b5`
-- **Literal reviewed HEAD:** `a4d62601dbb0ea17ad43308b39aabd81acbaf7fe`
-- **Range type:** non-empty cumulative original BASE through revision-08 HEAD
-- **Implementation evidence:** `evidence/P05/implementation-08.md`, SHA-256
-  `dcfb79499ab725eb4881899fcf298804123d575d557ff9b7943772f9ed0f0c8d`
-- **Sole reviewer artifact:** `reviews/P05-review-08.md`
-- **Prior review files:** immutable revision-01–07 FAIL artifacts; latest SHA-256
-  `6698876b9b654bff6cd00e3bf54d4ac45f86cd9ba7348fc30a4b33a3048bde7c`
-- **Verdict:** FAIL, SHA-256
-  `46c4403f0d8364e49500cb8cf5e6cb8f09f151d07e69bdcb9c7f1ac6310e58d4`; readiness accepted,
-  cross-fixture global subscription attribution remains High
+- **Literal reviewed HEAD:** `98f5e973f00e794f119dd3045e8b4c57b4a7b0a7`
+- **Range type:** non-empty cumulative original BASE through revision-09 HEAD
+- **Implementation evidence:** `evidence/P05/implementation-09.md`, SHA-256
+  `82cff417d5d5b1f7785edd6c25b5e83d4d72fd1fbe8b7ff5249857c69517431b`
+- **Sole reviewer artifact:** `reviews/P05-review-09.md`
+- **Review verdict:** FAIL; SHA-256
+  `58e40beca43c0ec272f2d9ccf950344040aa5235d695f914f55b684a3312a25d`
+- **Prior review files:** immutable revision-01–08 FAIL artifacts; latest SHA-256
+  `46c4403f0d8364e49500cb8cf5e6cb8f09f151d07e69bdcb9c7f1ac6310e58d4`
 - **Reviewer writes:** review file only; no other writes/commits
-- **Required review focus:** independently audit original BASE through exact HEAD, visible-filter
-  readiness and unchanged deltas/bounds. Reproduce focused 1/1, paired vault 3/3 and Realtime 2/3;
-  verify transient prior-vault subscription contamination and post-close zero. Confirm/correct/reject
-  exact revision-09 helper+Realtime-spec vault-scoped aggregate proposal with UUID validation,
-  unchanged equality/bounds and no wait/teardown/product widening. Recheck cleanup/hashes/sources.
-- **Failure route:** persist immutable revision-08 artifacts and use reviewer-confirmed next scope
+- **Required review focus:** independently audit BASE through exact HEAD, strict UUID/current-vault
+  outer scoping and unchanged aggregates/equalities/bounds. Verify focused/interleaved/database
+  greens and reproduce the three expired-fixed-date VaultRealtimeSync unit failures. Confirm/correct/
+  reject exact revision-10 sole unit path with Date-only fake clock, real timers and restoration.
+  Recheck service, cleanup, prior hashes and frozen sources.
+- **Failure route:** persist immutable revision-09 artifacts and use reviewer-confirmed next scope
 - **PASS authority:** reviewer recommends; root verifies/transcribes/integrates and sets `passed`
 
 ## Next root action
 
-Commit this durable artifact-commit reference, rewrite for P05 revision 09 and dispatch only
-current-vault aggregate scoping in the helper/caller. No HS-015 marker is authorized.
+Persist the immutable revision-09 evidence/review, Q-011, R-004/R-009 and failure state. Then record
+that artifact commit and rewrite this handoff for P05 revision 10 with sole writable path
+`tests/unit/sync/realtime.test.ts`. No HS-015 marker is authorized before cumulative PASS.

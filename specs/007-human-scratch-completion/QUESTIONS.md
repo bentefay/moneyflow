@@ -376,6 +376,41 @@ No unresolved product questions were answered by scaffold creation.
   persisted-data or product impact.
 - **Does a human still need to decide after completion?:** No.
 
+## Q-011 — Freeze the VaultRealtimeSync unit Date without faking timers
+
+- **Raised:** 2026-07-20, P05 revision 09, `human_scratch_implementer`; independently confirmed by
+  `human_scratch_reviewer`
+- **Source proposal:** `evidence/P05/implementation-09.md#q-proposal-p05-09-01--freeze-the-vaultrealtimesync-unit-clock`;
+  confirmed in `reviews/P05-review-09.md#confirmed-q-proposal-p05-09-01--date-only-clock-for-vaultrealtimesync-units`
+- **Context and evidence:** The full unit suite passes 1,167/1,170. Only the three unchanged
+  `VaultRealtimeSync` cases fail before channel creation because their fixed credential expires at
+  `2026-07-20T00:01:00Z` while the real review clock is later. Production correctly rejects this
+  expired scope. The credential-manager cases remain green because they already inject `00:00Z`.
+- **Why the frozen requirement/repository does not fully decide it:** HS-015 requires correct
+  credential expiry but does not prescribe a deterministic unit clock, and revision 09 could write
+  only the Realtime E2E helper/spec.
+- **Options considered:** (A) fake `Date` only at fixed `2026-07-20T00:00:00Z` within the affected
+  describe; (B) move fixed expiry farther into the future; (C) derive expiry from the wall clock;
+  or (D) weaken production validation. A preserves the explicit chronology and real timer behavior;
+  B merely defers recurrence, C obscures chronology and D is a security regression.
+- **Default selected for continued work:** Choose A. Revision 10 may write only
+  `tests/unit/sync/realtime.test.ts`. Add `afterEach` to the Vitest import. Within
+  `describe("VaultRealtimeSync")` only, retain existing setup and use
+  `vi.useFakeTimers({ toFake: ["Date"] })` plus
+  `vi.setSystemTime(new Date("2026-07-20T00:00:00.000Z"))` before every case, then
+  `vi.useRealTimers()` after every case. Preserve actual timeouts, intervals, immediates,
+  microtasks and animation APIs; do not advance timers or change any fixture, assertion, product,
+  helper, E2E, migration, config or dependency path.
+- **Decision hierarchy basis:** A describe-local deterministic Date fixes the test-owned wall-clock
+  dependency with the smallest reversible scope while retaining the production expiry guard and all
+  HS-015 security/lifecycle evidence.
+- **Impact and risk:** The three cases evaluate their documented one-minute credential before
+  expiry while channel authorization, private scope, Presence opacity, disconnect and revoke
+  assertions remain unchanged. Scoped restoration prevents clock leakage into other tests.
+- **How to reverse or migrate:** The one-file test setup change is independently revertible with no
+  production, persisted-data, schema or service impact.
+- **Does a human still need to decide after completion?:** No.
+
 ## Question template
 
 ### Q-XXX — Short title
