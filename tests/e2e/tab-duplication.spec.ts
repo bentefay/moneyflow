@@ -1,8 +1,50 @@
+import { execFileSync } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { expect, chromium, test } from "@playwright/test";
+
+import { readActiveVaultId } from "./helpers";
+
+function countFixtureVaultOps(vaultId: string): number {
+    if (
+        !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
+            vaultId
+        )
+    ) {
+        throw new Error("Duplicate-tab fixture vault ID is invalid");
+    }
+    let output: string;
+    try {
+        output = execFileSync(
+            "docker",
+            [
+                "exec",
+                "supabase_db_moneyflow",
+                "psql",
+                "-U",
+                "postgres",
+                "-d",
+                "postgres",
+                "-X",
+                "-q",
+                "-A",
+                "-t",
+                "-c",
+                `SELECT count(*)::integer FROM public.vault_ops WHERE vault_id = '${vaultId}'::uuid;`
+            ],
+            { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }
+        );
+    } catch {
+        throw new Error("Duplicate-tab fixture operation query failed");
+    }
+    const count = Number(output.trim());
+    if (!Number.isInteger(count)) {
+        throw new Error("Duplicate-tab fixture operation count is invalid");
+    }
+    return count;
+}
 
 test("a browser-duplicated tab hydrates onboarding and an authenticated vault", async () => {
     test.setTimeout(60000);
@@ -69,6 +111,64 @@ test("a browser-duplicated tab hydrates onboarding and an authenticated vault", 
         await expect(
             authenticatedDuplicate.getByRole("textbox", { name: "Vault Name" })
         ).toBeEnabled();
+
+        const browserErrors: string[] = [];
+        for (const page of [onboardingDuplicate, authenticatedDuplicate]) {
+            page.on("console", (message) => {
+                if (message.type() === "error") browserErrors.push(message.text());
+            });
+            page.on("pageerror", (error) => browserErrors.push(error.message));
+        }
+        let receiverPushOps = 0;
+        onboardingDuplicate.on("request", (request) => {
+            if (new URL(request.url()).pathname.includes("/api/trpc/sync.pushOps")) {
+                receiverPushOps += 1;
+            }
+        });
+
+        await onboardingDuplicate.goto("http://localhost:3000/transactions");
+        await authenticatedDuplicate.goto("http://localhost:3000/transactions");
+        await expect(onboardingDuplicate.getByTestId("transaction-table-toolbar")).toBeVisible({
+            timeout: 15_000
+        });
+        await expect(authenticatedDuplicate.getByTestId("transaction-table-toolbar")).toBeVisible({
+            timeout: 15_000
+        });
+        await expect(onboardingDuplicate.getByRole("status", { name: "Saved" })).toBeVisible({
+            timeout: 15_000
+        });
+        await expect(authenticatedDuplicate.getByRole("status", { name: "Saved" })).toBeVisible({
+            timeout: 15_000
+        });
+
+        const vaultId = await readActiveVaultId(onboardingDuplicate);
+        expect(countFixtureVaultOps(vaultId)).toBe(0);
+        const receiverPushBaseline = receiverPushOps;
+        const description = "Duplicate tab live sync";
+
+        await authenticatedDuplicate.getByTestId("add-transaction-button").click();
+        const addRow = authenticatedDuplicate.getByRole("row").filter({
+            has: authenticatedDuplicate.getByPlaceholder("Description...")
+        });
+        await addRow.getByPlaceholder("Description...").fill(description);
+        await addRow.getByPlaceholder("0.00").fill("12.34");
+        await addRow.getByRole("button", { name: "Add transaction" }).click();
+
+        const matchingRows = (page: import("@playwright/test").Page) =>
+            page.getByTestId("transaction-row").filter({
+                has: page.locator(`[data-testid="description-editable"][value="${description}"]`)
+            });
+        await expect(matchingRows(authenticatedDuplicate)).toHaveCount(1, { timeout: 15_000 });
+        await expect(matchingRows(onboardingDuplicate)).toHaveCount(1, { timeout: 15_000 });
+        await expect(authenticatedDuplicate.getByRole("status", { name: "Saved" })).toBeVisible({
+            timeout: 15_000
+        });
+        await expect(onboardingDuplicate.getByRole("status", { name: "Saved" })).toBeVisible({
+            timeout: 15_000
+        });
+        expect(countFixtureVaultOps(vaultId)).toBe(1);
+        expect(receiverPushOps - receiverPushBaseline).toBe(0);
+        expect(browserErrors).toEqual([]);
     } finally {
         await context.close();
         await rm(profilePath, { recursive: true, force: true });

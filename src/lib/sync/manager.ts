@@ -192,11 +192,6 @@ export class SyncManager {
             this.realtime = createVaultRealtimeSync(this.vaultId, "sync");
             await this.realtime.subscribe({
                 onUpdate: async (update) => {
-                    // Skip our own updates
-                    if (update.authorPubkeyHash === this.pubkeyHash) {
-                        return;
-                    }
-
                     // Apply the update
                     await this.enqueueRemoteOperation(() =>
                         this.applyRemoteUpdate(update.encryptedData)
