@@ -37,9 +37,8 @@ literal field is `pending`. Workers may read but never edit it.
 - **Commit contract:** inspect first, change only the narrow authorized subset actually needed,
   stage exact paths only, commit product/test changes with a message containing no parentheses, and
   leave the evidence uncommitted. Never use `git add .` or `git add -A`.
-- **Pre-existing dirty/untracked paths:** root-owned unstaged `PROGRESS.md` and `HANDOFF.md`, plus
-  frozen untracked `evidence/P11C/implementation-02.md`; no staged, product, executable, generated or
-  other dirty path
+- **Pre-existing dirty/untracked paths:** root-owned unstaged `PROGRESS.md` and `HANDOFF.md` only;
+  no staged, product, executable, generated or other dirty path
 - **Revision-02 F-01 correction:** preserve one legal alias-collection identity and one
   `DescriptionAliasLookup` identity while raw aliases have not changed. An unrelated local
   transaction action, remote/import-style notification or other non-alias store emission must cause
@@ -111,5 +110,6 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Persist the exact revision-02 evidence/review, FAIL state and R-008 transcription, then dispatch P11C
-revision 03 with cumulative review from the original BASE. HS-004 remains unchecked.
+Revision-02 evidence/review, FAIL state and R-008 transcription are immutable in
+`29d943757bae8147f3b66559d63c12afcd0e5362`; dispatch P11C revision 03 with cumulative review from
+the original BASE. HS-004 remains unchecked.
