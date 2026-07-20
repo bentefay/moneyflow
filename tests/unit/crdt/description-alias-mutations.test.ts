@@ -124,6 +124,49 @@ function expectLegalGraph(state: VaultState): void {
     }
 }
 
+function expectExactTransactionReferences(state: VaultState): void {
+    const expectedByAlias = new Map<string, string[]>();
+    for (const tree of Object.values(state.transactions)) {
+        if (typeof tree !== "object" || tree == null) continue;
+        for (const year of tree.years) {
+            for (const month of year.months) {
+                for (const day of month.days) {
+                    for (const transaction of day.transactions) {
+                        const applicable = [
+                            ...(transaction.deletedAt ? [] : [transaction]),
+                            ...(transaction.deletedAt
+                                ? []
+                                : transaction.suspectedDuplicates.filter(
+                                      (duplicate) => !duplicate.deletedAt
+                                  ))
+                        ];
+                        for (const candidate of applicable) {
+                            if (!candidate.descriptionAliasId) continue;
+                            const referenced =
+                                state.descriptionAliases[candidate.descriptionAliasId];
+                            expect(typeof referenced === "object" && !referenced.deletedAt).toBe(
+                                true
+                            );
+                            const existing =
+                                expectedByAlias.get(candidate.descriptionAliasId) ?? [];
+                            expectedByAlias.set(candidate.descriptionAliasId, [
+                                ...existing,
+                                candidate.id
+                            ]);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    for (const alias of Object.values(state.descriptionAliases)) {
+        if (typeof alias !== "object" || alias == null) continue;
+        expect(referenceIds(alias.transactionIds)).toEqual(
+            [...(expectedByAlias.get(alias.id) ?? [])].sort()
+        );
+    }
+}
+
 describe("atomic description alias mutations", () => {
     it("assigns through a symlink to the final real alias and preserves raw text", () => {
         const { mirror } = createVaultMirror();
@@ -272,14 +315,51 @@ describe("atomic description alias mutations", () => {
     it.each(["real", "symlink"] as const)(
         "tombstones the complete group for %s remove-all input and remains repair-stable",
         (inputKind) => {
-            const { mirror } = createVaultMirror();
+            const { doc, mirror } = createVaultMirror();
             seedTransaction(mirror, "direct");
             seedTransaction(mirror, "inbound");
             mirror.setState((state: VaultState) => {
+                insertTransaction(state.transactions, {
+                    transaction: {
+                        id: "parent",
+                        date: DATE,
+                        description: "Parent raw",
+                        descriptionAliasId: undefined,
+                        notes: "",
+                        amount: asMinorUnits(100),
+                        accountId: "account",
+                        tagIds: [],
+                        statusId: "status",
+                        importId: undefined,
+                        allocations: {},
+                        creationInstant: Temporal.Instant.fromEpochMilliseconds(2),
+                        importRowIndex: 0,
+                        deletedAt: undefined,
+                        suspectedDuplicates: [
+                            {
+                                id: "nested",
+                                date: DATE,
+                                description: "Nested raw",
+                                descriptionAliasId: undefined,
+                                notes: "",
+                                amount: asMinorUnits(100),
+                                accountId: "account",
+                                tagIds: [],
+                                statusId: "status",
+                                importId: undefined,
+                                allocations: {},
+                                creationInstant: Temporal.Instant.fromEpochMilliseconds(3),
+                                importRowIndex: 1,
+                                deletedAt: undefined
+                            }
+                        ]
+                    }
+                });
                 createDescriptionAlias(state, { aliasId: "root", name: "Root" });
                 createDescriptionAlias(state, { aliasId: "link", name: "Link" });
                 assignDescriptionAlias(state, { location: location("direct"), aliasId: "root" });
                 assignDescriptionAlias(state, { location: location("inbound"), aliasId: "link" });
+                assignDescriptionAlias(state, { location: location("nested"), aliasId: "link" });
                 changeAllDescriptionAliases(state, {
                     sourceAliasId: "link",
                     target: { kind: "existing", aliasId: "root" }
@@ -289,7 +369,7 @@ describe("atomic description alias mutations", () => {
                     inputKind === "real" ? "root" : "link"
                 );
                 expect(result.ok).toBe(true);
-                repairDescriptionAliases(state);
+                expectExactTransactionReferences(state);
             });
             const state = mirror.getState();
             for (const id of ["root", "link"]) {
@@ -299,10 +379,20 @@ describe("atomic description alias mutations", () => {
                 expect(referenceIds(state.descriptionAliases[id].transactionIds)).toEqual([]);
             }
             const transactions = state.transactions.account.years[0].months[0].days[0].transactions;
-            expect(transactions.map((transaction) => transaction.descriptionAliasId)).toEqual([
-                undefined,
-                undefined
-            ]);
+            expect(
+                transactions.flatMap((transaction) => [
+                    transaction.descriptionAliasId,
+                    ...transaction.suspectedDuplicates.map(
+                        (duplicate) => duplicate.descriptionAliasId
+                    )
+                ])
+            ).toEqual([undefined, undefined, undefined, undefined]);
+
+            const immediateVersion = doc.version().encode();
+            mirror.setState((draft: VaultState) => repairDescriptionAliases(draft), {
+                origin: "system:migration"
+            });
+            expect(doc.version().encode()).toEqual(immediateVersion);
         }
     );
 
@@ -589,8 +679,10 @@ describe("atomic description alias mutations", () => {
                                 state.descriptionAliases[allIds[0]].kind = "symlink";
                                 state.descriptionAliases[allIds[0]].targetAliasId = "missing";
                             }
+                            if (operation !== 8) expectExactTransactionReferences(state);
                             repairDescriptionAliases(state);
                             expectLegalGraph(state);
+                            expectExactTransactionReferences(state);
                         });
                     });
                     expectLegalGraph(mirror.getState());

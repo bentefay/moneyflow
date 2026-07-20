@@ -27,23 +27,26 @@ import { useVaultUndoCoordinator } from "./undo";
 /**
  * Create typed context and hooks for vault state management.
  *
- * Exports:
- * - VaultProvider: Wrap your app to provide vault state
- * - useVaultContext: Access the underlying Mirror instance
- * - useVaultState: Get [state, setState] tuple for full state access
- * - useVaultSelector: Subscribe to specific state slices (efficient)
- * - useVaultAction: Create memoized mutation callbacks
+ * Public generic hooks see application state with raw alias wire data omitted. Alias consumers use
+ * the legal selector and named action hooks below.
  */
 const loroContext = createLoroContext(vaultSchema);
 
-export const VaultContext = loroContext.LoroContext;
 export const VaultProvider = loroContext.LoroProvider;
-export const useVaultContext = loroContext.useLoroContext;
-export const useVaultState = loroContext.useLoroState;
-export const useVaultSelector = loroContext.useLoroSelector;
+const useInternalVaultContext = loroContext.useLoroContext;
+const useInternalVaultSelector = loroContext.useLoroSelector;
+
+export type ApplicationVaultState = Omit<VaultState, "descriptionAliases">;
+
+/** Select from the ordinary application state; raw alias wire records are deliberately absent. */
+export function useVaultSelector<Selected>(
+    selector: (state: ApplicationVaultState) => Selected
+): Selected {
+    return useInternalVaultSelector((state) => selector(state));
+}
 
 /** Run one user action while keeping the Mirror recipe void and returning its captured result. */
-export function runVaultAction<Arguments extends unknown[], Result>(
+function runInternalVaultAction<Arguments extends unknown[], Result>(
     store: Pick<VaultMirror, "setState">,
     undoCoordinator: ReturnType<typeof useVaultUndoCoordinator>,
     kind: VaultUserActionKind,
@@ -64,20 +67,30 @@ export function runVaultAction<Arguments extends unknown[], Result>(
 }
 
 /** Creates a memoized user mutation with explicit origin and undo grouping metadata. */
-export function useVaultAction<Arguments extends unknown[], Result>(
+function useInternalVaultAction<Arguments extends unknown[], Result>(
     updater: (state: VaultState, ...args: Arguments) => Result,
     dependencies: DependencyList = [],
     kind: VaultUserActionKind = "mutation"
 ): (...args: Arguments) => Result {
-    const store = useVaultContext();
+    const store = useInternalVaultContext();
     const undoCoordinator = useVaultUndoCoordinator();
 
     return useCallback(
-        (...args: Arguments) => runVaultAction(store, undoCoordinator, kind, updater, ...args),
+        (...args: Arguments) =>
+            runInternalVaultAction(store, undoCoordinator, kind, updater, ...args),
         // loro-mirror-react exposes the same dynamic dependency-list contract for action hooks.
         // eslint-disable-next-line react-hooks/use-memo, react-hooks/exhaustive-deps
         [store, undoCoordinator, updater, kind, ...dependencies]
     );
+}
+
+/** Create a generic application mutation without exposing raw alias wire state. */
+export function useVaultAction<Arguments extends unknown[], Result>(
+    updater: (state: ApplicationVaultState, ...args: Arguments) => Result,
+    dependencies: DependencyList = [],
+    kind: VaultUserActionKind = "mutation"
+): (...args: Arguments) => Result {
+    return useInternalVaultAction((state, ...args) => updater(state, ...args), dependencies, kind);
 }
 
 export interface VaultEditAction<Arguments extends unknown[]> {
@@ -93,10 +106,10 @@ export interface VaultEditAction<Arguments extends unknown[]> {
 
 /** Creates an immediate CRDT mutation whose separate input events form one undoable edit. */
 export function useVaultEditAction<Arguments extends unknown[]>(
-    updater: (state: VaultState, ...args: Arguments) => void,
+    updater: (state: ApplicationVaultState, ...args: Arguments) => void,
     dependencies: DependencyList = []
 ): VaultEditAction<Arguments> {
-    const store = useVaultContext();
+    const store = useInternalVaultContext();
     const undoCoordinator = useVaultUndoCoordinator();
     const sessionRef = useRef<VaultEditSession | null>(null);
 
@@ -172,7 +185,7 @@ export function useTags() {
  * Hook to get all description aliases in the vault
  */
 export function useDescriptionAliases() {
-    return useVaultSelector(
+    return useInternalVaultSelector(
         (state): DescriptionAliasCollection =>
             toDescriptionAliasCollection(state.descriptionAliases)
     );
@@ -305,7 +318,9 @@ export function useActiveTags() {
  * Hook to get active (non-deleted) description aliases
  */
 export function useActiveDescriptionAliases() {
-    return useVaultSelector((state) => getActiveDescriptionAliases(state.descriptionAliases));
+    return useInternalVaultSelector((state) =>
+        getActiveDescriptionAliases(state.descriptionAliases)
+    );
 }
 
 /**
@@ -408,7 +423,7 @@ import {
  * Uses useVaultAction for memoized callbacks that work with the hierarchical structure.
  */
 export function useTransactionActions() {
-    const insertTransaction = useVaultAction(
+    const insertTransaction = useInternalVaultAction(
         (state, input: InsertTransactionInput) => {
             insertTx(state.transactions, input);
         },
@@ -416,13 +431,13 @@ export function useTransactionActions() {
         "add"
     );
 
-    const updateTransaction = useVaultAction(
+    const updateTransaction = useInternalVaultAction(
         (state, input: UpdateTransactionInput) => updateDescriptionAliasedTransaction(state, input),
         [],
         "edit"
     );
 
-    const moveTransaction = useVaultAction(
+    const moveTransaction = useInternalVaultAction(
         (state, input: MoveTransactionInput) => {
             moveTx(state.transactions, input);
         },
@@ -430,13 +445,13 @@ export function useTransactionActions() {
         "edit"
     );
 
-    const deleteTransaction = useVaultAction(
+    const deleteTransaction = useInternalVaultAction(
         (state, input: DeleteTransactionInput) => deleteDescriptionAliasedTransaction(state, input),
         [],
         "delete"
     );
 
-    const unnestDuplicate = useVaultAction(
+    const unnestDuplicate = useInternalVaultAction(
         (state, input: UnnestDuplicateInput) => {
             unnestDup(state.transactions, input);
         },
@@ -444,7 +459,7 @@ export function useTransactionActions() {
         "edit"
     );
 
-    const swapDuplicate = useVaultAction(
+    const swapDuplicate = useInternalVaultAction(
         (state, input: SwapDuplicateInput) => {
             swapDup(state.transactions, input);
         },
@@ -452,7 +467,7 @@ export function useTransactionActions() {
         "edit"
     );
 
-    const deleteTransactionsByImport = useVaultAction(
+    const deleteTransactionsByImport = useInternalVaultAction(
         (state, importId: string) => deleteDescriptionAliasedTransactionsByImport(state, importId),
         [],
         "delete"
@@ -473,51 +488,51 @@ export function useTransactionActions() {
  * Hook providing description alias mutation actions.
  */
 export function useDescriptionAliasActions() {
-    const createDescriptionAlias = useVaultAction(
+    const createDescriptionAlias = useInternalVaultAction(
         (state, input: { readonly aliasId: string; readonly name: string }) =>
             createAlias(state, input),
         [],
         "alias"
     );
 
-    const assignDescriptionAlias = useVaultAction(
+    const assignDescriptionAlias = useInternalVaultAction(
         (state, input: AssignDescriptionAliasInput) => assignAlias(state, input),
         [],
         "alias"
     );
-    const createAndAssignDescriptionAlias = useVaultAction(
+    const createAndAssignDescriptionAlias = useInternalVaultAction(
         (state, input: CreateAndAssignDescriptionAliasInput) => createAndAssignAlias(state, input),
         [],
         "alias"
     );
-    const assignDescriptionAliasByExactName = useVaultAction(
+    const assignDescriptionAliasByExactName = useInternalVaultAction(
         (state, input: AssignDescriptionAliasByExactNameInput) =>
             assignAliasByExactName(state, input),
         [],
         "alias"
     );
-    const renameDescriptionAlias = useVaultAction(
+    const renameDescriptionAlias = useInternalVaultAction(
         (state, input: { readonly aliasId: string; readonly name: string }) =>
             renameAlias(state, input),
         [],
         "alias"
     );
-    const changeOneDescriptionAlias = useVaultAction(
+    const changeOneDescriptionAlias = useInternalVaultAction(
         (state, input: ChangeOneDescriptionAliasInput) => changeOneAlias(state, input),
         [],
         "alias"
     );
-    const changeAllDescriptionAliases = useVaultAction(
+    const changeAllDescriptionAliases = useInternalVaultAction(
         (state, input: ChangeAllDescriptionAliasesInput) => changeAllAliases(state, input),
         [],
         "alias"
     );
-    const removeOneDescriptionAlias = useVaultAction(
+    const removeOneDescriptionAlias = useInternalVaultAction(
         (state, input: RemoveOneDescriptionAliasInput) => removeOneAlias(state, input),
         [],
         "alias"
     );
-    const removeAllDescriptionAliases = useVaultAction(
+    const removeAllDescriptionAliases = useInternalVaultAction(
         (state, aliasId: string) => removeAllAliases(state, aliasId),
         [],
         "alias"

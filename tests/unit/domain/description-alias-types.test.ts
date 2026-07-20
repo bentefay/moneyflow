@@ -1,6 +1,38 @@
 import { describe, expectTypeOf, it } from "vitest";
 
-import type { DescriptionAlias } from "@/lib/domain/description-aliases";
+import { useVaultAction, useVaultSelector, type DescriptionAlias } from "@/lib/crdt";
+// @ts-expect-error Raw vault state is internal to CRDT serialization and maintenance.
+type RawVaultState = import("@/lib/crdt").VaultState;
+// @ts-expect-error The full writable store input is internal to CRDT maintenance.
+type RawVaultInput = import("@/lib/crdt").VaultInput;
+// @ts-expect-error Raw wire aliases are not part of the ordinary application module.
+type RawDescriptionAlias = import("@/lib/crdt").DescriptionAliasWire;
+// @ts-expect-error The raw Mirror context is not part of the ordinary application module.
+type RawContextHook = typeof import("@/lib/crdt").useVaultContext;
+
+function useCompileOrdinaryApplicationBoundary(): void {
+    useVaultSelector((state) => {
+        // @ts-expect-error Generic application selection cannot read recovery-name wire aliases.
+        return state.descriptionAliases;
+    });
+    useVaultAction((state) => {
+        // @ts-expect-error Generic application actions cannot write raw alias combinations.
+        state.descriptionAliases.illegal = {
+            id: "illegal",
+            kind: "real",
+            name: "Illegal",
+            targetAliasId: "also-real",
+            symlinkIds: {},
+            transactionIds: {}
+        };
+    });
+    expectTypeOf<RawVaultState>();
+    expectTypeOf<RawVaultInput>();
+    expectTypeOf<RawDescriptionAlias>();
+    expectTypeOf<RawContextHook>();
+}
+
+void useCompileOrdinaryApplicationBoundary;
 
 describe("description alias public types", () => {
     it("make illegal real/symlink field combinations unrepresentable", () => {

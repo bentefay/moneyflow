@@ -18,6 +18,7 @@
 import { throttle } from "lodash-es";
 import type { LoroDoc, VersionVector } from "loro-crdt";
 
+import { repairHydratedVaultDocument } from "@/lib/crdt/mirror";
 import {
     createEncryptedShallowSnapshot,
     decryptUpdate,
@@ -154,6 +155,7 @@ export class SyncManager {
         string,
         { id: string; encryptedData: string; versionVector: string }
     >();
+    private localPersistenceQueue: Promise<void> = Promise.resolve();
     private remoteOperationQueue: Promise<void> = Promise.resolve();
     private pushRequestedWhileSyncing = false;
     private syncState: SyncState = "idle";
@@ -187,6 +189,10 @@ export class SyncManager {
         this.setSyncState("syncing");
 
         try {
+            // Install the void callback bridge before hydration so any system repair produced while
+            // applying initial remote data is captured by the awaitable persistence queue.
+            this.setupAutoSync();
+
             // Load initial state (IndexedDB first, then server)
             await this.loadInitialState();
             if (this.disconnectRequested) return;
@@ -213,9 +219,6 @@ export class SyncManager {
             await this.enqueueRemoteOperation(() => this.catchUpFromServer());
             if (this.disconnectRequested) return;
 
-            // Set up document change listener for auto-sync
-            this.setupAutoSync();
-
             // Set up visibility and beforeunload handlers
             this.setupBrowserHandlers();
 
@@ -223,6 +226,8 @@ export class SyncManager {
             this.setSyncState("idle");
         } catch (error) {
             if (this.disconnectRequested) return;
+            this.unsubscribeLocalUpdates?.();
+            this.unsubscribeLocalUpdates = null;
             this.setSyncState("error");
             this.onError?.(error instanceof Error ? error : new Error(String(error)));
             throw error;
@@ -235,18 +240,22 @@ export class SyncManager {
      */
     private setupAutoSync(): void {
         // Subscribe to local updates from the document
-        this.unsubscribeLocalUpdates = this.doc.subscribeLocalUpdates(
-            async (update: Uint8Array) => {
-                if (!this.autoSyncEnabled) return;
+        this.unsubscribeLocalUpdates = this.doc.subscribeLocalUpdates((update: Uint8Array) => {
+            if (!this.autoSyncEnabled) return;
+            const persistence = this.enqueueLocalUpdatePersistence(update);
+            void persistence.catch(() => undefined);
+        });
+    }
 
+    /** Serialize encryption and crash-safe queue append behind an explicit awaitable barrier. */
+    private enqueueLocalUpdatePersistence(update: Uint8Array): Promise<void> {
+        const versionVector = this.getVersionVectorString();
+        const opId = crypto.randomUUID();
+        const queued = this.localPersistenceQueue
+            .catch(() => undefined)
+            .then(async () => {
                 try {
-                    // 1. Encrypt the update immediately
                     const encryptedData = await this.encryptUpdate(update);
-                    const versionVector = this.getVersionVectorString();
-                    const opId = crypto.randomUUID();
-
-                    // 2. Save to IndexedDB immediately (with pushed=false). If browser storage is
-                    // blocked, retain the operation in memory and sync it directly to the server.
                     if (this.localPersistenceAvailable) {
                         try {
                             await appendOp({
@@ -265,17 +274,22 @@ export class SyncManager {
                         this.memoryOps.set(opId, { id: opId, encryptedData, versionVector });
                     }
 
-                    // 3. Update UI to show "saving" state
                     this.setSyncState("saving");
-
-                    // 4. Schedule throttled server sync
                     this.throttledServerSync?.();
                 } catch (error) {
-                    console.error("Failed to save local update:", error);
-                    this.onError?.(error instanceof Error ? error : new Error(String(error)));
+                    const failure = error instanceof Error ? error : new Error(String(error));
+                    console.error("Failed to save local update:", failure);
+                    this.onError?.(failure);
+                    throw failure;
                 }
-            }
-        );
+            });
+        this.localPersistenceQueue = queued;
+        return queued;
+    }
+
+    /** Wait until every local update observed so far is encrypted and queued for retry-safe sync. */
+    async awaitLocalPersistence(): Promise<void> {
+        await this.localPersistenceQueue;
     }
 
     /**
@@ -589,6 +603,16 @@ export class SyncManager {
             // Re-enable auto-sync
             this.autoSyncEnabled = true;
 
+            // A merged remote edge can invalidate the one-hop alias graph. Repair under the system
+            // origin, durably queue that local repair, and attempt immediate exchange before any
+            // consumer observes the remote state.
+            const repaired = repairHydratedVaultDocument(this.doc);
+            if (repaired) {
+                await this.awaitLocalPersistence();
+                this.throttledServerSync?.cancel();
+                await this.pushToServer();
+            }
+
             this.onRemoteUpdate?.();
         } catch (error) {
             this.autoSyncEnabled = true;
@@ -802,6 +826,7 @@ export class SyncManager {
      * Useful for recovering from sync issues.
      */
     async forceSync(): Promise<void> {
+        await this.awaitLocalPersistence();
         this.lastSyncedVersion = null;
         await this.pushToServer();
         await this.enqueueRemoteOperation(() => this.catchUpFromServer());
@@ -858,7 +883,10 @@ export class SyncManager {
         await this.realtime?.unsubscribe();
         this.realtime = null;
 
-        await this.remoteOperationQueue.catch(() => undefined);
+        await Promise.all([
+            this.localPersistenceQueue.catch(() => undefined),
+            this.remoteOperationQueue.catch(() => undefined)
+        ]);
 
         this.isInitialized = false;
         this.autoSyncEnabled = false;

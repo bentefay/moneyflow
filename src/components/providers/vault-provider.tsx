@@ -40,11 +40,14 @@ const subscribeToHydration = () => () => {};
 /** Hydrate, repair, and durably flush before the provider exposes this document. */
 export async function hydrateAndRepairVaultDocument(
     doc: LoroDoc,
-    manager: Pick<SyncManager, "forceSync" | "initialize">
+    manager: Pick<SyncManager, "awaitLocalPersistence" | "forceSync" | "initialize">
 ): Promise<boolean> {
     await manager.initialize();
     const repaired = repairHydratedVaultDocument(doc);
-    if (repaired) await manager.forceSync();
+    if (repaired) {
+        await manager.awaitLocalPersistence();
+        await manager.forceSync();
+    }
     return repaired;
 }
 

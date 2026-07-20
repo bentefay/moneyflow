@@ -384,7 +384,7 @@ export function removeAllDescriptionAliases(
     const targetResult = getFinalRealAlias(state, aliasId);
     if (!targetResult.ok) return targetResult;
     const target = targetResult.value;
-    const inboundSymlinks: DescriptionAliasWire[] = [];
+    const inboundSymlinks = new Map<string, DescriptionAliasWire>();
     for (const symlinkId of Object.keys(target.symlinkIds)
         .filter((id) => id !== "$cid")
         .sort()) {
@@ -400,14 +400,53 @@ export function removeAllDescriptionAliases(
                 `Alias ${target.id} has an invalid backlink to ${symlinkId}`
             );
         }
-        inboundSymlinks.push(symlink);
+        inboundSymlinks.set(symlink.id, symlink);
+    }
+    for (const aliasValue of Object.values(state.descriptionAliases)) {
+        if (
+            typeof aliasValue === "object" &&
+            aliasValue != null &&
+            !aliasValue.deletedAt &&
+            aliasValue.kind === "symlink" &&
+            aliasValue.targetAliasId === target.id
+        ) {
+            inboundSymlinks.set(aliasValue.id, aliasValue);
+        }
     }
 
     const deletedAt = Temporal.Now.instant();
-    for (const alias of [target, ...inboundSymlinks]) {
+    const affectedAliases = [target, ...inboundSymlinks.values()];
+    const affectedAliasIds = new Set(affectedAliases.map((alias) => alias.id));
+    for (const tree of Object.values(state.transactions)) {
+        if (typeof tree !== "object" || tree == null) continue;
+        for (const year of tree.years) {
+            for (const month of year.months) {
+                for (const day of month.days) {
+                    for (const transaction of day.transactions) {
+                        if (
+                            transaction.descriptionAliasId &&
+                            affectedAliasIds.has(transaction.descriptionAliasId)
+                        ) {
+                            transaction.descriptionAliasId = undefined;
+                        }
+                        for (const duplicate of transaction.suspectedDuplicates) {
+                            if (
+                                duplicate.descriptionAliasId &&
+                                affectedAliasIds.has(duplicate.descriptionAliasId)
+                            ) {
+                                duplicate.descriptionAliasId = undefined;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    for (const alias of affectedAliases) {
         alias.kind = "real";
         alias.targetAliasId = undefined;
         clearReferenceMap(alias.symlinkIds);
+        clearReferenceMap(alias.transactionIds);
         alias.deletedAt = deletedAt;
     }
     return ok(undefined);

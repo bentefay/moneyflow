@@ -1,9 +1,12 @@
+import fc from "fast-check";
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
 import {
     changeAllDescriptionAliases,
-    createDescriptionAlias
+    createDescriptionAlias,
+    removeAllDescriptionAliases,
+    renameDescriptionAlias
 } from "@/lib/crdt/description-aliases";
 import { migrateVaultSentinels, repairDescriptionAliases } from "@/lib/crdt/migration";
 import { createVaultMirror, createVaultMirrorFromSnapshot } from "@/lib/crdt/mirror";
@@ -21,6 +24,7 @@ function aliasGraph(state: VaultState): Record<string, object> {
                 kind: alias.kind,
                 name: alias.name,
                 targetAliasId: alias.targetAliasId,
+                deleted: alias.deletedAt != null,
                 symlinkIds: Object.keys(alias.symlinkIds)
                     .filter((key) => key !== "$cid")
                     .sort(),
@@ -31,6 +35,38 @@ function aliasGraph(state: VaultState): Record<string, object> {
         ]);
     }
     return Object.fromEntries(entries);
+}
+
+function applyConcurrentPlan(
+    state: VaultState,
+    operations: readonly number[],
+    peer: "one" | "two"
+): void {
+    operations.forEach((operation, index) => {
+        if (operation === 0) {
+            changeAllDescriptionAliases(state, {
+                sourceAliasId: "d",
+                target: { kind: "existing", aliasId: "a" }
+            });
+        } else if (operation === 1) {
+            removeAllDescriptionAliases(state, "a");
+        } else if (operation === 2) {
+            changeAllDescriptionAliases(state, {
+                sourceAliasId: "a",
+                target: { kind: "existing", aliasId: "b" }
+            });
+        } else if (operation === 3) {
+            renameDescriptionAlias(state, {
+                aliasId: "c",
+                name: `${peer} rename ${index}`
+            });
+        } else {
+            createDescriptionAlias(state, {
+                aliasId: `${peer}-created-${index}`,
+                name: `${peer} created ${index}`
+            });
+        }
+    });
 }
 
 describe("description alias migration and CRDT behavior", () => {
@@ -170,5 +206,71 @@ describe("description alias migration and CRDT behavior", () => {
         migrateVaultSentinels(mirror);
         expect(coordinator.getSnapshot().canUndo).toBe(false);
         coordinator.dispose();
+    });
+
+    it("converges fixed-seed concurrent plans after exchanging deterministic repair updates and reopening", () => {
+        fc.assert(
+            fc.property(
+                fc.tuple(
+                    fc.array(fc.integer({ min: 0, max: 4 }), { minLength: 1, maxLength: 20 }),
+                    fc.array(fc.integer({ min: 0, max: 4 }), { minLength: 1, maxLength: 20 })
+                ),
+                ([planOne, planTwo]) => {
+                    const base = createVaultMirror();
+                    base.mirror.setState((state: VaultState) => {
+                        for (const aliasId of ["a", "b", "c", "d"]) {
+                            createDescriptionAlias(state, { aliasId, name: aliasId.toUpperCase() });
+                        }
+                    });
+                    const snapshot = base.doc.export({ mode: "snapshot" });
+                    const peerOne = createVaultMirrorFromSnapshot(snapshot);
+                    const peerTwo = createVaultMirrorFromSnapshot(snapshot);
+                    const peerOneBase = peerOne.doc.version();
+                    const peerTwoBase = peerTwo.doc.version();
+
+                    peerOne.mirror.setState((state: VaultState) => {
+                        applyConcurrentPlan(state, planOne, "one");
+                    });
+                    peerTwo.mirror.setState((state: VaultState) => {
+                        applyConcurrentPlan(state, planTwo, "two");
+                    });
+                    const updateOne = peerOne.doc.export({ mode: "update", from: peerOneBase });
+                    const updateTwo = peerTwo.doc.export({ mode: "update", from: peerTwoBase });
+                    peerOne.doc.import(updateTwo);
+                    peerTwo.doc.import(updateOne);
+
+                    const mergedOne = peerOne.doc.version();
+                    peerOne.mirror.setState(
+                        (state: VaultState) => repairDescriptionAliases(state),
+                        { origin: "system:migration" }
+                    );
+                    peerTwo.doc.import(peerOne.doc.export({ mode: "update", from: mergedOne }));
+
+                    const afterFirstRepair = peerTwo.doc.version();
+                    peerTwo.mirror.setState(
+                        (state: VaultState) => repairDescriptionAliases(state),
+                        { origin: "system:migration" }
+                    );
+                    peerOne.doc.import(
+                        peerTwo.doc.export({ mode: "update", from: afterFirstRepair })
+                    );
+                    peerOne.mirror.setState(
+                        (state: VaultState) => repairDescriptionAliases(state),
+                        { origin: "system:migration" }
+                    );
+
+                    const reopenedOne = createVaultMirrorFromSnapshot(
+                        peerOne.doc.export({ mode: "snapshot" })
+                    );
+                    const reopenedTwo = createVaultMirrorFromSnapshot(
+                        peerTwo.doc.export({ mode: "snapshot" })
+                    );
+                    expect(aliasGraph(reopenedOne.mirror.getState())).toEqual(
+                        aliasGraph(reopenedTwo.mirror.getState())
+                    );
+                }
+            ),
+            { seed: 17_032_026, numRuns: 30 }
+        );
     });
 });

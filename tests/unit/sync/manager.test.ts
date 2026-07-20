@@ -61,6 +61,39 @@ afterEach(async () => {
 });
 
 describe("SyncManager browser reconnect", () => {
+    it("forces only after every observed local update is encrypted and durably queued", async () => {
+        const vaultId = uniqueVaultId();
+        const doc = new LoroDoc();
+        const queuedCounts: number[] = [];
+        const pushOps = vi
+            .fn<NonNullable<SyncManagerOptions["trpc"]>["sync"]["pushOps"]["mutate"]>()
+            .mockImplementation(async () => {
+                queuedCounts.push((await getUnpushedOps(vaultId)).length);
+                return { insertedIds: [] };
+            });
+        const manager = new SyncManager({
+            vaultId,
+            pubkeyHash: "test-user",
+            vaultKey: new Uint8Array(32),
+            doc,
+            trpc: createTrpc({ mutate: pushOps })
+        });
+        await manager.initialize();
+
+        doc.getMap("values").set("first", "one");
+        doc.commit({ origin: "system:migration" });
+        doc.getMap("values").set("second", "two");
+        doc.commit({ origin: "system:migration" });
+
+        await manager.forceSync();
+
+        expect(pushOps).toHaveBeenCalledOnce();
+        expect(pushOps.mock.calls[0][0].ops).toHaveLength(2);
+        expect(queuedCounts).toEqual([2]);
+        expect(await getUnpushedOps(vaultId)).toEqual([]);
+        await manager.disconnect();
+    });
+
     it("retries a genuinely failed throttled push when the browser comes online", async () => {
         const vaultId = uniqueVaultId();
         const doc = new LoroDoc();
@@ -83,8 +116,9 @@ describe("SyncManager browser reconnect", () => {
         doc.getMap("values").set("name", "offline edit");
         doc.commit({ origin: "user:edit" });
 
-        await vi.waitFor(() => expect(pushOps).toHaveBeenCalledTimes(1), { timeout: 5_000 });
-        await vi.waitFor(() => expect(manager.state).toBe("error"));
+        await manager.forceSync();
+        expect(pushOps).toHaveBeenCalledTimes(1);
+        expect(manager.state).toBe("error");
         expect(await hasUnpushedOps(vaultId)).toBe(true);
 
         window.dispatchEvent(new Event("online"));

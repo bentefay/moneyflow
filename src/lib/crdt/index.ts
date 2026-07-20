@@ -6,15 +6,19 @@
 
 // React context and hooks
 export {
+    type ApplicationVaultState,
     useAccount,
     useAccounts,
     useActiveAccounts,
+    useActiveDescriptionAliases,
     useActiveImports,
     useActivePeople,
     useActiveStatuses,
     useActiveTags,
     useActiveTransactions,
     useAutomations,
+    useDescriptionAliasActions,
+    useDescriptionAliases,
     useImports,
     useImportTemplates,
     usePeople,
@@ -23,15 +27,19 @@ export {
     useTag,
     useTags,
     useTransaction,
+    useTransactionActions,
     useTransactions,
     useVaultAction,
-    useVaultContext,
     useVaultPreferences,
     useVaultSelector,
-    useVaultState,
-    VaultContext,
     VaultProvider
 } from "./context";
+export {
+    type DescriptionAlias,
+    type DescriptionAliasCollection,
+    type RealDescriptionAlias,
+    type SymlinkDescriptionAlias
+} from "../domain/description-aliases";
 // Vault defaults initialization
 export {
     DEFAULT_ACCOUNT,
@@ -42,15 +50,6 @@ export {
     hasVaultDefaults,
     initializeVaultDefaults
 } from "./defaults";
-// Mirror instance creation
-export {
-    applyUpdates,
-    type CreateVaultMirrorOptions,
-    createVaultMirror,
-    createVaultMirrorFromSnapshot,
-    DEFAULT_VAULT_STATE,
-    type VaultMirror
-} from "./mirror";
 // Query utilities
 export {
     type CursorPaginatedResult,
@@ -106,11 +105,8 @@ export {
     type TransactionInput,
     tagSchema,
     transactionSchema,
-    type VaultInput,
     type VaultPreferences,
-    type VaultState,
-    vaultPreferencesSchema,
-    vaultSchema
+    vaultPreferencesSchema
 } from "./schema";
 // Encrypted snapshot serialization
 export {

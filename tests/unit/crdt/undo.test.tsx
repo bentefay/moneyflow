@@ -3,9 +3,12 @@ import { LoroDoc } from "loro-crdt";
 import { StrictMode, useEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { useVaultEditAction, VaultProvider as VaultStateProvider } from "@/lib/crdt/context";
+import {
+    type ApplicationVaultState,
+    useVaultEditAction,
+    VaultProvider as VaultStateProvider
+} from "@/lib/crdt/context";
 import { createVaultMirror } from "@/lib/crdt/mirror";
-import type { VaultState } from "@/lib/crdt/schema";
 import {
     getVaultSystemOrigin,
     type VaultSystemOriginKind,
@@ -31,7 +34,7 @@ function setUserValue(
     });
 }
 
-function updateVaultName(state: VaultState, name: string): void {
+function updateVaultName(state: ApplicationVaultState, name: string): void {
     state.preferences.name = name;
 }
 
