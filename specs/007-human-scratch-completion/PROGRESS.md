@@ -7,8 +7,8 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P11A revision 04 (`passed`; artifact integration pending)
-- **Next action:** persist the exact P11A PASS integration, then dispatch dependency-ready P11B
+- **Current package:** P11B revision 01 (`passed`; artifact integration pending)
+- **Next action:** persist the exact P11B PASS integration, then dispatch dependency-ready P11C
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -18,9 +18,9 @@ review evidence.
 - **Active completion marker event:** none
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
-- **Requirement state:** six passed; HS-004 queued with P11A passed and P11B/P11C still required;
+- **Requirement state:** six passed; HS-004 queued with P11A/P11B passed and P11C required;
   HS-015 blocked externally; HS-011/HS-012 and 12 other requirements queued
-- **Last ledger update:** 2026-07-20T20:52:38+10:00; P11A revision 04 independently passed; exact
+- **Last ledger update:** 2026-07-20T22:18:37+10:00; P11B revision 01 independently passed; exact
   artifact/risk integration is pending
 
 ## Package ledger
@@ -38,8 +38,8 @@ review evidence.
 | P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P09     | HS-006         | Loro UndoManager integration, controls, shortcuts and action grouping               | P01                  | passed       | 02 | `c9146fae2c5534313d21b4f34cb2b012eaeeb4ed..418234e28ac649e03ce8ad184d08a8a2f2416149` | `evidence/P09/implementation-02.md` | `reviews/P09-review-02.md` | `59bf82e894e45e034858e25255240701a3afb0b8` |
 | P10     | HS-003         | Encrypted Loro EphemeralStore presence and active transaction                       | P05, P08             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
-| P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | passed | 04 | `eb5ab2e215130c358130d5411a92b51951c3c53a..fb72abdaf531dff40c59f6b3525fb1b9ce50f805` | `evidence/P11A/implementation-04.md` | `reviews/P11A-review-04.md` | integration pending |
-| P11B    | HS-004         | Alias management and transaction-cell pointer/keyboard UX                           | P11A                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
+| P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | passed | 04 | `eb5ab2e215130c358130d5411a92b51951c3c53a..fb72abdaf531dff40c59f6b3525fb1b9ce50f805` | `evidence/P11A/implementation-04.md` | `reviews/P11A-review-04.md` | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f` |
+| P11B    | HS-004         | Alias management and transaction-cell pointer/keyboard UX                           | P11A                 | passed | 01 | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f..e35109dfe7b02bdb4058445f44d03a6dd678457b` | `evidence/P11B/implementation-01.md` | `reviews/P11B-review-01.md` | integration pending |
 | P11C    | HS-004         | Alias import/manual/shared flows, performance hardening and exhaustive tests        | P11B                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P13     | HS-001         | Persisted normal empty Add Transaction rows and grid navigation                     | P11C, P09            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -85,7 +85,7 @@ required marker rollbacks before the next dispatch.
 | HS-001      | human scratch block               | P13                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-002      | human scratch block               | P01                          | authorized marker after package PASS       | passed       | P01 integration `c2b89b6676271142ad6802dcf2a30acf8899df48`; `reviews/P01-review-02.md`; marker `b91ca932… -> dcd03b23…` |
 | HS-003      | human scratch block               | P10                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
-| HS-004      | human scratch block               | P11A, P11B, P11C             | authorized marker after all package PASSes | queued | P11A/04 PASS; P11B/P11C remain required; no marker                                                    |
+| HS-004      | human scratch block               | P11A, P11B, P11C             | authorized marker after all package PASSes | queued | P11A/04 and P11B/01 PASS; P11C required; no marker                                                    |
 | HS-005      | human scratch block               | P12                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-006      | human scratch block               | P09                          | authorized marker after package PASS       | passed       | P09 integration `59bf82e894e45e034858e25255240701a3afb0b8`; `reviews/P09-review-02.md`; marker `753be6b7… -> c2b986fd…` |
 | HS-007      | human scratch block               | P17A, P17B, P17C, P17D       | authorized marker after all package PASSes | queued       | —                                                                                                                       |
@@ -1275,6 +1275,61 @@ fixed-seed concurrent-plan evidence; and retain closed F-01/F-05 with full no-re
 remain out of scope. Dispatch-time dirt is root HANDOFF/PROGRESS only; index and product paths are
 clean. Scratch remains `c2b986fd…` with six authorized markers and all 21 normalized blocks; FS-001
 and SCOPE remain exact; no completion or rollback event is active.
+
+**2026-07-20T20:56:30+10:00 — P11B/01 `queued -> implementing`:** P11A/04 PASS artifacts, risk
+mitigation and integration are immutable in `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f`; that clean
+HEAD is P11B's literal BASE/pre-implementation sentinel. Dispatch uses exact new evidence
+`evidence/P11B/implementation-01.md` and future review `reviews/P11B-review-01.md`. Authority is
+limited to the transaction description cell, shared-change modal, narrow transaction page/row/table
+wiring, focused interaction tests and description-alias E2E. It must prove one-click caret, lazy
+no-default autocomplete, pointer and keyboard/grid transitions, seamless exact/new/first/single-use
+paths, exact shared change/remove choices with focus trap/restoration/cancel/no blur race, one-step
+named actions, imported tooltip/manual raw absence and real-app accessibility. P11C integrated scale/
+import/refresh/duplicate-tab/concurrent performance remains deferred. Dispatch-time dirt is root
+HANDOFF/PROGRESS only; index/product paths are clean. Scratch/21 blocks/six markers, FS-001 and SCOPE
+are exact; no completion or rollback event is active.
+
+**2026-07-20T21:20:37+10:00 — P11B/01 implementation authority refinement:** Full no-retry E2E
+independently reproduced `tab-duplication.spec.ts:169` receiving two vault operations for manual add.
+The P11B page correctly removed raw manual description but had to call existing transaction insert
+and alias attach/create hooks separately; UndoCoordinator grouped history, yet two Mirror commits and
+server ops remained. Root narrowly authorizes only `src/lib/crdt/description-aliases.ts` and
+`src/lib/crdt/context.tsx` to add one named atomic manual transaction action that validates normalized
+nonblank alias text, forces empty raw description/no import provenance, inserts and exact-selects or
+creates the alias in one internal result/action. Existing integration coverage must prove typed
+no-write errors, one Mirror/server op and one undo/redo step. No schema/sync/migration or other P11A
+surface is reopened; every other P11B/P11C boundary remains.
+
+**2026-07-20T21:52:11+10:00 — P11B/01 `implementing -> ready_for_review -> reviewing`:** Exact
+product/test HEAD `e35109dfe7b02bdb4058445f44d03a6dd678457b` contains 11 authorized paths
+from literal BASE `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f`. Frozen sole evidence
+`evidence/P11B/implementation-01.md` is 239 lines/18,293 bytes at SHA-256
+`f70f39969e1d4dcdf961c0ae2174b63fb36b03c5bb1a618c5727a45d9ebf9eb2`. It reports native always-
+visible one-click caret input, controlled lazy/no-default autocomplete and grid handoff, exact/new/
+single/shared commit planner, exact modal choices/trap/restoration/no blur race, controlled provenance
+tooltip, alias-only manual storage and the authorized one-action/manual insert refinement. Focused
+component/integration passes 9/9, full Vitest 1,226/1,226, typecheck/build/lint/scoped formatting and
+changed E2E 12/12 repeated three times pass. Both full no-retry runs are honestly 85/86 on unchanged
+T021c shift-click suite-order state; exact T021c passes 3/3 isolated and every P11B journey passes.
+Installed-CLI seeded import/manual/symlink/shared, pointer/keyboard/modal/undo/provenance/privacy/
+responsive/dark/reduced-motion/200% and zero-console-error charter passes; harness-only missing local
+Realtime secret was corrected without disclosure. Root verified exact HEAD/paths/index,
+`diff --check`, evidence hash/size, cleanup and frozen boundaries. Only root HANDOFF/PROGRESS and
+frozen evidence are dirty; sole new review output is `reviews/P11B-review-01.md`.
+
+**2026-07-20T22:18:37+10:00 — P11B/01 `reviewing -> passed`:** Independent PASS at unchanged HEAD
+`e35109dfe7b02bdb4058445f44d03a6dd678457b`; review is 207 lines/15,686 bytes at SHA-256
+`b19ef28c1fdb3fc6e88061631ffe7542b7994ae22040e2e5b9e87bc3bc091a90`. Static and runtime review
+proves the native one-click caret control, lazy/no-default autocomplete and grid handoff, exact/new/
+single/shared planner, exact modal copy/default/trap/cancel/restoration, controlled provenance
+tooltip, alias-only manual persistence and one-action/one-undo/one-server-op manual insert. Focused
+component/integration 9/9 repeated three times, full Vitest 1,226/1,226, typecheck/build/lint/scoped
+format and changed E2E 12/12 repeated three times without retries pass. Independent full E2E is
+honestly 85/86 and isolated T021c 2/3, confirming unchanged R-009 shared-state flakiness rather than
+a P11B regression; P13/P21 retain ownership. Seeded installed-CLI pointer/keyboard/modal/management/
+undo/provenance/privacy/responsive/dark/reduced-motion charter, exact boundary, cleanup, scratch/21
+blocks/six markers, FS-001 and SCOPE pass. No Q proposal. P11B alone may pass; HS-004 remains
+unchecked until P11C passes.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
