@@ -20,8 +20,8 @@ review evidence.
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** four passed (HS-002, HS-014, HS-017, HS-018); 18 queued
-- **Last ledger update:** 2026-07-20T11:26:41+10:00; P05 revision 10 independently failed the
-  same-identity sibling live-delivery charter; Q-012 selects the exact revision-11 repair
+- **Last ledger update:** 2026-07-20T11:27:50+10:00; immutable P05 revision-10 failure artifacts,
+  Q-012 and risk updates were persisted in `af985817c24652ec85b433b04dc609e1cced5c8c`
 
 ## Package ledger
 
@@ -626,6 +626,12 @@ callbacks. Q-012 transcribes the tightened exact revision-11 manager + true Chro
 scope with both tabs row 1, fixture op 1, receiver push delta 0 and zero browser errors, retaining all
 bounds/security. R-004/R-009 updated; final empty compatible DB, cleanup, scratch 21-block/checked-
 set and immutable sources pass. HS-015 remains unchecked.
+
+**2026-07-20T11:27:50+10:00 — P05/10 `changes_requested -> changes_requested`:** Immutable
+revision-10 evidence/review, Q-012, R-004/R-009 and failure state persisted in
+`af985817c24652ec85b433b04dc609e1cced5c8c`; all ten P05 FAIL reviews are immutable. Revision-11
+dispatch may proceed after this artifact-commit reference is durably recorded; no frozen source or
+marker changed.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual

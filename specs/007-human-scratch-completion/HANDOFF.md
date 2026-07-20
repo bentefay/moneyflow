@@ -64,6 +64,7 @@ This section is complete; revision-10 evidence, review and cumulative literal ra
 - **Sole reviewer artifact:** `reviews/P05-review-10.md`
 - **Review verdict:** FAIL; SHA-256
   `51bd77e62afb1adb08cd617db974d1df85f51eda7c7b06c20cd42d838aa7c9f8`
+- **Failure artifact commit:** `af985817c24652ec85b433b04dc609e1cced5c8c`
 - **Prior review files:** immutable revision-01–09 FAIL artifacts; latest SHA-256
   `58e40beca43c0ec272f2d9ccf950344040aa5235d695f914f55b684a3312a25d`
 - **Reviewer writes:** review file only; no other writes/commits
@@ -80,6 +81,5 @@ This section is complete; revision-10 evidence, review and cumulative literal ra
 
 ## Next root action
 
-Persist immutable revision-10 evidence/review, Q-012, R-004/R-009 and the failure state. Then record
-that artifact commit and rewrite for P05 revision 11 with exact manager + true duplicated-tab spec
-paths. No HS-015 marker is authorized before cumulative PASS.
+Commit this durable artifact reference, then rewrite for P05 revision 11 with exact manager + true
+duplicated-tab spec paths. No HS-015 marker is authorized before cumulative PASS.
