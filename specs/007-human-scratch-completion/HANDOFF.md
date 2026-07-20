@@ -44,9 +44,8 @@ literal field is `pending`. Workers may read but never edit it.
 - **Commit contract:** inspect first, change only the narrow authorized subset actually needed,
   stage exact paths only, commit product/test changes with a message containing no parentheses, and
   leave the evidence uncommitted. Never use `git add .` or `git add -A`.
-- **Pre-existing dirty/untracked paths:** root-owned unstaged `PROGRESS.md` and `HANDOFF.md`, plus
-  frozen untracked `evidence/P11C/implementation-01.md`; no staged, product, executable, generated or
-  other dirty path
+- **Pre-existing dirty/untracked paths:** root-owned unstaged `PROGRESS.md` and `HANDOFF.md` only;
+  no staged, product, executable, generated or other dirty path
 - **Integrated-consistency contract:** management create/rename/delete and every imported/manual,
   exact/new, first/single/shared, change-one/change-all and remove-one/remove-all path must preserve
   the legal P11A graph and exact visible P11B behavior after hard refresh, one undo, one redo,
@@ -129,6 +128,7 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Persist the exact revision-01 evidence/review, FAIL state and R-008 transcription, then dispatch P11C
-revision 02 with cumulative review from the original BASE through its new HEAD. Do not mark HS-004 or
-edit scratch before exact PASS and the root marker gate.
+Revision-01 evidence/review, FAIL state and R-008 transcription are immutable in
+`dd77d518fff81e4c5553ce9a559681ece8f30232`; dispatch P11C revision 02 with cumulative review from
+the original BASE through its new HEAD. Do not mark HS-004 or edit scratch before exact PASS and the
+root marker gate.

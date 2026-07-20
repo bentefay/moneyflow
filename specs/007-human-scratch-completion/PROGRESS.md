@@ -8,8 +8,8 @@ review evidence.
 
 - **Goal status:** in progress
 - **Current package:** P11C revision 01 (`changes_requested`)
-- **Next action:** persist immutable revision-01 FAIL/risk transcription, then dispatch revision 02
-  to eliminate real-provider alias reconversion/index rebuilds on unrelated Mirror notifications
+- **Next action:** dispatch revision 02 to eliminate real-provider alias reconversion/index rebuilds
+  on unrelated Mirror notifications
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -21,8 +21,8 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** six passed; HS-004 changes requested through P11C with P11A/P11B passed;
   HS-015 blocked externally; HS-011/HS-012 and 12 other requirements queued
-- **Last ledger update:** 2026-07-21T00:04:24+10:00; P11C revision 01 independently failed F-01;
-  exact artifact/risk integration is pending
+- **Last ledger update:** 2026-07-21T00:05:41+10:00; P11C revision-01 failure artifacts and R-008
+  transcription are immutable; revision-02 handoff is next
 
 ## Package ledger
 
@@ -41,7 +41,7 @@ review evidence.
 | P10     | HS-003         | Encrypted Loro EphemeralStore presence and active transaction                       | P05, P08             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | passed | 04 | `eb5ab2e215130c358130d5411a92b51951c3c53a..fb72abdaf531dff40c59f6b3525fb1b9ce50f805` | `evidence/P11A/implementation-04.md` | `reviews/P11A-review-04.md` | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f` |
 | P11B    | HS-004         | Alias management and transaction-cell pointer/keyboard UX                           | P11A                 | passed | 01 | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f..e35109dfe7b02bdb4058445f44d03a6dd678457b` | `evidence/P11B/implementation-01.md` | `reviews/P11B-review-01.md` | `0426866fa66cc022efca6d74cd5088d586d3d11b` |
-| P11C    | HS-004         | Alias import/manual/shared flows, performance hardening and exhaustive tests        | P11B                 | changes_requested | 01 | `0426866fa66cc022efca6d74cd5088d586d3d11b..dd0727f3562d4a9e40669d6d64109174690286a1` | `evidence/P11C/implementation-01.md` | `reviews/P11C-review-01.md` | failure integration pending                |
+| P11C    | HS-004         | Alias import/manual/shared flows, performance hardening and exhaustive tests        | P11B                 | changes_requested | 01 | `0426866fa66cc022efca6d74cd5088d586d3d11b..dd0727f3562d4a9e40669d6d64109174690286a1` | `evidence/P11C/implementation-01.md` | `reviews/P11C-review-01.md` | rev01 failure control `dd77d518fff81e4c5553ce9a559681ece8f30232` |
 | P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P13     | HS-001         | Persisted normal empty Add Transaction rows and grid navigation                     | P11C, P09            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -1388,6 +1388,12 @@ reload/manual/lazy/privacy smoke passes; a second CLI page lacked copied session
 retains true two-tab proof. Cleanup, exact range/index, scratch/21 blocks/six markers, FS-001 and SCOPE
 pass. No Q proposal. R-008 remains open; all other P11C behavior gates are green and must be retained.
 HS-004 remains unchecked.
+
+**2026-07-21T00:05:41+10:00 — P11C/01 failure integration:** Immutable revision-01 evidence/review,
+F-01, R-008 transcription and changes-requested state are preserved in
+`dd77d518fff81e4c5553ce9a559681ece8f30232`. Revision 02 must retain original cumulative BASE
+`0426866fa66cc022efca6d74cd5088d586d3d11b`, close only the stable production selector/index
+lifecycle blocker and preserve every independently green integrated behavior gate.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
