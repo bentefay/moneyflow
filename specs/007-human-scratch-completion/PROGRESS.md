@@ -8,8 +8,8 @@ review evidence.
 
 - **Goal status:** in progress
 - **Current package:** P05 revision 07 (`changes_requested`)
-- **Next action:** persist immutable revision-07 failure artifacts and Q-009, then dispatch the
-  same-file visible-readiness P05 revision 08
+- **Next action:** durably record the revision-07 artifact commit, then dispatch the same-file
+  visible-readiness P05 revision 08
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -20,8 +20,8 @@ review evidence.
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** four passed (HS-002, HS-014, HS-017, HS-018); 18 queued
-- **Last ledger update:** 2026-07-20T10:13:04+10:00; P05 revision 07 independent review FAIL at exact
-  HEAD `c2203faa84a1590263014d6426e2f854cdc036e8`
+- **Last ledger update:** 2026-07-20T10:13:57+10:00; P05 revision-07 evidence, FAIL review, Q-009 and
+  risk state persisted in `ad26cf6b752e41eeac025586183b92b40751520d`
 
 ## Package ledger
 
@@ -32,7 +32,7 @@ review evidence.
 | P02     | HS-017         | Animate UI evaluation, ADR, and representative migration only if justified          | P01                  | passed       | 02  | `19d73035b33b639f9927d2f78a55d74c44f65544..213100fadf5acea30aad7e90998bd575cdcd508c` | `evidence/P02/implementation-02.md` | `reviews/P02-review-02.md` | `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7` |
 | P03     | HS-018         | TanStack Virtual PR #1100 release gate and `useFlushSync`                           | P01                  | passed       | 01  | `c60f605bd811d8920122a66f3d6743d8a3ac044d..b8d4b448f52022970ca388654be14d24e347deb5` | `evidence/P03/implementation-01.md` | `reviews/P03-review-01.md` | `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34` |
 | P04     | HS-014         | Database/table/RLS threat model, migrations, and permission remediation             | P01                  | passed | 02 | `9de8b0e8c41087b96523ecc55faa10bf19ec0ff9..dbcf180e829c81a218e9a73791e40902c4f9eb31` | `evidence/P04/implementation-02.md` | `reviews/P04-review-02.md` | `b905ecb810334ed9697f57140047964135ade6ea` |
-| P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | changes_requested | 07 | `007651beb814d98646aa2e786801b647e2abd0b5..c2203faa84a1590263014d6426e2f854cdc036e8` | `evidence/P05/implementation-07.md` | `reviews/P05-review-07.md` | pending                                    |
+| P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | changes_requested | 07 | `007651beb814d98646aa2e786801b647e2abd0b5..c2203faa84a1590263014d6426e2f854cdc036e8` | `evidence/P05/implementation-07.md` | `reviews/P05-review-07.md` | failure artifacts `ad26cf6b752e41eeac025586183b92b40751520d` |
 | P06     | HS-010         | Remove unused user-state storage and dead API surface                               | P04                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P07     | HS-011         | Evidence-led person/member/invite UX architecture and acceptance decision           | P04, P06             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -516,6 +516,12 @@ mobile plus visible desktop avatars both exist: filter `{ visible: true }` and r
 within unchanged 15 seconds. Q-PROPOSAL-P05-07-01 is transcribed as Q-009 with sole revision-08
 vault-settings spec, unchanged delta/bounds and no sleep/counter/retry/product widening. R-004/R-009
 updated; final compatible empty DB/cleanup/frozen sources pass and HS-015 remains unchecked.
+
+**2026-07-20T10:13:57+10:00 — P05/07 `changes_requested -> changes_requested`:** Immutable
+revision-07 evidence/review, Q-009, R-004/R-009 and failure state persisted in
+`ad26cf6b752e41eeac025586183b92b40751520d`; all seven P05 FAIL reviews are immutable. Revision-08
+dispatch may proceed after this artifact-commit reference is durably recorded; no frozen source or
+marker changed.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
