@@ -7,7 +7,7 @@ literal field is `pending`. Workers may read but never edit it.
 
 - **Package / revision:** P09 / 02
 - **Scope IDs:** HS-006
-- **State:** reviewing; independent revision-02 PASS recommendation, root integration pending
+- **State:** passed in `59bf82e894e45e034858e25255240701a3afb0b8`; HS-006 marker completion pending
 - **Task:** `tasks/HS-006-undo-redo.md`
 - **Prior immutable failure:** `evidence/P09/implementation-01.md` and
   `reviews/P09-review-01.md`, integrated in `74bbc7167d09fe54dff48fe7df26886f0923bdd6`;
@@ -94,5 +94,5 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Persist immutable revision-02 artifacts, D-014 and mitigated R-028/R-029; then record P09 passed at
-the exact integration-control commit and prepare the HS-006 marker event. No product edit is allowed.
+Finalize the already prepared HS-006 marker-only event from scratch SHA `753be6b7…`; do not dispatch
+another package until the marker, rolling SHA, authorized checked set and requirement state are atomic.

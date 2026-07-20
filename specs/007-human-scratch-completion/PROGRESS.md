@@ -7,22 +7,24 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P09 revision 02 (`reviewing`)
-- **Next action:** integrate the independent P09 revision-02 PASS artifacts and D-014/R-028/R-029
-  transcription, then record package PASS and prepare the authorized HS-006 marker event
+- **Current package:** P09 revision 02 (`passed`); HS-006 marker completion pending
+- **Next action:** execute and finalize the authorized HS-006 marker-only `[] -> [x]` event; no
+  package dispatch is allowed while it is pending
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
   `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines and 25,441 bytes
 - **Rolling scratch SHA-256:** `753be6b73d1086a35659e1416d9f6c183e61107c72a91aeaa55a13344bf96578`
 - **Authorized checked HS IDs:** HS-002, HS-010, HS-014, HS-017, HS-018
-- **Active completion marker event:** none
+- **Active completion marker event:** HS-006 `completion_pending`; intended `[] -> [x]`; before SHA
+  `753be6b73d1086a35659e1416d9f6c183e61107c72a91aeaa55a13344bf96578`; mapped review
+  `reviews/P09-review-02.md`; integration `59bf82e894e45e034858e25255240701a3afb0b8`
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
-- **Requirement state:** five passed; HS-006 reviewing; HS-015 blocked externally; HS-011/HS-012
+- **Requirement state:** five passed; HS-006 completion pending; HS-015 blocked externally; HS-011/HS-012
   and 13 other requirements queued
-- **Last ledger update:** 2026-07-20T17:16:06+10:00; P09 revision-02 independent PASS recommendation
-  verified at unchanged HEAD; root artifact/ledger integration is pending
+- **Last ledger update:** 2026-07-20T17:17:16+10:00; P09 PASS definition complete and HS-006
+  completion marker durably prepared; scratch is not yet changed
 
 ## Package ledger
 
@@ -37,7 +39,7 @@ review evidence.
 | P06     | HS-010         | Remove unused user-state storage and dead API surface                               | P04                  | passed | 01  | `a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1..95e91dbcb17ffb9600eaa6cb795336898297ebae` | `evidence/P06/implementation-01.md` | `reviews/P06-review-01.md` | `8e269ab9a6fc15ed6d845542b879e5499828134e` |
 | P07     | HS-011         | Evidence-led person/member/invite UX architecture and acceptance decision           | P04, P06             | passed | 04  | `fe1871ce7dce1e831b57ee5656d38ce5c800aae3..dfffea3c19b110b6021b050b8d9e36b01ae75ab9` | `evidence/P07/implementation-04.md` | `reviews/P07-review-04.md` | `1f6cb96b27c8093f0ba2c319f32d3c79c8aab126` |
 | P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
-| P09     | HS-006         | Loro UndoManager integration, controls, shortcuts and action grouping               | P01                  | reviewing    | 02 | `c9146fae2c5534313d21b4f34cb2b012eaeeb4ed..418234e28ac649e03ce8ad184d08a8a2f2416149` | `evidence/P09/implementation-02.md` | `reviews/P09-review-02.md` | prior FAIL `74bbc7167d09fe54dff48fe7df26886f0923bdd6` |
+| P09     | HS-006         | Loro UndoManager integration, controls, shortcuts and action grouping               | P01                  | passed       | 02 | `c9146fae2c5534313d21b4f34cb2b012eaeeb4ed..418234e28ac649e03ce8ad184d08a8a2f2416149` | `evidence/P09/implementation-02.md` | `reviews/P09-review-02.md` | `59bf82e894e45e034858e25255240701a3afb0b8` |
 | P10     | HS-003         | Encrypted Loro EphemeralStore presence and active transaction                       | P05, P08             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P11B    | HS-004         | Alias management and transaction-cell pointer/keyboard UX                           | P11A                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -88,7 +90,7 @@ required marker rollbacks before the next dispatch.
 | HS-003      | human scratch block               | P10                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-004      | human scratch block               | P11A, P11B, P11C             | authorized marker after all package PASSes | queued       | —                                                                                                                       |
 | HS-005      | human scratch block               | P12                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
-| HS-006      | human scratch block               | P09                          | authorized marker after package PASS       | reviewing    | P09/02 exact cumulative range/evidence frozen; independent review-02 assigned                                          |
+| HS-006      | human scratch block               | P09                          | authorized marker after package PASS       | completion_pending | P09 PASS integration `59bf82e894e45e034858e25255240701a3afb0b8`; marker before SHA `753be6b7…`              |
 | HS-007      | human scratch block               | P17A, P17B, P17C, P17D       | authorized marker after all package PASSes | queued       | —                                                                                                                       |
 | HS-008      | human scratch block               | P14                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-009      | human scratch block               | P16A, P16C, P16D             | authorized marker after all package PASSes | queued       | —                                                                                                                       |
@@ -1042,6 +1044,17 @@ root/frozen format paths remain red. Q-015 is upheld once; D-014 records the acc
 R-028/R-029 are mitigated. Root verified unchanged HEAD/index, exact evidence/review hashes, sole-write
 boundary, cleanup/no generated process or next-env drift, scratch/21 blocks, FS-001 and SCOPE. Package
 PASS awaits artifact/ledger integration; HS-006 remains unchecked and no marker event is active.
+
+**2026-07-20T17:17:16+10:00 — P09/02 `reviewing -> passed`; HS-006 `reviewing -> completion_pending`:**
+PASS definition is complete at exact reviewed product/test HEAD
+`418234e28ac649e03ce8ad184d08a8a2f2416149`. Immutable revision-02 evidence/review, D-014 and
+R-028/R-029 mitigation are integrated in `59bf82e894e45e034858e25255240701a3afb0b8`; Q-015 was
+already canonically transcribed from revision 01 and no new Q exists. The sole mapped P09 package is
+passed. Root durably prepares HS-006's exact `[] -> [x]` marker using before SHA
+`753be6b73d1086a35659e1416d9f6c183e61107c72a91aeaa55a13344bf96578`, mapped independent review
+`reviews/P09-review-02.md` and the integration commit above. Scratch has not changed yet; all 21
+normalized blocks, current five-marker set, FS-001 and SCOPE verify. No dispatch is legal until this
+event is finalized or recovered.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
