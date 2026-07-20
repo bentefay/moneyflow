@@ -21,8 +21,8 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** six passed; HS-004 changes requested through P11A with P11B/P11C still required;
   HS-015 blocked externally; HS-011/HS-012 and 12 other requirements queued
-- **Last ledger update:** 2026-07-20T20:10:38+10:00; P11A revision 03 independently failed on two
-  remaining lifecycle/evidence defects; immutable failure integration is pending
+- **Last ledger update:** 2026-07-20T20:11:59+10:00; P11A revision 03 failure artifacts and risk
+  transcription are immutable; revision-04 handoff is next
 
 ## Package ledger
 
@@ -39,7 +39,7 @@ review evidence.
 | P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P09     | HS-006         | Loro UndoManager integration, controls, shortcuts and action grouping               | P01                  | passed       | 02 | `c9146fae2c5534313d21b4f34cb2b012eaeeb4ed..418234e28ac649e03ce8ad184d08a8a2f2416149` | `evidence/P09/implementation-02.md` | `reviews/P09-review-02.md` | `59bf82e894e45e034858e25255240701a3afb0b8` |
 | P10     | HS-003         | Encrypted Loro EphemeralStore presence and active transaction                       | P05, P08             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
-| P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | changes_requested | 03 | `eb5ab2e215130c358130d5411a92b51951c3c53a..722364b0417b4666de05df773933233d34e62033` | `evidence/P11A/implementation-03.md` | `reviews/P11A-review-03.md` | rev02 failure control `0183a70afed010d862f4eb960d5464b09a17ecd5`; rev03 integration pending |
+| P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | changes_requested | 03 | `eb5ab2e215130c358130d5411a92b51951c3c53a..722364b0417b4666de05df773933233d34e62033` | `evidence/P11A/implementation-03.md` | `reviews/P11A-review-03.md` | rev03 failure control `2bdca0e584aabe3f3a3ac2fe0c0d91637b9fe79a` |
 | P11B    | HS-004         | Alias management and transaction-cell pointer/keyboard UX                           | P11A                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P11C    | HS-004         | Alias import/manual/shared flows, performance hardening and exhaustive tests        | P11B                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -1172,6 +1172,8 @@ subscriber proof that no illegal state is exposed. Focused 39/39 repeated three 
 management/offline/privacy/reflow passes. Q-016/Q-017 remain canonical with no new proposal. Exact
 HEAD/index/write boundary, cleanup, scratch/21 blocks/six markers, FS-001 and SCOPE verify. Preserve
 revisions 01–03; revision 04 must close both remaining findings and receive cumulative review.
+Immutable revision-03 evidence/review and R-030/R-031 transcription were integrated in
+`2bdca0e584aabe3f3a3ac2fe0c0d91637b9fe79a`.
 
 **2026-07-20T18:40:27+10:00 — P11A/02 `implementing -> ready_for_review -> reviewing`:** Exact
 revision-02 product/test commit `d81c5039c41577f94791bedc4184b98940c631a6` contains 16 authorized

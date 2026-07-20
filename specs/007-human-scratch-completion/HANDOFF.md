@@ -10,8 +10,8 @@ literal field is `pending`. Workers may read but never edit it.
   completion or marker authority
 - **State:** changes_requested; revision-01 evidence/review immutable in
   `571b1ed05ab540d5a2e9fe5ba142d304a32137fa`; revision-02 evidence/review immutable in
-  `0183a70afed010d862f4eb960d5464b09a17ecd5`; close remaining F-02/F-03/F-04/F-06 only while
-  retaining closed F-01/F-05
+  `0183a70afed010d862f4eb960d5464b09a17ecd5`; revision-03 evidence/review immutable in
+  `2bdca0e584aabe3f3a3ac2fe0c0d91637b9fe79a`
 - **Task:** `tasks/HS-004-description-aliases.md`, complete frozen 72-line HS-004 block in SCOPE,
   P11A acceptance only
 - **Dependencies:** P09/HS-006 passed; P11A is independent of the blocked P05/P08/P10 branch
