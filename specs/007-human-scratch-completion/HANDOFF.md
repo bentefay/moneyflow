@@ -5,92 +5,94 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Implementation dispatch
 
-- **Package / revision:** P09 / 01
+- **Package / revision:** P09 / 02
 - **Scope IDs:** HS-006
-- **State:** changes_requested; revision-01 evidence/review immutable in
-  `74bbc7167d09fe54dff48fe7df26886f0923bdd6`
+- **State:** reviewing; independent revision-02 PASS recommendation, root integration pending
 - **Task:** `tasks/HS-006-undo-redo.md`
-- **Dependencies:** P01 passed; P09 is independent of the blocked P05/P08/P10 branch
+- **Prior immutable failure:** `evidence/P09/implementation-01.md` and
+  `reviews/P09-review-01.md`, integrated in `74bbc7167d09fe54dff48fe7df26886f0923bdd6`;
+  never edit or overwrite them
 - **Original package BASE:** `c9146fae2c5534313d21b4f34cb2b012eaeeb4ed`
-- **Pre-implementation HEAD:** `c9146fae2c5534313d21b4f34cb2b012eaeeb4ed`
-- **Range meaning:** first P09 implementation range; review must cover literal original BASE through
-  the implementer's committed HEAD
-- **Allowed implementation paths:** `src/lib/crdt/**`; `src/lib/sync/**` only where required to
-  classify local versus remote/hydration/migration/GC origins; `src/components/providers/vault-provider.tsx`;
-  `src/components/features/undo/**`; `src/app/(app)/layout.tsx`; existing mutation call sites under
-  `src/app/(app)/imports/**`, `src/app/(app)/transactions/**`, and
-  `src/components/features/{accounts,automations,description-aliases,import,people,statuses,tags,transactions,vault}/**`
-  only where required to define one logical user-action boundary; focused new or modified tests under
-  `tests/unit/**`, `tests/integration/**`, `tests/e2e/**`, and `tests/e2e/helpers/**`. Do not edit
-  dependencies, migrations, server/database/auth/crypto/realtime code, global ledgers, prior artifacts,
-  review files, scratch, FS-001, SCOPE, `.claude`, `.codex`, or agent configuration.
-- **Sole implementer artifact:** `evidence/P09/implementation-01.md`
-- **Future immutable review artifact:** `reviews/P09-review-01.md`
-- **Commit contract:** inspect first, change only the narrow authorized subset actually needed, stage
-  exact paths only, commit product/test changes with a message containing no parentheses, and leave the
-  assigned evidence uncommitted. Never use `git add .` or `git add -A`.
+- **Revision-01 product HEAD:** `af06fb2ad32fe292aef15a011c2040cb54cf5dfa`
+- **Pre-implementation HEAD:** `54a9f28e1c272ada62bea52f46b587f206d3057f`
+- **Range meaning:** revision 02 preserves the revision-01 work and remediates both independent
+  findings. Re-review must cover the original P09 BASE through the newest committed HEAD, including
+  intervening immutable control history.
+- **Allowed implementation paths:** `src/lib/crdt/undo.tsx`; `src/lib/crdt/context.tsx` only if the
+  typed edit-session API requires it; `src/components/features/vault/VaultSettingsForm.tsx`;
+  `src/lib/sync/manager.ts`; `tests/unit/crdt/undo.test.tsx`; focused files under
+  `tests/unit/sync/**`; `tests/integration/sync-offline.test.ts`; and
+  `tests/e2e/undo-redo.spec.ts`. Change only the narrow subset needed. Do not edit any other product,
+  test, dependency, config, migration, server/database/auth/crypto/realtime, global ledger, prior
+  evidence/review, scratch, FS-001, SCOPE, `.claude`, `.codex` or agent path.
+- **Sole implementer artifact:** `evidence/P09/implementation-02.md`
+- **Future immutable review artifact:** `reviews/P09-review-02.md`
+- **Commit contract:** stage exact authorized product/test paths only, commit remediation with a
+  message containing no parentheses, and leave the assigned evidence uncommitted. Never use
+  `git add .` or `git add -A`.
 - **Pre-existing dirty/untracked paths:** root-owned unstaged `PROGRESS.md` and `HANDOFF.md`, plus
-  frozen untracked `evidence/P09/implementation-01.md`; no staged, product/test or other dirty path
-- **Required architecture:** one standard Loro `UndoManager` follows the active document/vault
-  lifecycle; expose reactive `canUndo`/`canRedo` and typed action-boundary/origin APIs. Define and test
-  user, remote, hydration, sync, migration and maintenance origins before UI wiring. Remote/hydration/
-  sync/migration/GC commits must never enter local user history, and vault switch/strict-mode remount
-  must dispose listeners/managers and reset history.
-- **Required grouping:** one logical add/edit/delete/import/bulk/alias action is one undo step even
-  when it spans several mirror actions; undo/redo itself must sync as a resulting local CRDT change.
-  New user edits clear redo. Do not conflate existing automation domain-history records with the
-  document UndoManager.
-- **Required UX:** visible semantic Undo and Redo buttons in the authenticated shell, truthful disabled
-  states, accessible names, discoverable tooltips, focus treatment, responsive/collapsed/mobile/dark/
-  reduced-motion behavior. Implement Ctrl+Z, Ctrl+Shift+Z and Ctrl+Y plus conventional Meta equivalents,
-  without stealing native undo/redo from editable inputs, textareas or contenteditable controls.
-- **Required validation:** trace the installed Loro/loro-mirror API from repository packages; focused
-  unit/integration tests for lifecycle, grouping/origin filters, redo clearing, input guards, vault switch
-  and remote exclusion; meaningful journey E2E for buttons and every shortcut across representative
-  add/edit/delete/import/alias behavior, concurrency/second client and refresh. Run focused checks, then
-  all repository checks required by `.claude/CLAUDE.md`; repeat changed E2E with retries disabled and
-  record exact results, including any inherited red without hiding it.
-- **Manual evidence:** use only repository-installed headless `pnpm exec playwright-cli` in unique
-  disposable sessions. Exercise pointer/keyboard/focus, native text editing, two sessions/duplicate tab,
-  vault switch, refresh and offline/reconnect; inspect responsive/dark/reduced-motion, deterministic
-  accessible role/name/state snapshots, zoom/reflow, applicable computed contrast, console and requests.
-  Close/delete sessions and remove generated CLI artifacts. No Playwright MCP, `npx`, ad-hoc script or
-  temporary test/config, headed/debug/UI/show mode, sleeps, retries, or test-only product hook.
-- **Evidence contract:** record package/revision, literal BASE and HEAD, commits, exact changed and dirty
-  paths, acceptance mapping, installed API reasoning, commands/results, manual evidence, cleanup, risks,
-  source-integrity results and complete Q proposals. Do not claim PASS. If ambiguity remains, apply the
-  PROCESS hierarchy, choose the safest reversible behavior, write a complete Q proposal and continue.
+  frozen untracked `evidence/P09/implementation-02.md`; no staged, executable or other dirty path
+- **F-01 required remediation:** replace per-microtask grouping for autosaved controlled edits with
+  an explicit typed logical edit-session boundary. Sequential keyboard/paste/native-undo input events
+  from focus through commit/blur must remain immediate CRDT/IndexedDB writes but form one document
+  undo step. One global Undo after blur restores the exact pre-edit CRDT value and one Redo restores
+  the complete edited value. Close safely on blur/commit/cancel/unmount/vault replacement and when a
+  different edit begins; never merge unrelated fields/actions. Preserve synchronous bulk/import/alias
+  grouping and editable-target shortcut guards. Do not use an arbitrary time window.
+- **F-01 regression:** focused unit/component coverage must drive several separate event turns and
+  prove session lifecycle, native input interaction, one Undo/Redo step, unrelated action separation
+  and cleanup. Real E2E must type characters sequentially into the autosaved Vault Name field, use
+  native Ctrl/Meta undo while focused, blur, then prove one global Undo/Redo restores the complete
+  before/after values. `fill()` or an Enter-commit-only field is insufficient.
+- **F-02 required remediation:** when a throttled `sync.pushOps` attempt fails offline, a genuine
+  browser reconnect must automatically retry locally durable `pushed:false` operations without
+  another mutation, reload, focus-only substitute or test hook. Use the actual SyncManager owner and
+  browser `online` lifecycle; prevent concurrent/duplicate retry, preserve throttle/durable ordering,
+  state transitions and cleanup of listeners on disconnect/strict remount. Do not add infinite retry,
+  sleeps or weaken errors.
+- **F-02 regression:** focused unit/integration coverage must force a real failed push, dispatch the
+  reconnect lifecycle event, and prove exact retry/idempotence/listener cleanup. A no-retry real E2E
+  journey must stay offline long enough for the scheduled push to fail, perform a local edit and Undo,
+  reconnect without further mutation/reload, observe successful `sync.pushOps`, truthful saved status
+  and peer/server durability of the resulting operations. Retain online peer exclusion/undo propagation.
+- **Validation:** rerun focused tests, typecheck, lint, full Vitest, full E2E with retries disabled and
+  changed E2E repeated with retries disabled. Diagnose every red and retain the exact inherited-format
+  classification. Use only repository-installed headless `playwright-cli` for independent real-app
+  manual evidence covering both findings plus the original task matrix; record deterministic role/name/
+  state, native input, remote/local, offline/reconnect, responsive/dark/reduced-motion, 200% reflow,
+  contrast, console and requests. Close/delete sessions, stop servers and restore generated files.
+- **Evidence contract:** record exact BASE/pre-HEAD/new HEAD, commits/paths/index, counterfactual and
+  fixed results for F-01/F-02, acceptance mapping, commands/results, sanitized manual request/state
+  evidence, cleanup, risks and frozen-source checks. Do not claim PASS. Any ambiguity becomes a complete
+  Q proposal under PROCESS; Q-015 already decides Meta+Y parity and should not be duplicated.
 - **Boundary checks:** exact HEAD/index/status; scratch SHA
-  `753be6b73d1086a35659e1416d9f6c183e61107c72a91aeaa55a13344bf96578` with exactly the authorized
-  checked set HS-002/HS-010/HS-014/HS-017/HS-018 and all 21 normalized blocks; immutable FS-001 SHA
+  `753be6b73d1086a35659e1416d9f6c183e61107c72a91aeaa55a13344bf96578`, checked set
+  HS-002/HS-010/HS-014/HS-017/HS-018 and all 21 normalized blocks; FS-001 SHA
   `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines/25,441 bytes; SCOPE
-  SHA `d03f33e718f1ec5f7c8ad0119d283397dcc59407199da4b5887a2e5eee7ef0f9`; do not edit SCOPE.
+  SHA `d03f33e718f1ec5f7c8ad0119d283397dcc59407199da4b5887a2e5eee7ef0f9`, 450 lines/27,382 bytes.
 
 ## Review dispatch
 
 - **Reviewer:** distinct `human_scratch_reviewer`
 - **Literal reviewed BASE:** `c9146fae2c5534313d21b4f34cb2b012eaeeb4ed`
-- **Literal reviewed HEAD:** `af06fb2ad32fe292aef15a011c2040cb54cf5dfa`
-- **Range type:** non-empty first implementation range containing exactly ten authorized product/test
-  paths
-- **Implementation evidence:** `evidence/P09/implementation-01.md`, SHA-256
-  `6c6ece5aa7947243291f2d5202338a937c4b219b99a3bbfce7a00428170db20c`, 172 lines/12,346 bytes
-- **Sole reviewer artifact:** `reviews/P09-review-01.md`
-- **Review SHA-256:** `5ecd94f8f95009a3108057996adbb318b563eda6b832c7bfe537a5bf221c6a09`,
-  202 lines/16,444 bytes
-- **Verdict:** FAIL — F-01 logical text edits split per input event; F-02 failed offline push is not
-  retried after reconnect and remains `Sync error`
+- **Literal reviewed HEAD:** `418234e28ac649e03ce8ad184d08a8a2f2416149`
+- **Range type:** cumulative original P09 BASE through revision-01 product, immutable failure/control
+  commits and revision-02 remediation
+- **Implementation evidence:** `evidence/P09/implementation-02.md`, SHA-256
+  `ea8a779eedae9c4520edf37e01164db70c49ddd8d0b8ae8b6846c7d590b693cb`, 220 lines/16,189 bytes
+- **Sole reviewer artifact:** `reviews/P09-review-02.md`
+- **Review SHA-256:** `610d0853632ec2596d60011133827971c982b39f1a6e8800ba9d54b9badf2966`,
+  214 lines/17,759 bytes
+- **Verdict:** PASS with no finding or new Q; Q-015 remains accepted
 - **Reviewer writes:** review file only; no other writes or commits
-- **Required review focus:** independently audit the full literal BASE..HEAD, installed Loro
-  API/lifecycle/origins/grouping, every acceptance criterion, meaningful no-retry automated coverage and
-  the complete manual CLI charter. Reject remote/hydration history, split logical actions, native-input
-  shortcut theft, listener leaks, stale history after vault switch, inaccessible/misleading controls,
-  weak selectors, sleeps/retries/test hooks, unapproved paths or inaccurate evidence. Independently
-  adjudicate complete proposal `Q-PROPOSAL-P09-01-01`; verify inherited format-red classification,
-  exact paths/index/write boundary, cleanup, scratch/21 blocks, FS-001 and SCOPE.
+- **Required review focus:** independently reproduce revision-01 F-01/F-02, audit the complete
+  original BASE through exact newest HEAD, then prove both counterfactuals are closed without
+  regressing every previously sound P09 acceptance. Independently verify the typed edit-session
+  lifecycle/separation/immediate updates, real offline failed-push online retry/single-flight/state/
+  cleanup, focused and full no-retry automation, exact causal installed-CLI request sequence, Q-015,
+  inherited format classification, write boundary/cleanup, scratch/21 blocks, FS-001 and SCOPE.
 
 ## Next root action
 
-Persist the immutable revision-01 evidence/review with Q-015 and R-028/R-029 transcription, then
-rewrite HANDOFF for P09 revision 02. Re-review must cover original BASE through the newest HEAD and
-use exact new artifacts `evidence/P09/implementation-02.md` and `reviews/P09-review-02.md`.
+Persist immutable revision-02 artifacts, D-014 and mitigated R-028/R-029; then record P09 passed at
+the exact integration-control commit and prepare the HS-006 marker event. No product edit is allowed.

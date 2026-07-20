@@ -7,9 +7,9 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P09 revision 01 (`changes_requested`)
-- **Next action:** persist the immutable revision-01 FAIL and Q/risk transcription, then dispatch
-  P09 revision 02 over the original BASE through a new HEAD to close F-01/F-02
+- **Current package:** P09 revision 02 (`reviewing`)
+- **Next action:** integrate the independent P09 revision-02 PASS artifacts and D-014/R-028/R-029
+  transcription, then record package PASS and prepare the authorized HS-006 marker event
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -19,10 +19,10 @@ review evidence.
 - **Active completion marker event:** none
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
-- **Requirement state:** five passed; HS-006 changes requested; HS-015 blocked externally; HS-011/HS-012
+- **Requirement state:** five passed; HS-006 reviewing; HS-015 blocked externally; HS-011/HS-012
   and 13 other requirements queued
-- **Last ledger update:** 2026-07-20T16:30:06+10:00; P09 revision 01 independently failed on logical
-  edit grouping and offline reconnect push retry; immutable failure integration is pending
+- **Last ledger update:** 2026-07-20T17:16:06+10:00; P09 revision-02 independent PASS recommendation
+  verified at unchanged HEAD; root artifact/ledger integration is pending
 
 ## Package ledger
 
@@ -37,7 +37,7 @@ review evidence.
 | P06     | HS-010         | Remove unused user-state storage and dead API surface                               | P04                  | passed | 01  | `a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1..95e91dbcb17ffb9600eaa6cb795336898297ebae` | `evidence/P06/implementation-01.md` | `reviews/P06-review-01.md` | `8e269ab9a6fc15ed6d845542b879e5499828134e` |
 | P07     | HS-011         | Evidence-led person/member/invite UX architecture and acceptance decision           | P04, P06             | passed | 04  | `fe1871ce7dce1e831b57ee5656d38ce5c800aae3..dfffea3c19b110b6021b050b8d9e36b01ae75ab9` | `evidence/P07/implementation-04.md` | `reviews/P07-review-04.md` | `1f6cb96b27c8093f0ba2c319f32d3c79c8aab126` |
 | P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
-| P09     | HS-006         | Loro UndoManager integration, controls, shortcuts and action grouping               | P01                  | changes_requested | 01 | `c9146fae2c5534313d21b4f34cb2b012eaeeb4ed..af06fb2ad32fe292aef15a011c2040cb54cf5dfa` | `evidence/P09/implementation-01.md` | `reviews/P09-review-01.md` | failure control `74bbc7167d09fe54dff48fe7df26886f0923bdd6` |
+| P09     | HS-006         | Loro UndoManager integration, controls, shortcuts and action grouping               | P01                  | reviewing    | 02 | `c9146fae2c5534313d21b4f34cb2b012eaeeb4ed..418234e28ac649e03ce8ad184d08a8a2f2416149` | `evidence/P09/implementation-02.md` | `reviews/P09-review-02.md` | prior FAIL `74bbc7167d09fe54dff48fe7df26886f0923bdd6` |
 | P10     | HS-003         | Encrypted Loro EphemeralStore presence and active transaction                       | P05, P08             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P11B    | HS-004         | Alias management and transaction-cell pointer/keyboard UX                           | P11A                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -88,7 +88,7 @@ required marker rollbacks before the next dispatch.
 | HS-003      | human scratch block               | P10                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-004      | human scratch block               | P11A, P11B, P11C             | authorized marker after all package PASSes | queued       | —                                                                                                                       |
 | HS-005      | human scratch block               | P12                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
-| HS-006      | human scratch block               | P09                          | authorized marker after package PASS       | changes_requested | P09/01 FAIL F-01 logical edit grouping and F-02 offline reconnect push; no marker                                  |
+| HS-006      | human scratch block               | P09                          | authorized marker after package PASS       | reviewing    | P09/02 exact cumulative range/evidence frozen; independent review-02 assigned                                          |
 | HS-007      | human scratch block               | P17A, P17B, P17C, P17D       | authorized marker after all package PASSes | queued       | —                                                                                                                       |
 | HS-008      | human scratch block               | P14                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-009      | human scratch block               | P16A, P16C, P16D             | authorized marker after all package PASSes | queued       | —                                                                                                                       |
@@ -997,6 +997,51 @@ verify. Preserve revision-01 work/artifacts; revision 02 must add explicit cross
 boundaries and real failed-push reconnect retry with focused no-retry automation and installed-CLI proof.
 Immutable revision-01 artifacts, Q-015 and R-028/R-029 were integrated in
 `74bbc7167d09fe54dff48fe7df26886f0923bdd6`.
+
+**2026-07-20T16:32:54+10:00 — P09/02 `changes_requested -> implementing`:** Revision-01 failure
+artifacts are immutable and linked through control HEAD
+`54a9f28e1c272ada62bea52f46b587f206d3057f`; original P09 BASE remains
+`c9146fae2c5534313d21b4f34cb2b012eaeeb4ed`. Revision 02 receives exact evidence
+`evidence/P09/implementation-02.md` and future review `reviews/P09-review-02.md`. Its narrow authority
+covers the typed CRDT edit-session boundary, autosaved Vault Name wiring, actual SyncManager online
+retry owner and focused unit/integration/E2E regressions. F-01 must prove separate-event typing/native
+undo followed by one complete global Undo/Redo without time merging or unrelated-action capture. F-02
+must prove a genuinely failed offline push automatically retries on browser reconnect without another
+mutation/reload/test hook, reaches truthful saved state and preserves peer/server durability and listener
+cleanup. Re-review will cover original BASE through newest HEAD. Dispatch-time dirt is only root-owned
+unstaged HANDOFF/PROGRESS; index and executable paths are clean. Scratch/21 blocks, FS-001 and SCOPE
+remain exact; no marker event or rollback batch is active.
+
+**2026-07-20T16:57:53+10:00 — P09/02 `implementing -> ready_for_review -> reviewing`:** Revision-02
+commit `418234e28ac649e03ce8ad184d08a8a2f2416149` changes exactly seven authorized remediation/test
+paths. Cumulative review remains original BASE `c9146fae2c5534313d21b4f34cb2b012eaeeb4ed` through
+that newest HEAD, including immutable revision-01 failure/control history. Sole frozen evidence
+`evidence/P09/implementation-02.md` is 220 lines/16,189 bytes at SHA-256
+`ea8a779eedae9c4520edf37e01164db70c49ddd8d0b8ae8b6846c7d590b693cb`. It reports explicit typed
+focus-to-close edit sessions with immediate per-event commits and action isolation; a real browser
+online retry with single-flight/coalesced durable reread and listener cleanup; focused 13/13, full
+Vitest 1,185/1,185, changed E2E 3/3 and repeated 9/9, full no-retry E2E 84/84, typecheck and
+zero-error lint. Installed-CLI evidence records sequential character/native-input/global one-step
+Undo/Redo plus failed offline requests 149/153 followed only by online-state change and successful
+request 156/status Saved. Root verified exact paths/HEAD/index, cumulative `diff --check`, no generated
+drift/process, scratch SHA and all 21 normalized marker mappings, FS-001 and SCOPE. Only root-owned
+HANDOFF/PROGRESS plus frozen revision-02 evidence are dirty; new sole review output is
+`reviews/P09-review-02.md`.
+
+**2026-07-20T17:16:06+10:00 — P09/02 `reviewing -> reviewing`:** Independent PASS recommendation at
+unchanged cumulative HEAD `418234e28ac649e03ce8ad184d08a8a2f2416149`; review is 214 lines/17,759
+bytes at SHA-256 `610d0853632ec2596d60011133827971c982b39f1a6e8800ba9d54b9badf2966`. No finding/Q remains.
+The reviewer independently closes F-01 with real separate-character/native-input evidence followed by
+one complete global Undo/Redo, and F-02 with actual failed offline requests 168/172 followed only by
+the online transition, successful idempotent peer/source requests 60/180, 15 inserted durable IDs,
+both clients Saved and receiver history disabled. Standard Loro origins/lifecycle, synchronous action
+grouping, shortcut guards, responsive/a11y controls and online peer semantics remain sound. Independent
+focused 13/13, full Vitest 1,185/1,185, changed no-retry E2E repeat 9/9, full no-retry E2E 84/84,
+typecheck/lint and all 13 cumulative product/test format checks pass; only the seven known protected
+root/frozen format paths remain red. Q-015 is upheld once; D-014 records the accepted architecture and
+R-028/R-029 are mitigated. Root verified unchanged HEAD/index, exact evidence/review hashes, sole-write
+boundary, cleanup/no generated process or next-env drift, scratch/21 blocks, FS-001 and SCOPE. Package
+PASS awaits artifact/ledger integration; HS-006 remains unchecked and no marker event is active.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual

@@ -255,6 +255,36 @@ need evidence, alternatives, security/UX impact, and a reversal path.
   reversal. Never destructively down-migrate advanced epochs or delete referenced financial state;
   old unfenced binaries cannot write.
 
+## D-014 — Use explicit Loro edit sessions and SyncManager-owned reconnect retry
+
+- **Date:** 2026-07-20
+- **Package / scope:** P09 / HS-006
+- **Status:** accepted
+- **Evidence:** `evidence/P09/implementation-02.md` and independent
+  `reviews/P09-review-02.md` PASS over cumulative
+  `c9146fae2c5534313d21b4f34cb2b012eaeeb4ed..418234e28ac649e03ce8ad184d08a8a2f2416149`;
+  immutable `reviews/P09-review-01.md` records the corrected F-01/F-02 counterexamples.
+- **Alternatives:** Group every mutation by microtask or elapsed merge window; buffer controlled
+  form state until blur; let native input history substitute for document history; retry failed
+  pushes only after another mutation/reload/focus; add an unbounded timer loop; or move transport
+  retry into Undo UI code.
+- **Decision and reason:** One standard Loro UndoManager follows the hydrated active document. Typed
+  user/system origins exclude remote and maintenance work. Synchronous actions use an exact
+  microtask group, while controlled autosave fields explicitly own a focus-to-close edit session;
+  each CRDT/IndexedDB write remains immediate but the complete session is one undo step. The actual
+  SyncManager owns one cleaned-up browser-online listener that rereads durable unpushed operations,
+  serializes/coalesces in-flight requests and performs no timer loop. This is the narrowest design
+  that satisfies logical action grouping, local-first durability and automatic reconnect sync.
+- **Security, data, UX, and compatibility impact:** Native editable shortcuts remain untouched;
+  one global Undo/Redo reverses/reapplies the complete field edit; unrelated actions and replaced
+  documents cannot merge history. Failed offline edit/undo operations remain encrypted and durable,
+  then reach the permanent server trail after reconnect without extra user stimulus, concurrent
+  duplicate writes or false Saved state. Canonical Q-015 retains both Meta redo aliases outside
+  editables. Future autosaved CRDT fields must adopt the explicit edit-session hook.
+- **Reversal/migration path:** Revert the P09 product/test commits together; there is no schema,
+  dependency or stored-format migration. Do not revert only reconnect retry or edit-session wiring
+  while retaining controls, because that would restore the independently proven acceptance defects.
+
 ## Decision template
 
 ### D-XXX — Title
