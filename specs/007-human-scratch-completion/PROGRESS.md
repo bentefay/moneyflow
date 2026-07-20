@@ -7,9 +7,9 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P11C revision 01 (`changes_requested`)
-- **Next action:** dispatch revision 02 to eliminate real-provider alias reconversion/index rebuilds
-  on unrelated Mirror notifications
+- **Current package:** P11C revision 02 (`changes_requested`)
+- **Next action:** persist immutable revision-02 FAIL/risk transcription, then dispatch revision 03
+  to eliminate the zero-consumer alias-event gap without regressing stable reuse
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -21,8 +21,8 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** six passed; HS-004 changes requested through P11C with P11A/P11B passed;
   HS-015 blocked externally; HS-011/HS-012 and 12 other requirements queued
-- **Last ledger update:** 2026-07-21T00:05:41+10:00; P11C revision-01 failure artifacts and R-008
-  transcription are immutable; revision-02 handoff is next
+- **Last ledger update:** 2026-07-21T01:29:22+10:00; P11C revision 02 independently failed F-01;
+  exact artifact/risk integration is pending
 
 ## Package ledger
 
@@ -41,7 +41,7 @@ review evidence.
 | P10     | HS-003         | Encrypted Loro EphemeralStore presence and active transaction                       | P05, P08             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | passed | 04 | `eb5ab2e215130c358130d5411a92b51951c3c53a..fb72abdaf531dff40c59f6b3525fb1b9ce50f805` | `evidence/P11A/implementation-04.md` | `reviews/P11A-review-04.md` | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f` |
 | P11B    | HS-004         | Alias management and transaction-cell pointer/keyboard UX                           | P11A                 | passed | 01 | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f..e35109dfe7b02bdb4058445f44d03a6dd678457b` | `evidence/P11B/implementation-01.md` | `reviews/P11B-review-01.md` | `0426866fa66cc022efca6d74cd5088d586d3d11b` |
-| P11C    | HS-004         | Alias import/manual/shared flows, performance hardening and exhaustive tests        | P11B                 | changes_requested | 01 | `0426866fa66cc022efca6d74cd5088d586d3d11b..dd0727f3562d4a9e40669d6d64109174690286a1` | `evidence/P11C/implementation-01.md` | `reviews/P11C-review-01.md` | rev01 failure control `dd77d518fff81e4c5553ce9a559681ece8f30232` |
+| P11C    | HS-004         | Alias import/manual/shared flows, performance hardening and exhaustive tests        | P11B                 | changes_requested | 02 | `0426866fa66cc022efca6d74cd5088d586d3d11b..258f22af06c8a00b00d09f30c33f85f82377bc13` | `evidence/P11C/implementation-02.md` | `reviews/P11C-review-02.md` | rev02 failure integration pending |
 | P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P13     | HS-001         | Persisted normal empty Add Transaction rows and grid navigation                     | P11C, P09            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -86,7 +86,7 @@ required marker rollbacks before the next dispatch.
 | HS-001      | human scratch block               | P13                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-002      | human scratch block               | P01                          | authorized marker after package PASS       | passed       | P01 integration `c2b89b6676271142ad6802dcf2a30acf8899df48`; `reviews/P01-review-02.md`; marker `b91ca932… -> dcd03b23…` |
 | HS-003      | human scratch block               | P10                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
-| HS-004      | human scratch block               | P11A, P11B, P11C             | authorized marker after all package PASSes | changes_requested | P11A/04 and P11B/01 PASS; P11C/01 FAIL F-01; no marker                                                    |
+| HS-004      | human scratch block               | P11A, P11B, P11C             | authorized marker after all package PASSes | changes_requested | P11A/04 and P11B/01 PASS; P11C/02 FAIL F-01; no marker                                                    |
 | HS-005      | human scratch block               | P12                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-006      | human scratch block               | P09                          | authorized marker after package PASS       | passed       | P09 integration `59bf82e894e45e034858e25255240701a3afb0b8`; `reviews/P09-review-02.md`; marker `753be6b7… -> c2b986fd…` |
 | HS-007      | human scratch block               | P17A, P17B, P17C, P17D       | authorized marker after all package PASSes | queued       | —                                                                                                                       |
@@ -1394,6 +1394,61 @@ F-01, R-008 transcription and changes-requested state are preserved in
 `dd77d518fff81e4c5553ce9a559681ece8f30232`. Revision 02 must retain original cumulative BASE
 `0426866fa66cc022efca6d74cd5088d586d3d11b`, close only the stable production selector/index
 lifecycle blocker and preserve every independently green integrated behavior gate.
+
+**2026-07-21T00:07:52+10:00 — P11C/02 `changes_requested -> implementing`:** Revision-01 failure
+history is immutable; clean pre-implementation HEAD
+`8856951cf4d4428b4c15cda814b74a3da81bcbba` includes its artifact link. Cumulative review retains
+original BASE `0426866fa66cc022efca6d74cd5088d586d3d11b` and uses exact new artifacts
+`evidence/P11C/implementation-02.md` / `reviews/P11C-review-02.md`. Authority is limited to the legal
+alias selector/conversion/lookup lifecycle and actual-context tests. Repeated real production local
+transaction actions and remote/import-style non-alias notifications over a large graph must cause
+zero full alias conversions/index builds and preserve collection/lookup identity without first
+rescanning; one alias-bearing notification must cause exactly one conversion/build and correct legal
+resolution/options/counts. Raw-wire exclusion, P11A/P11B gates, all revision-01 integrated behavior,
+10,000/2,000/500 scale bounds, lazy mounts, virtual focus and the removed T014a blur-pin regression
+must remain. Dispatch-time dirt is root HANDOFF/PROGRESS only; index/product/executable/generated
+paths are clean. Scratch/21 blocks/six markers, FS-001 and SCOPE are exact; no completion or rollback
+event is active.
+
+**2026-07-21T01:08:53+10:00 — P11C/02 `implementing -> ready_for_review -> reviewing`:** Exact
+revision-02 product/test HEAD `258f22af06c8a00b00d09f30c33f85f82377bc13` adds two authorized
+paths to cumulative BASE `0426866fa66cc022efca6d74cd5088d586d3d11b`; revision-02 diff is 504
+insertions/9 deletions. Frozen sole evidence `evidence/P11C/implementation-02.md` is 172 lines/13,015
+bytes at SHA-256 `b1327d9cf6cc5b04ecc887fc5b8a545cbe4b5fa8834da709f52111c7c5be8e94`.
+The real-provider counterfactual first hung even with one alias because an inline selector plus fresh
+collection created a self-sustaining effect loop; later browser validation exposed stale first-alias
+publication. Final provider-scoped semantic alias-root revision notification plus lazy stable selector
+closes both without exposing raw types. Over 1,000 legal aliases, three local edits, production import-
+style insert and an aligned remote transaction-only delta preserve collection/lookup identity at
+0 conversion/0 build/0 options recomputation; local rename/Undo/Redo, remote alias create and one
+alias-bearing migration each produce exactly 1/1/1 with correct NFC exact lookup, symlink resolution,
+500 options and total count. Focused 22/22 passes in three fresh processes; full Vitest 1,234/1,234,
+typecheck/build/lint/scoped format, alias E2E 15/15, virtual scale 3/3 and full no-retry E2E 87/87
+pass. Installed CLI created 106 aliases and imported 500+1 rows; a true second-tab transaction import
+left the active option DOM node identical with zero mutations, while second-tab alias rename produced
+exactly one text mutation. Rest/lazy mounts, 1,644 ms row-500 scroll, history/reload, responsive/dark/
+reduced-motion/200%, privacy/network and clean console pass. All disposable rows/aliases, browser data,
+sessions, processes and generated dirs were removed; next-env restored. Root verified exact HEAD/two
+paths/index, diff check, evidence hash/size, cleanup and frozen boundaries. Only root HANDOFF/PROGRESS
+and frozen evidence are dirty; sole new review output is `reviews/P11C-review-02.md`.
+
+**2026-07-21T01:29:22+10:00 — P11C/02 `reviewing -> changes_requested`:** Independent cumulative
+FAIL at unchanged HEAD `258f22af06c8a00b00d09f30c33f85f82377bc13`; review is 175 lines/13,372
+bytes at SHA-256 `429c844eb96ae9a186cec0b6c56b1ff1700eba619c0849a4b42df70a16c5205b`.
+Revision 02 correctly filters semantic alias-root events, closes unrelated-notification rebuild churn
+while observed and passes continuous local/remote/Undo/Redo/empty-first lifecycle gates. Blocking
+F-01 remains at teardown: last-listener unsubscribe removes the document observer while retaining
+cached aliases/revision, so alias events during the zero-consumer interval are never recorded and
+remount reuses stale data. Independent real two-tab proof cached `After Gap`, navigated tab A to
+Accounts, renamed/saved `During Gap` in tab B, then returned tab A by sidebar SPA navigation: it
+incorrectly showed `After Gap`; hard reload immediately showed durable `During Gap`. Revision 03 must
+eliminate the unobserved window, cover large actual-context unmount/local+remote-mutate/remount and
+render-to-subscribe races, publish exactly one current rebuild, retain non-alias 0/0/0 and prove no
+document-subscription leak after provider/doc disposal. Focused 22/22 repeats three times, full Vitest
+1,234/1,234, typecheck/build/lint/scoped format, alias E2E 15/15, virtual scale 3/3 and full no-retry
+E2E 87/87 pass independently. CLI cleanup, exact range/index, scratch/21 blocks/six markers, FS-001
+and SCOPE pass. No Q proposal. R-008 remains open; every other cumulative P11C gate remains green.
+HS-004 remains unchecked.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
