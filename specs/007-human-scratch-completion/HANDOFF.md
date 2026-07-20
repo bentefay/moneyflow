@@ -5,89 +5,90 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Implementation dispatch
 
-- **Package / revision:** P06 / 01
-- **Scope IDs:** HS-010; no scratch marker before independent package PASS and root integration
-- **State:** passed; HS-010 marker finalized
-- **Task:** `tasks/HS-010-remove-user-state.md`
-- **Original package BASE:** `a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1`
-- **Pre-implementation HEAD:** `a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1`
-- **Allowed implementation paths, exactly:**
-  `supabase/migrations/009_remove_unused_user_state.sql`,
-  `src/server/routers/user.ts`, `src/server/schemas/user.ts`, `src/hooks/use-identity.ts`,
-  `src/types/index.ts`, `src/lib/crdt/snapshot.ts`, `src/lib/crdt/index.ts`,
-  `src/lib/supabase/database.types.ts`, `src/lib/supabase/types.ts`,
-  `tests/unit/server/user-router.test.ts`, `tests/unit/hooks/use-identity.test.tsx`,
-  `tests/database/rls-audit.sql`, `tests/database/legacy-upgrade-fixture.sql`,
-  `tests/database/legacy-upgrade-audit.sql`, `tests/e2e/identity.spec.ts`,
-  `tests/e2e/onboarding-vault.spec.ts` and `tests/e2e/vault-settings.spec.ts`.
-  No other source, migration, generated type, test, config or dependency path is writable.
-- **Sole implementer artifact:** `evidence/P06/implementation-01.md`
-- **Commit contract:** commit only exact authorized implementation paths with exact staging; leave
-  evidence uncommitted. Never broad-stage or edit ledgers/tasks/reviews/scratch/FS-001/.claude/
-  .codex or immutable prior artifacts.
-- **Pre-existing dirty/untracked paths:** root-owned unstaged `PROGRESS.md` and `HANDOFF.md`, plus
-  assigned uncommitted `evidence/P06/implementation-01.md`; no staged or other dirty paths
-- **Target proof and migration:** prove by complete usage/schema-history search that
-  `public.user_data.encrypted_data` is the unused opaque state named by HS-010, not identity,
-  membership, wrapped vault keys, session state or local active-vault/cache state. Add forward
-  migration 009 that removes only the opaque state column while preserving every identity row,
-  `pubkey_hash`, registration metadata, membership and vault data. Record irreversible legacy-blob
-  deletion and rollback implications honestly; do not archive or move the generic blob elsewhere.
-- **Dead surface removal:** retain verified self-only identity registration/get-or-create and
-  `myVaults`. Remove state-specific inputs/outputs and the demonstrably uncalled `exists`, `getData`
-  and `upsertData` procedures plus dead Zod, generated/convenience, global-settings/vault-reference
-  and encrypt/decrypt-user-data helpers only when whole-repository usage proves them dead. Registration
-  and unlock must continue using signed empty inputs and must never accept a claimed identity.
-- **Database evidence:** extend fresh RLS and seeded 005-to-009 upgrade audits to prove the legacy
-  identity survives, the opaque state column is absent, no direct anon/auth access reappears, and all
-  prior permanent ops/snapshots/memberships/migrations remain intact. Regenerate/hand-correct the
-  checked-in database type only to exact post-009 schema.
-- **Behavior invariants:** onboarding, recovery-phrase unlock, returning identity, default vault,
-  vault list/switch, refresh/duplicate, local IndexedDB cache/offline recovery and existing invite/
-  membership behavior remain intact. Network evidence must show no removed user-state endpoint,
-  plaintext or secret/input URL. Do not create passkey/credential storage; P19 owns that design.
-- **Validation:** run focused router/hook/identity tests, full unit/integration, lint/type/build/
-  format/diff, fresh and seeded-upgrade database audits, repeated retries-zero identity/onboarding/
-  vault-settings E2E, ordinary full zero-retry E2E and the installed CLI charter. Inspect sanitized
-  console/network/DB evidence and perform responsive/dark/reduced-motion/offline/duplicate checks.
-- **Stop boundary:** any hidden product consumer, destructive requirement conflict, migration loss
-  beyond the named unused blob or remaining failure requires a complete exact next-owner proposal.
-  Do not retain the blob under another name, change signing/session/vault membership/local cache,
-  implement passkeys, widen migration scope, weaken tests or edit an unlisted path.
-- **Inherited boundaries:** P04 verified identity/RLS/permanent-op rules and P05 reviewed Realtime
-  behavior remain unchanged. P05/HS-015 is externally blocked under D-011 and is not writable here.
-  P08 owns invite/key-wrap UX, P19 owns credential storage, and R-024 remains P20B/P21. Recheck the
+- **Package / revision:** P07 / 01
+- **Scope IDs:** HS-011 architecture package only; HS-011 remains incomplete until P08 also passes
+- **State:** changes_requested
+- **Task:** `tasks/HS-011-membership-invite-ux.md`
+- **Original package BASE:** `fe1871ce7dce1e831b57ee5656d38ce5c800aae3`
+- **Pre-implementation HEAD:** `fe1871ce7dce1e831b57ee5656d38ce5c800aae3`
+- **Allowed implementation paths:** none. This is an evidence/ADR package with a valid expected
+  `BASE == HEAD` range. Do not edit product, migration, test, config, dependency or durable ledger.
+- **Sole implementer artifact:** `evidence/P07/implementation-01.md`
+- **Commit contract:** make no commit and leave HEAD/index unchanged. Write only the assigned
+  evidence artifact. Never edit ledgers/tasks/reviews/scratch/FS-001/.claude/.codex, prior artifacts
+  or agent configuration.
+- **Pre-existing dirty/untracked paths:** root-owned unstaged `PROGRESS.md`, `HANDOFF.md`,
+  `QUESTIONS.md` and `RISKS.md`, plus assigned uncommitted
+  `evidence/P07/implementation-01.md` and `reviews/P07-review-01.md`; no staged or other dirty paths
+- **Exhaustive discovery:** trace every owner/member/person/invite route, schema/table/role, router,
+  key-wrap/unwrap operation, identity source, UI entry point, current placeholder/dead path and test.
+  Distinguish verified security Members from financial People and identify the exact real vault-key
+  source, invite secret lifecycle, URL transport, expiry/reuse/revoke/removal behavior and current
+  permissions. Do not infer completion from crypto/router unit tests or direct URLs.
+- **ADR comparison:** compare dedicated Vault Settings access management, People-owned access and a
+  linked hybrid against frozen wording, established navigation, least privilege/privacy, discoverability,
+  revocation/rekey consequences, accessibility and reversibility. Select the safest reversible
+  architecture without asking the human; preserve clear Person/Member terminology even if linked.
+- **P08 contract:** specify exact data/UI/security flows for owner discover/create/copy/revoke,
+  invitee new/existing identity acceptance, real selected-vault key wrap/unwrap, single-use/expiry/
+  tamper/cancel/cross-vault denial, optional person linkage/status, member removal/re-add and honest
+  rekey limitations. Secret material must stay in URL fragment or another non-server-visible channel
+  and out of artifacts/logs. Define which display/fallback identity is privacy-safe without reviving
+  the removed generic user blob; HS-012 implementation remains P08.
+- **Evidence and validation:** inventory current automated coverage and gaps; run proportionate
+  router/crypto/invite tests and relevant retries-zero E2E without changing them. Use the installed
+  headless CLI to judge whether an owner can discover a flow without direct URL knowledge and record
+  placeholder/unavailable behavior, roles/names/focus/mobile/dark/reduced-motion plus sanitized
+  URL/network/console evidence. Do not create/retain a real secret or bypass UI to claim success.
+- **Decision output:** write a complete ADR proposal inside the evidence with alternatives,
+  decision, P08 acceptance map, threat/privacy/data-migration impact and reversal. Any residual
+  preference becomes a complete Q proposal, but no ambiguity pauses execution.
+- **Stop boundary:** any discovered security/data contradiction must be recorded with its exact P08
+  owner; do not fix it, add UI, modify crypto, create schemas or broaden P07 into implementation.
+- **Inherited boundaries:** P04 verified identity/RLS and P06 identity-only registry are fixed. P05
+  is externally blocked under D-011 and must be rechecked before P08; do not claim P08 dispatch-ready
+  while that dependency is blocked. P19 owns passkey credentials and R-024 remains P20B/P21. Recheck
   rolling scratch SHA/21 blocks and immutable FS-001.
 - **Question route:** complete proposals in sole evidence; root alone appends QUESTIONS. Apply the
-  decision hierarchy and continue unless another exact owner is proved necessary.
+  decision hierarchy and continue.
 
 ## Review dispatch
 
-This section is active; revision-01 evidence and the literal range are frozen.
+This review is complete and immutable once root persists the revision-01 failure artifacts.
 
 - **Reviewer:** distinct `human_scratch_reviewer`
-- **Literal reviewed BASE:** `a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1`
-- **Literal reviewed HEAD:** `95e91dbcb17ffb9600eaa6cb795336898297ebae`
-- **Range type:** non-empty; one commit and exactly 17 authorized paths
-- **Implementation evidence:** `evidence/P06/implementation-01.md`, SHA-256
-  `78fe921dbdd49e1a5ca5a499734f434a4e9715117499082110a5fb3450ae3f52`
-- **Sole reviewer artifact:** `reviews/P06-review-01.md`
-- **Review result:** PASS recommendation; SHA-256
-  `0580e4c8fc9f14d30d4c4d21a761fb56b8ff42953decd30564dda36efe4b64df`; no finding or Q proposal
-- **Integration-control commit:** `8e269ab9a6fc15ed6d845542b879e5499828134e`
+- **Literal reviewed BASE:** `fe1871ce7dce1e831b57ee5656d38ce5c800aae3`
+- **Literal reviewed HEAD:** `fe1871ce7dce1e831b57ee5656d38ce5c800aae3`
+- **Range type:** valid empty `BASE == HEAD`; no commit/product diff
+- **Implementation evidence:** `evidence/P07/implementation-01.md`, SHA-256
+  `2e5173cdf1df4fac4de3b64ecb2887a3c70a00d387e36298f5c9eb8eaa1164ad`
+- **Sole reviewer artifact:** `reviews/P07-review-01.md`
+- **Review artifact SHA-256:**
+  `296a5d0a17e2e1ae882422c3975d11c9ffc289c0a273ac52fb50e23af8b8381e`
+- **Verdict:** FAIL. The linked hybrid is retained, but the contract can destroy a continuously
+  authorized offline member's unpushed old-epoch operations and claims impossible SQL plus encrypted
+  CRDT atomicity without a durable recovery saga.
 - **Reviewer writes:** review file only; no other writes/commits
-- **Required review focus:** independently audit full BASE..HEAD, usage/history proof and exact
-  one-column migration. Verify identity rows/timestamps and normalized encrypted vault state survive
-  seeded 005→009 while the named blob is intentionally unrecoverable; audit grants/RLS/type output,
-  strict signed empty identity inputs, race handling and removal of only dead procedures/types/
-  wrappers. Repeat focused router/hook, fresh/upgrade pgTAP, changed E2E and sample broad gates.
-  Manually test create/unlock/refresh/duplicate/offline/mobile preferences, absence of dead endpoints,
-  no plaintext/secret URLs and honest later-package UI limitations. Recheck cleanup, P05 external
-  boundary, hashes and frozen sources.
-- **Failure route:** persist immutable revision-01 artifacts and use reviewer-confirmed next scope
+- **Required review focus:** independently re-trace authority/routes/UI/key protocols and verify the
+  current nonfunctional invite/removal/rekey findings without leaking secrets. Audit the linked-
+  hybrid selection against alternatives, least privilege, Person/Member separation, privacy,
+  migration/reversal and all 29 P08 clauses—especially real sender-bound key exchange, fragment-only
+  onboarding, atomic epoch removal, stable membership link, optional names and owner-governance
+  exclusion. Repeat proportional crypto/DB/E2E and installed CLI discoverability/mobile/zoom
+  evidence. Reject any contract that is cryptographically inconsistent, infeasible, scope-evading or
+  falsely dispatches P08 before the D-011/P05 recheck. Verify empty range, sole evidence write,
+  cleanup and frozen sources.
+- **Failure route:** Q-014 selects a no-code revision 02 retaining all unaffected clauses while
+  adding active-only per-epoch envelopes, crash-safe idempotent transition journaling, a capability-
+  bound pre-membership snapshot, atomic SQL acceptance returning stable membership UUID, resumable
+  deterministic encrypted-CRDT Person/link/selection reconciliation, authenticated `crypto_box`
+  only and deterministic invite-aware default-vault deferral
 - **PASS authority:** reviewer recommends; root verifies/transcribes/integrates and sets `passed`
 
 ## Next root action
 
-Commit the exact HS-010 marker finalization, then rewrite HANDOFF for P07. P05 remains externally
-blocked with its documented recheck; no other marker or source text is authorized.
+Exact-stage and commit the immutable revision-01 implementation/review artifacts with Q-014,
+R-005/R-006/R-007/R-018/R-027 and the P07/HS-011 failure state. Record that artifact commit in a
+second control commit, then rewrite this handoff for P07 revision 02 and dispatch only
+`human_scratch_implementer` to create `evidence/P07/implementation-02.md` over the same original
+empty BASE. P08 remains blocked by both P07 and the D-011/P05 recheck.

@@ -492,6 +492,61 @@ No unresolved product questions were answered by scaffold creation.
 - **Does a human still need to decide after completion?:** No product decision is required; the
   executable review mechanism must be reconciled from repository/tool authority before another diff.
 
+## Q-014 — Make epoch transition lossless and acceptance crash-recoverable
+
+- **Raised:** 2026-07-20, P07 revision 01, `human_scratch_reviewer`
+- **Source proposal:**
+  `reviews/P07-review-01.md#q-proposal-p07-01-01--make-epoch-transition-lossless-and-acceptance-crash-recoverable`
+- **Context and evidence:** The linked-hybrid Access/Member versus financial Person split and
+  sender-bound invite direction are sound. However, clause 19 would discard an active remaining
+  member's old vault key and reinitialize from the new snapshot without preserving locally durable,
+  encrypted, `pushed=false` old-epoch operations that are absent from the owner's watermark. The
+  replay model also requires impossible atomicity across server SQL membership/invite rows and a
+  zero-knowledge client-encrypted CRDT Person/link. Current automated and installed-CLI evidence
+  executes neither recovery journey.
+- **Why the frozen requirement/repository does not fully decide it:** HS-011/HS-012 require secure
+  access, exactly one linked Person and preserved financial history; the sync contract requires
+  immediate crash-safe encrypted local writes. Those authorities decide the outcomes, but not the
+  epoch-envelope history or cross-store reconciliation mechanism. The zero-knowledge boundary
+  precludes pretending that the server can transact encrypted CRDT state.
+- **Options considered:** (A) retain per-epoch envelopes for continuously authorized members and use
+  a durable client transition journal, plus a server-atomic membership/client-idempotent Person
+  saga; (B) keep only the current envelope and discard old local work; (C) wait for every member to
+  be online before removal; (D) let the server create plaintext Person/link data; or (E) drop
+  automatic linking. Only A preserves offline data, permits immediate revocation, maintains zero
+  knowledge and satisfies both requirements. B loses data, C is unenforceable, D breaks privacy and
+  E violates HS-012.
+- **Default selected for continued work:** Choose A. P07 revision 02 remains an empty product range
+  and may write only `evidence/P07/implementation-02.md`. Retain the linked-hybrid ADR and unaffected
+  clauses. Replace clause 19 with versioned per-epoch envelope/history access restricted to
+  continuously active memberships, a crash-safe transition journal, exact re-encryption of every
+  local unpushed old-epoch operation before old-key zeroization, and idempotent retry. Replace the
+  cross-store transaction claim with a capability-bound snapshot check, one atomic SQL invite
+  consume/reactivation returning a stable membership UUID, and deterministic encrypted CRDT
+  reconciliation resumed on every load until Person/link/selection sync. Use authenticated
+  `crypto_box` as the sole P08 envelope convention and defer default-vault creation during
+  invite-aware first-user onboarding.
+- **Decision hierarchy basis:** Frozen access/link requirements, then established zero-knowledge and
+  local-first crash-safety contracts, financial-data preservation, least privilege and the smallest
+  no-code evidence correction.
+- **Impact and risk:** Per-epoch envelopes add encrypted-key history and access-policy surface;
+  transition journals can duplicate an operation if identity mapping is inexact; client
+  reconciliation can loop or duplicate People without deterministic membership keys. Require exact
+  active-membership authorization, epoch/op idempotency, journal crash tests and CRDT convergence
+  tests. Acceptance must additionally cover active-offline edit/rotate/reconnect/reload and injected
+  transition crashes; removed-client denial; old-write conflict/retry; snapshot-capability privacy;
+  crashes after SQL acceptance and before every Person/selection/sync boundary; concurrent-tab
+  exactly-one Person/link; and the original real isolated owner/invitee/removal journey. No service
+  fixture, plaintext key journal or success before reconciliation is allowed.
+- **How to reverse or migrate:** The P07 correction is evidence-only. P08 must gate new writes,
+  backfill epoch-0 sender/envelopes, revoke pending legacy invites and retain old-schema reads until
+  migration proof. Reversal hides new UI/mutations while preserving memberships, per-epoch
+  envelopes, journals and encrypted links; it must never delete pending local work or claim an old
+  app can read an advanced epoch.
+- **Does a human still need to decide after completion?:** No preference blocks continuation. An
+  equivalently lossless locally self-wrapped journal may replace server-held encrypted envelope
+  history only if it proves the same recovery and access properties.
+
 ## Question template
 
 ### Q-XXX — Short title
