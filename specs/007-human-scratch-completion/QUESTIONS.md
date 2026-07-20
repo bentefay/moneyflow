@@ -454,6 +454,44 @@ No unresolved product questions were answered by scaffold creation.
   protocol, configuration or migration change is involved.
 - **Does a human still need to decide after completion?:** No.
 
+## Q-013 — Require a supported hidden topology before another Realtime product diff
+
+- **Raised:** 2026-07-20, P05 revision 11, `human_scratch_reviewer`; rejects implementer
+  `Q-PROPOSAL-P05-11-01`
+- **Source proposal:** `reviews/P05-review-11.md#q-proposal-p05-11-r01--require-a-supported-hidden-topology-before-another-product-diff`;
+  rejected source in `evidence/P05/implementation-11.md`
+- **Context and evidence:** Revision 11's true extension-backed duplicate journey passes focused
+  1/1 and repeated 3/3 with exact row/op/push/error assertions. The implementation evidence then
+  claims a genuinely hidden installed-CLI receiver missed 15 seconds, but records neither hidden
+  visibility nor causal timestamps. Independent required headless CLI runs report both opener pages
+  `visible`; measured frame/import/DOM convergence is 2,549/2,549/2,591 ms with rows 1/1.
+- **Why the frozen requirement/repository does not fully decide it:** HS-015 requires background/
+  foreground and duplicate live behavior, while PROCESS requires repository-installed headless CLI
+  and forbids headed mode. The available headless topology does not make a non-selected page report
+  `document.visibilityState === "hidden"`.
+- **Options considered:** (A) enable Realtime `worker: true`; (B) label non-selection as hidden; (C)
+  emulate page visibility/lifecycle; (D) raise the bound or focus/reload/poll; or (E) freeze product
+  scope until a supported real hidden topology can capture the same sanitized timing edges. A is
+  causally unsupported because the installed dependency moves only heartbeat timing while socket,
+  decode, decrypt/import and React remain page-local; it also adds per-client Blob workers, CSP and
+  disconnect-on-worker-error risk. B/C provide false evidence, and D weakens live acceptance.
+- **Default selected for continued work:** Choose E. Reject the proposed `src/lib/supabase/client.ts`
+  worker mutation. Authorize no revision-12 product/test diff until an approved mechanism verifies
+  `document.visibilityState === "hidden"` without focus/reload. A no-product diagnostic must record
+  visibility at mutation, 15 seconds and eventual completion plus elapsed socket receipt, exact Loro
+  import and DOM publication. Only the first late edge may select the next writable owner. If no
+  supported mechanism exists within repository authority, classify P05 `blocked_external`, continue
+  independent packages and recheck before dependent milestones/P21.
+- **Decision hierarchy basis:** Explicit hidden/live acceptance and PROCESS constraints control,
+  followed by measured installed behavior, security/preservation and the smallest reversible no-
+  product diagnostic.
+- **Impact and risk:** This preserves the independently green same-identity manager correction while
+  preventing an unmeasured global worker change or false certification of a visible page as hidden.
+- **How to reverse or migrate:** No product/schema/protocol/dependency/persisted-data change. Retire
+  the diagnostic once a supported topology yields causal timing evidence.
+- **Does a human still need to decide after completion?:** No product decision is required; the
+  executable review mechanism must be reconciled from repository/tool authority before another diff.
+
 ## Question template
 
 ### Q-XXX — Short title

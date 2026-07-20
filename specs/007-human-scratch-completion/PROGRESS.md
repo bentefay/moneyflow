@@ -7,9 +7,9 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P05 revision 10 (`changes_requested`)
-- **Next action:** persist immutable revision-10 failure artifacts and Q-012, then dispatch revision
-  11 with the exact manager + true duplicated-tab E2E paths
+- **Current package:** P05 revision 11 (`changes_requested`)
+- **Next action:** persist immutable revision-11 failure artifacts and Q-013, then reconcile the
+  headless-CLI hidden-topology gate before any no-product revision 12 or external block
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -20,8 +20,8 @@ review evidence.
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** four passed (HS-002, HS-014, HS-017, HS-018); 18 queued
-- **Last ledger update:** 2026-07-20T11:27:50+10:00; immutable P05 revision-10 failure artifacts,
-  Q-012 and risk updates were persisted in `af985817c24652ec85b433b04dc609e1cced5c8c`
+- **Last ledger update:** 2026-07-20T12:11:21+10:00; P05 revision 11 independently failed because
+  its hidden-page claim is unsupported; Q-013 rejects the causally mismatched worker proposal
 
 ## Package ledger
 
@@ -32,7 +32,7 @@ review evidence.
 | P02     | HS-017         | Animate UI evaluation, ADR, and representative migration only if justified          | P01                  | passed       | 02  | `19d73035b33b639f9927d2f78a55d74c44f65544..213100fadf5acea30aad7e90998bd575cdcd508c` | `evidence/P02/implementation-02.md` | `reviews/P02-review-02.md` | `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7` |
 | P03     | HS-018         | TanStack Virtual PR #1100 release gate and `useFlushSync`                           | P01                  | passed       | 01  | `c60f605bd811d8920122a66f3d6743d8a3ac044d..b8d4b448f52022970ca388654be14d24e347deb5` | `evidence/P03/implementation-01.md` | `reviews/P03-review-01.md` | `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34` |
 | P04     | HS-014         | Database/table/RLS threat model, migrations, and permission remediation             | P01                  | passed | 02 | `9de8b0e8c41087b96523ecc55faa10bf19ec0ff9..dbcf180e829c81a218e9a73791e40902c4f9eb31` | `evidence/P04/implementation-02.md` | `reviews/P04-review-02.md` | `b905ecb810334ed9697f57140047964135ade6ea` |
-| P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | changes_requested | 10 | `007651beb814d98646aa2e786801b647e2abd0b5..55e3cb60b39418e947503a189e78b89cd4292673` | `evidence/P05/implementation-10.md` | `reviews/P05-review-10.md` | pending                                    |
+| P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | changes_requested | 11 | `007651beb814d98646aa2e786801b647e2abd0b5..7f0b0710e820b87be2ee8877a3b7693d90e5e505` | `evidence/P05/implementation-11.md` | `reviews/P05-review-11.md` | pending                                    |
 | P06     | HS-010         | Remove unused user-state storage and dead API surface                               | P04                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P07     | HS-011         | Evidence-led person/member/invite UX architecture and acceptance decision           | P04, P06             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -96,7 +96,7 @@ required marker rollbacks before the next dispatch.
 | HS-012      | human scratch block               | P08                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-013      | human scratch block               | P15                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-014      | human scratch block               | P04                          | authorized marker after package PASS       | passed | P04 integration `b905ecb810334ed9697f57140047964135ade6ea`; `reviews/P04-review-02.md`; marker `db97178a… -> c74a2a78…` |
-| HS-015      | human scratch block               | P05                          | authorized marker after package PASS       | changes_requested | revisions-01–10 FAIL immutable; revision-11 duplicate live repair required; no marker |
+| HS-015      | human scratch block               | P05                          | authorized marker after package PASS       | changes_requested | revisions-01–11 FAIL immutable; hidden-topology mechanism unresolved; no marker      |
 | HS-016      | human scratch block               | P20A                         | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-017      | human scratch block               | P02                          | authorized marker after package PASS       | passed       | P02 integration `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7`; `reviews/P02-review-02.md`; marker `dcd03b23… -> 5d283ab1…` |
 | HS-018      | human scratch block               | P03                          | authorized marker after package PASS       | passed       | P03 integration `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34`; `reviews/P03-review-01.md`; marker `5d283ab1… -> db97178a…` |
@@ -632,6 +632,39 @@ revision-10 evidence/review, Q-012, R-004/R-009 and failure state persisted in
 `af985817c24652ec85b433b04dc609e1cced5c8c`; all ten P05 FAIL reviews are immutable. Revision-11
 dispatch may proceed after this artifact-commit reference is durably recorded; no frozen source or
 marker changed.
+
+**2026-07-20T11:28:16+10:00 — P05/11 `changes_requested -> implementing`:** Original BASE remains
+`007651beb814d98646aa2e786801b647e2abd0b5`; pre-implementation HEAD
+`71b38d71aa17fa843f0c9354bf78c20a0d3b4400` includes all immutable P05 revision-01–10 product and
+failure/control commits. Q-012 authorizes exactly manager + duplicated-tab spec: remove only the
+same-pubkey early return and extend the true `chrome.tabs.duplicate()` journey to prove both tabs
+row 1, fixture op 1, receiver push delta 0 and zero errors within unchanged bounds while backgrounded.
+Run focused/full unit, static/build/database, repeated/full zero-retry E2E and the complete installed
+CLI charter. No reload/focus/poll/sleep/retry/timeout/schema/config/dependency/other-path or marker
+authority; scratch remains `c74a2a78…`.
+
+**2026-07-20T11:48:43+10:00 — P05/11 `implementing -> ready_for_review -> reviewing`:** Exact HEAD
+`7f0b0710e820b87be2ee8877a3b7693d90e5e505`; exact manager + duplicated-tab spec change (100
+insertions/5 deletions). Evidence SHA-256
+`2e57eb4e8540b364ceb8369bef5b508b4f9cc442e430723435503ee03d1bcb90`. True extension duplicate
+passes focused 1/1, paired Realtime repeat 6/6, full zero-retry E2E 81/81 and proves rows 1/1,
+fixture op 1, receiver push delta 0 and zero errors; unit 1,170/1,170, static/build and both database
+audits pass. Installed CLI then proves a genuinely hidden sibling misses the unchanged 15-second
+bound but converges later without focus/reload/poll, distinct from the fixed permanent drop.
+Q-PROPOSAL-P05-11-01 requests measured owner confirmation before exact client worker + duplicate-
+spec revision-12 scope. Remaining CLI charter stops unassessed; compatible empty DB/cleanup/frozen
+sources pass. New immutable output `reviews/P05-review-11.md`; no PASS or HS-015 marker.
+
+**2026-07-20T12:11:21+10:00 — P05/11 `reviewing -> changes_requested`:** Independent FAIL review
+SHA-256 `429b7b86c3fbceca9bbad6ae3d861037ca75a49d7a96a85c448dd7a195aa0244` accepts the exact
+same-identity manager/test closure and true duplicate focused 1/1 + repeat 3/3. It rejects the
+unproven hidden-page claim: required headless CLI reports both opener pages visible, while sanitized
+socket/import/DOM timing is 2,549/2,549/2,591 ms with rows 1/1. `worker: true` moves only heartbeat
+timing, is causally unmatched and adds per-client worker/CSP/failure surface. Reviewer proposal is
+transcribed as Q-013: no product/test revision-12 diff until a supported verified-hidden topology
+can time the first late edge; otherwise use evidence-backed `blocked_external` and continue
+independent packages. R-004/R-009/R-026 updated; final empty compatible DB, cleanup and immutable
+sources pass. HS-015 remains unchecked.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual

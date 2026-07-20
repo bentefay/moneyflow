@@ -5,33 +5,39 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Implementation dispatch
 
-- **Package / revision:** P05 / 10
+- **Package / revision:** P05 / 11
 - **Scope IDs:** HS-015; no scratch marker before independent package PASS and root integration
 - **State:** changes_requested
 - **Task:** `tasks/HS-015-realtime-security.md`
 - **Original package BASE:** `007651beb814d98646aa2e786801b647e2abd0b5`
-- **Pre-implementation HEAD:** `09c192e85ac3ee43c00a8f6a71da5d0a542dccf3`; includes immutable
-  revision-01–09 product and failure/control commits
-- **Allowed implementation path:** exactly `tests/unit/sync/realtime.test.ts`. No product, E2E,
-  helper, vault-settings, Supabase config, dependency, migration, transport, SyncManager, CRDT or
-  Loro path is writable.
-- **Sole implementer artifact:** `evidence/P05/implementation-10.md`
-- **Commit contract:** commit only the exact unit-test path using exact staging; leave
+- **Pre-implementation HEAD:** `71b38d71aa17fa843f0c9354bf78c20a0d3b4400`; includes immutable
+  revision-01–10 product and failure/control commits
+- **Allowed implementation paths:** exactly `src/lib/sync/manager.ts` and
+  `tests/e2e/tab-duplication.spec.ts`. No other product, E2E/helper/vault-settings, unit, Supabase
+  config, dependency, migration, transport, CRDT or Loro path is writable.
+- **Sole implementer artifact:** `evidence/P05/implementation-11.md`
+- **Commit contract:** commit only the exact manager + duplicated-tab spec paths using exact staging; leave
   evidence uncommitted. Never broad-stage or edit ledgers/tasks/reviews/scratch/FS-001/.claude/
   .codex or immutable prior artifacts.
 - **Pre-existing dirty/untracked paths:** root-owned unstaged `PROGRESS.md` and `HANDOFF.md`, plus
-  assigned uncommitted `evidence/P05/implementation-10.md`; no staged or other dirty paths
-- **F-001 deterministic clock correction:** add `afterEach` to the existing Vitest import. Within
-  `describe("VaultRealtimeSync")` only, retain the existing `beforeEach` mock setup, install
-  `vi.useFakeTimers({ toFake: ["Date"] })`, and set
-  `vi.setSystemTime(new Date("2026-07-20T00:00:00.000Z"))` before every case. Add a same-describe
-  `afterEach` that calls `vi.useRealTimers()`. Fake no other API and do not advance time.
+  assigned uncommitted `evidence/P05/implementation-11.md`; no staged or other dirty paths
+- **F-001 same-identity live correction:** in `SyncManager.initialize()`, remove only the comment
+  and early return comparing `update.authorPubkeyHash` with `this.pubkeyHash`. Retain the exact-vault
+  callback and existing serialized `applyRemoteUpdate(update.encryptedData)` path unchanged. Add no
+  per-tab identifier or schema/payload/transport/CRDT/API change.
+- **True duplicate regression:** extend the existing test and its extension-backed
+  `chrome.tabs.duplicate()` helper; retain all cache/hydration assertions. Navigate both authenticated
+  duplicates to Transactions and attach console/page-error capture before mutation. Create one row
+  through normal UI, then require exactly one matching row in both tabs, exactly one permanent op for
+  the fixture vault, receiver `sync.pushOps` delta zero from its pre-mutation baseline, and zero
+  browser errors. Keep the receiver backgrounded; do not use focus catch-up.
 - **Assertion invariants:** preserve the unchanged 120-second global timeout and every 15-second
   live bound, real owner/member contexts, exact subscription/current-grant aggregates, incoming-frame
   ordering, private Presence, import/edit/delete UI checks and later expiry/reconnect/offline,
   duplicate/background, lock/unlock, vault switch, membership removal and cleanup assertions.
-  Preserve all unit credentials, channel/table/filter, opaque Presence key, subscribed-state,
-  disconnect and revoke assertions unchanged.
+  Preserve the 60-second duplicate test timeout and every 15-second live bound, extension/profile
+  cleanup, grants/topics/filters, throttling, durable catch-up, encryption and all cumulative P05
+  security assertions.
 - **Environment boundary:** compatible Realtime v2.112.6 with 79 internal migrations and the four-
   field filter composite is running; latest database is empty through migrations 005–008. Do not
   recreate services or edit pins/config. Verify compatibility/no mismatch before and after evidence.
@@ -40,9 +46,9 @@ literal field is `pending`. Workers may read but never edit it.
   installed CLI owner/member/outsider/duplicate/background charter. Inspect requests, console,
   sockets and server logs without retaining secrets, identities, vault IDs or payloads.
 - **Stop boundary:** any remaining failure requires a complete exact next-owner proposal. Do not
-  alter credential chronology, use relative/future expiry, fake timers beyond Date, advance time,
-  add waits/retries, weaken assertions or edit product/E2E/helper/vault-settings/privileges/
-  transport/dependencies/config/migration/SyncManager/CRDT/Loro paths.
+  replace true Chrome duplication with `window.open`, `context.newPage` or storage copying; do not
+  reload/focus receiver, poll as a live substitute, sleep/retry/raise timeouts, weaken exact counts,
+  or edit any unlisted product/test/schema/config/dependency/migration/transport/CRDT/Loro path.
 - **Inherited boundaries:** compatible service recreation, strengthened helper, migration 008,
   private Presence, provider topology, cleanup and hermetic fail-closed startup are accepted and
   must remain unchanged. Prior evidence/reviews are immutable.
@@ -53,33 +59,35 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Review dispatch
 
-This section is complete; revision-10 evidence, review and cumulative literal range are frozen.
+This section is complete; revision-11 evidence, review and cumulative literal range are frozen.
 
 - **Reviewer:** distinct `human_scratch_reviewer`
 - **Literal reviewed BASE:** `007651beb814d98646aa2e786801b647e2abd0b5`
-- **Literal reviewed HEAD:** `55e3cb60b39418e947503a189e78b89cd4292673`
-- **Range type:** non-empty cumulative original BASE through revision-10 HEAD
-- **Implementation evidence:** `evidence/P05/implementation-10.md`, SHA-256
-  `ab7d6806d7937bbbdb9f1bac7b562fe12e93dc04657cd29554b3878b6f897fb0`
-- **Sole reviewer artifact:** `reviews/P05-review-10.md`
+- **Literal reviewed HEAD:** `7f0b0710e820b87be2ee8877a3b7693d90e5e505`
+- **Range type:** non-empty cumulative original BASE through revision-11 HEAD
+- **Implementation evidence:** `evidence/P05/implementation-11.md`, SHA-256
+  `2e57eb4e8540b364ceb8369bef5b508b4f9cc442e430723435503ee03d1bcb90`
+- **Sole reviewer artifact:** `reviews/P05-review-11.md`
 - **Review verdict:** FAIL; SHA-256
+  `429b7b86c3fbceca9bbad6ae3d861037ca75a49d7a96a85c448dd7a195aa0244`
+- **Prior review files:** immutable revision-01–10 FAIL artifacts; latest SHA-256
   `51bd77e62afb1adb08cd617db974d1df85f51eda7c7b06c20cd42d838aa7c9f8`
-- **Failure artifact commit:** `af985817c24652ec85b433b04dc609e1cced5c8c`
-- **Prior review files:** immutable revision-01–09 FAIL artifacts; latest SHA-256
-  `58e40beca43c0ec272f2d9ccf950344040aa5235d695f914f55b684a3312a25d`
 - **Reviewer writes:** review file only; no other writes/commits
-- **Required review focus:** independently audit original BASE through exact HEAD and the exact
-  revision-10 one-path diff. Verify Date-only fake time and unconditional restoration, unchanged
-  credentials/assertions and real timers; reproduce focused/full unit, static/build/database,
-  repeated/full E2E evidence proportionately. Independently reproduce and source-audit the installed-
-  CLI same-identity duplicate-tab live failure. Confirm/correct/reject Q-PROPOSAL-P05-10-01's exact
-  `src/lib/sync/manager.ts` + `tests/e2e/tab-duplication.spec.ts` scope, Loro idempotence/no-loop
-  premise and true Chrome duplicate journey. Recheck service, cleanup, prior hashes and frozen
-  sources.
-- **Failure route:** persist immutable revision-10 artifacts and use reviewer-confirmed next scope
+- **Required review focus:** independently audit original BASE through exact HEAD and exact two-path
+  revision-11 diff. Verify the filter-only manager change, true extension duplicate, both exact rows,
+  one scoped op, zero receiver push and browser-error evidence under focused/repeated/full gates.
+  Reproduce the installed-CLI genuinely hidden sibling miss beyond 15 seconds and eventual no-focus
+  convergence. Instrument sanitized socket receipt, remote import and DOM publication timing enough
+  to identify the single owner. Confirm/correct/reject Q-PROPOSAL-P05-11-01's exact Realtime-client
+  worker + duplicate-spec scope; audit installed dependency support, extra-socket/refresh/CSP risks
+  and whether worker mode targets the measured delay. Recheck service, cleanup, prior hashes and
+  frozen sources.
+- **Failure route:** persist immutable revision-11 artifacts and use reviewer-confirmed next scope
 - **PASS authority:** reviewer recommends; root verifies/transcribes/integrates and sets `passed`
 
 ## Next root action
 
-Commit this durable artifact reference, then rewrite for P05 revision 11 with exact manager + true
-duplicated-tab spec paths. No HS-015 marker is authorized before cumulative PASS.
+Persist immutable revision-11 evidence/review, Q-013, R-004/R-009/R-026 and the failure state. Then
+record that artifact commit and reconcile the executable verified-hidden topology gate before any
+revision-12 dispatch or evidence-backed `blocked_external` transition. No worker/product diff or
+HS-015 marker is authorized.
