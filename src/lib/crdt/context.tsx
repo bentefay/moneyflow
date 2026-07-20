@@ -8,10 +8,14 @@
  */
 
 import { createLoroContext } from "loro-mirror-react";
+import { useCallback } from "react";
+import type { DependencyList } from "react";
 import { Temporal } from "temporal-polyfill";
 
-import type { Transaction } from "./schema";
+import type { Transaction, VaultState } from "./schema";
 import { vaultSchema } from "./schema";
+import type { VaultUserActionKind } from "./undo";
+import { useVaultUndoCoordinator } from "./undo";
 
 /**
  * Create typed context and hooks for vault state management.
@@ -30,7 +34,27 @@ export const VaultProvider = loroContext.LoroProvider;
 export const useVaultContext = loroContext.useLoroContext;
 export const useVaultState = loroContext.useLoroState;
 export const useVaultSelector = loroContext.useLoroSelector;
-export const useVaultAction = loroContext.useLoroAction;
+
+/** Creates a memoized user mutation with explicit origin and undo grouping metadata. */
+export function useVaultAction<Arguments extends unknown[]>(
+    updater: (state: VaultState, ...args: Arguments) => void,
+    dependencies: DependencyList = [],
+    kind: VaultUserActionKind = "mutation"
+): (...args: Arguments) => void {
+    const store = useVaultContext();
+    const undoCoordinator = useVaultUndoCoordinator();
+
+    return useCallback(
+        (...args: Arguments) => {
+            undoCoordinator.runUserAction(kind, (origin) => {
+                store.setState((state: VaultState) => updater(state, ...args), { origin });
+            });
+        },
+        // loro-mirror-react exposes the same dynamic dependency-list contract for action hooks.
+        // eslint-disable-next-line react-hooks/use-memo, react-hooks/exhaustive-deps
+        [store, undoCoordinator, updater, kind, ...dependencies]
+    );
+}
 
 /**
  * Hook to get all people in the vault
@@ -285,33 +309,61 @@ import {
  * Uses useVaultAction for memoized callbacks that work with the hierarchical structure.
  */
 export function useTransactionActions() {
-    const insertTransaction = useVaultAction((state, input: InsertTransactionInput) => {
-        insertTx(state.transactions, input);
-    });
+    const insertTransaction = useVaultAction(
+        (state, input: InsertTransactionInput) => {
+            insertTx(state.transactions, input);
+        },
+        [],
+        "add"
+    );
 
-    const updateTransaction = useVaultAction((state, input: UpdateTransactionInput) => {
-        updateTx(state.transactions, input);
-    });
+    const updateTransaction = useVaultAction(
+        (state, input: UpdateTransactionInput) => {
+            updateTx(state.transactions, input);
+        },
+        [],
+        "edit"
+    );
 
-    const moveTransaction = useVaultAction((state, input: MoveTransactionInput) => {
-        moveTx(state.transactions, input);
-    });
+    const moveTransaction = useVaultAction(
+        (state, input: MoveTransactionInput) => {
+            moveTx(state.transactions, input);
+        },
+        [],
+        "edit"
+    );
 
-    const deleteTransaction = useVaultAction((state, input: DeleteTransactionInput) => {
-        deleteTx(state.transactions, input);
-    });
+    const deleteTransaction = useVaultAction(
+        (state, input: DeleteTransactionInput) => {
+            deleteTx(state.transactions, input);
+        },
+        [],
+        "delete"
+    );
 
-    const unnestDuplicate = useVaultAction((state, input: UnnestDuplicateInput) => {
-        unnestDup(state.transactions, input);
-    });
+    const unnestDuplicate = useVaultAction(
+        (state, input: UnnestDuplicateInput) => {
+            unnestDup(state.transactions, input);
+        },
+        [],
+        "edit"
+    );
 
-    const swapDuplicate = useVaultAction((state, input: SwapDuplicateInput) => {
-        swapDup(state.transactions, input);
-    });
+    const swapDuplicate = useVaultAction(
+        (state, input: SwapDuplicateInput) => {
+            swapDup(state.transactions, input);
+        },
+        [],
+        "edit"
+    );
 
-    const deleteTransactionsByImport = useVaultAction((state, importId: string) => {
-        deleteByImport(state.transactions, importId);
-    });
+    const deleteTransactionsByImport = useVaultAction(
+        (state, importId: string) => {
+            deleteByImport(state.transactions, importId);
+        },
+        [],
+        "delete"
+    );
 
     return {
         insertTransaction,
@@ -334,10 +386,14 @@ import type { DescriptionAliasInput } from "./schema";
  * Hook providing description alias mutation actions.
  */
 export function useDescriptionAliasActions() {
-    const addAlias = useVaultAction((state, alias: DescriptionAliasInput) => {
-        state.descriptionAliases[alias.id] =
-            alias as unknown as (typeof state.descriptionAliases)[string];
-    }, []);
+    const addAlias = useVaultAction(
+        (state, alias: DescriptionAliasInput) => {
+            state.descriptionAliases[alias.id] =
+                alias as unknown as (typeof state.descriptionAliases)[string];
+        },
+        [],
+        "alias"
+    );
 
     const updateAlias = useVaultAction(
         (state, input: { id: string; updates: Partial<DescriptionAliasInput> }) => {
@@ -346,15 +402,20 @@ export function useDescriptionAliasActions() {
                 Object.assign(alias, input.updates);
             }
         },
-        []
+        [],
+        "alias"
     );
 
-    const deleteAlias = useVaultAction((state, id: string) => {
-        const alias = state.descriptionAliases[id];
-        if (alias && typeof alias === "object") {
-            alias.deletedAt = Temporal.Now.instant();
-        }
-    }, []);
+    const deleteAlias = useVaultAction(
+        (state, id: string) => {
+            const alias = state.descriptionAliases[id];
+            if (alias && typeof alias === "object") {
+                alias.deletedAt = Temporal.Now.instant();
+            }
+        },
+        [],
+        "alias"
+    );
 
     return { addAlias, updateAlias, deleteAlias };
 }

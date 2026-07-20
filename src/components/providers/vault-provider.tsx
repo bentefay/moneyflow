@@ -22,6 +22,7 @@ import { useSyncStatusManager } from "@/hooks/use-sync-status";
 import { useAuthGuard } from "@/lib/auth";
 import { VaultProvider as BaseVaultProvider } from "@/lib/crdt/context";
 import { getDefaultVaultState } from "@/lib/crdt/defaults";
+import { VaultUndoCoordinator, VaultUndoProvider } from "@/lib/crdt/undo";
 import { base64ToPrivateKey, initCrypto } from "@/lib/crypto";
 import { unwrapKeyFromBase64 } from "@/lib/crypto/keywrap";
 import { getSession } from "@/lib/crypto/session";
@@ -48,6 +49,7 @@ export function VaultProvider({ children, registerDisconnect }: VaultProviderPro
     const [initializedVault, setInitializedVault] = useState<{
         vaultId: string;
         doc: LoroDoc;
+        undoCoordinator: VaultUndoCoordinator;
     } | null>(null);
     const [initFailure, setInitFailure] = useState<{
         vaultId: string;
@@ -127,6 +129,7 @@ export function VaultProvider({ children, registerDisconnect }: VaultProviderPro
 
         let cancelled = false;
         let effectManager: SyncManager | null = null;
+        let effectUndoCoordinator: VaultUndoCoordinator | null = null;
         let unregisterDisconnect: (() => void) | null = null;
 
         async function initialize() {
@@ -194,7 +197,13 @@ export function VaultProvider({ children, registerDisconnect }: VaultProviderPro
                     return;
                 }
 
-                setInitializedVault({ vaultId: initializingVaultId, doc });
+                const undoCoordinator = new VaultUndoCoordinator(doc);
+                effectUndoCoordinator = undoCoordinator;
+                setInitializedVault({
+                    vaultId: initializingVaultId,
+                    doc,
+                    undoCoordinator
+                });
                 setInitFailure(null);
                 setIsConnected(true);
 
@@ -206,6 +215,8 @@ export function VaultProvider({ children, registerDisconnect }: VaultProviderPro
                 unregisterDisconnect?.();
                 unregisterDisconnect = null;
                 if (syncManagerRef.current === effectManager) syncManagerRef.current = null;
+                effectUndoCoordinator?.dispose();
+                effectUndoCoordinator = null;
                 await effectManager?.disconnect().catch(() => undefined);
                 if (!cancelled) {
                     console.error("Failed to initialize vault:", error);
@@ -228,6 +239,8 @@ export function VaultProvider({ children, registerDisconnect }: VaultProviderPro
             if (effectManager && syncManagerRef.current === effectManager) {
                 syncManagerRef.current = null;
             }
+            effectUndoCoordinator?.dispose();
+            effectUndoCoordinator = null;
             void effectManager?.disconnect();
             setIsConnected(false);
         };
@@ -312,9 +325,9 @@ export function VaultProvider({ children, registerDisconnect }: VaultProviderPro
     }
 
     // Waiting for initialization
-    const initializedDoc =
-        initializedVault?.vaultId === activeVault.id ? initializedVault.doc : null;
-    if (!initializedDoc) {
+    const activeInitializedVault =
+        initializedVault?.vaultId === activeVault.id ? initializedVault : null;
+    if (!activeInitializedVault) {
         return (
             <div className="flex h-screen items-center justify-center">
                 <div className="border-primary h-8 w-8 animate-spin rounded-full border-4 border-t-transparent" />
@@ -324,11 +337,13 @@ export function VaultProvider({ children, registerDisconnect }: VaultProviderPro
 
     return (
         <BaseVaultProvider
-            doc={initializedDoc}
+            doc={activeInitializedVault.doc}
             initialState={getDefaultVaultState()}
             debug={process.env.NODE_ENV === "development"}
         >
-            {children}
+            <VaultUndoProvider coordinator={activeInitializedVault.undoCoordinator}>
+                {children}
+            </VaultUndoProvider>
         </BaseVaultProvider>
     );
 }

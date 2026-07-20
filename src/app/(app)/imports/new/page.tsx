@@ -105,7 +105,9 @@ export default function NewImportPage() {
                     .oldTransactionFilter as unknown as (typeof template)["oldTransactionFilter"];
                 template.lastUsedAt = Temporal.Now.instant();
             }
-        }
+        },
+        [],
+        "import"
     );
 
     const deleteImportTemplate = useVaultAction((state, id: string) => {
@@ -205,7 +207,9 @@ export default function NewImportPage() {
                     suspectedDuplicateOf
                 });
             }
-        }
+        },
+        [],
+        "import"
     );
 
     // Get existing transactions - already filtered for active only

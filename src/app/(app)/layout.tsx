@@ -32,6 +32,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useMemo, useRef, useState } from "react";
 
 import { PresenceAvatarGroup } from "@/components/features/presence/PresenceAvatarGroup";
+import { UndoControls, UndoKeyboardShortcuts } from "@/components/features/undo/UndoControls";
 import { VaultSelector } from "@/components/features/vault/VaultSelector";
 import { ActiveVaultProvider } from "@/components/providers/active-vault-provider";
 import { VaultProvider } from "@/components/providers/vault-provider";
@@ -197,6 +198,7 @@ function AppLayoutContent({
 
     return (
         <div className="flex h-screen flex-col md:flex-row">
+            <UndoKeyboardShortcuts />
             {/* Mobile Top Bar */}
             <header className="bg-card flex h-14 items-center justify-between border-b px-4 md:hidden">
                 {/* Logo */}
@@ -206,6 +208,7 @@ function AppLayoutContent({
 
                 {/* Right side: Presence + Menu */}
                 <div className="flex items-center gap-2">
+                    <UndoControls />
                     {isConnected && onlineUsers.length > 0 && (
                         <PresenceAvatarGroup
                             users={onlineUsers.map((u) => ({
@@ -272,6 +275,7 @@ function AppLayoutContent({
                             MoneyFlow
                         </Link>
                     )}
+                    {!isCollapsed && <UndoControls className="ml-auto" />}
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button
@@ -313,6 +317,7 @@ function AppLayoutContent({
                             iconMode
                             showLabel={false}
                         />
+                        <UndoControls className="flex-col" />
                     </div>
                 )}
 
