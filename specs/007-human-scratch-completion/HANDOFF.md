@@ -7,7 +7,8 @@ literal field is `pending`. Workers may read but never edit it.
 
 - **Package / revision:** P09 / 01
 - **Scope IDs:** HS-006
-- **State:** changes_requested; revision-01 evidence/review immutable after root integration
+- **State:** changes_requested; revision-01 evidence/review immutable in
+  `74bbc7167d09fe54dff48fe7df26886f0923bdd6`
 - **Task:** `tasks/HS-006-undo-redo.md`
 - **Dependencies:** P01 passed; P09 is independent of the blocked P05/P08/P10 branch
 - **Original package BASE:** `c9146fae2c5534313d21b4f34cb2b012eaeeb4ed`
