@@ -5,82 +5,91 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Implementation dispatch
 
-- **Package / revision:** P05 / 12
-- **Scope IDs:** HS-015 diagnostic recheck only; no completion or product authority
-- **State:** blocked_external; revision-12 diagnostic PASS confirms unchanged gate
-- **Task:** `tasks/HS-015-supabase-realtime.md` under D-011/Q-013 and the P05 external gate in
-  `DEPENDENCIES.md`
-- **Original package BASE:** `007651beb814d98646aa2e786801b647e2abd0b5`
-- **Last reviewed product HEAD:** `7f0b0710e820b87be2ee8877a3b7693d90e5e505`
-- **Pre-implementation HEAD:** `824bb1570f1e52bcd0afcbf89040d1c0ffac50ec`
-- **Range meaning:** no-product diagnostic over preserved reviewed P05 product work plus later root-
-  integrated independent package/artifact history. Worker makes no commit and no executable diff.
-- **Allowed implementation paths:** none. Do not edit product, test, dependency, config, migration,
-  ledger, prior artifact/review, scratch, FS-001, SCOPE, `.claude`, `.codex` or agent paths.
-- **Sole implementer artifact:** `evidence/P05/implementation-12.md`
-- **Commit contract:** make no commit and leave HEAD/index unchanged. Write only the assigned new
-  evidence artifact; P05 revisions 01–11 and all later artifacts are immutable.
-- **Pre-existing dirty/untracked paths:** root-owned unstaged `PROGRESS.md`, `HANDOFF.md`,
-  `DEPENDENCIES.md`, `DECISIONS.md` and `RISKS.md`, plus assigned uncommitted
-  `evidence/P05/implementation-12.md` and `reviews/P05-review-12.md`; no staged or other dirty paths
-- **Exact recheck:** independently inventory repository/package-lock/node_modules versions for
-  `@playwright/cli`, its bundled Playwright/protocol and repository Playwright. Read installed
-  CLI help/README/type/protocol sources for any supported headless command/API that creates or
-  verifies a truly hidden page. Check ordinary browser/OS capabilities only through repository-
-  installed CLI authority. Record the date, exact versions/paths and whether the unavailable
-  condition from DEPENDENCIES changed.
-- **Permitted diagnostic:** if and only if an installed supported mechanism exists, use a unique
-  disposable headless CLI session with real same-identity sibling pages and normal product UI.
-  Verify `document.visibilityState === "hidden"` at mutation and 15 seconds without focus/reload,
-  then record sanitized elapsed socket receipt, exact Loro import and DOM publication through
-  completion. No secret/financial/vault identifiers in evidence. If no mechanism exists, prove that
-  exact limitation from installed primary sources and observed allowed page states; do not invent
-  timing or a hidden acceptance result.
-- **Forbidden substitutes:** no headed mode, temporary tests/config, custom browser launcher,
-  DevTools/emulated visibility/lifecycle, direct CDP outside installed CLI support, page removal/
-  freeze mislabeled hidden, focus/reload/poll, timeout change, arbitrary sleep, server/service row
-  fixture or `worker: true` mutation. Do not rerun broad tests unless needed to establish preserved
-  cleanup/current state.
-- **Disposition:** if real-hidden causal timing becomes available, record the first late edge and
-  exact prospective writable owner without changing it. If unavailable remains exact, recommend
-  continuing `blocked_external`, retain revision-11 green manager work and state that P08/P10 remain
-  dependency-blocked. Do not ask the human or pause; any new ambiguity is a complete Q proposal.
-- **Boundary checks:** exact HEAD/index/status, installed-source identities, cleanup, zero service
-  state, rolling scratch/21 blocks, immutable FS-001 and SCOPE.
+- **Package / revision:** P09 / 01
+- **Scope IDs:** HS-006
+- **State:** changes_requested; revision-01 evidence/review immutable after root integration
+- **Task:** `tasks/HS-006-undo-redo.md`
+- **Dependencies:** P01 passed; P09 is independent of the blocked P05/P08/P10 branch
+- **Original package BASE:** `c9146fae2c5534313d21b4f34cb2b012eaeeb4ed`
+- **Pre-implementation HEAD:** `c9146fae2c5534313d21b4f34cb2b012eaeeb4ed`
+- **Range meaning:** first P09 implementation range; review must cover literal original BASE through
+  the implementer's committed HEAD
+- **Allowed implementation paths:** `src/lib/crdt/**`; `src/lib/sync/**` only where required to
+  classify local versus remote/hydration/migration/GC origins; `src/components/providers/vault-provider.tsx`;
+  `src/components/features/undo/**`; `src/app/(app)/layout.tsx`; existing mutation call sites under
+  `src/app/(app)/imports/**`, `src/app/(app)/transactions/**`, and
+  `src/components/features/{accounts,automations,description-aliases,import,people,statuses,tags,transactions,vault}/**`
+  only where required to define one logical user-action boundary; focused new or modified tests under
+  `tests/unit/**`, `tests/integration/**`, `tests/e2e/**`, and `tests/e2e/helpers/**`. Do not edit
+  dependencies, migrations, server/database/auth/crypto/realtime code, global ledgers, prior artifacts,
+  review files, scratch, FS-001, SCOPE, `.claude`, `.codex`, or agent configuration.
+- **Sole implementer artifact:** `evidence/P09/implementation-01.md`
+- **Future immutable review artifact:** `reviews/P09-review-01.md`
+- **Commit contract:** inspect first, change only the narrow authorized subset actually needed, stage
+  exact paths only, commit product/test changes with a message containing no parentheses, and leave the
+  assigned evidence uncommitted. Never use `git add .` or `git add -A`.
+- **Pre-existing dirty/untracked paths:** root-owned unstaged `PROGRESS.md` and `HANDOFF.md`, plus
+  frozen untracked `evidence/P09/implementation-01.md`; no staged, product/test or other dirty path
+- **Required architecture:** one standard Loro `UndoManager` follows the active document/vault
+  lifecycle; expose reactive `canUndo`/`canRedo` and typed action-boundary/origin APIs. Define and test
+  user, remote, hydration, sync, migration and maintenance origins before UI wiring. Remote/hydration/
+  sync/migration/GC commits must never enter local user history, and vault switch/strict-mode remount
+  must dispose listeners/managers and reset history.
+- **Required grouping:** one logical add/edit/delete/import/bulk/alias action is one undo step even
+  when it spans several mirror actions; undo/redo itself must sync as a resulting local CRDT change.
+  New user edits clear redo. Do not conflate existing automation domain-history records with the
+  document UndoManager.
+- **Required UX:** visible semantic Undo and Redo buttons in the authenticated shell, truthful disabled
+  states, accessible names, discoverable tooltips, focus treatment, responsive/collapsed/mobile/dark/
+  reduced-motion behavior. Implement Ctrl+Z, Ctrl+Shift+Z and Ctrl+Y plus conventional Meta equivalents,
+  without stealing native undo/redo from editable inputs, textareas or contenteditable controls.
+- **Required validation:** trace the installed Loro/loro-mirror API from repository packages; focused
+  unit/integration tests for lifecycle, grouping/origin filters, redo clearing, input guards, vault switch
+  and remote exclusion; meaningful journey E2E for buttons and every shortcut across representative
+  add/edit/delete/import/alias behavior, concurrency/second client and refresh. Run focused checks, then
+  all repository checks required by `.claude/CLAUDE.md`; repeat changed E2E with retries disabled and
+  record exact results, including any inherited red without hiding it.
+- **Manual evidence:** use only repository-installed headless `pnpm exec playwright-cli` in unique
+  disposable sessions. Exercise pointer/keyboard/focus, native text editing, two sessions/duplicate tab,
+  vault switch, refresh and offline/reconnect; inspect responsive/dark/reduced-motion, deterministic
+  accessible role/name/state snapshots, zoom/reflow, applicable computed contrast, console and requests.
+  Close/delete sessions and remove generated CLI artifacts. No Playwright MCP, `npx`, ad-hoc script or
+  temporary test/config, headed/debug/UI/show mode, sleeps, retries, or test-only product hook.
+- **Evidence contract:** record package/revision, literal BASE and HEAD, commits, exact changed and dirty
+  paths, acceptance mapping, installed API reasoning, commands/results, manual evidence, cleanup, risks,
+  source-integrity results and complete Q proposals. Do not claim PASS. If ambiguity remains, apply the
+  PROCESS hierarchy, choose the safest reversible behavior, write a complete Q proposal and continue.
+- **Boundary checks:** exact HEAD/index/status; scratch SHA
+  `753be6b73d1086a35659e1416d9f6c183e61107c72a91aeaa55a13344bf96578` with exactly the authorized
+  checked set HS-002/HS-010/HS-014/HS-017/HS-018 and all 21 normalized blocks; immutable FS-001 SHA
+  `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines/25,441 bytes; SCOPE
+  SHA `d03f33e718f1ec5f7c8ad0119d283397dcc59407199da4b5887a2e5eee7ef0f9`; do not edit SCOPE.
 
 ## Review dispatch
 
-This diagnostic review/gate update is complete and immutable in
-`0f7ee5222dd23794411427fdc013cf3a5b6f8648`.
-
 - **Reviewer:** distinct `human_scratch_reviewer`
-- **Literal reviewed BASE:** `007651beb814d98646aa2e786801b647e2abd0b5`
-- **Literal reviewed HEAD:** `824bb1570f1e52bcd0afcbf89040d1c0ffac50ec`
-- **Range type:** cumulative preserved P05 product plus later root/package history; revision 12 adds
-  no commit or executable diff
-- **Implementation evidence:** `evidence/P05/implementation-12.md`, SHA-256
-  `8f5ec6614f68db79f54d1ebf2f3ba4e4e89c2d3f1dc386c5ea61a00626a4f8fd`
-- **Sole reviewer artifact:** `reviews/P05-review-12.md`
-- **Review SHA-256:** `551b4545fc19ac2fccd0e6f84258b79d931c6973dfaaa9f0471d02dfeecc5e35`
-- **Verdict:** PASS for the diagnostic only, with no finding/Q. P05/HS-015 remains
-  `blocked_external`; P08/P10 remain dependency-blocked.
-- **Reviewer writes:** review file only; no other writes/commits
-- **Required review focus:** independently verify installed package/lock/runtime versions and every
-  recorded installed-source hash; audit complete CLI help/README/tab runtime/public API/protocol for
-  a supported truly hidden headless topology. Reproduce the allowed disposable two-page installed-
-  CLI observation without headed/config/temp/emulated/direct-CDP substitutes and verify both page
-  states. Confirm no hidden state means no 15-second/product timing is honestly executable, no
-  product owner can be inferred, revision-11 work stays preserved and P05/HS-015 plus P08/P10 remain
-  blocked. Reject non-selection/focus/frozen/minimized labels, speculative worker, weakened bound,
-  or any unapproved product/test mutation. Verify exact range/write/index, cleanup/zero state,
-  scratch/21 blocks, FS-001 and SCOPE.
-- **Failure/external route:** persist immutable evidence/review and exact reviewer-confirmed status;
-  no product revision without causal hidden timing
-- **PASS authority:** a diagnostic PASS means the recheck itself is complete, not that P05/HS-015
-  passed; root retains `blocked_external` unless the original hidden acceptance is independently met
+- **Literal reviewed BASE:** `c9146fae2c5534313d21b4f34cb2b012eaeeb4ed`
+- **Literal reviewed HEAD:** `af06fb2ad32fe292aef15a011c2040cb54cf5dfa`
+- **Range type:** non-empty first implementation range containing exactly ten authorized product/test
+  paths
+- **Implementation evidence:** `evidence/P09/implementation-01.md`, SHA-256
+  `6c6ece5aa7947243291f2d5202338a937c4b219b99a3bbfce7a00428170db20c`, 172 lines/12,346 bytes
+- **Sole reviewer artifact:** `reviews/P09-review-01.md`
+- **Review SHA-256:** `5ecd94f8f95009a3108057996adbb318b563eda6b832c7bfe537a5bf221c6a09`,
+  202 lines/16,444 bytes
+- **Verdict:** FAIL — F-01 logical text edits split per input event; F-02 failed offline push is not
+  retried after reconnect and remains `Sync error`
+- **Reviewer writes:** review file only; no other writes or commits
+- **Required review focus:** independently audit the full literal BASE..HEAD, installed Loro
+  API/lifecycle/origins/grouping, every acceptance criterion, meaningful no-retry automated coverage and
+  the complete manual CLI charter. Reject remote/hydration history, split logical actions, native-input
+  shortcut theft, listener leaks, stale history after vault switch, inaccessible/misleading controls,
+  weak selectors, sleeps/retries/test hooks, unapproved paths or inaccurate evidence. Independently
+  adjudicate complete proposal `Q-PROPOSAL-P09-01-01`; verify inherited format-red classification,
+  exact paths/index/write boundary, cleanup, scratch/21 blocks, FS-001 and SCOPE.
 
 ## Next root action
 
-Commit this artifact reference, retain P05/HS-015 `blocked_external`, keep P08/P10 dependency-
-blocked, and dispatch dependency-ready P09. No product edit or marker is authorized by the
-diagnostic.
+Persist the immutable revision-01 evidence/review with Q-015 and R-028/R-029 transcription, then
+rewrite HANDOFF for P09 revision 02. Re-review must cover original BASE through the newest HEAD and
+use exact new artifacts `evidence/P09/implementation-02.md` and `reviews/P09-review-02.md`.

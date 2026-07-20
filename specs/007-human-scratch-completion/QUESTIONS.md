@@ -547,6 +547,39 @@ No unresolved product questions were answered by scaffold creation.
   equivalently lossless locally self-wrapped journal may replace server-held encrypted envelope
   history only if it proves the same recovery and access properties.
 
+## Q-015 — Retain both conventional and literal Meta redo parity
+
+- **Raised:** 2026-07-20, P09 revision 01, `human_scratch_implementer`; independently supported by
+  `human_scratch_reviewer`
+- **Source proposal:**
+  `evidence/P09/implementation-01.md#q-proposal-p09-01-01--metay-redo-parity`; confirmed in
+  `reviews/P09-review-01.md#q-proposal-adjudication`
+- **Context and evidence:** The frozen requirement explicitly names Ctrl+Shift+Z and Ctrl+Y, while
+  acceptance additionally requires appropriate Meta equivalents. Meta+Shift+Z is the conventional
+  macOS redo gesture; Meta+Y is the literal key-for-key counterpart to Ctrl+Y. Focused unit and
+  real-browser tests prove that both work outside editable targets while the guard preserves native
+  input history.
+- **Why the frozen requirement/repository does not fully decide it:** Neither authority states
+  whether literal Ctrl+Y parity or macOS convention alone should control when both aliases can
+  coexist without persisted-data impact.
+- **Options considered:** (A) support Meta+Shift+Z and Meta+Y; (B) support conventional
+  Meta+Shift+Z only; or (C) expose no Meta redo beyond the frozen Ctrl forms. A satisfies both
+  readings, B may fail literal parity and C does not satisfy acceptance.
+- **Default selected for continued work:** Choose A. Retain both Meta+Shift+Z and Meta+Y outside
+  editable targets while keeping the existing input/textarea/select/contenteditable/ARIA-textbox
+  guard.
+- **Decision hierarchy basis:** Explicit frozen Ctrl forms and Meta-equivalent acceptance control;
+  established macOS convention supports Meta+Shift+Z, and the smallest reversible extension adds
+  Meta+Y without displacing it.
+- **Impact and risk:** One extra non-editable-shell alias broadens parity without stealing native
+  field history. P09/01's logical grouping and offline-sync findings are separate observable defects
+  and do not alter this shortcut decision.
+- **How to reverse or migrate:** Remove the Meta+Y predicate and its focused unit/E2E assertions.
+  There is no CRDT schema, persisted data or migration impact.
+- **Does a human still need to decide after completion?:** Yes, only if a future project-wide
+  platform-shortcut policy prefers B. No decision blocks continuation because A is isolated,
+  tested and losslessly reversible.
+
 ## Question template
 
 ### Q-XXX — Short title
