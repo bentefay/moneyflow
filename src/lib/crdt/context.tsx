@@ -8,8 +8,9 @@
  */
 
 import { createLoroContext } from "loro-mirror-react";
-import { useCallback, useEffect, useRef } from "react";
-import type { DependencyList } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from "react";
+import { useSyncExternalStore } from "react";
+import type { ComponentProps, DependencyList } from "react";
 import { Temporal } from "temporal-polyfill";
 
 import {
@@ -32,9 +33,75 @@ import { useVaultUndoCoordinator } from "./undo";
  */
 const loroContext = createLoroContext(vaultSchema);
 
-export const VaultProvider = loroContext.LoroProvider;
 const useInternalVaultContext = loroContext.useLoroContext;
 const useInternalVaultSelector = loroContext.useLoroSelector;
+
+interface DescriptionAliasRevisionStore {
+    readonly getAliases: (
+        state: VaultState,
+        expectedRevision: number
+    ) => DescriptionAliasCollection;
+    readonly getSnapshot: () => number;
+    readonly subscribe: (listener: () => void) => () => void;
+}
+
+const DescriptionAliasRevisionContext = createContext<DescriptionAliasRevisionStore | null>(null);
+
+function createDescriptionAliasRevisionStore(
+    doc: ComponentProps<typeof loroContext.LoroProvider>["doc"]
+): DescriptionAliasRevisionStore {
+    let revision = 0;
+    let unsubscribe: (() => void) | undefined;
+    let cached:
+        | { readonly aliases: DescriptionAliasCollection; readonly revision: number }
+        | undefined;
+    const listeners = new Set<() => void>();
+    const notify = () => {
+        revision += 1;
+        for (const listener of listeners) listener();
+    };
+    return {
+        getAliases: (state, expectedRevision) => {
+            if (expectedRevision !== revision) {
+                throw new Error("Description alias revision changed during render");
+            }
+            if (cached?.revision === revision) return cached.aliases;
+            const aliases = toDescriptionAliasCollection(state.descriptionAliases);
+            cached = { aliases, revision };
+            return aliases;
+        },
+        getSnapshot: () => revision,
+        subscribe: (listener) => {
+            listeners.add(listener);
+            if (listeners.size === 1) {
+                unsubscribe = doc.subscribe((event) => {
+                    if (event.events.some((item) => item.path[0] === "descriptionAliases")) {
+                        notify();
+                    }
+                });
+            }
+            return () => {
+                listeners.delete(listener);
+                if (listeners.size !== 0) return;
+                unsubscribe?.();
+                unsubscribe = undefined;
+            };
+        }
+    };
+}
+
+/** Provide the Mirror store plus a revision signal scoped to the raw alias container. */
+export function VaultProvider(props: ComponentProps<typeof loroContext.LoroProvider>) {
+    const aliasRevisionStore = useMemo(
+        () => createDescriptionAliasRevisionStore(props.doc),
+        [props.doc]
+    );
+    return (
+        <DescriptionAliasRevisionContext.Provider value={aliasRevisionStore}>
+            <loroContext.LoroProvider {...props} />
+        </DescriptionAliasRevisionContext.Provider>
+    );
+}
 
 export type ApplicationVaultState = Omit<VaultState, "descriptionAliases">;
 
@@ -181,14 +248,18 @@ export function useTags() {
     return useVaultSelector((state) => state.tags);
 }
 
-/**
- * Hook to get all description aliases in the vault
- */
+/** Hook to get a legal alias snapshot once per alias-container revision. */
 export function useDescriptionAliases() {
-    return useInternalVaultSelector(
-        (state): DescriptionAliasCollection =>
-            toDescriptionAliasCollection(state.descriptionAliases)
+    const mirror = useInternalVaultContext();
+    const revisionStore = useContext(DescriptionAliasRevisionContext);
+    if (!revisionStore)
+        throw new Error("useDescriptionAliases must be used within a VaultProvider");
+    const revision = useSyncExternalStore(
+        revisionStore.subscribe,
+        revisionStore.getSnapshot,
+        revisionStore.getSnapshot
     );
+    return revisionStore.getAliases(mirror.getState(), revision);
 }
 
 /**
