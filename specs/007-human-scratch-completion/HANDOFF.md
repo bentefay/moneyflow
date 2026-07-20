@@ -61,6 +61,7 @@ This section is complete; the revision-09 evidence, review and cumulative litera
 - **Sole reviewer artifact:** `reviews/P05-review-09.md`
 - **Review verdict:** FAIL; SHA-256
   `58e40beca43c0ec272f2d9ccf950344040aa5235d695f914f55b684a3312a25d`
+- **Failure artifact commit:** `3a8e17f9e134c071e1ef48e935bdd26f817148fc`
 - **Prior review files:** immutable revision-01–08 FAIL artifacts; latest SHA-256
   `46c4403f0d8364e49500cb8cf5e6cb8f09f151d07e69bdcb9c7f1ac6310e58d4`
 - **Reviewer writes:** review file only; no other writes/commits
@@ -74,6 +75,6 @@ This section is complete; the revision-09 evidence, review and cumulative litera
 
 ## Next root action
 
-Persist the immutable revision-09 evidence/review, Q-011, R-004/R-009 and failure state. Then record
-that artifact commit and rewrite this handoff for P05 revision 10 with sole writable path
-`tests/unit/sync/realtime.test.ts`. No HS-015 marker is authorized before cumulative PASS.
+Commit this durable artifact reference, then rewrite this handoff for P05 revision 10 with sole
+writable path `tests/unit/sync/realtime.test.ts`. No HS-015 marker is authorized before cumulative
+PASS.

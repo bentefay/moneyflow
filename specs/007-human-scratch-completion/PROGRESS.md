@@ -20,8 +20,8 @@ review evidence.
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** four passed (HS-002, HS-014, HS-017, HS-018); 18 queued
-- **Last ledger update:** 2026-07-20T10:54:55+10:00; P05 revision 09 independently failed only the
-  deterministic full-unit clock gate; Q-011 selects the exact revision-10 repair
+- **Last ledger update:** 2026-07-20T10:56:07+10:00; immutable P05 revision-09 failure artifacts,
+  Q-011 and risk updates were persisted in `3a8e17f9e134c071e1ef48e935bdd26f817148fc`
 
 ## Package ledger
 
@@ -589,6 +589,12 @@ transcribes the confirmed revision-10 sole `tests/unit/sync/realtime.test.ts` re
 at `00:00Z` within that describe and restore real timers after each case, with fixtures, production
 guard and all assertions unchanged. R-004/R-009 updated; final empty compatible database, cleanup,
 scratch 21-block/checked-set and immutable sources pass. HS-015 remains unchecked.
+
+**2026-07-20T10:56:07+10:00 — P05/09 `changes_requested -> changes_requested`:** Immutable
+revision-09 evidence/review, Q-011, R-004/R-009 and failure state persisted in
+`3a8e17f9e134c071e1ef48e935bdd26f817148fc`; all nine P05 FAIL reviews are immutable. Revision-10
+dispatch may proceed after this artifact-commit reference is durably recorded; no frozen source or
+marker changed.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
