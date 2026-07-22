@@ -7,8 +7,8 @@ literal field is `pending`. Workers may read but never edit it.
 
 - **Package / revision:** P11C / 03
 - **Scope IDs:** HS-004 integrated-behavior/performance checkpoint only; P11A/04 and P11B/01 passed;
-  P11C/01 and /02 each failed one F-01 lifecycle gate; HS-004 remains incomplete and unchecked
-- **State:** passed; artifact integration pending; revision-01 failure is immutable in
+  P11C/03 passed after two immutable F-01 failures; HS-004 is `completion_pending` and unchecked
+- **State:** passed; integration `78e2f978f8d258d8c4d379f53e75089a2ce975db`; revision-01 failure is immutable in
   `dd77d518fff81e4c5553ce9a559681ece8f30232`, revision-02 failure in
   `29d943757bae8147f3b66559d63c12afcd0e5362`
 - **Task:** `tasks/HS-004-description-aliases.md`, complete frozen 72-line HS-004 block in SCOPE,
@@ -108,6 +108,7 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Persist the exact revision-03 evidence/review, P11C PASS and R-008 transcription; record the
-integration-control commit, then execute the root-only HS-004 completion-pending and marker protocol.
-HS-004 remains unchecked until that protocol finalizes.
+Recover the durable HS-004 `completion_pending` event at pre-change scratch SHA
+`c2b986fd3e952190149b2d3e87530f5cfad6f180d452c881f93984c36f2471ae`, then execute and finalize
+the root-only marker protocol. No package dispatch is legal until HS-004 is checked, its one-line
+diff and normalized blocks verify, the rolling SHA advances, and the active event clears.
