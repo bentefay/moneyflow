@@ -7,9 +7,8 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P12 revision 02 (`changes_requested`)
-- **Next action:** durably integrate and link the immutable revision-02 failure, then dispatch one
-  cumulative P12 revision-03 remediation for the three remaining blockers
+- **Current package:** P12 revision 03 (`changes_requested`)
+- **Next action:** integrate/link immutable revision-03 failure, then dispatch cumulative revision 04
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -21,8 +20,8 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** seven passed; HS-005 changes requested through P12; HS-015 blocked externally;
   HS-011/HS-012 and 11 other requirements queued
-- **Last ledger update:** 2026-07-22T18:25:55+10:00; P12/02 independently failed on two remaining
-  physical-copy boundaries and the unbounded synchronous-unit scheduler contract
+- **Last ledger update:** 2026-07-22T19:40:54+10:00; P12/03 independently failed on recursive final
+  attach, multi-account canonicalization and missing real-Loro all-copy proof
 
 ## Package ledger
 
@@ -42,7 +41,7 @@ review evidence.
 | P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | passed | 04 | `eb5ab2e215130c358130d5411a92b51951c3c53a..fb72abdaf531dff40c59f6b3525fb1b9ce50f805` | `evidence/P11A/implementation-04.md` | `reviews/P11A-review-04.md` | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f` |
 | P11B    | HS-004         | Alias management and transaction-cell pointer/keyboard UX                           | P11A                 | passed | 01 | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f..e35109dfe7b02bdb4058445f44d03a6dd678457b` | `evidence/P11B/implementation-01.md` | `reviews/P11B-review-01.md` | `0426866fa66cc022efca6d74cd5088d586d3d11b` |
 | P11C    | HS-004         | Alias import/manual/shared flows, performance hardening and exhaustive tests        | P11B                 | passed | 03 | `0426866fa66cc022efca6d74cd5088d586d3d11b..daab038ee741faa9f92a373b27efe0c8fe8940db` | `evidence/P11C/implementation-03.md` | `reviews/P11C-review-03.md` | `78e2f978f8d258d8c4d379f53e75089a2ce975db` |
-| P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | changes_requested | 02 | `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e..e8f2ca5be7ffa03c0ad6ac8e3fb72aac2accca3e` | `evidence/P12/implementation-02.md` | `reviews/P12-review-02.md` | `7533fd76219a08b5e1c1aa5f66b9b85419b6275b` |
+| P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | changes_requested | 03 | `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e..058098dc74833523bc4a05094b164af5635f327f` | `evidence/P12/implementation-03.md` | `reviews/P12-review-03.md` | pending revision-03 failure-control commit |
 | P13     | HS-001         | Persisted normal empty Add Transaction rows and grid navigation                     | P11C, P09            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -87,7 +86,7 @@ required marker rollbacks before the next dispatch.
 | HS-002      | human scratch block               | P01                          | authorized marker after package PASS       | passed       | P01 integration `c2b89b6676271142ad6802dcf2a30acf8899df48`; `reviews/P01-review-02.md`; marker `b91ca932… -> dcd03b23…` |
 | HS-003      | human scratch block               | P10                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-004      | human scratch block               | P11A, P11B, P11C             | authorized marker after all package PASSes | passed | P11A integration `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f`, P11B `0426866fa66cc022efca6d74cd5088d586d3d11b`, P11C `78e2f978f8d258d8c4d379f53e75089a2ce975db`; reviews `P11A-review-04.md`/`P11B-review-01.md`/`P11C-review-03.md`; marker `c2b986fd... -> 2c52bd78...` |
-| HS-005      | human scratch block               | P12                          | authorized marker after package PASS       | changes_requested | P12/01 and P12/02 FAIL; `reviews/P12-review-02.md`; revision 03 required                                                 |
+| HS-005      | human scratch block               | P12                          | authorized marker after package PASS       | changes_requested | P12/01–03 FAIL; `reviews/P12-review-03.md`; revision 04 required                                                         |
 | HS-006      | human scratch block               | P09                          | authorized marker after package PASS       | passed       | P09 integration `59bf82e894e45e034858e25255240701a3afb0b8`; `reviews/P09-review-02.md`; marker `753be6b7… -> c2b986fd…` |
 | HS-007      | human scratch block               | P17A, P17B, P17C, P17D       | authorized marker after all package PASSes | queued       | —                                                                                                                       |
 | HS-008      | human scratch block               | P14                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
@@ -1655,6 +1654,65 @@ next-env/generated state restored and port 3000 closed. HS-005 remains unchecked
 artifacts are immutable once the failure-control commit lands; no new question proposal was required.
 Revision-02 evidence, review, risks and changes-requested state are durably integrated by
 `7533fd76219a08b5e1c1aa5f66b9b85419b6275b`; later revisions must preserve them byte-for-byte.
+
+**2026-07-22T18:29:45+10:00 — P12/03 `changes_requested -> implementing`:** Revision-02 failure
+control is immutable at `7533fd76219a08b5e1c1aa5f66b9b85419b6275b` and its link-only ledger
+commit leaves clean preimplementation HEAD `b2c32a40e0aca052771c45d086180522e040e5f4`. Cumulative review
+BASE remains `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e`; sole worker artifact is
+`evidence/P12/implementation-03.md` and future review is `reviews/P12-review-03.md`. Narrow authority
+covers maintenance, alias proof, transaction queries/mutations, optional Mirror support only for
+container-preserving bounded relocation, and four focused unit/integration test files. F-01 requires
+unnest/swap across every physical parent with deterministic pre-divergence handling, both peer orders
+and a clean final graph. F-02 requires canonical find/find-by-ID/date-range semantics plus an audit of
+all exported reads and the import caller. F-03 requires cursors inside recursive copy/equality,
+structural/vault/alias proof and apply work, or a complete backward-compatible repository-wide payload
+bound; clock checks after an indivisible overrun are forbidden. Oversized inner-work instrumentation,
+three clean focused processes, full validation/no-retry browser/manual evidence and exact cleanup are
+mandatory. Closed Undo frontier, same-provider collection, fairness, tie ordering, principal reads/
+mutations, sync/lifecycle and all frozen boundaries must remain green. The implementer commits only
+exact authorized product/test paths, leaves evidence uncommitted and makes no PASS claim; reviewer is
+not dispatched until root freezes the exact new HEAD.
+
+**2026-07-22T19:14:31+10:00 — P12/03 `implementing -> ready_for_review -> reviewing`:** Exact
+revision-03 HEAD `058098dc74833523bc4a05094b164af5635f327f` contains interim conflict reconciliation
+`7e1fb5d1145cbf363751c4f7bc7748844b0fd104` plus strict work-bound continuation
+`058098dc74833523bc4a05094b164af5635f327f`, changing seven authorized product/test paths from
+preimplementation `b2c32a40e0aca052771c45d086180522e040e5f4`. Cumulative review remains original BASE
+`0a9b8827debdfa96e6b87c3b9ccf95411bd5862e`. Frozen evidence
+`evidence/P12/implementation-03.md` is 139 lines/8,688 bytes at SHA-256
+`540a3e497d3d33f4d82be5925d588e31b9ce37d030d43e88d3e412f6a38a33ce`. All-copy unnest/swap
+deterministically reconciles diverged parents and standalone/promoted identities; all exported find/
+find-by-ID/date-range reads share canonical value/location/order semantics. Maintenance now discovers
+root/account/alias/transaction/structural work through persistent generators; builds detached clones
+in at-most-eight dynamic-item chunks; attaches the completed clone and removes the exact source in one
+`system:gc` commit after fixed-depth position/state validation; prunes fixed-depth containers; and
+proves alias deletion through a persistent one-reference-per-step graph cursor with exact-key constant-
+work apply. Oversized tests cover 128 tags, 128 allocations, 64 nested duplicates and 128 transaction/
+128 alias graphs over more than 20/256 steps. Reviewer must independently determine that final detached-
+tree attach does not recursively redo unbounded work, invalidation cannot admit stale proof/partial
+state, and every all-copy/query edge converges. Three focused processes pass 4 files/85 tests each;
+full Vitest 1,258/1,258, typecheck, build, lint zero errors/10 warnings, scoped format/diff, and full
+no-retry E2E 87/87 pass. Installed-CLI real change-all/Undo/Redo/reload/same-provider collection passes
+with masked recovery material; initial missing-secret server failure is honestly disclosed and corrected
+without secret output. Root verifies exact HEAD/seven paths/empty index, evidence hash/size, no process/
+generated state, restored next-env and exact scratch/FS-001/SCOPE hashes. Review output is exactly
+`reviews/P12-review-03.md`; implementer authority is closed and reviewer alone writes one PASS/FAIL.
+
+**2026-07-22T19:40:54+10:00 — P12/03 `reviewing -> changes_requested`:** Independent cumulative
+review `reviews/P12-review-03.md` is 223 lines/20,332 bytes at SHA-256
+`3d68ffd573feff3e42d2b56d4be9d4626a3c4317c7bbda1079846127d20098ec` and returns FAIL over exact
+`0a9b8827debdfa96e6b87c3b9ccf95411bd5862e..058098dc74833523bc4a05094b164af5635f327f`.
+F-01 High verifies against official Loro 1.13.7 source that final `pushContainer(job.root)` recursively
+attaches/re-emits the whole detached transaction tree in one callback, so bounded preparation still
+ends in an arbitrarily large apply. F-02 Medium proves multi-account `queryTransactions` and unscoped
+duplicate reads concatenate per-account physical results without global logical-ID canonicalization.
+F-03 Medium finds the new unnest/swap regressions are plain-object fixtures and do not supply the
+mandated subscribed real-Loro relocation-interval/both-delivery-order convergence evidence. Focused
+85/85 x3, full Vitest 1,258/1,258, type/lint/build/scoped format and affected E2E 12/12 pass; full
+E2E is 86/87 only on inherited T021c and isolated T021c passes 3/3. Manual ordinary history,
+same-provider collection, two-tab/offline/sync/privacy passes. Repo format retains only disclosed
+frozen/root-ledger reds. HEAD/index/generated/browser/data/process/port cleanup and exact scratch/
+FS-001/SCOPE hashes pass. HS-005 remains unchecked; revision 04 must close all three blockers.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
