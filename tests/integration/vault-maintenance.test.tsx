@@ -1,4 +1,5 @@
 import { render } from "@testing-library/react";
+import { LoroMap } from "loro-crdt";
 import { createElement } from "react";
 import { Temporal } from "temporal-polyfill";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -15,7 +16,12 @@ import {
 } from "@/lib/crdt/maintenance";
 import { createVaultMirror, createVaultMirrorFromSnapshot } from "@/lib/crdt/mirror";
 import { insertTransaction } from "@/lib/crdt/mutations";
-import type { VaultState } from "@/lib/crdt/schema";
+import { getAccountTransactions } from "@/lib/crdt/queries";
+import {
+    getTransactionMaintenanceShadowIdentity,
+    type TransactionInput,
+    type VaultState
+} from "@/lib/crdt/schema";
 import { decryptUpdate } from "@/lib/crdt/snapshot";
 import { VaultUndoCoordinator } from "@/lib/crdt/undo";
 import { asMinorUnits } from "@/lib/domain/currency";
@@ -122,6 +128,97 @@ function createAliasGarbage() {
         delete state.descriptionAliases.target.transactionIds.transaction;
     });
     return vault;
+}
+
+function relocationTransaction(id: string, creationMilliseconds: number): TransactionInput {
+    return {
+        id,
+        date: DATE,
+        description: `Raw ${id}`,
+        descriptionAliasId: undefined,
+        notes: "before",
+        amount: asMinorUnits(creationMilliseconds),
+        accountId: "account",
+        tagIds: ["one", "two", "three"],
+        statusId: "status",
+        importId: "import",
+        allocations: {},
+        creationInstant: Temporal.Instant.fromEpochMilliseconds(creationMilliseconds),
+        importRowIndex: creationMilliseconds,
+        suspectedDuplicates: [],
+        deletedAt: undefined
+    };
+}
+
+function createRelocationGarbage() {
+    const base = createVaultMirror();
+    base.mirror.setState((state: VaultState) => {
+        insertTransaction(state.transactions, {
+            transaction: {
+                ...relocationTransaction("newest", 100),
+                date: DATE.add({ years: 1 })
+            }
+        });
+    });
+    const snapshot = base.doc.export({ mode: "snapshot" });
+    const left = createVaultMirrorFromSnapshot(snapshot);
+    const right = createVaultMirrorFromSnapshot(snapshot);
+    const leftBase = left.doc.version();
+    const rightBase = right.doc.version();
+    left.mirror.setState((state: VaultState) => {
+        insertTransaction(state.transactions, {
+            transaction: relocationTransaction("a-target", 80)
+        });
+    });
+    right.mirror.setState((state: VaultState) => {
+        insertTransaction(state.transactions, {
+            transaction: relocationTransaction("z-source", 40)
+        });
+    });
+    left.doc.import(right.doc.export({ mode: "update", from: rightBase }));
+    right.doc.import(left.doc.export({ mode: "update", from: leftBase }));
+    right.mirror.dispose();
+    base.mirror.dispose();
+    return left;
+}
+
+function accountTransactions(state: VaultState) {
+    const tree = state.transactions.account;
+    if (typeof tree !== "object" || tree == null) return [];
+    return tree.years.flatMap((year) =>
+        year.months.flatMap((month) => month.days.flatMap((day) => day.transactions))
+    );
+}
+
+function hasTransactionShadow(state: VaultState): boolean {
+    return accountTransactions(state).some(
+        (transaction) => getTransactionMaintenanceShadowIdentity(transaction) != null
+    );
+}
+
+function maintenanceEpoch(doc: ReturnType<typeof createVaultMirror>["doc"]): string | undefined {
+    const metadata = doc.getMap("transactions").get("__moneyflow_gc_metadata__");
+    if (!(metadata instanceof LoroMap)) return undefined;
+    const value = metadata.get("accountId");
+    if (typeof value !== "string" || !value.startsWith("__moneyflow_gc_metadata__:")) {
+        return undefined;
+    }
+    return value.slice("__moneyflow_gc_metadata__:".length).split("\u0000")[0] || undefined;
+}
+
+function runUntilTransactionShadow(
+    frames: ReturnType<typeof createFrameHost>,
+    state: () => VaultState
+): void {
+    for (let frame = 0; frame < 1_000; frame += 1) {
+        if (hasTransactionShadow(state())) return;
+        if (!frames.runOne()) break;
+    }
+    throw new Error(
+        `Maintenance did not expose its private transaction shadow: ${JSON.stringify({
+            ids: accountTransactions(state()).map(({ id }) => id)
+        })}`
+    );
 }
 
 function createTrpc(
@@ -376,6 +473,152 @@ describe("vault background maintenance integration", () => {
         view.unmount();
         expect(cancel).toHaveBeenCalledTimes(3);
         expect(callbacks.size).toBe(0);
+    });
+
+    it("keeps partial relocation private across edits and resumes it after snapshot reload", async () => {
+        const edited = createRelocationGarbage();
+        expect(
+            accountTransactions(edited.mirror.getState())
+                .map(({ id }) => id)
+                .sort()
+        ).toEqual(["a-target", "newest", "z-source"]);
+        const editedFrames = createFrameHost();
+        const observations: string[][] = [];
+        const unsubscribe = edited.doc.subscribe(() => {
+            observations.push(
+                getAccountTransactions(edited.mirror.getState().transactions, "account").map(
+                    ({ id }) => id
+                )
+            );
+        });
+        const disposeEdited = startVaultMaintenanceScheduler({
+            budget: { maxItems: 1, maxMilliseconds: 4 },
+            doc: edited.doc,
+            host: editedFrames.host,
+            store: edited.mirror
+        });
+        runUntilTransactionShadow(editedFrames, () => edited.mirror.getState());
+        await Promise.resolve();
+        const originalEpoch = maintenanceEpoch(edited.doc);
+        expect(
+            getAccountTransactions(edited.mirror.getState().transactions, "account").map(
+                ({ id }) => id
+            )
+        ).toEqual(["newest", "a-target", "z-source"]);
+
+        edited.mirror.setState(
+            (state: VaultState) => {
+                const newest = accountTransactions(state).find(({ id }) => id === "newest");
+                if (!newest) throw new Error("Missing editable transaction");
+                newest.notes = "edited while private shadow existed";
+            },
+            { origin: "user:edit" }
+        );
+        await Promise.resolve();
+        editedFrames.runAll();
+        expect(maintenanceEpoch(edited.doc)).not.toBe(originalEpoch);
+        expect(hasTransactionShadow(edited.mirror.getState())).toBe(false);
+        expect(
+            getAccountTransactions(edited.mirror.getState().transactions, "account").find(
+                ({ id }) => id === "newest"
+            )?.notes
+        ).toBe("edited while private shadow existed");
+        expect(observations.every((ids) => ids.length === new Set(ids).size)).toBe(true);
+        unsubscribe();
+        disposeEdited();
+        edited.mirror.dispose();
+
+        const interrupted = createRelocationGarbage();
+        const interruptedFrames = createFrameHost();
+        const disposeInterrupted = startVaultMaintenanceScheduler({
+            budget: { maxItems: 1, maxMilliseconds: 4 },
+            doc: interrupted.doc,
+            host: interruptedFrames.host,
+            store: interrupted.mirror
+        });
+        runUntilTransactionShadow(interruptedFrames, () => interrupted.mirror.getState());
+        const partialSnapshot = interrupted.doc.export({ mode: "snapshot" });
+        disposeInterrupted();
+        interrupted.mirror.dispose();
+
+        const reloaded = createVaultMirrorFromSnapshot(partialSnapshot);
+        const reloadedFrames = createFrameHost();
+        const disposeReloaded = startVaultMaintenanceScheduler({
+            budget: { maxItems: 1, maxMilliseconds: 4 },
+            doc: reloaded.doc,
+            host: reloadedFrames.host,
+            store: reloaded.mirror
+        });
+        reloadedFrames.runAll();
+        expect(hasTransactionShadow(reloaded.mirror.getState())).toBe(false);
+        expect(
+            getAccountTransactions(reloaded.mirror.getState().transactions, "account").filter(
+                ({ id }) => id === "z-source"
+            )
+        ).toHaveLength(1);
+        disposeReloaded();
+        reloaded.mirror.dispose();
+    });
+
+    it("classifies synced shadow batches as maintenance and converges without local echo", () => {
+        const source = createRelocationGarbage();
+        const malformedSnapshot = source.doc.export({ mode: "snapshot" });
+        const sourceBase = source.doc.version();
+        const peer = createVaultMirrorFromSnapshot(malformedSnapshot);
+        const peerFrames = createFrameHost();
+        peerFrames.setVisible(false);
+        const disposePeer = startVaultMaintenanceScheduler({
+            budget: { maxItems: 1, maxMilliseconds: 4 },
+            doc: peer.doc,
+            host: peerFrames.host,
+            store: peer.mirror
+        });
+        const echoed: Uint8Array[] = [];
+        const stopEcho = peer.doc.subscribeLocalUpdates((update) => echoed.push(update));
+        const peerObservations: string[][] = [];
+        const stopPeer = peer.doc.subscribe(() => {
+            peerObservations.push(
+                getAccountTransactions(peer.mirror.getState().transactions, "account").map(
+                    ({ id }) => id
+                )
+            );
+        });
+
+        const sourceFrames = createFrameHost();
+        const disposeSource = startVaultMaintenanceScheduler({
+            budget: { maxItems: 1, maxMilliseconds: 4 },
+            doc: source.doc,
+            host: sourceFrames.host,
+            store: source.mirror
+        });
+        runUntilTransactionShadow(sourceFrames, () => source.mirror.getState());
+        peer.doc.import(source.doc.export({ mode: "update", from: sourceBase }));
+        expect(hasTransactionShadow(peer.mirror.getState())).toBe(true);
+        expect(maintenanceEpoch(peer.doc)).toBe(maintenanceEpoch(source.doc));
+        expect(
+            getAccountTransactions(peer.mirror.getState().transactions, "account").map(
+                ({ id }) => id
+            )
+        ).toEqual(["newest", "a-target", "z-source"]);
+
+        sourceFrames.runAll();
+        peer.doc.import(source.doc.export({ mode: "update", from: sourceBase }));
+        expect(maintenanceEpoch(peer.doc)).toBe(maintenanceEpoch(source.doc));
+        peerFrames.setVisible(true);
+        peerFrames.runAll();
+        expect(hasTransactionShadow(peer.mirror.getState())).toBe(false);
+        expect(echoed).toEqual([]);
+        expect(peerObservations.every((ids) => ids.length === new Set(ids).size)).toBe(true);
+        expect(getAccountTransactions(peer.mirror.getState().transactions, "account")).toEqual(
+            getAccountTransactions(source.mirror.getState().transactions, "account")
+        );
+
+        stopPeer();
+        stopEcho();
+        disposeSource();
+        disposePeer();
+        source.mirror.dispose();
+        peer.mirror.dispose();
     });
 
     it("persists and encrypts GC, exchanges without echo, and leaves user undo intact", async () => {

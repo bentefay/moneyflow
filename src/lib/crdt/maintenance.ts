@@ -14,6 +14,11 @@ import type {
     VaultState,
     YearBucket
 } from "./schema";
+import {
+    getTransactionMaintenanceShadowIdentity,
+    isPublicTransaction,
+    TRANSACTION_MAINTENANCE_SHADOW_ID_PREFIX
+} from "./schema";
 import { getVaultAliasHistoryFrontier } from "./undo";
 
 export interface VaultMaintenanceBudget {
@@ -27,6 +32,16 @@ export const DEFAULT_VAULT_MAINTENANCE_BUDGET: VaultMaintenanceBudget = {
 };
 
 type MaintenancePhase = "keys" | "years" | "months" | "days" | "transactions" | "aliases" | "done";
+
+const MAINTENANCE_METADATA_ACCOUNT_KEY = "__moneyflow_gc_metadata__";
+const MAINTENANCE_METADATA_VALUE_PREFIX = "__moneyflow_gc_metadata__:";
+type TransactionShadowPhase =
+    | "tags"
+    | "allocations"
+    | "duplicates"
+    | "duplicate-tags"
+    | "duplicate-allocations"
+    | "ready";
 
 /** Explicit immutable cursor retained between animation frames. */
 export interface VaultMaintenanceCursor {
@@ -48,6 +63,26 @@ export interface VaultMaintenanceCursor {
     readonly aliasProof?: AliasProofCursor;
     readonly transactionSearch?: TransactionSearchCursor;
     readonly transactionTarget?: TransactionTargetCursor;
+    readonly transactionShadows: Map<string, TransactionShadowCursor>;
+    readonly transactionCopies: Map<string, TransactionCopyCursor>;
+}
+
+interface TransactionCopyCursor {
+    readonly cid?: string;
+    readonly dayIndex: number;
+    readonly key: string;
+    readonly monthIndex: number;
+    readonly transactionIndex: number;
+    readonly yearIndex: number;
+}
+
+interface TransactionShadowCursor {
+    readonly cid?: string;
+    readonly dayIndex: number;
+    readonly epoch?: string;
+    readonly monthIndex: number;
+    readonly transactionIndex: number;
+    readonly yearIndex: number;
 }
 
 interface TransactionTargetCursor {
@@ -60,8 +95,11 @@ interface TransactionTargetCursor {
 }
 
 interface TransactionSearchCursor {
+    readonly stage: "target" | "insertion";
     readonly sourceCid?: string;
     readonly sourceId: string;
+    readonly sourceCreationMilliseconds: number;
+    readonly sourceImportRowIndex?: number;
     readonly sourceYearIndex: number;
     readonly sourceMonthIndex: number;
     readonly sourceDayIndex: number;
@@ -80,6 +118,14 @@ interface TransactionSearchCursor {
     readonly bestDayTransactionIndex?: number;
     readonly bestDayTransactionCid?: string;
     readonly bestSameIdKey?: string;
+    readonly shadowCid?: string;
+    readonly shadowDayIndex?: number;
+    readonly shadowEpoch?: string;
+    readonly shadowMonthIndex?: number;
+    readonly shadowTransactionIndex?: number;
+    readonly shadowYearIndex?: number;
+    readonly insertionScanIndex: number;
+    readonly targetInsertionIndex?: number;
 }
 
 interface AliasProofCursor {
@@ -108,9 +154,27 @@ type StructuralMaintenancePlan =
           readonly targetYearIndex: number;
           readonly targetTransactionCid?: string;
           readonly targetTransactionIndex: number;
+          readonly targetInsertionIndex?: number;
           readonly transactionCid?: string;
           readonly transactionId: string;
           readonly transactionIndex: number;
+          readonly shadowCid?: string;
+          readonly shadowDayIndex?: number;
+          readonly shadowEpoch?: string;
+          readonly shadowMonthIndex?: number;
+          readonly shadowTransactionIndex?: number;
+          readonly shadowYearIndex?: number;
+          readonly provenState: VaultState;
+      }
+    | {
+          readonly kind: "discard-transaction-shadow";
+          readonly accountId: string;
+          readonly dayIndex: number;
+          readonly monthIndex: number;
+          readonly shadowCid?: string;
+          readonly shadowEpoch?: string;
+          readonly transactionIndex: number;
+          readonly yearIndex: number;
           readonly provenState: VaultState;
       }
     | {
@@ -159,7 +223,9 @@ export function isVaultMaintenancePlanCurrent(
     plan: VaultMaintenancePlan
 ): boolean {
     return (
-        (plan.kind !== "remove-alias-symlink" && plan.kind !== "relocate-conflict-transaction") ||
+        (plan.kind !== "remove-alias-symlink" &&
+            plan.kind !== "relocate-conflict-transaction" &&
+            plan.kind !== "discard-transaction-shadow") ||
         plan.provenState === state
     );
 }
@@ -189,7 +255,7 @@ function baseCursor(state: VaultState, phase: MaintenancePhase = "keys"): VaultM
     return {
         accountIds: [],
         aliasIds: [],
-        accountKeyIterator: recordKeys(state.transactions),
+        accountKeyIterator: recordKeys(state.transactions, MAINTENANCE_METADATA_ACCOUNT_KEY),
         aliasKeyIterator: recordKeys(state.descriptionAliases),
         accountKeysComplete: false,
         phase,
@@ -200,13 +266,15 @@ function baseCursor(state: VaultState, phase: MaintenancePhase = "keys"): VaultM
         transactionIndex: 0,
         nestedIndex: -1,
         aliasIndex: 0,
+        transactionCopies: new Map(),
+        transactionShadows: new Map(),
         needsRescan: false
     };
 }
 
-function* recordKeys(record: object): Generator<string> {
+function* recordKeys(record: object, excludedKey?: string): Generator<string> {
     for (const key in record) {
-        if (key !== "$cid") yield key;
+        if (key !== "$cid" && key !== excludedKey) yield key;
     }
 }
 
@@ -461,13 +529,20 @@ function transactionIdentityKey(transaction: Transaction): string {
     return `${transaction.id}\u0000${transaction.$cid}`;
 }
 
+function containerIdentityKey(cid: string | undefined): string | undefined {
+    return cid?.startsWith("cid:") ? cid.slice(4) : cid;
+}
+
 function createTransactionSearch(
     transaction: Transaction,
     cursor: VaultMaintenanceCursor
 ): TransactionSearchCursor {
     return {
+        stage: "target",
         sourceCid: transaction.$cid,
         sourceId: transaction.id,
+        sourceCreationMilliseconds: transaction.creationInstant.epochMilliseconds,
+        sourceImportRowIndex: transaction.importRowIndex,
         sourceYearIndex: cursor.yearIndex,
         sourceMonthIndex: cursor.monthIndex,
         sourceDayIndex: cursor.dayIndex,
@@ -478,7 +553,8 @@ function createTransactionSearch(
         scanYearIndex: 0,
         scanMonthIndex: 0,
         scanDayIndex: 0,
-        scanTransactionIndex: 0
+        scanTransactionIndex: 0,
+        insertionScanIndex: 0
     };
 }
 
@@ -500,12 +576,81 @@ function hasAdjacentBucketConflict(
     );
 }
 
+function compareSearchSourceToTransaction(
+    search: TransactionSearchCursor,
+    transaction: Transaction
+): number {
+    const instantCompare =
+        transaction.creationInstant.epochMilliseconds - search.sourceCreationMilliseconds;
+    if (instantCompare !== 0) return instantCompare;
+    const sourceIndex = search.sourceImportRowIndex ?? Infinity;
+    const transactionIndex = transaction.importRowIndex ?? Infinity;
+    const importCompare = sourceIndex - transactionIndex;
+    if (importCompare !== 0) return importCompare;
+    const identity = getTransactionMaintenanceShadowIdentity(transaction);
+    return search.sourceId.localeCompare(identity?.publicId ?? transaction.id);
+}
+
 function advanceTransactionSearch(
     tree: AccountTransactionTree,
     search: TransactionSearchCursor
 ): { readonly complete: boolean; readonly search: TransactionSearchCursor } {
+    if (search.stage === "insertion") {
+        const year =
+            search.bestDayYearIndex == null ? undefined : tree.years[search.bestDayYearIndex];
+        const month =
+            search.bestDayMonthIndex == null ? undefined : year?.months[search.bestDayMonthIndex];
+        const day = search.bestDayIndex == null ? undefined : month?.days[search.bestDayIndex];
+        if (!day) return { complete: true, search };
+        const transaction = day.transactions[search.insertionScanIndex];
+        if (!transaction) {
+            return {
+                complete: true,
+                search: { ...search, targetInsertionIndex: search.insertionScanIndex }
+            };
+        }
+        const identity = getTransactionMaintenanceShadowIdentity(transaction);
+        const matchesSource =
+            identity?.publicId === search.sourceId &&
+            (search.sourceCid == null ||
+                containerIdentityKey(identity.sourceCid) ===
+                    containerIdentityKey(search.sourceCid));
+        const withShadow: TransactionSearchCursor = matchesSource
+            ? {
+                  ...search,
+                  shadowCid: transaction.$cid,
+                  shadowDayIndex: search.bestDayIndex,
+                  shadowEpoch: identity.epoch,
+                  shadowMonthIndex: search.bestDayMonthIndex,
+                  shadowTransactionIndex: search.insertionScanIndex,
+                  shadowYearIndex: search.bestDayYearIndex
+              }
+            : search;
+        if (compareSearchSourceToTransaction(search, transaction) < 0) {
+            return {
+                complete: true,
+                search: { ...withShadow, targetInsertionIndex: search.insertionScanIndex }
+            };
+        }
+        return {
+            complete: false,
+            search: { ...withShadow, insertionScanIndex: search.insertionScanIndex + 1 }
+        };
+    }
     const year = tree.years[search.scanYearIndex];
-    if (!year) return { complete: true, search };
+    if (!year) {
+        if (
+            search.bestDayYearIndex == null ||
+            search.bestDayMonthIndex == null ||
+            search.bestDayIndex == null
+        ) {
+            return { complete: true, search };
+        }
+        return {
+            complete: false,
+            search: { ...search, stage: "insertion", insertionScanIndex: 0 }
+        };
+    }
     if (year.year !== search.year) {
         return {
             complete: false,
@@ -572,6 +717,29 @@ function advanceTransactionSearch(
                 ...search,
                 scanDayIndex: search.scanDayIndex + 1,
                 scanTransactionIndex: 0
+            }
+        };
+    }
+    if (!isPublicTransaction(transaction)) {
+        const identity = getTransactionMaintenanceShadowIdentity(transaction);
+        const matchesSource =
+            containerIdentityKey(identity?.sourceCid) === containerIdentityKey(search.sourceCid);
+        const replacesShadow =
+            matchesSource &&
+            (search.shadowCid == null || transaction.$cid.localeCompare(search.shadowCid) < 0);
+        return {
+            complete: false,
+            search: {
+                ...search,
+                scanTransactionIndex: search.scanTransactionIndex + 1,
+                shadowCid: replacesShadow ? transaction.$cid : search.shadowCid,
+                shadowDayIndex: replacesShadow ? search.scanDayIndex : search.shadowDayIndex,
+                shadowEpoch: replacesShadow ? identity?.epoch : search.shadowEpoch,
+                shadowMonthIndex: replacesShadow ? search.scanMonthIndex : search.shadowMonthIndex,
+                shadowTransactionIndex: replacesShadow
+                    ? search.scanTransactionIndex
+                    : search.shadowTransactionIndex,
+                shadowYearIndex: replacesShadow ? search.scanYearIndex : search.shadowYearIndex
             }
         };
     }
@@ -665,6 +833,78 @@ function planTransactionStep(
         };
     }
 
+    if (!isPublicTransaction(transaction)) {
+        const identity = getTransactionMaintenanceShadowIdentity(transaction);
+        if (identity) {
+            const sourceKey = containerIdentityKey(identity.sourceCid);
+            const shadow = {
+                cid: transaction.$cid,
+                dayIndex: cursor.dayIndex,
+                epoch: identity.epoch,
+                monthIndex: cursor.monthIndex,
+                transactionIndex: cursor.transactionIndex,
+                yearIndex: cursor.yearIndex
+            };
+            if (sourceKey) cursor.transactionShadows.set(sourceKey, shadow);
+            cursor.transactionShadows.set(`id:${identity.publicId}`, shadow);
+        }
+        return {
+            cursor: nextTransactionContainer(cursor),
+            plan: {
+                kind: "discard-transaction-shadow",
+                accountId: current.accountId,
+                dayIndex: cursor.dayIndex,
+                monthIndex: cursor.monthIndex,
+                shadowCid: transaction.$cid,
+                shadowEpoch: identity?.epoch,
+                transactionIndex: cursor.transactionIndex,
+                yearIndex: cursor.yearIndex,
+                provenState: state
+            }
+        };
+    }
+
+    if (cursor.nestedIndex < 0 && !cursor.transactionSearch) {
+        const copyKey = `${current.accountId}\u0000${transaction.date}\u0000${transaction.id}`;
+        const transactionKey = transactionIdentityKey(transaction);
+        const existing = cursor.transactionCopies.get(copyKey);
+        const currentCopy: TransactionCopyCursor = {
+            cid: transaction.$cid,
+            dayIndex: cursor.dayIndex,
+            key: transactionKey,
+            monthIndex: cursor.monthIndex,
+            transactionIndex: cursor.transactionIndex,
+            yearIndex: cursor.yearIndex
+        };
+        if (!existing) cursor.transactionCopies.set(copyKey, currentCopy);
+        else {
+            const currentWins = transactionKey < existing.key;
+            const winner = currentWins ? currentCopy : existing;
+            const loser = currentWins ? existing : currentCopy;
+            cursor.transactionCopies.set(copyKey, winner);
+            return {
+                cursor: nextTransactionContainer(cursor),
+                plan: {
+                    kind: "relocate-conflict-transaction",
+                    accountId: current.accountId,
+                    yearIndex: loser.yearIndex,
+                    monthIndex: loser.monthIndex,
+                    dayIndex: loser.dayIndex,
+                    mode: "remove-source",
+                    targetDayIndex: winner.dayIndex,
+                    targetMonthIndex: winner.monthIndex,
+                    targetYearIndex: winner.yearIndex,
+                    targetTransactionCid: winner.cid,
+                    targetTransactionIndex: winner.transactionIndex,
+                    transactionCid: loser.cid,
+                    transactionId: transaction.id,
+                    transactionIndex: loser.transactionIndex,
+                    provenState: state
+                }
+            };
+        }
+    }
+
     if (cursor.nestedIndex < 0) {
         if (!cursor.transactionSearch && !hasAdjacentBucketConflict(current.tree, cursor)) {
             const next = transaction.suspectedDuplicates.length
@@ -690,13 +930,33 @@ function planTransactionStep(
         }
         const cachedTarget = cursor.transactionTarget;
         if (!cursor.transactionSearch && cachedTarget?.date === transaction.date.toString()) {
-            const next = transaction.suspectedDuplicates.length
-                ? { ...withPosition(cursor, { nestedIndex: 0 }), transactionSearch: undefined }
-                : nextTransactionContainer(cursor);
+            const shadow =
+                cursor.transactionShadows.get(containerIdentityKey(transaction.$cid) ?? "") ??
+                cursor.transactionShadows.get(`id:${transaction.id}`);
             const move =
                 cachedTarget.yearIndex !== cursor.yearIndex ||
                 cachedTarget.monthIndex !== cursor.monthIndex ||
                 cachedTarget.dayIndex !== cursor.dayIndex;
+            if (move && !shadow) {
+                const search = createTransactionSearch(transaction, cursor);
+                return {
+                    cursor: {
+                        ...cursor,
+                        transactionSearch: {
+                            ...search,
+                            stage: "insertion",
+                            bestDayIndex: cachedTarget.dayIndex,
+                            bestDayMonthIndex: cachedTarget.monthIndex,
+                            bestDayTransactionCid: cachedTarget.transactionCid,
+                            bestDayTransactionIndex: cachedTarget.transactionIndex,
+                            bestDayYearIndex: cachedTarget.yearIndex
+                        }
+                    }
+                };
+            }
+            const next = transaction.suspectedDuplicates.length
+                ? { ...withPosition(cursor, { nestedIndex: 0 }), transactionSearch: undefined }
+                : nextTransactionContainer(cursor);
             return {
                 cursor: next,
                 plan: move
@@ -715,6 +975,12 @@ function planTransactionStep(
                           transactionCid: transaction.$cid,
                           transactionId: transaction.id,
                           transactionIndex: cursor.transactionIndex,
+                          shadowCid: shadow?.cid,
+                          shadowDayIndex: shadow?.dayIndex,
+                          shadowEpoch: shadow?.epoch,
+                          shadowMonthIndex: shadow?.monthIndex,
+                          shadowTransactionIndex: shadow?.transactionIndex,
+                          shadowYearIndex: shadow?.yearIndex,
                           provenState: state
                       }
                     : aliasRewritePlan(
@@ -801,9 +1067,16 @@ function planTransactionStep(
                     targetYearIndex,
                     targetTransactionCid: progress.search.bestDayTransactionCid,
                     targetTransactionIndex,
+                    targetInsertionIndex: progress.search.targetInsertionIndex,
                     transactionCid: transaction.$cid,
                     transactionId: transaction.id,
                     transactionIndex: cursor.transactionIndex,
+                    shadowCid: progress.search.shadowCid,
+                    shadowDayIndex: progress.search.shadowDayIndex,
+                    shadowEpoch: progress.search.shadowEpoch,
+                    shadowMonthIndex: progress.search.shadowMonthIndex,
+                    shadowTransactionIndex: progress.search.shadowTransactionIndex,
+                    shadowYearIndex: progress.search.shadowYearIndex,
                     provenState: state
                 }
             };
@@ -986,6 +1259,18 @@ function planAliasStep(state: VaultState, cursor: VaultMaintenanceCursor): Vault
                 }
             };
         }
+        if (!isPublicTransaction(transaction)) {
+            return {
+                cursor: {
+                    ...cursor,
+                    aliasProof: {
+                        ...proof,
+                        transactionIndex: proof.transactionIndex + 1,
+                        nestedIndex: -1
+                    }
+                }
+            };
+        }
         if (proof.nestedIndex < 0) {
             if (transaction.descriptionAliasId === proof.aliasId) return abandon();
             return {
@@ -1134,31 +1419,12 @@ function getDayPair(
 
 type CloneableTransaction = Transaction | Transaction["suspectedDuplicates"][number];
 
-interface NestedCloneJob {
-    readonly allocations: LoroMap;
-    readonly allocationEntries: Generator<readonly [string, number]>;
-    readonly map: LoroMap;
-    readonly source: Transaction["suspectedDuplicates"][number];
-    readonly tags: LoroList;
-    allocationComplete: boolean;
-    tagIndex: number;
+interface AllocationIteratorState {
+    readonly iterator: Generator<readonly [string, number]>;
+    readonly sourceCid: string;
 }
 
-interface TransactionCloneJob {
-    readonly allocations: LoroMap;
-    readonly allocationEntries: Generator<readonly [string, number]>;
-    readonly duplicates: LoroList;
-    readonly root: LoroMap;
-    readonly source: Transaction;
-    readonly tags: LoroList;
-    allocationComplete: boolean;
-    duplicateIndex: number;
-    nested?: NestedCloneJob;
-    tagIndex: number;
-}
-
-const relocationCloneJobs = new WeakMap<LoroDoc, Map<string, TransactionCloneJob>>();
-const MAX_RELOCATION_CLONE_ITEMS = 8;
+const relocationAllocationIterators = new WeakMap<LoroDoc, Map<string, AllocationIteratorState>>();
 
 function* numericRecordEntries(
     record: Transaction["allocations"]
@@ -1169,8 +1435,12 @@ function* numericRecordEntries(
     }
 }
 
-function setTransactionScalars(target: LoroMap, source: CloneableTransaction): void {
-    target.set("id", source.id);
+function setTransactionScalars(
+    target: LoroMap,
+    source: CloneableTransaction,
+    id: string = source.id
+): void {
+    target.set("id", id);
     target.set("date", source.date.toString());
     target.set("description", source.description);
     if (source.descriptionAliasId != null) {
@@ -1186,101 +1456,140 @@ function setTransactionScalars(target: LoroMap, source: CloneableTransaction): v
     if (source.deletedAt != null) target.set("deletedAt", source.deletedAt.epochMilliseconds);
 }
 
-function createTransactionCloneJob(source: Transaction): TransactionCloneJob {
-    const root = new LoroMap();
-    setTransactionScalars(root, source);
-    const tags = root.setContainer("tagIds", new LoroList());
-    const allocations = root.setContainer("allocations", new LoroMap());
-    const duplicates = root.setContainer("suspectedDuplicates", new LoroList());
-    return {
-        allocations,
-        allocationEntries: numericRecordEntries(source.allocations),
-        duplicates,
-        root,
-        source,
-        tags,
-        allocationComplete: false,
-        duplicateIndex: 0,
-        tagIndex: 0
-    };
+function getMaintenanceMetadata(doc: LoroDoc): LoroMap | undefined {
+    const metadata = doc.getMap("transactions").get(MAINTENANCE_METADATA_ACCOUNT_KEY);
+    return metadata instanceof LoroMap ? metadata : undefined;
 }
 
-function createNestedCloneJob(
-    source: Transaction["suspectedDuplicates"][number],
-    parent: LoroList
-): NestedCloneJob {
-    const map = parent.pushContainer(new LoroMap());
-    setTransactionScalars(map, source);
-    const tags = map.setContainer("tagIds", new LoroList());
-    const allocations = map.setContainer("allocations", new LoroMap());
-    return {
-        allocations,
-        allocationEntries: numericRecordEntries(source.allocations),
-        map,
-        source,
-        tags,
-        allocationComplete: false,
-        tagIndex: 0
-    };
-}
-
-function advanceTransactionClone(job: TransactionCloneJob): boolean {
-    let processed = 0;
-    while (processed < MAX_RELOCATION_CLONE_ITEMS) {
-        if (job.tagIndex < job.source.tagIds.length) {
-            job.tags.push(job.source.tagIds[job.tagIndex]);
-            job.tagIndex += 1;
-            processed += 1;
-            continue;
-        }
-        if (!job.allocationComplete) {
-            const next = job.allocationEntries.next();
-            processed += 1;
-            if (!next.done) {
-                job.allocations.set(next.value[0], next.value[1]);
-                continue;
-            }
-            job.allocationComplete = true;
-        }
-        if (!job.nested) {
-            const source = job.source.suspectedDuplicates[job.duplicateIndex];
-            if (!source) return true;
-            job.nested = createNestedCloneJob(source, job.duplicates);
-            processed += 1;
-            continue;
-        }
-        const nested = job.nested;
-        if (nested.tagIndex < nested.source.tagIds.length) {
-            nested.tags.push(nested.source.tagIds[nested.tagIndex]);
-            nested.tagIndex += 1;
-            processed += 1;
-            continue;
-        }
-        if (!nested.allocationComplete) {
-            const next = nested.allocationEntries.next();
-            processed += 1;
-            if (!next.done) {
-                nested.allocations.set(next.value[0], next.value[1]);
-                continue;
-            }
-            nested.allocationComplete = true;
-        }
-        job.duplicateIndex += 1;
-        job.nested = undefined;
+function getMaintenanceEpoch(doc: LoroDoc): string | undefined {
+    const value = getMaintenanceMetadata(doc)?.get("accountId");
+    if (typeof value !== "string" || !value.startsWith(MAINTENANCE_METADATA_VALUE_PREFIX)) {
+        return undefined;
     }
-    return false;
+    const [epoch] = value.slice(MAINTENANCE_METADATA_VALUE_PREFIX.length).split("\u0000");
+    return epoch || undefined;
 }
 
-function getRelocationCloneJobs(doc: LoroDoc): Map<string, TransactionCloneJob> {
-    const existing = relocationCloneJobs.get(doc);
+function hasActiveMaintenanceShadow(doc: LoroDoc): boolean {
+    const value = getMaintenanceMetadata(doc)?.get("accountId");
+    if (typeof value !== "string" || !value.startsWith(MAINTENANCE_METADATA_VALUE_PREFIX)) {
+        return false;
+    }
+    const [, , active] = value.slice(MAINTENANCE_METADATA_VALUE_PREFIX.length).split("\u0000");
+    return active === "1";
+}
+
+function setMaintenanceMetadata(doc: LoroDoc, epoch: string, shadowActive: boolean): void {
+    const transactions = doc.getMap("transactions");
+    const existing = transactions.get(MAINTENANCE_METADATA_ACCOUNT_KEY);
+    const metadata =
+        existing instanceof LoroMap
+            ? existing
+            : transactions.setContainer(MAINTENANCE_METADATA_ACCOUNT_KEY, new LoroMap());
+    if (!(metadata.get("years") instanceof LoroList)) {
+        metadata.setContainer("years", new LoroList());
+    }
+    metadata.set(
+        "accountId",
+        `${MAINTENANCE_METADATA_VALUE_PREFIX}${epoch}\u0000${crypto.randomUUID()}\u0000${shadowActive ? "1" : "0"}`
+    );
+}
+
+function commitMaintenance(
+    doc: LoroDoc,
+    shadowActive = false,
+    epoch = getMaintenanceEpoch(doc) ?? crypto.randomUUID()
+): void {
+    setMaintenanceMetadata(doc, epoch, shadowActive);
+    doc.commit({ origin: "system:gc" });
+}
+
+function ensureMaintenanceEpoch(doc: LoroDoc): {
+    readonly created: boolean;
+    readonly epoch: string;
+} {
+    const existing = getMaintenanceEpoch(doc);
+    if (existing) return { created: false, epoch: existing };
+    const epoch = crypto.randomUUID();
+    commitMaintenance(doc, false, epoch);
+    return { created: true, epoch };
+}
+
+function rotateMaintenanceEpoch(doc: LoroDoc): void {
+    commitMaintenance(doc, false, crypto.randomUUID());
+}
+
+function getAllocationIterators(doc: LoroDoc): Map<string, AllocationIteratorState> {
+    const existing = relocationAllocationIterators.get(doc);
     if (existing) return existing;
-    const created = new Map<string, TransactionCloneJob>();
-    relocationCloneJobs.set(doc, created);
+    const created = new Map<string, AllocationIteratorState>();
+    relocationAllocationIterators.set(doc, created);
     return created;
 }
 
-function clearRelocationCloneJobs(doc: LoroDoc): void {
-    relocationCloneJobs.delete(doc);
+function nextAllocationEntry(
+    doc: LoroDoc,
+    key: string,
+    source: CloneableTransaction
+): IteratorResult<readonly [string, number]> {
+    const iterators = getAllocationIterators(doc);
+    const existing = iterators.get(key);
+    const state =
+        existing != null && existing.sourceCid === source.$cid
+            ? existing
+            : { iterator: numericRecordEntries(source.allocations), sourceCid: source.$cid };
+    iterators.set(key, state);
+    const next = state.iterator.next();
+    if (next.done) iterators.delete(key);
+    return next;
+}
+
+function clearRelocationAllocationIterators(doc: LoroDoc): void {
+    relocationAllocationIterators.delete(doc);
+}
+
+function isTransactionShadowPhase(value: unknown): value is TransactionShadowPhase {
+    return (
+        value === "tags" ||
+        value === "allocations" ||
+        value === "duplicates" ||
+        value === "duplicate-tags" ||
+        value === "duplicate-allocations" ||
+        value === "ready"
+    );
+}
+
+function createAttachedTransactionShadow(input: {
+    readonly epoch: string;
+    readonly insertionIndex: number;
+    readonly source: Transaction;
+    readonly sourceCid: string;
+    readonly targetList: LoroList;
+}): LoroMap {
+    // Only an empty map crosses the Loro attachment boundary; all descendants are attached later.
+    const shadow = input.targetList.insertContainer(input.insertionIndex, new LoroMap());
+    setTransactionScalars(
+        shadow,
+        input.source,
+        `${TRANSACTION_MAINTENANCE_SHADOW_ID_PREFIX}${input.epoch}\u0000${input.sourceCid}\u0000${input.source.id}`
+    );
+    shadow.set("maintenanceShadowPhase", "tags");
+    shadow.set("maintenanceShadowDuplicateIndex", 0);
+    shadow.setContainer("tagIds", new LoroList());
+    shadow.setContainer("allocations", new LoroMap());
+    shadow.setContainer("suspectedDuplicates", new LoroList());
+    return shadow;
+}
+
+function createAttachedNestedShadow(
+    source: Transaction["suspectedDuplicates"][number],
+    duplicates: LoroList
+): LoroMap {
+    const nested = duplicates.pushContainer(new LoroMap());
+    setTransactionScalars(nested, source);
+    nested.setContainer("tagIds", new LoroList());
+    nested.setContainer("allocations", new LoroMap());
+    return nested;
 }
 
 function getTransactionList(input: {
@@ -1331,6 +1640,129 @@ function pruneEmptyTransactionContainers(input: {
     }
 }
 
+function shadowPhase(shadow: LoroMap): TransactionShadowPhase | undefined {
+    const phase = shadow.get("maintenanceShadowPhase");
+    return isTransactionShadowPhase(phase) ? phase : undefined;
+}
+
+function shadowDuplicateIndex(shadow: LoroMap): number | undefined {
+    const index = shadow.get("maintenanceShadowDuplicateIndex");
+    return typeof index === "number" && Number.isInteger(index) && index >= 0 ? index : undefined;
+}
+
+function childList(parent: LoroMap, key: string): LoroList | undefined {
+    const child = parent.get(key);
+    return child instanceof LoroList ? child : undefined;
+}
+
+function childMap(parent: LoroMap, key: string): LoroMap | undefined {
+    const child = parent.get(key);
+    return child instanceof LoroMap ? child : undefined;
+}
+
+function advanceAttachedTransactionShadow(input: {
+    readonly doc: LoroDoc;
+    readonly shadow: LoroMap;
+    readonly source: Transaction;
+}): "advanced" | "invalid" | "ready" {
+    const phase = shadowPhase(input.shadow);
+    if (!phase) return "invalid";
+    if (phase === "ready") return "ready";
+
+    const tags = childList(input.shadow, "tagIds");
+    const allocations = childMap(input.shadow, "allocations");
+    const duplicates = childList(input.shadow, "suspectedDuplicates");
+    if (!tags || !allocations || !duplicates) return "invalid";
+
+    if (phase === "tags") {
+        if (tags.length > input.source.tagIds.length) return "invalid";
+        const tagId = input.source.tagIds[tags.length];
+        if (tagId != null) tags.push(tagId);
+        else input.shadow.set("maintenanceShadowPhase", "allocations");
+        return "advanced";
+    }
+
+    if (phase === "allocations") {
+        const next = nextAllocationEntry(input.doc, `${input.shadow.id}:root`, input.source);
+        if (!next.done) allocations.set(next.value[0], next.value[1]);
+        else input.shadow.set("maintenanceShadowPhase", "duplicates");
+        return "advanced";
+    }
+
+    const duplicateIndex = shadowDuplicateIndex(input.shadow);
+    if (duplicateIndex == null || duplicateIndex > input.source.suspectedDuplicates.length) {
+        return "invalid";
+    }
+    if (duplicateIndex === input.source.suspectedDuplicates.length) {
+        input.shadow.set("maintenanceShadowPhase", "ready");
+        return "advanced";
+    }
+    const sourceDuplicate = input.source.suspectedDuplicates[duplicateIndex];
+    if (!sourceDuplicate) return "invalid";
+
+    if (phase === "duplicates") {
+        if (duplicates.length < duplicateIndex || duplicates.length > duplicateIndex + 1) {
+            return "invalid";
+        }
+        if (duplicates.length === duplicateIndex) {
+            createAttachedNestedShadow(sourceDuplicate, duplicates);
+        }
+        input.shadow.set("maintenanceShadowPhase", "duplicate-tags");
+        return "advanced";
+    }
+
+    const nested = duplicates.get(duplicateIndex);
+    if (!(nested instanceof LoroMap)) return "invalid";
+    const nestedTags = childList(nested, "tagIds");
+    const nestedAllocations = childMap(nested, "allocations");
+    if (!nestedTags || !nestedAllocations) return "invalid";
+
+    if (phase === "duplicate-tags") {
+        if (nestedTags.length > sourceDuplicate.tagIds.length) return "invalid";
+        const tagId = sourceDuplicate.tagIds[nestedTags.length];
+        if (tagId != null) nestedTags.push(tagId);
+        else input.shadow.set("maintenanceShadowPhase", "duplicate-allocations");
+        return "advanced";
+    }
+
+    const next = nextAllocationEntry(
+        input.doc,
+        `${input.shadow.id}:nested:${duplicateIndex}`,
+        sourceDuplicate
+    );
+    if (!next.done) nestedAllocations.set(next.value[0], next.value[1]);
+    else {
+        input.shadow.set("maintenanceShadowDuplicateIndex", duplicateIndex + 1);
+        input.shadow.set("maintenanceShadowPhase", "duplicates");
+    }
+    return "advanced";
+}
+
+function getPlannedShadow(
+    doc: LoroDoc,
+    plan: Extract<StructuralMaintenancePlan, { kind: "relocate-conflict-transaction" }>
+): LoroMap | undefined {
+    if (
+        plan.shadowYearIndex == null ||
+        plan.shadowMonthIndex == null ||
+        plan.shadowDayIndex == null ||
+        plan.shadowTransactionIndex == null
+    ) {
+        return undefined;
+    }
+    const list = getTransactionList({
+        accountId: plan.accountId,
+        dayIndex: plan.shadowDayIndex,
+        doc,
+        monthIndex: plan.shadowMonthIndex,
+        yearIndex: plan.shadowYearIndex
+    });
+    const shadow = list?.get(plan.shadowTransactionIndex);
+    return shadow instanceof LoroMap && (plan.shadowCid == null || shadow.id === plan.shadowCid)
+        ? shadow
+        : undefined;
+}
+
 /** Revalidate and apply one narrow maintenance mutation. */
 export function applyVaultMaintenancePlan(
     state: VaultState,
@@ -1342,6 +1774,38 @@ export function applyVaultMaintenancePlan(
     }
     if (plan.kind === "remove-alias-symlink") {
         return hardDeleteProvenDescriptionAliasSymlink(state, plan);
+    }
+    if (plan.kind === "discard-transaction-shadow") {
+        if (!doc) return false;
+        const list = getTransactionList({
+            accountId: plan.accountId,
+            dayIndex: plan.dayIndex,
+            doc,
+            monthIndex: plan.monthIndex,
+            yearIndex: plan.yearIndex
+        });
+        const shadow = list?.get(plan.transactionIndex);
+        if (
+            !(list instanceof LoroList) ||
+            !(shadow instanceof LoroMap) ||
+            (plan.shadowCid != null && shadow.id !== plan.shadowCid)
+        )
+            return false;
+        const currentEpoch = getMaintenanceEpoch(doc);
+        const id = shadow.get("id");
+        const identity =
+            typeof id === "string" ? getTransactionMaintenanceShadowIdentity({ id }) : undefined;
+        const validCurrentShadow =
+            currentEpoch != null &&
+            plan.shadowEpoch === currentEpoch &&
+            identity?.epoch === currentEpoch &&
+            identity.sourceCid.length > 0 &&
+            shadowPhase(shadow) != null &&
+            shadowDuplicateIndex(shadow) != null;
+        if (validCurrentShadow) return false;
+        list.delete(plan.transactionIndex, 1);
+        commitMaintenance(doc);
+        return true;
     }
     if (plan.kind === "relocate-conflict-transaction") {
         if (!doc) return false;
@@ -1387,17 +1851,51 @@ export function applyVaultMaintenancePlan(
             return false;
         }
         if (plan.mode === "move") {
-            const jobs = getRelocationCloneJobs(doc);
-            const key = transactionContainer.id;
-            const job = jobs.get(key) ?? createTransactionCloneJob(transaction);
-            jobs.set(key, job);
-            if (!advanceTransactionClone(job)) return true;
-            targetList.pushContainer(job.root);
-            jobs.delete(key);
+            const epoch = ensureMaintenanceEpoch(doc);
+            if (epoch.created) return true;
+            const plannedShadow = getPlannedShadow(doc, plan);
+            if (!plannedShadow) {
+                if (plan.shadowCid != null) return false;
+                createAttachedTransactionShadow({
+                    epoch: epoch.epoch,
+                    insertionIndex: plan.targetInsertionIndex ?? targetList.length,
+                    source: transaction,
+                    sourceCid: plan.transactionCid ?? transactionContainer.id,
+                    targetList
+                });
+                commitMaintenance(doc, true);
+                return true;
+            }
+            const plannedShadowId = plannedShadow.get("id");
+            const plannedShadowIdentity =
+                typeof plannedShadowId === "string"
+                    ? getTransactionMaintenanceShadowIdentity({ id: plannedShadowId })
+                    : undefined;
+            if (
+                containerIdentityKey(plannedShadowIdentity?.sourceCid) !==
+                    containerIdentityKey(plan.transactionCid ?? transactionContainer.id) ||
+                plannedShadowIdentity?.epoch !== epoch.epoch ||
+                plan.shadowEpoch !== epoch.epoch
+            ) {
+                return false;
+            }
+            const progress = advanceAttachedTransactionShadow({
+                doc,
+                shadow: plannedShadow,
+                source: transaction
+            });
+            if (progress === "invalid") return false;
+            if (progress === "advanced") {
+                commitMaintenance(doc, true);
+                return true;
+            }
+            plannedShadow.set("id", transaction.id);
+            plannedShadow.delete("maintenanceShadowPhase");
+            plannedShadow.delete("maintenanceShadowDuplicateIndex");
         }
         sourceList.delete(transactionIndex, 1);
         pruneEmptyTransactionContainers({ dayIndex, monthIndex, sourceList, yearIndex });
-        doc.commit({ origin: "system:gc" });
+        commitMaintenance(doc);
         return true;
     }
     if (plan.kind === "remove-year") {
@@ -1470,8 +1968,26 @@ function hasRelevantMaintenanceChanges(
     event: Parameters<LoroDoc["subscribe"]>[0] extends (event: infer Event) => void ? Event : never
 ): boolean {
     if (event.origin === "system:gc") return false;
+    const touchesDomain = event.events.some(
+        (item) =>
+            (item.path[0] === "transactions" &&
+                item.path[1] !== MAINTENANCE_METADATA_ACCOUNT_KEY) ||
+            item.path[0] === "descriptionAliases"
+    );
+    if (!touchesDomain) return false;
+    if (event.by === "local") return true;
+    return !hasEncodedMaintenanceBatch(event);
+}
+
+function hasEncodedMaintenanceBatch(
+    event: Parameters<LoroDoc["subscribe"]>[0] extends (event: infer Event) => void ? Event : never
+): boolean {
     return event.events.some(
-        (item) => item.path[0] === "transactions" || item.path[0] === "descriptionAliases"
+        (item) =>
+            item.path[0] === "transactions" &&
+            item.path[1] === MAINTENANCE_METADATA_ACCOUNT_KEY &&
+            item.diff.type === "map" &&
+            Object.hasOwn(item.diff.updated, "accountId")
     );
 }
 
@@ -1518,7 +2034,10 @@ export function startVaultMaintenanceScheduler(input: {
                               : undefined;
                     if (aliasId && aliasHistory?.has(aliasId)) return false;
                     if (!isVaultMaintenancePlanCurrent(input.store.getState(), plan)) return false;
-                    if (plan.kind === "relocate-conflict-transaction") {
+                    if (
+                        plan.kind === "relocate-conflict-transaction" ||
+                        plan.kind === "discard-transaction-shadow"
+                    ) {
                         return applyVaultMaintenancePlan(input.store.getState(), plan, input.doc);
                     }
                     let applied = false;
@@ -1548,7 +2067,8 @@ export function startVaultMaintenanceScheduler(input: {
 
     const unsubscribeDocument = input.doc.subscribe((event) => {
         if (!hasRelevantMaintenanceChanges(event)) return;
-        clearRelocationCloneJobs(input.doc);
+        if (hasActiveMaintenanceShadow(input.doc)) rotateMaintenanceEpoch(input.doc);
+        clearRelocationAllocationIterators(input.doc);
         if (cursor.transactionSearch) cursor = { ...cursor, transactionSearch: undefined };
         if (cursor.aliasProof && hasAliasProofInvalidatingChanges(event)) {
             cursor = { ...cursor, aliasProof: undefined };
@@ -1586,6 +2106,6 @@ export function startVaultMaintenanceScheduler(input: {
         unsubscribeVisibility();
         unsubscribeDocument();
         unsubscribeAliasHistory?.();
-        clearRelocationCloneJobs(input.doc);
+        clearRelocationAllocationIterators(input.doc);
     };
 }

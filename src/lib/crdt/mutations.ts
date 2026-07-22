@@ -10,6 +10,7 @@
 import { Temporal } from "temporal-polyfill";
 
 import { compareTransactionOrder } from "./queries";
+import { isPublicTransaction } from "./schema";
 import type {
     AccountTransactionTree,
     AccountTransactionTreeInput,
@@ -371,6 +372,7 @@ export function findTransactionsInStore(
 
     for (const dayBucket of dayBuckets) {
         for (const tx of dayBucket.transactions) {
+            if (!isPublicTransaction(tx)) continue;
             if (tx.id === location.transactionId) {
                 matches.push(tx);
             }
@@ -395,7 +397,11 @@ export function findParentTransaction(
     const matches: Transaction[] = [];
 
     for (const dayBucket of dayBuckets) {
-        matches.push(...dayBucket.transactions.filter((tx) => tx.id === location.transactionId));
+        matches.push(
+            ...dayBucket.transactions.filter(
+                (tx) => isPublicTransaction(tx) && tx.id === location.transactionId
+            )
+        );
     }
 
     return matches.sort(comparePhysicalIdentity)[0];
@@ -409,7 +415,8 @@ export function findParentTransactions(
     return getDayBuckets(store, location.accountId, location.date)
         .flatMap((dayBucket) =>
             dayBucket.transactions.filter(
-                (transaction) => transaction.id === location.transactionId
+                (transaction) =>
+                    isPublicTransaction(transaction) && transaction.id === location.transactionId
             )
         )
         .sort(comparePhysicalIdentity);
@@ -425,6 +432,7 @@ export function updateTransaction(store: TransactionStore, input: UpdateTransact
 
     for (const dayBucket of dayBuckets) {
         for (const tx of dayBucket.transactions) {
+            if (!isPublicTransaction(tx)) continue;
             if (tx.id === location.transactionId) applyMutableTransactionUpdates(tx, updates);
             for (const duplicate of tx.suspectedDuplicates ?? []) {
                 if (duplicate.id === location.transactionId) {
@@ -457,7 +465,10 @@ export function moveTransaction(store: TransactionStore, input: MoveTransactionI
 
     const dayBuckets = getDayBuckets(store, location.accountId, location.date);
     const matches = dayBuckets.flatMap((dayBucket) =>
-        dayBucket.transactions.filter((transaction) => transaction.id === location.transactionId)
+        dayBucket.transactions.filter(
+            (transaction) =>
+                isPublicTransaction(transaction) && transaction.id === location.transactionId
+        )
     );
     const canonical = matches.sort(comparePhysicalIdentity)[0];
 
@@ -466,7 +477,8 @@ export function moveTransaction(store: TransactionStore, input: MoveTransactionI
     const movedTransaction = copyTransaction(canonical);
     for (const dayBucket of dayBuckets) {
         for (let index = dayBucket.transactions.length - 1; index >= 0; index--) {
-            if (dayBucket.transactions[index].id === location.transactionId) {
+            const transaction = dayBucket.transactions[index];
+            if (isPublicTransaction(transaction) && transaction.id === location.transactionId) {
                 dayBucket.transactions.splice(index, 1);
             }
         }
@@ -550,6 +562,25 @@ function copyTransaction(transaction: Transaction): TransactionInput {
     };
 }
 
+function copyNestedDuplicate(duplicate: NestedDuplicate): NestedDuplicateInput {
+    return {
+        id: duplicate.id,
+        date: duplicate.date,
+        description: duplicate.description,
+        descriptionAliasId: duplicate.descriptionAliasId,
+        notes: duplicate.notes,
+        amount: duplicate.amount,
+        accountId: duplicate.accountId,
+        tagIds: [...duplicate.tagIds],
+        statusId: duplicate.statusId,
+        importId: duplicate.importId,
+        allocations: copyAllocations(duplicate.allocations),
+        creationInstant: duplicate.creationInstant,
+        importRowIndex: duplicate.importRowIndex,
+        deletedAt: duplicate.deletedAt
+    };
+}
+
 /**
  * Delete a transaction.
  * If parent with cascade=true (default), deletes all suspectedDuplicates.
@@ -563,6 +594,7 @@ export function deleteTransaction(store: TransactionStore, input: DeleteTransact
     for (const dayBucket of dayBuckets) {
         for (let txIndex = dayBucket.transactions.length - 1; txIndex >= 0; txIndex--) {
             const transaction = dayBucket.transactions[txIndex];
+            if (!isPublicTransaction(transaction)) continue;
             if (transaction.id === location.transactionId) {
                 if (cascade) dayBucket.transactions.splice(txIndex, 1);
                 else transaction.deletedAt = deletedAt;
@@ -601,12 +633,24 @@ export function unnestDuplicate(store: TransactionStore, input: UnnestDuplicateI
     const duplicate = duplicates[0];
     if (!duplicate) return;
 
+    const remainingById = new Map<string, NestedDuplicate>();
     for (const parent of parents) {
-        for (let index = parent.suspectedDuplicates.length - 1; index >= 0; index -= 1) {
-            if (parent.suspectedDuplicates[index].id === duplicateId) {
-                parent.suspectedDuplicates.splice(index, 1);
+        for (const nested of parent.suspectedDuplicates) {
+            if (nested.id === duplicateId) continue;
+            const existing = remainingById.get(nested.id);
+            if (!existing || comparePhysicalIdentity(nested, existing) < 0) {
+                remainingById.set(nested.id, nested);
             }
         }
+    }
+    const remaining = Array.from(remainingById.values()).sort(comparePhysicalIdentity);
+
+    for (const parent of parents) {
+        parent.suspectedDuplicates.splice(
+            0,
+            parent.suspectedDuplicates.length,
+            ...remaining.map((nested) => withCid(copyNestedDuplicate(nested)))
+        );
     }
     for (const dayBucket of getDayBuckets(store, duplicate.accountId, duplicate.date)) {
         for (let index = dayBucket.transactions.length - 1; index >= 0; index -= 1) {
@@ -754,6 +798,7 @@ export function deleteTransactionsByImport(store: TransactionStore, importId: st
                     // Remove transactions with matching importId
                     for (let i = dayBucket.transactions.length - 1; i >= 0; i--) {
                         const tx = dayBucket.transactions[i];
+                        if (!isPublicTransaction(tx)) continue;
                         if (tx.importId === importId) {
                             dayBucket.transactions.splice(i, 1);
                             const date = new Temporal.PlainDate(

@@ -7,6 +7,7 @@
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
+import { createVaultMirror } from "@/lib/crdt/mirror";
 import { type InsertTransactionInput, insertTransaction } from "@/lib/crdt/mutations";
 import {
     filterTransactions,
@@ -16,9 +17,15 @@ import {
     getAllTransactions,
     getTransactionsInDateRange,
     getTransactionsWithDuplicates,
-    hasDayBucket
+    hasDayBucket,
+    queryTransactions
 } from "@/lib/crdt/queries";
-import type { Transaction, TransactionInput, TransactionStore } from "@/lib/crdt/schema";
+import type {
+    Transaction,
+    TransactionInput,
+    TransactionStore,
+    VaultState
+} from "@/lib/crdt/schema";
 import { asMinorUnits } from "@/lib/domain/currency";
 import { asPercentage } from "@/types";
 
@@ -451,6 +458,57 @@ describe("getTransactionsWithDuplicates", () => {
 
         expect(result.length).toBe(1);
         expect(result[0].id).toBe("tx-acc1");
+    });
+
+    it("globally canonicalizes same-ID parents when no account is scoped", () => {
+        const store = createEmptyStore();
+        for (const accountId of ["acc-2", "acc-1"]) {
+            insertTransaction(store, {
+                transaction: createTransaction({ id: "shared", accountId })
+            });
+            insertTransaction(store, {
+                transaction: createTransaction({ id: `nested-${accountId}`, accountId }),
+                suspectedDuplicateOf: {
+                    accountId,
+                    date: Temporal.PlainDate.from("2024-01-15"),
+                    transactionId: "shared"
+                }
+            });
+        }
+
+        expect(getTransactionsWithDuplicates(store).map(({ id }) => id)).toEqual(["shared"]);
+        expect(getTransactionsWithDuplicates(store, "acc-2").map(({ id }) => id)).toEqual([
+            "shared"
+        ]);
+    });
+});
+
+describe("queryTransactions", () => {
+    it("globally canonicalizes selected accounts before pagination", () => {
+        const vault = createVaultMirror();
+        vault.mirror.setState((state: VaultState) => {
+            insertTransaction(state.transactions, {
+                transaction: createTransaction({ id: "shared", accountId: "acc-2", notes: "z" })
+            });
+            insertTransaction(state.transactions, {
+                transaction: createTransaction({ id: "shared", accountId: "acc-1", notes: "a" })
+            });
+        });
+
+        const result = queryTransactions(
+            vault.mirror.getState(),
+            { accountIds: ["acc-2", "acc-1"] },
+            { page: 0, pageSize: 1 }
+        );
+
+        expect(result.totalCount).toBe(1);
+        expect(result.items).toHaveLength(1);
+        expect(result.items[0]).toEqual(
+            getAllTransactions(vault.mirror.getState().transactions).find(
+                ({ id }) => id === "shared"
+            )
+        );
+        vault.mirror.dispose();
     });
 });
 

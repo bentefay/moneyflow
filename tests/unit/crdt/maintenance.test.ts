@@ -1,6 +1,7 @@
 import fc from "fast-check";
+import { LoroList, LoroMap } from "loro-crdt";
 import { Temporal } from "temporal-polyfill";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
     assignDescriptionAlias,
@@ -22,6 +23,8 @@ import {
     deleteTransaction,
     insertTransaction,
     moveTransaction,
+    swapDuplicate,
+    unnestDuplicate,
     updateTransaction
 } from "@/lib/crdt/mutations";
 import { getAccountTransactions } from "@/lib/crdt/queries";
@@ -98,7 +101,10 @@ function applyPlan(
     doc: ReturnType<typeof createVaultMirror>["doc"]
 ): boolean {
     if (!isVaultMaintenancePlanCurrent(mirror.getState(), plan)) return false;
-    if (plan.kind === "relocate-conflict-transaction") {
+    if (
+        plan.kind === "relocate-conflict-transaction" ||
+        plan.kind === "discard-transaction-shadow"
+    ) {
         return applyVaultMaintenancePlan(mirror.getState(), plan, doc);
     }
     let applied = false;
@@ -136,8 +142,15 @@ function drainMaintenance(
         maxProcessed = Math.max(maxProcessed, result.processed);
         if (result.complete) return { applied, frames, maxProcessed };
     }
+    const transactions = physicalTransactions(mirror.getState());
     throw new Error(
-        `Maintenance did not reach a clean cursor: ${JSON.stringify({ applied, cursor, frames })}`
+        `Maintenance did not reach a clean cursor: ${JSON.stringify({
+            applied,
+            cursor,
+            frames,
+            transactionCount: transactions.length,
+            transactionIds: transactions.slice(0, 20).map(({ id }) => id)
+        })}`
     );
 }
 
@@ -254,7 +267,7 @@ describe("bounded vault maintenance", () => {
         mirror.dispose();
     });
 
-    it("prepares an oversized nested relocation in fixed-size chunks before one atomic commit", () => {
+    it("builds an oversized private shadow with bounded attached operations before atomic reveal", () => {
         const vault = createDuplicateBucketMirror(["a-target"], ["z-wide"]);
         vault.mirror.setState((state: VaultState) => {
             const source = physicalTransactions(state).find(({ id }) => id === "z-wide");
@@ -278,29 +291,63 @@ describe("bounded vault maintenance", () => {
                 });
             }
         });
-        const planned = findPlan(
-            vault.mirror.getState(),
-            (plan) =>
-                plan.kind === "relocate-conflict-transaction" &&
-                plan.mode === "move" &&
-                plan.transactionId === "z-wide"
-        );
         const origins: Array<string | undefined> = [];
-        const unsubscribe = vault.doc.subscribe((event) => origins.push(event.origin));
-        let chunks = 0;
-        while (origins.length === 0 && chunks < 1_000) {
-            expect(applyPlan(vault.mirror, planned.plan, vault.doc)).toBe(true);
-            chunks += 1;
-        }
+        const pushContainer = vi.spyOn(LoroList.prototype, "pushContainer");
+        const insertContainer = vi.spyOn(LoroList.prototype, "insertContainer");
+        const listDelete = vi.spyOn(LoroList.prototype, "delete");
+        const mapDelete = vi.spyOn(LoroMap.prototype, "delete");
+        const mapSet = vi.spyOn(LoroMap.prototype, "set");
+        const operationCount = () =>
+            pushContainer.mock.calls.length +
+            insertContainer.mock.calls.length +
+            listDelete.mock.calls.length +
+            mapDelete.mock.calls.length +
+            mapSet.mock.calls.length;
+        let previousOperations = 0;
+        const operationsPerCommit: number[] = [];
+        const observedPublicIds: string[][] = [];
+        const unsubscribe = vault.doc.subscribe((event) => {
+            origins.push(event.origin);
+            const currentOperations = operationCount();
+            operationsPerCommit.push(currentOperations - previousOperations);
+            previousOperations = currentOperations;
+            observedPublicIds.push(
+                getAccountTransactions(vault.mirror.getState().transactions, "account").map(
+                    ({ id }) => id
+                )
+            );
+        });
+        const result = drainMaintenance(vault.mirror, vault.doc);
 
-        expect(chunks).toBeGreaterThan(20);
-        expect(origins).toEqual(["system:gc"]);
+        expect(result.applied).toBeGreaterThan(300);
+        expect(Math.max(...operationsPerCommit)).toBeLessThanOrEqual(24);
+        expect(
+            pushContainer.mock.calls.some(
+                ([child]) =>
+                    child instanceof LoroMap && Object.keys(child.getShallowValue()).length > 0
+            ) ||
+                insertContainer.mock.calls.some(
+                    ([, child]) =>
+                        child instanceof LoroMap && Object.keys(child.getShallowValue()).length > 0
+                )
+        ).toBe(false);
+        expect(new Set(origins)).toEqual(new Set(["system:gc"]));
+        expect(
+            observedPublicIds.every(
+                (ids) => ids.length === new Set(ids).size && ids.includes("z-wide")
+            )
+        ).toBe(true);
         const relocated = physicalTransactions(vault.mirror.getState()).filter(
             ({ id }) => id === "z-wide"
         );
         expect(relocated).toHaveLength(1);
         expect(relocated[0].tagIds).toHaveLength(128);
         expect(relocated[0].suspectedDuplicates).toHaveLength(64);
+        pushContainer.mockRestore();
+        insertContainer.mockRestore();
+        listDelete.mockRestore();
+        mapDelete.mockRestore();
+        mapSet.mockRestore();
         unsubscribe();
         vault.mirror.dispose();
     });
@@ -532,6 +579,191 @@ describe("bounded vault maintenance", () => {
         base.mirror.dispose();
     });
 
+    it.each(["unnest", "swap"] as const)(
+        "keeps subscribed %s states canonical and converges the real-Loro physical graph",
+        (operation) => {
+            const parentDate = DATE;
+            const duplicateDate = DATE.subtract({ days: 1 });
+            const base = createVaultMirror();
+            base.mirror.setState((state: VaultState) => {
+                createDescriptionAlias(state, { aliasId: "parent-alias", name: "Parent" });
+                createDescriptionAlias(state, { aliasId: "duplicate-alias", name: "Duplicate" });
+                insertTransaction(state.transactions, {
+                    transaction: {
+                        ...transactionInput("bucket-anchor", 99),
+                        date: parentDate
+                    }
+                });
+                insertTransaction(state.transactions, {
+                    transaction: {
+                        ...transactionInput("duplicate-bucket-anchor", 98),
+                        date: duplicateDate
+                    }
+                });
+            });
+            const baseSnapshot = base.doc.export({ mode: "snapshot" });
+            const left = createVaultMirrorFromSnapshot(baseSnapshot);
+            const right = createVaultMirrorFromSnapshot(baseSnapshot);
+            const leftBase = left.doc.version();
+            const rightBase = right.doc.version();
+
+            for (const [vault, side] of [
+                [left, "left"],
+                [right, "right"]
+            ] as const) {
+                vault.mirror.setState((state: VaultState) => {
+                    insertTransaction(state.transactions, {
+                        transaction: {
+                            ...transactionInput(
+                                "parent",
+                                side === "left" ? 20 : 10,
+                                "parent-alias"
+                            ),
+                            date: parentDate,
+                            notes: side
+                        }
+                    });
+                    insertTransaction(state.transactions, {
+                        transaction: {
+                            ...transactionInput(
+                                "duplicate",
+                                side === "left" ? 22 : 12,
+                                "duplicate-alias"
+                            ),
+                            date: duplicateDate,
+                            notes: side
+                        },
+                        suspectedDuplicateOf: {
+                            accountId: "account",
+                            date: parentDate,
+                            transactionId: "parent"
+                        }
+                    });
+                    insertTransaction(state.transactions, {
+                        transaction: {
+                            ...transactionInput(`other-${side}`, side === "left" ? 21 : 11),
+                            date: duplicateDate
+                        },
+                        suspectedDuplicateOf: {
+                            accountId: "account",
+                            date: parentDate,
+                            transactionId: "parent"
+                        }
+                    });
+                    insertTransaction(state.transactions, {
+                        transaction: {
+                            ...transactionInput(
+                                "duplicate",
+                                side === "left" ? 22 : 12,
+                                "duplicate-alias"
+                            ),
+                            date: duplicateDate,
+                            notes: `standalone-${side}`
+                        }
+                    });
+                });
+            }
+
+            const leftUpdate = left.doc.export({ mode: "update", from: leftBase });
+            const rightUpdate = right.doc.export({ mode: "update", from: rightBase });
+            const leftThenRight = createVaultMirrorFromSnapshot(baseSnapshot);
+            const rightThenLeft = createVaultMirrorFromSnapshot(baseSnapshot);
+            leftThenRight.doc.import(leftUpdate);
+            leftThenRight.doc.import(rightUpdate);
+            rightThenLeft.doc.import(rightUpdate);
+            rightThenLeft.doc.import(leftUpdate);
+            const observations: string[][] = [];
+            const stopLeftThenRight = leftThenRight.doc.subscribe(() =>
+                observations.push(
+                    getAccountTransactions(
+                        leftThenRight.mirror.getState().transactions,
+                        "account"
+                    ).map(({ id }) => id)
+                )
+            );
+            const stopRightThenLeft = rightThenLeft.doc.subscribe(() =>
+                observations.push(
+                    getAccountTransactions(
+                        rightThenLeft.mirror.getState().transactions,
+                        "account"
+                    ).map(({ id }) => id)
+                )
+            );
+            for (const vault of [leftThenRight, rightThenLeft]) {
+                vault.mirror.setState((state: VaultState) => {
+                    const input = {
+                        parentLocation: {
+                            accountId: "account",
+                            date: parentDate,
+                            transactionId: "parent"
+                        },
+                        duplicateId: "duplicate"
+                    };
+                    if (operation === "unnest") unnestDuplicate(state.transactions, input);
+                    else swapDuplicate(state.transactions, input);
+                });
+            }
+            stopLeftThenRight();
+            stopRightThenLeft();
+
+            for (const ids of observations) {
+                expect(ids).toEqual(Array.from(new Set(ids)));
+                expect(ids).toContain(operation === "unnest" ? "parent" : "duplicate");
+            }
+
+            drainMaintenance(leftThenRight.mirror, leftThenRight.doc);
+            drainMaintenance(rightThenLeft.mirror, rightThenLeft.doc);
+            for (const vault of [leftThenRight, rightThenLeft]) {
+                const publicTransactions = physicalTransactions(vault.mirror.getState()).filter(
+                    ({ id }) => id === "parent" || id === "duplicate"
+                );
+                if (operation === "unnest") {
+                    expect(publicTransactions.map(({ id }) => id).sort()).toEqual([
+                        "duplicate",
+                        "parent"
+                    ]);
+                    expect(
+                        publicTransactions.find(({ id }) => id === "duplicate")?.descriptionAliasId
+                    ).toBe("duplicate-alias");
+                    expect(
+                        publicTransactions.find(({ id }) => id === "parent")?.descriptionAliasId
+                    ).toBe("parent-alias");
+                    expect(
+                        publicTransactions
+                            .find(({ id }) => id === "parent")
+                            ?.suspectedDuplicates.map(({ id }) => id)
+                            .sort()
+                    ).toEqual(["other-left", "other-right"]);
+                    expect(
+                        publicTransactions
+                            .flatMap(({ suspectedDuplicates }) => suspectedDuplicates)
+                            .some(({ id }) => id === "duplicate")
+                    ).toBe(false);
+                } else {
+                    expect(publicTransactions).toHaveLength(1);
+                    expect(publicTransactions[0].id).toBe("duplicate");
+                    expect(publicTransactions[0].descriptionAliasId).toBe("duplicate-alias");
+                    expect(
+                        publicTransactions[0].suspectedDuplicates.map(({ id }) => id).sort()
+                    ).toEqual(["other-left", "other-right", "parent"]);
+                    expect(
+                        publicTransactions[0].suspectedDuplicates.find(({ id }) => id === "parent")
+                            ?.descriptionAliasId
+                    ).toBe("parent-alias");
+                }
+            }
+            expect(
+                getAccountTransactions(leftThenRight.mirror.getState().transactions, "account")
+            ).toEqual(
+                getAccountTransactions(rightThenLeft.mirror.getState().transactions, "account")
+            );
+
+            for (const vault of [left, right, leftThenRight, rightThenLeft, base]) {
+                vault.mirror.dispose();
+            }
+        }
+    );
+
     it("rewrites parent and nested one-hop references before a proven hard delete", () => {
         const { doc, mirror } = createVaultMirror();
         mirror.setState((state: VaultState) => {
@@ -701,9 +933,11 @@ describe("bounded vault maintenance", () => {
                                 .map(({ id }) => id)
                                 .sort()
                         ).toEqual(expected);
-                        expect(peerOne.doc.getMap("transactions").toJSON()).toEqual(
-                            peerTwo.doc.getMap("transactions").toJSON()
-                        );
+                        const peerOneTransactions = peerOne.doc.getMap("transactions").toJSON();
+                        const peerTwoTransactions = peerTwo.doc.getMap("transactions").toJSON();
+                        delete peerOneTransactions["__moneyflow_gc_metadata__"];
+                        delete peerTwoTransactions["__moneyflow_gc_metadata__"];
+                        expect(peerOneTransactions).toEqual(peerTwoTransactions);
                     } finally {
                         peerOne.mirror.dispose();
                         peerTwo.mirror.dispose();

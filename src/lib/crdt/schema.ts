@@ -416,3 +416,27 @@ export type MonthBucketInput = InferInputType<typeof monthBucketSchema>;
 export type YearBucketInput = InferInputType<typeof yearBucketSchema>;
 export type AccountTransactionTreeInput = InferInputType<typeof accountTransactionTreeSchema>;
 export type TransactionStoreInput = InferInputType<typeof transactionStoreSchema>;
+
+/** A maintenance shadow is attached for bounded construction but is not yet application data. */
+export const TRANSACTION_MAINTENANCE_SHADOW_ID_PREFIX = "__moneyflow_gc_shadow__:";
+
+export interface TransactionMaintenanceShadowIdentity {
+    readonly epoch: string;
+    readonly publicId: string;
+    readonly sourceCid: string;
+}
+
+export function getTransactionMaintenanceShadowIdentity(transaction: {
+    readonly id: string;
+}): TransactionMaintenanceShadowIdentity | undefined {
+    if (!transaction.id.startsWith(TRANSACTION_MAINTENANCE_SHADOW_ID_PREFIX)) return undefined;
+    const [epoch, sourceCid, publicId] = transaction.id
+        .slice(TRANSACTION_MAINTENANCE_SHADOW_ID_PREFIX.length)
+        .split("\u0000");
+    return epoch && sourceCid && publicId ? { epoch, publicId, sourceCid } : undefined;
+}
+
+/** A maintenance shadow is attached for bounded construction but is not yet application data. */
+export function isPublicTransaction(transaction: Transaction): boolean {
+    return getTransactionMaintenanceShadowIdentity(transaction) == null;
+}

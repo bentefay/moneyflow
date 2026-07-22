@@ -13,6 +13,7 @@ import {
     type DescriptionAlias
 } from "@/lib/domain/description-aliases";
 
+import { isPublicTransaction } from "./schema";
 import type {
     Account,
     AccountTransactionTree,
@@ -186,6 +187,7 @@ export function getCanonicalTransactions(transactions: Iterable<Transaction>): T
     const byId = new Map<string, Transaction>();
 
     for (const transaction of transactions) {
+        if (!isPublicTransaction(transaction)) continue;
         const existing = byId.get(transaction.id);
         byId.set(
             transaction.id,
@@ -469,7 +471,7 @@ export function getTransactionsWithDuplicates(
         }
     }
 
-    return result;
+    return accountId ? result : getCanonicalTransactions(result);
 }
 
 /**
@@ -685,16 +687,7 @@ export function queryTransactions(
         transactions = queryOptions.accountIds.flatMap((accountId) =>
             getAccountTransactions(state.transactions, accountId)
         );
-        // Re-sort merged results
-        transactions.sort((a, b) => {
-            const dateCompare = Temporal.PlainDate.compare(b.date, a.date);
-            if (dateCompare !== 0) return dateCompare;
-            const instantCompare = Temporal.Instant.compare(b.creationInstant, a.creationInstant);
-            if (instantCompare !== 0) return instantCompare;
-            const aIdx = a.importRowIndex ?? Infinity;
-            const bIdx = b.importRowIndex ?? Infinity;
-            return aIdx - bIdx;
-        });
+        transactions = getCanonicalTransactions(transactions);
     } else {
         // All accounts
         transactions = getAllTransactions(state.transactions);
