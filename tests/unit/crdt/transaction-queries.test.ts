@@ -302,6 +302,28 @@ describe("findTransactionById", () => {
 });
 
 describe("getTransactionsInDateRange", () => {
+    it("uses the same canonical physical copy for location, ID, and import date-range reads", () => {
+        const date = Temporal.PlainDate.from("2024-01-15");
+        const store = populateStore([createTransaction({ id: "tx-conflict", date, notes: "z" })]);
+        const tree = store["acc-1"];
+        if (!tree || typeof tree === "string") throw new Error("Missing transaction tree");
+        const year = tree.years[0];
+        const month = year.months[0];
+        const day = month.days[0];
+        const competing = { ...day.transactions[0], notes: "a" };
+        tree.years.push({
+            ...year,
+            months: [{ ...month, days: [{ ...day, transactions: [competing] }] }]
+        });
+
+        const location = { accountId: "acc-1", date, transactionId: "tx-conflict" };
+        expect(findTransaction(store, location)?.notes).toBe("a");
+        expect(findTransactionById(store, "tx-conflict")?.transaction.notes).toBe("a");
+        expect(getTransactionsInDateRange(store, "acc-1", { start: date, end: date })).toEqual([
+            competing
+        ]);
+    });
+
     it("returns transactions within date range sorted ascending", () => {
         const store = populateStore([
             createTransaction({ id: "tx-jan-10", date: Temporal.PlainDate.from("2024-01-10") }),

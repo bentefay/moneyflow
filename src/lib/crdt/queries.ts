@@ -18,6 +18,7 @@ import type {
     AccountTransactionTree,
     DayBucket,
     MonthBucket,
+    NestedDuplicate,
     Person,
     Status,
     Tag,
@@ -176,6 +177,10 @@ function canonicalTransactionKey(transaction: Transaction): string {
     );
 }
 
+function materializeNestedTransaction(duplicate: NestedDuplicate): Transaction {
+    return { ...duplicate, suspectedDuplicates: [] };
+}
+
 /** Collapse temporary physical relocation copies to one logical transaction. */
 export function getCanonicalTransactions(transactions: Iterable<Transaction>): Transaction[] {
     const byId = new Map<string, Transaction>();
@@ -305,7 +310,7 @@ export function findTransaction(
 
     const { year, month, day } = date;
 
-    // Find matching buckets (handling CRDT duplicates)
+    const matches: Transaction[] = [];
     for (const yearBucket of tree.years) {
         if (yearBucket.year !== year) continue;
 
@@ -315,20 +320,23 @@ export function findTransaction(
             for (const dayBucket of monthBucket.days) {
                 if (dayBucket.day !== day) continue;
 
-                // Check parent transactions
-                const tx = dayBucket.transactions.find((t) => t.id === transactionId);
-                if (tx) return tx;
-
-                // Check nested duplicates
+                matches.push(
+                    ...dayBucket.transactions.filter(
+                        (transaction) => transaction.id === transactionId
+                    )
+                );
                 for (const t of dayBucket.transactions) {
-                    const dup = t.suspectedDuplicates?.find((d) => d.id === transactionId);
-                    if (dup) return dup as unknown as Transaction;
+                    matches.push(
+                        ...t.suspectedDuplicates
+                            .filter((duplicate) => duplicate.id === transactionId)
+                            .map(materializeNestedTransaction)
+                    );
                 }
             }
         }
     }
 
-    return undefined;
+    return getCanonicalTransactions(matches)[0];
 }
 
 /**
@@ -339,7 +347,8 @@ export function findTransactionById(
     store: TransactionStore,
     transactionId: string
 ): { transaction: Transaction; location: TransactionLocation } | undefined {
-    for (const accountId of Object.keys(store)) {
+    const matches: Array<{ transaction: Transaction; location: TransactionLocation }> = [];
+    for (const accountId of Object.keys(store).sort()) {
         const tree = store[accountId];
         if (!tree || typeof tree === "string") continue;
 
@@ -348,26 +357,25 @@ export function findTransactionById(
                 for (const dayBucket of monthBucket.days) {
                     for (const tx of dayBucket.transactions) {
                         if (tx.id === transactionId) {
-                            return {
+                            matches.push({
                                 transaction: tx,
                                 location: {
                                     accountId,
                                     date: tx.date,
                                     transactionId
                                 }
-                            };
+                            });
                         }
-                        // Check nested duplicates
-                        const dup = tx.suspectedDuplicates?.find((d) => d.id === transactionId);
-                        if (dup) {
-                            return {
-                                transaction: dup as unknown as Transaction,
+                        for (const duplicate of tx.suspectedDuplicates) {
+                            if (duplicate.id !== transactionId) continue;
+                            matches.push({
+                                transaction: materializeNestedTransaction(duplicate),
                                 location: {
                                     accountId,
-                                    date: tx.date, // Use parent's date for location
+                                    date: tx.date,
                                     transactionId
                                 }
-                            };
+                            });
                         }
                     }
                 }
@@ -375,7 +383,15 @@ export function findTransactionById(
         }
     }
 
-    return undefined;
+    return matches.sort((left, right) => {
+        const transactionCompare = canonicalTransactionKey(left.transaction).localeCompare(
+            canonicalTransactionKey(right.transaction)
+        );
+        if (transactionCompare !== 0) return transactionCompare;
+        const accountCompare = left.location.accountId.localeCompare(right.location.accountId);
+        if (accountCompare !== 0) return accountCompare;
+        return Temporal.PlainDate.compare(left.location.date, right.location.date);
+    })[0];
 }
 
 /**
@@ -424,10 +440,10 @@ export function getTransactionsInDateRange(
         }
     }
 
-    // Sort ascending by date for merge-scan
-    result.sort((a, b) => Temporal.PlainDate.compare(a.date, b.date));
-
-    return result;
+    return getCanonicalTransactions(result).sort((left, right) => {
+        const dateCompare = Temporal.PlainDate.compare(left.date, right.date);
+        return dateCompare !== 0 ? dateCompare : compareTransactionOrder(left, right);
+    });
 }
 
 /**

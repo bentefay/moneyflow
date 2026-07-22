@@ -92,19 +92,26 @@ function createDuplicateBucketMirror(leftIds: readonly string[], rightIds: reado
 
 function applyPlan(
     mirror: ReturnType<typeof createVaultMirror>["mirror"],
-    plan: VaultMaintenancePlan
+    plan: VaultMaintenancePlan,
+    doc: ReturnType<typeof createVaultMirror>["doc"]
 ): boolean {
+    if (plan.kind === "relocate-conflict-transaction") {
+        return applyVaultMaintenancePlan(mirror.getState(), plan, doc);
+    }
     let applied = false;
     mirror.setState(
         (state: VaultState) => {
-            applied = applyVaultMaintenancePlan(state, plan);
+            applied = applyVaultMaintenancePlan(state, plan, doc);
         },
         { origin: "system:gc" }
     );
     return applied;
 }
 
-function drainMaintenance(mirror: ReturnType<typeof createVaultMirror>["mirror"]): {
+function drainMaintenance(
+    mirror: ReturnType<typeof createVaultMirror>["mirror"],
+    doc: ReturnType<typeof createVaultMirror>["doc"]
+): {
     readonly applied: number;
     readonly frames: number;
     readonly maxProcessed: number;
@@ -115,7 +122,7 @@ function drainMaintenance(mirror: ReturnType<typeof createVaultMirror>["mirror"]
     let maxProcessed = 0;
     while (frames < 10_000) {
         const result = runVaultMaintenanceFrame({
-            apply: (plan) => applyPlan(mirror, plan),
+            apply: (plan) => applyPlan(mirror, plan, doc),
             cursor,
             getState: () => mirror.getState(),
             now: () => 0
@@ -198,7 +205,7 @@ describe("bounded vault maintenance", () => {
         );
         const origins: Array<string | undefined> = [];
         const unsubscribe = doc.subscribe((event) => origins.push(event.origin));
-        const result = drainMaintenance(mirror);
+        const result = drainMaintenance(mirror, doc);
         const state = mirror.getState();
         const tree = state.transactions.account;
         if (typeof tree !== "object" || tree == null) throw new Error("Missing account tree");
@@ -212,7 +219,7 @@ describe("bounded vault maintenance", () => {
         expect(new Set(origins)).toEqual(new Set(["system:gc"]));
 
         const cleanVersion = doc.version().encode();
-        expect(drainMaintenance(mirror).applied).toBe(0);
+        expect(drainMaintenance(mirror, doc).applied).toBe(0);
         expect(doc.version().encode()).toEqual(cleanVersion);
         unsubscribe();
         mirror.dispose();
@@ -221,9 +228,9 @@ describe("bounded vault maintenance", () => {
     it("completes a large conflict fixture without exceeding any frame item budget", () => {
         const leftIds = Array.from({ length: 128 }, (_, index) => `left-large-${index}`);
         const rightIds = Array.from({ length: 128 }, (_, index) => `right-large-${index}`);
-        const { mirror } = createDuplicateBucketMirror(leftIds, rightIds);
+        const { doc, mirror } = createDuplicateBucketMirror(leftIds, rightIds);
 
-        const result = drainMaintenance(mirror);
+        const result = drainMaintenance(mirror, doc);
         const expected = [
             { id: "newest", creation: 100 },
             ...leftIds.map((id, index) => ({ id, creation: 80 - index })),
@@ -243,7 +250,7 @@ describe("bounded vault maintenance", () => {
     });
 
     it("revalidates stable bucket identities after a mid-plan mutation", () => {
-        const { mirror } = createDuplicateBucketMirror(["left"], ["right"]);
+        const { doc, mirror } = createDuplicateBucketMirror(["left"], ["right"]);
         const planned = findPlan(
             mirror.getState(),
             (plan) => plan.kind === "relocate-conflict-transaction"
@@ -258,7 +265,7 @@ describe("bounded vault maintenance", () => {
                 }
             });
         });
-        expect(applyPlan(mirror, planned.plan)).toBe(false);
+        expect(applyPlan(mirror, planned.plan, doc)).toBe(false);
         expect(dayTransactionIds(mirror.getState())).toHaveLength(1);
         mirror.dispose();
     });
@@ -275,13 +282,13 @@ describe("bounded vault maintenance", () => {
         });
         const copyPlan = findPlan(
             editCase.mirror.getState(),
-            (plan) => plan.kind === "relocate-conflict-transaction" && plan.mode === "copy"
+            (plan) => plan.kind === "relocate-conflict-transaction" && plan.mode === "move"
         );
         if (copyPlan.plan.kind !== "relocate-conflict-transaction") {
             throw new Error("Expected a relocation plan");
         }
         const editedId = copyPlan.plan.transactionId;
-        expect(applyPlan(editCase.mirror, copyPlan.plan)).toBe(true);
+        expect(applyPlan(editCase.mirror, copyPlan.plan, editCase.doc)).toBe(true);
         expect(observedIds.every((ids) => new Set(ids).size === ids.length)).toBe(true);
         expect(
             getAccountTransactions(editCase.mirror.getState().transactions, "account").filter(
@@ -299,8 +306,8 @@ describe("bounded vault maintenance", () => {
             physicalTransactions(editCase.mirror.getState())
                 .filter(({ id }) => id === editedId)
                 .map(({ notes }) => notes)
-        ).toEqual(["edited between maintenance commits", "edited between maintenance commits"]);
-        drainMaintenance(editCase.mirror);
+        ).toEqual(["edited between maintenance commits"]);
+        drainMaintenance(editCase.mirror, editCase.doc);
         expect(
             getAccountTransactions(editCase.mirror.getState().transactions, "account")
                 .filter(({ id }) => id === editedId)
@@ -312,19 +319,19 @@ describe("bounded vault maintenance", () => {
         const deleteCase = createDuplicateBucketMirror(["left"], ["right"]);
         const deletePlan = findPlan(
             deleteCase.mirror.getState(),
-            (plan) => plan.kind === "relocate-conflict-transaction" && plan.mode === "copy"
+            (plan) => plan.kind === "relocate-conflict-transaction" && plan.mode === "move"
         );
         if (deletePlan.plan.kind !== "relocate-conflict-transaction") {
             throw new Error("Expected a relocation plan");
         }
         const deletedId = deletePlan.plan.transactionId;
-        expect(applyPlan(deleteCase.mirror, deletePlan.plan)).toBe(true);
+        expect(applyPlan(deleteCase.mirror, deletePlan.plan, deleteCase.doc)).toBe(true);
         deleteCase.mirror.setState((state: VaultState) => {
             deleteTransaction(state.transactions, {
                 location: { accountId: "account", date: DATE, transactionId: deletedId }
             });
         });
-        drainMaintenance(deleteCase.mirror);
+        drainMaintenance(deleteCase.mirror, deleteCase.doc);
         expect(
             getAccountTransactions(deleteCase.mirror.getState().transactions, "account").filter(
                 ({ id }) => id === deletedId
@@ -335,13 +342,13 @@ describe("bounded vault maintenance", () => {
         const moveCase = createDuplicateBucketMirror(["left"], ["right"]);
         const movePlan = findPlan(
             moveCase.mirror.getState(),
-            (plan) => plan.kind === "relocate-conflict-transaction" && plan.mode === "copy"
+            (plan) => plan.kind === "relocate-conflict-transaction" && plan.mode === "move"
         );
         if (movePlan.plan.kind !== "relocate-conflict-transaction") {
             throw new Error("Expected a relocation plan");
         }
         const movedId = movePlan.plan.transactionId;
-        expect(applyPlan(moveCase.mirror, movePlan.plan)).toBe(true);
+        expect(applyPlan(moveCase.mirror, movePlan.plan, moveCase.doc)).toBe(true);
         const movedDate = DATE.add({ days: 1 });
         moveCase.mirror.setState((state: VaultState) => {
             moveTransaction(state.transactions, {
@@ -349,7 +356,7 @@ describe("bounded vault maintenance", () => {
                 newDate: movedDate
             });
         });
-        drainMaintenance(moveCase.mirror);
+        drainMaintenance(moveCase.mirror, moveCase.doc);
         const moved = getAccountTransactions(
             moveCase.mirror.getState().transactions,
             "account"
@@ -470,7 +477,7 @@ describe("bounded vault maintenance", () => {
     });
 
     it("rewrites parent and nested one-hop references before a proven hard delete", () => {
-        const { mirror } = createVaultMirror();
+        const { doc, mirror } = createVaultMirror();
         mirror.setState((state: VaultState) => {
             createDescriptionAlias(state, { aliasId: "source", name: "Source" });
             createDescriptionAlias(state, { aliasId: "target", name: "Target" });
@@ -507,7 +514,7 @@ describe("bounded vault maintenance", () => {
                 ?.name
         ).toBe("Target");
 
-        drainMaintenance(mirror);
+        drainMaintenance(mirror, doc);
         const state = mirror.getState();
         const tree = state.transactions.account;
         if (typeof tree !== "object" || tree == null) throw new Error("Missing account tree");
@@ -525,7 +532,7 @@ describe("bounded vault maintenance", () => {
     });
 
     it("defers hard deletion when a new direct reference lands after planning", () => {
-        const { mirror } = createVaultMirror();
+        const { doc, mirror } = createVaultMirror();
         mirror.setState((state: VaultState) => {
             createDescriptionAlias(state, { aliasId: "source", name: "Source" });
             createDescriptionAlias(state, { aliasId: "target", name: "Target" });
@@ -542,9 +549,9 @@ describe("bounded vault maintenance", () => {
             state.descriptionAliases.source.transactionIds.late = true;
         });
 
-        expect(applyPlan(mirror, planned.plan)).toBe(false);
+        expect(applyPlan(mirror, planned.plan, doc)).toBe(false);
         expect(mirror.getState().descriptionAliases.source).toBeDefined();
-        drainMaintenance(mirror);
+        drainMaintenance(mirror, doc);
         expect(mirror.getState().descriptionAliases.source).toBeUndefined();
         mirror.dispose();
     });
@@ -567,8 +574,8 @@ describe("bounded vault maintenance", () => {
                     try {
                         const peerOneBase = peerOne.doc.version();
                         const peerTwoBase = peerTwo.doc.version();
-                        drainMaintenance(peerOne.mirror);
-                        drainMaintenance(peerTwo.mirror);
+                        drainMaintenance(peerOne.mirror, peerOne.doc);
+                        drainMaintenance(peerTwo.mirror, peerTwo.doc);
                         const peerOneUpdate = peerOne.doc.export({
                             mode: "update",
                             from: peerOneBase
@@ -579,12 +586,28 @@ describe("bounded vault maintenance", () => {
                         });
                         peerOne.doc.import(peerTwoUpdate);
                         peerTwo.doc.import(peerOneUpdate);
-                        drainMaintenance(peerOne.mirror);
-                        drainMaintenance(peerTwo.mirror);
+                        drainMaintenance(peerOne.mirror, peerOne.doc);
+                        drainMaintenance(peerTwo.mirror, peerTwo.doc);
 
                         const expected = [...leftIds, ...rightIds];
-                        expect(dayTransactionIds(peerOne.mirror.getState())).toEqual(expected);
-                        expect(dayTransactionIds(peerTwo.mirror.getState())).toEqual(expected);
+                        expect(
+                            getAccountTransactions(
+                                peerOne.mirror.getState().transactions,
+                                "account"
+                            )
+                                .filter(({ id }) => id !== "newest")
+                                .map(({ id }) => id)
+                                .sort()
+                        ).toEqual(expected.sort());
+                        expect(
+                            getAccountTransactions(
+                                peerTwo.mirror.getState().transactions,
+                                "account"
+                            )
+                                .filter(({ id }) => id !== "newest")
+                                .map(({ id }) => id)
+                                .sort()
+                        ).toEqual(expected);
                         expect(peerOne.doc.getMap("transactions").toJSON()).toEqual(
                             peerTwo.doc.getMap("transactions").toJSON()
                         );

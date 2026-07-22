@@ -1,4 +1,4 @@
-import type { LoroDoc } from "loro-crdt";
+import { LoroList, LoroMap, type Container, type LoroDoc } from "loro-crdt";
 
 import {
     hardDeleteUnreferencedDescriptionAliasSymlink,
@@ -6,69 +6,16 @@ import {
     type DescriptionAliasMaintenanceReference
 } from "./description-aliases";
 import type { VaultMirror } from "./mirror";
-import { getDayBuckets, insertTransaction, pruneBuckets } from "./mutations";
+import { getDayBuckets } from "./mutations";
 import type {
     AccountTransactionTree,
     DayBucket,
     MonthBucket,
-    NestedDuplicateInput,
     Transaction,
-    TransactionInput,
     VaultState,
     YearBucket
 } from "./schema";
 import { getVaultAliasHistoryFrontier } from "./undo";
-
-function copyAllocations(record: Transaction["allocations"]): NestedDuplicateInput["allocations"] {
-    return Object.fromEntries(
-        Object.entries(record).filter(([key]) => key !== "$cid")
-    ) as NestedDuplicateInput["allocations"];
-}
-
-function copyNestedDuplicate(
-    duplicate: Transaction["suspectedDuplicates"][number]
-): NestedDuplicateInput {
-    return {
-        id: duplicate.id,
-        date: duplicate.date,
-        description: duplicate.description,
-        descriptionAliasId: duplicate.descriptionAliasId,
-        notes: duplicate.notes,
-        amount: duplicate.amount,
-        accountId: duplicate.accountId,
-        tagIds: [...duplicate.tagIds],
-        statusId: duplicate.statusId,
-        importId: duplicate.importId,
-        allocations: copyAllocations(duplicate.allocations),
-        creationInstant: duplicate.creationInstant,
-        importRowIndex: duplicate.importRowIndex,
-        deletedAt: duplicate.deletedAt
-    };
-}
-
-function copyTransaction(transaction: Transaction): TransactionInput {
-    return {
-        id: transaction.id,
-        date: transaction.date,
-        description: transaction.description,
-        descriptionAliasId: transaction.descriptionAliasId,
-        notes: transaction.notes,
-        amount: transaction.amount,
-        accountId: transaction.accountId,
-        tagIds: [...transaction.tagIds],
-        statusId: transaction.statusId,
-        importId: transaction.importId,
-        allocations: copyAllocations(transaction.allocations),
-        creationInstant: transaction.creationInstant,
-        importRowIndex: transaction.importRowIndex,
-        suspectedDuplicates: transaction.suspectedDuplicates.map(copyNestedDuplicate),
-        deletedAt: transaction.deletedAt
-    };
-}
-
-function transactionsMatch(left: Transaction, right: Transaction): boolean {
-    return JSON.stringify(copyTransaction(left)) === JSON.stringify(copyTransaction(right));
-}
 
 function findEarlierTransactionCopy(input: {
     readonly accountId: string;
@@ -76,10 +23,15 @@ function findEarlierTransactionCopy(input: {
     readonly sourceDay: DayBucket;
     readonly state: VaultState;
 }): Transaction | undefined {
-    const dayBuckets = getDayBuckets(input.state.transactions, input.accountId, input.source.date);
+    const dayBuckets = getCanonicalDayBuckets(input.state, input.accountId, input.source.date);
     for (const dayBucket of dayBuckets) {
         for (const candidate of dayBucket.transactions) {
-            if (candidate === input.source) return undefined;
+            if (
+                candidate === input.source ||
+                (candidate.$cid && candidate.$cid === input.source.$cid)
+            ) {
+                return undefined;
+            }
             if (candidate.id === input.source.id) return candidate;
         }
         if (dayBucket === input.sourceDay) return undefined;
@@ -87,21 +39,21 @@ function findEarlierTransactionCopy(input: {
     return undefined;
 }
 
-function canRemoveCopiedDays(input: {
-    readonly accountId: string;
-    readonly days: readonly DayBucket[];
-    readonly state: VaultState;
-}): boolean {
-    return input.days.every((day) =>
-        day.transactions.every((transaction) => {
-            const earlierCopy = findEarlierTransactionCopy({
-                accountId: input.accountId,
-                source: transaction,
-                sourceDay: day,
-                state: input.state
-            });
-            return earlierCopy != null && transactionsMatch(earlierCopy, transaction);
-        })
+function dayIdentityKey(day: DayBucket): string {
+    return (
+        day.transactions
+            .map((transaction) => `${transaction.id}\u0000${transaction.$cid}`)
+            .sort()[0] ?? ""
+    );
+}
+
+function getCanonicalDayBuckets(
+    state: VaultState,
+    accountId: string,
+    date: Transaction["date"]
+): DayBucket[] {
+    return getDayBuckets(state.transactions, accountId, date).sort((left, right) =>
+        dayIdentityKey(left).localeCompare(dayIdentityKey(right))
     );
 }
 
@@ -140,8 +92,11 @@ type StructuralMaintenancePlan =
           readonly yearIndex: number;
           readonly monthIndex: number;
           readonly dayIndex: number;
-          readonly mode: "copy" | "remove-source";
-          readonly transactionCid: string;
+          readonly mode: "move" | "remove-source";
+          readonly targetDayIndex: number;
+          readonly targetMonthIndex: number;
+          readonly targetYearIndex: number;
+          readonly transactionCid?: string;
           readonly transactionId: string;
       }
     | {
@@ -286,15 +241,7 @@ function planYearStep(state: VaultState, cursor: VaultMaintenanceCursor): VaultM
     }
     const next = withPosition(cursor, { yearIndex: cursor.yearIndex + 1 });
     if (target.year !== source.year) return { cursor: next };
-    if (
-        !canRemoveCopiedDays({
-            accountId: current.accountId,
-            days: source.months.flatMap((month) => month.days),
-            state
-        })
-    ) {
-        return { cursor: next };
-    }
+    if (source.months.length !== 0) return { cursor: next };
     return {
         cursor: next,
         plan: {
@@ -343,9 +290,7 @@ function planMonthStep(state: VaultState, cursor: VaultMaintenanceCursor): Vault
     }
     const next = withPosition(cursor, { monthIndex: cursor.monthIndex + 1 });
     if (target.month !== source.month) return { cursor: next };
-    if (!canRemoveCopiedDays({ accountId: current.accountId, days: source.days, state })) {
-        return { cursor: next };
-    }
+    if (source.days.length !== 0) return { cursor: next };
     return {
         cursor: next,
         plan: {
@@ -407,9 +352,7 @@ function planDayStep(state: VaultState, cursor: VaultMaintenanceCursor): VaultMa
     }
     const next = withPosition(cursor, { dayIndex: cursor.dayIndex + 1 });
     if (target.day !== source.day) return { cursor: next };
-    if (!canRemoveCopiedDays({ accountId: current.accountId, days: [source], state })) {
-        return { cursor: next };
-    }
+    if (source.transactions.length !== 0) return { cursor: next };
     return {
         cursor: next,
         plan: {
@@ -463,6 +406,31 @@ function nextTransactionContainer(cursor: VaultMaintenanceCursor): VaultMaintena
         transactionIndex: cursor.transactionIndex + 1,
         nestedIndex: -1
     });
+}
+
+function findDayPosition(
+    tree: AccountTransactionTree,
+    target: DayBucket
+):
+    | {
+          readonly dayIndex: number;
+          readonly monthIndex: number;
+          readonly yearIndex: number;
+      }
+    | undefined {
+    const targetKey = dayIdentityKey(target);
+    for (let yearIndex = 0; yearIndex < tree.years.length; yearIndex += 1) {
+        const year = tree.years[yearIndex];
+        for (let monthIndex = 0; monthIndex < year.months.length; monthIndex += 1) {
+            const month = year.months[monthIndex];
+            for (let dayIndex = 0; dayIndex < month.days.length; dayIndex += 1) {
+                if (dayIdentityKey(month.days[dayIndex]) === targetKey) {
+                    return { dayIndex, monthIndex, yearIndex };
+                }
+            }
+        }
+    }
+    return undefined;
 }
 
 function planTransactionStep(
@@ -536,18 +504,19 @@ function planTransactionStep(
         const next = transaction.suspectedDuplicates.length
             ? withPosition(cursor, { nestedIndex: 0 })
             : nextTransactionContainer(cursor);
-        const dayBuckets = getDayBuckets(state.transactions, current.accountId, transaction.date);
+        const dayBuckets = getCanonicalDayBuckets(state, current.accountId, transaction.date);
+        const targetPosition = findDayPosition(current.tree, dayBuckets[0]);
         const earlierCopy = findEarlierTransactionCopy({
             accountId: current.accountId,
             source: transaction,
             sourceDay: day,
             state
         });
-        const needsBucketRelocation = dayBuckets[0] !== day;
-        if (
-            (earlierCopy && dayBuckets[0] === day && transactionsMatch(earlierCopy, transaction)) ||
-            (needsBucketRelocation && !earlierCopy)
-        ) {
+        const sourceIsTargetBucket = dayBuckets[0].transactions.some(
+            (candidate) => candidate.$cid === transaction.$cid
+        );
+        const needsBucketRelocation = !sourceIsTargetBucket;
+        if (targetPosition && (earlierCopy || (needsBucketRelocation && !earlierCopy))) {
             return {
                 cursor: next,
                 plan: {
@@ -556,7 +525,10 @@ function planTransactionStep(
                     yearIndex: cursor.yearIndex,
                     monthIndex: cursor.monthIndex,
                     dayIndex: cursor.dayIndex,
-                    mode: earlierCopy ? "remove-source" : "copy",
+                    mode: earlierCopy ? "remove-source" : "move",
+                    targetDayIndex: targetPosition.dayIndex,
+                    targetMonthIndex: targetPosition.monthIndex,
+                    targetYearIndex: targetPosition.yearIndex,
                     transactionCid: transaction.$cid,
                     transactionId: transaction.id
                 }
@@ -707,8 +679,88 @@ function getDayPair(
     return { month, target, source };
 }
 
+function cloneLoroContainer(container: Container): Container {
+    if (container instanceof LoroMap) {
+        const copy = new LoroMap();
+        for (const key of Object.keys(container.getShallowValue())) {
+            const value = container.get(key);
+            if (value instanceof LoroMap || value instanceof LoroList) {
+                copy.setContainer(key, cloneLoroContainer(value));
+            } else {
+                copy.set(key, value);
+            }
+        }
+        return copy;
+    }
+    if (container instanceof LoroList) {
+        const copy = new LoroList();
+        for (let index = 0; index < container.length; index += 1) {
+            const value = container.get(index);
+            if (value instanceof LoroMap || value instanceof LoroList) {
+                copy.pushContainer(cloneLoroContainer(value));
+            } else {
+                copy.push(value);
+            }
+        }
+        return copy;
+    }
+    throw new Error(`Unsupported maintenance container ${container.kind()}`);
+}
+
+function getTransactionList(input: {
+    readonly accountId: string;
+    readonly dayIndex: number;
+    readonly doc: LoroDoc;
+    readonly monthIndex: number;
+    readonly yearIndex: number;
+}): LoroList | undefined {
+    const account = input.doc.getMap("transactions").get(input.accountId);
+    if (!(account instanceof LoroMap)) return undefined;
+    const years = account.get("years");
+    const year = years instanceof LoroList ? years.get(input.yearIndex) : undefined;
+    const months = year instanceof LoroMap ? year.get("months") : undefined;
+    const month = months instanceof LoroList ? months.get(input.monthIndex) : undefined;
+    const days = month instanceof LoroMap ? month.get("days") : undefined;
+    const day = days instanceof LoroList ? days.get(input.dayIndex) : undefined;
+    const transactions = day instanceof LoroMap ? day.get("transactions") : undefined;
+    return transactions instanceof LoroList ? transactions : undefined;
+}
+
+function deleteContainerAt(list: LoroList, index: number, container: LoroMap): boolean {
+    const indexed = list.get(index);
+    if (!(indexed instanceof LoroMap) || indexed.id !== container.id) return false;
+    list.delete(index, 1);
+    return true;
+}
+
+function pruneEmptyTransactionContainers(input: {
+    readonly dayIndex: number;
+    readonly monthIndex: number;
+    readonly sourceList: LoroList;
+    readonly yearIndex: number;
+}): void {
+    if (input.sourceList.length !== 0) return;
+    const day = input.sourceList.parent();
+    const days = day?.parent();
+    if (!(day instanceof LoroMap) || !(days instanceof LoroList)) return;
+    if (!deleteContainerAt(days, input.dayIndex, day) || days.length !== 0) return;
+    const month = days.parent();
+    const months = month?.parent();
+    if (!(month instanceof LoroMap) || !(months instanceof LoroList)) return;
+    if (!deleteContainerAt(months, input.monthIndex, month) || months.length !== 0) return;
+    const year = months.parent();
+    const years = year?.parent();
+    if (year instanceof LoroMap && years instanceof LoroList) {
+        deleteContainerAt(years, input.yearIndex, year);
+    }
+}
+
 /** Revalidate and apply one narrow maintenance mutation. */
-export function applyVaultMaintenancePlan(state: VaultState, plan: VaultMaintenancePlan): boolean {
+export function applyVaultMaintenancePlan(
+    state: VaultState,
+    plan: VaultMaintenancePlan,
+    doc?: LoroDoc
+): boolean {
     if (plan.kind === "rewrite-alias-reference") {
         return rewriteDescriptionAliasMaintenanceReference(state, plan);
     }
@@ -716,6 +768,7 @@ export function applyVaultMaintenancePlan(state: VaultState, plan: VaultMaintena
         return hardDeleteUnreferencedDescriptionAliasSymlink(state, plan);
     }
     if (plan.kind === "relocate-conflict-transaction") {
+        if (!doc) return false;
         const tree = state.transactions[plan.accountId];
         if (typeof tree !== "object" || tree == null) return false;
         const { yearIndex, monthIndex, dayIndex } = plan;
@@ -729,56 +782,76 @@ export function applyVaultMaintenancePlan(state: VaultState, plan: VaultMaintena
         );
         if (transactionIndex < 0) return false;
         const transaction = day.transactions[transactionIndex];
-        const transactionInput = copyTransaction(transaction);
-        const dayBuckets = getDayBuckets(state.transactions, plan.accountId, transaction.date);
+        const dayBuckets = getCanonicalDayBuckets(state, plan.accountId, transaction.date);
         const earlierCopy = findEarlierTransactionCopy({
             accountId: plan.accountId,
             source: transaction,
             sourceDay: day,
             state
         });
-        if (plan.mode === "copy") {
-            if (dayBuckets[0] === day || earlierCopy) return false;
-            insertTransaction(state.transactions, { transaction: transactionInput });
-            return true;
-        }
-        if (!earlierCopy || dayBuckets[0] !== day || !transactionsMatch(earlierCopy, transaction)) {
+        const sourceList = getTransactionList({
+            accountId: plan.accountId,
+            dayIndex,
+            doc,
+            monthIndex,
+            yearIndex
+        });
+        const targetList = getTransactionList({
+            accountId: plan.accountId,
+            dayIndex: plan.targetDayIndex,
+            doc,
+            monthIndex: plan.targetMonthIndex,
+            yearIndex: plan.targetYearIndex
+        });
+        const transactionContainer = sourceList?.get(transactionIndex);
+        if (
+            !(transactionContainer instanceof LoroMap) ||
+            !(sourceList instanceof LoroList) ||
+            !(targetList instanceof LoroList) ||
+            transaction.id !== plan.transactionId
+        ) {
             return false;
         }
-        day.transactions.splice(transactionIndex, 1);
-        pruneBuckets(state.transactions, plan.accountId, transactionInput.date);
+        if (plan.mode === "move") {
+            const targetPosition = findDayPosition(tree, dayBuckets[0]);
+            if (
+                targetPosition?.yearIndex !== plan.targetYearIndex ||
+                targetPosition.monthIndex !== plan.targetMonthIndex ||
+                targetPosition.dayIndex !== plan.targetDayIndex
+            ) {
+                return false;
+            }
+            if (
+                dayBuckets[0].transactions.some(
+                    (candidate) => candidate.$cid === transaction.$cid
+                ) ||
+                earlierCopy
+            ) {
+                return false;
+            }
+            targetList.pushContainer(cloneLoroContainer(transactionContainer));
+        } else if (!earlierCopy) {
+            return false;
+        }
+        sourceList.delete(transactionIndex, 1);
+        pruneEmptyTransactionContainers({ dayIndex, monthIndex, sourceList, yearIndex });
+        doc.commit({ origin: "system:gc" });
         return true;
     }
     if (plan.kind === "remove-year") {
         const pair = getYearPair(state, plan);
-        if (
-            !pair ||
-            !canRemoveCopiedDays({
-                accountId: plan.accountId,
-                days: pair.source.months.flatMap((month) => month.days),
-                state
-            })
-        ) {
-            return false;
-        }
+        if (!pair || pair.source.months.length !== 0) return false;
         pair.tree.years.splice(plan.sourceYearIndex, 1);
         return true;
     }
     if (plan.kind === "remove-month") {
         const pair = getMonthPair(state, plan);
-        if (
-            !pair ||
-            !canRemoveCopiedDays({ accountId: plan.accountId, days: pair.source.days, state })
-        ) {
-            return false;
-        }
+        if (!pair || pair.source.days.length !== 0) return false;
         pair.year.months.splice(plan.sourceMonthIndex, 1);
         return true;
     }
     const pair = getDayPair(state, plan);
-    if (!pair || !canRemoveCopiedDays({ accountId: plan.accountId, days: [pair.source], state })) {
-        return false;
-    }
+    if (!pair || pair.source.transactions.length !== 0) return false;
     pair.month.days.splice(plan.sourceDayIndex, 1);
     return true;
 }
@@ -867,6 +940,9 @@ export function startVaultMaintenanceScheduler(input: {
                               ? plan.symlinkId
                               : undefined;
                     if (aliasId && aliasHistory?.has(aliasId)) return false;
+                    if (plan.kind === "relocate-conflict-transaction") {
+                        return applyVaultMaintenancePlan(input.store.getState(), plan, input.doc);
+                    }
                     let applied = false;
                     input.store.setState(
                         (state: VaultState) => {

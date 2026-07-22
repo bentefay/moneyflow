@@ -526,6 +526,48 @@ describe("unnestDuplicate", () => {
         expect(dupBuckets.length).toBe(1);
         expect(dupBuckets[0].transactions[0].id).toBe("tx-dup");
     });
+
+    it("removes divergent nested copies from every physical parent before materializing one", () => {
+        const store = createEmptyStore();
+        const parentDate = Temporal.PlainDate.from("2024-01-15");
+        const duplicateDate = Temporal.PlainDate.from("2024-01-14");
+        insertTransaction(store, {
+            transaction: createTransaction({ id: "parent", date: parentDate })
+        });
+        insertTransaction(store, {
+            transaction: createTransaction({ id: "duplicate", date: duplicateDate, notes: "z" }),
+            suspectedDuplicateOf: {
+                accountId: "acc-1",
+                date: parentDate,
+                transactionId: "parent"
+            }
+        });
+        const tree = store["acc-1"];
+        if (!tree || typeof tree === "string") throw new Error("Missing transaction tree");
+        const year = tree.years[0];
+        const month = year.months[0];
+        const day = month.days[0];
+        const parentCopy = {
+            ...day.transactions[0],
+            suspectedDuplicates: [{ ...day.transactions[0].suspectedDuplicates[0], notes: "a" }]
+        };
+        tree.years.push({
+            ...year,
+            months: [{ ...month, days: [{ ...day, transactions: [parentCopy] }] }]
+        });
+
+        unnestDuplicate(store, {
+            parentLocation: { accountId: "acc-1", date: parentDate, transactionId: "parent" },
+            duplicateId: "duplicate"
+        });
+
+        expect(
+            getDayBuckets(store, "acc-1", parentDate).flatMap((bucket) =>
+                bucket.transactions.flatMap((transaction) => transaction.suspectedDuplicates)
+            )
+        ).toEqual([]);
+        expect(getDayBuckets(store, "acc-1", duplicateDate)[0].transactions[0].notes).toBe("a");
+    });
 });
 
 describe("swapDuplicate", () => {
@@ -577,6 +619,47 @@ describe("swapDuplicate", () => {
         // Old parent should now be a duplicate of new parent
         expect(newParent.suspectedDuplicates?.length).toBe(1);
         expect(newParent.suspectedDuplicates?.[0].id).toBe("tx-parent");
+    });
+
+    it("removes every physical parent copy and deterministically promotes divergent duplicates", () => {
+        const store = createEmptyStore();
+        const parentDate = Temporal.PlainDate.from("2024-01-15");
+        const duplicateDate = Temporal.PlainDate.from("2024-01-14");
+        insertTransaction(store, {
+            transaction: createTransaction({ id: "parent", date: parentDate })
+        });
+        insertTransaction(store, {
+            transaction: createTransaction({ id: "duplicate", date: duplicateDate, notes: "z" }),
+            suspectedDuplicateOf: {
+                accountId: "acc-1",
+                date: parentDate,
+                transactionId: "parent"
+            }
+        });
+        const tree = store["acc-1"];
+        if (!tree || typeof tree === "string") throw new Error("Missing transaction tree");
+        const year = tree.years[0];
+        const month = year.months[0];
+        const day = month.days[0];
+        const parentCopy = {
+            ...day.transactions[0],
+            suspectedDuplicates: [{ ...day.transactions[0].suspectedDuplicates[0], notes: "a" }]
+        };
+        tree.years.push({
+            ...year,
+            months: [{ ...month, days: [{ ...day, transactions: [parentCopy] }] }]
+        });
+
+        swapDuplicate(store, {
+            parentLocation: { accountId: "acc-1", date: parentDate, transactionId: "parent" },
+            duplicateId: "duplicate"
+        });
+
+        expect(getDayBuckets(store, "acc-1", parentDate)).toEqual([]);
+        const promoted = getDayBuckets(store, "acc-1", duplicateDate)[0].transactions;
+        expect(promoted).toHaveLength(1);
+        expect(promoted[0].notes).toBe("a");
+        expect(promoted[0].suspectedDuplicates.map(({ id }) => id)).toEqual(["parent"]);
     });
 });
 

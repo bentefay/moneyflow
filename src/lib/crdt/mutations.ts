@@ -401,6 +401,20 @@ export function findParentTransaction(
     return matches.sort(comparePhysicalIdentity)[0];
 }
 
+/** Find every physical parent copy for one logical transaction identity. */
+export function findParentTransactions(
+    store: TransactionStore,
+    location: TransactionLocation
+): Transaction[] {
+    return getDayBuckets(store, location.accountId, location.date)
+        .flatMap((dayBucket) =>
+            dayBucket.transactions.filter(
+                (transaction) => transaction.id === location.transactionId
+            )
+        )
+        .sort(comparePhysicalIdentity);
+}
+
 /**
  * Update a transaction in place.
  * Does not move the transaction - use moveTransaction for date changes.
@@ -578,15 +592,29 @@ export function deleteTransaction(store: TransactionStore, input: DeleteTransact
  */
 export function unnestDuplicate(store: TransactionStore, input: UnnestDuplicateInput): void {
     const { parentLocation, duplicateId } = input;
-    const parentTx = findParentTransaction(store, parentLocation);
+    const parents = findParentTransactions(store, parentLocation);
+    const duplicates = parents
+        .flatMap((parent) =>
+            parent.suspectedDuplicates.filter((duplicate) => duplicate.id === duplicateId)
+        )
+        .sort(comparePhysicalIdentity);
+    const duplicate = duplicates[0];
+    if (!duplicate) return;
 
-    if (!parentTx || !parentTx.suspectedDuplicates) return;
-
-    const dupIndex = parentTx.suspectedDuplicates.findIndex((d) => d.id === duplicateId);
-    if (dupIndex === -1) return;
-
-    // Remove from parent
-    const duplicate = parentTx.suspectedDuplicates.splice(dupIndex, 1)[0];
+    for (const parent of parents) {
+        for (let index = parent.suspectedDuplicates.length - 1; index >= 0; index -= 1) {
+            if (parent.suspectedDuplicates[index].id === duplicateId) {
+                parent.suspectedDuplicates.splice(index, 1);
+            }
+        }
+    }
+    for (const dayBucket of getDayBuckets(store, duplicate.accountId, duplicate.date)) {
+        for (let index = dayBucket.transactions.length - 1; index >= 0; index -= 1) {
+            if (dayBucket.transactions[index].id === duplicateId) {
+                dayBucket.transactions.splice(index, 1);
+            }
+        }
+    }
 
     // Insert as standalone transaction at its own date
     insertTransaction(store, {
@@ -605,34 +633,40 @@ export function unnestDuplicate(store: TransactionStore, input: UnnestDuplicateI
  */
 export function swapDuplicate(store: TransactionStore, input: SwapDuplicateInput): void {
     const { parentLocation, duplicateId } = input;
+    const parents = findParentTransactions(store, parentLocation);
+    const parentTx = parents[0];
+    const newParent = parents
+        .flatMap((parent) =>
+            parent.suspectedDuplicates.filter((duplicate) => duplicate.id === duplicateId)
+        )
+        .sort(comparePhysicalIdentity)[0];
+    if (!parentTx || !newParent) return;
 
-    // Find parent transaction
-    const dayBuckets = getDayBuckets(store, parentLocation.accountId, parentLocation.date);
-    let parentTx: Transaction | undefined;
-    let parentDayBucket: DayBucket | undefined;
-    let parentIndex = -1;
-
-    for (const dayBucket of dayBuckets) {
-        const idx = dayBucket.transactions.findIndex((t) => t.id === parentLocation.transactionId);
-        if (idx !== -1) {
-            parentTx = dayBucket.transactions[idx];
-            parentDayBucket = dayBucket;
-            parentIndex = idx;
-            break;
+    const remainingById = new Map<string, NestedDuplicate>();
+    for (const parent of parents) {
+        for (const duplicate of parent.suspectedDuplicates) {
+            if (duplicate.id === duplicateId || duplicate.id === parentTx.id) continue;
+            const existing = remainingById.get(duplicate.id);
+            if (!existing || comparePhysicalIdentity(duplicate, existing) < 0) {
+                remainingById.set(duplicate.id, duplicate);
+            }
         }
     }
 
-    if (!parentTx || !parentDayBucket || !parentTx.suspectedDuplicates) return;
-
-    // Find the duplicate to promote
-    const dupIndex = parentTx.suspectedDuplicates.findIndex((d) => d.id === duplicateId);
-    if (dupIndex === -1) return;
-
-    // Extract the duplicate
-    const newParent = parentTx.suspectedDuplicates.splice(dupIndex, 1)[0];
-
-    // Remove old parent from its day bucket
-    parentDayBucket.transactions.splice(parentIndex, 1);
+    for (const dayBucket of getDayBuckets(store, parentLocation.accountId, parentLocation.date)) {
+        for (let index = dayBucket.transactions.length - 1; index >= 0; index -= 1) {
+            if (dayBucket.transactions[index].id === parentLocation.transactionId) {
+                dayBucket.transactions.splice(index, 1);
+            }
+        }
+    }
+    for (const dayBucket of getDayBuckets(store, newParent.accountId, newParent.date)) {
+        for (let index = dayBucket.transactions.length - 1; index >= 0; index -= 1) {
+            if (dayBucket.transactions[index].id === duplicateId) {
+                dayBucket.transactions.splice(index, 1);
+            }
+        }
+    }
 
     // Create nested duplicate from old parent (without its suspectedDuplicates)
     const oldParentAsDuplicate: NestedDuplicateInput = {
@@ -655,22 +689,24 @@ export function swapDuplicate(store: TransactionStore, input: SwapDuplicateInput
     // Move remaining duplicates and old parent to new parent's list
     const allDuplicates: NestedDuplicateInput[] = [
         oldParentAsDuplicate,
-        ...parentTx.suspectedDuplicates.map((d) => ({
-            id: d.id,
-            date: d.date,
-            description: d.description,
-            descriptionAliasId: d.descriptionAliasId,
-            notes: d.notes,
-            amount: d.amount,
-            accountId: d.accountId,
-            tagIds: [...d.tagIds],
-            statusId: d.statusId,
-            importId: d.importId,
-            allocations: { ...d.allocations },
-            creationInstant: d.creationInstant,
-            importRowIndex: d.importRowIndex,
-            deletedAt: d.deletedAt
-        }))
+        ...Array.from(remainingById.values())
+            .sort(comparePhysicalIdentity)
+            .map((d) => ({
+                id: d.id,
+                date: d.date,
+                description: d.description,
+                descriptionAliasId: d.descriptionAliasId,
+                notes: d.notes,
+                amount: d.amount,
+                accountId: d.accountId,
+                tagIds: [...d.tagIds],
+                statusId: d.statusId,
+                importId: d.importId,
+                allocations: { ...d.allocations },
+                creationInstant: d.creationInstant,
+                importRowIndex: d.importRowIndex,
+                deletedAt: d.deletedAt
+            }))
     ];
 
     // Insert new parent as standalone at its own date with all duplicates
