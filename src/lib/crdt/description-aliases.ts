@@ -16,6 +16,7 @@ import {
     deleteTransaction,
     deleteTransactionsByImport,
     findTransactionInStore,
+    findTransactionsInStore,
     type DeleteTransactionInput,
     type InsertTransactionInput,
     insertTransaction,
@@ -377,11 +378,13 @@ export function assignDescriptionAlias(
     state: VaultState,
     input: AssignDescriptionAliasInput
 ): DescriptionAliasMutationResult<string> {
-    const transaction = findTransactionInStore(state.transactions, input.location);
-    if (!transaction) return err("transaction-not-found", "Transaction does not exist");
+    const transactions = findTransactionsInStore(state.transactions, input.location);
+    if (!transactions.length) return err("transaction-not-found", "Transaction does not exist");
     const aliasResult = getFinalRealAlias(state, input.aliasId);
     if (!aliasResult.ok) return aliasResult;
-    moveTransactionReference(transaction, state, aliasResult.value);
+    for (const transaction of transactions) {
+        moveTransactionReference(transaction, state, aliasResult.value);
+    }
     return ok(aliasResult.value.id);
 }
 
@@ -389,8 +392,8 @@ export function createAndAssignDescriptionAlias(
     state: VaultState,
     input: CreateAndAssignDescriptionAliasInput
 ): DescriptionAliasMutationResult<string> {
-    const transaction = findTransactionInStore(state.transactions, input.location);
-    if (!transaction) return err("transaction-not-found", "Transaction does not exist");
+    const transactions = findTransactionsInStore(state.transactions, input.location);
+    if (!transactions.length) return err("transaction-not-found", "Transaction does not exist");
     const normalizedName = normalizeDescriptionAliasName(input.name);
     if (!normalizedName) return err("empty-name", "Alias names cannot be empty");
     if (getAlias(state, input.aliasId)) {
@@ -403,7 +406,7 @@ export function createAndAssignDescriptionAlias(
     addRealAlias(state, input.aliasId, normalizedName);
     const alias = getAlias(state, input.aliasId);
     if (!alias) throw new Error("Created alias is missing from the draft");
-    moveTransactionReference(transaction, state, alias);
+    for (const transaction of transactions) moveTransactionReference(transaction, state, alias);
     return ok(alias.id);
 }
 
@@ -506,15 +509,17 @@ export function changeOneDescriptionAlias(
     state: VaultState,
     input: ChangeOneDescriptionAliasInput
 ): DescriptionAliasMutationResult<string> {
-    const transaction = findTransactionInStore(state.transactions, input.location);
-    if (!transaction) return err("transaction-not-found", "Transaction does not exist");
-    if (transaction.descriptionAliasId !== input.expectedAliasId) {
+    const transactions = findTransactionsInStore(state.transactions, input.location);
+    if (!transactions.length) return err("transaction-not-found", "Transaction does not exist");
+    if (
+        transactions.some(({ descriptionAliasId }) => descriptionAliasId !== input.expectedAliasId)
+    ) {
         return err("stale-alias", "The transaction alias changed before this action ran");
     }
     const targetResult = prepareTarget(state, input.target);
     if (!targetResult.ok) return targetResult;
     const target = materializeTarget(state, targetResult.value);
-    moveTransactionReference(transaction, state, target);
+    for (const transaction of transactions) moveTransactionReference(transaction, state, target);
     return ok(target.id);
 }
 
@@ -569,14 +574,16 @@ export function removeOneDescriptionAlias(
     state: VaultState,
     input: RemoveOneDescriptionAliasInput
 ): DescriptionAliasMutationResult<undefined> {
-    const transaction = findTransactionInStore(state.transactions, input.location);
-    if (!transaction) return err("transaction-not-found", "Transaction does not exist");
-    if (transaction.descriptionAliasId !== input.expectedAliasId) {
+    const transactions = findTransactionsInStore(state.transactions, input.location);
+    if (!transactions.length) return err("transaction-not-found", "Transaction does not exist");
+    if (
+        transactions.some(({ descriptionAliasId }) => descriptionAliasId !== input.expectedAliasId)
+    ) {
         return err("stale-alias", "The transaction alias changed before this action ran");
     }
     const alias = getAlias(state, input.expectedAliasId);
-    if (alias) delete alias.transactionIds[transaction.id];
-    transaction.descriptionAliasId = undefined;
+    if (alias) delete alias.transactionIds[input.location.transactionId];
+    for (const transaction of transactions) transaction.descriptionAliasId = undefined;
     return ok(undefined);
 }
 
@@ -694,12 +701,14 @@ export function deleteDescriptionAliasedTransaction(
     state: VaultState,
     input: DeleteTransactionInput
 ): DescriptionAliasMutationResult<undefined> {
-    const transaction = findTransactionInStore(state.transactions, input.location);
-    if (!transaction) return err("transaction-not-found", "Transaction does not exist");
-    unlinkTransaction(state, transaction);
-    if ("suspectedDuplicates" in transaction) {
-        for (const duplicate of transaction.suspectedDuplicates)
-            unlinkTransaction(state, duplicate);
+    const transactions = findTransactionsInStore(state.transactions, input.location);
+    if (!transactions.length) return err("transaction-not-found", "Transaction does not exist");
+    for (const transaction of transactions) {
+        unlinkTransaction(state, transaction);
+        if ("suspectedDuplicates" in transaction) {
+            for (const duplicate of transaction.suspectedDuplicates)
+                unlinkTransaction(state, duplicate);
+        }
     }
     deleteTransaction(state.transactions, input);
     return ok(undefined);

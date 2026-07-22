@@ -61,6 +61,15 @@ function createFrameHost() {
         cancelled,
         host,
         pending: () => callbacks.size,
+        runOne: () => {
+            const entry = callbacks.entries().next().value as
+                | [number, FrameRequestCallback]
+                | undefined;
+            if (!entry) return false;
+            callbacks.delete(entry[0]);
+            entry[1](0);
+            return true;
+        },
         runAll: () => {
             for (let frame = 0; callbacks.size > 0 && frame < 10_000; frame += 1) {
                 const entry = callbacks.entries().next().value as
@@ -135,6 +144,146 @@ afterEach(async () => {
 });
 
 describe("vault background maintenance integration", () => {
+    it("collects a cleared change-all history frontier in the same provider", async () => {
+        const vault = createVaultMirror();
+        const coordinator = new VaultUndoCoordinator(vault.doc);
+        vault.mirror.setState(
+            (state: VaultState) => {
+                createDescriptionAlias(state, { aliasId: "live-source", name: "Live source" });
+                createDescriptionAlias(state, { aliasId: "live-target", name: "Live target" });
+            },
+            { origin: "system:hydration" }
+        );
+        const frames = createFrameHost();
+        const dispose = startVaultMaintenanceScheduler({
+            doc: vault.doc,
+            host: frames.host,
+            store: vault.mirror
+        });
+        frames.runAll();
+
+        coordinator.runUserAction("alias", (origin) =>
+            vault.mirror.setState(
+                (state: VaultState) => {
+                    changeAllDescriptionAliases(state, {
+                        sourceAliasId: "live-source",
+                        target: { kind: "existing", aliasId: "live-target" }
+                    });
+                },
+                { origin }
+            )
+        );
+        await Promise.resolve();
+        frames.runAll();
+        expect(vault.mirror.getState().descriptionAliases["live-source"]).toBeDefined();
+        expect(coordinator.undo()).toBe(true);
+        frames.runAll();
+        expect(vault.mirror.getState().descriptionAliases["live-source"].kind).toBe("real");
+        expect(coordinator.redo()).toBe(true);
+        frames.runAll();
+        expect(vault.mirror.getState().descriptionAliases["live-source"]).toBeDefined();
+
+        coordinator.clear();
+        frames.runAll();
+        expect(vault.mirror.getState().descriptionAliases["live-source"]).toBeUndefined();
+
+        dispose();
+        coordinator.dispose();
+        vault.mirror.dispose();
+    });
+
+    it("releases redo-invalidated, trimmed, and disposed alias history without a remount", async () => {
+        const invalidated = createAliasGarbage();
+        const invalidatedUndo = new VaultUndoCoordinator(invalidated.doc);
+        invalidatedUndo.runUserAction("alias", (origin) =>
+            invalidated.mirror.setState(
+                (state: VaultState) => {
+                    state.descriptionAliases.source.name = "History-only name";
+                },
+                { origin }
+            )
+        );
+        await Promise.resolve();
+        expect(invalidatedUndo.undo()).toBe(true);
+        const invalidatedFrames = createFrameHost();
+        const disposeInvalidated = startVaultMaintenanceScheduler({
+            doc: invalidated.doc,
+            host: invalidatedFrames.host,
+            store: invalidated.mirror
+        });
+        invalidatedFrames.runAll();
+        expect(invalidated.mirror.getState().descriptionAliases.source).toBeDefined();
+        invalidatedUndo.runUserAction("edit", (origin) =>
+            invalidated.mirror.setState(
+                (state: VaultState) => {
+                    state.preferences.name = "Invalidates redo";
+                },
+                { origin }
+            )
+        );
+        await Promise.resolve();
+        invalidatedFrames.runAll();
+        expect(invalidated.mirror.getState().descriptionAliases.source).toBeUndefined();
+        disposeInvalidated();
+        invalidatedUndo.dispose();
+        invalidated.mirror.dispose();
+
+        for (const release of ["trim", "dispose"] as const) {
+            const vault = createAliasGarbage();
+            const coordinator = new VaultUndoCoordinator(vault.doc);
+            coordinator.runUserAction("alias", (origin) =>
+                vault.mirror.setState(
+                    (state: VaultState) => {
+                        state.descriptionAliases.source.name = `Release by ${release}`;
+                    },
+                    { origin }
+                )
+            );
+            await Promise.resolve();
+            const frames = createFrameHost();
+            const disposeScheduler = startVaultMaintenanceScheduler({
+                doc: vault.doc,
+                host: frames.host,
+                store: vault.mirror
+            });
+            frames.runAll();
+            expect(vault.mirror.getState().descriptionAliases.source).toBeDefined();
+            if (release === "trim") coordinator.setMaxUndoSteps(0);
+            else coordinator.dispose();
+            frames.runAll();
+            expect(vault.mirror.getState().descriptionAliases.source).toBeUndefined();
+            disposeScheduler();
+            coordinator.dispose();
+            vault.mirror.dispose();
+        }
+    });
+
+    it("finishes every phase despite continuous relevant user edits", () => {
+        const vault = createAliasGarbage();
+        const frames = createFrameHost();
+        const dispose = startVaultMaintenanceScheduler({
+            budget: { maxItems: 1, maxMilliseconds: 4 },
+            doc: vault.doc,
+            host: frames.host,
+            store: vault.mirror
+        });
+
+        for (let index = 0; index < 200; index += 1) {
+            expect(frames.runOne()).toBe(true);
+            vault.mirror.setState(
+                (state: VaultState) => {
+                    state.transactions.account.years[0].months[0].days[0].transactions[0].notes = `continuous-${index}`;
+                },
+                { origin: "user:edit" }
+            );
+            if (!vault.mirror.getState().descriptionAliases.source) break;
+        }
+
+        expect(vault.mirror.getState().descriptionAliases.source).toBeUndefined();
+        dispose();
+        vault.mirror.dispose();
+    });
+
     it("pauses while hidden, resumes once, ignores its own origin, and disposes exactly", () => {
         const vault = createAliasGarbage();
         const frames = createFrameHost();

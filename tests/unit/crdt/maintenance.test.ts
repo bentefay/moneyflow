@@ -17,7 +17,13 @@ import {
     type VaultMaintenancePlan
 } from "@/lib/crdt/maintenance";
 import { createVaultMirror, createVaultMirrorFromSnapshot } from "@/lib/crdt/mirror";
-import { deleteTransaction, insertTransaction } from "@/lib/crdt/mutations";
+import {
+    deleteTransaction,
+    insertTransaction,
+    moveTransaction,
+    updateTransaction
+} from "@/lib/crdt/mutations";
+import { getAccountTransactions } from "@/lib/crdt/queries";
 import type { TransactionInput, VaultState } from "@/lib/crdt/schema";
 import { asMinorUnits } from "@/lib/domain/currency";
 import { createDescriptionAliasLookup } from "@/lib/domain/description-aliases";
@@ -146,6 +152,14 @@ function dayTransactionIds(state: VaultState): string[] {
     return day?.transactions.map((transaction) => transaction.id) ?? [];
 }
 
+function physicalTransactions(state: VaultState) {
+    const tree = state.transactions.account;
+    if (typeof tree !== "object" || tree == null) return [];
+    return tree.years.flatMap((year) =>
+        year.months.flatMap((month) => month.days.flatMap((day) => day.transactions))
+    );
+}
+
 describe("bounded vault maintenance", () => {
     it("enforces explicit item and measured-time bounds without sleeps", () => {
         expect(DEFAULT_VAULT_MAINTENANCE_BUDGET).toEqual({
@@ -173,7 +187,7 @@ describe("bounded vault maintenance", () => {
                 return clock;
             }
         });
-        expect(byTime).toMatchObject({ processed: 3, yieldReason: "time" });
+        expect(byTime).toMatchObject({ processed: 1, yieldReason: "time" });
         mirror.dispose();
     });
 
@@ -211,13 +225,18 @@ describe("bounded vault maintenance", () => {
 
         const result = drainMaintenance(mirror);
         const expected = [
+            { id: "newest", creation: 100 },
             ...leftIds.map((id, index) => ({ id, creation: 80 - index })),
             ...rightIds.map((id, index) => ({ id, creation: 40 - index }))
         ]
-            .sort((left, right) => right.creation - left.creation)
+            .sort(
+                (left, right) => right.creation - left.creation || left.id.localeCompare(right.id)
+            )
             .map(({ id }) => id);
 
-        expect(dayTransactionIds(mirror.getState())).toEqual(expected);
+        expect(
+            getAccountTransactions(mirror.getState().transactions, "account").map(({ id }) => id)
+        ).toEqual(expected);
         expect(result.frames).toBeGreaterThan(1);
         expect(result.maxProcessed).toBeLessThanOrEqual(DEFAULT_VAULT_MAINTENANCE_BUDGET.maxItems);
         mirror.dispose();
@@ -242,6 +261,212 @@ describe("bounded vault maintenance", () => {
         expect(applyPlan(mirror, planned.plan)).toBe(false);
         expect(dayTransactionIds(mirror.getState())).toHaveLength(1);
         mirror.dispose();
+    });
+
+    it("keeps one logical identity through every relocation commit and intervening mutations", () => {
+        const editCase = createDuplicateBucketMirror(["left"], ["right"]);
+        const observedIds: string[][] = [];
+        const unsubscribe = editCase.doc.subscribe(() => {
+            observedIds.push(
+                getAccountTransactions(editCase.mirror.getState().transactions, "account").map(
+                    ({ id }) => id
+                )
+            );
+        });
+        const copyPlan = findPlan(
+            editCase.mirror.getState(),
+            (plan) => plan.kind === "relocate-conflict-transaction" && plan.mode === "copy"
+        );
+        if (copyPlan.plan.kind !== "relocate-conflict-transaction") {
+            throw new Error("Expected a relocation plan");
+        }
+        const editedId = copyPlan.plan.transactionId;
+        expect(applyPlan(editCase.mirror, copyPlan.plan)).toBe(true);
+        expect(observedIds.every((ids) => new Set(ids).size === ids.length)).toBe(true);
+        expect(
+            getAccountTransactions(editCase.mirror.getState().transactions, "account").filter(
+                ({ id }) => id === editedId
+            )
+        ).toHaveLength(1);
+
+        editCase.mirror.setState((state: VaultState) => {
+            updateTransaction(state.transactions, {
+                location: { accountId: "account", date: DATE, transactionId: editedId },
+                updates: { notes: "edited between maintenance commits" }
+            });
+        });
+        expect(
+            physicalTransactions(editCase.mirror.getState())
+                .filter(({ id }) => id === editedId)
+                .map(({ notes }) => notes)
+        ).toEqual(["edited between maintenance commits", "edited between maintenance commits"]);
+        drainMaintenance(editCase.mirror);
+        expect(
+            getAccountTransactions(editCase.mirror.getState().transactions, "account")
+                .filter(({ id }) => id === editedId)
+                .map(({ notes }) => notes)
+        ).toEqual(["edited between maintenance commits"]);
+        unsubscribe();
+        editCase.mirror.dispose();
+
+        const deleteCase = createDuplicateBucketMirror(["left"], ["right"]);
+        const deletePlan = findPlan(
+            deleteCase.mirror.getState(),
+            (plan) => plan.kind === "relocate-conflict-transaction" && plan.mode === "copy"
+        );
+        if (deletePlan.plan.kind !== "relocate-conflict-transaction") {
+            throw new Error("Expected a relocation plan");
+        }
+        const deletedId = deletePlan.plan.transactionId;
+        expect(applyPlan(deleteCase.mirror, deletePlan.plan)).toBe(true);
+        deleteCase.mirror.setState((state: VaultState) => {
+            deleteTransaction(state.transactions, {
+                location: { accountId: "account", date: DATE, transactionId: deletedId }
+            });
+        });
+        drainMaintenance(deleteCase.mirror);
+        expect(
+            getAccountTransactions(deleteCase.mirror.getState().transactions, "account").filter(
+                ({ id }) => id === deletedId
+            )
+        ).toEqual([]);
+        deleteCase.mirror.dispose();
+
+        const moveCase = createDuplicateBucketMirror(["left"], ["right"]);
+        const movePlan = findPlan(
+            moveCase.mirror.getState(),
+            (plan) => plan.kind === "relocate-conflict-transaction" && plan.mode === "copy"
+        );
+        if (movePlan.plan.kind !== "relocate-conflict-transaction") {
+            throw new Error("Expected a relocation plan");
+        }
+        const movedId = movePlan.plan.transactionId;
+        expect(applyPlan(moveCase.mirror, movePlan.plan)).toBe(true);
+        const movedDate = DATE.add({ days: 1 });
+        moveCase.mirror.setState((state: VaultState) => {
+            moveTransaction(state.transactions, {
+                location: { accountId: "account", date: DATE, transactionId: movedId },
+                newDate: movedDate
+            });
+        });
+        drainMaintenance(moveCase.mirror);
+        const moved = getAccountTransactions(
+            moveCase.mirror.getState().transactions,
+            "account"
+        ).filter(({ id }) => id === movedId);
+        expect(moved).toHaveLength(1);
+        expect(moved[0].date.equals(movedDate)).toBe(true);
+        moveCase.mirror.dispose();
+    });
+
+    it("uses a peer-independent total order for exact creation and import ties", () => {
+        const { mirror } = createVaultMirror();
+        mirror.setState((state: VaultState) => {
+            for (const id of ["tie-z", "tie-a", "tie-m"]) {
+                insertTransaction(state.transactions, {
+                    transaction: {
+                        ...transactionInput(id, 1),
+                        importRowIndex: 7
+                    }
+                });
+            }
+        });
+        expect(
+            getAccountTransactions(mirror.getState().transactions, "account").map(({ id }) => id)
+        ).toEqual(["tie-a", "tie-m", "tie-z"]);
+        mirror.dispose();
+    });
+
+    it("collapses concurrent same-ID peers in both delivery orders at every mutation boundary", () => {
+        const base = createVaultMirror();
+        const snapshot = base.doc.export({ mode: "snapshot" });
+        const left = createVaultMirrorFromSnapshot(snapshot);
+        const right = createVaultMirrorFromSnapshot(snapshot);
+        const leftBase = left.doc.version();
+        const rightBase = right.doc.version();
+        left.mirror.setState((state: VaultState) => {
+            insertTransaction(state.transactions, {
+                transaction: { ...transactionInput("same-id", 1), notes: "left" }
+            });
+        });
+        right.mirror.setState((state: VaultState) => {
+            insertTransaction(state.transactions, {
+                transaction: { ...transactionInput("same-id", 1), notes: "right" }
+            });
+        });
+        const leftUpdate = left.doc.export({ mode: "update", from: leftBase });
+        const rightUpdate = right.doc.export({ mode: "update", from: rightBase });
+
+        const leftThenRight = createVaultMirrorFromSnapshot(snapshot);
+        leftThenRight.doc.import(leftUpdate);
+        leftThenRight.doc.import(rightUpdate);
+        const rightThenLeft = createVaultMirrorFromSnapshot(snapshot);
+        rightThenLeft.doc.import(rightUpdate);
+        rightThenLeft.doc.import(leftUpdate);
+
+        const first = getAccountTransactions(
+            leftThenRight.mirror.getState().transactions,
+            "account"
+        );
+        const second = getAccountTransactions(
+            rightThenLeft.mirror.getState().transactions,
+            "account"
+        );
+        expect(first).toHaveLength(1);
+        expect(second).toHaveLength(1);
+        expect(first[0].notes).toBe(second[0].notes);
+
+        leftThenRight.mirror.setState((state: VaultState) => {
+            updateTransaction(state.transactions, {
+                location: { accountId: "account", date: DATE, transactionId: "same-id" },
+                updates: { notes: "all copies edited" }
+            });
+        });
+        const editedCopies = physicalTransactions(leftThenRight.mirror.getState()).filter(
+            ({ id }) => id === "same-id"
+        );
+        expect(editedCopies.length).toBeGreaterThan(0);
+        expect(editedCopies.every(({ notes }) => notes === "all copies edited")).toBe(true);
+        leftThenRight.mirror.setState((state: VaultState) => {
+            deleteTransaction(state.transactions, {
+                cascade: false,
+                location: { accountId: "account", date: DATE, transactionId: "same-id" }
+            });
+        });
+        expect(
+            physicalTransactions(leftThenRight.mirror.getState()).every(
+                ({ deletedAt }) => deletedAt != null
+            )
+        ).toBe(true);
+
+        const movedDate = DATE.add({ days: 2 });
+        rightThenLeft.mirror.setState((state: VaultState) => {
+            moveTransaction(state.transactions, {
+                location: { accountId: "account", date: DATE, transactionId: "same-id" },
+                newDate: movedDate
+            });
+        });
+        const moved = getAccountTransactions(
+            rightThenLeft.mirror.getState().transactions,
+            "account"
+        );
+        expect(moved).toHaveLength(1);
+        expect(moved[0].date.equals(movedDate)).toBe(true);
+
+        rightThenLeft.mirror.setState((state: VaultState) => {
+            deleteTransaction(state.transactions, {
+                location: { accountId: "account", date: movedDate, transactionId: "same-id" }
+            });
+        });
+        expect(
+            getAccountTransactions(rightThenLeft.mirror.getState().transactions, "account")
+        ).toEqual([]);
+
+        leftThenRight.mirror.dispose();
+        rightThenLeft.mirror.dispose();
+        left.mirror.dispose();
+        right.mirror.dispose();
+        base.mirror.dispose();
     });
 
     it("rewrites parent and nested one-hop references before a proven hard delete", () => {

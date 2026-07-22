@@ -17,6 +17,7 @@ import type {
     VaultState,
     YearBucket
 } from "./schema";
+import { getVaultAliasHistoryFrontier } from "./undo";
 
 function copyAllocations(record: Transaction["allocations"]): NestedDuplicateInput["allocations"] {
     return Object.fromEntries(
@@ -128,6 +129,8 @@ export interface VaultMaintenanceCursor {
     readonly transactionIndex: number;
     readonly nestedIndex: number;
     readonly aliasIndex: number;
+    /** A mutation landed during this pass, so one fresh proof pass is still required. */
+    readonly needsRescan: boolean;
 }
 
 type StructuralMaintenancePlan =
@@ -218,7 +221,8 @@ function baseCursor(
         dayIndex: 0,
         transactionIndex: 0,
         nestedIndex: -1,
-        aliasIndex: 0
+        aliasIndex: 0,
+        needsRescan: false
     };
 }
 
@@ -779,10 +783,6 @@ export function applyVaultMaintenancePlan(state: VaultState, plan: VaultMaintena
     return true;
 }
 
-function isStructuralPlan(plan: VaultMaintenancePlan): plan is StructuralMaintenancePlan {
-    return plan.kind !== "rewrite-alias-reference" && plan.kind !== "remove-alias-symlink";
-}
-
 /** Execute a bounded frame while keeping discovery separate from applied CRDT mutations. */
 export function runVaultMaintenanceFrame(input: {
     readonly apply: (plan: VaultMaintenancePlan) => boolean;
@@ -801,23 +801,30 @@ export function runVaultMaintenanceFrame(input: {
         if (input.now() - startedAt >= budget.maxMilliseconds) {
             return { applied, complete: false, cursor, processed, yieldReason: "time" };
         }
+        const stepCursor = cursor;
         const step = planVaultMaintenanceStep(input.getState(), cursor);
         cursor = step.cursor;
         processed += 1;
+        if (input.now() - startedAt >= budget.maxMilliseconds) {
+            return { applied, complete: false, cursor: stepCursor, processed, yieldReason: "time" };
+        }
         if (step.plan && input.apply(step.plan)) {
             applied += 1;
-            if (isStructuralPlan(step.plan)) {
-                cursor = createVaultMaintenanceCursor(input.getState());
+            cursor = { ...cursor, needsRescan: true };
+        }
+        if (input.now() - startedAt >= budget.maxMilliseconds) {
+            return { applied, complete: false, cursor, processed, yieldReason: "time" };
+        }
+        if (cursor.phase === "done") {
+            if (cursor.needsRescan) {
                 return {
                     applied,
                     complete: false,
-                    cursor,
+                    cursor: createVaultMaintenanceCursor(input.getState()),
                     processed,
                     yieldReason: "mutation"
                 };
             }
-        }
-        if (cursor.phase === "done") {
             return { applied, complete: true, cursor, processed, yieldReason: "complete" };
         }
     }
@@ -843,7 +850,8 @@ export function startVaultMaintenanceScheduler(input: {
     let cursor = createVaultMaintenanceCursor(input.store.getState());
     let frameId: number | undefined;
     let disposed = false;
-    const sessionChangedAliasIds = new Set<string>();
+    let needsAnotherPass = false;
+    const aliasHistory = getVaultAliasHistoryFrontier(input.doc);
 
     const schedule = () => {
         if (disposed || frameId != null || !input.host.isVisible()) return;
@@ -858,7 +866,7 @@ export function startVaultMaintenanceScheduler(input: {
                             : plan.kind === "remove-alias-symlink"
                               ? plan.symlinkId
                               : undefined;
-                    if (aliasId && sessionChangedAliasIds.has(aliasId)) return false;
+                    if (aliasId && aliasHistory?.has(aliasId)) return false;
                     let applied = false;
                     input.store.setState(
                         (state: VaultState) => {
@@ -874,27 +882,31 @@ export function startVaultMaintenanceScheduler(input: {
                 now: input.host.now
             });
             cursor = result.cursor;
-            if (!result.complete) schedule();
+            if (result.complete && needsAnotherPass) {
+                needsAnotherPass = false;
+                cursor = createVaultMaintenanceCursor(input.store.getState());
+                schedule();
+            } else if (!result.complete) {
+                schedule();
+            }
         });
     };
 
     const unsubscribeDocument = input.doc.subscribe((event) => {
         if (!hasRelevantMaintenanceChanges(event)) return;
-        const aliasEvents = event.events.filter((item) => item.path[0] === "descriptionAliases");
-        if (aliasEvents.length) {
-            const state = input.store.getState();
-            for (const item of aliasEvents) {
-                const aliasId = item.path[1];
-                if (typeof aliasId === "string") {
-                    sessionChangedAliasIds.add(aliasId);
-                } else {
-                    for (const currentAliasId of Object.keys(state.descriptionAliases)) {
-                        if (currentAliasId !== "$cid") sessionChangedAliasIds.add(currentAliasId);
-                    }
-                }
-            }
+        needsAnotherPass = true;
+        if (cursor.phase === "done") {
+            needsAnotherPass = false;
+            cursor = createVaultMaintenanceCursor(input.store.getState());
         }
-        cursor = createVaultMaintenanceCursor(input.store.getState());
+        schedule();
+    });
+    const unsubscribeAliasHistory = aliasHistory?.subscribe(() => {
+        needsAnotherPass = true;
+        if (cursor.phase === "done") {
+            needsAnotherPass = false;
+            cursor = createVaultMaintenanceCursor(input.store.getState());
+        }
         schedule();
     });
     const unsubscribeVisibility = input.host.subscribeVisibility(() => {
@@ -914,5 +926,6 @@ export function startVaultMaintenanceScheduler(input: {
         frameId = undefined;
         unsubscribeVisibility();
         unsubscribeDocument();
+        unsubscribeAliasHistory?.();
     };
 }

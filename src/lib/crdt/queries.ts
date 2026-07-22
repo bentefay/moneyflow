@@ -117,6 +117,80 @@ export interface TransactionWithLocation extends Transaction {
     location: TransactionLocation;
 }
 
+/**
+ * Peer-independent transaction order used at every flat read boundary.
+ * The stable ID tie-breaker is required because concurrent list inserts with
+ * otherwise identical sort keys may be materialized in different local order.
+ */
+interface TransactionOrderKey {
+    readonly creationInstant: Temporal.Instant;
+    readonly date: Temporal.PlainDate;
+    readonly id: string;
+    readonly importRowIndex?: number;
+}
+
+export function compareTransactionOrder(
+    left: TransactionOrderKey,
+    right: TransactionOrderKey
+): number {
+    const dateCompare = Temporal.PlainDate.compare(right.date, left.date);
+    if (dateCompare !== 0) return dateCompare;
+
+    const instantCompare = Temporal.Instant.compare(right.creationInstant, left.creationInstant);
+    if (instantCompare !== 0) return instantCompare;
+
+    const leftIndex = left.importRowIndex ?? Infinity;
+    const rightIndex = right.importRowIndex ?? Infinity;
+    const indexCompare = leftIndex - rightIndex;
+    if (indexCompare !== 0) return indexCompare;
+
+    return left.id.localeCompare(right.id);
+}
+
+function preferCanonicalTransaction(left: Transaction, right: Transaction): Transaction {
+    return canonicalTransactionKey(left).localeCompare(canonicalTransactionKey(right)) <= 0
+        ? left
+        : right;
+}
+
+function canonicalTransactionKey(transaction: Transaction): string {
+    return (
+        transaction.$cid ??
+        JSON.stringify({
+            accountId: transaction.accountId,
+            allocations: Object.entries(transaction.allocations).sort(([left], [right]) =>
+                left.localeCompare(right)
+            ),
+            amount: transaction.amount,
+            creationInstant: transaction.creationInstant.toString(),
+            date: transaction.date.toString(),
+            deletedAt: transaction.deletedAt?.toString(),
+            description: transaction.description,
+            descriptionAliasId: transaction.descriptionAliasId,
+            importId: transaction.importId,
+            importRowIndex: transaction.importRowIndex,
+            notes: transaction.notes,
+            statusId: transaction.statusId,
+            tagIds: [...transaction.tagIds]
+        })
+    );
+}
+
+/** Collapse temporary physical relocation copies to one logical transaction. */
+export function getCanonicalTransactions(transactions: Iterable<Transaction>): Transaction[] {
+    const byId = new Map<string, Transaction>();
+
+    for (const transaction of transactions) {
+        const existing = byId.get(transaction.id);
+        byId.set(
+            transaction.id,
+            existing ? preferCanonicalTransaction(existing, transaction) : transaction
+        );
+    }
+
+    return Array.from(byId.values()).sort(compareTransactionOrder);
+}
+
 // ============================================
 // DATE HELPERS
 // ============================================
@@ -198,7 +272,7 @@ export function getAccountTransactions(store: TransactionStore, accountId: strin
         }
     }
 
-    return result;
+    return getCanonicalTransactions(result);
 }
 
 /**
@@ -214,23 +288,7 @@ export function getAllTransactions(store: TransactionStore): Transaction[] {
         allTransactions.push(...getAccountTransactions(store, accountId));
     }
 
-    // Sort by date desc, then creationInstant desc, then importRowIndex asc
-    allTransactions.sort((a, b) => {
-        // Date descending
-        const dateCompare = Temporal.PlainDate.compare(b.date, a.date);
-        if (dateCompare !== 0) return dateCompare;
-
-        // creationInstant descending
-        const instantCompare = Temporal.Instant.compare(b.creationInstant, a.creationInstant);
-        if (instantCompare !== 0) return instantCompare;
-
-        // importRowIndex ascending (nulls sort last)
-        const aIdx = a.importRowIndex ?? Infinity;
-        const bIdx = b.importRowIndex ?? Infinity;
-        return aIdx - bIdx;
-    });
-
-    return allTransactions;
+    return getCanonicalTransactions(allTransactions);
 }
 
 /**

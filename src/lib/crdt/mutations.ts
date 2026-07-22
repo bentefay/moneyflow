@@ -9,6 +9,7 @@
 
 import { Temporal } from "temporal-polyfill";
 
+import { compareTransactionOrder } from "./queries";
 import type {
     AccountTransactionTree,
     AccountTransactionTreeInput,
@@ -228,23 +229,16 @@ export function getDayBuckets(
  */
 function findTransactionInsertIndex(
     transactions: Transaction[],
-    newTx: { creationInstant: Temporal.Instant; importRowIndex?: number }
+    newTx: {
+        id: string;
+        date: Temporal.PlainDate;
+        creationInstant: Temporal.Instant;
+        importRowIndex?: number;
+    }
 ): number {
     for (let i = 0; i < transactions.length; i++) {
         const existing = transactions[i];
-        const cmp = Temporal.Instant.compare(newTx.creationInstant, existing.creationInstant);
-        // Sort by creationInstant descending
-        if (cmp > 0) {
-            return i;
-        }
-        if (cmp === 0) {
-            // Then by importRowIndex ascending (nulls sort last)
-            const newIdx = newTx.importRowIndex ?? Infinity;
-            const existingIdx = existing.importRowIndex ?? Infinity;
-            if (newIdx < existingIdx) {
-                return i;
-            }
-        }
+        if (compareTransactionOrder(newTx, existing) < 0) return i;
     }
     return transactions.length;
 }
@@ -364,22 +358,30 @@ export function findTransactionInStore(
     store: TransactionStore,
     location: TransactionLocation
 ): Transaction | NestedDuplicate | undefined {
+    return findTransactionsInStore(store, location).sort(comparePhysicalIdentity)[0];
+}
+
+/** Find every temporary physical copy for one logical transaction identity. */
+export function findTransactionsInStore(
+    store: TransactionStore,
+    location: TransactionLocation
+): Array<Transaction | NestedDuplicate> {
     const dayBuckets = getDayBuckets(store, location.accountId, location.date);
+    const matches: Array<Transaction | NestedDuplicate> = [];
 
     for (const dayBucket of dayBuckets) {
         for (const tx of dayBucket.transactions) {
             if (tx.id === location.transactionId) {
-                return tx;
+                matches.push(tx);
             }
             // Search in suspectedDuplicates
-            const duplicate = tx.suspectedDuplicates?.find((d) => d.id === location.transactionId);
-            if (duplicate) {
-                return duplicate;
+            for (const duplicate of tx.suspectedDuplicates ?? []) {
+                if (duplicate.id === location.transactionId) matches.push(duplicate);
             }
         }
     }
 
-    return undefined;
+    return matches;
 }
 
 /**
@@ -390,13 +392,13 @@ export function findParentTransaction(
     location: TransactionLocation
 ): Transaction | undefined {
     const dayBuckets = getDayBuckets(store, location.accountId, location.date);
+    const matches: Transaction[] = [];
 
     for (const dayBucket of dayBuckets) {
-        const tx = dayBucket.transactions.find((t) => t.id === location.transactionId);
-        if (tx) return tx;
+        matches.push(...dayBucket.transactions.filter((tx) => tx.id === location.transactionId));
     }
 
-    return undefined;
+    return matches.sort(comparePhysicalIdentity)[0];
 }
 
 /**
@@ -408,22 +410,12 @@ export function updateTransaction(store: TransactionStore, input: UpdateTransact
     const dayBuckets = getDayBuckets(store, location.accountId, location.date);
 
     for (const dayBucket of dayBuckets) {
-        // Check parent transactions
-        const txIndex = dayBucket.transactions.findIndex((t) => t.id === location.transactionId);
-        if (txIndex !== -1) {
-            applyMutableTransactionUpdates(dayBucket.transactions[txIndex], updates);
-            return;
-        }
-
-        // Check nested duplicates
         for (const tx of dayBucket.transactions) {
-            const dupIndex = tx.suspectedDuplicates?.findIndex(
-                (d) => d.id === location.transactionId
-            );
-            if (dupIndex !== undefined && dupIndex !== -1) {
-                const duplicate = tx.suspectedDuplicates?.[dupIndex];
-                if (duplicate) applyMutableTransactionUpdates(duplicate, updates);
-                return;
+            if (tx.id === location.transactionId) applyMutableTransactionUpdates(tx, updates);
+            for (const duplicate of tx.suspectedDuplicates ?? []) {
+                if (duplicate.id === location.transactionId) {
+                    applyMutableTransactionUpdates(duplicate, updates);
+                }
             }
         }
     }
@@ -449,29 +441,99 @@ function applyMutableTransactionUpdates(
 export function moveTransaction(store: TransactionStore, input: MoveTransactionInput): void {
     const { location, newDate, newAccountId } = input;
 
-    // Find and remove from current location
     const dayBuckets = getDayBuckets(store, location.accountId, location.date);
-    let movedTx: Transaction | undefined;
+    const matches = dayBuckets.flatMap((dayBucket) =>
+        dayBucket.transactions.filter((transaction) => transaction.id === location.transactionId)
+    );
+    const canonical = matches.sort(comparePhysicalIdentity)[0];
 
+    if (!canonical) return;
+
+    const movedTransaction = copyTransaction(canonical);
     for (const dayBucket of dayBuckets) {
-        const txIndex = dayBucket.transactions.findIndex((t) => t.id === location.transactionId);
-        if (txIndex !== -1) {
-            movedTx = dayBucket.transactions.splice(txIndex, 1)[0];
-            break;
+        for (let index = dayBucket.transactions.length - 1; index >= 0; index--) {
+            if (dayBucket.transactions[index].id === location.transactionId) {
+                dayBucket.transactions.splice(index, 1);
+            }
         }
     }
 
-    if (!movedTx) return;
-
-    // Prune empty buckets from old location
     pruneBuckets(store, location.accountId, location.date);
 
-    // Update the date and accountId, then insert at new location
-    movedTx.date = newDate;
-    if (newAccountId) {
-        movedTx.accountId = newAccountId;
+    movedTransaction.date = newDate;
+    movedTransaction.accountId = newAccountId ?? movedTransaction.accountId;
+    insertTransaction(store, { transaction: movedTransaction });
+}
+
+function comparePhysicalIdentity(
+    left: Transaction | NestedDuplicate,
+    right: Transaction | NestedDuplicate
+): number {
+    return physicalIdentityKey(left).localeCompare(physicalIdentityKey(right));
+}
+
+function physicalIdentityKey(transaction: Transaction | NestedDuplicate): string {
+    return (
+        transaction.$cid ??
+        JSON.stringify({
+            accountId: transaction.accountId,
+            amount: transaction.amount,
+            creationInstant: transaction.creationInstant.toString(),
+            date: transaction.date.toString(),
+            deletedAt: transaction.deletedAt?.toString(),
+            description: transaction.description,
+            descriptionAliasId: transaction.descriptionAliasId,
+            importId: transaction.importId,
+            importRowIndex: transaction.importRowIndex,
+            notes: transaction.notes,
+            statusId: transaction.statusId
+        })
+    );
+}
+
+function copyAllocations(
+    allocations: Transaction["allocations"] | NestedDuplicate["allocations"]
+): TransactionInput["allocations"] {
+    const copy: TransactionInput["allocations"] = {};
+    for (const [personId, percentage] of Object.entries(allocations)) {
+        if (personId !== "$cid" && typeof percentage === "number") copy[personId] = percentage;
     }
-    insertTransaction(store, { transaction: movedTx });
+    return copy;
+}
+
+function copyTransaction(transaction: Transaction): TransactionInput {
+    return {
+        id: transaction.id,
+        date: transaction.date,
+        description: transaction.description,
+        descriptionAliasId: transaction.descriptionAliasId,
+        notes: transaction.notes,
+        amount: transaction.amount,
+        accountId: transaction.accountId,
+        tagIds: [...transaction.tagIds],
+        statusId: transaction.statusId,
+        importId: transaction.importId,
+        allocations: copyAllocations(transaction.allocations),
+        creationInstant: transaction.creationInstant,
+        importRowIndex: transaction.importRowIndex,
+        deletedAt: transaction.deletedAt,
+        suspectedDuplicates: (transaction.suspectedDuplicates ?? []).map((duplicate) => ({
+            id: duplicate.id,
+            date: duplicate.date,
+            description: duplicate.description,
+            descriptionAliasId: duplicate.descriptionAliasId,
+            notes: duplicate.notes,
+            amount: duplicate.amount,
+            accountId: duplicate.accountId,
+            tagIds: [...duplicate.tagIds],
+            statusId: duplicate.statusId,
+            importId: duplicate.importId,
+            allocations: copyAllocations(duplicate.allocations),
+            creationInstant: duplicate.creationInstant,
+            importRowIndex: duplicate.importRowIndex,
+            deletedAt: duplicate.deletedAt
+        }))
+    };
 }
 
 /**
@@ -482,33 +544,32 @@ export function moveTransaction(store: TransactionStore, input: MoveTransactionI
 export function deleteTransaction(store: TransactionStore, input: DeleteTransactionInput): void {
     const { location, cascade = true } = input;
     const dayBuckets = getDayBuckets(store, location.accountId, location.date);
+    const deletedAt = Temporal.Now.instant();
 
     for (const dayBucket of dayBuckets) {
-        // Check if it's a parent transaction
-        const txIndex = dayBucket.transactions.findIndex((t) => t.id === location.transactionId);
-        if (txIndex !== -1) {
-            if (cascade) {
-                // Delete parent and all duplicates
-                dayBucket.transactions.splice(txIndex, 1);
-            } else {
-                // Soft delete - set deletedAt
-                dayBucket.transactions[txIndex].deletedAt = Temporal.Now.instant();
+        for (let txIndex = dayBucket.transactions.length - 1; txIndex >= 0; txIndex--) {
+            const transaction = dayBucket.transactions[txIndex];
+            if (transaction.id === location.transactionId) {
+                if (cascade) dayBucket.transactions.splice(txIndex, 1);
+                else transaction.deletedAt = deletedAt;
+                continue;
             }
-            pruneBuckets(store, location.accountId, location.date);
-            return;
-        }
 
-        // Check if it's a nested duplicate
-        for (const tx of dayBucket.transactions) {
-            const dupIndex = tx.suspectedDuplicates?.findIndex(
-                (d) => d.id === location.transactionId
-            );
-            if (dupIndex !== undefined && dupIndex !== -1) {
-                tx.suspectedDuplicates!.splice(dupIndex, 1);
-                return;
+            const duplicates = transaction.suspectedDuplicates ?? [];
+            for (
+                let duplicateIndex = duplicates.length - 1;
+                duplicateIndex >= 0;
+                duplicateIndex--
+            ) {
+                const duplicate = duplicates[duplicateIndex];
+                if (duplicate.id !== location.transactionId) continue;
+                if (cascade) duplicates.splice(duplicateIndex, 1);
+                else duplicate.deletedAt = deletedAt;
             }
         }
     }
+
+    if (cascade) pruneBuckets(store, location.accountId, location.date);
 }
 
 /**

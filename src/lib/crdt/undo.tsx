@@ -1,7 +1,7 @@
 "use client";
 
 import { UndoManager } from "loro-crdt";
-import type { LoroDoc } from "loro-crdt";
+import type { LoroDoc, LoroEventBatch } from "loro-crdt";
 import { createContext, useCallback, useContext, useSyncExternalStore } from "react";
 
 export type VaultUserActionKind =
@@ -51,6 +51,7 @@ export interface VaultEditSession {
 }
 
 type VaultUndoListener = () => void;
+type VaultAliasHistoryListener = () => void;
 type ActiveUndoGroup =
     | { readonly kind: "action"; readonly id: number }
     | { readonly kind: "edit"; readonly id: number };
@@ -59,6 +60,34 @@ const EMPTY_UNDO_SNAPSHOT: VaultUndoSnapshot = {
     canRedo: false,
     canUndo: false
 };
+
+export interface VaultAliasHistoryFrontier {
+    readonly has: (aliasId: string) => boolean;
+    readonly subscribe: (listener: VaultAliasHistoryListener) => () => void;
+}
+
+const aliasHistoryByDocument = new WeakMap<LoroDoc, VaultAliasHistoryFrontier>();
+
+/** Returns the live, provider-owned Undo reachability frontier for maintenance. */
+export function getVaultAliasHistoryFrontier(doc: LoroDoc): VaultAliasHistoryFrontier | undefined {
+    return aliasHistoryByDocument.get(doc);
+}
+
+function getChangedAliasIds(event: LoroEventBatch): Set<string> {
+    const aliasIds = new Set<string>();
+    for (const item of event.events) {
+        if (item.path[0] !== "descriptionAliases") continue;
+        const pathAliasId = item.path[1];
+        if (typeof pathAliasId === "string") {
+            aliasIds.add(pathAliasId);
+            continue;
+        }
+        if (item.diff.type === "map") {
+            for (const aliasId of Object.keys(item.diff.updated)) aliasIds.add(aliasId);
+        }
+    }
+    return aliasIds;
+}
 
 export function getVaultUserOrigin(kind: VaultUserActionKind): VaultUserOrigin {
     return `user:${kind}`;
@@ -76,20 +105,42 @@ export function getVaultSystemOrigin(kind: VaultSystemOriginKind): VaultSystemOr
  * relies on an arbitrary time window.
  */
 export class VaultUndoCoordinator {
+    private readonly doc: LoroDoc;
     private readonly manager: UndoManager;
     private readonly listeners = new Set<VaultUndoListener>();
     private readonly unsubscribeDocument: () => void;
+    private readonly aliasHistoryListeners = new Set<VaultAliasHistoryListener>();
+    private readonly aliasHistoryFrontier: VaultAliasHistoryFrontier;
+    private undoAliasHistory: Set<string>[] = [];
+    private redoAliasHistory: Set<string>[] = [];
+    private pendingPoppedAliases: Set<string> | undefined;
+    private reachableAliasIds = new Set<string>();
+    private maxUndoSteps = 100;
     private activeGroup: ActiveUndoGroup | null = null;
     private disposed = false;
     private nextGroupId = 0;
     private snapshot: VaultUndoSnapshot = EMPTY_UNDO_SNAPSHOT;
 
     constructor(doc: LoroDoc) {
+        this.doc = doc;
+        this.aliasHistoryFrontier = {
+            has: (aliasId) => this.reachableAliasIds.has(aliasId),
+            subscribe: (listener) => {
+                this.aliasHistoryListeners.add(listener);
+                return () => this.aliasHistoryListeners.delete(listener);
+            }
+        };
         this.manager = new UndoManager(doc, {
             excludeOriginPrefixes: EXCLUDED_ORIGIN_PREFIXES,
             maxUndoSteps: 100,
-            mergeInterval: 0
+            mergeInterval: 0,
+            onPop: (isUndo) => this.popAliasHistory(isUndo),
+            onPush: (isUndo, _counterRange, event) => {
+                this.pushAliasHistory(isUndo, event);
+                return { cursors: [], value: null };
+            }
         });
+        aliasHistoryByDocument.set(doc, this.aliasHistoryFrontier);
         this.unsubscribeDocument = doc.subscribe(() => this.publishSnapshot());
         this.publishSnapshot();
     }
@@ -153,6 +204,42 @@ export class VaultUndoCoordinator {
         if (this.disposed) return;
         this.closeActiveGroup();
         this.manager.clear();
+        this.undoAliasHistory = [];
+        this.redoAliasHistory = [];
+        this.pendingPoppedAliases = undefined;
+        this.publishAliasHistory();
+        this.publishSnapshot();
+    }
+
+    clearUndo(): void {
+        if (this.disposed) return;
+        this.closeActiveGroup();
+        this.manager.clearUndo();
+        this.undoAliasHistory = [];
+        this.publishAliasHistory();
+        this.publishSnapshot();
+    }
+
+    clearRedo(): void {
+        if (this.disposed) return;
+        this.closeActiveGroup();
+        this.manager.clearRedo();
+        this.redoAliasHistory = [];
+        this.publishAliasHistory();
+        this.publishSnapshot();
+    }
+
+    setMaxUndoSteps(steps: number): void {
+        if (this.disposed) return;
+        const normalizedSteps = Math.max(0, Math.floor(steps));
+        this.closeActiveGroup();
+        this.maxUndoSteps = normalizedSteps;
+        this.manager.setMaxUndoSteps(normalizedSteps);
+        this.undoAliasHistory.splice(
+            0,
+            Math.max(0, this.undoAliasHistory.length - normalizedSteps)
+        );
+        this.publishAliasHistory();
         this.publishSnapshot();
     }
 
@@ -163,9 +250,17 @@ export class VaultUndoCoordinator {
         this.unsubscribeDocument();
         this.manager.clear();
         this.manager.free();
+        this.undoAliasHistory = [];
+        this.redoAliasHistory = [];
+        this.pendingPoppedAliases = undefined;
+        this.publishAliasHistory();
+        if (aliasHistoryByDocument.get(this.doc) === this.aliasHistoryFrontier) {
+            aliasHistoryByDocument.delete(this.doc);
+        }
         this.snapshot = EMPTY_UNDO_SNAPSHOT;
         this.emit();
         this.listeners.clear();
+        this.aliasHistoryListeners.clear();
     }
 
     private openActionGroup(): void {
@@ -226,6 +321,41 @@ export class VaultUndoCoordinator {
 
         this.snapshot = nextSnapshot;
         this.emit();
+    }
+
+    private popAliasHistory(isUndo: boolean): void {
+        const stack = isUndo ? this.undoAliasHistory : this.redoAliasHistory;
+        this.pendingPoppedAliases = stack.pop() ?? new Set<string>();
+        this.publishAliasHistory();
+    }
+
+    private pushAliasHistory(isUndo: boolean, event: LoroEventBatch | undefined): void {
+        const aliasIds = event ? getChangedAliasIds(event) : this.pendingPoppedAliases;
+        this.pendingPoppedAliases = undefined;
+        const stack = isUndo ? this.undoAliasHistory : this.redoAliasHistory;
+        stack.push(aliasIds ?? new Set<string>());
+
+        if (event && isUndo) this.redoAliasHistory = [];
+        if (isUndo && this.undoAliasHistory.length > this.maxUndoSteps) {
+            this.undoAliasHistory.splice(0, this.undoAliasHistory.length - this.maxUndoSteps);
+        }
+        this.publishAliasHistory();
+    }
+
+    private publishAliasHistory(): void {
+        const nextReachable = new Set(
+            [...this.undoAliasHistory, ...this.redoAliasHistory].flatMap((aliasIds) => [
+                ...aliasIds
+            ])
+        );
+        if (
+            nextReachable.size === this.reachableAliasIds.size &&
+            [...nextReachable].every((aliasId) => this.reachableAliasIds.has(aliasId))
+        ) {
+            return;
+        }
+        this.reachableAliasIds = nextReachable;
+        for (const listener of this.aliasHistoryListeners) listener();
     }
 
     private emit(): void {

@@ -19,7 +19,6 @@ import {
 } from "react";
 import { useSyncExternalStore } from "react";
 import type { ComponentProps, DependencyList } from "react";
-import { Temporal } from "temporal-polyfill";
 
 import {
     getActiveDescriptionAliases,
@@ -29,6 +28,7 @@ import {
 
 import { startVaultMaintenanceScheduler } from "./maintenance";
 import type { VaultMirror } from "./mirror";
+import { getAllTransactions } from "./queries";
 import type { Transaction, VaultState } from "./schema";
 import { vaultSchema } from "./schema";
 import type { VaultEditSession, VaultUserActionKind } from "./undo";
@@ -462,35 +462,9 @@ export function useActiveDescriptionAliases() {
  * Returns a flat array of transactions sorted by date desc.
  */
 export function useActiveTransactions() {
-    return useVaultSelector((state) => {
-        const result: Transaction[] = [];
-        for (const accountId of Object.keys(state.transactions)) {
-            const tree = state.transactions[accountId];
-            if (!tree || typeof tree === "string") continue;
-            for (const yearBucket of tree.years) {
-                for (const monthBucket of yearBucket.months) {
-                    for (const dayBucket of monthBucket.days) {
-                        for (const tx of dayBucket.transactions) {
-                            if (!tx.deletedAt) {
-                                result.push(tx);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        // Sort by date desc, creationInstant desc, importRowIndex asc
-        result.sort((a, b) => {
-            const dateCompare = Temporal.PlainDate.compare(b.date, a.date);
-            if (dateCompare !== 0) return dateCompare;
-            const instantCompare = Temporal.Instant.compare(b.creationInstant, a.creationInstant);
-            if (instantCompare !== 0) return instantCompare;
-            const aIdx = a.importRowIndex ?? Infinity;
-            const bIdx = b.importRowIndex ?? Infinity;
-            return aIdx - bIdx;
-        });
-        return result;
-    });
+    return useVaultSelector((state) =>
+        getAllTransactions(state.transactions).filter((transaction) => !transaction.deletedAt)
+    );
 }
 
 /**
