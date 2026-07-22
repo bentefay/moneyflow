@@ -8,7 +8,8 @@ literal field is `pending`. Workers may read but never edit it.
 - **Package / revision:** P12 / 04
 - **Scope IDs:** HS-005 only; bounded requestAnimationFrame maintenance for duplicate transaction
   buckets and description-alias symlinks; HS-005 remains incomplete and unchecked
-- **State:** changes_requested; revision-04 implementation/review are immutable; HS-005 is unchecked
+- **State:** changes_requested; revision-04 failure is immutable at
+  `48fb391a83ef711f9b1263c2a5fdfac79a367481`; HS-005 is unchecked
 - **Task:** `tasks/HS-005-background-gc.md`; exact 6-line HS-005 block in SCOPE
 - **Dependencies:** P09/02 and P11A–C are passed; P12 is independent of blocked P05/P08/P10
 - **Literal original BASE:** `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e`
