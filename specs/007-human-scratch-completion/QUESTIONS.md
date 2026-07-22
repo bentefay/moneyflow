@@ -642,6 +642,35 @@ No unresolved product questions were answered by scaffold creation.
 - **Does a human still need to decide after completion?:** Yes, if the product later prefers explicit
   conflict surfacing. A is convergent and preservation-first, so it remains the working default.
 
+## Q-018 — Use a finite per-alias Undo-history reachability barrier for collection
+
+- **Raised:** 2026-07-22, P12 revision 01, `human_scratch_reviewer`
+- **Source proposal:**
+  `reviews/P12-review-01.md#q-proposal-p12-01-01--finite-undo-safe-alias-collection-barrier`
+- **Context and evidence:** The frozen requirement requires the active production worker to rewrite
+  direct references and hard-delete proven-unreferenced symlinks while user Undo/Redo remains correct.
+  Revision 01 instead retains every alias changed during the current provider session until remount;
+  independent review proves ordinary change-all garbage cannot collect in that active session.
+- **Why the frozen requirement/repository does not fully decide it:** Neither authority defines the
+  exact frontier at which an obsolete alias can no longer be resurrected by live undo/redo history.
+- **Options considered:** (A) expose per-alias live history reachability from the Undo coordinator,
+  defer only while reachable, subscribe to frontier changes and requeue when unreachable; (B) store
+  enough immutable undo payload to recreate the alias after immediate GC; or (C) retain until provider
+  remount. C is the failed current behavior and contradicts active background collection.
+- **Default selected for continued work:** Choose A. Require deterministic change-all → barrier →
+  Undo/Redo, history clear/trim → same-provider collection, and document replacement/disposal tests.
+- **Decision hierarchy basis:** Frozen active-worker and Undo/Redo acceptance both control. A is the
+  smallest explicit interface that satisfies both without expanding persisted schema or privacy
+  surface; C violates the active-worker requirement and B is a larger durable-data change.
+- **Impact and risk:** Maintenance gains a narrow Undo-history interface and must requeue exactly when
+  reachability changes. Incorrect tracking can either delete Undo-reachable aliases or retain garbage;
+  exact per-alias tests and provider lifecycle cleanup are mandatory.
+- **How to reverse or migrate:** Replace the reachability provider with a durable self-contained Undo
+  payload under a separately reviewed schema/privacy design. No persisted migration is required for A.
+- **Does a human still need to decide after completion?:** Yes, only if a future history architecture
+  prefers B. A is finite, reversible and directly satisfies both frozen behaviors, so it does not
+  block continuation.
+
 ## Question template
 
 ### Q-XXX — Short title
