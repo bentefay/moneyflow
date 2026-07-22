@@ -103,6 +103,7 @@ export type DescriptionAliasMaintenanceReference =
           readonly dayIndex: number;
           readonly transactionCid: string;
           readonly transactionId: string;
+          readonly transactionIndex: number;
       }
     | {
           readonly kind: "nested";
@@ -113,6 +114,8 @@ export type DescriptionAliasMaintenanceReference =
           readonly parentTransactionCid: string;
           readonly transactionCid: string;
           readonly transactionId: string;
+          readonly transactionIndex: number;
+          readonly nestedIndex: number;
       };
 
 export interface RewriteDescriptionAliasMaintenanceReferenceInput {
@@ -213,20 +216,19 @@ function findMaintenanceReference(
     if (!day) return undefined;
 
     if (reference.kind === "parent") {
-        return day.transactions.find(
-            (candidate) =>
-                candidate.$cid === reference.transactionCid &&
-                candidate.id === reference.transactionId
-        );
+        const candidate = day.transactions[reference.transactionIndex];
+        return candidate?.$cid === reference.transactionCid &&
+            candidate.id === reference.transactionId
+            ? candidate
+            : undefined;
     }
 
-    const parent = day.transactions.find(
-        (candidate) => candidate.$cid === reference.parentTransactionCid
-    );
-    return parent?.suspectedDuplicates.find(
-        (candidate) =>
-            candidate.$cid === reference.transactionCid && candidate.id === reference.transactionId
-    );
+    const parent = day.transactions[reference.transactionIndex];
+    if (!parent || parent.$cid !== reference.parentTransactionCid) return undefined;
+    const candidate = parent.suspectedDuplicates[reference.nestedIndex];
+    return candidate?.$cid === reference.transactionCid && candidate.id === reference.transactionId
+        ? candidate
+        : undefined;
 }
 
 /** Rewrite one still-current direct symlink reference and both exact reverse maps. */
@@ -256,39 +258,8 @@ export function rewriteDescriptionAliasMaintenanceReference(
     return true;
 }
 
-function hasTransactionReference(state: VaultState, aliasId: string): boolean {
-    for (const tree of Object.values(state.transactions)) {
-        if (typeof tree !== "object" || tree == null) continue;
-        for (const year of tree.years) {
-            for (const month of year.months) {
-                for (const day of month.days) {
-                    for (const transaction of day.transactions) {
-                        if (transaction.descriptionAliasId === aliasId) return true;
-                        if (
-                            transaction.suspectedDuplicates.some(
-                                (duplicate) => duplicate.descriptionAliasId === aliasId
-                            )
-                        ) {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return false;
-}
-
-function hasTruthyReference(referenceMap: Record<string, boolean>): boolean {
-    return Object.entries(referenceMap).some(
-        ([referenceId, present]) => referenceId !== "$cid" && present
-    );
-}
-
-/**
- * Hard-delete the explicit HS-005 exception only after a fresh complete proof in the applied draft.
- */
-export function hardDeleteUnreferencedDescriptionAliasSymlink(
+/** Apply a graph proof completed immediately beforehand by bounded maintenance discovery. */
+export function hardDeleteProvenDescriptionAliasSymlink(
     state: VaultState,
     input: { readonly symlinkId: string; readonly targetAliasId: string }
 ): boolean {
@@ -302,22 +273,11 @@ export function hardDeleteUnreferencedDescriptionAliasSymlink(
         !target ||
         target.deletedAt != null ||
         target.kind !== "real" ||
-        !target.symlinkIds[symlink.id] ||
-        hasTruthyReference(symlink.transactionIds) ||
-        hasTruthyReference(symlink.symlinkIds) ||
-        hasTransactionReference(state, symlink.id)
+        !target.symlinkIds[symlink.id]
     ) {
         return false;
     }
-
-    for (const aliasValue of Object.values(state.descriptionAliases)) {
-        if (typeof aliasValue !== "object" || aliasValue == null) continue;
-        if (aliasValue.id !== target.id && aliasValue.symlinkIds[symlink.id]) return false;
-        if (aliasValue.targetAliasId === symlink.id) return false;
-    }
-
     delete target.symlinkIds[symlink.id];
-    if (target.symlinkIds[symlink.id]) return false;
     delete state.descriptionAliases[symlink.id];
     return true;
 }

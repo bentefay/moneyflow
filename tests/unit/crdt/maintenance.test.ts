@@ -11,6 +11,7 @@ import {
     applyVaultMaintenancePlan,
     createVaultMaintenanceCursor,
     DEFAULT_VAULT_MAINTENANCE_BUDGET,
+    isVaultMaintenancePlanCurrent,
     planVaultMaintenanceStep,
     runVaultMaintenanceFrame,
     type VaultMaintenanceCursor,
@@ -27,6 +28,7 @@ import { getAccountTransactions } from "@/lib/crdt/queries";
 import type { TransactionInput, VaultState } from "@/lib/crdt/schema";
 import { asMinorUnits } from "@/lib/domain/currency";
 import { createDescriptionAliasLookup } from "@/lib/domain/description-aliases";
+import { asPercentage } from "@/types";
 
 const DATE = Temporal.PlainDate.from("2024-02-03");
 
@@ -95,6 +97,7 @@ function applyPlan(
     plan: VaultMaintenancePlan,
     doc: ReturnType<typeof createVaultMirror>["doc"]
 ): boolean {
+    if (!isVaultMaintenancePlanCurrent(mirror.getState(), plan)) return false;
     if (plan.kind === "relocate-conflict-transaction") {
         return applyVaultMaintenancePlan(mirror.getState(), plan, doc);
     }
@@ -133,7 +136,9 @@ function drainMaintenance(
         maxProcessed = Math.max(maxProcessed, result.processed);
         if (result.complete) return { applied, frames, maxProcessed };
     }
-    throw new Error("Maintenance did not reach a clean cursor");
+    throw new Error(
+        `Maintenance did not reach a clean cursor: ${JSON.stringify({ applied, cursor, frames })}`
+    );
 }
 
 function findPlan(
@@ -247,6 +252,57 @@ describe("bounded vault maintenance", () => {
         expect(result.frames).toBeGreaterThan(1);
         expect(result.maxProcessed).toBeLessThanOrEqual(DEFAULT_VAULT_MAINTENANCE_BUDGET.maxItems);
         mirror.dispose();
+    });
+
+    it("prepares an oversized nested relocation in fixed-size chunks before one atomic commit", () => {
+        const vault = createDuplicateBucketMirror(["a-target"], ["z-wide"]);
+        vault.mirror.setState((state: VaultState) => {
+            const source = physicalTransactions(state).find(({ id }) => id === "z-wide");
+            if (!source) throw new Error("Missing wide relocation source");
+            for (let index = 0; index < 128; index += 1) {
+                source.tagIds.push(`tag-${index}`);
+                source.allocations[`person-${index}`] = asPercentage(index / 128);
+            }
+            for (let index = 0; index < 64; index += 1) {
+                insertTransaction(state.transactions, {
+                    transaction: {
+                        ...transactionInput(`nested-${index}`, index),
+                        tagIds: [`nested-tag-${index}`],
+                        allocations: { [`nested-person-${index}`]: asPercentage(1) }
+                    },
+                    suspectedDuplicateOf: {
+                        accountId: "account",
+                        date: DATE,
+                        transactionId: "z-wide"
+                    }
+                });
+            }
+        });
+        const planned = findPlan(
+            vault.mirror.getState(),
+            (plan) =>
+                plan.kind === "relocate-conflict-transaction" &&
+                plan.mode === "move" &&
+                plan.transactionId === "z-wide"
+        );
+        const origins: Array<string | undefined> = [];
+        const unsubscribe = vault.doc.subscribe((event) => origins.push(event.origin));
+        let chunks = 0;
+        while (origins.length === 0 && chunks < 1_000) {
+            expect(applyPlan(vault.mirror, planned.plan, vault.doc)).toBe(true);
+            chunks += 1;
+        }
+
+        expect(chunks).toBeGreaterThan(20);
+        expect(origins).toEqual(["system:gc"]);
+        const relocated = physicalTransactions(vault.mirror.getState()).filter(
+            ({ id }) => id === "z-wide"
+        );
+        expect(relocated).toHaveLength(1);
+        expect(relocated[0].tagIds).toHaveLength(128);
+        expect(relocated[0].suspectedDuplicates).toHaveLength(64);
+        unsubscribe();
+        vault.mirror.dispose();
     });
 
     it("revalidates stable bucket identities after a mid-plan mutation", () => {
@@ -552,6 +608,43 @@ describe("bounded vault maintenance", () => {
         expect(applyPlan(mirror, planned.plan, doc)).toBe(false);
         expect(mirror.getState().descriptionAliases.source).toBeDefined();
         drainMaintenance(mirror, doc);
+        expect(mirror.getState().descriptionAliases.source).toBeUndefined();
+        mirror.dispose();
+    });
+
+    it("proves a wide alias graph one parent, nested item, or alias per discovery step", () => {
+        const { doc, mirror } = createVaultMirror();
+        mirror.setState((state: VaultState) => {
+            createDescriptionAlias(state, { aliasId: "source", name: "Source" });
+            createDescriptionAlias(state, { aliasId: "target", name: "Target" });
+            changeAllDescriptionAliases(state, {
+                sourceAliasId: "source",
+                target: { kind: "existing", aliasId: "target" }
+            });
+            for (let index = 0; index < 128; index += 1) {
+                createDescriptionAlias(state, {
+                    aliasId: `other-${index.toString().padStart(3, "0")}`,
+                    name: `Other ${index}`
+                });
+                insertTransaction(state.transactions, {
+                    transaction: transactionInput(`wide-proof-${index}`, index)
+                });
+            }
+        });
+
+        let cursor = createVaultMaintenanceCursor(mirror.getState());
+        let steps = 0;
+        let removal: VaultMaintenancePlan | undefined;
+        while (steps < 10_000 && !removal) {
+            const step = planVaultMaintenanceStep(mirror.getState(), cursor);
+            cursor = step.cursor;
+            steps += 1;
+            if (step.plan?.kind === "remove-alias-symlink") removal = step.plan;
+        }
+
+        expect(steps).toBeGreaterThan(256);
+        if (!removal) throw new Error("Missing proven alias removal");
+        expect(applyPlan(mirror, removal, doc)).toBe(true);
         expect(mirror.getState().descriptionAliases.source).toBeUndefined();
         mirror.dispose();
     });

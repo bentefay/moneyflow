@@ -1,12 +1,11 @@
-import { LoroList, LoroMap, type Container, type LoroDoc } from "loro-crdt";
+import { LoroList, LoroMap, type LoroDoc } from "loro-crdt";
 
 import {
-    hardDeleteUnreferencedDescriptionAliasSymlink,
+    hardDeleteProvenDescriptionAliasSymlink,
     rewriteDescriptionAliasMaintenanceReference,
     type DescriptionAliasMaintenanceReference
 } from "./description-aliases";
 import type { VaultMirror } from "./mirror";
-import { getDayBuckets } from "./mutations";
 import type {
     AccountTransactionTree,
     DayBucket,
@@ -16,46 +15,6 @@ import type {
     YearBucket
 } from "./schema";
 import { getVaultAliasHistoryFrontier } from "./undo";
-
-function findEarlierTransactionCopy(input: {
-    readonly accountId: string;
-    readonly source: Transaction;
-    readonly sourceDay: DayBucket;
-    readonly state: VaultState;
-}): Transaction | undefined {
-    const dayBuckets = getCanonicalDayBuckets(input.state, input.accountId, input.source.date);
-    for (const dayBucket of dayBuckets) {
-        for (const candidate of dayBucket.transactions) {
-            if (
-                candidate === input.source ||
-                (candidate.$cid && candidate.$cid === input.source.$cid)
-            ) {
-                return undefined;
-            }
-            if (candidate.id === input.source.id) return candidate;
-        }
-        if (dayBucket === input.sourceDay) return undefined;
-    }
-    return undefined;
-}
-
-function dayIdentityKey(day: DayBucket): string {
-    return (
-        day.transactions
-            .map((transaction) => `${transaction.id}\u0000${transaction.$cid}`)
-            .sort()[0] ?? ""
-    );
-}
-
-function getCanonicalDayBuckets(
-    state: VaultState,
-    accountId: string,
-    date: Transaction["date"]
-): DayBucket[] {
-    return getDayBuckets(state.transactions, accountId, date).sort((left, right) =>
-        dayIdentityKey(left).localeCompare(dayIdentityKey(right))
-    );
-}
 
 export interface VaultMaintenanceBudget {
     readonly maxItems: number;
@@ -67,12 +26,15 @@ export const DEFAULT_VAULT_MAINTENANCE_BUDGET: VaultMaintenanceBudget = {
     maxMilliseconds: 4
 };
 
-type MaintenancePhase = "years" | "months" | "days" | "transactions" | "aliases" | "done";
+type MaintenancePhase = "keys" | "years" | "months" | "days" | "transactions" | "aliases" | "done";
 
 /** Explicit immutable cursor retained between animation frames. */
 export interface VaultMaintenanceCursor {
-    readonly accountIds: readonly string[];
-    readonly aliasIds: readonly string[];
+    readonly accountIds: string[];
+    readonly aliasIds: string[];
+    readonly accountKeyIterator: Generator<string>;
+    readonly aliasKeyIterator: Generator<string>;
+    readonly accountKeysComplete: boolean;
     readonly phase: MaintenancePhase;
     readonly accountIndex: number;
     readonly yearIndex: number;
@@ -83,6 +45,54 @@ export interface VaultMaintenanceCursor {
     readonly aliasIndex: number;
     /** A mutation landed during this pass, so one fresh proof pass is still required. */
     readonly needsRescan: boolean;
+    readonly aliasProof?: AliasProofCursor;
+    readonly transactionSearch?: TransactionSearchCursor;
+    readonly transactionTarget?: TransactionTargetCursor;
+}
+
+interface TransactionTargetCursor {
+    readonly date: string;
+    readonly dayIndex: number;
+    readonly monthIndex: number;
+    readonly yearIndex: number;
+    readonly transactionCid?: string;
+    readonly transactionIndex: number;
+}
+
+interface TransactionSearchCursor {
+    readonly sourceCid?: string;
+    readonly sourceId: string;
+    readonly sourceYearIndex: number;
+    readonly sourceMonthIndex: number;
+    readonly sourceDayIndex: number;
+    readonly sourceTransactionIndex: number;
+    readonly year: number;
+    readonly month: number;
+    readonly day: number;
+    readonly scanYearIndex: number;
+    readonly scanMonthIndex: number;
+    readonly scanDayIndex: number;
+    readonly scanTransactionIndex: number;
+    readonly bestDayKey?: string;
+    readonly bestDayYearIndex?: number;
+    readonly bestDayMonthIndex?: number;
+    readonly bestDayIndex?: number;
+    readonly bestDayTransactionIndex?: number;
+    readonly bestDayTransactionCid?: string;
+    readonly bestSameIdKey?: string;
+}
+
+interface AliasProofCursor {
+    readonly aliasId: string;
+    readonly targetAliasId: string;
+    readonly stage: "transactions" | "aliases";
+    readonly accountIndex: number;
+    readonly yearIndex: number;
+    readonly monthIndex: number;
+    readonly dayIndex: number;
+    readonly transactionIndex: number;
+    readonly nestedIndex: number;
+    readonly aliasIndex: number;
 }
 
 type StructuralMaintenancePlan =
@@ -96,8 +106,12 @@ type StructuralMaintenancePlan =
           readonly targetDayIndex: number;
           readonly targetMonthIndex: number;
           readonly targetYearIndex: number;
+          readonly targetTransactionCid?: string;
+          readonly targetTransactionIndex: number;
           readonly transactionCid?: string;
           readonly transactionId: string;
+          readonly transactionIndex: number;
+          readonly provenState: VaultState;
       }
     | {
           readonly kind: "remove-year";
@@ -135,9 +149,20 @@ type AliasMaintenancePlan =
           readonly kind: "remove-alias-symlink";
           readonly symlinkId: string;
           readonly targetAliasId: string;
+          readonly provenState: VaultState;
       };
 
 export type VaultMaintenancePlan = StructuralMaintenancePlan | AliasMaintenancePlan;
+
+export function isVaultMaintenancePlanCurrent(
+    state: VaultState,
+    plan: VaultMaintenancePlan
+): boolean {
+    return (
+        (plan.kind !== "remove-alias-symlink" && plan.kind !== "relocate-conflict-transaction") ||
+        plan.provenState === state
+    );
+}
 
 export interface VaultMaintenanceStep {
     readonly cursor: VaultMaintenanceCursor;
@@ -160,15 +185,13 @@ export interface VaultMaintenanceFrameHost {
     readonly subscribeVisibility: (listener: () => void) => () => void;
 }
 
-function baseCursor(
-    state: VaultState,
-    phase: MaintenancePhase = "transactions"
-): VaultMaintenanceCursor {
+function baseCursor(state: VaultState, phase: MaintenancePhase = "keys"): VaultMaintenanceCursor {
     return {
-        accountIds: Object.keys(state.transactions).filter((accountId) => accountId !== "$cid"),
-        aliasIds: Object.keys(state.descriptionAliases)
-            .filter((aliasId) => aliasId !== "$cid")
-            .sort(),
+        accountIds: [],
+        aliasIds: [],
+        accountKeyIterator: recordKeys(state.transactions),
+        aliasKeyIterator: recordKeys(state.descriptionAliases),
+        accountKeysComplete: false,
         phase,
         accountIndex: 0,
         yearIndex: 0,
@@ -179,6 +202,12 @@ function baseCursor(
         aliasIndex: 0,
         needsRescan: false
     };
+}
+
+function* recordKeys(record: object): Generator<string> {
+    for (const key in record) {
+        if (key !== "$cid") yield key;
+    }
 }
 
 export function createVaultMaintenanceCursor(state: VaultState): VaultMaintenanceCursor {
@@ -213,6 +242,23 @@ function getTree(
     const tree = state.transactions[accountId];
     if (typeof tree !== "object" || tree == null) return undefined;
     return { accountId, tree };
+}
+
+function planKeyStep(cursor: VaultMaintenanceCursor): VaultMaintenanceStep {
+    if (!cursor.accountKeysComplete) {
+        const next = cursor.accountKeyIterator.next();
+        if (!next.done) {
+            cursor.accountIds.push(next.value);
+            return { cursor };
+        }
+        return { cursor: { ...cursor, accountKeysComplete: true } };
+    }
+    const next = cursor.aliasKeyIterator.next();
+    if (!next.done) {
+        cursor.aliasIds.push(next.value);
+        return { cursor };
+    }
+    return { cursor: withPosition(cursor, { phase: "transactions" }) };
 }
 
 function planYearStep(state: VaultState, cursor: VaultMaintenanceCursor): VaultMaintenanceStep {
@@ -402,35 +448,154 @@ function aliasRewritePlan(
 }
 
 function nextTransactionContainer(cursor: VaultMaintenanceCursor): VaultMaintenanceCursor {
-    return withPosition(cursor, {
-        transactionIndex: cursor.transactionIndex + 1,
-        nestedIndex: -1
-    });
+    return {
+        ...withPosition(cursor, {
+            transactionIndex: cursor.transactionIndex + 1,
+            nestedIndex: -1
+        }),
+        transactionSearch: undefined
+    };
 }
 
-function findDayPosition(
+function transactionIdentityKey(transaction: Transaction): string {
+    return `${transaction.id}\u0000${transaction.$cid}`;
+}
+
+function createTransactionSearch(
+    transaction: Transaction,
+    cursor: VaultMaintenanceCursor
+): TransactionSearchCursor {
+    return {
+        sourceCid: transaction.$cid,
+        sourceId: transaction.id,
+        sourceYearIndex: cursor.yearIndex,
+        sourceMonthIndex: cursor.monthIndex,
+        sourceDayIndex: cursor.dayIndex,
+        sourceTransactionIndex: cursor.transactionIndex,
+        year: transaction.date.year,
+        month: transaction.date.month,
+        day: transaction.date.day,
+        scanYearIndex: 0,
+        scanMonthIndex: 0,
+        scanDayIndex: 0,
+        scanTransactionIndex: 0
+    };
+}
+
+function hasAdjacentBucketConflict(
     tree: AccountTransactionTree,
-    target: DayBucket
-):
-    | {
-          readonly dayIndex: number;
-          readonly monthIndex: number;
-          readonly yearIndex: number;
-      }
-    | undefined {
-    const targetKey = dayIdentityKey(target);
-    for (let yearIndex = 0; yearIndex < tree.years.length; yearIndex += 1) {
-        const year = tree.years[yearIndex];
-        for (let monthIndex = 0; monthIndex < year.months.length; monthIndex += 1) {
-            const month = year.months[monthIndex];
-            for (let dayIndex = 0; dayIndex < month.days.length; dayIndex += 1) {
-                if (dayIdentityKey(month.days[dayIndex]) === targetKey) {
-                    return { dayIndex, monthIndex, yearIndex };
-                }
+    cursor: VaultMaintenanceCursor
+): boolean {
+    const year = tree.years[cursor.yearIndex];
+    const month = year?.months[cursor.monthIndex];
+    const day = month?.days[cursor.dayIndex];
+    if (!year || !month || !day) return false;
+    return (
+        tree.years[cursor.yearIndex - 1]?.year === year.year ||
+        tree.years[cursor.yearIndex + 1]?.year === year.year ||
+        year.months[cursor.monthIndex - 1]?.month === month.month ||
+        year.months[cursor.monthIndex + 1]?.month === month.month ||
+        month.days[cursor.dayIndex - 1]?.day === day.day ||
+        month.days[cursor.dayIndex + 1]?.day === day.day
+    );
+}
+
+function advanceTransactionSearch(
+    tree: AccountTransactionTree,
+    search: TransactionSearchCursor
+): { readonly complete: boolean; readonly search: TransactionSearchCursor } {
+    const year = tree.years[search.scanYearIndex];
+    if (!year) return { complete: true, search };
+    if (year.year !== search.year) {
+        return {
+            complete: false,
+            search: {
+                ...search,
+                scanYearIndex: search.scanYearIndex + 1,
+                scanMonthIndex: 0,
+                scanDayIndex: 0,
+                scanTransactionIndex: 0
             }
-        }
+        };
     }
-    return undefined;
+    const month = year.months[search.scanMonthIndex];
+    if (!month) {
+        return {
+            complete: false,
+            search: {
+                ...search,
+                scanYearIndex: search.scanYearIndex + 1,
+                scanMonthIndex: 0,
+                scanDayIndex: 0,
+                scanTransactionIndex: 0
+            }
+        };
+    }
+    if (month.month !== search.month) {
+        return {
+            complete: false,
+            search: {
+                ...search,
+                scanMonthIndex: search.scanMonthIndex + 1,
+                scanDayIndex: 0,
+                scanTransactionIndex: 0
+            }
+        };
+    }
+    const day = month.days[search.scanDayIndex];
+    if (!day) {
+        return {
+            complete: false,
+            search: {
+                ...search,
+                scanMonthIndex: search.scanMonthIndex + 1,
+                scanDayIndex: 0,
+                scanTransactionIndex: 0
+            }
+        };
+    }
+    if (day.day !== search.day) {
+        return {
+            complete: false,
+            search: {
+                ...search,
+                scanDayIndex: search.scanDayIndex + 1,
+                scanTransactionIndex: 0
+            }
+        };
+    }
+    const transaction = day.transactions[search.scanTransactionIndex];
+    if (!transaction) {
+        return {
+            complete: false,
+            search: {
+                ...search,
+                scanDayIndex: search.scanDayIndex + 1,
+                scanTransactionIndex: 0
+            }
+        };
+    }
+    const key = transactionIdentityKey(transaction);
+    const isBestDay = search.bestDayKey == null || key < search.bestDayKey;
+    const isBestSameId =
+        transaction.id === search.sourceId &&
+        (search.bestSameIdKey == null || key < search.bestSameIdKey);
+    return {
+        complete: false,
+        search: {
+            ...search,
+            scanTransactionIndex: search.scanTransactionIndex + 1,
+            bestDayKey: isBestDay ? key : search.bestDayKey,
+            bestDayYearIndex: isBestDay ? search.scanYearIndex : search.bestDayYearIndex,
+            bestDayMonthIndex: isBestDay ? search.scanMonthIndex : search.bestDayMonthIndex,
+            bestDayIndex: isBestDay ? search.scanDayIndex : search.bestDayIndex,
+            bestDayTransactionIndex: isBestDay
+                ? search.scanTransactionIndex
+                : search.bestDayTransactionIndex,
+            bestDayTransactionCid: isBestDay ? transaction.$cid : search.bestDayTransactionCid,
+            bestSameIdKey: isBestSameId ? key : search.bestSameIdKey
+        }
+    };
 }
 
 function planTransactionStep(
@@ -501,41 +666,150 @@ function planTransactionStep(
     }
 
     if (cursor.nestedIndex < 0) {
-        const next = transaction.suspectedDuplicates.length
-            ? withPosition(cursor, { nestedIndex: 0 })
-            : nextTransactionContainer(cursor);
-        const dayBuckets = getCanonicalDayBuckets(state, current.accountId, transaction.date);
-        const targetPosition = findDayPosition(current.tree, dayBuckets[0]);
-        const earlierCopy = findEarlierTransactionCopy({
-            accountId: current.accountId,
-            source: transaction,
-            sourceDay: day,
-            state
-        });
-        const sourceIsTargetBucket = dayBuckets[0].transactions.some(
-            (candidate) => candidate.$cid === transaction.$cid
-        );
-        const needsBucketRelocation = !sourceIsTargetBucket;
-        if (targetPosition && (earlierCopy || (needsBucketRelocation && !earlierCopy))) {
+        if (!cursor.transactionSearch && !hasAdjacentBucketConflict(current.tree, cursor)) {
+            const next = transaction.suspectedDuplicates.length
+                ? { ...withPosition(cursor, { nestedIndex: 0 }), transactionSearch: undefined }
+                : nextTransactionContainer(cursor);
             return {
                 cursor: next,
+                plan: aliasRewritePlan(
+                    state,
+                    {
+                        kind: "parent",
+                        accountId: current.accountId,
+                        yearIndex: cursor.yearIndex,
+                        monthIndex: cursor.monthIndex,
+                        dayIndex: cursor.dayIndex,
+                        transactionCid: transaction.$cid,
+                        transactionId: transaction.id,
+                        transactionIndex: cursor.transactionIndex
+                    },
+                    transaction
+                )
+            };
+        }
+        const cachedTarget = cursor.transactionTarget;
+        if (!cursor.transactionSearch && cachedTarget?.date === transaction.date.toString()) {
+            const next = transaction.suspectedDuplicates.length
+                ? { ...withPosition(cursor, { nestedIndex: 0 }), transactionSearch: undefined }
+                : nextTransactionContainer(cursor);
+            const move =
+                cachedTarget.yearIndex !== cursor.yearIndex ||
+                cachedTarget.monthIndex !== cursor.monthIndex ||
+                cachedTarget.dayIndex !== cursor.dayIndex;
+            return {
+                cursor: next,
+                plan: move
+                    ? {
+                          kind: "relocate-conflict-transaction",
+                          accountId: current.accountId,
+                          yearIndex: cursor.yearIndex,
+                          monthIndex: cursor.monthIndex,
+                          dayIndex: cursor.dayIndex,
+                          mode: "move",
+                          targetDayIndex: cachedTarget.dayIndex,
+                          targetMonthIndex: cachedTarget.monthIndex,
+                          targetYearIndex: cachedTarget.yearIndex,
+                          targetTransactionCid: cachedTarget.transactionCid,
+                          targetTransactionIndex: cachedTarget.transactionIndex,
+                          transactionCid: transaction.$cid,
+                          transactionId: transaction.id,
+                          transactionIndex: cursor.transactionIndex,
+                          provenState: state
+                      }
+                    : aliasRewritePlan(
+                          state,
+                          {
+                              kind: "parent",
+                              accountId: current.accountId,
+                              yearIndex: cursor.yearIndex,
+                              monthIndex: cursor.monthIndex,
+                              dayIndex: cursor.dayIndex,
+                              transactionCid: transaction.$cid,
+                              transactionId: transaction.id,
+                              transactionIndex: cursor.transactionIndex
+                          },
+                          transaction
+                      )
+            };
+        }
+        const search = cursor.transactionSearch ?? createTransactionSearch(transaction, cursor);
+        if (
+            search.sourceId !== transaction.id ||
+            search.sourceCid !== transaction.$cid ||
+            search.sourceYearIndex !== cursor.yearIndex ||
+            search.sourceMonthIndex !== cursor.monthIndex ||
+            search.sourceDayIndex !== cursor.dayIndex ||
+            search.sourceTransactionIndex !== cursor.transactionIndex
+        ) {
+            return { cursor: { ...cursor, transactionSearch: undefined } };
+        }
+        const progress = advanceTransactionSearch(current.tree, search);
+        if (!progress.complete) {
+            return { cursor: { ...cursor, transactionSearch: progress.search } };
+        }
+        const next = transaction.suspectedDuplicates.length
+            ? { ...withPosition(cursor, { nestedIndex: 0 }), transactionSearch: undefined }
+            : nextTransactionContainer(cursor);
+        const sourceKey = transactionIdentityKey(transaction);
+        const removeSource =
+            progress.search.bestSameIdKey != null && progress.search.bestSameIdKey < sourceKey;
+        const targetYearIndex = progress.search.bestDayYearIndex;
+        const targetMonthIndex = progress.search.bestDayMonthIndex;
+        const targetDayIndex = progress.search.bestDayIndex;
+        const targetTransactionIndex = progress.search.bestDayTransactionIndex;
+        const move =
+            targetYearIndex != null &&
+            targetMonthIndex != null &&
+            targetDayIndex != null &&
+            (targetYearIndex !== cursor.yearIndex ||
+                targetMonthIndex !== cursor.monthIndex ||
+                targetDayIndex !== cursor.dayIndex);
+        const transactionTarget: TransactionTargetCursor | undefined =
+            targetYearIndex != null &&
+            targetMonthIndex != null &&
+            targetDayIndex != null &&
+            targetTransactionIndex != null
+                ? {
+                      date: transaction.date.toString(),
+                      dayIndex: targetDayIndex,
+                      monthIndex: targetMonthIndex,
+                      yearIndex: targetYearIndex,
+                      transactionCid: progress.search.bestDayTransactionCid,
+                      transactionIndex: targetTransactionIndex
+                  }
+                : undefined;
+        const nextWithTarget = transactionTarget ? { ...next, transactionTarget } : next;
+        if (
+            (removeSource || move) &&
+            targetYearIndex != null &&
+            targetMonthIndex != null &&
+            targetDayIndex != null &&
+            targetTransactionIndex != null
+        ) {
+            return {
+                cursor: nextWithTarget,
                 plan: {
                     kind: "relocate-conflict-transaction",
                     accountId: current.accountId,
                     yearIndex: cursor.yearIndex,
                     monthIndex: cursor.monthIndex,
                     dayIndex: cursor.dayIndex,
-                    mode: earlierCopy ? "remove-source" : "move",
-                    targetDayIndex: targetPosition.dayIndex,
-                    targetMonthIndex: targetPosition.monthIndex,
-                    targetYearIndex: targetPosition.yearIndex,
+                    mode: removeSource ? "remove-source" : "move",
+                    targetDayIndex,
+                    targetMonthIndex,
+                    targetYearIndex,
+                    targetTransactionCid: progress.search.bestDayTransactionCid,
+                    targetTransactionIndex,
                     transactionCid: transaction.$cid,
-                    transactionId: transaction.id
+                    transactionId: transaction.id,
+                    transactionIndex: cursor.transactionIndex,
+                    provenState: state
                 }
             };
         }
         return {
-            cursor: next,
+            cursor: nextWithTarget,
             plan: aliasRewritePlan(
                 state,
                 {
@@ -545,7 +819,8 @@ function planTransactionStep(
                     monthIndex: cursor.monthIndex,
                     dayIndex: cursor.dayIndex,
                     transactionCid: transaction.$cid,
-                    transactionId: transaction.id
+                    transactionId: transaction.id,
+                    transactionIndex: cursor.transactionIndex
                 },
                 transaction
             )
@@ -570,7 +845,9 @@ function planTransactionStep(
                 dayIndex: cursor.dayIndex,
                 parentTransactionCid: transaction.$cid,
                 transactionCid: duplicate.$cid,
-                transactionId: duplicate.id
+                transactionId: duplicate.id,
+                transactionIndex: cursor.transactionIndex,
+                nestedIndex: cursor.nestedIndex
             },
             duplicate
         )
@@ -580,7 +857,6 @@ function planTransactionStep(
 function planAliasStep(state: VaultState, cursor: VaultMaintenanceCursor): VaultMaintenanceStep {
     const aliasId = cursor.aliasIds[cursor.aliasIndex];
     if (!aliasId) return { cursor: withPosition(cursor, { phase: "done" }) };
-    const next = withPosition(cursor, { aliasIndex: cursor.aliasIndex + 1 });
     const alias = state.descriptionAliases[aliasId];
     if (
         typeof alias !== "object" ||
@@ -589,7 +865,12 @@ function planAliasStep(state: VaultState, cursor: VaultMaintenanceCursor): Vault
         alias.kind !== "symlink" ||
         !alias.targetAliasId
     ) {
-        return { cursor: next };
+        return {
+            cursor: {
+                ...withPosition(cursor, { aliasIndex: cursor.aliasIndex + 1 }),
+                aliasProof: undefined
+            }
+        };
     }
     const target = state.descriptionAliases[alias.targetAliasId];
     if (
@@ -598,14 +879,185 @@ function planAliasStep(state: VaultState, cursor: VaultMaintenanceCursor): Vault
         target.deletedAt != null ||
         target.kind !== "real"
     ) {
-        return { cursor: next };
+        return {
+            cursor: {
+                ...withPosition(cursor, { aliasIndex: cursor.aliasIndex + 1 }),
+                aliasProof: undefined
+            }
+        };
+    }
+
+    const proof = cursor.aliasProof ?? {
+        aliasId: alias.id,
+        targetAliasId: target.id,
+        stage: "transactions" as const,
+        accountIndex: 0,
+        yearIndex: 0,
+        monthIndex: 0,
+        dayIndex: 0,
+        transactionIndex: 0,
+        nestedIndex: -1,
+        aliasIndex: 0
+    };
+    const abandon = (): VaultMaintenanceStep => ({
+        cursor: {
+            ...withPosition(cursor, { aliasIndex: cursor.aliasIndex + 1 }),
+            aliasProof: undefined
+        }
+    });
+
+    if (proof.aliasId !== alias.id || proof.targetAliasId !== target.id) return abandon();
+    if (proof.stage === "transactions") {
+        const accountId = cursor.accountIds[proof.accountIndex];
+        if (!accountId) {
+            return {
+                cursor: {
+                    ...cursor,
+                    aliasProof: { ...proof, stage: "aliases", aliasIndex: 0 }
+                }
+            };
+        }
+        const tree = state.transactions[accountId];
+        if (typeof tree !== "object" || tree == null) {
+            return {
+                cursor: {
+                    ...cursor,
+                    aliasProof: {
+                        ...proof,
+                        accountIndex: proof.accountIndex + 1,
+                        yearIndex: 0
+                    }
+                }
+            };
+        }
+        const year = tree.years[proof.yearIndex];
+        if (!year) {
+            return {
+                cursor: {
+                    ...cursor,
+                    aliasProof: {
+                        ...proof,
+                        accountIndex: proof.accountIndex + 1,
+                        yearIndex: 0,
+                        monthIndex: 0
+                    }
+                }
+            };
+        }
+        const month = year.months[proof.monthIndex];
+        if (!month) {
+            return {
+                cursor: {
+                    ...cursor,
+                    aliasProof: {
+                        ...proof,
+                        yearIndex: proof.yearIndex + 1,
+                        monthIndex: 0,
+                        dayIndex: 0
+                    }
+                }
+            };
+        }
+        const day = month.days[proof.dayIndex];
+        if (!day) {
+            return {
+                cursor: {
+                    ...cursor,
+                    aliasProof: {
+                        ...proof,
+                        monthIndex: proof.monthIndex + 1,
+                        dayIndex: 0,
+                        transactionIndex: 0
+                    }
+                }
+            };
+        }
+        const transaction = day.transactions[proof.transactionIndex];
+        if (!transaction) {
+            return {
+                cursor: {
+                    ...cursor,
+                    aliasProof: {
+                        ...proof,
+                        dayIndex: proof.dayIndex + 1,
+                        transactionIndex: 0,
+                        nestedIndex: -1
+                    }
+                }
+            };
+        }
+        if (proof.nestedIndex < 0) {
+            if (transaction.descriptionAliasId === proof.aliasId) return abandon();
+            return {
+                cursor: {
+                    ...cursor,
+                    aliasProof: transaction.suspectedDuplicates.length
+                        ? { ...proof, nestedIndex: 0 }
+                        : {
+                              ...proof,
+                              transactionIndex: proof.transactionIndex + 1,
+                              nestedIndex: -1
+                          }
+                }
+            };
+        }
+        const duplicate = transaction.suspectedDuplicates[proof.nestedIndex];
+        if (!duplicate) {
+            return {
+                cursor: {
+                    ...cursor,
+                    aliasProof: {
+                        ...proof,
+                        transactionIndex: proof.transactionIndex + 1,
+                        nestedIndex: -1
+                    }
+                }
+            };
+        }
+        if (duplicate.descriptionAliasId === proof.aliasId) return abandon();
+        return {
+            cursor: {
+                ...cursor,
+                aliasProof:
+                    proof.nestedIndex + 1 < transaction.suspectedDuplicates.length
+                        ? { ...proof, nestedIndex: proof.nestedIndex + 1 }
+                        : {
+                              ...proof,
+                              transactionIndex: proof.transactionIndex + 1,
+                              nestedIndex: -1
+                          }
+            }
+        };
+    }
+
+    const inbound = cursor.aliasIds[proof.aliasIndex];
+    if (inbound) {
+        const inboundAlias = state.descriptionAliases[inbound];
+        if (
+            typeof inboundAlias === "object" &&
+            inboundAlias != null &&
+            ((inboundAlias.id !== proof.targetAliasId && inboundAlias.symlinkIds[proof.aliasId]) ||
+                inboundAlias.targetAliasId === proof.aliasId)
+        ) {
+            return abandon();
+        }
+        return {
+            cursor: {
+                ...cursor,
+                aliasProof: { ...proof, aliasIndex: proof.aliasIndex + 1 }
+            }
+        };
     }
     return {
-        cursor: next,
+        cursor: {
+            ...withPosition(cursor, { aliasIndex: cursor.aliasIndex + 1 }),
+            aliasProof: undefined
+        },
         plan: {
             kind: "remove-alias-symlink",
             symlinkId: alias.id,
-            targetAliasId: target.id
+            targetAliasId: target.id,
+            provenState: state
         }
     };
 }
@@ -615,6 +1067,7 @@ export function planVaultMaintenanceStep(
     state: VaultState,
     cursor: VaultMaintenanceCursor
 ): VaultMaintenanceStep {
+    if (cursor.phase === "keys") return planKeyStep(cursor);
     if (cursor.phase === "years") return planYearStep(state, cursor);
     if (cursor.phase === "months") return planMonthStep(state, cursor);
     if (cursor.phase === "days") return planDayStep(state, cursor);
@@ -679,32 +1132,155 @@ function getDayPair(
     return { month, target, source };
 }
 
-function cloneLoroContainer(container: Container): Container {
-    if (container instanceof LoroMap) {
-        const copy = new LoroMap();
-        for (const key of Object.keys(container.getShallowValue())) {
-            const value = container.get(key);
-            if (value instanceof LoroMap || value instanceof LoroList) {
-                copy.setContainer(key, cloneLoroContainer(value));
-            } else {
-                copy.set(key, value);
-            }
-        }
-        return copy;
+type CloneableTransaction = Transaction | Transaction["suspectedDuplicates"][number];
+
+interface NestedCloneJob {
+    readonly allocations: LoroMap;
+    readonly allocationEntries: Generator<readonly [string, number]>;
+    readonly map: LoroMap;
+    readonly source: Transaction["suspectedDuplicates"][number];
+    readonly tags: LoroList;
+    allocationComplete: boolean;
+    tagIndex: number;
+}
+
+interface TransactionCloneJob {
+    readonly allocations: LoroMap;
+    readonly allocationEntries: Generator<readonly [string, number]>;
+    readonly duplicates: LoroList;
+    readonly root: LoroMap;
+    readonly source: Transaction;
+    readonly tags: LoroList;
+    allocationComplete: boolean;
+    duplicateIndex: number;
+    nested?: NestedCloneJob;
+    tagIndex: number;
+}
+
+const relocationCloneJobs = new WeakMap<LoroDoc, Map<string, TransactionCloneJob>>();
+const MAX_RELOCATION_CLONE_ITEMS = 8;
+
+function* numericRecordEntries(
+    record: Transaction["allocations"]
+): Generator<readonly [string, number]> {
+    for (const key in record) {
+        const value = record[key];
+        if (key !== "$cid" && typeof value === "number") yield [key, value];
     }
-    if (container instanceof LoroList) {
-        const copy = new LoroList();
-        for (let index = 0; index < container.length; index += 1) {
-            const value = container.get(index);
-            if (value instanceof LoroMap || value instanceof LoroList) {
-                copy.pushContainer(cloneLoroContainer(value));
-            } else {
-                copy.push(value);
-            }
-        }
-        return copy;
+}
+
+function setTransactionScalars(target: LoroMap, source: CloneableTransaction): void {
+    target.set("id", source.id);
+    target.set("date", source.date.toString());
+    target.set("description", source.description);
+    if (source.descriptionAliasId != null) {
+        target.set("descriptionAliasId", source.descriptionAliasId);
     }
-    throw new Error(`Unsupported maintenance container ${container.kind()}`);
+    target.set("notes", source.notes);
+    target.set("amount", source.amount);
+    target.set("accountId", source.accountId);
+    target.set("statusId", source.statusId);
+    if (source.importId != null) target.set("importId", source.importId);
+    target.set("creationInstant", source.creationInstant.epochMilliseconds);
+    if (source.importRowIndex != null) target.set("importRowIndex", source.importRowIndex);
+    if (source.deletedAt != null) target.set("deletedAt", source.deletedAt.epochMilliseconds);
+}
+
+function createTransactionCloneJob(source: Transaction): TransactionCloneJob {
+    const root = new LoroMap();
+    setTransactionScalars(root, source);
+    const tags = root.setContainer("tagIds", new LoroList());
+    const allocations = root.setContainer("allocations", new LoroMap());
+    const duplicates = root.setContainer("suspectedDuplicates", new LoroList());
+    return {
+        allocations,
+        allocationEntries: numericRecordEntries(source.allocations),
+        duplicates,
+        root,
+        source,
+        tags,
+        allocationComplete: false,
+        duplicateIndex: 0,
+        tagIndex: 0
+    };
+}
+
+function createNestedCloneJob(
+    source: Transaction["suspectedDuplicates"][number],
+    parent: LoroList
+): NestedCloneJob {
+    const map = parent.pushContainer(new LoroMap());
+    setTransactionScalars(map, source);
+    const tags = map.setContainer("tagIds", new LoroList());
+    const allocations = map.setContainer("allocations", new LoroMap());
+    return {
+        allocations,
+        allocationEntries: numericRecordEntries(source.allocations),
+        map,
+        source,
+        tags,
+        allocationComplete: false,
+        tagIndex: 0
+    };
+}
+
+function advanceTransactionClone(job: TransactionCloneJob): boolean {
+    let processed = 0;
+    while (processed < MAX_RELOCATION_CLONE_ITEMS) {
+        if (job.tagIndex < job.source.tagIds.length) {
+            job.tags.push(job.source.tagIds[job.tagIndex]);
+            job.tagIndex += 1;
+            processed += 1;
+            continue;
+        }
+        if (!job.allocationComplete) {
+            const next = job.allocationEntries.next();
+            processed += 1;
+            if (!next.done) {
+                job.allocations.set(next.value[0], next.value[1]);
+                continue;
+            }
+            job.allocationComplete = true;
+        }
+        if (!job.nested) {
+            const source = job.source.suspectedDuplicates[job.duplicateIndex];
+            if (!source) return true;
+            job.nested = createNestedCloneJob(source, job.duplicates);
+            processed += 1;
+            continue;
+        }
+        const nested = job.nested;
+        if (nested.tagIndex < nested.source.tagIds.length) {
+            nested.tags.push(nested.source.tagIds[nested.tagIndex]);
+            nested.tagIndex += 1;
+            processed += 1;
+            continue;
+        }
+        if (!nested.allocationComplete) {
+            const next = nested.allocationEntries.next();
+            processed += 1;
+            if (!next.done) {
+                nested.allocations.set(next.value[0], next.value[1]);
+                continue;
+            }
+            nested.allocationComplete = true;
+        }
+        job.duplicateIndex += 1;
+        job.nested = undefined;
+    }
+    return false;
+}
+
+function getRelocationCloneJobs(doc: LoroDoc): Map<string, TransactionCloneJob> {
+    const existing = relocationCloneJobs.get(doc);
+    if (existing) return existing;
+    const created = new Map<string, TransactionCloneJob>();
+    relocationCloneJobs.set(doc, created);
+    return created;
+}
+
+function clearRelocationCloneJobs(doc: LoroDoc): void {
+    relocationCloneJobs.delete(doc);
 }
 
 function getTransactionList(input: {
@@ -765,7 +1341,7 @@ export function applyVaultMaintenancePlan(
         return rewriteDescriptionAliasMaintenanceReference(state, plan);
     }
     if (plan.kind === "remove-alias-symlink") {
-        return hardDeleteUnreferencedDescriptionAliasSymlink(state, plan);
+        return hardDeleteProvenDescriptionAliasSymlink(state, plan);
     }
     if (plan.kind === "relocate-conflict-transaction") {
         if (!doc) return false;
@@ -776,19 +1352,15 @@ export function applyVaultMaintenancePlan(
         const month = year?.months[monthIndex];
         const day = month?.days[dayIndex];
         if (!year || !month || !day) return false;
-        const transactionIndex = day.transactions.findIndex(
-            (transaction) =>
-                transaction.$cid === plan.transactionCid && transaction.id === plan.transactionId
-        );
-        if (transactionIndex < 0) return false;
+        const transactionIndex = plan.transactionIndex;
         const transaction = day.transactions[transactionIndex];
-        const dayBuckets = getCanonicalDayBuckets(state, plan.accountId, transaction.date);
-        const earlierCopy = findEarlierTransactionCopy({
-            accountId: plan.accountId,
-            source: transaction,
-            sourceDay: day,
-            state
-        });
+        if (
+            !transaction ||
+            transaction.id !== plan.transactionId ||
+            transaction.$cid !== plan.transactionCid
+        ) {
+            return false;
+        }
         const sourceList = getTransactionList({
             accountId: plan.accountId,
             dayIndex,
@@ -804,34 +1376,24 @@ export function applyVaultMaintenancePlan(
             yearIndex: plan.targetYearIndex
         });
         const transactionContainer = sourceList?.get(transactionIndex);
+        const targetAnchor = targetList?.get(plan.targetTransactionIndex);
         if (
             !(transactionContainer instanceof LoroMap) ||
             !(sourceList instanceof LoroList) ||
             !(targetList instanceof LoroList) ||
-            transaction.id !== plan.transactionId
+            !(targetAnchor instanceof LoroMap) ||
+            (plan.targetTransactionCid != null && targetAnchor.id !== plan.targetTransactionCid)
         ) {
             return false;
         }
         if (plan.mode === "move") {
-            const targetPosition = findDayPosition(tree, dayBuckets[0]);
-            if (
-                targetPosition?.yearIndex !== plan.targetYearIndex ||
-                targetPosition.monthIndex !== plan.targetMonthIndex ||
-                targetPosition.dayIndex !== plan.targetDayIndex
-            ) {
-                return false;
-            }
-            if (
-                dayBuckets[0].transactions.some(
-                    (candidate) => candidate.$cid === transaction.$cid
-                ) ||
-                earlierCopy
-            ) {
-                return false;
-            }
-            targetList.pushContainer(cloneLoroContainer(transactionContainer));
-        } else if (!earlierCopy) {
-            return false;
+            const jobs = getRelocationCloneJobs(doc);
+            const key = transactionContainer.id;
+            const job = jobs.get(key) ?? createTransactionCloneJob(transaction);
+            jobs.set(key, job);
+            if (!advanceTransactionClone(job)) return true;
+            targetList.pushContainer(job.root);
+            jobs.delete(key);
         }
         sourceList.delete(transactionIndex, 1);
         pruneEmptyTransactionContainers({ dayIndex, monthIndex, sourceList, yearIndex });
@@ -913,6 +1475,21 @@ function hasRelevantMaintenanceChanges(
     );
 }
 
+function hasAliasProofInvalidatingChanges(
+    event: Parameters<LoroDoc["subscribe"]>[0] extends (event: infer Event) => void ? Event : never
+): boolean {
+    return event.events.some((item) => {
+        if (item.path[0] === "descriptionAliases") return true;
+        if (item.path[0] !== "transactions") return false;
+        const last = item.path[item.path.length - 1];
+        return (
+            item.path.includes("descriptionAliasId") ||
+            last === "transactions" ||
+            last === "suspectedDuplicates"
+        );
+    });
+}
+
 /** Own one resumable frame loop and exact document/visibility lifecycle. */
 export function startVaultMaintenanceScheduler(input: {
     readonly budget?: VaultMaintenanceBudget;
@@ -940,6 +1517,7 @@ export function startVaultMaintenanceScheduler(input: {
                               ? plan.symlinkId
                               : undefined;
                     if (aliasId && aliasHistory?.has(aliasId)) return false;
+                    if (!isVaultMaintenancePlanCurrent(input.store.getState(), plan)) return false;
                     if (plan.kind === "relocate-conflict-transaction") {
                         return applyVaultMaintenancePlan(input.store.getState(), plan, input.doc);
                     }
@@ -970,6 +1548,11 @@ export function startVaultMaintenanceScheduler(input: {
 
     const unsubscribeDocument = input.doc.subscribe((event) => {
         if (!hasRelevantMaintenanceChanges(event)) return;
+        clearRelocationCloneJobs(input.doc);
+        if (cursor.transactionSearch) cursor = { ...cursor, transactionSearch: undefined };
+        if (cursor.aliasProof && hasAliasProofInvalidatingChanges(event)) {
+            cursor = { ...cursor, aliasProof: undefined };
+        }
         needsAnotherPass = true;
         if (cursor.phase === "done") {
             needsAnotherPass = false;
@@ -1003,5 +1586,6 @@ export function startVaultMaintenanceScheduler(input: {
         unsubscribeVisibility();
         unsubscribeDocument();
         unsubscribeAliasHistory?.();
+        clearRelocationCloneJobs(input.doc);
     };
 }
