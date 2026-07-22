@@ -9,24 +9,21 @@ review evidence.
 - **Goal status:** in progress
 - **Current package:** P11C revision 03 (`passed`; integration
   `78e2f978f8d258d8c4d379f53e75089a2ce975db`)
-- **Next action:** recover the durable HS-004 `completion_pending` event, apply only its authorized
-  `[] -> [x]` marker, verify the complete hash/block boundary, and finalize it before any dispatch
+- **Next action:** run the post-marker package-boundary recovery checks, select dependency-ready P12,
+  rewrite HANDOFF with literal revision-01 authority, and dispatch its sole implementer artifact
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
   `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines and 25,441 bytes
-- **Rolling scratch SHA-256:** `c2b986fd3e952190149b2d3e87530f5cfad6f180d452c881f93984c36f2471ae`
-- **Authorized checked HS IDs:** HS-002, HS-006, HS-010, HS-014, HS-017, HS-018
-- **Active completion marker event:** HS-004 `completion_pending`; pre-change SHA
-  `c2b986fd3e952190149b2d3e87530f5cfad6f180d452c881f93984c36f2471ae`; mapped reviews
-  `reviews/P11A-review-04.md`, `reviews/P11B-review-01.md`, `reviews/P11C-review-03.md`; intended
-  `[] -> [x]`; P11C integration `78e2f978f8d258d8c4d379f53e75089a2ce975db`
+- **Rolling scratch SHA-256:** `2c52bd78c6efec683c2bc59fc2de225bb8bc997fc2f01699f90c98ddc3b65744`
+- **Authorized checked HS IDs:** HS-002, HS-004, HS-006, HS-010, HS-014, HS-017, HS-018
+- **Active completion marker event:** none
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
-- **Requirement state:** six passed; HS-004 `completion_pending` with P11A/P11B/P11C passed;
+- **Requirement state:** seven passed, including HS-004 with P11A/P11B/P11C passed;
   HS-015 blocked externally; HS-011/HS-012 and 12 other requirements queued
-- **Last ledger update:** 2026-07-22T15:35:25+10:00; P11C revision-03 artifacts are immutable in
-  `78e2f978f8d258d8c4d379f53e75089a2ce975db`; HS-004 completion is durably pending
+- **Last ledger update:** 2026-07-22T15:36:53+10:00; HS-004's authorized marker finalized from
+  `c2b986fd...` to `2c52bd78...`; its requirement is passed and dispatch is unlocked
 
 ## Package ledger
 
@@ -90,7 +87,7 @@ required marker rollbacks before the next dispatch.
 | HS-001      | human scratch block               | P13                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-002      | human scratch block               | P01                          | authorized marker after package PASS       | passed       | P01 integration `c2b89b6676271142ad6802dcf2a30acf8899df48`; `reviews/P01-review-02.md`; marker `b91ca932… -> dcd03b23…` |
 | HS-003      | human scratch block               | P10                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
-| HS-004      | human scratch block               | P11A, P11B, P11C             | authorized marker after all package PASSes | completion_pending | P11A/04, P11B/01 and P11C/03 PASS; integration `78e2f978f8d258d8c4d379f53e75089a2ce975db`; intended `[] -> [x]` from `c2b986fd...` |
+| HS-004      | human scratch block               | P11A, P11B, P11C             | authorized marker after all package PASSes | passed | P11A integration `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f`, P11B `0426866fa66cc022efca6d74cd5088d586d3d11b`, P11C `78e2f978f8d258d8c4d379f53e75089a2ce975db`; reviews `P11A-review-04.md`/`P11B-review-01.md`/`P11C-review-03.md`; marker `c2b986fd... -> 2c52bd78...` |
 | HS-005      | human scratch block               | P12                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-006      | human scratch block               | P09                          | authorized marker after package PASS       | passed       | P09 integration `59bf82e894e45e034858e25255240701a3afb0b8`; `reviews/P09-review-02.md`; marker `753be6b7… -> c2b986fd…` |
 | HS-007      | human scratch block               | P17A, P17B, P17C, P17D       | authorized marker after all package PASSes | queued       | —                                                                                                                       |
@@ -1526,6 +1523,19 @@ until finalization; all 21 normalized blocks, FS-001 and SCOPE are exact. No pac
 legal while this event is pending. Root must take a private comparison copy, apply only the HS-004
 marker, require a one-line diff, remove the copy, revalidate every frozen boundary, then atomically
 record before/after SHAs, add HS-004 to the authorized checked set and set the requirement passed.
+
+**2026-07-22T15:36:53+10:00 — HS-004 `completion_pending -> passed`:** Root changed exactly the
+HS-004 leading marker `[] -> [x]` after immutable reviews `reviews/P11A-review-04.md`,
+`reviews/P11B-review-01.md` and `reviews/P11C-review-03.md`; mapped integrations are
+`959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f`, `0426866fa66cc022efca6d74cd5088d586d3d11b`
+and `78e2f978f8d258d8c4d379f53e75089a2ce975db`. A private `mktemp` comparison proved the sole
+one-line marker diff and was removed. All 21 normalized blocks byte-match SCOPE; the exact authorized
+checked set is HS-002/HS-004/HS-006/HS-010/HS-014/HS-017/HS-018. Scratch SHA advances contiguously
+from `c2b986fd3e952190149b2d3e87530f5cfad6f180d452c881f93984c36f2471ae` to
+`2c52bd78c6efec683c2bc59fc2de225bb8bc997fc2f01699f90c98ddc3b65744`, 350 lines/24,246 bytes.
+FS-001 remains exact at `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`,
+715 lines/25,441 bytes; SCOPE remains `d03f33e718f1ec5f7c8ad0119d283397dcc59407199da4b5887a2e5eee7ef0f9`,
+450 lines/27,382 bytes. The active completion event is cleared and normal dispatch may resume.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual

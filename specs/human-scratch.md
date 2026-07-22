@@ -162,7 +162,7 @@
   you understand https://loro.dev/llms-full.txt and https://github.com/loro-dev/loro-mirror before
   implementing.
 
-- [] Add description aliases - these are much like tags in that there is a single curated list of
+- [x] Add description aliases - these are much like tags in that there is a single curated list of
   aliases. Stored as an optional ID on each transaction. There is a page ("Tx Descriptions" nav
   item) where description aliases can be created, deleted and renamed. As part of this feature, we
   change the description field on transactions to make it read only - the raw imported description

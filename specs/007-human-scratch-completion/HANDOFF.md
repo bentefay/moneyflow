@@ -7,7 +7,7 @@ literal field is `pending`. Workers may read but never edit it.
 
 - **Package / revision:** P11C / 03
 - **Scope IDs:** HS-004 integrated-behavior/performance checkpoint only; P11A/04 and P11B/01 passed;
-  P11C/03 passed after two immutable F-01 failures; HS-004 is `completion_pending` and unchecked
+  P11C/03 passed after two immutable F-01 failures; HS-004 is passed and checked
 - **State:** passed; integration `78e2f978f8d258d8c4d379f53e75089a2ce975db`; revision-01 failure is immutable in
   `dd77d518fff81e4c5553ce9a559681ece8f30232`, revision-02 failure in
   `29d943757bae8147f3b66559d63c12afcd0e5362`
@@ -79,8 +79,8 @@ literal field is `pending`. Workers may read but never edit it.
   counts, retained acceptance, commands/results/repeats, sanitized manual evidence, inherited reds,
   cleanup, risks, frozen checks and complete Q proposals. Do not claim PASS.
 - **Boundary checks:** scratch SHA
-  `c2b986fd3e952190149b2d3e87530f5cfad6f180d452c881f93984c36f2471ae`, authorized checked set
-  HS-002/HS-006/HS-010/HS-014/HS-017/HS-018 and all 21 normalized blocks; FS-001 SHA
+  `2c52bd78c6efec683c2bc59fc2de225bb8bc997fc2f01699f90c98ddc3b65744`, authorized checked set
+  HS-002/HS-004/HS-006/HS-010/HS-014/HS-017/HS-018 and all 21 normalized blocks; FS-001 SHA
   `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines/25,441 bytes; SCOPE
   SHA `d03f33e718f1ec5f7c8ad0119d283397dcc59407199da4b5887a2e5eee7ef0f9`, 450 lines/27,382 bytes.
 
@@ -108,7 +108,6 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Recover the durable HS-004 `completion_pending` event at pre-change scratch SHA
-`c2b986fd3e952190149b2d3e87530f5cfad6f180d452c881f93984c36f2471ae`, then execute and finalize
-the root-only marker protocol. No package dispatch is legal until HS-004 is checked, its one-line
-diff and normalized blocks verify, the rolling SHA advances, and the active event clears.
+Verify the finalized HS-004 boundary and marker-control commit, then select dependency-ready P12,
+capture its literal BASE, and rewrite this file for P12 revision 01 before dispatch. No P12 field or
+artifact path may remain pending when its implementer starts.
