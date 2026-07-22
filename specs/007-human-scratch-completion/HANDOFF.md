@@ -8,8 +8,9 @@ literal field is `pending`. Workers may read but never edit it.
 - **Package / revision:** P12 / 02
 - **Scope IDs:** HS-005 only; bounded requestAnimationFrame maintenance for duplicate transaction
   buckets and description-alias symlinks; HS-005 remains incomplete and unchecked
-- **State:** changes_requested; revision-02 implementation and failed review are immutable; revision-
-  01 evidence/review remain immutable; HS-005 remains incomplete and unchecked
+- **State:** changes_requested; revision-02 implementation and failed review are immutable in failure-
+  control commit `7533fd76219a08b5e1c1aa5f66b9b85419b6275b`; revision-01 artifacts remain
+  immutable; HS-005 remains incomplete and unchecked
 - **Task:** `tasks/HS-005-background-gc.md`; exact 6-line HS-005 block in SCOPE
 - **Dependencies:** P09/02 and P11A–C are passed; P12 is independent of blocked P05/P08/P10
 - **Literal original BASE:** `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e`
@@ -114,6 +115,6 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Persist revision-02 evidence/review, risks and exact changes-requested state in one root-only failure-
-control commit, link that commit in a second ledger commit, then dispatch cumulative P12/03 with one
-new evidence path. Never overwrite revision-01 or revision-02 artifacts.
+Revision-02 failure control is immutable at `7533fd76219a08b5e1c1aa5f66b9b85419b6275b`.
+Link it in the root-only ledgers, then dispatch cumulative P12/03 with one new evidence path. Never
+overwrite revision-01 or revision-02 artifacts.
