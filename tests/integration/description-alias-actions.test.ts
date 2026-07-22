@@ -1,7 +1,13 @@
 import { act, render, waitFor } from "@testing-library/react";
 import { createElement, useEffect } from "react";
 import { Temporal } from "temporal-polyfill";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// Action/history behavior is isolated here; real provider-owned GC is exercised by the dedicated
+// vault maintenance integration suite.
+vi.mock("@/lib/crdt/maintenance", () => ({
+    startVaultMaintenanceScheduler: () => () => undefined
+}));
 
 import {
     useDescriptionAliasActions,

@@ -93,6 +93,33 @@ export interface RemoveOneDescriptionAliasInput {
     readonly expectedAliasId: string;
 }
 
+export type DescriptionAliasMaintenanceReference =
+    | {
+          readonly kind: "parent";
+          readonly accountId: string;
+          readonly yearIndex: number;
+          readonly monthIndex: number;
+          readonly dayIndex: number;
+          readonly transactionCid: string;
+          readonly transactionId: string;
+      }
+    | {
+          readonly kind: "nested";
+          readonly accountId: string;
+          readonly yearIndex: number;
+          readonly monthIndex: number;
+          readonly dayIndex: number;
+          readonly parentTransactionCid: string;
+          readonly transactionCid: string;
+          readonly transactionId: string;
+      };
+
+export interface RewriteDescriptionAliasMaintenanceReferenceInput {
+    readonly reference: DescriptionAliasMaintenanceReference;
+    readonly sourceAliasId: string;
+    readonly targetAliasId: string;
+}
+
 function ok<Value>(value: Value): DescriptionAliasMutationResult<Value> {
     return { ok: true, value };
 }
@@ -171,6 +198,127 @@ function moveTransactionReference(
     }
     transaction.descriptionAliasId = targetAlias.id;
     targetAlias.transactionIds[transaction.id] = true;
+}
+
+function findMaintenanceReference(
+    state: VaultState,
+    reference: DescriptionAliasMaintenanceReference
+): Transaction | NestedDuplicate | undefined {
+    const tree = state.transactions[reference.accountId];
+    if (typeof tree !== "object" || tree == null) return undefined;
+    const year = tree.years[reference.yearIndex];
+    const month = year?.months[reference.monthIndex];
+    const day = month?.days[reference.dayIndex];
+    if (!day) return undefined;
+
+    if (reference.kind === "parent") {
+        return day.transactions.find(
+            (candidate) =>
+                candidate.$cid === reference.transactionCid &&
+                candidate.id === reference.transactionId
+        );
+    }
+
+    const parent = day.transactions.find(
+        (candidate) => candidate.$cid === reference.parentTransactionCid
+    );
+    return parent?.suspectedDuplicates.find(
+        (candidate) =>
+            candidate.$cid === reference.transactionCid && candidate.id === reference.transactionId
+    );
+}
+
+/** Rewrite one still-current direct symlink reference and both exact reverse maps. */
+export function rewriteDescriptionAliasMaintenanceReference(
+    state: VaultState,
+    input: RewriteDescriptionAliasMaintenanceReferenceInput
+): boolean {
+    const transaction = findMaintenanceReference(state, input.reference);
+    if (!transaction || transaction.descriptionAliasId !== input.sourceAliasId) return false;
+    const source = getAlias(state, input.sourceAliasId);
+    const target = getAlias(state, input.targetAliasId);
+    if (
+        !source ||
+        source.deletedAt != null ||
+        source.kind !== "symlink" ||
+        source.targetAliasId !== input.targetAliasId ||
+        !target ||
+        target.deletedAt != null ||
+        target.kind !== "real"
+    ) {
+        return false;
+    }
+
+    delete source.transactionIds[transaction.id];
+    transaction.descriptionAliasId = target.id;
+    target.transactionIds[transaction.id] = true;
+    return true;
+}
+
+function hasTransactionReference(state: VaultState, aliasId: string): boolean {
+    for (const tree of Object.values(state.transactions)) {
+        if (typeof tree !== "object" || tree == null) continue;
+        for (const year of tree.years) {
+            for (const month of year.months) {
+                for (const day of month.days) {
+                    for (const transaction of day.transactions) {
+                        if (transaction.descriptionAliasId === aliasId) return true;
+                        if (
+                            transaction.suspectedDuplicates.some(
+                                (duplicate) => duplicate.descriptionAliasId === aliasId
+                            )
+                        ) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+
+function hasTruthyReference(referenceMap: Record<string, boolean>): boolean {
+    return Object.entries(referenceMap).some(
+        ([referenceId, present]) => referenceId !== "$cid" && present
+    );
+}
+
+/**
+ * Hard-delete the explicit HS-005 exception only after a fresh complete proof in the applied draft.
+ */
+export function hardDeleteUnreferencedDescriptionAliasSymlink(
+    state: VaultState,
+    input: { readonly symlinkId: string; readonly targetAliasId: string }
+): boolean {
+    const symlink = getAlias(state, input.symlinkId);
+    const target = getAlias(state, input.targetAliasId);
+    if (
+        !symlink ||
+        symlink.deletedAt != null ||
+        symlink.kind !== "symlink" ||
+        symlink.targetAliasId !== input.targetAliasId ||
+        !target ||
+        target.deletedAt != null ||
+        target.kind !== "real" ||
+        !target.symlinkIds[symlink.id] ||
+        hasTruthyReference(symlink.transactionIds) ||
+        hasTruthyReference(symlink.symlinkIds) ||
+        hasTransactionReference(state, symlink.id)
+    ) {
+        return false;
+    }
+
+    for (const aliasValue of Object.values(state.descriptionAliases)) {
+        if (typeof aliasValue !== "object" || aliasValue == null) continue;
+        if (aliasValue.id !== target.id && aliasValue.symlinkIds[symlink.id]) return false;
+        if (aliasValue.targetAliasId === symlink.id) return false;
+    }
+
+    delete target.symlinkIds[symlink.id];
+    if (target.symlinkIds[symlink.id]) return false;
+    delete state.descriptionAliases[symlink.id];
+    return true;
 }
 
 function prepareTarget(

@@ -28,6 +28,12 @@ vi.mock("@/lib/domain/description-aliases", async (importOriginal) => {
     };
 });
 
+// This suite isolates alias revision/consumer lifecycle. Real provider-owned GC lifecycle is
+// covered by vault-maintenance.test.tsx and would intentionally collect this suite's symlink graph.
+vi.mock("@/lib/crdt/maintenance", () => ({
+    startVaultMaintenanceScheduler: () => () => undefined
+}));
+
 import { useDescriptionAliasLookup } from "@/components/features/description-aliases/useDescriptionAliasLookup";
 import {
     useDescriptionAliases,

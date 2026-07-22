@@ -27,6 +27,7 @@ import {
     type DescriptionAliasCollection
 } from "@/lib/domain/description-aliases";
 
+import { startVaultMaintenanceScheduler } from "./maintenance";
 import type { VaultMirror } from "./mirror";
 import type { Transaction, VaultState } from "./schema";
 import { vaultSchema } from "./schema";
@@ -125,7 +126,30 @@ function createDescriptionAliasRevisionStore(
     };
 }
 
-/** Provide the Mirror store plus a provider-lifetime revision signal for the raw alias container. */
+function VaultMaintenanceOwner({ doc }: { readonly doc: DescriptionAliasDocument }) {
+    const store = useInternalVaultContext();
+    useLayoutEffect(
+        () =>
+            startVaultMaintenanceScheduler({
+                doc,
+                store,
+                host: {
+                    cancelFrame: (frameId) => window.cancelAnimationFrame(frameId),
+                    isVisible: () => document.visibilityState !== "hidden",
+                    now: () => performance.now(),
+                    requestFrame: (callback) => window.requestAnimationFrame(callback),
+                    subscribeVisibility: (listener) => {
+                        document.addEventListener("visibilitychange", listener);
+                        return () => document.removeEventListener("visibilitychange", listener);
+                    }
+                }
+            }),
+        [doc, store]
+    );
+    return null;
+}
+
+/** Provide Mirror plus provider/document-lifetime alias and maintenance observers. */
 export function VaultProvider(props: ComponentProps<typeof loroContext.LoroProvider>) {
     const aliasRevisionStore = useMemo(
         () => createDescriptionAliasRevisionStore(props.doc),
@@ -134,7 +158,10 @@ export function VaultProvider(props: ComponentProps<typeof loroContext.LoroProvi
     useLayoutEffect(() => aliasRevisionStore.start(), [aliasRevisionStore]);
     return (
         <DescriptionAliasRevisionContext.Provider value={aliasRevisionStore}>
-            <loroContext.LoroProvider {...props} />
+            <loroContext.LoroProvider {...props}>
+                <VaultMaintenanceOwner doc={props.doc} />
+                {props.children}
+            </loroContext.LoroProvider>
         </DescriptionAliasRevisionContext.Provider>
     );
 }
