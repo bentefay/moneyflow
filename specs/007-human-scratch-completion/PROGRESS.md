@@ -7,9 +7,9 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P12 revision 01 (`changes_requested`)
-- **Next action:** persist immutable revision-01 failure artifacts and Q-018, link the control commit,
-  then dispatch one cumulative P12 revision-02 remediation
+- **Current package:** P12 revision 02 (`changes_requested`)
+- **Next action:** durably integrate and link the immutable revision-02 failure, then dispatch one
+  cumulative P12 revision-03 remediation for the three remaining blockers
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -21,8 +21,8 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** seven passed; HS-005 changes requested through P12; HS-015 blocked externally;
   HS-011/HS-012 and 11 other requirements queued
-- **Last ledger update:** 2026-07-22T17:25:05+10:00; P12/01 independently failed with four blocking
-  findings; Q-018 selects a finite Undo-history reachability barrier for revision 02
+- **Last ledger update:** 2026-07-22T18:25:55+10:00; P12/02 independently failed on two remaining
+  physical-copy boundaries and the unbounded synchronous-unit scheduler contract
 
 ## Package ledger
 
@@ -42,7 +42,7 @@ review evidence.
 | P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | passed | 04 | `eb5ab2e215130c358130d5411a92b51951c3c53a..fb72abdaf531dff40c59f6b3525fb1b9ce50f805` | `evidence/P11A/implementation-04.md` | `reviews/P11A-review-04.md` | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f` |
 | P11B    | HS-004         | Alias management and transaction-cell pointer/keyboard UX                           | P11A                 | passed | 01 | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f..e35109dfe7b02bdb4058445f44d03a6dd678457b` | `evidence/P11B/implementation-01.md` | `reviews/P11B-review-01.md` | `0426866fa66cc022efca6d74cd5088d586d3d11b` |
 | P11C    | HS-004         | Alias import/manual/shared flows, performance hardening and exhaustive tests        | P11B                 | passed | 03 | `0426866fa66cc022efca6d74cd5088d586d3d11b..daab038ee741faa9f92a373b27efe0c8fe8940db` | `evidence/P11C/implementation-03.md` | `reviews/P11C-review-03.md` | `78e2f978f8d258d8c4d379f53e75089a2ce975db` |
-| P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | changes_requested | 01 | `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e..f9edda60afc946ddda927616a16435a075167d7c` | `evidence/P12/implementation-01.md` | `reviews/P12-review-01.md` | `d339972ec3ce5d26276fae511c82418cc8e436cb` |
+| P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | changes_requested | 02 | `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e..e8f2ca5be7ffa03c0ad6ac8e3fb72aac2accca3e` | `evidence/P12/implementation-02.md` | `reviews/P12-review-02.md` | pending revision-02 failure-control commit |
 | P13     | HS-001         | Persisted normal empty Add Transaction rows and grid navigation                     | P11C, P09            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -87,7 +87,7 @@ required marker rollbacks before the next dispatch.
 | HS-002      | human scratch block               | P01                          | authorized marker after package PASS       | passed       | P01 integration `c2b89b6676271142ad6802dcf2a30acf8899df48`; `reviews/P01-review-02.md`; marker `b91ca932… -> dcd03b23…` |
 | HS-003      | human scratch block               | P10                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-004      | human scratch block               | P11A, P11B, P11C             | authorized marker after all package PASSes | passed | P11A integration `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f`, P11B `0426866fa66cc022efca6d74cd5088d586d3d11b`, P11C `78e2f978f8d258d8c4d379f53e75089a2ce975db`; reviews `P11A-review-04.md`/`P11B-review-01.md`/`P11C-review-03.md`; marker `c2b986fd... -> 2c52bd78...` |
-| HS-005      | human scratch block               | P12                          | authorized marker after package PASS       | changes_requested | P12/01 FAIL; `reviews/P12-review-01.md`; revision 02 required                                                           |
+| HS-005      | human scratch block               | P12                          | authorized marker after package PASS       | changes_requested | P12/01 and P12/02 FAIL; `reviews/P12-review-02.md`; revision 03 required                                                 |
 | HS-006      | human scratch block               | P09                          | authorized marker after package PASS       | passed       | P09 integration `59bf82e894e45e034858e25255240701a3afb0b8`; `reviews/P09-review-02.md`; marker `753be6b7… -> c2b986fd…` |
 | HS-007      | human scratch block               | P17A, P17B, P17C, P17D       | authorized marker after all package PASSes | queued       | —                                                                                                                       |
 | HS-008      | human scratch block               | P14                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
@@ -1594,6 +1594,65 @@ within the same provider when history clears or trims. HS-005 stays unchecked an
 revision-01 evidence/review remain immutable and cumulative revision 02 must close all four findings.
 Failure evidence, review, Q-018, risk routing and the exact changes-requested state are durably
 integrated by `d339972ec3ce5d26276fae511c82418cc8e436cb`; later revisions must never overwrite them.
+
+**2026-07-22T17:27:52+10:00 — P12/02 `changes_requested -> implementing`:** Revision-01 failure
+control is immutable at `d339972ec3ce5d26276fae511c82418cc8e436cb` and its link-only ledger
+commit leaves clean preimplementation HEAD `b21ef639fb24020978cb39c2b69b83d6ff261ebb`. Cumulative review
+BASE remains the original `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e`; revision-02's sole
+worker artifact is `evidence/P12/implementation-02.md` and future independent review is exactly
+`reviews/P12-review-02.md`. Authority narrowly covers maintenance/context/alias/query/mutation/Undo
+CRDT code and focused corresponding unit/integration tests. F-01 requires correct subscribed query,
+UI identity and mutation semantics after every maintenance commit, including edit/delete/move and
+same-ID peer cases. F-02 applies Q-018's finite per-alias history reachability and same-provider
+requeue. F-03 requires cooperatively bounded discovery/plan/copy/apply/proof units plus fair phase
+progress under sustained edits. F-04 requires a defined peer-tie invariant and three clean focused
+and isolated processes. Full automation, installed-CLI manual validation, cleanup, frozen hashes and
+all cumulative P12 gates remain mandatory. The implementer may commit only exact authorized product/
+test paths and must leave the sole evidence uncommitted; the reviewer remains undispatched.
+
+**2026-07-22T18:01:29+10:00 — P12/02 `implementing -> ready_for_review -> reviewing`:** Exact
+revision-02 product/test HEAD `e8f2ca5be7ffa03c0ad6ac8e3fb72aac2accca3e` commits eight authorized
+paths, 792 insertions/173 deletions, from preimplementation HEAD `b21ef639fb24020978cb39c2b69b83d6ff261ebb`;
+cumulative review remains original BASE `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e`. Frozen sole evidence
+`evidence/P12/implementation-02.md` is 166 lines/11,337 bytes at SHA-256
+`7ed3e646ec39a75ab11650fbdc17498c94f27aa2c1d5208970eb79ea2a451574`. F-01 remediation
+deduplicates physical copies at production read boundaries, mutates every copy for edit/delete/move/
+alias actions and defines date/creation/import/ID total ordering; tests subscribe after every GC
+commit and exercise intervening actions and both peer orders. F-02 mirrors per-alias live Undo/Redo
+reachability across push/pop/trim/clear/invalidation/disposal, requeuing same-provider maintenance
+when the frontier clears. F-03 adds before/after discovery/apply clock checks, persistent rescan and
+fair progress under continuous edits, but evidence explicitly asks review to adjudicate whether one
+arbitrarily large transaction-sized synchronous unit satisfies the frozen bound. F-04 defines the ID
+tie-breaker and the five-file profile passes 32/32 in three clean processes. Full Vitest is
+1,253/1,253; typecheck/build pass; lint is zero errors/10 known warnings; scoped format is clean.
+The final-code full no-retry browser run is 86/87: the unrelated shift-click selection journey
+observed 2 instead of 3 selected and reproduced PASS/FAIL/FAIL in isolation; an earlier pre-final
+run was 87/87 and affected journeys previously passed 12/12, so the reviewer must independently
+reproduce and attribute it rather than treat the gate as green. Installed-CLI change-all, Undo,
+Redo, reload and same-provider collection passed with masked recovery material. Root verified exact
+HEAD/paths, empty index, evidence hash/size, restored next-env, no generated/task process and exact
+scratch/FS-001/SCOPE hashes. New review output is exactly `reviews/P12-review-02.md`; reviewer alone
+adjudicates every cumulative acceptance gate and writes one explicit PASS/FAIL.
+
+**2026-07-22T18:25:55+10:00 — P12/02 `reviewing -> changes_requested`:** Independent cumulative
+review `reviews/P12-review-02.md` is 223 lines/19,850 bytes at SHA-256
+`91fb0949549ffe2481f5109bf98808d07304bee97710ac244a0d2366cd79738b` and returns FAIL over exact
+`0a9b8827debdfa96e6b87c3b9ccf95411bd5862e..e8f2ca5be7ffa03c0ad6ac8e3fb72aac2accca3e`.
+Revision-01 F-02 and F-04 are closed; F-01 and F-03 are only partially closed. New F-01 High proves
+`unnestDuplicate` and `swapDuplicate` mutate only one physical parent in the copy/remove interval,
+leaving divergent parent graphs and nested/standalone duplicates. F-02 Medium proves exported find,
+find-by-ID and date-range reads still select/append raw physical copies and can expose stale,
+duplicated or materialization-dependent data. F-03 High confirms before/after clock checks merely
+observe arbitrarily large recursive transaction copy/equality, structural/vault proof, alias scan and
+CRDT mutation overruns after they monopolize a callback. Revision 03 must make nested duplicate
+operations physical-copy complete, canonicalize every public read and cursor within expensive work or
+enforce a proven finite payload bound. Independent automation is fully green: focused 32/32 in three
+processes, isolated conflict fixture 3/3, full Vitest 1,253/1,253, lint/typecheck/build/scoped format,
+affected no-retry E2E 12/12, full no-retry E2E 87/87 and isolated shift-click 3/3. Manual change-all,
+Undo/Redo, inherited duplicate tab, offline/reconnect/reload, same-provider collection, sync/privacy
+and cleanup pass; dark/zoom remain inherited P20A/P20B findings. HEAD is unchanged, index empty,
+next-env/generated state restored and port 3000 closed. HS-005 remains unchecked and revision-02
+artifacts are immutable once the failure-control commit lands; no new question proposal was required.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
