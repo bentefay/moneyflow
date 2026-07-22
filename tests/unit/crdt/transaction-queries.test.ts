@@ -26,6 +26,7 @@ import type {
     TransactionStore,
     VaultState
 } from "@/lib/crdt/schema";
+import { TRANSACTION_MAINTENANCE_SHADOW_ID_PREFIX } from "@/lib/crdt/schema";
 import { asMinorUnits } from "@/lib/domain/currency";
 import { asPercentage } from "@/types";
 
@@ -305,6 +306,53 @@ describe("findTransactionById", () => {
         const result = findTransactionById(store, "tx-nonexistent");
 
         expect(result).toBeUndefined();
+    });
+
+    it("never reads a nested child through an incomplete maintenance parent", () => {
+        const date = Temporal.PlainDate.from("2024-01-15");
+        const store = createEmptyStore();
+        insertTransaction(store, {
+            transaction: createTransaction({ id: "source-parent", date })
+        });
+        insertTransaction(store, {
+            transaction: createTransaction({
+                id: "nested-public",
+                date,
+                notes: "complete source",
+                tagIds: ["complete-tag"],
+                allocations: { person: asPercentage(1) }
+            }),
+            suspectedDuplicateOf: {
+                accountId: "acc-1",
+                date,
+                transactionId: "source-parent"
+            }
+        });
+        const tree = store["acc-1"];
+        if (!tree || typeof tree === "string") throw new Error("Missing transaction tree");
+        const day = tree.years[0]?.months[0]?.days[0];
+        const source = day?.transactions[0];
+        const sourceNested = source?.suspectedDuplicates[0];
+        if (!day || !source || !sourceNested) throw new Error("Missing source duplicate");
+        source.suspectedDuplicates[0] = { ...sourceNested, $cid: "z-source-nested" };
+        day.transactions.push({
+            ...source,
+            $cid: "shadow-parent",
+            id: `${TRANSACTION_MAINTENANCE_SHADOW_ID_PREFIX}epoch\u0000source\u0000source-parent`,
+            suspectedDuplicates: [
+                {
+                    ...sourceNested,
+                    $cid: "a-incomplete-nested",
+                    notes: "incomplete shadow"
+                }
+            ]
+        });
+
+        const location = { accountId: "acc-1", date, transactionId: "nested-public" };
+        expect(findTransaction(store, location)?.notes).toBe("complete source");
+        expect(findTransactionById(store, "nested-public")?.transaction.notes).toBe(
+            "complete source"
+        );
     });
 });
 

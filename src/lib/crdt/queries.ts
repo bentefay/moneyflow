@@ -324,10 +324,12 @@ export function findTransaction(
 
                 matches.push(
                     ...dayBucket.transactions.filter(
-                        (transaction) => transaction.id === transactionId
+                        (transaction) =>
+                            isPublicTransaction(transaction) && transaction.id === transactionId
                     )
                 );
                 for (const t of dayBucket.transactions) {
+                    if (!isPublicTransaction(t)) continue;
                     matches.push(
                         ...t.suspectedDuplicates
                             .filter((duplicate) => duplicate.id === transactionId)
@@ -358,6 +360,7 @@ export function findTransactionById(
             for (const monthBucket of yearBucket.months) {
                 for (const dayBucket of monthBucket.days) {
                     for (const tx of dayBucket.transactions) {
+                        if (!isPublicTransaction(tx)) continue;
                         if (tx.id === transactionId) {
                             matches.push({
                                 transaction: tx,

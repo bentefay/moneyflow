@@ -1,5 +1,5 @@
 import { render } from "@testing-library/react";
-import { LoroMap } from "loro-crdt";
+import { isContainerId, LoroMap, VersionVector } from "loro-crdt";
 import { createElement } from "react";
 import { Temporal } from "temporal-polyfill";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -197,13 +197,20 @@ function hasTransactionShadow(state: VaultState): boolean {
 }
 
 function maintenanceEpoch(doc: ReturnType<typeof createVaultMirror>["doc"]): string | undefined {
-    const metadata = doc.getMap("transactions").get("__moneyflow_gc_metadata__");
-    if (!(metadata instanceof LoroMap)) return undefined;
-    const value = metadata.get("accountId");
-    if (typeof value !== "string" || !value.startsWith("__moneyflow_gc_metadata__:")) {
+    const visit = (value: unknown): string | undefined => {
+        if (typeof value !== "object" || value == null) return undefined;
+        const id: unknown = Reflect.get(value, "id");
+        if (typeof id === "string") {
+            const identity = getTransactionMaintenanceShadowIdentity({ id });
+            if (identity) return identity.epoch;
+        }
+        for (const child of Object.values(value)) {
+            const epoch = visit(child);
+            if (epoch) return epoch;
+        }
         return undefined;
-    }
-    return value.slice("__moneyflow_gc_metadata__:".length).split("\u0000")[0] || undefined;
+    };
+    return visit(doc.getMap("transactions").toJSON());
 }
 
 function runUntilTransactionShadow(
@@ -537,6 +544,9 @@ describe("vault background maintenance integration", () => {
             store: interrupted.mirror
         });
         runUntilTransactionShadow(interruptedFrames, () => interrupted.mirror.getState());
+        expect(Object.keys(interrupted.mirror.getState().transactions)).not.toContain(
+            "__moneyflow_gc_metadata__"
+        );
         const partialSnapshot = interrupted.doc.export({ mode: "snapshot" });
         disposeInterrupted();
         interrupted.mirror.dispose();
@@ -550,6 +560,9 @@ describe("vault background maintenance integration", () => {
             store: reloaded.mirror
         });
         reloadedFrames.runAll();
+        expect(Object.keys(reloaded.mirror.getState().transactions)).not.toContain(
+            "__moneyflow_gc_metadata__"
+        );
         expect(hasTransactionShadow(reloaded.mirror.getState())).toBe(false);
         expect(
             getAccountTransactions(reloaded.mirror.getState().transactions, "account").filter(
@@ -620,6 +633,118 @@ describe("vault background maintenance integration", () => {
         source.mirror.dispose();
         peer.mirror.dispose();
     });
+
+    it.each(["maintenance-before-edit", "edit-before-maintenance", "dependency-delayed"] as const)(
+        "invalidates an active receiver shadow for a mixed %s import",
+        (delivery) => {
+            const source = createRelocationGarbage();
+            const sourceFrames = createFrameHost();
+            const disposeSource = startVaultMaintenanceScheduler({
+                budget: { maxItems: 1, maxMilliseconds: 4 },
+                doc: source.doc,
+                host: sourceFrames.host,
+                store: source.mirror
+            });
+            runUntilTransactionShadow(sourceFrames, () => source.mirror.getState());
+            const receiver = createVaultMirrorFromSnapshot(source.doc.export({ mode: "snapshot" }));
+            const receiverFrames = createFrameHost();
+            receiverFrames.setVisible(false);
+            const disposeReceiver = startVaultMaintenanceScheduler({
+                budget: { maxItems: 1, maxMilliseconds: 4 },
+                doc: receiver.doc,
+                host: receiverFrames.host,
+                store: receiver.mirror
+            });
+            const importedEvents: unknown[] = [];
+            const stopImportedEvents = receiver.doc.subscribe((event) => {
+                if (event.by === "import") {
+                    importedEvents.push(event.events.map(({ diff, path }) => ({ diff, path })));
+                }
+            });
+            const editSource = () => {
+                const transaction = accountTransactions(source.mirror.getState()).find(
+                    ({ id }) => id === "z-source"
+                );
+                if (!transaction?.$cid || !isContainerId(transaction.$cid)) {
+                    throw new Error("Missing relocation source container");
+                }
+                const container = source.doc.getContainerById(transaction.$cid);
+                if (!(container instanceof LoroMap)) {
+                    throw new Error("Missing relocation source map");
+                }
+                container.set("notes", `mixed ${delivery}`);
+                source.doc.commit({ origin: "user:edit" });
+                expect(
+                    accountTransactions(source.mirror.getState()).find(
+                        ({ id }) => id === "z-source"
+                    )?.notes
+                ).toBe(`mixed ${delivery}`);
+            };
+            const sourceVersion = () => VersionVector.decode(source.doc.version().encode());
+            const captureMaintenanceUpdate = () => {
+                const base = sourceVersion();
+                for (let frame = 0; frame < 1_000; frame += 1) {
+                    if (!sourceFrames.runOne()) break;
+                    if (source.doc.version().compare(base) !== 0) {
+                        return source.doc.export({ mode: "update", from: base });
+                    }
+                }
+                throw new Error("Expected a maintenance update");
+            };
+
+            let maintenanceUpdate: Uint8Array;
+            let userUpdate: Uint8Array;
+            if (delivery === "edit-before-maintenance") {
+                const userBase = sourceVersion();
+                editSource();
+                userUpdate = source.doc.export({ mode: "update", from: userBase });
+                maintenanceUpdate = captureMaintenanceUpdate();
+            } else {
+                maintenanceUpdate = captureMaintenanceUpdate();
+                const userBase = sourceVersion();
+                editSource();
+                userUpdate = source.doc.export({ mode: "update", from: userBase });
+            }
+
+            if (delivery === "dependency-delayed") {
+                receiver.doc.import(userUpdate);
+                expect(
+                    accountTransactions(receiver.mirror.getState()).find(
+                        ({ id }) => id === "z-source"
+                    )?.notes
+                ).toBe("before");
+                receiver.doc.import(maintenanceUpdate);
+            } else if (delivery === "edit-before-maintenance") {
+                receiver.doc.import(userUpdate);
+                receiver.doc.import(maintenanceUpdate);
+            } else {
+                receiver.doc.importBatch([maintenanceUpdate, userUpdate]);
+            }
+            expect(
+                accountTransactions(receiver.mirror.getState()).find(({ id }) => id === "z-source")
+                    ?.notes,
+                JSON.stringify(importedEvents)
+            ).toBe(`mixed ${delivery}`);
+            receiverFrames.setVisible(true);
+            receiverFrames.runAll();
+
+            const edited = getAccountTransactions(
+                receiver.mirror.getState().transactions,
+                "account"
+            ).find(({ id }) => id === "z-source");
+            expect(edited?.notes, JSON.stringify(importedEvents)).toBe(`mixed ${delivery}`);
+            expect(hasTransactionShadow(receiver.mirror.getState())).toBe(false);
+            expect(Object.keys(receiver.mirror.getState().transactions)).not.toContain(
+                "__moneyflow_gc_metadata__"
+            );
+
+            stopImportedEvents();
+            disposeReceiver();
+            disposeSource();
+            receiver.mirror.dispose();
+            source.mirror.dispose();
+        }
+    );
 
     it("persists and encrypts GC, exchanges without echo, and leaves user undo intact", async () => {
         const source = createAliasGarbage();

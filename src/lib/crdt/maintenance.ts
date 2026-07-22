@@ -1,4 +1,11 @@
-import { LoroList, LoroMap, type LoroDoc } from "loro-crdt";
+import {
+    isContainerId,
+    LoroList,
+    LoroMap,
+    type IdSpan,
+    type LoroDoc,
+    type LoroEventBatch
+} from "loro-crdt";
 
 import {
     hardDeleteProvenDescriptionAliasSymlink,
@@ -33,8 +40,8 @@ export const DEFAULT_VAULT_MAINTENANCE_BUDGET: VaultMaintenanceBudget = {
 
 type MaintenancePhase = "keys" | "years" | "months" | "days" | "transactions" | "aliases" | "done";
 
-const MAINTENANCE_METADATA_ACCOUNT_KEY = "__moneyflow_gc_metadata__";
-const MAINTENANCE_METADATA_VALUE_PREFIX = "__moneyflow_gc_metadata__:";
+const LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY = "__moneyflow_gc_metadata__";
+export const VAULT_MAINTENANCE_COMMIT_MESSAGE = "__moneyflow_gc_commit_v1__";
 type TransactionShadowPhase =
     | "tags"
     | "allocations"
@@ -255,7 +262,7 @@ function baseCursor(state: VaultState, phase: MaintenancePhase = "keys"): VaultM
     return {
         accountIds: [],
         aliasIds: [],
-        accountKeyIterator: recordKeys(state.transactions, MAINTENANCE_METADATA_ACCOUNT_KEY),
+        accountKeyIterator: recordKeys(state.transactions, LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY),
         aliasKeyIterator: recordKeys(state.descriptionAliases),
         accountKeysComplete: false,
         phase,
@@ -1425,6 +1432,29 @@ interface AllocationIteratorState {
 }
 
 const relocationAllocationIterators = new WeakMap<LoroDoc, Map<string, AllocationIteratorState>>();
+const trustedTransactionShadows = new WeakMap<LoroDoc, Set<string>>();
+const acceptImportedTransactionShadows = new WeakSet<LoroDoc>();
+
+function trustedShadows(doc: LoroDoc): Set<string> {
+    const existing = trustedTransactionShadows.get(doc);
+    if (existing) return existing;
+    const created = new Set<string>();
+    trustedTransactionShadows.set(doc, created);
+    return created;
+}
+
+function trustTransactionShadow(doc: LoroDoc, shadow: LoroMap): void {
+    trustedShadows(doc).add(shadow.id);
+}
+
+function forgetTransactionShadow(doc: LoroDoc, shadow: LoroMap): void {
+    trustedShadows(doc).delete(shadow.id);
+}
+
+function invalidateActiveTransactionShadow(doc: LoroDoc): void {
+    acceptImportedTransactionShadows.delete(doc);
+    trustedShadows(doc).clear();
+}
 
 function* numericRecordEntries(
     record: Transaction["allocations"]
@@ -1456,67 +1486,35 @@ function setTransactionScalars(
     if (source.deletedAt != null) target.set("deletedAt", source.deletedAt.epochMilliseconds);
 }
 
-function getMaintenanceMetadata(doc: LoroDoc): LoroMap | undefined {
-    const metadata = doc.getMap("transactions").get(MAINTENANCE_METADATA_ACCOUNT_KEY);
-    return metadata instanceof LoroMap ? metadata : undefined;
+const TRANSACTION_SHADOW_SCALAR_KEYS = [
+    "description",
+    "descriptionAliasId",
+    "notes",
+    "amount",
+    "accountId",
+    "statusId",
+    "importId",
+    "creationInstant",
+    "importRowIndex",
+    "deletedAt"
+] as const;
+
+function attachedTransactionShadowScalarsMatchSource(shadow: LoroMap, source: LoroMap): boolean {
+    const shadowId = shadow.get("id");
+    const identity =
+        typeof shadowId === "string"
+            ? getTransactionMaintenanceShadowIdentity({ id: shadowId })
+            : undefined;
+    if (!identity || source.get("id") !== identity.publicId) return false;
+    return TRANSACTION_SHADOW_SCALAR_KEYS.every((key) => shadow.get(key) === source.get(key));
 }
 
-function getMaintenanceEpoch(doc: LoroDoc): string | undefined {
-    const value = getMaintenanceMetadata(doc)?.get("accountId");
-    if (typeof value !== "string" || !value.startsWith(MAINTENANCE_METADATA_VALUE_PREFIX)) {
-        return undefined;
-    }
-    const [epoch] = value.slice(MAINTENANCE_METADATA_VALUE_PREFIX.length).split("\u0000");
-    return epoch || undefined;
+function transactionShadowId(epoch: string, sourceCid: string, publicId: string): string {
+    return `${TRANSACTION_MAINTENANCE_SHADOW_ID_PREFIX}${epoch}\u0000${sourceCid}\u0000${publicId}`;
 }
 
-function hasActiveMaintenanceShadow(doc: LoroDoc): boolean {
-    const value = getMaintenanceMetadata(doc)?.get("accountId");
-    if (typeof value !== "string" || !value.startsWith(MAINTENANCE_METADATA_VALUE_PREFIX)) {
-        return false;
-    }
-    const [, , active] = value.slice(MAINTENANCE_METADATA_VALUE_PREFIX.length).split("\u0000");
-    return active === "1";
-}
-
-function setMaintenanceMetadata(doc: LoroDoc, epoch: string, shadowActive: boolean): void {
-    const transactions = doc.getMap("transactions");
-    const existing = transactions.get(MAINTENANCE_METADATA_ACCOUNT_KEY);
-    const metadata =
-        existing instanceof LoroMap
-            ? existing
-            : transactions.setContainer(MAINTENANCE_METADATA_ACCOUNT_KEY, new LoroMap());
-    if (!(metadata.get("years") instanceof LoroList)) {
-        metadata.setContainer("years", new LoroList());
-    }
-    metadata.set(
-        "accountId",
-        `${MAINTENANCE_METADATA_VALUE_PREFIX}${epoch}\u0000${crypto.randomUUID()}\u0000${shadowActive ? "1" : "0"}`
-    );
-}
-
-function commitMaintenance(
-    doc: LoroDoc,
-    shadowActive = false,
-    epoch = getMaintenanceEpoch(doc) ?? crypto.randomUUID()
-): void {
-    setMaintenanceMetadata(doc, epoch, shadowActive);
-    doc.commit({ origin: "system:gc" });
-}
-
-function ensureMaintenanceEpoch(doc: LoroDoc): {
-    readonly created: boolean;
-    readonly epoch: string;
-} {
-    const existing = getMaintenanceEpoch(doc);
-    if (existing) return { created: false, epoch: existing };
-    const epoch = crypto.randomUUID();
-    commitMaintenance(doc, false, epoch);
-    return { created: true, epoch };
-}
-
-function rotateMaintenanceEpoch(doc: LoroDoc): void {
-    commitMaintenance(doc, false, crypto.randomUUID());
+function commitMaintenance(doc: LoroDoc): void {
+    doc.commit({ origin: "system:gc", message: VAULT_MAINTENANCE_COMMIT_MESSAGE });
 }
 
 function getAllocationIterators(doc: LoroDoc): Map<string, AllocationIteratorState> {
@@ -1571,7 +1569,7 @@ function createAttachedTransactionShadow(input: {
     setTransactionScalars(
         shadow,
         input.source,
-        `${TRANSACTION_MAINTENANCE_SHADOW_ID_PREFIX}${input.epoch}\u0000${input.sourceCid}\u0000${input.source.id}`
+        transactionShadowId(input.epoch, input.sourceCid, input.source.id)
     );
     shadow.set("maintenanceShadowPhase", "tags");
     shadow.set("maintenanceShadowDuplicateIndex", 0);
@@ -1583,10 +1581,12 @@ function createAttachedTransactionShadow(input: {
 
 function createAttachedNestedShadow(
     source: Transaction["suspectedDuplicates"][number],
-    duplicates: LoroList
+    duplicates: LoroList,
+    epoch: string,
+    sourceCid: string
 ): LoroMap {
     const nested = duplicates.pushContainer(new LoroMap());
-    setTransactionScalars(nested, source);
+    setTransactionScalars(nested, source, transactionShadowId(epoch, sourceCid, source.id));
     nested.setContainer("tagIds", new LoroList());
     nested.setContainer("allocations", new LoroMap());
     return nested;
@@ -1673,6 +1673,12 @@ function advanceAttachedTransactionShadow(input: {
     const allocations = childMap(input.shadow, "allocations");
     const duplicates = childList(input.shadow, "suspectedDuplicates");
     if (!tags || !allocations || !duplicates) return "invalid";
+    const shadowId = input.shadow.get("id");
+    const shadowIdentity =
+        typeof shadowId === "string"
+            ? getTransactionMaintenanceShadowIdentity({ id: shadowId })
+            : undefined;
+    if (!shadowIdentity) return "invalid";
 
     if (phase === "tags") {
         if (tags.length > input.source.tagIds.length) return "invalid";
@@ -1705,7 +1711,12 @@ function advanceAttachedTransactionShadow(input: {
             return "invalid";
         }
         if (duplicates.length === duplicateIndex) {
-            createAttachedNestedShadow(sourceDuplicate, duplicates);
+            createAttachedNestedShadow(
+                sourceDuplicate,
+                duplicates,
+                shadowIdentity.epoch,
+                sourceDuplicate.$cid ?? `${shadowIdentity.sourceCid}:nested:${duplicateIndex}`
+            );
         }
         input.shadow.set("maintenanceShadowPhase", "duplicate-tags");
         return "advanced";
@@ -1732,6 +1743,7 @@ function advanceAttachedTransactionShadow(input: {
     );
     if (!next.done) nestedAllocations.set(next.value[0], next.value[1]);
     else {
+        nested.set("id", sourceDuplicate.id);
         input.shadow.set("maintenanceShadowDuplicateIndex", duplicateIndex + 1);
         input.shadow.set("maintenanceShadowPhase", "duplicates");
     }
@@ -1791,19 +1803,30 @@ export function applyVaultMaintenancePlan(
             (plan.shadowCid != null && shadow.id !== plan.shadowCid)
         )
             return false;
-        const currentEpoch = getMaintenanceEpoch(doc);
         const id = shadow.get("id");
         const identity =
             typeof id === "string" ? getTransactionMaintenanceShadowIdentity({ id }) : undefined;
+        const source =
+            identity && isContainerId(identity.sourceCid)
+                ? doc.getContainerById(identity.sourceCid)
+                : undefined;
+        const trusted =
+            trustedShadows(doc).has(shadow.id) || acceptImportedTransactionShadows.has(doc);
         const validCurrentShadow =
-            currentEpoch != null &&
-            plan.shadowEpoch === currentEpoch &&
-            identity?.epoch === currentEpoch &&
-            identity.sourceCid.length > 0 &&
+            trusted &&
+            identity != null &&
+            plan.shadowEpoch === identity.epoch &&
+            source instanceof LoroMap &&
+            attachedTransactionShadowScalarsMatchSource(shadow, source) &&
             shadowPhase(shadow) != null &&
             shadowDuplicateIndex(shadow) != null;
-        if (validCurrentShadow) return false;
+        if (validCurrentShadow) {
+            trustTransactionShadow(doc, shadow);
+            acceptImportedTransactionShadows.delete(doc);
+            return false;
+        }
         list.delete(plan.transactionIndex, 1);
+        forgetTransactionShadow(doc, shadow);
         commitMaintenance(doc);
         return true;
     }
@@ -1851,19 +1874,19 @@ export function applyVaultMaintenancePlan(
             return false;
         }
         if (plan.mode === "move") {
-            const epoch = ensureMaintenanceEpoch(doc);
-            if (epoch.created) return true;
             const plannedShadow = getPlannedShadow(doc, plan);
+            const epoch = plan.shadowEpoch ?? crypto.randomUUID();
             if (!plannedShadow) {
                 if (plan.shadowCid != null) return false;
-                createAttachedTransactionShadow({
-                    epoch: epoch.epoch,
+                const createdShadow = createAttachedTransactionShadow({
+                    epoch,
                     insertionIndex: plan.targetInsertionIndex ?? targetList.length,
                     source: transaction,
                     sourceCid: plan.transactionCid ?? transactionContainer.id,
                     targetList
                 });
-                commitMaintenance(doc, true);
+                trustTransactionShadow(doc, createdShadow);
+                commitMaintenance(doc);
                 return true;
             }
             const plannedShadowId = plannedShadow.get("id");
@@ -1874,24 +1897,35 @@ export function applyVaultMaintenancePlan(
             if (
                 containerIdentityKey(plannedShadowIdentity?.sourceCid) !==
                     containerIdentityKey(plan.transactionCid ?? transactionContainer.id) ||
-                plannedShadowIdentity?.epoch !== epoch.epoch ||
-                plan.shadowEpoch !== epoch.epoch
+                plannedShadowIdentity?.epoch !== epoch ||
+                plan.shadowEpoch !== epoch ||
+                (!trustedShadows(doc).has(plannedShadow.id) &&
+                    !acceptImportedTransactionShadows.has(doc))
             ) {
                 return false;
             }
+            trustTransactionShadow(doc, plannedShadow);
             const progress = advanceAttachedTransactionShadow({
                 doc,
                 shadow: plannedShadow,
                 source: transaction
             });
-            if (progress === "invalid") return false;
+            if (progress === "invalid") {
+                const shadowIndex = targetList.getShallowValue().indexOf(plannedShadow.id);
+                if (shadowIndex < 0) return false;
+                targetList.delete(shadowIndex, 1);
+                forgetTransactionShadow(doc, plannedShadow);
+                commitMaintenance(doc);
+                return true;
+            }
             if (progress === "advanced") {
-                commitMaintenance(doc, true);
+                commitMaintenance(doc);
                 return true;
             }
             plannedShadow.set("id", transaction.id);
             plannedShadow.delete("maintenanceShadowPhase");
             plannedShadow.delete("maintenanceShadowDuplicateIndex");
+            forgetTransactionShadow(doc, plannedShadow);
         }
         sourceList.delete(transactionIndex, 1);
         pruneEmptyTransactionContainers({ dayIndex, monthIndex, sourceList, yearIndex });
@@ -1964,31 +1998,55 @@ export function runVaultMaintenanceFrame(input: {
     return { applied, complete: false, cursor, processed, yieldReason: "items" };
 }
 
-function hasRelevantMaintenanceChanges(
-    event: Parameters<LoroDoc["subscribe"]>[0] extends (event: infer Event) => void ? Event : never
-): boolean {
+function touchesMaintenanceDomain(event: LoroEventBatch): boolean {
     if (event.origin === "system:gc") return false;
-    const touchesDomain = event.events.some(
-        (item) =>
-            (item.path[0] === "transactions" &&
-                item.path[1] !== MAINTENANCE_METADATA_ACCOUNT_KEY) ||
-            item.path[0] === "descriptionAliases"
+    return event.events.some(
+        (item) => item.path[0] === "transactions" || item.path[0] === "descriptionAliases"
     );
-    if (!touchesDomain) return false;
-    if (event.by === "local") return true;
-    return !hasEncodedMaintenanceBatch(event);
 }
 
-function hasEncodedMaintenanceBatch(
-    event: Parameters<LoroDoc["subscribe"]>[0] extends (event: infer Event) => void ? Event : never
-): boolean {
-    return event.events.some(
-        (item) =>
-            item.path[0] === "transactions" &&
-            item.path[1] === MAINTENANCE_METADATA_ACCOUNT_KEY &&
-            item.diff.type === "map" &&
-            Object.hasOwn(item.diff.updated, "accountId")
-    );
+interface ImportedChangeCursor {
+    readonly counter: number;
+    readonly spanIndex: number;
+    readonly spans: readonly IdSpan[];
+}
+
+interface ImportedChangeQueueNode {
+    cursor: ImportedChangeCursor;
+    readonly invalidatesAliasProof: boolean;
+    next?: ImportedChangeQueueNode;
+}
+
+function createImportedChangeCursor(doc: LoroDoc, event: LoroEventBatch): ImportedChangeCursor {
+    const spans = doc.findIdSpansBetween(event.from, event.to).forward;
+    return { counter: spans[0]?.counter ?? 0, spanIndex: 0, spans };
+}
+
+function advanceImportedChangeCursor(
+    doc: LoroDoc,
+    cursor: ImportedChangeCursor
+): {
+    readonly complete: boolean;
+    readonly cursor: ImportedChangeCursor;
+    readonly invalidates: boolean;
+} {
+    const span = cursor.spans[cursor.spanIndex];
+    if (!span) return { complete: true, cursor, invalidates: false };
+    const end = span.counter + span.length;
+    const change = doc.getChangeAt({ peer: span.peer, counter: cursor.counter });
+    const nextCounter = Math.min(end, Math.max(cursor.counter + 1, change.counter + change.length));
+    const nextSpanIndex = nextCounter < end ? cursor.spanIndex : cursor.spanIndex + 1;
+    const nextSpan = cursor.spans[nextSpanIndex];
+    const next = {
+        counter: nextSpanIndex === cursor.spanIndex ? nextCounter : (nextSpan?.counter ?? 0),
+        spanIndex: nextSpanIndex,
+        spans: cursor.spans
+    };
+    return {
+        complete: next.spanIndex >= next.spans.length,
+        cursor: next,
+        invalidates: change.message !== VAULT_MAINTENANCE_COMMIT_MESSAGE
+    };
 }
 
 function hasAliasProofInvalidatingChanges(
@@ -2017,13 +2075,58 @@ export function startVaultMaintenanceScheduler(input: {
     let frameId: number | undefined;
     let disposed = false;
     let needsAnotherPass = false;
+    let importedChangeHead: ImportedChangeQueueNode | undefined;
+    let importedChangeTail: ImportedChangeQueueNode | undefined;
     const aliasHistory = getVaultAliasHistoryFrontier(input.doc);
+
+    const invalidateMaintenance = (invalidatesAliasProof: boolean) => {
+        invalidateActiveTransactionShadow(input.doc);
+        clearRelocationAllocationIterators(input.doc);
+        if (cursor.transactionSearch) cursor = { ...cursor, transactionSearch: undefined };
+        if (cursor.aliasProof && invalidatesAliasProof) {
+            cursor = { ...cursor, aliasProof: undefined };
+        }
+        needsAnotherPass = true;
+        if (cursor.phase === "done") {
+            needsAnotherPass = false;
+            cursor = createVaultMaintenanceCursor(input.store.getState());
+        }
+    };
 
     const schedule = () => {
         if (disposed || frameId != null || !input.host.isVisible()) return;
         frameId = input.host.requestFrame(() => {
             frameId = undefined;
             if (disposed || !input.host.isVisible()) return;
+            if (importedChangeHead) {
+                const budget = input.budget ?? DEFAULT_VAULT_MAINTENANCE_BUDGET;
+                const startedAt = input.host.now();
+                let processed = 0;
+                while (
+                    importedChangeHead &&
+                    processed < budget.maxItems &&
+                    input.host.now() - startedAt < budget.maxMilliseconds
+                ) {
+                    const current: ImportedChangeQueueNode = importedChangeHead;
+                    const step = advanceImportedChangeCursor(input.doc, current.cursor);
+                    current.cursor = step.cursor;
+                    processed += 1;
+                    if (step.invalidates) {
+                        importedChangeHead = undefined;
+                        importedChangeTail = undefined;
+                        invalidateMaintenance(current.invalidatesAliasProof);
+                        schedule();
+                        return;
+                    }
+                    if (step.complete) {
+                        acceptImportedTransactionShadows.add(input.doc);
+                        importedChangeHead = current.next;
+                        if (!importedChangeHead) importedChangeTail = undefined;
+                    }
+                }
+                schedule();
+                return;
+            }
             const result = runVaultMaintenanceFrame({
                 apply: (plan) => {
                     const aliasId =
@@ -2055,6 +2158,7 @@ export function startVaultMaintenanceScheduler(input: {
                 now: input.host.now
             });
             cursor = result.cursor;
+            if (result.complete) acceptImportedTransactionShadows.delete(input.doc);
             if (result.complete && needsAnotherPass) {
                 needsAnotherPass = false;
                 cursor = createVaultMaintenanceCursor(input.store.getState());
@@ -2066,18 +2170,20 @@ export function startVaultMaintenanceScheduler(input: {
     };
 
     const unsubscribeDocument = input.doc.subscribe((event) => {
-        if (!hasRelevantMaintenanceChanges(event)) return;
-        if (hasActiveMaintenanceShadow(input.doc)) rotateMaintenanceEpoch(input.doc);
-        clearRelocationAllocationIterators(input.doc);
-        if (cursor.transactionSearch) cursor = { ...cursor, transactionSearch: undefined };
-        if (cursor.aliasProof && hasAliasProofInvalidatingChanges(event)) {
-            cursor = { ...cursor, aliasProof: undefined };
+        if (!touchesMaintenanceDomain(event)) return;
+        const invalidatesAliasProof = hasAliasProofInvalidatingChanges(event);
+        if (event.by === "import") {
+            const node: ImportedChangeQueueNode = {
+                cursor: createImportedChangeCursor(input.doc, event),
+                invalidatesAliasProof
+            };
+            if (importedChangeTail) importedChangeTail.next = node;
+            else importedChangeHead = node;
+            importedChangeTail = node;
+            schedule();
+            return;
         }
-        needsAnotherPass = true;
-        if (cursor.phase === "done") {
-            needsAnotherPass = false;
-            cursor = createVaultMaintenanceCursor(input.store.getState());
-        }
+        invalidateMaintenance(invalidatesAliasProof);
         schedule();
     });
     const unsubscribeAliasHistory = aliasHistory?.subscribe(() => {

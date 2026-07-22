@@ -5,7 +5,7 @@
  * The Mirror provides bidirectional sync between app state and the underlying LoroDoc.
  */
 
-import { LoroDoc } from "loro-crdt";
+import { LoroDoc, LoroMap } from "loro-crdt";
 import { Mirror } from "loro-mirror";
 
 import {
@@ -15,6 +15,19 @@ import {
 } from "./defaults";
 import { migrateVaultSentinels } from "./migration";
 import { type VaultState, vaultSchema } from "./schema";
+
+const LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY = "__moneyflow_gc_metadata__";
+
+/** Remove the revision-04 account-shaped marker before Mirror can enumerate transactions. */
+function cleanupLegacyVaultMaintenanceMetadata(doc: LoroDoc): boolean {
+    const transactions = doc.getMap("transactions");
+    if (!(transactions.get(LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY) instanceof LoroMap)) {
+        return false;
+    }
+    transactions.delete(LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY);
+    doc.commit({ origin: "system:gc", message: "__moneyflow_gc_commit_v1__" });
+    return true;
+}
 
 /**
  * Options for creating a vault mirror
@@ -91,6 +104,7 @@ export function createVaultMirror(options: CreateVaultMirrorOptions = {}): {
     // Enable timestamp recording for version vectors
     // This allows server-side filtering of ops by timestamp
     doc.setRecordTimestamp(true);
+    cleanupLegacyVaultMaintenanceMetadata(doc);
 
     const mirror = new Mirror({
         doc,
@@ -121,6 +135,7 @@ export function createVaultMirrorFromSnapshot(
 ): { mirror: Mirror<typeof vaultSchema>; doc: LoroDoc } {
     const doc = new LoroDoc();
     doc.import(snapshot);
+    cleanupLegacyVaultMaintenanceMetadata(doc);
 
     // Enable timestamp recording for version vectors
     // This allows server-side filtering of ops by timestamp
@@ -152,6 +167,7 @@ function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
  */
 export function repairHydratedVaultDocument(doc: LoroDoc): boolean {
     const before = doc.version().encode();
+    cleanupLegacyVaultMaintenanceMetadata(doc);
     const mirror = new Mirror({
         doc,
         schema: vaultSchema,
