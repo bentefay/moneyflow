@@ -8,24 +8,20 @@ review evidence.
 
 - **Goal status:** in progress
 - **Current package:** P14 revision 04 (`passed`)
-- **Next action:** execute and verify only the prepared HS-008 `[] -> [x]` marker
+- **Next action:** dispatch P15 revision 01 after rewriting its exact implementation handoff
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
   `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines and 25,441 bytes
-- **Rolling scratch SHA-256:** `b09454dea925ebd5af185c4b5011762a38beac852ef728c9adaf4e343782561d`
-- **Authorized checked HS IDs:** HS-001, HS-002, HS-004, HS-005, HS-006, HS-010, HS-014, HS-017,
-  HS-018
-- **Active completion marker event:** HS-008 `completion_pending`; pre-change scratch SHA
-  `b09454dea925ebd5af185c4b5011762a38beac852ef728c9adaf4e343782561d`; mapped review
-  `reviews/P14-review-04.md`; integration `a2182116db08200b8b4df28412512b9ca3406aa2`;
-  intended exact change `[] -> [x]`
+- **Rolling scratch SHA-256:** `f0adfef6e19b80969dae748cf8c616614af61ba778837234c97af385a19adcb1`
+- **Authorized checked HS IDs:** HS-001, HS-002, HS-004, HS-005, HS-006, HS-008, HS-010, HS-014,
+  HS-017, HS-018
+- **Active completion marker event:** none
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
-- **Requirement state:** nine passed; HS-008 completion pending after P14 PASS; HS-015 blocked
-  externally; HS-011/HS-012 and eight other requirements queued
-- **Last ledger update:** 2026-07-25; revision-04 PASS integrated and HS-008 completion marker
-  durably prepared
+- **Requirement state:** ten passed; HS-015 blocked externally; HS-011/HS-012 and eight other
+  requirements queued
+- **Last ledger update:** 2026-07-25; HS-008 marker finalized after P14 revision-04 independent PASS
 
 ## Package ledger
 
@@ -93,7 +89,7 @@ required marker rollbacks before the next dispatch.
 | HS-005      | human scratch block               | P12                          | authorized marker after package PASS       | passed       | P12 integration `f8cbb5a8caacb763c0bb77199595a5ee332ab729`; `reviews/P12-review-08.md`; marker `2c52bd78… -> aa8a1f56…` |
 | HS-006      | human scratch block               | P09                          | authorized marker after package PASS       | passed       | P09 integration `59bf82e894e45e034858e25255240701a3afb0b8`; `reviews/P09-review-02.md`; marker `753be6b7… -> c2b986fd…` |
 | HS-007      | human scratch block               | P17A, P17B, P17C, P17D       | authorized marker after all package PASSes | queued       | —                                                                                                                       |
-| HS-008      | human scratch block               | P14                          | authorized marker after package PASS       | completion_pending | P14 integration `a2182116db08200b8b4df28412512b9ca3406aa2`; `reviews/P14-review-04.md`; marker pending from `b09454de…` |
+| HS-008      | human scratch block               | P14                          | authorized marker after package PASS       | passed       | P14 integration `a2182116db08200b8b4df28412512b9ca3406aa2`; `reviews/P14-review-04.md`; marker `b09454de… -> f0adfef6…` |
 | HS-009      | human scratch block               | P16A, P16C, P16D             | authorized marker after all package PASSes | queued       | —                                                                                                                       |
 | HS-010      | human scratch block               | P06                          | authorized marker after package PASS       | passed | P06 integration `8e269ab9a6fc15ed6d845542b879e5499828134e`; `reviews/P06-review-01.md`; marker `c74a2a78… -> 753be6b7…` |
 | HS-011      | human scratch block               | P07, P08                     | authorized marker after all package PASSes | queued | P07 PASS/integration `1f6cb96b27c8093f0ba2c319f32d3c79c8aab126`; P08 still required/gated; no marker |
@@ -2294,6 +2290,16 @@ edit: change only HS-008's first-line marker from `[]` to `[x]` against pre-chan
 remains HS-001/HS-002/HS-004/HS-005/HS-006/HS-010/HS-014/HS-017/HS-018 until the marker is applied.
 All 21 normalized blocks, canonical FS-001 and SCOPE are exact. No package dispatch is legal while
 this event is pending.
+
+**2026-07-25T04:12:16+10:00 — HS-008 `completion_pending -> passed`:** Exact marker-only
+`[] -> [x]` finalized after P14 review `reviews/P14-review-04.md` and integration
+`a2182116db08200b8b4df28412512b9ca3406aa2`. The private comparison copy showed exactly the HS-008
+first-line marker change and was removed. All 21 normalized blocks byte-match SCOPE; checked set is
+exactly HS-001/HS-002/HS-004/HS-005/HS-006/HS-008/HS-010/HS-014/HS-017/HS-018; FS-001 and SCOPE
+remain exact. Scratch SHA advances
+`b09454dea925ebd5af185c4b5011762a38beac852ef728c9adaf4e343782561d ->
+f0adfef6e19b80969dae748cf8c616614af61ba778837234c97af385a19adcb1`, 350 lines/24,249 bytes. The
+completion event is cleared and package dispatch may resume.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual

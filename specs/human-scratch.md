@@ -294,7 +294,7 @@
       columns. Unlike description alias rules, these other rules do apply to manually created
       transactions.
 
-- [] We should save an importId on imported transactions. If the amount is edited we should save the
+- [x] We should save an importId on imported transactions. If the amount is edited we should save the
   amount in a originalAmount field and show that as a tooltip on the amount cell in the transactions
   table. Deleting an import deletes the associated transactions (essentially letting you undo an
   import).

@@ -7,9 +7,8 @@ literal field is `pending`. Workers may read but never edit it.
 
 - **Package / revision:** P14 / 04
 - **Scope IDs:** HS-008 only; import lineage, immutable original amount, accessible amount tooltip
-  and reversible import deletion; HS-008 remains unchecked until the separate root marker
-  transaction
-- **State:** passed; revisions 01–04 are immutable; HS-008 marker transaction is durably prepared
+  and reversible import deletion; HS-008 is complete and checked
+- **State:** passed; revisions 01–04 are immutable; HS-008 marker transaction is finalized
 - **Task:** `tasks/HS-008-import-lineage.md`; exact 4-line HS-008 block in SCOPE
 - **Dependencies:** P09/02 is passed; P14 is independent of blocked P05/P08/P10
 - **Literal original BASE:**
@@ -147,9 +146,9 @@ literal field is `pending`. Workers may read but never edit it.
   `.claude/skills/sync/SKILL.md` and `.claude/skills/e2e/SKILL.md`; also apply the general money,
   TypeScript, accessibility, security and testing rules.
 - **Frozen boundary:** scratch SHA
-  `b09454dea925ebd5af185c4b5011762a38beac852ef728c9adaf4e343782561d`, checked set
-  HS-001/HS-002/HS-004/HS-005/HS-006/HS-010/HS-014/HS-017/HS-018, all 21 normalized blocks exact;
-  FS-001 `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715
+  `f0adfef6e19b80969dae748cf8c616614af61ba778837234c97af385a19adcb1`, checked set
+  HS-001/HS-002/HS-004/HS-005/HS-006/HS-008/HS-010/HS-014/HS-017/HS-018, all 21 normalized blocks
+  exact; FS-001 `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715
   lines/25,441 bytes; SCOPE
   `d03f33e718f1ec5f7c8ad0119d283397dcc59407199da4b5887a2e5eee7ef0f9`, 450 lines/27,382 bytes.
 
@@ -177,5 +176,5 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Execute and verify only the durably prepared HS-008 `[] -> [x]` marker transaction; no package
-dispatch is allowed until it finalizes.
+Rewrite this handoff for P15 revision 01 and dispatch only after the finalized HS-008 boundary is
+reverified.
