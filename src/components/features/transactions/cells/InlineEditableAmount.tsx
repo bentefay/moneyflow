@@ -11,7 +11,7 @@
  * using the currency's decimal_digits to determine the multiplier.
  */
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -40,6 +40,14 @@ export interface InlineEditableAmountProps {
     /** Test ID for testing */
     "data-testid"?: string;
 }
+
+interface TooltipTranslation {
+    readonly x: number;
+    readonly y: number;
+}
+
+const INITIAL_TOOLTIP_TRANSLATION: TooltipTranslation = { x: 0, y: 0 };
+const TOOLTIP_VIEWPORT_PADDING = 8;
 
 /**
  * Parse a currency string to number (major units).
@@ -100,7 +108,12 @@ export function InlineEditableAmount({
 
     const [localValue, setLocalValue] = useState(displayValue);
     const [isFocused, setIsFocused] = useState(false);
+    const [isTooltipOpen, setIsTooltipOpen] = useState(false);
+    const [tooltipTranslation, setTooltipTranslation] = useState<TooltipTranslation>(
+        INITIAL_TOOLTIP_TRANSLATION
+    );
     const inputRef = useRef<HTMLInputElement>(null);
+    const tooltipContentRef = useRef<HTMLDivElement>(null);
     const isRevertingRef = useRef(false);
 
     // Sync local value when prop changes (only if not focused)
@@ -153,6 +166,82 @@ export function InlineEditableAmount({
         e.stopPropagation(); // Prevent row selection
     }, []);
 
+    const handleTooltipOpenChange = useCallback((open: boolean) => {
+        if (open) setTooltipTranslation(INITIAL_TOOLTIP_TRANSLATION);
+        setIsTooltipOpen(open);
+    }, []);
+
+    const keepTooltipInsideViewport = useCallback(() => {
+        const content = tooltipContentRef.current;
+        if (!content) return;
+
+        const contentBox = content.getBoundingClientRect();
+        const arrowBox = content.querySelector("svg")?.getBoundingClientRect();
+        const left = Math.min(contentBox.left, arrowBox?.left ?? contentBox.left);
+        const top = Math.min(contentBox.top, arrowBox?.top ?? contentBox.top);
+        const right = Math.max(contentBox.right, arrowBox?.right ?? contentBox.right);
+        const bottom = Math.max(contentBox.bottom, arrowBox?.bottom ?? contentBox.bottom);
+        const viewport = window.visualViewport;
+        const viewportLeft = (viewport?.offsetLeft ?? 0) + TOOLTIP_VIEWPORT_PADDING;
+        const viewportTop = (viewport?.offsetTop ?? 0) + TOOLTIP_VIEWPORT_PADDING;
+        const viewportRight =
+            (viewport == null ? window.innerWidth : viewport.offsetLeft + viewport.width) -
+            TOOLTIP_VIEWPORT_PADDING;
+        const viewportBottom =
+            (viewport == null ? window.innerHeight : viewport.offsetTop + viewport.height) -
+            TOOLTIP_VIEWPORT_PADDING;
+        const horizontalDelta =
+            left < viewportLeft
+                ? viewportLeft - left
+                : right > viewportRight
+                  ? viewportRight - right
+                  : 0;
+        const verticalDelta =
+            top < viewportTop
+                ? viewportTop - top
+                : bottom > viewportBottom
+                  ? viewportBottom - bottom
+                  : 0;
+        if (Math.abs(horizontalDelta) < 0.5 && Math.abs(verticalDelta) < 0.5) return;
+
+        const horizontalScale =
+            content.offsetWidth > 0 ? contentBox.width / content.offsetWidth : 1;
+        const verticalScale =
+            content.offsetHeight > 0 ? contentBox.height / content.offsetHeight : horizontalScale;
+        setTooltipTranslation((current) => ({
+            x: current.x + horizontalDelta / horizontalScale,
+            y: current.y + verticalDelta / verticalScale
+        }));
+    }, []);
+
+    useLayoutEffect(() => {
+        if (!isTooltipOpen) return;
+
+        const frame = { id: 0 };
+        const monitorTooltipPosition = () => {
+            keepTooltipInsideViewport();
+            frame.id = requestAnimationFrame(monitorTooltipPosition);
+        };
+        frame.id = requestAnimationFrame(monitorTooltipPosition);
+        const content = tooltipContentRef.current;
+        const resizeObserver =
+            content == null ? undefined : new ResizeObserver(keepTooltipInsideViewport);
+        if (content) resizeObserver?.observe(content);
+        document.addEventListener("scroll", keepTooltipInsideViewport, true);
+        window.addEventListener("resize", keepTooltipInsideViewport);
+        window.visualViewport?.addEventListener("resize", keepTooltipInsideViewport);
+        window.visualViewport?.addEventListener("scroll", keepTooltipInsideViewport);
+
+        return () => {
+            cancelAnimationFrame(frame.id);
+            resizeObserver?.disconnect();
+            document.removeEventListener("scroll", keepTooltipInsideViewport, true);
+            window.removeEventListener("resize", keepTooltipInsideViewport);
+            window.visualViewport?.removeEventListener("resize", keepTooltipInsideViewport);
+            window.visualViewport?.removeEventListener("scroll", keepTooltipInsideViewport);
+        };
+    }, [isTooltipOpen, keepTooltipInsideViewport]);
+
     // Determine color based on current input value
     const parsed = parseCurrency(localValue);
     const colorClass =
@@ -192,13 +281,18 @@ export function InlineEditableAmount({
     if (!originalAmountDescription) return input;
 
     return (
-        <Tooltip>
+        <Tooltip open={isTooltipOpen} onOpenChange={handleTooltipOpenChange}>
             <TooltipTrigger asChild>{input}</TooltipTrigger>
             <TooltipContent
+                ref={tooltipContentRef}
                 align="start"
                 alignOffset={-70}
+                collisionPadding={TOOLTIP_VIEWPORT_PADDING}
                 className="max-w-[calc(50vw-1rem)] whitespace-normal sm:max-w-xs"
                 data-testid="original-amount-tooltip"
+                style={{
+                    translate: `${tooltipTranslation.x}px ${tooltipTranslation.y}px`
+                }}
             >
                 {originalAmountDescription}
             </TooltipContent>

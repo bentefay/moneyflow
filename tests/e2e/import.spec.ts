@@ -486,6 +486,195 @@ NEWFILEUID:NONE
         });
     });
 
+    test("original amount tooltip stays inside the zoomed virtualized viewport", async ({
+        page
+    }) => {
+        await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
+        await createNewIdentity(page);
+
+        const descriptions = Array.from(
+            { length: 14 },
+            (_, index) => `P14 tooltip row ${String(index).padStart(2, "0")}`
+        );
+        await goToImportNew(page);
+        await page.locator('input[type="file"]').setInputFiles({
+            name: "p14-tooltip-geometry.csv",
+            mimeType: "text/csv",
+            buffer: Buffer.from(
+                [
+                    "Date,Description,Amount",
+                    ...descriptions.map(
+                        (description, index) =>
+                            `2026-07-24,${description},${(index + 1).toFixed(2)}`
+                    )
+                ].join("\n")
+            )
+        });
+        await page.getByRole("tab", { name: /Columns/i }).click();
+        await page.getByRole("button", { name: /Auto-detect/i }).click();
+        await expect(page.getByText(/All required fields mapped/i)).toBeVisible();
+        await page.getByRole("tab", { name: /Account/i }).click();
+        await page.locator("#account-select").click();
+        await page.getByRole("option", { name: /Default/i }).click();
+        await page.getByRole("button", { name: /Import 14 Transactions/i }).click();
+        await expect(page).toHaveURL(/\/transactions/);
+
+        for (const [index, description] of [
+            [0, descriptions[0]],
+            [5, descriptions[5]],
+            [10, descriptions[10]]
+        ] as const) {
+            const amount = page
+                .getByRole("row", { name: new RegExp(description) })
+                .getByTestId("amount-editable");
+            await amount.fill(String(index + 2));
+            await amount.press("Enter");
+            await expect(amount).toHaveAttribute(
+                "aria-description",
+                new RegExp(`Original imported amount: USD\\s${index + 1}\\.00`)
+            );
+        }
+
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.evaluate(() => {
+            document.documentElement.style.zoom = "2";
+        });
+
+        const transactionScroller = page.getByTestId("transaction-table").locator("..");
+        const tooltipGeometry = async (expectedText: RegExp) => {
+            const tooltip = page
+                .getByTestId("original-amount-tooltip")
+                .filter({ hasText: expectedText });
+            await expect(tooltip).toBeVisible();
+            await expect(tooltip).toContainText(expectedText);
+            return tooltip.evaluate((element) => {
+                const box = element.getBoundingClientRect();
+                const arrowBox = element.querySelector("svg")?.getBoundingClientRect();
+                const textBoxes = Array.from(element.childNodes).flatMap((node) => {
+                    if (node.nodeType !== Node.TEXT_NODE || !node.textContent?.trim()) return [];
+                    const range = document.createRange();
+                    range.selectNodeContents(node);
+                    return Array.from(range.getClientRects()).map((rect) => ({
+                        bottom: rect.bottom,
+                        left: rect.left,
+                        right: rect.right,
+                        top: rect.top
+                    }));
+                });
+                return {
+                    arrow:
+                        arrowBox == null
+                            ? undefined
+                            : {
+                                  bottom: arrowBox.bottom,
+                                  left: arrowBox.left,
+                                  right: arrowBox.right,
+                                  top: arrowBox.top
+                              },
+                    box: {
+                        bottom: box.bottom,
+                        left: box.left,
+                        right: box.right,
+                        top: box.top
+                    },
+                    textBoxes
+                };
+            });
+        };
+        const expectContained = async (
+            description: string,
+            expectedText: RegExp,
+            interaction: "focus" | "hover"
+        ) => {
+            await page.evaluate(() => {
+                if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+            });
+            await page.mouse.move(0, 0);
+
+            const amount = page
+                .getByRole("row", { name: new RegExp(description) })
+                .getByTestId("amount-editable");
+            await expect(amount).toBeVisible();
+            if (interaction === "focus") {
+                await amount.focus();
+            } else {
+                await amount.hover({ force: true });
+            }
+
+            const viewport = await page.evaluate(() => ({
+                bottom: window.innerHeight,
+                left: 0,
+                right: window.innerWidth,
+                top: 0
+            }));
+            const geometryIsContained = async () => {
+                const geometry = await tooltipGeometry(expectedText);
+                const boxes = [
+                    geometry.box,
+                    ...geometry.textBoxes,
+                    ...(geometry.arrow == null ? [] : [geometry.arrow])
+                ];
+                return boxes.every(
+                    (box) =>
+                        box.left >= viewport.left &&
+                        box.top >= viewport.top &&
+                        box.right <= viewport.right &&
+                        box.bottom <= viewport.bottom
+                );
+            };
+            await expect
+                .poll(geometryIsContained, {
+                    message: `${description} ${interaction} tooltip geometry`
+                })
+                .toBe(true);
+            const geometry = await tooltipGeometry(expectedText);
+            expect(
+                await geometryIsContained(),
+                `${description} ${interaction}: ${JSON.stringify({ geometry, viewport })}`
+            ).toBe(true);
+            await expect(amount).toHaveAttribute("aria-description", expectedText);
+        };
+
+        await test.step("first-row focus and hover are the favorable control", async () => {
+            await transactionScroller.evaluate((element) => {
+                element.scrollLeft = element.scrollWidth;
+                element.scrollTop = 0;
+            });
+            await expectContained(descriptions[0], /Original imported amount: USD\s1\.00/, "hover");
+            await expectContained(descriptions[0], /Original imported amount: USD\s1\.00/, "focus");
+        });
+
+        await test.step("lower visible row focus and hover remain contained", async () => {
+            const amount = page
+                .getByRole("row", { name: new RegExp(descriptions[10]) })
+                .getByTestId("amount-editable");
+            await amount.scrollIntoViewIfNeeded();
+            await expectContained(
+                descriptions[10],
+                /Original imported amount: USD\s11\.00/,
+                "hover"
+            );
+            await expectContained(
+                descriptions[10],
+                /Original imported amount: USD\s11\.00/,
+                "focus"
+            );
+        });
+
+        await test.step("right-offset virtual row focus and hover remain contained", async () => {
+            await transactionScroller.evaluate((element) => {
+                element.scrollLeft = Math.round((element.scrollWidth - element.clientWidth) * 0.75);
+                element.scrollTop = 5 * 44;
+            });
+            const amount = page
+                .getByRole("row", { name: new RegExp(descriptions[5]) })
+                .getByTestId("amount-editable");
+            await amount.scrollIntoViewIfNeeded();
+            await expectContained(descriptions[5], /Original imported amount: USD\s6\.00/, "hover");
+            await expectContained(descriptions[5], /Original imported amount: USD\s6\.00/, "focus");
+        });
+    });
+
     test("CSV import journey: upload, configure tabs, and see preview", async ({ page }) => {
         await createNewIdentity(page);
 
