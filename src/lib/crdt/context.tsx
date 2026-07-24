@@ -29,8 +29,12 @@ import {
 import { startVaultMaintenanceScheduler } from "./maintenance";
 import type { VaultMirror } from "./mirror";
 import { getAllTransactions } from "./queries";
-import { isPublicTransaction, vaultSchema } from "./schema";
-import type { Transaction, VaultState } from "./schema";
+import {
+    getTransactionMaintenanceShadowIdentity,
+    isPublicTransaction,
+    vaultSchema
+} from "./schema";
+import type { AccountTransactionTree, Transaction, VaultState } from "./schema";
 import type { VaultEditSession, VaultUserActionKind } from "./undo";
 import { useVaultUndoCoordinator } from "./undo";
 
@@ -169,11 +173,101 @@ export function VaultProvider(props: ComponentProps<typeof loroContext.LoroProvi
 
 export type ApplicationVaultState = Omit<VaultState, "descriptionAliases">;
 
+const publicTransactionStores = new WeakMap<
+    VaultState["transactions"],
+    VaultState["transactions"]
+>();
+const applicationVaultStates = new WeakMap<VaultState, ApplicationVaultState>();
+
+function projectPublicAccountTree(tree: AccountTransactionTree): AccountTransactionTree {
+    let treeChanged = false;
+    const years = tree.years.map((year) => {
+        let yearChanged = false;
+        const months = year.months.map((month) => {
+            let monthChanged = false;
+            const days = month.days.map((day) => {
+                let dayChanged = false;
+                const transactions = day.transactions.flatMap((transaction) => {
+                    if (!isPublicTransaction(transaction)) {
+                        dayChanged = true;
+                        return [];
+                    }
+                    const suspectedDuplicates = transaction.suspectedDuplicates.filter(
+                        (duplicate) => getTransactionMaintenanceShadowIdentity(duplicate) == null
+                    );
+                    if (suspectedDuplicates.length === transaction.suspectedDuplicates.length) {
+                        return [transaction];
+                    }
+                    dayChanged = true;
+                    return [{ ...transaction, suspectedDuplicates }];
+                });
+                if (!dayChanged) return day;
+                monthChanged = true;
+                return { ...day, transactions };
+            });
+            if (!monthChanged) return month;
+            yearChanged = true;
+            return { ...month, days };
+        });
+        if (!yearChanged) return year;
+        treeChanged = true;
+        return { ...year, months };
+    });
+    return treeChanged ? { ...tree, years } : tree;
+}
+
+function projectPublicTransactionStore(
+    transactions: VaultState["transactions"]
+): VaultState["transactions"] {
+    const cached = publicTransactionStores.get(transactions);
+    if (cached) return cached;
+
+    let projected = transactions;
+    const ensureProjection = () => {
+        if (projected === transactions) projected = { ...transactions };
+        return projected;
+    };
+    if (LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY in transactions) {
+        delete ensureProjection()[LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY];
+    }
+    for (const [accountId, tree] of Object.entries(transactions)) {
+        if (accountId === LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY) continue;
+        if (typeof tree !== "object" || tree == null) continue;
+        const publicTree = projectPublicAccountTree(tree);
+        if (publicTree !== tree) ensureProjection()[accountId] = publicTree;
+    }
+    publicTransactionStores.set(transactions, projected);
+    return projected;
+}
+
+function projectApplicationVaultState(state: VaultState): ApplicationVaultState {
+    const cached = applicationVaultStates.get(state);
+    if (cached) return cached;
+    const projected = new Proxy(state, {
+        get: (target, property, receiver) =>
+            property === "transactions"
+                ? projectPublicTransactionStore(target.transactions)
+                : Reflect.get(target, property, receiver),
+        getOwnPropertyDescriptor: (target, property) => {
+            const descriptor = Reflect.getOwnPropertyDescriptor(target, property);
+            if (property !== "transactions" || !descriptor || !("value" in descriptor)) {
+                return descriptor;
+            }
+            return {
+                ...descriptor,
+                value: projectPublicTransactionStore(target.transactions)
+            };
+        }
+    });
+    applicationVaultStates.set(state, projected);
+    return projected;
+}
+
 /** Select from the ordinary application state; raw alias wire records are deliberately absent. */
 export function useVaultSelector<Selected>(
     selector: (state: ApplicationVaultState) => Selected
 ): Selected {
-    return useInternalVaultSelector((state) => selector(state));
+    return useInternalVaultSelector((state) => selector(projectApplicationVaultState(state)));
 }
 
 /** Run one user action while keeping the Mirror recipe void and returning its captured result. */

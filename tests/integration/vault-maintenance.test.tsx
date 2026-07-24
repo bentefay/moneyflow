@@ -1,11 +1,19 @@
 import { act, render } from "@testing-library/react";
 import { isContainerId, LoroList, LoroMap, VersionVector } from "loro-crdt";
-import { createElement } from "react";
+import { createElement, Fragment } from "react";
 import { Temporal } from "temporal-polyfill";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import "fake-indexeddb/auto";
 
-import { useTransaction, useTransactions, VaultProvider } from "@/lib/crdt/context";
+import { PeopleTable } from "@/components/features/people/PeopleTable";
+import { StatusesTable } from "@/components/features/statuses/StatusesTable";
+import { TagsTable } from "@/components/features/tags/TagsTable";
+import {
+    useTransaction,
+    useTransactions,
+    useVaultSelector,
+    VaultProvider
+} from "@/lib/crdt/context";
 import {
     changeAllDescriptionAliases,
     createDescriptionAlias
@@ -16,6 +24,7 @@ import {
 } from "@/lib/crdt/maintenance";
 import { createVaultMirror, createVaultMirrorFromSnapshot } from "@/lib/crdt/mirror";
 import { insertTransaction } from "@/lib/crdt/mutations";
+import * as transactionQueries from "@/lib/crdt/queries";
 import { getAccountTransactions } from "@/lib/crdt/queries";
 import {
     getTransactionMaintenanceShadowIdentity,
@@ -23,7 +32,7 @@ import {
     type VaultState
 } from "@/lib/crdt/schema";
 import { decryptUpdate } from "@/lib/crdt/snapshot";
-import { VaultUndoCoordinator } from "@/lib/crdt/undo";
+import { VaultUndoCoordinator, VaultUndoProvider } from "@/lib/crdt/undo";
 import { asMinorUnits } from "@/lib/domain/currency";
 import { SyncManager, type SyncManagerOptions } from "@/lib/sync/manager";
 import { closeDB, getUnpushedOps } from "@/lib/sync/persistence";
@@ -212,6 +221,28 @@ function accountTransactions(state: VaultState) {
     );
 }
 
+function physicalTransactionGraph(store: VaultState["transactions"]): {
+    readonly nestedIds: string[];
+    readonly parentIds: string[];
+} {
+    const parentIds: string[] = [];
+    const nestedIds: string[] = [];
+    for (const tree of Object.values(store)) {
+        if (typeof tree !== "object" || tree == null || !("years" in tree)) continue;
+        for (const year of tree.years) {
+            for (const month of year.months) {
+                for (const day of month.days) {
+                    for (const transaction of day.transactions) {
+                        parentIds.push(transaction.id);
+                        nestedIds.push(...transaction.suspectedDuplicates.map(({ id }) => id));
+                    }
+                }
+            }
+        }
+    }
+    return { nestedIds, parentIds };
+}
+
 function hasTransactionShadow(state: VaultState): boolean {
     return accountTransactions(state).some(
         (transaction) => getTransactionMaintenanceShadowIdentity(transaction) != null
@@ -381,6 +412,20 @@ describe("vault background maintenance integration", () => {
             insertTransaction(state.transactions, {
                 transaction: {
                     ...relocationTransaction(
+                        "__moneyflow_gc_shadow__:legacy\u0000source\u0000nested-private",
+                        80
+                    ),
+                    notes: "private nested child"
+                },
+                suspectedDuplicateOf: {
+                    accountId: "account",
+                    date: DATE,
+                    transactionId: "source-parent"
+                }
+            });
+            insertTransaction(state.transactions, {
+                transaction: {
+                    ...relocationTransaction(
                         "__moneyflow_gc_shadow__:legacy\u0000source\u0000private-parent",
                         200
                     ),
@@ -396,9 +441,15 @@ describe("vault background maintenance integration", () => {
         vi.spyOn(window, "requestAnimationFrame").mockImplementation(() => 1);
         vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
         let observedNotes: string | undefined;
+        let observedGraph:
+            | { readonly nestedIds: string[]; readonly parentIds: string[] }
+            | undefined;
 
         function CaptureTransaction() {
             observedNotes = useTransaction("nested-public")?.notes;
+            observedGraph = physicalTransactionGraph(
+                useVaultSelector((state) => state.transactions)
+            );
             return null;
         }
 
@@ -407,6 +458,8 @@ describe("vault background maintenance integration", () => {
         );
 
         expect(observedNotes).toBe("complete source");
+        expect(observedGraph?.parentIds).toEqual(["source-parent"]);
+        expect(observedGraph?.nestedIds).toEqual(["source-parent-nested", "nested-public"]);
         view.unmount();
         vault.mirror.dispose();
     });
@@ -794,19 +847,83 @@ describe("vault background maintenance integration", () => {
                 });
             });
             const frames = createFrameHost();
+            const undoCoordinator = new VaultUndoCoordinator(vault.doc);
             vi.spyOn(window, "requestAnimationFrame").mockImplementation(frames.host.requestFrame);
             vi.spyOn(window, "cancelAnimationFrame").mockImplementation(frames.host.cancelFrame);
             const observedKeys: string[][] = [];
+            const genericSelectorInputKeys: string[][] = [];
+            const observedWholeStateKeys: string[][] = [];
+            const observedReservedValues: unknown[] = [];
+            const observedNamedGenericIdentity: boolean[] = [];
+            let unrelatedRenderCount = 0;
+            let unrelatedIdentities:
+                | {
+                      readonly accounts: VaultState["accounts"];
+                      readonly people: VaultState["people"];
+                      readonly statuses: VaultState["statuses"];
+                      readonly tags: VaultState["tags"];
+                  }
+                | undefined;
 
             function CaptureTransactions() {
-                observedKeys.push(Object.keys(useTransactions()));
+                const named = useTransactions();
+                const generic = useVaultSelector((state) => {
+                    genericSelectorInputKeys.push(Object.keys(state.transactions));
+                    return state.transactions;
+                });
+                const wholeState = useVaultSelector((state) => state);
+                const spreadTransactions = useVaultSelector((state) => ({ ...state }).transactions);
+                const describedTransactions = useVaultSelector(
+                    (state) => Reflect.getOwnPropertyDescriptor(state, "transactions")?.value
+                );
+                const reserved = useVaultSelector(
+                    (state) => state.transactions[LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY]
+                );
+                observedKeys.push(
+                    Object.keys(named),
+                    Object.keys(generic),
+                    Object.keys(spreadTransactions)
+                );
+                if (typeof describedTransactions === "object" && describedTransactions != null) {
+                    observedKeys.push(Object.keys(describedTransactions));
+                }
+                observedWholeStateKeys.push(Object.keys(wholeState.transactions));
+                observedReservedValues.push(reserved);
+                observedNamedGenericIdentity.push(named === generic);
+                return null;
+            }
+
+            function CaptureUnrelatedState() {
+                unrelatedRenderCount += 1;
+                unrelatedIdentities = {
+                    accounts: useVaultSelector((state) => state.accounts),
+                    people: useVaultSelector((state) => state.people),
+                    statuses: useVaultSelector((state) => state.statuses),
+                    tags: useVaultSelector((state) => state.tags)
+                };
                 return null;
             }
 
             const view = render(
-                createElement(VaultProvider, { doc: vault.doc }, createElement(CaptureTransactions))
+                // createElement's required-children type needs the child in the typed props object.
+                // eslint-disable-next-line react/no-children-prop
+                createElement(VaultUndoProvider, {
+                    coordinator: undoCoordinator,
+                    children: createElement(
+                        VaultProvider,
+                        { doc: vault.doc },
+                        createElement(
+                            Fragment,
+                            null,
+                            createElement(CaptureTransactions),
+                            createElement(CaptureUnrelatedState)
+                        )
+                    )
+                })
             );
             frames.runAll();
+            const initialUnrelatedRenderCount = unrelatedRenderCount;
+            const initialUnrelatedIdentities = unrelatedIdentities;
             const visibleCid = accountTransactions(vault.mirror.getState()).find(
                 ({ id }) => id === "visible"
             )?.$cid;
@@ -840,6 +957,23 @@ describe("vault background maintenance integration", () => {
                     (keys) => !keys.includes(LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY)
                 )
             ).toBe(true);
+            expect(
+                genericSelectorInputKeys.every(
+                    (keys) => !keys.includes(LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY)
+                )
+            ).toBe(true);
+            expect(
+                observedWholeStateKeys.every(
+                    (keys) => !keys.includes(LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY)
+                )
+            ).toBe(true);
+            expect(observedReservedValues).not.toContainEqual(expect.anything());
+            expect(observedNamedGenericIdentity).not.toContain(false);
+            expect(unrelatedRenderCount).toBe(initialUnrelatedRenderCount);
+            expect(unrelatedIdentities?.accounts).toBe(initialUnrelatedIdentities?.accounts);
+            expect(unrelatedIdentities?.people).toBe(initialUnrelatedIdentities?.people);
+            expect(unrelatedIdentities?.statuses).toBe(initialUnrelatedIdentities?.statuses);
+            expect(unrelatedIdentities?.tags).toBe(initialUnrelatedIdentities?.tags);
             await act(async () => {
                 frames.runAll();
                 await Promise.resolve();
@@ -865,10 +999,78 @@ describe("vault background maintenance integration", () => {
 
             stopUpdates();
             view.unmount();
+            undoCoordinator.dispose();
             peer.mirror.dispose();
             vault.mirror.dispose();
         }
     );
+
+    it.each([
+        ["PeopleTable", () => createElement(PeopleTable, { vaultId: "selector-consumer" })],
+        ["StatusesTable", () => createElement(StatusesTable)],
+        ["TagsTable", () => createElement(TagsTable)]
+    ] as const)("sanitizes generic transaction state used by %s", async (_name, consumer) => {
+        const vault = createVaultMirror();
+        vault.mirror.setState((state: VaultState) => {
+            Reflect.set(state.people, "consumer", {
+                id: "consumer",
+                name: "Consumer",
+                linkedUserId: undefined,
+                deletedAt: undefined
+            });
+            Reflect.set(state.tags, "consumer", {
+                id: "consumer",
+                name: "Consumer",
+                color: undefined,
+                parentTagId: undefined,
+                isTransfer: false,
+                deletedAt: undefined
+            });
+        });
+        const frames = createFrameHost();
+        const undoCoordinator = new VaultUndoCoordinator(vault.doc);
+        vi.spyOn(window, "requestAnimationFrame").mockImplementation(frames.host.requestFrame);
+        vi.spyOn(window, "cancelAnimationFrame").mockImplementation(frames.host.cancelFrame);
+        const consumerStores: VaultState["transactions"][] = [];
+        const getAllTransactions = transactionQueries.getAllTransactions;
+        vi.spyOn(transactionQueries, "getAllTransactions").mockImplementation((transactions) => {
+            consumerStores.push(transactions);
+            return getAllTransactions(transactions);
+        });
+        const view = render(
+            // createElement's required-children type needs the child in the typed props object.
+            // eslint-disable-next-line react/no-children-prop
+            createElement(VaultUndoProvider, {
+                coordinator: undoCoordinator,
+                children: createElement(VaultProvider, { doc: vault.doc }, consumer())
+            })
+        );
+        frames.runAll();
+        const initialConsumerCallCount = consumerStores.length;
+        const peer = createVaultMirrorFromSnapshot(vault.doc.export({ mode: "snapshot" }));
+        const peerBase = VersionVector.decode(peer.doc.version().encode());
+        installLegacyMetadata(peer.doc);
+
+        await act(async () => {
+            vault.doc.import(peer.doc.export({ mode: "update", from: peerBase }));
+            await Promise.resolve();
+        });
+
+        expect(
+            vault.doc.getMap("transactions").get(LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY)
+        ).toBeInstanceOf(LoroMap);
+        expect(consumerStores.length).toBeGreaterThan(initialConsumerCallCount);
+        expect(
+            consumerStores.every(
+                (transactions) => !(LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY in transactions)
+            )
+        ).toBe(true);
+
+        view.unmount();
+        undoCoordinator.dispose();
+        peer.mirror.dispose();
+        vault.mirror.dispose();
+    });
 
     it("classifies synced shadow batches as maintenance and converges without local echo", () => {
         const source = createRelocationGarbage();
