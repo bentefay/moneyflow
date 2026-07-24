@@ -121,9 +121,18 @@ test.describe("Import Panel", () => {
         await createNewIdentity(page);
         const csvFilename = "p14-lineage-a.csv";
         const ofxFilename = "p14-lineage-b.ofx";
-        const csvDescriptions = ["P14 CSV negative", "P14 CSV zero"] as const;
+        const liveCsvDescriptions = [
+            "P14 CSV negative",
+            "P14 CSV positive",
+            "P14 CSV zero"
+        ] as const;
+        const independentlyDeletedDescription = "P14 CSV independently deleted";
         const ofxDescription = "P14 OFX survivor";
         const manualDescription = "P14 manual survivor";
+        let csvTransactionIds: string[] = [];
+        let independentlyDeletedTransactionId = "";
+        let ofxTransactionId = "";
+        let manualTransactionId = "";
         const transactionId = async (description: string): Promise<string> => {
             const id = await page
                 .getByRole("row", { name: new RegExp(description) })
@@ -141,7 +150,9 @@ test.describe("Import Panel", () => {
                     [
                         "Date,Description,Amount",
                         "2026-06-01,P14 CSV negative,-12.50",
-                        "2026-06-02,P14 CSV zero,0.00"
+                        "2026-06-02,P14 CSV positive,4.25",
+                        "2026-06-03,P14 CSV zero,0.00",
+                        `2026-06-04,${independentlyDeletedDescription},8.50`
                     ].join("\n")
                 )
             });
@@ -151,7 +162,7 @@ test.describe("Import Panel", () => {
             await page.getByRole("tab", { name: /Account/i }).click();
             await page.locator("#account-select").click();
             await page.getByRole("option", { name: /Default/i }).click();
-            await page.getByRole("button", { name: /Import 2 Transactions/i }).click();
+            await page.getByRole("button", { name: /Import 4 Transactions/i }).click();
             await expect(page).toHaveURL(/\/transactions/);
         });
 
@@ -191,14 +202,27 @@ test.describe("Import Panel", () => {
             ).toBeVisible();
         });
 
-        let csvTransactionIds: string[] = [];
-        let ofxTransactionId = "";
-        let manualTransactionId = "";
-        await test.step("add a manual row and import a distinct OFX batch", async () => {
+        await test.step("ordinary deletion leaves exactly three live linked identities", async () => {
             csvTransactionIds = await Promise.all(
-                csvDescriptions.map((description) => transactionId(description))
+                liveCsvDescriptions.map((description) => transactionId(description))
+            );
+            independentlyDeletedTransactionId = await transactionId(
+                independentlyDeletedDescription
             );
 
+            const independentlyDeletedRow = page.getByRole("row", {
+                name: new RegExp(independentlyDeletedDescription)
+            });
+            await independentlyDeletedRow.getByTestId("delete-button").click();
+            await independentlyDeletedRow.getByTestId("delete-button").click();
+            await expect(
+                page.locator(`[data-transaction-id="${independentlyDeletedTransactionId}"]`)
+            ).toHaveCount(0);
+            for (const id of csvTransactionIds)
+                await expect(page.locator(`[data-transaction-id="${id}"]`)).toBeVisible();
+        });
+
+        await test.step("add a manual row and import a distinct OFX batch", async () => {
             await page.getByTestId("add-transaction-button").click();
             const manualRow = page.getByRole("row", { selected: true });
             manualTransactionId = (await manualRow.getAttribute("data-transaction-id")) ?? "";
@@ -274,10 +298,12 @@ NEWFILEUID:NONE
         await test.step("delete only the chosen import and describe the boundary precisely", async () => {
             await goToImports(page);
             const targetImport = page.getByRole("row", { name: new RegExp(csvFilename) });
+            await expect(targetImport.getByRole("cell").nth(1)).toHaveText("3");
             await targetImport
                 .getByRole("button", { name: new RegExp(`Delete import ${csvFilename}`) })
                 .click();
             const dialog = page.getByRole("alertdialog");
+            await expect(dialog).toContainText("3 transactions");
             await expect(dialog).toContainText("Transactions from other imports");
             await expect(dialog).toContainText("added manually will not be deleted");
             await expect(dialog).toContainText("undo this as one action");
@@ -289,6 +315,9 @@ NEWFILEUID:NONE
             await page.getByTestId("transaction-table-toolbar").waitFor();
             for (const id of csvTransactionIds)
                 await expect(page.locator(`[data-transaction-id="${id}"]`)).toHaveCount(0);
+            await expect(
+                page.locator(`[data-transaction-id="${independentlyDeletedTransactionId}"]`)
+            ).toHaveCount(0);
             await expect(page.locator(`[data-transaction-id="${ofxTransactionId}"]`)).toBeVisible();
             await expect(
                 page.locator(`[data-transaction-id="${manualTransactionId}"]`)
@@ -299,6 +328,9 @@ NEWFILEUID:NONE
             await page.getByRole("button", { name: "Undo" }).click();
             for (const id of csvTransactionIds)
                 await expect(page.locator(`[data-transaction-id="${id}"]`)).toBeVisible();
+            await expect(
+                page.locator(`[data-transaction-id="${independentlyDeletedTransactionId}"]`)
+            ).toHaveCount(0);
             await expect(page.locator(`[data-transaction-id="${ofxTransactionId}"]`)).toBeVisible();
             await expect(
                 page.locator(`[data-transaction-id="${manualTransactionId}"]`)
@@ -312,6 +344,9 @@ NEWFILEUID:NONE
             await page.getByRole("button", { name: "Redo" }).click();
             for (const id of csvTransactionIds)
                 await expect(page.locator(`[data-transaction-id="${id}"]`)).toHaveCount(0);
+            await expect(
+                page.locator(`[data-transaction-id="${independentlyDeletedTransactionId}"]`)
+            ).toHaveCount(0);
             await expect(page.locator(`[data-transaction-id="${ofxTransactionId}"]`)).toBeVisible();
             await expect(
                 page.locator(`[data-transaction-id="${manualTransactionId}"]`)

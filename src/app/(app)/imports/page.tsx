@@ -10,11 +10,11 @@
 
 import { Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import { ACCEPTED_EXTENSIONS, type ImportData, ImportsTable } from "@/components/features/import";
 import { Button } from "@/components/ui/button";
-import { useActiveImports, useTransactionActions } from "@/lib/crdt/context";
+import { useActiveImports, useActiveTransactions, useTransactionActions } from "@/lib/crdt/context";
 import type { Import as ImportRecord } from "@/lib/crdt/schema";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +28,18 @@ export default function ImportsPage() {
 
     // Get all active imports from CRDT state
     const importsMap = useActiveImports();
+    const transactions = useActiveTransactions();
+
+    const liveLinkedTransactionCountByImportId = useMemo(() => {
+        const counts = new Map<string, number>();
+
+        for (const transaction of transactions) {
+            if (!transaction.importId) continue;
+            counts.set(transaction.importId, (counts.get(transaction.importId) ?? 0) + 1);
+        }
+
+        return counts;
+    }, [transactions]);
 
     // Transaction actions for deleting transactions by import
     const { deleteTransactionsByImport } = useTransactionActions();
@@ -41,7 +53,7 @@ export default function ImportsPage() {
         .map((imp) => ({
             id: imp.id,
             filename: imp.filename,
-            transactionCount: imp.transactionCount,
+            transactionCount: liveLinkedTransactionCountByImportId.get(imp.id) ?? 0,
             createdAt: imp.createdAt,
             deletedAt: imp.deletedAt
         }));
