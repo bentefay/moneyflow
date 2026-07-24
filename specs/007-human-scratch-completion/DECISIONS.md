@@ -316,6 +316,38 @@ need evidence, alternatives, security/UX impact, and a reversal path.
   self-cleaning on mount/import; never roll back only the public membrane or private-state filters,
   because that would re-open pre-frame data exposure and stale-shadow mutation.
 
+## D-016 — Preserve import identity and first-edit origin at the mutation boundary
+
+- **Date:** 2026-07-25
+- **Package / scope:** P14 / HS-008
+- **Status:** accepted
+- **Evidence:** `evidence/P14/implementation-04.md` and independent
+  `reviews/P14-review-04.md` PASS over cumulative
+  `b9105028926d24a5a0c5454777a6c33379ca606a..305d6613673cf200d456276c076463b68c075500`;
+  immutable reviews 01–03 retain the corrected stale-count, nested-count and zoom-containment
+  counterexamples.
+- **Alternatives:** Treat import counts as immutable file metadata; enumerate only top-level
+  transaction representations; let callers replace origin/lineage; derive origin from edit history;
+  delete linked rows across multiple history actions; retain unbounded byte-array spreading; or
+  expose the tooltip only programmatically when visual placement is difficult.
+- **Decision and reason:** Retain immutable import lineage on every parent/nested logical identity
+  and capture exact minor-unit `originalAmount` once, at the central first-real-amount-edit mutation
+  boundary. Derive destructive counts from the current deduplicated active logical set, while the
+  atomic delete scans every physical representation and removes the import record in one reversible
+  action. Keep large encrypted updates on bounded base64 conversion. Use a component-local
+  visual-viewport correction around the established accessible Radix tooltip so complete content
+  and arrow remain contained under narrow 200% zoom without weakening programmatic description.
+- **Security, data, UX, and compatibility impact:** Legacy/manual/unedited rows remain valid without
+  origin data; currency precision is exact through eight decimals; unrelated imports and manual
+  rows survive delete/Undo/Redo; encrypted payloads remain plaintext-free and large state reloads
+  and converges. Hover and keyboard focus expose the same complete origin with stable viewport
+  containment, dark contrast and reduced-motion compatibility.
+- **Reversal/migration path:** Revert the complete P14 product/test range only with an independently
+  reviewed identity-exact, first-origin-preserving and one-action reversible replacement. The fields
+  are backward-compatible and should be retained when rolling UI behavior back; never remove only
+  active nested enumeration, bounded encoding or collision correction while keeping dependent
+  count/delete, scale or tooltip behavior.
+
 ## Decision template
 
 ### D-XXX — Title

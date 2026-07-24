@@ -5,23 +5,27 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Implementation dispatch
 
-- **Package / revision:** P14 / 03
+- **Package / revision:** P14 / 04
 - **Scope IDs:** HS-008 only; import lineage, immutable original amount, accessible amount tooltip
-  and reversible import deletion; HS-008 remains incomplete and unchecked
-- **State:** changes_requested
+  and reversible import deletion; HS-008 remains unchecked until the separate root marker
+  transaction
+- **State:** passed after current root integration; revisions 01–04 are immutable
 - **Task:** `tasks/HS-008-import-lineage.md`; exact 4-line HS-008 block in SCOPE
 - **Dependencies:** P09/02 is passed; P14 is independent of blocked P05/P08/P10
 - **Literal original BASE:**
   `b9105028926d24a5a0c5454777a6c33379ca606a`
-- **Revision-03 pre-implementation HEAD:**
-  `3f9597873ea965638a8f53e08ced339cdc3ce8ca`
+- **Revision-04 pre-implementation HEAD:**
+  `8fc2163b6a44cb01775d4134f702b98f4ff9a680`
 - **Literal cumulative product/test HEAD:**
-  `cf6456eeb5bd4029ae57eeb83da7e53194396a4d`
-- **Sole implementer artifact:** `evidence/P14/implementation-03.md`
+  `305d6613673cf200d456276c076463b68c075500`
+- **Sole implementer artifact:** `evidence/P14/implementation-04.md`
 - **Frozen evidence identity:** SHA-256
-  `c07a417ba39a58801e7d411adcd4c87c47614e526d6c35aa1e456a306e85eb8d`, 159 lines /
-  11,901 bytes
-- **Future immutable review artifact:** `reviews/P14-review-03.md`
+  `c68488162a547ca369a8cd7734b40dccc95140407ec9c931efdb6b8e4b7521d3`, 184 lines /
+  13,865 bytes
+- **Frozen revision-04 review:** `reviews/P14-review-04.md`, PASS, SHA-256
+  `11d524993eb312b318ebc3ec5c66a88fbbe68a580ef1103d66deb30fd3149d99`, 202 lines /
+  16,035 bytes. F-03 closes with every sampled tooltip/text/arrow rectangle contained at an exact
+  eight-pixel minimum margin; F-02/F-01 and the full cumulative HS-008 range remain green.
 - **Revision-03 review identity:** FAIL, SHA-256
   `e5df38ff0486c5f65d8f734e7dcdd87522ea169667f477d1bdaac6f1f1b57af8`, 201 lines /
   16,049 bytes
@@ -55,25 +59,26 @@ literal field is `pending`. Workers may read but never edit it.
   `7e4c4f8244484ee8885ecc4c547069a10d7891689a917e3332a652574754c522` and review
   `92bbcf462e6cceb973adb9525402cc357ed37706d67752169506ae286e1b621f`; revision-02
   evidence `e7d8dcf685f920f1ab182a2719fb3573fc3daceb199c01852505eaefad5eeb52`
-  and review `e6c4d2fdbd4ce5b2c5d6db75f6451a19d0a1901bb769640a1933e9fa9fdab7c4`.
+  and review `e6c4d2fdbd4ce5b2c5d6db75f6451a19d0a1901bb769640a1933e9fa9fdab7c4`;
+  revision-03 evidence `c07a417ba39a58801e7d411adcd4c87c47614e526d6c35aa1e456a306e85eb8d`
+  and review `e5df38ff0486c5f65d8f734e7dcdd87522ea169667f477d1bdaac6f1f1b57af8`.
   Do not edit any prior artifact.
 - **Evidence correction requirement:** immutable revision-01 evidence is the fourteenth repository
   `format:check` failure. Revision-02 evidence correctly reports all 14 failures and itself passes.
-  Revision-03 evidence must preserve that exact truth and pass formatting before handoff.
+  Revision-04 evidence must preserve that exact truth and pass formatting before handoff.
 - **Implementation-start dirty paths:** root-owned unstaged `HANDOFF.md` and `PROGRESS.md` only;
-  index empty; both prior evidence/review pairs are committed and immutable
-- **Allowed implementation paths:** only `src/lib/crdt/queries.ts`,
-  `src/lib/crdt/context.tsx`, `src/app/(app)/imports/page.tsx`,
-  `tests/unit/crdt/transaction-queries.test.ts`, and `tests/e2e/import.spec.ts`. Centralize a pure
-  canonical query that enumerates every public top-level and nested transaction representation,
-  collapses relocation/conflict copies by logical `id`, and filters active identities with the same
-  deletion semantics. Expose that result through a narrowly named context hook and use it only for
-  the existing imports-page count boundary. Do not broaden `useActiveTransactions()` because its
-  flat parent-only contract serves transaction-grid behavior, and do not change the already sound
-  atomic mutation. Touch only proven owners. No component, other UI/CRDT/sync/crypto/server/schema/
-  migration/dependency/config/test path, global ledger, prior evidence/review, scratch, FS-001,
-  SCOPE, `.claude`, `.codex` or agent configuration without a reproduced blocker and prior root
-  expansion.
+  index empty; all three prior evidence/review pairs are committed and immutable
+- **Allowed implementation paths:** only
+  `src/components/features/transactions/cells/InlineEditableAmount.tsx`,
+  `tests/e2e/import.spec.ts`, and, if meaningful non-layout behavior needs focused ownership, the
+  exact new path `tests/unit/components/inline-editable-amount.test.tsx`. Fix collision-aware
+  placement at the actual zoomed viewport/nested virtualized scroll boundary while keeping the
+  established shadcn/Radix tooltip semantics and current accessible input description. Do not edit
+  the shared tooltip primitive unless a reproducible component-local impossibility is first
+  reported to root and root explicitly expands scope. No other component/UI/CRDT/import/sync/
+  crypto/server/schema/migration/dependency/config/test path, global ledger, prior evidence/review,
+  scratch, FS-001, SCOPE, `.claude`, `.codex` or agent configuration without a reproduced blocker
+  and prior root expansion.
 - **Commit contract:** inspect existing patterns first; stage exact authorized product/test paths
   only; commit product/test work with a short message containing no parentheses; leave evidence
   uncommitted. Never use `git add .` or `git add -A`.
@@ -97,44 +102,45 @@ literal field is `pending`. Workers may read but never edit it.
   preserving other imports/manual rows and pruning only truly empty buckets. It must be one Undo
   step; Redo repeats the exact logical result. Alias cleanup must remain legal, no stale import row
   or orphan duplicate may survive, and another import's data must never be deleted. The dialog must
-  give precise destructive feedback.
+  give precise destructive feedback from the current live logical-identity set.
 - **Data-preservation decision:** follow the PROCESS hierarchy and existing CRDT conventions.
   Preserve reversibility and unrelated data. If retention versus physical-removal semantics remain
-  materially ambiguous after source inspection, record a complete `Q-PROPOSAL-P14-03-*` in the
+  materially ambiguous after source inspection, record a complete `Q-PROPOSAL-P14-04-*` in the
   evidence, choose the safest reversible implementation and continue; do not ask or pause.
 - **Cumulative regression:** do not weaken revision-01 behavior. Retain first-edit origin,
   parent/nested lineage, tooltip accessibility/precision/zoom, atomic live-set deletion/history and
   bounded 1,000-row encrypted persistence unchanged.
-- **Required red-to-green proof:** reproduce review F-02 on unchanged revision-02 product through
-  the ordinary UI: import a one-row file, then an identical one-row file so the second identity is
-  nested under the first and the transaction row exposes the Potential duplicate state. Prove the
-  nested import's table/dialog count is zero while confirmation deletes one identity. Then prove
-  both parent and nested imports each report one distinct active identity; deleting the nested
-  import removes only its exact nested ID plus record, one Undo restores that exact ID/record and
-  duplicate state, and one Redo removes them again while preserving the parent and unrelated
-  import/manual rows. Unit tests must cover parent+nested enumeration, deleted identities and
-  logical-ID deduplication across physical relocation/conflict copies. Retain the revision-02 F-01
-  four → ordinary-delete one → dialog three → exact delete/Undo/Redo journey unchanged.
-- **Required automation:** repeat the exact F-02 journey at least three times with one worker and
-  retries disabled; repeat retained F-01 at least once; run the focused import/transaction profile
-  in three clean processes, owner Vitest, full Vitest, typecheck, lint, build, scoped formatting/
-  ESLint and exact diff checks. Run the six-file affected E2E matrix and full E2E once each with one
-  worker/retries zero. Report every red and inherited failure exactly; no arbitrary waits,
-  temporary configs or text-only proof.
+- **Required red-to-green proof:** before product code, add a checked-in behavior-led browser
+  regression that reproduces F-03 on exact unchanged revision-03 behavior. Through ordinary import
+  and amount editing, use 390x844, 200% document zoom, dark mode and reduced motion. For a lower
+  vertically positioned visible edited row and a right-offset visible virtualized row, exercise
+  both keyboard focus and pointer hover, assert the complete tooltip text, and require every tooltip
+  bounding-box edge to stay within the actual viewport. Retain a favorable first-row control so the
+  red proves position dependence. Make those same deterministic samples green without hiding the
+  tooltip, weakening the visual requirement, relying only on `aria-description`, disabling zoom/
+  virtualization/collision handling or adding arbitrary waits. Retain F-02 normal nested-import
+  count/delete/Undo/Redo x3 and F-01 stale-count history at least once unchanged.
+- **Required automation:** repeat the exact new F-03 containment journey at least three times with
+  one worker and retries disabled; retain F-02 x3 and F-01 once; run the focused import/transaction/
+  component profile in three clean processes, owner Vitest, full Vitest, typecheck, lint, build,
+  scoped formatting/ESLint and exact diff checks. Run the six-file affected E2E matrix and full E2E
+  once each with one worker/retries zero. Report every red and inherited failure exactly; no
+  arbitrary waits, temporary configs, CSS-only assertion substitutes or text-only proof.
 - **Manual charter:** use only repository-installed headless `playwright-cli` with a disposable
-  authenticated session. Reproduce ordinary duplicate import → parent/nested count one → nested
-  delete/Undo/Redo and cross-import/manual isolation, plus retained F-01 stale-parent behavior.
-  Sample retained origin tooltip, 200% zoom, 1,000-row reload, offline/duplicate-tab convergence and
-  encrypted request privacy rather than relying only on prior evidence. Ask root to start the
-  server if absent. Close/delete the session, ask root to stop the server, remove only generated
-  artifacts and restore `next-env.d.ts`.
-- **Evidence contract:** record exact original BASE, revision-03 pre-HEAD, cumulative HEAD, commits,
-  paths and index; F-02 red/green and retained F-01 green; exact parent/nested active logical-ID
-  enumeration and deduplication; delete/history/isolation assertions; commands/repeats/counts;
+  authenticated session. Reproduce the exact F-03 lower-row and right-offset focus+hover geometry at
+  390x844/200% zoom in dark/reduced-motion and record input/tooltip boxes plus full containment.
+  Sample first-row control, correct role/name/description, long currency text and tooltip contrast.
+  Then retain nested count/delete/history, 1,000-row reload/virtualization, offline/duplicate-tab
+  convergence and encrypted request privacy rather than relying only on prior evidence. Ask root to
+  start the server if absent. Close/delete the session, ask root to stop the server, remove only
+  generated artifacts and restore `next-env.d.ts`.
+- **Evidence contract:** record exact original BASE, revision-04 pre-HEAD, cumulative HEAD, commits,
+  paths and index; F-03 red/green geometry for every required focus/hover position; retained F-02/
+  F-01 greens; exact positioning mechanism and accessibility semantics; commands/repeats/counts;
   sanitized manual evidence; cumulative regression evidence; inherited reds; cleanup; frozen
   checks; risks and any complete Q proposal. Explicitly run and report repository `format:check`;
-  format `implementation-03.md` before freeze without changing either prior evidence file. Do not
-  claim PASS.
+  format `implementation-04.md` before freeze without changing any prior evidence. Do not claim
+  PASS.
 - **Applicable repository guides:** `.claude/skills/import/SKILL.md`,
   `.claude/skills/crdt/SKILL.md`, `.claude/skills/components/SKILL.md`,
   `.claude/skills/sync/SKILL.md` and `.claude/skills/e2e/SKILL.md`; also apply the general money,
@@ -150,29 +156,25 @@ literal field is `pending`. Workers may read but never edit it.
 
 - **Reviewer:** distinct `human_scratch_reviewer`
 - **Literal cumulative review BASE:** `b9105028926d24a5a0c5454777a6c33379ca606a`
-- **Literal cumulative review HEAD:** `cf6456eeb5bd4029ae57eeb83da7e53194396a4d`
-- **Range type:** original P14 BASE through the exact revision-03 product/test HEAD
-- **Implementation evidence:** `evidence/P14/implementation-03.md`
-- **Sole reviewer artifact:** `reviews/P14-review-03.md`
+- **Literal cumulative review HEAD:** `305d6613673cf200d456276c076463b68c075500`
+- **Range type:** original P14 BASE through the exact revision-04 product/test HEAD
+- **Implementation evidence:** `evidence/P14/implementation-04.md`
+- **Sole reviewer artifact:** `reviews/P14-review-04.md`
 - **Reviewer writes:** the new review file only; no product/test/evidence/ledger/config/frozen edit
   or commit
-- **Required review focus:** close review-02 F-02 using complete active parent+nested distinct-ID
-  enumeration with deletion-equivalent logical identity semantics; independently exercise ordinary
-  duplicate import, exact count/delete/Undo/Redo and isolation. Revalidate review-01 F-01 and every
-  cumulative HS-008 acceptance clause plus evidence formatting truth.
-- **Evidence gate:** inspect the entire cumulative range; independently run F-02 E2E x3 and retained
-  F-01, focused x3, owner/full checks, affected/full no-retry E2E, installed-CLI nested count/delete/
-  history plus cumulative accessibility/large/offline/privacy samples, repository formatting and
-  exact cleanup.
+- **Required review focus:** close review-03 F-03 with real 390x844/200%-zoom focus and hover
+  containment across first, lower and right-offset virtualized rows, while preserving accessible
+  description, tooltip text/contrast, editing/navigation and non-origin absence. Revalidate closed
+  F-02/F-01 and every cumulative HS-008 acceptance clause plus evidence formatting truth.
+- **Evidence gate:** inspect the entire cumulative range; independently run F-03 E2E x3, F-02 x3
+  and retained F-01, focused x3, owner/full checks, affected/full no-retry E2E, installed-CLI exact
+  positional geometry plus cumulative count/delete/history/large/offline/privacy samples,
+  repository formatting and exact cleanup.
 - **Verdict contract:** review the literal range with explicit findings, acceptance mapping,
   commands/repeats, manual evidence, cleanup/Q proposals and one PASS/FAIL. Any material HS-008
   correctness, preservation, persistence, history, accessibility, security or UX finding fails.
 
 ## Next root action
 
-Persist immutable revision-03 evidence/review and this failure disposition in an exact-path root
-control commit. Then rewrite this handoff for P14 revision 04 with the same original BASE, a new
-pre-implementation HEAD, exact `evidence/P14/implementation-04.md` and
-`reviews/P14-review-04.md`, and only the tooltip component plus deterministic unit/component/E2E
-owners needed to close F-03. Preserve all three prior revisions byte-for-byte and keep HS-008
-unchecked.
+Persist the immutable revision-04 PASS artifacts and root transcriptions, then durably prepare and
+execute only the exact HS-008 `[] -> [x]` marker transaction.
