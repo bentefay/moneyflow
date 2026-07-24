@@ -9,7 +9,7 @@ literal field is `pending`. Workers may read but never edit it.
 - **Scope IDs:** HS-008 only; import lineage, immutable original amount, accessible amount tooltip
   and reversible import deletion; HS-008 remains unchecked until the separate root marker
   transaction
-- **State:** passed after current root integration; revisions 01–04 are immutable
+- **State:** passed; revisions 01–04 are immutable; HS-008 marker transaction is durably prepared
 - **Task:** `tasks/HS-008-import-lineage.md`; exact 4-line HS-008 block in SCOPE
 - **Dependencies:** P09/02 is passed; P14 is independent of blocked P05/P08/P10
 - **Literal original BASE:**
@@ -26,6 +26,7 @@ literal field is `pending`. Workers may read but never edit it.
   `11d524993eb312b318ebc3ec5c66a88fbbe68a580ef1103d66deb30fd3149d99`, 202 lines /
   16,035 bytes. F-03 closes with every sampled tooltip/text/arrow rectangle contained at an exact
   eight-pixel minimum margin; F-02/F-01 and the full cumulative HS-008 range remain green.
+- **Root PASS integration:** `a2182116db08200b8b4df28412512b9ca3406aa2`
 - **Revision-03 review identity:** FAIL, SHA-256
   `e5df38ff0486c5f65d8f734e7dcdd87522ea169667f477d1bdaac6f1f1b57af8`, 201 lines /
   16,049 bytes
@@ -176,5 +177,5 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Persist the immutable revision-04 PASS artifacts and root transcriptions, then durably prepare and
-execute only the exact HS-008 `[] -> [x]` marker transaction.
+Execute and verify only the durably prepared HS-008 `[] -> [x]` marker transaction; no package
+dispatch is allowed until it finalizes.

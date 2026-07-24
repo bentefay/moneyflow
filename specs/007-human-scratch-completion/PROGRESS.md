@@ -7,8 +7,8 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P14 revision 04 (`passed` after current root integration)
-- **Next action:** persist revision-04 PASS, then durably prepare the HS-008 completion marker
+- **Current package:** P14 revision 04 (`passed`)
+- **Next action:** execute and verify only the prepared HS-008 `[] -> [x]` marker
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -16,13 +16,16 @@ review evidence.
 - **Rolling scratch SHA-256:** `b09454dea925ebd5af185c4b5011762a38beac852ef728c9adaf4e343782561d`
 - **Authorized checked HS IDs:** HS-001, HS-002, HS-004, HS-005, HS-006, HS-010, HS-014, HS-017,
   HS-018
-- **Active completion marker event:** none
+- **Active completion marker event:** HS-008 `completion_pending`; pre-change scratch SHA
+  `b09454dea925ebd5af185c4b5011762a38beac852ef728c9adaf4e343782561d`; mapped review
+  `reviews/P14-review-04.md`; integration `a2182116db08200b8b4df28412512b9ca3406aa2`;
+  intended exact change `[] -> [x]`
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** nine passed; HS-008 completion pending after P14 PASS; HS-015 blocked
   externally; HS-011/HS-012 and eight other requirements queued
-- **Last ledger update:** 2026-07-25; P14 revision-04 independently passed and root integration is
-  pending
+- **Last ledger update:** 2026-07-25; revision-04 PASS integrated and HS-008 completion marker
+  durably prepared
 
 ## Package ledger
 
@@ -44,7 +47,7 @@ review evidence.
 | P11C    | HS-004         | Alias import/manual/shared flows, performance hardening and exhaustive tests        | P11B                 | passed | 03 | `0426866fa66cc022efca6d74cd5088d586d3d11b..daab038ee741faa9f92a373b27efe0c8fe8940db` | `evidence/P11C/implementation-03.md` | `reviews/P11C-review-03.md` | `78e2f978f8d258d8c4d379f53e75089a2ce975db` |
 | P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | passed | 08 | `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e..a2a31839f6bb57855fa60b8cfcc06feed069cafa` | `evidence/P12/implementation-08.md` | `reviews/P12-review-08.md` | `f8cbb5a8caacb763c0bb77199595a5ee332ab729` |
 | P13     | HS-001         | Persisted normal empty Add Transaction rows and grid navigation                     | P11C, P09            | passed | 03 | `415ea080b3b19191fd71601742056a619b4a3080..9f307e200676711ca2a3ba81bd816314807434ad` | `evidence/P13/implementation-03.md` | `reviews/P13-review-03.md` | `7a04338fa7c3f68463d12d11082bc56e87c1872b` |
-| P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | passed | 04 | `b9105028926d24a5a0c5454777a6c33379ca606a..305d6613673cf200d456276c076463b68c075500` | `evidence/P14/implementation-04.md` | `reviews/P14-review-04.md` | pending current root integration |
+| P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | passed | 04 | `b9105028926d24a5a0c5454777a6c33379ca606a..305d6613673cf200d456276c076463b68c075500` | `evidence/P14/implementation-04.md` | `reviews/P14-review-04.md` | `a2182116db08200b8b4df28412512b9ca3406aa2` |
 | P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16A    | FS-001, HS-009 | Allocation/ownership validation, remainder/effective shares and exact apportionment | P01                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -90,7 +93,7 @@ required marker rollbacks before the next dispatch.
 | HS-005      | human scratch block               | P12                          | authorized marker after package PASS       | passed       | P12 integration `f8cbb5a8caacb763c0bb77199595a5ee332ab729`; `reviews/P12-review-08.md`; marker `2c52bd78… -> aa8a1f56…` |
 | HS-006      | human scratch block               | P09                          | authorized marker after package PASS       | passed       | P09 integration `59bf82e894e45e034858e25255240701a3afb0b8`; `reviews/P09-review-02.md`; marker `753be6b7… -> c2b986fd…` |
 | HS-007      | human scratch block               | P17A, P17B, P17C, P17D       | authorized marker after all package PASSes | queued       | —                                                                                                                       |
-| HS-008      | human scratch block               | P14                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
+| HS-008      | human scratch block               | P14                          | authorized marker after package PASS       | completion_pending | P14 integration `a2182116db08200b8b4df28412512b9ca3406aa2`; `reviews/P14-review-04.md`; marker pending from `b09454de…` |
 | HS-009      | human scratch block               | P16A, P16C, P16D             | authorized marker after all package PASSes | queued       | —                                                                                                                       |
 | HS-010      | human scratch block               | P06                          | authorized marker after package PASS       | passed | P06 integration `8e269ab9a6fc15ed6d845542b879e5499828134e`; `reviews/P06-review-01.md`; marker `c74a2a78… -> 753be6b7…` |
 | HS-011      | human scratch block               | P07, P08                     | authorized marker after all package PASSes | queued | P07 PASS/integration `1f6cb96b27c8093f0ba2c319f32d3c79c8aab126`; P08 still required/gated; no marker |
@@ -2282,6 +2285,15 @@ and bounded rendering, offline/two-tab convergence, clean lifecycle/console and 
 Frozen sources, all prior artifacts, HEAD and index boundaries pass; no material finding or Q
 proposal. Root acceptance transcribes R-010/R-023 and D-016; HS-008 remains unchecked until the
 separate durable marker event.
+
+**2026-07-25T04:11:25+10:00 — HS-008 `queued -> completion_pending`:** P14 revision-04 PASS,
+immutable evidence/review and root transcriptions are integrated as
+`a2182116db08200b8b4df28412512b9ca3406aa2`. Root durably prepares the sole authorized frozen-source
+edit: change only HS-008's first-line marker from `[]` to `[x]` against pre-change scratch SHA
+`b09454dea925ebd5af185c4b5011762a38beac852ef728c9adaf4e343782561d`. The authorized checked set
+remains HS-001/HS-002/HS-004/HS-005/HS-006/HS-010/HS-014/HS-017/HS-018 until the marker is applied.
+All 21 normalized blocks, canonical FS-001 and SCOPE are exact. No package dispatch is legal while
+this event is pending.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
