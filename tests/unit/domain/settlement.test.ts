@@ -1,8 +1,14 @@
 import * as fc from "fast-check";
 import { Temporal } from "temporal-polyfill";
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
-import type { Account, NestedDuplicate, Status, Transaction } from "@/lib/crdt/schema";
+import type {
+    Account,
+    NestedDuplicate,
+    Status,
+    Transaction,
+    TransactionStore
+} from "@/lib/crdt/schema";
 import * as domainBarrel from "@/lib/domain";
 import * as balanceDomain from "@/lib/domain/balance";
 import { asMinorUnits } from "@/lib/domain/currency";
@@ -73,6 +79,20 @@ function unsafeAmountTransaction(id: string, amount: number): Transaction {
     } as Transaction;
 }
 
+function runtimeTransaction(
+    value: Transaction,
+    overrides: Readonly<Record<string, unknown>>
+): Transaction {
+    return { ...value, ...overrides } as unknown as Transaction;
+}
+
+function runtimeAccount(
+    value: Account,
+    overrides: Readonly<Record<string, unknown>>
+): Account {
+    return { ...value, ...overrides } as unknown as Account;
+}
+
 function nestedTransaction(id: string, amount: number): NestedDuplicate {
     const parent = transaction(id, amount);
     const nested: Partial<Transaction> = { ...parent };
@@ -94,6 +114,44 @@ function baseStatuses(
         [PAID_STATUS_ID]: paid,
         [PENDING_STATUS_ID]: status(PENDING_STATUS_ID)
     };
+}
+
+function transactionStore(
+    buckets: readonly (readonly Transaction[])[]
+): TransactionStore {
+    return {
+        $cid: "transaction-store",
+        settlement: {
+            $cid: "settlement-tree",
+            accountId: "settlement",
+            years: [
+                {
+                    $cid: "year-2024",
+                    months: [
+                        {
+                            $cid: "month-1",
+                            days: buckets.map((transactions, index) => ({
+                                $cid: `day-${String(index + 1)}`,
+                                day: index + 1,
+                                transactions
+                            })),
+                            month: 1
+                        }
+                    ],
+                    year: 2024
+                }
+            ]
+        }
+    } as unknown as TransactionStore;
+}
+
+function settleStore(
+    store: TransactionStore,
+    accounts: Readonly<Record<string, Account | string>> = baseAccounts(),
+    statuses: Readonly<Record<string, Status | string>> = baseStatuses(),
+    defaultCurrency?: string
+): SettlementResult {
+    return calculateSettlementBalances(store as never, accounts, statuses, defaultCurrency);
 }
 
 function settle(
@@ -192,6 +250,12 @@ describe("sole settlement authority", () => {
         expect("calculateSettlementBalances" in balanceDomain).toBe(false);
         expect("calculateSimpleSettlementBalances" in domainBarrel).toBe(false);
         expect(domainBarrel.calculateSettlementBalances).toBe(calculateSettlementBalances);
+    });
+
+    it("accepts only the retained hierarchical TransactionStore", () => {
+        expectTypeOf(calculateSettlementBalances)
+            .parameter(0)
+            .toEqualTypeOf<TransactionStore>();
     });
 });
 
@@ -415,6 +479,275 @@ describe("eligibility and currency isolation", () => {
                 debtorPersonId: "bob"
             }
         ]);
+    });
+});
+
+describe("retained runtime boundary sanitization", () => {
+    it("treats a missing allocation map as the canonical empty allocation", () => {
+        const input = runtimeTransaction(transaction("missing-allocations", -100), {
+            allocations: undefined
+        });
+
+        const result = settle([input]);
+
+        expect(result.issues).toEqual([]);
+        expect(result.qualifyingTransactionCount).toBe(1);
+        expect(result.obligations).toEqual([]);
+    });
+
+    it.each([null, [], 17, "legacy"])(
+        "reports a typed issue for invalid allocation container %#",
+        (allocations) => {
+            const result = settle([
+                runtimeTransaction(transaction("invalid-allocation-container", -100), {
+                    allocations
+                })
+            ]);
+
+            expect(result.issues).toEqual([
+                {
+                    accountId: "account-a",
+                    reason: "invalid-container",
+                    transactionId: "invalid-allocation-container",
+                    type: "invalid-allocation"
+                }
+            ]);
+            expect(result.qualifyingTransactionCount).toBe(0);
+            expect(result.obligations).toEqual([]);
+        }
+    );
+
+    it.each([undefined, null, [], 17, "legacy"])(
+        "reports a typed issue for invalid ownership container %#",
+        (ownerships) => {
+            const accounts = {
+                "account-a": runtimeAccount(account("account-a", { alice: 100 }), {
+                    ownerships
+                })
+            };
+            const result = settle(
+                [transaction("invalid-ownership-container", -100, { allocations: { bob: 50 } })],
+                accounts
+            );
+
+            expect(result.issues).toEqual([
+                {
+                    accountId: "account-a",
+                    reason: "invalid-container",
+                    transactionId: "invalid-ownership-container",
+                    type: "invalid-ownership"
+                }
+            ]);
+            expect(result.qualifyingTransactionCount).toBe(0);
+        }
+    );
+
+    it("accepts a missing duplicate list as empty and rejects null or mixed legacy lists", () => {
+        const missing = settle([
+            runtimeTransaction(transaction("missing-duplicates", -100), {
+                suspectedDuplicates: undefined
+            })
+        ]);
+        const invalidStores = [
+            transactionStore([
+                [
+                    runtimeTransaction(transaction("null-duplicates", -100), {
+                        suspectedDuplicates: null
+                    })
+                ]
+            ]),
+            transactionStore([
+                [
+                    runtimeTransaction(transaction("mixed-duplicates", -100), {
+                        suspectedDuplicates: [nestedTransaction("nested-valid", -100), 17]
+                    })
+                ]
+            ])
+        ];
+
+        expect(missing.issues).toEqual([]);
+        expect(missing.qualifyingTransactionCount).toBe(1);
+        for (const store of invalidStores) {
+            const result = settleStore(store);
+            expect(result.issues).toHaveLength(1);
+            expect(result.issues[0]).toMatchObject({
+                reason: "invalid-duplicate-list",
+                type: "invalid-transaction"
+            });
+            expect(result.qualifyingTransactionCount).toBe(0);
+        }
+    });
+
+    it("reports non-string currency and missing fallback currency without throwing", () => {
+        const numericCurrency = settle(
+            [transaction("numeric-currency", -100)],
+            {
+                "account-a": runtimeAccount(account("account-a", { alice: 100 }), {
+                    currency: 840
+                })
+            }
+        );
+        const missingFallback = settle(
+            [transaction("missing-fallback", -100)],
+            {
+                "account-a": runtimeAccount(account("account-a", { alice: 100 }), {
+                    currency: undefined
+                })
+            },
+            baseStatuses(),
+            undefined
+        );
+
+        expect(numericCurrency.issues).toEqual([
+            {
+                accountId: "account-a",
+                reason: "not-string",
+                transactionId: "numeric-currency",
+                type: "invalid-currency"
+            }
+        ]);
+        expect(missingFallback.issues).toEqual([]);
+        expect(missingFallback.positions[0]?.currency).toBe("USD");
+    });
+});
+
+describe("hierarchical retained-topology eligibility", () => {
+    it("filters inactive copies before selecting an active same-ID representation", () => {
+        const live = runtimeTransaction(
+            transaction("relocated", -1_000, { allocations: { bob: 100 } }),
+            { $cid: "z-live" }
+        );
+        const deleted = runtimeTransaction(
+            transaction("relocated", -1_000, {
+                allocations: { charlie: 100 },
+                deleted: true
+            }),
+            { $cid: "a-deleted" }
+        );
+        const reversedCidLive = runtimeTransaction(live, { $cid: "a-live" });
+        const reversedCidDeleted = runtimeTransaction(deleted, { $cid: "z-deleted" });
+
+        const first = settleStore(transactionStore([[deleted], [live]]));
+        const second = settleStore(
+            transactionStore([[reversedCidLive], [reversedCidDeleted]])
+        );
+
+        expect(second).toEqual(first);
+        expect(first.qualifyingTransactionCount).toBe(1);
+        expect(obligationShape(first)).toEqual([
+            {
+                amountMinor: 1_000,
+                creditorPersonId: "alice",
+                currency: "USD",
+                debtorPersonId: "bob"
+            }
+        ]);
+    });
+
+    it("collapses exact active copies across buckets independently of list order", () => {
+        const firstCopy = runtimeTransaction(
+            transaction("duplicate-active", -500, { allocations: { bob: 100 } }),
+            { $cid: "copy-a" }
+        );
+        const secondCopy = runtimeTransaction(firstCopy, { $cid: "copy-b" });
+
+        const forward = settleStore(transactionStore([[firstCopy], [secondCopy]]));
+        const reverse = settleStore(transactionStore([[secondCopy], [firstCopy]]));
+
+        expect(reverse).toEqual(forward);
+        expect(forward.qualifyingTransactionCount).toBe(1);
+        expect(forward.contributions).toHaveLength(1);
+    });
+
+    it("excludes nested identities when only a deleted parent retains topology", () => {
+        const nested = nestedTransaction("nested-retained", -700);
+        const deletedParent = transaction("deleted-parent", -100, {
+            deleted: true,
+            nested: [nested]
+        });
+        const flattenedNested = transaction("nested-retained", -700, {
+            allocations: { bob: 100 }
+        });
+
+        const result = settleStore(
+            transactionStore([[flattenedNested], [deletedParent]])
+        );
+
+        expect(result.issues).toEqual([]);
+        expect(result.qualifyingTransactionCount).toBe(0);
+        expect(result.contributions).toEqual([]);
+    });
+});
+
+describe("collision-free settlement identities", () => {
+    it("does not reuse a malformed allocation result for a distinct delimiter payload", () => {
+        const result = settle([
+            transaction("collision-allocation-a", -100, {
+                allocations: { a: "x|1:b=string:y" }
+            }),
+            transaction("collision-allocation-b", -100, {
+                allocations: { a: "x", b: "y" }
+            })
+        ]);
+
+        expect(
+            result.issues.map((issue) => ({
+                personId: "personId" in issue ? issue.personId : undefined,
+                transactionId: issue.transactionId,
+                type: issue.type
+            }))
+        ).toEqual([
+            {
+                personId: "a",
+                transactionId: "collision-allocation-a",
+                type: "invalid-allocation"
+            },
+            {
+                personId: "a",
+                transactionId: "collision-allocation-b",
+                type: "invalid-allocation"
+            },
+            {
+                personId: "b",
+                transactionId: "collision-allocation-b",
+                type: "invalid-allocation"
+            }
+        ]);
+    });
+
+    it("keeps NUL-delimited person identities in separate directed aggregates", () => {
+        const result = settle(
+            [
+                transaction("nul-pair-a", -100, {
+                    accountId: "account-c",
+                    allocations: { "a\u0000b": 100 }
+                }),
+                transaction("nul-pair-b", -200, {
+                    accountId: "account-bc",
+                    allocations: { a: 100 }
+                })
+            ],
+            {
+                "account-bc": account("account-bc", { "b\u0000c": 100 }),
+                "account-c": account("account-c", { c: 100 })
+            }
+        );
+
+        expect(obligationShape(result)).toEqual([
+            {
+                amountMinor: 200,
+                creditorPersonId: "b\u0000c",
+                currency: "USD",
+                debtorPersonId: "a"
+            },
+            {
+                amountMinor: 100,
+                creditorPersonId: "c",
+                currency: "USD",
+                debtorPersonId: "a\u0000b"
+            }
+        ]);
+        expect(result.contributions).toHaveLength(2);
     });
 });
 

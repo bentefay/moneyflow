@@ -47,6 +47,12 @@ describe("BalanceSummary canonical settlement result", () => {
         expect(screen.getByText("Settlement incomplete")).toBeInTheDocument();
         expect(screen.getByText(/1 transaction/i)).toBeInTheDocument();
         expect(screen.queryByText(/Everyone is settled up/i)).not.toBeInTheDocument();
+        expect(calculateSettlement).toHaveBeenCalledWith(
+            emptyTransactions,
+            { $cid: "accounts" },
+            { $cid: "statuses" },
+            "USD"
+        );
     });
 
     it("renders canonical obligations in separate currency sections", () => {
@@ -109,5 +115,11 @@ describe("BalanceSummary canonical settlement result", () => {
         expect(screen.getByRole("heading", { name: "USD" })).toBeInTheDocument();
         expect(screen.getByText("€5.00")).toBeInTheDocument();
         expect(screen.getByText("$7.00")).toBeInTheDocument();
+        expect(calculateSettlement).toHaveBeenCalledWith(
+            emptyTransactions,
+            expect.any(Object),
+            { $cid: "statuses" },
+            "USD"
+        );
     });
 });
