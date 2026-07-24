@@ -9,7 +9,8 @@ literal field is `pending`. Workers may read but never edit it.
 - **Scope IDs:** FS-001 and HS-009; this package owns allocation/ownership validation, owner
   remainder/effective allocation and exact signed-minor-unit apportionment only. Neither requirement
   can complete from P16A alone.
-- **State:** implementing after the current root control commit; reviewer is undispatched
+- **State:** reviewing; implementation authority is closed and the independent reviewer alone may
+  write the revision-01 review artifact
 - **Binding tasks:** `tasks/FS-001-transaction-percentage-allocations-settlement.md` P16A and
   `tasks/HS-009-allocation-bounds.md` P16A
 - **Canonical authority:** read all 715 lines of
@@ -18,7 +19,11 @@ literal field is `pending`. Workers may read but never edit it.
 - **Dependency:** P01/02 passed; P16A is the next package on the allocation critical path
 - **Literal original cumulative review BASE / clean pre-product HEAD:**
   `1b42d27e11494a167a4768e0c2c308010aa51651`
-- **Sole implementer artifact:** `evidence/P16A/implementation-01.md`
+- **Root dispatch/control HEAD:** `d0b2324f997d5dffe8326c9f4777a94daaedf49e`
+- **Committed product/test/dependency HEAD:** `6671c09a5ca94ccb4ff47564c15d44935cc73479`
+- **Frozen implementer artifact:** `evidence/P16A/implementation-01.md`, SHA-256
+  `4fb0fadd5fafdde02d3d20cc3349a47abc228092ad375a112360f3864548ba33`, 272 lines /
+  16,695 bytes
 - **Future immutable review artifact:** `reviews/P16A-review-01.md`
 - **Implementation-start boundary:** clean HEAD/index/worktree; P15/HS-013 is completely integrated
   and its marker transaction is immutable
@@ -129,7 +134,7 @@ literal field is `pending`. Workers may read but never edit it.
 - **Reviewer:** distinct `human_scratch_reviewer`, undispatched until revision-01 implementation
   evidence freezes
 - **Literal cumulative review BASE:** `1b42d27e11494a167a4768e0c2c308010aa51651`
-- **Literal revision-01 HEAD:** pending exact committed product/test HEAD
+- **Literal revision-01 HEAD:** `6671c09a5ca94ccb4ff47564c15d44935cc73479`
 - **Implementation evidence:** `evidence/P16A/implementation-01.md`
 - **Sole reviewer artifact:** `reviews/P16A-review-01.md`
 - **Reviewer writes:** the new review file only; no product/test/evidence/ledger/config/frozen edit
@@ -148,5 +153,7 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Commit this handoff/progress transition, then dispatch `human_scratch_implementer` for P16A revision
-01 only. Keep the reviewer undispatched; HS-009 remains unchecked and FS-001 remains immutable/open.
+Commit this reviewing transition and frozen evidence, then dispatch `human_scratch_reviewer` over
+literal cumulative range
+`1b42d27e11494a167a4768e0c2c308010aa51651..6671c09a5ca94ccb4ff47564c15d44935cc73479`.
+Keep HS-009 unchecked and FS-001 immutable/open.
