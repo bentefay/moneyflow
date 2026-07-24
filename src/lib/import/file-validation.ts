@@ -2,6 +2,8 @@
  * Browser-file validation shared by import pickers and whole-surface drop targets.
  */
 
+import Papa from "papaparse";
+
 import type { ImportFileType } from "./types";
 
 export const MAX_IMPORT_FILE_BYTES = 10 * 1024 * 1024;
@@ -67,22 +69,57 @@ function fileTypeForExtension(extension: string): ImportFileType | null {
 
 function hasOFXSignature(content: string): boolean {
     const normalized = content.replace(/^\uFEFF/, "").trimStart();
-    return /^(?:OFXHEADER\s*:|<OFX(?:\s|>))/i.test(normalized);
+    if (/^(?:OFXHEADER\s*:|<OFX(?:\s|>))/i.test(normalized)) return true;
+
+    const withoutXmlDeclaration = normalized.replace(/^<\?xml\b[\s\S]{0,1024}?\?>\s*/i, "");
+    const ofxInstruction = withoutXmlDeclaration.match(/^<\?OFX\b[\s\S]{0,2048}?\?>\s*/i);
+    if (ofxInstruction == null) return false;
+
+    return /^<OFX(?:\s|>)/i.test(withoutXmlDeclaration.slice(ofxInstruction[0].length));
 }
 
-function hasCSVSignature(content: string): boolean {
+function hasKnownDocumentSignature(content: string): boolean {
+    return (
+        /^(?:\{|\[)/.test(content) ||
+        /^</.test(content) ||
+        /^%PDF-/i.test(content) ||
+        /^PK[\u0000-\u001F]/.test(content) ||
+        /^\{\\rtf/i.test(content) ||
+        /^(?:GIF8|JFIF|PNG)/i.test(content)
+    );
+}
+
+function hasBinaryControls(content: string): boolean {
+    return /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(content);
+}
+
+function hasCSVSignature(content: string, mayEndMidRecord: boolean): boolean {
     const normalized = content.replace(/^\uFEFF/, "").trimStart();
     if (
         normalized.length === 0 ||
-        normalized.includes("\0") ||
-        /^<(?:!doctype|html|script|svg)(?:\s|>)/i.test(normalized) ||
+        hasBinaryControls(normalized) ||
+        hasKnownDocumentSignature(normalized) ||
         hasOFXSignature(normalized)
     ) {
         return false;
     }
 
-    const firstLine = normalized.split(/\r?\n/, 1)[0] ?? "";
-    return [",", ";", "\t"].some((separator) => firstLine.includes(separator));
+    const parsed = Papa.parse<string[]>(normalized, {
+        delimiter: "",
+        header: false,
+        preview: 12,
+        skipEmptyLines: "greedy"
+    });
+    const rows = parsed.data.filter((row) => row.some((field) => field.trim().length > 0));
+    const completeRows = mayEndMidRecord ? rows.slice(0, -1) : rows;
+    const firstRow = completeRows[0];
+    if (firstRow == null) return false;
+
+    if (firstRow.length > 1) {
+        return completeRows.slice(1).every((row) => row.length === firstRow.length);
+    }
+
+    return completeRows.length > 1 && completeRows.every((row) => row.length === 1);
 }
 
 /**
@@ -153,7 +190,10 @@ export async function validateImportFiles(
         );
     }
 
-    const contentMatches = fileType === "csv" ? hasCSVSignature(content) : hasOFXSignature(content);
+    const contentMatches =
+        fileType === "csv"
+            ? hasCSVSignature(content, file.size > IMPORT_FILE_SNIFF_BYTES)
+            : hasOFXSignature(content);
     if (!contentMatches) {
         return failure(
             "content-mismatch",

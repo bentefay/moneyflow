@@ -4,6 +4,17 @@ import { MAX_IMPORT_FILE_BYTES, validateImportFiles } from "@/lib/import/file-va
 
 const CSV_CONTENT = "Date,Description,Amount\n2026-07-25,Coffee,-4.25";
 const OFX_CONTENT = "OFXHEADER:100\nDATA:OFXSGML\n<OFX></OFX>";
+const XML_OFX_CONTENT = `<?xml version="1.0" encoding="UTF-8"?>
+<?OFX OFXHEADER="200" VERSION="220" SECURITY="NONE" OLDFILEUID="NONE" NEWFILEUID="NONE"?>
+<OFX>
+<BANKMSGSRSV1>
+<STMTTRNRS>
+<STMTRS>
+<BANKTRANLIST></BANKTRANLIST>
+</STMTRS>
+</STMTTRNRS>
+</BANKMSGSRSV1>
+</OFX>`;
 
 class OversizedFile extends File {
     override get size(): number {
@@ -119,5 +130,73 @@ describe("validateImportFiles", () => {
             ok: false,
             error: { code: "unreadable-file" }
         });
+    });
+
+    it("accepts parser-compatible XML OFX with bounded declarations before the root", async () => {
+        const xmlOfx = new File([XML_OFX_CONTENT], "statement.ofx", {
+            type: "application/x-ofx"
+        });
+        const arbitraryXml = new File(
+            ['<?xml version="1.0"?><document><OFX></OFX></document>'],
+            "renamed.ofx",
+            { type: "application/x-ofx" }
+        );
+
+        await expect(validateImportFiles([xmlOfx])).resolves.toEqual({
+            ok: true,
+            file: xmlOfx,
+            fileType: "ofx"
+        });
+        await expect(validateImportFiles([arbitraryXml])).resolves.toMatchObject({
+            ok: false,
+            error: { code: "content-mismatch" }
+        });
+    });
+
+    it("rejects renamed document signatures while retaining difficult valid CSV exports", async () => {
+        const invalidDocuments = [
+            '{"date":"2026-07-25","amount":4.25}',
+            '<?xml version="1.0"?><transactions><amount>4.25</amount></transactions>',
+            "%PDF-1.7\n1,0 obj",
+            "<!DOCTYPE html><html><body>date,amount</body></html>",
+            new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x2c, 0x00])
+        ] as const;
+        const validExports = [
+            '\uFEFFDate,Description,Amount\n2026-07-25,"Coffee, tea",-4.25',
+            'Date,Description,Amount\n2026-07-25,"Line one\nLine two",-4.25',
+            'Date,Description,Amount\n2026-07-25,"He said ""hello""",-4.25',
+            "Description\nCoffee\nGroceries",
+            [
+                "Date,Description,Amount",
+                ...Array.from(
+                    { length: 200 },
+                    (_, index) =>
+                        `2026-07-25,Long bounded description ${String(index).padStart(3, "0")} ${"x".repeat(80)},-4.25`
+                )
+            ].join("\n"),
+            new Uint8Array([
+                ...new TextEncoder().encode("Date;Description;Amount\r\n2026-07-25;Caf"),
+                0xe9,
+                ...new TextEncoder().encode(";-4,25")
+            ])
+        ] as const;
+
+        for (const content of invalidDocuments) {
+            await expect(
+                validateImportFiles([new File([content], "renamed.csv", { type: "text/csv" })])
+            ).resolves.toMatchObject({
+                ok: false,
+                error: { code: "content-mismatch" }
+            });
+        }
+
+        for (const content of validExports) {
+            await expect(
+                validateImportFiles([new File([content], "bank.csv", { type: "text/csv" })])
+            ).resolves.toMatchObject({
+                ok: true,
+                fileType: "csv"
+            });
+        }
     });
 });

@@ -17,9 +17,52 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
-import { expect, test, type Locator } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { createNewIdentity, goToImportNew, goToImports } from "./helpers";
+import { createNewIdentity, goToImportNew, goToImports, goToTransactions } from "./helpers";
+
+const XML_OFX_CONTENT = `<?xml version="1.0" encoding="UTF-8"?>
+<?OFX OFXHEADER="200" VERSION="220" SECURITY="NONE" OLDFILEUID="NONE" NEWFILEUID="NONE"?>
+<OFX>
+<SIGNONMSGSRSV1>
+<SONRS>
+<STATUS><CODE>0</CODE><SEVERITY>INFO</SEVERITY></STATUS>
+<DTSERVER>20260725120000</DTSERVER>
+<LANGUAGE>ENG</LANGUAGE>
+</SONRS>
+</SIGNONMSGSRSV1>
+<BANKMSGSRSV1>
+<STMTTRNRS>
+<TRNUID>P15-XML</TRNUID>
+<STATUS><CODE>0</CODE><SEVERITY>INFO</SEVERITY></STATUS>
+<STMTRS>
+<CURDEF>USD</CURDEF>
+<BANKACCTFROM>
+<BANKID>123456789</BANKID>
+<ACCTID>P15XML</ACCTID>
+<ACCTTYPE>CHECKING</ACCTTYPE>
+</BANKACCTFROM>
+<BANKTRANLIST>
+<DTSTART>20260701</DTSTART>
+<DTEND>20260725</DTEND>
+<STMTTRN>
+<TRNTYPE>DEBIT</TRNTYPE>
+<DTPOSTED>20260725</DTPOSTED>
+<TRNAMT>-4.25</TRNAMT>
+<FITID>P15-XML-1</FITID>
+<NAME>P15 XML OFX</NAME>
+</STMTTRN>
+</BANKTRANLIST>
+<LEDGERBAL>
+<BALAMT>95.75</BALAMT>
+<DTASOF>20260725</DTASOF>
+</LEDGERBAL>
+</STMTRS>
+</STMTTRNRS>
+</BANKMSGSRSV1>
+</OFX>`;
+
+const DROP_COLLISION_MARGIN_PX = 8;
 
 // ============================================================================
 // Import-Specific Helpers
@@ -144,6 +187,112 @@ async function dispatchImportDrag(
     );
 }
 
+async function expectFloatingWithinVisibleTarget(
+    page: Page,
+    target: Locator,
+    floating: Locator
+): Promise<void> {
+    const targetBox = await target.boundingBox();
+    const floatingBox = await floating.boundingBox();
+    if (targetBox == null || floatingBox == null) {
+        throw new Error("Missing target or floating geometry");
+    }
+    const viewport = await page.evaluate(() => ({
+        height: window.innerHeight,
+        width: window.innerWidth
+    }));
+    const textBoxes = await floating.evaluate((element) => {
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        const boxes: Array<{
+            readonly bottom: number;
+            readonly left: number;
+            readonly right: number;
+            readonly top: number;
+        }> = [];
+        for (let node = walker.nextNode(); node != null; node = walker.nextNode()) {
+            if (!node.textContent?.trim()) continue;
+            const range = document.createRange();
+            range.selectNodeContents(node);
+            for (const rect of Array.from(range.getClientRects())) {
+                boxes.push({
+                    bottom: rect.bottom,
+                    left: rect.left,
+                    right: rect.right,
+                    top: rect.top
+                });
+            }
+        }
+        return boxes;
+    });
+    const visible = {
+        bottom: Math.min(targetBox.y + targetBox.height, viewport.height),
+        left: Math.max(targetBox.x, 0),
+        right: Math.min(targetBox.x + targetBox.width, viewport.width),
+        top: Math.max(targetBox.y, 0)
+    };
+    const boxes = [
+        {
+            bottom: floatingBox.y + floatingBox.height,
+            left: floatingBox.x,
+            right: floatingBox.x + floatingBox.width,
+            top: floatingBox.y
+        },
+        ...textBoxes
+    ];
+    const contained = boxes.every(
+        (box) =>
+            box.left >= visible.left + DROP_COLLISION_MARGIN_PX &&
+            box.top >= visible.top + DROP_COLLISION_MARGIN_PX &&
+            box.right <= visible.right - DROP_COLLISION_MARGIN_PX &&
+            box.bottom <= visible.bottom - DROP_COLLISION_MARGIN_PX
+    );
+
+    expect(
+        contained,
+        JSON.stringify({
+            boxes,
+            visible
+        })
+    ).toBe(true);
+}
+
+async function measuredContrastRatio(element: Locator): Promise<number> {
+    return element.evaluate((node) => {
+        const context = document.createElement("canvas").getContext("2d");
+        if (context == null) throw new Error("Canvas 2D context unavailable");
+        const colorBytes = (color: string): readonly [number, number, number, number] => {
+            context.clearRect(0, 0, 1, 1);
+            context.fillStyle = color;
+            context.fillRect(0, 0, 1, 1);
+            const [red = 0, green = 0, blue = 0, alpha = 0] = context.getImageData(0, 0, 1, 1).data;
+            return [red, green, blue, alpha];
+        };
+        const styles = getComputedStyle(node);
+        const background = colorBytes(styles.backgroundColor);
+        const foreground = colorBytes(styles.color);
+        const foregroundAlpha = foreground[3] / 255;
+        const compositedForeground = [
+            foreground[0] * foregroundAlpha + background[0] * (1 - foregroundAlpha),
+            foreground[1] * foregroundAlpha + background[1] * (1 - foregroundAlpha),
+            foreground[2] * foregroundAlpha + background[2] * (1 - foregroundAlpha)
+        ];
+        const luminance = (channels: readonly number[]) => {
+            const [red = 0, green = 0, blue = 0] = channels.map((channel) => {
+                const normalized = channel / 255;
+                return normalized <= 0.04045
+                    ? normalized / 12.92
+                    : ((normalized + 0.055) / 1.055) ** 2.4;
+            });
+            return red * 0.2126 + green * 0.7152 + blue * 0.0722;
+        };
+        const foregroundLuminance = luminance(compositedForeground);
+        const backgroundLuminance = luminance(background);
+        const lighter = Math.max(foregroundLuminance, backgroundLuminance);
+        const darker = Math.min(foregroundLuminance, backgroundLuminance);
+        return (lighter + 0.05) / (darker + 0.05);
+    });
+}
+
 // ============================================================================
 // Journey Tests
 // ============================================================================
@@ -218,6 +367,24 @@ test.describe("Import Panel", () => {
             "60 transactions"
         );
         expect(await page.locator("[data-transaction-id]").count()).toBeLessThan(60);
+
+        const firstVirtualRow = page.getByRole("row", {
+            name: /P15 transaction drop 0000/
+        });
+        const transactionScroller = page.getByTestId("transaction-table").locator("..");
+        await expect(firstVirtualRow).toBeVisible();
+        await dispatchImportDrag(target, "dragenter", [file]);
+        await dispatchImportDrag(firstVirtualRow, "dragenter", [file]);
+        await expect(page.getByTestId("import-drop-overlay")).toBeVisible();
+        await transactionScroller.evaluate((element) => {
+            element.scrollTop = element.scrollHeight;
+        });
+        await expect(firstVirtualRow).toHaveCount(0);
+        await dispatchImportDrag(target, "dragleave", [file]);
+        await expect(page.getByTestId("import-drop-overlay")).toHaveCount(0);
+        await transactionScroller.evaluate((element) => {
+            element.scrollTop = 0;
+        });
 
         const filteredDescription = "P15 transaction drop 0059";
         await page.getByPlaceholder(/Search/i).fill(filteredDescription);
@@ -369,6 +536,158 @@ test.describe("Import Panel", () => {
         }
 
         fs.unlinkSync(ofxPath);
+    });
+
+    test("XML OFX picker and both surface drops reach preview without implicit import", async ({
+        page
+    }) => {
+        await createNewIdentity(page);
+        await goToImportNew(page);
+
+        const pickerFile = {
+            name: "p15-xml-picker.ofx",
+            mimeType: "application/x-ofx",
+            buffer: Buffer.from(XML_OFX_CONTENT)
+        };
+        await page.locator('input[type="file"]').setInputFiles(pickerFile);
+        await expect(page.getByText(pickerFile.name, { exact: true })).toBeVisible();
+        await expect(page.getByText(/OFX • \d+ rows?/i)).toBeVisible();
+        await page.getByRole("button", { name: "Cancel" }).click();
+        await expect(page).toHaveURL(/\/imports$/);
+        await expect(page.getByRole("row", { name: new RegExp(pickerFile.name) })).toHaveCount(0);
+
+        const surfaceCases = [
+            {
+                name: "p15-xml-imports.ofx",
+                sourcePath: /\/imports$/,
+                targetTestId: "imports-import-drop-target"
+            },
+            {
+                name: "p15-xml-transactions.ofx",
+                sourcePath: /\/transactions$/,
+                targetTestId: "transaction-import-drop-target"
+            }
+        ] as const;
+
+        for (const surfaceCase of surfaceCases) {
+            if (surfaceCase.targetTestId === "transaction-import-drop-target") {
+                await page.getByRole("link", { name: "Transactions", exact: true }).click();
+                await page.getByTestId("transaction-table-toolbar").waitFor();
+            }
+            const file = {
+                content: XML_OFX_CONTENT,
+                name: surfaceCase.name,
+                type: "application/x-ofx"
+            };
+            await dispatchImportDrag(page.getByTestId(surfaceCase.targetTestId), "drop", [file]);
+            await expect(page).toHaveURL(/\/imports\/new$/);
+            await expect(page.getByText(file.name, { exact: true })).toBeVisible();
+            await expect(page.getByText(/OFX • \d+ rows?/i)).toBeVisible();
+            await page.getByRole("button", { name: "Cancel" }).click();
+            await expect(page).toHaveURL(surfaceCase.sourcePath);
+        }
+    });
+
+    test("renamed JSON is rejected by picker and both surface drops", async ({ page }) => {
+        await createNewIdentity(page);
+        const renamedJson = {
+            content: '{"date":"2026-07-25","description":"P15 JSON","amount":4.25}',
+            name: "p15-renamed-json.csv",
+            type: "text/csv"
+        };
+
+        await goToImportNew(page);
+        await page.locator('input[type="file"]').setInputFiles({
+            name: renamedJson.name,
+            mimeType: renamedJson.type,
+            buffer: Buffer.from(renamedJson.content)
+        });
+        await expect(page.getByTestId("file-dropzone").getByRole("alert")).toBeVisible();
+        await expect(page).toHaveURL(/\/imports\/new$/);
+        await expect(page.getByText(/CSV • \d+ rows?/i)).toHaveCount(0);
+
+        await goToImports(page);
+        const importsPicker = page.getByRole("button", { name: "Import new file" });
+        await importsPicker.focus();
+        await dispatchImportDrag(page.getByTestId("imports-import-drop-target"), "drop", [
+            renamedJson
+        ]);
+        await expect(
+            page.getByTestId("imports-import-drop-target").getByRole("alert")
+        ).toBeVisible();
+        await expect(importsPicker).toBeFocused();
+        await expect(page).toHaveURL(/\/imports$/);
+
+        await page.getByRole("link", { name: "Transactions", exact: true }).click();
+        await page.getByTestId("transaction-table-toolbar").waitFor();
+        const transactionTarget = page.getByTestId("transaction-import-drop-target");
+        await dispatchImportDrag(transactionTarget, "drop", [renamedJson]);
+        await expect(transactionTarget.getByRole("alert")).toBeVisible();
+        await expect(page).toHaveURL(/\/transactions$/);
+    });
+
+    test("drop guidance and alerts meet theme contrast and zoomed visible geometry", async ({
+        page
+    }) => {
+        await createNewIdentity(page);
+        await page.setViewportSize({ width: 390, height: 844 });
+        const valid = {
+            content: "Date,Description,Amount\n2026-07-25,P15 geometry,1.00",
+            name: "p15-geometry.csv",
+            type: "text/csv"
+        };
+        const invalid = {
+            content: '{"date":"2026-07-25","amount":1.00}',
+            name: "p15-geometry-json.csv",
+            type: "text/csv"
+        };
+        const surfaceCases = [
+            {
+                dark: false,
+                targetTestId: "imports-import-drop-target"
+            },
+            {
+                dark: true,
+                targetTestId: "transaction-import-drop-target"
+            }
+        ] as const;
+
+        for (const surfaceCase of surfaceCases) {
+            await page.evaluate(() => {
+                document.documentElement.style.zoom = "1";
+            });
+            if (surfaceCase.targetTestId === "imports-import-drop-target") {
+                await goToImports(page);
+            } else {
+                await goToTransactions(page);
+            }
+            await page.evaluate((dark) => {
+                document.documentElement.classList.toggle("dark", dark);
+                document.documentElement.style.zoom = "2";
+            }, surfaceCase.dark);
+
+            const target = page.getByTestId(surfaceCase.targetTestId);
+            await dispatchImportDrag(target, "dragenter", [valid]);
+            const guidance = page.getByTestId("import-drop-guidance");
+            await expect(guidance).toBeVisible();
+            await expectFloatingWithinVisibleTarget(page, target, guidance);
+
+            await dispatchImportDrag(target, "drop", [invalid]);
+            const alert = target.getByRole("alert");
+            await expect(alert).toBeVisible();
+            await expectFloatingWithinVisibleTarget(page, target, alert);
+            expect(await measuredContrastRatio(alert)).toBeGreaterThanOrEqual(4.5);
+            await expect(page).toHaveURL(
+                surfaceCase.targetTestId === "imports-import-drop-target"
+                    ? /\/imports$/
+                    : /\/transactions$/
+            );
+        }
+
+        await page.evaluate(() => {
+            document.documentElement.classList.remove("dark");
+            document.documentElement.style.zoom = "1";
+        });
     });
 
     test("CSV and OFX lineage survives edits/reload and delete is isolated one-step history", async ({
