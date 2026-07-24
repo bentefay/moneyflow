@@ -122,6 +122,7 @@ literal field is `pending`. Workers may read but never edit it.
   The selector portion of F-07 closes, but F-08 High rejects the synchronous full-vault projection
   outside RAF budgets and F-09 Medium rejects raw private transaction state reaching generic
   `useVaultAction` callbacks.
+- **Revision-07 failure integration commit:** `0216abbf76d40b07461af2bad94869fd3040c4fa`
 - **Revision-06 review:** FAIL, SHA-256
   `a6182d430b761fd57c0ebd5ce08045811e952979303ab59b74afa885d8a8693e`, 165 lines/11,879 bytes.
   F-05 closes; F-06 physical cleanup and `useTransactions` close. F-07 Medium remains: exported
@@ -143,5 +144,5 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Persist the immutable revision-07 FAIL artifacts/control state, link that exact commit, then dispatch
-P12 revision 08 for F-08/F-09 over the same cumulative original BASE.
+Link the immutable revision-07 failure integration commit, then dispatch P12 revision 08 for
+F-08/F-09 over the same cumulative original BASE.
