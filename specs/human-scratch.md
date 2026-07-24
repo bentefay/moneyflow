@@ -314,7 +314,7 @@
   user id (pub key hash?) and the person name should become optional and uses the user name as a
   fallback if it has an associated user.
 
-- [] The transactions table and imports list page should be a drop zone to trigger an import.
+- [x] The transactions table and imports list page should be a drop zone to trigger an import.
 
 - [x] Review tables and row level permissions - why are there two ops and snapshot tables? Is the
   hashed public key used to enforce row level permissions consistently? (i.e. you are authenticed by

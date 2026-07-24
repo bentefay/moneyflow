@@ -7,10 +7,9 @@ literal field is `pending`. Workers may read but never edit it.
 
 - **Package / revision:** P15 / 02
 - **Scope IDs:** HS-013 only; whole imports-list and transactions-table file drop targets; HS-013
-  remains incomplete and unchecked
+  is complete and checked
 - **State:** passed; exact review/risk integration
-  `9c5d7be8ee4cf7c3fda5f1a7320c053362672e3a` is durable and HS-013 is
-  `completion_pending`
+  `9c5d7be8ee4cf7c3fda5f1a7320c053362672e3a` and the marker transaction are durable
 - **Task:** `tasks/HS-013-import-drop-zones.md`; exact one-line HS-013 block in SCOPE
 - **Dependency:** P14/04 and HS-008 are passed. P15 revision-01 architecture remains the cumulative
   base to correct, not replace.
@@ -118,9 +117,10 @@ literal field is `pending`. Workers may read but never edit it.
   `.claude/skills/components/SKILL.md`, `.claude/skills/e2e/SKILL.md`; apply general TypeScript,
   accessibility, security, performance and testing rules.
 - **Frozen boundary:** scratch SHA
-  `f0adfef6e19b80969dae748cf8c616614af61ba778837234c97af385a19adcb1`, checked set
-  HS-001/HS-002/HS-004/HS-005/HS-006/HS-008/HS-010/HS-014/HS-017/HS-018, all 21 normalized blocks
-  exact; FS-001 `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715
+  `ce52d7df87daf63117931e5bdee928212051242ae7f2b5d90e76f5610abcb00f`, checked set
+  HS-001/HS-002/HS-004/HS-005/HS-006/HS-008/HS-010/HS-013/HS-014/HS-017/HS-018, all 21
+  normalized blocks exact; FS-001
+  `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715
   lines/25,441 bytes; SCOPE
   `d03f33e718f1ec5f7c8ad0119d283397dcc59407199da4b5887a2e5eee7ef0f9`, 450 lines/27,382 bytes.
 
@@ -147,8 +147,6 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Root must execute the already durable HS-013 completion event against exact pre-change scratch SHA
-`f0adfef6e19b80969dae748cf8c616614af61ba778837234c97af385a19adcb1`: make a private comparison
-copy, apply only HS-013's `[] -> [x]`, prove the one-line diff and all frozen boundaries, remove the
-copy, then finalize the event and rolling metadata in one root control commit. No package dispatch
-is legal while the event is pending.
+Finalize this marker/ledger control commit, then recompute the dependency graph and replace this
+handoff with the next eligible package's exact revisioned dispatch. Preserve P15 evidence/reviews
+and the reviewed cumulative range as immutable.
