@@ -5,12 +5,62 @@
  * Account ownerships must sum to exactly 100% to ensure proper expense allocation.
  */
 
+import Decimal from "decimal.js";
+import { z } from "zod";
+
+const OwnershipDecimal = Decimal.clone({
+    precision: 80,
+    rounding: Decimal.ROUND_HALF_EVEN
+});
+
 // ============================================================================
 // Constants
 // ============================================================================
 
 /** Maximum allowed deviation from 100% due to floating-point arithmetic */
 export const OWNERSHIP_TOLERANCE = 0.001;
+
+export const OwnershipPercentageSchema = z
+    .number()
+    .refine(Number.isFinite)
+    .refine((value) => !Object.is(value, -0))
+    .min(0)
+    .max(100)
+    .brand<"OwnershipPercentage">();
+
+export type OwnershipPercentage = z.infer<typeof OwnershipPercentageSchema>;
+export type ValidatedOwnershipSet = Readonly<Record<string, OwnershipPercentage>>;
+
+type OwnershipEntryErrorReason = "negative-zero" | "not-finite" | "not-number" | "out-of-range";
+
+export type OwnershipValidationError =
+    | {
+          readonly domain: "ownership";
+          readonly personId: string;
+          readonly reason: OwnershipEntryErrorReason;
+          readonly type: "invalid-ownership";
+      }
+    | {
+          readonly domain: "ownership";
+          readonly reason: "empty";
+          readonly type: "invalid-ownership";
+      }
+    | {
+          readonly domain: "ownership";
+          readonly reason: "invalid-total";
+          readonly total: string;
+          readonly type: "invalid-ownership";
+      };
+
+export type OwnershipSetValidationResult =
+    | {
+          readonly ok: true;
+          readonly value: ValidatedOwnershipSet;
+      }
+    | {
+          readonly errors: readonly OwnershipValidationError[];
+          readonly ok: false;
+      };
 
 // ============================================================================
 // Validation Functions
@@ -21,6 +71,60 @@ export const OWNERSHIP_TOLERANCE = 0.001;
  */
 export function sumOwnerships(ownerships: Record<string, number>): number {
     return Object.values(ownerships).reduce((sum, pct) => sum + pct, 0);
+}
+
+function ownershipEntryErrorReason(value: unknown): OwnershipEntryErrorReason | null {
+    if (typeof value !== "number") return "not-number";
+    if (!Number.isFinite(value)) return "not-finite";
+    if (Object.is(value, -0)) return "negative-zero";
+    if (value < 0 || value > 100) return "out-of-range";
+    return null;
+}
+
+export function validateOwnershipSet(
+    ownerships: Readonly<Record<string, unknown>>
+): OwnershipSetValidationResult {
+    const entries = Object.entries(ownerships);
+    if (entries.length === 0) {
+        return {
+            ok: false,
+            errors: [{ domain: "ownership", reason: "empty", type: "invalid-ownership" }]
+        };
+    }
+
+    const errors = entries.flatMap(([personId, value]): readonly OwnershipValidationError[] => {
+        const reason = ownershipEntryErrorReason(value);
+        return reason == null
+            ? []
+            : [{ domain: "ownership", personId, reason, type: "invalid-ownership" }];
+    });
+    if (errors.length > 0) return { ok: false, errors: Object.freeze(errors) };
+
+    const validated: Record<string, OwnershipPercentage> = {};
+    for (const [personId, value] of entries) {
+        const parsed = OwnershipPercentageSchema.safeParse(value);
+        if (parsed.success) validated[personId] = parsed.data;
+    }
+
+    const total = Object.values(validated).reduce(
+        (sum, percentage) => sum.plus(percentage),
+        new OwnershipDecimal(0)
+    );
+    if (total.minus(100).abs().greaterThan(OWNERSHIP_TOLERANCE)) {
+        return {
+            ok: false,
+            errors: [
+                {
+                    domain: "ownership",
+                    reason: "invalid-total",
+                    total: total.toString(),
+                    type: "invalid-ownership"
+                }
+            ]
+        };
+    }
+
+    return { ok: true, value: Object.freeze(validated) };
 }
 
 /**
@@ -39,43 +143,38 @@ export function validateOwnerships(ownerships: Record<string, number>): {
     error?: string;
     sum: number;
 } {
-    const entries = Object.entries(ownerships);
-
-    // Empty ownerships are invalid for accounts (need at least one owner)
-    if (entries.length === 0) {
-        return { valid: false, error: "Account must have at least one owner", sum: 0 };
-    }
-
-    // Check each percentage
-    for (const [personId, pct] of entries) {
-        if (pct < 0) {
-            return {
-                valid: false,
-                error: `Ownership percentage for ${personId} cannot be negative`,
-                sum: sumOwnerships(ownerships)
-            };
-        }
-        if (pct > 100) {
-            return {
-                valid: false,
-                error: `Ownership percentage for ${personId} cannot exceed 100%`,
-                sum: sumOwnerships(ownerships)
-            };
-        }
-    }
-
     const sum = sumOwnerships(ownerships);
+    const result = validateOwnershipSet(ownerships);
+    if (result.ok) return { valid: true, sum };
 
-    // Must sum to exactly 100% (within tolerance)
-    if (Math.abs(sum - 100) > OWNERSHIP_TOLERANCE) {
+    const [error] = result.errors;
+    if (error == null) return { valid: false, error: "Invalid account ownership", sum };
+    if (error.reason === "empty") {
+        return { valid: false, error: "Account must have at least one owner", sum };
+    }
+    if (error.reason === "invalid-total") {
         return {
             valid: false,
-            error: `Ownerships must sum to 100%, currently ${sum.toFixed(2)}%`,
+            error: `Ownerships must sum to 100%, currently ${Number(error.total).toFixed(2)}%`,
             sum
         };
     }
-
-    return { valid: true, sum };
+    if (error.reason === "out-of-range") {
+        const percentage = ownerships[error.personId];
+        return {
+            valid: false,
+            error:
+                typeof percentage === "number" && percentage < 0
+                    ? `Ownership percentage for ${error.personId} cannot be negative`
+                    : `Ownership percentage for ${error.personId} cannot exceed 100%`,
+            sum
+        };
+    }
+    return {
+        valid: false,
+        error: `Ownership percentage for ${error.personId} must be a finite number`,
+        sum
+    };
 }
 
 /**

@@ -14,9 +14,11 @@ import {
     isValidOwnership,
     normalizeOwnerships,
     OWNERSHIP_TOLERANCE,
+    OwnershipPercentageSchema,
     removeOwner,
     sumOwnerships,
     updateOwnerPercentage,
+    validateOwnershipSet,
     validateOwnerships
 } from "@/lib/domain/ownership";
 
@@ -167,6 +169,90 @@ describe("validateOwnerships", () => {
                 expect(result.valid).toBe(true);
                 expect(Math.abs(result.sum - 100)).toBeLessThanOrEqual(OWNERSHIP_TOLERANCE);
             })
+        );
+    });
+
+    it.each([
+        ["negative zero", { alice: -0, bob: 100 }, "negative-zero"],
+        ["NaN", { alice: Number.NaN }, "not-finite"],
+        ["positive infinity", { alice: Number.POSITIVE_INFINITY }, "not-finite"],
+        ["negative infinity", { alice: Number.NEGATIVE_INFINITY }, "not-finite"]
+    ])("rejects %s instead of allowing a plausible ownership result", (_name, input, reason) => {
+        const result = validateOwnershipSet(input);
+
+        expect(result).toEqual({
+            ok: false,
+            errors: [expect.objectContaining({ domain: "ownership", reason })]
+        });
+        expect(validateOwnerships(input).valid).toBe(false);
+        expect(isValidOwnership(input)).toBe(false);
+    });
+
+    it.each([
+        ["lower boundary", 0],
+        ["decimal", 12.5],
+        ["upper boundary", 100]
+    ])("accepts ownership %s", (_name, value) => {
+        expect(OwnershipPercentageSchema.safeParse(value).success).toBe(true);
+    });
+
+    it("returns typed empty, entry and collective-total errors", () => {
+        expect(validateOwnershipSet({})).toEqual({
+            ok: false,
+            errors: [
+                {
+                    domain: "ownership",
+                    reason: "empty",
+                    type: "invalid-ownership"
+                }
+            ]
+        });
+        expect(validateOwnershipSet({ alice: -1, bob: 101 })).toEqual({
+            ok: false,
+            errors: [
+                expect.objectContaining({ personId: "alice", reason: "out-of-range" }),
+                expect.objectContaining({ personId: "bob", reason: "out-of-range" })
+            ]
+        });
+        expect(validateOwnershipSet({ alice: 49, bob: 50 })).toEqual({
+            ok: false,
+            errors: [
+                {
+                    domain: "ownership",
+                    reason: "invalid-total",
+                    total: "99",
+                    type: "invalid-ownership"
+                }
+            ]
+        });
+    });
+
+    it("accepts collective totals at the established tolerance and freezes a copy", () => {
+        const ownerships = { alice: 33.333, bob: 33.333, charlie: 33.333 };
+        const before = structuredClone(ownerships);
+        const result = validateOwnershipSet(ownerships);
+
+        expect(result.ok).toBe(true);
+        if (!result.ok) throw new Error("Expected ownerships within tolerance");
+        expect(result.value).toEqual(ownerships);
+        expect(Object.isFrozen(result.value)).toBe(true);
+        expect(ownerships).toEqual(before);
+    });
+
+    it("fixed-seed property rejects every non-finite and negative-zero entry", () => {
+        fc.assert(
+            fc.property(
+                fc.constantFrom(Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, -0),
+                fc.uuid(),
+                (invalidValue, personId) => {
+                    const result = validateOwnershipSet({
+                        alice: 100,
+                        [personId]: invalidValue
+                    });
+                    expect(result.ok).toBe(false);
+                }
+            ),
+            { seed: 16_001_603, numRuns: 250 }
         );
     });
 });

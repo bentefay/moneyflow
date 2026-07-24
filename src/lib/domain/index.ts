@@ -5,6 +5,24 @@
  */
 
 export {
+    type AllocationPercentage,
+    AllocationPercentageSchema,
+    type AllocationSetValidationResult,
+    type AllocationValidationError,
+    type ApportionmentError,
+    apportionMinorUnits,
+    deriveEffectiveAllocations,
+    type EffectiveAllocationDerivation,
+    type EffectiveAllocationResult,
+    type ExactDecimalString,
+    type ExactPercentageWeights,
+    type ExactPercentageWeightsValidationResult,
+    type MinorUnitApportionmentResult,
+    type ValidatedAllocationSet,
+    validateExactPercentageWeights,
+    validateAllocationSet
+} from "./allocation";
+export {
     type BalanceCalculationOptions,
     calculateAccountBalance,
     calculateAllAccountBalances,
@@ -20,9 +38,15 @@ export {
     isValidOwnership,
     normalizeOwnerships,
     OWNERSHIP_TOLERANCE,
+    type OwnershipPercentage,
+    OwnershipPercentageSchema,
+    type OwnershipSetValidationResult,
+    type OwnershipValidationError,
     removeOwner,
     sumOwnerships,
     updateOwnerPercentage,
+    type ValidatedOwnershipSet,
+    validateOwnershipSet,
     validateOwnerships
 } from "./ownership";
 export {

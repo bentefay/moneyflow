@@ -1,506 +1,428 @@
-/**
- * Allocation Math Tests
- *
- * Property-based tests for allocation percentage calculations,
- * including auto-allocation to account owners and validation rules.
- */
-
 import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-// ============================================================================
-// Allocation Helpers (Pure functions for testing)
-// ============================================================================
+import {
+    AllocationPercentageSchema,
+    apportionMinorUnits,
+    deriveEffectiveAllocations,
+    validateAllocationSet,
+    validateExactPercentageWeights
+} from "@/lib/domain/allocation";
 
-/**
- * Calculate the sum of allocation percentages
- */
-export function sumAllocations(allocations: Record<string, number>): number {
-    return Object.values(allocations).reduce((sum, pct) => sum + pct, 0);
+const DERIVATION_SEED = 16_001_601;
+const APPORTIONMENT_SEED = 16_001_602;
+const PROPERTY_RUNS = 1_000;
+
+function decimalRecord(values: Readonly<Record<string, string>>): Readonly<Record<string, string>> {
+    return Object.fromEntries(Object.entries(values));
 }
 
-/**
- * Check if allocations are valid (sum to 100 or less)
- */
-export function isValidAllocation(allocations: Record<string, number>): boolean {
-    const sum = sumAllocations(allocations);
-    return sum >= 0 && sum <= 100;
+function sumMinorUnits(values: Readonly<Record<string, number>>): number {
+    return Object.values(values).reduce((total, value) => total + value, 0);
 }
 
-/**
- * Calculate the remainder that needs to be allocated to owners
- */
-export function calculateRemainder(allocations: Record<string, number>): number {
-    return Math.max(0, 100 - sumAllocations(allocations));
+function expectExactWeights(weights: Readonly<Record<string, string>>) {
+    const result = validateExactPercentageWeights(weights);
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("Expected exact weights totaling 100");
+    return result.value;
 }
 
-/**
- * Distribute remainder to account owners based on ownership percentages.
- *
- * Per FR-015: When transaction allocations don't sum to 100%, the remainder
- * is allocated to account owners according to their ownership percentages.
- */
-export function distributeRemainderToOwners(
-    currentAllocations: Record<string, number>,
-    ownershipPercentages: Record<string, number>
-): Record<string, number> {
-    const remainder = calculateRemainder(currentAllocations);
+function hundredthsToDecimal(value: number): string {
+    const sign = value < 0 ? "-" : "";
+    const absolute = Math.abs(value);
+    const whole = Math.floor(absolute / 100);
+    const fraction = absolute % 100;
+    return fraction === 0
+        ? `${sign}${whole}`
+        : `${sign}${whole}.${String(fraction).padStart(2, "0").replace(/0$/, "")}`;
+}
 
-    if (remainder === 0) {
-        return { ...currentAllocations };
+function expectDerived(
+    explicit: Readonly<Record<string, unknown>>,
+    ownership: Readonly<Record<string, unknown>>
+) {
+    const result = deriveEffectiveAllocations(explicit, ownership);
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("Expected valid allocation derivation");
+    return result.value;
+}
+
+const signedApportionmentCases: Array<{
+    readonly amount: number;
+    readonly name: string;
+    readonly shares: Readonly<Record<string, number>>;
+    readonly weights: Readonly<Record<string, string>>;
+}> = [
+    {
+        name: "positive one-cent stable tie",
+        amount: 1,
+        weights: { alice: "50", bob: "50" },
+        shares: { alice: 1, bob: 0 }
+    },
+    {
+        name: "negative one-cent mathematical floor and stable tie",
+        amount: -1,
+        weights: { alice: "50", bob: "50" },
+        shares: { alice: 0, bob: -1 }
+    },
+    {
+        name: "positive uneven fractions",
+        amount: 5,
+        weights: { alice: "33.33", bob: "33.33", charlie: "33.34" },
+        shares: { alice: 2, bob: 1, charlie: 2 }
+    },
+    {
+        name: "negative uneven fractions",
+        amount: -5,
+        weights: { alice: "33.33", bob: "33.33", charlie: "33.34" },
+        shares: { alice: -1, bob: -2, charlie: -2 }
+    },
+    {
+        name: "negative effective weight",
+        amount: -100,
+        weights: { alice: "120", bob: "-20" },
+        shares: { alice: -120, bob: 20 }
+    },
+    {
+        name: "zero and zero-decimal-currency amount",
+        amount: 0,
+        weights: { alice: "60", bob: "40" },
+        shares: { alice: 0, bob: 0 }
     }
+];
 
-    const result = { ...currentAllocations };
-    const ownershipSum = sumAllocations(ownershipPercentages);
+describe("allocation validation", () => {
+    it.each([
+        ["lower boundary", -100],
+        ["negative decimal", -12.5],
+        ["canonical zero", 0],
+        ["positive decimal", 12.5],
+        ["upper boundary", 100]
+    ])("accepts %s", (_name, value) => {
+        expect(AllocationPercentageSchema.safeParse(value).success).toBe(true);
+    });
 
-    // Distribute remainder proportionally to ownership
-    for (const [personId, ownershipPct] of Object.entries(ownershipPercentages)) {
-        if (ownershipSum > 0) {
-            const share = (remainder * ownershipPct) / ownershipSum;
-            result[personId] = (result[personId] ?? 0) + share;
+    it.each([
+        ["below lower boundary", -100.000_001, "out-of-range"],
+        ["above upper boundary", 100.000_001, "out-of-range"],
+        ["negative zero", -0, "negative-zero"],
+        ["NaN", Number.NaN, "not-finite"],
+        ["positive infinity", Number.POSITIVE_INFINITY, "not-finite"],
+        ["negative infinity", Number.NEGATIVE_INFINITY, "not-finite"],
+        ["non-number", "50", "not-number"]
+    ])("rejects %s with typed data", (_name, value, reason) => {
+        const result = validateAllocationSet({ person: value });
+
+        expect(result).toEqual({
+            ok: false,
+            errors: [
+                expect.objectContaining({
+                    personId: "person",
+                    reason
+                })
+            ]
+        });
+    });
+
+    it("validates every entry and preserves below, equal and above-100 explicit sets", () => {
+        const cases = [
+            { alice: -20, bob: 30.25 },
+            { alice: 40, bob: 60 },
+            { alice: 100, bob: 75.5 }
+        ] as const;
+
+        for (const explicit of cases) {
+            const before = structuredClone(explicit);
+            const result = validateAllocationSet(explicit);
+
+            expect(result.ok).toBe(true);
+            if (!result.ok) throw new Error("Expected a valid explicit set");
+            expect(result.value).toEqual(explicit);
+            expect(explicit).toEqual(before);
+            expect(Object.isFrozen(result.value)).toBe(true);
         }
-    }
 
-    return result;
-}
+        const invalid = validateAllocationSet({
+            alice: -101,
+            bob: Number.POSITIVE_INFINITY,
+            charlie: -0
+        });
+        expect(invalid.ok).toBe(false);
+        if (invalid.ok) throw new Error("Expected invalid allocation entries");
+        expect(invalid.errors.map(({ personId, reason }) => [personId, reason])).toEqual([
+            ["alice", "out-of-range"],
+            ["bob", "not-finite"],
+            ["charlie", "negative-zero"]
+        ]);
+    });
+});
 
-/**
- * Normalize allocations to sum to exactly 100%
- */
-export function normalizeAllocations(allocations: Record<string, number>): Record<string, number> {
-    const sum = sumAllocations(allocations);
-    if (sum === 0) return allocations;
-
-    const result: Record<string, number> = {};
-    for (const [personId, pct] of Object.entries(allocations)) {
-        result[personId] = (pct / sum) * 100;
-    }
-    return result;
-}
-
-/**
- * Calculate each person's share of a transaction amount
- */
-export function calculateShares(
-    amount: number,
-    allocations: Record<string, number>
-): Record<string, number> {
-    const result: Record<string, number> = {};
-    for (const [personId, pct] of Object.entries(allocations)) {
-        result[personId] = (amount * pct) / 100;
-    }
-    return result;
-}
-
-/**
- * Validate ownership percentages (must sum to exactly 100%)
- */
-export function validateOwnership(ownerships: Record<string, number>): {
-    valid: boolean;
-    error?: string;
-} {
-    const sum = sumAllocations(ownerships);
-
-    if (Math.abs(sum - 100) > 0.001) {
-        return {
-            valid: false,
-            error: `Ownership percentages must sum to 100% (got ${sum.toFixed(2)}%)`
-        };
-    }
-
-    for (const [personId, pct] of Object.entries(ownerships)) {
-        if (pct < 0 || pct > 100) {
-            return {
-                valid: false,
-                error: `Ownership for ${personId} must be between 0% and 100%`
-            };
+describe("owner remainder and effective allocation", () => {
+    it.each([
+        {
+            name: "empty explicit map",
+            explicit: {},
+            ownership: { alice: 100 },
+            remainder: "100",
+            effective: { alice: "100" }
+        },
+        {
+            name: "positive remainder with multiple owners",
+            explicit: { charlie: 30 },
+            ownership: { alice: 60, bob: 40 },
+            remainder: "70",
+            effective: { alice: "42", bob: "28", charlie: "30" }
+        },
+        {
+            name: "zero remainder",
+            explicit: { alice: 40, bob: 60 },
+            ownership: { alice: 100 },
+            remainder: "0",
+            effective: { alice: "40", bob: "60" }
+        },
+        {
+            name: "negative remainder",
+            explicit: { alice: 80, bob: 80 },
+            ownership: { alice: 100 },
+            remainder: "-60",
+            effective: { alice: "20", bob: "80" }
+        },
+        {
+            name: "negative explicit allocation",
+            explicit: { bob: -20 },
+            ownership: { alice: 100 },
+            remainder: "120",
+            effective: { alice: "120", bob: "-20" }
+        },
+        {
+            name: "overlapping explicit and owner IDs",
+            explicit: { alice: 10, bob: 30 },
+            ownership: { alice: 60, bob: 40 },
+            remainder: "60",
+            effective: { alice: "46", bob: "54" }
         }
-    }
+    ])("derives $name without normalizing explicit values", (testCase) => {
+        const explicitBefore = structuredClone(testCase.explicit);
+        const ownershipBefore = structuredClone(testCase.ownership);
+        const derived = expectDerived(testCase.explicit, testCase.ownership);
 
-    return { valid: true };
-}
-
-// ============================================================================
-// Arbitraries
-// ============================================================================
-
-/**
- * Generate a valid percentage (0-100)
- */
-const percentageArb = fc.double({ min: 0, max: 100, noNaN: true });
-
-/**
- * Generate allocation percentages for multiple people
- */
-const allocationsArb = fc.dictionary(
-    fc.constantFrom("personA", "personB", "personC", "personD"),
-    percentageArb,
-    { minKeys: 0, maxKeys: 4 }
-);
-
-/**
- * Generate valid ownership percentages (sum to 100%)
- */
-const validOwnershipArb = fc
-    .tuple(
-        fc.double({ min: 0, max: 100, noNaN: true }),
-        fc.double({ min: 0, max: 100, noNaN: true })
-    )
-    .map(([a, b]): Record<string, number> => {
-        const total = a + b;
-        if (total === 0) return { personA: 100, personB: 0 };
-        return {
-            personA: (a / total) * 100,
-            personB: (b / total) * 100
-        };
+        expect(derived.ownerRemainder).toBe(testCase.remainder);
+        expect(decimalRecord(derived.effectiveAllocations)).toEqual(testCase.effective);
+        expect(derived.effectiveTotal).toBe("100");
+        expect(explicitBefore).toEqual(testCase.explicit);
+        expect(ownershipBefore).toEqual(testCase.ownership);
     });
 
-/**
- * Generate a transaction amount
- */
-const amountArb = fc.double({ min: -100000, max: 100000, noNaN: true, noDefaultInfinity: true });
-
-// ============================================================================
-// sumAllocations tests
-// ============================================================================
-
-describe("sumAllocations", () => {
-    it("returns 0 for empty allocations", () => {
-        expect(sumAllocations({})).toBe(0);
-    });
-
-    it("sums single allocation", () => {
-        expect(sumAllocations({ personA: 50 })).toBe(50);
-    });
-
-    it("sums multiple allocations", () => {
-        expect(sumAllocations({ personA: 30, personB: 40, personC: 30 })).toBe(100);
-    });
-
-    // Property: sum equals reduce result
-    it("equals Object.values().reduce (property-based)", () => {
-        fc.assert(
-            fc.property(allocationsArb, (allocations) => {
-                const sum = sumAllocations(allocations);
-                const expected = Object.values(allocations).reduce((acc, v) => acc + v, 0);
-                expect(sum).toBeCloseTo(expected, 10);
-            })
+    it("normalizes only derived ownership weights within tolerance and closes exactly at 100", () => {
+        const derived = expectDerived(
+            { charlie: 12.345 },
+            { alice: 33.333, bob: 33.333, dora: 33.333 }
         );
-    });
-});
 
-// ============================================================================
-// isValidAllocation tests
-// ============================================================================
-
-describe("isValidAllocation", () => {
-    it("accepts empty allocations", () => {
-        expect(isValidAllocation({})).toBe(true);
+        expect(derived.ownershipTotal).toBe("99.999");
+        expect(derived.ownershipWeightTotal).toBe("100");
+        expect(derived.effectiveTotal).toBe("100");
+        expect(derived.explicitAllocations).toEqual({ charlie: 12.345 });
     });
 
-    it("accepts allocations summing to 100", () => {
-        expect(isValidAllocation({ personA: 50, personB: 50 })).toBe(true);
-    });
-
-    it("accepts allocations summing to less than 100", () => {
-        expect(isValidAllocation({ personA: 30 })).toBe(true);
-    });
-
-    it("rejects allocations summing to more than 100", () => {
-        expect(isValidAllocation({ personA: 60, personB: 60 })).toBe(false);
-    });
-
-    // Note: Per spec, negative allocations are allowed (flips credit/debit direction)
-    it("handles negative allocations", () => {
-        // Negative + positive can sum to valid range
-        expect(isValidAllocation({ personA: -20, personB: 80 })).toBe(true);
-    });
-});
-
-// ============================================================================
-// calculateRemainder tests
-// ============================================================================
-
-describe("calculateRemainder", () => {
-    it("returns 100 for empty allocations", () => {
-        expect(calculateRemainder({})).toBe(100);
-    });
-
-    it("returns 0 when allocations sum to 100", () => {
-        expect(calculateRemainder({ personA: 60, personB: 40 })).toBe(0);
-    });
-
-    it("returns difference when allocations sum to less", () => {
-        expect(calculateRemainder({ personA: 30 })).toBe(70);
-    });
-
-    it("returns 0 when allocations exceed 100", () => {
-        expect(calculateRemainder({ personA: 80, personB: 80 })).toBe(0);
-    });
-
-    // Property: remainder is non-negative
-    it("remainder is always >= 0 (property-based)", () => {
-        fc.assert(
-            fc.property(allocationsArb, (allocations) => {
-                expect(calculateRemainder(allocations)).toBeGreaterThanOrEqual(0);
-            })
+    it("is independent of explicit and ownership insertion order", () => {
+        const forward = expectDerived(
+            { charlie: 35.5, alice: -12.25, bob: 90 },
+            { alice: 10, dora: 30, bob: 60 }
         );
-    });
-});
-
-// ============================================================================
-// distributeRemainderToOwners tests
-// ============================================================================
-
-describe("distributeRemainderToOwners", () => {
-    it("returns unchanged when sum is already 100", () => {
-        const allocations = { personA: 50, personB: 50 };
-        const ownerships = { personA: 100 };
-
-        const result = distributeRemainderToOwners(allocations, ownerships);
-
-        expect(result).toEqual(allocations);
-    });
-
-    it("distributes remainder to single owner", () => {
-        const allocations = { personC: 30 };
-        const ownerships = { personA: 100 };
-
-        const result = distributeRemainderToOwners(allocations, ownerships);
-
-        expect(result.personA).toBe(70);
-        expect(result.personC).toBe(30);
-        expect(sumAllocations(result)).toBe(100);
-    });
-
-    it("distributes remainder proportionally to multiple owners", () => {
-        const allocations = { personC: 30 };
-        const ownerships = { personA: 60, personB: 40 };
-
-        const result = distributeRemainderToOwners(allocations, ownerships);
-
-        // 70% remainder split 60/40 = 42%/28%
-        expect(result.personA).toBeCloseTo(42, 10);
-        expect(result.personB).toBeCloseTo(28, 10);
-        expect(result.personC).toBe(30);
-        expect(sumAllocations(result)).toBeCloseTo(100, 10);
-    });
-
-    // Property: result sums to 100 when ownership is valid
-    it("result sums to 100 (property-based)", () => {
-        fc.assert(
-            fc.property(allocationsArb, validOwnershipArb, (allocations, ownerships) => {
-                // Only test valid input ranges
-                if (sumAllocations(allocations) > 100) return;
-
-                const result = distributeRemainderToOwners(allocations, ownerships);
-                expect(sumAllocations(result)).toBeCloseTo(100, 8);
-            })
+        const reverse = expectDerived(
+            { bob: 90, alice: -12.25, charlie: 35.5 },
+            { bob: 60, dora: 30, alice: 10 }
         );
-    });
 
-    // Property: original allocations are preserved
-    it("preserves original allocations (property-based)", () => {
-        fc.assert(
-            fc.property(allocationsArb, validOwnershipArb, (allocations, ownerships) => {
-                if (sumAllocations(allocations) > 100) return;
-
-                const result = distributeRemainderToOwners(allocations, ownerships);
-
-                for (const [personId, pct] of Object.entries(allocations)) {
-                    // Original allocation should be <= result (may have ownership added)
-                    expect(result[personId]).toBeGreaterThanOrEqual(pct - 0.0001);
-                }
-            })
+        expect(decimalRecord(reverse.effectiveAllocations)).toEqual(
+            decimalRecord(forward.effectiveAllocations)
         );
-    });
-});
-
-// ============================================================================
-// normalizeAllocations tests
-// ============================================================================
-
-describe("normalizeAllocations", () => {
-    it("returns unchanged for empty allocations", () => {
-        expect(normalizeAllocations({})).toEqual({});
+        expect(decimalRecord(reverse.ownershipWeights)).toEqual(
+            decimalRecord(forward.ownershipWeights)
+        );
+        expect(reverse.ownerRemainder).toBe(forward.ownerRemainder);
     });
 
-    it("returns unchanged when sum is already 100", () => {
-        const allocations = { personA: 50, personB: 50 };
-        const result = normalizeAllocations(allocations);
+    it("returns allocation and ownership errors without deriving plausible weights", () => {
+        const allocationError = deriveEffectiveAllocations({ alice: 101 }, { alice: 100 });
+        const ownershipError = deriveEffectiveAllocations({ alice: 50 }, { alice: 50 });
 
-        expect(result.personA).toBeCloseTo(50, 10);
-        expect(result.personB).toBeCloseTo(50, 10);
+        expect(allocationError).toEqual({
+            ok: false,
+            errors: [expect.objectContaining({ domain: "allocation", personId: "alice" })]
+        });
+        expect(ownershipError).toEqual({
+            ok: false,
+            errors: [expect.objectContaining({ domain: "ownership", reason: "invalid-total" })]
+        });
     });
 
-    it("scales up when sum is less than 100", () => {
-        const allocations = { personA: 25, personB: 25 };
-        const result = normalizeAllocations(allocations);
-
-        expect(result.personA).toBeCloseTo(50, 10);
-        expect(result.personB).toBeCloseTo(50, 10);
-    });
-
-    it("scales down when sum exceeds 100", () => {
-        const allocations = { personA: 100, personB: 100 };
-        const result = normalizeAllocations(allocations);
-
-        expect(result.personA).toBeCloseTo(50, 10);
-        expect(result.personB).toBeCloseTo(50, 10);
-    });
-
-    // Property: normalized allocations sum to 100
-    it("result sums to 100 when non-empty (property-based)", () => {
+    it("preserves explicit sets and exact totals across fixed-seed generated inputs", () => {
         fc.assert(
             fc.property(
-                fc.dictionary(
-                    fc.constantFrom("a", "b", "c"),
-                    fc.double({ min: 0.1, max: 100, noNaN: true }),
-                    {
-                        minKeys: 1,
-                        maxKeys: 3
-                    }
-                ),
-                (allocations) => {
-                    const result = normalizeAllocations(allocations);
-                    expect(sumAllocations(result)).toBeCloseTo(100, 8);
-                }
-            )
-        );
-    });
-
-    // Property: proportions are preserved
-    it("preserves proportions (property-based)", () => {
-        fc.assert(
-            fc.property(
-                fc.dictionary(
-                    fc.constantFrom("a", "b"),
-                    fc.double({ min: 1, max: 100, noNaN: true }),
-                    {
-                        minKeys: 2,
-                        maxKeys: 2
-                    }
-                ),
-                (allocations) => {
-                    const entries = Object.entries(allocations);
-                    if (entries.length < 2) return;
-
-                    const [k1, v1] = entries[0];
-                    const [k2, v2] = entries[1];
-                    const originalRatio = v1 / v2;
-
-                    const result = normalizeAllocations(allocations);
-                    const newRatio = result[k1] / result[k2];
-
-                    expect(newRatio).toBeCloseTo(originalRatio, 8);
-                }
-            )
-        );
-    });
-});
-
-// ============================================================================
-// calculateShares tests
-// ============================================================================
-
-describe("calculateShares", () => {
-    it("returns empty for empty allocations", () => {
-        expect(calculateShares(100, {})).toEqual({});
-    });
-
-    it("calculates share for single allocation", () => {
-        const result = calculateShares(-100, { personA: 50 });
-        expect(result.personA).toBe(-50);
-    });
-
-    it("calculates shares for multiple allocations", () => {
-        const result = calculateShares(-100, { personA: 30, personB: 70 });
-        expect(result.personA).toBe(-30);
-        expect(result.personB).toBe(-70);
-    });
-
-    // Property: sum of shares equals amount when allocations sum to 100
-    it("shares sum to amount when allocations sum to 100 (property-based)", () => {
-        fc.assert(
-            fc.property(amountArb, validOwnershipArb, (amount, allocations) => {
-                // Use valid ownership as allocations (they sum to 100)
-                const shares = calculateShares(amount, allocations);
-                const sharesSum = Object.values(shares).reduce((sum, v) => sum + v, 0);
-
-                expect(sharesSum).toBeCloseTo(amount, 8);
-            })
-        );
-    });
-
-    // Property: each share is proportional to allocation
-    it("each share is proportional (property-based)", () => {
-        fc.assert(
-            fc.property(
-                amountArb,
-                fc.dictionary(fc.constantFrom("a", "b", "c"), percentageArb, {
-                    minKeys: 1,
-                    maxKeys: 3
+                fc.record({
+                    alice: fc.integer({ min: -10_000, max: 10_000 }),
+                    bob: fc.integer({ min: -10_000, max: 10_000 }),
+                    charlie: fc.integer({ min: -10_000, max: 10_000 }),
+                    ownershipSplit: fc.integer({ min: 0, max: 10_000 })
                 }),
-                (amount, allocations) => {
-                    const shares = calculateShares(amount, allocations);
+                ({ alice, bob, charlie, ownershipSplit }) => {
+                    const explicit = {
+                        alice: alice / 100,
+                        bob: bob / 100,
+                        charlie: charlie / 100
+                    };
+                    const ownership = {
+                        alice: ownershipSplit / 100,
+                        owner: (10_000 - ownershipSplit) / 100
+                    };
+                    const reversedExplicit = Object.fromEntries(Object.entries(explicit).reverse());
+                    const reversedOwnership = Object.fromEntries(
+                        Object.entries(ownership).reverse()
+                    );
+                    const derived = expectDerived(explicit, ownership);
+                    const reversed = expectDerived(reversedExplicit, reversedOwnership);
+                    const expectedRemainder = hundredthsToDecimal(10_000 - alice - bob - charlie);
 
-                    for (const [personId, pct] of Object.entries(allocations)) {
-                        expect(shares[personId]).toBeCloseTo((amount * pct) / 100, 10);
-                    }
+                    expect(derived.explicitAllocations).toEqual(explicit);
+                    expect(derived.ownerRemainder).toBe(expectedRemainder);
+                    expect(derived.effectiveTotal).toBe("100");
+                    expect(decimalRecord(reversed.effectiveAllocations)).toEqual(
+                        decimalRecord(derived.effectiveAllocations)
+                    );
                 }
-            )
+            ),
+            { seed: DERIVATION_SEED, numRuns: PROPERTY_RUNS }
         );
     });
 });
 
-// ============================================================================
-// validateOwnership tests
-// ============================================================================
+describe("signed minor-unit apportionment", () => {
+    it.each(signedApportionmentCases)("$name", ({ amount, weights, shares }) => {
+        const result = apportionMinorUnits(amount, expectExactWeights(weights));
 
-describe("validateOwnership", () => {
-    it("accepts valid 100% single owner", () => {
-        const result = validateOwnership({ personA: 100 });
-        expect(result.valid).toBe(true);
+        expect(result).toEqual({ ok: true, value: shares });
+        if (!result.ok) throw new Error("Expected valid apportionment");
+        expect(sumMinorUnits(result.value)).toBe(amount);
     });
 
-    it("accepts valid 50/50 split", () => {
-        const result = validateOwnership({ personA: 50, personB: 50 });
-        expect(result.valid).toBe(true);
-    });
-
-    it("rejects when sum exceeds 100", () => {
-        const result = validateOwnership({ personA: 60, personB: 60 });
-        expect(result.valid).toBe(false);
-        expect(result.error).toContain("must sum to 100%");
-    });
-
-    it("rejects when sum is less than 100", () => {
-        const result = validateOwnership({ personA: 30 });
-        expect(result.valid).toBe(false);
-        expect(result.error).toContain("must sum to 100%");
-    });
-
-    it("rejects negative ownership", () => {
-        const result = validateOwnership({ personA: -20, personB: 120 });
-        expect(result.valid).toBe(false);
-        expect(result.error).toContain("between 0% and 100%");
-    });
-
-    it("rejects ownership over 100%", () => {
-        const result = validateOwnership({ personA: 150, personB: -50 });
-        expect(result.valid).toBe(false);
-        expect(result.error).toContain("between 0% and 100%");
-    });
-
-    // Property: valid ownership always sums to 100
-    it("valid ownership sums to 100 (property-based)", () => {
-        fc.assert(
-            fc.property(validOwnershipArb, (ownerships) => {
-                const result = validateOwnership(ownerships);
-                if (result.valid) {
-                    expect(sumAllocations(ownerships)).toBeCloseTo(100, 8);
-                }
+    it("uses ascending person ID rather than insertion order for equal remainders", () => {
+        const forward = apportionMinorUnits(
+            2,
+            expectExactWeights({
+                charlie: "33.333333333333333333",
+                alice: "33.333333333333333333",
+                bob: "33.333333333333333334"
             })
         );
+        const reverse = apportionMinorUnits(
+            2,
+            expectExactWeights({
+                bob: "33.333333333333333334",
+                alice: "33.333333333333333333",
+                charlie: "33.333333333333333333"
+            })
+        );
+
+        expect(forward).toEqual({ ok: true, value: { alice: 1, bob: 1, charlie: 0 } });
+        expect(reverse).toEqual(forward);
     });
+
+    it.each([
+        ["non-integer", 1.5],
+        ["unsafe integer", Number.MAX_SAFE_INTEGER + 1],
+        ["NaN", Number.NaN],
+        ["infinity", Number.POSITIVE_INFINITY]
+    ])("rejects %s minor-unit amount with typed data", (_name, amount) => {
+        expect(apportionMinorUnits(amount, expectExactWeights({ alice: "100" }))).toEqual({
+            ok: false,
+            error: { type: "invalid-amount" }
+        });
+    });
+
+    it("rejects weights that do not total exactly 100", () => {
+        expect(
+            validateExactPercentageWeights({
+                alice: "40",
+                bob: "50"
+            })
+        ).toEqual({
+            ok: false,
+            error: { type: "invalid-weight-total", total: "90" }
+        });
+    });
+
+    it("conserves positive, negative and zero amounts for ownership and effective weights", () => {
+        fc.assert(
+            fc.property(
+                fc.record({
+                    amount: fc.integer({ min: -1_000_000, max: 1_000_000 }),
+                    alice: fc.integer({ min: -10_000, max: 10_000 }),
+                    bob: fc.integer({ min: -10_000, max: 10_000 }),
+                    split: fc.integer({ min: 0, max: 10_000 })
+                }),
+                ({ amount, alice, bob, split }) => {
+                    const derived = expectDerived(
+                        { alice: alice / 100, bob: bob / 100 },
+                        { alice: split / 100, owner: (10_000 - split) / 100 }
+                    );
+                    const effective = apportionMinorUnits(amount, derived.effectiveAllocations);
+                    const ownership = apportionMinorUnits(amount, derived.ownershipWeights);
+
+                    expect(effective.ok).toBe(true);
+                    expect(ownership.ok).toBe(true);
+                    if (!effective.ok || !ownership.ok) {
+                        throw new Error("Expected valid generated apportionment");
+                    }
+                    expect(sumMinorUnits(effective.value)).toBe(amount);
+                    expect(sumMinorUnits(ownership.value)).toBe(amount);
+                }
+            ),
+            { seed: APPORTIONMENT_SEED, numRuns: PROPERTY_RUNS }
+        );
+    });
+
+    it.runIf(process.env.P16A_BENCHMARK === "1")(
+        "benchmarks production derivation and apportionment primitives",
+        () => {
+            const personIds = Array.from(
+                { length: 200 },
+                (_, index) => `person-${String(index).padStart(4, "0")}`
+            );
+            const explicit = Object.fromEntries(
+                personIds.map((personId, index) => [personId, (index % 201) / 2 - 50])
+            );
+            const ownership = Object.fromEntries(personIds.map((personId) => [personId, 0.5]));
+            const execute = () => {
+                const derived = deriveEffectiveAllocations(explicit, ownership);
+                if (!derived.ok) throw new Error("Benchmark derivation failed");
+                const apportioned = apportionMinorUnits(
+                    -987_654_321,
+                    derived.value.effectiveAllocations
+                );
+                if (!apportioned.ok) throw new Error("Benchmark apportionment failed");
+                return sumMinorUnits(apportioned.value);
+            };
+
+            for (let index = 0; index < 100; index += 1) execute();
+            const samples = Array.from({ length: 5 }, () => {
+                const startedAt = performance.now();
+                let checksum = 0;
+                for (let index = 0; index < 250; index += 1) checksum += execute();
+                return {
+                    elapsedMs: performance.now() - startedAt,
+                    checksum
+                };
+            });
+
+            expect(samples.every(({ checksum }) => checksum === -246_913_580_250)).toBe(true);
+            console.info(
+                "P16A benchmark node=%s people=200 warmup=100 samples=5 iterations=250 elapsedMs=%s",
+                process.version,
+                samples.map(({ elapsedMs }) => elapsedMs.toFixed(2)).join(",")
+            );
+        }
+    );
 });
