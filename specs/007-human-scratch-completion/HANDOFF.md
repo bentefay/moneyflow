@@ -23,6 +23,7 @@ literal field is `pending`. Workers may read but never edit it.
 - **Frozen revision-03 review:** `reviews/P13-review-03.md`, PASS, SHA-256
   `d875ee06c2899bf28b96d2045df288cc2fc15a9b27af67492a293656befc5eda`, 177 lines/18,583 bytes.
   Review-02 F-01 closes with no High/Medium finding; the exact cumulative range satisfies HS-001.
+- **Revision-03 integration commit:** `7a04338fa7c3f68463d12d11082bc56e87c1872b`
 - **Revision-02 pre-implementation HEAD:** `57398ea27d2af6523d26ccc3227433feaebe29e3`
 - **Literal revision-02 product/test HEAD:** `8f6e4f2ad77da24016169a79286a9727f3394aca`
 - **Revision-02 commit:** `8f6e4f2ad77da24016169a79286a9727f3394aca`; exactly
@@ -148,5 +149,5 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Persist the immutable revision-03 PASS artifacts and root transcriptions, then durably prepare and
-execute the exact HS-001 `[] -> [x]` marker transaction.
+Execute and verify only the durably prepared HS-001 `[] -> [x]` marker transaction; no package
+dispatch is allowed until it finalizes.
