@@ -263,26 +263,36 @@ test.describe("Description Aliases", () => {
             await expect(exact).not.toHaveAttribute("data-state");
         });
 
-        await test.step("manual creation stores alias-only UX and is one undo step", async () => {
+        await test.step("manual Add and alias edit retain distinct undo boundaries", async () => {
             const pushedBodies: string[] = [];
             page.on("request", (request) => {
                 if (request.url().includes("sync.pushOps"))
                     pushedBodies.push(request.postData() ?? "");
             });
             await page.getByTestId("add-transaction-button").click();
-            await page.getByTestId("new-transaction-description").fill("Manual alias only");
-            await page.getByTestId("new-transaction-amount").fill("12.34");
-            await page.getByTestId("new-transaction-amount").press("Enter");
+            const addedRow = page.getByRole("row", { selected: true });
+            const addedRowId = await addedRow.getAttribute("data-transaction-id");
+            if (!addedRowId) throw new Error("Expected persisted transaction identity");
+            const addedDescription = addedRow.getByTestId("description-editable");
+            await addedDescription.fill("Manual alias only");
+            await addedDescription.press("Enter");
             const manual = descriptionInputFor(page, /Manual alias only/);
             await expect(manual).toBeVisible();
-            await page.keyboard.press("Escape");
-            await expect(page.getByTestId("add-transaction-row")).not.toBeVisible();
             await manual.hover();
             await expect(
                 page.getByRole("tooltip").filter({ hasText: "Manual alias only" })
             ).toHaveCount(0);
+
             await page.getByRole("button", { name: "Undo" }).click();
             await expect(descriptionInputFor(page, /Manual alias only/)).toHaveCount(0);
+            const restoredEmptyRow = page.locator(`[data-transaction-id="${addedRowId}"]`);
+            await expect(restoredEmptyRow).toBeVisible();
+            await expect(restoredEmptyRow.getByTestId("description-editable")).toHaveValue("");
+            await page.getByRole("button", { name: "Undo" }).click();
+            await expect(restoredEmptyRow).toHaveCount(0);
+
+            await page.getByRole("button", { name: "Redo" }).click();
+            await expect(restoredEmptyRow).toBeVisible();
             await page.getByRole("button", { name: "Redo" }).click();
             await expect(descriptionInputFor(page, /Manual alias only/)).toBeVisible();
             await expect.poll(() => pushedBodies.length).toBeGreaterThan(0);

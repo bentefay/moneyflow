@@ -600,4 +600,72 @@ describe("Mirror Integration - Import Batch Flow", () => {
         expect(allTxs[0].date).toBeInstanceOf(Temporal.PlainDate);
         expect(allTxs[0].date).toEqual(Temporal.PlainDate.from("2024-05-10"));
     });
+
+    it("roundtrips rapid distinct empty manual rows with their defaults intact", () => {
+        const source = new LoroDoc();
+        const sourceMirror = new Mirror({
+            doc: source,
+            schema: vaultSchema,
+            initialState: getDefaultVaultState(),
+            validateUpdates: true
+        });
+        const date = Temporal.PlainDate.from("2026-07-24");
+        const firstInstant = Temporal.Instant.from("2026-07-24T00:00:00Z");
+
+        sourceMirror.setState((state: VaultInput) => {
+            for (const [index, id] of ["empty-1", "empty-2", "empty-3"].entries()) {
+                insertTransaction(state.transactions as unknown as TransactionStore, {
+                    transaction: {
+                        id,
+                        date,
+                        description: "",
+                        descriptionAliasId: undefined,
+                        notes: "",
+                        amount: asMinorUnits(0),
+                        accountId: "account-default",
+                        tagIds: [],
+                        statusId: "status-for-review",
+                        importId: undefined,
+                        allocations: {},
+                        creationInstant: firstInstant.add({ nanoseconds: index }),
+                        importRowIndex: undefined,
+                        deletedAt: undefined
+                    }
+                });
+            }
+        });
+
+        const restored = new LoroDoc();
+        restored.import(source.export({ mode: "snapshot" }));
+        const restoredMirror = new Mirror({
+            doc: restored,
+            schema: vaultSchema,
+            initialState: getDefaultVaultState(),
+            validateUpdates: true
+        });
+        const transactions = getAllTransactions(restoredMirror.getState().transactions);
+
+        expect(transactions.map(({ id }) => id)).toEqual(["empty-3", "empty-2", "empty-1"]);
+        expect(new Set(transactions.map(({ id }) => id)).size).toBe(3);
+        for (const transaction of transactions) {
+            expect(transaction).toMatchObject({
+                date,
+                description: "",
+                notes: "",
+                amount: 0,
+                accountId: "account-default",
+                tagIds: [],
+                statusId: "status-for-review",
+                allocations: {},
+                suspectedDuplicates: []
+            });
+            expect(transaction.descriptionAliasId).toBeUndefined();
+            expect(transaction.importId).toBeUndefined();
+            expect(transaction.importRowIndex).toBeUndefined();
+            expect(transaction.deletedAt).toBeUndefined();
+        }
+
+        sourceMirror.dispose();
+        restoredMirror.dispose();
+    });
 });

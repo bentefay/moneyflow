@@ -22,7 +22,6 @@ import {
     BulkEditToolbar,
     createEmptyFilters,
     hasActiveFilters,
-    type NewTransactionData,
     TransactionFilters,
     type TransactionFiltersState,
     type TransactionRowData,
@@ -84,8 +83,13 @@ export default function TransactionsPage() {
     const people = useActivePeople();
 
     // Transaction mutations from hierarchical structure
-    const { updateTransaction, moveTransaction, deleteTransaction, unnestDuplicate } =
-        useTransactionActions();
+    const {
+        insertTransaction,
+        updateTransaction,
+        moveTransaction,
+        deleteTransaction,
+        unnestDuplicate
+    } = useTransactionActions();
 
     // Legacy vault actions for non-transaction mutations
     const addTag = useVaultAction((state, tag: { id: string; name: string; color: string }) => {
@@ -104,7 +108,6 @@ export default function TransactionsPage() {
         assignDescriptionAliasByExactName,
         changeAllDescriptionAliases,
         changeOneDescriptionAlias,
-        insertManualDescriptionAliasedTransaction,
         removeAllDescriptionAliases,
         removeOneDescriptionAlias,
         renameDescriptionAlias
@@ -128,10 +131,17 @@ export default function TransactionsPage() {
 
     // Selection state - simple Set instead of custom hook
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-    const selectedCount = selectedIds.size;
+    const activeTransactionIds = useMemo(
+        () => new Set(transactions.map((transaction) => transaction.id)),
+        [transactions]
+    );
+    const selectedTransactionIds = useMemo(
+        () => new Set([...selectedIds].filter((id) => activeTransactionIds.has(id))),
+        [activeTransactionIds, selectedIds]
+    );
+    const selectedCount = selectedTransactionIds.size;
 
-    // Add transaction state
-    const [isAddingTransaction, setIsAddingTransaction] = useState(false);
+    const lastManualCreationInstantRef = useRef<Temporal.Instant | null>(null);
 
     // Clear selection helper
     const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
@@ -233,7 +243,7 @@ export default function TransactionsPage() {
         [displayedTransactions, accounts, statuses, tags, aliasLookup]
     );
 
-    // Account options for AddTransactionRow
+    // Account options for transaction rows
     const accountOptions = useMemo(
         () =>
             Object.values(accounts)
@@ -254,37 +264,46 @@ export default function TransactionsPage() {
         return defaultStatus?.id ?? Object.keys(statuses)[0] ?? "";
     }, [statuses]);
 
-    // Handle add transaction - uses insertTransaction mutation
-    const handleAddTransaction = useCallback(
-        (data: NewTransactionData) => {
-            const now = Temporal.Now.instant();
-            const transactionId = generateId();
-            insertManualDescriptionAliasedTransaction({
-                transaction: {
-                    id: transactionId,
-                    date: Temporal.PlainDate.from(data.date),
-                    notes: data.notes ?? "",
-                    amount: asMinorUnits(data.amount),
-                    accountId: data.accountId,
-                    tagIds: data.tagIds ?? [],
-                    statusId: data.statusId ?? defaultStatusId,
-                    allocations: {},
-                    creationInstant: now,
-                    importRowIndex: 0, // Manual transactions get index 0
-                    deletedAt: undefined
-                },
-                newAliasId: generateId(),
-                name: data.description
-            });
-        },
-        [defaultStatusId, insertManualDescriptionAliasedTransaction]
-    );
+    const handleAddTransaction = useCallback(() => {
+        const accountId = accountOptions[0]?.id;
+        if (!accountId || !defaultStatusId) return;
+
+        const now = Temporal.Now.instant();
+        const previousCreationInstant = lastManualCreationInstantRef.current;
+        const creationInstant =
+            previousCreationInstant == null ||
+            Temporal.Instant.compare(now, previousCreationInstant) > 0
+                ? now
+                : previousCreationInstant.add({ nanoseconds: 1 });
+        lastManualCreationInstantRef.current = creationInstant;
+
+        const transactionId = generateId();
+        insertTransaction({
+            transaction: {
+                id: transactionId,
+                date: Temporal.Now.plainDateISO(),
+                description: "",
+                descriptionAliasId: undefined,
+                notes: "",
+                amount: asMinorUnits(0),
+                accountId,
+                tagIds: [],
+                statusId: defaultStatusId,
+                importId: undefined,
+                allocations: {},
+                creationInstant,
+                importRowIndex: undefined,
+                deletedAt: undefined
+            }
+        });
+        setSelectedIds(new Set([transactionId]));
+    }, [accountOptions, defaultStatusId, insertTransaction]);
 
     // Handle bulk delete - uses deleteTransaction mutation
     const handleBulkDelete = useCallback(() => {
         // We need transaction locations for the new delete mutation
         // For now, find each transaction and delete it
-        for (const id of selectedIds) {
+        for (const id of selectedTransactionIds) {
             const tx = transactions.find((t) => t.id === id);
             if (tx) {
                 deleteTransaction({
@@ -297,12 +316,12 @@ export default function TransactionsPage() {
             }
         }
         clearSelection();
-    }, [selectedIds, transactions, deleteTransaction, clearSelection]);
+    }, [selectedTransactionIds, transactions, deleteTransaction, clearSelection]);
 
     // Handle bulk set tags
     const handleBulkSetTags = useCallback(
         (tagIds: string[]) => {
-            for (const id of selectedIds) {
+            for (const id of selectedTransactionIds) {
                 const tx = transactions.find((t) => t.id === id);
                 if (tx) {
                     updateTransaction({
@@ -316,13 +335,13 @@ export default function TransactionsPage() {
                 }
             }
         },
-        [selectedIds, transactions, updateTransaction]
+        [selectedTransactionIds, transactions, updateTransaction]
     );
 
     // Handle bulk set status
     const handleBulkSetStatus = useCallback(
         (statusId: string) => {
-            for (const id of selectedIds) {
+            for (const id of selectedTransactionIds) {
                 const tx = transactions.find((t) => t.id === id);
                 if (tx) {
                     updateTransaction({
@@ -336,13 +355,13 @@ export default function TransactionsPage() {
                 }
             }
         },
-        [selectedIds, transactions, updateTransaction]
+        [selectedTransactionIds, transactions, updateTransaction]
     );
 
     // Handle bulk set account - uses moveTransaction for account changes
     const handleBulkSetAccount = useCallback(
         (accountId: string) => {
-            for (const id of selectedIds) {
+            for (const id of selectedTransactionIds) {
                 const tx = transactions.find((t) => t.id === id);
                 if (tx && tx.accountId !== accountId) {
                     // Account change requires move since it's a different tree
@@ -358,13 +377,13 @@ export default function TransactionsPage() {
                 }
             }
         },
-        [selectedIds, transactions, moveTransaction]
+        [selectedTransactionIds, transactions, moveTransaction]
     );
 
     // Handle bulk set notes
     const handleBulkSetNotes = useCallback(
         (notes: string) => {
-            for (const id of selectedIds) {
+            for (const id of selectedTransactionIds) {
                 const tx = transactions.find((t) => t.id === id);
                 if (tx) {
                     updateTransaction({
@@ -378,13 +397,13 @@ export default function TransactionsPage() {
                 }
             }
         },
-        [selectedIds, transactions, updateTransaction]
+        [selectedTransactionIds, transactions, updateTransaction]
     );
 
     // Handle bulk set amount
     const handleBulkSetAmount = useCallback(
         (amount: number) => {
-            for (const id of selectedIds) {
+            for (const id of selectedTransactionIds) {
                 const tx = transactions.find((t) => t.id === id);
                 if (tx) {
                     updateTransaction({
@@ -398,7 +417,7 @@ export default function TransactionsPage() {
                 }
             }
         },
-        [selectedIds, transactions, updateTransaction]
+        [selectedTransactionIds, transactions, updateTransaction]
     );
 
     // Handle creating a new tag
@@ -598,7 +617,7 @@ export default function TransactionsPage() {
                 });
             }
             // Clear selection if the deleted transaction was selected
-            if (selectedIds.has(id)) {
+            if (selectedTransactionIds.has(id)) {
                 setSelectedIds((prev) => {
                     const newSelection = new Set(prev);
                     newSelection.delete(id);
@@ -606,7 +625,7 @@ export default function TransactionsPage() {
                 });
             }
         },
-        [transactions, deleteTransaction, selectedIds]
+        [transactions, deleteTransaction, selectedTransactionIds]
     );
 
     // Handle resolve duplicate (unnest from parent)
@@ -791,8 +810,7 @@ export default function TransactionsPage() {
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border">
                 {/* Toolbar with Add button and counts */}
                 <TransactionTableToolbar
-                    isAddingTransaction={isAddingTransaction}
-                    onAddClick={() => setIsAddingTransaction(true)}
+                    onAddClick={handleAddTransaction}
                     selectedCount={selectedCount}
                     totalCount={filteredTransactions.length}
                     isFiltered={hasActiveFilters(filters)}
@@ -802,7 +820,7 @@ export default function TransactionsPage() {
                 <TransactionTable
                     transactions={tableData}
                     presenceByTransactionId={presenceByTransactionId}
-                    selectedIds={selectedIds}
+                    selectedIds={selectedTransactionIds}
                     availableAccounts={accountOptions}
                     availableStatuses={statusOptionsForInlineEdit}
                     availableTags={tagOptionsForInlineEdit}
@@ -816,11 +834,6 @@ export default function TransactionsPage() {
                     onTransactionDelete={handleSingleDelete}
                     onResolveDuplicate={handleResolveDuplicate}
                     onTransactionUpdate={handleTransactionUpdate}
-                    isAddingTransaction={isAddingTransaction}
-                    onAddTransaction={handleAddTransaction}
-                    onCancelAddTransaction={() => setIsAddingTransaction(false)}
-                    defaultAccountId={accountOptions[0]?.id}
-                    defaultStatusId={defaultStatusId}
                 />
             </div>
 

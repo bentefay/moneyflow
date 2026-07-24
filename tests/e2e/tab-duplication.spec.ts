@@ -147,12 +147,13 @@ test("a browser-duplicated tab hydrates onboarding and an authenticated vault", 
         const description = "Duplicate tab live sync";
 
         await authenticatedDuplicate.getByTestId("add-transaction-button").click();
-        const addRow = authenticatedDuplicate.getByRole("row").filter({
-            has: authenticatedDuplicate.getByPlaceholder("Description...")
-        });
-        await addRow.getByPlaceholder("Description...").fill(description);
-        await addRow.getByPlaceholder("0.00").fill("12.34");
-        await addRow.getByRole("button", { name: "Add transaction" }).click();
+        const addedRow = authenticatedDuplicate.getByRole("row", { selected: true });
+        const descriptionInput = addedRow.getByTestId("description-editable");
+        await descriptionInput.fill(description);
+        await descriptionInput.press("Enter");
+        const amountInput = addedRow.getByTestId("amount-editable");
+        await amountInput.fill("12.34");
+        await amountInput.press("Enter");
 
         const matchingRows = (page: import("@playwright/test").Page) =>
             page.getByTestId("transaction-row").filter({
@@ -166,7 +167,8 @@ test("a browser-duplicated tab hydrates onboarding and an authenticated vault", 
         await expect(onboardingDuplicate.getByRole("status", { name: "Saved" })).toBeVisible({
             timeout: 15_000
         });
-        expect(countFixtureVaultOps(vaultId)).toBe(1);
+        // Persisted Add, description-alias edit and amount edit are three ordinary user actions.
+        expect(countFixtureVaultOps(vaultId)).toBe(3);
         expect(receiverPushOps - receiverPushBaseline).toBe(0);
         expect(browserErrors).toEqual([]);
     } finally {

@@ -25,7 +25,7 @@ import {
 // ============================================================================
 
 /**
- * Create a transaction via the add row form.
+ * Create a persisted transaction via its ordinary row.
  * Returns the transaction row locator.
  */
 async function createTestTransaction(
@@ -35,43 +35,27 @@ async function createTestTransaction(
         amount: string;
     }
 ) {
-    // Click the "Add transaction" button in the toolbar
-    const addButton = page.locator('[data-testid="add-transaction-button"]');
+    const addButton = page.getByTestId("add-transaction-button");
     await addButton.click();
 
-    // Wait for the add row to appear in the table (has inputs)
-    const descriptionInput = page.locator('[data-testid="new-transaction-description"]');
-    await expect(descriptionInput).toBeVisible({ timeout: 5000 });
+    const addedRow = page.getByRole("row", { selected: true });
+    await expect(addedRow).toBeVisible();
 
-    // Fill description
-    await descriptionInput.clear();
+    const descriptionInput = addedRow.getByTestId("description-editable");
     await descriptionInput.fill(data.description);
+    await descriptionInput.press("Enter");
 
-    // Fill amount
-    const amountInput = page.locator('[data-testid="new-transaction-amount"]');
-    await amountInput.clear();
+    const amountInput = addedRow.getByTestId("amount-editable");
     await amountInput.fill(data.amount);
-
-    // Submit with Enter
     await amountInput.press("Enter");
 
-    // Wait for the transaction to appear in the grid
-    // Look by grid row with accessible name containing our description
-    // Escape regex special chars and use word boundary or end-of-string to avoid partial matches
     const escapedDescription = data.description.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const transactionRow = page.getByRole("row", {
         name: new RegExp(`${escapedDescription}(Default|$|\\s)`)
     });
-    await expect(transactionRow).toBeVisible({ timeout: 5000 });
-
-    // Cancel the add row to return to inactive state
-    // This ensures the selection count is visible in the toolbar
-    await page.keyboard.press("Escape");
-
-    // Wait for add row to disappear (cancelled)
-    await expect(page.locator('[data-testid="add-transaction-row"]')).not.toBeVisible({
-        timeout: 5000
-    });
+    await expect(transactionRow).toBeVisible();
+    await transactionRow.getByTestId("row-checkbox").getByRole("checkbox").click();
+    await expect(transactionRow).toHaveAttribute("aria-selected", "false");
 }
 
 /**
@@ -123,6 +107,108 @@ test.describe("Transactions", () => {
             const addButton = page.locator('[data-testid="add-transaction-button"]');
             await expect(addButton).toBeVisible();
         });
+    });
+
+    test("each Add click immediately creates a distinct ordinary empty row", async ({ page }) => {
+        await createNewIdentity(page);
+        await goToTransactions(page);
+
+        const addButton = page.getByTestId("add-transaction-button");
+        await addButton.click();
+
+        await expect(addButton).toBeEnabled();
+        await expect(addButton).toBeFocused();
+        await expect(page.getByTestId("transaction-row")).toHaveCount(1);
+        await expect(page.getByTestId("new-transaction-description")).toHaveCount(0);
+        await expect(page.getByTestId("add-transaction-submit")).toHaveCount(0);
+        await expect(page.getByTestId("add-transaction-cancel")).toHaveCount(0);
+
+        const firstAddedRow = page.getByRole("row", { selected: true });
+        await expect(
+            firstAddedRow.getByRole("checkbox", { name: "Select transaction" })
+        ).toBeChecked();
+        await expect(firstAddedRow.getByTestId("description-editable")).toHaveValue("");
+        await expect(firstAddedRow.getByTestId("description-editable")).toHaveAttribute(
+            "placeholder",
+            "No description"
+        );
+        await expect(firstAddedRow.getByTestId("date-editable")).not.toHaveValue("");
+        await expect(firstAddedRow.getByRole("combobox", { name: "Select account" })).toContainText(
+            "Default"
+        );
+        await expect(firstAddedRow.getByTestId("status-editable")).toContainText("For Review");
+        await expect(firstAddedRow.getByTestId("amount-editable")).toHaveValue("0.00");
+
+        await addButton.click();
+        await addButton.click();
+        await expect(page.getByTestId("transaction-row")).toHaveCount(3);
+        await expect(page.getByRole("row", { selected: true })).toHaveCount(1);
+
+        const descriptions = page.getByTestId("description-editable");
+        await descriptions.nth(0).focus();
+        await descriptions.nth(0).press("ArrowDown");
+        await expect(descriptions.nth(1)).toBeFocused();
+        await descriptions.nth(1).press("Shift+Tab");
+        await expect(page.getByTestId("date-editable").nth(1)).toBeFocused();
+        await page.getByTestId("date-editable").nth(1).press("Tab");
+        await expect(descriptions.nth(1)).toBeFocused();
+
+        await descriptions.nth(1).fill("Ordinary empty row");
+        await descriptions.nth(1).press("Enter");
+        await expect(descriptions.nth(1)).toHaveValue("Ordinary empty row");
+
+        await descriptions.nth(2).fill("Discarded draft");
+        await descriptions.nth(2).press("Escape");
+        await expect(descriptions.nth(2)).toHaveValue("");
+
+        await page.reload();
+        await expect(page.getByTestId("transaction-row")).toHaveCount(3);
+        await expect(page.getByTestId("description-editable").nth(1)).toHaveValue(
+            "Ordinary empty row"
+        );
+    });
+
+    test("empty rows survive offline reload and converge once across authenticated tabs", async ({
+        context,
+        page
+    }) => {
+        await createNewIdentity(page);
+        await goToTransactions(page);
+
+        const addButton = page.getByTestId("add-transaction-button");
+        await addButton.click();
+        await expect(page.getByTestId("transaction-row")).toHaveCount(1);
+        await expect(page.getByRole("status", { name: "Saved" })).toBeVisible();
+
+        const duplicatePagePromise = context.waitForEvent("page");
+        await page.evaluate(() => {
+            window.open(window.location.href, "_blank");
+        });
+        const duplicate = await duplicatePagePromise;
+
+        try {
+            await expect(duplicate.getByTestId("transaction-row")).toHaveCount(1);
+
+            const failedPush = page.waitForEvent("requestfailed", {
+                predicate: (request) => request.url().includes("/api/trpc/sync.pushOps")
+            });
+            await context.setOffline(true);
+            await addButton.click();
+            await addButton.click();
+            await expect(page.getByTestId("transaction-row")).toHaveCount(3);
+            await failedPush;
+
+            await context.setOffline(false);
+            await expect(page.getByRole("status", { name: "Saved" })).toBeVisible();
+            await expect(duplicate.getByTestId("transaction-row")).toHaveCount(3);
+
+            await page.reload();
+            await expect(page.getByTestId("transaction-row")).toHaveCount(3);
+            await expect(page.getByRole("row", { selected: true })).toHaveCount(0);
+        } finally {
+            await context.setOffline(false);
+            await duplicate.close();
+        }
     });
 
     test("default account exists after vault creation", async ({ page }) => {
@@ -387,9 +473,11 @@ test.describe("Transactions", () => {
             const addButton = page.locator('[data-testid="add-transaction-button"]');
             await addButton.click();
 
-            // Fill in description to prevent click-outside from closing the row
-            const descriptionInput = page.locator('[data-testid="new-transaction-description"]');
+            const descriptionInput = page
+                .getByRole("row", { selected: true })
+                .getByTestId("description-editable");
             await descriptionInput.fill("Test transaction");
+            await descriptionInput.press("Enter");
         });
 
         await test.step("open account selector and click create", async () => {

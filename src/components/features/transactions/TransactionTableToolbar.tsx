@@ -4,7 +4,6 @@
  * Transaction Table Toolbar
  *
  * Info bar above the transaction table showing counts and an "Add transaction" button.
- * Always visible - clicking "Add" triggers the add row to appear in the table.
  */
 
 import { Plus } from "lucide-react";
@@ -13,8 +12,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export interface TransactionTableToolbarProps {
-    /** Whether the add transaction row is currently active */
-    isAddingTransaction?: boolean;
     /** Callback when "Add transaction" is clicked */
     onAddClick: () => void;
     /** Number of selected transactions */
@@ -31,7 +28,6 @@ export interface TransactionTableToolbarProps {
  * Toolbar above the transaction table with add button and counts.
  */
 export function TransactionTableToolbar({
-    isAddingTransaction = false,
     onAddClick,
     selectedCount = 0,
     totalCount = 0,
@@ -52,11 +48,7 @@ export function TransactionTableToolbar({
                 variant="ghost"
                 size="sm"
                 onClick={onAddClick}
-                disabled={isAddingTransaction}
-                className={cn(
-                    "text-muted-foreground hover:text-foreground gap-2",
-                    isAddingTransaction && "opacity-50"
-                )}
+                className="text-muted-foreground hover:text-foreground gap-2"
                 data-testid="add-transaction-button"
             >
                 <Plus className="h-4 w-4" />

@@ -174,6 +174,24 @@ export function useKeyboardNavigation({
         }
     }, [focusedCell, rowIds, focusableColumns, setFocus, clearFocus]);
 
+    const moveToPreviousCell = useCallback(() => {
+        if (!focusedCell) return;
+
+        const { rowId, column } = focusedCell;
+        const rowIndex = rowIds.indexOf(rowId);
+        const colIndex = focusableColumns.indexOf(column);
+
+        if (rowIndex === -1 || colIndex === -1) return;
+
+        if (colIndex > 0) {
+            setFocus(rowId, focusableColumns[colIndex - 1]);
+        } else if (rowIndex > 0) {
+            setFocus(rowIds[rowIndex - 1], focusableColumns.at(-1) ?? column);
+        } else {
+            clearFocus();
+        }
+    }, [focusedCell, rowIds, focusableColumns, setFocus, clearFocus]);
+
     // Keyboard event handler
     const handleKeyDown = useCallback(
         (event: React.KeyboardEvent) => {
@@ -200,7 +218,11 @@ export function useKeyboardNavigation({
                         if (focusedCell) {
                             onSave?.(focusedCell);
                         }
-                        moveToNextCell();
+                        if (event.shiftKey) {
+                            moveToPreviousCell();
+                        } else {
+                            moveToNextCell();
+                        }
                         break;
                     // Allow other keys to pass through for text editing
                 }
@@ -233,7 +255,11 @@ export function useKeyboardNavigation({
                     break;
                 case "Tab":
                     event.preventDefault();
-                    moveToNextCell();
+                    if (event.shiftKey) {
+                        moveToPreviousCell();
+                    } else {
+                        moveToNextCell();
+                    }
                     break;
                 case "Escape":
                     event.preventDefault();
@@ -247,6 +273,7 @@ export function useKeyboardNavigation({
             navigate,
             startEditing,
             moveToNextCell,
+            moveToPreviousCell,
             clearFocus,
             onSave,
             onCancel

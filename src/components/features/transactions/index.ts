@@ -11,10 +11,8 @@ export {
     type TransactionFiltersState
 } from "./TransactionFilters";
 export {
-    type NewTransactionData,
     TransactionRow,
     type TransactionRowData,
-    type TransactionRowMode,
     type TransactionRowPresence,
     type TransactionRowProps
 } from "./TransactionRow";

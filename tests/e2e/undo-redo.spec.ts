@@ -5,6 +5,7 @@ import {
     goToAccounts,
     goToImportNew,
     goToSettings,
+    goToTransactions,
     goToTxDescriptions
 } from "./helpers";
 
@@ -177,6 +178,80 @@ test("document history controls group real add, edit, delete, alias and import a
         await expect(page.getByRole("row", { name: /Undo Import One/i })).toBeVisible();
         await expect(undo).toBeDisabled();
         await expect(redo).toBeDisabled();
+    });
+});
+
+test("each empty transaction Add is one Undo step and Redo restores the same rows", async ({
+    page
+}) => {
+    await createNewIdentity(page);
+    await goToTransactions(page);
+
+    const add = page.getByTestId("add-transaction-button");
+    const rows = page.getByTestId("transaction-row");
+    const undo = page.getByRole("button", { name: "Undo" });
+    const redo = page.getByRole("button", { name: "Redo" });
+
+    await test.step("create three distinct persisted rows", async () => {
+        await add.click();
+        await add.click();
+        await add.click();
+        await expect(rows).toHaveCount(3);
+
+        const ids = await rows.evaluateAll((elements) =>
+            elements.map((element) => element.getAttribute("data-transaction-id"))
+        );
+        expect(ids.every((id) => id != null)).toBe(true);
+        expect(new Set(ids).size).toBe(3);
+    });
+
+    const initialIds = await rows.evaluateAll((elements) =>
+        elements.map((element) => element.getAttribute("data-transaction-id"))
+    );
+
+    await test.step("undo exactly one Add at a time", async () => {
+        await undo.click();
+        await expect(rows).toHaveCount(2);
+        await undo.click();
+        await expect(rows).toHaveCount(1);
+        await undo.click();
+        await expect(rows).toHaveCount(0);
+        await expect(undo).toBeDisabled();
+    });
+
+    await test.step("redo restores the same logical rows one at a time", async () => {
+        await redo.click();
+        await expect(rows).toHaveCount(1);
+        await redo.click();
+        await expect(rows).toHaveCount(2);
+        await redo.click();
+        await expect(rows).toHaveCount(3);
+        await expect(redo).toBeDisabled();
+
+        await expect
+            .poll(() =>
+                rows.evaluateAll((elements) =>
+                    elements.map((element) => element.getAttribute("data-transaction-id"))
+                )
+            )
+            .toEqual(initialIds);
+    });
+
+    await test.step("delete and subsequent history retain ordinary row behavior", async () => {
+        const deletedId = initialIds[0];
+        if (!deletedId) throw new Error("Expected transaction identity");
+        const row = page.locator(`[data-transaction-id="${deletedId}"]`);
+        await row.hover();
+        await row.getByTestId("delete-button").click();
+        await row.getByTestId("delete-button").click();
+        await expect(row).toHaveCount(0);
+
+        await undo.click();
+        await expect(row).toBeVisible();
+        await redo.click();
+        await expect(row).toHaveCount(0);
+        await undo.click();
+        await expect(row).toBeVisible();
     });
 });
 

@@ -363,6 +363,42 @@ describe("useKeyboardNavigation", () => {
             });
         });
 
+        it("Shift+Tab moves to the previous cell", () => {
+            const { result } = renderHook(() => useKeyboardNavigation(createDefaultProps()));
+
+            act(() => {
+                result.current.setFocus("row-1", "description");
+            });
+
+            const event = createKeyboardEvent("Tab", { shiftKey: true });
+            act(() => {
+                result.current.handleKeyDown(event);
+            });
+
+            expect(result.current.focusedCell).toEqual({
+                rowId: "row-1",
+                column: "date"
+            });
+        });
+
+        it("Shift+Tab at the start of a row moves to the previous row's last cell", () => {
+            const { result } = renderHook(() => useKeyboardNavigation(createDefaultProps()));
+
+            act(() => {
+                result.current.setFocus("row-2", "date");
+            });
+
+            const event = createKeyboardEvent("Tab", { shiftKey: true });
+            act(() => {
+                result.current.handleKeyDown(event);
+            });
+
+            expect(result.current.focusedCell).toEqual({
+                rowId: "row-1",
+                column: "amount"
+            });
+        });
+
         it("Tab at last cell of last row clears focus", () => {
             const { result } = renderHook(() => useKeyboardNavigation(createDefaultProps()));
 
@@ -492,6 +528,33 @@ describe("useKeyboardNavigation", () => {
             expect(result.current.focusedCell).toEqual({
                 rowId: "row-1",
                 column: "description"
+            });
+        });
+
+        it("Shift+Tab saves edit and moves to the previous cell", () => {
+            const props = createDefaultProps();
+            const { result } = renderHook(() => useKeyboardNavigation(props));
+
+            act(() => {
+                result.current.setFocus("row-2", "date");
+            });
+            act(() => {
+                result.current.startEditing();
+            });
+
+            const event = createKeyboardEvent("Tab", { shiftKey: true });
+            act(() => {
+                result.current.handleKeyDown(event);
+            });
+
+            expect(result.current.isEditing).toBe(false);
+            expect(props.onSave).toHaveBeenCalledWith({
+                rowId: "row-2",
+                column: "date"
+            });
+            expect(result.current.focusedCell).toEqual({
+                rowId: "row-1",
+                column: "amount"
             });
         });
     });

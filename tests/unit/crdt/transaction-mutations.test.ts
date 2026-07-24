@@ -143,6 +143,62 @@ describe("getOrCreateDayBucket", () => {
 });
 
 describe("insertTransaction", () => {
+    it("accepts distinct ordinary manual rows with valid empty defaults", () => {
+        const store = createEmptyStore();
+        const date = Temporal.PlainDate.from("2026-07-24");
+        const creationInstant = Temporal.Instant.from("2026-07-24T00:00:00Z");
+
+        for (const id of ["empty-row-1", "empty-row-2", "empty-row-3"]) {
+            insertTransaction(store, {
+                transaction: createTransaction({
+                    id,
+                    date,
+                    description: "",
+                    descriptionAliasId: undefined,
+                    notes: "",
+                    amount: asMinorUnits(0),
+                    accountId: "account-default",
+                    tagIds: [],
+                    statusId: "status-for-review",
+                    importId: undefined,
+                    allocations: {},
+                    creationInstant,
+                    importRowIndex: undefined,
+                    deletedAt: undefined
+                })
+            });
+        }
+
+        const tree = store["account-default"];
+        if (!tree || typeof tree === "string") throw new Error("Expected default account tree");
+        const transactions = tree.years[0].months[0].days[0].transactions;
+
+        expect(transactions.map(({ id }) => id)).toEqual([
+            "empty-row-1",
+            "empty-row-2",
+            "empty-row-3"
+        ]);
+        expect(new Set(transactions.map(({ id }) => id)).size).toBe(3);
+        for (const transaction of transactions) {
+            expect(transaction).toMatchObject({
+                date,
+                description: "",
+                notes: "",
+                amount: 0,
+                accountId: "account-default",
+                tagIds: [],
+                statusId: "status-for-review",
+                allocations: {},
+                creationInstant,
+                suspectedDuplicates: []
+            });
+            expect(transaction.descriptionAliasId).toBeUndefined();
+            expect(transaction.importId).toBeUndefined();
+            expect(transaction.importRowIndex).toBeUndefined();
+            expect(transaction.deletedAt).toBeUndefined();
+        }
+    });
+
     it("creates all intermediate buckets lazily", () => {
         const store = createEmptyStore();
         const tx = createTransaction({

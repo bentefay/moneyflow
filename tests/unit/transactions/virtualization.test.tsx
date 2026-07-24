@@ -17,7 +17,7 @@ interface CapturedVirtualizerOptions {
 const virtualizerSpy = vi.hoisted(() =>
     vi.fn((options: CapturedVirtualizerOptions) => ({
         getVirtualItems: () =>
-            Array.from({ length: 11 }, (_, index) => ({
+            Array.from({ length: Math.min(11, options.count) }, (_, index) => ({
                 index,
                 key: index,
                 start: index * options.estimateSize(),
@@ -96,5 +96,31 @@ describe("TransactionTable virtualization", () => {
         const focusedIndexes = focusedOptions.rangeExtractor(distantRange);
         expect(focusedIndexes).toContain(0);
         expect(focusedIndexes).toHaveLength(ordinaryIndexes.length + 1);
+    });
+
+    it("keeps the focused transaction pinned when rapid rows insert ahead of it", () => {
+        const original = createTransactions(20);
+        const { rerender } = render(<TransactionTable transactions={original} />);
+
+        fireEvent.focus(screen.getAllByTestId("transaction-row")[0]);
+        rerender(
+            <TransactionTable
+                transactions={[
+                    {
+                        id: "new-empty-row",
+                        date: "2026-01-01",
+                        description: "",
+                        amount: 0
+                    },
+                    ...original
+                ]}
+            />
+        );
+
+        const options = virtualizerSpy.mock.calls.at(-1)?.[0];
+        if (!options) throw new Error("Expected updated virtualizer options");
+        expect(
+            options.rangeExtractor({ startIndex: 10, endIndex: 15, overscan: 5, count: 21 })
+        ).toContain(1);
     });
 });

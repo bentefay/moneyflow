@@ -19,7 +19,6 @@ import type { DescriptionAliasEditOrigin } from "./cells/InlineEditableDescripti
 import { useGridCellNavigation } from "./hooks/useGridCellNavigation";
 import { useTableSelection } from "./hooks/useTableSelection";
 import {
-    type NewTransactionData,
     TransactionRow,
     type TransactionRowData,
     type TransactionRowPresence
@@ -82,16 +81,6 @@ export interface TransactionTableProps {
     onTransactionDelete?: (id: string) => void;
     /** Callback when a duplicate is resolved (kept) */
     onResolveDuplicate?: (id: string) => void;
-    /** Whether to show the add transaction row at the top */
-    isAddingTransaction?: boolean;
-    /** Callback when a new transaction is added */
-    onAddTransaction?: (data: NewTransactionData) => void;
-    /** Callback when add transaction is cancelled */
-    onCancelAddTransaction?: () => void;
-    /** Default account ID for add row */
-    defaultAccountId?: string;
-    /** Default status ID for add row */
-    defaultStatusId?: string;
     /** Additional CSS classes */
     className?: string;
 }
@@ -191,11 +180,6 @@ export function TransactionTable({
     isLoading = false,
     onTransactionDelete,
     onResolveDuplicate,
-    isAddingTransaction = false,
-    onAddTransaction,
-    onCancelAddTransaction,
-    defaultAccountId,
-    defaultStatusId,
     className
 }: TransactionTableProps) {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -367,7 +351,7 @@ export function TransactionTable({
         }
     }, [virtualItems, onLoadMore, hasMore, isLoading, transactions.length]);
 
-    if (transactions.length === 0 && !isLoading && !isAddingTransaction) {
+    if (transactions.length === 0 && !isLoading) {
         return <EmptyState />;
     }
 
@@ -379,22 +363,6 @@ export function TransactionTable({
                     isSomeSelected={isSomeSelected}
                     onSelectAll={selectAll}
                 />
-
-                {/* Add Transaction Row - appears at top of table when active */}
-                {isAddingTransaction && onAddTransaction && (
-                    <TransactionRow
-                        mode="add"
-                        availableAccounts={availableAccounts}
-                        availableStatuses={availableStatuses}
-                        availableTags={availableTags}
-                        onCreateTag={onCreateTag}
-                        availableAliases={availableAliases}
-                        onAdd={onAddTransaction}
-                        onCancel={onCancelAddTransaction}
-                        defaultAccountId={defaultAccountId}
-                        defaultStatusId={defaultStatusId}
-                    />
-                )}
 
                 <div
                     className="relative min-w-fit flex-1"
