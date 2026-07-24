@@ -34,7 +34,15 @@ import {
     isPublicTransaction,
     vaultSchema
 } from "./schema";
-import type { AccountTransactionTree, Transaction, VaultState } from "./schema";
+import type {
+    AccountTransactionTree,
+    DayBucket,
+    MonthBucket,
+    NestedDuplicate,
+    Transaction,
+    VaultState,
+    YearBucket
+} from "./schema";
 import type { VaultEditSession, VaultUserActionKind } from "./undo";
 import { useVaultUndoCoordinator } from "./undo";
 
@@ -177,43 +185,302 @@ const publicTransactionStores = new WeakMap<
     VaultState["transactions"],
     VaultState["transactions"]
 >();
+const publicAccountTrees = new WeakMap<AccountTransactionTree, AccountTransactionTree>();
+const publicYearLists = new WeakMap<YearBucket[], YearBucket[]>();
+const publicYears = new WeakMap<YearBucket, YearBucket>();
+const publicMonthLists = new WeakMap<MonthBucket[], MonthBucket[]>();
+const publicMonths = new WeakMap<MonthBucket, MonthBucket>();
+const publicDayLists = new WeakMap<DayBucket[], DayBucket[]>();
+const publicDays = new WeakMap<DayBucket, DayBucket>();
+const publicTransactionLists = new WeakMap<Transaction[], Transaction[]>();
+const publicTransactions = new WeakMap<Transaction, Transaction>();
+const publicNestedDuplicateLists = new WeakMap<NestedDuplicate[], NestedDuplicate[]>();
 const applicationVaultStates = new WeakMap<VaultState, ApplicationVaultState>();
 
-function projectPublicAccountTree(tree: AccountTransactionTree): AccountTransactionTree {
-    let treeChanged = false;
-    const years = tree.years.map((year) => {
-        let yearChanged = false;
-        const months = year.months.map((month) => {
-            let monthChanged = false;
-            const days = month.days.map((day) => {
-                let dayChanged = false;
-                const transactions = day.transactions.flatMap((transaction) => {
-                    if (!isPublicTransaction(transaction)) {
-                        dayChanged = true;
-                        return [];
-                    }
-                    const suspectedDuplicates = transaction.suspectedDuplicates.filter(
-                        (duplicate) => getTransactionMaintenanceShadowIdentity(duplicate) == null
-                    );
-                    if (suspectedDuplicates.length === transaction.suspectedDuplicates.length) {
-                        return [transaction];
-                    }
-                    dayChanged = true;
-                    return [{ ...transaction, suspectedDuplicates }];
-                });
-                if (!dayChanged) return day;
-                monthChanged = true;
-                return { ...day, transactions };
-            });
-            if (!monthChanged) return month;
-            yearChanged = true;
-            return { ...month, days };
-        });
-        if (!yearChanged) return year;
-        treeChanged = true;
-        return { ...year, months };
+function arrayIndex(property: string | symbol): number | undefined {
+    if (typeof property !== "string" || property === "") return undefined;
+    const index = Number(property);
+    if (!Number.isSafeInteger(index) || index < 0 || String(index) !== property) return undefined;
+    return index;
+}
+
+function projectArray<Item>(
+    items: Item[],
+    cache: WeakMap<Item[], Item[]>,
+    project: (item: Item) => Item
+): Item[] {
+    const cached = cache.get(items);
+    if (cached) return cached;
+    const projected = new Proxy(items, {
+        get: (target, property, receiver) => {
+            const index = arrayIndex(property);
+            return index == null ? Reflect.get(target, property, receiver) : project(target[index]);
+        },
+        getOwnPropertyDescriptor: (target, property) => {
+            const descriptor = Reflect.getOwnPropertyDescriptor(target, property);
+            const index = arrayIndex(property);
+            if (index == null || !descriptor || !("value" in descriptor)) return descriptor;
+            return { ...descriptor, value: project(target[index]) };
+        }
     });
-    return treeChanged ? { ...tree, years } : tree;
+    cache.set(items, projected);
+    return projected;
+}
+
+function normalizedSpliceStart(start: number, length: number): number {
+    const integer = Math.trunc(start);
+    return integer < 0 ? Math.max(length + integer, 0) : Math.min(integer, length);
+}
+
+function normalizedDeleteCount(
+    deleteCount: number | undefined,
+    start: number,
+    length: number
+): number {
+    if (deleteCount == null) return length - start;
+    return Math.min(Math.max(Math.trunc(deleteCount), 0), length - start);
+}
+
+/**
+ * Map one explicitly accessed list to public indices. Draft writes are translated back to the
+ * source list so generic actions keep Mirror mutation semantics without revealing private entries.
+ */
+function projectFilteredArray<Item>(
+    items: Item[],
+    cache: WeakMap<Item[], Item[]>,
+    isPublic: (item: Item) => boolean,
+    project: (item: Item) => Item
+): Item[] {
+    const cached = cache.get(items);
+    if (cached) return cached;
+    let visibleIndices: number[] | undefined;
+    const indices = () => {
+        if (visibleIndices) return visibleIndices;
+        visibleIndices = [];
+        for (let index = 0; index < items.length; index += 1) {
+            if (isPublic(items[index])) visibleIndices.push(index);
+        }
+        return visibleIndices;
+    };
+    const invalidate = () => {
+        visibleIndices = undefined;
+    };
+    const splice = (start: number, deleteCount?: number, ...inserted: Item[]) => {
+        const currentIndices = indices();
+        const visibleStart = normalizedSpliceStart(start, currentIndices.length);
+        const count = normalizedDeleteCount(deleteCount, visibleStart, currentIndices.length);
+        const removedIndices = currentIndices.slice(visibleStart, visibleStart + count);
+        const removed = removedIndices.map((index) => project(items[index]));
+        const initialInsertionIndex = currentIndices[visibleStart] ?? items.length;
+        let insertionIndex = initialInsertionIndex;
+        for (const index of removedIndices.toReversed()) {
+            items.splice(index, 1);
+            if (index < initialInsertionIndex) insertionIndex -= 1;
+        }
+        items.splice(insertionIndex, 0, ...inserted);
+        invalidate();
+        return removed;
+    };
+    const push = (...inserted: Item[]) => {
+        items.push(...inserted);
+        invalidate();
+        return indices().length;
+    };
+    const projected = new Proxy(items, {
+        deleteProperty: (target, property) => {
+            const index = arrayIndex(property);
+            if (index == null) return Reflect.deleteProperty(target, property);
+            const sourceIndex = indices()[index];
+            if (sourceIndex == null) return true;
+            target.splice(sourceIndex, 1);
+            invalidate();
+            return true;
+        },
+        get: (target, property, receiver) => {
+            if (property === "length") return indices().length;
+            if (property === "push") return push;
+            if (property === "splice") return splice;
+            const index = arrayIndex(property);
+            if (index == null) return Reflect.get(target, property, receiver);
+            const sourceIndex = indices()[index];
+            return sourceIndex == null ? undefined : project(target[sourceIndex]);
+        },
+        getOwnPropertyDescriptor: (target, property) => {
+            if (property === "length") {
+                const descriptor = Reflect.getOwnPropertyDescriptor(target, property);
+                return descriptor ? { ...descriptor, value: indices().length } : descriptor;
+            }
+            const index = arrayIndex(property);
+            if (index == null) return Reflect.getOwnPropertyDescriptor(target, property);
+            const sourceIndex = indices()[index];
+            if (sourceIndex == null) return undefined;
+            const descriptor = Reflect.getOwnPropertyDescriptor(target, String(sourceIndex));
+            return descriptor && "value" in descriptor
+                ? { ...descriptor, value: project(target[sourceIndex]) }
+                : descriptor;
+        },
+        has: (target, property) => {
+            const index = arrayIndex(property);
+            return index == null ? Reflect.has(target, property) : index < indices().length;
+        },
+        ownKeys: (target) => [
+            ...indices().map(String),
+            ...Reflect.ownKeys(target).filter((property) => arrayIndex(property) == null)
+        ],
+        set: (target, property, value, receiver) => {
+            if (property === "length" && typeof value === "number") {
+                const removedIndices = indices().slice(Math.max(Math.trunc(value), 0));
+                for (const index of removedIndices.toReversed()) target.splice(index, 1);
+                invalidate();
+                return true;
+            }
+            const index = arrayIndex(property);
+            if (index == null) return Reflect.set(target, property, value, receiver);
+            const sourceIndex = indices()[index];
+            if (sourceIndex != null) {
+                const updated = Reflect.set(target, String(sourceIndex), value);
+                invalidate();
+                return updated;
+            }
+            if (index !== indices().length) return false;
+            target.push(value);
+            invalidate();
+            return true;
+        }
+    });
+    cache.set(items, projected);
+    return projected;
+}
+
+function projectPublicTransaction(transaction: Transaction): Transaction {
+    const cached = publicTransactions.get(transaction);
+    if (cached) return cached;
+    const projected = new Proxy(transaction, {
+        get: (target, property, receiver) =>
+            property === "suspectedDuplicates"
+                ? projectFilteredArray(
+                      target.suspectedDuplicates,
+                      publicNestedDuplicateLists,
+                      (duplicate) => getTransactionMaintenanceShadowIdentity(duplicate) == null,
+                      (duplicate) => duplicate
+                  )
+                : Reflect.get(target, property, receiver),
+        getOwnPropertyDescriptor: (target, property) => {
+            const descriptor = Reflect.getOwnPropertyDescriptor(target, property);
+            if (property !== "suspectedDuplicates" || !descriptor || !("value" in descriptor)) {
+                return descriptor;
+            }
+            return {
+                ...descriptor,
+                value: projectFilteredArray(
+                    target.suspectedDuplicates,
+                    publicNestedDuplicateLists,
+                    (duplicate) => getTransactionMaintenanceShadowIdentity(duplicate) == null,
+                    (duplicate) => duplicate
+                )
+            };
+        }
+    });
+    publicTransactions.set(transaction, projected);
+    return projected;
+}
+
+function projectPublicDay(day: DayBucket): DayBucket {
+    const cached = publicDays.get(day);
+    if (cached) return cached;
+    const projected = new Proxy(day, {
+        get: (target, property, receiver) =>
+            property === "transactions"
+                ? projectFilteredArray(
+                      target.transactions,
+                      publicTransactionLists,
+                      isPublicTransaction,
+                      projectPublicTransaction
+                  )
+                : Reflect.get(target, property, receiver),
+        getOwnPropertyDescriptor: (target, property) => {
+            const descriptor = Reflect.getOwnPropertyDescriptor(target, property);
+            if (property !== "transactions" || !descriptor || !("value" in descriptor)) {
+                return descriptor;
+            }
+            return {
+                ...descriptor,
+                value: projectFilteredArray(
+                    target.transactions,
+                    publicTransactionLists,
+                    isPublicTransaction,
+                    projectPublicTransaction
+                )
+            };
+        }
+    });
+    publicDays.set(day, projected);
+    return projected;
+}
+
+function projectPublicMonth(month: MonthBucket): MonthBucket {
+    const cached = publicMonths.get(month);
+    if (cached) return cached;
+    const projected = new Proxy(month, {
+        get: (target, property, receiver) =>
+            property === "days"
+                ? projectArray(target.days, publicDayLists, projectPublicDay)
+                : Reflect.get(target, property, receiver),
+        getOwnPropertyDescriptor: (target, property) => {
+            const descriptor = Reflect.getOwnPropertyDescriptor(target, property);
+            if (property !== "days" || !descriptor || !("value" in descriptor)) return descriptor;
+            return {
+                ...descriptor,
+                value: projectArray(target.days, publicDayLists, projectPublicDay)
+            };
+        }
+    });
+    publicMonths.set(month, projected);
+    return projected;
+}
+
+function projectPublicYear(year: YearBucket): YearBucket {
+    const cached = publicYears.get(year);
+    if (cached) return cached;
+    const projected = new Proxy(year, {
+        get: (target, property, receiver) =>
+            property === "months"
+                ? projectArray(target.months, publicMonthLists, projectPublicMonth)
+                : Reflect.get(target, property, receiver),
+        getOwnPropertyDescriptor: (target, property) => {
+            const descriptor = Reflect.getOwnPropertyDescriptor(target, property);
+            if (property !== "months" || !descriptor || !("value" in descriptor)) {
+                return descriptor;
+            }
+            return {
+                ...descriptor,
+                value: projectArray(target.months, publicMonthLists, projectPublicMonth)
+            };
+        }
+    });
+    publicYears.set(year, projected);
+    return projected;
+}
+
+function projectPublicAccountTree(tree: AccountTransactionTree): AccountTransactionTree {
+    const cached = publicAccountTrees.get(tree);
+    if (cached) return cached;
+    const projected = new Proxy(tree, {
+        get: (target, property, receiver) =>
+            property === "years"
+                ? projectArray(target.years, publicYearLists, projectPublicYear)
+                : Reflect.get(target, property, receiver),
+        getOwnPropertyDescriptor: (target, property) => {
+            const descriptor = Reflect.getOwnPropertyDescriptor(target, property);
+            if (property !== "years" || !descriptor || !("value" in descriptor)) return descriptor;
+            return {
+                ...descriptor,
+                value: projectArray(target.years, publicYearLists, projectPublicYear)
+            };
+        }
+    });
+    publicAccountTrees.set(tree, projected);
+    return projected;
 }
 
 function projectPublicTransactionStore(
@@ -221,21 +488,31 @@ function projectPublicTransactionStore(
 ): VaultState["transactions"] {
     const cached = publicTransactionStores.get(transactions);
     if (cached) return cached;
-
-    let projected = transactions;
-    const ensureProjection = () => {
-        if (projected === transactions) projected = { ...transactions };
-        return projected;
-    };
-    if (LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY in transactions) {
-        delete ensureProjection()[LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY];
-    }
-    for (const [accountId, tree] of Object.entries(transactions)) {
-        if (accountId === LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY) continue;
-        if (typeof tree !== "object" || tree == null) continue;
-        const publicTree = projectPublicAccountTree(tree);
-        if (publicTree !== tree) ensureProjection()[accountId] = publicTree;
-    }
+    // Account and reserved-key reads stop here; deeper lists are projected only when traversed.
+    const projected = new Proxy(transactions, {
+        get: (target, property, receiver) => {
+            if (property === LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY) return undefined;
+            const tree = Reflect.get(target, property, receiver);
+            return typeof tree === "object" && tree != null ? projectPublicAccountTree(tree) : tree;
+        },
+        getOwnPropertyDescriptor: (target, property) => {
+            if (property === LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY) return undefined;
+            const descriptor = Reflect.getOwnPropertyDescriptor(target, property);
+            if (!descriptor || !("value" in descriptor)) return descriptor;
+            const tree = descriptor.value;
+            return {
+                ...descriptor,
+                value:
+                    typeof tree === "object" && tree != null ? projectPublicAccountTree(tree) : tree
+            };
+        },
+        has: (target, property) =>
+            property !== LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY && Reflect.has(target, property),
+        ownKeys: (target) =>
+            Reflect.ownKeys(target).filter(
+                (property) => property !== LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY
+            )
+    });
     publicTransactionStores.set(transactions, projected);
     return projected;
 }
@@ -315,7 +592,11 @@ export function useVaultAction<Arguments extends unknown[], Result>(
     dependencies: DependencyList = [],
     kind: VaultUserActionKind = "mutation"
 ): (...args: Arguments) => Result {
-    return useInternalVaultAction((state, ...args) => updater(state, ...args), dependencies, kind);
+    return useInternalVaultAction(
+        (state, ...args) => updater(projectApplicationVaultState(state), ...args),
+        dependencies,
+        kind
+    );
 }
 
 export interface VaultEditAction<Arguments extends unknown[]> {
@@ -353,7 +634,10 @@ export function useVaultEditAction<Arguments extends unknown[]>(
     const update = useCallback(
         (...args: Arguments) => {
             const applyUpdate = (origin: `user:${VaultUserActionKind}`) => {
-                store.setState((state: VaultState) => updater(state, ...args), { origin });
+                store.setState(
+                    (state: VaultState) => updater(projectApplicationVaultState(state), ...args),
+                    { origin }
+                );
             };
             const session = sessionRef.current;
             if (session) {

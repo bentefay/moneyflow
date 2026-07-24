@@ -11,6 +11,8 @@ import { TagsTable } from "@/components/features/tags/TagsTable";
 import {
     useTransaction,
     useTransactions,
+    useVaultAction,
+    useVaultEditAction,
     useVaultSelector,
     VaultProvider
 } from "@/lib/crdt/context";
@@ -31,6 +33,7 @@ import {
     type TransactionInput,
     type VaultState
 } from "@/lib/crdt/schema";
+import * as transactionSchema from "@/lib/crdt/schema";
 import { decryptUpdate } from "@/lib/crdt/snapshot";
 import { VaultUndoCoordinator, VaultUndoProvider } from "@/lib/crdt/undo";
 import { asMinorUnits } from "@/lib/domain/currency";
@@ -461,6 +464,248 @@ describe("vault background maintenance integration", () => {
         expect(observedGraph?.parentIds).toEqual(["source-parent"]);
         expect(observedGraph?.nestedIds).toEqual(["source-parent-nested", "nested-public"]);
         view.unmount();
+        vault.mirror.dispose();
+    });
+
+    it("keeps account and reserved-key selectors path-lazy across a large transaction store", async () => {
+        const vault = createVaultMirror();
+        vault.mirror.setState((state: VaultState) => {
+            for (let accountIndex = 0; accountIndex < 24; accountIndex += 1) {
+                const accountId = `account-${accountIndex}`;
+                for (let transactionIndex = 0; transactionIndex < 4; transactionIndex += 1) {
+                    insertTransaction(state.transactions, {
+                        transaction: {
+                            ...relocationTransaction(
+                                `transaction-${accountIndex}-${transactionIndex}`,
+                                accountIndex * 10 + transactionIndex + 1
+                            ),
+                            accountId,
+                            suspectedDuplicates: [
+                                {
+                                    ...relocationTransaction(
+                                        `nested-source-${accountIndex}-${transactionIndex}`,
+                                        accountIndex * 10 + transactionIndex + 2
+                                    ).suspectedDuplicates[0],
+                                    id: `nested-${accountIndex}-${transactionIndex}`,
+                                    accountId
+                                }
+                            ]
+                        }
+                    });
+                }
+            }
+        });
+        vi.spyOn(window, "requestAnimationFrame").mockImplementation(() => 1);
+        vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
+        const classifyParent = vi.spyOn(transactionSchema, "isPublicTransaction");
+        const classifyNested = vi.spyOn(
+            transactionSchema,
+            "getTransactionMaintenanceShadowIdentity"
+        );
+        let selectedAccount: unknown;
+        let selectedReserved: unknown;
+        let selectorRenderCount = 0;
+
+        function CapturePaths() {
+            selectorRenderCount += 1;
+            selectedAccount = useVaultSelector((state) => state.transactions["account-0"]);
+            selectedReserved = useVaultSelector(
+                (state) => state.transactions[LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY]
+            );
+            return null;
+        }
+
+        const view = render(
+            createElement(VaultProvider, { doc: vault.doc }, createElement(CapturePaths))
+        );
+
+        expect(selectedAccount).toBeDefined();
+        expect(selectedReserved).toBeUndefined();
+        expect(classifyParent).not.toHaveBeenCalled();
+        expect(classifyNested).not.toHaveBeenCalled();
+        const initialRenderCount = selectorRenderCount;
+
+        classifyParent.mockClear();
+        classifyNested.mockClear();
+        await act(async () => {
+            vault.mirror.setState((state: VaultState) => {
+                state.transactions["account-0"].years[0].months[0].days[0].transactions[0].notes =
+                    "ordinary update";
+            });
+            await Promise.resolve();
+        });
+
+        expect(selectorRenderCount).toBeGreaterThan(initialRenderCount);
+        expect(classifyParent).not.toHaveBeenCalled();
+        expect(classifyNested).not.toHaveBeenCalled();
+        view.unmount();
+        vault.mirror.dispose();
+    });
+
+    it("sanitizes generic action and edit callbacks before cleanup without changing Undo", async () => {
+        const vault = createVaultMirror();
+        vault.mirror.setState((state: VaultState) => {
+            insertTransaction(state.transactions, {
+                transaction: {
+                    ...relocationTransaction("action-public", 100),
+                    suspectedDuplicates: [
+                        ...relocationTransaction("action-public", 100).suspectedDuplicates,
+                        {
+                            ...relocationTransaction("nested-private-source", 90)
+                                .suspectedDuplicates[0],
+                            id: "__moneyflow_gc_shadow__:legacy\u0000source\u0000nested-private"
+                        }
+                    ]
+                }
+            });
+            insertTransaction(state.transactions, {
+                transaction: relocationTransaction(
+                    "__moneyflow_gc_shadow__:legacy\u0000source\u0000private-parent",
+                    80
+                )
+            });
+            state.preferences.name = "Original name";
+        });
+        const frames = createFrameHost();
+        const undoCoordinator = new VaultUndoCoordinator(vault.doc);
+        vi.spyOn(window, "requestAnimationFrame").mockImplementation(frames.host.requestFrame);
+        vi.spyOn(window, "cancelAnimationFrame").mockImplementation(frames.host.cancelFrame);
+        let invokeAction: (() => void) | undefined;
+        let invokeEdit: (() => void) | undefined;
+        let actionGraph: { readonly nestedIds: string[]; readonly parentIds: string[] } | undefined;
+        let editGraph: { readonly nestedIds: string[]; readonly parentIds: string[] } | undefined;
+        let actionKeys: string[] = [];
+        let editKeys: string[] = [];
+        let actionNestedKeys: string[] = [];
+        let actionTransactionKeys: string[] = [];
+        let actionTransactionLength: unknown;
+        let actionReserved: unknown;
+        let editReserved: unknown;
+
+        function CaptureActions() {
+            const action = useVaultAction((state) => {
+                actionKeys = Object.keys(state.transactions);
+                actionReserved = state.transactions[LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY];
+                actionGraph = physicalTransactionGraph(state.transactions);
+                const transactions =
+                    state.transactions.account.years[0].months[0].days[0].transactions;
+                actionTransactionKeys = Object.keys(transactions);
+                actionTransactionLength = Reflect.getOwnPropertyDescriptor(
+                    transactions,
+                    "length"
+                )?.value;
+                actionNestedKeys = Object.keys(transactions[0].suspectedDuplicates);
+                transactions[0].notes = "generic action edit";
+                insertTransaction(state.transactions, {
+                    transaction: {
+                        ...relocationTransaction("generic-action-insert", 70),
+                        suspectedDuplicates: []
+                    }
+                });
+            });
+            const edit = useVaultEditAction((state) => {
+                editKeys = Object.keys(state.transactions);
+                editReserved = state.transactions[LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY];
+                editGraph = physicalTransactionGraph(state.transactions);
+                state.preferences.name = "Generic edit name";
+            });
+            invokeAction = action;
+            invokeEdit = () => edit.update();
+            return null;
+        }
+
+        const view = render(
+            // createElement's required-children type needs the child in the typed props object.
+            // eslint-disable-next-line react/no-children-prop
+            createElement(VaultUndoProvider, {
+                coordinator: undoCoordinator,
+                children: createElement(
+                    VaultProvider,
+                    { doc: vault.doc },
+                    createElement(CaptureActions)
+                )
+            })
+        );
+        const peer = createVaultMirrorFromSnapshot(vault.doc.export({ mode: "snapshot" }));
+        const peerBase = VersionVector.decode(peer.doc.version().encode());
+        installLegacyMetadata(peer.doc);
+        const origins: Array<string | undefined> = [];
+        const stopOrigins = vault.doc.subscribe((event) => origins.push(event.origin));
+
+        await act(async () => {
+            vault.doc.import(peer.doc.export({ mode: "update", from: peerBase }));
+            await Promise.resolve();
+        });
+        expect(
+            vault.doc.getMap("transactions").get(LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY)
+        ).toBeInstanceOf(LoroMap);
+
+        await act(async () => {
+            invokeAction?.();
+            invokeEdit?.();
+            await Promise.resolve();
+        });
+
+        expect(actionKeys).toEqual(["account"]);
+        expect(editKeys).toEqual(["account"]);
+        expect(actionReserved).toBeUndefined();
+        expect(editReserved).toBeUndefined();
+        expect(actionTransactionKeys).toEqual(["0"]);
+        expect(actionTransactionLength).toBe(1);
+        expect(actionNestedKeys).toEqual(["0"]);
+        expect(actionGraph?.parentIds).toEqual(["action-public"]);
+        expect(editGraph?.parentIds).toEqual(["action-public", "generic-action-insert"]);
+        expect(actionGraph?.nestedIds).toEqual(["action-public-nested"]);
+        expect(editGraph?.nestedIds).toEqual(["action-public-nested"]);
+        expect(
+            accountTransactions(vault.mirror.getState()).find(({ id }) => id === "action-public")
+                ?.notes
+        ).toBe("generic action edit");
+        expect(
+            accountTransactions(vault.mirror.getState()).some(
+                ({ id }) => id === "generic-action-insert"
+            )
+        ).toBe(true);
+        expect(vault.mirror.getState().preferences.name).toBe("Generic edit name");
+        expect(undoCoordinator.getSnapshot().canUndo).toBe(true);
+
+        await act(async () => {
+            expect(frames.runOne()).toBe(true);
+            await Promise.resolve();
+        });
+        expect(origins.filter((origin) => origin === "system:gc")).toHaveLength(1);
+        expect(
+            vault.doc.getMap("transactions").get(LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY)
+        ).toBeUndefined();
+
+        await act(async () => {
+            frames.runAll();
+            await Promise.resolve();
+        });
+        let undone = false;
+        await act(async () => {
+            undone = undoCoordinator.undo();
+            await Promise.resolve();
+        });
+        expect(undone).toBe(true);
+        expect(vault.mirror.getState().preferences.name).toBe("Original name");
+        expect(
+            accountTransactions(vault.mirror.getState()).find(({ id }) => id === "action-public")
+                ?.notes
+        ).toBe("before");
+        expect(
+            accountTransactions(vault.mirror.getState()).some(
+                ({ id }) => id === "generic-action-insert"
+            )
+        ).toBe(false);
+        expect(
+            vault.doc.getMap("transactions").get(LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY)
+        ).toBeUndefined();
+
+        stopOrigins();
+        view.unmount();
+        undoCoordinator.dispose();
+        peer.mirror.dispose();
         vault.mirror.dispose();
     });
 
