@@ -30,6 +30,15 @@ export {
     isBeforeCutoff
 } from "./filter";
 export {
+    ACCEPTED_IMPORT_EXTENSIONS,
+    IMPORT_FILE_SNIFF_BYTES,
+    type ImportFileValidationError,
+    type ImportFileValidationErrorCode,
+    type ImportFileValidationResult,
+    MAX_IMPORT_FILE_BYTES,
+    validateImportFiles
+} from "./file-validation";
+export {
     isSimilar,
     levenshtein,
     normalizedSimilarity,

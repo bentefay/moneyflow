@@ -10,6 +10,7 @@
  * and pre-sorted data (date desc, creationInstant desc, importRowIndex asc).
  */
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { DescriptionAliasChangeModal } from "@/components/features/description-aliases/DescriptionAliasChangeModal";
@@ -18,6 +19,7 @@ import {
     type DescriptionAliasTargetIntent
 } from "@/components/features/description-aliases/descriptionAliasInteraction";
 import { useDescriptionAliasLookup } from "@/components/features/description-aliases/useDescriptionAliasLookup";
+import { ImportDropTarget, useImportFileTransfer } from "@/components/features/import";
 import {
     BulkEditToolbar,
     createEmptyFilters,
@@ -70,6 +72,9 @@ function materializeAliasTarget(target: DescriptionAliasTargetIntent): Descripti
  * Transactions page component.
  */
 export default function TransactionsPage() {
+    const router = useRouter();
+    const { stageImportFile } = useImportFileTransfer();
+
     // Toast notifications
     const { toast } = useToast();
 
@@ -135,6 +140,14 @@ export default function TransactionsPage() {
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
     const lastManualCreationInstantRef = useRef<Temporal.Instant | null>(null);
+
+    const handleAcceptedImportFile = useCallback(
+        (file: File) => {
+            stageImportFile(file);
+            router.push("/imports/new");
+        },
+        [router, stageImportFile]
+    );
 
     // Clear selection helper
     const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
@@ -844,9 +857,12 @@ export default function TransactionsPage() {
             />
 
             {/* Transaction Table */}
-            <div
-                ref={transactionTableContainerRef}
+            <ImportDropTarget
+                ariaLabel="Transactions table file drop target"
                 className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border"
+                containerRef={transactionTableContainerRef}
+                onFileAccepted={handleAcceptedImportFile}
+                testId="transaction-import-drop-target"
             >
                 {/* Toolbar with Add button and counts */}
                 <TransactionTableToolbar
@@ -875,7 +891,7 @@ export default function TransactionsPage() {
                     onResolveDuplicate={handleResolveDuplicate}
                     onTransactionUpdate={handleTransactionUpdate}
                 />
-            </div>
+            </ImportDropTarget>
 
             {/* Bulk Edit Toolbar */}
             {selectedCount > 0 && (

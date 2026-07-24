@@ -20,6 +20,13 @@ export {
     FileDropzone,
     type FileDropzoneProps
 } from "./FileDropzone";
+export { ImportDropTarget, type ImportDropTargetProps } from "./ImportDropTarget";
+export {
+    ImportFileTransferProvider,
+    type ImportFileTransferProviderProps,
+    type PendingImportFileTransfer,
+    useImportFileTransfer
+} from "./ImportFileTransferProvider";
 export {
     DATE_FORMAT_OPTIONS,
     DEFAULT_FORMATTING,

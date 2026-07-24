@@ -17,7 +17,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 
 import { createNewIdentity, goToImportNew, goToImports } from "./helpers";
 
@@ -110,11 +110,267 @@ NEWFILEUID:NONE
     return createTestFile(content, "ofx");
 }
 
+interface BrowserImportFile {
+    readonly content: string;
+    readonly name: string;
+    readonly size?: number;
+    readonly type: string;
+}
+
+async function dispatchImportDrag(
+    target: Locator,
+    eventType: "dragend" | "dragenter" | "dragleave" | "dragover" | "drop",
+    files: readonly BrowserImportFile[]
+): Promise<string> {
+    return target.evaluate(
+        (element, event) => {
+            const dataTransfer = new DataTransfer();
+            for (const file of event.files) {
+                const content = file.size == null ? file.content : new Uint8Array(file.size);
+                dataTransfer.items.add(new File([content], file.name, { type: file.type }));
+            }
+            element.dispatchEvent(
+                new DragEvent(event.eventType, {
+                    bubbles: true,
+                    cancelable: true,
+                    clientX: 1,
+                    clientY: 1,
+                    dataTransfer
+                })
+            );
+            return dataTransfer.dropEffect;
+        },
+        { eventType, files }
+    );
+}
+
 // ============================================================================
 // Journey Tests
 // ============================================================================
 
 test.describe("Import Panel", () => {
+    test("transaction surface drop transfers one File without plaintext storage and cancel returns", async ({
+        page
+    }) => {
+        await createNewIdentity(page);
+        await page.getByRole("link", { name: "Transactions", exact: true }).click();
+        await page.getByTestId("transaction-table-toolbar").waitFor();
+        const file = {
+            content: [
+                "Date,Description,Amount",
+                ...Array.from(
+                    { length: 60 },
+                    (_, index) =>
+                        `2026-07-25,P15 transaction drop ${String(index).padStart(4, "0")},${index + 1}.00`
+                )
+            ].join("\n"),
+            name: "p15-transaction-drop.csv",
+            type: "text/csv"
+        };
+        const target = page.getByTestId("transaction-import-drop-target");
+
+        await expect(target).toBeVisible();
+        await dispatchImportDrag(target, "dragenter", [file]);
+        await expect(page.getByTestId("import-drop-overlay")).toBeVisible();
+        await dispatchImportDrag(target, "drop", [file]);
+
+        await expect(page).toHaveURL(/\/imports\/new$/);
+        await expect(page.getByText(file.name, { exact: true })).toBeVisible();
+        const storageLeak = await page.evaluate((syntheticFile) => {
+            const values = [
+                ...Object.entries(sessionStorage),
+                ...Object.entries(localStorage)
+            ].flatMap(([key, value]) => [key, value]);
+            return values.some(
+                (value) =>
+                    value.includes(syntheticFile.name) ||
+                    value.includes(syntheticFile.content) ||
+                    value.includes("pendingImportFile")
+            );
+        }, file);
+        expect(storageLeak).toBe(false);
+        expect(page.url()).not.toContain(file.name);
+        expect(page.url()).not.toContain("P15");
+
+        await page.getByRole("button", { name: "Cancel" }).click();
+        await expect(page).toHaveURL(/\/transactions$/);
+        await expect(page.getByTestId("transaction-table-toolbar")).toContainText("0 transactions");
+        await page.goBack();
+        await expect(page).toHaveURL(/\/imports\/new$/);
+        await expect(page.getByTestId("file-dropzone")).toBeVisible();
+        await expect(page.getByText(file.name, { exact: true })).toHaveCount(0);
+        await page.goBack();
+        await expect(page).toHaveURL(/\/transactions$/);
+
+        await dispatchImportDrag(target, "drop", [file]);
+        await expect(page).toHaveURL(/\/imports\/new$/);
+        await expect(page.getByText(file.name, { exact: true })).toBeVisible();
+
+        await page.getByRole("tab", { name: /Columns/i }).click();
+        await page.getByRole("button", { name: /Auto-detect/i }).click();
+        await expect(page.getByText(/All required fields mapped/i)).toBeVisible();
+        await page.getByRole("tab", { name: /Account/i }).click();
+        await page.locator("#account-select").click();
+        await page.getByRole("option", { name: /Default/i }).click();
+        await page.getByRole("button", { name: /Import 60 Transactions/i }).click();
+        await expect(page).toHaveURL(/\/transactions$/);
+        await expect(page.getByTestId("transaction-table-toolbar")).toContainText(
+            "60 transactions"
+        );
+        expect(await page.locator("[data-transaction-id]").count()).toBeLessThan(60);
+
+        const filteredDescription = "P15 transaction drop 0059";
+        await page.getByPlaceholder(/Search/i).fill(filteredDescription);
+        const filteredRow = page.getByRole("row", { name: new RegExp(filteredDescription) });
+        await expect(filteredRow).toBeVisible();
+        const followUpFile = {
+            content: "Date,Description,Amount\n2026-07-25,P15 filtered row drop,99.00",
+            name: "p15-filtered-row.csv",
+            type: "text/csv"
+        };
+        await dispatchImportDrag(filteredRow, "dragenter", [followUpFile]);
+        await expect(page.getByTestId("import-drop-overlay")).toBeVisible();
+        await dispatchImportDrag(filteredRow, "drop", [followUpFile]);
+        await expect(page).toHaveURL(/\/imports\/new$/);
+        await expect(page.getByText(followUpFile.name, { exact: true })).toBeVisible();
+        await page.getByRole("button", { name: "Cancel" }).click();
+        await expect(page).toHaveURL(/\/transactions$/);
+        await expect(page.getByTestId("transaction-table-toolbar")).toContainText(
+            "60 transactions"
+        );
+    });
+
+    test("imports surface overlay is stable for nested and outside drag transitions", async ({
+        page
+    }) => {
+        await createNewIdentity(page);
+        await goToImports(page);
+        const file = {
+            content: "Date,Description,Amount\n2026-07-25,P15 nested drag,1.00",
+            name: "p15-nested.csv",
+            type: "text/csv"
+        };
+        const target = page.locator("main > div").first();
+        const child = page.getByRole("heading", { name: "Imports", level: 1 });
+
+        await dispatchImportDrag(target, "dragenter", [file]);
+        await expect(page.getByText("Drop file to import", { exact: true })).toBeVisible();
+        await dispatchImportDrag(child, "dragenter", [file]);
+        await dispatchImportDrag(child, "dragleave", [file]);
+        await expect(page.getByText("Drop file to import", { exact: true })).toBeVisible();
+        await dispatchImportDrag(target, "dragleave", [file]);
+        await expect(page.getByText("Drop file to import", { exact: true })).toHaveCount(0);
+
+        await dispatchImportDrag(target, "dragenter", [file]);
+        await dispatchImportDrag(page.locator("body"), "dragend", [file]);
+        await expect(page.getByTestId("import-drop-overlay")).toHaveCount(0);
+        await expect(page).toHaveURL(/\/imports$/);
+    });
+
+    test("imports drop rejects invalid payloads before navigation with actionable alerts", async ({
+        page
+    }) => {
+        await createNewIdentity(page);
+        await goToImports(page);
+        const target = page.locator("main > div").first();
+        const valid = {
+            content: "Date,Description,Amount\n2026-07-25,P15 valid,1.00",
+            name: "p15-valid.csv",
+            type: "text/csv"
+        };
+        const invalidCases = [
+            {
+                files: [valid, { ...valid, name: "p15-second.csv" }],
+                message: /one file at a time/i
+            },
+            {
+                files: [{ content: "", name: "p15-empty.csv", type: "text/csv" }],
+                message: /empty/i
+            },
+            {
+                files: [
+                    {
+                        content: "",
+                        name: "p15-large.csv",
+                        size: 10 * 1024 * 1024 + 1,
+                        type: "text/csv"
+                    }
+                ],
+                message: /10 MiB/i
+            },
+            {
+                files: [
+                    {
+                        content: "<html>not a bank export</html>",
+                        name: "p15-spoofed.csv",
+                        type: "text/csv"
+                    }
+                ],
+                message: /content/i
+            },
+            {
+                files: [
+                    {
+                        content: "%PDF",
+                        name: "p15-unsupported.pdf",
+                        type: "application/pdf"
+                    }
+                ],
+                message: /CSV, OFX, or QFX/i
+            },
+            {
+                files: [
+                    {
+                        content: valid.content,
+                        name: "p15-mime.csv",
+                        type: "image/png"
+                    }
+                ],
+                message: /content type/i
+            }
+        ];
+
+        for (const invalidCase of invalidCases) {
+            const picker = page.getByRole("button", { name: "Import new file" });
+            await picker.focus();
+            await dispatchImportDrag(target, "dragenter", invalidCase.files);
+            await dispatchImportDrag(target, "drop", invalidCase.files);
+            await expect(
+                page.getByTestId("imports-import-drop-target").getByRole("alert")
+            ).toContainText(invalidCase.message);
+            await expect(picker).toBeFocused();
+            await expect(page).toHaveURL(/\/imports$/);
+            await expect(page.getByRole("heading", { name: "Imports", level: 1 })).toBeVisible();
+        }
+    });
+
+    test("imports surface drops OFX and QFX into preview without implicit import", async ({
+        page
+    }) => {
+        await createNewIdentity(page);
+        await goToImports(page);
+        const ofxPath = createSampleOFX();
+        const content = fs.readFileSync(ofxPath, "utf8");
+        const target = page.getByTestId("imports-import-drop-target");
+
+        for (const extension of ["ofx", "qfx"]) {
+            const file = {
+                content,
+                name: `p15-preview.${extension}`,
+                type: extension === "ofx" ? "application/x-ofx" : "application/octet-stream"
+            };
+            await dispatchImportDrag(target, "drop", [file]);
+            await expect(page).toHaveURL(/\/imports\/new$/);
+            await expect(page.getByText(file.name, { exact: true })).toBeVisible();
+            await expect(page.getByText(/OFX • \d+ rows/i)).toBeVisible();
+            await page.getByRole("button", { name: "Cancel" }).click();
+            await expect(page).toHaveURL(/\/imports$/);
+            await expect(page.getByRole("row", { name: new RegExp(file.name) })).toHaveCount(0);
+        }
+
+        fs.unlinkSync(ofxPath);
+    });
+
     test("CSV and OFX lineage survives edits/reload and delete is isolated one-step history", async ({
         page
     }) => {
@@ -690,8 +946,14 @@ NEWFILEUID:NONE
         await test.step("upload CSV file and see split preview", async () => {
             csvPath = createSampleBankCSV();
 
-            const fileInput = page.locator('input[type="file"]');
-            await fileInput.setInputFiles(csvPath);
+            const picker = page.getByRole("button", {
+                name: "Choose a CSV, OFX, or QFX file"
+            });
+            await picker.focus();
+            await expect(picker).toBeFocused();
+            const fileChooser = page.waitForEvent("filechooser");
+            await picker.press("Enter");
+            await (await fileChooser).setFiles(csvPath);
 
             // Should show file name and stats (6 rows including header)
             await expect(page.getByText(/\.csv/i)).toBeVisible({ timeout: 5000 });

@@ -8,7 +8,14 @@
 
 import { useCallback, useRef, useState } from "react";
 
+import {
+    ACCEPTED_IMPORT_EXTENSIONS,
+    type ImportFileValidationError,
+    validateImportFiles
+} from "@/lib/import/file-validation";
 import { cn } from "@/lib/utils";
+
+import { ImportDropTarget } from "./ImportDropTarget";
 
 /**
  * Accepted file types for import.
@@ -20,7 +27,7 @@ export const ACCEPTED_FILE_TYPES = {
     "text/plain": [".ofx", ".qfx"]
 };
 
-export const ACCEPTED_EXTENSIONS = [".csv", ".ofx", ".qfx"];
+export const ACCEPTED_EXTENSIONS = ACCEPTED_IMPORT_EXTENSIONS;
 
 export interface FileDropzoneProps {
     /** Callback when file is selected */
@@ -45,77 +52,23 @@ export function FileDropzone({
     className,
     selectedFile
 }: FileDropzoneProps) {
-    const [isDragging, setIsDragging] = useState(false);
+    const [validationError, setValidationError] = useState<ImportFileValidationError | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    const validateFile = useCallback(
-        (file: File): boolean => {
-            // Check file extension
-            const extension = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
-            if (!ACCEPTED_EXTENSIONS.includes(extension)) {
-                onError?.(
-                    `Unsupported file type: ${extension}. Please use CSV, OFX, or QFX files.`
-                );
-                return false;
-            }
-
-            // Check file size (max 10MB)
-            const maxSize = 10 * 1024 * 1024;
-            if (file.size > maxSize) {
-                onError?.("File is too large. Maximum size is 10MB.");
-                return false;
-            }
-
-            return true;
+    const handleValidationError = useCallback(
+        (error: ImportFileValidationError | null) => {
+            setValidationError(error);
+            if (error) onError?.(error.message);
         },
         [onError]
     );
 
     const handleFile = useCallback(
         (file: File) => {
-            if (validateFile(file)) {
-                onFileSelect(file);
-            }
+            handleValidationError(null);
+            onFileSelect(file);
         },
-        [validateFile, onFileSelect]
-    );
-
-    const handleDragEnter = useCallback(
-        (e: React.DragEvent) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (!disabled) {
-                setIsDragging(true);
-            }
-        },
-        [disabled]
-    );
-
-    const handleDragLeave = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragging(false);
-    }, []);
-
-    const handleDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-    }, []);
-
-    const handleDrop = useCallback(
-        (e: React.DragEvent) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setIsDragging(false);
-
-            if (disabled) return;
-
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                handleFile(files[0]);
-            }
-        },
-        [disabled, handleFile]
+        [handleValidationError, onFileSelect]
     );
 
     const handleClick = useCallback(() => {
@@ -125,15 +78,18 @@ export function FileDropzone({
     }, [disabled]);
 
     const handleInputChange = useCallback(
-        (e: React.ChangeEvent<HTMLInputElement>) => {
-            const files = e.target.files;
-            if (files && files.length > 0) {
-                handleFile(files[0]);
-            }
+        async (event: React.ChangeEvent<HTMLInputElement>) => {
+            const files = Array.from(event.target.files ?? []);
             // Reset input to allow selecting the same file again
-            e.target.value = "";
+            event.target.value = "";
+            const result = await validateImportFiles(files);
+            if (!result.ok) {
+                handleValidationError(result.error);
+                return;
+            }
+            handleFile(result.file);
         },
-        [handleFile]
+        [handleFile, handleValidationError]
     );
 
     const getFileIcon = () => {
@@ -191,24 +147,20 @@ export function FileDropzone({
     };
 
     return (
-        <div
-            onClick={handleClick}
-            onDragEnter={handleDragEnter}
-            onDragLeave={handleDragLeave}
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
-            data-testid="file-dropzone"
+        <ImportDropTarget
+            ariaLabel="Import bank statement file"
             className={cn(
-                "relative flex min-h-[200px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors",
-                isDragging && "border-primary bg-primary/5",
-                !isDragging && !disabled && "hover:border-primary/50 hover:bg-accent/50",
+                "min-h-[200px] rounded-lg border-2 border-dashed transition-colors",
+                !disabled && "hover:border-primary/50 hover:bg-accent/50",
                 disabled && "cursor-not-allowed opacity-50",
                 selectedFile && "border-solid border-green-500/50 bg-green-50 dark:bg-green-950/20",
                 className
             )}
-            role="button"
-            tabIndex={disabled ? -1 : 0}
-            onKeyDown={(e) => e.key === "Enter" && handleClick()}
+            disabled={disabled}
+            onFileAccepted={handleFile}
+            onValidationError={handleValidationError}
+            testId="file-dropzone"
+            validationError={validationError}
         >
             <input
                 ref={inputRef}
@@ -219,27 +171,39 @@ export function FileDropzone({
                 disabled={disabled}
             />
 
-            {getFileIcon()}
+            <div
+                aria-label="Choose a CSV, OFX, or QFX file"
+                className="flex min-h-[196px] cursor-pointer flex-col items-center justify-center p-8"
+                onClick={handleClick}
+                onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        handleClick();
+                    }
+                }}
+                role="button"
+                tabIndex={disabled ? -1 : 0}
+            >
+                {getFileIcon()}
 
-            <div className="mt-4 text-center">
-                {selectedFile ? (
-                    <>
-                        <p className="text-sm font-medium">{selectedFile.name}</p>
-                        <p className="text-muted-foreground mt-1 text-xs">
-                            {(selectedFile.size / 1024).toFixed(1)} KB • Click to change
-                        </p>
-                    </>
-                ) : (
-                    <>
-                        <p className="text-sm font-medium">
-                            {isDragging ? "Drop file here" : "Drop a file or click to browse"}
-                        </p>
-                        <p className="text-muted-foreground mt-1 text-xs">
-                            Supports CSV, OFX, and QFX files up to 10MB
-                        </p>
-                    </>
-                )}
+                <div className="mt-4 text-center">
+                    {selectedFile ? (
+                        <>
+                            <p className="text-sm font-medium">{selectedFile.name}</p>
+                            <p className="text-muted-foreground mt-1 text-xs">
+                                {(selectedFile.size / 1024).toFixed(1)} KB • Click to change
+                            </p>
+                        </>
+                    ) : (
+                        <>
+                            <p className="text-sm font-medium">Drop a file or click to browse</p>
+                            <p className="text-muted-foreground mt-1 text-xs">
+                                Supports CSV, OFX, and QFX files up to 10 MiB
+                            </p>
+                        </>
+                    )}
+                </div>
             </div>
-        </div>
+        </ImportDropTarget>
     );
 }

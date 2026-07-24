@@ -31,6 +31,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useMemo, useRef, useState } from "react";
 
+import { ImportFileTransferProvider } from "@/components/features/import/ImportFileTransferProvider";
 import { PresenceAvatarGroup } from "@/components/features/presence/PresenceAvatarGroup";
 import { UndoControls, UndoKeyboardShortcuts } from "@/components/features/undo/UndoControls";
 import { VaultSelector } from "@/components/features/vault/VaultSelector";
@@ -361,7 +362,14 @@ function AppLayoutContent({
             </aside>
 
             {/* Main Content Area - allows vertical scrolling for non-virtualized pages */}
-            <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">{children}</main>
+            <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
+                <ImportFileTransferProvider
+                    key={activeVault?.id ?? "no-active-vault"}
+                    scopeKey={activeVault?.id ?? null}
+                >
+                    {children}
+                </ImportFileTransferProvider>
+            </main>
         </div>
     );
 }

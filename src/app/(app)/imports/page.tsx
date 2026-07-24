@@ -12,7 +12,13 @@ import { Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useRef, useState } from "react";
 
-import { ACCEPTED_EXTENSIONS, type ImportData, ImportsTable } from "@/components/features/import";
+import {
+    ACCEPTED_EXTENSIONS,
+    type ImportData,
+    ImportDropTarget,
+    ImportsTable,
+    useImportFileTransfer
+} from "@/components/features/import";
 import { Button } from "@/components/ui/button";
 import {
     useActiveImports,
@@ -20,7 +26,7 @@ import {
     useTransactionActions
 } from "@/lib/crdt/context";
 import type { Import as ImportRecord } from "@/lib/crdt/schema";
-import { cn } from "@/lib/utils";
+import { type ImportFileValidationError, validateImportFiles } from "@/lib/import/file-validation";
 
 /**
  * Imports list page component.
@@ -28,7 +34,9 @@ import { cn } from "@/lib/utils";
 export default function ImportsPage() {
     const router = useRouter();
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const [isDragging, setIsDragging] = useState(false);
+    const pickerButtonRef = useRef<HTMLButtonElement>(null);
+    const { stageImportFile } = useImportFileTransfer();
+    const [validationError, setValidationError] = useState<ImportFileValidationError | null>(null);
 
     // Get all active imports from CRDT state
     const importsMap = useActiveImports();
@@ -70,96 +78,39 @@ export default function ImportsPage() {
         [deleteTransactionsByImport]
     );
 
-    // Validate file extension
-    const validateFile = useCallback((file: File): boolean => {
-        const extension = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
-        return ACCEPTED_EXTENSIONS.includes(extension);
-    }, []);
-
-    // Handle file selection - store in sessionStorage and navigate
-    const handleFileSelect = useCallback(
+    const handleAcceptedFile = useCallback(
         (file: File) => {
-            if (!validateFile(file)) return;
-
-            // Read file content and store in sessionStorage for the new page
-            const reader = new FileReader();
-            reader.onload = () => {
-                sessionStorage.setItem(
-                    "pendingImportFile",
-                    JSON.stringify({
-                        name: file.name,
-                        content: reader.result,
-                        type: file.type
-                    })
-                );
-                router.push("/imports/new");
-            };
-            reader.readAsText(file);
+            setValidationError(null);
+            stageImportFile(file);
+            router.push("/imports/new");
         },
-        [router, validateFile]
-    );
-
-    // Drag and drop handlers
-    const handleDragEnter = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragging(true);
-    }, []);
-
-    const handleDragLeave = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        // Only set dragging to false if we're leaving the container (not entering a child)
-        const rect = e.currentTarget.getBoundingClientRect();
-        const x = e.clientX;
-        const y = e.clientY;
-        if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) {
-            setIsDragging(false);
-        }
-    }, []);
-
-    const handleDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-    }, []);
-
-    const handleDrop = useCallback(
-        (e: React.DragEvent) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setIsDragging(false);
-
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                handleFileSelect(files[0]);
-            }
-        },
-        [handleFileSelect]
+        [router, stageImportFile]
     );
 
     const handleButtonClick = () => {
         fileInputRef.current?.click();
     };
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files;
-        if (files && files.length > 0) {
-            handleFileSelect(files[0]);
+    const handleInputChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(event.target.files ?? []);
+        event.target.value = "";
+        const result = await validateImportFiles(files);
+        if (!result.ok) {
+            setValidationError(result.error);
+            pickerButtonRef.current?.focus();
+            return;
         }
-        // Reset input to allow selecting the same file again
-        e.target.value = "";
+        handleAcceptedFile(result.file);
     };
 
     return (
-        <div
-            className={cn(
-                "relative flex h-full flex-col",
-                isDragging && "ring-primary/50 ring-2 ring-inset"
-            )}
-            onDragEnter={handleDragEnter}
-            onDragLeave={handleDragLeave}
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
+        <ImportDropTarget
+            ariaLabel="Imports list file drop target"
+            className="flex h-full flex-col"
+            onFileAccepted={handleAcceptedFile}
+            onValidationError={setValidationError}
+            testId="imports-import-drop-target"
+            validationError={validationError}
         >
             {/* Hidden file input */}
             <input
@@ -170,17 +121,6 @@ export default function ImportsPage() {
                 className="hidden"
             />
 
-            {/* Drag overlay */}
-            {isDragging && (
-                <div className="bg-background/80 absolute inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
-                    <div className="text-primary flex flex-col items-center gap-2">
-                        <Upload className="h-12 w-12" />
-                        <p className="text-lg font-medium">Drop file to import</p>
-                        <p className="text-muted-foreground text-sm">CSV, OFX, or QFX files</p>
-                    </div>
-                </div>
-            )}
-
             {/* Page header */}
             <div className="border-b px-6 py-4">
                 <div className="flex items-center justify-between">
@@ -190,7 +130,7 @@ export default function ImportsPage() {
                             Import transactions from your bank statements.
                         </p>
                     </div>
-                    <Button onClick={handleButtonClick}>
+                    <Button ref={pickerButtonRef} onClick={handleButtonClick}>
                         <Upload className="mr-2 h-4 w-4" />
                         Import new file
                     </Button>
@@ -201,6 +141,6 @@ export default function ImportsPage() {
             <div className="flex-1 overflow-auto p-6">
                 <ImportsTable imports={imports} onDeleteImport={handleDeleteImport} />
             </div>
-        </div>
+        </ImportDropTarget>
     );
 }

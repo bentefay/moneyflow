@@ -8,9 +8,10 @@
  */
 
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Temporal } from "temporal-polyfill";
 
+import { useImportFileTransfer } from "@/components/features/import/ImportFileTransferProvider";
 import {
     type ImportContext,
     ImportPanel,
@@ -41,24 +42,13 @@ function generateId(): string {
  */
 export default function NewImportPage() {
     const router = useRouter();
+    const { consumeImportFile, pendingImportFile } = useImportFileTransfer();
+    const [initialTransfer] = useState(() => pendingImportFile);
+    const initialFile = initialTransfer?.file ?? null;
 
-    // Lazy initialize initial file from sessionStorage (only runs once on mount)
-    const [initialFile] = useState<File | null>(() => {
-        // Check if we're on the client
-        if (typeof window === "undefined") return null;
-
-        const pending = sessionStorage.getItem("pendingImportFile");
-        if (!pending) return null;
-
-        sessionStorage.removeItem("pendingImportFile");
-        try {
-            const { name, content, type } = JSON.parse(pending);
-            const blob = new Blob([content], { type: type || "text/plain" });
-            return new File([blob], name, { type: type || "text/plain" });
-        } catch {
-            return null;
-        }
-    });
+    useEffect(() => {
+        if (initialTransfer) consumeImportFile(initialTransfer.id);
+    }, [consumeImportFile, initialTransfer]);
 
     // Get data from vault
     const transactions = useActiveTransactions();
@@ -292,8 +282,8 @@ export default function NewImportPage() {
 
     // Handle cancel - navigate back to imports list
     const handleCancel = useCallback(() => {
-        router.push("/imports");
-    }, [router]);
+        router.push(initialTransfer?.sourcePath ?? "/imports");
+    }, [initialTransfer, router]);
 
     // Handle save template (with config from ImportPanel)
     // For OFX files, we don't save column mappings or CSV-specific formatting (they're fixed/irrelevant)
