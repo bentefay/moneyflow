@@ -7,9 +7,10 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P15 revision 01 (`changes_requested`)
-- **Next action:** persist immutable revision-01 FAIL artifacts and F-01 through F-05, then dispatch
-  revision 02
+- **Current package:** P15 revision 02 (`implementing` after current root control commit)
+- **Next action:** dispatch `human_scratch_implementer` against exact pre-HEAD
+  `49dcef93bdbd4d4d21f0313061bc262473801966` and sole evidence
+  `evidence/P15/implementation-02.md`
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -22,8 +23,8 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** ten passed; HS-015 blocked externally; HS-011/HS-012 and eight other
   requirements queued
-- **Last ledger update:** 2026-07-25; P15 revision-01 independently failed on five blocking
-  compatibility, validation, accessibility and drag-lifecycle findings
+- **Last ledger update:** 2026-07-25; P15 revision-02 implementation dispatch prepared for all five
+  revision-01 findings
 
 ## Package ledger
 
@@ -46,7 +47,7 @@ review evidence.
 | P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | passed | 08 | `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e..a2a31839f6bb57855fa60b8cfcc06feed069cafa` | `evidence/P12/implementation-08.md` | `reviews/P12-review-08.md` | `f8cbb5a8caacb763c0bb77199595a5ee332ab729` |
 | P13     | HS-001         | Persisted normal empty Add Transaction rows and grid navigation                     | P11C, P09            | passed | 03 | `415ea080b3b19191fd71601742056a619b4a3080..9f307e200676711ca2a3ba81bd816314807434ad` | `evidence/P13/implementation-03.md` | `reviews/P13-review-03.md` | `7a04338fa7c3f68463d12d11082bc56e87c1872b` |
 | P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | passed | 04 | `b9105028926d24a5a0c5454777a6c33379ca606a..305d6613673cf200d456276c076463b68c075500` | `evidence/P14/implementation-04.md` | `reviews/P14-review-04.md` | `a2182116db08200b8b4df28412512b9ca3406aa2` |
-| P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | changes_requested | 01 | `b3e96ba9e9487d13df56956d220fffca63d6482d..d652032ea4f738e06fd5a29018bd341010285696` | `evidence/P15/implementation-01.md` | `reviews/P15-review-01.md` | pending failure integration |
+| P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | implementing | 02 | `b3e96ba9e9487d13df56956d220fffca63d6482d..pending`                                  | `evidence/P15/implementation-02.md` | `reviews/P15-review-02.md` | revision-01 failure `49dcef93bdbd4d4d21f0313061bc262473801966` |
 | P16A    | FS-001, HS-009 | Allocation/ownership validation, remainder/effective shares and exact apportionment | P01                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16C    | FS-001, HS-009 | CRDT per-key/complete-set APIs and every mutation, hydration and history path       | P16A, P16B, P09, P14 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -2354,6 +2355,20 @@ server phases, restored generated source and moved only current `.next`, `test-r
 CLI artifacts to recoverable trash. Exact HEAD/index/worktree/frozen boundaries pass; no Q proposal.
 HS-013 remains unchecked and revision 02 must close every finding without weakening the green
 architecture or flows.
+
+**2026-07-25T05:32:03+10:00 — P15/02 `changes_requested -> implementing`:** Revision-01
+evidence/review and F-01 through F-05 are immutable in failure integration
+`49dcef93bdbd4d4d21f0313061bc262473801966`; original cumulative review BASE remains
+`b3e96ba9e9487d13df56956d220fffca63d6482d`, and the exact revision-02 preimplementation HEAD is
+`49dcef93bdbd4d4d21f0313061bc262473801966`. Sole new evidence is
+`evidence/P15/implementation-02.md`; future review is `reviews/P15-review-02.md`. Authority is
+limited to shared validation, the reusable drop target and their exact unit/component/import E2E
+owners. Revision 02 must align XML OFX with parser truth, reject obvious renamed JSON/documents,
+measure at least 4.5:1 alert contrast in both themes, contain all guidance at 390x844/200% zoom and
+clear virtual-unmount residue on outer leave without dragend. Checked-in red-before-green tests,
+actual DataTransfer, exact contrast/geometry, focused x3, affected/full no-retry automation and the
+complete installed-CLI/privacy/scale/P13/P14 preservation charter are mandatory. Reviewer is
+undispatched; HS-013 remains unchecked.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual

@@ -5,137 +5,109 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Implementation dispatch
 
-- **Package / revision:** P15 / 01
+- **Package / revision:** P15 / 02
 - **Scope IDs:** HS-013 only; whole imports-list and transactions-table file drop targets; HS-013
   remains incomplete and unchecked
-- **State:** changes_requested; revision 01 becomes immutable after root persistence; HS-013 remains
-  unchecked
+- **State:** implementing after the current root control commit; reviewer is undispatched
 - **Task:** `tasks/HS-013-import-drop-zones.md`; exact one-line HS-013 block in SCOPE
-- **Dependency:** P14/04 and HS-008 are passed. P14 integration is
-  `a2182116db08200b8b4df28412512b9ca3406aa2`; marker completion is
-  `b3e96ba9e9487d13df56956d220fffca63d6482d`.
+- **Dependency:** P14/04 and HS-008 are passed. P15 revision-01 architecture remains the cumulative
+  base to correct, not replace.
 - **Literal original cumulative review BASE:**
   `b3e96ba9e9487d13df56956d220fffca63d6482d`
-- **Exact clean implementation-start/control HEAD:**
-  `f0373722ffeca6812820f5270190c203300f712b`
-- **Literal revision-01 product/test HEAD:**
-  `d652032ea4f738e06fd5a29018bd341010285696`
-- **Sole implementer artifact:** `evidence/P15/implementation-01.md`
-- **Frozen evidence identity:** SHA-256
+- **Revision-02 clean pre-implementation HEAD:**
+  `49dcef93bdbd4d4d21f0313061bc262473801966`
+- **Revision-01 product/test HEAD:** `d652032ea4f738e06fd5a29018bd341010285696`
+- **Revision-01 failure integration:** `49dcef93bdbd4d4d21f0313061bc262473801966`
+- **Immutable revision-01 evidence:** `evidence/P15/implementation-01.md`, SHA-256
   `5ad467cdaaec07685d20fdeff28aff1d5564e571fbd5e3ca99d6a452c97cd05e`, 177 lines /
   13,180 bytes
-- **Sole reviewer artifact:** `reviews/P15-review-01.md`
-- **Frozen revision-01 review:** FAIL, SHA-256
+- **Immutable revision-01 review:** `reviews/P15-review-01.md`, FAIL, SHA-256
   `4da58be357d490f28d5fbe0858a0e428ef8842258adcc2a87dd942da5b86cd44`, 227 lines /
   16,347 bytes
-- **Blocking findings:** F-01 rejects valid XML-declaration/OFX-2.x files before the parser; F-02
-  accepts obvious JSON renamed as CSV; F-03 alert contrast is 4.2259:1 light and 2.7605:1 dark;
-  F-04 centers guidance and bottom-anchors alerts wholly below the viewport at 390x844/200% zoom;
-  F-05 pure enter/leave depth strands the overlay when an entered virtual child unmounts before its
-  leave. Revision 02 must close all five with checked-in behavior coverage while retaining every
-  green revision-01 flow.
-- **Implementation-start boundary:** clean HEAD/index/worktree; all P14 artifacts and the HS-008
-  marker are committed and immutable
-- **Allowed implementation paths:** exactly existing
-  `src/app/(app)/layout.tsx`, `src/app/(app)/imports/page.tsx`,
-  `src/app/(app)/imports/new/page.tsx`, `src/app/(app)/transactions/page.tsx`,
-  `src/components/features/import/FileDropzone.tsx`,
-  `src/components/features/import/index.ts`, `src/lib/import/index.ts` and
-  `tests/e2e/import.spec.ts`; exact optional new owners
-  `src/components/features/import/ImportFileTransferProvider.tsx`,
+- **Sole new implementer artifact:** `evidence/P15/implementation-02.md`
+- **Future immutable review artifact:** `reviews/P15-review-02.md`
+- **Implementation-start boundary:** clean HEAD/index/worktree; revision-01 evidence/review and all
+  root transcriptions are committed and immutable
+- **Allowed revision-02 paths:** exactly
+  `src/lib/import/file-validation.ts`,
   `src/components/features/import/ImportDropTarget.tsx`,
-  `src/lib/import/file-validation.ts`, `tests/unit/import/file-validation.test.ts` and
-  `tests/unit/components/import-drop-target.test.tsx`. Do not edit ImportPanel/parser/CRDT/sync/
-  crypto/server/schema/migration/dependency/config or any other source/test path unless a
-  reproducible owner blocker is first reported and root explicitly expands the list. Never edit
-  ledgers, prior evidence/reviews, scratch, FS-001, SCOPE, `.claude`, `.codex` or agent
-  configuration.
-- **Commit contract:** inspect existing patterns before editing. Stage exact authorized
-  product/test paths only, commit with a short message containing no parentheses, and leave the sole
-  evidence artifact uncommitted. Never use `git add .` or `git add -A`.
+  `tests/unit/import/file-validation.test.ts`,
+  `tests/unit/components/import-drop-target.test.tsx` and `tests/e2e/import.spec.ts`. No page,
+  provider, parser, FileDropzone, export, CRDT, sync, crypto, server, schema, migration, dependency,
+  config or other source/test path is authorized unless a reproducible owner blocker is first
+  reported and root explicitly expands the list. Never edit ledgers, revision-01 artifacts, scratch,
+  FS-001, SCOPE, `.claude`, `.codex` or agent configuration.
+- **Commit contract:** inspect revision-01 owners before editing. Stage the exact authorized
+  product/test paths only, commit with a short message containing no parentheses, and leave
+  `evidence/P15/implementation-02.md` uncommitted. Never use `git add .` or `git add -A`.
 
-## Required behavior and boundaries
+## Required revision-02 closure
 
-- **One validated path:** picker and drop must use one typed validation contract for supported CSV,
-  OFX and QFX files. Preserve the existing secure 10 MiB limit unless source evidence requires a
-  stricter bound. Reject zero-byte, unsupported, multiple, oversized, unreadable and clearly
-  content-spoofed inputs with specific actionable errors. Validate before navigation and before
-  replacing a pending accepted file. Expected input failures are typed results, not exceptions.
-- **Whole-surface targets:** the visible imports-list content and ordinary transactions-table
-  surface accept a single supported file at every child cell, empty region, filtered/virtualized
-  scroll position and edge. Do not turn the global app shell, navigation, dialogs or portaled
-  controls into drop targets.
-- **Stable drag lifecycle:** use a deterministic nested-enter depth or equivalent related-target
-  invariant. Child enter/leave, virtual-row mount/unmount, repeated edge crossings and a drag ending
-  outside the target must not flicker, strand the overlay or navigate. `dropEffect` must honestly
-  indicate whether the payload is acceptable.
-- **Shared transfer:** remove the `FileReader` → JSON → `sessionStorage.pendingImportFile` content
-  copy. Transfer the original browser `File` through a bounded provider owned by the persistent app
-  layout or an equivalently scoped, typed, cleanup-safe mechanism. A successful take is one-shot;
-  invalid drop, cancel/back, route replacement, vault switch and logout must not leak or silently
-  replay stale financial file content. Do not persist plaintext file content in session/local
-  storage, IndexedDB, URLs, logs or server requests.
-- **Workflow preservation:** a valid drop navigates to the existing `/imports/new` workflow with
-  the exact file and enters the same parse/mapping/format/duplicate/account/preview stages as the
-  picker. It must not create an import or transactions until the existing explicit confirmation.
-  Cancel/back returns to the source page without data mutation; a later picker/drop remains usable.
-- **Accessible UX:** use shared established tokens and a single reusable drop-target/overlay owner.
-  The overlay must describe CSV/OFX/QFX support, remain visually stable over scrolled and virtualized
-  content, support light/dark and reduced motion, preserve existing table scrolling/selection, and
-  never trap pointer or focus. Invalid feedback must use an accessible alert/live region and focus
-  restoration. The Imports `Import new file` picker remains a labelled keyboard alternative;
-  direct `/imports/new` picker behavior remains unchanged.
-- **Preservation:** retain P14 lineage, original-amount tooltip and import delete/history behavior;
-  P13 filter/pagination/add-row selection; current imported-content parsing/encoding and account/
-  template behavior; encrypted local-first persistence; responsive layout and virtualization.
-  Never inspect or record recovery words, decrypted vault payloads or user financial fixture
-  content beyond synthetic test data.
-- **Decision rule:** use existing secure behavior for size and single-file policy. If an ambiguity
-  materially remains after source inspection, record a complete `Q-PROPOSAL-P15-01-*` in evidence,
-  apply the PROCESS decision hierarchy and continue; do not ask the human or pause.
+- **F-01 XML OFX compatibility:** align the bounded shared validator with the existing parser's
+  accepted OFX truth. Accept complete standard OFX 2.x documents with bounded leading XML
+  declaration and OFX processing instruction before `<OFX>`, without loosening SGML OFX/QFX or
+  permitting arbitrary markup. Prove picker and actual DataTransfer drops through both Imports and
+  Transactions surfaces reach preview/cancel; retain existing SGML OFX/QFX cases.
+- **F-02 renamed JSON rejection:** replace delimiter-on-first-line sufficiency with a robust bounded
+  CSV recognition contract. Reject obvious JSON and known HTML/XML/PDF/binary/document signatures
+  renamed as CSV before navigation, while retaining real quoted fields, escaped quotes, multiline
+  fields, BOM, supported encodings and normal one-column/multi-column bank exports accepted by the
+  existing parser. Use one shared picker/drop path and return typed actionable errors.
+- **F-03 alert contrast:** use an explicit established-token foreground/background pair that
+  measures at least 4.5:1 for the actual 14px alert text in both light and dark themes. Do not solve
+  this with larger text alone, opacity assumptions or a global theme change. Add deterministic
+  computed-color contrast coverage in both states.
+- **F-04 200%-zoom reflow:** place overlay instructions and validation feedback against the
+  currently visible intersection of the scrollable target and visual viewport, not the full target
+  center/bottom. At 390x844 with 200% document zoom, both surfaces must keep all guidance and alert
+  text/boxes visibly contained with an explicit collision margin while preserving scrolling,
+  pointer noninterference, responsive/dark/reduced-motion behavior and ordinary unzoomed layout.
+- **F-05 virtual unmount lifecycle:** make actual outside-boundary leave authoritative even if an
+  entered virtual child unmounts before emitting its matching leave. Retain no-flicker behavior
+  across ordinary live children, but clear on outer leave without waiting for global dragend. Add a
+  real browser journey: enter target and mounted virtual row, scroll-unmount that row, dispatch only
+  outer leave, assert overlay absent.
+- **Cumulative preservation:** retain the revision-01 shared validator/original-File architecture,
+  one-shot vault/route cleanup, no plaintext sessionStorage handoff, both bounded surfaces, honest
+  drop effect, accessible focus restoration, keyboard picker, explicit import confirmation,
+  CSV/SGML OFX/QFX flows, cancel/back/same-file retry, 60-row bounded virtualization, encrypted
+  persistence and every P13/P14 behavior. Do not weaken validation merely to accept XML OFX.
+- **Decision rule:** all five findings are explicit implementation defects. If a new material
+  ambiguity remains after source inspection, record a complete `Q-PROPOSAL-P15-02-*` in evidence,
+  apply the PROCESS hierarchy and continue; do not ask the human or pause.
 
 ## Required evidence
 
-- **Red-to-green:** first add checked-in behavior-led tests that fail on unchanged BASE for at least
-  the missing transactions drop target, imports nested-drag stability, multiple/empty/oversize/
-  spoofed rejection before navigation, and removal of plaintext sessionStorage handoff. Preserve
-  the red command/output in evidence, then make those exact tests green.
-- **Unit/component automation:** cover the pure validation result matrix, mixed-case names and MIME
-  mismatch/content sniffing; one-shot transfer/cleanup; nested enter/leave depth, outside exit/drop,
-  invalid accessible error and noninterference with children/scroll. Avoid fabricated production
-  hooks and arbitrary waits.
-- **E2E automation:** use actual browser `File`/`DataTransfer` payloads and drag event sequences.
-  Exercise representative CSV and OFX drops on both Imports and Transactions surfaces, including
-  child cells, filtered/virtualized transaction rows, scrolled imports content and edges. Prove the
-  exact file reaches preview but no import exists before confirmation; cancel/back preserves data
-  and source state; successful confirmation still works. Cover QFX or parser-equivalent support,
-  nested no-flicker, repeated enter/leave/outside cleanup, multiple/empty/unsupported/oversize/
-  unreadable-or-spoofed errors, same-file retry, picker keyboard path and absence of pending file
-  content from storage/URL/network/console. Repeat focused journeys at least three times with one
-  worker and retries zero.
-- **Regression gates:** run focused new unit/component tests in three clean processes; the import
-  unit/integration profile; owner transaction/import tests; full Vitest, typecheck, lint, build,
-  exact changed-path format/ESLint and `git diff --check`. Run the affected Import/Transactions E2E
-  matrix and full E2E once each with one worker and retries zero. Run repository `format:check` and
-  report its exact inherited baseline without rewriting frozen/historical Markdown.
-- **Manual installed-CLI charter:** use only repository-installed headless `playwright-cli` with a
-  unique disposable session and a root-owned keyed server. Through ordinary authenticated UI,
-  sample valid CSV/OFX on both surfaces at child/edge/scrolled/filtered positions; repeated nested
-  enter/leave and outside exit; invalid/multiple/empty/oversize/spoofed feedback; picker keyboard
-  alternative; cancel/back/focus; preview then one confirmed import; responsive widths, dark and
-  reduced motion. Inspect overlay stability, mounted row count, console/network and all browser
-  storage for synthetic filename/content leakage. Close/delete the session; ask root to stop the
-  server; remove only current generated artifacts and restore `next-env.d.ts`.
-- **Evidence artifact:** record literal BASE, product/test HEAD and commit(s); exact paths/index;
-  static owner analysis; red and green commands/results/repeats/counts; typed validation/transfer/
-  cleanup design; actual DataTransfer assertions; sanitized manual observations; P13/P14
-  preservation; storage/network/privacy inspection; all inherited failures; cleanup; frozen
-  boundaries; applicable risks and any complete Q proposal. Format the new evidence before freeze
-  and do not claim independent PASS.
-- **Applicable repository guides:** `.claude/skills/import/SKILL.md`,
-  `.claude/skills/components/SKILL.md`, `.claude/skills/e2e/SKILL.md`; apply CRDT/sync guidance when
-  validating preservation, plus general money, TypeScript, accessibility, security and testing
-  rules.
+- **Red-to-green:** before product edits, add checked-in tests that reproduce all five revision-01
+  findings on exact unchanged behavior. Preserve exact red outputs. Then make those same tests green
+  without deleting or weakening any revision-01 acceptance assertion.
+- **Focused automation:** repeat the validator/drop-target unit/component profile in three clean
+  processes. Include parser-aligned XML OFX, JSON/document spoof matrix, representative difficult
+  valid CSV, exact theme contrast, visible-intersection geometry and virtual-unmount lifecycle.
+- **Browser automation:** use actual browser `File`/`DataTransfer`. Run the exact F-01–F-05 journeys
+  at least three times, one worker/retries zero; preserve the revision-01 12/12 three-repeat matrix,
+  picker CSV/OFX, filtered/virtualized 60-row confirm/cancel and P14 origin/history checks. No
+  arbitrary waits, CSS-only substitutes, post-dispatch `dropEffect` assumptions or synthetic
+  production hooks.
+- **Regression gates:** run import unit/integration and owner profiles, full Vitest, typecheck,
+  lint, build, exact changed-path format/ESLint and `git diff --check`; affected six-spec and full
+  Chromium once each with one worker/retries zero. Run repository `format:check` and report its exact
+  inherited Markdown baseline without rewriting frozen/historical files.
+- **Manual installed-CLI charter:** use only installed headless `playwright-cli` with unique
+  disposable session and a root-owned keyed server. Independently reproduce and close XML OFX,
+  renamed JSON, both-theme contrast, 390x844/200%-zoom overlay+alert containment and virtual child
+  unmount/outer leave. Retain CSV/SGML OFX/QFX, six invalid cases/focus, keyboard picker,
+  cancel/back/confirm, 60-row bounded reload, P14 origin/history, storage/request plaintext absence,
+  responsive/dark/reduced motion and clean console/network. Exclude and report any failed/hung
+  exploratory harness; no arbitrary timeout may support acceptance.
+- **Evidence artifact:** record original BASE, revision-02 pre-HEAD, cumulative product/test HEAD and
+  commits; exact paths/index; each independent-review counterexample red and green; mechanisms and
+  test coverage; commands/repeats/counts; sanitized manual geometry/contrast/lifecycle/privacy;
+  cumulative preservation; inherited failures; cleanup; frozen boundaries; risks and any complete
+  Q proposal. Format the new artifact before freeze and do not claim independent PASS.
+- **Applicable guides:** `.claude/skills/import/SKILL.md`,
+  `.claude/skills/components/SKILL.md`, `.claude/skills/e2e/SKILL.md`; apply general TypeScript,
+  accessibility, security, performance and testing rules.
 - **Frozen boundary:** scratch SHA
   `f0adfef6e19b80969dae748cf8c616614af61ba778837234c97af385a19adcb1`, checked set
   HS-001/HS-002/HS-004/HS-005/HS-006/HS-008/HS-010/HS-014/HS-017/HS-018, all 21 normalized blocks
@@ -145,27 +117,26 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Independent review contract
 
-- **Reviewer:** distinct `human_scratch_reviewer`
+- **Reviewer:** distinct `human_scratch_reviewer`, undispatched until revision-02 implementation
+  evidence freezes
 - **Literal cumulative review BASE:** `b3e96ba9e9487d13df56956d220fffca63d6482d`
-- **Literal review HEAD:** `d652032ea4f738e06fd5a29018bd341010285696`
-- **Range type:** original P15 BASE through the exact revision-01 product/test HEAD
-- **Implementation evidence:** `evidence/P15/implementation-01.md`
-- **Sole reviewer artifact:** `reviews/P15-review-01.md`
+- **Literal revision-02 HEAD:** pending exact committed product/test HEAD
+- **Range type:** original P15 BASE through the future revision-02 product/test HEAD, including
+  immutable revision-01 failure/control history
+- **Implementation evidence:** `evidence/P15/implementation-02.md`
+- **Sole reviewer artifact:** `reviews/P15-review-02.md`
 - **Reviewer writes:** the new review file only; no product/test/evidence/ledger/config/frozen edit
   or commit
-- **Required review focus:** independently prove both whole-surface drop targets, one shared typed
-  validator/transfer, real DataTransfer nested stability, accessible pre-navigation failures,
-  one-shot plaintext-free handoff and unchanged explicit-confirmation import workflow. Revalidate
-  P13/P14 behavior, scale, responsive/dark/reduced-motion, offline/local-first privacy and exact
-  cleanup.
-- **Verdict contract:** review literal BASE..HEAD with explicit findings, acceptance mapping,
+- **Required review focus:** independently close F-01 through F-05 with parser-aligned compatibility,
+  strong spoof rejection, measured theme contrast, actual 200%-zoom visible containment and real
+  virtual-row unmount/outer-leave cleanup. Revalidate all green revision-01 architecture, workflows,
+  scale, privacy, P13/P14 behavior, automation and cleanup.
+- **Verdict contract:** review literal cumulative range with explicit findings, acceptance mapping,
   independent commands/repeats, installed-CLI evidence, cleanup/Q proposals and one PASS/FAIL. Any
-  material correctness, data-loss, stale-replay, accessibility, privacy, large-file or regression
-  finding fails.
+  material compatibility, validation, accessibility/reflow, interaction-lifecycle, privacy,
+  data-loss or regression finding fails.
 
 ## Next root action
 
-Persist immutable revision-01 evidence/review, all five findings and risk transcriptions in an
-exact-path root control commit. Then dispatch P15 revision 02 over the same original BASE with new
-exact artifacts `evidence/P15/implementation-02.md` and `reviews/P15-review-02.md`; keep HS-013
-unchecked.
+Dispatch `human_scratch_implementer` for P15 revision 02 only after this handoff/progress transition
+is durably committed. Keep the reviewer undispatched and HS-013 unchecked.
