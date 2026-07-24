@@ -29,8 +29,8 @@ import {
 import { startVaultMaintenanceScheduler } from "./maintenance";
 import type { VaultMirror } from "./mirror";
 import { getAllTransactions } from "./queries";
+import { isPublicTransaction, vaultSchema } from "./schema";
 import type { Transaction, VaultState } from "./schema";
-import { vaultSchema } from "./schema";
 import type { VaultEditSession, VaultUserActionKind } from "./undo";
 import { useVaultUndoCoordinator } from "./undo";
 
@@ -402,10 +402,13 @@ export function useTransaction(transactionId: string) {
                 for (const monthBucket of yearBucket.months) {
                     for (const dayBucket of monthBucket.days) {
                         for (const tx of dayBucket.transactions) {
+                            if (!isPublicTransaction(tx)) continue;
                             if (tx.id === transactionId) return tx;
-                            // Also check nested duplicates
-                            const dup = tx.suspectedDuplicates?.find((d) => d.id === transactionId);
-                            if (dup) return dup as unknown as Transaction;
+                            // Also check nested duplicates of public parents.
+                            const duplicate = tx.suspectedDuplicates?.find(
+                                (candidate) => candidate.id === transactionId
+                            );
+                            if (duplicate) return duplicate as unknown as Transaction;
                         }
                     }
                 }

@@ -5,7 +5,7 @@ import { Temporal } from "temporal-polyfill";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import "fake-indexeddb/auto";
 
-import { VaultProvider } from "@/lib/crdt/context";
+import { useTransaction, VaultProvider } from "@/lib/crdt/context";
 import {
     changeAllDescriptionAliases,
     createDescriptionAlias
@@ -248,6 +248,56 @@ afterEach(async () => {
 });
 
 describe("vault background maintenance integration", () => {
+    it("does not expose a real-ID nested child through a malformed private parent", () => {
+        const vault = createVaultMirror();
+        vault.mirror.setState((state: VaultState) => {
+            insertTransaction(state.transactions, {
+                transaction: relocationTransaction("source-parent", 100)
+            });
+            insertTransaction(state.transactions, {
+                transaction: {
+                    ...relocationTransaction("nested-public", 90),
+                    notes: "complete source"
+                },
+                suspectedDuplicateOf: {
+                    accountId: "account",
+                    date: DATE,
+                    transactionId: "source-parent"
+                }
+            });
+            insertTransaction(state.transactions, {
+                transaction: {
+                    ...relocationTransaction(
+                        "__moneyflow_gc_shadow__:legacy\u0000source\u0000private-parent",
+                        200
+                    ),
+                    suspectedDuplicates: [
+                        {
+                            ...relocationTransaction("nested-public", 190),
+                            notes: "incomplete shadow"
+                        }
+                    ]
+                }
+            });
+        });
+        vi.spyOn(window, "requestAnimationFrame").mockImplementation(() => 1);
+        vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
+        let observedNotes: string | undefined;
+
+        function CaptureTransaction() {
+            observedNotes = useTransaction("nested-public")?.notes;
+            return null;
+        }
+
+        const view = render(
+            createElement(VaultProvider, { doc: vault.doc }, createElement(CaptureTransaction))
+        );
+
+        expect(observedNotes).toBe("complete source");
+        view.unmount();
+        vault.mirror.dispose();
+    });
+
     it("collects a cleared change-all history frontier in the same provider", async () => {
         const vault = createVaultMirror();
         const coordinator = new VaultUndoCoordinator(vault.doc);
