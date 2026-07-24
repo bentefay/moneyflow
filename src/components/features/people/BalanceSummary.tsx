@@ -12,31 +12,26 @@ import { useMemo } from "react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getAllTransactions } from "@/lib/crdt/queries";
-import type { Person, Status, TransactionStore } from "@/lib/crdt/schema";
+import type { Account, Person, Status, TransactionStore } from "@/lib/crdt/schema";
 import { getEntriesOfLoroMap } from "@/lib/crdt/utils";
 import { Currencies } from "@/lib/domain/currencies";
-import {
-    asMinorUnits,
-    createCurrencyFormatter,
-    getCurrency,
-    type MoneyMinorUnits
-} from "@/lib/domain/currency";
-import { calculateSettlementBalances, type SettlementBalance } from "@/lib/domain/settlement";
+import { asMinorUnits, createCurrencyFormatter, getCurrency } from "@/lib/domain/currency";
+import { calculateSettlementBalances, type SettlementObligation } from "@/lib/domain/settlement";
 import { cn } from "@/lib/utils";
 
 export interface BalanceSummaryProps {
+    /** All retained accounts, including historical soft-deleted accounts. */
+    accounts: Record<string, Account | string>;
     /** All people in the vault (loro-mirror map with $cid) */
     people: Record<string, Person | string>;
     /** All transactions in the vault (hierarchical store) */
     transactions: TransactionStore;
     /** All statuses in the vault (loro-mirror map with $cid) */
     statuses: Record<string, Status | string>;
-    /** Account ID to currency mapping */
-    accountCurrencies: Record<string, string>;
     /** Current user's person ID (to highlight their balances) */
     currentPersonId?: string;
-    /** Currency to display balances in (default: USD) */
-    displayCurrency?: string;
+    /** Vault currency fallback used when an account has no explicit currency. */
+    vaultDefaultCurrency?: string;
     /** Additional CSS classes */
     className?: string;
 }
@@ -48,53 +43,30 @@ export function BalanceSummary({
     people,
     transactions,
     statuses,
-    accountCurrencies,
+    accounts,
     currentPersonId,
-    displayCurrency = "USD",
+    vaultDefaultCurrency,
     className
 }: BalanceSummaryProps) {
-    // Calculate settlement balances
-    const balances = useMemo(() => {
+    const result = useMemo(() => {
         const allTransactions = getAllTransactions(transactions);
-        return calculateSettlementBalances(allTransactions, statuses, accountCurrencies);
-    }, [transactions, statuses, accountCurrencies]);
+        return calculateSettlementBalances(
+            allTransactions,
+            accounts,
+            statuses,
+            vaultDefaultCurrency
+        );
+    }, [accounts, statuses, transactions, vaultDefaultCurrency]);
 
-    // Get currency formatter
-    const currency = getCurrency(displayCurrency) || Currencies.USD;
-    const formatter = createCurrencyFormatter(currency, "en-US");
-
-    // Filter out zero balances and get unique relationships
-    const significantBalances = useMemo(() => {
-        // Group by person pairs (debtor -> creditor)
-        const pairs = new Map<string, SettlementBalance>();
-
-        for (const balance of balances) {
-            if (balance.amount === 0) continue;
-
-            const key =
-                balance.amount > 0
-                    ? `${balance.personId}:${balance.owedToPersonId}`
-                    : `${balance.owedToPersonId}:${balance.personId}`;
-
-            const existing = pairs.get(key);
-            if (existing) {
-                // Consolidate amounts
-                const newAmount =
-                    (existing.amount as number) +
-                    (balance.amount > 0 ? (balance.amount as number) : -(balance.amount as number));
-                pairs.set(key, { ...existing, amount: newAmount as MoneyMinorUnits });
-            } else {
-                pairs.set(key, {
-                    personId: balance.amount > 0 ? balance.personId : balance.owedToPersonId!,
-                    owedToPersonId: balance.amount > 0 ? balance.owedToPersonId : balance.personId,
-                    amount: Math.abs(balance.amount as number) as MoneyMinorUnits,
-                    currency: balance.currency
-                });
-            }
+    const obligationsByCurrency = useMemo(() => {
+        const grouped = new Map<string, SettlementObligation[]>();
+        for (const obligation of result.obligations) {
+            const obligations = grouped.get(obligation.currency) ?? [];
+            obligations.push(obligation);
+            grouped.set(obligation.currency, obligations);
         }
-
-        return Array.from(pairs.values()).filter((b) => b.amount !== 0);
-    }, [balances]);
+        return Array.from(grouped.entries());
+    }, [result.obligations]);
 
     // Build person lookup map (filtering out $cid)
     const personMap = useMemo(() => {
@@ -109,15 +81,39 @@ export function BalanceSummary({
     const getPersonName = (personId: string | undefined): string => {
         if (!personId) return "Unknown";
         const person = personMap.get(personId);
-        return person?.name || "Unknown";
+        return person?.name || `Unknown (${personId})`;
     };
 
     // Check if balance involves current user
-    const involvesCurrentUser = (balance: SettlementBalance): boolean => {
-        return balance.personId === currentPersonId || balance.owedToPersonId === currentPersonId;
+    const involvesCurrentUser = (obligation: SettlementObligation): boolean => {
+        return (
+            obligation.debtorPersonId === currentPersonId ||
+            obligation.creditorPersonId === currentPersonId
+        );
     };
 
-    if (significantBalances.length === 0) {
+    if (result.issues.length > 0) {
+        const affectedTransactionCount = new Set(
+            result.issues.map(({ transactionId }) => transactionId)
+        ).size;
+        return (
+            <Card className={cn("border-destructive/50 w-full", className)}>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                        <Scale className="h-5 w-5" />
+                        Settlement incomplete
+                    </CardTitle>
+                    <CardDescription>
+                        {affectedTransactionCount}{" "}
+                        {affectedTransactionCount === 1 ? "transaction needs" : "transactions need"}{" "}
+                        attention before balances can be trusted.
+                    </CardDescription>
+                </CardHeader>
+            </Card>
+        );
+    }
+
+    if (result.obligations.length === 0) {
         return (
             <Card className={cn("w-full", className)}>
                 <CardHeader>
@@ -149,48 +145,63 @@ export function BalanceSummary({
             </CardHeader>
             <CardContent>
                 <div className="space-y-3">
-                    {significantBalances.map((balance, index) => {
-                        const isCurrentUserOwes = balance.personId === currentPersonId;
-                        const isCurrentUserOwed = balance.owedToPersonId === currentPersonId;
-
+                    {obligationsByCurrency.map(([currencyCode, obligations]) => {
+                        const currency = getCurrency(currencyCode) ?? Currencies.USD;
+                        const formatter = createCurrencyFormatter(currency, "en-US");
                         return (
-                            <div
-                                key={`${balance.personId}-${balance.owedToPersonId}-${index}`}
-                                className={cn(
-                                    "flex items-center justify-between rounded-lg border p-3",
-                                    involvesCurrentUser(balance) && "border-primary/20 bg-accent/50"
-                                )}
-                            >
-                                <div className="flex items-center gap-2">
-                                    <span
-                                        className={cn(
-                                            "font-medium",
-                                            isCurrentUserOwes && "text-destructive"
-                                        )}
-                                    >
-                                        {getPersonName(balance.personId)}
-                                    </span>
-                                    <ArrowRight className="text-muted-foreground h-4 w-4" />
-                                    <span
-                                        className={cn(
-                                            "font-medium",
-                                            isCurrentUserOwed &&
-                                                "text-green-600 dark:text-green-400"
-                                        )}
-                                    >
-                                        {getPersonName(balance.owedToPersonId)}
-                                    </span>
-                                </div>
-                                <span
-                                    className={cn(
-                                        "font-mono font-semibold",
-                                        isCurrentUserOwes && "text-destructive",
-                                        isCurrentUserOwed && "text-green-600 dark:text-green-400"
-                                    )}
-                                >
-                                    {formatter.format(asMinorUnits(balance.amount))}
-                                </span>
-                            </div>
+                            <section key={currencyCode} className="space-y-2">
+                                <h3 className="text-sm font-semibold">{currencyCode}</h3>
+                                {obligations.map((obligation) => {
+                                    const isCurrentUserOwes =
+                                        obligation.debtorPersonId === currentPersonId;
+                                    const isCurrentUserOwed =
+                                        obligation.creditorPersonId === currentPersonId;
+
+                                    return (
+                                        <div
+                                            key={`${currencyCode}:${obligation.debtorPersonId}:${obligation.creditorPersonId}`}
+                                            className={cn(
+                                                "flex items-center justify-between rounded-lg border p-3",
+                                                involvesCurrentUser(obligation) &&
+                                                    "border-primary/20 bg-accent/50"
+                                            )}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <span
+                                                    className={cn(
+                                                        "font-medium",
+                                                        isCurrentUserOwes && "text-destructive"
+                                                    )}
+                                                >
+                                                    {getPersonName(obligation.debtorPersonId)}
+                                                </span>
+                                                <ArrowRight className="text-muted-foreground h-4 w-4" />
+                                                <span
+                                                    className={cn(
+                                                        "font-medium",
+                                                        isCurrentUserOwed &&
+                                                            "text-green-600 dark:text-green-400"
+                                                    )}
+                                                >
+                                                    {getPersonName(obligation.creditorPersonId)}
+                                                </span>
+                                            </div>
+                                            <span
+                                                className={cn(
+                                                    "font-mono font-semibold",
+                                                    isCurrentUserOwes && "text-destructive",
+                                                    isCurrentUserOwed &&
+                                                        "text-green-600 dark:text-green-400"
+                                                )}
+                                            >
+                                                {formatter.format(
+                                                    asMinorUnits(obligation.amountMinor)
+                                                )}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </section>
                         );
                     })}
                 </div>

@@ -27,7 +27,6 @@ export {
     calculateAccountBalance,
     calculateAllAccountBalances,
     calculateRunningBalances,
-    calculateSettlementBalances as calculateSimpleSettlementBalances,
     calculateTableRunningBalances,
     type TransactionWithBalance,
     useRunningBalances
@@ -51,9 +50,13 @@ export {
 } from "./ownership";
 export {
     calculateSettlementBalances,
-    getBalancesForPerson,
-    getNetBalanceForPerson,
-    type SettlementBalance
+    type SettlementContribution,
+    type SettlementCurrencyPositions,
+    type SettlementIssue,
+    type SettlementObligation,
+    type SettlementPersonPosition,
+    type SettlementResult,
+    type SettlementSourceContribution
 } from "./settlement";
 export {
     DEFAULT_TAG_COLOR,

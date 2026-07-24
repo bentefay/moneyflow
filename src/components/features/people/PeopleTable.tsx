@@ -58,6 +58,7 @@ export function PeopleTable({
     const transactions = useVaultSelector((state) => state.transactions);
     const statuses = useVaultSelector((state) => state.statuses);
     const accounts = useVaultSelector((state) => state.accounts);
+    const preferences = useVaultSelector((state) => state.preferences);
 
     // Create CRDT mutation action
     const updateVault = useVaultAction(
@@ -94,17 +95,6 @@ export function PeopleTable({
             .map(([id, person]) => ({ ...person, id }))
             .sort((a, b) => a.name.localeCompare(b.name));
     }, [people]);
-
-    // Get account currencies for settlement calculation
-    const accountCurrencies = useMemo(() => {
-        const currencies: Record<string, string> = {};
-        for (const [id, account] of getEntriesOfLoroMap(accounts)) {
-            if (account?.currency) {
-                currencies[id] = account.currency;
-            }
-        }
-        return currencies;
-    }, [accounts]);
 
     // Check if a person has transactions (can't delete if so)
     const personHasTransactions = useCallback(
@@ -244,15 +234,14 @@ export function PeopleTable({
             </div>
 
             {/* Settlement summary */}
-            {activePeople.length > 1 && (
-                <BalanceSummary
-                    people={people}
-                    transactions={transactions}
-                    statuses={statuses}
-                    accountCurrencies={accountCurrencies}
-                    currentPersonId={currentPersonId}
-                />
-            )}
+            <BalanceSummary
+                accounts={accounts}
+                people={people}
+                transactions={transactions}
+                statuses={statuses}
+                currentPersonId={currentPersonId}
+                vaultDefaultCurrency={preferences.defaultCurrency}
+            />
 
             {/* Invite link generator */}
             {isOwner && vaultKey && encSecretKey && (

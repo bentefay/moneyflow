@@ -149,50 +149,6 @@ export function calculateAllAccountBalances(
 }
 
 /**
- * Calculate settlement balances between people.
- *
- * For each person, calculates how much they owe or are owed based on
- * their share of expenses vs. their account ownership.
- *
- * @param transactions - Transactions with allocations
- * @param people - Map of person ID to ownership/allocation info
- * @param accounts - Map of account ID to account data (with ownership percentages)
- * @returns Map of person ID to net balance (positive = owed money, negative = owes money)
- */
-export function calculateSettlementBalances(
-    transactions: Pick<Transaction, "amount" | "allocations" | "accountId">[],
-    accounts: Record<string, Account>
-): Map<string, number> {
-    const result = new Map<string, number>();
-
-    for (const tx of transactions) {
-        const allocations = tx.allocations ?? {};
-        const account = accounts[tx.accountId];
-        const accountOwnerships = account?.ownerships ?? {};
-
-        // For each person with an allocation
-        for (const [personId, allocationPercent] of Object.entries(allocations)) {
-            if (typeof allocationPercent !== "number") continue;
-
-            // Their share of this expense
-            const theirShare = (tx.amount * allocationPercent) / 100;
-
-            // Their ownership of the account that paid
-            const ownershipPercent = accountOwnerships[personId] ?? 0;
-            const theirOwnership = (tx.amount * ownershipPercent) / 100;
-
-            // Net impact: positive means they benefited, negative means they paid
-            const netImpact = theirShare - theirOwnership;
-
-            const current = result.get(personId) ?? 0;
-            result.set(personId, current + netImpact);
-        }
-    }
-
-    return result;
-}
-
-/**
  * React hook for calculating running balances.
  * This is exported separately for use with useMemo.
  */

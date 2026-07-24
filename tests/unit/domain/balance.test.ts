@@ -1,55 +1,25 @@
 /**
  * Balance Calculation Tests
  *
- * Property-based tests for running balance, account balance,
- * and settlement balance calculations.
+ * Property-based tests for running balance and account balance calculations.
  */
 
 import * as fc from "fast-check";
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
-import type { Account, Transaction } from "@/lib/crdt/schema";
+import type { Account } from "@/lib/crdt/schema";
 import {
     calculateAccountBalance,
     calculateAllAccountBalances,
     calculateRunningBalances,
-    calculateSettlementBalances,
     calculateTableRunningBalances
 } from "@/lib/domain/balance";
 import { asMinorUnits } from "@/lib/domain/currency";
-import { asPercentage } from "@/types";
 
 // ============================================================================
 // Test Helpers
 // ============================================================================
-
-/** Helper to create test accounts with proper typing */
-function testAccount(data: {
-    id: string;
-    name: string;
-    ownerships: Record<string, number>;
-}): Account {
-    return {
-        ...data,
-        ownerships: Object.fromEntries(
-            Object.entries(data.ownerships).map(([k, v]) => [k, asPercentage(v)])
-        )
-    } as unknown as Account;
-}
-
-/** Helper to create test transactions for settlement */
-function testSettlementTxs(
-    txs: Array<{ amount: number; accountId: string; allocations: Record<string, number> }>
-): Pick<Transaction, "amount" | "accountId" | "allocations">[] {
-    return txs.map((tx) => ({
-        amount: asMinorUnits(tx.amount),
-        accountId: tx.accountId,
-        allocations: Object.fromEntries(
-            Object.entries(tx.allocations).map(([k, v]) => [k, asPercentage(v)])
-        )
-    })) as Pick<Transaction, "amount" | "accountId" | "allocations">[];
-}
 
 // ============================================================================
 // Arbitraries
@@ -402,129 +372,6 @@ describe("calculateAllAccountBalances", () => {
                     expect(result.get(accountId)).toBeCloseTo(expectedBalance, 10);
                 }
             })
-        );
-    });
-});
-
-// ============================================================================
-// calculateSettlementBalances tests
-// ============================================================================
-
-describe("calculateSettlementBalances", () => {
-    it("returns empty map for empty transactions", () => {
-        const result = calculateSettlementBalances([], {});
-        expect(result.size).toBe(0);
-    });
-
-    it("calculates net impact for simple allocation", () => {
-        // Person A owns account 100%, Person B has 50% allocation on expense
-        const transactions = testSettlementTxs([
-            {
-                amount: -100,
-                accountId: "acc-1",
-                allocations: { personA: 50, personB: 50 }
-            }
-        ]);
-        const accounts = {
-            "acc-1": testAccount({ id: "acc-1", name: "Checking", ownerships: { personA: 100 } })
-        };
-
-        const result = calculateSettlementBalances(transactions, accounts);
-
-        // Person A: allocated 50% (-50) but paid 100% (100), net = -50 + 100 = -50 (they paid for B)
-        // Actually: theirShare = -100 * 50/100 = -50
-        //          theirOwnership = -100 * 100/100 = -100
-        //          netImpact = -50 - (-100) = 50 (they benefited from B's share)
-        // Person B: allocated 50% (-50), owns 0%, net = -50 - 0 = -50 (they owe)
-        expect(result.get("personA")).toBeCloseTo(50, 10);
-        expect(result.get("personB")).toBeCloseTo(-50, 10);
-    });
-
-    it("handles equal ownership and allocation (no settlement needed)", () => {
-        const transactions = testSettlementTxs([
-            {
-                amount: -100,
-                accountId: "acc-1",
-                allocations: { personA: 50, personB: 50 }
-            }
-        ]);
-        const accounts = {
-            "acc-1": testAccount({
-                id: "acc-1",
-                name: "Joint",
-                ownerships: { personA: 50, personB: 50 }
-            })
-        };
-
-        const result = calculateSettlementBalances(transactions, accounts);
-
-        // Both have equal share and ownership, net impact = 0
-        expect(result.get("personA")).toBeCloseTo(0, 10);
-        expect(result.get("personB")).toBeCloseTo(0, 10);
-    });
-
-    it("accumulates across multiple transactions", () => {
-        const transactions = testSettlementTxs([
-            { amount: -100, accountId: "acc-1", allocations: { personA: 100 } },
-            { amount: -50, accountId: "acc-1", allocations: { personB: 100 } }
-        ]);
-        const accounts = {
-            "acc-1": testAccount({ id: "acc-1", name: "A", ownerships: { personA: 100 } })
-        };
-
-        const result = calculateSettlementBalances(transactions, accounts);
-
-        // Transaction 1: A allocated 100%, A owns 100% -> net 0
-        // Transaction 2: B allocated 100% (-50), A owns 100% (-50 ownership) -> B owes 50
-        expect(result.get("personA") ?? 0).toBeCloseTo(0, 10);
-        expect(result.get("personB")).toBeCloseTo(-50, 10);
-    });
-
-    // Property: sum of all settlement balances is zero (closed system)
-    it("settlement balances sum to zero (property-based)", () => {
-        // Generate allocations that sum to 100% (closed system requirement)
-        const validAllocationsArb = fc.integer({ min: 0, max: 100 }).map((personA) => ({
-            personA,
-            personB: 100 - personA // Ensure they sum to 100%
-        }));
-
-        const transactionWithAllocationsArb = fc.record({
-            amount: amountArb,
-            accountId: fc.constantFrom("acc-1", "acc-2"),
-            allocations: validAllocationsArb
-        });
-
-        fc.assert(
-            fc.property(
-                fc.array(transactionWithAllocationsArb, { maxLength: 20 }),
-                (transactions) => {
-                    const accounts = {
-                        "acc-1": testAccount({
-                            id: "acc-1",
-                            name: "A",
-                            ownerships: { personA: 70, personB: 30 }
-                        }),
-                        "acc-2": testAccount({
-                            id: "acc-2",
-                            name: "B",
-                            ownerships: { personA: 50, personB: 50 }
-                        })
-                    };
-
-                    const result = calculateSettlementBalances(
-                        testSettlementTxs(transactions),
-                        accounts
-                    );
-
-                    // Sum of all balances should be approximately zero
-                    let sum = 0;
-                    for (const balance of result.values()) {
-                        sum += balance;
-                    }
-
-                    expect(sum).toBeCloseTo(0, 5); // 5 decimal places (1e-5 tolerance)
-                }
-            )
         );
     });
 });
