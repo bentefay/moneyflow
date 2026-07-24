@@ -62,6 +62,15 @@ export type OwnershipSetValidationResult =
           readonly ok: false;
       };
 
+function freezeResultGraph<T extends object>(value: T): T {
+    for (const nested of Object.values(value)) {
+        if (nested != null && typeof nested === "object") {
+            freezeResultGraph(nested);
+        }
+    }
+    return Object.freeze(value);
+}
+
 // ============================================================================
 // Validation Functions
 // ============================================================================
@@ -86,10 +95,10 @@ export function validateOwnershipSet(
 ): OwnershipSetValidationResult {
     const entries = Object.entries(ownerships);
     if (entries.length === 0) {
-        return {
+        return freezeResultGraph({
             ok: false,
             errors: [{ domain: "ownership", reason: "empty", type: "invalid-ownership" }]
-        };
+        });
     }
 
     const errors = entries.flatMap(([personId, value]): readonly OwnershipValidationError[] => {
@@ -98,7 +107,7 @@ export function validateOwnershipSet(
             ? []
             : [{ domain: "ownership", personId, reason, type: "invalid-ownership" }];
     });
-    if (errors.length > 0) return { ok: false, errors: Object.freeze(errors) };
+    if (errors.length > 0) return freezeResultGraph({ ok: false, errors });
 
     const validated: Record<string, OwnershipPercentage> = {};
     for (const [personId, value] of entries) {
@@ -111,7 +120,7 @@ export function validateOwnershipSet(
         new OwnershipDecimal(0)
     );
     if (total.minus(100).abs().greaterThan(OWNERSHIP_TOLERANCE)) {
-        return {
+        return freezeResultGraph({
             ok: false,
             errors: [
                 {
@@ -121,10 +130,10 @@ export function validateOwnershipSet(
                     type: "invalid-ownership"
                 }
             ]
-        };
+        });
     }
 
-    return { ok: true, value: Object.freeze(validated) };
+    return freezeResultGraph({ ok: true, value: validated });
 }
 
 /**

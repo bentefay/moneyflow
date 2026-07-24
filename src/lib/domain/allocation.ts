@@ -114,6 +114,15 @@ export type MinorUnitApportionmentResult =
           readonly ok: false;
       };
 
+function freezeResultGraph<T extends object>(value: T): T {
+    for (const nested of Object.values(value)) {
+        if (nested != null && typeof nested === "object") {
+            freezeResultGraph(nested);
+        }
+    }
+    return Object.freeze(value);
+}
+
 function allocationEntryErrorReason(value: unknown): AllocationEntryErrorReason | null {
     if (typeof value !== "number") return "not-number";
     if (!Number.isFinite(value)) return "not-finite";
@@ -155,19 +164,22 @@ export function validateExactPercentageWeights(
     )) {
         const parsed = parseExactDecimal(value);
         if (parsed == null) {
-            return { ok: false, error: { personId, type: "invalid-weight" } };
+            return freezeResultGraph({
+                ok: false,
+                error: { personId, type: "invalid-weight" }
+            });
         }
         validated[personId] = exactDecimalString(parsed);
         parsedWeights.push(parsed);
     }
     const total = decimalSum(parsedWeights);
     if (!total.equals(100)) {
-        return {
+        return freezeResultGraph({
             ok: false,
             error: { total: total.toString(), type: "invalid-weight-total" }
-        };
+        });
     }
-    return { ok: true, value: Object.freeze(validated) };
+    return freezeResultGraph({ ok: true, value: validated });
 }
 
 export function validateAllocationSet(
@@ -180,14 +192,14 @@ export function validateAllocationSet(
             ? []
             : [{ domain: "allocation", personId, reason, type: "invalid-allocation" }];
     });
-    if (errors.length > 0) return { ok: false, errors: Object.freeze(errors) };
+    if (errors.length > 0) return freezeResultGraph({ ok: false, errors });
 
     const validated: Record<string, AllocationPercentage> = {};
     for (const [personId, value] of entries) {
         const parsed = AllocationPercentageSchema.safeParse(value);
         if (parsed.success) validated[personId] = parsed.data;
     }
-    return { ok: true, value: Object.freeze(validated) };
+    return freezeResultGraph({ ok: true, value: validated });
 }
 
 function deriveOwnershipWeights(ownerships: ValidatedOwnershipSet): {
@@ -237,7 +249,7 @@ export function deriveEffectiveAllocations(
         ...(ownershipResult.ok ? [] : ownershipResult.errors)
     ];
     if (errors.length > 0 || !explicitResult.ok || !ownershipResult.ok) {
-        return { ok: false, errors: Object.freeze(errors) };
+        return freezeResultGraph({ ok: false, errors });
     }
 
     const explicitEntries = Object.entries(explicitResult.value);
@@ -276,9 +288,9 @@ export function deriveEffectiveAllocations(
     const effectiveTotal = decimalSum(Object.values(effective));
     const ownershipWeightTotal = decimalSum(Object.values(ownershipWeights));
 
-    return {
+    return freezeResultGraph({
         ok: true,
-        value: Object.freeze({
+        value: {
             effectiveAllocations: stringifyWeights(effective),
             effectiveTotal: exactDecimalString(effectiveTotal),
             explicitAllocations: explicitResult.value,
@@ -286,8 +298,8 @@ export function deriveEffectiveAllocations(
             ownershipTotal: exactDecimalString(ownershipTotal),
             ownershipWeightTotal: exactDecimalString(ownershipWeightTotal),
             ownershipWeights: stringifyWeights(ownershipWeights)
-        })
-    };
+        }
+    });
 }
 
 interface ApportionmentRow {
@@ -302,14 +314,17 @@ export function apportionMinorUnits(
     weights: ExactPercentageWeights
 ): MinorUnitApportionmentResult {
     if (!Number.isSafeInteger(amountMinor)) {
-        return { ok: false, error: { type: "invalid-amount" } };
+        return freezeResultGraph({ ok: false, error: { type: "invalid-amount" } });
     }
 
     const parsedEntries: Array<readonly [string, Decimal]> = [];
     for (const [personId, value] of Object.entries(weights)) {
         const parsed = parseExactDecimal(value);
         if (parsed == null) {
-            return { ok: false, error: { personId, type: "invalid-weight" } };
+            return freezeResultGraph({
+                ok: false,
+                error: { personId, type: "invalid-weight" }
+            });
         }
         parsedEntries.push([personId, parsed]);
     }
@@ -317,10 +332,10 @@ export function apportionMinorUnits(
 
     const weightTotal = decimalSum(parsedEntries.map(([, weight]) => weight));
     if (!weightTotal.equals(100)) {
-        return {
+        return freezeResultGraph({
             ok: false,
             error: { total: weightTotal.toString(), type: "invalid-weight-total" }
-        };
+        });
     }
 
     const rows: readonly ApportionmentRow[] = parsedEntries.map(([personId, weight]) => {
@@ -340,7 +355,7 @@ export function apportionMinorUnits(
         remainingDecimal.isNegative() ||
         remainingDecimal.greaterThan(rows.length)
     ) {
-        return { ok: false, error: { type: "unsafe-apportionment" } };
+        return freezeResultGraph({ ok: false, error: { type: "unsafe-apportionment" } });
     }
     const remaining = remainingDecimal.toNumber();
     const recipients = new Set(
@@ -360,10 +375,10 @@ export function apportionMinorUnits(
     for (const { floorShare, personId } of rows) {
         const share = floorShare.plus(recipients.has(personId) ? 1 : 0);
         if (!share.isInteger() || share.abs().greaterThan(Number.MAX_SAFE_INTEGER)) {
-            return { ok: false, error: { type: "unsafe-apportionment" } };
+            return freezeResultGraph({ ok: false, error: { type: "unsafe-apportionment" } });
         }
         apportioned[personId] = share.toNumber();
     }
 
-    return { ok: true, value: Object.freeze(apportioned) };
+    return freezeResultGraph({ ok: true, value: apportioned });
 }

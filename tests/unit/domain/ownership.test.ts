@@ -22,6 +22,18 @@ import {
     validateOwnerships
 } from "@/lib/domain/ownership";
 
+const OWNERSHIP_IMMUTABILITY_SEED = 16_001_605;
+const OWNERSHIP_IMMUTABILITY_RUNS = 500;
+
+function expectFrozenOwnershipResultGraph(value: unknown): void {
+    if (value == null || typeof value !== "object") return;
+
+    expect(Object.isFrozen(value)).toBe(true);
+    for (const key of Reflect.ownKeys(value)) {
+        expectFrozenOwnershipResultGraph(Reflect.get(value, key));
+    }
+}
+
 // ============================================================================
 // Arbitraries
 // ============================================================================
@@ -253,6 +265,80 @@ describe("validateOwnerships", () => {
                 }
             ),
             { seed: 16_001_603, numRuns: 250 }
+        );
+    });
+
+    it("freezes the ownership success envelope and copied value", () => {
+        const result = validateOwnershipSet({ alice: 60, bob: 40 });
+
+        expect(result).toEqual({ ok: true, value: { alice: 60, bob: 40 } });
+        expectFrozenOwnershipResultGraph(result);
+        expect(Reflect.set(result, "ok", false)).toBe(false);
+        expect(result.ok).toBe(true);
+        if (!result.ok) throw new Error("Expected valid immutable ownerships");
+        expect(Reflect.set(result.value, "alice", 100)).toBe(false);
+        expect(result.value).toEqual({ alice: 60, bob: 40 });
+    });
+
+    it.each([
+        {
+            name: "empty ownership",
+            input: {},
+            reasons: ["empty"]
+        },
+        {
+            name: "individual ownership entries",
+            input: { alice: -1, bob: 101 },
+            reasons: ["out-of-range", "out-of-range"]
+        },
+        {
+            name: "invalid ownership total",
+            input: { alice: 49, bob: 50 },
+            reasons: ["invalid-total"]
+        }
+    ])("freezes every $name failure envelope, array and error", ({ input, reasons }) => {
+        const result = validateOwnershipSet(input);
+
+        expect(result.ok).toBe(false);
+        expectFrozenOwnershipResultGraph(result);
+        expect(Reflect.set(result, "ok", true)).toBe(false);
+        expect(result.ok).toBe(false);
+        if (result.ok) throw new Error("Expected invalid immutable ownerships");
+
+        const originalLength = result.errors.length;
+        expect(Reflect.set(result.errors, originalLength, { reason: "invented" })).toBe(false);
+        expect(result.errors).toHaveLength(originalLength);
+        expect(result.errors.map(({ reason }) => reason)).toEqual(reasons);
+        for (const error of result.errors) {
+            const originalReason = error.reason;
+            expect(Reflect.set(error, "reason", "not-finite")).toBe(false);
+            expect(error.reason).toBe(originalReason);
+        }
+    });
+
+    it("keeps generated ownership result graphs unchanged after mutation attempts", () => {
+        fc.assert(
+            fc.property(fc.integer({ min: 0, max: 10_000 }), (split) => {
+                const ownerships = {
+                    alice: split / 100,
+                    bob: (10_000 - split) / 100
+                };
+                const result = validateOwnershipSet(ownerships);
+
+                expect(result.ok).toBe(true);
+                expectFrozenOwnershipResultGraph(result);
+                expect(Reflect.set(result, "ok", false)).toBe(false);
+                expect(result.ok).toBe(true);
+                if (!result.ok) throw new Error("Expected valid generated ownerships");
+                const originalAlice = result.value.alice;
+                expect(Reflect.set(result.value, "alice", 0)).toBe(false);
+                expect(result.value.alice).toBe(originalAlice);
+                expect(result.value).toEqual(ownerships);
+            }),
+            {
+                seed: OWNERSHIP_IMMUTABILITY_SEED,
+                numRuns: OWNERSHIP_IMMUTABILITY_RUNS
+            }
         );
     });
 });

@@ -11,7 +11,18 @@ import {
 
 const DERIVATION_SEED = 16_001_601;
 const APPORTIONMENT_SEED = 16_001_602;
+const RESULT_IMMUTABILITY_SEED = 16_001_604;
 const PROPERTY_RUNS = 1_000;
+const IMMUTABILITY_PROPERTY_RUNS = 500;
+
+function expectFrozenResultGraph(value: unknown): void {
+    if (value == null || typeof value !== "object") return;
+
+    expect(Object.isFrozen(value)).toBe(true);
+    for (const key of Reflect.ownKeys(value)) {
+        expectFrozenResultGraph(Reflect.get(value, key));
+    }
+}
 
 function decimalRecord(values: Readonly<Record<string, string>>): Readonly<Record<string, string>> {
     return Object.fromEntries(Object.entries(values));
@@ -91,6 +102,172 @@ const signedApportionmentCases: Array<{
         shares: { alice: 0, bob: 0 }
     }
 ];
+
+describe("allocation result graph immutability", () => {
+    it("freezes every valid envelope, nested value and map", () => {
+        const allocation = validateAllocationSet({ alice: 25, bob: 75 });
+        const exactWeights = validateExactPercentageWeights({ alice: "25", bob: "75" });
+        const derivation = deriveEffectiveAllocations(
+            { alice: -20, charlie: 30 },
+            { alice: 60, bob: 40 }
+        );
+        const apportionment = apportionMinorUnits(
+            -101,
+            expectExactWeights({ alice: "120", bob: "-20" })
+        );
+
+        for (const result of [allocation, exactWeights, derivation, apportionment]) {
+            expectFrozenResultGraph(result);
+            expect(Reflect.set(result, "ok", false)).toBe(false);
+            expect(result.ok).toBe(true);
+        }
+
+        if (!allocation.ok || !exactWeights.ok || !derivation.ok || !apportionment.ok) {
+            throw new Error("Expected valid immutable result graphs");
+        }
+        expect(Reflect.set(allocation.value, "alice", 100)).toBe(false);
+        expect(allocation.value.alice).toBe(25);
+        expect(Reflect.set(exactWeights.value, "alice", "100")).toBe(false);
+        expect(exactWeights.value.alice).toBe("25");
+        expect(Reflect.set(derivation.value, "ownerRemainder", "0")).toBe(false);
+        expect(Reflect.set(derivation.value.effectiveAllocations, "alice", "100")).toBe(false);
+        expect(derivation.value.ownerRemainder).toBe("90");
+        expect(Reflect.set(apportionment.value, "alice", 0)).toBe(false);
+        expect(sumMinorUnits(apportionment.value)).toBe(-101);
+    });
+
+    it("freezes allocation failures and combined derivation propagation", () => {
+        const allocation = validateAllocationSet({
+            alice: 101,
+            bob: Number.POSITIVE_INFINITY
+        });
+        const derivation = deriveEffectiveAllocations({ alice: 101 }, { owner: 50 });
+
+        for (const result of [allocation, derivation]) {
+            expectFrozenResultGraph(result);
+            expect(Reflect.set(result, "ok", true)).toBe(false);
+            expect(result.ok).toBe(false);
+            if (result.ok) throw new Error("Expected immutable allocation errors");
+
+            const originalLength = result.errors.length;
+            expect(Reflect.set(result.errors, originalLength, { reason: "invented" })).toBe(false);
+            expect(result.errors).toHaveLength(originalLength);
+            for (const error of result.errors) {
+                const originalReason = error.reason;
+                expect(Reflect.set(error, "reason", "not-number")).toBe(false);
+                expect(error.reason).toBe(originalReason);
+            }
+        }
+
+        if (allocation.ok || derivation.ok) throw new Error("Expected invalid result graphs");
+        expect(allocation.errors.map(({ reason }) => reason)).toEqual([
+            "out-of-range",
+            "not-finite"
+        ]);
+        expect(derivation.errors.map(({ domain, reason }) => [domain, reason])).toEqual([
+            ["allocation", "out-of-range"],
+            ["ownership", "invalid-total"]
+        ]);
+    });
+
+    it("freezes both exact-weight validation failure branches", () => {
+        const invalidWeight = validateExactPercentageWeights({ alice: "not-a-decimal" });
+        const invalidTotal = validateExactPercentageWeights({ alice: "40", bob: "50" });
+
+        expect(invalidWeight).toEqual({
+            ok: false,
+            error: { personId: "alice", type: "invalid-weight" }
+        });
+        expect(invalidTotal).toEqual({
+            ok: false,
+            error: { total: "90", type: "invalid-weight-total" }
+        });
+
+        for (const result of [invalidWeight, invalidTotal]) {
+            expectFrozenResultGraph(result);
+            expect(Reflect.set(result, "ok", true)).toBe(false);
+            if (result.ok) throw new Error("Expected invalid exact weights");
+            expect(Reflect.set(result.error, "type", "changed")).toBe(false);
+        }
+    });
+
+    it("freezes every apportionment failure branch", () => {
+        const invalidAmount = apportionMinorUnits(1.5, expectExactWeights({ alice: "100" }));
+        // @ts-expect-error Defensive runtime branch deliberately receives unvalidated weights.
+        const invalidWeight = apportionMinorUnits(1, { alice: "not-a-decimal" });
+        // @ts-expect-error Defensive runtime branch deliberately receives a non-100 weight set.
+        const invalidTotal = apportionMinorUnits(1, { alice: "40", bob: "50" });
+        const unsafe = apportionMinorUnits(
+            Number.MAX_SAFE_INTEGER,
+            expectExactWeights({ alice: "200", bob: "-100" })
+        );
+        const cases = [
+            [invalidAmount, "invalid-amount"],
+            [invalidWeight, "invalid-weight"],
+            [invalidTotal, "invalid-weight-total"],
+            [unsafe, "unsafe-apportionment"]
+        ] as const;
+
+        for (const [result, expectedType] of cases) {
+            expect(result).toEqual({
+                ok: false,
+                error: expect.objectContaining({ type: expectedType })
+            });
+            expectFrozenResultGraph(result);
+            expect(Reflect.set(result, "ok", true)).toBe(false);
+            if (result.ok) throw new Error("Expected invalid apportionment");
+            expect(Reflect.set(result.error, "type", "changed")).toBe(false);
+            expect(result.error.type).toBe(expectedType);
+        }
+    });
+
+    it("keeps generated successful result graphs and values unchanged after mutation attempts", () => {
+        fc.assert(
+            fc.property(
+                fc.record({
+                    amount: fc.integer({ min: -1_000_000, max: 1_000_000 }),
+                    explicit: fc.integer({ min: -10_000, max: 10_000 }),
+                    ownershipSplit: fc.integer({ min: 0, max: 10_000 })
+                }),
+                ({ amount, explicit, ownershipSplit }) => {
+                    const allocation = validateAllocationSet({ person: explicit / 100 });
+                    const weights = validateExactPercentageWeights({
+                        alice: hundredthsToDecimal(ownershipSplit),
+                        bob: hundredthsToDecimal(10_000 - ownershipSplit)
+                    });
+                    const derivation = deriveEffectiveAllocations(
+                        { person: explicit / 100 },
+                        {
+                            alice: ownershipSplit / 100,
+                            bob: (10_000 - ownershipSplit) / 100
+                        }
+                    );
+                    if (!allocation.ok || !weights.ok || !derivation.ok) {
+                        throw new Error("Expected valid generated result graphs");
+                    }
+                    const apportionment = apportionMinorUnits(amount, weights.value);
+                    if (!apportionment.ok) {
+                        throw new Error("Expected valid generated apportionment");
+                    }
+
+                    for (const result of [allocation, weights, derivation, apportionment]) {
+                        expectFrozenResultGraph(result);
+                        expect(Reflect.set(result, "ok", false)).toBe(false);
+                        expect(result.ok).toBe(true);
+                    }
+                    const originalAllocation = allocation.value.person;
+                    const originalShare = apportionment.value.alice;
+                    expect(Reflect.set(allocation.value, "person", 0)).toBe(false);
+                    expect(Reflect.set(apportionment.value, "alice", 0)).toBe(false);
+                    expect(allocation.value.person).toBe(originalAllocation);
+                    expect(apportionment.value.alice).toBe(originalShare);
+                    expect(sumMinorUnits(apportionment.value)).toBe(amount);
+                }
+            ),
+            { seed: RESULT_IMMUTABILITY_SEED, numRuns: IMMUTABILITY_PROPERTY_RUNS }
+        );
+    });
+});
 
 describe("allocation validation", () => {
     it.each([
