@@ -9,7 +9,7 @@ literal field is `pending`. Workers may read but never edit it.
 - **Scope IDs:** FS-001 and HS-009; this package owns allocation/ownership validation, owner
   remainder/effective allocation and exact signed-minor-unit apportionment only. Neither requirement
   can complete from P16A alone.
-- **State:** reviewing revision-02 frozen implementation
+- **State:** independent revision-02 PASS; root integration pending
 - **Binding tasks:** `tasks/FS-001-transaction-percentage-allocations-settlement.md` P16A and
   `tasks/HS-009-allocation-bounds.md` P16A
 - **Canonical authority:** read all 715 lines of
@@ -32,7 +32,9 @@ literal field is `pending`. Workers may read but never edit it.
   `8262393794bafe48d428e21bdcb39f0a51bb64fe65d735f7bb21f5f45e923868`, 203 lines /
   13,291 bytes
 - **Revision-02 product/test HEAD:** `f84f66758708529c44342313e8632ee8b7dcead3`
-- **Future immutable revision-02 review artifact:** `reviews/P16A-review-02.md`
+- **Immutable revision-02 review artifact:** `reviews/P16A-review-02.md`, PASS, SHA-256
+  `2835a78fd15502d8bef54dd6d3f11b7d7a7875694270f953369a5cc4265c737b`, 237 lines /
+  17,406 bytes
 - **Implementation-start boundary:** clean HEAD/index/worktree; revision-01 evidence/review and
   F-01/R-033 transcription are committed and immutable
 - **Allowed revision-02 product/test paths:** exactly
@@ -155,7 +157,7 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Independent review contract
 
-- **Reviewer:** distinct `human_scratch_reviewer`, dispatched only after frozen evidence commit
+- **Reviewer:** distinct `human_scratch_reviewer`, completed after frozen evidence commit
   `9f57538a07fd369093e5253eef0111d9d0218b63`
 - **Literal cumulative review BASE:** `1b42d27e11494a167a4768e0c2c308010aa51651`
 - **Literal revision-02 HEAD:** `f84f66758708529c44342313e8632ee8b7dcead3`
@@ -177,6 +179,5 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Await `human_scratch_reviewer`'s independent verdict over literal cumulative range
-`1b42d27e11494a167a4768e0c2c308010aa51651..f84f66758708529c44342313e8632ee8b7dcead3`
-with sole output `reviews/P16A-review-02.md`. Keep HS-009 unchecked and FS-001 immutable/open.
+Persist the immutable PASS review, update applicable risks and record the integration-control
+commit. Then set P16A passed and prepare P16B without changing HS-009 or immutable/open FS-001.

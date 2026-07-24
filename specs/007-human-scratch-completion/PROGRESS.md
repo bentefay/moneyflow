@@ -7,11 +7,9 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P16A revision 02 (`reviewing`; frozen implementation evidence)
-- **Next action:** await `human_scratch_reviewer`'s independent verdict over literal cumulative
-  range
-  `1b42d27e11494a167a4768e0c2c308010aa51651..f84f66758708529c44342313e8632ee8b7dcead3`
-  with sole output `reviews/P16A-review-02.md`
+- **Current package:** P16A revision 02 (`reviewing`; independent PASS, integration pending)
+- **Next action:** persist `reviews/P16A-review-02.md`, applicable risk updates and the exact
+  integration-control boundary, then set P16A passed and prepare dependency-ready P16B
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -24,8 +22,7 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** eleven passed; HS-015 blocked externally; HS-011/HS-012 and seven other HS
   requirements plus FS-001 queued
-- **Last ledger update:** 2026-07-25; P16A revision-02 implementation frozen for independent review
-  after closing revision-01 F-01 runtime-mutability
+- **Last ledger update:** 2026-07-25; P16A revision-02 independently passed with integration pending
 
 ## Package ledger
 
@@ -2538,6 +2535,25 @@ failure review and sole new output `reviews/P16A-review-02.md`. Reviewer may wri
 artifact and must independently close F-01 across the complete runtime result graph while
 re-proving the canonical financial math and assigned gates. HS-009 remains unchecked and FS-001
 remains immutable/open.
+
+**2026-07-25T08:40:34+10:00 — P16A/02 `reviewing -> reviewing`; independent PASS, integration
+pending:** Independent `reviews/P16A-review-02.md` is 237 lines / 17,406 bytes at SHA-256
+`2835a78fd15502d8bef54dd6d3f11b7d7a7875694270f953369a5cc4265c737b` and returns PASS with no
+findings over exact cumulative range
+`1b42d27e11494a167a4768e0c2c308010aa51651..f84f66758708529c44342313e8632ee8b7dcead3`.
+F-01 is closed across 20 independently probed success/failure result shapes: every exposed
+envelope, nested value/map, error array and individual error is frozen, attempted mutations fail,
+and caller input remains mutable/unaliased. Independent BigInt rational seeds 16001901/16001902
+match 10,000 generated derivation/signed-apportionment cases with zero floor, tie, order or
+conservation mismatches. Focused 93+1 skip x3, domain 439+1, full unit 1,331+1, static/build,
+affected Chromium 46/46 and full Chromium 102/102 pass with one worker/retries zero. The installed
+CLI charter passes current ownership, persistence, responsive/200%-zoom, privacy/request and clean
+teardown after one disclosed setup-only missing-JWT server attempt; root injected the existing local
+container secret in memory without printing/persisting it. Root then stopped the server, restored
+generated source and recoverably removed current `.next`, results and exactly 22 current CLI
+artifacts while preserving 13 older page and nine older console artifacts. Frozen source hashes,
+index and worktree boundaries are exact. No Q proposal or marker is authorized; HS-009 remains
+unchecked and FS-001 remains immutable/open through their remaining packages.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
