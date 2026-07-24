@@ -7,8 +7,8 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P12 revision 04 (`changes_requested`)
-- **Next action:** integrate/link revision-04 failure and dispatch cumulative revision 05
+- **Current package:** P12 revision 05 (`changes_requested`)
+- **Next action:** persist/link revision-05 failure and dispatch narrow cumulative revision 06
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -20,8 +20,8 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** seven passed; HS-005 changes requested through P12; HS-015 blocked externally;
   HS-011/HS-012 and 11 other requirements queued
-- **Last ledger update:** 2026-07-22T21:00:16+10:00; revision-04 HEAD/evidence are frozen and cumulative
-  independent review is dispatched
+- **Last ledger update:** 2026-07-24; revision-05 authority narrowly expands to `context.tsx` and one
+  hook regression before evidence freeze
 
 ## Package ledger
 
@@ -41,7 +41,7 @@ review evidence.
 | P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | passed | 04 | `eb5ab2e215130c358130d5411a92b51951c3c53a..fb72abdaf531dff40c59f6b3525fb1b9ce50f805` | `evidence/P11A/implementation-04.md` | `reviews/P11A-review-04.md` | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f` |
 | P11B    | HS-004         | Alias management and transaction-cell pointer/keyboard UX                           | P11A                 | passed | 01 | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f..e35109dfe7b02bdb4058445f44d03a6dd678457b` | `evidence/P11B/implementation-01.md` | `reviews/P11B-review-01.md` | `0426866fa66cc022efca6d74cd5088d586d3d11b` |
 | P11C    | HS-004         | Alias import/manual/shared flows, performance hardening and exhaustive tests        | P11B                 | passed | 03 | `0426866fa66cc022efca6d74cd5088d586d3d11b..daab038ee741faa9f92a373b27efe0c8fe8940db` | `evidence/P11C/implementation-03.md` | `reviews/P11C-review-03.md` | `78e2f978f8d258d8c4d379f53e75089a2ce975db` |
-| P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | changes_requested | 04 | `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e..2489c41335ad2292f9005403c18022c46915507b` | `evidence/P12/implementation-04.md` | `reviews/P12-review-04.md` | `48fb391a83ef711f9b1263c2a5fdfac79a367481` |
+| P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | changes_requested | 05 | `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e..865a78774cee84a3ed4c2686422579af94d368b5` | `evidence/P12/implementation-05.md` | `reviews/P12-review-05.md` | pending revision-05 failure control |
 | P13     | HS-001         | Persisted normal empty Add Transaction rows and grid navigation                     | P11C, P09            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -1756,6 +1756,34 @@ attach boundedness and global queries close. Four blockers remain: incomplete ne
 leak through lookups; mixed maintenance/user imports bypass invalidation and can stale-reveal; unnest/
 swap updates are not exchanged or physically compared; maintenance metadata persists in public Mirror.
 All automation including full E2E 87/87 and T021c 3/3, manual and cleanup pass. HS-005 stays unchecked.
+
+**2026-07-24 — P12/05 authority expansion:** Final worker audit after interim commit
+`cfeb4dae13f9eff855a1b95feb14d9c06adda016` reproduces a malformed/legacy private parent whose
+real-ID incomplete nested child leaks through raw `useTransaction`. Because review-04 explicitly names
+that context hook and the original revision-05 path list omitted `context.tsx`, root authorizes exactly
+`src/lib/crdt/context.tsx` plus one focused hook regression. Galileo continues the same revision and
+must commit the correction, update `evidence/P12/implementation-05.md`, rerun affected gates and clean
+the boundary before review. No other scope, prior artifact or frozen-source authority changes.
+
+**2026-07-24 — P12/05 `implementing -> ready_for_review -> reviewing`:** Corrected final HEAD
+`865a78774cee84a3ed4c2686422579af94d368b5` preserves interim `cfeb4dae...` and adds the authorized
+raw-hook fix. Frozen evidence is 171 lines/11,731 bytes at SHA-256
+`146a1cc4df55e5aa1bbfab922861ed069e7c5a7f55585f4a8f852d7cb6794ba5`. Revision-05 changes seven
+authorized paths. The hook regression is red on `incomplete shadow` and green on `complete source`;
+focused tests pass 96/96 in three processes, full Vitest 1,269/1,269, type/lint/build/scoped format,
+affected E2E 12/12 and full no-retry E2E 87/87 pass. Root verifies exact HEAD/index, evidence hash/
+size, no generated/process state, restored next-env and exact scratch/FS-001/SCOPE hashes. Reviewer
+alone writes `reviews/P12-review-05.md` over the cumulative original BASE..HEAD range.
+
+**2026-07-24 — P12/05 `reviewing -> changes_requested`:** Independent cumulative review
+`reviews/P12-review-05.md` is 196 lines/14,376 bytes at SHA-256
+`a54ea0b726d157fabab1b3d59a3f2ca84391cfc9ff0560b48a20e08296e8326a` and returns FAIL. Review-04
+F-01 through F-03 close; F-04 closes for new generation/startup. F-05 High proves disposed scheduler
+authority survives per document, so a same-doc remount can trust a partial shadow after equal-cardinality
+tag/allocation edits, reveal stale collection and delete the edited source. F-06 Medium proves late
+legacy metadata-only live sync bypasses alias-projection-gated cleanup and can reintroduce the reserved
+account through raw `useTransactions`. Automated/manual gates are green; HEAD/index/cleanup/frozen
+boundaries pass. HS-005 remains unchecked and revision 06 must close both lifecycle races.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
