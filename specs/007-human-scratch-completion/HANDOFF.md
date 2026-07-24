@@ -132,6 +132,7 @@ literal field is `pending`. Workers may read but never edit it.
 - **Revision-08 review:** PASS, SHA-256
   `6d46633271fbfcfcdcf573e62c4a0350d06b315faf7bf43ac006be379abedf85`, 154 lines/19,113 bytes.
   F-08 and F-09 close with no material finding; the exact cumulative range satisfies HS-005.
+- **Revision-08 integration commit:** `f8cbb5a8caacb763c0bb77199595a5ee332ab729`
 - **Revision-07 review:** FAIL, SHA-256
   `2efb05fe259074868b4e2852550f9fcd8caf8ec654f1d1eb926e038f11d14ad5`, 209 lines/21,524 bytes.
   The selector portion of F-07 closes, but F-08 High rejects the synchronous full-vault projection
@@ -158,5 +159,5 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Persist the immutable revision-08 PASS artifacts and root transcriptions, then durably prepare and
-execute the exact HS-005 `[] -> [x]` marker transaction.
+Execute and verify only the durably prepared HS-005 `[] -> [x]` marker transaction; no package
+dispatch is allowed until it finalizes.

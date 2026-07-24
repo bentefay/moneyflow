@@ -7,20 +7,24 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P12 revision 08 (`passed` after current root integration)
-- **Next action:** persist revision-08 PASS, then durably prepare HS-005 completion marker
+- **Current package:** P12 revision 08 (`passed`)
+- **Next action:** execute and verify only the prepared HS-005 `[] -> [x]` marker
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
   `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines and 25,441 bytes
 - **Rolling scratch SHA-256:** `2c52bd78c6efec683c2bc59fc2de225bb8bc997fc2f01699f90c98ddc3b65744`
 - **Authorized checked HS IDs:** HS-002, HS-004, HS-006, HS-010, HS-014, HS-017, HS-018
-- **Active completion marker event:** none
+- **Active completion marker event:** HS-005 `completion_pending`; pre-change scratch SHA
+  `2c52bd78c6efec683c2bc59fc2de225bb8bc997fc2f01699f90c98ddc3b65744`; mapped review
+  `reviews/P12-review-08.md`; integration `f8cbb5a8caacb763c0bb77199595a5ee332ab729`;
+  intended exact change `[] -> [x]`
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** seven passed; HS-005 completion pending after P12 PASS; HS-015 blocked externally;
   HS-011/HS-012 and 11 other requirements queued
-- **Last ledger update:** 2026-07-24; revision-08 independently passed and root integration is pending
+- **Last ledger update:** 2026-07-24; revision-08 PASS integrated and HS-005 completion marker
+  durably prepared
 
 ## Package ledger
 
@@ -40,7 +44,7 @@ review evidence.
 | P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | passed | 04 | `eb5ab2e215130c358130d5411a92b51951c3c53a..fb72abdaf531dff40c59f6b3525fb1b9ce50f805` | `evidence/P11A/implementation-04.md` | `reviews/P11A-review-04.md` | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f` |
 | P11B    | HS-004         | Alias management and transaction-cell pointer/keyboard UX                           | P11A                 | passed | 01 | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f..e35109dfe7b02bdb4058445f44d03a6dd678457b` | `evidence/P11B/implementation-01.md` | `reviews/P11B-review-01.md` | `0426866fa66cc022efca6d74cd5088d586d3d11b` |
 | P11C    | HS-004         | Alias import/manual/shared flows, performance hardening and exhaustive tests        | P11B                 | passed | 03 | `0426866fa66cc022efca6d74cd5088d586d3d11b..daab038ee741faa9f92a373b27efe0c8fe8940db` | `evidence/P11C/implementation-03.md` | `reviews/P11C-review-03.md` | `78e2f978f8d258d8c4d379f53e75089a2ce975db` |
-| P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | passed | 08 | `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e..a2a31839f6bb57855fa60b8cfcc06feed069cafa` | `evidence/P12/implementation-08.md` | `reviews/P12-review-08.md` | pending current root integration |
+| P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | passed | 08 | `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e..a2a31839f6bb57855fa60b8cfcc06feed069cafa` | `evidence/P12/implementation-08.md` | `reviews/P12-review-08.md` | `f8cbb5a8caacb763c0bb77199595a5ee332ab729` |
 | P13     | HS-001         | Persisted normal empty Add Transaction rows and grid navigation                     | P11C, P09            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -1887,6 +1891,16 @@ full Vitest 1,280/1,280, type/lint/build, affected no-retry E2E 15/15, full no-r
 manual active-edit/offline/two-tab/responsive gates pass. Exact HEAD/index/cleanup/frozen boundaries
 pass; no finding or Q proposal. Root acceptance integrates D-015 and R-006/R-008/R-009
 transcriptions; HS-005 remains unchecked until the separate durable marker event.
+
+**2026-07-24 — P12/08 artifact integration; HS-005 `queued -> completion_pending`:** Exact
+revision-08 evidence/review, independent PASS, D-015 and R-006/R-008/R-009 transcriptions are
+integrated in `f8cbb5a8caacb763c0bb77199595a5ee332ab729`; reviewed product/test HEAD remains
+`a2a31839f6bb57855fa60b8cfcc06feed069cafa`. P12 is passed and is the sole package mapped to
+HS-005. Root authorizes only HS-005's first-line `[] -> [x]` marker from exact scratch SHA
+`2c52bd78c6efec683c2bc59fc2de225bb8bc997fc2f01699f90c98ddc3b65744`, mapped to immutable
+`reviews/P12-review-08.md`. The checked set remains HS-002/HS-004/HS-006/HS-010/HS-014/HS-017/
+HS-018 until the marker is applied; all 21 normalized blocks, canonical FS-001 and SCOPE are exact.
+No package dispatch is legal while this event is pending.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
