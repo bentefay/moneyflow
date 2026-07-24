@@ -1,180 +1,145 @@
 # Current Package Handoff
 
-Root rewrites this compact file for one package/revision. It is not a dispatch while an applicable
-literal field is `pending`. Workers may read but never edit it.
+Root rewrites this compact file for one package/revision. Workers may read but never edit it.
 
 ## Implementation dispatch
 
-- **Package / revision:** P16B / 01
-- **Scope ID:** FS-001; this package owns the sole canonical settlement engine, its current caller
-  migration and focused production tests only. FS-001 cannot complete from P16B alone.
-- **State:** changes requested after immutable revision-01 FAIL; failure integration pending
+- **Package / revision:** P16B / 02
+- **Scope ID:** FS-001; this revision closes only P16B review-01 F-01/F-02/F-03 while preserving the
+  independently proven settlement core. FS-001 remains incomplete.
+- **State:** implementing after immutable revision-01 failure integration; reviewer is undispatched
 - **Binding task:** `tasks/FS-001-transaction-percentage-allocations-settlement.md` P16B
-- **Canonical authority:** read all 715 lines of
-  `specs/008-transaction-percentage-allocations-settlement/spec.md`; sections 5–7, 11–12, 14–17
-  are especially direct but do not narrow the whole-file contract
-- **Dependency:** P16A/02 passed at integration commit
-  `41f5760f77c1a93ab650a93912bfaf3c0b627ab0`
-- **Literal original review BASE / clean pre-dispatch HEAD:**
-  `4c102600240e2804b801c2a320e10164defb14ea`
-- **Frozen implementer artifact:** `evidence/P16B/implementation-01.md`, SHA-256
+- **Canonical authority:** all 715 immutable lines of
+  `specs/008-transaction-percentage-allocations-settlement/spec.md`
+- **Dependency:** P16A/02 passed
+- **Literal original cumulative review BASE:** `4c102600240e2804b801c2a320e10164defb14ea`
+- **Revision-01 product/test HEAD:** `5242a2422cd86dd48eac07a4422491d5079ccd23`
+- **Frozen revision-01 evidence:** `evidence/P16B/implementation-01.md`, SHA-256
   `48f10876f8e69e7f3bff022598c0236a775d061e1cc06a86cb3d48bfc60d3dfd`, 323 lines /
   21,736 bytes
-- **Product/test HEAD:** `5242a2422cd86dd48eac07a4422491d5079ccd23`
-- **Immutable review artifact:** `reviews/P16B-review-01.md`, FAIL, SHA-256
+- **Immutable revision-01 review:** `reviews/P16B-review-01.md`, FAIL, SHA-256
   `5dd6be1a1efbdbecb0a4a3e42e54ec7d0b55a05555deebd88c3009c97fd7df38`, 314 lines /
   18,758 bytes
-- **Implementation-start boundary:** clean index/worktree; P16A evidence/reviews and pass state are
-  committed and immutable
-- **Allowed product/test paths:** exactly
+- **Revision-01 failure integration / clean pre-revision HEAD:**
+  `e33453f098f4bdea62d6ea358d2e86b5d0f9356b`
+- **Sole revision-02 implementer artifact:** `evidence/P16B/implementation-02.md`
+- **Future immutable revision-02 review artifact:** `reviews/P16B-review-02.md`
+- **Allowed revision-02 product/test paths:** exactly
   `src/lib/domain/settlement.ts`,
-  `src/lib/domain/balance.ts`,
-  `src/lib/domain/index.ts`,
   `src/components/features/people/BalanceSummary.tsx`,
-  `src/components/features/people/PeopleTable.tsx`,
   `tests/unit/domain/settlement.test.ts`,
-  `tests/unit/domain/balance.test.ts`,
   `tests/unit/components/balance-summary.test.tsx`.
-  The last test path may be created only if it directly proves the current caller consumes the
-  canonical structured result and does not claim settled state while issues exist.
-- **Forbidden writes:** all CRDT/schema/query/mutation paths, allocation/ownership owners and their
-  tests, other components/pages, every E2E file, dependencies/configuration, tasks/specs, P16A
-  artifacts, scratch, canonical FS-001, SCOPE, ledgers, `.claude`, `.codex`, agent configuration and
-  future review. Report a reproducible owner blocker before root considers any expansion.
-- **Commit contract:** inspect every settlement implementation/export/caller and all authorized tests
-  before editing. Stage exact authorized product/test paths only, commit with a short message
-  containing no parentheses, and leave `evidence/P16B/implementation-01.md` uncommitted. Never use
-  `git add .` or `git add -A`.
+- **Forbidden writes:** balance/barrel/PeopleTable, every other product/test path, CRDT/schema/query/
+  mutation owners, E2E, dependencies/configuration, tasks/specs, P16A and P16B revision-01 artifacts,
+  scratch, canonical FS-001, SCOPE, ledgers, `.claude`, `.codex`, agent configuration and future
+  review. Report a reproducible blocker before root considers expansion.
+- **Commit contract:** create the sole evidence before test/product edits; stage/commit only the exact
+  four authorized product/test paths with a no-parentheses message; leave evidence uncommitted.
+  Never use `git add .` or `git add -A`.
 
-## Required canonical engine
+## Required F-01 closure — safe retained legacy boundaries
 
-- **One public production authority:** `src/lib/domain/settlement.ts` must be the only callable
-  settlement implementation. Delete the duplicate floating-point settlement function from
-  `balance.ts`, remove its alias export from the barrel, preserve running/account balances and make
-  every current production caller consume the canonical structured result. No compatibility wrapper
-  may retain competing semantics.
-- **Eligibility:** include only canonical top-level, non-deleted transactions whose referenced
-  retained status has `behavior === "treatAsPaid"`. Exclude nested suspected duplicates and
-  non-paid/missing statuses. A soft-deleted retained Treat-as-Paid status still qualifies. Transfer
-  tags do not change eligibility. Missing accounts, invalid ownership/allocation and unsafe or
-  non-integer money must produce typed issues and no plausible contribution.
-- **Currency:** resolve account currency, then vault default, then USD. Group, order, aggregate and
-  reverse-net within currency only. Never convert, compare, net or show one combined total across
-  currencies. Reject invalid financial currency context rather than inventing a plausible total.
-- **Signed positions:** for every eligible transaction, reuse P16A validation, effective derivation
-  and exact apportionment. Apportion the signed integer minor-unit amount independently over
-  effective allocation and valid ownership, then calculate
-  `effectiveShareMinor - ownershipShareMinor` for the sorted person union. Exact per-transaction and
-  per-currency positions must sum to zero.
-- **Directed contributions:** sort debtors and creditors by stable person ID, deterministically
-  match negative positions to positive positions, produce positive directed contributions carrying
-  the source transaction ID, aggregate by currency/debtor/creditor, reverse-net same-pair
-  obligations, remove zeros and return deterministic currency/debtor/creditor order.
-- **Traceability:** every final positive integer obligation retains enough same-direction and reverse
-  signed source contribution detail for the displayed net to be explained exactly. No source
-  transaction ID may be lost during aggregation/netting.
-- **Structured immutable result:** return runtime-immutable typed obligations by currency,
-  per-person net positions by currency, source transaction contributions and stable typed issues.
-  Every issue includes stable type plus transaction/account context where applicable, contains no
-  sensitive log payload and excludes that affected transaction from totals. Missing/deleted People
-  remain calculable by stable ID.
-- **Scope boundary:** derive only. Persist no cache/audit record and add no server plaintext,
-  mutation, UI source-detail expansion, transaction-grid allocation controls, CRDT repair or P16C/D/E
-  behavior. The current People caller may receive only the minimum migration needed to use the
-  structured result, group actual obligations correctly and avoid a false settled claim on issues.
+- Missing `transaction.allocations` is canonical valid legacy `{}` and must derive the 100% owner
+  remainder without mutation, freezing caller input or throwing.
+- Missing `suspectedDuplicates` must be safely treated as no nested children. Missing/null/non-record
+  ownership, allocation or duplicate-list containers and non-string/invalid currency must never
+  reach `Object.entries`, iteration or string methods unchecked. Valid missing allocation succeeds;
+  invalid runtime envelopes return stable complete typed issues and contribute no plausible total.
+- Validate/sanitize only at the settlement boundary. Never rewrite retained data or weaken P16A
+  allocation/ownership rules. Result/input immutability and transaction-atomic exclusion remain.
+- Add checked-in direct tests for every reviewer reproduction plus null, array, primitive and mixed
+  invalid containers, invalid entry value types, missing fallback currency and immutable
+  result/mutable-unaliased input behavior. No expected business input may throw.
 
-## Required examples, properties and red-to-green
+## Required F-02 closure — unambiguous canonical topology
 
-- **Checked-in red before product edits:** against byte-identical pre-product owners, replace the
-  existing vacuous/wrong expectations with failures that prove the duplicate `balance.ts` callable
-  export, the placeholder higher-allocation-pays algorithm, missing ownership/remainder/status/
-  currency/nesting/issues/traceability semantics and current caller false-settled risk. Preserve the
-  exact red commands/output before green.
-- **Named examples A–H:** add one separately named production expectation for each canonical example:
-  A no explicit allocation, B 50/50 expense, C owner remainder, D joint owners plus third person,
-  E negative allocation direction reversal, F income direction, G equal joint ownership and H
-  non-paid status exclusion. No combined case or general conservation property substitutes for any
-  named example.
-- **Production properties:** fixed-seed `fast-check` coverage must exercise signed positive/negative/
-  zero/one-unit amounts, positive/zero/negative owner remainder, multiple owners, signed allocation
-  weights, deterministic debtor/creditor matching, insertion-order independence, reverse netting,
-  source-detail sum, per-transaction and per-currency zero-sum conservation, separate currencies,
-  deleted/unknown People, deleted qualifying statuses, transfer-tag neutrality and every typed issue.
-  Use an independent integer/rational oracle rather than reimplementing production decimal code
-  inside the test or comparing the function to itself.
-- **No vacuity:** remove the `length >= 0` settlement assertion and every conditional assertion that
-  can pass without exercising its claim. Remove/replace all tests for the duplicate balance
-  implementation; running/account balance coverage must stay green.
-- **Immutability and input purity:** directly attempt mutations throughout each public success/issue
-  graph and prove caller transactions/accounts/statuses/preferences are neither mutated nor frozen.
+- Make the sole public `calculateSettlementBalances` boundary own canonical top-level extraction
+  from the hierarchical `TransactionStore`. The current `readonly Transaction[]` API is retired; do
+  not retain an overload/wrapper that permits callers to present a materialized nested transaction
+  as top-level. `BalanceSummary` must pass retained store state directly.
+- Traverse retained physical representations without mutating them. Filter active representations
+  before same-ID canonicalization so a deleted copy cannot suppress a live copy. Select among active
+  same-ID copies deterministically and independently of input/list/bucket order. Nested items remain
+  excluded even when their parent is the only retained topology reference.
+- Test active/deleted same-ID copies in both list orders and both `$cid` orders, exact active
+  duplicates, duplicate buckets, parent/nested topology, deleted parent/nested combinations and
+  deterministic equivalent stores. Preserve canonical qualifying counts, contributions and issues.
+- Do not edit shared CRDT query/schema owners. The settlement owner may implement its own narrow
+  read-only projection because topology eligibility is part of the canonical financial boundary.
 
-## Required evidence and verification
+## Required F-03 closure — collision-free semantic identity
 
-- **Focused automation:** run the settlement, balance and optional caller-component test profile in
-  at least three clean processes. Run a broader domain/current-caller profile and full Vitest.
-  Report commands, files/tests, seeds/run counts, counterexamples and elapsed times.
-- **Independent-scale evidence:** benchmark the production engine over deterministic 100,000
-  transactions after warmup in production-equivalent Node/build conditions. Report hardware/runtime,
-  data shape, construction exclusion/inclusion, at least five samples, output counts, issue count,
-  conservation and scaling comparison. Meet the approximate 200ms target when honestly possible; if
-  not, record measured evidence and a complete optimization proposal/follow-up without claiming the
-  target passed. Do not weaken correctness or omit traceability to chase the number.
-- **Regression gates:** run typecheck, lint, build, exact changed-path oxfmt/ESLint and cumulative
-  `git diff --check`. Run repository `format:check` and report the exact inherited baseline without
-  rewriting frozen/historical paths. Run affected People/Accounts/Transactions Chromium journeys
-  and full Chromium with one worker/retries zero; E2E files are read-only in P16B.
-- **Installed-CLI charter:** use only repository-installed headless `playwright-cli`, unique
-  disposable session `p16b-impl-01` and a root-owned keyed server. P16D/E have not surfaced allocation
-  and full settlement-source UI, so do not manufacture those claims. Preserve real onboarding with
-  masked recovery words, default Me ownership, add Person/account/paid and non-paid transactions
-  through existing controls, People/Accounts/Transactions navigation, honest no-allocation current
-  result, reload, 390px/200%-zoom, dark/reduced-motion, named roles/state, clean console/network and
-  boolean-only plaintext storage/request absence. Disclose excluded setup/tooling attempts.
-- **Cleanup:** close/delete/list the CLI session, identify exact new CLI artifacts and ask root to
-  stop the keyed server, restore generated tracked files and recoverably remove only current
-  `.next`, `test-results` and exact current artifacts. Preserve older artifacts.
-- **Evidence artifact:** record original BASE, dispatch/control HEAD, exact committed product HEAD,
-  paths/index; API/result/issue model; red/green; named A–H; property seeds/oracle; automation,
-  benchmark and sanitized manual evidence; current-caller behavior; inherited failures; cleanup;
-  frozen boundaries; risks and any complete Q proposal. Format the artifact before freeze and never
-  claim independent PASS.
-- **Applicable guides:** `.claude/CLAUDE.md`, `.claude/rules/coding-style.md`,
-  `.claude/rules/typescript-style.md`, `.claude/skills/components/SKILL.md` and
-  `.claude/skills/e2e/SKILL.md`.
-- **Decision rule:** if material ambiguity remains, write a complete `Q-PROPOSAL-P16B-01-*` in
-  evidence, apply PROCESS hierarchy and continue without asking the human. No proposal may override
-  canonical exact conservation, reject/no-normalization, currency isolation, source traceability or
-  sole-engine clauses.
+- Replace delimiter-based record/composite fingerprints with a provably collision-free canonical
+  encoding over complete runtime type, key and value identity, including adversarial person IDs,
+  NUL/delimiter/unicode strings, negative zero, non-finite numbers and malformed legacy values.
+  Alternatively avoid caching invalid/failure paths, but every remaining cache key must still be
+  unambiguous.
+- Prevent cached results from losing, inventing or cross-associating transaction/person/account issue
+  context. Compare cached and uncached/reference behavior across success/failure separation,
+  insertion permutations, ownership as well as allocation collisions and signed amount/currency
+  components.
+- Add the exact reviewer collision pair and adversarial generated properties. Every invalid entry
+  must produce its own complete typed issue set; valid later transactions must never inherit a
+  prior failure.
+
+## Preservation and evidence
+
+- Preserve the independently green sole-engine/export/caller closure; named A–H; exact P16A signed
+  positions; deterministic matching; currency isolation; reverse netting; signed source
+  traceability; safe aggregate rejection; unknown/deleted People; full result freezing/input purity;
+  issue privacy; no persisted cache; and current incomplete-state safety.
+- Preserve reviewer seed `26072501` results: 5,000 BigInt/rational cases, 1,000 reverse-source/
+  multi-currency permutation batches and safe aggregate limit. Add fixed revision-02 seeds for every
+  new legacy/topology/cache property.
+- Red before green: add all F-01/F-02/F-03 regressions while revision-01 product owners are
+  byte-identical, run them to exact failure, then implement without deleting/weakening any
+  revision-01 expectation.
+- Run focused settlement/caller tests in three clean processes, broader domain/current caller, full
+  Vitest, typecheck, lint, build, exact four-path oxfmt/ESLint and cumulative diff check. Report the
+  inherited repository format baseline without rewriting frozen files.
+- Run affected People/Accounts/Transactions Chromium and full Chromium with one worker/retries zero;
+  E2E files are read-only.
+- Rerun deterministic 10k/50k/100k full-output benchmark after warmup. Report store projection cost,
+  five 100k samples, 75k-class source/output counts and conservation. Do not claim strict 200ms if
+  missed; retain/adjust the explicit P16E query/memoization follow-up without weakening correctness.
+- Use installed headless `playwright-cli` only, unique session `p16b-impl-02` and root-owned keyed
+  server. Exercise real current onboarding with masked/unread recovery words, People/Accounts/
+  Transactions and honest no-explicit-allocation caller state, reload, 390px/200%-zoom, dark/
+  reduced, console/network and boolean-only exact-marker storage/request privacy. Do not manufacture
+  malformed legacy state or P16D/E UI claims. Close/delete/list clean, identify exact artifacts and
+  ask root cleanup.
+- Evidence records original BASE, pre-product HEAD, product HEAD, exact paths/index, red/green,
+  mechanisms, direct/adversarial properties, seeds/oracles, all gates/benchmark/manual, exclusions,
+  cleanup, frozen hashes, risks and any complete Q proposal. Format it before freeze; never claim
+  independent PASS.
+- **Applicable guides:** `.claude/CLAUDE.md`, coding/TypeScript rules, components and E2E skills.
+- **Decision rule:** a material ambiguity becomes complete `Q-PROPOSAL-P16B-02-*` in evidence under
+  PROCESS hierarchy; continue without asking the human. No proposal may weaken canonical legacy
+  safety, typed exclusion, topology ownership, exact money, traceability or currency isolation.
 - **Frozen boundary:** scratch SHA
   `ce52d7df87daf63117931e5bdee928212051242ae7f2b5d90e76f5610abcb00f`, checked set
-  HS-001/HS-002/HS-004/HS-005/HS-006/HS-008/HS-010/HS-013/HS-014/HS-017/HS-018, all 21 normalized
-  blocks exact; immutable FS-001
+  HS-001/HS-002/HS-004/HS-005/HS-006/HS-008/HS-010/HS-013/HS-014/HS-017/HS-018, 21 normalized blocks
+  exact; immutable FS-001
   `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines/25,441 bytes;
   SCOPE `d03f33e718f1ec5f7c8ad0119d283397dcc59407199da4b5887a2e5eee7ef0f9`, 450 lines/27,382 bytes.
 
 ## Independent review contract
 
-- **Reviewer:** distinct `human_scratch_reviewer`, dispatched only after frozen evidence commit
-  `095a657698231b5ed34f70c3cfa737d5b7fdfc16`
-- **Literal review BASE:** `4c102600240e2804b801c2a320e10164defb14ea`
-- **Literal product/test HEAD:** `5242a2422cd86dd48eac07a4422491d5079ccd23`
-- **Implementation evidence:** `evidence/P16B/implementation-01.md`
-- **Sole reviewer artifact:** `reviews/P16B-review-01.md`
-- **Reviewer writes:** the new review file only; no product/test/evidence/ledger/config/frozen edit
-  or commit
-- **Required review focus:** independently prove sole-engine/export/caller closure, eligibility,
-  currency fallback/isolation, exact signed positions/conservation, deterministic matching/netting,
-  source traceability, typed issue exclusion, result immutability/input purity, named A–H, absence of
-  vacuous tests, near-linear 100k behavior and honest current UI/manual boundary. Use reviewer-owned
-  fixed seeds and integer/rational oracles different from implementation tests.
-- **Verdict contract:** review the literal range with explicit findings, canonical mapping, exact
-  commands/seeds/counts/timings, affected/full gates, installed-CLI evidence, cleanup/Q proposals and
-  one PASS/FAIL. Any competing settlement callable, float rounding, normalization, lost minor unit,
-  cross-currency net, lost source contribution, unstable ordering, invalid-data plausible total,
-  caller false-settled state or unsupported performance claim fails.
+- **Reviewer:** distinct `human_scratch_reviewer`, undispatched until revision-02 evidence freezes
+- **Literal cumulative review BASE:** `4c102600240e2804b801c2a320e10164defb14ea`
+- **Literal revision-02 product/test HEAD:** pending exact committed HEAD
+- **Implementation evidence:** `evidence/P16B/implementation-02.md`
+- **Sole reviewer artifact:** `reviews/P16B-review-02.md`
+- **Reviewer writes:** only that new review file; no other edit/commit
+- **Required focus:** independently reproduce then close F-01/F-02/F-03 across runtime legacy shapes,
+  hierarchical topology and adversarial cache identity; re-prove the exact arithmetic/netting/source/
+  currency/issue/immutability core, named A–H, sole exports/caller, full gates and honest performance.
+- **Verdict:** one PASS/FAIL with exact findings, canonical mapping, independent seeds/oracles,
+  browser/manual/cleanup and Q proposals. Any throw, ambiguous nested admission, active-copy loss,
+  cache collision/context loss, plausible invalid total or preservation regression fails.
 
 ## Next root action
 
-Persist the immutable FAIL review, transcribe F-01/F-02/F-03 to risks and package state, then prepare
-P16B revision 02 over the same original cumulative BASE. Keep HS-009 unchanged and FS-001
-immutable/open.
+Commit this revision-02 handoff/progress transition, then dispatch `human_scratch_implementer`
+against the exact failure-integration HEAD and sole evidence path. Keep reviewer undispatched,
+HS-009 unchanged and FS-001 immutable/open.

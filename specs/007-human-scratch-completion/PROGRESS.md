@@ -7,9 +7,11 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P16B revision 01 (`changes_requested`; failure integration pending)
-- **Next action:** persist immutable `reviews/P16B-review-01.md`, F-01/F-02/F-03 risk updates and
-  failure state, then dispatch P16B revision 02 over the original cumulative BASE
+- **Current package:** P16B revision 02 (`implementing`; dispatch prepared)
+- **Next action:** dispatch `human_scratch_implementer` against original cumulative BASE
+  `4c102600240e2804b801c2a320e10164defb14ea`, clean pre-revision HEAD
+  `e33453f098f4bdea62d6ea358d2e86b5d0f9356b` and sole evidence
+  `evidence/P16B/implementation-02.md`
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -22,7 +24,7 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** eleven passed; HS-015 blocked externally; HS-011/HS-012 and seven other HS
   requirements plus FS-001 queued
-- **Last ledger update:** 2026-07-25; P16B revision-01 independent FAIL requires a narrow revision 02
+- **Last ledger update:** 2026-07-25; P16B revision-02 F-01/F-02/F-03 closure dispatch prepared
 
 ## Package ledger
 
@@ -47,7 +49,7 @@ review evidence.
 | P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | passed | 04 | `b9105028926d24a5a0c5454777a6c33379ca606a..305d6613673cf200d456276c076463b68c075500` | `evidence/P14/implementation-04.md` | `reviews/P14-review-04.md` | `a2182116db08200b8b4df28412512b9ca3406aa2` |
 | P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | passed | 02 | `b3e96ba9e9487d13df56956d220fffca63d6482d..91931688ef9463576b757a097968af543a4b8a75` | `evidence/P15/implementation-02.md` | `reviews/P15-review-02.md` | `9c5d7be8ee4cf7c3fda5f1a7320c053362672e3a` |
 | P16A    | FS-001, HS-009 | Allocation/ownership validation, remainder/effective shares and exact apportionment | P01                  | passed | 02 | `1b42d27e11494a167a4768e0c2c308010aa51651..f84f66758708529c44342313e8632ee8b7dcead3` | `evidence/P16A/implementation-02.md` | `reviews/P16A-review-02.md` | `41f5760f77c1a93ab650a93912bfaf3c0b627ab0` |
-| P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | changes_requested | 01 | `4c102600240e2804b801c2a320e10164defb14ea..5242a2422cd86dd48eac07a4422491d5079ccd23` | `evidence/P16B/implementation-01.md` | `reviews/P16B-review-01.md` | failure integration pending                |
+| P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | implementing | 02 | `4c102600240e2804b801c2a320e10164defb14ea..pending`                                  | `evidence/P16B/implementation-02.md` | `reviews/P16B-review-02.md` | revision-01 FAIL `e33453f098f4bdea62d6ea358d2e86b5d0f9356b`; revision-02 pending |
 | P16C    | FS-001, HS-009 | CRDT per-key/complete-set APIs and every mutation, hydration and history path       | P16A, P16B, P09, P14 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16D    | FS-001, HS-009 | Actual grid/add-row person columns, virtualization, history and presence UX         | P16C, P13            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16E    | FS-001         | People obligations/issues/source UX plus full integration, E2E, manual and perf     | P16D, P08, P11C      | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -2631,6 +2633,21 @@ because surfaced UI cannot create malformed legacy shapes and direct production 
 decisive. Root restored generated source, recoverably removed current `.next`/results and preserved
 the older ignored report. No Q proposal. Revision 02 must close all three findings without weakening
 the proven core; HS-009 stays unchanged and FS-001 immutable/open.
+
+**2026-07-25T09:49:25+10:00 — P16B/02 `changes_requested -> implementing`:** Revision-01 failure
+artifacts and risk updates are durable in integration commit
+`e33453f098f4bdea62d6ea358d2e86b5d0f9356b`. Revision 02 retains the literal original cumulative
+review BASE `4c102600240e2804b801c2a320e10164defb14ea`, uses sole implementer artifact
+`evidence/P16B/implementation-02.md` and reserves immutable future review
+`reviews/P16B-review-02.md`. Its exact four-path authority is `src/lib/domain/settlement.ts`,
+`src/components/features/people/BalanceSummary.tsx`, `tests/unit/domain/settlement.test.ts` and
+`tests/unit/components/balance-summary.test.tsx`. It must close only F-01 safe legacy envelopes,
+F-02 canonical `TransactionStore` topology/active-copy selection and F-03 collision-free semantic
+identity while preserving the independently green exact arithmetic, currency, matching, reverse
+netting, source traceability, issue, immutability, named A–H and sole-engine/caller core. The
+implementer must first check in exact red reproductions against byte-identical revision-01 product
+owners, then prove fixed-seed legacy/topology/cache properties, full gates and honest performance.
+Reviewer remains undispatched; HS-009 has no marker change and FS-001 remains immutable/open.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
