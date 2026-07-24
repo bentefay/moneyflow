@@ -7,8 +7,8 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P12 revision 05 (`changes_requested`)
-- **Next action:** persist/link revision-05 failure and dispatch narrow cumulative revision 06
+- **Current package:** P12 revision 06 (`changes_requested`)
+- **Next action:** persist/link revision-06 failure and dispatch narrow revision 07
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -41,7 +41,7 @@ review evidence.
 | P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | passed | 04 | `eb5ab2e215130c358130d5411a92b51951c3c53a..fb72abdaf531dff40c59f6b3525fb1b9ce50f805` | `evidence/P11A/implementation-04.md` | `reviews/P11A-review-04.md` | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f` |
 | P11B    | HS-004         | Alias management and transaction-cell pointer/keyboard UX                           | P11A                 | passed | 01 | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f..e35109dfe7b02bdb4058445f44d03a6dd678457b` | `evidence/P11B/implementation-01.md` | `reviews/P11B-review-01.md` | `0426866fa66cc022efca6d74cd5088d586d3d11b` |
 | P11C    | HS-004         | Alias import/manual/shared flows, performance hardening and exhaustive tests        | P11B                 | passed | 03 | `0426866fa66cc022efca6d74cd5088d586d3d11b..daab038ee741faa9f92a373b27efe0c8fe8940db` | `evidence/P11C/implementation-03.md` | `reviews/P11C-review-03.md` | `78e2f978f8d258d8c4d379f53e75089a2ce975db` |
-| P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | changes_requested | 05 | `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e..865a78774cee84a3ed4c2686422579af94d368b5` | `evidence/P12/implementation-05.md` | `reviews/P12-review-05.md` | `2f39bf17e64526b63376590f2f72e730a504472e` |
+| P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | changes_requested | 06 | `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e..9939d68cb6752f174c2fc60e4e815c7af52dd0d7` | `evidence/P12/implementation-06.md` | `reviews/P12-review-06.md` | pending revision-06 failure control |
 | P13     | HS-001         | Persisted normal empty Add Transaction rows and grid navigation                     | P11C, P09            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -1784,6 +1784,32 @@ tag/allocation edits, reveal stale collection and delete the edited source. F-06
 legacy metadata-only live sync bypasses alias-projection-gated cleanup and can reintroduce the reserved
 account through raw `useTransactions`. Automated/manual gates are green; HEAD/index/cleanup/frozen
 boundaries pass. HS-005 remains unchecked and revision 06 must close both lifecycle races.
+
+**2026-07-24 — P12/06 `changes_requested -> implementing`:** Revision-05 failure is immutable at
+`2f39bf17e64526b63376590f2f72e730a504472e`; clean preimplementation HEAD is
+`a98b3b00a6858b40398531204633832790d59c5f`, cumulative BASE remains `0a9b8827...`, sole evidence is
+`evidence/P12/implementation-06.md` and future review is `reviews/P12-review-06.md`. Authority is
+narrowly scheduler/context lifecycle plus focused maintenance/context integration tests. Disposal must
+revoke all trust generations; equal-cardinality value edits must stale the shadow; late legacy metadata-
+only sync must independently trigger bounded cleanup and stay hidden from raw hooks. All cumulative
+automation/manual/cleanup/frozen gates remain mandatory; reviewer is undispatched.
+
+**2026-07-24 — P12/06 `implementing -> ready_for_review -> reviewing`:** Final HEAD
+`9939d68cb6752f174c2fc60e4e815c7af52dd0d7` contains commits `8c83dd7`/`9939d68` across exactly
+context, maintenance and vault-maintenance integration tests. Evidence is 191 lines/12,326 bytes at
+SHA-256 `08ca7c17f64371f1f6c06ef1b8593cee035477f5b8a8dfb09431ec40b59a177c`. Four dispose/edit/remount
+counterexamples pass; late marker-only and marker-plus-domain imports stay hidden, receive one bounded
+cleanup update and do not resurrect. Focused 102/102 x3, full Vitest 1,275/1,275, type/lint/build/
+scoped format, affected E2E 12/12 and full no-retry E2E 87/87 pass. Root verifies exact HEAD/paths/
+index, evidence hash/size, no generated/process state and exact frozen boundaries. Reviewer alone writes
+`reviews/P12-review-06.md` over cumulative original BASE..HEAD.
+
+**2026-07-24 — P12/06 `reviewing -> changes_requested`:** Independent review
+`reviews/P12-review-06.md` is 165 lines/11,879 bytes at SHA-256
+`a6182d430b761fd57c0ebd5ce08045811e952979303ab59b74afa885d8a8693e` and returns FAIL. F-05 closes;
+F-06 cleanup and `useTransactions` close. F-07 Medium proves generic exported
+`useVaultSelector(state => state.transactions)` still forwards raw reserved state to People/Statuses/
+Tags tables before the next visible cleanup frame. All automated/manual gates pass. HS-005 stays unchecked.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual

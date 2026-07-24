@@ -5,15 +5,18 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Implementation dispatch
 
-- **Package / revision:** P12 / 05
+- **Package / revision:** P12 / 06
 - **Scope IDs:** HS-005 only; bounded requestAnimationFrame maintenance for duplicate transaction
   buckets and description-alias symlinks; HS-005 remains incomplete and unchecked
-- **State:** changes_requested; revision-05 failure is immutable at
-  `2f39bf17e64526b63376590f2f72e730a504472e`; HS-005 is unchecked
+- **State:** changes_requested; revision-06 implementation/review are immutable; HS-005 is unchecked
 - **Task:** `tasks/HS-005-background-gc.md`; exact 6-line HS-005 block in SCOPE
 - **Dependencies:** P09/02 and P11A–C are passed; P12 is independent of blocked P05/P08/P10
 - **Literal original BASE:** `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e`
-- **Revision-05 pre-implementation HEAD:** `19589ee99e249b8371ee6255528cc36ebcade84d`
+- **Revision-06 pre-implementation HEAD:** `a98b3b00a6858b40398531204633832790d59c5f`
+- **Literal revision-06 product/test HEAD:** `9939d68cb6752f174c2fc60e4e815c7af52dd0d7`
+- **Revision-06 commits:** `8c83dd7` and `9939d68`; exactly three authorized paths
+- **Frozen implementation evidence:** `evidence/P12/implementation-06.md`, SHA-256
+  `08ca7c17f64371f1f6c06ef1b8593cee035477f5b8a8dfb09431ec40b59a177c`, 191 lines/12,326 bytes
 - **Literal revision-05 product/test HEAD:** `865a78774cee84a3ed4c2686422579af94d368b5`
 - **Revision-05 commits:** `cfeb4dae13f9eff855a1b95feb14d9c06adda016` plus hook correction
   `865a78774cee84a3ed4c2686422579af94d368b5`; seven authorized cumulative paths
@@ -34,8 +37,8 @@ literal field is `pending`. Workers may read but never edit it.
   components/routes/styles/schema/migrations/sync/transport/server/database/auth/crypto/realtime,
   dependencies/config, global ledgers, prior evidence/reviews, scratch, FS-001, SCOPE, `.claude`,
   `.codex` or agent configuration without a reproduced blocker and prior root expansion.
-- **Sole implementer artifact:** `evidence/P12/implementation-05.md`
-- **Future immutable review artifact:** `reviews/P12-review-05.md`
+- **Sole implementer artifact:** `evidence/P12/implementation-06.md`
+- **Future immutable review artifact:** `reviews/P12-review-06.md`
 - **Commit contract:** inspect first, preserve revisions 01/02, stage exact authorized paths only,
   commit product/test remediation with a message containing no parentheses, and leave evidence
   uncommitted. Never use `git add .` or `git add -A`.
@@ -46,6 +49,11 @@ literal field is `pending`. Workers may read but never edit it.
   unnest/swap updates in both orders and compare subscribed physical docs; keep maintenance metadata
   outside public Mirror transaction enumeration with bounded crash/reload/sync cleanup. Preserve the
   now-passed bounded attach and global canonical-query behavior.
+- **Revision-06 closure:** disposal must revoke every scheduler generation/import/shadow trust token so
+  same-document remount cannot resume or reveal prior partial work; revalidation must detect equal-
+  cardinality tag/allocation value edits. Any live legacy metadata/reserved-account delivery must
+  schedule cleanup independently of alias projection changes and remain invisible to all raw hooks.
+  Prove dispose/edit/remount stale-shadow rejection and late metadata-only sync cleanup/no resurrection.
 - **Root authority expansion:** `src/lib/crdt/context.tsx` and one focused hook regression are
   explicitly authorized because review-04 names `useTransaction` as a raw public boundary and final
   worker audit reproduced a malformed/legacy private parent leaking a real-ID incomplete nested child.
@@ -93,11 +101,11 @@ literal field is `pending`. Workers may read but never edit it.
 
 - **Reviewer:** distinct `human_scratch_reviewer`
 - **Literal cumulative review BASE:** `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e`
-- **Literal revision-05 HEAD:** `865a78774cee84a3ed4c2686422579af94d368b5`
-- **Range type:** cumulative original BASE through revision-05 product/test HEAD
-- **Implementation evidence:** `evidence/P12/implementation-05.md`, SHA-256
-  `146a1cc4df55e5aa1bbfab922861ed069e7c5a7f55585f4a8f852d7cb6794ba5`, 171 lines/11,731 bytes
-- **Sole reviewer artifact:** `reviews/P12-review-05.md`
+- **Literal revision-06 HEAD:** `9939d68cb6752f174c2fc60e4e815c7af52dd0d7`
+- **Range type:** cumulative original BASE through revision-06 product/test HEAD
+- **Implementation evidence:** `evidence/P12/implementation-06.md`, SHA-256
+  `08ca7c17f64371f1f6c06ef1b8593cee035477f5b8a8dfb09431ec40b59a177c`, 191 lines/12,326 bytes
+- **Sole reviewer artifact:** `reviews/P12-review-06.md`
 - **Review SHA-256:** `a54ea0b726d157fabab1b3d59a3f2ca84391cfc9ff0560b48a20e08296e8326a`,
   196 lines/14,376 bytes
 - **Verdict:** FAIL — review-04 F-01 through F-03 close and F-04 closes for new/startup state, but two
@@ -106,6 +114,11 @@ literal field is `pending`. Workers may read but never edit it.
   resume a partial shadow after equal-cardinality tag/allocation edits, reveal stale data and delete source.
 - **F-06 Medium:** late revision-04 metadata-only live sync bypasses alias-projection-gated cleanup and
   can reintroduce the reserved account through raw `useTransactions()`.
+- **Revision-06 review:** FAIL, SHA-256
+  `a6182d430b761fd57c0ebd5ce08045811e952979303ab59b74afa885d8a8693e`, 165 lines/11,879 bytes.
+  F-05 closes; F-06 physical cleanup and `useTransactions` close. F-07 Medium remains: exported
+  `useVaultSelector(state => state.transactions)` exposes raw reserved state to People/Statuses/Tags
+  tables before the next cleanup frame.
 - **Reviewer writes:** the new review file only; no product/test/evidence/ledger/config/frozen edit or commit
 - **Required review focus:** independently close revision-03 F-01 through F-03. Inspect every private
   shadow lifecycle/read/mutation/sync/hydration boundary and official Loro cost; reject recursive final
@@ -121,4 +134,4 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Persist/link revision-05 failure artifacts and dispatch narrow cumulative P12/06.
+Persist/link revision-06 failure and dispatch narrow cumulative P12/07.
