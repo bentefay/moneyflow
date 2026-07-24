@@ -7,8 +7,10 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P14 revision 04 (`passed`)
-- **Next action:** dispatch P15 revision 01 after rewriting its exact implementation handoff
+- **Current package:** P15 revision 01 (`implementing` after current root control commit)
+- **Next action:** dispatch `human_scratch_implementer` against exact
+  `b3e96ba9e9487d13df56956d220fffca63d6482d`, sole evidence
+  `evidence/P15/implementation-01.md`, and the P15 handoff
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -21,7 +23,7 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** ten passed; HS-015 blocked externally; HS-011/HS-012 and eight other
   requirements queued
-- **Last ledger update:** 2026-07-25; HS-008 marker finalized after P14 revision-04 independent PASS
+- **Last ledger update:** 2026-07-25; P15 revision-01 implementation dispatch prepared
 
 ## Package ledger
 
@@ -44,7 +46,7 @@ review evidence.
 | P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | passed | 08 | `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e..a2a31839f6bb57855fa60b8cfcc06feed069cafa` | `evidence/P12/implementation-08.md` | `reviews/P12-review-08.md` | `f8cbb5a8caacb763c0bb77199595a5ee332ab729` |
 | P13     | HS-001         | Persisted normal empty Add Transaction rows and grid navigation                     | P11C, P09            | passed | 03 | `415ea080b3b19191fd71601742056a619b4a3080..9f307e200676711ca2a3ba81bd816314807434ad` | `evidence/P13/implementation-03.md` | `reviews/P13-review-03.md` | `7a04338fa7c3f68463d12d11082bc56e87c1872b` |
 | P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | passed | 04 | `b9105028926d24a5a0c5454777a6c33379ca606a..305d6613673cf200d456276c076463b68c075500` | `evidence/P14/implementation-04.md` | `reviews/P14-review-04.md` | `a2182116db08200b8b4df28412512b9ca3406aa2` |
-| P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
+| P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | implementing | 01 | `b3e96ba9e9487d13df56956d220fffca63d6482d..pending`                                  | `evidence/P15/implementation-01.md` | `reviews/P15-review-01.md` | —                                          |
 | P16A    | FS-001, HS-009 | Allocation/ownership validation, remainder/effective shares and exact apportionment | P01                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16C    | FS-001, HS-009 | CRDT per-key/complete-set APIs and every mutation, hydration and history path       | P16A, P16B, P09, P14 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -2300,6 +2302,21 @@ remain exact. Scratch SHA advances
 `b09454dea925ebd5af185c4b5011762a38beac852ef728c9adaf4e343782561d ->
 f0adfef6e19b80969dae748cf8c616614af61ba778837234c97af385a19adcb1`, 350 lines/24,249 bytes. The
 completion event is cleared and package dispatch may resume.
+
+**2026-07-25T04:15:08+10:00 — P15/01 `queued -> implementing`:** P14/04 and the exact HS-008 marker
+are complete at clean preimplementation BASE/HEAD
+`b3e96ba9e9487d13df56956d220fffca63d6482d`. Sole implementation evidence is
+`evidence/P15/implementation-01.md`; future independent review is `reviews/P15-review-01.md`.
+Authority is limited to the exact shared validation, bounded transfer/provider, reusable
+whole-surface drop target, three app pages/layout, import exports and focused unit/component/import
+E2E owners named in HANDOFF. Picker and real DataTransfer drop paths must share typed
+single-file/extension/size/empty/readability/content validation before navigation; the existing
+plaintext `FileReader`/sessionStorage copy must be removed. Imports-list and transactions-table
+surfaces must remain stable across nested child/virtualized drag events, show accessible actionable
+errors, transfer the original File one-shot into unchanged preview/mapping/confirmation, preserve
+cancel/back/focus and never auto-import or leak content. Red-before-green, repeated focused,
+affected/full automation, installed-CLI responsive/dark/reduced/privacy/cleanup and P13/P14
+preservation gates are mandatory. Reviewer is undispatched; HS-013 remains unchecked.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual

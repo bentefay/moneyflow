@@ -5,146 +5,120 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Implementation dispatch
 
-- **Package / revision:** P14 / 04
-- **Scope IDs:** HS-008 only; import lineage, immutable original amount, accessible amount tooltip
-  and reversible import deletion; HS-008 is complete and checked
-- **State:** passed; revisions 01–04 are immutable; HS-008 marker transaction is finalized
-- **Task:** `tasks/HS-008-import-lineage.md`; exact 4-line HS-008 block in SCOPE
-- **Dependencies:** P09/02 is passed; P14 is independent of blocked P05/P08/P10
-- **Literal original BASE:**
-  `b9105028926d24a5a0c5454777a6c33379ca606a`
-- **Revision-04 pre-implementation HEAD:**
-  `8fc2163b6a44cb01775d4134f702b98f4ff9a680`
-- **Literal cumulative product/test HEAD:**
-  `305d6613673cf200d456276c076463b68c075500`
-- **Sole implementer artifact:** `evidence/P14/implementation-04.md`
-- **Frozen evidence identity:** SHA-256
-  `c68488162a547ca369a8cd7734b40dccc95140407ec9c931efdb6b8e4b7521d3`, 184 lines /
-  13,865 bytes
-- **Frozen revision-04 review:** `reviews/P14-review-04.md`, PASS, SHA-256
-  `11d524993eb312b318ebc3ec5c66a88fbbe68a580ef1103d66deb30fd3149d99`, 202 lines /
-  16,035 bytes. F-03 closes with every sampled tooltip/text/arrow rectangle contained at an exact
-  eight-pixel minimum margin; F-02/F-01 and the full cumulative HS-008 range remain green.
-- **Root PASS integration:** `a2182116db08200b8b4df28412512b9ca3406aa2`
-- **Revision-03 review identity:** FAIL, SHA-256
-  `e5df38ff0486c5f65d8f734e7dcdd87522ea169667f477d1bdaac6f1f1b57af8`, 201 lines /
-  16,049 bytes
-- **Blocking revision-03 finding:** F-03 Medium Accessibility/UX. At 390x844 with 200% document
-  zoom, dark mode and reduced motion, the original-amount tooltip is row-position dependent:
-  focus/hover on a lower visible edited imported row places the tooltip wholly below the viewport,
-  and an offset virtualized row places it 42px beyond the right edge, while the first-row control is
-  contained and programmatic description remains correct. Revision 04 must make positioning
-  collision-aware in the actual zoomed viewport/nested scroll context and add deterministic
-  focus+hover containment coverage at lower vertical and right-offset positions.
-- **Revision-02 review identity:** FAIL, SHA-256
-  `e6c4d2fdbd4ce5b2c5d6db75f6451a19d0a1901bb769640a1933e9fa9fdab7c4`, 191 lines /
-  14,936 bytes
-- **Blocking revision-02 finding:** F-02 Medium Requirements/UX. The new
-  `useActiveTransactions()`/`getAllTransactions()` count includes top-level transactions but omits
-  distinct imported identities stored in `suspectedDuplicates`; the atomic delete scans and removes
-  those nested identities. Normal UI reproduction imported one identical second file, displayed
-  table/dialog count zero, and confirmation deleted one nested linked transaction. Revision 03 must
-  enumerate/deduplicate every active parent and nested logical ID with the same identity semantics
-  as deletion and add an ordinary-import nested duplicate → count one → delete/Undo/Redo E2E.
-- **Revision-01 review identity:** FAIL, SHA-256
-  `92bbcf462e6cceb973adb9525402cc357ed37706d67752169506ae286e1b621f`, 171 lines /
-  13,684 bytes
-- **Blocking revision-01 finding:** F-01 Medium Requirements/UX. After an ordinary deletion leaves
-  three live rows linked to a four-row import, the imports table and destructive dialog still use
-  immutable original `Import.transactionCount=4`; the atomic operation correctly deletes only the
-  live three. Revision 02 must derive destructive feedback from the same current linked identity set
-  as the delete operation and add the exact four → ordinary-delete one → dialog three → delete →
-  one-step Undo/Redo isolation journey. The independently deleted row must remain deleted.
-- **Prior immutable evidence/reviews:** revision-01 evidence
-  `7e4c4f8244484ee8885ecc4c547069a10d7891689a917e3332a652574754c522` and review
-  `92bbcf462e6cceb973adb9525402cc357ed37706d67752169506ae286e1b621f`; revision-02
-  evidence `e7d8dcf685f920f1ab182a2719fb3573fc3daceb199c01852505eaefad5eeb52`
-  and review `e6c4d2fdbd4ce5b2c5d6db75f6451a19d0a1901bb769640a1933e9fa9fdab7c4`;
-  revision-03 evidence `c07a417ba39a58801e7d411adcd4c87c47614e526d6c35aa1e456a306e85eb8d`
-  and review `e5df38ff0486c5f65d8f734e7dcdd87522ea169667f477d1bdaac6f1f1b57af8`.
-  Do not edit any prior artifact.
-- **Evidence correction requirement:** immutable revision-01 evidence is the fourteenth repository
-  `format:check` failure. Revision-02 evidence correctly reports all 14 failures and itself passes.
-  Revision-04 evidence must preserve that exact truth and pass formatting before handoff.
-- **Implementation-start dirty paths:** root-owned unstaged `HANDOFF.md` and `PROGRESS.md` only;
-  index empty; all three prior evidence/review pairs are committed and immutable
-- **Allowed implementation paths:** only
-  `src/components/features/transactions/cells/InlineEditableAmount.tsx`,
-  `tests/e2e/import.spec.ts`, and, if meaningful non-layout behavior needs focused ownership, the
-  exact new path `tests/unit/components/inline-editable-amount.test.tsx`. Fix collision-aware
-  placement at the actual zoomed viewport/nested virtualized scroll boundary while keeping the
-  established shadcn/Radix tooltip semantics and current accessible input description. Do not edit
-  the shared tooltip primitive unless a reproducible component-local impossibility is first
-  reported to root and root explicitly expands scope. No other component/UI/CRDT/import/sync/
-  crypto/server/schema/migration/dependency/config/test path, global ledger, prior evidence/review,
-  scratch, FS-001, SCOPE, `.claude`, `.codex` or agent configuration without a reproduced blocker
-  and prior root expansion.
-- **Commit contract:** inspect existing patterns first; stage exact authorized product/test paths
-  only; commit product/test work with a short message containing no parentheses; leave evidence
-  uncommitted. Never use `git add .` or `git add -A`.
-- **Lineage/schema behavior:** every imported parent and nested duplicate retains the exact import
-  ID through insertion, query projection, alias operations, move/unnest/swap, maintenance and sync.
-  Manual rows never acquire import lineage. Add optional original minor units to parent and nested
-  schema in a backward-compatible way; legacy rows without the field remain valid.
-- **Original amount behavior:** the first actual amount change on an imported transaction stores
-  its pre-edit minor units exactly once. Later amount edits, account/date moves, duplicate
-  transformations, alias edits, reload, Undo/Redo, offline persistence and peers never overwrite
-  that origin. Manual and unedited imported rows expose no original amount. Centralize this at the
-  mutation boundary so inline, bulk, history and future callers cannot bypass it.
-- **Tooltip/UX:** use the established shadcn tooltip primitives on the ordinary amount cell. Show
-  the original amount only for an edited imported row, formatted with that transaction/account
-  currency and correct 0/2/3/8 decimal minor-unit semantics. It must be available by hover and
-  keyboard focus with a programmatic accessible name/description, absent from manual/unedited rows,
-  and preserve spreadsheet editing, arrows, Tab/Shift+Tab, Enter/Escape, virtualization, mobile,
-  dark, reduced motion and 200% zoom.
-- **Import deletion:** one user action must atomically soft-delete the import record and remove or
-  safely soft-delete every linked parent/nested physical representation across accounts/dates while
-  preserving other imports/manual rows and pruning only truly empty buckets. It must be one Undo
-  step; Redo repeats the exact logical result. Alias cleanup must remain legal, no stale import row
-  or orphan duplicate may survive, and another import's data must never be deleted. The dialog must
-  give precise destructive feedback from the current live logical-identity set.
-- **Data-preservation decision:** follow the PROCESS hierarchy and existing CRDT conventions.
-  Preserve reversibility and unrelated data. If retention versus physical-removal semantics remain
-  materially ambiguous after source inspection, record a complete `Q-PROPOSAL-P14-04-*` in the
-  evidence, choose the safest reversible implementation and continue; do not ask or pause.
-- **Cumulative regression:** do not weaken revision-01 behavior. Retain first-edit origin,
-  parent/nested lineage, tooltip accessibility/precision/zoom, atomic live-set deletion/history and
-  bounded 1,000-row encrypted persistence unchanged.
-- **Required red-to-green proof:** before product code, add a checked-in behavior-led browser
-  regression that reproduces F-03 on exact unchanged revision-03 behavior. Through ordinary import
-  and amount editing, use 390x844, 200% document zoom, dark mode and reduced motion. For a lower
-  vertically positioned visible edited row and a right-offset visible virtualized row, exercise
-  both keyboard focus and pointer hover, assert the complete tooltip text, and require every tooltip
-  bounding-box edge to stay within the actual viewport. Retain a favorable first-row control so the
-  red proves position dependence. Make those same deterministic samples green without hiding the
-  tooltip, weakening the visual requirement, relying only on `aria-description`, disabling zoom/
-  virtualization/collision handling or adding arbitrary waits. Retain F-02 normal nested-import
-  count/delete/Undo/Redo x3 and F-01 stale-count history at least once unchanged.
-- **Required automation:** repeat the exact new F-03 containment journey at least three times with
-  one worker and retries disabled; retain F-02 x3 and F-01 once; run the focused import/transaction/
-  component profile in three clean processes, owner Vitest, full Vitest, typecheck, lint, build,
-  scoped formatting/ESLint and exact diff checks. Run the six-file affected E2E matrix and full E2E
-  once each with one worker/retries zero. Report every red and inherited failure exactly; no
-  arbitrary waits, temporary configs, CSS-only assertion substitutes or text-only proof.
-- **Manual charter:** use only repository-installed headless `playwright-cli` with a disposable
-  authenticated session. Reproduce the exact F-03 lower-row and right-offset focus+hover geometry at
-  390x844/200% zoom in dark/reduced-motion and record input/tooltip boxes plus full containment.
-  Sample first-row control, correct role/name/description, long currency text and tooltip contrast.
-  Then retain nested count/delete/history, 1,000-row reload/virtualization, offline/duplicate-tab
-  convergence and encrypted request privacy rather than relying only on prior evidence. Ask root to
-  start the server if absent. Close/delete the session, ask root to stop the server, remove only
-  generated artifacts and restore `next-env.d.ts`.
-- **Evidence contract:** record exact original BASE, revision-04 pre-HEAD, cumulative HEAD, commits,
-  paths and index; F-03 red/green geometry for every required focus/hover position; retained F-02/
-  F-01 greens; exact positioning mechanism and accessibility semantics; commands/repeats/counts;
-  sanitized manual evidence; cumulative regression evidence; inherited reds; cleanup; frozen
-  checks; risks and any complete Q proposal. Explicitly run and report repository `format:check`;
-  format `implementation-04.md` before freeze without changing any prior evidence. Do not claim
-  PASS.
+- **Package / revision:** P15 / 01
+- **Scope IDs:** HS-013 only; whole imports-list and transactions-table file drop targets; HS-013
+  remains incomplete and unchecked
+- **State:** implementing after the current root control commit; reviewer is undispatched
+- **Task:** `tasks/HS-013-import-drop-zones.md`; exact one-line HS-013 block in SCOPE
+- **Dependency:** P14/04 and HS-008 are passed. P14 integration is
+  `a2182116db08200b8b4df28412512b9ca3406aa2`; marker completion is
+  `b3e96ba9e9487d13df56956d220fffca63d6482d`.
+- **Literal original BASE / pre-implementation HEAD:**
+  `b3e96ba9e9487d13df56956d220fffca63d6482d`
+- **Sole implementer artifact:** `evidence/P15/implementation-01.md`
+- **Future immutable review artifact:** `reviews/P15-review-01.md`
+- **Implementation-start boundary:** clean HEAD/index/worktree; all P14 artifacts and the HS-008
+  marker are committed and immutable
+- **Allowed implementation paths:** exactly existing
+  `src/app/(app)/layout.tsx`, `src/app/(app)/imports/page.tsx`,
+  `src/app/(app)/imports/new/page.tsx`, `src/app/(app)/transactions/page.tsx`,
+  `src/components/features/import/FileDropzone.tsx`,
+  `src/components/features/import/index.ts`, `src/lib/import/index.ts` and
+  `tests/e2e/import.spec.ts`; exact optional new owners
+  `src/components/features/import/ImportFileTransferProvider.tsx`,
+  `src/components/features/import/ImportDropTarget.tsx`,
+  `src/lib/import/file-validation.ts`, `tests/unit/import/file-validation.test.ts` and
+  `tests/unit/components/import-drop-target.test.tsx`. Do not edit ImportPanel/parser/CRDT/sync/
+  crypto/server/schema/migration/dependency/config or any other source/test path unless a
+  reproducible owner blocker is first reported and root explicitly expands the list. Never edit
+  ledgers, prior evidence/reviews, scratch, FS-001, SCOPE, `.claude`, `.codex` or agent
+  configuration.
+- **Commit contract:** inspect existing patterns before editing. Stage exact authorized
+  product/test paths only, commit with a short message containing no parentheses, and leave the sole
+  evidence artifact uncommitted. Never use `git add .` or `git add -A`.
+
+## Required behavior and boundaries
+
+- **One validated path:** picker and drop must use one typed validation contract for supported CSV,
+  OFX and QFX files. Preserve the existing secure 10 MiB limit unless source evidence requires a
+  stricter bound. Reject zero-byte, unsupported, multiple, oversized, unreadable and clearly
+  content-spoofed inputs with specific actionable errors. Validate before navigation and before
+  replacing a pending accepted file. Expected input failures are typed results, not exceptions.
+- **Whole-surface targets:** the visible imports-list content and ordinary transactions-table
+  surface accept a single supported file at every child cell, empty region, filtered/virtualized
+  scroll position and edge. Do not turn the global app shell, navigation, dialogs or portaled
+  controls into drop targets.
+- **Stable drag lifecycle:** use a deterministic nested-enter depth or equivalent related-target
+  invariant. Child enter/leave, virtual-row mount/unmount, repeated edge crossings and a drag ending
+  outside the target must not flicker, strand the overlay or navigate. `dropEffect` must honestly
+  indicate whether the payload is acceptable.
+- **Shared transfer:** remove the `FileReader` → JSON → `sessionStorage.pendingImportFile` content
+  copy. Transfer the original browser `File` through a bounded provider owned by the persistent app
+  layout or an equivalently scoped, typed, cleanup-safe mechanism. A successful take is one-shot;
+  invalid drop, cancel/back, route replacement, vault switch and logout must not leak or silently
+  replay stale financial file content. Do not persist plaintext file content in session/local
+  storage, IndexedDB, URLs, logs or server requests.
+- **Workflow preservation:** a valid drop navigates to the existing `/imports/new` workflow with
+  the exact file and enters the same parse/mapping/format/duplicate/account/preview stages as the
+  picker. It must not create an import or transactions until the existing explicit confirmation.
+  Cancel/back returns to the source page without data mutation; a later picker/drop remains usable.
+- **Accessible UX:** use shared established tokens and a single reusable drop-target/overlay owner.
+  The overlay must describe CSV/OFX/QFX support, remain visually stable over scrolled and virtualized
+  content, support light/dark and reduced motion, preserve existing table scrolling/selection, and
+  never trap pointer or focus. Invalid feedback must use an accessible alert/live region and focus
+  restoration. The Imports `Import new file` picker remains a labelled keyboard alternative;
+  direct `/imports/new` picker behavior remains unchanged.
+- **Preservation:** retain P14 lineage, original-amount tooltip and import delete/history behavior;
+  P13 filter/pagination/add-row selection; current imported-content parsing/encoding and account/
+  template behavior; encrypted local-first persistence; responsive layout and virtualization.
+  Never inspect or record recovery words, decrypted vault payloads or user financial fixture
+  content beyond synthetic test data.
+- **Decision rule:** use existing secure behavior for size and single-file policy. If an ambiguity
+  materially remains after source inspection, record a complete `Q-PROPOSAL-P15-01-*` in evidence,
+  apply the PROCESS decision hierarchy and continue; do not ask the human or pause.
+
+## Required evidence
+
+- **Red-to-green:** first add checked-in behavior-led tests that fail on unchanged BASE for at least
+  the missing transactions drop target, imports nested-drag stability, multiple/empty/oversize/
+  spoofed rejection before navigation, and removal of plaintext sessionStorage handoff. Preserve
+  the red command/output in evidence, then make those exact tests green.
+- **Unit/component automation:** cover the pure validation result matrix, mixed-case names and MIME
+  mismatch/content sniffing; one-shot transfer/cleanup; nested enter/leave depth, outside exit/drop,
+  invalid accessible error and noninterference with children/scroll. Avoid fabricated production
+  hooks and arbitrary waits.
+- **E2E automation:** use actual browser `File`/`DataTransfer` payloads and drag event sequences.
+  Exercise representative CSV and OFX drops on both Imports and Transactions surfaces, including
+  child cells, filtered/virtualized transaction rows, scrolled imports content and edges. Prove the
+  exact file reaches preview but no import exists before confirmation; cancel/back preserves data
+  and source state; successful confirmation still works. Cover QFX or parser-equivalent support,
+  nested no-flicker, repeated enter/leave/outside cleanup, multiple/empty/unsupported/oversize/
+  unreadable-or-spoofed errors, same-file retry, picker keyboard path and absence of pending file
+  content from storage/URL/network/console. Repeat focused journeys at least three times with one
+  worker and retries zero.
+- **Regression gates:** run focused new unit/component tests in three clean processes; the import
+  unit/integration profile; owner transaction/import tests; full Vitest, typecheck, lint, build,
+  exact changed-path format/ESLint and `git diff --check`. Run the affected Import/Transactions E2E
+  matrix and full E2E once each with one worker and retries zero. Run repository `format:check` and
+  report its exact inherited baseline without rewriting frozen/historical Markdown.
+- **Manual installed-CLI charter:** use only repository-installed headless `playwright-cli` with a
+  unique disposable session and a root-owned keyed server. Through ordinary authenticated UI,
+  sample valid CSV/OFX on both surfaces at child/edge/scrolled/filtered positions; repeated nested
+  enter/leave and outside exit; invalid/multiple/empty/oversize/spoofed feedback; picker keyboard
+  alternative; cancel/back/focus; preview then one confirmed import; responsive widths, dark and
+  reduced motion. Inspect overlay stability, mounted row count, console/network and all browser
+  storage for synthetic filename/content leakage. Close/delete the session; ask root to stop the
+  server; remove only current generated artifacts and restore `next-env.d.ts`.
+- **Evidence artifact:** record literal BASE, product/test HEAD and commit(s); exact paths/index;
+  static owner analysis; red and green commands/results/repeats/counts; typed validation/transfer/
+  cleanup design; actual DataTransfer assertions; sanitized manual observations; P13/P14
+  preservation; storage/network/privacy inspection; all inherited failures; cleanup; frozen
+  boundaries; applicable risks and any complete Q proposal. Format the new evidence before freeze
+  and do not claim independent PASS.
 - **Applicable repository guides:** `.claude/skills/import/SKILL.md`,
-  `.claude/skills/crdt/SKILL.md`, `.claude/skills/components/SKILL.md`,
-  `.claude/skills/sync/SKILL.md` and `.claude/skills/e2e/SKILL.md`; also apply the general money,
-  TypeScript, accessibility, security and testing rules.
+  `.claude/skills/components/SKILL.md`, `.claude/skills/e2e/SKILL.md`; apply CRDT/sync guidance when
+  validating preservation, plus general money, TypeScript, accessibility, security and testing
+  rules.
 - **Frozen boundary:** scratch SHA
   `f0adfef6e19b80969dae748cf8c616614af61ba778837234c97af385a19adcb1`, checked set
   HS-001/HS-002/HS-004/HS-005/HS-006/HS-008/HS-010/HS-014/HS-017/HS-018, all 21 normalized blocks
@@ -154,27 +128,25 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Independent review contract
 
-- **Reviewer:** distinct `human_scratch_reviewer`
-- **Literal cumulative review BASE:** `b9105028926d24a5a0c5454777a6c33379ca606a`
-- **Literal cumulative review HEAD:** `305d6613673cf200d456276c076463b68c075500`
-- **Range type:** original P14 BASE through the exact revision-04 product/test HEAD
-- **Implementation evidence:** `evidence/P14/implementation-04.md`
-- **Sole reviewer artifact:** `reviews/P14-review-04.md`
+- **Reviewer:** distinct `human_scratch_reviewer`, not dispatched until implementation freezes
+- **Literal cumulative review BASE:** `b3e96ba9e9487d13df56956d220fffca63d6482d`
+- **Literal review HEAD:** pending exact committed product/test HEAD
+- **Range type:** original P15 BASE through the exact revision-01 product/test HEAD
+- **Implementation evidence:** `evidence/P15/implementation-01.md`
+- **Sole reviewer artifact:** `reviews/P15-review-01.md`
 - **Reviewer writes:** the new review file only; no product/test/evidence/ledger/config/frozen edit
   or commit
-- **Required review focus:** close review-03 F-03 with real 390x844/200%-zoom focus and hover
-  containment across first, lower and right-offset virtualized rows, while preserving accessible
-  description, tooltip text/contrast, editing/navigation and non-origin absence. Revalidate closed
-  F-02/F-01 and every cumulative HS-008 acceptance clause plus evidence formatting truth.
-- **Evidence gate:** inspect the entire cumulative range; independently run F-03 E2E x3, F-02 x3
-  and retained F-01, focused x3, owner/full checks, affected/full no-retry E2E, installed-CLI exact
-  positional geometry plus cumulative count/delete/history/large/offline/privacy samples,
-  repository formatting and exact cleanup.
-- **Verdict contract:** review the literal range with explicit findings, acceptance mapping,
-  commands/repeats, manual evidence, cleanup/Q proposals and one PASS/FAIL. Any material HS-008
-  correctness, preservation, persistence, history, accessibility, security or UX finding fails.
+- **Required review focus:** independently prove both whole-surface drop targets, one shared typed
+  validator/transfer, real DataTransfer nested stability, accessible pre-navigation failures,
+  one-shot plaintext-free handoff and unchanged explicit-confirmation import workflow. Revalidate
+  P13/P14 behavior, scale, responsive/dark/reduced-motion, offline/local-first privacy and exact
+  cleanup.
+- **Verdict contract:** review literal BASE..HEAD with explicit findings, acceptance mapping,
+  independent commands/repeats, installed-CLI evidence, cleanup/Q proposals and one PASS/FAIL. Any
+  material correctness, data-loss, stale-replay, accessibility, privacy, large-file or regression
+  finding fails.
 
 ## Next root action
 
-Rewrite this handoff for P15 revision 01 and dispatch only after the finalized HS-008 boundary is
-reverified.
+Dispatch `human_scratch_implementer` for P15 revision 01 only after this handoff/progress transition
+is durably committed. Keep the reviewer undispatched and HS-013 unchecked.
