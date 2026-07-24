@@ -104,6 +104,7 @@ literal field is `pending`. Workers may read but never edit it.
   `579a6f08fa3096a92d1695a5de1184e18ce3912e5a651eda1d8202d20a99dd55`, 163 lines/14,917 bytes.
   F-01 High proves an active excluding filter hides the newly persisted selected row, leaving zero
   visible rows with one invisible selection.
+- **Revision-01 failure integration commit:** `f54526821bec08698214065c48ea237bf718fe15`
 - **Reviewer writes:** the new review file only; no product/test/evidence/ledger/config/frozen edit
   or commit
 - **Required review focus:** independently prove the special add mode is removed, every Add is an
@@ -118,5 +119,5 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Persist the immutable revision-01 FAIL artifacts/control state, link that exact commit, then
-dispatch P13 revision 02 for F-01 over the same original BASE.
+Link the immutable revision-01 failure integration commit, then dispatch P13 revision 02 for F-01
+over the same original BASE.

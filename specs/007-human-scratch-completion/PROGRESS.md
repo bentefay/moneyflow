@@ -8,7 +8,7 @@ review evidence.
 
 - **Goal status:** in progress
 - **Current package:** P13 revision 01 (`changes_requested`)
-- **Next action:** immutably persist revision-01 FAIL and dispatch revision 02 for F-01
+- **Next action:** link immutable revision-01 FAIL commit and dispatch revision 02 for F-01
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -42,7 +42,7 @@ review evidence.
 | P11B    | HS-004         | Alias management and transaction-cell pointer/keyboard UX                           | P11A                 | passed | 01 | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f..e35109dfe7b02bdb4058445f44d03a6dd678457b` | `evidence/P11B/implementation-01.md` | `reviews/P11B-review-01.md` | `0426866fa66cc022efca6d74cd5088d586d3d11b` |
 | P11C    | HS-004         | Alias import/manual/shared flows, performance hardening and exhaustive tests        | P11B                 | passed | 03 | `0426866fa66cc022efca6d74cd5088d586d3d11b..daab038ee741faa9f92a373b27efe0c8fe8940db` | `evidence/P11C/implementation-03.md` | `reviews/P11C-review-03.md` | `78e2f978f8d258d8c4d379f53e75089a2ce975db` |
 | P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | passed | 08 | `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e..a2a31839f6bb57855fa60b8cfcc06feed069cafa` | `evidence/P12/implementation-08.md` | `reviews/P12-review-08.md` | `f8cbb5a8caacb763c0bb77199595a5ee332ab729` |
-| P13     | HS-001         | Persisted normal empty Add Transaction rows and grid navigation                     | P11C, P09            | changes_requested | 01 | `415ea080b3b19191fd71601742056a619b4a3080..6276108f4ebae4e63a23cbf5d532b8843e9f0a98` | `evidence/P13/implementation-01.md` | `reviews/P13-review-01.md` | revision-01 failure pending root persistence |
+| P13     | HS-001         | Persisted normal empty Add Transaction rows and grid navigation                     | P11C, P09            | changes_requested | 01 | `415ea080b3b19191fd71601742056a619b4a3080..6276108f4ebae4e63a23cbf5d532b8843e9f0a98` | `evidence/P13/implementation-01.md` | `reviews/P13-review-01.md` | revision-01 failure `f54526821bec08698214065c48ea237bf718fe15` |
 | P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16A    | FS-001, HS-009 | Allocation/ownership validation, remainder/effective shares and exact apportionment | P01                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -1962,6 +1962,8 @@ Undo/Redo without restoring a special add mode. All other acceptance is green, i
 76/76 x3, full Vitest 1,286/1,286, affected E2E 63/63, full no-retry E2E 90/90 and the remaining
 manual charter. Exact HEAD/index/cleanup/frozen boundaries pass; no Q proposal. R-010 carries the
 finding; HS-001 remains unchecked.
+Immutable evidence, review, R-010 transcription and failure control state are committed as
+`f54526821bec08698214065c48ea237bf718fe15`.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
