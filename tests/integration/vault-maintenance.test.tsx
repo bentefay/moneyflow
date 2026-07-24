@@ -240,8 +240,10 @@ function hasConsumedShadowValue(state: VaultState, value: ConsumedShadowValue): 
     const nested = shadow.suspectedDuplicates[0];
     if (!nested) return false;
     if (value === "nested-tag") return nested.tagIds[0] === "nested-one";
+    const identity = getTransactionMaintenanceShadowIdentity(shadow);
     return (
-        nested.id.endsWith("-nested") &&
+        identity != null &&
+        nested.id === `${identity.publicId}-nested` &&
         nested.allocations["nested-one"] === 40 &&
         nested.allocations["nested-two"] === 60
     );
