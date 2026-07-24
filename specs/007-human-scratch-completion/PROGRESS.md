@@ -7,8 +7,8 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P12 revision 08 (`passed`)
-- **Next action:** dispatch next dependency-ready package P13
+- **Current package:** P13 revision 01 (`changes_requested`)
+- **Next action:** immutably persist revision-01 FAIL and dispatch revision 02 for F-01
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -20,7 +20,8 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** eight passed; HS-015 blocked externally; HS-011/HS-012 and 10 other
   requirements queued
-- **Last ledger update:** 2026-07-24; HS-005 marker finalized after P12/08 independent PASS
+- **Last ledger update:** 2026-07-24; P13 revision-01 independent review failed on active-filter Add
+  visibility/selection
 
 ## Package ledger
 
@@ -41,7 +42,7 @@ review evidence.
 | P11B    | HS-004         | Alias management and transaction-cell pointer/keyboard UX                           | P11A                 | passed | 01 | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f..e35109dfe7b02bdb4058445f44d03a6dd678457b` | `evidence/P11B/implementation-01.md` | `reviews/P11B-review-01.md` | `0426866fa66cc022efca6d74cd5088d586d3d11b` |
 | P11C    | HS-004         | Alias import/manual/shared flows, performance hardening and exhaustive tests        | P11B                 | passed | 03 | `0426866fa66cc022efca6d74cd5088d586d3d11b..daab038ee741faa9f92a373b27efe0c8fe8940db` | `evidence/P11C/implementation-03.md` | `reviews/P11C-review-03.md` | `78e2f978f8d258d8c4d379f53e75089a2ce975db` |
 | P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | passed | 08 | `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e..a2a31839f6bb57855fa60b8cfcc06feed069cafa` | `evidence/P12/implementation-08.md` | `reviews/P12-review-08.md` | `f8cbb5a8caacb763c0bb77199595a5ee332ab729` |
-| P13     | HS-001         | Persisted normal empty Add Transaction rows and grid navigation                     | P11C, P09            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
+| P13     | HS-001         | Persisted normal empty Add Transaction rows and grid navigation                     | P11C, P09            | changes_requested | 01 | `415ea080b3b19191fd71601742056a619b4a3080..6276108f4ebae4e63a23cbf5d532b8843e9f0a98` | `evidence/P13/implementation-01.md` | `reviews/P13-review-01.md` | revision-01 failure pending root persistence |
 | P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16A    | FS-001, HS-009 | Allocation/ownership validation, remainder/effective shares and exact apportionment | P01                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -1907,6 +1908,60 @@ Scratch SHA advances
 `2c52bd78c6efec683c2bc59fc2de225bb8bc997fc2f01699f90c98ddc3b65744 ->
 aa8a1f56df6716cb73071c694015030311611fc102af71b0b2e5a31cba281a8f`, 350 lines/24,247 bytes.
 The completion event is cleared and package dispatch may resume.
+
+**2026-07-24 — P13/01 `queued -> implementing`:** Dependencies P09/02 and P11A–C are passed and
+HS-005's marker event is finalized. Literal original BASE/preimplementation HEAD is
+`415ea080b3b19191fd71601742056a619b4a3080`; sole evidence is
+`evidence/P13/implementation-01.md` and future review is `reviews/P13-review-01.md`. Authority is
+limited to the ordinary Transactions page/table/row/toolbar/grid-navigation surface, narrowly
+existing transaction insertion APIs only if required, and focused transaction/keyboard/
+virtualization/integration/E2E tests. Replace the single special add form with immediate distinct
+persisted empty rows using normal affordances; prove valid defaults, rapid-add uniqueness, alias
+legality, selection/arrows/focus/virtualization, one-step Undo/Redo, reload/offline/two-tab
+convergence, accessibility and no confirm/cancel/add-only state. Component, CRDT, sync and E2E
+repository guides apply. Full focused x3, full Vitest/checks, affected x3 and full no-retry E2E,
+installed-CLI charter, cleanup and frozen checks are mandatory. Reviewer is undispatched; HS-001
+remains unchecked.
+
+**2026-07-24 — P13/01 authority expansion:** Removing the authorized dead
+`AddTransactionRow.tsx` implementation requires removing its export from
+`src/components/features/transactions/index.ts`; root authorizes exactly that barrel-export edit.
+The worker may not add any other unlisted path without a reproduced blocker and prior root
+expansion. Revision, BASE, evidence/review paths, acceptance and frozen boundary remain unchanged.
+
+**2026-07-24 — P13/01 retained-E2E authority expansion:** After the ordinary-row implementation,
+the existing description-alias pointer journey times out on removed `new-transaction-description`
+controls and the tab-duplication journey times out on its removed Description/0.00 special-form
+block. A compatibility shim would restore the forbidden add-only UX. Root therefore authorizes
+exactly `tests/e2e/description-aliases.spec.ts` and `tests/e2e/tab-duplication.spec.ts` to drive the
+selected ordinary row instead; only the alias journey's Add-then-edit Undo expectation may change
+with it. No additional product or E2E path is authorized.
+
+**2026-07-24T20:07:05+10:00 — P13/01 `implementing -> ready_for_review -> reviewing`:** Exact
+product/test HEAD `6276108f4ebae4e63a23cbf5d532b8843e9f0a98` is one commit over literal BASE
+`415ea080b3b19191fd71601742056a619b4a3080`, with exactly 15 authorized paths and deletion of the
+dead add-only component. Frozen evidence `evidence/P13/implementation-01.md` is 227 lines/15,227
+bytes at SHA-256 `910135f64546a22d41218df0f7ce3c00c5b7b5434604108e057e51770a22c9f9`.
+Each Add now inserts/selects a distinct persisted ordinary empty row using valid account/status/date/
+amount/description/alias/tag/note/allocation defaults; special submit/cancel mode and Add disabling
+are removed. Reported green: focused 76/76 x3, full Vitest 1,286/1,286, type/lint/build, entire
+Transactions E2E 37/37, affected no-retry repeats 63/63, full no-retry E2E 90/90 and the complete
+rapid-add/grid/history/reload/offline/two-tab/responsive manual charter. Root verifies exact HEAD/
+parent/path/index, evidence identity, cleanup, restored generated state and frozen hashes. Reviewer
+alone writes `reviews/P13-review-01.md`; HS-001 remains unchecked.
+
+**2026-07-24 — P13/01 `reviewing -> changes_requested`:** Independent review
+`reviews/P13-review-01.md` is 163 lines/14,917 bytes at SHA-256
+`579a6f08fa3096a92d1695a5de1184e18ce3912e5a651eda1d8202d20a99dd55` and returns FAIL. F-01 High
+reproduces in the real app: with an excluding search/filter active, Add persists and selects a legal
+default transaction but the table remains empty, the toolbar reports
+`0 transactions (filtered) · 1 selected`, and Bulk Edit targets the inaccessible row; clearing the
+filter reveals it. Revision 02 must apply a predictable reveal policy for every filter class, keep
+visible row/count/selection coherent, and cover filter→Add→visible ordinary row plus reload and
+Undo/Redo without restoring a special add mode. All other acceptance is green, including focused
+76/76 x3, full Vitest 1,286/1,286, affected E2E 63/63, full no-retry E2E 90/90 and the remaining
+manual charter. Exact HEAD/index/cleanup/frozen boundaries pass; no Q proposal. R-010 carries the
+finding; HS-001 remains unchecked.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
