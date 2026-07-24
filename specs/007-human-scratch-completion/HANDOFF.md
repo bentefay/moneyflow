@@ -5,15 +5,24 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Implementation dispatch
 
-- **Package / revision:** P13 / 02
+- **Package / revision:** P13 / 03
 - **Scope IDs:** HS-001 only; normal persisted empty Add Transaction rows; HS-001 remains incomplete
   and unchecked
-- **State:** changes_requested; revisions 01 and 02 become immutable after root persistence; HS-001
-  remains unchecked
+- **State:** passed after current root integration; revisions 01–03 are immutable; HS-001 remains
+  unchecked until the separate root marker transaction
 - **Task:** `tasks/HS-001-add-transaction-rows.md`; exact 5-line HS-001 block in SCOPE
 - **Dependencies:** P09/02 and P11A–C are passed; P13 is independent of blocked P05/P08/P10
 - **Literal original BASE / pre-implementation HEAD:**
   `415ea080b3b19191fd71601742056a619b4a3080`
+- **Revision-03 pre-implementation HEAD:** `8971b63cf9671652c5739cb68681c42302813f6c`
+- **Literal revision-03 product/test HEAD:** `9f307e200676711ca2a3ba81bd816314807434ad`
+- **Revision-03 commit:** `9f307e200676711ca2a3ba81bd816314807434ad`; exactly
+  `src/app/(app)/transactions/page.tsx` and `tests/e2e/transactions.spec.ts`
+- **Frozen implementation evidence:** `evidence/P13/implementation-03.md`, SHA-256
+  `1b6a949b7136b3e5aa3448f9815a9437624b1fb7c80a63951c49555fd67a2f2d`, 212 lines/14,968 bytes
+- **Frozen revision-03 review:** `reviews/P13-review-03.md`, PASS, SHA-256
+  `d875ee06c2899bf28b96d2045df288cc2fc15a9b27af67492a293656befc5eda`, 177 lines/18,583 bytes.
+  Review-02 F-01 closes with no High/Medium finding; the exact cumulative range satisfies HS-001.
 - **Revision-02 pre-implementation HEAD:** `57398ea27d2af6523d26ccc3227433feaebe29e3`
 - **Literal revision-02 product/test HEAD:** `8f6e4f2ad77da24016169a79286a9727f3394aca`
 - **Revision-02 commit:** `8f6e4f2ad77da24016169a79286a9727f3394aca`; exactly
@@ -30,7 +39,7 @@ literal field is `pending`. Workers may read but never edit it.
   product/test paths, including deletion of the dead `AddTransactionRow.tsx`
 - **Frozen implementation evidence:** `evidence/P13/implementation-01.md`, SHA-256
   `910135f64546a22d41218df0f7ce3c00c5b7b5434604108e057e51770a22c9f9`, 227 lines/15,227 bytes
-- **Allowed revision-02 implementation paths:** exactly
+- **Allowed revision-03 implementation paths:** exactly
   `src/app/(app)/transactions/page.tsx` and focused behavior-led coverage in
   `tests/e2e/transactions.spec.ts`. No other component/hook/CRDT/test path, routes/styles/schema/
   migrations/import/sync/transport/server/database/auth/crypto/realtime, dependencies/config,
@@ -42,14 +51,14 @@ literal field is `pending`. Workers may read but never edit it.
   and `tests/e2e/tab-duplication.spec.ts` are authorized only to replace independently reproduced
   removed special-form selectors with the selected ordinary-row workflow and correct the associated
   Add-then-edit Undo expectation.
-- **Sole implementer artifact:** `evidence/P13/implementation-02.md`
-- **Future immutable review artifact:** `reviews/P13-review-02.md`
+- **Sole implementer artifact:** `evidence/P13/implementation-03.md`
+- **Future immutable review artifact:** `reviews/P13-review-03.md`
 - **Commit contract:** inspect existing patterns first; stage exact authorized paths only; commit
   product/test work with a short message containing no parentheses; leave evidence uncommitted.
   Never use `git add .` or `git add -A`.
 - **Review-start dirty paths:** root-owned unstaged `HANDOFF.md` and `PROGRESS.md` plus the sole
-  untracked frozen implementation evidence; no staged, product, executable, generated or other dirty
-  path
+  untracked frozen implementation evidence; no staged, product, executable, generated, review or
+  other dirty path
 - **Required behavior:** every Add click atomically inserts a distinct persisted transaction with
   valid defaults and predictable selection/focus. Rapid clicks create multiple rows. Each row
   immediately uses the normal selectable/editable/deletable/status/account/date/grid affordances;
@@ -73,6 +82,14 @@ literal field is `pending`. Workers may read but never edit it.
   policy may clear active filters before/with creation or narrowly include the new row, but must not
   restore a special add mode or compatibility form. Prove filter→Add→visible ordinary row, then
   reload and one-step Add Undo/Redo restoring the same logical ID and coherent filter state.
+- **Revision-03 closure:** reproduce review-02 F-01 with more than `PAGE_SIZE` legal transactions
+  that sort ahead of today's new row. Reconcile the created logical ID with filters, pagination and
+  displayed selection in the same Add interaction. Preserve canonical ordering and bounded
+  virtualization, but immediately render and select the ordinary row without scroll/load-more;
+  Bulk Edit/count/selection must never target an undisplayed transaction. Add behavior-led E2E for
+  excluding-filter→Add with more than 50 higher-sorted rows, visible exact created ID/defaults,
+  one-step Undo/Redo restoring that ID, and reload/persistence proof. Retain the seven-filter matrix
+  and do not restore a special mode or compatibility form.
 - **Required automation:** repeat the focused P13 unit/integration profile in at least three clean
   processes; run full Vitest, typecheck, lint, build, changed-path formatting and repository checks.
   Repeat affected E2E journeys at least three times with retries disabled and run the full no-retry
@@ -102,20 +119,26 @@ literal field is `pending`. Workers may read but never edit it.
 
 - **Reviewer:** distinct `human_scratch_reviewer`
 - **Literal cumulative review BASE:** `415ea080b3b19191fd71601742056a619b4a3080`
-- **Literal revision-02 HEAD:** `8f6e4f2ad77da24016169a79286a9727f3394aca`
-- **Range type:** cumulative original P13 BASE through revision-02 product/test HEAD
-- **Implementation evidence:** `evidence/P13/implementation-02.md`
-- **Sole reviewer artifact:** `reviews/P13-review-02.md`
+- **Literal revision-03 HEAD:** `9f307e200676711ca2a3ba81bd816314807434ad`
+- **Range type:** cumulative original P13 BASE through revision-03 product/test HEAD
+- **Implementation evidence:** `evidence/P13/implementation-03.md`
+- **Sole reviewer artifact:** `reviews/P13-review-03.md`
+- **Revision-02 review:** FAIL, SHA-256
+  `157dfc363788966f90fd5dca0f23506f65a75f4794261359ab89f443d9603b91`, 204 lines/21,835 bytes.
+  The seven filter classes pass, but the selected created row can remain outside the 50-row
+  displayed slice until load-more.
 - **Revision-01 review:** FAIL, SHA-256
   `579a6f08fa3096a92d1695a5de1184e18ce3912e5a651eda1d8202d20a99dd55`, 163 lines/14,917 bytes.
   F-01 High proves an active excluding filter hides the newly persisted selected row, leaving zero
   visible rows with one invisible selection.
+- **Revision-02 failure integration commit:** `282b1d64b94c0e5614f3db5b723f99b23923cf44`
 - **Revision-01 failure integration commit:** `f54526821bec08698214065c48ea237bf718fe15`
 - **Reviewer writes:** the new review file only; no product/test/evidence/ledger/config/frozen edit
   or commit
-- **Required review focus:** independently close review-01 F-01 across excluding search/account/tag/
-  person/status/date/duplicates filters with immediate visible ordinary row and coherent count/
-  selection/filter state, reload and Undo/Redo. Revalidate all cumulative revision-01 acceptance.
+- **Required review focus:** independently close review-02 F-01 with more than `PAGE_SIZE`
+  higher-sorted legal transactions, immediate visible exact-ID ordinary row, coherent displayed
+  selection/count/filter state, reload and Undo/Redo. Revalidate both prior findings and all
+  cumulative acceptance.
 - **Evidence gate:** inspect the complete range and every production Add surface; independently run
   focused tests x3, full checks, affected/full no-retry E2E, installed-CLI pointer/keyboard/
   responsive/offline/two-tab/privacy charter and exact cleanup.
@@ -125,5 +148,5 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Link the immutable revision-02 failure integration commit, then dispatch P13 revision 03 for the
-remaining pagination visibility defect over the same original BASE.
+Persist the immutable revision-03 PASS artifacts and root transcriptions, then durably prepare and
+execute the exact HS-001 `[] -> [x]` marker transaction.

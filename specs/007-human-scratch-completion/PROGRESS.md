@@ -7,9 +7,8 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P13 revision 02 (`changes_requested`)
-- **Next action:** link immutable revision-02 FAIL commit and dispatch revision 03 for
-  pagination-aware created-row visibility
+- **Current package:** P13 revision 03 (`passed` after current root integration)
+- **Next action:** persist revision-03 PASS, then durably prepare HS-001 completion marker
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -19,10 +18,10 @@ review evidence.
 - **Active completion marker event:** none
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
-- **Requirement state:** eight passed; HS-015 blocked externally; HS-011/HS-012 and 10 other
-  requirements queued
-- **Last ledger update:** 2026-07-24; P13 revision-02 independent review failed because pagination
-  can hide the newly selected row behind 50 higher-sorted transactions
+- **Requirement state:** eight passed; HS-001 completion pending after P13 PASS; HS-015 blocked
+  externally; HS-011/HS-012 and nine other requirements queued
+- **Last ledger update:** 2026-07-24; P13 revision-03 independently passed and root integration is
+  pending
 
 ## Package ledger
 
@@ -43,7 +42,7 @@ review evidence.
 | P11B    | HS-004         | Alias management and transaction-cell pointer/keyboard UX                           | P11A                 | passed | 01 | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f..e35109dfe7b02bdb4058445f44d03a6dd678457b` | `evidence/P11B/implementation-01.md` | `reviews/P11B-review-01.md` | `0426866fa66cc022efca6d74cd5088d586d3d11b` |
 | P11C    | HS-004         | Alias import/manual/shared flows, performance hardening and exhaustive tests        | P11B                 | passed | 03 | `0426866fa66cc022efca6d74cd5088d586d3d11b..daab038ee741faa9f92a373b27efe0c8fe8940db` | `evidence/P11C/implementation-03.md` | `reviews/P11C-review-03.md` | `78e2f978f8d258d8c4d379f53e75089a2ce975db` |
 | P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | passed | 08 | `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e..a2a31839f6bb57855fa60b8cfcc06feed069cafa` | `evidence/P12/implementation-08.md` | `reviews/P12-review-08.md` | `f8cbb5a8caacb763c0bb77199595a5ee332ab729` |
-| P13     | HS-001         | Persisted normal empty Add Transaction rows and grid navigation                     | P11C, P09            | changes_requested | 02 | `415ea080b3b19191fd71601742056a619b4a3080..8f6e4f2ad77da24016169a79286a9727f3394aca` | `evidence/P13/implementation-02.md` | `reviews/P13-review-02.md` | revision-02 failure `282b1d64b94c0e5614f3db5b723f99b23923cf44` |
+| P13     | HS-001         | Persisted normal empty Add Transaction rows and grid navigation                     | P11C, P09            | passed | 03 | `415ea080b3b19191fd71601742056a619b4a3080..9f307e200676711ca2a3ba81bd816314807434ad` | `evidence/P13/implementation-03.md` | `reviews/P13-review-03.md` | pending current root integration |
 | P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16A    | FS-001, HS-009 | Allocation/ownership validation, remainder/effective shares and exact apportionment | P01                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -2008,6 +2007,49 @@ resolved by the clean full rerun plus three exact isolated passes. Exact HEAD/in
 boundaries pass; no Q proposal. R-010 carries the remaining finding; HS-001 remains unchecked.
 Immutable revision-02 evidence, review, R-010 transcription and failure control state are committed
 as `282b1d64b94c0e5614f3db5b723f99b23923cf44`.
+
+**2026-07-24T21:25:00+10:00 — P13/03 `changes_requested -> implementing`:** Revision-02 failure is
+immutable at `282b1d64b94c0e5614f3db5b723f99b23923cf44`; clean preimplementation HEAD is
+`8971b63cf9671652c5739cb68681c42302813f6c`, while cumulative BASE remains
+`415ea080b3b19191fd71601742056a619b4a3080`. Sole evidence is
+`evidence/P13/implementation-03.md`; future review is `reviews/P13-review-03.md`. Authority is
+exactly the Transactions page and focused `transactions.spec.ts` coverage. Close the remaining F-01
+with more than `PAGE_SIZE` legal higher-sorted transactions: the created logical ID must be in the
+displayed slice and selected immediately without load-more, count/Bulk Edit/selection must never
+target an undisplayed row, and canonical ordering plus bounded virtualization must remain intact.
+Prove exact-ID/defaults, one-step Undo/Redo and reload persistence while retaining all seven filter
+classes and all cumulative P13 automation/manual/cleanup/frozen gates. Reviewer is undispatched and
+HS-001 remains unchecked.
+
+**2026-07-24T22:05:39+10:00 — P13/03 `implementing -> ready_for_review -> reviewing`:** Exact
+product/test HEAD `9f307e200676711ca2a3ba81bd816314807434ad` changes only the Transactions page and
+`transactions.spec.ts` from clean preimplementation HEAD
+`8971b63cf9671652c5739cb68681c42302813f6c`. Frozen evidence
+`evidence/P13/implementation-03.md` is 212 lines/14,968 bytes at SHA-256
+`1b6a949b7136b3e5aa3448f9815a9437624b1fb7c80a63951c49555fd67a2f2d`. Add computes the created
+row's canonical index, expands the displayed prefix to the containing page boundary, scrolls the
+existing virtualized grid to that row and derives count/Bulk Edit selection only from displayed
+IDs. Reported green: exact pagination 1/1, focused 76/76 x3, full Vitest 1,286/1,286,
+type/lint/build, affected no-retry 69/69, full no-retry E2E 92/92 and the complete >PAGE_SIZE
+pagination/seven-filter/history/reload/rapid-add/grid/offline/two-tab/responsive/privacy manual
+charter. One combined diagnostic's unchanged virtualization journey timed out, then passed isolated
+3/3 and in both final matrices; evidence records it exactly. Root verifies exact HEAD/parent/
+two-path range/index, evidence identity, cleanup, restored generated state, no task process/listener
+and frozen hashes. Review-generated `.next` was moved to recoverable trash after the root server
+stopped. Reviewer alone writes `reviews/P13-review-03.md`; HS-001 remains unchecked.
+
+**2026-07-24T22:42:28+10:00 — P13/03 `reviewing -> passed`; artifact integration pending:**
+Independent cumulative review `reviews/P13-review-03.md` is 177 lines/18,583 bytes at SHA-256
+`d875ee06c2899bf28b96d2045df288cc2fc15a9b27af67492a293656befc5eda` and returns PASS over exact
+`415ea080b3b19191fd71601742056a619b4a3080..9f307e200676711ca2a3ba81bd816314807434ad`.
+Review-02 F-01 closes: more than `PAGE_SIZE` legal higher-sorted rows now produce an immediately
+visible selected ordinary row at canonical index 51, only 17 mounted rows, coherent count/Bulk Edit
+and preserved Add focus. Exact-ID Undo/Redo, reload, rapid Add, all seven filters, grid/alias/
+ordinary editing, offline/two-tab convergence, encrypted sync and responsive behavior pass.
+Independent focused 76/76 x3, full Vitest 1,286/1,286, exact pagination 1/1, broader affected
+no-retry 147/147 and full no-retry E2E 92/92 pass. Exact HEAD/index/cleanup/frozen boundaries pass;
+no High/Medium finding or Q proposal. Root acceptance integrates R-009/R-010 transcriptions;
+HS-001 remains unchecked until the separate durable marker event.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
