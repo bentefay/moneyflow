@@ -9,7 +9,7 @@ literal field is `pending`. Workers may read but never edit it.
 - **Scope IDs:** FS-001 and HS-009; this package owns allocation/ownership validation, owner
   remainder/effective allocation and exact signed-minor-unit apportionment only. Neither requirement
   can complete from P16A alone.
-- **State:** revision-02 implementation frozen; ready for independent review
+- **State:** reviewing revision-02 frozen implementation
 - **Binding tasks:** `tasks/FS-001-transaction-percentage-allocations-settlement.md` P16A and
   `tasks/HS-009-allocation-bounds.md` P16A
 - **Canonical authority:** read all 715 lines of
@@ -155,8 +155,8 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Independent review contract
 
-- **Reviewer:** distinct `human_scratch_reviewer`; dispatch only after the frozen evidence and this
-  review transition are committed
+- **Reviewer:** distinct `human_scratch_reviewer`, dispatched only after frozen evidence commit
+  `9f57538a07fd369093e5253eef0111d9d0218b63`
 - **Literal cumulative review BASE:** `1b42d27e11494a167a4768e0c2c308010aa51651`
 - **Literal revision-02 HEAD:** `f84f66758708529c44342313e8632ee8b7dcead3`
 - **Implementation evidence:** `evidence/P16A/implementation-02.md`
@@ -177,7 +177,6 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Commit the frozen revision-02 evidence and review transition, then dispatch
-`human_scratch_reviewer` over literal cumulative range
+Await `human_scratch_reviewer`'s independent verdict over literal cumulative range
 `1b42d27e11494a167a4768e0c2c308010aa51651..f84f66758708529c44342313e8632ee8b7dcead3`
 with sole output `reviews/P16A-review-02.md`. Keep HS-009 unchecked and FS-001 immutable/open.

@@ -7,8 +7,9 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P16A revision 02 (`ready_for_review`; frozen implementation evidence)
-- **Next action:** dispatch `human_scratch_reviewer` over literal cumulative range
+- **Current package:** P16A revision 02 (`reviewing`; frozen implementation evidence)
+- **Next action:** await `human_scratch_reviewer`'s independent verdict over literal cumulative
+  range
   `1b42d27e11494a167a4768e0c2c308010aa51651..f84f66758708529c44342313e8632ee8b7dcead3`
   with sole output `reviews/P16A-review-02.md`
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
@@ -48,7 +49,7 @@ review evidence.
 | P13     | HS-001         | Persisted normal empty Add Transaction rows and grid navigation                     | P11C, P09            | passed | 03 | `415ea080b3b19191fd71601742056a619b4a3080..9f307e200676711ca2a3ba81bd816314807434ad` | `evidence/P13/implementation-03.md` | `reviews/P13-review-03.md` | `7a04338fa7c3f68463d12d11082bc56e87c1872b` |
 | P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | passed | 04 | `b9105028926d24a5a0c5454777a6c33379ca606a..305d6613673cf200d456276c076463b68c075500` | `evidence/P14/implementation-04.md` | `reviews/P14-review-04.md` | `a2182116db08200b8b4df28412512b9ca3406aa2` |
 | P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | passed | 02 | `b3e96ba9e9487d13df56956d220fffca63d6482d..91931688ef9463576b757a097968af543a4b8a75` | `evidence/P15/implementation-02.md` | `reviews/P15-review-02.md` | `9c5d7be8ee4cf7c3fda5f1a7320c053362672e3a` |
-| P16A    | FS-001, HS-009 | Allocation/ownership validation, remainder/effective shares and exact apportionment | P01                  | ready_for_review | 02 | `1b42d27e11494a167a4768e0c2c308010aa51651..f84f66758708529c44342313e8632ee8b7dcead3` | `evidence/P16A/implementation-02.md` | `reviews/P16A-review-02.md` | revision-01 failure `ab5334d8d1311119f0e0240aea2e92ade239aa15` |
+| P16A    | FS-001, HS-009 | Allocation/ownership validation, remainder/effective shares and exact apportionment | P01                  | reviewing | 02 | `1b42d27e11494a167a4768e0c2c308010aa51651..f84f66758708529c44342313e8632ee8b7dcead3` | `evidence/P16A/implementation-02.md` | `reviews/P16A-review-02.md` | evidence freeze `9f57538a07fd369093e5253eef0111d9d0218b63` |
 | P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16C    | FS-001, HS-009 | CRDT per-key/complete-set APIs and every mutation, hydration and history path       | P16A, P16B, P09, P14 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16D    | FS-001, HS-009 | Actual grid/add-row person columns, virtualization, history and presence UX         | P16C, P13            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -2525,6 +2526,18 @@ must cover original cumulative BASE
 `1b42d27e11494a167a4768e0c2c308010aa51651` through the exact newest HEAD above and close F-01
 without weakening the independently proven 10,000-case financial math. HS-009 remains unchecked
 and FS-001 remains immutable/open.
+
+**2026-07-25T08:17:16+10:00 — P16A/02 `ready_for_review -> reviewing`:** Frozen revision-02
+evidence and its exact review boundary are durable in control commit
+`9f57538a07fd369093e5253eef0111d9d0218b63`. Distinct `human_scratch_reviewer` receives literal
+cumulative range
+`1b42d27e11494a167a4768e0c2c308010aa51651..f84f66758708529c44342313e8632ee8b7dcead3`,
+frozen `evidence/P16A/implementation-02.md` at SHA-256
+`8262393794bafe48d428e21bdcb39f0a51bb64fe65d735f7bb21f5f45e923868`, immutable revision-01
+failure review and sole new output `reviews/P16A-review-02.md`. Reviewer may write only that review
+artifact and must independently close F-01 across the complete runtime result graph while
+re-proving the canonical financial math and assigned gates. HS-009 remains unchecked and FS-001
+remains immutable/open.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
