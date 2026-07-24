@@ -2134,6 +2134,55 @@ same live linked identity set, add the exact stale-count/delete/history/isolatio
 format its new evidence accurately. No Q proposal; exact HEAD/index/cleanup/frozen boundaries pass;
 HS-008 remains unchecked.
 
+**2026-07-25T00:29:40+10:00 — P14/02 `changes_requested -> implementing`:** Revision-01
+evidence/review and F-01 are immutable in control commit
+`7db79a68db5e08f9ad4f8dfd0b01fb16b31b98a2`; original cumulative review BASE remains
+`b9105028926d24a5a0c5454777a6c33379ca606a`, and the exact revision-02 pre-implementation HEAD is
+`7db79a68db5e08f9ad4f8dfd0b01fb16b31b98a2`. Sole new evidence is
+`evidence/P14/implementation-02.md`; future review is `reviews/P14-review-02.md`. Authority is
+narrowed to the imports-page live canonical transaction projection, its existing table/dialog data
+boundary, the checked-in import E2E, and only proven focused query/operation tests. Reproduce four →
+ordinary-delete one → three live while dialog says four, then derive truthful destructive feedback
+from the same live import identity set and prove exact three-row delete, one-step Undo/Redo,
+independently deleted-row absence and cross-import/manual preservation. Repeat the exact no-retry
+journey x3, retain full cumulative gates/CLI samples, and report repository formatting exactly;
+format the new evidence without altering revision-01 evidence. HS-008 remains unchecked and the
+reviewer is undispatched.
+
+**2026-07-25T01:03:42+10:00 — P14/02 `implementing -> ready_for_review -> reviewing`:** Exact
+cumulative product/test HEAD is `93d89145fe910a1348ccd4a4f0c79f2022801465`; the revision-02 delta
+from pre-HEAD `7db79a68db5e08f9ad4f8dfd0b01fb16b31b98a2` is exactly
+`src/app/(app)/imports/page.tsx` and `tests/e2e/import.spec.ts`, 58 insertions/11 deletions.
+Frozen evidence `evidence/P14/implementation-02.md` is 156 lines/11,793 bytes at SHA-256
+`e7d8dcf685f920f1ab182a2719fb3573fc3daceb199c01852505eaefad5eeb52`. Unchanged-product F-01
+reproduced live/table/dialog `3/4`; the imports page now counts the existing canonical active
+transaction projection by non-empty import ID and passes the current cardinality through the
+existing table/dialog boundary. Reported green includes exact F-01 3/3, focused 118/118 x3, owner
+195/195, clean full Vitest 1,296/1,296 after an inherited timing red/isolated 43/43 diagnostic,
+affected E2E 60/60, full E2E 93/93 and installed-CLI exact current count/delete/Undo/Redo plus
+cumulative tooltip/zoom/large/offline/privacy samples. Revision-02 evidence passes exact formatting
+and truthfully records the same 14 inherited repository Markdown failures, including immutable
+revision-01 evidence. Root verifies exact HEAD/range/path/index/cleanup, prior artifact hashes,
+scratch/21 blocks, FS-001 and SCOPE. Reviewer alone may write `reviews/P14-review-02.md`; HS-008
+remains unchecked.
+
+**2026-07-25T01:36:23+10:00 — P14/02 `reviewing -> changes_requested`:** Immutable independent
+review `reviews/P14-review-02.md` is 191 lines/14,936 bytes at SHA-256
+`e6c4d2fdbd4ce5b2c5d6db75f6451a19d0a1901bb769640a1933e9fa9fdab7c4` and returns FAIL over exact
+`b9105028926d24a5a0c5454777a6c33379ca606a..93d89145fe910a1348ccd4a4f0c79f2022801465`.
+F-02 Medium Requirements/UX proves the revision-02 projection counts only top-level
+`getAllTransactions()` rows while normal duplicate import stores a distinct imported identity in
+`suspectedDuplicates` and atomic deletion removes it. Installed normal UI reproduced nested import
+table/dialog count zero, confirm deleting one nested transaction/record, Undo restoring both and
+Redo removing both while the other-import parent survived. Revision-01 F-01 remains fixed for
+ordinary parents. Independent focused 118/118 x3, owner 195/195, full Vitest 1,296/1,296, F-01 E2E
+3/3, affected E2E 60/60 and full E2E 93/93 pass; cumulative CLI origin/zoom/contrast/1,000-row/
+encryption/offline/two-tab samples pass, with an uncredited final CLI reload probe closing
+unexpectedly. Revision 03 must centralize complete active parent+nested distinct-ID enumeration,
+deduplicate relocation/conflict copies with deletion-equivalent identity semantics, and add normal
+nested-import count/delete/Undo/Redo coverage. No Q proposal; exact HEAD/index/cleanup/frozen
+boundaries pass; HS-008 remains unchecked.
+
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
 owning/affected package; every impacted requirement; ordered pending set of all impacted checked HS
