@@ -7,10 +7,9 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P14 revision 01 (`implementing`)
-- **Next action:** implement and validate import lineage, original-amount provenance, atomic
-  reversible deletion and 1,000-row persistence from exact BASE
-  `b9105028926d24a5a0c5454777a6c33379ca606a`
+- **Current package:** P14 revision 03 (`changes_requested`)
+- **Next action:** persist immutable revision-03 FAIL artifacts and F-03, then dispatch revision 04
+  for collision-aware 200%-zoom tooltip containment with positional focus/hover coverage
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -23,7 +22,8 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** nine passed; HS-015 blocked externally; HS-011/HS-012 and nine other
   requirements queued
-- **Last ledger update:** 2026-07-24; P14 revision-01 dispatched for HS-008
+- **Last ledger update:** 2026-07-25; P14 revision-03 independent review failed on tooltip
+  containment F-03
 
 ## Package ledger
 
@@ -45,7 +45,7 @@ review evidence.
 | P11C    | HS-004         | Alias import/manual/shared flows, performance hardening and exhaustive tests        | P11B                 | passed | 03 | `0426866fa66cc022efca6d74cd5088d586d3d11b..daab038ee741faa9f92a373b27efe0c8fe8940db` | `evidence/P11C/implementation-03.md` | `reviews/P11C-review-03.md` | `78e2f978f8d258d8c4d379f53e75089a2ce975db` |
 | P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | passed | 08 | `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e..a2a31839f6bb57855fa60b8cfcc06feed069cafa` | `evidence/P12/implementation-08.md` | `reviews/P12-review-08.md` | `f8cbb5a8caacb763c0bb77199595a5ee332ab729` |
 | P13     | HS-001         | Persisted normal empty Add Transaction rows and grid navigation                     | P11C, P09            | passed | 03 | `415ea080b3b19191fd71601742056a619b4a3080..9f307e200676711ca2a3ba81bd816314807434ad` | `evidence/P13/implementation-03.md` | `reviews/P13-review-03.md` | `7a04338fa7c3f68463d12d11082bc56e87c1872b` |
-| P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | implementing | 01 | BASE/pre-HEAD `b9105028926d24a5a0c5454777a6c33379ca606a`                              | `evidence/P14/implementation-01.md` | `reviews/P14-review-01.md` | —                                          |
+| P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | changes_requested | 03 | `b9105028926d24a5a0c5454777a6c33379ca606a..cf6456eeb5bd4029ae57eeb83da7e53194396a4d` | `evidence/P14/implementation-03.md` | `reviews/P14-review-03.md` | —                                          |
 | P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16A    | FS-001, HS-009 | Allocation/ownership validation, remainder/effective shares and exact apportionment | P01                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -2182,6 +2182,56 @@ unexpectedly. Revision 03 must centralize complete active parent+nested distinct
 deduplicate relocation/conflict copies with deletion-equivalent identity semantics, and add normal
 nested-import count/delete/Undo/Redo coverage. No Q proposal; exact HEAD/index/cleanup/frozen
 boundaries pass; HS-008 remains unchecked.
+
+**2026-07-25T01:39:04+10:00 — P14/03 `changes_requested -> implementing`:** Revision-02
+evidence/review and F-02 are immutable in control commit
+`3f9597873ea965638a8f53e08ced339cdc3ce8ca`; original cumulative review BASE remains
+`b9105028926d24a5a0c5454777a6c33379ca606a`, and the exact revision-03 pre-implementation HEAD is
+`3f9597873ea965638a8f53e08ced339cdc3ce8ca`. Sole new evidence is
+`evidence/P14/implementation-03.md`; future review is `reviews/P14-review-03.md`. Authority is
+exactly the canonical transaction query, its context hook, imports-page consumer, focused query
+unit test and import E2E. Centralize complete public parent/nested enumeration, collapse physical
+relocation/conflict copies by logical ID, filter active identities with deletion-equivalent
+semantics, and leave the parent-only transaction-grid contract and sound atomic mutation unchanged.
+Reproduce the ordinary duplicate-import zero-count red; prove parent and nested counts one, exact
+nested delete/Undo/Redo and parent/cross-import/manual preservation. Retain F-01 and every cumulative
+HS-008 gate, run required repeated/full automated and installed-CLI evidence, report the 14 inherited
+format failures exactly and format only the new evidence. Both prior revisions remain immutable,
+HS-008 remains unchecked and the reviewer is undispatched.
+
+**2026-07-25T02:18:06+10:00 — P14/03 `implementing -> ready_for_review -> reviewing`:** Exact
+cumulative product/test HEAD is `cf6456eeb5bd4029ae57eeb83da7e53194396a4d`; the revision-03 delta
+from pre-HEAD `3f9597873ea965638a8f53e08ced339cdc3ce8ca` is exactly the five authorized
+query/context/imports-page/unit/E2E paths, 275 insertions/5 deletions. Frozen evidence
+`evidence/P14/implementation-03.md` is 159 lines/11,901 bytes at SHA-256
+`c07a417ba39a58801e7d411adcd4c87c47614e526d6c35aa1e456a306e85eb8d`. Unchanged revision-02 F-02
+reproduced expected-one/received-zero and two missing-query unit reds. The new separate canonical
+projection enumerates active public parents/nested identities and collapses relocation/conflict
+copies by logical ID while leaving the transaction-grid hook and delete mutation unchanged.
+Reported green includes F-02 3/3, retained F-01 1/1, focused 120/120 x3, owner 197/197, full Vitest
+1,298/1,298, affected E2E 61/61 and full E2E 94/94 with retries zero. Installed CLI reports exact
+nested count/delete/Undo/Redo, stale-parent count, lineage/accessibility, 1,000-row reload/
+virtualization, encrypted request privacy, offline origin, duplicate-tab convergence and clean final
+console. Root stopped the keyed server, restored generated source, recoverably cleaned only current
+task artifacts, verified exact HEAD/range/path/index/artifact formatting/prior hashes and all frozen
+boundaries. Reviewer alone may now write `reviews/P14-review-03.md`; HS-008 remains unchecked.
+
+**2026-07-25T02:49:55+10:00 — P14/03 `reviewing -> changes_requested`:** Immutable independent
+review `reviews/P14-review-03.md` is 201 lines/16,049 bytes at SHA-256
+`e5df38ff0486c5f65d8f734e7dcdd87522ea169667f477d1bdaac6f1f1b57af8` and returns FAIL over exact
+`b9105028926d24a5a0c5454777a6c33379ca606a..cf6456eeb5bd4029ae57eeb83da7e53194396a4d`.
+F-03 Medium Accessibility/UX deterministically proves row-position-dependent original-amount
+tooltip clipping at 390x844/200% zoom: a focused/hovered lower visible edited imported row places
+the tooltip wholly below the viewport, and an offset virtualized row overflows right by 42px, while
+the first-row control is contained and the programmatic description remains correct. F-01 and F-02
+are closed. Independent focused 120/120 x3, owner 197/197, full Vitest 1,298/1,298, F-02 3/3,
+F-01 1/1, affected E2E 61/61 and full E2E 94/94 pass with static/build/format gates; installed CLI
+also confirms count/delete/history, lineage/origin/contrast, 1,000-row reload, encryption,
+offline/two-tab and clean final reload. Revision 04 must implement collision-aware positioning in
+the actual zoomed viewport/nested scroll context and add deterministic lower/right-offset focus and
+hover containment tests. Root stopped the server, restored generated source and recoverably cleaned
+only review artifacts. No Q proposal; exact HEAD/index/frozen boundaries pass; HS-008 remains
+unchecked.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
