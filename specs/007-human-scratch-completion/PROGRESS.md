@@ -7,8 +7,8 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P12 revision 07 (`changes_requested`)
-- **Next action:** link immutable revision-07 FAIL commit and dispatch revision 08 for F-08/F-09
+- **Current package:** P12 revision 08 (`passed` after current root integration)
+- **Next action:** persist revision-08 PASS, then durably prepare HS-005 completion marker
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -18,10 +18,9 @@ review evidence.
 - **Active completion marker event:** none
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
-- **Requirement state:** seven passed; HS-005 changes requested through P12; HS-015 blocked externally;
+- **Requirement state:** seven passed; HS-005 completion pending after P12 PASS; HS-015 blocked externally;
   HS-011/HS-012 and 11 other requirements queued
-- **Last ledger update:** 2026-07-24; revision-07 implementation frozen and dispatched for independent
-  cumulative review
+- **Last ledger update:** 2026-07-24; revision-08 independently passed and root integration is pending
 
 ## Package ledger
 
@@ -41,7 +40,7 @@ review evidence.
 | P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | passed | 04 | `eb5ab2e215130c358130d5411a92b51951c3c53a..fb72abdaf531dff40c59f6b3525fb1b9ce50f805` | `evidence/P11A/implementation-04.md` | `reviews/P11A-review-04.md` | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f` |
 | P11B    | HS-004         | Alias management and transaction-cell pointer/keyboard UX                           | P11A                 | passed | 01 | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f..e35109dfe7b02bdb4058445f44d03a6dd678457b` | `evidence/P11B/implementation-01.md` | `reviews/P11B-review-01.md` | `0426866fa66cc022efca6d74cd5088d586d3d11b` |
 | P11C    | HS-004         | Alias import/manual/shared flows, performance hardening and exhaustive tests        | P11B                 | passed | 03 | `0426866fa66cc022efca6d74cd5088d586d3d11b..daab038ee741faa9f92a373b27efe0c8fe8940db` | `evidence/P11C/implementation-03.md` | `reviews/P11C-review-03.md` | `78e2f978f8d258d8c4d379f53e75089a2ce975db` |
-| P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | changes_requested | 07 | `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e..ebe2fb6caf70acbdb88245cf3121f8c6356b1162` | `evidence/P12/implementation-07.md` | `reviews/P12-review-07.md` | revision-07 failure `0216abbf76d40b07461af2bad94869fd3040c4fa` |
+| P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | passed | 08 | `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e..a2a31839f6bb57855fa60b8cfcc06feed069cafa` | `evidence/P12/implementation-08.md` | `reviews/P12-review-08.md` | pending current root integration |
 | P13     | HS-001         | Persisted normal empty Add Transaction rows and grid navigation                     | P11C, P09            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -1846,6 +1845,48 @@ Root verifies exact HEAD/index/write boundary, cleans recoverable generated outp
 frozen hashes. No Q proposal; HS-005 remains unchecked and revision 08 must close F-08/F-09.
 Immutable evidence, review and failure control state are committed as
 `0216abbf76d40b07461af2bad94869fd3040c4fa`.
+
+**2026-07-24 — P12/08 `changes_requested -> implementing`:** Revision-07 failure is immutable at
+`0216abbf76d40b07461af2bad94869fd3040c4fa`; clean preimplementation HEAD is
+`a5570e3d805cbb65af3f4cf5cead554fef279bce`, while cumulative BASE remains
+`0a9b8827debdfa96e6b87c3b9ccf95411bd5862e`. Sole evidence is
+`evidence/P12/implementation-08.md`; future review is `reviews/P12-review-08.md`. Authority is
+exactly `src/lib/crdt/context.tsx` plus focused `tests/integration/vault-maintenance.test.tsx`.
+F-08 requires measured path-lazy/incremental or otherwise bounded public selector work that never
+visits unrelated vault trees or moves unbounded work outside RAF budgets. F-09 requires every generic
+application-state action callback to be unable to observe reserved/private transaction state before
+cleanup while preserving legitimate mutation, Undo origin and one cleanup update. Same-notification
+selector privacy and all cumulative gates remain mandatory; reviewer is undispatched and HS-005
+remains unchecked.
+
+**2026-07-24T18:54:27+10:00 — P12/08 `implementing -> ready_for_review -> reviewing`:** Exact
+product/test HEAD `a2a31839f6bb57855fa60b8cfcc06feed069cafa` changes only
+`src/lib/crdt/context.tsx` and `tests/integration/vault-maintenance.test.tsx` from clean
+preimplementation HEAD `a5570e3d805cbb65af3f4cf5cead554fef279bce`. Frozen evidence
+`evidence/P12/implementation-08.md` is 202 lines/13,758 bytes at SHA-256
+`c3d0753c48884fea4d15a93b3570301ea3c69f071ab02d1a831daa9a4ce50900`. A cached path-lazy proxy
+membrane hides reserved/private transaction state for selectors and generic actions while avoiding
+unrelated account/year/month/day/transaction/nested visits and retaining write-through domain
+mutation/Undo behavior. Reported green: focused 107/107 in three clean processes, full Vitest
+1,280/1,280, typecheck, lint, build, affected no-retry E2E 15/15, full no-retry E2E 87/87 and the
+authenticated/offline/two-tab/responsive manual charter. Root verifies exact HEAD, two-path committed
+range, empty index, cleanup, restored generated state, exact 21 normalized blocks/authorized checked
+set and canonical scratch/FS-001/SCOPE hashes. Independent review alone writes
+`reviews/P12-review-08.md` over cumulative original BASE..HEAD; HS-005 remains unchecked.
+
+**2026-07-24 — P12/08 `reviewing -> passed`; artifact integration pending:** Independent cumulative
+review `reviews/P12-review-08.md` is 154 lines/19,113 bytes at SHA-256
+`6d46633271fbfcfcdcf573e62c4a0350d06b315faf7bf43ac006be379abedf85` and returns PASS over exact
+`0a9b8827debdfa96e6b87c3b9ccf95411bd5862e..a2a31839f6bb57855fa60b8cfcc06feed069cafa`.
+F-08 closes because the cached membrane projects only explicitly requested paths; a 24-account
+real-provider fixture records zero unrelated parent/nested classifier visits before and after an
+ordinary update. F-09 closes because generic selector/action/edit callbacks all receive the runtime
+public membrane; direct/enumeration/descriptor/nested reads stay clean while public writes persist,
+one `system:gc` cleanup occurs and Undo reverts only user work. Independent focused 107/107 x3,
+full Vitest 1,280/1,280, type/lint/build, affected no-retry E2E 15/15, full no-retry E2E 87/87 and
+manual active-edit/offline/two-tab/responsive gates pass. Exact HEAD/index/cleanup/frozen boundaries
+pass; no finding or Q proposal. Root acceptance integrates D-015 and R-006/R-008/R-009
+transcriptions; HS-005 remains unchecked until the separate durable marker event.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual

@@ -285,6 +285,37 @@ need evidence, alternatives, security/UX impact, and a reversal path.
   dependency or stored-format migration. Do not revert only reconnect retry or edit-session wiring
   while retaining controls, because that would restore the independently proven acceptance defects.
 
+## D-015 — Use bounded private maintenance shadows and a path-lazy public callback membrane
+
+- **Date:** 2026-07-24
+- **Package / scope:** P12 / HS-005
+- **Status:** accepted
+- **Evidence:** `evidence/P12/implementation-08.md` and independent
+  `reviews/P12-review-08.md` PASS over cumulative
+  `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e..a2a31839f6bb57855fa60b8cfcc06feed069cafa`;
+  immutable reviews 01–07 retain every rejected intermediate design and Q-018.
+- **Alternatives:** Recursively attach a complete detached tree in one final step; expose partial
+  public state while copying; retain obsolete aliases until remount; synchronously project the whole
+  vault for every new snapshot; rely on type-only omission; or leave generic selector/action/edit
+  callbacks on raw transaction state.
+- **Decision and reason:** Build duplicate-bucket work as bounded, resumable, attached private
+  shadows under low-level maintenance metadata; validate fresh authority before a fixed-depth reveal
+  that removes the source. Use finite per-alias Undo-history reachability for collection. Hide all
+  reserved/private records before cleanup through one cached path-lazy runtime membrane shared by
+  exported selectors, actions and edit actions. Projection descends only explicitly requested paths;
+  physical cleanup alone belongs to the RAF item/time budget. This is the smallest design that
+  simultaneously satisfies same-notification privacy, bounded work, offline convergence and normal
+  write-through application APIs.
+- **Security, data, UX, and compatibility impact:** Public reads and mutations cannot observe or act
+  on maintenance-only records, while legitimate transaction/preference writes, user Undo/Redo,
+  encrypted sync and exactly one `system:gc` cleanup remain intact. Mixed/late/reordered peer edits
+  invalidate stale authority without losing standalone or nested transactions. No persisted public
+  schema, plaintext, transport discriminator or test-only production hook is added.
+- **Reversal/migration path:** Revert the complete P12 product/test range only with an equivalent
+  independently reviewed bounded/private design. Existing low-level maintenance metadata is
+  self-cleaning on mount/import; never roll back only the public membrane or private-state filters,
+  because that would re-open pre-frame data exposure and stale-shadow mutation.
+
 ## Decision template
 
 ### D-XXX — Title

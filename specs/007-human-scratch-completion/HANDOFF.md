@@ -5,14 +5,20 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Implementation dispatch
 
-- **Package / revision:** P12 / 07
+- **Package / revision:** P12 / 08
 - **Scope IDs:** HS-005 only; bounded requestAnimationFrame maintenance for duplicate transaction
   buckets and description-alias symlinks; HS-005 remains incomplete and unchecked
-- **State:** changes_requested; revisions 01–07 are immutable after root persistence; HS-005 is
-  unchecked
+- **State:** passed after root integration; revisions 01–08 are immutable; HS-005 remains unchecked
+  until the separate root marker transaction
 - **Task:** `tasks/HS-005-background-gc.md`; exact 6-line HS-005 block in SCOPE
 - **Dependencies:** P09/02 and P11A–C are passed; P12 is independent of blocked P05/P08/P10
 - **Literal original BASE:** `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e`
+- **Revision-08 pre-implementation HEAD:** `a5570e3d805cbb65af3f4cf5cead554fef279bce`
+- **Literal revision-08 product/test HEAD:** `a2a31839f6bb57855fa60b8cfcc06feed069cafa`
+- **Revision-08 commit:** `a2a31839f6bb57855fa60b8cfcc06feed069cafa`; exactly
+  `src/lib/crdt/context.tsx` and `tests/integration/vault-maintenance.test.tsx`
+- **Frozen implementation evidence:** `evidence/P12/implementation-08.md`, SHA-256
+  `c3d0753c48884fea4d15a93b3570301ea3c69f071ab02d1a831daa9a4ce50900`, 202 lines/13,758 bytes
 - **Revision-07 pre-implementation HEAD:** `bebf4f546c8a7715934adbafd757dfdcd27dec91`
 - **Literal revision-07 product/test HEAD:** `ebe2fb6caf70acbdb88245cf3121f8c6356b1162`
 - **Revision-07 commit:** `ebe2fb6caf70acbdb88245cf3121f8c6356b1162`; exactly
@@ -33,18 +39,14 @@ literal field is `pending`. Workers may read but never edit it.
   `Complete bounded private vault maintenance`
 - **Frozen implementation evidence:** `evidence/P12/implementation-04.md`, SHA-256
   `8bc662894cf3efb60456ba235d539504f4520ef6b0af047e3d6eb882e6e63def`, 207 lines/14,537 bytes
-- **Allowed implementation paths:** `src/lib/crdt/maintenance.ts`, `queries.ts`, `mutations.ts`,
-  narrowly `context.tsx` for the raw `useTransaction` private-child leak, and
-  only if a private maintenance-shadow discriminator needs shared type/Mirror handling,
-  `schema.ts`/`mirror.ts`; focused existing/new `tests/unit/crdt/maintenance.test.ts`,
-  `transaction-mutations.test.ts`, `transaction-queries.test.ts`, and
-  `tests/integration/vault-maintenance.test.tsx` plus one focused context-hook regression. Touch only
-  the necessary subset. No other context/Undo/
+- **Allowed implementation paths:** exactly `src/lib/crdt/context.tsx` and focused existing/new
+  cases in `tests/integration/vault-maintenance.test.tsx`. Touch only the necessary subset. No other
+  maintenance/query/mutation/schema/Mirror/context/Undo/
   components/routes/styles/schema/migrations/sync/transport/server/database/auth/crypto/realtime,
   dependencies/config, global ledgers, prior evidence/reviews, scratch, FS-001, SCOPE, `.claude`,
   `.codex` or agent configuration without a reproduced blocker and prior root expansion.
-- **Sole implementer artifact:** `evidence/P12/implementation-07.md`
-- **Future immutable review artifact:** `reviews/P12-review-07.md`
+- **Sole implementer artifact:** `evidence/P12/implementation-08.md`
+- **Future immutable review artifact:** `reviews/P12-review-08.md`
 - **Commit contract:** inspect first, preserve revisions 01/02, stage exact authorized paths only,
   commit product/test remediation with a message containing no parentheses, and leave evidence
   uncommitted. Never use `git add .` or `git add -A`.
@@ -66,6 +68,14 @@ literal field is `pending`. Workers may read but never edit it.
   parents and nested children must be invisible in the same notification before cleanup; unrelated
   state identity/subscription behavior and every prior specialized hook must remain stable. Add actual-
   context regressions for all named consumers and raw selector shapes, not only `useTransactions`.
+- **Revision-08 closure:** replace the synchronous full-vault projection with a path-lazy,
+  incrementally maintained/indexed or otherwise demonstrably bounded public view. Account-specific
+  and reserved-key selectors must not visit unrelated account/year/month/day/transaction/nested
+  trees, and ordinary transaction updates must not move unbounded work outside RAF budgets. Every
+  exported application-state callback, including generic `useVaultAction`, must be unable to observe
+  reserved accounts, private parents or private nested children before cleanup while legitimate
+  mutations, Undo origin and one cleanup update remain correct. Preserve revision-07 same-notification
+  selector sanitization and stable identities/subscriptions.
 - **Root authority expansion:** `src/lib/crdt/context.tsx` and one focused hook regression are
   explicitly authorized because review-04 names `useTransaction` as a raw public boundary and final
   worker audit reproduced a malformed/legacy private parent leaking a real-ID incomplete nested child.
@@ -87,7 +97,9 @@ literal field is `pending`. Workers may read but never edit it.
   exact record/order conservation, direct-only alias rewrites, apply-time full backlink/target proof,
   `system:gc` excluded from Undo but persisted/encrypted/synced with no echo, idempotence, hidden pause/
   visible resume when truthfully available, cancellation/replacement and provider/document lifetime.
-- **Required automation:** begin with red counterexamples for all three findings. Repeat the focused
+- **Required automation:** begin with red counterexamples for F-08 and F-09, including visit-count
+  instrumentation over a deliberately large multi-account/nested fixture and real-provider generic
+  action direct/enumeration/nested reads before cleanup. Repeat the focused
   P12 profile, real-Loro nested-operation cases, global-query cases and oversized-work instrumentation in at
   least three clean processes; run full Vitest, typecheck, lint, build, scoped format and repository
   checks. Repeat affected E2E at least three times with retries disabled and run full no-retry E2E.
@@ -113,10 +125,13 @@ literal field is `pending`. Workers may read but never edit it.
 
 - **Reviewer:** distinct `human_scratch_reviewer`
 - **Literal cumulative review BASE:** `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e`
-- **Literal revision-07 HEAD:** `ebe2fb6caf70acbdb88245cf3121f8c6356b1162`
-- **Range type:** cumulative original BASE through revision-07 product/test HEAD
-- **Implementation evidence:** `evidence/P12/implementation-07.md`
-- **Sole reviewer artifact:** `reviews/P12-review-07.md`
+- **Literal revision-08 HEAD:** `a2a31839f6bb57855fa60b8cfcc06feed069cafa`
+- **Range type:** cumulative original BASE through revision-08 product/test HEAD
+- **Implementation evidence:** `evidence/P12/implementation-08.md`
+- **Sole reviewer artifact:** `reviews/P12-review-08.md`
+- **Revision-08 review:** PASS, SHA-256
+  `6d46633271fbfcfcdcf573e62c4a0350d06b315faf7bf43ac006be379abedf85`, 154 lines/19,113 bytes.
+  F-08 and F-09 close with no material finding; the exact cumulative range satisfies HS-005.
 - **Revision-07 review:** FAIL, SHA-256
   `2efb05fe259074868b4e2852550f9fcd8caf8ec654f1d1eb926e038f11d14ad5`, 209 lines/21,524 bytes.
   The selector portion of F-07 closes, but F-08 High rejects the synchronous full-vault projection
@@ -129,11 +144,10 @@ literal field is `pending`. Workers may read but never edit it.
   `useVaultSelector(state => state.transactions)` exposes raw reserved state to People/Statuses/Tags
   tables before the next cleanup frame.
 - **Reviewer writes:** the new review file only; no product/test/evidence/ledger/config/frozen edit or commit
-- **Required review focus:** independently close revision-06 F-07 by proving generic
-  `useVaultSelector` sanitizes the transaction state before every caller selector executes, including
-  PeopleTable, StatusesTable, TagsTable and arbitrary raw selector shapes in the same notification
-  before cleanup. Inspect identity/subscription behavior and revalidate every cumulative P12 gate,
-  including revision-03 F-01 through F-03 and revision-05 F-05/F-06.
+- **Required review focus:** independently close revision-07 F-08/F-09 with measured bounded selector
+  work and a runtime-safe generic action boundary. Preserve the closed selector portion of F-07,
+  same-notification privacy, stable identities/subscriptions, legitimate mutation and Undo behavior,
+  and revalidate every cumulative P12 gate.
 - **Evidence gate:** verify low-level metadata never enters public Mirror/default construction; all
   reads/mutations/imports/aliases/UI ignore private shadows; local/remote edits invalidate safely;
   crash/reload/sync cleanup is bounded; reveal/rollback does no recursive attach. Independently run
@@ -144,5 +158,5 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Link the immutable revision-07 failure integration commit, then dispatch P12 revision 08 for
-F-08/F-09 over the same cumulative original BASE.
+Persist the immutable revision-08 PASS artifacts and root transcriptions, then durably prepare and
+execute the exact HS-005 `[] -> [x]` marker transaction.
