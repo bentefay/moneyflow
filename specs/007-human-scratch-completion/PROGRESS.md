@@ -7,8 +7,10 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P13 revision 03 (`passed`)
-- **Next action:** dispatch P14 revision 01 after rewriting its exact implementation handoff
+- **Current package:** P14 revision 01 (`implementing`)
+- **Next action:** implement and validate import lineage, original-amount provenance, atomic
+  reversible deletion and 1,000-row persistence from exact BASE
+  `b9105028926d24a5a0c5454777a6c33379ca606a`
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -21,7 +23,7 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** nine passed; HS-015 blocked externally; HS-011/HS-012 and nine other
   requirements queued
-- **Last ledger update:** 2026-07-24; HS-001 marker finalized after P13 revision-03 independent PASS
+- **Last ledger update:** 2026-07-24; P14 revision-01 dispatched for HS-008
 
 ## Package ledger
 
@@ -43,7 +45,7 @@ review evidence.
 | P11C    | HS-004         | Alias import/manual/shared flows, performance hardening and exhaustive tests        | P11B                 | passed | 03 | `0426866fa66cc022efca6d74cd5088d586d3d11b..daab038ee741faa9f92a373b27efe0c8fe8940db` | `evidence/P11C/implementation-03.md` | `reviews/P11C-review-03.md` | `78e2f978f8d258d8c4d379f53e75089a2ce975db` |
 | P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | passed | 08 | `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e..a2a31839f6bb57855fa60b8cfcc06feed069cafa` | `evidence/P12/implementation-08.md` | `reviews/P12-review-08.md` | `f8cbb5a8caacb763c0bb77199595a5ee332ab729` |
 | P13     | HS-001         | Persisted normal empty Add Transaction rows and grid navigation                     | P11C, P09            | passed | 03 | `415ea080b3b19191fd71601742056a619b4a3080..9f307e200676711ca2a3ba81bd816314807434ad` | `evidence/P13/implementation-03.md` | `reviews/P13-review-03.md` | `7a04338fa7c3f68463d12d11082bc56e87c1872b` |
-| P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
+| P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | implementing | 01 | BASE/pre-HEAD `b9105028926d24a5a0c5454777a6c33379ca606a`                              | `evidence/P14/implementation-01.md` | `reviews/P14-review-01.md` | —                                          |
 | P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16A    | FS-001, HS-009 | Allocation/ownership validation, remainder/effective shares and exact apportionment | P01                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -2071,6 +2073,33 @@ exact. Scratch SHA advances
 `aa8a1f56df6716cb73071c694015030311611fc102af71b0b2e5a31cba281a8f ->
 b09454dea925ebd5af185c4b5011762a38beac852ef728c9adaf4e343782561d`, 350 lines/24,248 bytes. The
 completion event is cleared and package dispatch may resume.
+
+**2026-07-24T22:48:00+10:00 — P14/01 `queued -> implementing`:** P09/02 is passed and the HS-001
+marker event is finalized. Literal original BASE/preimplementation HEAD is
+`b9105028926d24a5a0c5454777a6c33379ca606a`; sole evidence is
+`evidence/P14/implementation-01.md` and future review is `reviews/P14-review-01.md`. Authority is
+limited to the enumerated import/transaction schema, mutation, query, maintenance, amount-cell,
+imports/transactions page, bounded sync-encoding owners and focused unit/integration/E2E paths in
+HANDOFF. Implement exact parent/nested import lineage, first-edit immutable original minor units,
+currency-correct accessible tooltip, one-action one-step reversible import deletion with
+cross-import isolation, and R-023 1,000-row encrypted persistence without unbounded base64 spread.
+Apply import/CRDT/components/sync/E2E guides; preserve legacy optionality, aliases, buckets, history,
+privacy and frozen sources. Focused x3, full checks, affected repeated no-retry E2E, full no-retry
+E2E, installed-CLI charter, cleanup and any complete non-blocking Q proposal are mandatory.
+Reviewer is undispatched and HS-008 remains unchecked.
+
+**2026-07-24T22:55:34+10:00 — P14/01 `implementing -> implementing`; narrow test-fixture scope
+expansion:** Full typecheck deterministically proves that loro-mirror's `InferInputType` represents
+the new runtime-optional `originalAmount` schema key as a required construction property whose value
+may be `undefined`, matching the existing optional `descriptionAliasId`/`deletedAt` convention.
+Seven pre-existing legacy fixture owners therefore fail until their transaction literals explicitly
+provide `originalAmount: undefined`: `tests/integration/description-alias-actions.test.ts`,
+`description-alias-crdt.test.ts`, `description-alias-lookup-lifecycle.test.tsx`,
+`vault-maintenance.test.tsx`, `tests/unit/crdt/description-alias-mutations.test.ts`,
+`maintenance.test.ts` and `transaction-ordering.test.ts`. Root authorizes only that mechanical
+compatibility edit and directly owner-aligned provenance-retention assertions in those exact seven
+test paths before any such edit. Product authority, BASE, evidence/review artifacts, package state,
+HS-008 marker and every other prohibition remain unchanged.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual

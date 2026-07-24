@@ -5,148 +5,133 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Implementation dispatch
 
-- **Package / revision:** P13 / 03
-- **Scope IDs:** HS-001 only; normal persisted empty Add Transaction rows; HS-001 is complete and
-  checked
-- **State:** passed; revisions 01–03 are immutable; HS-001 marker transaction is finalized
-- **Task:** `tasks/HS-001-add-transaction-rows.md`; exact 5-line HS-001 block in SCOPE
-- **Dependencies:** P09/02 and P11A–C are passed; P13 is independent of blocked P05/P08/P10
+- **Package / revision:** P14 / 01
+- **Scope IDs:** HS-008 only; import lineage, immutable original amount, accessible amount tooltip
+  and reversible import deletion; HS-008 remains incomplete and unchecked
+- **State:** implementing
+- **Task:** `tasks/HS-008-import-lineage.md`; exact 4-line HS-008 block in SCOPE
+- **Dependencies:** P09/02 is passed; P14 is independent of blocked P05/P08/P10
 - **Literal original BASE / pre-implementation HEAD:**
-  `415ea080b3b19191fd71601742056a619b4a3080`
-- **Revision-03 pre-implementation HEAD:** `8971b63cf9671652c5739cb68681c42302813f6c`
-- **Literal revision-03 product/test HEAD:** `9f307e200676711ca2a3ba81bd816314807434ad`
-- **Revision-03 commit:** `9f307e200676711ca2a3ba81bd816314807434ad`; exactly
-  `src/app/(app)/transactions/page.tsx` and `tests/e2e/transactions.spec.ts`
-- **Frozen implementation evidence:** `evidence/P13/implementation-03.md`, SHA-256
-  `1b6a949b7136b3e5aa3448f9815a9437624b1fb7c80a63951c49555fd67a2f2d`, 212 lines/14,968 bytes
-- **Frozen revision-03 review:** `reviews/P13-review-03.md`, PASS, SHA-256
-  `d875ee06c2899bf28b96d2045df288cc2fc15a9b27af67492a293656befc5eda`, 177 lines/18,583 bytes.
-  Review-02 F-01 closes with no High/Medium finding; the exact cumulative range satisfies HS-001.
-- **Revision-03 integration commit:** `7a04338fa7c3f68463d12d11082bc56e87c1872b`
-- **Revision-02 pre-implementation HEAD:** `57398ea27d2af6523d26ccc3227433feaebe29e3`
-- **Literal revision-02 product/test HEAD:** `8f6e4f2ad77da24016169a79286a9727f3394aca`
-- **Revision-02 commit:** `8f6e4f2ad77da24016169a79286a9727f3394aca`; exactly
-  `src/app/(app)/transactions/page.tsx` and `tests/e2e/transactions.spec.ts`
-- **Frozen implementation evidence:** `evidence/P13/implementation-02.md`, SHA-256
-  `2ef2070960cac20bf0e9bc138928b3c11c94671f57af2f8a8ba94009e0e81bdd`, 178 lines/11,584 bytes
-- **Frozen revision-02 review:** `reviews/P13-review-02.md`, FAIL, SHA-256
-  `157dfc363788966f90fd5dca0f23506f65a75f4794261359ab89f443d9603b91`, 204 lines/21,835 bytes.
-  All seven filter classes clear correctly, but 50 or more legal higher-sorted rows can leave the
-  newly selected ordinary row outside the rendered page until load-more.
-- **Revision-02 failure integration commit:** `282b1d64b94c0e5614f3db5b723f99b23923cf44`
-- **Literal revision-01 product/test HEAD:** `6276108f4ebae4e63a23cbf5d532b8843e9f0a98`
-- **Revision-01 commit:** `6276108f4ebae4e63a23cbf5d532b8843e9f0a98`; exactly 15 authorized
-  product/test paths, including deletion of the dead `AddTransactionRow.tsx`
-- **Frozen implementation evidence:** `evidence/P13/implementation-01.md`, SHA-256
-  `910135f64546a22d41218df0f7ce3c00c5b7b5434604108e057e51770a22c9f9`, 227 lines/15,227 bytes
-- **Allowed revision-03 implementation paths:** exactly
-  `src/app/(app)/transactions/page.tsx` and focused behavior-led coverage in
-  `tests/e2e/transactions.spec.ts`. No other component/hook/CRDT/test path, routes/styles/schema/
-  migrations/import/sync/transport/server/database/auth/crypto/realtime, dependencies/config,
-  global ledgers, prior evidence/reviews, scratch, FS-001, SCOPE, `.claude`, `.codex` or agent
-  configuration without a reproduced blocker and prior root expansion.
-- **Root authority expansion:** `src/components/features/transactions/index.ts` is authorized only
-  to remove the dead `AddTransactionRow` barrel export after the in-scope component deletion. No
-  other barrel/component/helper expansion is authorized. `tests/e2e/description-aliases.spec.ts`
-  and `tests/e2e/tab-duplication.spec.ts` are authorized only to replace independently reproduced
-  removed special-form selectors with the selected ordinary-row workflow and correct the associated
-  Add-then-edit Undo expectation.
-- **Sole implementer artifact:** `evidence/P13/implementation-03.md`
-- **Future immutable review artifact:** `reviews/P13-review-03.md`
-- **Commit contract:** inspect existing patterns first; stage exact authorized paths only; commit
-  product/test work with a short message containing no parentheses; leave evidence uncommitted.
-  Never use `git add .` or `git add -A`.
-- **Review-start dirty paths:** root-owned unstaged `HANDOFF.md` and `PROGRESS.md` plus the sole
-  untracked frozen implementation evidence; no staged, product, executable, generated, review or
-  other dirty path
-- **Required behavior:** every Add click atomically inserts a distinct persisted transaction with
-  valid defaults and predictable selection/focus. Rapid clicks create multiple rows. Each row
-  immediately uses the normal selectable/editable/deletable/status/account/date/grid affordances;
-  no confirm/cancel/add-only controls or single-add disabling remain. Empty manual description is
-  valid; later text uses HS-004 alias semantics rather than imported raw description.
-- **Persistence/history/convergence:** empty rows survive reload, offline cache and reconnect; two
-  tabs converge without duplicate IDs or stuck state. Each Add is one user Undo step; redo restores
-  the same logical row. Deletion and subsequent Undo/Redo retain normal transaction behavior.
-- **Grid/virtualization:** preserve sort/date behavior, virtual focus/scroll stability, row
-  selection, Arrow navigation and Tab/Shift+Tab/Enter/Escape conventions. Three rapid rows must be
-  independently reachable without surprise focus jumps. Preserve accessible names and normal row
-  controls at desktop, narrow width and 200% zoom.
-- **Required red-to-green proof:** reproduce the current single `isAddingTransaction` gate,
-  disabled Add button, description-required special form and confirm/cancel affordances before
-  changing behavior. Add deterministic unit/integration coverage for valid empty defaults, unique
-  IDs, insertion/order, persistence/convergence and one-step Undo/Redo; add behavior-led E2E steps
-  for rapid multiple Add clicks, ordinary editing/selection/deletion/arrows/reload/two-tab/offline.
-- **Revision-02 closure:** reproduce review-01 F-01 for each relevant excluding filter class or a
-  justified representative matrix. Every Add activation must reveal the newly persisted normal row
-  predictably, with visible row/count/selection state coherent in the same interaction. A valid
-  policy may clear active filters before/with creation or narrowly include the new row, but must not
-  restore a special add mode or compatibility form. Prove filter→Add→visible ordinary row, then
-  reload and one-step Add Undo/Redo restoring the same logical ID and coherent filter state.
-- **Revision-03 closure:** reproduce review-02 F-01 with more than `PAGE_SIZE` legal transactions
-  that sort ahead of today's new row. Reconcile the created logical ID with filters, pagination and
-  displayed selection in the same Add interaction. Preserve canonical ordering and bounded
-  virtualization, but immediately render and select the ordinary row without scroll/load-more;
-  Bulk Edit/count/selection must never target an undisplayed transaction. Add behavior-led E2E for
-  excluding-filter→Add with more than 50 higher-sorted rows, visible exact created ID/defaults,
-  one-step Undo/Redo restoring that ID, and reload/persistence proof. Retain the seven-filter matrix
-  and do not restore a special mode or compatibility form.
-- **Required automation:** repeat the focused P13 unit/integration profile in at least three clean
-  processes; run full Vitest, typecheck, lint, build, changed-path formatting and repository checks.
-  Repeat affected E2E journeys at least three times with retries disabled and run the full no-retry
-  E2E suite. Report every red and inherited failure exactly; no arbitrary waits or text-only
-  assertions.
+  `b9105028926d24a5a0c5454777a6c33379ca606a`
+- **Sole implementer artifact:** `evidence/P14/implementation-01.md`
+- **Future immutable review artifact:** `reviews/P14-review-01.md`
+- **Implementation-start dirty paths:** root-owned unstaged `HANDOFF.md` and `PROGRESS.md`; no
+  staged, product, test, executable, generated, evidence, review or other dirty path
+- **Allowed implementation paths:** only the necessary subset of
+  `src/lib/crdt/schema.ts`, `mutations.ts`, `description-aliases.ts`, `context.tsx`, `queries.ts`,
+  `maintenance.ts`; `src/lib/sync/manager.ts`; `src/app/(app)/imports/page.tsx`,
+  `imports/new/page.tsx`, `transactions/page.tsx`;
+  `src/components/features/import/DeleteImportDialog.tsx`;
+  `src/components/features/transactions/TransactionRow.tsx`,
+  `cells/InlineEditableAmount.tsx`; and focused existing/new
+  `tests/unit/crdt/transaction-mutations.test.ts`, `hierarchical-schema.test.ts`,
+  `transaction-queries.test.ts`, `tests/unit/sync/manager.test.ts`,
+  `tests/integration/transaction-operations.test.ts`, `import.test.ts`,
+  `tests/e2e/import.spec.ts`, `transactions.spec.ts`, `undo-redo.spec.ts` and
+  `sync-persistence.spec.ts`; plus the root-authorized test-fixture expansion
+  `tests/integration/description-alias-actions.test.ts`,
+  `tests/integration/description-alias-crdt.test.ts`,
+  `tests/integration/description-alias-lookup-lifecycle.test.tsx`,
+  `tests/integration/vault-maintenance.test.tsx`,
+  `tests/unit/crdt/description-alias-mutations.test.ts`,
+  `tests/unit/crdt/maintenance.test.ts` and
+  `tests/unit/crdt/transaction-ordering.test.ts`. The seven expanded paths may receive only
+  mechanical `originalAmount: undefined` compatibility for existing legacy construction fixtures
+  and directly owner-aligned provenance-retention assertions. Touch only proven owners. No other
+  parser/component/UI/CRDT/sync/crypto/server/schema/migration/dependency/config/test path, global
+  ledger, prior evidence/review, scratch, FS-001, SCOPE, `.claude`, `.codex` or agent configuration
+  without a reproduced blocker and prior root expansion.
+- **Commit contract:** inspect existing patterns first; stage exact authorized product/test paths
+  only; commit product/test work with a short message containing no parentheses; leave evidence
+  uncommitted. Never use `git add .` or `git add -A`.
+- **Lineage/schema behavior:** every imported parent and nested duplicate retains the exact import
+  ID through insertion, query projection, alias operations, move/unnest/swap, maintenance and sync.
+  Manual rows never acquire import lineage. Add optional original minor units to parent and nested
+  schema in a backward-compatible way; legacy rows without the field remain valid.
+- **Original amount behavior:** the first actual amount change on an imported transaction stores
+  its pre-edit minor units exactly once. Later amount edits, account/date moves, duplicate
+  transformations, alias edits, reload, Undo/Redo, offline persistence and peers never overwrite
+  that origin. Manual and unedited imported rows expose no original amount. Centralize this at the
+  mutation boundary so inline, bulk, history and future callers cannot bypass it.
+- **Tooltip/UX:** use the established shadcn tooltip primitives on the ordinary amount cell. Show
+  the original amount only for an edited imported row, formatted with that transaction/account
+  currency and correct 0/2/3/8 decimal minor-unit semantics. It must be available by hover and
+  keyboard focus with a programmatic accessible name/description, absent from manual/unedited rows,
+  and preserve spreadsheet editing, arrows, Tab/Shift+Tab, Enter/Escape, virtualization, mobile,
+  dark, reduced motion and 200% zoom.
+- **Import deletion:** one user action must atomically soft-delete the import record and remove or
+  safely soft-delete every linked parent/nested physical representation across accounts/dates while
+  preserving other imports/manual rows and pruning only truly empty buckets. It must be one Undo
+  step; Redo repeats the exact logical result. Alias cleanup must remain legal, no stale import row
+  or orphan duplicate may survive, and another import's data must never be deleted. The dialog must
+  give precise destructive feedback.
+- **Data-preservation decision:** follow the PROCESS hierarchy and existing CRDT conventions.
+  Preserve reversibility and unrelated data. If retention versus physical-removal semantics remain
+  materially ambiguous after source inspection, record a complete `Q-PROPOSAL-P14-01-*` in the
+  evidence, choose the safest reversible implementation and continue; do not ask or pause.
+- **Large-import persistence / R-023:** reproduce the known 1,000-row encrypted-update overflow at
+  the unbounded byte-array-to-base64 conversion. Replace only the proven encoding owner with a
+  bounded/library-safe conversion that preserves encrypted bytes and version-vector behavior.
+  Prove a 1,000-row import remains navigable, immediately cached, pushes successfully, reloads with
+  all rows and recovers offline/reconnect without plaintext or stack overflow.
+- **Required red-to-green proof:** first reproduce absent `originalAmount`, overwritten provenance
+  risk, split two-action import deletion/history, nested/cross-import edge cases and 1,000-row
+  persistence failure. Add table-driven/property or integration coverage for parent/nested lineage,
+  first-edit immutability, positive/negative/zero values, USD/JPY/KWD/BTC formatting, legacy
+  optionality, move/unnest/swap/copy, cross-import isolation, exact bucket pruning and one-step
+  delete Undo/Redo.
+- **Required automation:** repeat the focused import/schema/mutation/sync/amount profile in at least
+  three clean processes; run full Vitest, typecheck, lint, build, scoped formatting and repository
+  checks. Run behavior-led CSV and OFX journeys, amount tooltip/edit/reload, delete import with
+  exact-ID Undo/Redo, 1,000-row persistence and affected retained journeys at least three times with
+  retries disabled, then full E2E with one worker/retries zero. Report every red and inherited
+  failure exactly; no arbitrary waits or text-only proof.
 - **Manual charter:** use only repository-installed headless `playwright-cli` with a disposable
-  authenticated session. Add three empty rows rapidly; inspect focus, scrolling, layout and ordinary
-  controls with pointer/keyboard; exercise arrows, Tab/Shift+Tab, Enter/Escape, selection, edits,
-  delete, Undo/Redo, reload, authenticated duplicate tab, offline/reconnect, 390px, dark,
-  reduced-motion, 200%, roles/privacy/console/network. Close/delete the session, stop servers, remove
-  only generated artifacts and restore `next-env.d.ts`.
-- **Evidence contract:** record exact BASE/HEAD/commits/paths/index; red counterexamples; final
-  architecture and default entity values; focus/virtualization/sort semantics; CRDT mutation,
-  persistence/sync and Undo grouping; exact commands/repeats/counts; sanitized manual evidence;
-  inherited reds; cleanup; frozen checks; risks and complete Q proposals. Do not claim PASS.
-- **Applicable repository guides:** `.claude/skills/components/SKILL.md`,
-  `.claude/skills/crdt/SKILL.md`, `.claude/skills/sync/SKILL.md` and
-  `.claude/skills/e2e/SKILL.md`; use draft-style CRDT mutations, established UI patterns,
-  behavior-led selectors and no arbitrary sleeps.
+  authenticated session. Import two files with duplicates and different currencies; verify exact
+  lineage, edit positive/negative/zero amounts twice, hover and focus the tooltip, reload and
+  duplicate tab, delete one import, Undo/Redo, cross-import isolation, 1,000-row navigation/reload,
+  offline/reconnect, 390px, dark, reduced motion, 200%, roles/privacy/console/network. Reject
+  ambiguous destructive feedback or stale rows. Close/delete the session, stop servers, remove only
+  generated artifacts and restore `next-env.d.ts`.
+- **Evidence contract:** record exact BASE/HEAD/commits/paths/index; every red counterexample;
+  schema/migration compatibility; all parent/nested/copy/move/alias/maintenance paths; first-edit
+  semantics and currency formatting; atomic delete/history/bucket behavior; bounded base64 design;
+  exact commands/repeats/counts; sanitized manual evidence; inherited reds; cleanup; frozen checks;
+  risks and any complete Q proposal. Do not claim PASS.
+- **Applicable repository guides:** `.claude/skills/import/SKILL.md`,
+  `.claude/skills/crdt/SKILL.md`, `.claude/skills/components/SKILL.md`,
+  `.claude/skills/sync/SKILL.md` and `.claude/skills/e2e/SKILL.md`; also apply the general money,
+  TypeScript, accessibility, security and testing rules.
 - **Frozen boundary:** scratch SHA
   `b09454dea925ebd5af185c4b5011762a38beac852ef728c9adaf4e343782561d`, checked set
-  HS-001/HS-002/HS-004/HS-005/HS-006/HS-010/HS-014/HS-017/HS-018, all 21 normalized blocks exact; FS-001
-  `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines/25,441 bytes;
-  SCOPE `d03f33e718f1ec5f7c8ad0119d283397dcc59407199da4b5887a2e5eee7ef0f9`, 450 lines/27,382 bytes.
+  HS-001/HS-002/HS-004/HS-005/HS-006/HS-010/HS-014/HS-017/HS-018, all 21 normalized blocks exact;
+  FS-001 `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715
+  lines/25,441 bytes; SCOPE
+  `d03f33e718f1ec5f7c8ad0119d283397dcc59407199da4b5887a2e5eee7ef0f9`, 450 lines/27,382 bytes.
 
-## Review dispatch
+## Future independent review contract
 
 - **Reviewer:** distinct `human_scratch_reviewer`
-- **Literal cumulative review BASE:** `415ea080b3b19191fd71601742056a619b4a3080`
-- **Literal revision-03 HEAD:** `9f307e200676711ca2a3ba81bd816314807434ad`
-- **Range type:** cumulative original P13 BASE through revision-03 product/test HEAD
-- **Implementation evidence:** `evidence/P13/implementation-03.md`
-- **Sole reviewer artifact:** `reviews/P13-review-03.md`
-- **Revision-02 review:** FAIL, SHA-256
-  `157dfc363788966f90fd5dca0f23506f65a75f4794261359ab89f443d9603b91`, 204 lines/21,835 bytes.
-  The seven filter classes pass, but the selected created row can remain outside the 50-row
-  displayed slice until load-more.
-- **Revision-01 review:** FAIL, SHA-256
-  `579a6f08fa3096a92d1695a5de1184e18ce3912e5a651eda1d8202d20a99dd55`, 163 lines/14,917 bytes.
-  F-01 High proves an active excluding filter hides the newly persisted selected row, leaving zero
-  visible rows with one invisible selection.
-- **Revision-02 failure integration commit:** `282b1d64b94c0e5614f3db5b723f99b23923cf44`
-- **Revision-01 failure integration commit:** `f54526821bec08698214065c48ea237bf718fe15`
+- **Literal cumulative review BASE:** `b9105028926d24a5a0c5454777a6c33379ca606a`
+- **Range type:** original P14 BASE through the future revision-01 product/test HEAD
+- **Implementation evidence:** `evidence/P14/implementation-01.md`
+- **Sole reviewer artifact:** `reviews/P14-review-01.md`
 - **Reviewer writes:** the new review file only; no product/test/evidence/ledger/config/frozen edit
   or commit
-- **Required review focus:** independently close review-02 F-01 with more than `PAGE_SIZE`
-  higher-sorted legal transactions, immediate visible exact-ID ordinary row, coherent displayed
-  selection/count/filter state, reload and Undo/Redo. Revalidate both prior findings and all
-  cumulative acceptance.
-- **Evidence gate:** inspect the complete range and every production Add surface; independently run
-  focused tests x3, full checks, affected/full no-retry E2E, installed-CLI pointer/keyboard/
-  responsive/offline/two-tab/privacy charter and exact cleanup.
+- **Required review focus:** independently prove immutable import/original-amount provenance across
+  all physical forms, accessible currency-correct tooltip, one-action exact import deletion with
+  one-step Undo/Redo/cross-import isolation, and durable 1,000-row encrypted persistence. Revalidate
+  migration safety, buckets, aliases, history, sync, virtualization and all affected cumulative
+  journeys.
+- **Evidence gate:** inspect every field-copy and mutation boundary; independently run focused x3,
+  full checks, affected/full no-retry E2E, installed-CLI two-import/currency/tooltip/delete/
+  history/large/offline/two-tab/responsive/privacy charter and exact cleanup.
 - **Verdict contract:** review the literal range with explicit findings, acceptance mapping,
-  commands/repeats, manual evidence, cleanup/Q proposals and one PASS/FAIL. Any material HS-001
-  correctness, persistence, grid, accessibility or UX finding fails.
+  commands/repeats, manual evidence, cleanup/Q proposals and one PASS/FAIL. Any material HS-008
+  correctness, preservation, persistence, history, accessibility, security or UX finding fails.
 
 ## Next root action
 
-Rewrite this handoff for P14 revision 01 and dispatch only after the finalized HS-001 boundary is
-reverified.
+Dispatch `human_scratch_implementer` for P14 revision 01 at exact BASE
+`b9105028926d24a5a0c5454777a6c33379ca606a`; then freeze its product/test HEAD and
+`evidence/P14/implementation-01.md` before independent review.
