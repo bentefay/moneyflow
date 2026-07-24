@@ -168,6 +168,127 @@ test.describe("Transactions", () => {
         );
     });
 
+    test("Add reveals an ordinary row through every excluding filter class", async ({ page }) => {
+        test.setTimeout(120_000);
+        await createNewIdentity(page);
+
+        await goToAccounts(page);
+        await page.getByRole("button", { name: /add account/i }).click();
+        await page.getByPlaceholder(/account name/i).fill("Savings");
+        await page.getByRole("button", { name: /^add$/i }).click();
+
+        await goToTags(page);
+        await page.getByRole("button", { name: /add tag/i }).click();
+        await page.getByPlaceholder(/enter tag name/i).fill("Excluded Tag");
+        await page.getByRole("button", { name: /^add tag$/i }).click();
+
+        await goToTransactions(page);
+
+        const addThroughExcludingFilter = async (
+            label: string,
+            expectedCount: number,
+            activate: () => Promise<void>
+        ) => {
+            return test.step(`${label} filter is cleared when Add reveals its row`, async () => {
+                await activate();
+                await expect(page.getByTestId("transaction-row")).toHaveCount(0);
+                await expect(page.getByRole("button", { name: /^Clear all/ })).toBeVisible();
+
+                const addButton = page.getByTestId("add-transaction-button");
+                await addButton.click();
+
+                await expect(addButton).toBeFocused();
+                await expect(page.getByTestId("transaction-row")).toHaveCount(expectedCount);
+                await expect(page.getByRole("button", { name: /^Clear all/ })).toHaveCount(0);
+
+                const toolbar = page.getByTestId("transaction-table-toolbar");
+                await expect(toolbar).toContainText(
+                    `${expectedCount} transaction${expectedCount === 1 ? "" : "s"}`
+                );
+                await expect(toolbar).toContainText("1 selected");
+                await expect(toolbar).not.toContainText("(filtered)");
+                await expect(page.getByTestId("search-filter")).toHaveValue("");
+
+                const selectedRow = page.getByRole("row", { selected: true });
+                await expect(selectedRow).toHaveCount(1);
+                await expect(selectedRow.getByTestId("description-editable")).toHaveValue("");
+                const selectedAccount = selectedRow.getByRole("combobox", {
+                    name: "Select account"
+                });
+                await expect(selectedAccount).not.toHaveText("");
+                await expect(selectedRow.getByTestId("status-editable")).toContainText(
+                    "For Review"
+                );
+
+                const transactionId = await selectedRow.getAttribute("data-transaction-id");
+                if (!transactionId) throw new Error("Expected persisted transaction identity");
+                const accountName = (await selectedAccount.textContent())?.trim();
+                if (!accountName) throw new Error("Expected persisted transaction account");
+                return { transactionId, accountName };
+            });
+        };
+
+        const firstTransaction = await addThroughExcludingFilter("search", 1, async () => {
+            const search = page.getByTestId("search-filter");
+            await search.fill("definitely-no-match-p13-r02");
+            await search.press("Enter");
+        });
+        await page.getByTestId("clear-selection").click();
+        await addThroughExcludingFilter("date", 2, async () => {
+            await page.getByRole("button", { name: "All time" }).click();
+            await page.getByRole("button", { name: "Last year" }).click();
+        });
+        await page.getByTestId("clear-selection").click();
+        await addThroughExcludingFilter("tag", 3, async () => {
+            await page.getByRole("button", { name: "Tags" }).click();
+            await page.getByRole("button", { name: "Excluded Tag", exact: true }).click();
+        });
+        await page.getByTestId("clear-selection").click();
+        await addThroughExcludingFilter("person", 4, async () => {
+            await page.getByRole("button", { name: "People" }).click();
+            await page.getByRole("button", { name: "Me", exact: true }).click();
+        });
+        await page.getByTestId("clear-selection").click();
+        await addThroughExcludingFilter("account", 5, async () => {
+            await page.getByRole("button", { name: "Accounts" }).click();
+            const excludingAccount =
+                firstTransaction.accountName === "Savings" ? "Default" : "Savings";
+            await page.getByRole("button", { name: excludingAccount, exact: true }).click();
+        });
+        await page.getByTestId("clear-selection").click();
+        await addThroughExcludingFilter("status", 6, async () => {
+            await page.getByRole("button", { name: "Status" }).click();
+            await page.getByRole("button", { name: "Paid", exact: true }).click();
+        });
+        await page.getByTestId("clear-selection").click();
+        const historyTransaction = await addThroughExcludingFilter("duplicates", 7, async () => {
+            await page.getByTestId("duplicates-filter").click();
+        });
+
+        const historyRow = page.locator(
+            `[data-transaction-id="${historyTransaction.transactionId}"]`
+        );
+        await page.getByRole("button", { name: "Undo" }).click();
+        await expect(historyRow).toHaveCount(0);
+        await expect(page.getByTestId("transaction-row")).toHaveCount(6);
+        await expect(page.getByRole("row", { selected: true })).toHaveCount(0);
+        await expect(page.getByRole("button", { name: /^Clear all/ })).toHaveCount(0);
+
+        await page.getByRole("button", { name: "Redo" }).click();
+        await expect(historyRow).toBeVisible();
+        await expect(page.getByTestId("transaction-row")).toHaveCount(7);
+        await expect(historyRow).toHaveAttribute("aria-selected", "true");
+        await expect(page.getByRole("button", { name: /^Clear all/ })).toHaveCount(0);
+
+        await page.reload();
+        await expect(historyRow).toBeVisible();
+        await expect(page.getByTestId("transaction-row")).toHaveCount(7);
+        await expect(page.getByRole("row", { selected: true })).toHaveCount(0);
+        await expect(page.getByTestId("search-filter")).toHaveValue("");
+        await expect(page.getByRole("button", { name: /^Clear all/ })).toHaveCount(0);
+        await expect(page.getByTestId("transaction-table-toolbar")).not.toContainText("(filtered)");
+    });
+
     test("empty rows survive offline reload and converge once across authenticated tabs", async ({
         context,
         page

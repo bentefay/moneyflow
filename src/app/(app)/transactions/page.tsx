@@ -268,6 +268,8 @@ export default function TransactionsPage() {
         const accountId = accountOptions[0]?.id;
         if (!accountId || !defaultStatusId) return;
 
+        setFilters(createEmptyFilters());
+
         const now = Temporal.Now.instant();
         const previousCreationInstant = lastManualCreationInstantRef.current;
         const creationInstant =
