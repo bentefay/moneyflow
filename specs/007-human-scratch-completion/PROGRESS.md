@@ -2394,6 +2394,27 @@ the evidence is the sole worktree artifact; future review-02 is absent. Scratch 
 `b3e96ba9e9487d13df56956d220fffca63d6482d` through literal HEAD
 `91931688ef9463576b757a097968af543a4b8a75`; HS-013 remains unchecked.
 
+**2026-07-25T06:45:46+10:00 — P15/02 `reviewing -> passed`; artifact integration pending:**
+Independent cumulative review `reviews/P15-review-02.md` is 214 lines/15,898 bytes at SHA-256
+`c29069c1f79e90cf7824fcce8fc7f8d99ffc527df38af7e48f6d0cd427b747fa` and returns PASS over exact
+`b3e96ba9e9487d13df56956d220fffca63d6482d..91931688ef9463576b757a097968af543a4b8a75`.
+F-01 through F-05 are independently closed: complete XML OFX works through picker/dropzone/both
+surfaces; bounded validation rejects renamed JSON/document signatures; actual alert contrast is
+10.0251:1 light and 16.1651:1 dark; guidance/alerts remain inside both target/viewport intersections
+at 390x844/200% zoom; and an entered virtual row can unmount before outer leave clears overlay 1→0
+without dragend. Independent automation passes focused unit 14/14 in three clean processes, import
+267/267, full Vitest 1,312/1,312, affected Chromium 69/69 and full Chromium 102/102, with type,
+lint/build/scoped-format/diff gates green. Installed CLI preserves explicit XML/SGML OFX/QFX/CSV
+confirmation and cancellation, 60-row confirmation/reload with 18 mounted, filtered cancel/back/
+retry, P14 original-value/history behavior, encrypted HTTP-200 persistence, same-origin resources,
+plaintext storage/request absence and final zero console warnings/errors. Five categories of
+exploratory harness behavior are explicitly excluded and no finding or Q proposal remains. Root
+stopped the keyed server, restored generated source, removed only current generated/test and 12
+review CLI artifacts to recoverable trash, and preserved 13 older snapshots. Exact HEAD/index/
+worktree and frozen scratch/21 blocks/checked set, FS-001, SCOPE and evidence identities pass.
+P15/HS-013 are passed, but HS-013 remains unchecked until the exact review/risk integration and
+separate completion transaction are durable.
+
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
 owning/affected package; every impacted requirement; ordered pending set of all impacted checked HS

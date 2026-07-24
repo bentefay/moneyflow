@@ -8,8 +8,8 @@ literal field is `pending`. Workers may read but never edit it.
 - **Package / revision:** P15 / 02
 - **Scope IDs:** HS-013 only; whole imports-list and transactions-table file drop targets; HS-013
   remains incomplete and unchecked
-- **State:** reviewing; implementation authority is closed and the independent reviewer alone may
-  write the revision-02 review artifact
+- **State:** passed by independent revision-02 review; artifact/risk integration is pending and
+  HS-013 remains unchecked
 - **Task:** `tasks/HS-013-import-drop-zones.md`; exact one-line HS-013 block in SCOPE
 - **Dependency:** P14/04 and HS-008 are passed. P15 revision-01 architecture remains the cumulative
   base to correct, not replace.
@@ -30,7 +30,9 @@ literal field is `pending`. Workers may read but never edit it.
 - **Frozen revision-02 implementer artifact:** `evidence/P15/implementation-02.md`, SHA-256
   `a92301725fe0ee553cf5b21d9fb3796c92330994019c0224cf4952af5a21b501`, 169 lines /
   12,275 bytes
-- **Future immutable review artifact:** `reviews/P15-review-02.md`
+- **Immutable revision-02 review artifact:** `reviews/P15-review-02.md`, PASS, SHA-256
+  `c29069c1f79e90cf7824fcce8fc7f8d99ffc527df38af7e48f6d0cd427b747fa`, 214 lines /
+  15,898 bytes
 - **Implementation-start boundary:** clean HEAD/index/worktree; revision-01 evidence/review and all
   root transcriptions are committed and immutable
 - **Allowed revision-02 paths:** exactly
@@ -143,6 +145,6 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Commit this reviewing transition, then dispatch `human_scratch_reviewer` over literal cumulative
-range `b3e96ba9e9487d13df56956d220fffca63d6482d..91931688ef9463576b757a097968af543a4b8a75`
-with frozen evidence `evidence/P15/implementation-02.md`. Keep HS-013 unchecked.
+Integrate the immutable revision-02 PASS review, exact risk transcriptions and package/requirement
+PASS state. Only after that integration commit is durable may root prepare the separate HS-013
+completion event; keep HS-013 unchecked during integration.
