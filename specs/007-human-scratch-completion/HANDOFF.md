@@ -9,7 +9,8 @@ literal field is `pending`. Workers may read but never edit it.
 - **Scope IDs:** FS-001 and HS-009; this package owns allocation/ownership validation, owner
   remainder/effective allocation and exact signed-minor-unit apportionment only. Neither requirement
   can complete from P16A alone.
-- **State:** independent revision-02 PASS; root integration pending
+- **State:** passed; immutable review integrated in
+  `41f5760f77c1a93ab650a93912bfaf3c0b627ab0`
 - **Binding tasks:** `tasks/FS-001-transaction-percentage-allocations-settlement.md` P16A and
   `tasks/HS-009-allocation-bounds.md` P16A
 - **Canonical authority:** read all 715 lines of
@@ -179,5 +180,5 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Persist the immutable PASS review, update applicable risks and record the integration-control
-commit. Then set P16A passed and prepare P16B without changing HS-009 or immutable/open FS-001.
+Rewrite this handoff for dependency-ready P16B revision 01 using the clean post-P16A-pass HEAD as
+its original BASE. Keep HS-009 unchanged and FS-001 immutable/open.
