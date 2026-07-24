@@ -5,11 +5,11 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Implementation dispatch
 
-- **Package / revision:** P16A / 01
+- **Package / revision:** P16A / 02
 - **Scope IDs:** FS-001 and HS-009; this package owns allocation/ownership validation, owner
   remainder/effective allocation and exact signed-minor-unit apportionment only. Neither requirement
   can complete from P16A alone.
-- **State:** changes_requested after independent revision-01 FAIL; failure integration is pending
+- **State:** implementing after immutable revision-01 failure integration; reviewer is undispatched
 - **Binding tasks:** `tasks/FS-001-transaction-percentage-allocations-settlement.md` P16A and
   `tasks/HS-009-allocation-bounds.md` P16A
 - **Canonical authority:** read all 715 lines of
@@ -18,33 +18,53 @@ literal field is `pending`. Workers may read but never edit it.
 - **Dependency:** P01/02 passed; P16A is the next package on the allocation critical path
 - **Literal original cumulative review BASE / clean pre-product HEAD:**
   `1b42d27e11494a167a4768e0c2c308010aa51651`
-- **Root dispatch/control HEAD:** `d0b2324f997d5dffe8326c9f4777a94daaedf49e`
-- **Committed product/test/dependency HEAD:** `6671c09a5ca94ccb4ff47564c15d44935cc73479`
-- **Frozen implementer artifact:** `evidence/P16A/implementation-01.md`, SHA-256
+- **Revision-01 dispatch/control HEAD:** `d0b2324f997d5dffe8326c9f4777a94daaedf49e`
+- **Revision-01 product/test/dependency HEAD:** `6671c09a5ca94ccb4ff47564c15d44935cc73479`
+- **Frozen revision-01 implementer artifact:** `evidence/P16A/implementation-01.md`, SHA-256
   `4fb0fadd5fafdde02d3d20cc3349a47abc228092ad375a112360f3864548ba33`, 272 lines /
   16,695 bytes
 - **Immutable revision-01 review artifact:** `reviews/P16A-review-01.md`, FAIL, SHA-256
   `5ad6685bf5d4ceba62bde80b4074e7998313197bb494ce85a7e23ded5645184f`, 260 lines /
   18,276 bytes
-- **Implementation-start boundary:** clean HEAD/index/worktree; P15/HS-013 is completely integrated
-  and its marker transaction is immutable
-- **Allowed product/test paths:** exactly
+- **Revision-01 failure integration / revision-02 clean pre-implementation HEAD:**
+  `ab5334d8d1311119f0e0240aea2e92ade239aa15`
+- **Sole revision-02 implementer artifact:** `evidence/P16A/implementation-02.md`
+- **Future immutable revision-02 review artifact:** `reviews/P16A-review-02.md`
+- **Implementation-start boundary:** clean HEAD/index/worktree; revision-01 evidence/review and
+  F-01/R-033 transcription are committed and immutable
+- **Allowed revision-02 product/test paths:** exactly
   `src/lib/domain/allocation.ts`,
   `src/lib/domain/ownership.ts`,
-  `src/lib/domain/index.ts`,
   `tests/unit/domain/allocation.test.ts`,
-  `tests/unit/domain/ownership.test.ts`,
-  `package.json` and `pnpm-lock.yaml`. Manifest/lock edits are allowed only if an established exact
-  decimal library must become a direct dependency after proving current direct utilities
-  insufficient. No settlement engine, CRDT/schema, component/page, E2E, import, automation,
-  migration, configuration or other path is authorized unless a reproducible owner blocker is
-  first reported and root explicitly expands the list.
+  `tests/unit/domain/ownership.test.ts`. No barrel, manifest/lock, settlement engine, CRDT/schema,
+  component/page, E2E, import, automation, migration, configuration or other path is authorized
+  unless a reproducible owner blocker is first reported and root explicitly expands the list.
 - **Forbidden writes:** all ledgers, tasks/specs, P15 artifacts, scratch, canonical FS-001, SCOPE,
   `.claude`, `.codex`, agent configuration and future review. Report any needed guide/config
   transcription in evidence for root.
 - **Commit contract:** inspect every owner and current caller before editing. Stage the exact
   authorized product/test paths only, commit with a short message containing no parentheses, and
-  leave `evidence/P16A/implementation-01.md` uncommitted. Never use `git add .` or `git add -A`.
+  leave `evidence/P16A/implementation-02.md` uncommitted. Never use `git add .` or `git add -A`.
+
+## Required revision-02 closure
+
+- **F-01 full result-graph immutability:** freeze every public success/failure envelope, every
+  returned error array, every individual typed error object and every nested success value/map for
+  allocation-set validation, exact-weight validation, ownership-set validation, effective
+  derivation and apportionment. A caller must not be able to change `ok`, error reason/count/context,
+  returned values or share maps after return.
+- **Branch-complete regression:** add direct runtime tests for every success and failure branch,
+  including empty ownership, invalid total, invalid individual entries, invalid exact-weight total,
+  invalid amount, allocation/ownership failure propagation, valid derivation and valid
+  apportionment. Assert the complete exposed graph is frozen and mutation attempts cannot change
+  discriminants, reasons/counts or values. Preserve discriminated unions and already-frozen maps.
+- **Cumulative preservation:** do not alter the proven schemas, explicit-set copy/preservation,
+  exact positive/zero/negative remainder/effective derivation, mathematical signed floors, largest
+  fractional remainder/stable-ID tie ordering, safe-integer conservation, dependency choice,
+  benchmark scope, ownership compatibility or P16A/P16B scope boundary.
+- **Decision rule:** F-01 is explicit. If a new material ambiguity remains, record a complete
+  `Q-PROPOSAL-P16A-02-*` in evidence, apply the PROCESS hierarchy and continue; do not ask the human
+  or pause.
 
 ## Required implementation
 
@@ -78,16 +98,16 @@ literal field is `pending`. Workers may read but never edit it.
   Existing convenience mutation/normalization helpers are not evidence for allocation semantics and
   must not be repurposed to normalize explicit allocations.
 - **Decision rule:** if a material ambiguity remains, record a complete
-  `Q-PROPOSAL-P16A-01-*` in evidence, apply the PROCESS hierarchy and continue; do not ask the human
+  `Q-PROPOSAL-P16A-02-*` in evidence, apply the PROCESS hierarchy and continue; do not ask the human
   or pause. No proposal may override the canonical reject-only or no-normalization clauses.
 
 ## Required evidence
 
-- **Red before green:** before product edits, replace test-local allocation algorithms with
-  checked-in expectations against the missing/incorrect production boundary and capture exact
-  unchanged-HEAD failures for negative remainder, non-finite/negative-zero validation, exact
-  negative flooring/ties and conservation. Those same tests must turn green without deletion or
-  weakening.
+- **Red before green:** before product edits, add checked-in tests that reproduce F-01's exact
+  runtime mutations against unchanged revision-01 product: invalid `ok` false→true, changed error
+  reason, appended ownership error, changed valid derivation/apportionment discriminants and every
+  uncovered branch graph. Preserve exact red output; those same tests must turn green without
+  deleting or weakening revision-01 arithmetic/property assertions.
 - **Production property tests:** table-drive every exact boundary and use fixed-seed `fast-check`
   properties against production functions for explicit totals below/at/above 100, union/remainder/
   effective total, insertion-order independence, positive/negative/zero amounts, negative weights,
@@ -107,7 +127,7 @@ literal field is `pending`. Workers may read but never edit it.
   warmup, samples and result. Do not claim the P16B 100,000-transaction settlement target from a
   P16A microbenchmark.
 - **Installed-CLI charter:** use only installed headless `playwright-cli`, a unique disposable
-  `p16a-impl-01` session and a root-owned keyed server. Because the real allocation grid belongs to
+  `p16a-impl-02` session and a root-owned keyed server. Because the real allocation grid belongs to
   P16D, do not fake surfaced P16A acceptance. Instead preserve the real current account flow:
   fresh masked-word identity, default Me ownership at 100, create/edit account ownership with valid
   totals, visible rejection of an invalid total, transaction/People navigation, reload, narrow/
@@ -116,8 +136,8 @@ literal field is `pending`. Workers may read but never edit it.
 - **Dependency audit:** record why existing `currency.js` is sufficient or why a newly direct exact
   decimal dependency is necessary. If dependency files change, report exact manifest/lock delta,
   license/size/security compatibility and no unrelated lock drift.
-- **Evidence artifact:** record original BASE, actual control/pre-product HEAD, committed HEAD,
-  exact paths/index; mechanisms/API contract; red/green/property seeds and counts; all command
+- **Evidence artifact:** record original BASE, revision-02 pre-product HEAD, cumulative committed
+  HEAD, exact paths/index; mechanisms/API contract; red/green/property seeds and counts; all command
   results; sanitized benchmark/manual evidence; inherited failures; cleanup; frozen boundaries;
   risks and any complete Q proposal. Format the artifact before freeze and never claim independent
   PASS.
@@ -132,12 +152,12 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Independent review contract
 
-- **Reviewer:** distinct `human_scratch_reviewer`, undispatched until revision-01 implementation
+- **Reviewer:** distinct `human_scratch_reviewer`, undispatched until revision-02 implementation
   evidence freezes
 - **Literal cumulative review BASE:** `1b42d27e11494a167a4768e0c2c308010aa51651`
-- **Literal revision-01 HEAD:** `6671c09a5ca94ccb4ff47564c15d44935cc73479`
-- **Implementation evidence:** `evidence/P16A/implementation-01.md`
-- **Sole reviewer artifact:** `reviews/P16A-review-01.md`
+- **Literal revision-02 HEAD:** pending exact committed product/test HEAD
+- **Implementation evidence:** `evidence/P16A/implementation-02.md`
+- **Sole reviewer artifact:** `reviews/P16A-review-02.md`
 - **Reviewer writes:** the new review file only; no product/test/evidence/ledger/config/frozen edit
   or commit
 - **Required review focus:** independently prove domain separation, every finite/boundary rule,
@@ -154,7 +174,5 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Integrate the immutable revision-01 FAIL, F-01 and exact risk transcription. Then prepare P16A
-revision 02 over the same original cumulative BASE, with a new revisioned evidence/review pair and
-authority limited to freezing every public result graph plus direct regression tests. Keep HS-009
-unchecked and FS-001 immutable/open.
+Commit this revision-02 handoff/progress transition, then dispatch `human_scratch_implementer` for
+P16A revision 02 only. Keep the reviewer undispatched, HS-009 unchecked and FS-001 immutable/open.
