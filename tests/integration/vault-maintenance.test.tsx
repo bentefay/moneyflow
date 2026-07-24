@@ -1,11 +1,11 @@
-import { render } from "@testing-library/react";
-import { isContainerId, LoroMap, VersionVector } from "loro-crdt";
+import { act, render } from "@testing-library/react";
+import { isContainerId, LoroList, LoroMap, VersionVector } from "loro-crdt";
 import { createElement } from "react";
 import { Temporal } from "temporal-polyfill";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import "fake-indexeddb/auto";
 
-import { useTransaction, VaultProvider } from "@/lib/crdt/context";
+import { useTransaction, useTransactions, VaultProvider } from "@/lib/crdt/context";
 import {
     changeAllDescriptionAliases,
     createDescriptionAlias
@@ -27,6 +27,7 @@ import { VaultUndoCoordinator } from "@/lib/crdt/undo";
 import { asMinorUnits } from "@/lib/domain/currency";
 import { SyncManager, type SyncManagerOptions } from "@/lib/sync/manager";
 import { closeDB, getUnpushedOps } from "@/lib/sync/persistence";
+import { asPercentage } from "@/types";
 
 const realtime = vi.hoisted(() => ({
     subscribe: vi.fn(async () => undefined),
@@ -38,6 +39,7 @@ vi.mock("@/lib/supabase/realtime", () => ({
 }));
 
 const DATE = Temporal.PlainDate.from("2026-07-22");
+const LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY = "__moneyflow_gc_metadata__";
 let vaultCounter = 0;
 
 function createFrameHost() {
@@ -142,10 +144,30 @@ function relocationTransaction(id: string, creationMilliseconds: number): Transa
         tagIds: ["one", "two", "three"],
         statusId: "status",
         importId: "import",
-        allocations: {},
+        allocations: { "root-one": asPercentage(25), "root-two": asPercentage(75) },
         creationInstant: Temporal.Instant.fromEpochMilliseconds(creationMilliseconds),
         importRowIndex: creationMilliseconds,
-        suspectedDuplicates: [],
+        suspectedDuplicates: [
+            {
+                id: `${id}-nested`,
+                date: DATE,
+                description: `Nested ${id}`,
+                descriptionAliasId: undefined,
+                notes: "nested before",
+                amount: asMinorUnits(creationMilliseconds),
+                accountId: "account",
+                tagIds: ["nested-one", "nested-two"],
+                statusId: "status",
+                importId: "import",
+                allocations: {
+                    "nested-one": asPercentage(40),
+                    "nested-two": asPercentage(60)
+                },
+                creationInstant: Temporal.Instant.fromEpochMilliseconds(creationMilliseconds + 1),
+                importRowIndex: creationMilliseconds,
+                deletedAt: undefined
+            }
+        ],
         deletedAt: undefined
     };
 }
@@ -194,6 +216,95 @@ function hasTransactionShadow(state: VaultState): boolean {
     return accountTransactions(state).some(
         (transaction) => getTransactionMaintenanceShadowIdentity(transaction) != null
     );
+}
+
+function activeTransactionShadow(state: VaultState) {
+    return accountTransactions(state).find(
+        (transaction) => getTransactionMaintenanceShadowIdentity(transaction) != null
+    );
+}
+
+type ConsumedShadowValue = "nested-allocation" | "nested-tag" | "root-allocation" | "root-tag";
+
+function hasConsumedShadowValue(state: VaultState, value: ConsumedShadowValue): boolean {
+    const shadow = activeTransactionShadow(state);
+    if (!shadow) return false;
+    if (value === "root-tag") return shadow.tagIds[0] === "one";
+    if (value === "root-allocation") {
+        return (
+            shadow.allocations["root-one"] === 25 &&
+            shadow.allocations["root-two"] === 75 &&
+            shadow.suspectedDuplicates.length > 0
+        );
+    }
+    const nested = shadow.suspectedDuplicates[0];
+    if (!nested) return false;
+    if (value === "nested-tag") return nested.tagIds[0] === "nested-one";
+    return (
+        nested.id.endsWith("-nested") &&
+        nested.allocations["nested-one"] === 40 &&
+        nested.allocations["nested-two"] === 60
+    );
+}
+
+function runUntilConsumedShadowValue(
+    frames: ReturnType<typeof createFrameHost>,
+    state: () => VaultState,
+    value: ConsumedShadowValue
+): void {
+    for (let frame = 0; frame < 1_000; frame += 1) {
+        if (hasConsumedShadowValue(state(), value)) return;
+        if (!frames.runOne()) break;
+    }
+    throw new Error(`Maintenance did not copy the expected ${value}`);
+}
+
+function editConsumedSourceValue(
+    vault: ReturnType<typeof createRelocationGarbage>,
+    value: ConsumedShadowValue
+): { readonly publicId: string; readonly replacement: number | string } {
+    const shadow = activeTransactionShadow(vault.mirror.getState());
+    const identity = shadow && getTransactionMaintenanceShadowIdentity(shadow);
+    if (!identity || !isContainerId(identity.sourceCid)) {
+        throw new Error("Missing active relocation shadow identity");
+    }
+    const source = vault.doc.getContainerById(identity.sourceCid);
+    if (!(source instanceof LoroMap)) throw new Error("Missing relocation source map");
+    const parent =
+        value === "nested-allocation" || value === "nested-tag"
+            ? source.get("suspectedDuplicates")
+            : source;
+    const nested = parent instanceof LoroList ? parent.get(0) : undefined;
+    const collectionParent = parent instanceof LoroList ? nested : parent;
+    if (!(collectionParent instanceof LoroMap)) throw new Error("Missing collection parent");
+
+    if (value === "root-tag" || value === "nested-tag") {
+        const tags = collectionParent.get("tagIds");
+        if (!(tags instanceof LoroList)) throw new Error("Missing source tags");
+        const replacement = value === "root-tag" ? "changed-root" : "changed-nested";
+        tags.delete(0, 1);
+        tags.insert(0, replacement);
+        vault.doc.commit({ origin: "user:edit" });
+        return { publicId: identity.publicId, replacement };
+    }
+
+    const allocations = collectionParent.get("allocations");
+    if (!(allocations instanceof LoroMap)) throw new Error("Missing source allocations");
+    const replacement = value === "root-allocation" ? 26 : 41;
+    allocations.set(value === "root-allocation" ? "root-one" : "nested-one", replacement);
+    vault.doc.commit({ origin: "user:edit" });
+    return { publicId: identity.publicId, replacement };
+}
+
+function installLegacyMetadata(doc: ReturnType<typeof createVaultMirror>["doc"]): void {
+    const transactions = doc.getMap("transactions");
+    const metadata = transactions.setContainer(
+        LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY,
+        new LoroMap()
+    );
+    metadata.set("accountId", LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY);
+    metadata.setContainer("years", new LoroList());
+    doc.commit({ origin: "legacy:maintenance" });
 }
 
 function maintenanceEpoch(doc: ReturnType<typeof createVaultMirror>["doc"]): string | undefined {
@@ -622,6 +733,140 @@ describe("vault background maintenance integration", () => {
         disposeReloaded();
         reloaded.mirror.dispose();
     });
+
+    it.each(["root-tag", "root-allocation", "nested-tag", "nested-allocation"] as const)(
+        "rejects a disposed same-document shadow after an equal-cardinality %s edit",
+        (value) => {
+            const vault = createRelocationGarbage();
+            const frames = createFrameHost();
+            const dispose = startVaultMaintenanceScheduler({
+                budget: { maxItems: 1, maxMilliseconds: 4 },
+                doc: vault.doc,
+                host: frames.host,
+                store: vault.mirror
+            });
+            runUntilConsumedShadowValue(frames, () => vault.mirror.getState(), value);
+            const staleEpoch = maintenanceEpoch(vault.doc);
+
+            dispose();
+            const edited = editConsumedSourceValue(vault, value);
+            const remountedFrames = createFrameHost();
+            const disposeRemounted = startVaultMaintenanceScheduler({
+                budget: { maxItems: 1, maxMilliseconds: 4 },
+                doc: vault.doc,
+                host: remountedFrames.host,
+                store: vault.mirror
+            });
+            remountedFrames.runAll();
+
+            expect(hasTransactionShadow(vault.mirror.getState())).toBe(false);
+            expect(maintenanceEpoch(vault.doc)).not.toBe(staleEpoch);
+            const relocated = getAccountTransactions(
+                vault.mirror.getState().transactions,
+                "account"
+            ).find(({ id }) => id === edited.publicId);
+            if (value === "root-tag") {
+                expect(relocated?.tagIds[0]).toBe(edited.replacement);
+            } else if (value === "root-allocation") {
+                expect(relocated?.allocations["root-one"]).toBe(edited.replacement);
+            } else if (value === "nested-tag") {
+                expect(relocated?.suspectedDuplicates[0]?.tagIds[0]).toBe(edited.replacement);
+            } else {
+                expect(relocated?.suspectedDuplicates[0]?.allocations["nested-one"]).toBe(
+                    edited.replacement
+                );
+            }
+
+            disposeRemounted();
+            vault.mirror.dispose();
+        }
+    );
+
+    it.each(["marker-only", "marker-plus-domain"] as const)(
+        "cleans a late legacy metadata %s import before raw hooks can expose it",
+        async (delivery) => {
+            const vault = createVaultMirror();
+            vault.mirror.setState((state: VaultState) => {
+                insertTransaction(state.transactions, {
+                    transaction: relocationTransaction("visible", 10)
+                });
+            });
+            const frames = createFrameHost();
+            vi.spyOn(window, "requestAnimationFrame").mockImplementation(frames.host.requestFrame);
+            vi.spyOn(window, "cancelAnimationFrame").mockImplementation(frames.host.cancelFrame);
+            const observedKeys: string[][] = [];
+
+            function CaptureTransactions() {
+                observedKeys.push(Object.keys(useTransactions()));
+                return null;
+            }
+
+            const view = render(
+                createElement(VaultProvider, { doc: vault.doc }, createElement(CaptureTransactions))
+            );
+            frames.runAll();
+            const visibleCid = accountTransactions(vault.mirror.getState()).find(
+                ({ id }) => id === "visible"
+            )?.$cid;
+            if (!visibleCid || !isContainerId(visibleCid)) {
+                throw new Error("Missing visible transaction identity");
+            }
+            const peer = createVaultMirrorFromSnapshot(vault.doc.export({ mode: "snapshot" }));
+            const peerBase = VersionVector.decode(peer.doc.version().encode());
+            if (delivery === "marker-plus-domain") {
+                const container = peer.doc.getContainerById(visibleCid);
+                if (!(container instanceof LoroMap)) throw new Error("Missing visible map");
+                container.set("notes", "late domain edit");
+                peer.doc.commit({ origin: "user:edit" });
+            }
+            installLegacyMetadata(peer.doc);
+            const cleanupUpdates: Uint8Array[] = [];
+            const stopUpdates = vault.doc.subscribeLocalUpdates((update) =>
+                cleanupUpdates.push(update)
+            );
+
+            await act(async () => {
+                vault.doc.import(peer.doc.export({ mode: "update", from: peerBase }));
+                await Promise.resolve();
+            });
+
+            expect(
+                vault.doc.getMap("transactions").get(LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY)
+            ).toBeInstanceOf(LoroMap);
+            expect(
+                observedKeys.every(
+                    (keys) => !keys.includes(LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY)
+                )
+            ).toBe(true);
+            await act(async () => {
+                frames.runAll();
+                await Promise.resolve();
+            });
+            expect(
+                vault.doc.getMap("transactions").get(LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY)
+            ).toBeUndefined();
+            expect(cleanupUpdates).toHaveLength(1);
+            expect(
+                accountTransactions(vault.mirror.getState()).find(({ id }) => id === "visible")
+                    ?.notes
+            ).toBe(delivery === "marker-plus-domain" ? "late domain edit" : "before");
+
+            await act(async () => {
+                vault.doc.import(peer.doc.export({ mode: "update", from: peerBase }));
+                frames.runAll();
+                await Promise.resolve();
+            });
+            expect(cleanupUpdates).toHaveLength(1);
+            expect(
+                vault.doc.getMap("transactions").get(LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY)
+            ).toBeUndefined();
+
+            stopUpdates();
+            view.unmount();
+            peer.mirror.dispose();
+            vault.mirror.dispose();
+        }
+    );
 
     it("classifies synced shadow batches as maintenance and converges without local echo", () => {
         const source = createRelocationGarbage();

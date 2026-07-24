@@ -44,6 +44,7 @@ const loroContext = createLoroContext(vaultSchema);
 
 const useInternalVaultContext = loroContext.useLoroContext;
 const useInternalVaultSelector = loroContext.useLoroSelector;
+const LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY = "__moneyflow_gc_metadata__";
 
 interface DescriptionAliasRevisionStore {
     readonly getAliases: (
@@ -336,7 +337,13 @@ export function useStatuses() {
  * Hook to get all transactions in the vault
  */
 export function useTransactions() {
-    return useVaultSelector((state) => state.transactions);
+    const transactions = useVaultSelector((state) => state.transactions);
+    return useMemo(() => {
+        if (!(LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY in transactions)) return transactions;
+        const visibleTransactions = { ...transactions };
+        delete visibleTransactions[LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY];
+        return visibleTransactions;
+    }, [transactions]);
 }
 
 /**

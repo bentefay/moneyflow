@@ -1517,6 +1517,22 @@ function commitMaintenance(doc: LoroDoc): void {
     doc.commit({ origin: "system:gc", message: VAULT_MAINTENANCE_COMMIT_MESSAGE });
 }
 
+function hasLegacyMaintenanceMetadata(doc: LoroDoc): boolean {
+    return (
+        doc.getMap("transactions").get(LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY) instanceof LoroMap
+    );
+}
+
+function cleanupLegacyMaintenanceMetadata(doc: LoroDoc): boolean {
+    const transactions = doc.getMap("transactions");
+    if (!(transactions.get(LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY) instanceof LoroMap)) {
+        return false;
+    }
+    transactions.delete(LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY);
+    commitMaintenance(doc);
+    return true;
+}
+
 function getAllocationIterators(doc: LoroDoc): Map<string, AllocationIteratorState> {
     const existing = relocationAllocationIterators.get(doc);
     if (existing) return existing;
@@ -2075,6 +2091,7 @@ export function startVaultMaintenanceScheduler(input: {
     let frameId: number | undefined;
     let disposed = false;
     let needsAnotherPass = false;
+    let needsLegacyMetadataCleanup = hasLegacyMaintenanceMetadata(input.doc);
     let importedChangeHead: ImportedChangeQueueNode | undefined;
     let importedChangeTail: ImportedChangeQueueNode | undefined;
     const aliasHistory = getVaultAliasHistoryFrontier(input.doc);
@@ -2098,6 +2115,12 @@ export function startVaultMaintenanceScheduler(input: {
         frameId = input.host.requestFrame(() => {
             frameId = undefined;
             if (disposed || !input.host.isVisible()) return;
+            if (needsLegacyMetadataCleanup) {
+                needsLegacyMetadataCleanup = false;
+                cleanupLegacyMaintenanceMetadata(input.doc);
+                schedule();
+                return;
+            }
             if (importedChangeHead) {
                 const budget = input.budget ?? DEFAULT_VAULT_MAINTENANCE_BUDGET;
                 const startedAt = input.host.now();
@@ -2170,6 +2193,10 @@ export function startVaultMaintenanceScheduler(input: {
     };
 
     const unsubscribeDocument = input.doc.subscribe((event) => {
+        if (hasLegacyMaintenanceMetadata(input.doc)) {
+            needsLegacyMetadataCleanup = true;
+            schedule();
+        }
         if (!touchesMaintenanceDomain(event)) return;
         const invalidatesAliasProof = hasAliasProofInvalidatingChanges(event);
         if (event.by === "import") {
@@ -2212,6 +2239,7 @@ export function startVaultMaintenanceScheduler(input: {
         unsubscribeVisibility();
         unsubscribeDocument();
         unsubscribeAliasHistory?.();
+        invalidateActiveTransactionShadow(input.doc);
         clearRelocationAllocationIterators(input.doc);
     };
 }
