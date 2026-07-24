@@ -8,7 +8,7 @@ literal field is `pending`. Workers may read but never edit it.
 - **Package / revision:** P16B / 01
 - **Scope ID:** FS-001; this package owns the sole canonical settlement engine, its current caller
   migration and focused production tests only. FS-001 cannot complete from P16B alone.
-- **State:** revision-01 implementation frozen; ready for independent review
+- **State:** reviewing revision-01 frozen implementation
 - **Binding task:** `tasks/FS-001-transaction-percentage-allocations-settlement.md` P16B
 - **Canonical authority:** read all 715 lines of
   `specs/008-transaction-percentage-allocations-settlement/spec.md`; sections 5–7, 11–12, 14–17
@@ -152,8 +152,8 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Independent review contract
 
-- **Reviewer:** distinct `human_scratch_reviewer`; dispatch only after frozen evidence and this
-  review transition are committed
+- **Reviewer:** distinct `human_scratch_reviewer`, dispatched only after frozen evidence commit
+  `095a657698231b5ed34f70c3cfa737d5b7fdfc16`
 - **Literal review BASE:** `4c102600240e2804b801c2a320e10164defb14ea`
 - **Literal product/test HEAD:** `5242a2422cd86dd48eac07a4422491d5079ccd23`
 - **Implementation evidence:** `evidence/P16B/implementation-01.md`
@@ -173,7 +173,6 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Commit the frozen P16B evidence and review transition, then dispatch `human_scratch_reviewer` over
-literal range
+Await `human_scratch_reviewer`'s independent verdict over literal range
 `4c102600240e2804b801c2a320e10164defb14ea..5242a2422cd86dd48eac07a4422491d5079ccd23`
 with sole output `reviews/P16B-review-01.md`. Keep HS-009 unchanged and FS-001 immutable/open.
