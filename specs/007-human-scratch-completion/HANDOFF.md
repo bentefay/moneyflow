@@ -24,6 +24,7 @@ literal field is `pending`. Workers may read but never edit it.
   `157dfc363788966f90fd5dca0f23506f65a75f4794261359ab89f443d9603b91`, 204 lines/21,835 bytes.
   All seven filter classes clear correctly, but 50 or more legal higher-sorted rows can leave the
   newly selected ordinary row outside the rendered page until load-more.
+- **Revision-02 failure integration commit:** `282b1d64b94c0e5614f3db5b723f99b23923cf44`
 - **Literal revision-01 product/test HEAD:** `6276108f4ebae4e63a23cbf5d532b8843e9f0a98`
 - **Revision-01 commit:** `6276108f4ebae4e63a23cbf5d532b8843e9f0a98`; exactly 15 authorized
   product/test paths, including deletion of the dead `AddTransactionRow.tsx`
@@ -124,5 +125,5 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Persist the immutable revision-02 FAIL artifacts/control state, link that exact commit, then
-dispatch P13 revision 03 for the remaining pagination visibility defect over the same original BASE.
+Link the immutable revision-02 failure integration commit, then dispatch P13 revision 03 for the
+remaining pagination visibility defect over the same original BASE.
