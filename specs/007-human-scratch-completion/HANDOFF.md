@@ -8,7 +8,7 @@ literal field is `pending`. Workers may read but never edit it.
 - **Package / revision:** P16B / 01
 - **Scope ID:** FS-001; this package owns the sole canonical settlement engine, its current caller
   migration and focused production tests only. FS-001 cannot complete from P16B alone.
-- **State:** reviewing revision-01 frozen implementation
+- **State:** changes requested after immutable revision-01 FAIL; failure integration pending
 - **Binding task:** `tasks/FS-001-transaction-percentage-allocations-settlement.md` P16B
 - **Canonical authority:** read all 715 lines of
   `specs/008-transaction-percentage-allocations-settlement/spec.md`; sections 5–7, 11–12, 14–17
@@ -21,7 +21,9 @@ literal field is `pending`. Workers may read but never edit it.
   `48f10876f8e69e7f3bff022598c0236a775d061e1cc06a86cb3d48bfc60d3dfd`, 323 lines /
   21,736 bytes
 - **Product/test HEAD:** `5242a2422cd86dd48eac07a4422491d5079ccd23`
-- **Future immutable review artifact:** `reviews/P16B-review-01.md`
+- **Immutable review artifact:** `reviews/P16B-review-01.md`, FAIL, SHA-256
+  `5dd6be1a1efbdbecb0a4a3e42e54ec7d0b55a05555deebd88c3009c97fd7df38`, 314 lines /
+  18,758 bytes
 - **Implementation-start boundary:** clean index/worktree; P16A evidence/reviews and pass state are
   committed and immutable
 - **Allowed product/test paths:** exactly
@@ -173,6 +175,6 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Await `human_scratch_reviewer`'s independent verdict over literal range
-`4c102600240e2804b801c2a320e10164defb14ea..5242a2422cd86dd48eac07a4422491d5079ccd23`
-with sole output `reviews/P16B-review-01.md`. Keep HS-009 unchanged and FS-001 immutable/open.
+Persist the immutable FAIL review, transcribe F-01/F-02/F-03 to risks and package state, then prepare
+P16B revision 02 over the same original cumulative BASE. Keep HS-009 unchanged and FS-001
+immutable/open.
