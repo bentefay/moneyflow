@@ -7,9 +7,10 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P16A revision 02 (`passed`)
-- **Next action:** prepare and dispatch dependency-ready P16B revision 01 from the clean
-  post-P16A-pass HEAD
+- **Current package:** P16B revision 01 (`implementing`; dispatch prepared)
+- **Next action:** dispatch `human_scratch_implementer` against original BASE
+  `4c102600240e2804b801c2a320e10164defb14ea` and sole evidence
+  `evidence/P16B/implementation-01.md`
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -22,7 +23,8 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** eleven passed; HS-015 blocked externally; HS-011/HS-012 and seven other HS
   requirements plus FS-001 queued
-- **Last ledger update:** 2026-07-25; P16A revision-02 passed and P16B is dependency-ready
+- **Last ledger update:** 2026-07-25; P16B revision-01 sole canonical settlement-engine dispatch
+  prepared
 
 ## Package ledger
 
@@ -47,7 +49,7 @@ review evidence.
 | P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | passed | 04 | `b9105028926d24a5a0c5454777a6c33379ca606a..305d6613673cf200d456276c076463b68c075500` | `evidence/P14/implementation-04.md` | `reviews/P14-review-04.md` | `a2182116db08200b8b4df28412512b9ca3406aa2` |
 | P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | passed | 02 | `b3e96ba9e9487d13df56956d220fffca63d6482d..91931688ef9463576b757a097968af543a4b8a75` | `evidence/P15/implementation-02.md` | `reviews/P15-review-02.md` | `9c5d7be8ee4cf7c3fda5f1a7320c053362672e3a` |
 | P16A    | FS-001, HS-009 | Allocation/ownership validation, remainder/effective shares and exact apportionment | P01                  | passed | 02 | `1b42d27e11494a167a4768e0c2c308010aa51651..f84f66758708529c44342313e8632ee8b7dcead3` | `evidence/P16A/implementation-02.md` | `reviews/P16A-review-02.md` | `41f5760f77c1a93ab650a93912bfaf3c0b627ab0` |
-| P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
+| P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | implementing | 01 | `4c102600240e2804b801c2a320e10164defb14ea..pending`                                  | `evidence/P16B/implementation-01.md` | `reviews/P16B-review-01.md` | pending                                    |
 | P16C    | FS-001, HS-009 | CRDT per-key/complete-set APIs and every mutation, hydration and history path       | P16A, P16B, P09, P14 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16D    | FS-001, HS-009 | Actual grid/add-row person columns, virtualization, history and presence UX         | P16C, P13            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16E    | FS-001         | People obligations/issues/source UX plus full integration, E2E, manual and perf     | P16D, P08, P11C      | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -2563,6 +2565,23 @@ independently accepted immutable validation/remainder/effective/apportionment bo
 P16B/C/D. This package alone does not complete either mapped requirement: HS-009 still requires
 P16C/P16D and remains unchecked, while FS-001 still requires P16B–E and its canonical source remains
 byte-identical. P16B is now dependency-ready.
+
+**2026-07-25T08:43:55+10:00 — P16B/01 `queued -> implementing`:** P16A/02 is passed and the clean
+post-pass original BASE is `4c102600240e2804b801c2a320e10164defb14ea`. Sole evidence is
+`evidence/P16B/implementation-01.md`; future independent review is `reviews/P16B-review-01.md`.
+Authority is limited to the canonical settlement owner, removal of the duplicate floating-point
+`balance.ts` callable and barrel alias, the current People settlement caller pair, exact settlement/
+balance tests and one optional focused caller-component test. P16B must reuse P16A exact immutable
+primitives; implement canonical eligibility, account→vault→USD currency, signed effective-minus-
+ownership positions, deterministic debtor/creditor matching, currency-isolated aggregation/reverse
+netting, positive obligations, source contribution traceability, per-person positions and typed
+issues. Separate named production expectations A–H, fixed-seed independent-oracle properties,
+complete result immutability/input purity, no vacuous assertions, focused x3, domain/full/static/
+build, affected/full no-retry Chromium and an honest current-caller installed-CLI charter are
+mandatory. The deterministic 100,000-transaction benchmark must report approximate 200ms honestly
+or a complete measured optimization follow-up without a false target claim. CRDT/schema, allocation
+UI, E2E edits and P16C/D/E behavior are forbidden. Reviewer is undispatched; HS-009 remains
+unchanged and FS-001 immutable/open.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
