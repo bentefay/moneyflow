@@ -235,7 +235,7 @@
 
     **Background GC worker:** See separate task below.
 
-- [] Background GC worker - a requestAnimationFrame-based worker that incrementally processes a
+- [x] Background GC worker - a requestAnimationFrame-based worker that incrementally processes a
   bounded number of transactions per frame. Responsibilities: (a) merge adjacent transaction buckets
   with same year/month/day (CRDT merge artifacts), (b) update transactions pointing to description
   alias symlinks to point to the final alias, then hard-delete symlinks with no remaining

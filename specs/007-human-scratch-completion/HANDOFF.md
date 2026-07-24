@@ -7,9 +7,8 @@ literal field is `pending`. Workers may read but never edit it.
 
 - **Package / revision:** P12 / 08
 - **Scope IDs:** HS-005 only; bounded requestAnimationFrame maintenance for duplicate transaction
-  buckets and description-alias symlinks; HS-005 remains incomplete and unchecked
-- **State:** passed after root integration; revisions 01–08 are immutable; HS-005 remains unchecked
-  until the separate root marker transaction
+  buckets and description-alias symlinks; HS-005 is passed and checked
+- **State:** passed; revisions 01–08 are immutable; HS-005 marker finalized
 - **Task:** `tasks/HS-005-background-gc.md`; exact 6-line HS-005 block in SCOPE
 - **Dependencies:** P09/02 and P11A–C are passed; P12 is independent of blocked P05/P08/P10
 - **Literal original BASE:** `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e`
@@ -116,8 +115,8 @@ literal field is `pending`. Workers may read but never edit it.
   atomic-apply argument, commands/repeats, sanitized manual evidence, inherited reds, cleanup, risks,
   frozen checks and complete Q proposals. Do not claim PASS.
 - **Frozen boundary:** scratch SHA
-  `2c52bd78c6efec683c2bc59fc2de225bb8bc997fc2f01699f90c98ddc3b65744`, checked set
-  HS-002/HS-004/HS-006/HS-010/HS-014/HS-017/HS-018, all 21 normalized blocks exact; FS-001
+  `aa8a1f56df6716cb73071c694015030311611fc102af71b0b2e5a31cba281a8f`, checked set
+  HS-002/HS-004/HS-005/HS-006/HS-010/HS-014/HS-017/HS-018, all 21 normalized blocks exact; FS-001
   `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines/25,441 bytes;
   SCOPE `d03f33e718f1ec5f7c8ad0119d283397dcc59407199da4b5887a2e5eee7ef0f9`, 450 lines/27,382 bytes.
 
@@ -159,5 +158,4 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Execute and verify only the durably prepared HS-005 `[] -> [x]` marker transaction; no package
-dispatch is allowed until it finalizes.
+Rewrite this handoff for the next dependency-ready package P13; P12/HS-005 is complete.
