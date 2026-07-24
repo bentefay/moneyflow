@@ -47,7 +47,7 @@ import {
     useVaultAction
 } from "@/lib/crdt/context";
 import type { DescriptionAliasTarget } from "@/lib/crdt/description-aliases";
-import { filterTransactions } from "@/lib/crdt/queries";
+import { compareTransactionOrder, filterTransactions } from "@/lib/crdt/queries";
 import type { Account, Person, Status, Tag, Transaction } from "@/lib/crdt/schema";
 import { getNextTagColor } from "@/lib/domain";
 import { asMinorUnits } from "@/lib/domain/currency";
@@ -128,33 +128,16 @@ export default function TransactionsPage() {
 
     // Pagination state
     const [displayCount, setDisplayCount] = useState(PAGE_SIZE);
+    const [transactionIdToReveal, setTransactionIdToReveal] = useState<string | null>(null);
+    const transactionTableContainerRef = useRef<HTMLDivElement>(null);
 
     // Selection state - simple Set instead of custom hook
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-    const activeTransactionIds = useMemo(
-        () => new Set(transactions.map((transaction) => transaction.id)),
-        [transactions]
-    );
-    const selectedTransactionIds = useMemo(
-        () => new Set([...selectedIds].filter((id) => activeTransactionIds.has(id))),
-        [activeTransactionIds, selectedIds]
-    );
-    const selectedCount = selectedTransactionIds.size;
 
     const lastManualCreationInstantRef = useRef<Temporal.Instant | null>(null);
 
     // Clear selection helper
     const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
-
-    // Warn when selection exceeds threshold
-    useEffect(() => {
-        if (selectedCount > LARGE_SELECTION_THRESHOLD) {
-            toast({
-                message: `Selected ${selectedCount} transactions. Large selections may be slow.`,
-                type: "warning"
-            });
-        }
-    }, [selectedCount, toast]);
 
     // Convert presence list to presence by transaction ID
     // For now, we don't have transaction-level presence tracking
@@ -191,7 +174,46 @@ export default function TransactionsPage() {
         () => filteredTransactions.slice(0, displayCount),
         [filteredTransactions, displayCount]
     );
+    const displayedTransactionIds = useMemo(
+        () => new Set(displayedTransactions.map((transaction) => transaction.id)),
+        [displayedTransactions]
+    );
+    const selectedTransactionIds = useMemo(
+        () => new Set([...selectedIds].filter((id) => displayedTransactionIds.has(id))),
+        [displayedTransactionIds, selectedIds]
+    );
+    const selectedCount = selectedTransactionIds.size;
     const hasMore = displayCount < filteredTransactions.length;
+
+    // Selection-driven actions must never target a transaction outside the displayed page.
+    useEffect(() => {
+        if (selectedCount > LARGE_SELECTION_THRESHOLD) {
+            toast({
+                message: `Selected ${selectedCount} transactions. Large selections may be slow.`,
+                type: "warning"
+            });
+        }
+    }, [selectedCount, toast]);
+
+    useEffect(() => {
+        if (transactionIdToReveal == null) return;
+
+        const transactionIndex = displayedTransactions.findIndex(
+            (transaction) => transaction.id === transactionIdToReveal
+        );
+        if (transactionIndex < 0) return;
+
+        const grid = transactionTableContainerRef.current?.querySelector<HTMLElement>(
+            '[role="grid"][aria-label="Transactions"]'
+        );
+        const scrollContainer = grid?.parentElement;
+        if (!grid || !scrollContainer || displayedTransactions.length === 0) return;
+
+        const estimatedRowHeight = grid.scrollHeight / displayedTransactions.length;
+        const precedingVisibleRowIndex = Math.max(0, transactionIndex - 1);
+        scrollContainer.scrollTop = grid.offsetTop + precedingVisibleRowIndex * estimatedRowHeight;
+        setTransactionIdToReveal(null);
+    }, [displayedTransactions, transactionIdToReveal]);
 
     // Load more handler
     const handleLoadMore = useCallback(() => {
@@ -280,26 +302,37 @@ export default function TransactionsPage() {
         lastManualCreationInstantRef.current = creationInstant;
 
         const transactionId = generateId();
+        const transaction = {
+            id: transactionId,
+            date: Temporal.Now.plainDateISO(),
+            description: "",
+            descriptionAliasId: undefined,
+            notes: "",
+            amount: asMinorUnits(0),
+            accountId,
+            tagIds: [],
+            statusId: defaultStatusId,
+            importId: undefined,
+            allocations: {},
+            creationInstant,
+            importRowIndex: undefined,
+            deletedAt: undefined
+        };
+        const insertionIndex = transactions.findIndex(
+            (existingTransaction) => compareTransactionOrder(transaction, existingTransaction) < 0
+        );
+        const canonicalIndex = insertionIndex < 0 ? transactions.length : insertionIndex;
+        const requiredDisplayCount = Math.ceil((canonicalIndex + 1) / PAGE_SIZE) * PAGE_SIZE;
+        // Retain the canonical prefix while making the created row part of the displayed page.
+        setDisplayCount((currentDisplayCount) =>
+            Math.max(currentDisplayCount, requiredDisplayCount)
+        );
+        setTransactionIdToReveal(transactionId);
         insertTransaction({
-            transaction: {
-                id: transactionId,
-                date: Temporal.Now.plainDateISO(),
-                description: "",
-                descriptionAliasId: undefined,
-                notes: "",
-                amount: asMinorUnits(0),
-                accountId,
-                tagIds: [],
-                statusId: defaultStatusId,
-                importId: undefined,
-                allocations: {},
-                creationInstant,
-                importRowIndex: undefined,
-                deletedAt: undefined
-            }
+            transaction
         });
         setSelectedIds(new Set([transactionId]));
-    }, [accountOptions, defaultStatusId, insertTransaction]);
+    }, [accountOptions, defaultStatusId, insertTransaction, transactions]);
 
     // Handle bulk delete - uses deleteTransaction mutation
     const handleBulkDelete = useCallback(() => {
@@ -809,7 +842,10 @@ export default function TransactionsPage() {
             />
 
             {/* Transaction Table */}
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border">
+            <div
+                ref={transactionTableContainerRef}
+                className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border"
+            >
                 {/* Toolbar with Add button and counts */}
                 <TransactionTableToolbar
                     onAddClick={handleAddTransaction}

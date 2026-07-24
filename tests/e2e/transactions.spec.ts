@@ -84,6 +84,18 @@ function createLargeTransactionCSV(rowCount: number): string {
     return ["Date,Description,Amount", ...rows].join("\n");
 }
 
+/**
+ * Create legal transactions that sort ahead of a transaction added today.
+ */
+function createFutureTransactionCSV(rowCount: number): string {
+    const rows = Array.from(
+        { length: rowCount },
+        (_, index) =>
+            `2099-01-01,Future Transaction ${index.toString().padStart(4, "0")},-${index + 1}.00`
+    );
+    return ["Date,Description,Amount", ...rows].join("\n");
+}
+
 // ============================================================================
 // Tests
 // ============================================================================
@@ -287,6 +299,109 @@ test.describe("Transactions", () => {
         await expect(page.getByTestId("search-filter")).toHaveValue("");
         await expect(page.getByRole("button", { name: /^Clear all/ })).toHaveCount(0);
         await expect(page.getByTestId("transaction-table-toolbar")).not.toContainText("(filtered)");
+    });
+
+    test("Add reveals its canonical row beyond the initial transaction page", async ({ page }) => {
+        test.setTimeout(120_000);
+        await createNewIdentity(page);
+
+        await test.step("import more than one page of higher-sorted legal transactions", async () => {
+            await goToImportNew(page);
+            await page.locator('input[type="file"]').setInputFiles({
+                name: "future-transactions.csv",
+                mimeType: "text/csv",
+                buffer: Buffer.from(createFutureTransactionCSV(51))
+            });
+
+            await expect(page.getByText("CSV • 52 rows", { exact: true })).toBeVisible({
+                timeout: 10_000
+            });
+            await page.getByRole("tab", { name: /Columns/i }).click();
+            await page.getByRole("button", { name: /Auto-detect/i }).click();
+            await expect(page.getByText(/All required fields mapped/i)).toBeVisible();
+
+            await page.getByRole("tab", { name: /Account/i }).click();
+            await page.locator("#account-select").click();
+            await page.getByRole("option", { name: /Default/i }).click();
+
+            const importButton = page.getByRole("button", {
+                name: /Import 51 Transactions/i
+            });
+            await expect(importButton).toBeEnabled();
+            await importButton.click();
+            await expect(page).toHaveURL(/\/transactions/);
+            await expect(page.getByText("51 transactions", { exact: true })).toBeVisible({
+                timeout: 15_000
+            });
+        });
+
+        await test.step("clear an excluding filter and reveal the selected canonical row", async () => {
+            const search = page.getByTestId("search-filter");
+            await search.fill("definitely-no-match-p13-r03");
+            await search.press("Enter");
+            await expect(page.getByTestId("transaction-row")).toHaveCount(0);
+            await expect(page.getByRole("button", { name: /^Clear all/ })).toBeVisible();
+
+            const addButton = page.getByTestId("add-transaction-button");
+            await addButton.click();
+
+            await expect(addButton).toBeFocused();
+            await expect(search).toHaveValue("");
+            await expect(page.getByRole("button", { name: /^Clear all/ })).toHaveCount(0);
+
+            const toolbar = page.getByTestId("transaction-table-toolbar");
+            await expect(toolbar).toContainText("52 transactions");
+            await expect(toolbar).toContainText("1 selected");
+            await expect(toolbar).not.toContainText("(filtered)");
+            await expect(page.getByTestId("bulk-edit-toolbar")).toContainText("Edit 1");
+
+            const selectedRow = page.getByRole("row", { selected: true });
+            await expect(selectedRow).toBeVisible();
+            await expect(selectedRow.getByTestId("description-editable")).toHaveValue("");
+            await expect(selectedRow.getByTestId("date-editable")).not.toHaveValue("");
+            await expect(
+                selectedRow.getByRole("combobox", { name: "Select account" })
+            ).toContainText("Default");
+            await expect(selectedRow.getByTestId("status-editable")).toContainText("For Review");
+            await expect(selectedRow.getByTestId("amount-editable")).toHaveValue("0.00");
+
+            const transactionId = await selectedRow.getAttribute("data-transaction-id");
+            if (!transactionId) throw new Error("Expected persisted transaction identity");
+            await expect(selectedRow.locator("../..")).toHaveAttribute("data-index", "51");
+
+            const exactRow = page.locator(`[data-transaction-id="${transactionId}"]`);
+            await page.getByRole("button", { name: "Undo" }).click();
+            await expect(exactRow).toHaveCount(0);
+            await expect(page.getByRole("row", { selected: true })).toHaveCount(0);
+            await expect(toolbar).toContainText("51 transactions");
+            await expect(toolbar).not.toContainText("selected");
+            await expect(page.getByTestId("bulk-edit-toolbar")).toHaveCount(0);
+
+            await page.getByRole("button", { name: "Redo" }).click();
+            await expect(exactRow).toBeVisible();
+            await expect(exactRow).toHaveAttribute("aria-selected", "true");
+            await expect(exactRow.locator("../..")).toHaveAttribute("data-index", "51");
+            await expect(toolbar).toContainText("52 transactions");
+            await expect(toolbar).toContainText("1 selected");
+            await expect(page.getByTestId("bulk-edit-toolbar")).toContainText("Edit 1");
+
+            await page.reload();
+            await expect(toolbar).toContainText("52 transactions");
+            await expect(page.getByRole("row", { selected: true })).toHaveCount(0);
+            const scrollContainer = page.getByTestId("transaction-table").locator("..");
+            await expect
+                .poll(async () => {
+                    await scrollContainer.evaluate((element) => {
+                        element.scrollTop = element.scrollHeight;
+                        element.dispatchEvent(new Event("scroll"));
+                    });
+                    return exactRow.count();
+                })
+                .toBe(1);
+            await expect(exactRow).toBeVisible();
+            await expect(exactRow.getByTestId("description-editable")).toHaveValue("");
+            await expect(exactRow.locator("../..")).toHaveAttribute("data-index", "51");
+        });
     });
 
     test("empty rows survive offline reload and converge once across authenticated tabs", async ({
