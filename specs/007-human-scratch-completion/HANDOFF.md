@@ -8,14 +8,17 @@ literal field is `pending`. Workers may read but never edit it.
 - **Package / revision:** P15 / 02
 - **Scope IDs:** HS-013 only; whole imports-list and transactions-table file drop targets; HS-013
   remains incomplete and unchecked
-- **State:** implementing after the current root control commit; reviewer is undispatched
+- **State:** reviewing; implementation authority is closed and the independent reviewer alone may
+  write the revision-02 review artifact
 - **Task:** `tasks/HS-013-import-drop-zones.md`; exact one-line HS-013 block in SCOPE
 - **Dependency:** P14/04 and HS-008 are passed. P15 revision-01 architecture remains the cumulative
   base to correct, not replace.
 - **Literal original cumulative review BASE:**
   `b3e96ba9e9487d13df56956d220fffca63d6482d`
 - **Revision-02 clean pre-implementation HEAD:**
-  `49dcef93bdbd4d4d21f0313061bc262473801966`
+  `6751860ba4d1501404b35bca27d0711b93424eb6`
+- **Revision-02 committed product/test HEAD:**
+  `91931688ef9463576b757a097968af543a4b8a75`
 - **Revision-01 product/test HEAD:** `d652032ea4f738e06fd5a29018bd341010285696`
 - **Revision-01 failure integration:** `49dcef93bdbd4d4d21f0313061bc262473801966`
 - **Immutable revision-01 evidence:** `evidence/P15/implementation-01.md`, SHA-256
@@ -24,7 +27,9 @@ literal field is `pending`. Workers may read but never edit it.
 - **Immutable revision-01 review:** `reviews/P15-review-01.md`, FAIL, SHA-256
   `4da58be357d490f28d5fbe0858a0e428ef8842258adcc2a87dd942da5b86cd44`, 227 lines /
   16,347 bytes
-- **Sole new implementer artifact:** `evidence/P15/implementation-02.md`
+- **Frozen revision-02 implementer artifact:** `evidence/P15/implementation-02.md`, SHA-256
+  `a92301725fe0ee553cf5b21d9fb3796c92330994019c0224cf4952af5a21b501`, 169 lines /
+  12,275 bytes
 - **Future immutable review artifact:** `reviews/P15-review-02.md`
 - **Implementation-start boundary:** clean HEAD/index/worktree; revision-01 evidence/review and all
   root transcriptions are committed and immutable
@@ -120,7 +125,7 @@ literal field is `pending`. Workers may read but never edit it.
 - **Reviewer:** distinct `human_scratch_reviewer`, undispatched until revision-02 implementation
   evidence freezes
 - **Literal cumulative review BASE:** `b3e96ba9e9487d13df56956d220fffca63d6482d`
-- **Literal revision-02 HEAD:** pending exact committed product/test HEAD
+- **Literal revision-02 HEAD:** `91931688ef9463576b757a097968af543a4b8a75`
 - **Range type:** original P15 BASE through the future revision-02 product/test HEAD, including
   immutable revision-01 failure/control history
 - **Implementation evidence:** `evidence/P15/implementation-02.md`
@@ -138,5 +143,6 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Dispatch `human_scratch_implementer` for P15 revision 02 only after this handoff/progress transition
-is durably committed. Keep the reviewer undispatched and HS-013 unchecked.
+Commit this reviewing transition, then dispatch `human_scratch_reviewer` over literal cumulative
+range `b3e96ba9e9487d13df56956d220fffca63d6482d..91931688ef9463576b757a097968af543a4b8a75`
+with frozen evidence `evidence/P15/implementation-02.md`. Keep HS-013 unchecked.

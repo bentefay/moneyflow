@@ -2370,6 +2370,30 @@ actual DataTransfer, exact contrast/geometry, focused x3, affected/full no-retry
 complete installed-CLI/privacy/scale/P13/P14 preservation charter are mandatory. Reviewer is
 undispatched; HS-013 remains unchecked.
 
+**2026-07-25T06:13:08+10:00 — P15/02 `implementing -> ready_for_review -> reviewing`:** Exact
+revision-02 product/test HEAD `91931688ef9463576b757a097968af543a4b8a75` changes exactly five
+authorized paths from clean dispatch/control HEAD `6751860ba4d1501404b35bca27d0711b93424eb6`.
+Frozen evidence `evidence/P15/implementation-02.md` is 169 lines/12,275 bytes at SHA-256
+`a92301725fe0ee553cf5b21d9fb3796c92330994019c0224cf4952af5a21b501`. Checked-in tests first
+reproduced all five revision-01 findings as 5 failed/9 passed and finish 14/14 in three clean
+processes. Reported green includes import owners 267/267, focused browser 12/12, preserved
+revision-01 browser 12/12, affected Chromium 69/69 and full Chromium 102/102, plus typecheck,
+lint/build/scoped-format/diff gates. The first full-unit run was honestly non-green only because the
+unrelated duplicate timing benchmark measured 4.165 against `<4`; that owner immediately passed
+43/43 in isolation and the immediate full rerun passed 1,312/1,312. Installed CLI directly closes
+XML OFX acceptance, renamed-JSON rejection, 10.03:1/16.17:1 theme contrast, both surfaces at
+390x844/200% zoom and actual virtual-row unmount plus outer-leave cleanup without dragend, while
+preserving cancel/confirm/retry, 60-row bounded rendering, P14 origin/history, encrypted persistence
+and sanitized console/network/storage. All eight excluded exploratory harness categories are
+recorded without contributing acceptance evidence. Root stopped the keyed server, verified port
+3000 clear, restored generated source, and moved only current `.next`, `test-results` and five new
+CLI artifacts to recoverable trash while preserving 13 older unrelated snapshots. Index is clean;
+the evidence is the sole worktree artifact; future review-02 is absent. Scratch SHA/checked set/all
+21 normalized blocks, immutable FS-001 and SCOPE remain exact. Reviewer alone may now write
+`reviews/P15-review-02.md` over literal cumulative original BASE
+`b3e96ba9e9487d13df56956d220fffca63d6482d` through literal HEAD
+`91931688ef9463576b757a097968af543a4b8a75`; HS-013 remains unchecked.
+
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
 owning/affected package; every impacted requirement; ordered pending set of all impacted checked HS
