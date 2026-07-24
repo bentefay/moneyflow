@@ -195,6 +195,8 @@ export function InlineEditableAmount({
         <Tooltip>
             <TooltipTrigger asChild>{input}</TooltipTrigger>
             <TooltipContent
+                align="start"
+                alignOffset={-70}
                 className="max-w-[calc(50vw-1rem)] whitespace-normal sm:max-w-xs"
                 data-testid="original-amount-tooltip"
             >
