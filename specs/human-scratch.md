@@ -148,7 +148,7 @@
       sorting the import transactions and linearly scanning the existing (n) and new (m)
       transactions (plus the allowed date closeness in days n)
 
-- [] When clicking "Add Transaction" on the Transactions tab, it should just add a new empty row
+- [x] When clicking "Add Transaction" on the Transactions tab, it should just add a new empty row
   with all normal affordances. If we need to support empty descriptions as a result, that's fine.
   The current behaviour where you have to click the checkbox or x is too confusing. So specifically,
   it is just a normal, selectable row without the tick or cross buttons at the end. Pressing arrow

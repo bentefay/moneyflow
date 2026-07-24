@@ -6,10 +6,9 @@ literal field is `pending`. Workers may read but never edit it.
 ## Implementation dispatch
 
 - **Package / revision:** P13 / 03
-- **Scope IDs:** HS-001 only; normal persisted empty Add Transaction rows; HS-001 remains incomplete
-  and unchecked
-- **State:** passed after current root integration; revisions 01–03 are immutable; HS-001 remains
-  unchecked until the separate root marker transaction
+- **Scope IDs:** HS-001 only; normal persisted empty Add Transaction rows; HS-001 is complete and
+  checked
+- **State:** passed; revisions 01–03 are immutable; HS-001 marker transaction is finalized
 - **Task:** `tasks/HS-001-add-transaction-rows.md`; exact 5-line HS-001 block in SCOPE
 - **Dependencies:** P09/02 and P11A–C are passed; P13 is independent of blocked P05/P08/P10
 - **Literal original BASE / pre-implementation HEAD:**
@@ -111,8 +110,8 @@ literal field is `pending`. Workers may read but never edit it.
   `.claude/skills/e2e/SKILL.md`; use draft-style CRDT mutations, established UI patterns,
   behavior-led selectors and no arbitrary sleeps.
 - **Frozen boundary:** scratch SHA
-  `aa8a1f56df6716cb73071c694015030311611fc102af71b0b2e5a31cba281a8f`, checked set
-  HS-002/HS-004/HS-005/HS-006/HS-010/HS-014/HS-017/HS-018, all 21 normalized blocks exact; FS-001
+  `b09454dea925ebd5af185c4b5011762a38beac852ef728c9adaf4e343782561d`, checked set
+  HS-001/HS-002/HS-004/HS-005/HS-006/HS-010/HS-014/HS-017/HS-018, all 21 normalized blocks exact; FS-001
   `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines/25,441 bytes;
   SCOPE `d03f33e718f1ec5f7c8ad0119d283397dcc59407199da4b5887a2e5eee7ef0f9`, 450 lines/27,382 bytes.
 
@@ -149,5 +148,5 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Execute and verify only the durably prepared HS-001 `[] -> [x]` marker transaction; no package
-dispatch is allowed until it finalizes.
+Rewrite this handoff for P14 revision 01 and dispatch only after the finalized HS-001 boundary is
+reverified.
