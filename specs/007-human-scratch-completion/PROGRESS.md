@@ -2101,6 +2101,39 @@ compatibility edit and directly owner-aligned provenance-retention assertions in
 test paths before any such edit. Product authority, BASE, evidence/review artifacts, package state,
 HS-008 marker and every other prohibition remain unchanged.
 
+**2026-07-24T23:37:38+10:00 — P14/01 `implementing -> ready_for_review -> reviewing`:** Exact
+cumulative product/test HEAD is `8643fff75f8d70a6485f9c23fcca33a231d9d9cf`, covering the original
+BASE `b9105028926d24a5a0c5454777a6c33379ca606a` through the 24 authorized implementation/test
+paths plus the prior root-only dispatch/scope control commit. Frozen evidence
+`evidence/P14/implementation-01.md` is 220 lines/14,875 bytes at SHA-256
+`7e4c4f8244484ee8885ecc4c547069a10d7891689a917e3332a652574754c522`. Reproduced reds cover
+cross-import nested-row loss, absent first-edit origin and the real 1,000-row base64 stack overflow.
+Reported green includes focused 118/118 x3, owner-aligned 195/195, full Vitest 1,296/1,296, full
+no-retry E2E 93/93, exact CSV/OFX repeats and the installed-CLI lineage/currency/delete/history/
+large/offline/privacy charter. The initial 200%-zoom tooltip clipping and 3.22:1 positive contrast
+were rejected during implementation; exact final recapture contains the full tooltip, arrow and
+text inside 390x844 at 200%, with 4.94:1 and 20.17:1 contrast. Root verifies exact HEAD/range/path/
+index/cleanup, no review artifact or Q proposal, scratch/21 blocks, FS-001 and SCOPE. Reviewer alone
+may now write `reviews/P14-review-01.md`; HS-008 remains unchecked.
+
+**2026-07-25T00:26:42+10:00 — P14/01 `reviewing -> changes_requested`:** Immutable independent
+review `reviews/P14-review-01.md` is 171 lines/13,684 bytes at SHA-256
+`92bbcf462e6cceb973adb9525402cc357ed37706d67752169506ae286e1b621f` and returns FAIL over exact
+`b9105028926d24a5a0c5454777a6c33379ca606a..8643fff75f8d70a6485f9c23fcca33a231d9d9cf`.
+F-01 Medium Requirements/UX proves that after an ordinary deletion leaves three live linked rows,
+the imports row and destructive dialog still use immutable original `Import.transactionCount=4`
+and falsely say four transactions will be deleted. The atomic current-set operation itself is
+sound: it deletes the live three, preserves the 1,000-row other import/manual row, one Undo restores
+exactly the three plus record while the independently deleted row stays absent, and one Redo removes
+them again. Independent focused 118/118 x3, owner 195/195, full Vitest 1,296/1,296, changed E2E 3/3,
+affected E2E 180/180 and full E2E 93/93 pass; installed CLI independently confirms lineage,
+currency precision, 390x844/200% containment, encryption and 1,000-row persistence. Review also
+records that frozen revision-01 evidence itself is a fourteenth repository format failure and
+misreported that gate as the prior thirteen paths. Revision 02 must derive destructive copy from the
+same live linked identity set, add the exact stale-count/delete/history/isolation journey and report/
+format its new evidence accurately. No Q proposal; exact HEAD/index/cleanup/frozen boundaries pass;
+HS-008 remains unchecked.
+
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
 owning/affected package; every impacted requirement; ordered pending set of all impacted checked HS

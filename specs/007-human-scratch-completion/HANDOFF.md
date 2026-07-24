@@ -8,13 +8,31 @@ literal field is `pending`. Workers may read but never edit it.
 - **Package / revision:** P14 / 01
 - **Scope IDs:** HS-008 only; import lineage, immutable original amount, accessible amount tooltip
   and reversible import deletion; HS-008 remains incomplete and unchecked
-- **State:** implementing
+- **State:** changes_requested
 - **Task:** `tasks/HS-008-import-lineage.md`; exact 4-line HS-008 block in SCOPE
 - **Dependencies:** P09/02 is passed; P14 is independent of blocked P05/P08/P10
 - **Literal original BASE / pre-implementation HEAD:**
   `b9105028926d24a5a0c5454777a6c33379ca606a`
+- **Literal cumulative product/test HEAD:**
+  `8643fff75f8d70a6485f9c23fcca33a231d9d9cf`
 - **Sole implementer artifact:** `evidence/P14/implementation-01.md`
-- **Future immutable review artifact:** `reviews/P14-review-01.md`
+- **Frozen evidence identity:** SHA-256
+  `7e4c4f8244484ee8885ecc4c547069a10d7891689a917e3332a652574754c522`, 220 lines /
+  14,875 bytes
+- **Immutable review artifact:** `reviews/P14-review-01.md`
+- **Revision-01 review identity:** FAIL, SHA-256
+  `92bbcf462e6cceb973adb9525402cc357ed37706d67752169506ae286e1b621f`, 171 lines /
+  13,684 bytes
+- **Blocking revision-01 finding:** F-01 Medium Requirements/UX. After an ordinary deletion leaves
+  three live rows linked to a four-row import, the imports table and destructive dialog still use
+  immutable original `Import.transactionCount=4`; the atomic operation correctly deletes only the
+  live three. Revision 02 must derive destructive feedback from the same current linked identity set
+  as the delete operation and add the exact four → ordinary-delete one → dialog three → delete →
+  one-step Undo/Redo isolation journey. The independently deleted row must remain deleted.
+- **Evidence correction requirement:** immutable revision-01 evidence itself is the fourteenth
+  repository `format:check` failure and incorrectly described the repository result as the prior
+  thirteen paths. Do not edit that frozen file; revision-02 evidence must report repository
+  formatting exactly and pass formatting for its newly assigned artifact before handoff.
 - **Implementation-start dirty paths:** root-owned unstaged `HANDOFF.md` and `PROGRESS.md`; no
   staged, product, test, executable, generated, evidence, review or other dirty path
 - **Allowed implementation paths:** only the necessary subset of
@@ -109,11 +127,12 @@ literal field is `pending`. Workers may read but never edit it.
   lines/25,441 bytes; SCOPE
   `d03f33e718f1ec5f7c8ad0119d283397dcc59407199da4b5887a2e5eee7ef0f9`, 450 lines/27,382 bytes.
 
-## Future independent review contract
+## Independent review contract
 
 - **Reviewer:** distinct `human_scratch_reviewer`
 - **Literal cumulative review BASE:** `b9105028926d24a5a0c5454777a6c33379ca606a`
-- **Range type:** original P14 BASE through the future revision-01 product/test HEAD
+- **Literal cumulative review HEAD:** `8643fff75f8d70a6485f9c23fcca33a231d9d9cf`
+- **Range type:** original P14 BASE through the exact revision-01 product/test HEAD
 - **Implementation evidence:** `evidence/P14/implementation-01.md`
 - **Sole reviewer artifact:** `reviews/P14-review-01.md`
 - **Reviewer writes:** the new review file only; no product/test/evidence/ledger/config/frozen edit
@@ -132,6 +151,8 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Dispatch `human_scratch_implementer` for P14 revision 01 at exact BASE
-`b9105028926d24a5a0c5454777a6c33379ca606a`; then freeze its product/test HEAD and
-`evidence/P14/implementation-01.md` before independent review.
+Persist immutable revision-01 evidence/review and this failure disposition in an exact-path root
+control commit. Then rewrite this handoff for P14 revision 02 with the same original BASE, a new
+pre-implementation HEAD, exact `evidence/P14/implementation-02.md` and
+`reviews/P14-review-02.md`, and only the narrow owners/tests needed to close F-01 and the evidence
+gate discrepancy. Preserve revision-01 artifacts byte-for-byte and keep HS-008 unchecked.
