@@ -14,7 +14,11 @@ import { useCallback, useMemo, useRef, useState } from "react";
 
 import { ACCEPTED_EXTENSIONS, type ImportData, ImportsTable } from "@/components/features/import";
 import { Button } from "@/components/ui/button";
-import { useActiveImports, useActiveTransactions, useTransactionActions } from "@/lib/crdt/context";
+import {
+    useActiveImports,
+    useActivePublicTransactionIdentities,
+    useTransactionActions
+} from "@/lib/crdt/context";
 import type { Import as ImportRecord } from "@/lib/crdt/schema";
 import { cn } from "@/lib/utils";
 
@@ -28,18 +32,18 @@ export default function ImportsPage() {
 
     // Get all active imports from CRDT state
     const importsMap = useActiveImports();
-    const transactions = useActiveTransactions();
+    const transactionIdentities = useActivePublicTransactionIdentities();
 
     const liveLinkedTransactionCountByImportId = useMemo(() => {
         const counts = new Map<string, number>();
 
-        for (const transaction of transactions) {
+        for (const transaction of transactionIdentities) {
             if (!transaction.importId) continue;
             counts.set(transaction.importId, (counts.get(transaction.importId) ?? 0) + 1);
         }
 
         return counts;
-    }, [transactions]);
+    }, [transactionIdentities]);
 
     // Transaction actions for deleting transactions by import
     const { deleteTransactionsByImport } = useTransactionActions();

@@ -354,6 +354,138 @@ NEWFILEUID:NONE
         });
     });
 
+    test("nested duplicate import count matches its reversible exact deletion", async ({
+        page
+    }) => {
+        await createNewIdentity(page);
+        const parentFilename = "p14-nested-parent.csv";
+        const nestedFilename = "p14-nested-child.csv";
+        const unrelatedFilename = "p14-nested-unrelated.csv";
+        const duplicateDescription = "P14 nested duplicate identity";
+        const unrelatedDescription = "P14 nested unrelated survivor";
+        const importSingleCsv = async (
+            filename: string,
+            date: string,
+            description: string,
+            amount: string
+        ) => {
+            await goToImportNew(page);
+            await page.locator('input[type="file"]').setInputFiles({
+                name: filename,
+                mimeType: "text/csv",
+                buffer: Buffer.from(
+                    ["Date,Description,Amount", `${date},${description},${amount}`].join("\n")
+                )
+            });
+            await page.getByRole("tab", { name: /Columns/i }).click();
+            await page.getByRole("button", { name: /Auto-detect/i }).click();
+            await expect(page.getByText(/All required fields mapped/i)).toBeVisible();
+            await page.getByRole("tab", { name: /Account/i }).click();
+            await page.locator("#account-select").click();
+            await page.getByRole("option", { name: /Default/i }).click();
+            await page.getByRole("button", { name: /Import 1 Transaction/i }).click();
+            await expect(page).toHaveURL(/\/transactions/);
+        };
+
+        await test.step("ordinary identical imports create one parent and one nested identity", async () => {
+            await importSingleCsv(parentFilename, "2026-06-10", duplicateDescription, "12.34");
+            await importSingleCsv(nestedFilename, "2026-06-10", duplicateDescription, "12.34");
+        });
+
+        const parentRow = page.getByRole("row", { name: new RegExp(duplicateDescription) });
+        const parentTransactionId = await parentRow.getAttribute("data-transaction-id");
+        if (!parentTransactionId) throw new Error("Missing nested duplicate parent identity");
+        await expect(parentRow.getByTitle("Potential duplicate")).toBeVisible();
+
+        let manualTransactionId = "";
+        let unrelatedTransactionId = "";
+        await test.step("add unrelated manual and imported survivors", async () => {
+            await page.getByTestId("add-transaction-button").click();
+            const manualRow = page.getByRole("row", { selected: true });
+            manualTransactionId = (await manualRow.getAttribute("data-transaction-id")) ?? "";
+            if (!manualTransactionId) throw new Error("Missing nested journey manual identity");
+            await manualRow.getByTestId("description-editable").fill("P14 nested manual survivor");
+            await manualRow.getByTestId("description-editable").press("Enter");
+
+            await importSingleCsv(unrelatedFilename, "2026-06-11", unrelatedDescription, "45.67");
+            unrelatedTransactionId =
+                (await page
+                    .getByRole("row", { name: new RegExp(unrelatedDescription) })
+                    .getAttribute("data-transaction-id")) ?? "";
+            if (!unrelatedTransactionId) {
+                throw new Error("Missing nested journey unrelated import identity");
+            }
+        });
+
+        await test.step("parent and nested imports each report one current logical identity", async () => {
+            await goToImports(page);
+            const parentImport = page.getByRole("row", { name: new RegExp(parentFilename) });
+            const nestedImport = page.getByRole("row", { name: new RegExp(nestedFilename) });
+            const unrelatedImport = page.getByRole("row", {
+                name: new RegExp(unrelatedFilename)
+            });
+
+            await expect(parentImport.getByRole("cell").nth(1)).toHaveText("1");
+            await expect(nestedImport.getByRole("cell").nth(1)).toHaveText("1");
+            await expect(unrelatedImport.getByRole("cell").nth(1)).toHaveText("1");
+            await nestedImport
+                .getByRole("button", { name: new RegExp(`Delete import ${nestedFilename}`) })
+                .click();
+            await expect(page.getByRole("alertdialog")).toContainText("1 transaction");
+            await page.getByTestId("confirm-delete-import").click();
+            await expect(nestedImport).toHaveCount(0);
+            await expect(parentImport).toBeVisible();
+            await expect(unrelatedImport).toBeVisible();
+        });
+
+        await test.step("delete, Undo and Redo affect only the exact nested identity and record", async () => {
+            await page.getByRole("link", { name: "Transactions", exact: true }).click();
+            await page.getByTestId("transaction-table-toolbar").waitFor();
+            const preservedParent = page.locator(`[data-transaction-id="${parentTransactionId}"]`);
+            await expect(preservedParent).toBeVisible();
+            await expect(preservedParent.getByTitle("Potential duplicate")).toHaveCount(0);
+            await expect(
+                page.locator(`[data-transaction-id="${unrelatedTransactionId}"]`)
+            ).toBeVisible();
+            await expect(
+                page.locator(`[data-transaction-id="${manualTransactionId}"]`)
+            ).toBeVisible();
+
+            await page.getByRole("button", { name: "Undo" }).click();
+            await expect(preservedParent.getByTitle("Potential duplicate")).toBeVisible();
+            await expect(
+                page.locator(`[data-transaction-id="${unrelatedTransactionId}"]`)
+            ).toBeVisible();
+            await expect(
+                page.locator(`[data-transaction-id="${manualTransactionId}"]`)
+            ).toBeVisible();
+            await page.getByRole("link", { name: "Imports", exact: true }).click();
+            await page.getByRole("heading", { name: "Imports", level: 1 }).waitFor();
+            await expect(page.getByRole("row", { name: new RegExp(nestedFilename) })).toBeVisible();
+
+            await page.getByRole("link", { name: "Transactions", exact: true }).click();
+            await page.getByTestId("transaction-table-toolbar").waitFor();
+            await page.getByRole("button", { name: "Redo" }).click();
+            await expect(preservedParent).toBeVisible();
+            await expect(preservedParent.getByTitle("Potential duplicate")).toHaveCount(0);
+            await expect(
+                page.locator(`[data-transaction-id="${unrelatedTransactionId}"]`)
+            ).toBeVisible();
+            await expect(
+                page.locator(`[data-transaction-id="${manualTransactionId}"]`)
+            ).toBeVisible();
+            await page.getByRole("link", { name: "Imports", exact: true }).click();
+            await page.getByRole("heading", { name: "Imports", level: 1 }).waitFor();
+            await expect(page.getByRole("row", { name: new RegExp(nestedFilename) })).toHaveCount(
+                0
+            );
+            await expect(page.getByRole("row", { name: new RegExp(parentFilename) })).toBeVisible();
+            await expect(
+                page.getByRole("row", { name: new RegExp(unrelatedFilename) })
+            ).toBeVisible();
+        });
+    });
+
     test("CSV import journey: upload, configure tabs, and see preview", async ({ page }) => {
         await createNewIdentity(page);
 

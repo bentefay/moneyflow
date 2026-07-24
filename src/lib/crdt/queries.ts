@@ -300,6 +300,40 @@ export function getAllTransactions(store: TransactionStore): Transaction[] {
 }
 
 /**
+ * Enumerate every active public logical transaction identity, including nested duplicates.
+ *
+ * Active physical representations are filtered before canonicalization so a deleted relocation
+ * copy cannot hide an active copy of the same logical ID.
+ */
+export function getActivePublicTransactionIdentities(store: TransactionStore): Transaction[] {
+    const activeRepresentations: Transaction[] = [];
+
+    for (const tree of Object.values(store)) {
+        if (!tree || typeof tree === "string") continue;
+
+        for (const yearBucket of tree.years) {
+            for (const monthBucket of yearBucket.months) {
+                for (const dayBucket of monthBucket.days) {
+                    for (const transaction of dayBucket.transactions) {
+                        if (!isPublicTransaction(transaction)) continue;
+                        if (!transaction.deletedAt) activeRepresentations.push(transaction);
+
+                        for (const duplicate of transaction.suspectedDuplicates) {
+                            const nestedTransaction = materializeNestedTransaction(duplicate);
+                            if (!nestedTransaction.deletedAt) {
+                                activeRepresentations.push(nestedTransaction);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return getCanonicalTransactions(activeRepresentations);
+}
+
+/**
  * Find a specific transaction by location.
  * Also searches within suspectedDuplicates.
  */

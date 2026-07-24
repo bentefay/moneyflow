@@ -14,6 +14,7 @@ import {
     findTransaction,
     findTransactionById,
     getAccountTransactions,
+    getActivePublicTransactionIdentities,
     getAllTransactions,
     getTransactionsInDateRange,
     getTransactionsWithDuplicates,
@@ -185,6 +186,95 @@ describe("getAllTransactions", () => {
         const result = getAllTransactions(store);
 
         expect(result).toEqual([]);
+    });
+});
+
+describe("getActivePublicTransactionIdentities", () => {
+    it("enumerates parent and nested logical IDs once across physical copies", () => {
+        const store = createEmptyStore();
+
+        for (const accountId of ["acc-2", "acc-1"]) {
+            insertTransaction(store, {
+                transaction: createTransaction({
+                    id: "parent",
+                    accountId,
+                    importId: "parent-import"
+                })
+            });
+            insertTransaction(store, {
+                transaction: createTransaction({
+                    id: "nested",
+                    accountId,
+                    importId: "nested-import"
+                }),
+                suspectedDuplicateOf: {
+                    accountId,
+                    date: Temporal.PlainDate.from("2024-01-15"),
+                    transactionId: "parent"
+                }
+            });
+        }
+
+        expect(
+            getActivePublicTransactionIdentities(store)
+                .map(({ id, importId }) => ({ id, importId }))
+                .sort((left, right) => left.id.localeCompare(right.id))
+        ).toEqual([
+            { id: "nested", importId: "nested-import" },
+            { id: "parent", importId: "parent-import" }
+        ]);
+    });
+
+    it("excludes deleted logical IDs while retaining an identity with an active physical copy", () => {
+        const store = createEmptyStore();
+        const deletedAt = Temporal.Instant.fromEpochMilliseconds(1_700_000_000_000);
+
+        insertTransaction(store, {
+            transaction: createTransaction({
+                id: "active-copy",
+                accountId: "acc-1",
+                importId: "active-import"
+            })
+        });
+        insertTransaction(store, {
+            transaction: createTransaction({
+                id: "active-copy",
+                accountId: "acc-2",
+                importId: "active-import",
+                deletedAt
+            })
+        });
+        insertTransaction(store, {
+            transaction: createTransaction({
+                id: "deleted-parent",
+                importId: "deleted-parent-import",
+                deletedAt
+            })
+        });
+        insertTransaction(store, {
+            transaction: createTransaction({
+                id: "parent-for-deleted-nested",
+                importId: "parent-import"
+            })
+        });
+        insertTransaction(store, {
+            transaction: createTransaction({
+                id: "deleted-nested",
+                importId: "deleted-nested-import",
+                deletedAt
+            }),
+            suspectedDuplicateOf: {
+                accountId: "acc-1",
+                date: Temporal.PlainDate.from("2024-01-15"),
+                transactionId: "parent-for-deleted-nested"
+            }
+        });
+
+        expect(
+            getActivePublicTransactionIdentities(store)
+                .map(({ id }) => id)
+                .sort()
+        ).toEqual(["active-copy", "parent-for-deleted-nested"]);
     });
 });
 

@@ -28,7 +28,7 @@ import {
 
 import { startVaultMaintenanceScheduler } from "./maintenance";
 import type { VaultMirror } from "./mirror";
-import { getAllTransactions } from "./queries";
+import { getActivePublicTransactionIdentities, getAllTransactions } from "./queries";
 import {
     getTransactionMaintenanceShadowIdentity,
     isPublicTransaction,
@@ -853,6 +853,16 @@ export function useActiveTransactions() {
     return useVaultSelector((state) =>
         getAllTransactions(state.transactions).filter((transaction) => !transaction.deletedAt)
     );
+}
+
+/**
+ * Hook for active canonical parent and nested logical transaction identities.
+ *
+ * This broader identity projection is intentionally separate from the parent-only transaction-grid
+ * contract exposed by useActiveTransactions.
+ */
+export function useActivePublicTransactionIdentities() {
+    return useVaultSelector((state) => getActivePublicTransactionIdentities(state.transactions));
 }
 
 /**
