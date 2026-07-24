@@ -156,7 +156,7 @@ export function InlineEditableAmount({
     // Determine color based on current input value
     const parsed = parseCurrency(localValue);
     const colorClass =
-        parsed < 0 ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400";
+        parsed < 0 ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400";
 
     const originalAmountDescription =
         originalValue == null
@@ -194,7 +194,10 @@ export function InlineEditableAmount({
     return (
         <Tooltip>
             <TooltipTrigger asChild>{input}</TooltipTrigger>
-            <TooltipContent data-testid="original-amount-tooltip">
+            <TooltipContent
+                className="max-w-[calc(50vw-1rem)] whitespace-normal sm:max-w-xs"
+                data-testid="original-amount-tooltip"
+            >
                 {originalAmountDescription}
             </TooltipContent>
         </Tooltip>
