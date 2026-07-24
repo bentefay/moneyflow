@@ -8,8 +8,9 @@ literal field is `pending`. Workers may read but never edit it.
 - **Package / revision:** P15 / 02
 - **Scope IDs:** HS-013 only; whole imports-list and transactions-table file drop targets; HS-013
   remains incomplete and unchecked
-- **State:** passed by independent revision-02 review; artifact/risk integration is pending and
-  HS-013 remains unchecked
+- **State:** passed; exact review/risk integration
+  `9c5d7be8ee4cf7c3fda5f1a7320c053362672e3a` is durable and HS-013 is
+  `completion_pending`
 - **Task:** `tasks/HS-013-import-drop-zones.md`; exact one-line HS-013 block in SCOPE
 - **Dependency:** P14/04 and HS-008 are passed. P15 revision-01 architecture remains the cumulative
   base to correct, not replace.
@@ -33,6 +34,7 @@ literal field is `pending`. Workers may read but never edit it.
 - **Immutable revision-02 review artifact:** `reviews/P15-review-02.md`, PASS, SHA-256
   `c29069c1f79e90cf7824fcce8fc7f8d99ffc527df38af7e48f6d0cd427b747fa`, 214 lines /
   15,898 bytes
+- **PASS integration commit:** `9c5d7be8ee4cf7c3fda5f1a7320c053362672e3a`
 - **Implementation-start boundary:** clean HEAD/index/worktree; revision-01 evidence/review and all
   root transcriptions are committed and immutable
 - **Allowed revision-02 paths:** exactly
@@ -145,6 +147,8 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Integrate the immutable revision-02 PASS review, exact risk transcriptions and package/requirement
-PASS state. Only after that integration commit is durable may root prepare the separate HS-013
-completion event; keep HS-013 unchecked during integration.
+Root must execute the already durable HS-013 completion event against exact pre-change scratch SHA
+`f0adfef6e19b80969dae748cf8c616614af61ba778837234c97af385a19adcb1`: make a private comparison
+copy, apply only HS-013's `[] -> [x]`, prove the one-line diff and all frozen boundaries, remove the
+copy, then finalize the event and rolling metadata in one root control commit. No package dispatch
+is legal while the event is pending.
