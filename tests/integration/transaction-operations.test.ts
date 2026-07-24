@@ -10,11 +10,20 @@ import { Mirror } from "loro-mirror";
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
+import { formatOriginalAmount } from "@/components/features/transactions/cells/InlineEditableAmount";
 import { getDefaultVaultState } from "@/lib/crdt/defaults";
+import { deleteDescriptionAliasedTransactionsByImport } from "@/lib/crdt/description-aliases";
+import { createVaultMirror } from "@/lib/crdt/mirror";
 import { deleteTransaction, insertTransaction, moveTransaction } from "@/lib/crdt/mutations";
-import { getAccountTransactions, getAllTransactions, hasDayBucket } from "@/lib/crdt/queries";
-import type { TransactionInput, TransactionStore, VaultInput } from "@/lib/crdt/schema";
+import {
+    findTransactionById,
+    getAccountTransactions,
+    getAllTransactions,
+    hasDayBucket
+} from "@/lib/crdt/queries";
+import type { TransactionInput, TransactionStore, VaultInput, VaultState } from "@/lib/crdt/schema";
 import { vaultSchema } from "@/lib/crdt/schema";
+import { VaultUndoCoordinator } from "@/lib/crdt/undo";
 import { asMinorUnits } from "@/lib/domain/currency";
 
 // Helper to create a minimal transaction input
@@ -27,6 +36,7 @@ function createTransaction(
         description: "Test transaction",
         notes: "",
         amount: asMinorUnits(1000),
+        originalAmount: undefined,
         accountId: "acc-1",
         tagIds: [],
         statusId: "status-1",
@@ -169,6 +179,98 @@ describe("Date Change Operations", () => {
 });
 
 describe("Import Deletion Operations", () => {
+    it("deletes one import atomically, preserves cross-import nested rows, and undo restores it", () => {
+        const { doc, mirror } = createVaultMirror();
+        const date = Temporal.PlainDate.from("2024-01-15");
+        const createdAt = Temporal.Instant.fromEpochMilliseconds(1);
+        mirror.setState((state: VaultInput) => {
+            const store = state.transactions as unknown as TransactionStore;
+            state.imports["import-a"] = {
+                id: "import-a",
+                filename: "a.csv",
+                transactionCount: 1,
+                createdAt,
+                deletedAt: undefined
+            };
+            state.imports["import-b"] = {
+                id: "import-b",
+                filename: "b.ofx",
+                transactionCount: 1,
+                createdAt,
+                deletedAt: undefined
+            };
+            insertTransaction(store, {
+                transaction: createTransaction({
+                    id: "import-a-parent",
+                    date,
+                    importId: "import-a"
+                })
+            });
+            insertTransaction(store, {
+                transaction: createTransaction({
+                    id: "import-b-nested",
+                    date,
+                    importId: "import-b"
+                }),
+                suspectedDuplicateOf: {
+                    accountId: "acc-1",
+                    date,
+                    transactionId: "import-a-parent"
+                }
+            });
+            insertTransaction(store, {
+                transaction: createTransaction({
+                    id: "manual",
+                    date,
+                    importId: ""
+                })
+            });
+        });
+        const coordinator = new VaultUndoCoordinator(doc);
+        coordinator.clear();
+
+        coordinator.runUserAction("delete", (origin) => {
+            mirror.setState(
+                (state: VaultState) => {
+                    deleteDescriptionAliasedTransactionsByImport(state, "import-a");
+                },
+                { origin }
+            );
+        });
+
+        expect(
+            findTransactionById(mirror.getState().transactions, "import-a-parent")
+        ).toBeUndefined();
+        expect(
+            findTransactionById(mirror.getState().transactions, "import-b-nested")
+        ).toBeDefined();
+        expect(findTransactionById(mirror.getState().transactions, "manual")).toBeDefined();
+        expect(mirror.getState().imports["import-a"]).toMatchObject({
+            id: "import-a",
+            deletedAt: expect.any(Temporal.Instant)
+        });
+        expect(mirror.getState().imports["import-b"]?.deletedAt).toBeUndefined();
+
+        expect(coordinator.undo()).toBe(true);
+        expect(
+            findTransactionById(mirror.getState().transactions, "import-a-parent")
+        ).toBeDefined();
+        expect(
+            findTransactionById(mirror.getState().transactions, "import-b-nested")
+        ).toBeDefined();
+        expect(mirror.getState().imports["import-a"]?.deletedAt).toBeUndefined();
+        expect(coordinator.undo()).toBe(false);
+
+        expect(coordinator.redo()).toBe(true);
+        expect(
+            findTransactionById(mirror.getState().transactions, "import-a-parent")
+        ).toBeUndefined();
+        expect(
+            findTransactionById(mirror.getState().transactions, "import-b-nested")
+        ).toBeDefined();
+        coordinator.dispose();
+    });
+
     it("deletes all transactions from an import across multiple dates", () => {
         const store = createEmptyStore();
         const now = Date.now();
@@ -225,6 +327,21 @@ describe("Import Deletion Operations", () => {
         expect(hasDayBucket(store, "acc-1", Temporal.PlainDate.from("2024-01-04"))).toBe(false);
         expect(hasDayBucket(store, "acc-1", Temporal.PlainDate.from("2024-01-05"))).toBe(false);
     });
+});
+
+describe("Imported Amount Formatting", () => {
+    it.each([
+        { currency: "USD", minorUnits: -1250, expected: "-USD 12.50" },
+        { currency: "USD", minorUnits: 0, expected: "USD 0.00" },
+        { currency: "JPY", minorUnits: 1234, expected: "JPY 1,234" },
+        { currency: "KWD", minorUnits: 1234, expected: "KWD 1.234" },
+        { currency: "BTC", minorUnits: 1, expected: "BTC 0.00000001" }
+    ])(
+        "formats $currency provenance using its exact minor-unit precision",
+        ({ currency, minorUnits, expected }) => {
+            expect(formatOriginalAmount(minorUnits, currency).replace(/\s/gu, " ")).toBe(expected);
+        }
+    );
 });
 
 describe("Account Change Operations", () => {
@@ -359,6 +476,7 @@ describe("Mirror Integration - Import Batch Flow", () => {
                         description: tx.description,
                         notes: "",
                         amount: tx.amount,
+                        originalAmount: undefined,
                         accountId: tx.accountId,
                         tagIds: [],
                         statusId: tx.statusId,
@@ -442,6 +560,7 @@ describe("Mirror Integration - Import Batch Flow", () => {
                     description: "Roundtrip test 1",
                     notes: "",
                     amount: asMinorUnits(500),
+                    originalAmount: undefined,
                     accountId: "account-default",
                     tagIds: [],
                     statusId: "status-for-review",
@@ -461,6 +580,7 @@ describe("Mirror Integration - Import Batch Flow", () => {
                     description: "Roundtrip test 2",
                     notes: "",
                     amount: asMinorUnits(1500),
+                    originalAmount: undefined,
                     accountId: "account-default",
                     tagIds: [],
                     statusId: "status-for-review",
@@ -550,6 +670,7 @@ describe("Mirror Integration - Import Batch Flow", () => {
                     description: "VaultProvider test",
                     notes: "",
                     amount: asMinorUnits(999),
+                    originalAmount: undefined,
                     accountId: "account-default",
                     tagIds: [],
                     statusId: "status-for-review",
@@ -622,6 +743,7 @@ describe("Mirror Integration - Import Batch Flow", () => {
                         descriptionAliasId: undefined,
                         notes: "",
                         amount: asMinorUnits(0),
+                        originalAmount: undefined,
                         accountId: "account-default",
                         tagIds: [],
                         statusId: "status-for-review",

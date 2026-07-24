@@ -44,6 +44,17 @@ const SNAPSHOT_BYTE_THRESHOLD = 5 * 1024 * 1024;
 /** Server sync throttle interval (ms) */
 const SERVER_SYNC_THROTTLE_MS = 2000;
 const LOCAL_CACHE_GRACE_MS = 250;
+const BASE64_BYTE_CHUNK_SIZE = 0x8000;
+
+function encodeBytesAsBase64(bytes: Uint8Array): string {
+    const chunks: string[] = [];
+    for (let offset = 0; offset < bytes.length; offset += BASE64_BYTE_CHUNK_SIZE) {
+        chunks.push(
+            String.fromCharCode(...bytes.subarray(offset, offset + BASE64_BYTE_CHUNK_SIZE))
+        );
+    }
+    return btoa(chunks.join(""));
+}
 
 function projectTransactionAliasReferences(value: unknown): unknown {
     if (Array.isArray(value)) return value.map(projectTransactionAliasReferences);
@@ -454,7 +465,7 @@ export class SyncManager {
     private async encryptUpdate(update: Uint8Array): Promise<string> {
         const { encryptForStorage } = await import("@/lib/crypto/encryption");
         const encrypted = await encryptForStorage(update, this.vaultKey);
-        return btoa(String.fromCharCode(...encrypted));
+        return encodeBytesAsBase64(encrypted);
     }
 
     /**
@@ -462,7 +473,7 @@ export class SyncManager {
      */
     private getVersionVectorString(): string {
         const versionBytes = getVersionEncoded(this.doc);
-        return btoa(String.fromCharCode(...versionBytes));
+        return encodeBytesAsBase64(versionBytes);
     }
 
     /**

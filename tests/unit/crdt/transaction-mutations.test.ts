@@ -44,6 +44,7 @@ function createTransaction(
         description: "Test transaction",
         notes: "",
         amount: asMinorUnits(1000),
+        originalAmount: undefined,
         accountId: "acc-1",
         tagIds: [],
         statusId: "status-for-review",
@@ -381,7 +382,8 @@ describe("moveTransaction", () => {
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-1",
-                date: Temporal.PlainDate.from("2024-01-15")
+                date: Temporal.PlainDate.from("2024-01-15"),
+                originalAmount: asMinorUnits(-500)
             })
         });
 
@@ -403,6 +405,7 @@ describe("moveTransaction", () => {
         expect(newBuckets.length).toBe(1);
         expect(newBuckets[0].transactions[0].id).toBe("tx-1");
         expect(newBuckets[0].transactions[0].date).toEqual(Temporal.PlainDate.from("2024-02-20"));
+        expect(newBuckets[0].transactions[0].originalAmount).toBe(-500);
     });
 
     it("prunes empty buckets after move", () => {
@@ -555,7 +558,8 @@ describe("unnestDuplicate", () => {
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-dup",
-                date: Temporal.PlainDate.from("2024-01-14") // Different date
+                date: Temporal.PlainDate.from("2024-01-14"), // Different date
+                originalAmount: asMinorUnits(-700)
             }),
             suspectedDuplicateOf: {
                 accountId: "acc-1",
@@ -581,6 +585,7 @@ describe("unnestDuplicate", () => {
         const dupBuckets = getDayBuckets(store, "acc-1", Temporal.PlainDate.from("2024-01-14"));
         expect(dupBuckets.length).toBe(1);
         expect(dupBuckets[0].transactions[0].id).toBe("tx-dup");
+        expect(dupBuckets[0].transactions[0].originalAmount).toBe(-700);
     });
 
     it("removes divergent nested copies from every physical parent before materializing one", () => {
@@ -636,14 +641,16 @@ describe("swapDuplicate", () => {
             transaction: createTransaction({
                 id: "tx-parent",
                 date: Temporal.PlainDate.from("2024-01-15"),
-                creationInstant: Temporal.Instant.fromEpochMilliseconds(now)
+                creationInstant: Temporal.Instant.fromEpochMilliseconds(now),
+                originalAmount: asMinorUnits(100)
             })
         });
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-dup",
                 date: Temporal.PlainDate.from("2024-01-14"), // Different date
-                creationInstant: Temporal.Instant.fromEpochMilliseconds(now + 1000)
+                creationInstant: Temporal.Instant.fromEpochMilliseconds(now + 1000),
+                originalAmount: asMinorUnits(200)
             }),
             suspectedDuplicateOf: {
                 accountId: "acc-1",
@@ -671,10 +678,12 @@ describe("swapDuplicate", () => {
 
         const newParent = newBuckets[0].transactions[0];
         expect(newParent.id).toBe("tx-dup");
+        expect(newParent.originalAmount).toBe(200);
 
         // Old parent should now be a duplicate of new parent
         expect(newParent.suspectedDuplicates?.length).toBe(1);
         expect(newParent.suspectedDuplicates?.[0].id).toBe("tx-parent");
+        expect(newParent.suspectedDuplicates?.[0].originalAmount).toBe(100);
     });
 
     it("removes every physical parent copy and deterministically promotes divergent duplicates", () => {
@@ -795,6 +804,162 @@ describe("deleteTransactionsByImport", () => {
 
         // Duplicate should be removed
         expect(buckets[0].transactions[0].suspectedDuplicates?.length).toBe(0);
+    });
+
+    it("preserves a nested transaction from another import when its parent import is deleted", () => {
+        const store = createEmptyStore();
+        const parentDate = Temporal.PlainDate.from("2024-01-15");
+        const duplicateDate = Temporal.PlainDate.from("2024-01-16");
+
+        insertTransaction(store, {
+            transaction: createTransaction({
+                id: "import-a-parent",
+                date: parentDate,
+                importId: "import-A"
+            })
+        });
+        insertTransaction(store, {
+            transaction: createTransaction({
+                id: "import-b-duplicate",
+                date: duplicateDate,
+                importId: "import-B"
+            }),
+            suspectedDuplicateOf: {
+                accountId: "acc-1",
+                date: parentDate,
+                transactionId: "import-a-parent"
+            }
+        });
+
+        deleteTransactionsByImport(store, "import-A");
+
+        expect(
+            findTransactionInStore(store, {
+                accountId: "acc-1",
+                date: duplicateDate,
+                transactionId: "import-b-duplicate"
+            })
+        ).toMatchObject({
+            id: "import-b-duplicate",
+            importId: "import-B"
+        });
+        expect(
+            findTransactionInStore(store, {
+                accountId: "acc-1",
+                date: parentDate,
+                transactionId: "import-a-parent"
+            })
+        ).toBeUndefined();
+    });
+});
+
+describe("imported amount provenance", () => {
+    it("captures the prior amount once for imported parent and nested transactions", () => {
+        const store = createEmptyStore();
+        const date = Temporal.PlainDate.from("2024-01-15");
+        insertTransaction(store, {
+            transaction: createTransaction({
+                id: "imported-parent",
+                date,
+                amount: asMinorUnits(-1250),
+                importId: "import-A"
+            })
+        });
+        insertTransaction(store, {
+            transaction: createTransaction({
+                id: "imported-duplicate",
+                date,
+                amount: asMinorUnits(0),
+                importId: "import-A"
+            }),
+            suspectedDuplicateOf: {
+                accountId: "acc-1",
+                date,
+                transactionId: "imported-parent"
+            }
+        });
+
+        const parentLocation = {
+            accountId: "acc-1",
+            date,
+            transactionId: "imported-parent"
+        };
+        const duplicateLocation = {
+            accountId: "acc-1",
+            date,
+            transactionId: "imported-duplicate"
+        };
+        updateTransaction(store, {
+            location: parentLocation,
+            updates: { amount: asMinorUnits(2500) }
+        });
+        updateTransaction(store, {
+            location: parentLocation,
+            updates: { amount: asMinorUnits(-3750) }
+        });
+        updateTransaction(store, {
+            location: duplicateLocation,
+            updates: { amount: asMinorUnits(800) }
+        });
+
+        expect(findTransactionInStore(store, parentLocation)).toMatchObject({
+            amount: -3750,
+            originalAmount: -1250
+        });
+        expect(findTransactionInStore(store, duplicateLocation)).toMatchObject({
+            amount: 800,
+            originalAmount: 0
+        });
+    });
+
+    it("does not create provenance for a no-op edit or a manual transaction", () => {
+        const store = createEmptyStore();
+        const date = Temporal.PlainDate.from("2024-01-15");
+        insertTransaction(store, {
+            transaction: createTransaction({
+                id: "unedited-import",
+                date,
+                amount: asMinorUnits(1000),
+                importId: "import-A"
+            })
+        });
+        insertTransaction(store, {
+            transaction: createTransaction({
+                id: "manual",
+                date,
+                amount: asMinorUnits(1000),
+                importId: undefined,
+                importRowIndex: undefined
+            })
+        });
+
+        const uneditedImportLocation = {
+            accountId: "acc-1",
+            date,
+            transactionId: "unedited-import"
+        };
+        const manualLocation = {
+            accountId: "acc-1",
+            date,
+            transactionId: "manual"
+        };
+        updateTransaction(store, {
+            location: uneditedImportLocation,
+            updates: { amount: asMinorUnits(1000) }
+        });
+        updateTransaction(store, {
+            location: manualLocation,
+            updates: { amount: asMinorUnits(2000) }
+        });
+
+        expect(
+            findTransactionInStore(store, uneditedImportLocation)?.originalAmount
+        ).toBeUndefined();
+        expect(findTransactionInStore(store, manualLocation)).toMatchObject({
+            amount: 2000,
+            importId: undefined
+        });
+        expect(findTransactionInStore(store, manualLocation)?.originalAmount).toBeUndefined();
     });
 });
 

@@ -1478,6 +1478,7 @@ function setTransactionScalars(
     }
     target.set("notes", source.notes);
     target.set("amount", source.amount);
+    if (source.originalAmount != null) target.set("originalAmount", source.originalAmount);
     target.set("accountId", source.accountId);
     target.set("statusId", source.statusId);
     if (source.importId != null) target.set("importId", source.importId);
@@ -1491,6 +1492,7 @@ const TRANSACTION_SHADOW_SCALAR_KEYS = [
     "descriptionAliasId",
     "notes",
     "amount",
+    "originalAmount",
     "accountId",
     "statusId",
     "importId",

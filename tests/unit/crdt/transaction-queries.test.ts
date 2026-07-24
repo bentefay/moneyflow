@@ -40,6 +40,7 @@ function createTransaction(
         description: "Test transaction",
         notes: "",
         amount: asMinorUnits(1000),
+        originalAmount: undefined,
         accountId: "acc-1",
         tagIds: [],
         statusId: "status-for-review",
@@ -213,7 +214,8 @@ describe("findTransaction", () => {
         insertTransaction(store, {
             transaction: createTransaction({
                 id: "tx-dup",
-                date: Temporal.PlainDate.from("2024-01-15")
+                date: Temporal.PlainDate.from("2024-01-15"),
+                originalAmount: asMinorUnits(-1250)
             }),
             suspectedDuplicateOf: {
                 accountId: "acc-1",
@@ -229,6 +231,7 @@ describe("findTransaction", () => {
         });
 
         expect(result?.id).toBe("tx-dup");
+        expect(result?.originalAmount).toBe(-1250);
     });
 
     it("returns undefined for non-existent transaction", () => {
@@ -598,6 +601,7 @@ describe("filterTransactions", () => {
                 description: "Coffee shop",
                 notes: "morning coffee",
                 amount: asMinorUnits(-500),
+                originalAmount: undefined,
                 accountId: "acc-1",
                 tagIds: ["tag-food"],
                 statusId: "status-paid",
@@ -617,6 +621,7 @@ describe("filterTransactions", () => {
                 description: "Salary",
                 notes: "",
                 amount: asMinorUnits(5000),
+                originalAmount: undefined,
                 accountId: "acc-1",
                 tagIds: ["tag-income"],
                 statusId: "status-for-review",
@@ -636,6 +641,7 @@ describe("filterTransactions", () => {
                 description: "Deleted",
                 notes: "",
                 amount: asMinorUnits(-100),
+                originalAmount: undefined,
                 accountId: "acc-1",
                 tagIds: [],
                 statusId: "status-paid",
@@ -794,6 +800,7 @@ describe("filterTransactions", () => {
                 description: "Has duplicate",
                 notes: "",
                 amount: asMinorUnits(1000),
+                originalAmount: undefined,
                 accountId: "acc-1",
                 tagIds: [],
                 statusId: "status-1",
@@ -811,6 +818,7 @@ describe("filterTransactions", () => {
                         descriptionAliasId: undefined,
                         notes: "",
                         amount: asMinorUnits(1000),
+                        originalAmount: undefined,
                         accountId: "acc-1",
                         tagIds: [],
                         statusId: "status-1",
@@ -832,6 +840,7 @@ describe("filterTransactions", () => {
                 description: "No duplicate",
                 notes: "",
                 amount: asMinorUnits(500),
+                originalAmount: undefined,
                 accountId: "acc-1",
                 tagIds: [],
                 statusId: "status-1",

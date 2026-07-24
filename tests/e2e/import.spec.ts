@@ -19,7 +19,7 @@ import * as path from "path";
 
 import { expect, test } from "@playwright/test";
 
-import { createNewIdentity, goToImportNew } from "./helpers";
+import { createNewIdentity, goToImportNew, goToImports } from "./helpers";
 
 // ============================================================================
 // Import-Specific Helpers
@@ -115,6 +115,210 @@ NEWFILEUID:NONE
 // ============================================================================
 
 test.describe("Import Panel", () => {
+    test("CSV and OFX lineage survives edits/reload and delete is isolated one-step history", async ({
+        page
+    }) => {
+        await createNewIdentity(page);
+        const csvFilename = "p14-lineage-a.csv";
+        const ofxFilename = "p14-lineage-b.ofx";
+        const csvDescriptions = ["P14 CSV negative", "P14 CSV zero"] as const;
+        const ofxDescription = "P14 OFX survivor";
+        const manualDescription = "P14 manual survivor";
+        const transactionId = async (description: string): Promise<string> => {
+            const id = await page
+                .getByRole("row", { name: new RegExp(description) })
+                .getAttribute("data-transaction-id");
+            if (!id) throw new Error(`Missing transaction identity for ${description}`);
+            return id;
+        };
+
+        await test.step("import the target CSV with negative and zero minor-unit values", async () => {
+            await goToImportNew(page);
+            await page.locator('input[type="file"]').setInputFiles({
+                name: csvFilename,
+                mimeType: "text/csv",
+                buffer: Buffer.from(
+                    [
+                        "Date,Description,Amount",
+                        "2026-06-01,P14 CSV negative,-12.50",
+                        "2026-06-02,P14 CSV zero,0.00"
+                    ].join("\n")
+                )
+            });
+            await page.getByRole("tab", { name: /Columns/i }).click();
+            await page.getByRole("button", { name: /Auto-detect/i }).click();
+            await expect(page.getByText(/All required fields mapped/i)).toBeVisible();
+            await page.getByRole("tab", { name: /Account/i }).click();
+            await page.locator("#account-select").click();
+            await page.getByRole("option", { name: /Default/i }).click();
+            await page.getByRole("button", { name: /Import 2 Transactions/i }).click();
+            await expect(page).toHaveURL(/\/transactions/);
+        });
+
+        await test.step("capture the first amount once and expose it accessibly after reload", async () => {
+            let row = page.getByRole("row", { name: /P14 CSV negative/i });
+            let amount = row.getByTestId("amount-editable");
+            await amount.fill("-20.75");
+            await amount.press("Enter");
+            await amount.fill("-30.25");
+            await amount.press("Enter");
+            await expect(amount).toHaveValue("-30.25");
+            await expect(amount).toHaveAttribute(
+                "aria-description",
+                /Original imported amount: -USD\s12\.50/
+            );
+            await amount.hover();
+            await expect(
+                page
+                    .getByTestId("original-amount-tooltip")
+                    .filter({ hasText: /Original imported amount: -USD\s12\.50/ })
+            ).toBeVisible();
+
+            const uneditedZero = page
+                .getByRole("row", { name: /P14 CSV zero/i })
+                .getByTestId("amount-editable");
+            await expect(uneditedZero).not.toHaveAttribute("aria-description");
+
+            await page.reload();
+            row = page.getByRole("row", { name: /P14 CSV negative/i });
+            amount = row.getByTestId("amount-editable");
+            await expect(amount).toHaveValue("-30.25");
+            await amount.focus();
+            await expect(
+                page
+                    .getByTestId("original-amount-tooltip")
+                    .filter({ hasText: /Original imported amount: -USD\s12\.50/ })
+            ).toBeVisible();
+        });
+
+        let csvTransactionIds: string[] = [];
+        let ofxTransactionId = "";
+        let manualTransactionId = "";
+        await test.step("add a manual row and import a distinct OFX batch", async () => {
+            csvTransactionIds = await Promise.all(
+                csvDescriptions.map((description) => transactionId(description))
+            );
+
+            await page.getByTestId("add-transaction-button").click();
+            const manualRow = page.getByRole("row", { selected: true });
+            manualTransactionId = (await manualRow.getAttribute("data-transaction-id")) ?? "";
+            if (!manualTransactionId) throw new Error("Missing manual transaction identity");
+            await manualRow.getByTestId("description-editable").fill(manualDescription);
+            await manualRow.getByTestId("description-editable").press("Enter");
+            await manualRow.getByTestId("amount-editable").fill("7.77");
+            await manualRow.getByTestId("amount-editable").press("Enter");
+
+            await goToImportNew(page);
+            await page.locator('input[type="file"]').setInputFiles({
+                name: ofxFilename,
+                mimeType: "application/x-ofx",
+                buffer: Buffer.from(`OFXHEADER:100
+DATA:OFXSGML
+VERSION:102
+SECURITY:NONE
+ENCODING:USASCII
+CHARSET:1252
+COMPRESSION:NONE
+OLDFILEUID:NONE
+NEWFILEUID:NONE
+
+<OFX>
+<SIGNONMSGSRSV1>
+<SONRS>
+<STATUS><CODE>0</CODE><SEVERITY>INFO</SEVERITY></STATUS>
+<DTSERVER>20260604120000
+<LANGUAGE>ENG
+</SONRS>
+</SIGNONMSGSRSV1>
+<BANKMSGSRSV1>
+<STMTTRNRS>
+<TRNUID>P14-B
+<STATUS><CODE>0</CODE><SEVERITY>INFO</SEVERITY></STATUS>
+<STMTRS>
+<CURDEF>USD
+<BANKACCTFROM>
+<BANKID>123456789
+<ACCTID>P14B
+<ACCTTYPE>CHECKING
+</BANKACCTFROM>
+<BANKTRANLIST>
+<DTSTART>20260603
+<DTEND>20260604
+<STMTTRN>
+<TRNTYPE>CREDIT
+<DTPOSTED>20260603
+<TRNAMT>3.21
+<FITID>P14-OFX-B-1
+<NAME>${ofxDescription}
+</STMTTRN>
+</BANKTRANLIST>
+<LEDGERBAL>
+<BALAMT>3.21
+<DTASOF>20260604
+</LEDGERBAL>
+</STMTRS>
+</STMTTRNRS>
+</BANKMSGSRSV1>
+</OFX>`)
+            });
+            await expect(page.getByText(/OFX • \d+ rows/i)).toBeVisible();
+            await page.getByRole("tab", { name: /Account/i }).click();
+            await page.locator("#account-select").click();
+            await page.getByRole("option", { name: /Default/i }).click();
+            await page.getByRole("button", { name: /Import 1 Transaction/i }).click();
+            await expect(page).toHaveURL(/\/transactions/);
+            await expect(page.getByRole("row", { name: new RegExp(ofxDescription) })).toBeVisible();
+            ofxTransactionId = await transactionId(ofxDescription);
+        });
+
+        await test.step("delete only the chosen import and describe the boundary precisely", async () => {
+            await goToImports(page);
+            const targetImport = page.getByRole("row", { name: new RegExp(csvFilename) });
+            await targetImport
+                .getByRole("button", { name: new RegExp(`Delete import ${csvFilename}`) })
+                .click();
+            const dialog = page.getByRole("alertdialog");
+            await expect(dialog).toContainText("Transactions from other imports");
+            await expect(dialog).toContainText("added manually will not be deleted");
+            await expect(dialog).toContainText("undo this as one action");
+            await page.getByTestId("confirm-delete-import").click();
+            await expect(page.getByRole("row", { name: new RegExp(csvFilename) })).toHaveCount(0);
+            await expect(page.getByRole("row", { name: new RegExp(ofxFilename) })).toBeVisible();
+
+            await page.getByRole("link", { name: "Transactions", exact: true }).click();
+            await page.getByTestId("transaction-table-toolbar").waitFor();
+            for (const id of csvTransactionIds)
+                await expect(page.locator(`[data-transaction-id="${id}"]`)).toHaveCount(0);
+            await expect(page.locator(`[data-transaction-id="${ofxTransactionId}"]`)).toBeVisible();
+            await expect(
+                page.locator(`[data-transaction-id="${manualTransactionId}"]`)
+            ).toBeVisible();
+        });
+
+        await test.step("one Undo restores the exact import and one Redo removes it again", async () => {
+            await page.getByRole("button", { name: "Undo" }).click();
+            for (const id of csvTransactionIds)
+                await expect(page.locator(`[data-transaction-id="${id}"]`)).toBeVisible();
+            await expect(page.locator(`[data-transaction-id="${ofxTransactionId}"]`)).toBeVisible();
+            await expect(
+                page.locator(`[data-transaction-id="${manualTransactionId}"]`)
+            ).toBeVisible();
+
+            await page.getByRole("link", { name: "Imports", exact: true }).click();
+            await page.getByRole("heading", { name: "Imports", level: 1 }).waitFor();
+            await expect(page.getByRole("row", { name: new RegExp(csvFilename) })).toBeVisible();
+            await page.getByRole("link", { name: "Transactions", exact: true }).click();
+            await page.getByTestId("transaction-table-toolbar").waitFor();
+            await page.getByRole("button", { name: "Redo" }).click();
+            for (const id of csvTransactionIds)
+                await expect(page.locator(`[data-transaction-id="${id}"]`)).toHaveCount(0);
+            await expect(page.locator(`[data-transaction-id="${ofxTransactionId}"]`)).toBeVisible();
+            await expect(
+                page.locator(`[data-transaction-id="${manualTransactionId}"]`)
+            ).toBeVisible();
+        });
+    });
+
     test("CSV import journey: upload, configure tabs, and see preview", async ({ page }) => {
         await createNewIdentity(page);
 

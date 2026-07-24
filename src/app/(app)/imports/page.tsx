@@ -11,11 +11,10 @@
 import { Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
-import { Temporal } from "temporal-polyfill";
 
 import { ACCEPTED_EXTENSIONS, type ImportData, ImportsTable } from "@/components/features/import";
 import { Button } from "@/components/ui/button";
-import { useActiveImports, useTransactionActions, useVaultAction } from "@/lib/crdt/context";
+import { useActiveImports, useTransactionActions } from "@/lib/crdt/context";
 import type { Import as ImportRecord } from "@/lib/crdt/schema";
 import { cn } from "@/lib/utils";
 
@@ -47,24 +46,12 @@ export default function ImportsPage() {
             deletedAt: imp.deletedAt
         }));
 
-    // Soft-delete import record only
-    const deleteImportRecord = useVaultAction((state, importId: string) => {
-        const now = Temporal.Now.instant();
-        const importRecord = state.imports[importId];
-        if (importRecord && typeof importRecord === "object") {
-            importRecord.deletedAt = now;
-        }
-    });
-
-    // Delete import and all its transactions
+    // Delete the import record and every linked physical transaction in one history action.
     const handleDeleteImport = useCallback(
         (importId: string) => {
-            // Delete all transactions from this import using hierarchical structure
             deleteTransactionsByImport(importId);
-            // Mark the import record as deleted
-            deleteImportRecord(importId);
         },
-        [deleteTransactionsByImport, deleteImportRecord]
+        [deleteTransactionsByImport]
     );
 
     // Validate file extension

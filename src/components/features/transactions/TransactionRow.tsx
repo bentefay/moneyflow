@@ -40,6 +40,8 @@ export interface TransactionRowData {
     notes?: string;
     /** Amount in minor units (e.g., cents for USD) - stored as integer */
     amount: number;
+    /** Immutable amount before the first edit of an imported transaction */
+    originalAmount?: number;
     account?: string;
     accountId?: string;
     /** Currency code for the account (for amount display/editing) */
@@ -313,6 +315,7 @@ export function TransactionRow({
                 <div data-cell="amount" className="text-right">
                     <InlineEditableAmount
                         value={effectiveData.amount}
+                        originalValue={effectiveData.originalAmount}
                         currency={effectiveData.currency}
                         onSave={(value) => onFieldUpdate?.("amount", value)}
                         data-testid="amount-editable"

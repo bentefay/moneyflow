@@ -51,7 +51,8 @@ export function DeleteImportDialog({
                         <span className="text-foreground font-medium">
                             {transactionCount} transaction{transactionCount !== 1 ? "s" : ""}
                         </span>{" "}
-                        that were imported with it.
+                        linked to this import. Transactions from other imports and transactions you
+                        added manually will not be deleted. You can undo this as one action.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

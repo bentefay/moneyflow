@@ -1,8 +1,16 @@
 import { LoroDoc } from "loro-crdt";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { Mirror } from "loro-mirror";
 import "fake-indexeddb/auto";
+import { Temporal } from "temporal-polyfill";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { getDefaultVaultState } from "@/lib/crdt/defaults";
+import { insertTransaction } from "@/lib/crdt/mutations";
+import { getAllTransactions } from "@/lib/crdt/queries";
+import { vaultSchema } from "@/lib/crdt/schema";
+import type { TransactionStore, VaultInput } from "@/lib/crdt/schema";
 import { decryptUpdate } from "@/lib/crdt/snapshot";
+import { asMinorUnits } from "@/lib/domain/currency";
 import { SyncManager } from "@/lib/sync/manager";
 import type { SyncManagerOptions, SyncState } from "@/lib/sync/manager";
 import {
@@ -68,6 +76,98 @@ afterEach(async () => {
 });
 
 describe("SyncManager browser reconnect", () => {
+    it("encrypts, caches, and pushes one 1,000-row imported update without argument overflow", async () => {
+        const vaultId = uniqueVaultId();
+        const key = new Uint8Array(32);
+        const doc = new LoroDoc();
+        const pushOps = vi.fn(async (input: { ops: Array<{ id: string }> }) => ({
+            insertedIds: input.ops.map(({ id }) => id)
+        }));
+        const manager = new SyncManager({
+            vaultId,
+            pubkeyHash: "large-import-user",
+            vaultKey: key,
+            doc,
+            trpc: createTrpc({ mutate: pushOps })
+        });
+        await manager.initialize();
+        const mirror = new Mirror({
+            doc,
+            schema: vaultSchema,
+            initialState: getDefaultVaultState(),
+            validateUpdates: true
+        });
+        const creationInstant = Temporal.Instant.from("2026-07-24T00:00:00Z");
+
+        mirror.setState((state: VaultInput) => {
+            state.imports["large-import"] = {
+                id: "large-import",
+                filename: "large.csv",
+                transactionCount: 1000,
+                createdAt: creationInstant,
+                deletedAt: undefined
+            };
+            const store = state.transactions as unknown as TransactionStore;
+            for (let index = 0; index < 1000; index += 1) {
+                insertTransaction(store, {
+                    transaction: {
+                        id: `large-${index}`,
+                        date: Temporal.PlainDate.from("2026-07-24"),
+                        description: `Large imported transaction ${index} with deterministic payload`,
+                        descriptionAliasId: undefined,
+                        notes: "",
+                        amount: asMinorUnits(index),
+                        originalAmount: undefined,
+                        accountId: "account-default",
+                        tagIds: [],
+                        statusId: "status-for-review",
+                        importId: "large-import",
+                        allocations: {},
+                        creationInstant,
+                        importRowIndex: index,
+                        deletedAt: undefined
+                    }
+                });
+            }
+        });
+
+        const persistenceResult = await manager.awaitLocalPersistence().then(
+            () => ({ ok: true as const }),
+            (error: unknown) => ({ ok: false as const, error })
+        );
+        if (persistenceResult.ok) {
+            await manager.forceSync();
+            const operations = await getAllOps(vaultId);
+            expect(operations).toHaveLength(1);
+            expect(operations[0].encrypted_data).not.toContain("Large imported transaction");
+            expect(pushOps).toHaveBeenCalledOnce();
+
+            const recovered = new LoroDoc();
+            recovered.import(
+                await decryptUpdate({ encryptedData: operations[0].encrypted_data }, key)
+            );
+            const recoveredMirror = new Mirror({
+                doc: recovered,
+                schema: vaultSchema,
+                initialState: getDefaultVaultState(),
+                validateUpdates: true
+            });
+            const recoveredTransactions = getAllTransactions(
+                recoveredMirror.getState().transactions
+            );
+            expect(recoveredTransactions).toHaveLength(1000);
+            expect(recoveredTransactions.map(({ id }) => id)).toContain("large-0");
+            expect(recoveredTransactions.map(({ id }) => id)).toContain("large-999");
+            expect(recoveredTransactions.every(({ importId }) => importId === "large-import")).toBe(
+                true
+            );
+            recoveredMirror.dispose();
+        }
+        mirror.dispose();
+        await manager.disconnect();
+        expect(persistenceResult).toEqual({ ok: true });
+    });
+
     it("forces only after every observed local update is encrypted and durably queued", async () => {
         const vaultId = uniqueVaultId();
         const doc = new LoroDoc();

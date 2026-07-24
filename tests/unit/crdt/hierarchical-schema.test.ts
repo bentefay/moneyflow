@@ -42,6 +42,7 @@ describe("Transaction type", () => {
         expect(mockTx.id).toBe("tx-1");
         expect(mockTx.creationInstant).toBeGreaterThan(0);
         expect(mockTx.suspectedDuplicates).toEqual([]);
+        expect(mockTx.originalAmount).toBeUndefined();
     });
 
     it("includes creationInstant field", () => {
@@ -89,6 +90,7 @@ describe("NestedDuplicate type", () => {
         } as unknown as NestedDuplicate;
 
         expect(mockDup.id).toBe("dup-1");
+        expect(mockDup.originalAmount).toBeUndefined();
     });
 
     it("has same fields as transaction except suspectedDuplicates", () => {

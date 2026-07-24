@@ -40,6 +40,7 @@ const transactionArbitrary = fc
     .map((tx) => ({
         ...tx,
         amount: asMinorUnits(tx.amount),
+        originalAmount: undefined,
         creationInstant: Temporal.Instant.fromEpochMilliseconds(tx.creationInstant),
         allocations: {},
         descriptionAliasId: undefined,
@@ -52,12 +53,16 @@ function createEmptyStore(): TransactionStore {
 }
 
 // Helper to populate store with transactions
-function populateStore(
-    transactions: Array<Omit<TransactionInput, "suspectedDuplicates">>
-): TransactionStore {
+type LegacyTransactionInput = Omit<TransactionInput, "suspectedDuplicates" | "originalAmount"> & {
+    originalAmount?: TransactionInput["originalAmount"];
+};
+
+function populateStore(transactions: LegacyTransactionInput[]): TransactionStore {
     const store = createEmptyStore();
     for (const tx of transactions) {
-        insertTransaction(store, { transaction: tx });
+        insertTransaction(store, {
+            transaction: { ...tx, originalAmount: tx.originalAmount }
+        });
     }
     return store;
 }

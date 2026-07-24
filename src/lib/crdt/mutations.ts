@@ -80,7 +80,18 @@ export interface InsertTransactionInput {
 
 export interface UpdateTransactionInput {
     location: TransactionLocation;
-    updates: Partial<Omit<Transaction, "id" | "accountId" | "suspectedDuplicates">>;
+    updates: Partial<
+        Omit<
+            Transaction,
+            | "id"
+            | "accountId"
+            | "suspectedDuplicates"
+            | "importId"
+            | "originalAmount"
+            | "creationInstant"
+            | "importRowIndex"
+        >
+    >;
 }
 
 export interface MoveTransactionInput {
@@ -315,6 +326,7 @@ export function insertTransaction(store: TransactionStore, input: InsertTransact
                 descriptionAliasId: transaction.descriptionAliasId,
                 notes: transaction.notes,
                 amount: transaction.amount,
+                originalAmount: transaction.originalAmount,
                 accountId: transaction.accountId,
                 tagIds: transaction.tagIds,
                 statusId: transaction.statusId,
@@ -448,6 +460,14 @@ function applyMutableTransactionUpdates(
     transaction: Transaction | NestedDuplicate,
     updates: UpdateTransactionInput["updates"]
 ): void {
+    if (
+        updates.amount != null &&
+        updates.amount !== transaction.amount &&
+        transaction.importId &&
+        transaction.originalAmount == null
+    ) {
+        transaction.originalAmount = transaction.amount;
+    }
     for (const [key, value] of Object.entries(updates)) {
         if (key !== "description" && key !== "descriptionAliasId") {
             Reflect.set(transaction, key, value);
@@ -504,6 +524,7 @@ function physicalIdentityKey(transaction: Transaction | NestedDuplicate): string
         JSON.stringify({
             accountId: transaction.accountId,
             amount: transaction.amount,
+            originalAmount: transaction.originalAmount,
             creationInstant: transaction.creationInstant.toString(),
             date: transaction.date.toString(),
             deletedAt: transaction.deletedAt?.toString(),
@@ -535,6 +556,7 @@ function copyTransaction(transaction: Transaction): TransactionInput {
         descriptionAliasId: transaction.descriptionAliasId,
         notes: transaction.notes,
         amount: transaction.amount,
+        originalAmount: transaction.originalAmount,
         accountId: transaction.accountId,
         tagIds: [...transaction.tagIds],
         statusId: transaction.statusId,
@@ -550,6 +572,7 @@ function copyTransaction(transaction: Transaction): TransactionInput {
             descriptionAliasId: duplicate.descriptionAliasId,
             notes: duplicate.notes,
             amount: duplicate.amount,
+            originalAmount: duplicate.originalAmount,
             accountId: duplicate.accountId,
             tagIds: [...duplicate.tagIds],
             statusId: duplicate.statusId,
@@ -570,6 +593,7 @@ function copyNestedDuplicate(duplicate: NestedDuplicate): NestedDuplicateInput {
         descriptionAliasId: duplicate.descriptionAliasId,
         notes: duplicate.notes,
         amount: duplicate.amount,
+        originalAmount: duplicate.originalAmount,
         accountId: duplicate.accountId,
         tagIds: [...duplicate.tagIds],
         statusId: duplicate.statusId,
@@ -720,6 +744,7 @@ export function swapDuplicate(store: TransactionStore, input: SwapDuplicateInput
         descriptionAliasId: parentTx.descriptionAliasId,
         notes: parentTx.notes,
         amount: parentTx.amount,
+        originalAmount: parentTx.originalAmount,
         accountId: parentTx.accountId,
         tagIds: [...parentTx.tagIds],
         statusId: parentTx.statusId,
@@ -742,6 +767,7 @@ export function swapDuplicate(store: TransactionStore, input: SwapDuplicateInput
                 descriptionAliasId: d.descriptionAliasId,
                 notes: d.notes,
                 amount: d.amount,
+                originalAmount: d.originalAmount,
                 accountId: d.accountId,
                 tagIds: [...d.tagIds],
                 statusId: d.statusId,
@@ -762,6 +788,7 @@ export function swapDuplicate(store: TransactionStore, input: SwapDuplicateInput
             descriptionAliasId: newParent.descriptionAliasId,
             notes: newParent.notes,
             amount: newParent.amount,
+            originalAmount: newParent.originalAmount,
             accountId: newParent.accountId,
             tagIds: [...newParent.tagIds],
             statusId: newParent.statusId,
@@ -785,6 +812,7 @@ export function swapDuplicate(store: TransactionStore, input: SwapDuplicateInput
  */
 export function deleteTransactionsByImport(store: TransactionStore, importId: string): void {
     const datesToPrune: { accountId: string; date: Temporal.PlainDate }[] = [];
+    const transactionsToPreserve = new Map<string, NestedDuplicate>();
 
     // Iterate through all accounts
     for (const accountId of Object.keys(store)) {
@@ -800,6 +828,13 @@ export function deleteTransactionsByImport(store: TransactionStore, importId: st
                         const tx = dayBucket.transactions[i];
                         if (!isPublicTransaction(tx)) continue;
                         if (tx.importId === importId) {
+                            for (const duplicate of tx.suspectedDuplicates) {
+                                if (duplicate.importId === importId) continue;
+                                const existing = transactionsToPreserve.get(duplicate.id);
+                                if (!existing || comparePhysicalIdentity(duplicate, existing) < 0) {
+                                    transactionsToPreserve.set(duplicate.id, duplicate);
+                                }
+                            }
                             dayBucket.transactions.splice(i, 1);
                             const date = new Temporal.PlainDate(
                                 yearBucket.year,
@@ -823,8 +858,44 @@ export function deleteTransactionsByImport(store: TransactionStore, importId: st
         }
     }
 
+    for (const transaction of Array.from(transactionsToPreserve.values()).sort(
+        comparePhysicalIdentity
+    )) {
+        if (findTransactionByIdInStore(store, transaction.id)) continue;
+        insertTransaction(store, {
+            transaction: {
+                ...copyNestedDuplicate(transaction),
+                suspectedDuplicates: []
+            }
+        });
+    }
+
     // Prune empty buckets
     for (const { accountId, date } of datesToPrune) {
         pruneBuckets(store, accountId, date);
     }
+}
+
+function findTransactionByIdInStore(
+    store: TransactionStore,
+    transactionId: string
+): Transaction | NestedDuplicate | undefined {
+    for (const tree of Object.values(store)) {
+        if (typeof tree !== "object" || tree == null) continue;
+        for (const year of tree.years) {
+            for (const month of year.months) {
+                for (const day of month.days) {
+                    for (const transaction of day.transactions) {
+                        if (!isPublicTransaction(transaction)) continue;
+                        if (transaction.id === transactionId) return transaction;
+                        const duplicate = transaction.suspectedDuplicates.find(
+                            ({ id }) => id === transactionId
+                        );
+                        if (duplicate) return duplicate;
+                    }
+                }
+            }
+        }
+    }
+    return undefined;
 }

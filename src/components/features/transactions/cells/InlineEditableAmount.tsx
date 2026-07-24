@@ -14,12 +14,19 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 
 import { Input } from "@/components/ui/input";
-import { getMinorUnitMultiplier, toMinorUnitsForCurrency } from "@/lib/domain/currency";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+    getCurrency,
+    getMinorUnitMultiplier,
+    toMinorUnitsForCurrency
+} from "@/lib/domain/currency";
 import { cn } from "@/lib/utils";
 
 export interface InlineEditableAmountProps {
     /** Current value in minor units (e.g., cents) - integer */
     value: number;
+    /** Immutable value before the first imported-row edit */
+    originalValue?: number;
     /** Currency code for conversion (default: USD) */
     currency?: string;
     /** Callback when value is saved (returns minor units as integer) */
@@ -55,6 +62,20 @@ function formatForDisplay(minorUnits: number, currencyCode: string): string {
     return majorUnits.toFixed(decimalPlaces);
 }
 
+/** Format imported provenance with the account currency's exact minor-unit precision. */
+export function formatOriginalAmount(minorUnits: number, currencyCode: string): string {
+    const currency = getCurrency(currencyCode) ?? getCurrency("USD");
+    if (!currency) return `${currencyCode} ${minorUnits}`;
+    const majorUnits = minorUnits / 10 ** currency.decimal_digits;
+    return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: currency.code,
+        currencyDisplay: "code",
+        minimumFractionDigits: currency.decimal_digits,
+        maximumFractionDigits: currency.decimal_digits
+    }).format(majorUnits);
+}
+
 /**
  * Spreadsheet-style always-editable amount cell.
  *
@@ -66,6 +87,7 @@ function formatForDisplay(minorUnits: number, currencyCode: string): string {
  */
 export function InlineEditableAmount({
     value,
+    originalValue,
     currency = "USD",
     onSave,
     className,
@@ -136,7 +158,11 @@ export function InlineEditableAmount({
     const colorClass =
         parsed < 0 ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400";
 
-    return (
+    const originalAmountDescription =
+        originalValue == null
+            ? undefined
+            : `Original imported amount: ${formatOriginalAmount(originalValue, currency)}`;
+    const input = (
         <Input
             ref={inputRef}
             type="text"
@@ -149,6 +175,8 @@ export function InlineEditableAmount({
             onClick={handleClick}
             disabled={disabled}
             data-testid={testId}
+            aria-label={`Transaction amount in ${currency}`}
+            aria-description={originalAmountDescription}
             className={cn(
                 "h-7 border-transparent bg-transparent text-right text-sm font-medium tabular-nums shadow-none",
                 colorClass,
@@ -160,5 +188,15 @@ export function InlineEditableAmount({
             )}
             placeholder="0.00"
         />
+    );
+    if (!originalAmountDescription) return input;
+
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>{input}</TooltipTrigger>
+            <TooltipContent data-testid="original-amount-tooltip">
+                {originalAmountDescription}
+            </TooltipContent>
+        </Tooltip>
     );
 }

@@ -51,6 +51,7 @@ function transactionInput(
         descriptionAliasId,
         notes: "",
         amount: asMinorUnits(creationMilliseconds),
+        originalAmount: undefined,
         accountId: "account",
         tagIds: [],
         statusId: "status-for-review",

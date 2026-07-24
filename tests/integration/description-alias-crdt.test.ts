@@ -34,6 +34,7 @@ function seedIntegratedTransaction(state: VaultState, id: string, description: s
             descriptionAliasId: undefined,
             notes: "",
             amount: asMinorUnits(100),
+            originalAmount: undefined,
             accountId: "account",
             tagIds: [],
             statusId: "status",

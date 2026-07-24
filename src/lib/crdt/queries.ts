@@ -164,6 +164,7 @@ function canonicalTransactionKey(transaction: Transaction): string {
                 left.localeCompare(right)
             ),
             amount: transaction.amount,
+            originalAmount: transaction.originalAmount,
             creationInstant: transaction.creationInstant.toString(),
             date: transaction.date.toString(),
             deletedAt: transaction.deletedAt?.toString(),

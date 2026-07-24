@@ -130,6 +130,7 @@ export const nestedDuplicateSchema = schema.LoroMap({
     descriptionAliasId: schema.String({ required: false }),
     notes: schema.String({ defaultValue: "" }),
     amount: richSchema.MoneyMinorUnits({ required: true }),
+    originalAmount: richSchema.MoneyMinorUnits({ required: false }),
     accountId: schema.String({ required: true }),
     tagIds: schema.LoroList(schema.String(), (id) => id),
     statusId: schema.String({ required: true }),
@@ -153,6 +154,7 @@ export const transactionSchema = schema.LoroMap({
     descriptionAliasId: schema.String({ required: false }), // Optional reference to a description alias
     notes: schema.String({ defaultValue: "" }), // User's notes/memo
     amount: richSchema.MoneyMinorUnits({ required: true }), // Integer cents (positive = income, negative = expense)
+    originalAmount: richSchema.MoneyMinorUnits({ required: false }), // Immutable amount before the first imported-row edit
     accountId: schema.String({ required: true }),
     tagIds: schema.LoroList(schema.String(), (id) => id), // Tag IDs as LoroList for concurrent adds
     statusId: schema.String({ required: true }),

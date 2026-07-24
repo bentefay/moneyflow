@@ -72,7 +72,7 @@ export interface AssignDescriptionAliasByExactNameInput {
 export interface InsertManualDescriptionAliasedTransactionInput {
     readonly transaction: Omit<
         InsertTransactionInput["transaction"],
-        "description" | "descriptionAliasId" | "importId"
+        "description" | "descriptionAliasId" | "importId" | "originalAmount"
     >;
     readonly newAliasId: string;
     readonly name: string;
@@ -428,7 +428,8 @@ export function insertManualDescriptionAliasedTransaction(
             ...input.transaction,
             description: "",
             descriptionAliasId: undefined,
-            importId: undefined
+            importId: undefined,
+            originalAmount: undefined
         }
     });
     const transaction = findTransactionInStore(state.transactions, location);
@@ -696,5 +697,9 @@ export function deleteDescriptionAliasedTransactionsByImport(
         }
     }
     deleteTransactionsByImport(state.transactions, importId);
+    const importRecord = state.imports[importId];
+    if (typeof importRecord === "object" && importRecord != null) {
+        importRecord.deletedAt = Temporal.Now.instant();
+    }
     return ok(undefined);
 }
