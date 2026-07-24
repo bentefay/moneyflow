@@ -9,8 +9,7 @@ literal field is `pending`. Workers may read but never edit it.
 - **Scope IDs:** FS-001 and HS-009; this package owns allocation/ownership validation, owner
   remainder/effective allocation and exact signed-minor-unit apportionment only. Neither requirement
   can complete from P16A alone.
-- **State:** reviewing; implementation authority is closed and the independent reviewer alone may
-  write the revision-01 review artifact
+- **State:** changes_requested after independent revision-01 FAIL; failure integration is pending
 - **Binding tasks:** `tasks/FS-001-transaction-percentage-allocations-settlement.md` P16A and
   `tasks/HS-009-allocation-bounds.md` P16A
 - **Canonical authority:** read all 715 lines of
@@ -24,7 +23,9 @@ literal field is `pending`. Workers may read but never edit it.
 - **Frozen implementer artifact:** `evidence/P16A/implementation-01.md`, SHA-256
   `4fb0fadd5fafdde02d3d20cc3349a47abc228092ad375a112360f3864548ba33`, 272 lines /
   16,695 bytes
-- **Future immutable review artifact:** `reviews/P16A-review-01.md`
+- **Immutable revision-01 review artifact:** `reviews/P16A-review-01.md`, FAIL, SHA-256
+  `5ad6685bf5d4ceba62bde80b4074e7998313197bb494ce85a7e23ded5645184f`, 260 lines /
+  18,276 bytes
 - **Implementation-start boundary:** clean HEAD/index/worktree; P15/HS-013 is completely integrated
   and its marker transaction is immutable
 - **Allowed product/test paths:** exactly
@@ -153,7 +154,7 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Commit this reviewing transition and frozen evidence, then dispatch `human_scratch_reviewer` over
-literal cumulative range
-`1b42d27e11494a167a4768e0c2c308010aa51651..6671c09a5ca94ccb4ff47564c15d44935cc73479`.
-Keep HS-009 unchecked and FS-001 immutable/open.
+Integrate the immutable revision-01 FAIL, F-01 and exact risk transcription. Then prepare P16A
+revision 02 over the same original cumulative BASE, with a new revisioned evidence/review pair and
+authority limited to freezing every public result graph plus direct regression tests. Keep HS-009
+unchecked and FS-001 immutable/open.
