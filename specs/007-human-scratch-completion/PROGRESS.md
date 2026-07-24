@@ -7,10 +7,9 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P15 revision 01 (`implementing` after current root control commit)
-- **Next action:** dispatch `human_scratch_implementer` against exact
-  `b3e96ba9e9487d13df56956d220fffca63d6482d`, sole evidence
-  `evidence/P15/implementation-01.md`, and the P15 handoff
+- **Current package:** P15 revision 01 (`changes_requested`)
+- **Next action:** persist immutable revision-01 FAIL artifacts and F-01 through F-05, then dispatch
+  revision 02
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -23,7 +22,8 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** ten passed; HS-015 blocked externally; HS-011/HS-012 and eight other
   requirements queued
-- **Last ledger update:** 2026-07-25; P15 revision-01 implementation dispatch prepared
+- **Last ledger update:** 2026-07-25; P15 revision-01 independently failed on five blocking
+  compatibility, validation, accessibility and drag-lifecycle findings
 
 ## Package ledger
 
@@ -46,7 +46,7 @@ review evidence.
 | P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | passed | 08 | `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e..a2a31839f6bb57855fa60b8cfcc06feed069cafa` | `evidence/P12/implementation-08.md` | `reviews/P12-review-08.md` | `f8cbb5a8caacb763c0bb77199595a5ee332ab729` |
 | P13     | HS-001         | Persisted normal empty Add Transaction rows and grid navigation                     | P11C, P09            | passed | 03 | `415ea080b3b19191fd71601742056a619b4a3080..9f307e200676711ca2a3ba81bd816314807434ad` | `evidence/P13/implementation-03.md` | `reviews/P13-review-03.md` | `7a04338fa7c3f68463d12d11082bc56e87c1872b` |
 | P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | passed | 04 | `b9105028926d24a5a0c5454777a6c33379ca606a..305d6613673cf200d456276c076463b68c075500` | `evidence/P14/implementation-04.md` | `reviews/P14-review-04.md` | `a2182116db08200b8b4df28412512b9ca3406aa2` |
-| P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | implementing | 01 | `b3e96ba9e9487d13df56956d220fffca63d6482d..pending`                                  | `evidence/P15/implementation-01.md` | `reviews/P15-review-01.md` | —                                          |
+| P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | changes_requested | 01 | `b3e96ba9e9487d13df56956d220fffca63d6482d..d652032ea4f738e06fd5a29018bd341010285696` | `evidence/P15/implementation-01.md` | `reviews/P15-review-01.md` | pending failure integration |
 | P16A    | FS-001, HS-009 | Allocation/ownership validation, remainder/effective shares and exact apportionment | P01                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16C    | FS-001, HS-009 | CRDT per-key/complete-set APIs and every mutation, hydration and history path       | P16A, P16B, P09, P14 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -2317,6 +2317,43 @@ errors, transfer the original File one-shot into unchanged preview/mapping/confi
 cancel/back/focus and never auto-import or leak content. Red-before-green, repeated focused,
 affected/full automation, installed-CLI responsive/dark/reduced/privacy/cleanup and P13/P14
 preservation gates are mandatory. Reviewer is undispatched; HS-013 remains unchecked.
+
+**2026-07-25T05:00:38+10:00 — P15/01 `implementing -> ready_for_review -> reviewing`:** Exact
+product/test HEAD `d652032ea4f738e06fd5a29018bd341010285696` changes exactly 13 authorized paths
+from control HEAD `f0373722ffeca6812820f5270190c203300f712b`. Frozen evidence
+`evidence/P15/implementation-01.md` is 177 lines/13,180 bytes at SHA-256
+`5ad467cdaaec07685d20fdeff28aff1d5564e571fbd5e3ca99d6a452c97cd05e`. BASE red was
+2 missing-owner unit suites and 0/4 browser journeys; final focused unit is 9/9 x3 and real
+DataTransfer E2E is 12/12 across three repeats. Shared typed 8-KiB-sniff validation, a one-shot
+vault/route-scoped in-memory original-File transfer and one reusable nested-depth drop target replace
+duplicated validation and plaintext sessionStorage copying across Imports, Transactions and the
+existing picker. Reported green includes import profile 262/262, full Vitest 1,307/1,307, affected
+no-retry Chromium 66/66 and full 99/99, plus type/lint/build/scoped format/diff gates. Installed CLI
+reports stable 320px dark/reduced overlay, six invalid cases with focus restoration, keyboard
+picker, mixed-case CSV/OFX/QFX cancel/confirm flows, filtered child/edge drop, deterministic reload,
+encrypted push with no synthetic plaintext and zero console warnings/errors. Two failed exploratory
+listener harnesses and one hung optional 60-row probe are explicitly excluded; automation owns the
+repeated virtualized/scale result. Root stopped the keyed server, restored generated source and
+moved only current `.next`, `test-results` and nine CLI artifacts to recoverable trash. Exact
+HEAD/index/worktree/evidence formatting, frozen hashes and all 21 normalized blocks pass. Reviewer
+alone may now write `reviews/P15-review-01.md`; HS-013 remains unchecked.
+
+**2026-07-25T05:30:37+10:00 — P15/01 `reviewing -> changes_requested`; failure integration
+pending:** Independent review `reviews/P15-review-01.md` is 227 lines/16,347 bytes at SHA-256
+`4da58be357d490f28d5fbe0858a0e428ef8842258adcc2a87dd942da5b86cd44` and returns FAIL over exact
+`b3e96ba9e9487d13df56956d220fffca63d6482d..d652032ea4f738e06fd5a29018bd341010285696`.
+F-01 rejects supported XML-declaration/OFX-2.x input before the already-capable parser. F-02 admits
+obvious JSON renamed as CSV. F-03 measures the 14px alert at only 4.2259:1 light and 2.7605:1 dark.
+F-04 places overlay copy and alerts wholly below a 390x844 viewport at 200% zoom. F-05 strands the
+overlay when an entered virtual row unmounts before its leave, until global dragend. Independent
+focused unit 9/9 x3, import 262/262, full Vitest 1,307/1,307, changed E2E 12/12 x3, picker 2/2,
+affected Chromium 66/66 and full Chromium 99/99 all pass but omit those five exact boundaries.
+Positive CSV/SGML OFX/QFX, explicit confirm/cancel, 60-row encrypted persistence with 18 mounted,
+P14 lineage/origin/history, privacy and clean console remain green. Root stopped both keyed review
+server phases, restored generated source and moved only current `.next`, `test-results` and review
+CLI artifacts to recoverable trash. Exact HEAD/index/worktree/frozen boundaries pass; no Q proposal.
+HS-013 remains unchecked and revision 02 must close every finding without weakening the green
+architecture or flows.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual

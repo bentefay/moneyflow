@@ -8,15 +8,32 @@ literal field is `pending`. Workers may read but never edit it.
 - **Package / revision:** P15 / 01
 - **Scope IDs:** HS-013 only; whole imports-list and transactions-table file drop targets; HS-013
   remains incomplete and unchecked
-- **State:** implementing after the current root control commit; reviewer is undispatched
+- **State:** changes_requested; revision 01 becomes immutable after root persistence; HS-013 remains
+  unchecked
 - **Task:** `tasks/HS-013-import-drop-zones.md`; exact one-line HS-013 block in SCOPE
 - **Dependency:** P14/04 and HS-008 are passed. P14 integration is
   `a2182116db08200b8b4df28412512b9ca3406aa2`; marker completion is
   `b3e96ba9e9487d13df56956d220fffca63d6482d`.
-- **Literal original BASE / pre-implementation HEAD:**
+- **Literal original cumulative review BASE:**
   `b3e96ba9e9487d13df56956d220fffca63d6482d`
+- **Exact clean implementation-start/control HEAD:**
+  `f0373722ffeca6812820f5270190c203300f712b`
+- **Literal revision-01 product/test HEAD:**
+  `d652032ea4f738e06fd5a29018bd341010285696`
 - **Sole implementer artifact:** `evidence/P15/implementation-01.md`
-- **Future immutable review artifact:** `reviews/P15-review-01.md`
+- **Frozen evidence identity:** SHA-256
+  `5ad467cdaaec07685d20fdeff28aff1d5564e571fbd5e3ca99d6a452c97cd05e`, 177 lines /
+  13,180 bytes
+- **Sole reviewer artifact:** `reviews/P15-review-01.md`
+- **Frozen revision-01 review:** FAIL, SHA-256
+  `4da58be357d490f28d5fbe0858a0e428ef8842258adcc2a87dd942da5b86cd44`, 227 lines /
+  16,347 bytes
+- **Blocking findings:** F-01 rejects valid XML-declaration/OFX-2.x files before the parser; F-02
+  accepts obvious JSON renamed as CSV; F-03 alert contrast is 4.2259:1 light and 2.7605:1 dark;
+  F-04 centers guidance and bottom-anchors alerts wholly below the viewport at 390x844/200% zoom;
+  F-05 pure enter/leave depth strands the overlay when an entered virtual child unmounts before its
+  leave. Revision 02 must close all five with checked-in behavior coverage while retaining every
+  green revision-01 flow.
 - **Implementation-start boundary:** clean HEAD/index/worktree; all P14 artifacts and the HS-008
   marker are committed and immutable
 - **Allowed implementation paths:** exactly existing
@@ -128,9 +145,9 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Independent review contract
 
-- **Reviewer:** distinct `human_scratch_reviewer`, not dispatched until implementation freezes
+- **Reviewer:** distinct `human_scratch_reviewer`
 - **Literal cumulative review BASE:** `b3e96ba9e9487d13df56956d220fffca63d6482d`
-- **Literal review HEAD:** pending exact committed product/test HEAD
+- **Literal review HEAD:** `d652032ea4f738e06fd5a29018bd341010285696`
 - **Range type:** original P15 BASE through the exact revision-01 product/test HEAD
 - **Implementation evidence:** `evidence/P15/implementation-01.md`
 - **Sole reviewer artifact:** `reviews/P15-review-01.md`
@@ -148,5 +165,7 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Dispatch `human_scratch_implementer` for P15 revision 01 only after this handoff/progress transition
-is durably committed. Keep the reviewer undispatched and HS-013 unchecked.
+Persist immutable revision-01 evidence/review, all five findings and risk transcriptions in an
+exact-path root control commit. Then dispatch P15 revision 02 over the same original BASE with new
+exact artifacts `evidence/P15/implementation-02.md` and `reviews/P15-review-02.md`; keep HS-013
+unchecked.
