@@ -7,9 +7,10 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P15 revision 02 (`passed`); HS-013 marker is finalized
-- **Next action:** recompute dependencies and prepare the next eligible exact package/revision
-  dispatch
+- **Current package:** P16A revision 01 (`implementing` after current root control commit)
+- **Next action:** dispatch `human_scratch_implementer` against literal original BASE
+  `1b42d27e11494a167a4768e0c2c308010aa51651` and sole evidence
+  `evidence/P16A/implementation-01.md`
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -22,7 +23,9 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** eleven passed; HS-015 blocked externally; HS-011/HS-012 and seven other HS
   requirements plus FS-001 queued
-- **Last ledger update:** 2026-07-25; P15 revision-02 and the exact HS-013 marker are complete
+- **Last ledger update:** 2026-07-25; P16A revision-01 implementation dispatch prepared for
+  allocation/ownership validation, owner remainder/effective allocation and exact signed
+  apportionment
 
 ## Package ledger
 
@@ -46,7 +49,7 @@ review evidence.
 | P13     | HS-001         | Persisted normal empty Add Transaction rows and grid navigation                     | P11C, P09            | passed | 03 | `415ea080b3b19191fd71601742056a619b4a3080..9f307e200676711ca2a3ba81bd816314807434ad` | `evidence/P13/implementation-03.md` | `reviews/P13-review-03.md` | `7a04338fa7c3f68463d12d11082bc56e87c1872b` |
 | P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | passed | 04 | `b9105028926d24a5a0c5454777a6c33379ca606a..305d6613673cf200d456276c076463b68c075500` | `evidence/P14/implementation-04.md` | `reviews/P14-review-04.md` | `a2182116db08200b8b4df28412512b9ca3406aa2` |
 | P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | passed | 02 | `b3e96ba9e9487d13df56956d220fffca63d6482d..91931688ef9463576b757a097968af543a4b8a75` | `evidence/P15/implementation-02.md` | `reviews/P15-review-02.md` | `9c5d7be8ee4cf7c3fda5f1a7320c053362672e3a` |
-| P16A    | FS-001, HS-009 | Allocation/ownership validation, remainder/effective shares and exact apportionment | P01                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
+| P16A    | FS-001, HS-009 | Allocation/ownership validation, remainder/effective shares and exact apportionment | P01                  | implementing | 01 | `1b42d27e11494a167a4768e0c2c308010aa51651..pending`                                  | `evidence/P16A/implementation-01.md` | `reviews/P16A-review-01.md` | not yet passed                             |
 | P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16C    | FS-001, HS-009 | CRDT per-key/complete-set APIs and every mutation, hydration and history path       | P16A, P16B, P09, P14 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16D    | FS-001, HS-009 | Actual grid/add-row person columns, virtualization, history and presence UX         | P16C, P13            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -2432,6 +2435,22 @@ SCOPE remain exact. Scratch SHA advances
 `f0adfef6e19b80969dae748cf8c616614af61ba778837234c97af385a19adcb1 ->
 ce52d7df87daf63117931e5bdee928212051242ae7f2b5d90e76f5610abcb00f`, 350 lines/24,250 bytes. The
 completion event is cleared and package dispatch may resume.
+
+**2026-07-25T06:51:25+10:00 — P16A/01 `queued -> implementing`:** P01/02 is passed and P15/HS-013
+has fully cleared its marker transaction, so the next allocation-critical-path package starts from
+literal clean original BASE `1b42d27e11494a167a4768e0c2c308010aa51651`. Sole implementation
+evidence is `evidence/P16A/implementation-01.md`; future independent review is
+`reviews/P16A-review-01.md`. Authority is limited to one new allocation domain owner, hardening the
+existing ownership domain owner, domain exports, their exact two production unit/property test
+owners and manifest/lock only if a direct exact decimal dependency is justified. P16A must reject
+negative zero/non-finite/out-of-range allocation and ownership input, preserve any valid explicit
+total without normalization, derive positive/zero/negative owner remainder and deterministic exact
+effective weights over the explicit/owner union, and apportion signed integer minor units with
+mathematical negative floors, largest fractional remainders, stable-ID ties and exact conservation.
+Checked-in production red-to-green/property tests, focused x3, domain/full regression, affected/full
+no-retry Chromium, dependency/benchmark evidence and an honest installed-CLI current-ownership
+preservation charter are mandatory. P16B settlement, CRDT, UI/E2E edits and all frozen/control paths
+are forbidden. Reviewer is undispatched; HS-009 remains unchecked and FS-001 remains immutable/open.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
