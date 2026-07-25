@@ -7,7 +7,7 @@ Root rewrites this compact file for one package/revision. Workers may read but n
 - **Package / revision:** P16B / 04
 - **Scope ID:** FS-001; this revision closes only residual P16B review-03 F-04/F-05 while preserving
   every independently proven settlement invariant. FS-001 remains incomplete.
-- **State:** revision-04 implementation frozen; ready for independent review
+- **State:** reviewing revision-04 frozen implementation
 - **Binding task:** `tasks/FS-001-transaction-percentage-allocations-settlement.md` P16B
 - **Canonical authority:** all 715 immutable lines of
   `specs/008-transaction-percentage-allocations-settlement/spec.md`
@@ -125,8 +125,8 @@ Root rewrites this compact file for one package/revision. Workers may read but n
 
 ## Independent review contract
 
-- **Reviewer:** distinct `human_scratch_reviewer`, ready for dispatch after revision-04 evidence
-  freeze
+- **Reviewer:** distinct `human_scratch_reviewer`, dispatched only after revision-04 evidence freeze
+  commit `86dd6fc63a8476bd9aaf3a6b56f1571240803f45`
 - **Literal cumulative review BASE:** `4c102600240e2804b801c2a320e10164defb14ea`
 - **Literal revision-04 product/test HEAD:** `e09eb6bdbbfd796d970d85ef36c212795bcb4912`
 - **Implementation evidence:** `evidence/P16B/implementation-04.md`
@@ -142,6 +142,5 @@ Root rewrites this compact file for one package/revision. Workers may read but n
 
 ## Next root action
 
-Freeze the exact revision-04 evidence and ready-for-review transition, then dispatch the distinct
-`human_scratch_reviewer` over the literal cumulative range and sole review output. Keep HS-009
-unchanged and FS-001 immutable/open.
+Await the distinct `human_scratch_reviewer` verdict over the literal cumulative range and sole
+review output. Keep HS-009 unchanged and FS-001 immutable/open.
