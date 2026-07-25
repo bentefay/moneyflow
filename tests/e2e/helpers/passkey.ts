@@ -30,7 +30,10 @@ export async function addVirtualAuthenticator(
     page: Page,
     // Only one `internal` authenticator may exist per context, so a test needing a genuinely
     // second device (one credential each, as `excludeCredentials` enforces) uses another transport.
-    transport: "internal" | "usb" = "internal"
+    transport: "internal" | "usb" = "internal",
+    // With presence simulation off the authenticator never answers, which is how a user who
+    // ignores the system prompt behaves - the ceremony promise simply stays pending.
+    automaticPresenceSimulation = true
 ): Promise<VirtualAuthenticator> {
     const client = await page.context().newCDPSession(page);
     await client.send("WebAuthn.enable");
@@ -44,7 +47,7 @@ export async function addVirtualAuthenticator(
             hasUserVerification: true,
             hasPrf: true,
             isUserVerified: true,
-            automaticPresenceSimulation: true
+            automaticPresenceSimulation
         }
     });
 
@@ -118,11 +121,14 @@ export async function countCredentials(authenticator: VirtualAuthenticator): Pro
 // ============================================================================
 
 /**
- * Counts of every server row a creation flow can leave behind.
+ * Every server row an identity owns.
  *
- * A cancelled creation must move NONE of these. Counting them is the only way to assert "no
- * partial state" for real - the browser cannot see the server's tables, and an assertion that
- * only inspects the page would pass over an orphaned identity exactly as review-01 found.
+ * Asserting "no partial state" needs the server's view: the browser cannot see these tables, and
+ * a page-only assertion passes straight over an orphaned identity exactly as review-01 found.
+ *
+ * Scoped to one pubkey hash rather than counted globally, because the suite runs in parallel and
+ * a global count races with whatever another worker is creating. Scoping is also the stronger
+ * claim - it says THIS attempt left nothing, not merely that the totals happened to balance.
  */
 export interface ServerIdentityFootprint {
     users: number;
@@ -151,19 +157,27 @@ function createAdminClient() {
     });
 }
 
-async function countRows(table: "user_data" | "vault_memberships" | "passkey_credentials") {
+async function countRowsForIdentity(
+    table: "user_data" | "vault_memberships" | "passkey_credentials",
+    pubkeyHash: string
+) {
     const admin = createAdminClient();
-    const { count, error } = await admin.from(table).select("*", { count: "exact", head: true });
+    const { count, error } = await admin
+        .from(table)
+        .select("*", { count: "exact", head: true })
+        .eq("pubkey_hash", pubkeyHash);
     if (error || count == null) throw new Error(`Passkey fixture could not count ${table}`);
     return count;
 }
 
-/** Snapshot every server table a creation flow writes to. */
-export async function readServerIdentityFootprint(): Promise<ServerIdentityFootprint> {
+/** Every row the given identity owns across the tables a creation flow writes to. */
+export async function readServerIdentityFootprint(
+    pubkeyHash: string
+): Promise<ServerIdentityFootprint> {
     const [users, vaultMemberships, passkeyCredentials] = await Promise.all([
-        countRows("user_data"),
-        countRows("vault_memberships"),
-        countRows("passkey_credentials")
+        countRowsForIdentity("user_data", pubkeyHash),
+        countRowsForIdentity("vault_memberships", pubkeyHash),
+        countRowsForIdentity("passkey_credentials", pubkeyHash)
     ]);
     return { users, vaultMemberships, passkeyCredentials };
 }

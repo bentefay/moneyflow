@@ -14,7 +14,8 @@
 import {
     bufferToBase64URLString,
     startAuthentication,
-    startRegistration
+    startRegistration,
+    WebAuthnAbortService
 } from "@simplewebauthn/browser";
 import { useCallback, useEffect, useState } from "react";
 
@@ -42,6 +43,44 @@ export interface PasskeyError {
 }
 
 /**
+ * How long to wait for a ceremony before abandoning it.
+ *
+ * A prompt the user simply ignores never rejects: `navigator.credentials` has no client-side
+ * deadline of its own, and the `timeout` in the options is advisory to the authenticator. Without
+ * a bound here the promise pends forever, so the caller's `finally` never runs and the page stays
+ * busy with no error - the exact stuck state review-01 reproduced.
+ *
+ * Deliberately longer than the 60s the server puts in the options, so someone fetching a security
+ * key or unlocking a phone is never cut off before the authenticator's own deadline. This bounds
+ * the pathological case only.
+ */
+const CEREMONY_DEADLINE_MS = 90_000;
+
+/**
+ * Races a ceremony against a deadline, cancelling it through the library on expiry.
+ *
+ * Cancelling matters as much as rejecting: an abandoned ceremony left running could resolve into
+ * a flow that has already been torn down and rolled back.
+ */
+async function withCeremonyDeadline<T>(ceremony: Promise<T>): Promise<T> {
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+
+    try {
+        return await Promise.race([
+            ceremony,
+            new Promise<never>((_resolve, reject) => {
+                deadline = setTimeout(() => {
+                    WebAuthnAbortService.cancelCeremony();
+                    reject(new DOMException("Passkey ceremony timed out", "TimeoutError"));
+                }, CEREMONY_DEADLINE_MS);
+            })
+        ]);
+    } finally {
+        if (deadline) clearTimeout(deadline);
+    }
+}
+
+/**
  * Translates a ceremony failure into something a user can act on.
  *
  * A cancelled prompt is not an error worth alarming anyone about, and an authenticator that
@@ -51,6 +90,9 @@ function describeCeremonyFailure(error: unknown): PasskeyError {
     const name = error instanceof Error ? error.name : "";
     const message = error instanceof Error ? error.message : String(error);
 
+    if (name === "TimeoutError") {
+        return { message: "Passkey prompt timed out. You can try again." };
+    }
     if (name === "NotAllowedError" || message.includes("ceremony")) {
         return { message: "Passkey prompt was dismissed. You can try again." };
     }
@@ -71,8 +113,13 @@ export interface UsePasskeyReturn {
     isBusy: boolean;
     error: PasskeyError | null;
     clearError: () => void;
-    /** Registers a new passkey that wraps the supplied existing master secret. */
-    registerPasskey: (masterSecret: Uint8Array, label?: string) => Promise<void>;
+    /**
+     * Registers a new passkey that wraps the supplied existing master secret.
+     *
+     * Resolves with the credential id so a caller whose own follow-up work fails can revoke what
+     * it just created rather than leaving an orphan bound to an identity it abandoned.
+     */
+    registerPasskey: (masterSecret: Uint8Array, label?: string) => Promise<string>;
     /** Unlocks by passkey, installing a session for the identity the credential wraps. */
     unlockWithPasskey: () => Promise<{ pubkeyHash: string }>;
 }
@@ -106,19 +153,21 @@ export function usePasskey(): UsePasskeyReturn {
      * The unlock path, where an assertion IS verified, uses a server challenge.
      */
     const evaluatePrfLocally = useCallback(async (credentialId: string): Promise<Uint8Array> => {
-        const assertion = await startAuthentication({
-            optionsJSON: {
-                // `challenge` is the one field the browser package decodes from base64url;
-                // extension inputs pass through to the DOM API as raw bytes.
-                challenge: bufferToBase64URLString(
-                    crypto.getRandomValues(new Uint8Array(32)).buffer as ArrayBuffer
-                ),
-                rpId: window.location.hostname,
-                userVerification: "required",
-                allowCredentials: [{ id: credentialId, type: "public-key" }],
-                extensions: { prf: { eval: { first: PASSKEY_PRF_SALT } } }
-            }
-        });
+        const assertion = await withCeremonyDeadline(
+            startAuthentication({
+                optionsJSON: {
+                    // `challenge` is the one field the browser package decodes from base64url;
+                    // extension inputs pass through to the DOM API as raw bytes.
+                    challenge: bufferToBase64URLString(
+                        crypto.getRandomValues(new Uint8Array(32)).buffer as ArrayBuffer
+                    ),
+                    rpId: window.location.hostname,
+                    userVerification: "required",
+                    allowCredentials: [{ id: credentialId, type: "public-key" }],
+                    extensions: { prf: { eval: { first: PASSKEY_PRF_SALT } } }
+                }
+            })
+        );
 
         const prfOutput = extractPrfOutput(assertion);
         if (!prfOutput) {
@@ -129,7 +178,7 @@ export function usePasskey(): UsePasskeyReturn {
     }, []);
 
     const registerPasskey = useCallback(
-        async (masterSecret: Uint8Array, label = "Passkey"): Promise<void> => {
+        async (masterSecret: Uint8Array, label = "Passkey"): Promise<string> => {
             setIsBusy(true);
             setError(null);
             let prfOutput: Uint8Array | null = null;
@@ -137,7 +186,9 @@ export function usePasskey(): UsePasskeyReturn {
             try {
                 await initCrypto();
                 const { challengeId, options } = await startRegistrationMutation.mutateAsync({});
-                const registration = await startRegistration({ optionsJSON: options });
+                const registration = await withCeremonyDeadline(
+                    startRegistration({ optionsJSON: options })
+                );
 
                 // No silent downgrade: a credential that cannot do PRF cannot protect the vault
                 // key, so nothing is stored and the user keeps their existing unlock factors.
@@ -156,6 +207,8 @@ export function usePasskey(): UsePasskeyReturn {
                     wrappedSecret,
                     label
                 });
+
+                return registration.id;
             } catch (caught) {
                 setError(describeCeremonyFailure(caught));
                 throw caught;
@@ -176,7 +229,9 @@ export function usePasskey(): UsePasskeyReturn {
         try {
             await initCrypto();
             const { challengeId, options } = await startAuthenticationMutation.mutateAsync({});
-            const assertion = await startAuthentication({ optionsJSON: options });
+            const assertion = await withCeremonyDeadline(
+                startAuthentication({ optionsJSON: options })
+            );
 
             prfOutput = extractPrfOutput(assertion);
             if (!prfOutput) {

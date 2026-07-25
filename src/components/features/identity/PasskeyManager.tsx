@@ -16,8 +16,11 @@ import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { usePasskey } from "@/hooks/use-passkey";
+import { computePubkeyHash } from "@/lib/crypto/identity";
+import { deriveKeysFromSeed, initCrypto } from "@/lib/crypto/keypair";
 import { zeroize } from "@/lib/crypto/passkeyWrap";
 import { mnemonicToMasterSeed, normalizeMnemonic, validateSeedPhrase } from "@/lib/crypto/seed";
+import { getSessionPubkeyHash } from "@/lib/crypto/session";
 import { trpc } from "@/lib/trpc";
 
 import { SeedPhraseInput } from "./SeedPhraseInput";
@@ -31,8 +34,15 @@ export function PasskeyManager() {
     const [phrase, setPhrase] = useState("");
     const [phraseError, setPhraseError] = useState<string | null>(null);
     const [pendingRevoke, setPendingRevoke] = useState<string | null>(null);
+    const [revokePhrase, setRevokePhrase] = useState("");
+    const [revokePhraseError, setRevokePhraseError] = useState<string | null>(null);
 
     const credentials = credentialsQuery.data ?? [];
+
+    // Removing the last credential destroys the only wrapped secret. For a vault created with a
+    // passkey alone that is the only path to the master seed, so the user must produce the
+    // recovery phrase before it can go.
+    const isLastCredential = credentials.length === 1;
 
     const handleAdd = useCallback(async () => {
         const normalized = normalizeMnemonic(phrase);
@@ -58,14 +68,62 @@ export function PasskeyManager() {
         }
     }, [phrase, registerPasskey, clearError, credentialsQuery]);
 
+    /**
+     * Proves the entered phrase belongs to THIS identity.
+     *
+     * A BIP39 validity check alone would be theatre: any public test vector passes it, so a user
+     * who has lost their real phrase could still destroy their last unlock factor. Deriving the
+     * pubkey hash and comparing it to the session is what makes the guard mean something.
+     *
+     * Entirely local - the phrase is never sent anywhere.
+     */
+    const phraseDerivesThisIdentity = useCallback(async (mnemonic: string): Promise<boolean> => {
+        let masterSecret: Uint8Array | null = null;
+        try {
+            await initCrypto();
+            masterSecret = await mnemonicToMasterSeed(mnemonic);
+            const keys = deriveKeysFromSeed(masterSecret);
+            return computePubkeyHash(keys.signing.publicKey) === getSessionPubkeyHash();
+        } finally {
+            if (masterSecret) zeroize(masterSecret);
+        }
+    }, []);
+
     const handleRevoke = useCallback(
         async (credentialId: string) => {
+            if (isLastCredential) {
+                const normalized = normalizeMnemonic(revokePhrase);
+                if (
+                    !validateSeedPhrase(normalized) ||
+                    !(await phraseDerivesThisIdentity(normalized))
+                ) {
+                    setRevokePhraseError(
+                        "That isn't the recovery phrase for this vault. Removing your only passkey without it would lock you out for good."
+                    );
+                    return;
+                }
+            }
+
             await revokeMutation.mutateAsync({ credentialId });
             setPendingRevoke(null);
+            setRevokePhrase("");
+            setRevokePhraseError(null);
             await credentialsQuery.refetch();
         },
-        [revokeMutation, credentialsQuery]
+        [
+            revokeMutation,
+            credentialsQuery,
+            isLastCredential,
+            revokePhrase,
+            phraseDerivesThisIdentity
+        ]
     );
+
+    const handleCancelRevoke = useCallback(() => {
+        setPendingRevoke(null);
+        setRevokePhrase("");
+        setRevokePhraseError(null);
+    }, []);
 
     if (capability === "unsupported") {
         return (
@@ -94,46 +152,75 @@ export function PasskeyManager() {
                         <li
                             key={credential.credentialId}
                             data-testid="passkey-credential-row"
-                            className="bg-card flex items-center justify-between gap-4 rounded-lg border p-3"
+                            className="bg-card flex flex-col gap-3 rounded-lg border p-3"
                         >
-                            <span className="flex items-center gap-2 text-sm">
-                                <KeyRound className="h-4 w-4" aria-hidden="true" />
-                                {credential.label || "Passkey"}
-                            </span>
+                            <div className="flex items-center justify-between gap-4">
+                                <span className="flex items-center gap-2 text-sm">
+                                    <KeyRound className="h-4 w-4" aria-hidden="true" />
+                                    {credential.label || "Passkey"}
+                                </span>
 
-                            {pendingRevoke === credential.credentialId ? (
-                                <span className="flex items-center gap-2">
-                                    <span className="text-muted-foreground text-xs">
-                                        {credentials.length === 1
-                                            ? "This is your only passkey. Remove it?"
-                                            : "Remove this passkey?"}
+                                {pendingRevoke === credential.credentialId ? (
+                                    <span className="flex items-center gap-2">
+                                        <span className="text-muted-foreground text-xs">
+                                            {isLastCredential
+                                                ? "This is your only passkey."
+                                                : "Remove this passkey?"}
+                                        </span>
+                                        <Button
+                                            data-testid="confirm-revoke-button"
+                                            size="sm"
+                                            variant="destructive"
+                                            disabled={isLastCredential && revokePhrase.length === 0}
+                                            onClick={() => handleRevoke(credential.credentialId)}
+                                        >
+                                            Remove
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={handleCancelRevoke}
+                                        >
+                                            Cancel
+                                        </Button>
                                     </span>
+                                ) : (
                                     <Button
-                                        data-testid="confirm-revoke-button"
-                                        size="sm"
-                                        variant="destructive"
-                                        onClick={() => handleRevoke(credential.credentialId)}
-                                    >
-                                        Remove
-                                    </Button>
-                                    <Button
+                                        data-testid="revoke-passkey-button"
                                         size="sm"
                                         variant="ghost"
-                                        onClick={() => setPendingRevoke(null)}
+                                        aria-label={`Remove passkey ${credential.label || "Passkey"}`}
+                                        onClick={() => setPendingRevoke(credential.credentialId)}
                                     >
-                                        Cancel
+                                        <Trash2 className="h-4 w-4" aria-hidden="true" />
                                     </Button>
-                                </span>
-                            ) : (
-                                <Button
-                                    data-testid="revoke-passkey-button"
-                                    size="sm"
-                                    variant="ghost"
-                                    aria-label={`Remove passkey ${credential.label || "Passkey"}`}
-                                    onClick={() => setPendingRevoke(credential.credentialId)}
+                                )}
+                            </div>
+
+                            {pendingRevoke === credential.credentialId && isLastCredential && (
+                                <div
+                                    data-testid="last-passkey-phrase-gate"
+                                    className="flex flex-col gap-3 border-t pt-3"
                                 >
-                                    <Trash2 className="h-4 w-4" aria-hidden="true" />
-                                </Button>
+                                    <p className="text-muted-foreground text-sm">
+                                        Removing it deletes the only copy of your wrapped vault key.
+                                        Enter your recovery phrase to confirm you can still get back
+                                        in without this passkey.
+                                    </p>
+                                    <SeedPhraseInput
+                                        value={revokePhrase}
+                                        onChange={setRevokePhrase}
+                                        autoFocus={false}
+                                    />
+                                    {revokePhraseError && (
+                                        <p
+                                            data-testid="last-passkey-phrase-error"
+                                            className="text-destructive text-sm"
+                                        >
+                                            {revokePhraseError}
+                                        </p>
+                                    )}
+                                </div>
                             )}
                         </li>
                     ))}

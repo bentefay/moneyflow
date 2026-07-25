@@ -312,14 +312,24 @@ test.describe("Passkey", () => {
     }) => {
         await page.goto("/new-user");
 
-        // Counted before the attempt so the assertions below are about THIS flow, not about
-        // whatever else the parallel suite happens to be creating.
-        const before = await readServerIdentityFootprint();
+        // The ceremony needs a signed session, so the attempt installs one before prompting. That
+        // is the identity whose server footprint must stay empty, and capturing it is what makes
+        // this assertion exact rather than a global row count racing the parallel suite.
+        const attemptedHash = page.waitForFunction(
+            () => {
+                const raw = sessionStorage.getItem("moneyflow_session");
+                return raw ? (JSON.parse(raw) as { pubkeyHash: string }).pubkeyHash : null;
+            },
+            undefined,
+            { timeout: 20000 }
+        );
 
         // A cancelled ceremony is what the browser reports when the user dismisses the
         // system prompt. It must surface as a recoverable error, not a stuck spinner.
         await removeVirtualAuthenticator(authenticator);
         await page.getByTestId("passkey-create-button").click();
+
+        const pubkeyHash = String(await (await attemptedHash).jsonValue());
 
         await test.step("the failure is surfaced and both controls become usable again", async () => {
             await expect(page.getByTestId("passkey-error")).toBeVisible({ timeout: 20000 });
@@ -329,16 +339,17 @@ test.describe("Passkey", () => {
             await expect(page.getByTestId("passkey-create-button")).toBeEnabled();
         });
 
-        await test.step("no session was installed", async () => {
+        await test.step("the session installed for the ceremony was torn down again", async () => {
             const session = await page.evaluate(() => sessionStorage.getItem("moneyflow_session"));
             expect(session).toBeNull();
         });
 
-        await test.step("no server identity, vault or credential row was created", async () => {
-            const after = await readServerIdentityFootprint();
-            expect(after.users).toBe(before.users);
-            expect(after.vaultMemberships).toBe(before.vaultMemberships);
-            expect(after.passkeyCredentials).toBe(before.passkeyCredentials);
+        await test.step("the attempted identity owns no server row of any kind", async () => {
+            // The exact orphan review-01 reproduced: an identity with a vault and no passkey.
+            const footprint = await readServerIdentityFootprint(pubkeyHash);
+            expect(footprint.users).toBe(0);
+            expect(footprint.vaultMemberships).toBe(0);
+            expect(footprint.passkeyCredentials).toBe(0);
         });
 
         await test.step("the recovery branch still works after the failed attempt", async () => {
@@ -346,6 +357,31 @@ test.describe("Passkey", () => {
             await page.getByTestId("generate-button").click();
             await expect(page.getByTestId("confirm-checkbox")).toBeVisible({ timeout: 20000 });
         });
+    });
+
+    test("a prompt the user never answers is abandoned rather than left spinning", async ({
+        page
+    }) => {
+        // This test waits out the real client-side deadline, so it needs more than the suite
+        // default. Shortening the deadline to suit the test would test something else.
+        test.setTimeout(180000);
+
+        // The failure review-01 hit in the real app: the ceremony promise never settles, so the
+        // hook's cleanup never runs and the button stays on "Waiting for passkey..." forever.
+        // `automaticPresenceSimulation: false` reproduces it - the authenticator never responds.
+        await removeVirtualAuthenticator(authenticator);
+        authenticator = await addVirtualAuthenticator(page, "internal", false);
+
+        await page.goto("/new-user");
+        await page.getByTestId("passkey-create-button").click();
+
+        // Longer than the client-side deadline, which is deliberately generous.
+        await expect(page.getByTestId("passkey-error")).toBeVisible({ timeout: 120000 });
+        await expect(page.getByTestId("passkey-create-button")).toBeEnabled();
+        expect(await page.evaluate(() => sessionStorage.getItem("moneyflow_session"))).toBeNull();
+
+        await removeVirtualAuthenticator(authenticator);
+        authenticator = await addVirtualAuthenticator(page);
     });
 
     test("passkey-only creation shows the recovery phrase and it unlocks the same identity", async ({

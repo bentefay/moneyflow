@@ -17,6 +17,7 @@ import { type FormEvent, useCallback, useRef, useState } from "react";
 import {
     AuroraBackground,
     CredentialChoiceDivider,
+    PasskeyBackupPhrase,
     SeedPhraseDisplay
 } from "@/components/features/identity";
 import { Button } from "@/components/ui/button";
@@ -25,16 +26,18 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { Label } from "@/components/ui/label";
 import { useIdentity } from "@/hooks";
 import { usePasskey } from "@/hooks/use-passkey";
-import type { NewIdentity } from "@/lib/crypto/identity";
+import { type NewIdentity, storeIdentitySession } from "@/lib/crypto/identity";
 import { zeroize } from "@/lib/crypto/passkeyWrap";
 import { mnemonicToMasterSeed } from "@/lib/crypto/seed";
+import { clearSession } from "@/lib/crypto/session";
+import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 
 // ============================================================================
 // Types
 // ============================================================================
 
-type Step = "intro" | "generate" | "confirm" | "complete";
+type Step = "intro" | "generate" | "confirm" | "passkey-phrase" | "complete";
 
 // ============================================================================
 // Component
@@ -48,6 +51,7 @@ export default function NewUserPage() {
         error: passkeyError,
         registerPasskey
     } = usePasskey();
+    const revokeCredentialMutation = trpc.passkey.revokeCredential.useMutation();
 
     const [step, setStep] = useState<Step>("intro");
     const [mnemonic, setMnemonic] = useState<string | null>(null);
@@ -80,26 +84,56 @@ export default function NewUserPage() {
     // Create with a passkey
     // -------------------------------------------------------------------------
 
-    // A passkey-created account still has a full-entropy recovery phrase behind it. The passkey
-    // wraps that same master secret rather than replacing it, so the phrase remains a valid way
-    // back in and can be revealed later from settings.
+    // A passkey-created account still has a full-entropy recovery phrase behind it: the passkey
+    // wraps that same master secret rather than replacing it.
+    //
+    // Ordering here is load-bearing. The ceremony can fail - dismissed, timed out, or an
+    // authenticator that cannot do PRF - and every server write is permanent, so nothing may be
+    // registered until the credential exists. The session install that the protected registration
+    // procedures require is the one exception, and it is client-only and reversible.
     const handleCreateWithPasskey = useCallback(async () => {
         let masterSecret: Uint8Array | null = null;
+        let credentialId: string | null = null;
+        let attempted: NewIdentity | null = null;
 
         try {
-            const identity = await generateNew();
-            await registerIdentity(identity);
+            attempted = await generateNew();
 
-            masterSecret = await mnemonicToMasterSeed(identity.mnemonic);
-            await registerPasskey(masterSecret, "This device");
+            // Signs the passkey ceremony requests. No server state yet - `clearSession()` below
+            // undoes this completely if anything fails.
+            storeIdentitySession(attempted);
+            masterSecret = await mnemonicToMasterSeed(attempted.mnemonic);
 
-            window.location.assign("/settings");
+            credentialId = await registerPasskey(masterSecret, "This device");
+
+            // First irreversible commit, and only now that an unlock factor demonstrably exists.
+            await registerIdentity(attempted);
+
+            setMnemonic(attempted.mnemonic);
+            setStep("passkey-phrase");
         } catch {
+            // The credential is the only residue worth undoing. Revoking it is a signed request,
+            // and a failing `registerIdentity` tears the session down on its way out, so the
+            // identity is re-installed for the attempt. Best effort: even if the revoke fails no
+            // user data is at risk, because no vault was ever created.
+            if (credentialId && attempted) {
+                storeIdentitySession(attempted);
+                await revokeCredentialMutation.mutateAsync({ credentialId }).catch(() => undefined);
+            }
+            clearSession();
             // Errors surface through the useIdentity and usePasskey hooks.
         } finally {
             if (masterSecret) zeroize(masterSecret);
         }
-    }, [generateNew, registerIdentity, registerPasskey]);
+    }, [generateNew, registerIdentity, registerPasskey, revokeCredentialMutation]);
+
+    // The phrase is held only for this step and never persisted; navigating away discards it.
+    const handlePasskeyPhraseAcknowledged = useCallback(() => {
+        setMnemonic(null);
+        // Changing identity invalidates all in-memory authenticated state, so a full navigation
+        // is used for the same reason as the recovery-phrase branch below.
+        window.location.assign("/settings");
+    }, []);
 
     // -------------------------------------------------------------------------
     // Complete registration (only after user consents)
@@ -352,6 +386,14 @@ export default function NewUserPage() {
                         </Button>
                     </form>
                 );
+
+            case "passkey-phrase":
+                return mnemonic ? (
+                    <PasskeyBackupPhrase
+                        mnemonic={mnemonic}
+                        onContinue={handlePasskeyPhraseAcknowledged}
+                    />
+                ) : null;
 
             case "complete":
                 return (
