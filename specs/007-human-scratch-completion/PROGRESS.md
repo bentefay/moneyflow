@@ -7,8 +7,8 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P16B revision 03 (`ready_for_review`; frozen implementation evidence)
-- **Next action:** dispatch `human_scratch_reviewer` over literal cumulative range
+- **Current package:** P16B revision 03 (`reviewing`; frozen implementation evidence)
+- **Next action:** await `human_scratch_reviewer`'s independent verdict over literal cumulative range
   `4c102600240e2804b801c2a320e10164defb14ea..cd643afc8f168b3c8328eb54f1d5f280ca7ec717`
   with sole output `reviews/P16B-review-03.md`
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
@@ -48,7 +48,7 @@ review evidence.
 | P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | passed | 04 | `b9105028926d24a5a0c5454777a6c33379ca606a..305d6613673cf200d456276c076463b68c075500` | `evidence/P14/implementation-04.md` | `reviews/P14-review-04.md` | `a2182116db08200b8b4df28412512b9ca3406aa2` |
 | P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | passed | 02 | `b3e96ba9e9487d13df56956d220fffca63d6482d..91931688ef9463576b757a097968af543a4b8a75` | `evidence/P15/implementation-02.md` | `reviews/P15-review-02.md` | `9c5d7be8ee4cf7c3fda5f1a7320c053362672e3a` |
 | P16A    | FS-001, HS-009 | Allocation/ownership validation, remainder/effective shares and exact apportionment | P01                  | passed | 02 | `1b42d27e11494a167a4768e0c2c308010aa51651..f84f66758708529c44342313e8632ee8b7dcead3` | `evidence/P16A/implementation-02.md` | `reviews/P16A-review-02.md` | `41f5760f77c1a93ab650a93912bfaf3c0b627ab0` |
-| P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | ready_for_review | 03 | `4c102600240e2804b801c2a320e10164defb14ea..cd643afc8f168b3c8328eb54f1d5f280ca7ec717` | `evidence/P16B/implementation-03.md` | `reviews/P16B-review-03.md` | revision-02 FAIL `ef35b2753b2a12fa73f0f1ebdf9c1454de81b07a`; evidence freeze pending |
+| P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | reviewing | 03 | `4c102600240e2804b801c2a320e10164defb14ea..cd643afc8f168b3c8328eb54f1d5f280ca7ec717` | `evidence/P16B/implementation-03.md` | `reviews/P16B-review-03.md` | evidence freeze `8f5eaad6a271058b2c5ef6842fc8840f44473df7` |
 | P16C    | FS-001, HS-009 | CRDT per-key/complete-set APIs and every mutation, hydration and history path       | P16A, P16B, P09, P14 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16D    | FS-001, HS-009 | Actual grid/add-row person columns, virtualization, history and presence UX         | P16C, P13            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16E    | FS-001         | People obligations/issues/source UX plus full integration, E2E, manual and perf     | P16D, P08, P11C      | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -2731,6 +2731,19 @@ stopped the keyed server, restored generated source, moved current output and ex
 artifacts to recoverable trash, preserved all 22 older CLI artifacts and the older report, and
 verified no browser/port remains. No Q proposal. Reviewer alone may write
 `reviews/P16B-review-03.md`; HS-009 remains unchanged and FS-001 immutable/open.
+
+**2026-07-25T11:25:15+10:00 — P16B/03 `ready_for_review -> reviewing`:** Frozen implementation
+evidence and exact review boundary are durable in control commit
+`8f5eaad6a271058b2c5ef6842fc8840f44473df7`. Distinct `human_scratch_reviewer` receives literal
+cumulative range
+`4c102600240e2804b801c2a320e10164defb14ea..cd643afc8f168b3c8328eb54f1d5f280ca7ec717`,
+frozen `evidence/P16B/implementation-03.md` at SHA-256
+`f3dc7f26695109ec941eb308846872474cba72008e824970a86d7189334ef649` and sole output
+`reviews/P16B-review-03.md`. Reviewer must independently reproduce and close F-04/F-05 across
+non-plain financial-map objects and every malformed hierarchy envelope, re-prove F-01/F-02/F-03
+and the exact arithmetic/currency/matching/netting/source/issue/immutability core, named A–H, sole
+API/caller, full gates and honest scale disposition. HS-009 remains unchanged and FS-001
+immutable/open.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
