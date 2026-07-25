@@ -7,29 +7,28 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P18 revision 01 (`passed`); HS-019 authorized marker `completion_pending`
-- **Next action:** finalize the HS-019 authorized forward marker — apply_patch the single scratch
-  line 344 `- [] ` -> `- [x] `, diff the mktemp pre-change copy for exactly one marker-line change,
-  re-run normalized blocks and SHA, then in one control commit finalize the completion event, set the
-  HS-019 requirement `passed`, advance the rolling scratch SHA and add HS-019 to authorized checked
-  IDs. No package dispatch is allowed while the marker is `completion_pending`. Keep FS-001
-  immutable/open and all P05-gated packages blocked
+- **Current package:** none active; P18 `passed` and HS-019 marker finalized; next dispatch P19/01 (HS-020)
+- **Next action:** dispatch P19/01 (HS-020, WebAuthn PRF passkeys) — now dependency-ready because its
+  deps P04, P06 and P18 are all `passed`. Rewrite `HANDOFF.md` for P19/01 from clean HEAD and dispatch
+  a `human_scratch_implementer`, then a distinct reviewer. Watch for a genuine WebAuthn-PRF automation
+  `blocked_external` gate (R-011); if it materializes with no independent work left, halt and report.
+  Keep FS-001 immutable/open and all P05-gated packages (P08/P10/P16E and descendants) blocked
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
   `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines and 25,441 bytes
-- **Rolling scratch SHA-256:** `9a0f6633ba671446684221679a2ef148122c09f7f1ed06978d8a9786a7170d4d`
+- **Rolling scratch SHA-256:** `c4121a48723d21c6689116d900f450136645e0f88dc993829b7561b2a3a31a4c`
 - **Authorized checked HS IDs:** HS-001, HS-002, HS-004, HS-005, HS-006, HS-008, HS-009, HS-010,
-  HS-013, HS-014, HS-017, HS-018
-- **Active completion marker event:** HS-019 `completion_pending` (pre-change scratch SHA `9a0f6633ba671446684221679a2ef148122c09f7f1ed06978d8a9786a7170d4d`; intended `[] -> [x]` at `specs/human-scratch.md:344`; mapped package P18 review `reviews/P18-review-01.md`, integration `fa9ae8d0b6b7948bd2c4a508ad869d5d6955a6a1`)
+  HS-013, HS-014, HS-017, HS-018, HS-019
+- **Active completion marker event:** none
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
-- **Requirement state:** twelve passed; HS-015 blocked externally; eight other HS requirements
-  (HS-003/007/011/012/016/019/020/021) plus FS-001 queued
-- **Last ledger update:** 2026-07-25; P18/01 independent review returned `VERDICT: PASS` (0 blocking)
-  and root marked package P18 `passed` with integration commit
-  `fa9ae8d0b6b7948bd2c4a508ad869d5d6955a6a1`; HS-019 authorized marker is now `completion_pending`
-  awaiting the marker apply/finalize control commit
+- **Requirement state:** thirteen passed; HS-015 blocked externally; seven other HS requirements
+  (HS-003/007/011/012/016/020/021) plus FS-001 queued
+- **Last ledger update:** 2026-07-25; HS-019 authorized marker finalized `- [] ` -> `- [x] ` at
+  `specs/human-scratch.md:344`; requirement HS-019 `passed`, rolling scratch SHA advanced
+  `9a0f6633… -> c4121a48…`, authorized checked IDs gained HS-019 (thirteen). P18 complete; P19/01 is
+  the next dispatch
 
 ## Package ledger
 
@@ -108,7 +107,7 @@ required marker rollbacks before the next dispatch.
 | HS-016      | human scratch block               | P20A                         | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-017      | human scratch block               | P02                          | authorized marker after package PASS       | passed       | P02 integration `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7`; `reviews/P02-review-02.md`; marker `dcd03b23… -> 5d283ab1…` |
 | HS-018      | human scratch block               | P03                          | authorized marker after package PASS       | passed       | P03 integration `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34`; `reviews/P03-review-01.md`; marker `5d283ab1… -> db97178a…` |
-| HS-019      | human scratch block               | P18                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
+| HS-019      | human scratch block               | P18                          | authorized marker after package PASS       | passed | P18 integration `fa9ae8d0b6b7948bd2c4a508ad869d5d6955a6a1`; `reviews/P18-review-01.md`; marker `9a0f6633… -> c4121a48…` |
 | HS-020      | human scratch block               | P19                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-021      | human scratch block               | P20B                         | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | FS-001      | immutable whole-file feature spec | P16A, P16B, P16C, P16D, P16E | ledger completion; source never edited     | queued       | —                                                                                                                       |
@@ -3268,3 +3267,19 @@ appends this `completion_pending` marker for HS-019: exact pre-change SHA
 `mktemp` copy of the pre-change scratch was taken for the one-line diff comparison. While this marker
 is pending NO package dispatch is permitted. FS-001 stays immutable/open; the next control commit
 applies the marker and finalizes HS-019 `passed`.
+
+**2026-07-25T22:05:00+10:00 — HS-019 marker finalized `[] -> [x]`; requirement `passed`:** Root applied
+the authorized forward marker for HS-019 by changing exactly the single block first line at
+`specs/human-scratch.md:344` from `- [] ` to `- [x] `. The private `mktemp` pre-change copy was diffed
+against the result and contained exactly that one marker-line change and nothing else; the temp copy
+was then deleted. Post-change integrity re-verified: 21 normalized top-level blocks byte-match
+`SCOPE.json#sourceTextLines` in SCOPE array order with exactly thirteen checked IDs
+(the prior twelve plus HS-019) and every other block `[]`; actual `sha256sum specs/human-scratch.md`
+is now `c4121a48723d21c6689116d900f450136645e0f88dc993829b7561b2a3a31a4c`. Finalization (this single
+control commit): requirement HS-019 set `passed` citing P18 integration
+`fa9ae8d0b6b7948bd2c4a508ad869d5d6955a6a1` and review `reviews/P18-review-01.md`; rolling scratch SHA
+advanced `9a0f6633ba671446684221679a2ef148122c09f7f1ed06978d8a9786a7170d4d -> c4121a48723d21c6689116d900f450136645e0f88dc993829b7561b2a3a31a4c`;
+authorized checked-ID metadata gains HS-019 (thirteen total). FS-001 stays immutable/open at
+`0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines and 25,441 bytes. With
+P18 passed, P19 (HS-020) is now dependency-ready (P04/P06/P18 all passed) and is the next dispatch; no
+halt condition applies.

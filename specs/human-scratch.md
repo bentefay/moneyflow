@@ -341,7 +341,7 @@
 - [x] Update tanstack virtual once https://github.com/TanStack/virtual/pull/1100 is released and
   enable useFlushSync
 
-- [] Is there a way we can make the recovery phrase more compatible with password managers? It would
+- [x] Is there a way we can make the recovery phrase more compatible with password managers? It would
   be great if password managers automatically offer to save and fill the recovery phrase when
   creating or logging in to a vault.
 
