@@ -9,7 +9,7 @@ literal field is `pending`. Workers may read but never edit it.
 - **Scope IDs:** FS-001 and HS-009; this revision closes only P16C review-01 F-01 through F-03 while
   preserving every independently accepted revision-01 mechanism. Neither requirement can complete
   from P16C alone.
-- **State:** reviewing after the current root review-dispatch control commit
+- **State:** independent revision-02 PASS returned; root integration pending
 - **Binding tasks:** `tasks/FS-001-transaction-percentage-allocations-settlement.md` P16C and
   `tasks/HS-009-allocation-bounds.md` P16C
 - **Canonical authority:** all 715 immutable lines of
@@ -35,6 +35,9 @@ literal field is `pending`. Workers may read but never edit it.
   `4682fe5b883a6e4c212d8ef72d2656fb23bd6619`
 - **Evidence freeze commit:** `51928d50d9ad96f462dd67e9462b7932a0829c2b`
 - **Future immutable revision-02 review artifact:** `reviews/P16C-review-02.md`
+- **Immutable revision-02 review artifact:** `reviews/P16C-review-02.md`, PASS, SHA-256
+  `cc8319e85ef0cf295e5e6cc673f6e691bee31be6da950a77114ded3ee11bc331`, 235 lines /
+  16,730 bytes
 - **Allowed product paths:** exactly
   `src/lib/crdt/allocations.ts`,
   `src/lib/crdt/mutations.ts`,
@@ -144,7 +147,7 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Independent review contract
 
-- **Reviewer:** distinct `human_scratch_reviewer`, dispatched after evidence freeze commit
+- **Reviewer:** distinct `human_scratch_reviewer`, completed after evidence freeze commit
   `51928d50d9ad96f462dd67e9462b7932a0829c2b`
 - **Literal cumulative review BASE:** `0a7c9a49722ddc4d955f910af6dbb19cfffbd600`
 - **Literal revision-02 HEAD:** `207e8c5758a48e66980b95eaeff51c0e5a605f7e`
@@ -160,9 +163,13 @@ literal field is `pending`. Workers may read but never edit it.
   mechanisms/oracles, automated/browser/manual/cleanup and Q proposals. Any exception escape,
   permutation-dependent typed result, lost legacy sibling, weakened public validation or
   revision-01 regression fails.
+- **Actual verdict:** PASS. Independent seeds `2607253201` through `2607253204` close F-01–F-03;
+  seeds `2607253301`/`2607253302` re-prove 128 two-peer schedules / 2,304 operations and 900 pure
+  invalid rollbacks. History, encrypted persistence, performance, full gates and installed-CLI
+  preservation remain green with no new finding or Q proposal.
 
 ## Next root action
 
-Await the distinct reviewer's one PASS/FAIL artifact over the literal cumulative range. Root then
-verifies the sole-write boundary, performs exact generated-artifact cleanup and integrates findings,
-risks and any Q proposal. Keep HS-009 unchecked and FS-001 immutable/open.
+Integrate the immutable PASS review and R-017/R-018 evidence, then transition P16C to passed at the
+exact reviewed product/test HEAD. Prepare P16D next. Keep HS-009 unchecked until P16D passes and
+FS-001 immutable/open through P16D/P16E.
