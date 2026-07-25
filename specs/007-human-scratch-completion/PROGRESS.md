@@ -7,27 +7,27 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P16D revision 01 (`passed`); HS-009 forward marker `completion_pending`
-- **Next action:** finalize the authorized HS-009 forward marker: change scratch line 302 `- []` to
-  `- [x]` as a one-line diff, re-verify normalized blocks and after-SHA, then in one control commit
-  set HS-009 `passed`, cite integration `47867d506978a3f571ef0feef6185e9436d5a908` and the mapped
-  P16A/P16C/P16D reviews, and update the rolling SHA plus authorized checked-ID metadata; keep
-  FS-001 immutable/open through P16E
+- **Current package:** none active; P18 (HS-019) is next and dependency-ready (dep P01 passed)
+- **Next action:** dispatch `human_scratch_implementer` for P18 (HS-019) — password-manager-
+  compatible recovery phrase creation and unlock — per `tasks/HS-019-password-manager-recovery.md`;
+  dep P01 is passed; assign the exact evidence path `evidence/P18/implementation-01.md`. All P05-
+  gated packages (P08/P10/P16E and their P17/P19/P20 descendants) stay blocked, so P18 is the only
+  independent work; keep FS-001 immutable/open through P16E
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
   `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines and 25,441 bytes
-- **Rolling scratch SHA-256:** `ce52d7df87daf63117931e5bdee928212051242ae7f2b5d90e76f5610abcb00f`
-- **Authorized checked HS IDs:** HS-001, HS-002, HS-004, HS-005, HS-006, HS-008, HS-010, HS-013,
-  HS-014, HS-017, HS-018
-- **Active completion marker event:** HS-009 `completion_pending` (before `ce52d7df87daf63117931e5bdee928212051242ae7f2b5d90e76f5610abcb00f`, intended `[] -> [x]`, mapped P16A/P16C/P16D all passed)
+- **Rolling scratch SHA-256:** `9a0f6633ba671446684221679a2ef148122c09f7f1ed06978d8a9786a7170d4d`
+- **Authorized checked HS IDs:** HS-001, HS-002, HS-004, HS-005, HS-006, HS-008, HS-009, HS-010,
+  HS-013, HS-014, HS-017, HS-018
+- **Active completion marker event:** none
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
-- **Requirement state:** eleven passed; HS-015 blocked externally; HS-011/HS-012 and seven other HS
-  requirements plus FS-001 queued
-- **Last ledger update:** 2026-07-25; P16D/01 integrated as `passed` in `47867d506978a3f571ef0feef6185e9436d5a908`;
-  HS-009 `completion_pending` durably recorded before the scratch marker; the scratch source is not
-  yet modified and its SHA still equals the rolling checksum
+- **Requirement state:** twelve passed; HS-015 blocked externally; eight other HS requirements
+  (HS-003/007/011/012/016/019/020/021) plus FS-001 queued
+- **Last ledger update:** 2026-07-25; HS-009 authorized forward marker finalized (scratch line 302
+  `[] -> [x]`, rolling `ce52d7df… -> 9a0f6633…`) and requirement set `passed`; P16D fully
+  integrated; P18 (HS-019) is the next dependency-ready dispatch
 
 ## Package ledger
 
@@ -96,7 +96,7 @@ required marker rollbacks before the next dispatch.
 | HS-006      | human scratch block               | P09                          | authorized marker after package PASS       | passed       | P09 integration `59bf82e894e45e034858e25255240701a3afb0b8`; `reviews/P09-review-02.md`; marker `753be6b7… -> c2b986fd…` |
 | HS-007      | human scratch block               | P17A, P17B, P17C, P17D       | authorized marker after all package PASSes | queued       | —                                                                                                                       |
 | HS-008      | human scratch block               | P14                          | authorized marker after package PASS       | passed       | P14 integration `a2182116db08200b8b4df28412512b9ca3406aa2`; `reviews/P14-review-04.md`; marker `b09454de… -> f0adfef6…` |
-| HS-009      | human scratch block               | P16A, P16C, P16D             | authorized marker after all package PASSes | queued       | —                                                                                                                       |
+| HS-009      | human scratch block               | P16A, P16C, P16D             | authorized marker after all package PASSes | passed | P16A integration `41f5760f77c1a93ab650a93912bfaf3c0b627ab0`, P16C `e0f06f7fb60ce08ef2f75b0a9ca7769630a2a55c`, P16D `47867d506978a3f571ef0feef6185e9436d5a908`; reviews `P16A-review-02.md`/`P16C-review-02.md`/`P16D-review-01.md`; marker `ce52d7df… -> 9a0f6633…` |
 | HS-010      | human scratch block               | P06                          | authorized marker after package PASS       | passed | P06 integration `8e269ab9a6fc15ed6d845542b879e5499828134e`; `reviews/P06-review-01.md`; marker `c74a2a78… -> 753be6b7…` |
 | HS-011      | human scratch block               | P07, P08                     | authorized marker after all package PASSes | queued | P07 PASS/integration `1f6cb96b27c8093f0ba2c319f32d3c79c8aab126`; P08 still required/gated; no marker |
 | HS-012      | human scratch block               | P08                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
@@ -3175,3 +3175,15 @@ checksum; the intended single change is line 302 `- []` -> `- [x]` with byte-ide
 this event is pending, no package dispatch is allowed. The scratch source is not modified in this
 commit; a private mktemp comparison copy is taken and the one-line patch, diff, normalization,
 after-SHA and requirement `passed` flip land in the immediately following finalize control commit.
+
+**2026-07-25T19:24:10+10:00 — HS-009 `completion_pending -> passed`:** Exact marker-only change
+finalized after all mapped packages passed — P16A integration `41f5760f77c1a93ab650a93912bfaf3c0b627ab0`, P16C
+`e0f06f7fb60ce08ef2f75b0a9ca7769630a2a55c`, P16D `47867d506978a3f571ef0feef6185e9436d5a908`; reviews
+`P16A-review-02.md`/`P16C-review-02.md`/`P16D-review-01.md`. Scratch line 302 `- []` -> `- [x]` is the
+sole change; the private mktemp comparison copy showed exactly that one-line diff (`302c302`) and was
+removed. All 21 normalized blocks still byte-match SCOPE and the checked set is now exactly the twelve
+passed HS requirements; FS-001 remains byte-identical at
+`0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines and 25,441 bytes.
+Rolling scratch SHA advances `ce52d7df87daf63117931e5bdee928212051242ae7f2b5d90e76f5610abcb00f` ->
+`9a0f6633ba671446684221679a2ef148122c09f7f1ed06978d8a9786a7170d4d`; authorized checked-ID
+metadata gains HS-009. FS-001 stays immutable/open pending P16E and no other requirement is affected.

@@ -299,7 +299,7 @@
   table. Deleting an import deletes the associated transactions (essentially letting you undo an
   import).
 
-- [] People percent allocations should not be able to exceed + or - 100
+- [x] People percent allocations should not be able to exceed + or - 100
 
 - [x] We should drop the user state column from the user table until we use it (we'd want it to use
   the same sync and crdt logic, which is unnecessary complexity at this point).
