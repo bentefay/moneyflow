@@ -86,10 +86,7 @@ function runtimeTransaction(
     return { ...value, ...overrides } as unknown as Transaction;
 }
 
-function runtimeAccount(
-    value: Account,
-    overrides: Readonly<Record<string, unknown>>
-): Account {
+function runtimeAccount(value: Account, overrides: Readonly<Record<string, unknown>>): Account {
     return { ...value, ...overrides } as unknown as Account;
 }
 
@@ -116,9 +113,7 @@ function baseStatuses(
     };
 }
 
-function transactionStore(
-    buckets: readonly (readonly Transaction[])[]
-): TransactionStore {
+function transactionStore(buckets: readonly (readonly Transaction[])[]): TransactionStore {
     return {
         $cid: "transaction-store",
         settlement: {
@@ -151,7 +146,7 @@ function settleStore(
     statuses: Readonly<Record<string, Status | string>> = baseStatuses(),
     defaultCurrency?: string
 ): SettlementResult {
-    return calculateSettlementBalances(store as never, accounts, statuses, defaultCurrency);
+    return calculateSettlementBalances(store, accounts, statuses, defaultCurrency);
 }
 
 function settle(
@@ -160,7 +155,12 @@ function settle(
     statuses: Readonly<Record<string, Status | string>> = baseStatuses(),
     defaultCurrency?: string
 ): SettlementResult {
-    return calculateSettlementBalances(transactions, accounts, statuses, defaultCurrency);
+    return calculateSettlementBalances(
+        transactionStore([transactions]),
+        accounts,
+        statuses,
+        defaultCurrency
+    );
 }
 
 function obligationShape(result: SettlementResult) {
@@ -253,9 +253,7 @@ describe("sole settlement authority", () => {
     });
 
     it("accepts only the retained hierarchical TransactionStore", () => {
-        expectTypeOf(calculateSettlementBalances)
-            .parameter(0)
-            .toEqualTypeOf<TransactionStore>();
+        expectTypeOf(calculateSettlementBalances).parameter(0).toEqualTypeOf<TransactionStore>();
     });
 });
 
@@ -548,26 +546,24 @@ describe("retained runtime boundary sanitization", () => {
                 suspectedDuplicates: undefined
             })
         ]);
-        const invalidStores = [
-            transactionStore([
-                [
-                    runtimeTransaction(transaction("null-duplicates", -100), {
-                        suspectedDuplicates: null
-                    })
-                ]
-            ]),
-            transactionStore([
-                [
-                    runtimeTransaction(transaction("mixed-duplicates", -100), {
-                        suspectedDuplicates: [nestedTransaction("nested-valid", -100), 17]
-                    })
-                ]
-            ])
+        const invalidDuplicateLists: readonly unknown[] = [
+            null,
+            17,
+            "legacy",
+            {},
+            [nestedTransaction("nested-valid", -100), 17]
         ];
 
         expect(missing.issues).toEqual([]);
         expect(missing.qualifyingTransactionCount).toBe(1);
-        for (const store of invalidStores) {
+        for (const [index, suspectedDuplicates] of invalidDuplicateLists.entries()) {
+            const store = transactionStore([
+                [
+                    runtimeTransaction(transaction(`invalid-duplicates-${String(index)}`, -100), {
+                        suspectedDuplicates
+                    })
+                ]
+            ]);
             const result = settleStore(store);
             expect(result.issues).toHaveLength(1);
             expect(result.issues[0]).toMatchObject({
@@ -579,14 +575,11 @@ describe("retained runtime boundary sanitization", () => {
     });
 
     it("reports non-string currency and missing fallback currency without throwing", () => {
-        const numericCurrency = settle(
-            [transaction("numeric-currency", -100)],
-            {
-                "account-a": runtimeAccount(account("account-a", { alice: 100 }), {
-                    currency: 840
-                })
-            }
-        );
+        const numericCurrency = settle([transaction("numeric-currency", -100)], {
+            "account-a": runtimeAccount(account("account-a", { alice: 100 }), {
+                currency: 840
+            })
+        });
         const missingFallback = settle(
             [transaction("missing-fallback", -100)],
             {
@@ -609,6 +602,80 @@ describe("retained runtime boundary sanitization", () => {
         expect(missingFallback.issues).toEqual([]);
         expect(missingFallback.positions[0]?.currency).toBe("USD");
     });
+
+    it("reports every malformed entry type without aliasing or throwing", () => {
+        const result = settle(
+            [
+                transaction("malformed-entry-values", -100, {
+                    allocations: {
+                        array: [],
+                        infinity: Number.POSITIVE_INFINITY,
+                        nan: Number.NaN,
+                        negativeZero: -0,
+                        object: {},
+                        string: "25"
+                    }
+                })
+            ],
+            baseAccounts({
+                alice: 100
+            })
+        );
+
+        expect(
+            result.issues.map((issue) => ({
+                personId: "personId" in issue ? issue.personId : undefined,
+                reason: "reason" in issue ? issue.reason : undefined,
+                type: issue.type
+            }))
+        ).toEqual([
+            { personId: "array", reason: "not-number", type: "invalid-allocation" },
+            { personId: "infinity", reason: "not-finite", type: "invalid-allocation" },
+            { personId: "nan", reason: "not-finite", type: "invalid-allocation" },
+            {
+                personId: "negativeZero",
+                reason: "negative-zero",
+                type: "invalid-allocation"
+            },
+            { personId: "object", reason: "not-number", type: "invalid-allocation" },
+            { personId: "string", reason: "not-number", type: "invalid-allocation" }
+        ]);
+        expect(result.qualifyingTransactionCount).toBe(0);
+    });
+
+    it("reports every malformed ownership entry type without aliasing or throwing", () => {
+        const result = settle(
+            [transaction("malformed-ownership-values", -100, { allocations: { bob: 100 } })],
+            baseAccounts({
+                array: [],
+                infinity: Number.NEGATIVE_INFINITY,
+                nan: Number.NaN,
+                negativeZero: -0,
+                object: {},
+                string: "100"
+            })
+        );
+
+        expect(
+            result.issues.map((issue) => ({
+                personId: "personId" in issue ? issue.personId : undefined,
+                reason: "reason" in issue ? issue.reason : undefined,
+                type: issue.type
+            }))
+        ).toEqual([
+            { personId: "array", reason: "not-number", type: "invalid-ownership" },
+            { personId: "infinity", reason: "not-finite", type: "invalid-ownership" },
+            { personId: "nan", reason: "not-finite", type: "invalid-ownership" },
+            {
+                personId: "negativeZero",
+                reason: "negative-zero",
+                type: "invalid-ownership"
+            },
+            { personId: "object", reason: "not-number", type: "invalid-ownership" },
+            { personId: "string", reason: "not-number", type: "invalid-ownership" }
+        ]);
+        expect(result.qualifyingTransactionCount).toBe(0);
+    });
 });
 
 describe("hierarchical retained-topology eligibility", () => {
@@ -628,9 +695,7 @@ describe("hierarchical retained-topology eligibility", () => {
         const reversedCidDeleted = runtimeTransaction(deleted, { $cid: "z-deleted" });
 
         const first = settleStore(transactionStore([[deleted], [live]]));
-        const second = settleStore(
-            transactionStore([[reversedCidLive], [reversedCidDeleted]])
-        );
+        const second = settleStore(transactionStore([[reversedCidLive], [reversedCidDeleted]]));
 
         expect(second).toEqual(first);
         expect(first.qualifyingTransactionCount).toBe(1);
@@ -669,12 +734,29 @@ describe("hierarchical retained-topology eligibility", () => {
             allocations: { bob: 100 }
         });
 
-        const result = settleStore(
-            transactionStore([[flattenedNested], [deletedParent]])
-        );
+        const result = settleStore(transactionStore([[flattenedNested], [deletedParent]]));
 
         expect(result.issues).toEqual([]);
         expect(result.qualifyingTransactionCount).toBe(0);
+        expect(result.contributions).toEqual([]);
+    });
+
+    it("excludes a deleted nested identity when its active parent retains topology", () => {
+        const deletedNested = {
+            ...nestedTransaction("deleted-nested", -700),
+            deletedAt: Temporal.Instant.from("2024-02-01T00:00:00Z")
+        } as NestedDuplicate;
+        const parent = transaction("active-parent", -100, {
+            nested: [deletedNested]
+        });
+        const flattenedNested = transaction("deleted-nested", -700, {
+            allocations: { bob: 100 }
+        });
+
+        const result = settleStore(transactionStore([[parent], [flattenedNested]]));
+
+        expect(result.issues).toEqual([]);
+        expect(result.qualifyingTransactionCount).toBe(1);
         expect(result.contributions).toEqual([]);
     });
 });
@@ -748,6 +830,191 @@ describe("collision-free settlement identities", () => {
             }
         ]);
         expect(result.contributions).toHaveLength(2);
+    });
+
+    it("does not reuse a malformed ownership result for a distinct delimiter payload", () => {
+        const result = settle(
+            [
+                transaction("collision-ownership-a", -100, {
+                    accountId: "ownership-a",
+                    allocations: { bob: 100 }
+                }),
+                transaction("collision-ownership-b", -100, {
+                    accountId: "ownership-b",
+                    allocations: { bob: 100 }
+                })
+            ],
+            {
+                "ownership-a": account("ownership-a", { a: "x|1:b=string:y" }),
+                "ownership-b": account("ownership-b", { a: "x", b: "y" })
+            }
+        );
+
+        expect(
+            result.issues.map((issue) => ({
+                personId: "personId" in issue ? issue.personId : undefined,
+                transactionId: issue.transactionId,
+                type: issue.type
+            }))
+        ).toEqual([
+            {
+                personId: "a",
+                transactionId: "collision-ownership-a",
+                type: "invalid-ownership"
+            },
+            {
+                personId: "a",
+                transactionId: "collision-ownership-b",
+                type: "invalid-ownership"
+            },
+            {
+                personId: "b",
+                transactionId: "collision-ownership-b",
+                type: "invalid-ownership"
+            }
+        ]);
+    });
+
+    it("separates invalid and valid cache paths across signed amounts and currencies", () => {
+        const invalid = transaction("cache-invalid", -100, {
+            allocations: { bob: "100" }
+        });
+        const validExpense = transaction("cache-valid-expense", -100, {
+            allocations: { bob: 100 }
+        });
+        const validIncome = transaction("cache-valid-income", 40, {
+            accountId: "eur",
+            allocations: { bob: 100 }
+        });
+        const accounts = {
+            "account-a": account("account-a", { alice: 100 }, "USD"),
+            eur: account("eur", { alice: 100 }, "EUR")
+        };
+
+        const forward = settle([invalid, validExpense, validIncome], accounts);
+        const reverse = settle([validIncome, validExpense, invalid], accounts);
+
+        expect(reverse).toEqual(forward);
+        expect(forward.qualifyingTransactionCount).toBe(2);
+        expect(forward.issues).toHaveLength(1);
+        expect(forward.issues[0]).toMatchObject({
+            personId: "bob",
+            transactionId: "cache-invalid",
+            type: "invalid-allocation"
+        });
+        expect(obligationShape(forward)).toEqual([
+            {
+                amountMinor: 40,
+                creditorPersonId: "bob",
+                currency: "EUR",
+                debtorPersonId: "alice"
+            },
+            {
+                amountMinor: 100,
+                creditorPersonId: "alice",
+                currency: "USD",
+                debtorPersonId: "bob"
+            }
+        ]);
+    });
+
+    it("is permutation invariant for generated delimiter, NUL and Unicode person IDs", () => {
+        const adversarialPersonId = fc
+            .tuple(
+                fc.constantFrom("", ":", "|", "=", "\u0000", "💸", "e\u0301", "𐐷"),
+                fc.string({ maxLength: 8 }),
+                fc.constantFrom("", ":", "|", "=", "\u0000", "漢", "🙂")
+            )
+            .map(([prefix, body, suffix]) => `${prefix}${body}${suffix}`);
+
+        fc.assert(
+            fc.property(
+                fc.uniqueArray(adversarialPersonId, {
+                    minLength: 2,
+                    maxLength: 5,
+                    selector: (value) => value
+                }),
+                fc.integer({ min: -1_000_000, max: 1_000_000 }),
+                (personIds, amount) => {
+                    const [owner, ...allocatedPeople] = personIds;
+                    if (owner == null) return;
+                    const allocations = Object.fromEntries(
+                        allocatedPeople.map((personId, index) => [personId, index === 0 ? 100 : 0])
+                    );
+                    const input = allocatedPeople.map((personId, index) =>
+                        transaction(`adversarial-${String(index)}`, index === 0 ? amount : 0, {
+                            allocations:
+                                index === 0
+                                    ? allocations
+                                    : Object.fromEntries([...Object.entries(allocations)].reverse())
+                        })
+                    );
+                    const accounts = baseAccounts({ [owner]: 100 });
+
+                    const forward = settle(input, accounts);
+                    const reverse = settle([...input].reverse(), accounts);
+
+                    expect(reverse).toEqual(forward);
+                    expect(forward.issues).toEqual([]);
+                    expect(forward.qualifyingTransactionCount).toBe(input.length);
+                }
+            ),
+            { numRuns: 500, seed: 26072502 }
+        );
+    });
+
+    it("preserves every generated malformed issue across adversarial insertion permutations", () => {
+        const adversarialPersonId = fc
+            .tuple(
+                fc.constantFrom(":", "|", "=", "\u0000", "💸", "e\u0301", "𐐷"),
+                fc.string({ maxLength: 6 }),
+                fc.constantFrom("", ":", "|", "=", "\u0000", "漢", "🙂")
+            )
+            .map(([prefix, body, suffix]) => `${prefix}${body}${suffix}`);
+        const invalidValues: readonly unknown[] = [
+            "legacy|string=value",
+            -0,
+            Number.NaN,
+            Number.POSITIVE_INFINITY,
+            [],
+            {}
+        ];
+
+        fc.assert(
+            fc.property(
+                fc.uniqueArray(adversarialPersonId, {
+                    minLength: 1,
+                    maxLength: 8,
+                    selector: (value) => value
+                }),
+                (personIds) => {
+                    const entries = personIds.map(
+                        (personId, index) =>
+                            [personId, invalidValues[index % invalidValues.length]] as const
+                    );
+                    const forward = settle([
+                        transaction("generated-malformed", -100, {
+                            allocations: Object.fromEntries(entries)
+                        })
+                    ]);
+                    const reverse = settle([
+                        transaction("generated-malformed", -100, {
+                            allocations: Object.fromEntries([...entries].reverse())
+                        })
+                    ]);
+
+                    expect(reverse).toEqual(forward);
+                    expect(forward.issues).toHaveLength(personIds.length);
+                    expect(
+                        forward.issues
+                            .map((issue) => ("personId" in issue ? issue.personId : ""))
+                            .sort()
+                    ).toEqual([...personIds].sort());
+                    expect(forward.qualifyingTransactionCount).toBe(0);
+                }
+            ),
+            { numRuns: 500, seed: 26072503 }
+        );
     });
 });
 
@@ -970,8 +1237,8 @@ describe("fixed-seed independent integer/rational properties", () => {
         fc.assert(
             fc.property(
                 fc.array(fc.integer({ min: -10_000, max: 10_000 }), {
-                    minLength: 1,
-                    maxLength: 40
+                    minLength: 8,
+                    maxLength: 8
                 }),
                 (amounts) => {
                     const transactions = amounts.map((amount, index) =>
@@ -989,12 +1256,27 @@ describe("fixed-seed independent integer/rational properties", () => {
 
                     expect(reversed).toEqual(forward);
                     for (const currencyPositions of forward.positions) {
+                        const expectedBob = transactions
+                            .filter(
+                                ({ accountId }) =>
+                                    (accountId === "usd" ? "USD" : "EUR") ===
+                                    currencyPositions.currency
+                            )
+                            .reduce((sum, { amount }) => sum + amount, 0);
                         expect(
                             currencyPositions.people.reduce(
                                 (sum, position) => sum + position.amountMinor,
                                 0
                             )
                         ).toBe(0);
+                        expect(
+                            currencyPositions.people.find(({ personId }) => personId === "bob")
+                                ?.amountMinor
+                        ).toBe(expectedBob);
+                        expect(
+                            currencyPositions.people.find(({ personId }) => personId === "alice")
+                                ?.amountMinor
+                        ).toBe(-expectedBob);
                     }
                     for (const obligation of forward.obligations) {
                         expect(
@@ -1006,7 +1288,7 @@ describe("fixed-seed independent integer/rational properties", () => {
                     }
                 }
             ),
-            { numRuns: 500, seed: 16001612 }
+            { numRuns: 1_000, seed: 26072501 }
         );
     });
 
@@ -1023,16 +1305,27 @@ describe("fixed-seed independent integer/rational properties", () => {
                 (amount, aliceOwnership, charlieExplicit, deltaExplicit) => {
                     const bobOwnership = 100 - aliceOwnership;
                     const ownerRemainder = 100 - charlieExplicit - deltaExplicit;
+                    const allocations =
+                        amount % 2 === 0
+                            ? {
+                                  charlie: charlieExplicit,
+                                  delta: deltaExplicit
+                              }
+                            : {
+                                  delta: deltaExplicit,
+                                  charlie: charlieExplicit
+                              };
+                    const ownerships =
+                        amount % 2 === 0
+                            ? { alice: aliceOwnership, bob: bobOwnership }
+                            : { bob: bobOwnership, alice: aliceOwnership };
                     const result = settle(
                         [
                             transaction("multi-owner-property", amount, {
-                                allocations: {
-                                    charlie: charlieExplicit,
-                                    delta: deltaExplicit
-                                }
+                                allocations
                             })
                         ],
-                        baseAccounts({ alice: aliceOwnership, bob: bobOwnership })
+                        baseAccounts(ownerships)
                     );
                     const effective = apportionRational(
                         amount,
@@ -1067,7 +1360,7 @@ describe("fixed-seed independent integer/rational properties", () => {
                     ).toBe(0);
                 }
             ),
-            { numRuns: 1_000, seed: 16001613 }
+            { numRuns: 5_000, seed: 26072501 }
         );
     });
 });
@@ -1082,11 +1375,13 @@ describe("runtime immutability and caller-input purity", () => {
         ];
         const accounts = baseAccounts();
         const statuses = baseStatuses();
+        const store = transactionStore([transactions]);
         const transactionsBefore = JSON.stringify(transactions);
+        const storeBefore = JSON.stringify(store);
         const accountsBefore = JSON.stringify(accounts);
         const statusesBefore = JSON.stringify(statuses);
 
-        const result = settle(transactions, accounts, statuses);
+        const result = settleStore(store, accounts, statuses);
 
         assertFrozenGraph(result);
         expect(Reflect.set(result, "qualifyingTransactionCount", 99)).toBe(false);
@@ -1100,9 +1395,12 @@ describe("runtime immutability and caller-input purity", () => {
         expect(Reflect.set(result.obligations, "length", 0)).toBe(false);
         expect(Reflect.set(result.issues, "length", 0)).toBe(false);
         expect(JSON.stringify(transactions)).toBe(transactionsBefore);
+        expect(JSON.stringify(store)).toBe(storeBefore);
         expect(JSON.stringify(accounts)).toBe(accountsBefore);
         expect(JSON.stringify(statuses)).toBe(statusesBefore);
         expect(Object.isFrozen(transactions)).toBe(false);
+        expect(Object.isFrozen(store)).toBe(false);
+        expect(Object.isFrozen(store.settlement)).toBe(false);
         expect(Object.isFrozen(accounts)).toBe(false);
         expect(Object.isFrozen(statuses)).toBe(false);
     });
@@ -1151,8 +1449,17 @@ describe("production settlement scale", () => {
                 eur: account("eur", { alice: 100 }, "EUR"),
                 usd: account("usd", { alice: 100 }, "USD")
             };
-            const execute = (count: number) =>
-                settle(transactions.slice(0, count), accounts, baseStatuses(), "CAD");
+            const stores = new Map(
+                [1_000, 10_000, 50_000, 100_000].map((count) => [
+                    count,
+                    transactionStore([transactions.slice(0, count)])
+                ])
+            );
+            const execute = (count: number) => {
+                const store = stores.get(count);
+                if (store == null) throw new Error(`Missing benchmark store for ${String(count)}`);
+                return settleStore(store, accounts, baseStatuses(), "CAD");
+            };
 
             for (let index = 0; index < 5; index += 1) execute(1_000);
             const measure = (count: number) => {
@@ -1186,7 +1493,7 @@ describe("production settlement scale", () => {
                 ).toBe(true);
             }
             console.info(
-                "P16B benchmark node=%s transactions=100000 construction=excluded warmup=5x1000 samples=5 scale10kMs=%s scale50kMs=%s elapsed100kMs=%s obligations=2 contributions=75000 issues=0 conservation=true",
+                "P16B benchmark node=%s transactions=100000 construction=excluded projection=included warmup=5x1000 samples=5 scale10kMs=%s scale50kMs=%s elapsed100kMs=%s obligations=2 contributions=75000 issues=0 conservation=true",
                 process.version,
                 scale10k.elapsedMs.toFixed(2),
                 scale50k.elapsedMs.toFixed(2),

@@ -5,16 +5,22 @@
  * immutable results from retained vault state and never persists a cache or rewrites source data.
  */
 
-import type { Account, Status, Transaction } from "@/lib/crdt/schema";
+import {
+    getTransactionMaintenanceShadowIdentity,
+    type Account,
+    type Status,
+    type TransactionStore
+} from "@/lib/crdt/schema";
 
 import {
     apportionMinorUnits,
     deriveEffectiveAllocations,
+    type EffectiveAllocationDerivation,
     type EffectiveAllocationResult,
     type ExactPercentageWeights,
     type MinorUnitApportionmentResult
 } from "./allocation";
-import { isValidCurrencyCode, resolveAccountCurrency } from "./currency";
+import { isValidCurrencyCode } from "./currency";
 
 export interface SettlementContribution {
     readonly amountMinor: number;
@@ -60,9 +66,16 @@ export type SettlementIssue =
       }
     | {
           readonly accountId: string;
-          readonly currencyCode: string;
+          readonly currencyCode?: string;
+          readonly reason: "invalid-code" | "not-string";
           readonly transactionId: string;
           readonly type: "invalid-currency";
+      }
+    | {
+          readonly accountId: string;
+          readonly reason: "invalid-container";
+          readonly transactionId: string;
+          readonly type: "invalid-allocation";
       }
     | {
           readonly accountId: string;
@@ -76,6 +89,7 @@ export type SettlementIssue =
           readonly personId?: string;
           readonly reason:
               | "empty"
+              | "invalid-container"
               | "invalid-total"
               | "negative-zero"
               | "not-finite"
@@ -84,6 +98,12 @@ export type SettlementIssue =
           readonly total?: string;
           readonly transactionId: string;
           readonly type: "invalid-ownership";
+      }
+    | {
+          readonly accountId: string;
+          readonly reason: "invalid-core-fields" | "invalid-duplicate-list";
+          readonly transactionId: string;
+          readonly type: "invalid-transaction";
       }
     | {
           readonly accountId: string;
@@ -112,6 +132,19 @@ export interface SettlementResult {
     readonly qualifyingTransactionCount: number;
 }
 
+interface RetainedTransaction {
+    readonly accountId: string;
+    readonly amount: unknown;
+    readonly id: string;
+    readonly raw: Readonly<Record<string, unknown>>;
+    readonly statusId: string;
+}
+
+interface TransactionProjection {
+    readonly issues: readonly SettlementIssue[];
+    readonly transactions: readonly RetainedTransaction[];
+}
+
 interface TransactionCalculation {
     readonly contributions: readonly Omit<SettlementContribution, "currency" | "transactionId">[];
     readonly positions: Readonly<Record<string, number>>;
@@ -121,6 +154,16 @@ interface DirectedAggregate {
     amountMinor: number;
     readonly sources: SettlementContribution[];
 }
+
+type PositionMap = Map<string, Map<string, number>>;
+type AggregateMap = Map<string, Map<string, Map<string, DirectedAggregate>>>;
+type AggregateAmountMap = Map<string, Map<string, Map<string, number>>>;
+type SuccessfulEffectiveAllocationResult = Extract<
+    EffectiveAllocationResult,
+    { readonly ok: true }
+>;
+
+const EMPTY_RUNTIME_RECORD: Readonly<Record<string, unknown>> = Object.freeze({});
 
 function compareStrings(left: string, right: string): number {
     return left < right ? -1 : left > right ? 1 : 0;
@@ -133,49 +176,217 @@ function freezeResultGraph<T extends object>(value: T): T {
     return Object.freeze(value);
 }
 
-function recordFromLoroMap<T extends object>(
-    collection: Readonly<Record<string, T | string>>
-): Map<string, T> {
-    const result = new Map<string, T>();
+function isRuntimeRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+    return value != null && typeof value === "object" && !Array.isArray(value);
+}
+
+function recordFromLoroMap(collection: unknown): Map<string, Readonly<Record<string, unknown>>> {
+    const result = new Map<string, Readonly<Record<string, unknown>>>();
+    if (!isRuntimeRecord(collection)) return result;
     for (const [id, value] of Object.entries(collection)) {
-        if (typeof value === "object" && value !== null) result.set(id, value);
+        if (isRuntimeRecord(value)) result.set(id, value);
     }
     return result;
 }
 
-function unknownValueKey(value: unknown): string {
+function encodePart(value: string): string {
+    return `${value.length}:${value}`;
+}
+
+function runtimeValueKey(
+    value: unknown,
+    ancestors: ReadonlySet<object> = new Set<object>()
+): string {
+    if (value === undefined) return "undefined";
+    if (value === null) return "null";
+    if (typeof value === "string") return `string${encodePart(value)}`;
+    if (typeof value === "boolean") return value ? "boolean:1" : "boolean:0";
     if (typeof value === "number") {
+        if (Number.isNaN(value)) return "number:NaN";
         if (Object.is(value, -0)) return "number:-0";
-        return `number:${String(value)}`;
+        if (value === Number.POSITIVE_INFINITY) return "number:+Infinity";
+        if (value === Number.NEGATIVE_INFINITY) return "number:-Infinity";
+        return `number${encodePart(String(value))}`;
     }
-    return `${typeof value}:${String(value)}`;
+    if (typeof value === "bigint") return `bigint${encodePart(String(value))}`;
+    if (typeof value === "symbol") return `symbol${encodePart(String(value.description))}`;
+    if (typeof value === "function") return `function${encodePart(value.name)}`;
+    if (ancestors.has(value)) return "cycle";
+
+    const nextAncestors = new Set(ancestors);
+    nextAncestors.add(value);
+    if (Array.isArray(value)) {
+        return `array${encodePart(
+            value.map((entry) => encodePart(runtimeValueKey(entry, nextAncestors))).join("")
+        )}`;
+    }
+    return `record${encodePart(
+        Object.entries(value)
+            .sort(([left], [right]) => compareStrings(left, right))
+            .map(
+                ([key, entry]) =>
+                    `${encodePart(key)}${encodePart(runtimeValueKey(entry, nextAncestors))}`
+            )
+            .join("")
+    )}`;
 }
 
-function recordKey(record: Readonly<Record<string, unknown>>): string {
-    return Object.entries(record)
-        .sort(([left], [right]) => compareStrings(left, right))
-        .map(([key, value]) => `${key.length}:${key}=${unknownValueKey(value)}`)
-        .join("|");
+function transactionSelectionKey(transaction: RetainedTransaction): string {
+    const cid = transaction.raw.$cid;
+    if (typeof cid === "string") return `cid${encodePart(cid)}`;
+    return `semantic${encodePart(runtimeValueKey(transaction.raw))}`;
 }
 
-function transactionOrder(left: Transaction, right: Transaction): number {
-    const idOrder = compareStrings(left.id, right.id);
-    if (idOrder !== 0) return idOrder;
-    return compareStrings(left.$cid ?? "", right.$cid ?? "");
+function retainedTransaction(
+    value: unknown,
+    fallbackAccountId: string
+):
+    | { readonly issue: SettlementIssue; readonly ok: false }
+    | { readonly ok: true; readonly transaction: RetainedTransaction } {
+    const record = isRuntimeRecord(value) ? value : EMPTY_RUNTIME_RECORD;
+    const id = record.id;
+    const accountId = record.accountId;
+    const statusId = record.statusId;
+    if (
+        !isRuntimeRecord(value) ||
+        typeof id !== "string" ||
+        typeof accountId !== "string" ||
+        typeof statusId !== "string"
+    ) {
+        return {
+            issue: {
+                accountId: typeof accountId === "string" ? accountId : fallbackAccountId,
+                reason: "invalid-core-fields",
+                transactionId:
+                    typeof id === "string"
+                        ? id
+                        : typeof record.$cid === "string"
+                          ? record.$cid
+                          : "<unknown-transaction>",
+                type: "invalid-transaction"
+            },
+            ok: false
+        };
+    }
+    return {
+        ok: true,
+        transaction: {
+            accountId,
+            amount: record.amount,
+            id,
+            raw: record,
+            statusId
+        }
+    };
 }
 
-function validTopLevelTransactions(transactions: readonly Transaction[]): readonly Transaction[] {
+function projectTransactionStore(store: unknown): TransactionProjection {
+    const activeById = new Map<string, RetainedTransaction[]>();
+    const invalidLogicalIds = new Set<string>();
     const nestedIds = new Set<string>();
-    for (const transaction of transactions) {
-        for (const duplicate of transaction.suspectedDuplicates) nestedIds.add(duplicate.id);
+    const topologyIssues = new Map<string, SettlementIssue>();
+
+    const addIssue = (issue: SettlementIssue): void => {
+        const key = `${encodePart(issue.accountId)}${encodePart(issue.transactionId)}${encodePart(
+            issue.type
+        )}${encodePart("reason" in issue ? issue.reason : "")}`;
+        topologyIssues.set(key, issue);
+    };
+
+    if (!isRuntimeRecord(store)) {
+        return {
+            issues: [
+                {
+                    accountId: "<unknown-account>",
+                    reason: "invalid-core-fields",
+                    transactionId: "<unknown-transaction-store>",
+                    type: "invalid-transaction"
+                }
+            ],
+            transactions: []
+        };
     }
 
-    const seenIds = new Set<string>();
-    return [...transactions].sort(transactionOrder).filter((transaction) => {
-        if (seenIds.has(transaction.id) || nestedIds.has(transaction.id)) return false;
-        seenIds.add(transaction.id);
-        return !transaction.deletedAt;
-    });
+    for (const [treeKey, treeValue] of Object.entries(store)) {
+        if (!isRuntimeRecord(treeValue)) continue;
+        const fallbackAccountId =
+            typeof treeValue.accountId === "string" ? treeValue.accountId : treeKey;
+        const years = treeValue.years;
+        if (!Array.isArray(years)) continue;
+        for (const yearValue of years) {
+            if (!isRuntimeRecord(yearValue) || !Array.isArray(yearValue.months)) continue;
+            for (const monthValue of yearValue.months) {
+                if (!isRuntimeRecord(monthValue) || !Array.isArray(monthValue.days)) continue;
+                for (const dayValue of monthValue.days) {
+                    if (!isRuntimeRecord(dayValue) || !Array.isArray(dayValue.transactions)) {
+                        continue;
+                    }
+                    for (const transactionValue of dayValue.transactions) {
+                        const retained = retainedTransaction(transactionValue, fallbackAccountId);
+                        if (!retained.ok) {
+                            addIssue(retained.issue);
+                            continue;
+                        }
+                        const transaction = retained.transaction;
+                        if (getTransactionMaintenanceShadowIdentity(transaction) != null) continue;
+
+                        const duplicatesValue = transaction.raw.suspectedDuplicates;
+                        let validDuplicateList = true;
+                        if (duplicatesValue !== undefined) {
+                            if (!Array.isArray(duplicatesValue)) {
+                                validDuplicateList = false;
+                            } else {
+                                for (const duplicate of duplicatesValue) {
+                                    if (
+                                        !isRuntimeRecord(duplicate) ||
+                                        typeof duplicate.id !== "string"
+                                    ) {
+                                        validDuplicateList = false;
+                                        continue;
+                                    }
+                                    nestedIds.add(duplicate.id);
+                                }
+                            }
+                        }
+                        if (!validDuplicateList) {
+                            invalidLogicalIds.add(transaction.id);
+                            addIssue({
+                                accountId: transaction.accountId,
+                                reason: "invalid-duplicate-list",
+                                transactionId: transaction.id,
+                                type: "invalid-transaction"
+                            });
+                            continue;
+                        }
+                        if (transaction.raw.deletedAt != null) continue;
+                        const candidates = activeById.get(transaction.id) ?? [];
+                        candidates.push(transaction);
+                        activeById.set(transaction.id, candidates);
+                    }
+                }
+            }
+        }
+    }
+
+    const transactions = Array.from(activeById.entries())
+        .filter(([id]) => !invalidLogicalIds.has(id) && !nestedIds.has(id))
+        .map(
+            ([, candidates]) =>
+                [...candidates].sort((left, right) =>
+                    compareStrings(transactionSelectionKey(left), transactionSelectionKey(right))
+                )[0]
+        )
+        .filter((transaction): transaction is RetainedTransaction => transaction != null)
+        .sort(
+            (left, right) =>
+                compareStrings(left.id, right.id) ||
+                compareStrings(transactionSelectionKey(left), transactionSelectionKey(right))
+        );
+
+    return {
+        issues: Array.from(topologyIssues.values()).sort(issueOrder),
+        transactions
+    };
 }
 
 function allocationAndOwnershipIssues(
@@ -293,40 +504,83 @@ function calculateTransaction(
     return { calculation: { contributions, positions }, ok: true };
 }
 
-function positionKey(currency: string, personId: string): string {
-    return `${currency.length}:${currency}${personId}`;
+function positionAmount(
+    positions: Readonly<PositionMap>,
+    currency: string,
+    personId: string
+): number {
+    return positions.get(currency)?.get(personId) ?? 0;
 }
 
-function directedKey(currency: string, debtorPersonId: string, creditorPersonId: string): string {
-    return `${currency.length}:${currency}${debtorPersonId.length}:${debtorPersonId}${creditorPersonId}`;
+function aggregate(
+    aggregates: Readonly<AggregateMap>,
+    currency: string,
+    debtorPersonId: string,
+    creditorPersonId: string
+): DirectedAggregate | undefined {
+    return aggregates.get(currency)?.get(debtorPersonId)?.get(creditorPersonId);
 }
 
-function unorderedPairKey(currency: string, leftPersonId: string, rightPersonId: string): string {
-    return `${currency.length}:${currency}${leftPersonId.length}:${leftPersonId}${rightPersonId}`;
+function aggregateAmount(
+    aggregates: Readonly<AggregateAmountMap>,
+    currency: string,
+    debtorPersonId: string,
+    creditorPersonId: string
+): number {
+    return aggregates.get(currency)?.get(debtorPersonId)?.get(creditorPersonId) ?? 0;
+}
+
+function setAggregateAmount(
+    aggregates: AggregateAmountMap,
+    currency: string,
+    debtorPersonId: string,
+    creditorPersonId: string,
+    amountMinor: number
+): void {
+    const byDebtor = aggregates.get(currency) ?? new Map<string, Map<string, number>>();
+    const byCreditor = byDebtor.get(debtorPersonId) ?? new Map<string, number>();
+    byCreditor.set(creditorPersonId, amountMinor);
+    byDebtor.set(debtorPersonId, byCreditor);
+    aggregates.set(currency, byDebtor);
 }
 
 function canCommitCalculation(
     calculation: TransactionCalculation,
     currency: string,
-    positions: ReadonlyMap<string, number>,
-    aggregates: ReadonlyMap<string, DirectedAggregate>
+    positions: Readonly<PositionMap>,
+    aggregates: Readonly<AggregateMap>
 ): boolean {
     for (const [personId, amountMinor] of Object.entries(calculation.positions)) {
-        const next = (positions.get(positionKey(currency, personId)) ?? 0) + amountMinor;
+        const next = positionAmount(positions, currency, personId) + amountMinor;
         if (!Number.isSafeInteger(next)) return false;
     }
-    const additions = new Map<string, number>();
+    const additions: AggregateAmountMap = new Map();
     for (const contribution of calculation.contributions) {
-        const key = directedKey(
+        const current = aggregateAmount(
+            additions,
             currency,
             contribution.debtorPersonId,
             contribution.creditorPersonId
         );
-        additions.set(key, (additions.get(key) ?? 0) + contribution.amountMinor);
-    }
-    for (const [key, addition] of additions) {
-        const next = (aggregates.get(key)?.amountMinor ?? 0) + addition;
+        const next = current + contribution.amountMinor;
         if (!Number.isSafeInteger(next)) return false;
+        setAggregateAmount(
+            additions,
+            currency,
+            contribution.debtorPersonId,
+            contribution.creditorPersonId,
+            next
+        );
+    }
+    const byDebtor = additions.get(currency);
+    if (byDebtor == null) return true;
+    for (const [debtorPersonId, byCreditor] of byDebtor) {
+        for (const [creditorPersonId, addition] of byCreditor) {
+            const next =
+                (aggregate(aggregates, currency, debtorPersonId, creditorPersonId)?.amountMinor ??
+                    0) + addition;
+            if (!Number.isSafeInteger(next)) return false;
+        }
     }
     return true;
 }
@@ -335,14 +589,17 @@ function commitCalculation(
     calculation: TransactionCalculation,
     transactionId: string,
     currency: string,
-    positions: Map<string, number>,
-    aggregates: Map<string, DirectedAggregate>,
+    positions: PositionMap,
+    aggregates: AggregateMap,
     contributions: SettlementContribution[]
 ): void {
+    const currencyPositions = positions.get(currency) ?? new Map<string, number>();
     for (const [personId, amountMinor] of Object.entries(calculation.positions)) {
-        const key = positionKey(currency, personId);
-        positions.set(key, (positions.get(key) ?? 0) + amountMinor);
+        currencyPositions.set(personId, (currencyPositions.get(personId) ?? 0) + amountMinor);
     }
+    positions.set(currency, currencyPositions);
+
+    const byDebtor = aggregates.get(currency) ?? new Map<string, Map<string, DirectedAggregate>>();
     for (const contribution of calculation.contributions) {
         const source: SettlementContribution = {
             ...contribution,
@@ -350,19 +607,21 @@ function commitCalculation(
             transactionId
         };
         contributions.push(source);
-        const key = directedKey(
-            currency,
-            contribution.debtorPersonId,
-            contribution.creditorPersonId
-        );
-        const aggregate = aggregates.get(key);
-        if (aggregate == null) {
-            aggregates.set(key, { amountMinor: contribution.amountMinor, sources: [source] });
+        const byCreditor =
+            byDebtor.get(contribution.debtorPersonId) ?? new Map<string, DirectedAggregate>();
+        const current = byCreditor.get(contribution.creditorPersonId);
+        if (current == null) {
+            byCreditor.set(contribution.creditorPersonId, {
+                amountMinor: contribution.amountMinor,
+                sources: [source]
+            });
         } else {
-            aggregate.amountMinor += contribution.amountMinor;
-            aggregate.sources.push(source);
+            current.amountMinor += contribution.amountMinor;
+            current.sources.push(source);
         }
+        byDebtor.set(contribution.debtorPersonId, byCreditor);
     }
+    aggregates.set(currency, byDebtor);
 }
 
 function contributionOrder(left: SettlementContribution, right: SettlementContribution): number {
@@ -375,84 +634,88 @@ function contributionOrder(left: SettlementContribution, right: SettlementContri
     );
 }
 
-function buildPositions(positions: ReadonlyMap<string, number>): SettlementCurrencyPositions[] {
-    const byCurrency = new Map<string, SettlementPersonPosition[]>();
-    for (const [key, amountMinor] of positions) {
-        const separator = key.indexOf(":");
-        const currencyLength = Number(key.slice(0, separator));
-        const currencyStart = separator + 1;
-        const currency = key.slice(currencyStart, currencyStart + currencyLength);
-        const personId = key.slice(currencyStart + currencyLength);
-        const people = byCurrency.get(currency) ?? [];
-        people.push({ amountMinor, personId });
-        byCurrency.set(currency, people);
-    }
-    return Array.from(byCurrency.entries())
+function issueOrder(left: SettlementIssue, right: SettlementIssue): number {
+    return (
+        compareStrings(left.transactionId, right.transactionId) ||
+        compareStrings(left.accountId, right.accountId) ||
+        compareStrings(left.type, right.type) ||
+        compareStrings(JSON.stringify(left), JSON.stringify(right))
+    );
+}
+
+function buildPositions(positions: Readonly<PositionMap>): SettlementCurrencyPositions[] {
+    return Array.from(positions.entries())
         .sort(([left], [right]) => compareStrings(left, right))
-        .map(([currency, people]) => ({
+        .map(([currency, currencyPositions]) => ({
             currency,
-            people: people.sort((left, right) => compareStrings(left.personId, right.personId))
+            people: Array.from(currencyPositions, ([personId, amountMinor]) => ({
+                amountMinor,
+                personId
+            })).sort((left, right) => compareStrings(left.personId, right.personId))
         }));
 }
 
-function buildObligations(
-    aggregates: ReadonlyMap<string, DirectedAggregate>,
-    contributions: readonly SettlementContribution[]
-): SettlementObligation[] {
-    const pairs = new Map<
-        string,
-        { readonly currency: string; readonly left: string; readonly right: string }
-    >();
-    for (const contribution of contributions) {
-        const [left, right] =
-            compareStrings(contribution.debtorPersonId, contribution.creditorPersonId) < 0
-                ? [contribution.debtorPersonId, contribution.creditorPersonId]
-                : [contribution.creditorPersonId, contribution.debtorPersonId];
-        pairs.set(unorderedPairKey(contribution.currency, left, right), {
-            currency: contribution.currency,
-            left,
-            right
-        });
+function buildObligations(aggregates: Readonly<AggregateMap>): SettlementObligation[] {
+    const pairs = new Map<string, Map<string, Set<string>>>();
+    for (const [currency, byDebtor] of aggregates) {
+        const currencyPairs = pairs.get(currency) ?? new Map<string, Set<string>>();
+        for (const [debtorPersonId, byCreditor] of byDebtor) {
+            for (const creditorPersonId of byCreditor.keys()) {
+                const [left, right] =
+                    compareStrings(debtorPersonId, creditorPersonId) < 0
+                        ? [debtorPersonId, creditorPersonId]
+                        : [creditorPersonId, debtorPersonId];
+                const rights = currencyPairs.get(left) ?? new Set<string>();
+                rights.add(right);
+                currencyPairs.set(left, rights);
+            }
+        }
+        pairs.set(currency, currencyPairs);
     }
+
     const obligations: SettlementObligation[] = [];
-    const orderedPairs = Array.from(pairs.values()).sort(
-        (first, second) =>
-            compareStrings(first.currency, second.currency) ||
-            compareStrings(first.left, second.left) ||
-            compareStrings(first.right, second.right)
-    );
-    for (const { currency, left, right } of orderedPairs) {
-        const leftToRight = aggregates.get(directedKey(currency, left, right))?.amountMinor ?? 0;
-        const rightToLeft = aggregates.get(directedKey(currency, right, left))?.amountMinor ?? 0;
-        const net = leftToRight - rightToLeft;
-        if (net === 0) continue;
-        const debtorPersonId = net > 0 ? left : right;
-        const creditorPersonId = net > 0 ? right : left;
-        const forward =
-            aggregates.get(directedKey(currency, debtorPersonId, creditorPersonId))?.sources ?? [];
-        const reverse =
-            aggregates.get(directedKey(currency, creditorPersonId, debtorPersonId))?.sources ?? [];
-        const sourceContributions = [
-            ...forward.map(({ amountMinor, transactionId }) => ({
-                amountMinor,
-                transactionId
-            })),
-            ...reverse.map(({ amountMinor, transactionId }) => ({
-                amountMinor: -amountMinor,
-                transactionId
-            }))
-        ].sort(
-            (first, second) =>
-                compareStrings(first.transactionId, second.transactionId) ||
-                second.amountMinor - first.amountMinor
-        );
-        obligations.push({
-            amountMinor: Math.abs(net),
-            creditorPersonId,
-            currency,
-            debtorPersonId,
-            sourceContributions
-        });
+    for (const currency of Array.from(pairs.keys()).sort(compareStrings)) {
+        const currencyPairs = pairs.get(currency);
+        if (currencyPairs == null) continue;
+        for (const left of Array.from(currencyPairs.keys()).sort(compareStrings)) {
+            const rights = currencyPairs.get(left);
+            if (rights == null) continue;
+            for (const right of Array.from(rights).sort(compareStrings)) {
+                const leftToRight = aggregate(aggregates, currency, left, right)?.amountMinor ?? 0;
+                const rightToLeft = aggregate(aggregates, currency, right, left)?.amountMinor ?? 0;
+                const net = leftToRight - rightToLeft;
+                if (net === 0) continue;
+                const debtorPersonId = net > 0 ? left : right;
+                const creditorPersonId = net > 0 ? right : left;
+                const forward =
+                    aggregate(aggregates, currency, debtorPersonId, creditorPersonId)?.sources ??
+                    [];
+                const reverse =
+                    aggregate(aggregates, currency, creditorPersonId, debtorPersonId)?.sources ??
+                    [];
+                const sourceContributions = [
+                    ...forward.map(({ amountMinor, transactionId }) => ({
+                        amountMinor,
+                        transactionId
+                    })),
+                    ...reverse.map(({ amountMinor, transactionId }) => ({
+                        amountMinor: -amountMinor,
+                        transactionId
+                    }))
+                ].sort(
+                    (first, second) =>
+                        compareStrings(first.transactionId, second.transactionId) ||
+                        second.amountMinor - first.amountMinor
+                );
+                obligations.push({
+                    amountMinor: Math.abs(net),
+                    creditorPersonId,
+                    currency,
+                    debtorPersonId,
+                    sourceContributions
+                });
+            }
+        }
     }
     return obligations.sort(
         (left, right) =>
@@ -462,33 +725,86 @@ function buildObligations(
     );
 }
 
+function numericRecordKey(record: Readonly<Record<string, unknown>>): string | null {
+    const entries = Object.entries(record).sort(([left], [right]) => compareStrings(left, right));
+    const encoded: string[] = [];
+    for (const [key, value] of entries) {
+        if (typeof value !== "number") return null;
+        encoded.push(encodePart(key), encodePart(runtimeValueKey(value)));
+    }
+    return `${entries.length}:${encoded.join("")}`;
+}
+
+function getCachedDerivation(
+    allocations: Readonly<Record<string, unknown>>,
+    ownerships: Readonly<Record<string, unknown>>,
+    cache: Map<string, Map<string, SuccessfulEffectiveAllocationResult>>
+): EffectiveAllocationResult {
+    const allocationKey = numericRecordKey(allocations);
+    const ownershipKey = numericRecordKey(ownerships);
+    const cached =
+        allocationKey == null || ownershipKey == null
+            ? undefined
+            : cache.get(ownershipKey)?.get(allocationKey);
+    if (cached != null) return cached;
+
+    const result = deriveEffectiveAllocations(allocations, ownerships);
+    if (result.ok && allocationKey != null && ownershipKey != null) {
+        const byAllocation =
+            cache.get(ownershipKey) ?? new Map<string, SuccessfulEffectiveAllocationResult>();
+        byAllocation.set(allocationKey, result);
+        cache.set(ownershipKey, byAllocation);
+    }
+    return result;
+}
+
+function resolveCurrency(
+    accountCurrency: unknown,
+    vaultDefaultCurrency: unknown
+):
+    | { readonly code: string; readonly ok: true }
+    | {
+          readonly currencyCode?: string;
+          readonly ok: false;
+          readonly reason: "invalid-code" | "not-string";
+      } {
+    let candidate: unknown = accountCurrency;
+    if (candidate == null || candidate === "") candidate = vaultDefaultCurrency;
+    if (candidate == null || candidate === "") candidate = "USD";
+    if (typeof candidate !== "string") return { ok: false, reason: "not-string" };
+    const code = candidate.toUpperCase();
+    return isValidCurrencyCode(code)
+        ? { code, ok: true }
+        : { currencyCode: candidate, ok: false, reason: "invalid-code" };
+}
+
 /**
- * Calculate the complete settlement result from canonical top-level transactions.
+ * Calculate the complete settlement result from the retained hierarchical transaction store.
  *
- * The current caller supplies `getAllTransactions(...)`, and this boundary also rejects IDs that
- * appear in any supplied parent's nested suspected-duplicate list so an accidentally flattened
- * nested item cannot participate.
+ * The projection scans only the hierarchy needed for settlement. It filters inactive physical
+ * copies before canonical same-ID selection and preserves nested topology solely for exclusion.
  */
 export function calculateSettlementBalances(
-    transactions: readonly Transaction[],
+    transactions: TransactionStore,
     accounts: Readonly<Record<string, Account | string>>,
     statuses: Readonly<Record<string, Status | string>>,
     vaultDefaultCurrency?: string
 ): SettlementResult {
     const accountMap = recordFromLoroMap(accounts);
     const statusMap = recordFromLoroMap(statuses);
-    const ownershipKeys = new Map(
-        Array.from(accountMap, ([accountId, account]) => [accountId, recordKey(account.ownerships)])
-    );
-    const derivationCache = new Map<string, EffectiveAllocationResult>();
-    const transactionCalculationCache = new Map<string, ReturnType<typeof calculateTransaction>>();
-    const positions = new Map<string, number>();
-    const aggregates = new Map<string, DirectedAggregate>();
+    const derivationCache = new Map<string, Map<string, SuccessfulEffectiveAllocationResult>>();
+    const calculationCache = new WeakMap<
+        EffectiveAllocationDerivation,
+        Map<number, ReturnType<typeof calculateTransaction>>
+    >();
+    const positions: PositionMap = new Map();
+    const aggregates: AggregateMap = new Map();
     const contributions: SettlementContribution[] = [];
-    const issues: SettlementIssue[] = [];
+    const projection = projectTransactionStore(transactions);
+    const issues: SettlementIssue[] = [...projection.issues];
     let qualifyingTransactionCount = 0;
 
-    for (const transaction of validTopLevelTransactions(transactions)) {
+    for (const transaction of projection.transactions) {
         const retainedStatus = statusMap.get(transaction.statusId);
         if (retainedStatus?.behavior !== "treatAsPaid") continue;
 
@@ -501,7 +817,7 @@ export function calculateSettlementBalances(
             });
             continue;
         }
-        if (!Number.isSafeInteger(transaction.amount)) {
+        if (typeof transaction.amount !== "number" || !Number.isSafeInteger(transaction.amount)) {
             issues.push({
                 accountId: transaction.accountId,
                 reason: "not-safe-integer",
@@ -511,24 +827,46 @@ export function calculateSettlementBalances(
             continue;
         }
 
-        const resolvedCurrency = resolveAccountCurrency(account.currency, vaultDefaultCurrency);
-        const currency = resolvedCurrency.code.toUpperCase();
-        if (!isValidCurrencyCode(currency)) {
+        const currency = resolveCurrency(account.currency, vaultDefaultCurrency);
+        if (!currency.ok) {
             issues.push({
                 accountId: transaction.accountId,
-                currencyCode: resolvedCurrency.code,
+                ...("currencyCode" in currency ? { currencyCode: currency.currencyCode } : {}),
+                reason: currency.reason,
                 transactionId: transaction.id,
                 type: "invalid-currency"
             });
             continue;
         }
 
-        const derivationKey = `${transaction.accountId}\u0000${ownershipKeys.get(transaction.accountId) ?? ""}\u0000${recordKey(transaction.allocations)}`;
-        const cachedDerivation = derivationCache.get(derivationKey);
-        const derivation =
-            cachedDerivation ??
-            deriveEffectiveAllocations(transaction.allocations, account.ownerships);
-        if (cachedDerivation == null) derivationCache.set(derivationKey, derivation);
+        const allocationValue = transaction.raw.allocations;
+        const allocations =
+            allocationValue === undefined
+                ? EMPTY_RUNTIME_RECORD
+                : isRuntimeRecord(allocationValue)
+                  ? allocationValue
+                  : null;
+        if (allocations == null) {
+            issues.push({
+                accountId: transaction.accountId,
+                reason: "invalid-container",
+                transactionId: transaction.id,
+                type: "invalid-allocation"
+            });
+            continue;
+        }
+        const ownershipValue = account.ownerships;
+        if (!isRuntimeRecord(ownershipValue)) {
+            issues.push({
+                accountId: transaction.accountId,
+                reason: "invalid-container",
+                transactionId: transaction.id,
+                type: "invalid-ownership"
+            });
+            continue;
+        }
+
+        const derivation = getCachedDerivation(allocations, ownershipValue, derivationCache);
         const validationIssues = allocationAndOwnershipIssues(
             derivation,
             transaction.id,
@@ -539,23 +877,26 @@ export function calculateSettlementBalances(
             continue;
         }
 
-        const calculationKey = `${transaction.amount}\u0000${derivationKey}`;
-        const cachedCalculation = transactionCalculationCache.get(calculationKey);
+        const amount = transaction.amount;
+        const byAmount =
+            calculationCache.get(derivation.value) ??
+            new Map<number, ReturnType<typeof calculateTransaction>>();
         const calculationResult =
-            cachedCalculation ??
+            byAmount.get(amount) ??
             calculateTransaction(
-                transaction.amount,
+                amount,
                 derivation.value.effectiveAllocations,
                 derivation.value.ownershipWeights
             );
-        if (cachedCalculation == null) {
-            transactionCalculationCache.set(calculationKey, calculationResult);
+        if (!byAmount.has(amount)) {
+            byAmount.set(amount, calculationResult);
+            calculationCache.set(derivation.value, byAmount);
         }
         if (!calculationResult.ok) {
             const apportionmentResult =
                 calculationResult.stage === "effective-apportionment"
-                    ? apportionMinorUnits(transaction.amount, derivation.value.effectiveAllocations)
-                    : apportionMinorUnits(transaction.amount, derivation.value.ownershipWeights);
+                    ? apportionMinorUnits(amount, derivation.value.effectiveAllocations)
+                    : apportionMinorUnits(amount, derivation.value.ownershipWeights);
             const issue =
                 calculationResult.stage === "position"
                     ? {
@@ -573,7 +914,14 @@ export function calculateSettlementBalances(
             if (issue != null) issues.push(issue);
             continue;
         }
-        if (!canCommitCalculation(calculationResult.calculation, currency, positions, aggregates)) {
+        if (
+            !canCommitCalculation(
+                calculationResult.calculation,
+                currency.code,
+                positions,
+                aggregates
+            )
+        ) {
             issues.push({
                 accountId: transaction.accountId,
                 stage: "aggregate",
@@ -586,7 +934,7 @@ export function calculateSettlementBalances(
         commitCalculation(
             calculationResult.calculation,
             transaction.id,
-            currency,
+            currency.code,
             positions,
             aggregates,
             contributions
@@ -595,10 +943,11 @@ export function calculateSettlementBalances(
     }
 
     contributions.sort(contributionOrder);
+    issues.sort(issueOrder);
     return freezeResultGraph({
         contributions,
         issues,
-        obligations: buildObligations(aggregates, contributions),
+        obligations: buildObligations(aggregates),
         positions: buildPositions(positions),
         qualifyingTransactionCount
     });

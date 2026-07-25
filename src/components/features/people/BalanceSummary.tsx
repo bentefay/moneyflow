@@ -11,7 +11,6 @@ import { ArrowRight, Scale } from "lucide-react";
 import { useMemo } from "react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getAllTransactions } from "@/lib/crdt/queries";
 import type { Account, Person, Status, TransactionStore } from "@/lib/crdt/schema";
 import { getEntriesOfLoroMap } from "@/lib/crdt/utils";
 import { Currencies } from "@/lib/domain/currencies";
@@ -48,15 +47,10 @@ export function BalanceSummary({
     vaultDefaultCurrency,
     className
 }: BalanceSummaryProps) {
-    const result = useMemo(() => {
-        const allTransactions = getAllTransactions(transactions);
-        return calculateSettlementBalances(
-            allTransactions,
-            accounts,
-            statuses,
-            vaultDefaultCurrency
-        );
-    }, [accounts, statuses, transactions, vaultDefaultCurrency]);
+    const result = useMemo(
+        () => calculateSettlementBalances(transactions, accounts, statuses, vaultDefaultCurrency),
+        [accounts, statuses, transactions, vaultDefaultCurrency]
+    );
 
     const obligationsByCurrency = useMemo(() => {
         const grouped = new Map<string, SettlementObligation[]>();
