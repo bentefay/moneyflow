@@ -3229,3 +3229,26 @@ P18 to `reviewing` and dispatched a distinct `human_scratch_reviewer` over the l
 `493bf19d3219f44efd4d4437fd8b0e33d012fba9`..HEAD `4cda92d40e9cc5b6490636c25d99b655905cb40a` range with
 output `reviews/P18-review-01.md`. HS-009 stays complete; rolling scratch SHA unchanged and FS-001
 immutable/open.
+
+**2026-07-25T21:40:00+10:00 — P18/01 independent review PASS; integration pending:** The distinct
+`human_scratch_reviewer` returned `VERDICT: PASS` with 0 blocking findings and 7 non-blocking findings
+into the immutable `reviews/P18-review-01.md` over literal BASE
+`493bf19d3219f44efd4d4437fd8b0e33d012fba9`..HEAD `4cda92d40e9cc5b6490636c25d99b655905cb40a`. The review
+independently reproduced range integrity (only authorized `src/components/features/identity/**`,
+`src/app/(onboarding)/new-user/page.tsx` and `tests/` paths; no `src/lib/crypto/**` edit), frozen-source
+byte-identity, RED honesty (28/7 failing tests against byte-identical BASE), the single-canonical
+`type="password"` credential-field contract with `autocomplete="new-password"` on creation and
+`current-password` on unlock, bidirectional 12-word synchronization, the BIP39 checksum tightening, and
+the checks (typecheck/lint PASS; unit/e2e green; format:check fails only on pre-existing frozen/ledger
+markdown). Secret-safety independently verified: no generated phrase reached git, logs, URLs, network,
+or storage; every test phrase literal is the public BIP39 vector; the review file contains no generated
+recovery material. Root independently re-scanned and confirmed no 12-word run in the review file and no
+leftover `.playwright-cli/`/`test-results/` artifact directories. Non-blocking dispositions: NB-1/NB-2/
+NB-4 are evidence-accuracy nuances with no product impact; NB-3 (`data-lpignore` secondary-source) was
+already disclosed as Q-020; NB-5 (Playwright snapshot captures the canonical field value — no leak,
+gitignored+deleted) recorded on R-013; NB-6 (pre-existing controlled-mode gap-collapse, byte-identical
+at BASE, out of HS-019 scope) and NB-7 (pre-existing "Valid recovery phrase" 3.21:1 contrast below AA,
+untouched by P18) recorded on R-010 for a future UX/a11y pass. No finding is material or waived. This
+persistence commit records the independent PASS; its own hash is the P18 integration commit, cited in
+the following control commit that flips P18 to `passed`. HS-009 stays complete; scratch rolling SHA
+remains `9a0f6633ba671446684221679a2ef148122c09f7f1ed06978d8a9786a7170d4d` and FS-001 byte-identical.
