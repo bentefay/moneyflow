@@ -7,36 +7,30 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P19/02 (HS-020) reviewing -> PASS; integration-persistence commit recorded, control commit + HS-020 marker next
-- **Next action:** re-dispatch `human_scratch_reviewer` (p19-reviewer-01) over original BASE
-  `e72befd` -> new HEAD `bb8a557` to confirm B-1 (creation strand) and B-2 (last-credential
-  revocation) are closed, the preserved crypto/server/migration surface is byte-identical (root
-  verified empty diff), and to independently re-run gates (implementer self-reported a mid-run
-  tree-mutation it corrected and re-ran clean — reviewer must confirm 119/119 from a clean tree). On
-  PASS: two-commit integration then the HS-020 forward marker. Keep FS-001 immutable/open and all
+- **Current package:** none active; P19 (HS-020) passed via two-commit integration + authorized
+  forward marker; next dispatch P20A (HS-016)
+- **Next action:** rewrite HANDOFF for **P20A** (HS-016 truthful marketing copy; deps P17D + P19
+  now both `passed`) then dispatch `human_scratch_implementer`. Keep FS-001 immutable/open and all
   P05-gated packages (P08/P10/P16E and descendants) blocked
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
   `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines and 25,441 bytes
-- **Rolling scratch SHA-256:** `c4121a48723d21c6689116d900f450136645e0f88dc993829b7561b2a3a31a4c`
+- **Rolling scratch SHA-256:** `ddd5314297d9ffa9f6ebb9f3261c9f8b14c69a6d55b76d4490194980c4d2db49`
 - **Authorized checked HS IDs:** HS-001, HS-002, HS-004, HS-005, HS-006, HS-008, HS-009, HS-010,
-  HS-013, HS-014, HS-017, HS-018, HS-019
+  HS-013, HS-014, HS-017, HS-018, HS-019, HS-020
 - **Active completion marker event:** none
 - **Active P21 rollback batch:** none
-- **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
-- **Requirement state:** thirteen passed; HS-015 blocked externally; seven other HS requirements
-  (HS-003/007/011/012/016/020/021) plus FS-001 queued
-- **Last ledger update:** 2026-07-26; P19/02 (HS-020) `implementing -> ready_for_review` at product
-  HEAD `bb8a557`; B-1 closed by reordering so no server identity/session/vault commits before the
-  passkey ceremony (with a 90s client deadline + phrase shown/acknowledged after success) and B-2 by
-  requiring the entered phrase to derive THIS identity before last-credential revocation. Root
-  independently verified the preserved crypto/server/migration surface is byte-identical (empty diff
-  `77038d1..bb8a557`) and the derivation core untouched across the full range. Q-027 (reveal-in-
-  settings unbuildable, chose show-at-creation) and Q-028 (derive-and-match revocation gate)
-  transcribed. Requirement HS-020 stays `queued`; scratch rolling SHA unchanged `c4121a48…`; thirteen
-  requirements remain `passed`
-
+- **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE (14 checked IDs)
+- **Requirement state:** fourteen passed; HS-015 blocked externally; six other HS requirements
+  (HS-003/007/011/012/016/021) plus FS-001 queued
+- **Last ledger update:** 2026-07-26; P19 (HS-020) control commit: `reviewing -> passed`. Two-commit
+  integration — Commit A (`c06c851669f00093d1c78653125f784a48b1ed80`) persisted `reviews/P19-review-02.md`
+  and IS the integration hash; this control commit flips P19 and HS-020 to `passed` and applies the
+  authorized HS-020 forward marker at `specs/human-scratch.md:348` (`- [] ` -> `- [x] `, exactly one
+  changed line). Pre-change scratch SHA `c4121a48…`, post-change `ddd53142…`; normalized-block check
+  re-run green (21 blocks, 14 checked IDs byte-match SCOPE, marker/state consistent, `sha256sum` ==
+  rolling). Fourteen requirements now `passed`; HS-015 blocked externally; FS-001 immutable/open
 ## Package ledger
 
 | Package | Scope          | Work / task                                                                         | Depends on           | Status       | Rev | BASE..HEAD                                                                           | Implementation evidence             | Review                     | Integration commit                         |
@@ -69,7 +63,7 @@ review evidence.
 | P17C    | HS-007         | Description inline proposals, robot drift state and scoped application              | P17B                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P17D    | HS-007         | Tags/allocation parity, bulk/new application, performance and polish                | P17C                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P18     | HS-019         | Password-manager-compatible recovery phrase creation and unlock                     | P01                  | passed             | 01   | `493bf19d3219f44efd4d4437fd8b0e33d012fba9..4cda92d40e9cc5b6490636c25d99b655905cb40a` | `evidence/P18/implementation-01.md` | `reviews/P18-review-01.md` | `fa9ae8d0b6b7948bd2c4a508ad869d5d6955a6a1` |
-| P19     | HS-020         | WebAuthn PRF passkeys sharing the vault identity secret                             | P04, P06, P18        | reviewing    | 02  | `bb8a557`                                                                            | `reviews/P19-review-02.md` PASS     | integration pending         | rev02 PASS 0 blocking; integration-persistence commit next |
+| P19     | HS-020         | WebAuthn PRF passkeys sharing the vault identity secret                             | P04, P06, P18        | passed       | 02  | `e72befd9ba1b2cbbf5c189b7d855e47cc752240e..bb8a557d37190058c68b2cebfe721d3e15f18629` | `evidence/P19/implementation-02.md` | `reviews/P19-review-02.md` | `c06c851669f00093d1c78653125f784a48b1ed80` |
 | P20A    | HS-016         | Truthful marketing copy and responsive feature presentation                         | P17D, P19            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P20B    | HS-021         | Full-codebase style-guide/code-quality sweep after all feature work                 | P20A                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P21     | control        | [Executable final audit](tasks/P21-final-audit.md)                                  | all prior            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -115,7 +109,7 @@ required marker rollbacks before the next dispatch.
 | HS-017      | human scratch block               | P02                          | authorized marker after package PASS       | passed       | P02 integration `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7`; `reviews/P02-review-02.md`; marker `dcd03b23… -> 5d283ab1…` |
 | HS-018      | human scratch block               | P03                          | authorized marker after package PASS       | passed       | P03 integration `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34`; `reviews/P03-review-01.md`; marker `5d283ab1… -> db97178a…` |
 | HS-019      | human scratch block               | P18                          | authorized marker after package PASS       | passed | P18 integration `fa9ae8d0b6b7948bd2c4a508ad869d5d6955a6a1`; `reviews/P18-review-01.md`; marker `9a0f6633… -> c4121a48…` |
-| HS-020      | human scratch block               | P19                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
+| HS-020      | human scratch block               | P19                          | authorized marker after package PASS       | passed | P19 integration `c06c851669f00093d1c78653125f784a48b1ed80`; `reviews/P19-review-02.md`; marker `c4121a48… -> ddd53142…` |
 | HS-021      | human scratch block               | P20B                         | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | FS-001      | immutable whole-file feature spec | P16A, P16B, P16C, P16D, P16E | ledger completion; source never edited     | queued       | —                                                                                                                       |
 
@@ -3459,3 +3453,34 @@ path; single-factor-after-abandon context for the human's Q-027 call; hard-coded
 widened `registerPasskey` contract ruled in scope). Requirement HS-020 remains `queued` until the
 control commit applies the marker. Scratch rolling SHA unchanged `c4121a48…`; FS-001 immutable/open;
 thirteen requirements remain `passed`.
+
+### 2026-07-26 — HS-020 completion_pending (authorized forward marker)
+
+Root-owned `completion_pending`. HS ID: **HS-020**. Exact pre-change scratch SHA-256:
+`c4121a48723d21c6689116d900f450136645e0f88dc993829b7561b2a3a31a4c` (equals rolling SHA; normalized
+blocks byte-match SCOPE in array order with the 13 currently-passed IDs checked). Mapped package:
+**P19** `passed` — review `reviews/P19-review-02.md` VERDICT PASS 0 blocking, integration-persistence
+commit `c06c851669f00093d1c78653125f784a48b1ed80`. Intended marker change:
+`specs/human-scratch.md:348` first line `- [] ` -> `- [x] ` for the HS-020 block. While this event is
+pending, no package dispatch is allowed. A private `mktemp` copy of the scratch file has been taken
+for one-line-diff comparison. Finalization follows in this same control commit after the marker is
+applied and re-verified.
+
+### 2026-07-26 — HS-020 completion finalize (authorized forward marker) + P19 control
+
+Root-owned finalize of the `completion_pending` above. **HS-020** marker applied at
+`specs/human-scratch.md:348`: first line `- [] ` -> `- [x] ` for the HS-020 block. Pre-change scratch
+SHA-256 `c4121a48723d21c6689116d900f450136645e0f88dc993829b7561b2a3a31a4c` -> post-change
+`ddd5314297d9ffa9f6ebb9f3261c9f8b14c69a6d55b76d4490194980c4d2db49`; `git diff` on the scratch is
+exactly one changed line (`348c348`, checkbox prefix only) and the private `mktemp` one-line-diff
+comparison confirmed it before deletion. Post-marker normalized-block check re-run **green**: unique
+HS-001 first line at scratch index 150, exactly 21 ordered top-level blocks in SCOPE array order, all
+14 currently-passed IDs (adding HS-020) byte-identical to `SCOPE.json#sourceTextLines`, every `[x]`
+legitimate (HS-015 correctly still `[]`), and `sha256sum specs/human-scratch.md` == new rolling
+`ddd53142…`. Package **P19** `reviewing -> passed` citing integration commit
+`c06c851669f00093d1c78653125f784a48b1ed80` (Commit A, which persisted `reviews/P19-review-02.md` and
+whose own hash is the integration hash). Requirement **HS-020** `queued -> passed`, mapped package P19
+review `reviews/P19-review-02.md` VERDICT PASS 0 blocking. Rolling scratch SHA advanced to `ddd53142…`;
+authorized checked HS IDs += HS-020 (**fourteen**). Fourteen requirements now `passed`; HS-015 remains
+`blocked_external`; FS-001 immutable/open. No dispatch was active while `completion_pending`. Next:
+rewrite HANDOFF and dispatch P20A (HS-016).

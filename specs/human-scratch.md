@@ -345,6 +345,6 @@
   be great if password managers automatically offer to save and fill the recovery phrase when
   creating or logging in to a vault.
 
-- [] Support using a passkey instead of, or in addition to, the recovery phrase, using the new PRF
+- [x] Support using a passkey instead of, or in addition to, the recovery phrase, using the new PRF
   extension. Change the vault creation and login flows to support passkey as a second option using
   an ---- OR ---- style UI.
