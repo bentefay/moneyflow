@@ -9,7 +9,7 @@ literal field is `pending`. Workers may read but never edit it.
 - **Scope IDs:** FS-001 and HS-009; this revision closes only P16C review-01 F-01 through F-03 while
   preserving every independently accepted revision-01 mechanism. Neither requirement can complete
   from P16C alone.
-- **State:** independent revision-02 PASS returned; root integration pending
+- **State:** passed at exact independently reviewed revision-02 product/test HEAD
 - **Binding tasks:** `tasks/FS-001-transaction-percentage-allocations-settlement.md` P16C and
   `tasks/HS-009-allocation-bounds.md` P16C
 - **Canonical authority:** all 715 immutable lines of
@@ -38,6 +38,7 @@ literal field is `pending`. Workers may read but never edit it.
 - **Immutable revision-02 review artifact:** `reviews/P16C-review-02.md`, PASS, SHA-256
   `cc8319e85ef0cf295e5e6cc673f6e691bee31be6da950a77114ded3ee11bc331`, 235 lines /
   16,730 bytes
+- **PASS integration commit:** `e0f06f7fb60ce08ef2f75b0a9ca7769630a2a55c`
 - **Allowed product paths:** exactly
   `src/lib/crdt/allocations.ts`,
   `src/lib/crdt/mutations.ts`,
@@ -170,6 +171,5 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Integrate the immutable PASS review and R-017/R-018 evidence, then transition P16C to passed at the
-exact reviewed product/test HEAD. Prepare P16D next. Keep HS-009 unchecked until P16D passes and
-FS-001 immutable/open through P16D/P16E.
+Prepare P16D against the clean post-P16C integration boundary. Keep HS-009 unchecked until P16D
+passes and FS-001 immutable/open through P16D/P16E.
