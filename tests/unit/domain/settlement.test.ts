@@ -90,6 +90,27 @@ function runtimeAccount(value: Account, overrides: Readonly<Record<string, unkno
     return { ...value, ...overrides } as unknown as Account;
 }
 
+class BobAllocationEnvelope {
+    readonly bob = 100;
+}
+
+class EmptyAllocationEnvelope {}
+
+const INVALID_FINANCIAL_OBJECT_FACTORIES = [
+    ["non-empty Map", () => new Map([["bob", 100]])],
+    ["empty Map", () => new Map()],
+    ["Set", () => new Set([100])],
+    ["Date", () => new Date(0)],
+    ["RegExp", () => /bob/u],
+    ["typed collection", () => new Uint8Array([100])],
+    ["non-empty class instance", () => new BobAllocationEnvelope()],
+    ["empty class instance", () => new EmptyAllocationEnvelope()]
+] as const;
+
+function runtimeValueSnapshot(value: unknown): string {
+    return String(JSON.stringify(value));
+}
+
 function nestedTransaction(id: string, amount: number): NestedDuplicate {
     const parent = transaction(id, amount);
     const nested: Partial<Transaction> = { ...parent };
@@ -515,6 +536,138 @@ describe("retained runtime boundary sanitization", () => {
         }
     );
 
+    it.each(INVALID_FINANCIAL_OBJECT_FACTORIES)(
+        "rejects a non-record allocation %s without a plausible settled result",
+        (_, create) => {
+            const allocations = create();
+            const input = runtimeTransaction(
+                transaction("non-record-allocation", -100, { allocations: { bob: 100 } }),
+                { allocations }
+            );
+
+            const result = settle([input]);
+
+            expect(result.issues).toEqual([
+                {
+                    accountId: "account-a",
+                    reason: "invalid-container",
+                    transactionId: "non-record-allocation",
+                    type: "invalid-allocation"
+                }
+            ]);
+            expect(result.qualifyingTransactionCount).toBe(0);
+            expect(result.positions).toEqual([]);
+            expect(result.contributions).toEqual([]);
+            expect(result.obligations).toEqual([]);
+            expect(Object.isFrozen(allocations)).toBe(false);
+        }
+    );
+
+    it.each([
+        ["non-empty Map", () => new Map([["alice", 100]])],
+        ["empty Map", () => new Map()],
+        ["Set", () => new Set([100])],
+        ["Date", () => new Date(0)],
+        ["RegExp", () => /alice/u],
+        ["typed collection", () => new Uint8Array([100])],
+        ["class instance", () => new BobAllocationEnvelope()]
+    ])("rejects a non-record ownership %s atomically", (_, create) => {
+        const ownerships = create();
+        const accounts = {
+            "account-a": runtimeAccount(account("account-a", { alice: 100 }), {
+                ownerships
+            })
+        };
+
+        const result = settle(
+            [transaction("non-record-ownership", -100, { allocations: { bob: 100 } })],
+            accounts
+        );
+
+        expect(result.issues).toEqual([
+            {
+                accountId: "account-a",
+                reason: "invalid-container",
+                transactionId: "non-record-ownership",
+                type: "invalid-ownership"
+            }
+        ]);
+        expect(result.qualifyingTransactionCount).toBe(0);
+        expect(result.positions).toEqual([]);
+        expect(result.contributions).toEqual([]);
+        expect(result.obligations).toEqual([]);
+        expect(Object.isFrozen(ownerships)).toBe(false);
+    });
+
+    it("accepts ordinary and null-prototype allocation and ownership records", () => {
+        const allocations = Object.assign(Object.create(null) as Record<string, unknown>, {
+            bob: 100
+        });
+        const ownerships = Object.assign(Object.create(null) as Record<string, unknown>, {
+            alice: 100
+        });
+        const input = runtimeTransaction(transaction("null-prototype-records", -100), {
+            allocations
+        });
+
+        const result = settle([input], baseAccounts(ownerships));
+
+        expect(result.issues).toEqual([]);
+        expect(result.qualifyingTransactionCount).toBe(1);
+        expect(obligationShape(result)).toEqual([
+            {
+                amountMinor: 100,
+                creditorPersonId: "alice",
+                currency: "USD",
+                debtorPersonId: "bob"
+            }
+        ]);
+        expect(Object.getPrototypeOf(allocations)).toBeNull();
+        expect(Object.getPrototypeOf(ownerships)).toBeNull();
+        expect(Object.isFrozen(allocations)).toBe(false);
+        expect(Object.isFrozen(ownerships)).toBe(false);
+    });
+
+    it("rejects generated non-record financial containers at either boundary", () => {
+        fc.assert(
+            fc.property(
+                fc.integer({
+                    min: 0,
+                    max: INVALID_FINANCIAL_OBJECT_FACTORIES.length - 1
+                }),
+                fc.boolean(),
+                (factoryIndex, useOwnershipBoundary) => {
+                    const factory = INVALID_FINANCIAL_OBJECT_FACTORIES[factoryIndex]?.[1];
+                    if (factory == null) throw new Error("Missing financial-container factory");
+                    const container = factory();
+                    const id = useOwnershipBoundary
+                        ? "generated-non-record-ownership"
+                        : "generated-non-record-allocation";
+                    const input = transaction(id, -100, { allocations: { bob: 100 } });
+                    const result = useOwnershipBoundary
+                        ? settle([input], {
+                              "account-a": runtimeAccount(account("account-a", { alice: 100 }), {
+                                  ownerships: container
+                              })
+                          })
+                        : settle([runtimeTransaction(input, { allocations: container })]);
+
+                    expect(result.issues).toEqual([
+                        {
+                            accountId: "account-a",
+                            reason: "invalid-container",
+                            transactionId: id,
+                            type: useOwnershipBoundary ? "invalid-ownership" : "invalid-allocation"
+                        }
+                    ]);
+                    expect(result.qualifyingTransactionCount).toBe(0);
+                    expect(result.obligations).toEqual([]);
+                }
+            ),
+            { numRuns: 200, seed: 26072504 }
+        );
+    });
+
     it.each([undefined, null, [], 17, "legacy"])(
         "reports a typed issue for invalid ownership container %#",
         (ownerships) => {
@@ -679,6 +832,340 @@ describe("retained runtime boundary sanitization", () => {
 });
 
 describe("hierarchical retained-topology eligibility", () => {
+    const topologyIssue = (accountId: string, hierarchyLevel: string, hierarchyPath: string) => ({
+        accountId,
+        hierarchyLevel,
+        hierarchyPath,
+        reason: "invalid-hierarchy",
+        transactionId: "<transaction-store>",
+        type: "invalid-transaction"
+    });
+
+    const malformedHierarchyTree = (level: string, accountId: string) => {
+        switch (level) {
+            case "account-tree":
+                return null;
+            case "years":
+                return { accountId, years: null };
+            case "year":
+                return { accountId, years: [null] };
+            case "months":
+                return { accountId, years: [{ year: 2024, months: {} }] };
+            case "month":
+                return { accountId, years: [{ year: 2024, months: [[]] }] };
+            case "days":
+                return {
+                    accountId,
+                    years: [{ year: 2024, months: [{ month: 1, days: "legacy" }] }]
+                };
+            case "day":
+                return {
+                    accountId,
+                    years: [{ year: 2024, months: [{ month: 1, days: [17] }] }]
+                };
+            case "transactions":
+                return {
+                    accountId,
+                    years: [
+                        {
+                            year: 2024,
+                            months: [{ month: 1, days: [{ day: 1, transactions: {} }] }]
+                        }
+                    ]
+                };
+            case "transaction":
+                return {
+                    accountId,
+                    years: [
+                        {
+                            year: 2024,
+                            months: [{ month: 1, days: [{ day: 1, transactions: [new Set()] }] }]
+                        }
+                    ]
+                };
+            default:
+                throw new Error(`Unknown hierarchy level ${level}`);
+        }
+    };
+
+    it.each([null, 17, "legacy", [], new Map(), new Set(), new Date(0)])(
+        "reports invalid transaction-store root %#",
+        (root) => {
+            const result = settleStore(root as unknown as TransactionStore);
+
+            expect(result.issues).toEqual([
+                topologyIssue("<unknown-account>", "store-root", "store-root")
+            ]);
+            expect(result.qualifyingTransactionCount).toBe(0);
+            expect(result.positions).toEqual([]);
+            expect(result.obligations).toEqual([]);
+            assertFrozenGraph(result);
+        }
+    );
+
+    it("reports the exact retained years null reproduction", () => {
+        const store = {
+            $cid: "transaction-store",
+            "account-a": {
+                accountId: "account-a",
+                years: null
+            }
+        } as unknown as TransactionStore;
+
+        const result = settleStore(store);
+
+        expect(result.issues).toEqual([topologyIssue("account-a", "years", "years")]);
+        expect(result.qualifyingTransactionCount).toBe(0);
+        expect(result.positions).toEqual([]);
+        expect(result.obligations).toEqual([]);
+        assertFrozenGraph(result);
+        expect(Object.isFrozen(store)).toBe(false);
+        expect(Object.isFrozen(store["account-a"])).toBe(false);
+    });
+
+    it.each([
+        [
+            "account tree",
+            { $cid: "transaction-store", "account-a": null },
+            topologyIssue("account-a", "account-tree", "account-tree")
+        ],
+        [
+            "missing years",
+            { $cid: "transaction-store", "account-a": { accountId: "account-a" } },
+            topologyIssue("account-a", "years", "years")
+        ],
+        [
+            "year record",
+            {
+                $cid: "transaction-store",
+                "account-a": { accountId: "account-a", years: [null] }
+            },
+            topologyIssue("account-a", "year", "years[]")
+        ],
+        [
+            "months list",
+            {
+                $cid: "transaction-store",
+                "account-a": {
+                    accountId: "account-a",
+                    years: [{ year: 2024, months: {} }]
+                }
+            },
+            topologyIssue("account-a", "months", "years[].months")
+        ],
+        [
+            "month record",
+            {
+                $cid: "transaction-store",
+                "account-a": {
+                    accountId: "account-a",
+                    years: [{ year: 2024, months: [[]] }]
+                }
+            },
+            topologyIssue("account-a", "month", "years[].months[]")
+        ],
+        [
+            "days list",
+            {
+                $cid: "transaction-store",
+                "account-a": {
+                    accountId: "account-a",
+                    years: [{ year: 2024, months: [{ month: 1, days: "legacy" }] }]
+                }
+            },
+            topologyIssue("account-a", "days", "years[].months[].days")
+        ],
+        [
+            "day record",
+            {
+                $cid: "transaction-store",
+                "account-a": {
+                    accountId: "account-a",
+                    years: [{ year: 2024, months: [{ month: 1, days: [17] }] }]
+                }
+            },
+            topologyIssue("account-a", "day", "years[].months[].days[]")
+        ],
+        [
+            "transactions list",
+            {
+                $cid: "transaction-store",
+                "account-a": {
+                    accountId: "account-a",
+                    years: [
+                        {
+                            year: 2024,
+                            months: [{ month: 1, days: [{ day: 1, transactions: {} }] }]
+                        }
+                    ]
+                }
+            },
+            topologyIssue("account-a", "transactions", "years[].months[].days[].transactions")
+        ],
+        [
+            "transaction record",
+            {
+                $cid: "transaction-store",
+                "account-a": {
+                    accountId: "account-a",
+                    years: [
+                        {
+                            year: 2024,
+                            months: [{ month: 1, days: [{ day: 1, transactions: [new Set()] }] }]
+                        }
+                    ]
+                }
+            },
+            topologyIssue("account-a", "transaction", "years[].months[].days[].transactions[]")
+        ]
+    ])("reports malformed %s context instead of silently skipping it", (_, rawStore, issue) => {
+        const store = rawStore as unknown as TransactionStore;
+        const before = runtimeValueSnapshot(store);
+
+        const result = settleStore(store);
+
+        expect(result.issues).toEqual([issue]);
+        expect(result.qualifyingTransactionCount).toBe(0);
+        expect(result.positions).toEqual([]);
+        expect(result.contributions).toEqual([]);
+        expect(result.obligations).toEqual([]);
+        expect(runtimeValueSnapshot(store)).toBe(before);
+        assertFrozenGraph(result);
+        expect(Object.isFrozen(store)).toBe(false);
+    });
+
+    it("preserves valid siblings while reporting every mixed malformed hierarchy element", () => {
+        const valid = transaction("valid-sibling", -100, { allocations: { bob: 100 } });
+        const year = {
+            year: 2024,
+            months: [
+                {
+                    month: 1,
+                    days: [{ day: 1, transactions: [valid, null, 17, []] }, null, []]
+                },
+                null,
+                []
+            ]
+        };
+        const makeStore = (reverse: boolean) =>
+            ({
+                $cid: "transaction-store",
+                "account-a": {
+                    accountId: "account-a",
+                    years: reverse
+                        ? [[], null, { ...year, months: [...year.months].reverse() }]
+                        : [year, null, []]
+                },
+                "account-b": {
+                    accountId: "account-b",
+                    years: reverse ? {} : null
+                }
+            }) as unknown as TransactionStore;
+        const forwardStore = makeStore(false);
+        const reverseStore = makeStore(true);
+        const forwardBefore = runtimeValueSnapshot(forwardStore);
+        const reverseBefore = runtimeValueSnapshot(reverseStore);
+
+        const forward = settleStore(forwardStore);
+        const reverse = settleStore(reverseStore);
+
+        expect(reverse).toEqual(forward);
+        expect(forward.qualifyingTransactionCount).toBe(1);
+        expect(obligationShape(forward)).toEqual([
+            {
+                amountMinor: 100,
+                creditorPersonId: "alice",
+                currency: "USD",
+                debtorPersonId: "bob"
+            }
+        ]);
+        expect(forward.issues).toEqual([
+            topologyIssue("account-a", "day", "years[].months[].days[]"),
+            topologyIssue("account-a", "day", "years[].months[].days[]"),
+            topologyIssue("account-a", "month", "years[].months[]"),
+            topologyIssue("account-a", "month", "years[].months[]"),
+            topologyIssue("account-a", "transaction", "years[].months[].days[].transactions[]"),
+            topologyIssue("account-a", "transaction", "years[].months[].days[].transactions[]"),
+            topologyIssue("account-a", "transaction", "years[].months[].days[].transactions[]"),
+            topologyIssue("account-a", "year", "years[]"),
+            topologyIssue("account-a", "year", "years[]"),
+            topologyIssue("account-b", "years", "years")
+        ]);
+        expect(runtimeValueSnapshot(forwardStore)).toBe(forwardBefore);
+        expect(runtimeValueSnapshot(reverseStore)).toBe(reverseBefore);
+        assertFrozenGraph(forward);
+    });
+
+    it("matches an independent generated hierarchy context oracle under insertion changes", () => {
+        const hierarchyLevels = [
+            "account-tree",
+            "years",
+            "year",
+            "months",
+            "month",
+            "days",
+            "day",
+            "transactions",
+            "transaction"
+        ] as const;
+        const hierarchyPaths: Readonly<Record<(typeof hierarchyLevels)[number], string>> = {
+            "account-tree": "account-tree",
+            day: "years[].months[].days[]",
+            days: "years[].months[].days",
+            month: "years[].months[]",
+            months: "years[].months",
+            transaction: "years[].months[].days[].transactions[]",
+            transactions: "years[].months[].days[].transactions",
+            year: "years[]",
+            years: "years"
+        };
+
+        fc.assert(
+            fc.property(
+                fc.uniqueArray(fc.constantFrom(...hierarchyLevels), {
+                    minLength: 1,
+                    maxLength: hierarchyLevels.length
+                }),
+                (levels) => {
+                    const entries = levels.map((level, index) => {
+                        const accountId = `generated-${String(index).padStart(2, "0")}-${level}`;
+                        return [accountId, malformedHierarchyTree(level, accountId)] as const;
+                    });
+                    const forwardStore = {
+                        $cid: "transaction-store",
+                        ...Object.fromEntries(entries)
+                    } as unknown as TransactionStore;
+                    const reverseStore = {
+                        $cid: "transaction-store",
+                        ...Object.fromEntries([...entries].reverse())
+                    } as unknown as TransactionStore;
+                    const expected = entries
+                        .map(([accountId], index) => {
+                            const level = levels[index];
+                            if (level == null) throw new Error("Missing generated hierarchy level");
+                            return topologyIssue(accountId, level, hierarchyPaths[level]);
+                        })
+                        .sort((left, right) =>
+                            left.accountId < right.accountId
+                                ? -1
+                                : left.accountId > right.accountId
+                                  ? 1
+                                  : 0
+                        );
+
+                    const forward = settleStore(forwardStore);
+                    const reverse = settleStore(reverseStore);
+
+                    expect(reverse).toEqual(forward);
+                    expect(forward.issues).toEqual(expected);
+                    expect(forward.qualifyingTransactionCount).toBe(0);
+                    expect(forward.obligations).toEqual([]);
+                }
+            ),
+            { numRuns: 300, seed: 26072505 }
+        );
+    });
+
     it("filters inactive copies before selecting an active same-ID representation", () => {
         const live = runtimeTransaction(
             transaction("relocated", -1_000, { allocations: { bob: 100 } }),
