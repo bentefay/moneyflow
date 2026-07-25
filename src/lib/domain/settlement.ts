@@ -320,8 +320,10 @@ function recordFromLoroMap(
 
     const result = new Map<string, Readonly<Record<string, unknown>>>();
     const issues: SettlementIssue[] = [];
-    for (const [id, value] of Object.entries(snapshot.value)) {
-        if (id === "$cid" || typeof value === "string") continue;
+    for (const [id, value] of Object.entries(snapshot.value).sort(([left], [right]) =>
+        compareStrings(left, right)
+    )) {
+        if (id === "$cid") continue;
         const entry = snapshotMaterializedRecord(value);
         if (entry.ok) {
             result.set(id, entry.value);
