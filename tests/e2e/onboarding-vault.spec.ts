@@ -89,6 +89,64 @@ test.describe("Onboarding", () => {
         await expect(page).toHaveURL(/\/unlock$/);
     });
 
+    test("account creation submits the recovery credential so a manager can offer to save it", async ({
+        page
+    }) => {
+        const requestTraces: string[] = [];
+        page.on("request", (request) => {
+            requestTraces.push(`${request.url()} ${request.postData() ?? ""}`);
+        });
+
+        await page.goto("/new-user");
+        await page.getByTestId("generate-button").click();
+        await page.getByTestId("seed-phrase-word").first().waitFor({ state: "visible" });
+
+        const credential = page.getByTestId("recovery-phrase-credential");
+        const generatedPhrase = await credential.inputValue();
+        expect(generatedPhrase.split(" ")).toHaveLength(12);
+
+        await test.step("the create-account control submits the credential form", async () => {
+            const submitsCredentialForm = await page
+                .getByTestId("continue-button")
+                .evaluate((button, credentialTestId) => {
+                    const element = button as HTMLButtonElement;
+                    const credentialField = document.querySelector<HTMLInputElement>(
+                        `[data-testid="${credentialTestId}"]`
+                    );
+                    return (
+                        element.type === "submit" &&
+                        !!element.form &&
+                        element.form === credentialField?.form
+                    );
+                }, "recovery-phrase-credential");
+
+            expect(submitsCredentialForm).toBe(true);
+        });
+
+        await test.step("explicit confirmation is still required", async () => {
+            await expect(page.getByTestId("continue-button")).toBeDisabled();
+            await page.getByTestId("confirm-checkbox").check();
+            await expect(page.getByTestId("continue-button")).toBeEnabled();
+        });
+
+        await test.step("submitting completes registration without a page reload", async () => {
+            await page.getByTestId("continue-button").click();
+            await page.waitForURL("**/settings", { timeout: 15000 });
+        });
+
+        await test.step("the generated phrase never left the client", () => {
+            for (const trace of requestTraces) {
+                expect(trace).not.toContain(generatedPhrase);
+            }
+        });
+
+        await test.step("the credential form is gone once creation succeeds", async () => {
+            // Chromium arms its save prompt when the interacted form becomes unreachable after a
+            // successful request, so the credential form must not survive onto the next screen.
+            await expect(page.getByTestId("recovery-phrase-credential")).toHaveCount(0);
+        });
+    });
+
     test("new vault has default person and account with ownership", async ({ page }) => {
         await test.step("create identity with automatic vault creation", async () => {
             await createNewIdentity(page);

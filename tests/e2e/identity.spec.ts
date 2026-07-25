@@ -438,6 +438,193 @@ test.describe("Identity", () => {
         });
     });
 
+    test("creation presents the recovery phrase as one savable credential", async ({ page }) => {
+        await page.goto("/new-user");
+        await page.getByTestId("generate-button").click();
+        await page.getByTestId("seed-phrase-word").first().waitFor({ state: "visible" });
+
+        const credential = page.getByTestId("recovery-phrase-credential");
+
+        await test.step("exactly one password field, marked as a new password", async () => {
+            expect(await page.locator('input[type="password"]').count()).toBe(1);
+            await expect(credential).toHaveAttribute("autocomplete", "new-password");
+            await expect(credential).toHaveJSProperty("type", "password");
+        });
+
+        await test.step("accompanied by exactly one non-secret account identifier", async () => {
+            const identifier = page.locator('input[autocomplete="username"]');
+            expect(await identifier.count()).toBe(1);
+            expect(await identifier.inputValue()).not.toBe("");
+        });
+
+        await test.step("credential sits in a form with a submit control", async () => {
+            const formInfo = await credential.evaluate((element) => {
+                const form = (element as HTMLInputElement).form;
+                return form
+                    ? {
+                          method: form.method,
+                          hasSubmit: !!form.querySelector(
+                              'button[type="submit"], input[type="submit"]'
+                          )
+                      }
+                    : null;
+            });
+            expect(formInfo).not.toBeNull();
+            expect(formInfo!.method).toBe("post");
+            expect(formInfo!.hasSubmit).toBe(true);
+        });
+
+        await test.step("credential is focusable and large enough for fill heuristics", async () => {
+            // Chromium requires >= 10px in each dimension and a focusable element before it
+            // treats a password field as a real credential target.
+            const geometry = await credential.evaluate((element) => {
+                const rect = element.getBoundingClientRect();
+                const style = getComputedStyle(element);
+                return {
+                    width: rect.width,
+                    height: rect.height,
+                    display: style.display,
+                    visibility: style.visibility
+                };
+            });
+            expect(geometry.width).toBeGreaterThanOrEqual(10);
+            expect(geometry.height).toBeGreaterThanOrEqual(10);
+            expect(geometry.display).not.toBe("none");
+            expect(geometry.visibility).not.toBe("hidden");
+        });
+
+        await test.step("credential value matches the displayed phrase", async () => {
+            const revealButton = page.getByRole("button", { name: /click to reveal/i });
+            await revealButton.click();
+            const displayed = (await extractSeedPhrase(page)).join(" ");
+
+            expect(await credential.inputValue()).toBe(displayed);
+        });
+
+        await test.step("phrase never reaches the URL", async () => {
+            const credentialValue = await credential.inputValue();
+            expect(credentialValue).not.toBe("");
+
+            expect(page.url()).not.toContain(credentialValue);
+            expect(new URL(page.url()).search).toBe("");
+            expect(new URL(page.url()).hash).toBe("");
+        });
+    });
+
+    test("unlock presents the recovery phrase entry as a fillable login credential", async ({
+        page
+    }) => {
+        await page.goto("/unlock");
+        const credential = page.getByTestId("recovery-phrase-credential");
+        await credential.waitFor();
+
+        await test.step("exactly one password field, marked as the current password", async () => {
+            expect(await page.locator('input[type="password"]').count()).toBe(1);
+            await expect(credential).toHaveAttribute("autocomplete", "current-password");
+        });
+
+        await test.step("word inputs never advertise themselves as passwords", async () => {
+            const wordInputs = page.locator('[data-testid^="seed-word-input-"]');
+            expect(await wordInputs.count()).toBe(12);
+            const attributes = await wordInputs.evaluateAll((elements) =>
+                elements.map((element) => ({
+                    type: (element as HTMLInputElement).type,
+                    autocomplete: element.getAttribute("autocomplete")
+                }))
+            );
+            for (const attribute of attributes) {
+                expect(attribute.type).toBe("text");
+                expect(attribute.autocomplete).toBe("off");
+            }
+        });
+
+        await test.step("a manager-style fill distributes into all twelve inputs", async () => {
+            const testVector =
+                "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+            await credential.fill(testVector);
+
+            for (let index = 0; index < 11; index++) {
+                await expect(page.getByTestId(`seed-word-input-${index}`)).toHaveValue("abandon");
+            }
+            await expect(page.getByTestId("seed-word-input-11")).toHaveValue("about");
+            await expect(page.getByText("Valid recovery phrase")).toBeVisible();
+        });
+
+        await test.step("typing a word mirrors back into the canonical credential", async () => {
+            await page.getByTestId("seed-word-input-11").fill("abandon");
+
+            await expect(credential).toHaveValue(
+                "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon"
+            );
+        });
+
+        await test.step("an invalid canonical fill is refused, not normalized", async () => {
+            const invalid =
+                "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon notaword";
+            await credential.fill(invalid);
+
+            await expect(page.getByTestId("seed-word-input-11")).toHaveValue("notaword");
+            await expect(page.getByText("Invalid phrase")).toBeVisible();
+            await expect(page.getByTestId("unlock-button")).toBeDisabled();
+        });
+    });
+
+    test("unlock via canonical credential fill signs in and leaks no phrase", async ({ page }) => {
+        const requestTraces: string[] = [];
+        page.on("request", (request) => {
+            requestTraces.push(`${request.url()} ${request.postData() ?? ""}`);
+        });
+        const consoleMessages: string[] = [];
+        page.on("console", (message) => consoleMessages.push(message.text()));
+
+        await page.goto("/new-user");
+        await page.getByTestId("generate-button").click();
+        await page.getByTestId("seed-phrase-word").first().waitFor({ state: "visible" });
+        await page.getByRole("button", { name: /click to reveal/i }).click();
+        const savedPhrase = (await extractSeedPhrase(page)).join(" ");
+        await page.getByTestId("confirm-checkbox").check();
+        await page.getByTestId("continue-button").click();
+        await page.waitForURL("**/settings", { timeout: 15000 });
+        await page.evaluate(() => sessionStorage.clear());
+
+        await test.step("fill the canonical credential only, then unlock", async () => {
+            await page.goto("/unlock");
+            const credential = page.getByTestId("recovery-phrase-credential");
+            await credential.fill(savedPhrase);
+
+            const unlockButton = page.getByTestId("unlock-button");
+            await expect(unlockButton).toBeEnabled({ timeout: 5000 });
+            await unlockButton.click();
+
+            await page.waitForURL("**/transactions", { timeout: 15000 });
+        });
+
+        await test.step("the phrase never appears in a request, URL or console message", () => {
+            const firstWord = savedPhrase.split(" ")[0];
+            expect(firstWord).toBeTruthy();
+
+            for (const trace of requestTraces) {
+                expect(trace).not.toContain(savedPhrase);
+            }
+            for (const message of consoleMessages) {
+                expect(message).not.toContain(savedPhrase);
+            }
+            expect(page.url()).not.toContain(savedPhrase);
+        });
+
+        await test.step("the phrase is never persisted to local or session storage", async () => {
+            const persisted = await page.evaluate(() => {
+                const dump = (storage: Storage) =>
+                    Object.keys(storage)
+                        .map((key) => `${key}=${storage.getItem(key) ?? ""}`)
+                        .join("\n");
+                return `${dump(localStorage)}\n${dump(sessionStorage)}`;
+            });
+
+            expect(persisted).not.toContain(savedPhrase);
+        });
+    });
+
     test("auth guard: protected routes redirect to unlock", async ({ page }) => {
         await test.step("dashboard redirects to unlock", async () => {
             await page.goto("/dashboard");
