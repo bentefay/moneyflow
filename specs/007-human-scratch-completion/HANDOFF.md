@@ -8,7 +8,7 @@ literal field is `pending`. Workers may read but never edit it.
 - **Package / revision:** P16D / 01
 - **Scope IDs:** FS-001 and HS-009. P16D can authorize HS-009 only after independent PASS; FS-001
   remains open and immutable through P16E.
-- **State:** implementing; reviewer undispatched
+- **State:** reviewing; reviewer dispatched over product/test HEAD `b5ebc2a`
 - **Binding tasks:** `tasks/FS-001-transaction-percentage-allocations-settlement.md` P16D and
   `tasks/HS-009-allocation-bounds.md` P16D
 - **Canonical authority:** all 715 immutable lines of
@@ -141,9 +141,10 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Independent review contract
 
-- **Reviewer:** distinct `human_scratch_reviewer`, undispatched until the evidence freeze commit
+- **Reviewer:** distinct `human_scratch_reviewer`, dispatched
 - **Literal cumulative review BASE:** `3a5081ac37e09817e0d02ae8799469d1bf09dad5`
-- **Literal HEAD:** pending
+- **Literal HEAD:** `b5ebc2a8edbf5e1fc522873fb5ee7455266a3bcc` (product/test HEAD; only root-owned
+  control docs commits follow it in range)
 - **Implementation evidence:** `evidence/P16D/implementation-01.md`
 - **Sole reviewer artifact:** `reviews/P16D-review-01.md`
 - **Reviewer writes:** only the review file; no other edit/commit
@@ -160,5 +161,13 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Wait for `human_scratch_implementer` to return the exact P16D/01 artifact and committed product/test
-HEAD, then clean root-owned runtime artifacts and freeze evidence before reviewer dispatch.
+Wait for the distinct `human_scratch_reviewer` to return `reviews/P16D-review-01.md` with an
+explicit PASS/FAIL. Verify `git rev-parse HEAD` still resolves the reviewed product/test HEAD
+`b5ebc2a` (no product/test change may occur during review). On PASS, independently confirm the
+verdict, the acceptance mapping and the honest P10 boundary, persist the evidence and review in an
+exact-path integration-control commit, transcribe risks/decisions/questions, and record the
+integration commit; then, because P16D is the last mapped package for HS-009 pending P16E, evaluate
+whether every HS-009 package (P16A/P16C/P16D) is passed before any marker action, and keep FS-001
+immutable/open until P16E passes. On FAIL, persist the immutable failed review without overwriting
+it, transcribe any proposals, set P16D `changes_requested`, and dispatch revision 02 to the same
+package re-reviewing the original BASE through the new HEAD.

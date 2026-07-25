@@ -7,9 +7,11 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P16C revision 02 (`passed`)
-- **Next action:** prepare P16D against the clean post-P16C integration boundary; keep HS-009
-  unchanged and FS-001 immutable/open
+- **Current package:** P16D revision 01 (`reviewing`)
+- **Next action:** dispatch a distinct independent `human_scratch_reviewer` for P16D/01 over product
+  BASE `3a5081ac37e09817e0d02ae8799469d1bf09dad5`..product/test HEAD `b5ebc2a`; on independent PASS
+  complete the HS-009 marker only after every mapped package (P16A/P16C/P16D) is passed, and keep
+  FS-001 immutable/open through P16E
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -22,7 +24,9 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** eleven passed; HS-015 blocked externally; HS-011/HS-012 and seven other HS
   requirements plus FS-001 queued
-- **Last ledger update:** 2026-07-25; P16C revision-02 passed and P16D is dependency-ready
+- **Last ledger update:** 2026-07-25; P16D/01 implemented with product/test HEAD `b5ebc2a`, root
+  cleaned the runtime external-config artifact, froze the uncommitted evidence and moved P16D to
+  `reviewing`
 
 ## Package ledger
 
@@ -49,7 +53,7 @@ review evidence.
 | P16A    | FS-001, HS-009 | Allocation/ownership validation, remainder/effective shares and exact apportionment | P01                  | passed | 02 | `1b42d27e11494a167a4768e0c2c308010aa51651..f84f66758708529c44342313e8632ee8b7dcead3` | `evidence/P16A/implementation-02.md` | `reviews/P16A-review-02.md` | `41f5760f77c1a93ab650a93912bfaf3c0b627ab0` |
 | P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | passed | 05 | `4c102600240e2804b801c2a320e10164defb14ea..46d8f9feb79c6dfc080c0869922fb8cd4c20ec6c` | `evidence/P16B/implementation-05.md` | `reviews/P16B-review-05.md` | `136678a0ac864cf2d120b2b5b896d4fadcabcdd1` |
 | P16C    | FS-001, HS-009 | CRDT per-key/complete-set APIs and every mutation, hydration and history path       | P16A, P16B, P09, P14 | passed | 02 | `0a7c9a49722ddc4d955f910af6dbb19cfffbd600..207e8c5758a48e66980b95eaeff51c0e5a605f7e` | `evidence/P16C/implementation-02.md` | `reviews/P16C-review-02.md` | `e0f06f7fb60ce08ef2f75b0a9ca7769630a2a55c` |
-| P16D    | FS-001, HS-009 | Actual grid/add-row person columns, virtualization, history and presence UX         | P16C, P13            | implementing | 01  | `3a5081ac37e09817e0d02ae8799469d1bf09dad5..pending`                                  | `evidence/P16D/implementation-01.md` | pending                    | —                                          |
+| P16D    | FS-001, HS-009 | Actual grid/add-row person columns, virtualization, history and presence UX         | P16C, P13            | reviewing    | 01  | `3a5081ac37e09817e0d02ae8799469d1bf09dad5..b5ebc2a8edbf5e1fc522873fb5ee7455266a3bcc` | `evidence/P16D/implementation-01.md` | `reviews/P16D-review-01.md` | —                                          |
 | P16E    | FS-001         | People obligations/issues/source UX plus full integration, E2E, manual and perf     | P16D, P08, P11C      | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P17A    | HS-007         | Automation schema/migration, exact matcher, precedence, preferences, import engine  | P11C, P14, P16E      | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P17B    | HS-007         | Shared rule editor and automations-page UX                                          | P17A, P02            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -3093,3 +3097,31 @@ after HS-011 completes, HS-012 remains `rollback_pending`/checked until its own 
 completes. Only after both are unchecked, removed from authorized IDs, `changes_requested`, and the
 batch is cleared may P08 remediation dispatch. After remediation, retain all history and append
 package PASS, requirement PASS, HS `[] -> [x]`, and P21 revision NN+1 events; never rewrite history.
+
+**2026-07-25T18:17:26+10:00 — P16D/01 `implementing -> ready_for_review`:** The
+`human_scratch_implementer` returned the exact sole artifact `evidence/P16D/implementation-01.md`
+and a committed product/test HEAD. RED commit `b5d5252` (`test(P16D): define allocation grid
+behavior`) touched only the four authorized test paths; GREEN commit `b5ebc2a` (`feat(P16D): add
+allocation grid columns`) touched only the eight authorized product paths plus authorized test
+files. `git diff --stat 3a5081ac37e09817e0d02ae8799469d1bf09dad5..b5ebc2a` confirms no forbidden
+product/test/schema/scratch/canonical/ledger/task path changed; the two intervening root docs
+commits `fd8d23b` (dispatch) and the reviewing control update are the only non-product commits in
+range. Working tree is clean except the uncommitted evidence file (frozen) and gitignored
+CLI-session trails. Literal product/test HEAD is `b5ebc2a8edbf5e1fc522873fb5ee7455266a3bcc`; BASE is
+not equal to HEAD (non-empty range). No `Q-PROPOSAL-P16D-01-*` was raised. Evidence is an implementer
+claim only; no PASS is inferred.
+
+**2026-07-25T18:17:26+10:00 — P16D/01 `ready_for_review -> reviewing`:** Root removed the untracked
+root-owned runtime artifact `playwright.p16d.external.config.ts` (the base `playwright.config.ts`
+auto-starts its own keyed webServer, so the reviewer needs no external config) and left
+`.playwright-cli`/`test-results` intact as gitignored preserved trails. Frozen boundary re-verified
+at this transition: scratch `ce52d7df87daf63117931e5bdee928212051242ae7f2b5d90e76f5610abcb00f` equals
+the rolling SHA with no active completion/rollback event; canonical FS-001
+`0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c` at 715 lines/25,441 bytes; SCOPE
+`d03f33e718f1ec5f7c8ad0119d283397dcc59407199da4b5887a2e5eee7ef0f9`. A distinct
+`human_scratch_reviewer` is dispatched with product BASE
+`3a5081ac37e09817e0d02ae8799469d1bf09dad5`, literal product/test HEAD `b5ebc2a`, task contracts
+`tasks/FS-001-transaction-percentage-allocations-settlement.md` P16D and
+`tasks/HS-009-allocation-bounds.md` P16D, evidence `evidence/P16D/implementation-01.md`, and the sole
+new review artifact `reviews/P16D-review-01.md`. HS-009 stays unchecked and FS-001 immutable/open; no
+marker is authorized until independent PASS and all mapped packages pass.
