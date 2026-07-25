@@ -58,6 +58,18 @@ export interface SettlementCurrencyPositions {
     readonly people: readonly SettlementPersonPosition[];
 }
 
+export type SettlementHierarchyLevel =
+    | "account-tree"
+    | "day"
+    | "days"
+    | "month"
+    | "months"
+    | "store-root"
+    | "transaction"
+    | "transactions"
+    | "year"
+    | "years";
+
 export type SettlementIssue =
     | {
           readonly accountId: string;
@@ -103,6 +115,14 @@ export type SettlementIssue =
           readonly accountId: string;
           readonly reason: "invalid-core-fields" | "invalid-duplicate-list";
           readonly transactionId: string;
+          readonly type: "invalid-transaction";
+      }
+    | {
+          readonly accountId: string;
+          readonly hierarchyLevel: SettlementHierarchyLevel;
+          readonly hierarchyPath: string;
+          readonly reason: "invalid-hierarchy";
+          readonly transactionId: "<transaction-store>";
           readonly type: "invalid-transaction";
       }
     | {
@@ -178,6 +198,16 @@ function freezeResultGraph<T extends object>(value: T): T {
 
 function isRuntimeRecord(value: unknown): value is Readonly<Record<string, unknown>> {
     return value != null && typeof value === "object" && !Array.isArray(value);
+}
+
+function isMaterializedRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+    if (!isRuntimeRecord(value)) return false;
+    try {
+        const prototype = Object.getPrototypeOf(value);
+        return prototype === Object.prototype || prototype === null;
+    } catch {
+        return false;
+    }
 }
 
 function recordFromLoroMap(collection: unknown): Map<string, Readonly<Record<string, unknown>>> {
@@ -280,51 +310,108 @@ function retainedTransaction(
     };
 }
 
+function hierarchyIssue(
+    accountId: string,
+    hierarchyLevel: SettlementHierarchyLevel,
+    hierarchyPath: string
+): SettlementIssue {
+    return {
+        accountId,
+        hierarchyLevel,
+        hierarchyPath,
+        reason: "invalid-hierarchy",
+        transactionId: "<transaction-store>",
+        type: "invalid-transaction"
+    };
+}
+
 function projectTransactionStore(store: unknown): TransactionProjection {
     const activeById = new Map<string, RetainedTransaction[]>();
     const invalidLogicalIds = new Set<string>();
     const nestedIds = new Set<string>();
-    const topologyIssues = new Map<string, SettlementIssue>();
+    const hierarchyIssues: SettlementIssue[] = [];
+    const transactionIssues = new Map<string, SettlementIssue>();
 
-    const addIssue = (issue: SettlementIssue): void => {
+    const addTransactionIssue = (issue: SettlementIssue): void => {
         const key = `${encodePart(issue.accountId)}${encodePart(issue.transactionId)}${encodePart(
             issue.type
         )}${encodePart("reason" in issue ? issue.reason : "")}`;
-        topologyIssues.set(key, issue);
+        transactionIssues.set(key, issue);
     };
 
-    if (!isRuntimeRecord(store)) {
+    if (!isMaterializedRecord(store)) {
         return {
-            issues: [
-                {
-                    accountId: "<unknown-account>",
-                    reason: "invalid-core-fields",
-                    transactionId: "<unknown-transaction-store>",
-                    type: "invalid-transaction"
-                }
-            ],
+            issues: [hierarchyIssue("<unknown-account>", "store-root", "store-root")],
             transactions: []
         };
     }
 
     for (const [treeKey, treeValue] of Object.entries(store)) {
-        if (!isRuntimeRecord(treeValue)) continue;
+        if (treeKey === "$cid") continue;
+        if (!isMaterializedRecord(treeValue)) {
+            hierarchyIssues.push(hierarchyIssue(treeKey, "account-tree", "account-tree"));
+            continue;
+        }
         const fallbackAccountId =
             typeof treeValue.accountId === "string" ? treeValue.accountId : treeKey;
         const years = treeValue.years;
-        if (!Array.isArray(years)) continue;
+        if (!Array.isArray(years)) {
+            hierarchyIssues.push(hierarchyIssue(fallbackAccountId, "years", "years"));
+            continue;
+        }
         for (const yearValue of years) {
-            if (!isRuntimeRecord(yearValue) || !Array.isArray(yearValue.months)) continue;
+            if (!isMaterializedRecord(yearValue) || typeof yearValue.year !== "number") {
+                hierarchyIssues.push(hierarchyIssue(fallbackAccountId, "year", "years[]"));
+                continue;
+            }
+            if (!Array.isArray(yearValue.months)) {
+                hierarchyIssues.push(hierarchyIssue(fallbackAccountId, "months", "years[].months"));
+                continue;
+            }
             for (const monthValue of yearValue.months) {
-                if (!isRuntimeRecord(monthValue) || !Array.isArray(monthValue.days)) continue;
+                if (!isMaterializedRecord(monthValue) || typeof monthValue.month !== "number") {
+                    hierarchyIssues.push(
+                        hierarchyIssue(fallbackAccountId, "month", "years[].months[]")
+                    );
+                    continue;
+                }
+                if (!Array.isArray(monthValue.days)) {
+                    hierarchyIssues.push(
+                        hierarchyIssue(fallbackAccountId, "days", "years[].months[].days")
+                    );
+                    continue;
+                }
                 for (const dayValue of monthValue.days) {
-                    if (!isRuntimeRecord(dayValue) || !Array.isArray(dayValue.transactions)) {
+                    if (!isMaterializedRecord(dayValue) || typeof dayValue.day !== "number") {
+                        hierarchyIssues.push(
+                            hierarchyIssue(fallbackAccountId, "day", "years[].months[].days[]")
+                        );
+                        continue;
+                    }
+                    if (!Array.isArray(dayValue.transactions)) {
+                        hierarchyIssues.push(
+                            hierarchyIssue(
+                                fallbackAccountId,
+                                "transactions",
+                                "years[].months[].days[].transactions"
+                            )
+                        );
                         continue;
                     }
                     for (const transactionValue of dayValue.transactions) {
+                        if (!isMaterializedRecord(transactionValue)) {
+                            hierarchyIssues.push(
+                                hierarchyIssue(
+                                    fallbackAccountId,
+                                    "transaction",
+                                    "years[].months[].days[].transactions[]"
+                                )
+                            );
+                            continue;
+                        }
                         const retained = retainedTransaction(transactionValue, fallbackAccountId);
                         if (!retained.ok) {
-                            addIssue(retained.issue);
+                            addTransactionIssue(retained.issue);
                             continue;
                         }
                         const transaction = retained.transaction;
@@ -350,7 +437,7 @@ function projectTransactionStore(store: unknown): TransactionProjection {
                         }
                         if (!validDuplicateList) {
                             invalidLogicalIds.add(transaction.id);
-                            addIssue({
+                            addTransactionIssue({
                                 accountId: transaction.accountId,
                                 reason: "invalid-duplicate-list",
                                 transactionId: transaction.id,
@@ -384,7 +471,7 @@ function projectTransactionStore(store: unknown): TransactionProjection {
         );
 
     return {
-        issues: Array.from(topologyIssues.values()).sort(issueOrder),
+        issues: [...hierarchyIssues, ...transactionIssues.values()].sort(issueOrder),
         transactions
     };
 }
@@ -843,7 +930,7 @@ export function calculateSettlementBalances(
         const allocations =
             allocationValue === undefined
                 ? EMPTY_RUNTIME_RECORD
-                : isRuntimeRecord(allocationValue)
+                : isMaterializedRecord(allocationValue)
                   ? allocationValue
                   : null;
         if (allocations == null) {
@@ -856,7 +943,7 @@ export function calculateSettlementBalances(
             continue;
         }
         const ownershipValue = account.ownerships;
-        if (!isRuntimeRecord(ownershipValue)) {
+        if (!isMaterializedRecord(ownershipValue)) {
             issues.push({
                 accountId: transaction.accountId,
                 reason: "invalid-container",
