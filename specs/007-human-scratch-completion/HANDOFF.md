@@ -9,7 +9,7 @@ literal field is `pending`. Workers may read but never edit it.
 - **Scope IDs:** FS-001 and HS-009; this revision closes only P16C review-01 F-01 through F-03 while
   preserving every independently accepted revision-01 mechanism. Neither requirement can complete
   from P16C alone.
-- **State:** implementing after the current root control commit; reviewer is undispatched
+- **State:** revision-02 implementation frozen; ready for independent review
 - **Binding tasks:** `tasks/FS-001-transaction-percentage-allocations-settlement.md` P16C and
   `tasks/HS-009-allocation-bounds.md` P16C
 - **Canonical authority:** all 715 immutable lines of
@@ -27,6 +27,12 @@ literal field is `pending`. Workers may read but never edit it.
 - **Revision-01 failure integration / clean pre-revision HEAD:**
   `d81a8283552cb6b3cb312e0f2d3e0adab97819d8`
 - **Sole revision-02 implementer artifact:** `evidence/P16C/implementation-02.md`
+- **Frozen revision-02 implementer artifact:** `evidence/P16C/implementation-02.md`, SHA-256
+  `89876829842932aa7d32f66a5a4144eb21d0a14c60d952021329d4c0213813ec`, 220 lines /
+  15,273 bytes
+- **Revision-02 RED:** `2b5cee4f8a1d97d96f1bbfe77e77c0ad3104fa83`
+- **Revision-02 product/test HEAD:** `207e8c5758a48e66980b95eaeff51c0e5a605f7e`, tree
+  `4682fe5b883a6e4c212d8ef72d2656fb23bd6619`
 - **Future immutable revision-02 review artifact:** `reviews/P16C-review-02.md`
 - **Allowed product paths:** exactly
   `src/lib/crdt/allocations.ts`,
@@ -137,9 +143,10 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Independent review contract
 
-- **Reviewer:** distinct `human_scratch_reviewer`, undispatched until revision-02 evidence freezes
+- **Reviewer:** distinct `human_scratch_reviewer`, ready for dispatch after this revision-02
+  evidence freeze
 - **Literal cumulative review BASE:** `0a7c9a49722ddc4d955f910af6dbb19cfffbd600`
-- **Literal revision-02 HEAD:** pending exact committed product/test HEAD
+- **Literal revision-02 HEAD:** `207e8c5758a48e66980b95eaeff51c0e5a605f7e`
 - **Implementation evidence:** `evidence/P16C/implementation-02.md`
 - **Prior immutable review:** `reviews/P16C-review-01.md`
 - **Sole new reviewer artifact:** `reviews/P16C-review-02.md`
@@ -155,5 +162,6 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Commit this handoff/progress transition, then dispatch `human_scratch_implementer` for P16C revision
-02 only. Keep the reviewer undispatched; HS-009 remains unchecked and FS-001 immutable/open.
+Freeze the exact revision-02 evidence and ready-for-review transition, then dispatch the distinct
+`human_scratch_reviewer` over the literal cumulative range and sole new review output. Keep HS-009
+unchecked and FS-001 immutable/open.
