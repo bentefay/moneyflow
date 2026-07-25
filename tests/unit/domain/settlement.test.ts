@@ -344,6 +344,12 @@ function assertFrozenGraph(value: object): void {
     }
 }
 
+function runtimeCollection<T>(
+    entries: readonly (readonly [string, unknown])[]
+): Readonly<Record<string, T | string>> {
+    return Object.fromEntries(entries) as Readonly<Record<string, T | string>>;
+}
+
 describe("sole settlement authority", () => {
     it("removes the competing balance implementation and compatibility alias", () => {
         expect("calculateSettlementBalances" in balanceDomain).toBe(false);
@@ -372,6 +378,244 @@ describe("sole settlement authority", () => {
         expect(result.issues).toEqual([]);
         expect(result.qualifyingTransactionCount).toBe(0);
         expect(result.obligations).toEqual([]);
+    });
+});
+
+describe("exact Loro collection metadata boundary", () => {
+    const accountEntryIssue = (accountId: string) => ({
+        accountId,
+        hierarchyLevel: "account",
+        hierarchyPath: "accounts[]",
+        reason: "invalid-hierarchy",
+        transactionId: "<transaction-store>",
+        type: "invalid-transaction"
+    });
+    const statusEntryIssue = {
+        accountId: "<unknown-account>",
+        hierarchyLevel: "status",
+        hierarchyPath: "statuses[]",
+        reason: "invalid-hierarchy",
+        transactionId: "<transaction-store>",
+        type: "invalid-transaction"
+    };
+    const expectedObligation = {
+        amountMinor: 100,
+        creditorPersonId: "alice",
+        currency: "USD",
+        debtorPersonId: "bob"
+    };
+
+    it("reports a referenced primitive account entry and atomically excludes its transaction", () => {
+        const accounts = { "account-a": "legacy-account" };
+        const originalAccounts = { ...accounts };
+        const input = transaction("referenced-primitive-account", -100, {
+            allocations: { bob: 100 }
+        });
+
+        const result = settle([input], accounts);
+
+        expect(result.issues).toEqual([
+            accountEntryIssue("account-a"),
+            {
+                accountId: "account-a",
+                transactionId: "referenced-primitive-account",
+                type: "missing-account"
+            }
+        ]);
+        expect(result.qualifyingTransactionCount).toBe(0);
+        expect(result.obligations).toEqual([]);
+        expect(result.contributions).toEqual([]);
+        expect(result.positions).toEqual([]);
+        expect(accounts).toEqual(originalAccounts);
+        expect(Object.isFrozen(accounts)).toBe(false);
+        expect(Object.isFrozen(input)).toBe(false);
+        assertFrozenGraph(result);
+    });
+
+    it("reports a referenced primitive status entry and atomically excludes its transaction", () => {
+        const statuses = {
+            [PAID_STATUS_ID]: "legacy-status",
+            [PENDING_STATUS_ID]: status(PENDING_STATUS_ID)
+        };
+        const originalStatuses = { ...statuses };
+        const input = transaction("referenced-primitive-status", -100, {
+            allocations: { bob: 100 }
+        });
+
+        const result = settle([input], baseAccounts(), statuses);
+
+        expect(result.issues).toEqual([statusEntryIssue]);
+        expect(result.qualifyingTransactionCount).toBe(0);
+        expect(result.obligations).toEqual([]);
+        expect(result.contributions).toEqual([]);
+        expect(result.positions).toEqual([]);
+        expect(statuses).toEqual(originalStatuses);
+        expect(Object.isFrozen(statuses)).toBe(false);
+        expect(Object.isFrozen(input)).toBe(false);
+        assertFrozenGraph(result);
+    });
+
+    it("reports an unreferenced primitive account in deterministic order while preserving valid financial output", () => {
+        const validAccount = account("account-a", { alice: 100 });
+        const forwardAccounts = {
+            "legacy-account": "not-metadata",
+            "account-a": validAccount
+        };
+        const reverseAccounts = {
+            "account-a": validAccount,
+            "legacy-account": "not-metadata"
+        };
+        const input = transaction("valid-account-sibling", -100, {
+            allocations: { bob: 100 }
+        });
+
+        const forward = settle([input], forwardAccounts);
+        const reverse = settle([input], reverseAccounts);
+
+        expect(reverse).toEqual(forward);
+        expect(forward.issues).toEqual([accountEntryIssue("legacy-account")]);
+        expect(forward.qualifyingTransactionCount).toBe(1);
+        expect(obligationShape(forward)).toEqual([expectedObligation]);
+        expect(forwardAccounts).toEqual({
+            "legacy-account": "not-metadata",
+            "account-a": validAccount
+        });
+        expect(Object.isFrozen(forwardAccounts)).toBe(false);
+        expect(Object.isFrozen(validAccount)).toBe(false);
+        expect(Object.isFrozen(input)).toBe(false);
+        assertFrozenGraph(forward);
+        assertFrozenGraph(reverse);
+    });
+
+    it("reports an unreferenced primitive status in deterministic order while preserving valid financial output", () => {
+        const paidStatus = status(PAID_STATUS_ID, "treatAsPaid");
+        const pendingStatus = status(PENDING_STATUS_ID);
+        const forwardStatuses = {
+            "legacy-status": "not-metadata",
+            [PAID_STATUS_ID]: paidStatus,
+            [PENDING_STATUS_ID]: pendingStatus
+        };
+        const reverseStatuses = {
+            [PENDING_STATUS_ID]: pendingStatus,
+            [PAID_STATUS_ID]: paidStatus,
+            "legacy-status": "not-metadata"
+        };
+        const input = transaction("valid-status-sibling", -100, {
+            allocations: { bob: 100 }
+        });
+
+        const forward = settle([input], baseAccounts(), forwardStatuses);
+        const reverse = settle([input], baseAccounts(), reverseStatuses);
+
+        expect(reverse).toEqual(forward);
+        expect(forward.issues).toEqual([statusEntryIssue]);
+        expect(forward.qualifyingTransactionCount).toBe(1);
+        expect(obligationShape(forward)).toEqual([expectedObligation]);
+        expect(forwardStatuses).toEqual({
+            "legacy-status": "not-metadata",
+            [PAID_STATUS_ID]: paidStatus,
+            [PENDING_STATUS_ID]: pendingStatus
+        });
+        expect(Object.isFrozen(forwardStatuses)).toBe(false);
+        expect(Object.isFrozen(paidStatus)).toBe(false);
+        expect(Object.isFrozen(input)).toBe(false);
+        assertFrozenGraph(forward);
+        assertFrozenGraph(reverse);
+    });
+
+    it("generates primitive account/status entries and insertion permutations with an independent exact issue oracle", () => {
+        const entryId = fc
+            .string({ maxLength: 20, minLength: 1 })
+            .filter(
+                (value) =>
+                    value !== "$cid" &&
+                    value !== "account-a" &&
+                    value !== PAID_STATUS_ID &&
+                    value !== PENDING_STATUS_ID
+            );
+        const primitive = fc.oneof(
+            fc.string({ maxLength: 40 }),
+            fc.integer(),
+            fc.double(),
+            fc.boolean(),
+            fc.bigInt(),
+            fc.constant(null),
+            fc.constant(undefined)
+        );
+        const generatedEntries = fc.uniqueArray(fc.tuple(entryId, primitive), {
+            maxLength: 6,
+            minLength: 1,
+            selector: ([id]) => id
+        });
+
+        fc.assert(
+            fc.property(
+                fc.boolean(),
+                fc.boolean(),
+                primitive,
+                fc.string({ maxLength: 24 }),
+                generatedEntries,
+                (accountBoundary, referenced, referencedValue, cid, entries) => {
+                    const invalidEntries: readonly (readonly [string, unknown])[] = referenced
+                        ? [
+                              [accountBoundary ? "account-a" : PAID_STATUS_ID, referencedValue],
+                              ...entries
+                          ]
+                        : entries;
+                    const metadataEntry = ["$cid", cid] as const;
+                    const validEntry = accountBoundary
+                        ? (["account-a", account("account-a", { alice: 100 })] as const)
+                        : ([PAID_STATUS_ID, status(PAID_STATUS_ID, "treatAsPaid")] as const);
+                    const forwardEntries = referenced
+                        ? [metadataEntry, ...invalidEntries]
+                        : [metadataEntry, validEntry, ...invalidEntries];
+                    const reverseEntries = [...forwardEntries].reverse();
+                    const accounts = accountBoundary
+                        ? runtimeCollection<Account>(forwardEntries)
+                        : baseAccounts();
+                    const reverseAccounts = accountBoundary
+                        ? runtimeCollection<Account>(reverseEntries)
+                        : baseAccounts();
+                    const statuses = accountBoundary
+                        ? baseStatuses()
+                        : runtimeCollection<Status>(forwardEntries);
+                    const reverseStatuses = accountBoundary
+                        ? baseStatuses()
+                        : runtimeCollection<Status>(reverseEntries);
+                    const input = transaction("generated-primitive-entry", -100, {
+                        allocations: { bob: 100 }
+                    });
+
+                    const forward = settle([input], accounts, statuses);
+                    const reverse = settle([input], reverseAccounts, reverseStatuses);
+                    const invalidIds = invalidEntries.map(([id]) => id).sort();
+                    const expectedIssues = accountBoundary
+                        ? [
+                              ...invalidIds.map(accountEntryIssue),
+                              ...(referenced
+                                  ? [
+                                        {
+                                            accountId: "account-a",
+                                            transactionId: "generated-primitive-entry",
+                                            type: "missing-account" as const
+                                        }
+                                    ]
+                                  : [])
+                          ]
+                        : invalidIds.map(() => statusEntryIssue);
+
+                    expect(reverse).toEqual(forward);
+                    expect(forward.issues).toEqual(expectedIssues);
+                    expect(forward.qualifyingTransactionCount).toBe(referenced ? 0 : 1);
+                    expect(obligationShape(forward)).toEqual(
+                        referenced ? [] : [expectedObligation]
+                    );
+                    assertFrozenGraph(forward);
+                    assertFrozenGraph(reverse);
+                }
+            ),
+            { numRuns: 1_000, seed: 26072508 }
+        );
     });
 });
 
