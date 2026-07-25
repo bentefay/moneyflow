@@ -96,6 +96,64 @@ class BobAllocationEnvelope {
 
 class EmptyAllocationEnvelope {}
 
+type SnapshotTrap = "descriptor" | "ownKeys";
+
+function throwingRecordProxy(
+    value: Readonly<Record<string, unknown>>,
+    trap: SnapshotTrap
+): Readonly<Record<string, unknown>> {
+    return new Proxy(value, {
+        getOwnPropertyDescriptor(target, property) {
+            if (trap === "descriptor") throw new Error("descriptor trap");
+            return Reflect.getOwnPropertyDescriptor(target, property);
+        },
+        ownKeys(target) {
+            if (trap === "ownKeys") throw new Error("ownKeys trap");
+            return Reflect.ownKeys(target);
+        }
+    });
+}
+
+function throwingArrayProxy(
+    value: readonly unknown[],
+    trap: "descriptor" | "index" | "iterator" | "length" | "ownKeys"
+): readonly unknown[] {
+    return new Proxy(value, {
+        getOwnPropertyDescriptor(target, property) {
+            if (trap === "descriptor") throw new Error("array descriptor trap");
+            return Reflect.getOwnPropertyDescriptor(target, property);
+        },
+        get(target, property, receiver) {
+            if (
+                (trap === "index" && property === "0") ||
+                (trap === "iterator" && property === Symbol.iterator) ||
+                (trap === "length" && property === "length")
+            ) {
+                throw new Error(`${trap} trap`);
+            }
+            return Reflect.get(target, property, receiver);
+        },
+        ownKeys(target) {
+            if (trap === "ownKeys") throw new Error("array ownKeys trap");
+            return Reflect.ownKeys(target);
+        }
+    });
+}
+
+function accessorRecord(
+    value: Readonly<Record<string, unknown>>,
+    key: string
+): Readonly<Record<string, unknown>> {
+    const result = { ...value };
+    Object.defineProperty(result, key, {
+        enumerable: true,
+        get() {
+            throw new Error(`${key} getter trap`);
+        }
+    });
+    return result;
+}
+
 const INVALID_FINANCIAL_OBJECT_FACTORIES = [
     ["non-empty Map", () => new Map([["bob", 100]])],
     ["empty Map", () => new Map()],
@@ -137,9 +195,9 @@ function baseStatuses(
 function transactionStore(buckets: readonly (readonly Transaction[])[]): TransactionStore {
     return {
         $cid: "transaction-store",
-        settlement: {
-            $cid: "settlement-tree",
-            accountId: "settlement",
+        "account-a": {
+            $cid: "account-a-tree",
+            accountId: "account-a",
             years: [
                 {
                     $cid: "year-2024",
@@ -831,6 +889,356 @@ describe("retained runtime boundary sanitization", () => {
     });
 });
 
+describe("complete exception-safe materialized snapshots", () => {
+    const invalidContainerIssue = (
+        type: "invalid-allocation" | "invalid-ownership",
+        transactionId: string
+    ) => ({
+        accountId: "account-a",
+        reason: "invalid-container",
+        transactionId,
+        type
+    });
+
+    it.each(["ownKeys", "descriptor"] as const)(
+        "catches %s traps on top-level account and status collections",
+        (trap) => {
+            const input = transactionStore([
+                [transaction("collection-trap", -100, { allocations: { bob: 100 } })]
+            ]);
+            const accounts = throwingRecordProxy(baseAccounts(), trap);
+            const statuses = throwingRecordProxy(baseStatuses(), trap);
+
+            expect(() =>
+                calculateSettlementBalances(input, accounts, baseStatuses())
+            ).not.toThrow();
+            expect(() =>
+                calculateSettlementBalances(input, baseAccounts(), statuses)
+            ).not.toThrow();
+            expect(calculateSettlementBalances(input, accounts, baseStatuses()).issues).toEqual([
+                {
+                    accountId: "<unknown-account>",
+                    hierarchyLevel: "accounts",
+                    hierarchyPath: "accounts",
+                    reason: "invalid-hierarchy",
+                    transactionId: "<transaction-store>",
+                    type: "invalid-transaction"
+                }
+            ]);
+            expect(calculateSettlementBalances(input, baseAccounts(), statuses).issues).toEqual([
+                {
+                    accountId: "<unknown-account>",
+                    hierarchyLevel: "statuses",
+                    hierarchyPath: "statuses",
+                    reason: "invalid-hierarchy",
+                    transactionId: "<transaction-store>",
+                    type: "invalid-transaction"
+                }
+            ]);
+        }
+    );
+
+    it.each(["ownKeys", "descriptor"] as const)(
+        "catches %s traps on store and retained records",
+        (trap) => {
+            const input = transaction("record-trap", -100, { allocations: { bob: 100 } });
+            const trappedStore = throwingRecordProxy(
+                transactionStore([[input]]) as unknown as Readonly<Record<string, unknown>>,
+                trap
+            ) as unknown as TransactionStore;
+            const trappedTransaction = throwingRecordProxy(
+                input as unknown as Readonly<Record<string, unknown>>,
+                trap
+            ) as unknown as Transaction;
+
+            expect(() => settleStore(trappedStore)).not.toThrow();
+            expect(settleStore(trappedStore).issues).toEqual([
+                {
+                    accountId: "<unknown-account>",
+                    hierarchyLevel: "store-root",
+                    hierarchyPath: "store-root",
+                    reason: "invalid-hierarchy",
+                    transactionId: "<transaction-store>",
+                    type: "invalid-transaction"
+                }
+            ]);
+            expect(() => settle([trappedTransaction])).not.toThrow();
+            expect(settle([trappedTransaction]).issues).toEqual([
+                {
+                    accountId: "account-a",
+                    hierarchyLevel: "transaction",
+                    hierarchyPath: "years[].months[].days[].transactions[]",
+                    reason: "invalid-hierarchy",
+                    transactionId: "<transaction-store>",
+                    type: "invalid-transaction"
+                }
+            ]);
+        }
+    );
+
+    it("never invokes accessors while snapshotting transactions or financial maps", () => {
+        const trappedTransaction = accessorRecord(
+            transaction("transaction-getter", -100) as unknown as Readonly<Record<string, unknown>>,
+            "id"
+        ) as unknown as Transaction;
+        const trappedAllocations = accessorRecord({ bob: 100 }, "bob");
+        const trappedOwnerships = accessorRecord({ alice: 100 }, "alice");
+
+        expect(() => settle([trappedTransaction])).not.toThrow();
+        expect(settle([trappedTransaction]).issues).toEqual([
+            {
+                accountId: "account-a",
+                hierarchyLevel: "transaction",
+                hierarchyPath: "years[].months[].days[].transactions[]",
+                reason: "invalid-hierarchy",
+                transactionId: "<transaction-store>",
+                type: "invalid-transaction"
+            }
+        ]);
+        expect(() =>
+            settle([
+                runtimeTransaction(transaction("allocation-getter", -100), {
+                    allocations: trappedAllocations
+                })
+            ])
+        ).not.toThrow();
+        expect(
+            settle([
+                runtimeTransaction(transaction("allocation-getter", -100), {
+                    allocations: trappedAllocations
+                })
+            ]).issues
+        ).toEqual([invalidContainerIssue("invalid-allocation", "allocation-getter")]);
+        expect(() =>
+            settle(
+                [transaction("ownership-getter", -100, { allocations: { bob: 100 } })],
+                baseAccounts(trappedOwnerships)
+            )
+        ).not.toThrow();
+        expect(
+            settle(
+                [transaction("ownership-getter", -100, { allocations: { bob: 100 } })],
+                baseAccounts(trappedOwnerships)
+            ).issues
+        ).toEqual([invalidContainerIssue("invalid-ownership", "ownership-getter")]);
+    });
+
+    it.each(["ownKeys", "descriptor"] as const)(
+        "catches %s traps at allocation and ownership boundaries",
+        (trap) => {
+            const allocations = throwingRecordProxy({ bob: 100 }, trap);
+            const ownerships = throwingRecordProxy({ alice: 100 }, trap);
+
+            expect(() =>
+                settle([runtimeTransaction(transaction("allocation-proxy", -100), { allocations })])
+            ).not.toThrow();
+            expect(
+                settle([runtimeTransaction(transaction("allocation-proxy", -100), { allocations })])
+                    .issues
+            ).toEqual([invalidContainerIssue("invalid-allocation", "allocation-proxy")]);
+            expect(() =>
+                settle(
+                    [transaction("ownership-proxy", -100, { allocations: { bob: 100 } })],
+                    baseAccounts(ownerships)
+                )
+            ).not.toThrow();
+            expect(
+                settle(
+                    [transaction("ownership-proxy", -100, { allocations: { bob: 100 } })],
+                    baseAccounts(ownerships)
+                ).issues
+            ).toEqual([invalidContainerIssue("invalid-ownership", "ownership-proxy")]);
+        }
+    );
+
+    it("rejects hidden financial values and unexpected symbols instead of plausible settlement", () => {
+        const hidden = {};
+        Object.defineProperty(hidden, "bob", { enumerable: false, value: 100 });
+        const symbol = Symbol("bob");
+        const symbolBearing = { alice: 100, [symbol]: 100 };
+
+        const hiddenResult = settle([
+            runtimeTransaction(transaction("hidden-allocation", -100), { allocations: hidden })
+        ]);
+        const symbolResult = settle(
+            [transaction("symbol-ownership", -100, { allocations: { bob: 100 } })],
+            baseAccounts(symbolBearing)
+        );
+
+        expect(hiddenResult.issues).toEqual([
+            invalidContainerIssue("invalid-allocation", "hidden-allocation")
+        ]);
+        expect(hiddenResult.qualifyingTransactionCount).toBe(0);
+        expect(hiddenResult.obligations).toEqual([]);
+        expect(symbolResult.issues).toEqual([
+            invalidContainerIssue("invalid-ownership", "symbol-ownership")
+        ]);
+        expect(symbolResult.qualifyingTransactionCount).toBe(0);
+    });
+
+    it("copies a transparent prototype-spoofed class through descriptors before calculation", () => {
+        const classValue = new BobAllocationEnvelope();
+        const allocations = new Proxy(classValue, {
+            get() {
+                throw new Error("unsafe class property access");
+            },
+            getPrototypeOf() {
+                return Object.prototype;
+            }
+        });
+
+        const result = settle([
+            runtimeTransaction(transaction("prototype-spoof", -100), { allocations })
+        ]);
+
+        expect(result.issues).toEqual([]);
+        expect(result.qualifyingTransactionCount).toBe(1);
+        expect(obligationShape(result)).toEqual([
+            {
+                amountMinor: 100,
+                creditorPersonId: "alice",
+                currency: "USD",
+                debtorPersonId: "bob"
+            }
+        ]);
+    });
+
+    it.each(["iterator", "index", "length"] as const)(
+        "does not use trapped %s access while traversing materialized hierarchy arrays",
+        (trap) => {
+            const input = transaction("array-trap", -100, { allocations: { bob: 100 } });
+            const years = throwingArrayProxy(
+                [
+                    {
+                        months: [
+                            {
+                                days: [{ day: 1, transactions: [input] }],
+                                month: 1
+                            }
+                        ],
+                        year: 2024
+                    }
+                ],
+                trap
+            );
+            const store = {
+                "account-a": { accountId: "account-a", years }
+            } as unknown as TransactionStore;
+
+            const result = settleStore(store);
+
+            expect(result.issues).toEqual([]);
+            expect(result.qualifyingTransactionCount).toBe(1);
+            expect(obligationShape(result)).toEqual([
+                {
+                    amountMinor: 100,
+                    creditorPersonId: "alice",
+                    currency: "USD",
+                    debtorPersonId: "bob"
+                }
+            ]);
+        }
+    );
+
+    it.each(["ownKeys", "descriptor"] as const)(
+        "rejects hierarchy arrays whose %s reflection traps",
+        (trap) => {
+            const years = throwingArrayProxy([], trap);
+            const store = {
+                "account-a": { accountId: "account-a", years }
+            } as unknown as TransactionStore;
+
+            expect(() => settleStore(store)).not.toThrow();
+            expect(settleStore(store).issues).toEqual([
+                {
+                    accountId: "account-a",
+                    hierarchyLevel: "years",
+                    hierarchyPath: "years",
+                    reason: "invalid-hierarchy",
+                    transactionId: "<transaction-store>",
+                    type: "invalid-transaction"
+                }
+            ]);
+        }
+    );
+
+    it("catches duplicate-list iterator, index and descriptor traps with transaction context", () => {
+        for (const trap of ["iterator", "index", "descriptor"] as const) {
+            const input = runtimeTransaction(transaction(`duplicates-${trap}`, -100), {
+                suspectedDuplicates: throwingArrayProxy(
+                    [nestedTransaction("nested-trap", -100)],
+                    trap
+                )
+            });
+
+            expect(() => settle([input])).not.toThrow();
+            expect(settle([input]).issues).toEqual([
+                {
+                    accountId: "account-a",
+                    reason: "invalid-duplicate-list",
+                    transactionId: `duplicates-${trap}`,
+                    type: "invalid-transaction"
+                }
+            ]);
+        }
+    });
+
+    it("generates reflection mechanisms and descriptor shapes beyond a finite object factory", () => {
+        fc.assert(
+            fc.property(
+                fc.string({ maxLength: 24, minLength: 1 }),
+                fc.integer({ max: 100, min: 0 }),
+                fc.boolean(),
+                fc.constantFrom("ownKeys", "descriptor", "accessor", "hidden", "symbol"),
+                (rawPersonId, percentage, ownershipBoundary, mechanism) => {
+                    const personId = rawPersonId === "__proto__" ? "generated-person" : rawPersonId;
+                    const target = Object.create(null) as Record<PropertyKey, unknown>;
+                    Object.defineProperty(target, personId, {
+                        configurable: true,
+                        enumerable: mechanism !== "hidden",
+                        value: percentage
+                    });
+                    let container: unknown = target;
+                    if (mechanism === "accessor") {
+                        Object.defineProperty(target, personId, {
+                            configurable: true,
+                            enumerable: true,
+                            get() {
+                                throw new Error("generated getter");
+                            }
+                        });
+                    } else if (mechanism === "symbol") {
+                        target[Symbol(rawPersonId)] = percentage;
+                    } else if (mechanism === "ownKeys" || mechanism === "descriptor") {
+                        container = throwingRecordProxy(target, mechanism);
+                    }
+                    const id = ownershipBoundary ? "generated-ownership" : "generated-allocation";
+                    const result = ownershipBoundary
+                        ? settle(
+                              [transaction(id, -100, { allocations: { bob: 100 } })],
+                              baseAccounts(container as Readonly<Record<string, unknown>>)
+                          )
+                        : settle([
+                              runtimeTransaction(transaction(id, -100), {
+                                  allocations: container
+                              })
+                          ]);
+
+                    expect(result.issues).toEqual([
+                        invalidContainerIssue(
+                            ownershipBoundary ? "invalid-ownership" : "invalid-allocation",
+                            id
+                        )
+                    ]);
+                    expect(result.qualifyingTransactionCount).toBe(0);
+                    expect(result.obligations).toEqual([]);
+                }
+            ),
+            { numRuns: 300, seed: 26072506 }
+        );
+    });
+});
+
 describe("hierarchical retained-topology eligibility", () => {
     const topologyIssue = (accountId: string, hierarchyLevel: string, hierarchyPath: string) => ({
         accountId,
@@ -886,6 +1294,42 @@ describe("hierarchical retained-topology eligibility", () => {
             default:
                 throw new Error(`Unknown hierarchy level ${level}`);
         }
+    };
+
+    const calendarStore = (
+        year: unknown,
+        month: unknown,
+        day: unknown,
+        options: {
+            readonly transactionAccountId?: unknown;
+            readonly treeAccountId?: unknown;
+            readonly treeKey?: string;
+        } = {}
+    ) => {
+        const treeKey = options.treeKey ?? "account-a";
+        const input = runtimeTransaction(
+            transaction("calendar", -100, { allocations: { bob: 100 } }),
+            {
+                accountId:
+                    "transactionAccountId" in options ? options.transactionAccountId : "account-a"
+            }
+        );
+        return {
+            [treeKey]: {
+                accountId: "treeAccountId" in options ? options.treeAccountId : "account-a",
+                years: [
+                    {
+                        months: [
+                            {
+                                days: [{ day, transactions: [input] }],
+                                month
+                            }
+                        ],
+                        year
+                    }
+                ]
+            }
+        } as unknown as TransactionStore;
     };
 
     it.each([null, 17, "legacy", [], new Map(), new Set(), new Date(0)])(
@@ -1032,6 +1476,142 @@ describe("hierarchical retained-topology eligibility", () => {
         expect(runtimeValueSnapshot(store)).toBe(before);
         assertFrozenGraph(result);
         expect(Object.isFrozen(store)).toBe(false);
+    });
+
+    it.each([
+        ["missing", undefined],
+        ["null", null],
+        ["number", 42],
+        ["empty", ""],
+        ["different", "other"]
+    ])("rejects %s account-tree accountId instead of falling back to its key", (_, accountId) => {
+        const store = calendarStore(2024, 1, 1, { treeAccountId: accountId });
+
+        const result = settleStore(store);
+
+        expect(result.issues).toEqual([
+            topologyIssue("account-a", "account-tree", "account-tree.accountId")
+        ]);
+        expect(result.qualifyingTransactionCount).toBe(0);
+        expect(result.obligations).toEqual([]);
+    });
+
+    it("rejects a retained transaction whose accountId disagrees with its canonical tree", () => {
+        const store = calendarStore(2024, 1, 1, {
+            transactionAccountId: "account-b"
+        });
+
+        const result = settleStore(store);
+
+        expect(result.issues).toEqual([
+            topologyIssue(
+                "account-a",
+                "transaction",
+                "years[].months[].days[].transactions[].accountId"
+            )
+        ]);
+        expect(result.qualifyingTransactionCount).toBe(0);
+        expect(result.obligations).toEqual([]);
+    });
+
+    it.each([
+        ["year NaN", Number.NaN, 1, 1, "year", "years[]"],
+        ["year positive infinity", Number.POSITIVE_INFINITY, 1, 1, "year", "years[]"],
+        ["year negative infinity", Number.NEGATIVE_INFINITY, 1, 1, "year", "years[]"],
+        ["year fraction", 2024.5, 1, 1, "year", "years[]"],
+        ["year negative zero", -0, 1, 1, "year", "years[]"],
+        ["year unsafe integer", Number.MAX_SAFE_INTEGER + 1, 1, 1, "year", "years[]"],
+        ["month zero", 2024, 0, 1, "month", "years[].months[]"],
+        ["month thirteen", 2024, 13, 1, "month", "years[].months[]"],
+        ["month fraction", 2024, 1.5, 1, "month", "years[].months[]"],
+        ["month negative zero", 2024, -0, 1, "month", "years[].months[]"],
+        ["day zero", 2024, 1, 0, "day", "years[].months[].days[]"],
+        ["day thirty two", 2024, 1, 32, "day", "years[].months[].days[]"],
+        ["day fraction", 2024, 1, 1.5, "day", "years[].months[].days[]"],
+        ["day negative zero", 2024, 1, -0, "day", "years[].months[].days[]"],
+        ["non-leap February", 2023, 2, 29, "day", "years[].months[].days[]"],
+        ["April thirty first", 2024, 4, 31, "day", "years[].months[].days[]"],
+        ["before supported range", -271821, 4, 18, "day", "years[].months[].days[]"],
+        ["after supported range", 275760, 9, 14, "day", "years[].months[].days[]"]
+    ] as const)(
+        "rejects invalid Gregorian discriminator: %s",
+        (_, year, month, day, level, path) => {
+            const result = settleStore(calendarStore(year, month, day));
+
+            expect(result.issues).toEqual([topologyIssue("account-a", level, path)]);
+            expect(result.qualifyingTransactionCount).toBe(0);
+            expect(result.obligations).toEqual([]);
+        }
+    );
+
+    it("accepts leap day and the temporal-polyfill supported calendar boundaries", () => {
+        for (const [year, month, day] of [
+            [2024, 2, 29],
+            [-271821, 4, 19],
+            [275760, 9, 13]
+        ] as const) {
+            const result = settleStore(calendarStore(year, month, day));
+
+            expect(result.issues).toEqual([]);
+            expect(result.qualifyingTransactionCount).toBe(1);
+            expect(obligationShape(result)).toEqual([
+                {
+                    amountMinor: 100,
+                    creditorPersonId: "alice",
+                    currency: "USD",
+                    debtorPersonId: "bob"
+                }
+            ]);
+        }
+    });
+
+    it("matches Temporal rejection for generated numeric hierarchy discriminators", () => {
+        const discriminator = fc.oneof(
+            fc.integer({ max: 300_000, min: -300_000 }),
+            fc.double({
+                max: 300_000,
+                min: -300_000,
+                noDefaultInfinity: true,
+                noNaN: true
+            }),
+            fc.constantFrom(
+                Number.NaN,
+                Number.POSITIVE_INFINITY,
+                Number.NEGATIVE_INFINITY,
+                -0,
+                Number.MAX_SAFE_INTEGER + 1
+            )
+        );
+        fc.assert(
+            fc.property(discriminator, discriminator, discriminator, (year, month, day) => {
+                const isComponent = (value: number) =>
+                    Number.isSafeInteger(value) && !Object.is(value, -0);
+                let validDate = false;
+                if (isComponent(year) && isComponent(month) && isComponent(day)) {
+                    try {
+                        Temporal.PlainDate.from({ day, month, year }, { overflow: "reject" });
+                        validDate = true;
+                    } catch {
+                        validDate = false;
+                    }
+                }
+                const result = settleStore(calendarStore(year, month, day));
+
+                if (validDate) {
+                    expect(result.issues).toEqual([]);
+                    expect(result.qualifyingTransactionCount).toBe(1);
+                    return;
+                }
+                const [level, path] = !isComponent(year)
+                    ? (["year", "years[]"] as const)
+                    : !isComponent(month)
+                      ? (["month", "years[].months[]"] as const)
+                      : (["day", "years[].months[].days[]"] as const);
+                expect(result.issues).toEqual([topologyIssue("account-a", level, path)]);
+                expect(result.qualifyingTransactionCount).toBe(0);
+            }),
+            { numRuns: 500, seed: 26072507 }
+        );
     });
 
     it("preserves valid siblings while reporting every mixed malformed hierarchy element", () => {
@@ -1887,7 +2467,7 @@ describe("runtime immutability and caller-input purity", () => {
         expect(JSON.stringify(statuses)).toBe(statusesBefore);
         expect(Object.isFrozen(transactions)).toBe(false);
         expect(Object.isFrozen(store)).toBe(false);
-        expect(Object.isFrozen(store.settlement)).toBe(false);
+        expect(Object.isFrozen(store["account-a"])).toBe(false);
         expect(Object.isFrozen(accounts)).toBe(false);
         expect(Object.isFrozen(statuses)).toBe(false);
     });
