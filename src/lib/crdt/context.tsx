@@ -919,6 +919,10 @@ import {
     insertTransaction as insertTx,
     type MoveTransactionInput,
     moveTransaction as moveTx,
+    type ReplaceTransactionAllocationsInput,
+    replaceTransactionAllocations as replaceAllocations,
+    type SetTransactionAllocationInput,
+    setTransactionAllocation as setAllocation,
     type SwapDuplicateInput,
     swapDuplicate as swapDup,
     type UnnestDuplicateInput,
@@ -941,6 +945,19 @@ export function useTransactionActions() {
 
     const updateTransaction = useInternalVaultAction(
         (state, input: UpdateTransactionInput) => updateDescriptionAliasedTransaction(state, input),
+        [],
+        "edit"
+    );
+
+    const setTransactionAllocation = useInternalVaultAction(
+        (state, input: SetTransactionAllocationInput) => setAllocation(state.transactions, input),
+        [],
+        "edit"
+    );
+
+    const replaceTransactionAllocations = useInternalVaultAction(
+        (state, input: ReplaceTransactionAllocationsInput) =>
+            replaceAllocations(state.transactions, input),
         [],
         "edit"
     );
@@ -983,6 +1000,8 @@ export function useTransactionActions() {
 
     return {
         insertTransaction,
+        replaceTransactionAllocations,
+        setTransactionAllocation,
         updateTransaction,
         moveTransaction,
         deleteTransaction,

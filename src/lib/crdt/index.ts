@@ -4,6 +4,18 @@
  * Loro CRDT integration for MoneyFlow vault state management.
  */
 
+export {
+    allocationPresenceField,
+    type AllocationBoundaryError,
+    type AllocationBoundaryResult,
+    type AllocationMutationSummary,
+    copyAllocationData,
+    prepareAllocationReplacement,
+    type ReplaceTransactionAllocationsInput,
+    replaceTransactionAllocations,
+    type SetTransactionAllocationInput,
+    setTransactionAllocation
+} from "./allocations";
 // React context and hooks
 export {
     type ApplicationVaultState,

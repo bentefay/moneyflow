@@ -34,6 +34,7 @@ export type DescriptionAliasMutationErrorCode =
     | "duplicate-name"
     | "empty-name"
     | "invalid-symlink-backlink"
+    | "invalid-transaction-allocations"
     | "same-alias"
     | "stale-alias"
     | "transaction-id-conflict"
@@ -423,7 +424,7 @@ export function insertManualDescriptionAliasedTransaction(
         return err("transaction-id-conflict", `Transaction ${input.transaction.id} already exists`);
     }
 
-    insertTransaction(state.transactions, {
+    const insertion = insertTransaction(state.transactions, {
         transaction: {
             ...input.transaction,
             description: "",
@@ -432,6 +433,12 @@ export function insertManualDescriptionAliasedTransaction(
             originalAmount: undefined
         }
     });
+    if (!insertion.ok) {
+        return err(
+            "invalid-transaction-allocations",
+            `Transaction allocations were rejected: ${insertion.error.type}`
+        );
+    }
     const transaction = findTransactionInStore(state.transactions, location);
     if (!transaction) throw new Error("Inserted manual transaction is missing from the draft");
 
@@ -628,6 +635,12 @@ export function updateDescriptionAliasedTransaction(
     state: VaultState,
     input: UpdateTransactionInput
 ): DescriptionAliasMutationResult<undefined> {
+    if (Object.prototype.hasOwnProperty.call(input.updates, "allocations")) {
+        return err(
+            "invalid-transaction-allocations",
+            "Use the dedicated allocation mutation boundary"
+        );
+    }
     const transaction = findTransactionInStore(state.transactions, input.location);
     if (!transaction) return err("transaction-not-found", "Transaction does not exist");
 

@@ -9,6 +9,14 @@
 
 import { Temporal } from "temporal-polyfill";
 
+import {
+    allocationPresenceField,
+    copyAllocationData,
+    prepareInsertedAllocations,
+    replaceTransactionAllocations,
+    setTransactionAllocation,
+    type AllocationBoundaryResult
+} from "./allocations";
 import { compareTransactionOrder } from "./queries";
 import { isPublicTransaction } from "./schema";
 import type {
@@ -90,6 +98,7 @@ export interface UpdateTransactionInput {
             | "originalAmount"
             | "creationInstant"
             | "importRowIndex"
+            | "allocations"
         >
     >;
 }
@@ -311,8 +320,31 @@ export function pruneBuckets(
  * Creates intermediate buckets (year/month/day) as needed.
  * Inserts at correct sorted position within day bucket.
  */
-export function insertTransaction(store: TransactionStore, input: InsertTransactionInput): void {
+export function insertTransaction(
+    store: TransactionStore,
+    input: InsertTransactionInput
+): AllocationBoundaryResult {
     const { transaction, suspectedDuplicateOf } = input;
+    const preparedAllocations = prepareInsertedAllocations(transaction.allocations);
+    if (!preparedAllocations.ok) return preparedAllocations;
+    const preparedDuplicates: NestedDuplicateInput[] = [];
+    for (const duplicate of transaction.suspectedDuplicates ?? []) {
+        const duplicateAllocations = prepareInsertedAllocations(duplicate.allocations);
+        if (!duplicateAllocations.ok) return duplicateAllocations;
+        preparedDuplicates.push({
+            ...duplicate,
+            allocations: Object.fromEntries(
+                Object.entries(duplicateAllocations.value)
+            ) as unknown as NestedDuplicateInput["allocations"]
+        });
+    }
+    const preparedTransaction = {
+        ...transaction,
+        allocations: Object.fromEntries(
+            Object.entries(preparedAllocations.value)
+        ) as unknown as InsertTransactionInput["transaction"]["allocations"],
+        suspectedDuplicates: preparedDuplicates
+    };
 
     // If nesting as duplicate, find parent and add to its suspectedDuplicates
     if (suspectedDuplicateOf) {
@@ -320,47 +352,68 @@ export function insertTransaction(store: TransactionStore, input: InsertTransact
         const parentTx = findParentTransaction(store, suspectedDuplicateOf);
         if (parentTx) {
             const duplicate: NestedDuplicateInput = {
-                id: transaction.id,
-                date: transaction.date,
-                description: transaction.description,
-                descriptionAliasId: transaction.descriptionAliasId,
-                notes: transaction.notes,
-                amount: transaction.amount,
-                originalAmount: transaction.originalAmount,
-                accountId: transaction.accountId,
-                tagIds: transaction.tagIds,
-                statusId: transaction.statusId,
-                importId: transaction.importId,
-                allocations: transaction.allocations,
-                creationInstant: transaction.creationInstant,
-                importRowIndex: transaction.importRowIndex,
-                deletedAt: transaction.deletedAt
+                id: preparedTransaction.id,
+                date: preparedTransaction.date,
+                description: preparedTransaction.description,
+                descriptionAliasId: preparedTransaction.descriptionAliasId,
+                notes: preparedTransaction.notes,
+                amount: preparedTransaction.amount,
+                originalAmount: preparedTransaction.originalAmount,
+                accountId: preparedTransaction.accountId,
+                tagIds: preparedTransaction.tagIds,
+                statusId: preparedTransaction.statusId,
+                importId: preparedTransaction.importId,
+                allocations: preparedTransaction.allocations,
+                creationInstant: preparedTransaction.creationInstant,
+                importRowIndex: preparedTransaction.importRowIndex,
+                deletedAt: preparedTransaction.deletedAt
             };
             if (!parentTx.suspectedDuplicates) {
                 (parentTx as { suspectedDuplicates: NestedDuplicate[] }).suspectedDuplicates = [];
             }
             parentTx.suspectedDuplicates.push(withCid(duplicate));
-            return;
+            return Object.freeze({
+                ok: true,
+                value: Object.freeze({ affectedTransactions: 1, changed: true })
+            });
         }
         // If parent not found, insert as standalone
     }
 
     // Get or create the bucket path
-    const { year, month, day } = transaction.date;
-    const tree = getOrCreateAccountTree(store, transaction.accountId);
+    const { year, month, day } = preparedTransaction.date;
+    const tree = getOrCreateAccountTree(store, preparedTransaction.accountId);
     const yearBucket = getOrCreateYearBucket(tree, year);
     const monthBucket = getOrCreateMonthBucket(yearBucket, month);
     const dayBucket = getOrCreateDayBucket(monthBucket, day);
 
     // Create full transaction with empty suspectedDuplicates if not provided
     const fullTransaction: TransactionInput = {
-        ...transaction,
-        suspectedDuplicates: transaction.suspectedDuplicates ?? []
+        ...preparedTransaction,
+        suspectedDuplicates: preparedTransaction.suspectedDuplicates
     };
 
     // Insert at correct sorted position
-    const insertIndex = findTransactionInsertIndex(dayBucket.transactions, transaction);
+    const insertIndex = findTransactionInsertIndex(dayBucket.transactions, preparedTransaction);
     dayBucket.transactions.splice(insertIndex, 0, withCid(fullTransaction));
+    return Object.freeze({
+        ok: true,
+        value: Object.freeze({ affectedTransactions: 1, changed: true })
+    });
+}
+
+/**
+ * Insert a previously stored structural copy without revalidating legacy allocation values.
+ * Only move/swap/unnest/import-preservation flows call this private boundary.
+ */
+function insertStoredTransaction(store: TransactionStore, transaction: TransactionInput): void {
+    const { year, month, day } = transaction.date;
+    const tree = getOrCreateAccountTree(store, transaction.accountId);
+    const yearBucket = getOrCreateYearBucket(tree, year);
+    const monthBucket = getOrCreateMonthBucket(yearBucket, month);
+    const dayBucket = getOrCreateDayBucket(monthBucket, day);
+    const insertIndex = findTransactionInsertIndex(dayBucket.transactions, transaction);
+    dayBucket.transactions.splice(insertIndex, 0, withCid(transaction));
 }
 
 /**
@@ -469,7 +522,7 @@ function applyMutableTransactionUpdates(
         transaction.originalAmount = transaction.amount;
     }
     for (const [key, value] of Object.entries(updates)) {
-        if (key !== "description" && key !== "descriptionAliasId") {
+        if (key !== "allocations" && key !== "description" && key !== "descriptionAliasId") {
             Reflect.set(transaction, key, value);
         }
     }
@@ -508,7 +561,7 @@ export function moveTransaction(store: TransactionStore, input: MoveTransactionI
 
     movedTransaction.date = newDate;
     movedTransaction.accountId = newAccountId ?? movedTransaction.accountId;
-    insertTransaction(store, { transaction: movedTransaction });
+    insertStoredTransaction(store, movedTransaction);
 }
 
 function comparePhysicalIdentity(
@@ -541,11 +594,7 @@ function physicalIdentityKey(transaction: Transaction | NestedDuplicate): string
 function copyAllocations(
     allocations: Transaction["allocations"] | NestedDuplicate["allocations"]
 ): TransactionInput["allocations"] {
-    const copy: TransactionInput["allocations"] = {};
-    for (const [personId, percentage] of Object.entries(allocations)) {
-        if (personId !== "$cid" && typeof percentage === "number") copy[personId] = percentage;
-    }
-    return copy;
+    return copyAllocationData(allocations) as TransactionInput["allocations"];
 }
 
 function copyTransaction(transaction: Transaction): TransactionInput {
@@ -685,12 +734,9 @@ export function unnestDuplicate(store: TransactionStore, input: UnnestDuplicateI
     }
 
     // Insert as standalone transaction at its own date
-    insertTransaction(store, {
-        transaction: {
-            ...duplicate,
-            descriptionAliasId: duplicate.descriptionAliasId,
-            suspectedDuplicates: []
-        }
+    insertStoredTransaction(store, {
+        ...copyNestedDuplicate(duplicate),
+        suspectedDuplicates: []
     });
 }
 
@@ -749,7 +795,7 @@ export function swapDuplicate(store: TransactionStore, input: SwapDuplicateInput
         tagIds: [...parentTx.tagIds],
         statusId: parentTx.statusId,
         importId: parentTx.importId,
-        allocations: { ...parentTx.allocations },
+        allocations: copyAllocations(parentTx.allocations),
         creationInstant: parentTx.creationInstant,
         importRowIndex: parentTx.importRowIndex,
         deletedAt: parentTx.deletedAt
@@ -772,7 +818,7 @@ export function swapDuplicate(store: TransactionStore, input: SwapDuplicateInput
                 tagIds: [...d.tagIds],
                 statusId: d.statusId,
                 importId: d.importId,
-                allocations: { ...d.allocations },
+                allocations: copyAllocations(d.allocations),
                 creationInstant: d.creationInstant,
                 importRowIndex: d.importRowIndex,
                 deletedAt: d.deletedAt
@@ -780,25 +826,23 @@ export function swapDuplicate(store: TransactionStore, input: SwapDuplicateInput
     ];
 
     // Insert new parent as standalone at its own date with all duplicates
-    insertTransaction(store, {
-        transaction: {
-            id: newParent.id,
-            date: newParent.date,
-            description: newParent.description,
-            descriptionAliasId: newParent.descriptionAliasId,
-            notes: newParent.notes,
-            amount: newParent.amount,
-            originalAmount: newParent.originalAmount,
-            accountId: newParent.accountId,
-            tagIds: [...newParent.tagIds],
-            statusId: newParent.statusId,
-            importId: newParent.importId,
-            allocations: { ...newParent.allocations },
-            creationInstant: newParent.creationInstant,
-            importRowIndex: newParent.importRowIndex,
-            deletedAt: newParent.deletedAt,
-            suspectedDuplicates: allDuplicates.map((d) => withCid(d))
-        }
+    insertStoredTransaction(store, {
+        id: newParent.id,
+        date: newParent.date,
+        description: newParent.description,
+        descriptionAliasId: newParent.descriptionAliasId,
+        notes: newParent.notes,
+        amount: newParent.amount,
+        originalAmount: newParent.originalAmount,
+        accountId: newParent.accountId,
+        tagIds: [...newParent.tagIds],
+        statusId: newParent.statusId,
+        importId: newParent.importId,
+        allocations: copyAllocations(newParent.allocations),
+        creationInstant: newParent.creationInstant,
+        importRowIndex: newParent.importRowIndex,
+        deletedAt: newParent.deletedAt,
+        suspectedDuplicates: allDuplicates.map((d) => withCid(d))
     });
 
     // Prune empty buckets from old parent location
@@ -862,11 +906,9 @@ export function deleteTransactionsByImport(store: TransactionStore, importId: st
         comparePhysicalIdentity
     )) {
         if (findTransactionByIdInStore(store, transaction.id)) continue;
-        insertTransaction(store, {
-            transaction: {
-                ...copyNestedDuplicate(transaction),
-                suspectedDuplicates: []
-            }
+        insertStoredTransaction(store, {
+            ...copyNestedDuplicate(transaction),
+            suspectedDuplicates: []
         });
     }
 
@@ -899,3 +941,12 @@ function findTransactionByIdInStore(
     }
     return undefined;
 }
+
+export { allocationPresenceField, replaceTransactionAllocations, setTransactionAllocation };
+export type {
+    AllocationBoundaryError,
+    AllocationBoundaryResult,
+    AllocationMutationSummary,
+    ReplaceTransactionAllocationsInput,
+    SetTransactionAllocationInput
+} from "./allocations";

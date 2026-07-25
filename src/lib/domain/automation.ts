@@ -8,8 +8,19 @@
 import { Temporal } from "temporal-polyfill";
 
 import type { ActionData, ConditionData } from "@/components/features/automations";
+import {
+    copyAllocationData,
+    prepareAllocationReplacement,
+    replaceTransactionAllocations,
+    type AllocationBoundaryResult
+} from "@/lib/crdt/allocations";
 import { DEFAULT_AUTOMATION_ORDER } from "@/lib/crdt/defaults";
-import type { Automation, Transaction } from "@/lib/crdt/schema";
+import {
+    findTransactionInStore,
+    type TransactionLocation,
+    updateTransaction
+} from "@/lib/crdt/mutations";
+import type { Automation, Transaction, TransactionStore } from "@/lib/crdt/schema";
 
 /**
  * Result of applying an automation to a transaction.
@@ -33,6 +44,41 @@ export interface TransactionChanges {
     tagIds?: string[];
     statusId?: string;
     allocations?: Record<string, number>;
+}
+
+type PreparedActionsResult =
+    | { readonly changes: TransactionChanges; readonly ok: true }
+    | { readonly error: string; readonly ok: false };
+
+function prepareActions(actions: ActionData[]): PreparedActionsResult {
+    let allocations: Record<string, number> | undefined;
+    for (const action of actions) {
+        if (action.type !== "setAllocation") continue;
+        const prepared = prepareAllocationReplacement(action.value);
+        if (!prepared.ok) {
+            return {
+                error: `Invalid allocation action: ${prepared.error.type}`,
+                ok: false
+            };
+        }
+        allocations = Object.fromEntries(Object.entries(prepared.value));
+    }
+
+    const changes: TransactionChanges = {};
+    for (const action of actions) {
+        switch (action.type) {
+            case "setTags":
+                if (Array.isArray(action.value)) changes.tagIds = [...(action.value as string[])];
+                break;
+            case "setStatus":
+                if (typeof action.value === "string") changes.statusId = action.value;
+                break;
+            case "setAllocation":
+                break;
+        }
+    }
+    if (allocations !== undefined) changes.allocations = allocations;
+    return { changes, ok: true };
 }
 
 /**
@@ -119,29 +165,8 @@ export function applyActions(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     transaction: Transaction
 ): TransactionChanges {
-    const changes: TransactionChanges = {};
-
-    for (const action of actions) {
-        switch (action.type) {
-            case "setTags":
-                if (Array.isArray(action.value)) {
-                    changes.tagIds = action.value as string[];
-                }
-                break;
-            case "setStatus":
-                if (typeof action.value === "string") {
-                    changes.statusId = action.value;
-                }
-                break;
-            case "setAllocation":
-                if (typeof action.value === "object" && action.value !== null) {
-                    changes.allocations = action.value as Record<string, number>;
-                }
-                break;
-        }
-    }
-
-    return changes;
+    const prepared = prepareActions(actions);
+    return prepared.ok ? prepared.changes : {};
 }
 
 /**
@@ -167,11 +192,19 @@ export function evaluateAutomation(
 
     // Apply actions
     const actions = (automation.actions ?? []) as ActionData[];
-    const changes = applyActions(actions, transaction);
+    const prepared = prepareActions(actions);
+    if (!prepared.ok) {
+        return {
+            matched: true,
+            changes: {},
+            automationId: automation.id,
+            error: prepared.error
+        };
+    }
 
     return {
         matched: true,
-        changes,
+        changes: prepared.changes,
         automationId: automation.id
     };
 }
@@ -216,7 +249,7 @@ export function applyAutomationsToTransactions(
 
     for (const transaction of transactions) {
         const result = evaluateAutomations(sortedAutomations, transaction);
-        if (result.matched && result.automationId) {
+        if (result.matched && result.automationId && !result.error) {
             results.set(transaction.id, {
                 changes: result.changes,
                 automationId: result.automationId
@@ -290,11 +323,14 @@ export function createAutomationFromTransaction(
 
     const allocations = transaction.allocations;
     if (allocations && typeof allocations === "object" && Object.keys(allocations).length > 0) {
-        actions.push({
-            id: crypto.randomUUID(),
-            type: "setAllocation",
-            value: { ...allocations }
-        });
+        const prepared = prepareAllocationReplacement(allocations);
+        if (prepared.ok) {
+            actions.push({
+                id: crypto.randomUUID(),
+                type: "setAllocation",
+                value: Object.fromEntries(Object.entries(prepared.value))
+            });
+        }
     }
 
     return {
@@ -347,7 +383,7 @@ export function createAutomationApplication(
     if (changes.allocations !== undefined) {
         const allocations = transaction.allocations;
         previousValues.allocations =
-            allocations && typeof allocations === "object" ? { ...allocations } : {};
+            allocations && typeof allocations === "object" ? copyAllocationData(allocations) : {};
     }
 
     return {
@@ -382,6 +418,65 @@ export function getUndoChanges(application: AutomationApplicationData): Transact
 }
 
 /**
+ * Apply or restore automation changes to one logical CRDT transaction in a caller-owned action.
+ * Allocation and current-state validation occurs before any unrelated field is touched.
+ */
+export function applyAutomationChanges(
+    store: TransactionStore,
+    location: TransactionLocation,
+    changes: TransactionChanges
+): AllocationBoundaryResult {
+    const transaction = findTransactionInStore(store, location);
+    if (!transaction) {
+        return Object.freeze({
+            error: Object.freeze({ type: "transaction-not-found" as const }),
+            ok: false as const
+        });
+    }
+
+    let preparedAllocations: Record<string, number> | undefined;
+    if (changes.allocations !== undefined) {
+        const current = prepareAllocationReplacement(transaction.allocations);
+        if (!current.ok) return current;
+        const prepared = prepareAllocationReplacement(changes.allocations);
+        if (!prepared.ok) return prepared;
+        preparedAllocations = Object.fromEntries(Object.entries(prepared.value));
+    }
+
+    let allocationResult: AllocationBoundaryResult | undefined;
+    if (preparedAllocations !== undefined) {
+        allocationResult = replaceTransactionAllocations(store, {
+            allocations: preparedAllocations,
+            location
+        });
+        if (!allocationResult.ok) return allocationResult;
+    }
+
+    updateTransaction(store, {
+        location,
+        updates: {
+            ...(changes.statusId !== undefined ? { statusId: changes.statusId } : {}),
+            ...(changes.tagIds !== undefined ? { tagIds: [...changes.tagIds] } : {})
+        }
+    });
+    return (
+        allocationResult ??
+        Object.freeze({
+            ok: true as const,
+            value: Object.freeze({ affectedTransactions: 1, changed: true })
+        })
+    );
+}
+
+export function restoreAutomationApplication(
+    store: TransactionStore,
+    location: TransactionLocation,
+    application: AutomationApplicationData
+): AllocationBoundaryResult {
+    return applyAutomationChanges(store, location, getUndoChanges(application));
+}
+
+/**
  * Result of applying automations to transactions during import.
  */
 export interface ApplyAutomationsResult {
@@ -411,7 +506,7 @@ export function applyAutomationsWithTracking(
 
     for (const transaction of transactions) {
         const result = evaluateAutomations(sortedAutomations, transaction);
-        if (result.matched && result.automationId) {
+        if (result.matched && result.automationId && !result.error) {
             // Record the application for undo
             const application = createAutomationApplication(
                 transaction.id,
