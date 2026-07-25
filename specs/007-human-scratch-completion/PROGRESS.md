@@ -49,7 +49,7 @@ review evidence.
 | P16A    | FS-001, HS-009 | Allocation/ownership validation, remainder/effective shares and exact apportionment | P01                  | passed | 02 | `1b42d27e11494a167a4768e0c2c308010aa51651..f84f66758708529c44342313e8632ee8b7dcead3` | `evidence/P16A/implementation-02.md` | `reviews/P16A-review-02.md` | `41f5760f77c1a93ab650a93912bfaf3c0b627ab0` |
 | P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | passed | 05 | `4c102600240e2804b801c2a320e10164defb14ea..46d8f9feb79c6dfc080c0869922fb8cd4c20ec6c` | `evidence/P16B/implementation-05.md` | `reviews/P16B-review-05.md` | `136678a0ac864cf2d120b2b5b896d4fadcabcdd1` |
 | P16C    | FS-001, HS-009 | CRDT per-key/complete-set APIs and every mutation, hydration and history path       | P16A, P16B, P09, P14 | passed | 02 | `0a7c9a49722ddc4d955f910af6dbb19cfffbd600..207e8c5758a48e66980b95eaeff51c0e5a605f7e` | `evidence/P16C/implementation-02.md` | `reviews/P16C-review-02.md` | `e0f06f7fb60ce08ef2f75b0a9ca7769630a2a55c` |
-| P16D    | FS-001, HS-009 | Actual grid/add-row person columns, virtualization, history and presence UX         | P16C, P13            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
+| P16D    | FS-001, HS-009 | Actual grid/add-row person columns, virtualization, history and presence UX         | P16C, P13            | implementing | 01  | `3a5081ac37e09817e0d02ae8799469d1bf09dad5..pending`                                  | `evidence/P16D/implementation-01.md` | pending                    | —                                          |
 | P16E    | FS-001         | People obligations/issues/source UX plus full integration, E2E, manual and perf     | P16D, P08, P11C      | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P17A    | HS-007         | Automation schema/migration, exact matcher, precedence, preferences, import engine  | P11C, P14, P16E      | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P17B    | HS-007         | Shared rule editor and automations-page UX                                          | P17A, P02            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -3059,6 +3059,22 @@ invalid-legacy structural preservation required by P16D/P16E. This package alone
 first-class requirement: HS-009 still requires P16D and remains unchecked, while FS-001 still
 requires P16D/P16E and its canonical source remains byte-identical. No scratch marker is authorized.
 P16D is dependency-ready.
+
+**2026-07-25T16:54:41+10:00 — P16D/01 `queued -> implementing`:** P16C/02 and P13/02 are passed.
+Literal cumulative BASE and clean pre-product HEAD is
+`3a5081ac37e09817e0d02ae8799469d1bf09dad5`; sole implementer artifact is
+`evidence/P16D/implementation-01.md` and future immutable review is
+`reviews/P16D-review-01.md`. Exact authority is limited to the transaction page, table/row/dynamic
+column model/one-Person cell/barrels and four enumerated real-grid/virtualization/navigation/E2E
+test owners. Revision 01 must surface stable active/deleted/missing Person columns in the actual
+virtualized grid and manual add row, share one computed template across header/data/notes, preserve
+horizontal alignment/focus/virtualization, distinguish explicit/effective/remainder and route
+valid signed-decimal edits exclusively through P16C. Invalid drafts and legacy values remain local
+or surfaced without commit/repair-by-render; zero removes one key. Person field identity is exact
+`allocation:<personId>`, while the still-pending P10 encrypted field-presence transport may neither
+be invented nor falsely claimed. Real two-peer value convergence, undo/refresh, accessibility,
+manual/browser/privacy and `<100ms` interaction gates are mandatory. Reviewer is undispatched.
+HS-009 remains unchecked and FS-001 immutable/open; no marker is authorized.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
