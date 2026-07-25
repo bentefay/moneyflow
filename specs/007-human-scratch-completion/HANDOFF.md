@@ -7,7 +7,7 @@ Root rewrites this compact file for one package/revision. Workers may read but n
 - **Package / revision:** P16B / 04
 - **Scope ID:** FS-001; this revision closes only residual P16B review-03 F-04/F-05 while preserving
   every independently proven settlement invariant. FS-001 remains incomplete.
-- **State:** reviewing revision-04 frozen implementation
+- **State:** changes requested after immutable revision-04 FAIL; failure integration pending
 - **Binding task:** `tasks/FS-001-transaction-percentage-allocations-settlement.md` P16B
 - **Canonical authority:** all 715 immutable lines of
   `specs/008-transaction-percentage-allocations-settlement/spec.md`
@@ -29,7 +29,9 @@ Root rewrites this compact file for one package/revision. Workers may read but n
   (complete snapshot/identity/calendar) and `3d2a51e56060388c4d34f6181eb2d806d8259bb6`
   (real Loro-mirror metadata)
 - **Revision-04 product/test HEAD:** `e09eb6bdbbfd796d970d85ef36c212795bcb4912`
-- **Future immutable revision-04 review artifact:** `reviews/P16B-review-04.md`
+- **Immutable revision-04 review artifact:** `reviews/P16B-review-04.md`, FAIL, SHA-256
+  `8cc169c08f6c87fc16eec1fa3c6615b033abd291faaa0969619230558949b241`, 403 lines /
+  24,640 bytes
 - **Allowed revision-04 product/test paths:** exactly
   `src/lib/domain/settlement.ts` and `tests/unit/domain/settlement.test.ts`.
 - **Forbidden writes:** every caller/component including BalanceSummary, balance/barrel/PeopleTable,
@@ -125,7 +127,7 @@ Root rewrites this compact file for one package/revision. Workers may read but n
 
 ## Independent review contract
 
-- **Reviewer:** distinct `human_scratch_reviewer`, dispatched only after revision-04 evidence freeze
+- **Reviewer:** distinct `human_scratch_reviewer`, completed after revision-04 evidence freeze
   commit `86dd6fc63a8476bd9aaf3a6b56f1571240803f45`
 - **Literal cumulative review BASE:** `4c102600240e2804b801c2a320e10164defb14ea`
 - **Literal revision-04 product/test HEAD:** `e09eb6bdbbfd796d970d85ef36c212795bcb4912`
@@ -139,8 +141,12 @@ Root rewrites this compact file for one package/revision. Workers may read but n
   mechanisms/oracles, browser/manual/cleanup and Q proposals. Any trap escape, later access to an
   untrusted envelope, hidden plausible value loss, invalid identity/date contribution, issue-free
   plausible invalid total or preservation regression fails.
+- **Actual verdict:** FAIL. F-06 proves `recordFromLoroMap` skips every string-valued account/status
+  entry instead of only exact `$cid`, allowing missing contextual issues and issue-free plausible
+  valid-sibling totals. Revision-03 F-04/F-05 and every preserved core/gate pass independently.
 
 ## Next root action
 
-Await the distinct `human_scratch_reviewer` verdict over the literal cumulative range and sole
-review output. Keep HS-009 unchanged and FS-001 immutable/open.
+Persist the immutable revision-04 FAIL, transcribe F-06 to risks and package state, then prepare
+P16B revision 05 over the same original cumulative BASE. Keep HS-009 unchanged and FS-001
+immutable/open.
