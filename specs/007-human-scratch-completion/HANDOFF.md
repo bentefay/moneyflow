@@ -1,135 +1,190 @@
 # Current Package Handoff
 
-Root rewrites this compact file for one package/revision. Workers may read but never edit it.
+Root rewrites this compact file for one package/revision. It is not a dispatch while an applicable
+literal field is `pending`. Workers may read but never edit it.
 
 ## Implementation dispatch
 
-- **Package / revision:** P16B / 05
-- **Scope ID:** FS-001; this revision closes only P16B review-04 F-06 while preserving every
-  independently proven revision-04 settlement invariant. FS-001 remains incomplete.
-- **State:** passed at exact reviewed revision-05 product/test HEAD
-- **Binding task:** `tasks/FS-001-transaction-percentage-allocations-settlement.md` P16B
-- **Canonical authority:** all 715 immutable lines of
-  `specs/008-transaction-percentage-allocations-settlement/spec.md`
-- **Dependency:** P16A/02 passed
-- **Literal original cumulative review BASE:** `4c102600240e2804b801c2a320e10164defb14ea`
-- **Revision-04 product/test HEAD:** `e09eb6bdbbfd796d970d85ef36c212795bcb4912`
-- **Frozen revision-04 implementer artifact:** `evidence/P16B/implementation-04.md`, SHA-256
-  `a49c3f89693fae09e7b176612e11c57c416814ecb531313ac6ffa7c4882ab001`, 283 lines /
-  19,250 bytes
-- **Revision-04 red-test checkpoints:** `0d96c25c50f86590c5c7df3dccc8370ea247e9e3`
-  (complete snapshot/identity/calendar) and `3d2a51e56060388c4d34f6181eb2d806d8259bb6`
-  (real Loro-mirror metadata)
-- **Immutable revision-04 review artifact:** `reviews/P16B-review-04.md`, FAIL, SHA-256
-  `8cc169c08f6c87fc16eec1fa3c6615b033abd291faaa0969619230558949b241`, 403 lines /
-  24,640 bytes
-- **Revision-04 failure integration / clean pre-revision HEAD:**
-  `618254f1f381cd1e4dfb68a9258cccb667a0c838`
-- **Frozen revision-05 implementer artifact:** `evidence/P16B/implementation-05.md`, SHA-256
-  `85bc279f87c02cbadedd5c2964cf72886fde2081903d8343a966cbf9c2b42e43`, 245 lines /
-  15,982 bytes
-- **Revision-05 red-test checkpoint:** `b3e0235a8e7a1a2d15f45fb3c92ef85831d92c7d`
-- **Revision-05 product/test HEAD:** `46d8f9feb79c6dfc080c0869922fb8cd4c20ec6c`
-- **Immutable revision-05 review artifact:** `reviews/P16B-review-05.md`, PASS, SHA-256
-  `edf379ab4d9c0d1dc64d158fdbc14caad06fcefe89eb6985ea14972321b3108e`, 340 lines /
-  22,883 bytes
-- **Allowed revision-05 product/test paths:** exactly
-  `src/lib/domain/settlement.ts` and `tests/unit/domain/settlement.test.ts`.
-- **Forbidden writes:** every caller/component including BalanceSummary, balance/barrel/PeopleTable,
-  every other product/test path, CRDT/schema/query/mutation owners, E2E, dependencies/configuration,
-  tasks/specs, prior P16 artifacts, scratch, canonical FS-001, SCOPE, ledgers, `.claude`, `.codex`,
-  agent configuration and future review. Report a reproducible blocker before root considers
-  expansion.
-- **Commit contract:** create the sole evidence before test/product edits; stage/commit only the
-  exact two authorized product/test paths with a no-parentheses message; leave evidence uncommitted.
-  Never use `git add .` or `git add -A`.
+- **Package / revision:** P16C / 01
+- **Scope IDs:** FS-001 and HS-009; this package owns CRDT allocation mutation boundaries,
+  concurrency, persistence, structural preservation and every current non-visual write/restore/
+  hydration path. Neither requirement can complete from P16C alone.
+- **State:** implementing after the current root control commit; reviewer is undispatched
+- **Binding tasks:** `tasks/FS-001-transaction-percentage-allocations-settlement.md` P16C and
+  `tasks/HS-009-allocation-bounds.md` P16C
+- **Canonical authority:** read all 715 immutable lines of
+  `specs/008-transaction-percentage-allocations-settlement/spec.md`; its per-key merge, atomic
+  complete-set, reject-only, legacy-retention and preservation rules are binding
+- **Dependencies:** P16A/02, P16B/05, P09/02 and P14/04 passed
+- **Literal original cumulative review BASE / clean pre-product HEAD:**
+  `0a7c9a49722ddc4d955f910af6dbb19cfffbd600`
+- **Sole implementer artifact:** `evidence/P16C/implementation-01.md`
+- **Future immutable review artifact:** `reviews/P16C-review-01.md`
+- **Implementation-start boundary:** clean HEAD/index/worktree; P16B/05 is fully integrated and its
+  immutable evidence/review plus settlement owner are preservation authority
+- **Allowed product paths:** exactly
+  `src/lib/crdt/allocations.ts` (new dedicated owner if used),
+  `src/lib/crdt/mutations.ts`,
+  `src/lib/crdt/context.tsx`,
+  `src/lib/crdt/index.ts`,
+  `src/lib/crdt/mirror.ts`,
+  `src/lib/crdt/migration.ts`,
+  `src/lib/crdt/schema.ts`,
+  `src/lib/crdt/description-aliases.ts`,
+  `src/lib/domain/automation.ts`,
+  `src/app/(app)/transactions/page.tsx` and
+  `src/app/(app)/imports/new/page.tsx`.
+- **Allowed test paths:** exactly
+  `tests/integration/allocation-crdt.test.ts` (new canonical integration owner if used),
+  `tests/unit/crdt/transaction-mutations.test.ts`,
+  `tests/unit/crdt/hierarchical-schema.test.ts`,
+  `tests/unit/crdt/sync.test.ts`,
+  `tests/unit/crdt/undo.test.tsx`,
+  `tests/unit/domain/automation.test.ts`,
+  `tests/integration/transaction-operations.test.ts`,
+  `tests/integration/automation.test.ts`,
+  `tests/integration/import.test.ts` and
+  `tests/integration/vault-provider-allocation-repair.test.ts` (new hydration owner if used).
+  Existing E2E is read-only. Do not edit all authorized paths by default; use only proven owners.
+  Report a reproducible owner blocker before root considers any expansion.
+- **Forbidden writes:** every other product/test path, P16A/P16B product or artifact, settlement/
+  ownership/allocation-domain owners, dependencies/configuration, tasks/specs, scratch, canonical
+  FS-001, SCOPE, ledgers, `.claude`, `.codex`, agent configuration and future review. Report guide/
+  risk/question transcription for root rather than editing it.
+- **Commit contract:** create the sole evidence before test/product edits. Stage and commit only
+  exact authorized test paths for the RED checkpoint, then only exact authorized product/test paths
+  for GREEN with short messages containing no parentheses. Leave
+  `evidence/P16C/implementation-01.md` uncommitted. Never use `git add .` or `git add -A`.
 
-## Required F-06 closure — only exact `$cid` is collection metadata
+## Required implementation
 
-- In `recordFromLoroMap`, skip only the exact sanctioned `$cid` collection key. Every other account
-  or status entry, including every primitive string, must enter the existing exception-safe
-  entry-snapshot/validation path and emit the stable contextual `account` or `status` hierarchy
-  issue when invalid.
-- Preserve exact initialized-Loro mirror compatibility: the root non-enumerable string `$cid`
-  remains accepted, never becomes a false hierarchy issue and is not generalized into a
-  type-based metadata exemption.
-- Check in direct red tests against byte-identical revision-04 production for all four exact review
-  reproductions: referenced string account, referenced string status, unreferenced string account
-  beside a valid branch and unreferenced string status beside a valid branch. Assert complete issue
-  type/context, affected-transaction atomic exclusion, valid-sibling financial preservation only
-  under an incomplete result, deterministic issue order, frozen output and unchanged/unfrozen
-  caller input.
-- Add a fixed-seed mechanism-generating property across account/status boundaries, referenced/
-  unreferenced placement, primitive payloads and insertion permutations. It must independently
-  derive the expected exact issue set and cannot merely select from the four direct factories.
-- F-06 is narrow: no caller, schema, dependency, E2E, component or broader runtime-shape expansion
-  is authorized. Any temptation to weaken complete typed exclusion or treat arbitrary strings as
-  metadata is a blocker, not a compatibility decision.
+- **Dedicated central boundary:** preserve `transaction.allocations` and nested-duplicate
+  allocations as Loro maps keyed by exact Person ID. Provide typed set/remove-one and complete
+  explicit-set replacement operations over a logical transaction location. One-person mutation
+  touches only that Person key and never rewrites sibling keys. Zero removes that exact key;
+  signed decimals and inclusive `-100..100` use the passed P16A validator without reimplementation.
+- **Reject-only validation:** reject non-number, non-finite, negative zero, below `-100` and above
+  `100` before mutation. Never clamp, coerce, normalize, derive or store an effective allocation.
+  Return immutable typed success/error data suitable for grid, add row, automation, import,
+  restoration, hydration repair and future bulk callers; expected invalid input is not an
+  uncontrolled exception.
+- **Atomic complete replacement:** materialize and validate every own enumerable Person entry before
+  touching any key. Reject malformed containers/entries without partial state. On success, in one
+  logical vault action, remove absent existing Person keys only after validation and set the exact
+  supplied explicit nonzero values. Exact collection metadata is not a Person allocation. Do not
+  accept inherited/accessor/proxy tricks as a path around validation or mutate caller input.
+- **CRDT semantics:** different-Person concurrent edits from two peers merge; same-Person edits
+  converge under established Loro LWW semantics. Operations must use draft-style loro-mirror
+  mutation and Loro history only, never plain detached-object replacement or hidden parallel state.
+  An allocation commit or complete replacement is one UndoManager action. Provide the stable
+  presence field identity `allocation:<personId>` for P16D without implementing P16D UI.
+- **All current write paths:** prevent generic transaction updates from assigning `allocations`
+  around the central boundary. Route manual/add-row insertion with nonempty allocations, current
+  automation `setAllocation` evaluation/application, automation application capture and undo/
+  restoration, import-time insertion/application and any current bulk-complete-set route through
+  the same validation contract. Invalid automation/import/restoration input must not mutate another
+  field or allocation key under a supposedly atomic operation.
+- **Structural preservation:** move across date/account, swap parent/duplicate, nest and unnest
+  retain every valid explicit allocation exactly. Copy logic must neither drop legitimate Person
+  IDs nor copy collection metadata as data, and must not normalize totals.
+- **Persistence and encrypted convergence:** snapshot/export/import/reload, encrypted snapshot/
+  update flows and two-peer collaboration retain allocations and converge. Prove this through the
+  actual Loro/schema/snapshot owners rather than a plain-object surrogate.
+- **Hydration/migration compatibility:** existing valid maps require no destructive migration.
+  Existing invalid legacy values remain retained and observable for typed downstream surfacing;
+  hydration must not silently delete, clamp or normalize them. Central individual repair can
+  replace/remove one invalid Person value without rewriting valid siblings. Do not expand alias/
+  sentinel repair merely to make invalid allocations disappear.
+- **Preservation:** retain P16A validation/remainder/apportionment and P16B exact settlement,
+  hierarchy/retained-validation, source, currency, netting, issue and immutability semantics.
+  Preserve P09 undo grouping, P14 import lineage/original amount/delete-import behavior and P11
+  description-alias bookkeeping. No P16D grid/person-column or P16E People-obligation UI work.
+- **Decision rule:** a material ambiguity becomes a complete `Q-PROPOSAL-P16C-01-*` in evidence
+  under the PROCESS hierarchy; continue without asking the human. No proposal may weaken per-key
+  merge, atomic complete replacement, reject-only bounds, legacy retention, encrypted convergence,
+  one-action history or preservation.
 
-## Preservation and evidence
+## Required evidence
 
-- Preserve revision-04's independently accepted exception-safe record/array snapshots, exact
-  sanctioned hidden string `$cid`, no post-snapshot wrapper reads, account identity/calendar
-  semantics, ordinary/null-prototype acceptance, arbitrary-object rejection and all F-01–F-05
-  closures.
-- Preserve sole engine/export/caller boundary; named A–H; exact P16A signed positions; canonical
-  topology/active-copy/nested exclusion; collision-free cache/aggregate identity; deterministic
-  matching; currency isolation; reverse netting; signed source traceability; safe aggregate
-  rejection; unknown/deleted People; full result freezing/input purity; issue privacy; no persisted
-  cache; and current incomplete-state safety.
-- Preserve reviewer seeds/oracles `2607250601` (2,000 snapshot mechanisms), `2607250701` (5,000
-  dates), `26072501` (5,000 signed rational cases) and `16001611` (1,000 reverse/currency batches).
-  Add the revision-05 primitive-entry generator with an independent exact issue/context oracle.
-- Red before green: add every F-06 reproduction while revision-04 product is byte-identical, run to
-  exact failure, then implement without deleting or weakening any prior expectation.
-- Run focused settlement/balance/caller tests in three clean processes, broader domain/current
-  caller, full Vitest, typecheck, lint, build, exact two-path oxfmt/ESLint and cumulative diff check.
-  Report inherited repository-format baseline without rewriting frozen files.
-- Run affected Accounts/Transactions Chromium and full Chromium with one worker/retries zero; E2E
-  files are read-only. Rerun deterministic 10k/50k/100k full-output benchmark after warmup and retain
-  the honest P16E follow-up if all five 100k samples do not meet strict 200ms.
-- Use installed headless `playwright-cli` only, unique session `p16b-impl-05` and root-owned keyed
-  server. Exercise honest current onboarding/caller preservation, reload, responsive/zoom,
-  dark/reduced, console/network and boolean-only privacy. Do not manufacture malformed retained
-  state through UI or claim P16D/E behavior. Close/delete/list and request exact root cleanup.
-- Evidence records original BASE, pre-product HEAD, red checkpoint, product HEAD, exact paths/index,
-  F-06 mechanism/direct/generated properties, preserved snapshot/calendar/arithmetic oracles, all
-  gates/benchmark/manual, exclusions, cleanup, frozen hashes, risks and any complete Q proposal.
-  Format before freeze; never claim independent PASS.
-- **Applicable guides:** `.claude/CLAUDE.md`, coding/TypeScript rules, components and E2E skills.
-- **Decision rule:** a material ambiguity becomes complete `Q-PROPOSAL-P16B-05-*` in evidence under
-  PROCESS hierarchy; continue without asking the human. No proposal may weaken exact-key metadata,
-  no-throw safety, complete typed exclusion, topology identity/calendar validity, exact money,
-  traceability or currency isolation.
+- **RED before GREEN:** before product edits, check in focused tests that fail on the unchanged
+  baseline for set/update/remove-one, sibling-key preservation, atomic complete replacement and
+  rollback, invalid bounds/types/negative zero, generic-update bypass, automation/import/undo/
+  hydration bypass and presence identity. Capture exact failures at a committed RED checkpoint.
+- **Independent CRDT mechanisms:** use initialized Loro docs/mirrors and literal operation exchange
+  to prove different-key merge and same-key convergence in both import orders. Add fixed-seed
+  generated schedules over Person keys/values/peer order with an independently derived oracle;
+  detached records or comparing a helper to itself are insufficient.
+- **Complete-set mechanisms:** cover absent-key deletion only after full validation, empty-set
+  clearing, totals below/at/above 100, signed decimals, exact boundaries, zero removal, caller
+  descriptor/input purity, adversarial Person IDs including metadata-like names, deterministic
+  errors and unchanged document version/history on failure.
+- **Path matrix:** enumerate every production allocation source and prove its route or honest
+  current absence. Cover grid/add-row contract insertion, automation application, automation undo,
+  import-time automation/insertion, bulk replacement, migration/hydration and individual repair.
+  A domain function that merely returns an unchecked record is not proof of safe CRDT application.
+- **History/preservation:** prove one successful set/remove/replacement equals one logical undo
+  action, failed operations create no history, undo/redo restores exact maps, and move/swap/nest/
+  unnest plus description-alias and import-delete operations preserve or restore exact allocation
+  values.
+- **Persistence:** round-trip plain and encrypted snapshot/update flows, reload mirrors and
+  collaboration peers. Include existing valid, empty, signed-decimal and invalid-legacy maps.
+  Invalid legacy input must remain retained until an exact-key repair while valid siblings remain
+  byte/value-equivalent.
+- **Focused automation:** run the P16C unit/integration profile in at least three clean processes.
+  Run broader CRDT, domain automation, transaction/import/history and sync profiles, then full
+  Vitest. Report exact commands, files/tests/skips, fixed seeds, operation counts and elapsed times.
+- **Regression gates:** run typecheck, lint, build, exact changed-path oxfmt/ESLint,
+  `git diff --check`, repository `format:check` with inherited baseline disclosed, affected
+  Accounts/Transactions/Imports/undo Chromium and full Chromium with one worker, retries zero and
+  line reporter. Existing E2E remains read-only.
+- **Installed-CLI charter:** use only installed headless `playwright-cli`, unique disposable session
+  `p16c-impl-01` and a root-owned keyed server. P16D owns surfaced allocation cells, so do not fake
+  allocation editing or claim UI acceptance. Preserve honest current onboarding, add/manual/import
+  transaction, move/edit/delete/undo/reload, People settlement caller, responsive/200%-zoom,
+  dark/reduced, accessibility, console/network and boolean-only privacy behavior. Close/delete/list
+  the session and request exact root cleanup.
+- **Performance evidence:** fixed-seed production operations over representative large maps and
+  transaction sets, including one-key edit cost versus complete replacement, with warmup/samples/
+  environment and actual result. Do not claim P16E's full 100,000-transaction UI target.
+- **Evidence artifact:** record original BASE, control/pre-product HEAD, RED checkpoint, exact
+  committed product/test HEAD, exact paths/index; API/result contract; all direct/generated CRDT
+  mechanisms; path matrix; undo/persistence/legacy/structural preservation; gates/manual/benchmark;
+  exclusions, cleanup, frozen hashes, risks and any complete Q proposal. Format before freeze and
+  never claim independent PASS.
+- **Applicable guides:** `.claude/CLAUDE.md`, coding/TypeScript rules and
+  `.claude/skills/crdt/SKILL.md`, `.claude/skills/sync/SKILL.md`,
+  `.claude/skills/import/SKILL.md`, `.claude/skills/e2e/SKILL.md`.
 - **Frozen boundary:** scratch SHA
   `ce52d7df87daf63117931e5bdee928212051242ae7f2b5d90e76f5610abcb00f`, checked set
-  HS-001/HS-002/HS-004/HS-005/HS-006/HS-008/HS-010/HS-013/HS-014/HS-017/HS-018, 21 normalized blocks
-  exact; immutable FS-001
+  HS-001/HS-002/HS-004/HS-005/HS-006/HS-008/HS-010/HS-013/HS-014/HS-017/HS-018, all 21 normalized
+  blocks exact; immutable FS-001
   `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines/25,441 bytes;
   SCOPE `d03f33e718f1ec5f7c8ad0119d283397dcc59407199da4b5887a2e5eee7ef0f9`, 450 lines/27,382 bytes.
 
 ## Independent review contract
 
-- **Reviewer:** distinct `human_scratch_reviewer`, completed after revision-05 evidence freeze
-  commit `910cecbf0ea6c83ca12c41b7d98808d95158bf67`
-- **Literal cumulative review BASE:** `4c102600240e2804b801c2a320e10164defb14ea`
-- **Literal revision-05 product/test HEAD:** `46d8f9feb79c6dfc080c0869922fb8cd4c20ec6c`
-- **Implementation evidence:** `evidence/P16B/implementation-05.md`
-- **Sole reviewer artifact:** `reviews/P16B-review-05.md`
-- **Reviewer writes:** only that new review file; no other edit/commit
-- **Required focus:** independently reproduce then close F-06 across referenced/unreferenced
-  primitive account/status entries and insertion permutations; prove exact `$cid` compatibility;
-  re-prove F-01–F-05, exact arithmetic/netting/source/currency/issue/immutability core, named A–H,
-  sole API/caller, full gates and honest scale.
-- **Verdict:** one PASS/FAIL with exact findings, canonical mapping, independent generated
-  mechanisms/oracles, browser/manual/cleanup and Q proposals. Any arbitrary non-`$cid` primitive
-  entry skipped without its contextual issue, false `$cid` rejection, issue-free plausible invalid
-  total or preservation regression fails.
-- **Actual verdict:** PASS. F-06 closes with exact-key `$cid` compatibility, 2,400 independent
-  primitive-entry cases plus 500 caller-purity cases, complete contextual issues and every F-01–F-05
-  and canonical-core preservation gate green.
+- **Reviewer:** distinct `human_scratch_reviewer`, undispatched until revision-01 implementation
+  evidence freezes
+- **Literal cumulative review BASE:** `0a7c9a49722ddc4d955f910af6dbb19cfffbd600`
+- **Literal revision-01 HEAD:** pending exact committed product/test HEAD
+- **Implementation evidence:** `evidence/P16C/implementation-01.md`
+- **Sole reviewer artifact:** `reviews/P16C-review-01.md`
+- **Reviewer writes:** the new review file only; no product/test/evidence/ledger/config/frozen edit
+  or commit
+- **Required review focus:** independently prove central set/remove/complete-set APIs, exact
+  validation and rollback, true Loro per-key concurrency/LWW, one-action history, every current
+  automation/import/undo/hydration route, invalid-legacy retention and individual repair, encrypted
+  persistence/convergence and move/swap/nest/unnest preservation. Look specifically for generic
+  update casts, detached-map replacement, partial delete-before-validate, `$cid` confusion,
+  proxy/accessor bypass, silent hydration repair, multi-action undo and tests that never exercise
+  actual initialized mirrors.
+- **Verdict contract:** review the literal range with explicit findings, canonical acceptance
+  mapping, independent fixed-seed schedules/oracles, affected/full gates, installed-CLI evidence,
+  cleanup/Q proposals and one PASS/FAIL. Any lost sibling edit, invalid stored value, partial
+  replacement, destructive legacy migration, persistence loss, history split or current-path
+  bypass fails.
 
 ## Next root action
 
-Prepare P16C against the clean post-P16B integration boundary. Keep HS-009 unchanged and FS-001
-immutable/open; no scratch marker is authorized by P16B alone.
+Commit this handoff/progress transition, then dispatch `human_scratch_implementer` for P16C revision
+01 only. Keep the reviewer undispatched; HS-009 remains unchecked and FS-001 remains immutable/open.
