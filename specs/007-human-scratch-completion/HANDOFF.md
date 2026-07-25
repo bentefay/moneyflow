@@ -7,7 +7,7 @@ Root rewrites this compact file for one package/revision. Workers may read but n
 - **Package / revision:** P16B / 05
 - **Scope ID:** FS-001; this revision closes only P16B review-04 F-06 while preserving every
   independently proven revision-04 settlement invariant. FS-001 remains incomplete.
-- **State:** independent revision-05 PASS; integration pending
+- **State:** passed at exact reviewed revision-05 product/test HEAD
 - **Binding task:** `tasks/FS-001-transaction-percentage-allocations-settlement.md` P16B
 - **Canonical authority:** all 715 immutable lines of
   `specs/008-transaction-percentage-allocations-settlement/spec.md`
@@ -131,5 +131,5 @@ Root rewrites this compact file for one package/revision. Workers may read but n
 
 ## Next root action
 
-Persist the immutable revision-05 PASS and applicable risk updates, then integrate P16B as passed
-and prepare P16C. Keep HS-009 unchanged and FS-001 immutable/open.
+Prepare P16C against the clean post-P16B integration boundary. Keep HS-009 unchanged and FS-001
+immutable/open; no scratch marker is authorized by P16B alone.

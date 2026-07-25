@@ -7,9 +7,9 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P16B revision 05 (`reviewing`; independent PASS, integration pending)
-- **Next action:** persist immutable `reviews/P16B-review-05.md` and applicable risk updates, then
-  integrate P16B as passed and prepare P16C
+- **Current package:** P16B revision 05 (`passed`)
+- **Next action:** prepare P16C against the clean post-P16B integration boundary; keep HS-009
+  unchanged and FS-001 immutable/open
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -22,7 +22,7 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** eleven passed; HS-015 blocked externally; HS-011/HS-012 and seven other HS
   requirements plus FS-001 queued
-- **Last ledger update:** 2026-07-25; P16B revision-05 independent PASS integration pending
+- **Last ledger update:** 2026-07-25; P16B revision-05 passed and P16C is dependency-ready
 
 ## Package ledger
 
@@ -47,7 +47,7 @@ review evidence.
 | P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | passed | 04 | `b9105028926d24a5a0c5454777a6c33379ca606a..305d6613673cf200d456276c076463b68c075500` | `evidence/P14/implementation-04.md` | `reviews/P14-review-04.md` | `a2182116db08200b8b4df28412512b9ca3406aa2` |
 | P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | passed | 02 | `b3e96ba9e9487d13df56956d220fffca63d6482d..91931688ef9463576b757a097968af543a4b8a75` | `evidence/P15/implementation-02.md` | `reviews/P15-review-02.md` | `9c5d7be8ee4cf7c3fda5f1a7320c053362672e3a` |
 | P16A    | FS-001, HS-009 | Allocation/ownership validation, remainder/effective shares and exact apportionment | P01                  | passed | 02 | `1b42d27e11494a167a4768e0c2c308010aa51651..f84f66758708529c44342313e8632ee8b7dcead3` | `evidence/P16A/implementation-02.md` | `reviews/P16A-review-02.md` | `41f5760f77c1a93ab650a93912bfaf3c0b627ab0` |
-| P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | reviewing | 05 | `4c102600240e2804b801c2a320e10164defb14ea..46d8f9feb79c6dfc080c0869922fb8cd4c20ec6c` | `evidence/P16B/implementation-05.md` | `reviews/P16B-review-05.md` | independent PASS integration pending       |
+| P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | passed | 05 | `4c102600240e2804b801c2a320e10164defb14ea..46d8f9feb79c6dfc080c0869922fb8cd4c20ec6c` | `evidence/P16B/implementation-05.md` | `reviews/P16B-review-05.md` | `136678a0ac864cf2d120b2b5b896d4fadcabcdd1` |
 | P16C    | FS-001, HS-009 | CRDT per-key/complete-set APIs and every mutation, hydration and history path       | P16A, P16B, P09, P14 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16D    | FS-001, HS-009 | Actual grid/add-row person columns, virtualization, history and presence UX         | P16C, P13            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16E    | FS-001         | People obligations/issues/source UX plus full integration, E2E, manual and perf     | P16D, P08, P11C      | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -2910,6 +2910,16 @@ deleted, and root moved the exact sensitive 28-file/187,750-byte manifest to rec
 preserving all 22 older artifacts. The review discloses this reviewer-operation deviation and makes
 no false never-revealed claim. Port/runtime/worktree/frozen boundaries are exact. No Q proposal or
 marker is authorized; HS-009 remains unchecked and FS-001 immutable/open through P16C–E.
+
+**2026-07-25T14:23:32+10:00 — P16B/05 `reviewing -> passed`:** PASS definition is complete at
+exact reviewed product/test HEAD `46d8f9feb79c6dfc080c0869922fb8cd4c20ec6c`. Immutable review,
+R-013/R-015/R-016/R-017/R-020 evidence and package ledgers are integrated in
+`136678a0ac864cf2d120b2b5b896d4fadcabcdd1`; no product finding or Q proposal remains. P16B now
+provides the independently accepted sole canonical settlement engine, exact arithmetic/currency/
+matching/netting/source traceability, complete exception-safe retained validation and typed issue
+boundary required by P16C/D/E. This package alone completes no first-class requirement: HS-009
+still requires P16C/P16D and remains unchecked, while FS-001 still requires P16C/P16D/P16E and its
+canonical source remains byte-identical. No scratch marker is authorized. P16C is dependency-ready.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
