@@ -7,11 +7,10 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P16B revision 05 (`implementing`; dispatch prepared)
-- **Next action:** dispatch `human_scratch_implementer` against original cumulative BASE
-  `4c102600240e2804b801c2a320e10164defb14ea`, clean pre-revision HEAD
-  `618254f1f381cd1e4dfb68a9258cccb667a0c838` and sole evidence
-  `evidence/P16B/implementation-05.md`
+- **Current package:** P16B revision 05 (`ready_for_review`; frozen implementation evidence)
+- **Next action:** dispatch `human_scratch_reviewer` over literal cumulative range
+  `4c102600240e2804b801c2a320e10164defb14ea..46d8f9feb79c6dfc080c0869922fb8cd4c20ec6c`
+  with sole output `reviews/P16B-review-05.md`
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -24,8 +23,7 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** eleven passed; HS-015 blocked externally; HS-011/HS-012 and seven other HS
   requirements plus FS-001 queued
-- **Last ledger update:** 2026-07-25; P16B revision-05 exact `$cid`/primitive-entry closure dispatch
-  prepared
+- **Last ledger update:** 2026-07-25; P16B revision-05 implementation frozen for independent review
 
 ## Package ledger
 
@@ -50,7 +48,7 @@ review evidence.
 | P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | passed | 04 | `b9105028926d24a5a0c5454777a6c33379ca606a..305d6613673cf200d456276c076463b68c075500` | `evidence/P14/implementation-04.md` | `reviews/P14-review-04.md` | `a2182116db08200b8b4df28412512b9ca3406aa2` |
 | P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | passed | 02 | `b3e96ba9e9487d13df56956d220fffca63d6482d..91931688ef9463576b757a097968af543a4b8a75` | `evidence/P15/implementation-02.md` | `reviews/P15-review-02.md` | `9c5d7be8ee4cf7c3fda5f1a7320c053362672e3a` |
 | P16A    | FS-001, HS-009 | Allocation/ownership validation, remainder/effective shares and exact apportionment | P01                  | passed | 02 | `1b42d27e11494a167a4768e0c2c308010aa51651..f84f66758708529c44342313e8632ee8b7dcead3` | `evidence/P16A/implementation-02.md` | `reviews/P16A-review-02.md` | `41f5760f77c1a93ab650a93912bfaf3c0b627ab0` |
-| P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | implementing | 05 | `4c102600240e2804b801c2a320e10164defb14ea..pending`                                  | `evidence/P16B/implementation-05.md` | `reviews/P16B-review-05.md` | revision-04 FAIL `618254f1f381cd1e4dfb68a9258cccb667a0c838`; revision-05 pending |
+| P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | ready_for_review | 05 | `4c102600240e2804b801c2a320e10164defb14ea..46d8f9feb79c6dfc080c0869922fb8cd4c20ec6c` | `evidence/P16B/implementation-05.md` | `reviews/P16B-review-05.md` | revision-04 FAIL `618254f1f381cd1e4dfb68a9258cccb667a0c838`; evidence freeze pending |
 | P16C    | FS-001, HS-009 | CRDT per-key/complete-set APIs and every mutation, hydration and history path       | P16A, P16B, P09, P14 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16D    | FS-001, HS-009 | Actual grid/add-row person columns, virtualization, history and presence UX         | P16C, P13            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16E    | FS-001         | People obligations/issues/source UX plus full integration, E2E, manual and perf     | P16D, P08, P11C      | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -2855,6 +2853,30 @@ are mandatory. It must retain the independently passing complete trap/snapshot l
 identity/calendar semantics, F-01–F-05, exact arithmetic/currency/matching/netting/source/
 immutability/named-A–H/sole-engine core, all gates and honest performance/manual evidence.
 Reviewer remains undispatched; HS-009 has no marker change and FS-001 remains immutable/open.
+
+**2026-07-25T13:51:47+10:00 — P16B/05 `implementing -> ready_for_review`:** Exact RED checkpoint
+`b3e0235a8e7a1a2d15f45fb3c92ef85831d92c7d` captured all four F-06 referenced/unreferenced
+account/status primitive-entry reproductions plus seed `26072508` before production changed;
+unchanged revision-04 source failed five new expectations while all 159 prior focused expectations
+passed. GREEN product/test HEAD `46d8f9feb79c6dfc080c0869922fb8cd4c20ec6c` skips only exact `$cid`,
+routes every other primitive entry through contextual snapshot validation and lexically stabilizes
+issue order. The revision-05 delta from dispatch/control HEAD
+`f806cdae54469d6b1f3a286fa438e8c90cbd17f7` changes exactly the two authorized settlement owner
+and unit-test paths with 248 insertions / two deletions; the cumulative review range remains
+`4c102600240e2804b801c2a320e10164defb14ea..46d8f9feb79c6dfc080c0869922fb8cd4c20ec6c`.
+Frozen `evidence/P16B/implementation-05.md` is 245 lines / 15,982 bytes at SHA-256
+`85bc279f87c02cbadedd5c2964cf72886fde2081903d8343a966cbf9c2b42e43`. Focused settlement/
+caller passes 164+1 skip in three clean processes, broader 563+2, full unit 1,455+2, typecheck,
+exact format/static, repository lint and build. Affected Chromium passes 46/46 and full Chromium
+102/102 with one worker, zero retries and line reporter. Deterministic 100k full-output samples are
+753.25–852.90ms with complete output and conservation; strict 200ms remains honestly unclaimed
+with its P16E follow-up. Fresh installed-CLI onboarding, real initialized-Loro People settlement,
+Bob/Default/Paid/For Review persistence, responsive/dark/reduced/200%-zoom, console/network and
+boolean-only privacy checks pass; one disclosed no-state Next-devtools misclick supports no claim.
+Root stopped the keyed server, restored generated source, recoverably removed current `.next`,
+results and all and only 18 enumerated revision-05 CLI artifacts, preserved all 22 older CLI files
+and verified no browser/port remains. No Q proposal. Reviewer alone may write
+`reviews/P16B-review-05.md`; HS-009 remains unchanged and FS-001 immutable/open.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual

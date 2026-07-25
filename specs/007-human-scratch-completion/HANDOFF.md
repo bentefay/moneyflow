@@ -7,7 +7,7 @@ Root rewrites this compact file for one package/revision. Workers may read but n
 - **Package / revision:** P16B / 05
 - **Scope ID:** FS-001; this revision closes only P16B review-04 F-06 while preserving every
   independently proven revision-04 settlement invariant. FS-001 remains incomplete.
-- **State:** implementing after immutable revision-04 failure integration; reviewer is undispatched
+- **State:** revision-05 implementation frozen; ready for independent review
 - **Binding task:** `tasks/FS-001-transaction-percentage-allocations-settlement.md` P16B
 - **Canonical authority:** all 715 immutable lines of
   `specs/008-transaction-percentage-allocations-settlement/spec.md`
@@ -25,7 +25,11 @@ Root rewrites this compact file for one package/revision. Workers may read but n
   24,640 bytes
 - **Revision-04 failure integration / clean pre-revision HEAD:**
   `618254f1f381cd1e4dfb68a9258cccb667a0c838`
-- **Sole revision-05 implementer artifact:** `evidence/P16B/implementation-05.md`
+- **Frozen revision-05 implementer artifact:** `evidence/P16B/implementation-05.md`, SHA-256
+  `85bc279f87c02cbadedd5c2964cf72886fde2081903d8343a966cbf9c2b42e43`, 245 lines /
+  15,982 bytes
+- **Revision-05 red-test checkpoint:** `b3e0235a8e7a1a2d15f45fb3c92ef85831d92c7d`
+- **Revision-05 product/test HEAD:** `46d8f9feb79c6dfc080c0869922fb8cd4c20ec6c`
 - **Future immutable revision-05 review artifact:** `reviews/P16B-review-05.md`
 - **Allowed revision-05 product/test paths:** exactly
   `src/lib/domain/settlement.ts` and `tests/unit/domain/settlement.test.ts`.
@@ -104,9 +108,10 @@ Root rewrites this compact file for one package/revision. Workers may read but n
 
 ## Independent review contract
 
-- **Reviewer:** distinct `human_scratch_reviewer`, undispatched until revision-05 evidence freezes
+- **Reviewer:** distinct `human_scratch_reviewer`, ready for dispatch after revision-05 evidence
+  freeze
 - **Literal cumulative review BASE:** `4c102600240e2804b801c2a320e10164defb14ea`
-- **Literal revision-05 product/test HEAD:** pending exact committed HEAD
+- **Literal revision-05 product/test HEAD:** `46d8f9feb79c6dfc080c0869922fb8cd4c20ec6c`
 - **Implementation evidence:** `evidence/P16B/implementation-05.md`
 - **Sole reviewer artifact:** `reviews/P16B-review-05.md`
 - **Reviewer writes:** only that new review file; no other edit/commit
@@ -121,6 +126,6 @@ Root rewrites this compact file for one package/revision. Workers may read but n
 
 ## Next root action
 
-Commit this revision-05 handoff/progress transition, then dispatch `human_scratch_implementer`
-against the exact failure-integration HEAD and sole evidence path. Keep reviewer undispatched,
-HS-009 unchanged and FS-001 immutable/open.
+Freeze the exact revision-05 evidence and ready-for-review transition, then dispatch the distinct
+`human_scratch_reviewer` over the literal cumulative range and sole review output. Keep HS-009
+unchanged and FS-001 immutable/open.
