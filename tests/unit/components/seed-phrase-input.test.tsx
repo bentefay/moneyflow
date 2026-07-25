@@ -206,6 +206,20 @@ describe("SeedPhraseInput synchronizes the canonical field with the word grid", 
         );
     });
 
+    it("adopts a value already present in the credential field when it mounts", () => {
+        // Stands in for a browser or manager autofill that landed before React hydrated: the field
+        // holds a value that no React change event ever reported. Covered end to end, against real
+        // hydration timing, by the unlock autofill journey in tests/e2e/identity.spec.ts.
+        const onChange = vi.fn();
+        render(
+            <SeedPhraseInput autoFocus={false} value={PUBLIC_TEST_VECTOR} onChange={onChange} />
+        );
+
+        expect(canonicalField()).toHaveValue(PUBLIC_TEST_VECTOR);
+        expect(wordInput(0)).toHaveValue("abandon");
+        expect(wordInput(11)).toHaveValue("about");
+    });
+
     it("follows a controlled value change into both representations", () => {
         const { rerender } = render(<SeedPhraseInput autoFocus={false} value="" />);
 
@@ -227,6 +241,19 @@ describe("SeedPhraseInput validation is preserved through the canonical field", 
 
         expect(onChange).toHaveBeenCalledWith(invalid);
         expect(onComplete).not.toHaveBeenCalled();
+    });
+
+    it("reports a checksum-failing phrase of twelve real words as invalid", () => {
+        // Every word is in the BIP39 wordlist but the checksum does not hold. A corrupted manager
+        // fill must not be presented to the user as a valid phrase.
+        render(<SeedPhraseInput autoFocus={false} />);
+
+        fireEvent.change(canonicalField(), {
+            target: { value: PUBLIC_TEST_VECTOR.replace(/about$/, "abandon") }
+        });
+
+        expect(screen.getByText(/invalid phrase/i)).toBeInTheDocument();
+        expect(screen.queryByText(/valid recovery phrase/i)).not.toBeInTheDocument();
     });
 
     it("does not silently repair a non-wordlist word arriving from a manager", () => {

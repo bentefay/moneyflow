@@ -15,7 +15,7 @@
 "use client";
 
 import { Loader2, Lock, Unlock } from "lucide-react";
-import { useCallback, useState } from "react";
+import { type FormEvent, useCallback, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -86,10 +86,16 @@ export function UnlockCircle({
     // Handle unlock
     // -------------------------------------------------------------------------
 
-    const handleUnlock = useCallback(async () => {
-        if (!isValid || isUnlocking) return;
-        await onUnlock(phrase);
-    }, [isValid, isUnlocking, onUnlock, phrase]);
+    // Unlock runs from a real form submission so password managers treat this as a login and offer
+    // to fill the saved recovery phrase.
+    const handleUnlock = useCallback(
+        async (event: FormEvent<HTMLFormElement>) => {
+            event.preventDefault();
+            if (!isValid || isUnlocking) return;
+            await onUnlock(phrase);
+        },
+        [isValid, isUnlocking, onUnlock, phrase]
+    );
 
     // -------------------------------------------------------------------------
     // Render
@@ -110,8 +116,13 @@ export function UnlockCircle({
                 className
             )}
         >
-            {/* Inner content container */}
-            <div className="flex w-full max-w-sm flex-col items-center gap-6 px-8 py-12">
+            {/* Inner content container - a real login form so managers offer to fill */}
+            <form
+                method="post"
+                action="/unlock"
+                onSubmit={handleUnlock}
+                className="flex w-full max-w-sm flex-col items-center gap-6 px-8 py-12"
+            >
                 {/* Lock icon */}
                 <div
                     className={cn(
@@ -163,7 +174,7 @@ export function UnlockCircle({
                 {/* Unlock button */}
                 <Button
                     data-testid="unlock-button"
-                    onClick={handleUnlock}
+                    type="submit"
                     disabled={!isValid || isUnlocking}
                     size="lg"
                     className="w-full"
@@ -191,7 +202,7 @@ export function UnlockCircle({
                         Create one
                     </a>
                 </p>
-            </div>
+            </form>
         </div>
     );
 }

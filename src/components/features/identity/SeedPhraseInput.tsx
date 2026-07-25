@@ -6,6 +6,7 @@
  *
  * Features:
  * - 12 individual input fields in a grid
+ * - One canonical credential field so password managers offer to fill the phrase
  * - Real-time validation per word (BIP39 wordlist)
  * - Paste support (splits clipboard into fields)
  * - Tab navigation between fields
@@ -29,7 +30,11 @@ import {
 } from "react";
 
 import { Input } from "@/components/ui/input";
+import { validateSeedPhrase } from "@/lib/crypto/seed";
 import { cn } from "@/lib/utils";
+
+import { joinWordSlotsIntoPhrase, splitPhraseIntoWordSlots } from "./recoveryPhraseCredential";
+import { RecoveryPhraseCredentialFields } from "./RecoveryPhraseCredentialFields";
 
 // ============================================================================
 // Types
@@ -89,20 +94,16 @@ export function SeedPhraseInput({
     disabled = false
 }: SeedPhraseInputProps) {
     // Parse value into array of 12 words
-    const initialWords = useMemo(() => {
-        const parts = value.trim().split(/\s+/);
-        return Array.from({ length: 12 }, (_, i) => parts[i] || "");
-    }, [value]);
+    const initialWords = useMemo(() => splitPhraseIntoWordSlots(value), [value]);
 
     const [words, setWords] = useState<string[]>(initialWords);
     const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+    const canonicalRef = useRef<HTMLInputElement | null>(null);
 
     // Sync external value changes - intentional controlled input pattern
     useEffect(() => {
-        const parts = value.trim().split(/\s+/);
-        const newWords = Array.from({ length: 12 }, (_, i) => parts[i] || "");
         // eslint-disable-next-line react-hooks/set-state-in-effect -- Syncing controlled input value
-        setWords(newWords);
+        setWords(splitPhraseIntoWordSlots(value));
     }, [value]);
 
     // Auto-focus first input
@@ -124,13 +125,16 @@ export function SeedPhraseInput({
         });
     }, [words]);
 
-    const isComplete = useMemo(() => {
-        return wordValidation.every((v) => v === "valid");
-    }, [wordValidation]);
-
     const filledCount = useMemo(() => {
         return words.filter((w) => w.length > 0).length;
     }, [words]);
+
+    // Mirrors the grid back into the canonical field so a manager sees the phrase the user typed.
+    const canonicalPhrase = useMemo(() => joinWordSlotsIntoPhrase(words), [words]);
+
+    // The indicator must agree with what the unlock button accepts, so it uses the same full BIP39
+    // check - wordlist membership plus checksum - rather than per-word validity alone.
+    const isComplete = useMemo(() => validateSeedPhrase(canonicalPhrase), [canonicalPhrase]);
 
     // -------------------------------------------------------------------------
     // Emit changes
@@ -138,12 +142,13 @@ export function SeedPhraseInput({
 
     const emitChange = useCallback(
         (newWords: string[]) => {
-            const phrase = newWords.join(" ").trim();
+            const phrase = joinWordSlotsIntoPhrase(newWords);
             onChange?.(phrase);
 
-            // Check if complete
-            const allValid = newWords.every((w) => w && isValidBip39Word(w));
-            if (allValid && newWords.filter(Boolean).length === 12) {
+            // A phrase is only complete when the BIP39 checksum holds, not merely when all twelve
+            // words are in the wordlist. A password manager can fill a whole phrase at once, and a
+            // corrupted fill would otherwise be offered to the user as valid.
+            if (validateSeedPhrase(phrase)) {
                 onComplete?.(phrase);
             }
         },
@@ -165,6 +170,38 @@ export function SeedPhraseInput({
             emitChange(newWords);
         },
         [words, emitChange]
+    );
+
+    // Kept in a ref so the mount-time autofill adoption above does not depend on a callback that
+    // changes whenever the consumer re-renders.
+    const emitChangeRef = useRef(emitChange);
+    useEffect(() => {
+        emitChangeRef.current = emitChange;
+    }, [emitChange]);
+
+    // Browsers and password managers autofill as soon as the markup exists, which can happen
+    // before React hydrates. Adopt whatever the canonical field already holds on mount, otherwise
+    // a fill that landed early would sit in the credential field with an empty word grid.
+    useEffect(() => {
+        const prefilled = canonicalRef.current?.value ?? "";
+        if (!prefilled) return;
+
+        const prefilledWords = splitPhraseIntoWordSlots(prefilled);
+        setWords(prefilledWords);
+        emitChangeRef.current(prefilledWords);
+    }, []);
+
+    // -------------------------------------------------------------------------
+    // Handle a password manager filling the canonical credential field
+    // -------------------------------------------------------------------------
+
+    const handleCanonicalChange = useCallback(
+        (phrase: string) => {
+            const newWords = splitPhraseIntoWordSlots(phrase);
+            setWords(newWords);
+            emitChange(newWords);
+        },
+        [emitChange]
     );
 
     // -------------------------------------------------------------------------
@@ -247,7 +284,19 @@ export function SeedPhraseInput({
     // -------------------------------------------------------------------------
 
     return (
-        <div className={cn("space-y-4", className)}>
+        <div className={cn("relative space-y-4", className)}>
+            {/*
+             * One canonical credential for password managers. The twelve inputs below stay plain
+             * text so managers never try to fill them individually.
+             */}
+            <RecoveryPhraseCredentialFields
+                value={canonicalPhrase}
+                autoComplete="current-password"
+                label="Recovery phrase"
+                onValueChange={handleCanonicalChange}
+                fieldRef={canonicalRef}
+            />
+
             {/* Progress indicator */}
             <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">{filledCount} of 12 words entered</span>
@@ -285,6 +334,8 @@ export function SeedPhraseInput({
                                 onKeyDown={(e) => handleKeyDown(e, index)}
                                 disabled={disabled}
                                 placeholder={`${index + 1}`}
+                                aria-label={`Word ${index + 1}`}
+                                aria-invalid={showError}
                                 data-testid={`seed-word-input-${index}`}
                                 className={cn(
                                     "bg-background/80 font-mono",
@@ -296,6 +347,11 @@ export function SeedPhraseInput({
                                 autoCorrect="off"
                                 autoCapitalize="off"
                                 spellCheck={false}
+                                // Keep third-party managers off the individual word slots; the
+                                // canonical field above is the only credential they should see.
+                                data-1p-ignore
+                                data-bwignore
+                                data-lpignore="true"
                             />
                             {/* Word number badge */}
                             <span

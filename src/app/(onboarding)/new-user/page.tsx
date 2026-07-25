@@ -12,7 +12,7 @@
 "use client";
 
 import { AlertTriangle, ArrowRight, CheckCircle2, Loader2, Sparkles } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { type FormEvent, useCallback, useRef, useState } from "react";
 
 import { AuroraBackground, SeedPhraseDisplay } from "@/components/features/identity";
 import { Button } from "@/components/ui/button";
@@ -67,23 +67,29 @@ export default function NewUserPage() {
     // Complete registration (only after user consents)
     // -------------------------------------------------------------------------
 
-    const handleComplete = useCallback(async () => {
-        if (!pendingIdentity.current) return;
+    // Submitting the credential form is what lets a password manager recognise the generated
+    // phrase as a credential worth saving, so registration runs from the submit event.
+    const handleComplete = useCallback(
+        async (event: FormEvent<HTMLFormElement>) => {
+            event.preventDefault();
+            if (!pendingIdentity.current || !isConfirmed || isRegistering) return;
 
-        setIsRegistering(true);
-        try {
-            // Register with server only after user confirms they saved the phrase
-            await registerIdentity(pendingIdentity.current);
-            setStep("complete");
-            // Changing identity invalidates all in-memory authenticated state. Use a full
-            // navigation so React Query and the app providers cannot reuse the prior identity's
-            // cached vault list or active VaultProvider tree.
-            window.location.assign("/settings");
-        } catch {
-            // Error is handled by useIdentity hook
-            setIsRegistering(false);
-        }
-    }, [registerIdentity]);
+            setIsRegistering(true);
+            try {
+                // Register with server only after user confirms they saved the phrase
+                await registerIdentity(pendingIdentity.current);
+                setStep("complete");
+                // Changing identity invalidates all in-memory authenticated state. Use a full
+                // navigation so React Query and the app providers cannot reuse the prior identity's
+                // cached vault list or active VaultProvider tree.
+                window.location.assign("/settings");
+            } catch {
+                // Error is handled by useIdentity hook
+                setIsRegistering(false);
+            }
+        },
+        [registerIdentity, isConfirmed, isRegistering]
+    );
 
     // -------------------------------------------------------------------------
     // Render step content
@@ -180,7 +186,18 @@ export default function NewUserPage() {
 
             case "generate":
                 return (
-                    <div className="flex flex-col items-center gap-6">
+                    /*
+                     * A real credential form: the generated phrase, a stable account identifier and
+                     * a submit control in one place. Password managers use form submission as the
+                     * signal to offer to save, so this must stay a genuine submit, and `post` keeps
+                     * a manager-automated click from ever putting the phrase in a query string.
+                     */
+                    <form
+                        method="post"
+                        action="/new-user"
+                        onSubmit={handleComplete}
+                        className="flex flex-col items-center gap-6"
+                    >
                         {/* Title */}
                         <div className="text-center">
                             <h1 className="text-2xl font-bold">Your Recovery Phrase</h1>
@@ -231,8 +248,8 @@ export default function NewUserPage() {
                         {/* Continue button */}
                         <Button
                             data-testid="continue-button"
+                            type="submit"
                             size="lg"
-                            onClick={handleComplete}
                             disabled={!isConfirmed || isRegistering}
                             className="gap-2"
                         >
@@ -248,7 +265,7 @@ export default function NewUserPage() {
                                 </>
                             )}
                         </Button>
-                    </div>
+                    </form>
                 );
 
             case "complete":

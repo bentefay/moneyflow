@@ -7,6 +7,7 @@
  * Features:
  * - 3x4 or 4x3 grid layout (configurable)
  * - Numbered words for easy verification
+ * - One canonical credential field so password managers offer to save the phrase
  * - Copy to clipboard button
  * - Warning message about securing the phrase
  * - Reveal/hide toggle for privacy
@@ -19,6 +20,8 @@ import { useCallback, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+import { RecoveryPhraseCredentialFields } from "./RecoveryPhraseCredentialFields";
 
 // ============================================================================
 // Types
@@ -120,7 +123,19 @@ export function SeedPhraseDisplay({
     );
 
     return (
-        <div className={cn("space-y-4", className)}>
+        <div className={cn("relative space-y-4", className)}>
+            {/*
+             * One canonical credential so a manager offers to save the generated phrase. It is
+             * writable because a readonly password field is dropped from Chromium's password-form
+             * parse, but any write is ignored: the generated phrase is the only source of truth.
+             */}
+            <RecoveryPhraseCredentialFields
+                value={mnemonic}
+                autoComplete="new-password"
+                label="Recovery phrase"
+                onValueChange={() => {}}
+            />
+
             {/* Seed phrase grid */}
             <div className="relative">
                 <div

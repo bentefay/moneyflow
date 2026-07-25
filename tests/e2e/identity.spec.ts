@@ -587,6 +587,20 @@ test.describe("Identity", () => {
         await page.waitForURL("**/settings", { timeout: 15000 });
         await page.evaluate(() => sessionStorage.clear());
 
+        await test.step("a fill landing before hydration still reaches the word grid", async () => {
+            // Browsers and password managers autofill as soon as the markup exists, which can beat
+            // React hydration. The phrase must not be stranded in the credential field.
+            await page.goto("/unlock", { waitUntil: "commit" });
+            const credential = page.getByTestId("recovery-phrase-credential");
+            await credential.waitFor({ state: "attached" });
+            await credential.fill(savedPhrase);
+
+            await expect(page.getByTestId("seed-word-input-0")).not.toHaveValue("", {
+                timeout: 15000
+            });
+            await expect(page.getByTestId("unlock-button")).toBeEnabled({ timeout: 15000 });
+        });
+
         await test.step("fill the canonical credential only, then unlock", async () => {
             await page.goto("/unlock");
             const credential = page.getByTestId("recovery-phrase-credential");

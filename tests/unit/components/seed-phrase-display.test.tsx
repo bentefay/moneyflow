@@ -8,7 +8,7 @@
  * Every phrase literal is the public BIP39 English test vector. No production phrase is used.
  */
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { SeedPhraseDisplay } from "@/components/features/identity/SeedPhraseDisplay";
@@ -81,10 +81,19 @@ describe("SeedPhraseDisplay canonical credential field", () => {
         expect(name).toBeTruthy();
     });
 
-    it("keeps the credential read-only so the displayed phrase cannot be edited into a mismatch", () => {
+    it("is not readonly, which would drop it from Chromium's password-candidate parse", () => {
         render(<SeedPhraseDisplay mnemonic={PUBLIC_TEST_VECTOR} />);
 
-        expect(canonicalField().readOnly).toBe(true);
+        expect(canonicalField().readOnly).toBe(false);
+        expect(canonicalField().disabled).toBe(false);
+    });
+
+    it("cannot diverge from the displayed phrase even if the field is written to", () => {
+        render(<SeedPhraseDisplay mnemonic={PUBLIC_TEST_VECTOR} />);
+
+        fireEvent.change(canonicalField(), { target: { value: "abandon about" } });
+
+        expect(canonicalField().value).toBe(PUBLIC_TEST_VECTOR);
     });
 
     it("tracks the mnemonic when it changes", () => {
