@@ -2,6 +2,8 @@ import * as fc from "fast-check";
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
+import { initializeVaultDefaults } from "@/lib/crdt/defaults";
+import { createVaultMirror } from "@/lib/crdt/mirror";
 import type {
     Account,
     NestedDuplicate,
@@ -351,6 +353,25 @@ describe("sole settlement authority", () => {
 
     it("accepts only the retained hierarchical TransactionStore", () => {
         expectTypeOf(calculateSettlementBalances).parameter(0).toEqualTypeOf<TransactionStore>();
+    });
+
+    it("accepts the actual materialized default Loro mirror state without an incomplete issue", () => {
+        const { mirror } = createVaultMirror();
+        mirror.setState((draft) => {
+            initializeVaultDefaults(draft);
+        });
+        const state = mirror.getState();
+
+        const result = calculateSettlementBalances(
+            state.transactions,
+            state.accounts,
+            state.statuses,
+            state.preferences.defaultCurrency
+        );
+
+        expect(result.issues).toEqual([]);
+        expect(result.qualifyingTransactionCount).toBe(0);
+        expect(result.obligations).toEqual([]);
     });
 });
 
