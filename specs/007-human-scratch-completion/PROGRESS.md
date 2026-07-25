@@ -7,12 +7,13 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** none active; P18 `passed` and HS-019 marker finalized; next dispatch P19/01 (HS-020)
-- **Next action:** dispatch P19/01 (HS-020, WebAuthn PRF passkeys) — now dependency-ready because its
-  deps P04, P06 and P18 are all `passed`. Rewrite `HANDOFF.md` for P19/01 from clean HEAD and dispatch
-  a `human_scratch_implementer`, then a distinct reviewer. Watch for a genuine WebAuthn-PRF automation
-  `blocked_external` gate (R-011); if it materializes with no independent work left, halt and report.
-  Keep FS-001 immutable/open and all P05-gated packages (P08/P10/P16E and descendants) blocked
+- **Current package:** P19/01 (HS-020) implementing; `human_scratch_implementer` dispatched from clean HEAD `e72befd`
+- **Next action:** await `evidence/P19/implementation-01.md` and the P19/01 `ready_for_review`
+  handoff, then dispatch a distinct `human_scratch_reviewer`. HS-020 requires the PRF output to wrap
+  the SAME existing master identity secret (never a new vault identity) and forbids custom WebAuthn
+  crypto. Watch for a genuine WebAuthn-PRF automation `blocked_external` gate (R-011); if it
+  materializes with no independent work left, halt and report. Keep FS-001 immutable/open and all
+  P05-gated packages (P08/P10/P16E and descendants) blocked
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -25,10 +26,10 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** thirteen passed; HS-015 blocked externally; seven other HS requirements
   (HS-003/007/011/012/016/020/021) plus FS-001 queued
-- **Last ledger update:** 2026-07-25; HS-019 authorized marker finalized `- [] ` -> `- [x] ` at
-  `specs/human-scratch.md:344`; requirement HS-019 `passed`, rolling scratch SHA advanced
-  `9a0f6633… -> c4121a48…`, authorized checked IDs gained HS-019 (thirteen). P18 complete; P19/01 is
-  the next dispatch
+- **Last ledger update:** 2026-07-25; P19/01 (HS-020) dispatched from clean HEAD `e72befd`; package
+  row `queued -> implementing`; `HANDOFF.md` rewritten for the WebAuthn PRF passkey package.
+  Requirement HS-020 stays `queued` (marker authorized only after independent PASS); scratch rolling
+  SHA unchanged `c4121a48…`; thirteen requirements remain `passed`
 
 ## Package ledger
 
@@ -62,7 +63,7 @@ review evidence.
 | P17C    | HS-007         | Description inline proposals, robot drift state and scoped application              | P17B                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P17D    | HS-007         | Tags/allocation parity, bulk/new application, performance and polish                | P17C                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P18     | HS-019         | Password-manager-compatible recovery phrase creation and unlock                     | P01                  | passed             | 01   | `493bf19d3219f44efd4d4437fd8b0e33d012fba9..4cda92d40e9cc5b6490636c25d99b655905cb40a` | `evidence/P18/implementation-01.md` | `reviews/P18-review-01.md` | `fa9ae8d0b6b7948bd2c4a508ad869d5d6955a6a1` |
-| P19     | HS-020         | WebAuthn PRF passkeys sharing the vault identity secret                             | P04, P06, P18        | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
+| P19     | HS-020         | WebAuthn PRF passkeys sharing the vault identity secret                             | P04, P06, P18        | implementing | 01  | —                                                                                    | —                                   | —                          | —                                          |
 | P20A    | HS-016         | Truthful marketing copy and responsive feature presentation                         | P17D, P19            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P20B    | HS-021         | Full-codebase style-guide/code-quality sweep after all feature work                 | P20A                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P21     | control        | [Executable final audit](tasks/P21-final-audit.md)                                  | all prior            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -3283,3 +3284,29 @@ authorized checked-ID metadata gains HS-019 (thirteen total). FS-001 stays immut
 `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines and 25,441 bytes. With
 P18 passed, P19 (HS-020) is now dependency-ready (P04/P06/P18 all passed) and is the next dispatch; no
 halt condition applies.
+
+### 2026-07-25 — P19/01 dispatch (HS-020 WebAuthn PRF passkeys)
+
+`queued -> implementing`. Root rewrote `HANDOFF.md` for P19/01 and dispatched a
+`human_scratch_implementer` from clean pre-product HEAD
+`e72befd9ba1b2cbbf5c189b7d855e47cc752240e` (tree clean; only ledger/handoff docs changed by root).
+Binding task `tasks/HS-020-passkey-prf.md`; frozen source `specs/human-scratch.md:348-350`
+(`SCOPE.json#HS-020`). Dependencies P04, P06 and P18 are all `passed`. Authorized surface: one vetted
+WebAuthn library in `package.json`/lockfile (recommended `@simplewebauthn/{server,browser}`), a new
+`supabase/migrations/010_passkey_credentials.sql` (credential metadata plus encrypted wrapped secret,
+RLS scoped by public-key hash), a new `src/server/routers/passkey.ts` wired additively into `_app.ts`,
+new `src/lib/crypto` PRF-wrap helper(s), onboarding OR-UI edits
+(`new-user`/`unlock`/`invite/[token]` creation branch) and new
+`src/components/features/identity/**`, plus unit/integration/E2E tests. Load-bearing invariant: the
+PRF output is only a KEK wrapping the SAME existing random master identity secret — never mint,
+substitute or re-derive a vault identity, never reduce entropy, never hand-roll WebAuthn crypto. The
+recovery-phrase derivation core (`seed.ts`, `keypair.ts`, `identity.ts` derivation, entropy,
+wordlist), existing migrations and P05 realtime surfaces are read-only. Blocking secret-safety: no
+master secret, PRF output, plaintext wrapped-secret bytes or recovery phrase in logs, URLs, analytics,
+plaintext persistence, fixtures or any evidence/review artifact; server stores only non-secret
+metadata and the encrypted wrapped secret; only public WebAuthn/BIP39 vectors in tests. A genuine
+headless-Chromium PRF-automation limit (R-011) is a candidate partial `blocked_external` for the
+real-PRF proof only, to be documented with a `Q-*` proposal — everything else must still ship and no
+simulated PRF may be claimed as real. Requirement HS-020 stays `queued` (marker authorized only after
+independent PASS). Scratch rolling SHA unchanged `c4121a48…`; FS-001 immutable/open; thirteen
+requirements remain `passed`; no halt condition applies.
