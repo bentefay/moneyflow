@@ -7,9 +7,11 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P16B revision 03 (`changes_requested`; failure integration pending)
-- **Next action:** persist immutable `reviews/P16B-review-03.md`, residual F-04/F-05 risk updates and
-  failure state, then dispatch narrow P16B revision 04 over the original cumulative BASE
+- **Current package:** P16B revision 04 (`implementing`; dispatch prepared)
+- **Next action:** dispatch `human_scratch_implementer` against original cumulative BASE
+  `4c102600240e2804b801c2a320e10164defb14ea`, clean pre-revision HEAD
+  `f343f496f8838ce237d3866124f7a3112b6a6938` and sole evidence
+  `evidence/P16B/implementation-04.md`
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -22,7 +24,7 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** eleven passed; HS-015 blocked externally; HS-011/HS-012 and seven other HS
   requirements plus FS-001 queued
-- **Last ledger update:** 2026-07-25; P16B revision-03 independent FAIL requires narrow revision 04
+- **Last ledger update:** 2026-07-25; P16B revision-04 residual F-04/F-05 closure dispatch prepared
 
 ## Package ledger
 
@@ -47,7 +49,7 @@ review evidence.
 | P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | passed | 04 | `b9105028926d24a5a0c5454777a6c33379ca606a..305d6613673cf200d456276c076463b68c075500` | `evidence/P14/implementation-04.md` | `reviews/P14-review-04.md` | `a2182116db08200b8b4df28412512b9ca3406aa2` |
 | P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | passed | 02 | `b3e96ba9e9487d13df56956d220fffca63d6482d..91931688ef9463576b757a097968af543a4b8a75` | `evidence/P15/implementation-02.md` | `reviews/P15-review-02.md` | `9c5d7be8ee4cf7c3fda5f1a7320c053362672e3a` |
 | P16A    | FS-001, HS-009 | Allocation/ownership validation, remainder/effective shares and exact apportionment | P01                  | passed | 02 | `1b42d27e11494a167a4768e0c2c308010aa51651..f84f66758708529c44342313e8632ee8b7dcead3` | `evidence/P16A/implementation-02.md` | `reviews/P16A-review-02.md` | `41f5760f77c1a93ab650a93912bfaf3c0b627ab0` |
-| P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | changes_requested | 03 | `4c102600240e2804b801c2a320e10164defb14ea..cd643afc8f168b3c8328eb54f1d5f280ca7ec717` | `evidence/P16B/implementation-03.md` | `reviews/P16B-review-03.md` | failure integration pending                |
+| P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | implementing | 04 | `4c102600240e2804b801c2a320e10164defb14ea..pending`                                  | `evidence/P16B/implementation-04.md` | `reviews/P16B-review-04.md` | revision-03 FAIL `f343f496f8838ce237d3866124f7a3112b6a6938`; revision-04 pending |
 | P16C    | FS-001, HS-009 | CRDT per-key/complete-set APIs and every mutation, hydration and history path       | P16A, P16B, P09, P14 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16D    | FS-001, HS-009 | Actual grid/add-row person columns, virtualization, history and presence UX         | P16C, P13            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16E    | FS-001         | People obligations/issues/source UX plus full integration, E2E, manual and perf     | P16D, P08, P11C      | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -2602,24 +2604,6 @@ current CLI artifacts while preserving all 22 older artifacts. Index/cleanup and
 exact. Reviewer alone may write `reviews/P16B-review-01.md`; HS-009 remains unchanged and FS-001
 immutable/open.
 
-**2026-07-25T11:56:38+10:00 — P16B/03 `reviewing -> changes_requested`; failure integration
-pending:** Independent `reviews/P16B-review-03.md` is 377 lines / 21,986 bytes at SHA-256
-`5eac6d9a52f5cf96fe921df734a4f52367b898ce94a7af9130ee6af21883af8d` and returns FAIL over exact
-`4c102600240e2804b801c2a320e10164defb14ea..cd643afc8f168b3c8328eb54f1d5f280ca7ec717`.
-Revision-02 literal F-04/F-05 shapes are closed, and independent arithmetic/adversarial oracles,
-focused, broader/full unit, static/build, affected Chromium 46/46, full Chromium 102/102 and
-real-app manual gates pass. Residual F-04 proves own-key/descriptor/getter/iterator traps escape as
-exceptions and hidden/prototype-spoofed record shapes can become plausible totals because only
-`getPrototypeOf` is guarded. Residual F-05 proves missing/null/numeric/mismatched account-tree
-identity and non-finite/fractional/out-of-range or impossible date discriminators can still produce
-issue-free qualifying Bob-to-Alice totals. Independent 100k samples are 248.83–292.06ms with full
-output; the honest P16E follow-up remains non-blocking. Root restored generated source, moved
-current output and the filesystem-resolved exact 22 reviewer CLI artifacts to recoverable trash,
-preserved all 22 older CLI artifacts and the older report, and verified no browser/port remains.
-No Q proposal. Revision 04 must close the complete exception-safe materialized-snapshot boundary
-and required hierarchy identity/calendar semantics without weakening the proven core; HS-009 stays
-unchanged and FS-001 immutable/open.
-
 **2026-07-25T09:25:16+10:00 — P16B/01 `ready_for_review -> reviewing`:** Frozen implementation
 evidence and exact review boundary are durable in control commit
 `095a657698231b5ed34f70c3cfa737d5b7fdfc16`. Distinct `human_scratch_reviewer` receives literal
@@ -2761,6 +2745,39 @@ non-plain financial-map objects and every malformed hierarchy envelope, re-prove
 and the exact arithmetic/currency/matching/netting/source/issue/immutability core, named A–H, sole
 API/caller, full gates and honest scale disposition. HS-009 remains unchanged and FS-001
 immutable/open.
+
+**2026-07-25T11:56:38+10:00 — P16B/03 `reviewing -> changes_requested`; failure integration
+pending:** Independent `reviews/P16B-review-03.md` is 377 lines / 21,986 bytes at SHA-256
+`5eac6d9a52f5cf96fe921df734a4f52367b898ce94a7af9130ee6af21883af8d` and returns FAIL over exact
+`4c102600240e2804b801c2a320e10164defb14ea..cd643afc8f168b3c8328eb54f1d5f280ca7ec717`.
+Revision-02 literal F-04/F-05 shapes are closed, and independent arithmetic/adversarial oracles,
+focused, broader/full unit, static/build, affected Chromium 46/46, full Chromium 102/102 and
+real-app manual gates pass. Residual F-04 proves own-key/descriptor/getter/iterator traps escape as
+exceptions and hidden/prototype-spoofed record shapes can become plausible totals because only
+`getPrototypeOf` is guarded. Residual F-05 proves missing/null/numeric/mismatched account-tree
+identity and non-finite/fractional/out-of-range or impossible date discriminators can still produce
+issue-free qualifying Bob-to-Alice totals. Independent 100k samples are 248.83–292.06ms with full
+output; the honest P16E follow-up remains non-blocking. Root restored generated source, moved
+current output and the filesystem-resolved exact 22 reviewer CLI artifacts to recoverable trash,
+preserved all 22 older CLI artifacts and the older report, and verified no browser/port remains.
+No Q proposal. Revision 04 must close the complete exception-safe materialized-snapshot boundary
+and required hierarchy identity/calendar semantics without weakening the proven core; HS-009 stays
+unchanged and FS-001 immutable/open.
+
+**2026-07-25T11:57:37+10:00 — P16B/04 `changes_requested -> implementing`:** Revision-03 failure
+artifacts and risk updates are durable in integration commit
+`f343f496f8838ce237d3866124f7a3112b6a6938`. Revision 04 retains literal original cumulative BASE
+`4c102600240e2804b801c2a320e10164defb14ea`, uses sole implementer artifact
+`evidence/P16B/implementation-04.md` and reserves immutable future review
+`reviews/P16B-review-04.md`. Its exact two-path authority remains `src/lib/domain/settlement.ts` and
+`tests/unit/domain/settlement.test.ts`. It must close residual F-04 with one complete exception-safe
+materialized snapshot boundary covering every trap/access/enumeration/traversal and residual F-05
+with canonical account-tree identity plus established supported-calendar validation. It must
+preserve every prior closure and the proven exact arithmetic/topology/cache/currency/matching/
+netting/source/issue/immutability/named-A–H/sole-engine core. Checked-in red reproductions against
+byte-identical revision-03 product, mechanism-generating properties, full gates and honest
+performance/manual evidence are mandatory. Reviewer remains undispatched; HS-009 has no marker
+change and FS-001 remains immutable/open.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
