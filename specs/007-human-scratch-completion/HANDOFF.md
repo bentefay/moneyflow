@@ -7,7 +7,7 @@ Root rewrites this compact file for one package/revision. Workers may read but n
 - **Package / revision:** P16B / 05
 - **Scope ID:** FS-001; this revision closes only P16B review-04 F-06 while preserving every
   independently proven revision-04 settlement invariant. FS-001 remains incomplete.
-- **State:** reviewing revision-05 frozen implementation
+- **State:** independent revision-05 PASS; integration pending
 - **Binding task:** `tasks/FS-001-transaction-percentage-allocations-settlement.md` P16B
 - **Canonical authority:** all 715 immutable lines of
   `specs/008-transaction-percentage-allocations-settlement/spec.md`
@@ -30,7 +30,9 @@ Root rewrites this compact file for one package/revision. Workers may read but n
   15,982 bytes
 - **Revision-05 red-test checkpoint:** `b3e0235a8e7a1a2d15f45fb3c92ef85831d92c7d`
 - **Revision-05 product/test HEAD:** `46d8f9feb79c6dfc080c0869922fb8cd4c20ec6c`
-- **Future immutable revision-05 review artifact:** `reviews/P16B-review-05.md`
+- **Immutable revision-05 review artifact:** `reviews/P16B-review-05.md`, PASS, SHA-256
+  `edf379ab4d9c0d1dc64d158fdbc14caad06fcefe89eb6985ea14972321b3108e`, 340 lines /
+  22,883 bytes
 - **Allowed revision-05 product/test paths:** exactly
   `src/lib/domain/settlement.ts` and `tests/unit/domain/settlement.test.ts`.
 - **Forbidden writes:** every caller/component including BalanceSummary, balance/barrel/PeopleTable,
@@ -108,7 +110,7 @@ Root rewrites this compact file for one package/revision. Workers may read but n
 
 ## Independent review contract
 
-- **Reviewer:** distinct `human_scratch_reviewer`, dispatched only after revision-05 evidence freeze
+- **Reviewer:** distinct `human_scratch_reviewer`, completed after revision-05 evidence freeze
   commit `910cecbf0ea6c83ca12c41b7d98808d95158bf67`
 - **Literal cumulative review BASE:** `4c102600240e2804b801c2a320e10164defb14ea`
 - **Literal revision-05 product/test HEAD:** `46d8f9feb79c6dfc080c0869922fb8cd4c20ec6c`
@@ -123,8 +125,11 @@ Root rewrites this compact file for one package/revision. Workers may read but n
   mechanisms/oracles, browser/manual/cleanup and Q proposals. Any arbitrary non-`$cid` primitive
   entry skipped without its contextual issue, false `$cid` rejection, issue-free plausible invalid
   total or preservation regression fails.
+- **Actual verdict:** PASS. F-06 closes with exact-key `$cid` compatibility, 2,400 independent
+  primitive-entry cases plus 500 caller-purity cases, complete contextual issues and every F-01–F-05
+  and canonical-core preservation gate green.
 
 ## Next root action
 
-Await the distinct `human_scratch_reviewer` verdict over the literal cumulative range and sole
-review output. Keep HS-009 unchanged and FS-001 immutable/open.
+Persist the immutable revision-05 PASS and applicable risk updates, then integrate P16B as passed
+and prepare P16C. Keep HS-009 unchanged and FS-001 immutable/open.
