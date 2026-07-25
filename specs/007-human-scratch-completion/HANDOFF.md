@@ -7,7 +7,7 @@ Root rewrites this compact file for one package/revision. Workers may read but n
 - **Package / revision:** P16B / 03
 - **Scope ID:** FS-001; this revision closes only P16B review-02 F-04/F-05 while preserving every
   independently proven settlement invariant. FS-001 remains incomplete.
-- **State:** reviewing revision-03 frozen implementation
+- **State:** changes requested after immutable revision-03 FAIL; failure integration pending
 - **Binding task:** `tasks/FS-001-transaction-percentage-allocations-settlement.md` P16B
 - **Canonical authority:** all 715 immutable lines of
   `specs/008-transaction-percentage-allocations-settlement/spec.md`
@@ -27,7 +27,9 @@ Root rewrites this compact file for one package/revision. Workers may read but n
   18,960 bytes
 - **Revision-03 red-test checkpoint:** `a325454d7d859742db08d0ccf2517f8794aaddc0`
 - **Revision-03 product/test HEAD:** `cd643afc8f168b3c8328eb54f1d5f280ca7ec717`
-- **Future immutable revision-03 review artifact:** `reviews/P16B-review-03.md`
+- **Immutable revision-03 review artifact:** `reviews/P16B-review-03.md`, FAIL, SHA-256
+  `5eac6d9a52f5cf96fe921df734a4f52367b898ce94a7af9130ee6af21883af8d`, 377 lines /
+  21,986 bytes
 - **Allowed revision-03 product/test paths:** exactly
   `src/lib/domain/settlement.ts` and `tests/unit/domain/settlement.test.ts`.
 - **Forbidden writes:** BalanceSummary and every other caller/component, balance/barrel/PeopleTable,
@@ -130,5 +132,6 @@ Root rewrites this compact file for one package/revision. Workers may read but n
 
 ## Next root action
 
-Await the distinct `human_scratch_reviewer` verdict over the literal cumulative range and sole
-review output. Keep HS-009 unchanged and FS-001 immutable/open.
+Persist the immutable revision-03 FAIL, transcribe residual F-04/F-05 to risks and package state,
+then prepare P16B revision 04 over the same original cumulative BASE. Keep HS-009 unchanged and
+FS-001 immutable/open.
