@@ -7,11 +7,10 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P16B revision 03 (`implementing`; dispatch prepared)
-- **Next action:** dispatch `human_scratch_implementer` against original cumulative BASE
-  `4c102600240e2804b801c2a320e10164defb14ea`, clean pre-revision HEAD
-  `ef35b2753b2a12fa73f0f1ebdf9c1454de81b07a` and sole evidence
-  `evidence/P16B/implementation-03.md`
+- **Current package:** P16B revision 03 (`ready_for_review`; frozen implementation evidence)
+- **Next action:** dispatch `human_scratch_reviewer` over literal cumulative range
+  `4c102600240e2804b801c2a320e10164defb14ea..cd643afc8f168b3c8328eb54f1d5f280ca7ec717`
+  with sole output `reviews/P16B-review-03.md`
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -24,7 +23,7 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** eleven passed; HS-015 blocked externally; HS-011/HS-012 and seven other HS
   requirements plus FS-001 queued
-- **Last ledger update:** 2026-07-25; P16B revision-03 F-04/F-05 closure dispatch prepared
+- **Last ledger update:** 2026-07-25; P16B revision-03 implementation frozen for independent review
 
 ## Package ledger
 
@@ -49,7 +48,7 @@ review evidence.
 | P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | passed | 04 | `b9105028926d24a5a0c5454777a6c33379ca606a..305d6613673cf200d456276c076463b68c075500` | `evidence/P14/implementation-04.md` | `reviews/P14-review-04.md` | `a2182116db08200b8b4df28412512b9ca3406aa2` |
 | P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | passed | 02 | `b3e96ba9e9487d13df56956d220fffca63d6482d..91931688ef9463576b757a097968af543a4b8a75` | `evidence/P15/implementation-02.md` | `reviews/P15-review-02.md` | `9c5d7be8ee4cf7c3fda5f1a7320c053362672e3a` |
 | P16A    | FS-001, HS-009 | Allocation/ownership validation, remainder/effective shares and exact apportionment | P01                  | passed | 02 | `1b42d27e11494a167a4768e0c2c308010aa51651..f84f66758708529c44342313e8632ee8b7dcead3` | `evidence/P16A/implementation-02.md` | `reviews/P16A-review-02.md` | `41f5760f77c1a93ab650a93912bfaf3c0b627ab0` |
-| P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | implementing | 03 | `4c102600240e2804b801c2a320e10164defb14ea..pending`                                  | `evidence/P16B/implementation-03.md` | `reviews/P16B-review-03.md` | revision-02 FAIL `ef35b2753b2a12fa73f0f1ebdf9c1454de81b07a`; revision-03 pending |
+| P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | ready_for_review | 03 | `4c102600240e2804b801c2a320e10164defb14ea..cd643afc8f168b3c8328eb54f1d5f280ca7ec717` | `evidence/P16B/implementation-03.md` | `reviews/P16B-review-03.md` | revision-02 FAIL `ef35b2753b2a12fa73f0f1ebdf9c1454de81b07a`; evidence freeze pending |
 | P16C    | FS-001, HS-009 | CRDT per-key/complete-set APIs and every mutation, hydration and history path       | P16A, P16B, P09, P14 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16D    | FS-001, HS-009 | Actual grid/add-row person columns, virtualization, history and presence UX         | P16C, P13            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16E    | FS-001         | People obligations/issues/source UX plus full integration, E2E, manual and perf     | P16D, P08, P11C      | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -2711,6 +2710,27 @@ exact arithmetic/currency/matching/netting/source/issue/immutability/named-A–H
 Checked-in red reproductions against byte-identical revision-02 product, generated object/topology
 properties, full gates and honest performance/manual evidence are mandatory. Reviewer remains
 undispatched; HS-009 has no marker change and FS-001 remains immutable/open.
+
+**2026-07-25T11:24:28+10:00 — P16B/03 `implementing -> ready_for_review`:** Exact red-test
+checkpoint `a325454d7d859742db08d0ccf2517f8794aaddc0` captured F-04/F-05 before product edits;
+green product/test HEAD is `cd643afc8f168b3c8328eb54f1d5f280ca7ec717`. The revision-03 delta from dispatch
+HEAD `0fd7b884975c6c954d70b224aecf05dc28bd947c` contains exactly the two authorized paths and
+the cumulative review range remains
+`4c102600240e2804b801c2a320e10164defb14ea..cd643afc8f168b3c8328eb54f1d5f280ca7ec717`.
+Frozen `evidence/P16B/implementation-03.md` is 298 lines / 18,960 bytes at SHA-256
+`f3dc7f26695109ec941eb308846872474cba72008e824970a86d7189334ef649`. Focused settlement/
+caller passed 107+1 skip in three clean processes, broader 506+2 and final full unit 1,398+2 after
+one unrelated duplicates timing outlier was isolated and a clean full rerun passed. Typecheck,
+exact formatting/lint, repository lint and build passed. Affected Chromium passed 46/46 and full
+Chromium 102/102 with one worker and zero retries. Deterministic 100k full-output samples were
+257.46–309.60ms with 100k qualifying transactions, 75k source contributions, two obligations,
+zero issues and conservation; strict 200ms remains honestly unclaimed with its P16E follow-up.
+Installed-CLI current onboarding/caller, reload, responsive/zoom, preference, console/network and
+boolean-only privacy checks passed without manufacturing malformed state or P16D/E claims. Root
+stopped the keyed server, restored generated source, moved current output and exactly three CLI
+artifacts to recoverable trash, preserved all 22 older CLI artifacts and the older report, and
+verified no browser/port remains. No Q proposal. Reviewer alone may write
+`reviews/P16B-review-03.md`; HS-009 remains unchanged and FS-001 immutable/open.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual
