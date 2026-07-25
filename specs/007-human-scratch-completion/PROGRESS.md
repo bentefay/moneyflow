@@ -8,10 +8,9 @@ review evidence.
 
 - **Goal status:** in progress
 - **Current package:** P16D revision 01 (`reviewing`)
-- **Next action:** dispatch a distinct independent `human_scratch_reviewer` for P16D/01 over product
-  BASE `3a5081ac37e09817e0d02ae8799469d1bf09dad5`..product/test HEAD `b5ebc2a`; on independent PASS
-  complete the HS-009 marker only after every mapped package (P16A/P16C/P16D) is passed, and keep
-  FS-001 immutable/open through P16E
+- **Next action:** integrate the P16D/01 PASS by flipping the package to `passed` citing this
+  integration commit, then execute the authorized HS-009 forward marker only after its
+  `completion_pending` is durably recorded; keep FS-001 immutable/open through P16E
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -24,9 +23,9 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** eleven passed; HS-015 blocked externally; HS-011/HS-012 and seven other HS
   requirements plus FS-001 queued
-- **Last ledger update:** 2026-07-25; P16D/01 implemented with product/test HEAD `b5ebc2a`, root
-  cleaned the runtime external-config artifact, froze the uncommitted evidence and moved P16D to
-  `reviewing`
+- **Last ledger update:** 2026-07-25; P16D/01 independent PASS (`reviews/P16D-review-01.md`) frozen
+  and persisted alongside RISKS R-017/R-018/R-019 mitigation transcription; package integration
+  recorded in this control commit and pending the `passed` flip
 
 ## Package ledger
 
@@ -3125,3 +3124,29 @@ the rolling SHA with no active completion/rollback event; canonical FS-001
 `tasks/HS-009-allocation-bounds.md` P16D, evidence `evidence/P16D/implementation-01.md`, and the sole
 new review artifact `reviews/P16D-review-01.md`. HS-009 stays unchecked and FS-001 immutable/open; no
 marker is authorized until independent PASS and all mapped packages pass.
+
+**2026-07-25T19:16:29+10:00 — P16D/01 `reviewing -> reviewing`; independent PASS, integration
+pending:** Independent `reviews/P16D-review-01.md` is 435 lines / 62,073 bytes at SHA-256
+`4b6f98f9347a92e8a51ff2af85fe16b498fbe996ee6c78f53e33822746c12850` and returns PASS over exact
+`3a5081ac37e09817e0d02ae8799469d1bf09dad5..b5ebc2a8edbf5e1fc522873fb5ee7455266a3bcc`. Zero blocking
+findings: the orphan aggregate cell is fully decomposed into a real one-Person grid cell; every write
+routes exclusively through P16C `setTransactionAllocation` at `page.tsx:809` with no direct
+allocation mutation anywhere in the page, columns or cells (independently grep-verified);
+explicit/effective/owner-remainder values stay distinct with exact P16A strings and no display
+rounding; invalid legacy data is retained and repairable rather than dropped, clamped or rewritten;
+the header, virtualized rows, expanded-notes row and the new Add row share one memoized pixel-aligned
+template under horizontal overflow, 200% zoom and 320px reflow; the tanstack range extractor is
+untouched with virtualization and keyboard suites green; two-peer different-cell CRDT convergence is
+real and the P10 transport boundary is stated honestly; 120 retries-disabled E2E repeats plus the
+full 103-test Chromium suite, unit suite, typecheck, lint, build and changed-path format check all
+pass with zero console errors or failed requests. Three non-blocking observations are recorded
+without waiver: pre-existing error-glyph contrast 4.26:1 below AA normal-text where no information is
+contrast-dependent (`role="alert"` + `sr-only` + `aria-describedby`), a dev-build interaction max of
+158.1 ms above the `<100ms` target while p50/p95 meet it, and one weak 2000 ms smoke bound in
+`transactions.spec.ts` backed by the sampled section 7 measurement. No Q proposal remains. Frozen
+sources exact at this transition: scratch
+`ce52d7df87daf63117931e5bdee928212051242ae7f2b5d90e76f5610abcb00f` equals the rolling SHA, canonical
+FS-001 `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c` at 715 lines/25,441 bytes,
+SCOPE `d03f33e718f1ec5f7c8ad0119d283397dcc59407199da4b5887a2e5eee7ef0f9`. R-017 invalid-data
+surfacing, R-018 grid/add-row routing and R-019 grid-UX mitigations are transcribed to RISKS. HS-009
+stays unchecked pending its authorized marker; FS-001 stays immutable/open pending P16E.
