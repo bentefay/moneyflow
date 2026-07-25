@@ -15,6 +15,7 @@ import {
     createNewIdentity,
     goToAccounts,
     goToImportNew,
+    goToPeople,
     goToTags,
     goToTransactions,
     goToTxDescriptions
@@ -101,6 +102,63 @@ function createFutureTransactionCSV(rowCount: number): string {
 // ============================================================================
 
 test.describe("Transactions", () => {
+    test("person allocation columns scroll, edit, persist and share undo history", async ({
+        page
+    }) => {
+        test.setTimeout(120_000);
+        await createNewIdentity(page);
+        await goToPeople(page);
+
+        for (let index = 0; index < 12; index += 1) {
+            await page.getByRole("button", { name: "Add Person" }).click();
+            await page
+                .getByPlaceholder("Enter person's name")
+                .fill(`Grid Person ${index.toString().padStart(2, "0")}`);
+            await page.getByRole("button", { name: "Add", exact: true }).click();
+        }
+
+        await goToTransactions(page);
+        await page.getByTestId("add-transaction-button").click();
+        const row = page.getByRole("row", { selected: true });
+        const editorButton = row.getByRole("button", {
+            name: /edit Grid Person 00 allocation/i
+        });
+        const scrollContainer = page.getByTestId("transaction-table").locator("..");
+
+        await expect(page.getByText("Grid Person 00 %", { exact: true })).toBeVisible();
+        await expect(editorButton).toHaveText("—");
+        await expect(editorButton).toHaveAttribute(
+            "data-presence-field",
+            expect.stringMatching(/^allocation:/)
+        );
+        expect(await scrollContainer.evaluate((element) => element.scrollWidth)).toBeGreaterThan(
+            await scrollContainer.evaluate((element) => element.clientWidth)
+        );
+
+        const startedAt = Date.now();
+        await editorButton.click();
+        const input = row.getByRole("textbox", {
+            name: "Grid Person 00 allocation percentage"
+        });
+        await input.fill("-35.125");
+        await input.press("Enter");
+        await expect(editorButton).toHaveText("-35.125%");
+        expect(Date.now() - startedAt).toBeLessThan(2_000);
+
+        await page.getByRole("button", { name: "Undo" }).click();
+        await expect(editorButton).toHaveText("—");
+        await page.getByRole("button", { name: "Redo" }).click();
+        await expect(editorButton).toHaveText("-35.125%");
+
+        await page.reload();
+        const persistedRow = page.getByTestId("transaction-row").first();
+        await expect(
+            persistedRow.getByRole("button", {
+                name: /edit Grid Person 00 allocation/i
+            })
+        ).toHaveText("-35.125%");
+    });
+
     test("page displays correctly with empty state", async ({ page }) => {
         await createNewIdentity(page);
 

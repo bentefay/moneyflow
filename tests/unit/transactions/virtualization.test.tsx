@@ -42,12 +42,23 @@ vi.mock("@tanstack/react-virtual", () => ({
 vi.mock("@/components/features/transactions/TransactionRow", () => ({
     TransactionRow: ({
         transaction,
-        onFocus
+        onFocus,
+        allocationColumns,
+        gridTemplateColumns
     }: {
         transaction?: TransactionRowData;
         onFocus?: () => void;
+        allocationColumns?: ReadonlyArray<{ personId: string }>;
+        gridTemplateColumns?: string;
     }) => (
-        <div role="row" data-testid="transaction-row" tabIndex={0} onFocus={onFocus}>
+        <div
+            role="row"
+            data-testid="transaction-row"
+            data-allocation-count={allocationColumns?.length ?? 0}
+            data-grid-template={gridTemplateColumns}
+            tabIndex={0}
+            onFocus={onFocus}
+        >
             {transaction?.description}
         </div>
     )
@@ -122,5 +133,47 @@ describe("TransactionTable virtualization", () => {
         expect(
             options.rangeExtractor({ startIndex: 10, endIndex: 15, overscan: 5, count: 21 })
         ).toContain(1);
+    });
+
+    it("passes one stable allocation model through virtual rows and newly inserted rows", () => {
+        const allocationColumns = [
+            { personId: "person-a", label: "Ada", field: "allocation:person-a" as const }
+        ];
+        const gridTemplateColumns =
+            "32px 120px minmax(150px,2fr) 160px 140px 110px 128px 112px 88px";
+        const original = createTransactions(20);
+        const { rerender } = render(
+            <TransactionTable
+                transactions={original}
+                allocationColumns={allocationColumns}
+                gridTemplateColumns={gridTemplateColumns}
+            />
+        );
+
+        for (const row of screen.getAllByTestId("transaction-row")) {
+            expect(row).toHaveAttribute("data-allocation-count", "1");
+            expect(row).toHaveAttribute("data-grid-template", gridTemplateColumns);
+        }
+
+        rerender(
+            <TransactionTable
+                transactions={[
+                    {
+                        id: "new-empty-row",
+                        date: "2026-01-01",
+                        description: "",
+                        amount: 0,
+                        allocations: {}
+                    },
+                    ...original
+                ]}
+                allocationColumns={allocationColumns}
+                gridTemplateColumns={gridTemplateColumns}
+            />
+        );
+        expect(screen.getAllByTestId("transaction-row")[0]).toHaveAttribute(
+            "data-allocation-count",
+            "1"
+        );
     });
 });

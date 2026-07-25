@@ -49,6 +49,22 @@ describe("useKeyboardNavigation", () => {
         });
     });
 
+    it("treats person allocation identities as ordinary focusable grid columns", () => {
+        const allocationColumn: ColumnId = "allocation:person-a";
+        const props = {
+            ...createDefaultProps(),
+            columnIds: [...columnIds.slice(0, -2), allocationColumn, ...columnIds.slice(-2)],
+            focusableColumns: [...focusableColumns, allocationColumn]
+        };
+        const { result } = renderHook(() => useKeyboardNavigation(props));
+
+        act(() => result.current.setFocus("row-1", allocationColumn));
+        expect(result.current.focusedCell).toEqual({
+            rowId: "row-1",
+            column: allocationColumn
+        });
+    });
+
     describe("setFocus", () => {
         it("sets focus to a valid focusable cell", () => {
             const props = createDefaultProps();
