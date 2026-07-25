@@ -671,6 +671,87 @@ No unresolved product questions were answered by scaffold creation.
   prefers B. A is finite, reversible and directly satisfies both frozen behaviors, so it does not
   block continuation.
 
+## Q-019 — Invite page has no creation branch to instrument for the credential contract
+
+- **Raised:** 2026-07-25, P18 revision 01, `human_scratch_implementer`
+- **Source proposal:**
+  `evidence/P18/implementation-01.md#q-proposal-p18-01-1--invite-page-has-no-creation-branch-to-instrument`
+- **Context and evidence:** HANDOFF required the credential contract on "the join/creation branch of
+  `invite/[token]`" and lists that file as an allowed product path. Inspection shows the file has no
+  seed-phrase UI, no `SeedPhrase*` import, no `generateNew`/`createIdentity` call and no mnemonic
+  state. A locked visitor is redirected to `/unlock?returnTo=…`; the `need-auth` branch links to
+  `/unlock`. There is no in-page identity creation to wrap in a credential form.
+- **Why the frozen requirement/repository does not fully decide it:** The frozen requirement covers
+  "vault creation and login"; HANDOFF assumes an invite-local creation branch that does not exist in
+  the current code.
+- **Options considered:** (A) leave the invite file untouched and rely on the shared `/unlock` and
+  `/new-user` surfaces, which now carry the contract; (B) add a new inline identity-creation flow to
+  the invite page; (C) report a blocker and stop.
+- **Default selected for continued work:** Choose A. Both destinations the invite page delegates to
+  are covered, so an invited user still gets save-on-create and fill-on-unlock.
+- **Decision hierarchy basis:** Established product behavior and repository convention, then the
+  smallest reversible implementation. Option B would invent unrequested onboarding UX inside a
+  redemption flow.
+- **Impact and risk:** Low. No invite behavior changes. If a future package adds invite-local
+  identity creation, it must render the shared recovery-phrase credential fields the same way
+  `SeedPhraseDisplay` does.
+- **How to reverse or migrate:** Import the shared component into the invite page; no data migration.
+- **Does a human still need to decide after completion?:** Yes — confirm whether an invite-local
+  creation branch was intended to exist at all.
+
+## Q-020 — Real password-manager matrix cannot be produced in this environment
+
+- **Raised:** 2026-07-25, P18 revision 01, `human_scratch_implementer`
+- **Source proposal:**
+  `evidence/P18/implementation-01.md#q-proposal-p18-01-2--real-password-manager-matrix-cannot-be-produced-in-this-environment`
+- **Context and evidence:** The task asks for sanitized real-manager/browser observations "where
+  available". Headless Chromium loads no manager extensions and the native save prompt is browser UI
+  outside the page. Vendor opt-out attributes are also unevenly documented: `data-1p-ignore` is
+  documented by 1Password and `data-bwignore` is confirmed in Bitwarden source, but
+  `data-lpignore="true"` (LastPass) rests on secondary sources only.
+- **Why the frozen requirement/repository does not fully decide it:** No repository authority can
+  substitute for observing third-party software that is not installed.
+- **Options considered:** (A) assert the standards-based contract with automated evidence and document
+  the limit; (B) claim manager behavior that was not observed; (C) block P18 pending a manual matrix
+  on real browsers with real managers.
+- **Default selected for continued work:** Choose A. The contract is implemented to each engine's
+  documented, source-verified thresholds and every observable property is asserted.
+- **Decision hierarchy basis:** Authoritative external specs/vendor docs, then the smallest reversible
+  implementation. Option B would be false evidence.
+- **Impact and risk:** Medium-low. If a specific manager still misbehaves, the fix is attribute-level
+  (add or drop an opt-out, adjust the anchor) and needs no structural change. `data-lpignore` is inert
+  if LastPass does not honour it.
+- **How to reverse or migrate:** Attributes are declarative and individually removable.
+- **Does a human still need to decide after completion?:** Yes — a human-run matrix across
+  Chrome/Safari/Firefox with 1Password, Bitwarden and the built-in managers, recording prompt
+  behavior only and storing no phrase.
+
+## Q-021 — Completeness now requires the BIP39 checksum on the fill path
+
+- **Raised:** 2026-07-25, P18 revision 01, `human_scratch_implementer`
+- **Source proposal:**
+  `evidence/P18/implementation-01.md#q-proposal-p18-01-3--completeness-now-requires-the-bip39-checksum`
+- **Context and evidence:** At BASE, `SeedPhraseInput` reported a phrase complete when all twelve
+  words were in the wordlist, ignoring the checksum, so `abandon` x12 showed "Valid recovery phrase"
+  and enabled Unlock while `unlockWithSeed` would reject it. Manager fills make whole-phrase entry the
+  normal case, so a corrupted fill would have been shown as valid.
+- **Why the frozen requirement/repository does not fully decide it:** HS-019 requires that an invalid
+  secret is never silently normalized or accepted but does not itself name the checksum; the BASE
+  behavior predates this package.
+- **Options considered:** (A) use the read-only `validateSeedPhrase` (wordlist + checksum) for both
+  `onComplete` and the indicator; (B) leave the weaker check and let unlock fail later with a
+  server-ish error; (C) route the fix to another package.
+- **Default selected for continued work:** Choose A.
+- **Decision hierarchy basis:** Security, privacy and preservation of user data — a false "valid" on
+  a recovery credential is a correctness and trust defect — and it is directly in the fill path this
+  package owns.
+- **Impact and risk:** Low, and strictly tightening. Nothing previously rejected is now accepted; no
+  entropy change; derivation untouched. Users who typed a checksum-invalid phrase now see "Invalid
+  phrase" immediately instead of a failed unlock.
+- **How to reverse or migrate:** Revert two expressions in `SeedPhraseInput.tsx`.
+- **Does a human still need to decide after completion?:** Yes — confirm the earlier lenient indicator
+  was not intentional.
+
 ## Question template
 
 ### Q-XXX — Short title

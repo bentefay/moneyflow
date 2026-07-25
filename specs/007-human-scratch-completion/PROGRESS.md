@@ -7,12 +7,12 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P18 revision 01 (`implementing`)
-- **Next action:** await the P18/01 implementer's exact-path RED then GREEN commits and the sole
-  `evidence/P18/implementation-01.md`; on `ready_for_review` verify HEAD, dispatch a distinct
-  `human_scratch_reviewer` over the literal BASE `493bf19d3219f44efd4d4437fd8b0e33d012fba9`..HEAD
-  range with `reviews/P18-review-01.md`; keep FS-001 immutable/open and all P05-gated packages
-  blocked
+- **Current package:** P18 revision 01 (`reviewing`)
+- **Next action:** await the distinct P18/01 `human_scratch_reviewer` verdict over the literal
+  BASE `493bf19d3219f44efd4d4437fd8b0e33d012fba9`..HEAD
+  `4cda92d40e9cc5b6490636c25d99b655905cb40a` range into `reviews/P18-review-01.md`; on PASS with
+  unchanged reviewed HEAD, integrate then run the HS-019 authorized-marker procedure; on FAIL route
+  findings to P18/02. Keep FS-001 immutable/open and all P05-gated packages blocked
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -25,9 +25,10 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** twelve passed; HS-015 blocked externally; eight other HS requirements
   (HS-003/007/011/012/016/019/020/021) plus FS-001 queued
-- **Last ledger update:** 2026-07-25; P18 (HS-019) dispatched to `human_scratch_implementer` at
-  revision 01 from clean HEAD `493bf19` with `HANDOFF.md` rewritten; recovery-phrase secret-safety
-  is a blocking checkpoint
+- **Last ledger update:** 2026-07-25; P18/01 reached `ready_for_review` at HEAD
+  `4cda92d40e9cc5b6490636c25d99b655905cb40a` (RED `62a41d6`, GREEN `4cda92d`) and root moved it to
+  `reviewing`; worker range touches only authorized `src/`+`tests/` paths, frozen sources
+  byte-identical, no secret leak; three Q-proposals transcribed as Q-019/Q-020/Q-021
 
 ## Package ledger
 
@@ -60,7 +61,7 @@ review evidence.
 | P17B    | HS-007         | Shared rule editor and automations-page UX                                          | P17A, P02            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P17C    | HS-007         | Description inline proposals, robot drift state and scoped application              | P17B                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P17D    | HS-007         | Tags/allocation parity, bulk/new application, performance and polish                | P17C                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
-| P18     | HS-019         | Password-manager-compatible recovery phrase creation and unlock                     | P01                  | implementing       | 01   | —                                                                                    | `evidence/P18/implementation-01.md` | —                          | —                                          |
+| P18     | HS-019         | Password-manager-compatible recovery phrase creation and unlock                     | P01                  | reviewing          | 01   | `493bf19d3219f44efd4d4437fd8b0e33d012fba9..4cda92d40e9cc5b6490636c25d99b655905cb40a` | `evidence/P18/implementation-01.md` | `reviews/P18-review-01.md` | —                                          |
 | P19     | HS-020         | WebAuthn PRF passkeys sharing the vault identity secret                             | P04, P06, P18        | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P20A    | HS-016         | Truthful marketing copy and responsive feature presentation                         | P17D, P19            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P20B    | HS-021         | Full-codebase style-guide/code-quality sweep after all feature work                 | P20A                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -3202,3 +3203,29 @@ usable 12-word UI) and a blocking secret-safety rule: the real recovery phrase m
 URLs, analytics, persistence, fixtures or any evidence/review artifact, and only public BIP39 test
 vectors may appear in tests. HS-009 stays complete; the scratch rolling SHA remains
 `9a0f6633ba671446684221679a2ef148122c09f7f1ed06978d8a9786a7170d4d` and FS-001 byte-identical.
+
+**2026-07-25T20:15:00+10:00 — P18/01 `implementing -> reviewing`:** The P18/01
+`human_scratch_implementer` reported completion at GREEN HEAD `4cda92d40e9cc5b6490636c25d99b655905cb40a`
+(exact-path RED `62a41d6` defining the recovery-phrase credential-form contract against byte-identical
+production, GREEN `4cda92d` implementing it). Root independently verified the worker-only range
+`6c6eb192..4cda92d` (parent chain `493bf19` -> `6c6eb192` dispatch/ledger-only -> `62a41d6` RED ->
+`4cda92d` GREEN) touches only authorized `src/components/features/identity/**` and
+`src/app/(onboarding)/**` product paths plus `tests/` specs, with no forbidden path, no crypto
+entropy/derivation edit, and frozen sources byte-identical (scratch
+`9a0f6633ba671446684221679a2ef148122c09f7f1ed06978d8a9786a7170d4d`, FS-001
+`0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`). The working tree holds only the
+untracked sole evidence `evidence/P18/implementation-01.md` (465 lines). Reported checks: typecheck
+PASS, lint PASS (10 pre-existing warnings), unit 1550 passed/2 skipped, e2e 107 passed, non-flake 51
+passed/0 flakes; `format:check` fails only on 15 pre-existing root-owned frozen/ledger markdown files
+(no `src/` or `tests/` file) — an accepted frozen-content-vs-oxfmt condition that must not be
+"fixed" by running oxfmt on immutable bytes. No secret leak: only public BIP39 test vectors appear and
+the form uses `method="post"`. Two implementation defects (fill-before-hydration stranding;
+focus-reveal shifting the Unlock button) were found and fixed within the range. Three Q-proposals were
+transcribed by root as `QUESTIONS.md` Q-019 (invite page has no creation branch — shared
+`/unlock`+`/new-user` surfaces carry the contract), Q-020 (real password-manager matrix not producible
+headless — standards-based contract asserted with documented vendor thresholds) and Q-021 (completeness
+now enforces the BIP39 checksum via read-only `validateSeedPhrase`, strictly tightening). Root moved
+P18 to `reviewing` and dispatched a distinct `human_scratch_reviewer` over the literal BASE
+`493bf19d3219f44efd4d4437fd8b0e33d012fba9`..HEAD `4cda92d40e9cc5b6490636c25d99b655905cb40a` range with
+output `reviews/P18-review-01.md`. HS-009 stays complete; rolling scratch SHA unchanged and FS-001
+immutable/open.
