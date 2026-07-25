@@ -74,7 +74,7 @@ export function PasskeyUnlockButton({
                 ) : (
                     <>
                         <KeyRound className="h-4 w-4" />
-                        Unlock with passkey
+                        Use a passkey
                     </>
                 )}
             </Button>
