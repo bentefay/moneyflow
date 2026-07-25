@@ -7,10 +7,9 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P16C revision 01 (`reviewing`)
-- **Next action:** await `human_scratch_reviewer` verdict over literal cumulative range
-  `0a7c9a49722ddc4d955f910af6dbb19cfffbd600..7cf66fbf7f4b845355c5f956cdfa955ee6db2b59`
-  and sole output `reviews/P16C-review-01.md`; then integrate exact findings and cleanup
+- **Current package:** P16C revision 01 (`changes_requested`; failure integration pending)
+- **Next action:** integrate immutable FAIL `reviews/P16C-review-01.md`, R-017/R-018 and exact
+  cleanup, then prepare P16C revision 02 against the same literal original cumulative BASE
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -23,7 +22,7 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** eleven passed; HS-015 blocked externally; HS-011/HS-012 and seven other HS
   requirements plus FS-001 queued
-- **Last ledger update:** 2026-07-25; P16C revision-01 independent review dispatched
+- **Last ledger update:** 2026-07-25; P16C revision-01 independent FAIL returned
 
 ## Package ledger
 
@@ -49,7 +48,7 @@ review evidence.
 | P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | passed | 02 | `b3e96ba9e9487d13df56956d220fffca63d6482d..91931688ef9463576b757a097968af543a4b8a75` | `evidence/P15/implementation-02.md` | `reviews/P15-review-02.md` | `9c5d7be8ee4cf7c3fda5f1a7320c053362672e3a` |
 | P16A    | FS-001, HS-009 | Allocation/ownership validation, remainder/effective shares and exact apportionment | P01                  | passed | 02 | `1b42d27e11494a167a4768e0c2c308010aa51651..f84f66758708529c44342313e8632ee8b7dcead3` | `evidence/P16A/implementation-02.md` | `reviews/P16A-review-02.md` | `41f5760f77c1a93ab650a93912bfaf3c0b627ab0` |
 | P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | passed | 05 | `4c102600240e2804b801c2a320e10164defb14ea..46d8f9feb79c6dfc080c0869922fb8cd4c20ec6c` | `evidence/P16B/implementation-05.md` | `reviews/P16B-review-05.md` | `136678a0ac864cf2d120b2b5b896d4fadcabcdd1` |
-| P16C    | FS-001, HS-009 | CRDT per-key/complete-set APIs and every mutation, hydration and history path       | P16A, P16B, P09, P14 | reviewing | 01 | `0a7c9a49722ddc4d955f910af6dbb19cfffbd600..7cf66fbf7f4b845355c5f956cdfa955ee6db2b59` | `evidence/P16C/implementation-01.md` | `reviews/P16C-review-01.md` | evidence freeze `92ce0a75cc5ced114e8a81e8d452961f738e1a60`; review pending |
+| P16C    | FS-001, HS-009 | CRDT per-key/complete-set APIs and every mutation, hydration and history path       | P16A, P16B, P09, P14 | changes_requested | 01 | `0a7c9a49722ddc4d955f910af6dbb19cfffbd600..7cf66fbf7f4b845355c5f956cdfa955ee6db2b59` | `evidence/P16C/implementation-01.md` | `reviews/P16C-review-01.md` | failure integration pending |
 | P16D    | FS-001, HS-009 | Actual grid/add-row person columns, virtualization, history and presence UX         | P16C, P13            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P16E    | FS-001         | People obligations/issues/source UX plus full integration, E2E, manual and perf     | P16D, P08, P11C      | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P17A    | HS-007         | Automation schema/migration, exact matcher, precedence, preferences, import engine  | P11C, P14, P16E      | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -2967,6 +2966,24 @@ merge/LWW, atomic rollback and adversarial container handling, generic/alias ins
 automation apply/restore and honest import-time absence, one-action undo, invalid-legacy retention/
 repair, encrypted persistence/convergence, every structural operation and the complete regression/
 manual/cleanup claims. HS-009 remains unchanged and FS-001 immutable/open.
+
+**2026-07-25T15:40:27+10:00 — P16C/01 `reviewing -> changes_requested`; failure integration
+pending:** Independent `reviews/P16C-review-01.md` is 252 lines / 18,298 bytes at SHA-256
+`72487e97a3a8f4f3515b398fbc399062bc0f65f5d6b8e938e39f1a76335c5a46` and returns FAIL over exact
+`0a7c9a49722ddc4d955f910af6dbb19cfffbd600..7cf66fbf7f4b845355c5f956cdfa955ee6db2b59`.
+F-01 High proves revoked ordinary proxies escape as `TypeError` from `Array.isArray` before typed
+container rejection. F-02 Medium proves multi-error replacement results follow input insertion
+order rather than canonical deterministic order. F-03 High proves actual initialized-Loro move and
+import-delete promotion silently discard invalid legacy non-number allocation siblings through the
+number-filtered stored-copy path. Independent seed `2607251201` otherwise passes 128 true two-peer
+schedules / 2,033 operations / 124 same-key deletes in both update orders, while seed `2607251202`
+passes 1,200 one-key plus 600 replacement cases with all 1,177 invalid attempts version/map-pure.
+Focused 66/66 x3, broader 209/209, full Vitest 1,483+2, static/build, affected Chromium 66/66, full
+Chromium 102/102 and honest current-surface manual/privacy preservation gates pass. Root restored
+generated source, recoverably removed the exact current build/test trees and 35 review CLI files /
+138,812 bytes while preserving 22 older files, and verified no browser/port remains. No Q proposal.
+Revision 02 must close only F-01 through F-03 while retaining every accepted revision-01 mechanism;
+HS-009 remains unchecked and FS-001 immutable/open.
 
 Before any P21-driven package downgrade, replace `Active P21 rollback batch: none` with a durable
 prepared record containing: unique batch ID; failed P21 review/revision; every actual

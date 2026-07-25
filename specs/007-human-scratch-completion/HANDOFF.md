@@ -9,7 +9,7 @@ literal field is `pending`. Workers may read but never edit it.
 - **Scope IDs:** FS-001 and HS-009; this package owns CRDT allocation mutation boundaries,
   concurrency, persistence, structural preservation and every current non-visual write/restore/
   hydration path. Neither requirement can complete from P16C alone.
-- **State:** reviewing after the current root review-dispatch control commit
+- **State:** changes requested after independent revision-01 FAIL; failure integration pending
 - **Binding tasks:** `tasks/FS-001-transaction-percentage-allocations-settlement.md` P16C and
   `tasks/HS-009-allocation-bounds.md` P16C
 - **Canonical authority:** read all 715 immutable lines of
@@ -26,7 +26,9 @@ literal field is `pending`. Workers may read but never edit it.
 - **Product/test HEAD:** `7cf66fbf7f4b845355c5f956cdfa955ee6db2b59`, tree
   `3e6e80a030e81ae68a4ab3b499a544b1b9ceac26`
 - **Evidence freeze commit:** `92ce0a75cc5ced114e8a81e8d452961f738e1a60`
-- **Future immutable review artifact:** `reviews/P16C-review-01.md`
+- **Immutable review artifact:** `reviews/P16C-review-01.md`, FAIL, SHA-256
+  `72487e97a3a8f4f3515b398fbc399062bc0f65f5d6b8e938e39f1a76335c5a46`, 252 lines /
+  18,298 bytes
 - **Implementation-start boundary:** clean HEAD/index/worktree; P16B/05 is fully integrated and its
   immutable evidence/review plus settlement owner are preservation authority
 - **Allowed product paths:** exactly
@@ -170,7 +172,7 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Independent review contract
 
-- **Reviewer:** distinct `human_scratch_reviewer`, dispatched after evidence freeze commit
+- **Reviewer:** distinct `human_scratch_reviewer`, completed after evidence freeze commit
   `92ce0a75cc5ced114e8a81e8d452961f738e1a60`
 - **Literal cumulative review BASE:** `0a7c9a49722ddc4d955f910af6dbb19cfffbd600`
 - **Literal revision-01 HEAD:** `7cf66fbf7f4b845355c5f956cdfa955ee6db2b59`
@@ -190,9 +192,15 @@ literal field is `pending`. Workers may read but never edit it.
   cleanup/Q proposals and one PASS/FAIL. Any lost sibling edit, invalid stored value, partial
   replacement, destructive legacy migration, persistence loss, history split or current-path
   bypass fails.
+- **Actual verdict:** FAIL. F-01 High: revoked `Proxy.revocable` input throws from `Array.isArray`
+  before typed containment. F-02 Medium: simultaneous invalid allocation errors retain input
+  insertion order instead of a canonical deterministic order. F-03 High: number-filtered stored
+  structural copies silently delete invalid legacy non-number allocation siblings during real
+  initialized-Loro move and import-delete promotion.
 
 ## Next root action
 
-Await the distinct reviewer's one PASS/FAIL artifact over the literal cumulative range. Root then
-verifies the sole-write boundary, performs exact generated-artifact cleanup and integrates findings,
-risks and any Q proposal. Keep HS-009 unchecked and FS-001 immutable/open.
+Integrate the immutable FAIL review and R-017/R-018 evidence, then prepare P16C revision 02 over the
+same literal original cumulative BASE. Revision 02 must close only F-01 through F-03 while
+preserving every independently accepted revision-01 mechanism and gate. Keep HS-009 unchecked and
+FS-001 immutable/open.
