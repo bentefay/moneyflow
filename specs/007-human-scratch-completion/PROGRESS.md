@@ -7,11 +7,18 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** none active; P19 (HS-020) passed via two-commit integration + authorized
-  forward marker; next dispatch P20A (HS-016)
-- **Next action:** rewrite HANDOFF for **P20A** (HS-016 truthful marketing copy; deps P17D + P19
-  now both `passed`) then dispatch `human_scratch_implementer`. Keep FS-001 immutable/open and all
-  P05-gated packages (P08/P10/P16E and descendants) blocked
+- **Current package:** none active. P19 (HS-020) passed via two-commit integration + authorized
+  forward marker. 21 of 32 packages passed; P05 `blocked_external`; the 10 remaining queued packages
+  are ALL transitively gated on P05
+- **Next action:** HALT — genuine `blocked_external` gate, no independent work left. P20A is NOT
+  dispatchable: its dep P17D is queued and P17D->P17C->P17B->P17A->P16E->P08->P05 all chain to P05
+  `blocked_external` (D-011). Every remaining queued package (P08, P10, P16E, P17A-D, P20A, P20B,
+  P21) roots at P05. P05's recheck trigger is a capable headless-CLI upgrade or P21; neither is
+  available here (npm registry unreachable; `@playwright/cli` pinned `0.1.17` cannot simulate a
+  genuinely-hidden background tab to measure the first late Realtime edge). Reported to the human.
+  On a capable-CLI upgrade or authorized real-hidden topology: reopen P05 with a no-product
+  diagnostic revision per D-011, then unblock P08 and the downstream chain. Keep FS-001
+  immutable/open
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -24,13 +31,14 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE (14 checked IDs)
 - **Requirement state:** fourteen passed; HS-015 blocked externally; six other HS requirements
   (HS-003/007/011/012/016/021) plus FS-001 queued
-- **Last ledger update:** 2026-07-26; P19 (HS-020) control commit: `reviewing -> passed`. Two-commit
-  integration — Commit A (`c06c851669f00093d1c78653125f784a48b1ed80`) persisted `reviews/P19-review-02.md`
-  and IS the integration hash; this control commit flips P19 and HS-020 to `passed` and applies the
-  authorized HS-020 forward marker at `specs/human-scratch.md:348` (`- [] ` -> `- [x] `, exactly one
-  changed line). Pre-change scratch SHA `c4121a48…`, post-change `ddd53142…`; normalized-block check
-  re-run green (21 blocks, 14 checked IDs byte-match SCOPE, marker/state consistent, `sha256sum` ==
-  rolling). Fourteen requirements now `passed`; HS-015 blocked externally; FS-001 immutable/open
+- **Last ledger update:** 2026-07-26; P19 (HS-020) control commit `reviewing -> passed` at
+  `d14800f` (integration `c06c851`, marker `specs/human-scratch.md:348` one line, rolling scratch SHA
+  `c4121a48… -> ddd53142…`, normalized-block check green with 14 checked IDs). Post-pass dependency
+  sweep then established that ALL 10 remaining queued packages transitively depend on P05
+  `blocked_external`, so no package is dispatchable and no independent work remains: HALT and report.
+  21 packages `passed`, P05 `blocked_external`, 10 queued-but-blocked; fourteen requirements `passed`,
+  HS-015 blocked externally, FS-001 immutable/open
+
 ## Package ledger
 
 | Package | Scope          | Work / task                                                                         | Depends on           | Status       | Rev | BASE..HEAD                                                                           | Implementation evidence             | Review                     | Integration commit                         |
@@ -3484,3 +3492,27 @@ review `reviews/P19-review-02.md` VERDICT PASS 0 blocking. Rolling scratch SHA a
 authorized checked HS IDs += HS-020 (**fourteen**). Fourteen requirements now `passed`; HS-015 remains
 `blocked_external`; FS-001 immutable/open. No dispatch was active while `completion_pending`. Next:
 rewrite HANDOFF and dispatch P20A (HS-016).
+
+### 2026-07-26 — Dependency sweep after P19 pass: blocked_external gate reached (HALT)
+
+With P19 `passed`, root recomputed the dispatchable set from the package ledger. Result: **no package
+is dispatchable.** 21 of 32 packages are `passed`; P05 (HS-015, secure Supabase Realtime
+authorization) is `blocked_external` per **D-011**; and the 10 remaining `queued` packages — P08, P10,
+P16E, P17A, P17B, P17C, P17D, P20A, P20B, P21 — are EACH transitively gated on P05. Verified chain for
+the apparent next candidate P20A: P20A(dep P17D)->P17D(P17C)->P17C(P17B)->P17B(P17A)->P17A(P16E)->
+P16E(P08)->P08(P05, blocked_external). P21 depends on all prior, which includes these queued packages.
+
+P05's documented recheck trigger (D-011 reversal path; R-026) is a **capable headless-CLI upgrade or
+P21**. Neither is available in this environment: the npm registry is unreachable for a version probe,
+and `@playwright/cli` is deliberately pinned at `0.1.17` (R-021/R-025), which cannot simulate a
+genuinely-hidden background tab to measure the first late Realtime edge — exactly the measurement
+D-011 requires before any P05 product/test diff. The before-P08 diagnostic (P05 rev 12,
+`reviews/P05-review-12.md`) already re-confirmed the gate without executable change; re-running it now
+would only re-confirm `blocked_external` again, not advance it.
+
+This is the standing HALT condition: a genuine `blocked_external` gate with no independent work left.
+No product code was touched. Ledger left consistent (rolling scratch SHA `ddd53142…`, 21 normalized
+blocks byte-match SCOPE with 14 checked IDs, canary intact). Reporting to the human. Resumption
+trigger: a capable real-hidden-tab CLI/topology becomes available (or repository authorization for
+one), at which point reopen P05 with a no-product diagnostic revision per D-011 and, on a measured
+first late edge, proceed to unblock P08 -> P16E/P10 -> P17A-D -> P20A/P20B -> P21.
