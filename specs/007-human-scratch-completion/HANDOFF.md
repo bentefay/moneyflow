@@ -5,111 +5,106 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Implementation dispatch
 
-- **Package / revision:** P19 / 01
-- **Scope IDs:** HS-020 only. P19 authorizes the HS-020 marker after independent PASS; no other
-  requirement is in scope. FS-001 and every P05-gated package (P08/P10/P16E and descendants) stay
-  untouched.
-- **State:** implementing; implementer dispatched from clean HEAD `e72befd`
+- **Package / revision:** P19 / 02 (remediation of review-01 FAIL)
+- **Scope IDs:** HS-020 only. Marker authorized only after independent PASS.
+- **State:** implementing; remediation dispatched.
 - **Binding task:** `tasks/HS-020-passkey-prf.md`
-- **Frozen source:** `specs/human-scratch.md:348-350`; exact text in `SCOPE.json#HS-020`:
-  "Support using a passkey instead of, or in addition to, the recovery phrase, using the new PRF
-  extension. Change the vault creation and login flows to support passkey as a second option using an
-  ---- OR ---- style UI." Never edit the scratch source; root alone applies its marker after PASS.
-- **Dependencies:** P04 security/RLS model, P06 user-storage cleanup and P18 recovery UX are all
-  `passed`. P20A marketing later depends on this.
-- **Literal cumulative review BASE / clean pre-product HEAD:**
-  `e72befd9ba1b2cbbf5c189b7d855e47cc752240e`
-- **Sole implementer artifact:** `evidence/P19/implementation-01.md`
-- **Future immutable review artifact:** `reviews/P19-review-01.md`
+- **Prior review (binding):** `reviews/P19-review-01.md` — VERDICT FAIL, 2 blocking (B-1, B-2),
+  5 non-blocking. Sections 2-5 (crypto, server, secret-safety, not-blocked-external) all re-passed and
+  MUST be preserved unchanged. Remediation is confined to the two client journeys.
+- **Build BASE:** current product HEAD `77038d1bb4ece9053d2c1d89f72ba7c00ac68aee` (build revision 02
+  on top of it — do NOT revert the sound crypto/server/migration work).
+- **Cumulative re-review range:** original BASE `e72befd9ba1b2cbbf5c189b7d855e47cc752240e` -> your new
+  HEAD.
+- **Sole implementer artifact:** `evidence/P19/implementation-02.md`
+- **Future immutable review artifact:** `reviews/P19-review-02.md`
 
-## Architecture-first (mandatory before any product edit)
+## What to fix (ONLY these two blockers)
 
-- Begin `evidence/P19/implementation-01.md` with a threat model, WebAuthn/PRF crypto protocol and a
-  recovery/loss model, choosing secure standards from primary sources (W3C WebAuthn Level 3, the PRF
-  extension, platform authenticator vendor docs). Only after that, write RED tests, then GREEN.
-- **Load-bearing identity invariant:** the PRF output MUST be used only as a key-encryption key that
-  wraps the SAME existing random master identity secret. The recovery phrase and every registered
-  passkey unlock the identical Ed25519/X25519 identity. NEVER mint, substitute or derive a new vault
-  identity from a passkey, and never reduce entropy or normalize/accept an invalid secret. Reuse the
-  existing `src/lib/crypto` wrap/encryption primitives; do not hand-roll crypto.
+- **B-1 — failed/cancelled passkey creation strands the vault.** In
+  `src/app/(onboarding)/new-user/page.tsx` the passkey-only flow calls `registerIdentity()` (server
+  registration + session install + vault creation) BEFORE the passkey ceremony that can fail, with an
+  empty catch, so a cancel/timeout leaves an orphaned identity with no passkey, no error surfaced, the
+  busy control stuck, and a recovery phrase that was never shown and is unrevealable anywhere. Fix:
+  (1) reorder so NO server identity/session/vault is committed before the passkey ceremony succeeds
+  (or make it atomically rolled back on failure); (2) on failure/cancellation release the busy state
+  and surface a clear error; (3) guarantee the recovery phrase is shown at creation or genuinely
+  revealable afterward (see the mnemonic note below); (4) tighten the cancellation E2E
+  (`tests/e2e/passkey.spec.ts` "leaves the user on a usable page with no partial state") to ASSERT no
+  partial sessionStorage and no server rows.
+- **B-2 — last-credential revocation loses a passkey-only vault.** In
+  `src/components/features/identity/PasskeyManager.tsx`, revoking the sole credential deletes the only
+  `wrapped_secret`; it is gated behind only changed prompt text. Fix: block last-credential revocation
+  for a passkey-only vault outright, or gate it behind explicit recovery-phrase confirmation, matching
+  the evidence recovery model §3 ("blocked outright if no recovery phrase exists"). Add counterfactual
+  unit/E2E coverage proving the last credential cannot be silently destroyed.
+
+## Recoverability design note (mnemonic irreversibility)
+
+- A BIP39 mnemonic derives the seed one-way; you cannot reconstruct the 12 words from the stored
+  64-byte master seed. So a "reveal phrase later" surface is only real if the flow retains the phrase
+  by a secure means. Prefer showing/confirming the phrase during passkey-only creation (Q-026 option
+  a) unless you can retain it without weakening secret-safety. NEVER persist the mnemonic or entropy in
+  plaintext, logs, URLs, analytics, fixtures or evidence. If you add a reveal surface, it may reuse the
+  authorized `src/app/(app)/settings/page.tsx` mount. Q-026 records the product-values call for the
+  human; your job is to close every route to silent permanent loss.
 
 ## Allowed changes (exact)
 
-- **One vetted WebAuthn library** may be added to `package.json` and the lockfile — recommended
-  `@simplewebauthn/server` plus `@simplewebauthn/browser` — because server registration/authentication
-  verification must not be a custom verifier. Add nothing else; if you choose a different vetted
-  library, record a `Q-*` proposal with the primary-source rationale. Do not change any other
-  dependency or engine pin.
-- **One new Supabase migration** `supabase/migrations/010_passkey_credentials.sql` for credential
-  metadata plus the encrypted wrapped secret, with RLS scoped by authenticated public-key hash exactly
-  as `006_rls_hardening.sql`/`007_realtime_authorization.sql` do. Never edit an existing migration.
-- **One new tRPC router** `src/server/routers/passkey.ts`, wired into `src/server/routers/_app.ts`.
-  Use server-generated single-use challenges and verify origin, RP ID, credential ID, public key,
-  signature counter and transports, with replay protection. Follow the crypto/tRPC/Zod rules.
-- **New crypto helper(s)** under `src/lib/crypto/` (for example `passkeyWrap.ts`) that wrap/unwrap the
-  master secret with the PRF-derived KEK, plus a barrel export line. The recovery-phrase derivation
-  core (`seed.ts`, `keypair.ts`, `identity.ts` derivation, entropy and the wordlist) is READ-ONLY.
-- **Onboarding + identity UI:** `src/app/(onboarding)/new-user/page.tsx`,
-  `src/app/(onboarding)/unlock/page.tsx`, the creation branch of
-  `src/app/(onboarding)/invite/[token]/page.tsx`, and new enumerated components under
-  `src/components/features/identity/` (OR-style layout, passkey register/authenticate controls,
-  capability detection, list/revoke, and a clear recovery fallback). The P18 recovery credential-form
-  contract must keep working.
-- **Tests:** new unit/property specs under `tests/unit/**`, integration specs under
-  `tests/integration/**`, and `tests/e2e/identity.spec.ts`, `tests/e2e/onboarding-vault.spec.ts` plus
-  one new enumerated passkey E2E spec under `tests/e2e/`.
+- `src/app/(onboarding)/new-user/page.tsx` — reorder creation, error/busy handling, phrase display.
+- `src/components/features/identity/PasskeyManager.tsx` — last-credential revocation guard.
+- `src/hooks/use-passkey.ts` — only if needed for busy-state release / error propagation.
+- `src/app/(app)/settings/page.tsx` and new/existing `src/components/features/identity/**` components
+  (plus its `index.ts`) — ONLY if you add a recovery-phrase reveal/confirmation surface for B-1.
+- Tests: `tests/e2e/passkey.spec.ts`, `tests/unit/**` and `tests/integration/**` for the two fixes.
 
-## Read-only owners and forbidden writes
+## Preserve unchanged (do NOT touch)
 
-- Read-only: recovery-phrase seed/identity derivation, entropy and wordlist; existing migrations;
-  `useIdentity` and other hooks consumed unchanged; P05 realtime authorization surfaces; existing
-  server routers except the additive `_app.ts` wiring.
-- Forbidden: substituting or re-deriving the vault identity from a passkey; reducing entropy; editing
-  existing migrations, crypto derivation core, dependencies/engines beyond the one WebAuthn library;
-  tasks/specs; scratch; canonical FS-001; SCOPE; ledgers; `.claude`; `.codex`; agent configuration and
-  future review. Report a reproducible blocker before touching any other path.
+- All crypto: `src/lib/crypto/passkeyWrap.ts`, `passkeyCeremony.ts`, `index.ts`, and the READ-ONLY
+  derivation core (`seed.ts`, `keypair.ts`, `identity.ts`, entropy, wordlist).
+- Server: `src/server/routers/passkey.ts`, `src/server/schemas/passkey.ts`, `_app.ts` wiring.
+- `supabase/migrations/010_passkey_credentials.sql` and all existing migrations; the generated
+  `src/lib/supabase/database.types.ts`; `src/types/webauthn-prf.d.ts`.
+- The master-secret wrap invariant is untouchable: PRF output is only a KEK over the SAME existing
+  64-byte master seed; recovery phrase and every passkey unlock the identical Ed25519/X25519 identity;
+  never mint/re-derive an identity from a passkey; never reduce entropy; never hand-roll crypto.
 
-## Secret-safety (blocking, ties to root halt condition)
+## Forbidden writes
 
-- The master identity secret, PRF output, unwrapped/plaintext wrapped-secret bytes and any recovery
-  phrase must NEVER appear in logs, URLs, query strings, analytics, plaintext persistence, test
-  fixtures or ANY evidence/review artifact. Server storage holds only non-secret credential metadata
-  and the ENCRYPTED wrapped secret. Zeroize secrets after use. Use only public WebAuthn/BIP39 test
-  vectors in tests. Any leak of real recovery/identity material is a blocking finding reported to root
-  immediately, not worked around.
+- Ledgers (`PROGRESS.md`, `QUESTIONS.md`, `RISKS.md`, `HANDOFF.md`), scratch `specs/human-scratch.md`,
+  `SCOPE.json`, canonical FS-001, `tasks/**`, any review file, `.claude/**`, `.codex/**`. Root alone
+  writes those. Never `git add .`/`git add -A`; stage only exact authorized paths.
 
-## blocked_external handling (WebAuthn PRF automation, R-011)
+## Secret-safety (blocking)
 
-- If the repository headless Chromium / CDP virtual authenticator genuinely cannot drive the PRF
-  extension output, implement everything that does not require it: architecture, crypto protocol,
-  server challenge/verification, migration, tRPC, wrap/unwrap and replay/tamper/revocation unit and
-  property tests, capability detection, the OR UI and the recovery fallback, plus E2E for the
-  non-PRF/virtual-authenticator registration and authentication paths that CDP does support. Document
-  the exact automation limit as a `Q-*` proposal and a candidate `blocked_external` disposition for
-  the real-PRF proof only. Never claim a simulated PRF success as real device evidence.
+- No master secret, PRF output, plaintext wrapped-secret bytes, mnemonic or entropy in logs, URLs,
+  query strings, analytics, plaintext persistence, test fixtures or ANY evidence/review artifact.
+  Zeroize secrets. Public vectors only in tests. Any real-material leak is a blocking finding reported
+  to root immediately.
 
-## Tests and manual charter
+## Formatting hazard (Q-024)
 
-- Unit/property: wrap/unwrap yields the same identity; wrong-PRF/tamper/revoked/multiple-credential
-  cases fail closed; server challenge single-use, replay, origin/RP/counter/credential checks.
-- E2E (retries disabled, repeated): passkey-only creation, add-passkey to a recovery identity, unlock
-  by passkey and by recovery, revoke, unsupported-PRF fallback, and same-vault identity continuity —
-  to the extent the headless authenticator supports each; document what it cannot.
-- Manual headless `playwright-cli` (never `--headed/--ui/--debug/show`): capability detection, both
-  branches, cancellation, wrong/removed passkey, second credential, refresh/duplicate tab, sign
-  out/in, keyboard/focus, responsive/dark/reduced-motion OR layout, and console/network/URL/storage
-  inspection proving no secret artifact. Record real supporting-authenticator evidence where headless
-  cannot drive PRF; store no secrets.
+- Do NOT run bare `pnpm format` from the repo root — it rewrites the frozen `specs/human-scratch.md`
+  and root ledgers. Format only your exact changed `src/`/`tests/` paths (e.g.
+  `pnpm exec oxfmt src/... tests/...`) and run `git status` before every commit; `git checkout` any
+  `specs/**` change. `pnpm format:check` failing on `specs/**` is pre-existing and not yours to fix.
 
-## Commit contract
+## Method & gates
 
-- Create the sole evidence (architecture-first) before test/product edits. Check in exhaustive
-  counterfactual RED tests against byte-identical production as exact-path RED commits, then stage and
-  commit only exact authorized product/test/migration/dependency paths for GREEN with short
-  no-parentheses messages. Leave `evidence/P19/implementation-01.md` uncommitted. Never use `git add .`
-  or `git add -A`.
+- Architecture/notes first in `evidence/P19/implementation-02.md` (leave it uncommitted), then RED
+  tests that fail against the current `77038d1` behavior, then GREEN. Run the full gate
+  `pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm test:e2e` (note the
+  pre-existing `specs/**` format failure is not attributable) and the passkey E2E with retries
+  disabled and repeated. Never use `--headed/--ui/--debug/show`.
 
 ## Q-proposals
 
-- Place any `Q-*` proposal in `evidence/P19/implementation-01.md` and continue with the safest
-  reversible standards-first choice. Root alone transcribes `QUESTIONS.md`.
+- Place any `Q-*` proposal in `evidence/P19/implementation-02.md` and continue with the safest
+  reversible data-preserving choice. Root alone transcribes `QUESTIONS.md`.
+
+## Hand back
+
+- When GREEN with all gates passing, summarize final HEAD, exact changed paths, test counts, how B-1
+  and B-2 are closed (with reproduction of the fixed behavior), and confirm no secret leak and no
+  change to the preserved crypto/server/migration surface. Message root `ready_for_review`. Do not
+  edit any ledger or mark the requirement.

@@ -7,15 +7,11 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P19/01 (HS-020) `ready_for_review` at product HEAD `77038d1`; awaiting a distinct `human_scratch_reviewer`
-- **Next action:** dispatch a distinct `human_scratch_reviewer` for P19/01 over BASE `e72befd` ->
-  HEAD `77038d1`. Reviewer must independently rule on the boundary deviations root already flagged —
-  chiefly the 6-line `src/app/(app)/settings/page.tsx` mount outside the allowlist (Q-022), plus the
-  non-enumerated additive paths `src/hooks/use-passkey.ts`, `src/server/schemas/passkey.ts`,
-  `src/types/webauthn-prf.d.ts` and regenerated `database.types.ts` — and verify the master-secret
-  wrap invariant, single-use challenge/replay protection and total secret-safety. No `blocked_external`
-  is claimed (PRF automation confirmed available). Keep FS-001 immutable/open and all P05-gated
-  packages (P08/P10/P16E and descendants) blocked
+- **Current package:** P19/02 (HS-020) implementing; remediation of review-01 FAIL (B-1/B-2) dispatched to `human_scratch_implementer` from build BASE `77038d1`
+- **Next action:** await `evidence/P19/implementation-02.md` and the P19/02 `ready_for_review`
+  handoff, then re-dispatch `human_scratch_reviewer` (p19-reviewer-01) over original BASE `e72befd` ->
+  new HEAD to confirm B-1 and B-2 are closed and sections 2-5 remain unchanged. Keep FS-001
+  immutable/open and all P05-gated packages (P08/P10/P16E and descendants) blocked
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -28,11 +24,12 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** thirteen passed; HS-015 blocked externally; seven other HS requirements
   (HS-003/007/011/012/016/020/021) plus FS-001 queued
-- **Last ledger update:** 2026-07-25; P19/01 (HS-020) `implementing -> ready_for_review` at product
-  HEAD `77038d1`; derivation core and migrations 005-009 independently verified byte-identical, PRF
-  wraps the existing master seed, no `blocked_external`; Q-022..Q-025 transcribed and R-011/R-024
-  updated. Requirement HS-020 stays `queued` (marker authorized only after independent PASS); scratch
-  rolling SHA unchanged `c4121a48…`; thirteen requirements remain `passed`
+- **Last ledger update:** 2026-07-25; P19/01 (HS-020) `ready_for_review -> changes_requested`:
+  independent review-01 VERDICT FAIL, 2 blocking (B-1 creation strands vault, B-2 last-credential
+  revocation loses vault), 5 non-blocking; crypto/server/migration/secret-safety all independently
+  re-pass and are preserved for P19/02. `reviews/P19-review-01.md` committed immutable; Q-026
+  transcribed. Requirement HS-020 stays `queued`; scratch rolling SHA unchanged `c4121a48…`; thirteen
+  requirements remain `passed`
 
 ## Package ledger
 
@@ -66,7 +63,7 @@ review evidence.
 | P17C    | HS-007         | Description inline proposals, robot drift state and scoped application              | P17B                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P17D    | HS-007         | Tags/allocation parity, bulk/new application, performance and polish                | P17C                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P18     | HS-019         | Password-manager-compatible recovery phrase creation and unlock                     | P01                  | passed             | 01   | `493bf19d3219f44efd4d4437fd8b0e33d012fba9..4cda92d40e9cc5b6490636c25d99b655905cb40a` | `evidence/P18/implementation-01.md` | `reviews/P18-review-01.md` | `fa9ae8d0b6b7948bd2c4a508ad869d5d6955a6a1` |
-| P19     | HS-020         | WebAuthn PRF passkeys sharing the vault identity secret                             | P04, P06, P18        | ready_for_review | 01  | `77038d1`                                                                            | —                                   | —                          | —                                          |
+| P19     | HS-020         | WebAuthn PRF passkeys sharing the vault identity secret                             | P04, P06, P18        | implementing | 02  | `77038d1` (rev01)                                                                    | `reviews/P19-review-01.md` FAIL     | —                          | rev02 fixing B-1 creation strand + B-2 last-cred revoke |
 | P20A    | HS-016         | Truthful marketing copy and responsive feature presentation                         | P17D, P19            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P20B    | HS-021         | Full-codebase style-guide/code-quality sweep after all feature work                 | P20A                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P21     | control        | [Executable final audit](tasks/P21-final-audit.md)                                  | all prior            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -3340,3 +3337,55 @@ drift), Q-025 (db:types PostHog telemetry line, filtered); R-011 updated (PRF au
 R-024 updated (format-hazard witnessed and reverted). Requirement HS-020 stays `queued` (marker
 authorized only after independent PASS). Thirteen requirements remain `passed`; no halt condition
 applies.
+
+### 2026-07-25 — P19/01 changes_requested (HS-020 review-01 FAIL)
+
+`ready_for_review -> changes_requested`. A distinct `human_scratch_reviewer` independently reviewed
+BASE `e72befd9ba1b2cbbf5c189b7d855e47cc752240e` -> HEAD
+`77038d1bb4ece9053d2c1d89f72ba7c00ac68aee` and returned VERDICT **FAIL** with 2 blocking and 5
+non-blocking findings; immutable output `reviews/P19-review-01.md`. Blocking: **B-1** —
+`src/app/(onboarding)/new-user/page.tsx` calls `registerIdentity()` (server registration + session
+install + vault creation) BEFORE the passkey ceremony that can fail, with an empty catch; reviewer
+reproduced an orphaned identity (count 536->537, +0 passkeys, no error shown, button stuck, live
+session installed) whose recovery phrase is never shown and is unrevealable anywhere in the app —
+permanent unreachable vault; the cancellation E2E `passkey.spec.ts:288` asserts neither sessionStorage
+nor server rows so it passed vacuously. **B-2** — `PasskeyManager.tsx` gates last-credential
+revocation behind only changed prompt text; revoking the sole credential deletes the only
+`wrapped_secret`, and with B-1 the phrase is unrecoverable — two-click permanent loss; the evidence
+recovery model §3 ("blocked outright if no recovery phrase exists") was not implemented. Root
+independently confirmed the FAIL is well-founded and concurs. The reviewer verified and root accepts:
+the master-secret wrap invariant HOLDS (frozen `seed/keypair/identity` + migrations 005-009
+byte-identical, PRF only an HKDF KEK over the same 64-byte seed, no minted identity, no hand-rolled
+crypto), server protocol sound (DB single-use challenges, server-config origin/RP, monotonic counter,
+uniform failures, RLS FORCE deny-all, 599-line router test covers replay/tamper/revoked/anon/
+wrong-identity), secret-safety has no leak (single strip chokepoint + server Zod rejects `prf`,
+memzero in finally), "not blocked_external" is TRUE (real CDP virtual authenticator, 84 real verified
+COSE keys), and RED->GREEN is genuine. Root's pre-flagged deviations were ruled acceptable by the
+reviewer: `settings/page.tsx` (Q-022, additive host for the required returning-user manager),
+`use-passkey.ts`/`schemas/passkey.ts`/`webauthn-prf.d.ts`/regenerated `database.types.ts` (convention/
+type-rule/generated). `pnpm format:check` fails on 16 `specs/**` files but is PRE-EXISTING and
+NOT attributable (15 fail at BASE; the 16th is the untracked evidence) — reinforces Q-024. Reviewer
+raised Q-PROPOSAL-P19-01R-01 (transcribed Q-026): whether a passkey-only account may exist without the
+phrase ever shown; root's P19/02 default is reorder-creation + reveal-phrase surface + block
+last-credential revocation. P19/02 remediation is confined to the two client journeys; the whole
+crypto/server/migration/secret-safety surface is preserved unchanged and re-review spans original BASE
+`e72befd` -> new HEAD. Requirement HS-020 stays `queued` (no marker on FAIL). Scratch rolling SHA
+unchanged `c4121a48…`; FS-001 immutable/open; thirteen requirements remain `passed`; no halt
+condition applies.
+
+### 2026-07-25 — P19/02 dispatch (HS-020 remediation of B-1/B-2)
+
+`changes_requested -> implementing`. Root rewrote `HANDOFF.md` for P19/02 and dispatched
+`human_scratch_implementer` from build BASE `77038d1bb4ece9053d2c1d89f72ba7c00ac68aee` (revision 02 is
+built ON TOP of the sound crypto/server/migration work — not reverted). Remediation is confined to the
+two client journeys: B-1 reorder passkey-only creation so no server identity/session/vault is committed
+before the ceremony succeeds, release busy state and surface errors on failure/cancel, guarantee the
+recovery phrase is shown or genuinely revealable (the mnemonic is one-way from the seed, so prefer
+showing at creation), and tighten the cancellation E2E to assert no partial sessionStorage/server rows;
+B-2 block last-credential revocation for a passkey-only vault (or gate behind explicit phrase
+confirmation) with counterfactual coverage. The crypto/server/migration/RLS/secret-safety surface
+(review sections 2-5, all independently re-passed) is preserved unchanged and forbidden to edit; the
+derivation core stays read-only. Cumulative re-review spans original BASE `e72befd` -> the new HEAD.
+Q-024 formatting hazard restated in the HANDOFF (no bare `pnpm format`). Requirement HS-020 stays
+`queued`. Scratch rolling SHA unchanged `c4121a48…`; FS-001 immutable/open; thirteen requirements
+remain `passed`; no halt condition applies.

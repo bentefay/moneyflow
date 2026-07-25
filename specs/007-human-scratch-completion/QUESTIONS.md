@@ -843,6 +843,35 @@ No unresolved product questions were answered by scaffold creation.
 - **Does a human still need to decide after completion?:** Yes — decide whether the db:types script
   should suppress telemetry so future regenerations are clean.
 
+## Q-026 — May a passkey-only account exist without the user ever seeing the recovery phrase?
+
+- **Raised:** 2026-07-25, P19 revision 01, `human_scratch_reviewer`
+- **Source proposal:** `reviews/P19-review-01.md` section 11, Q-PROPOSAL-P19-01R-01
+- **Context and evidence:** The passkey-only creation flow generates a full-entropy BIP39 phrase,
+  derives the master seed from it, then discards it without display, and no surface in the
+  authenticated app can reveal it (grep-verified). Combined with blocking findings B-1 (a failed or
+  cancelled ceremony strands a half-created identity whose phrase was never shown) and B-2 (a
+  passkey-only user can revoke their last credential), this opens several routes to permanent, silent
+  data loss. The implementer's own evidence §3 said the phrase should be "optional but recommended,
+  revealed on demand" — that surface was not built.
+- **Why the frozen requirement/repository does not fully decide it:** HS-020 requires passkey-only
+  creation "where recoverability is clearly explained" but does not say whether warning text suffices
+  or whether the phrase must remain obtainable.
+- **Options considered:** (a) show the phrase during passkey-only creation; (b) add a phrase-gated
+  reveal surface to settings; (c) status quo — warning text only.
+- **Default selected for continued work:** For P19/02 root directs the safest data-preserving
+  remediation — reorder creation so no server identity is registered before the ceremony succeeds,
+  make the recovery phrase shown or revealable (reviewer-recommended (b), a reveal surface), and block
+  last-credential revocation for a passkey-only vault (or gate it behind explicit phrase confirmation).
+  This resolves both blockers reversibly; the exact push-strength of (a) vs (b) is left to the human.
+- **Decision hierarchy basis:** Preservation of user data (#3) over convenience (#4) — the difference
+  between a recoverable and an unrecoverable vault.
+- **Impact and risk:** High if unresolved (silent permanent loss); the remediation is additive UI with
+  no schema or protocol change.
+- **How to reverse or migrate:** Additive surfaces only; removable without migration.
+- **Does a human still need to decide after completion?:** Yes — a genuine product-values call on how
+  hard to push a recovery phrase onto a user who chose a passkey precisely to avoid one.
+
 ## Question template
 
 ### Q-XXX — Short title
