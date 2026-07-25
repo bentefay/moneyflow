@@ -22,6 +22,7 @@ import { useDescriptionAliasLookup } from "@/components/features/description-ali
 import { ImportDropTarget, useImportFileTransfer } from "@/components/features/import";
 import {
     BulkEditToolbar,
+    buildAllocationColumnModel,
     createEmptyFilters,
     hasActiveFilters,
     TransactionFilters,
@@ -44,6 +45,7 @@ import {
     useActiveTransactions,
     useDescriptionAliases,
     useDescriptionAliasActions,
+    usePeople,
     useStatuses,
     useTransactionActions,
     useVaultAction
@@ -86,11 +88,13 @@ export default function TransactionsPage() {
     const aliasLookup = useDescriptionAliasLookup(aliases);
     const statuses = useStatuses();
     const people = useActivePeople();
+    const allPeople = usePeople();
 
     // Transaction mutations from hierarchical structure
     const {
         insertTransaction,
         updateTransaction,
+        setTransactionAllocation,
         moveTransaction,
         deleteTransaction,
         unnestDuplicate
@@ -273,10 +277,35 @@ export default function TransactionsPage() {
                     // Description alias fields
                     descriptionAliasId: tx.descriptionAliasId,
                     descriptionAliasName: resolvedAlias?.name,
-                    originalDescription: tx.description || undefined
+                    originalDescription: tx.description || undefined,
+                    allocations: tx.allocations,
+                    accountOwnerships:
+                        typeof acc === "object" && acc.ownerships ? acc.ownerships : {}
                 };
             }),
         [displayedTransactions, accounts, statuses, tags, aliasLookup]
+    );
+
+    const allocationColumnModel = useMemo(
+        () =>
+            buildAllocationColumnModel({
+                activePeople: Object.values(people)
+                    .filter(
+                        (person): person is Person & { $cid: string } => typeof person === "object"
+                    )
+                    .map((person) => ({ id: person.id, name: person.name })),
+                allPeople: Object.values(allPeople)
+                    .filter(
+                        (person): person is Person & { $cid: string } => typeof person === "object"
+                    )
+                    .map((person) => ({
+                        deletedAt: person.deletedAt,
+                        id: person.id,
+                        name: person.name
+                    })),
+                transactions: displayedTransactions
+            }),
+        [allPeople, displayedTransactions, people]
     );
 
     // Account options for transaction rows
@@ -772,6 +801,24 @@ export default function TransactionsPage() {
         [transactions, updateTransaction, moveTransaction]
     );
 
+    const handleTransactionAllocationUpdate = useCallback(
+        (id: string, personId: string, value: number) => {
+            const transaction = transactions.find((candidate) => candidate.id === id);
+            if (!transaction) return;
+
+            setTransactionAllocation({
+                location: {
+                    accountId: transaction.accountId,
+                    date: transaction.date,
+                    transactionId: transaction.id
+                },
+                personId,
+                value
+            });
+        },
+        [setTransactionAllocation, transactions]
+    );
+
     // Tag options for filter/bulk edit (with label for FilterOption)
     const tagOptions = useMemo(
         () =>
@@ -875,6 +922,8 @@ export default function TransactionsPage() {
                 {/* Table */}
                 <TransactionTable
                     transactions={tableData}
+                    allocationColumns={allocationColumnModel.columns}
+                    gridTemplateColumns={allocationColumnModel.gridTemplateColumns}
                     presenceByTransactionId={presenceByTransactionId}
                     selectedIds={selectedTransactionIds}
                     availableAccounts={accountOptions}
@@ -890,6 +939,7 @@ export default function TransactionsPage() {
                     onTransactionDelete={handleSingleDelete}
                     onResolveDuplicate={handleResolveDuplicate}
                     onTransactionUpdate={handleTransactionUpdate}
+                    onTransactionAllocationUpdate={handleTransactionAllocationUpdate}
                 />
             </ImportDropTarget>
 

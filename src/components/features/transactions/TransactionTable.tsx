@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 import { AccountOption } from "../accounts";
+import { type AllocationColumn, buildTransactionGridTemplate } from "./allocation-columns";
 import type { StatusOption, TagOption } from "./cells";
 import { CheckboxCell } from "./cells/CheckboxCell";
 import type { DescriptionAliasEditOrigin } from "./cells/InlineEditableDescriptionAlias";
@@ -29,8 +30,7 @@ import {
  * This ensures header and rows have identical column widths.
  * Format: checkbox | date | description | account | tags | status | amount | actions
  */
-export const TRANSACTION_GRID_TEMPLATE =
-    "32px 120px minmax(150px, 2fr) 160px 140px 110px 112px 88px";
+export const TRANSACTION_GRID_TEMPLATE = buildTransactionGridTemplate(0);
 
 export interface TransactionTableProps {
     /** Array of transactions to display */
@@ -71,6 +71,12 @@ export interface TransactionTableProps {
     onTransactionFocus?: (id: string) => void;
     /** Callback when transaction is updated */
     onTransactionUpdate?: (id: string, updates: Partial<TransactionRowData>) => void;
+    /** Person-specific allocation columns shared by the header and every row */
+    allocationColumns?: readonly AllocationColumn[];
+    /** Memoized grid template matching allocationColumns */
+    gridTemplateColumns?: string;
+    /** Callback for one validated person allocation edit */
+    onTransactionAllocationUpdate?: (id: string, personId: string, value: number) => void;
     /** Callback when more transactions should be loaded */
     onLoadMore?: () => void;
     /** Whether more transactions are available */
@@ -89,6 +95,8 @@ export interface TransactionTableProps {
  * Table header with column labels and select-all checkbox.
  */
 interface TransactionTableHeaderProps {
+    allocationColumns: readonly AllocationColumn[];
+    gridTemplateColumns: string;
     /** Whether all filtered transactions are selected */
     isAllSelected: boolean;
     /** Whether some (but not all) filtered transactions are selected */
@@ -98,6 +106,8 @@ interface TransactionTableHeaderProps {
 }
 
 function TransactionTableHeader({
+    allocationColumns,
+    gridTemplateColumns,
     isAllSelected,
     isSomeSelected,
     onSelectAll
@@ -105,7 +115,7 @@ function TransactionTableHeader({
     return (
         <div
             className="sticky top-0 z-10 grid min-w-fit items-center gap-4 border-b bg-slate-50 px-4 py-2 text-sm font-medium"
-            style={{ gridTemplateColumns: TRANSACTION_GRID_TEMPLATE }}
+            style={{ gridTemplateColumns }}
         >
             {/* Checkbox column */}
             <div data-testid="header-checkbox">
@@ -123,6 +133,15 @@ function TransactionTableHeader({
             <div className="truncate">Account</div>
             <div>Tags</div>
             <div>Status</div>
+            {allocationColumns.map((column) => (
+                <div
+                    key={column.personId}
+                    className="truncate text-right"
+                    title={`${column.label} allocation percentage`}
+                >
+                    {column.label} %
+                </div>
+            ))}
             <div className="text-right">Amount</div>
             <div>{/* Actions */}</div>
         </div>
@@ -175,6 +194,9 @@ export function TransactionTable({
     onTransactionClick,
     onTransactionFocus,
     onTransactionUpdate,
+    allocationColumns = [],
+    gridTemplateColumns = TRANSACTION_GRID_TEMPLATE,
+    onTransactionAllocationUpdate,
     onLoadMore,
     hasMore = false,
     isLoading = false,
@@ -359,6 +381,8 @@ export function TransactionTable({
         <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden", className)}>
             <div ref={containerRef} className="flex min-h-0 flex-1 flex-col overflow-auto">
                 <TransactionTableHeader
+                    allocationColumns={allocationColumns}
+                    gridTemplateColumns={gridTemplateColumns}
                     isAllSelected={isAllSelected}
                     isSomeSelected={isSomeSelected}
                     onSelectAll={selectAll}
@@ -398,6 +422,8 @@ export function TransactionTable({
                                         availableAccounts={availableAccounts}
                                         availableStatuses={availableStatuses}
                                         availableTags={availableTags}
+                                        allocationColumns={allocationColumns}
+                                        gridTemplateColumns={gridTemplateColumns}
                                         onCreateTag={onCreateTag}
                                         availableAliases={availableAliases}
                                         onDescriptionCommitText={
@@ -431,6 +457,16 @@ export function TransactionTable({
                                                       onTransactionUpdate(transaction.id, {
                                                           [field]: value
                                                       })
+                                                : undefined
+                                        }
+                                        onAllocationUpdate={
+                                            onTransactionAllocationUpdate
+                                                ? (personId, value) =>
+                                                      onTransactionAllocationUpdate(
+                                                          transaction.id,
+                                                          personId,
+                                                          value
+                                                      )
                                                 : undefined
                                         }
                                         onDelete={

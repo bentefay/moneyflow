@@ -18,6 +18,11 @@ export {
 } from "./TransactionRow";
 export { TransactionTable, type TransactionTableProps } from "./TransactionTable";
 export {
+    type AllocationColumn,
+    type AllocationColumnModel,
+    buildAllocationColumnModel
+} from "./allocation-columns";
+export {
     TransactionTableToolbar,
     type TransactionTableToolbarProps
 } from "./TransactionTableToolbar";

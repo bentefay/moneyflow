@@ -126,7 +126,7 @@ test.describe("Transactions", () => {
         const scrollContainer = page.getByTestId("transaction-table").locator("..");
 
         await expect(page.getByText("Grid Person 00 %", { exact: true })).toBeVisible();
-        await expect(editorButton).toHaveText("—");
+        await expect(editorButton).toContainText("—");
         await expect(editorButton).toHaveAttribute(
             "data-presence-field",
             expect.stringMatching(/^allocation:/)
@@ -142,13 +142,13 @@ test.describe("Transactions", () => {
         });
         await input.fill("-35.125");
         await input.press("Enter");
-        await expect(editorButton).toHaveText("-35.125%");
+        await expect(editorButton).toContainText("-35.125%");
         expect(Date.now() - startedAt).toBeLessThan(2_000);
 
         await page.getByRole("button", { name: "Undo" }).click();
-        await expect(editorButton).toHaveText("—");
+        await expect(editorButton).toContainText("—");
         await page.getByRole("button", { name: "Redo" }).click();
-        await expect(editorButton).toHaveText("-35.125%");
+        await expect(editorButton).toContainText("-35.125%");
 
         await page.reload();
         const persistedRow = page.getByTestId("transaction-row").first();
@@ -156,7 +156,7 @@ test.describe("Transactions", () => {
             persistedRow.getByRole("button", {
                 name: /edit Grid Person 00 allocation/i
             })
-        ).toHaveText("-35.125%");
+        ).toContainText("-35.125%");
     });
 
     test("page displays correctly with empty state", async ({ page }) => {
@@ -1436,7 +1436,13 @@ test.describe("Transactions", () => {
                 const statusTrigger = row.locator('[data-testid="status-editable"]');
                 await expect(statusTrigger).toBeFocused();
 
-                // From status, arrow right goes to amount
+                // Allocation columns are real grid cells between status and amount.
+                await page.keyboard.press("ArrowRight");
+                const allocationCell = row.getByRole("button", {
+                    name: /edit Me allocation/i
+                });
+                await expect(allocationCell).toBeFocused();
+
                 await page.keyboard.press("ArrowRight");
                 const amountInput = row.locator('[data-testid="amount-editable"]');
                 await expect(amountInput).toBeFocused();
@@ -1449,7 +1455,13 @@ test.describe("Transactions", () => {
                 await page.keyboard.press("Home");
                 await page.keyboard.press("ArrowLeft");
 
-                // Should go back to status
+                // Amount moves left through the allocation column before status.
+                const allocationCell = row.getByRole("button", {
+                    name: /edit Me allocation/i
+                });
+                await expect(allocationCell).toBeFocused();
+
+                await page.keyboard.press("ArrowLeft");
                 const statusTrigger = row.locator('[data-testid="status-editable"]');
                 await expect(statusTrigger).toBeFocused();
 

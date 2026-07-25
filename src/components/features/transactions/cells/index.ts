@@ -18,9 +18,4 @@ export {
     type TagOption
 } from "./InlineEditableTags";
 export { InlineEditableText, type InlineEditableTextProps } from "./InlineEditableText";
-export {
-    type AllocationData,
-    PersonAllocationCell,
-    type PersonAllocationCellProps,
-    type PersonData
-} from "./PersonAllocationCell";
+export { PersonAllocationCell, type PersonAllocationCellProps } from "./PersonAllocationCell";

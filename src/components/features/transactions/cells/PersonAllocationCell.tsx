@@ -1,277 +1,201 @@
 "use client";
 
-/**
- * Person Allocation Cell
- *
- * Displays and allows editing of expense allocations per person.
- * Shows percentage input for each person.
- */
+import { useEffect, useId, useRef, useState } from "react";
 
-import { X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
-
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { deriveEffectiveAllocations, type EffectiveAllocationResult } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
-export interface PersonData {
-    id: string;
-    name: string;
-}
-
-export interface AllocationData {
-    personId: string;
-    percentage: number;
-}
+import { materializeAllocationRecord, parseAllocationDraft } from "../allocation-columns";
 
 export interface PersonAllocationCellProps {
-    /** Current allocations */
-    allocations: AllocationData[];
-    /** All available people for allocation */
-    availablePeople?: PersonData[];
-    /** Whether the cell is in edit mode */
-    isEditing?: boolean;
-    /** Callback when allocations change */
-    onChange?: (allocations: AllocationData[]) => void;
-    /** Callback when editing starts */
-    onEditStart?: () => void;
-    /** Callback when editing ends */
-    onEditEnd?: () => void;
-    /** Additional CSS classes */
-    className?: string;
+    readonly accountOwnerships?: unknown;
+    readonly allocations?: unknown;
+    readonly className?: string;
+    readonly explicitValue?: unknown;
+    readonly effectiveDerivation?: EffectiveAllocationResult;
+    readonly onCommit?: (personId: string, value: number) => void;
+    readonly personId: string;
+    readonly personLabel: string;
 }
 
-/**
- * Format allocation for display.
- */
-function formatAllocation(allocation: AllocationData, people: PersonData[]): string {
-    const person = people.find((p) => p.id === allocation.personId);
-    const name = person?.name ?? "Unknown";
-    return `${name}: ${allocation.percentage}%`;
+interface AllocationPresentation {
+    readonly description: string;
+    readonly display: string;
+    readonly invalid: boolean;
 }
 
-/**
- * Person allocation cell component with inline editing.
- */
+function displayPercentage(value: unknown): string | null {
+    return typeof value === "number" && Number.isFinite(value) && !Object.is(value, -0)
+        ? `${String(value)}%`
+        : null;
+}
+
+function describeDerivationFailure(explicitValue: unknown): AllocationPresentation {
+    const explicitDisplay = displayPercentage(explicitValue);
+    return {
+        description: `${
+            explicitDisplay == null ? "Explicit value is invalid." : `Explicit: ${explicitDisplay}.`
+        } Effective allocation unavailable because stored allocation or ownership data is invalid.`,
+        display: explicitDisplay ?? "Invalid",
+        invalid: explicitDisplay == null
+    };
+}
+
+function allocationPresentation(
+    personId: string,
+    explicitValue: unknown,
+    allocationsInput: unknown,
+    ownershipInput: unknown,
+    effectiveDerivation?: EffectiveAllocationResult
+): AllocationPresentation {
+    const allocations = materializeAllocationRecord(allocationsInput);
+    const ownerships = materializeAllocationRecord(ownershipInput);
+    const explicitStored = Object.prototype.hasOwnProperty.call(allocations, personId);
+    const explicitDisplay = explicitStored ? displayPercentage(explicitValue) : null;
+    if (explicitStored && explicitDisplay == null) {
+        return describeDerivationFailure(explicitValue);
+    }
+
+    const derivation = effectiveDerivation ?? deriveEffectiveAllocations(allocations, ownerships);
+    if (!derivation.ok) return describeDerivationFailure(explicitValue);
+
+    const effective = derivation.value.effectiveAllocations[personId] ?? "0";
+    const display = explicitStored && explicitValue !== 0 ? (explicitDisplay ?? "Invalid") : "—";
+    return {
+        description: `${
+            explicitStored ? `Explicit: ${explicitDisplay ?? "invalid"}.` : "Explicit: not stored."
+        } Effective: ${effective}%. Owner remainder: ${derivation.value.ownerRemainder}%.`,
+        display,
+        invalid: false
+    };
+}
+
+function initialDraft(explicitValue: unknown): string {
+    return explicitValue == null ? "" : String(explicitValue);
+}
+
 export function PersonAllocationCell({
-    allocations,
-    availablePeople = [],
-    isEditing = false,
-    onChange,
-    onEditStart,
-    onEditEnd,
-    className
+    accountOwnerships = {},
+    allocations = {},
+    className,
+    explicitValue,
+    effectiveDerivation,
+    onCommit,
+    personId,
+    personLabel
 }: PersonAllocationCellProps) {
-    const [localAllocations, setLocalAllocations] = useState<AllocationData[]>(allocations);
-    const [previousAllocations, setPreviousAllocations] = useState(allocations);
-    const containerRef = useRef<HTMLDivElement>(null);
+    const [editing, setEditing] = useState(false);
+    const [draft, setDraft] = useState(() => initialDraft(explicitValue));
+    const [error, setError] = useState<string | null>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const descriptionId = useId();
+    const errorId = useId();
+    const presentation = allocationPresentation(
+        personId,
+        explicitValue,
+        allocations,
+        accountOwnerships,
+        effectiveDerivation
+    );
 
-    // Adjust the draft during render when external allocations change.
-    if (allocations !== previousAllocations) {
-        setPreviousAllocations(allocations);
-        setLocalAllocations(allocations);
-    }
-
-    const handleDoubleClick = () => {
-        onEditStart?.();
-    };
-
-    const handleSave = useCallback(() => {
-        // Validate allocations sum to 100%
-        const total = localAllocations.reduce((sum, a) => sum + a.percentage, 0);
-        if (total !== 100 && localAllocations.length > 0) {
-            // Normalize allocations to sum to 100%
-            const normalized = localAllocations.map((a) => ({
-                ...a,
-                percentage: Math.round((a.percentage / total) * 100)
-            }));
-            // Fix rounding errors
-            const diff = 100 - normalized.reduce((sum, a) => sum + a.percentage, 0);
-            if (diff !== 0 && normalized.length > 0) {
-                normalized[0].percentage += diff;
-            }
-            setLocalAllocations(normalized);
-            onChange?.(normalized);
-        } else {
-            onChange?.(localAllocations);
-        }
-        onEditEnd?.();
-    }, [localAllocations, onChange, onEditEnd]);
-
-    // Handle click outside to close
     useEffect(() => {
-        if (!isEditing) return;
-
-        const handleClickOutside = (e: MouseEvent) => {
-            if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-                handleSave();
-            }
-        };
-
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [isEditing, handleSave]);
-
-    const handlePercentageChange = (personId: string, percentage: number) => {
-        setLocalAllocations((prev) => {
-            const existing = prev.find((a) => a.personId === personId);
-            if (existing) {
-                return prev.map((a) => (a.personId === personId ? { ...a, percentage } : a));
-            } else {
-                return [...prev, { personId, percentage }];
-            }
-        });
-    };
-
-    const handleRemovePerson = (personId: string) => {
-        setLocalAllocations((prev) => prev.filter((a) => a.personId !== personId));
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === "Enter") {
-            handleSave();
-        } else if (e.key === "Escape") {
-            setLocalAllocations(allocations);
-            onEditEnd?.();
+        if (editing) {
+            inputRef.current?.focus();
+            inputRef.current?.select();
         }
+    }, [editing]);
+
+    const beginEditing = () => {
+        setDraft(initialDraft(explicitValue));
+        setError(null);
+        setEditing(true);
     };
 
-    if (isEditing) {
-        const allocatedPersonIds = new Set(localAllocations.map((a) => a.personId));
-        const unallocatedPeople = availablePeople.filter((p) => !allocatedPersonIds.has(p.id));
+    const cancelEditing = () => {
+        setDraft(initialDraft(explicitValue));
+        setError(null);
+        setEditing(false);
+    };
 
-        return (
-            <div ref={containerRef} className={cn("w-64", className)}>
-                <div
-                    className="bg-background rounded-md border p-3 shadow-lg"
-                    onKeyDown={handleKeyDown}
-                >
-                    <h4 className="mb-2 text-xs font-medium tracking-wide uppercase">
-                        Allocations
-                    </h4>
+    const commit = () => {
+        const parsed = parseAllocationDraft(draft);
+        if (!parsed.ok) {
+            setError(parsed.error);
+            return;
+        }
+        onCommit?.(personId, parsed.value);
+        setError(null);
+        setEditing(false);
+    };
 
-                    {/* Current allocations */}
-                    <div className="space-y-2">
-                        {localAllocations.map((allocation) => {
-                            const person = availablePeople.find(
-                                (p) => p.id === allocation.personId
-                            );
-                            return (
-                                <div key={allocation.personId} className="flex items-center gap-2">
-                                    <span className="min-w-0 flex-1 truncate text-sm">
-                                        {person?.name ?? "Unknown"}
-                                    </span>
-                                    <div className="flex items-center gap-1">
-                                        <Input
-                                            type="number"
-                                            min={0}
-                                            max={100}
-                                            value={allocation.percentage}
-                                            onChange={(e) =>
-                                                handlePercentageChange(
-                                                    allocation.personId,
-                                                    parseInt(e.target.value) || 0
-                                                )
-                                            }
-                                            className="h-8 w-14 text-right"
-                                        />
-                                        <span className="text-muted-foreground text-sm">%</span>
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon-sm"
-                                            onClick={() => handleRemovePerson(allocation.personId)}
-                                            className="ml-1"
-                                            aria-label={`Remove ${person?.name}`}
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-
-                    {/* Total indicator */}
-                    {localAllocations.length > 0 && (
-                        <div className="mt-2 border-t pt-2">
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="font-medium">Total:</span>
-                                <span
-                                    className={cn(
-                                        "font-medium tabular-nums",
-                                        localAllocations.reduce(
-                                            (sum, a) => sum + a.percentage,
-                                            0
-                                        ) !== 100 && "text-destructive"
-                                    )}
-                                >
-                                    {localAllocations.reduce((sum, a) => sum + a.percentage, 0)}%
-                                </span>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Add person */}
-                    {unallocatedPeople.length > 0 && (
-                        <div className="mt-2 border-t pt-2">
-                            <select
-                                onChange={(e) => {
-                                    if (e.target.value) {
-                                        handlePercentageChange(e.target.value, 0);
-                                        e.target.value = "";
-                                    }
-                                }}
-                                className="w-full rounded border px-2 py-1 text-sm"
-                                defaultValue=""
-                            >
-                                <option value="">Add person...</option>
-                                {unallocatedPeople.map((person) => (
-                                    <option key={person.id} value={person.id}>
-                                        {person.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
-                </div>
-            </div>
-        );
-    }
-
-    // Display mode
-    if (allocations.length === 0) {
+    if (editing) {
         return (
             <div
-                onDoubleClick={handleDoubleClick}
-                className={cn(
-                    "text-muted-foreground cursor-pointer text-sm italic",
-                    "hover:text-foreground transition-colors",
-                    className
-                )}
+                className={cn("relative flex min-w-0 items-center gap-1", className)}
+                data-testid={`allocation-cell-${personId}`}
+                data-presence-field={`allocation:${personId}`}
             >
-                Not allocated
+                <Input
+                    ref={inputRef}
+                    type="text"
+                    inputMode="decimal"
+                    value={draft}
+                    onChange={(event) => {
+                        setDraft(event.target.value);
+                        if (error) setError(null);
+                    }}
+                    onBlur={commit}
+                    onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                            event.preventDefault();
+                            commit();
+                        } else if (event.key === "Escape") {
+                            event.preventDefault();
+                            cancelEditing();
+                        }
+                    }}
+                    aria-label={`${personLabel} allocation percentage`}
+                    aria-invalid={error ? "true" : undefined}
+                    aria-describedby={error ? errorId : descriptionId}
+                    className="h-8 min-w-0 flex-1 px-2 text-right tabular-nums"
+                />
+                {error && (
+                    <span
+                        id={errorId}
+                        role="alert"
+                        className="text-destructive shrink-0 text-xs font-bold"
+                        title={error}
+                    >
+                        !<span className="sr-only">{error}</span>
+                    </span>
+                )}
+                <span id={descriptionId} className="sr-only">
+                    {presentation.description}
+                </span>
             </div>
         );
     }
 
-    // Show condensed view
-    const primaryAllocation = allocations.reduce((max, a) =>
-        a.percentage > max.percentage ? a : max
-    );
-    const otherCount = allocations.length - 1;
-
     return (
-        <div
-            onDoubleClick={handleDoubleClick}
+        <button
+            type="button"
+            onClick={beginEditing}
+            onDoubleClick={beginEditing}
+            aria-describedby={descriptionId}
+            aria-label={`Edit ${personLabel} allocation`}
             className={cn(
-                "cursor-pointer text-sm",
-                "transition-opacity hover:opacity-80",
+                "hover:bg-accent focus-visible:ring-primary flex h-8 w-full min-w-0 items-center justify-end rounded px-2 text-right text-sm tabular-nums focus-visible:ring-2 focus-visible:outline-none",
+                presentation.invalid ? "text-destructive font-medium" : "text-muted-foreground",
                 className
             )}
+            data-testid={`allocation-cell-${personId}`}
+            data-presence-field={`allocation:${personId}`}
         >
-            <span>{formatAllocation(primaryAllocation, availablePeople)}</span>
-            {otherCount > 0 && <span className="text-muted-foreground ml-1">+{otherCount}</span>}
-        </div>
+            {presentation.display}
+            <span id={descriptionId} className="sr-only">
+                {presentation.description}
+            </span>
+        </button>
     );
 }

@@ -9,15 +9,17 @@
  */
 
 import { ChevronUp, Pencil, Plus, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AccountCombobox, AccountOption } from "@/components/features/accounts";
 import { PresenceAvatar } from "@/components/features/presence/PresenceAvatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { deriveEffectiveAllocations } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 import { hashToColor } from "@/lib/utils/color";
 
+import { type AllocationColumn, materializeAllocationRecord } from "./allocation-columns";
 import { CheckboxCell } from "./cells/CheckboxCell";
 import { InlineEditableAmount } from "./cells/InlineEditableAmount";
 import { InlineEditableDate } from "./cells/InlineEditableDate";
@@ -28,6 +30,7 @@ import {
 } from "./cells/InlineEditableDescriptionAlias";
 import { InlineEditableStatus, type StatusOption } from "./cells/InlineEditableStatus";
 import { InlineEditableTags, type TagOption } from "./cells/InlineEditableTags";
+import { PersonAllocationCell } from "./cells/PersonAllocationCell";
 import { DuplicateBadge } from "./DuplicateBadge";
 import { TRANSACTION_GRID_TEMPLATE } from "./TransactionTable";
 
@@ -58,6 +61,10 @@ export interface TransactionRowData {
     descriptionAliasName?: string;
     /** Original imported description text (for tooltip) */
     originalDescription?: string;
+    /** Raw stored explicit allocations, including malformed legacy values for repair. */
+    allocations?: unknown;
+    /** Raw ownership input from this transaction's account. */
+    accountOwnerships?: unknown;
 }
 
 export interface TransactionRowPresence {
@@ -104,6 +111,12 @@ export interface TransactionRowProps {
     onDelete?: () => void;
     /** Callback when a field is updated via inline edit */
     onFieldUpdate?: (field: keyof TransactionRowData, value: unknown) => void;
+    /** Ordered person-specific columns shared with the table header */
+    allocationColumns?: readonly AllocationColumn[];
+    /** Shared dynamic grid template */
+    gridTemplateColumns?: string;
+    /** Commit one person allocation through the central mutation boundary */
+    onAllocationUpdate?: (personId: string, value: number) => void;
     /** Callback when checkbox is toggled */
     onCheckboxChange?: () => void;
     /** Callback when shift-clicking checkbox for range selection */
@@ -135,6 +148,9 @@ export function TransactionRow({
     onResolveDuplicate,
     onDelete,
     onFieldUpdate,
+    allocationColumns = [],
+    gridTemplateColumns = TRANSACTION_GRID_TEMPLATE,
+    onAllocationUpdate,
     onCheckboxChange,
     onCheckboxShiftClick,
     onToggleExpand,
@@ -146,6 +162,18 @@ export function TransactionRow({
 
     const effectiveData = transaction;
     const effectiveExpanded = isExpanded;
+    const allocations = useMemo(
+        () => materializeAllocationRecord(effectiveData.allocations),
+        [effectiveData.allocations]
+    );
+    const accountOwnerships = useMemo(
+        () => materializeAllocationRecord(effectiveData.accountOwnerships),
+        [effectiveData.accountOwnerships]
+    );
+    const effectiveDerivation = useMemo(
+        () => deriveEffectiveAllocations(allocations, accountOwnerships),
+        [accountOwnerships, allocations]
+    );
 
     const focusedByOther = presence?.focusedBy && presence.focusedBy !== currentUserId;
     const editingByOther = presence?.editingBy && presence.editingBy !== currentUserId;
@@ -212,7 +240,7 @@ export function TransactionRow({
                     isDuplicate && "bg-yellow-50/50 dark:bg-yellow-950/20",
                     className
                 )}
-                style={{ gridTemplateColumns: TRANSACTION_GRID_TEMPLATE }}
+                style={{ gridTemplateColumns }}
                 role="row"
                 aria-selected={isSelected}
                 aria-expanded={onToggleExpand ? isExpanded : undefined}
@@ -310,6 +338,23 @@ export function TransactionRow({
                         data-testid="status-editable"
                     />
                 </div>
+
+                {allocationColumns.map((column) => {
+                    const explicitValue = allocations[column.personId];
+                    return (
+                        <div key={column.personId} data-cell={column.field} className="min-w-0">
+                            <PersonAllocationCell
+                                personId={column.personId}
+                                personLabel={column.label}
+                                explicitValue={explicitValue}
+                                allocations={allocations}
+                                accountOwnerships={accountOwnerships}
+                                effectiveDerivation={effectiveDerivation}
+                                onCommit={onAllocationUpdate}
+                            />
+                        </div>
+                    );
+                })}
 
                 {/* Amount */}
                 <div data-cell="amount" className="text-right">
@@ -413,12 +458,12 @@ export function TransactionRow({
             {effectiveExpanded && (
                 <div
                     className="bg-muted/30 grid items-center gap-4 border-b px-4 py-2"
-                    style={{ gridTemplateColumns: TRANSACTION_GRID_TEMPLATE }}
+                    style={{ gridTemplateColumns }}
                     data-testid="notes-row"
                     role="row"
                 >
                     <div />
-                    <div className="col-span-7" data-cell="notes">
+                    <div style={{ gridColumn: "2 / -1" }} data-cell="notes">
                         <Textarea
                             ref={notesRef}
                             value={effectiveData.notes || ""}

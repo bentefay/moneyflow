@@ -4,6 +4,8 @@
  */
 
 /** Valid column identifiers for focus navigation */
+export type AllocationColumnId = `allocation:${string}`;
+
 export type ColumnId =
     | "checkbox"
     | "date"
@@ -13,7 +15,8 @@ export type ColumnId =
     | "status"
     | "amount"
     | "balance"
-    | "actions";
+    | "actions"
+    | AllocationColumnId;
 
 /** Column definition for the transaction table */
 export interface ColumnDef {

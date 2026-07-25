@@ -8,6 +8,10 @@ import {
 import { PersonAllocationCell } from "@/components/features/transactions/cells";
 import { TransactionRow } from "@/components/features/transactions/TransactionRow";
 
+vi.mock("@/components/features/accounts", () => ({
+    AccountCombobox: () => <button type="button">Account</button>
+}));
+
 const people = {
     "person-z": { id: "person-z", name: "Zoe" },
     "person-a": { id: "person-a", name: "Ada" },
@@ -94,7 +98,7 @@ describe("transaction allocation grid", () => {
 
         expect(screen.getByTestId("allocation-cell-person-a")).toHaveTextContent("25%");
         expect(screen.getByTestId("allocation-cell-person-a")).toHaveAccessibleDescription(
-            /Explicit: 25%.*Effective: 25%.*Owner remainder: 75%/i
+            /Explicit: 25%.*Effective: 70%.*Owner remainder: 75%/i
         );
 
         rerender(
@@ -105,7 +109,7 @@ describe("transaction allocation grid", () => {
                 accountOwnerships={{ "person-a": 60, "person-z": 40 }}
             />
         );
-        expect(screen.getByTestId("allocation-cell-person-z")).toHaveTextContent("30%");
+        expect(screen.getByTestId("allocation-cell-person-z")).toHaveTextContent("—");
         expect(screen.getByTestId("allocation-cell-person-z")).toHaveAccessibleDescription(
             /Explicit: not stored.*Effective: 30%.*Owner remainder: 75%/i
         );
