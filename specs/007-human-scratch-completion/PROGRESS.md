@@ -7,12 +7,12 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** none active; P18 (HS-019) is next and dependency-ready (dep P01 passed)
-- **Next action:** dispatch `human_scratch_implementer` for P18 (HS-019) — password-manager-
-  compatible recovery phrase creation and unlock — per `tasks/HS-019-password-manager-recovery.md`;
-  dep P01 is passed; assign the exact evidence path `evidence/P18/implementation-01.md`. All P05-
-  gated packages (P08/P10/P16E and their P17/P19/P20 descendants) stay blocked, so P18 is the only
-  independent work; keep FS-001 immutable/open through P16E
+- **Current package:** P18 revision 01 (`implementing`)
+- **Next action:** await the P18/01 implementer's exact-path RED then GREEN commits and the sole
+  `evidence/P18/implementation-01.md`; on `ready_for_review` verify HEAD, dispatch a distinct
+  `human_scratch_reviewer` over the literal BASE `493bf19d3219f44efd4d4437fd8b0e33d012fba9`..HEAD
+  range with `reviews/P18-review-01.md`; keep FS-001 immutable/open and all P05-gated packages
+  blocked
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -25,9 +25,9 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** twelve passed; HS-015 blocked externally; eight other HS requirements
   (HS-003/007/011/012/016/019/020/021) plus FS-001 queued
-- **Last ledger update:** 2026-07-25; HS-009 authorized forward marker finalized (scratch line 302
-  `[] -> [x]`, rolling `ce52d7df… -> 9a0f6633…`) and requirement set `passed`; P16D fully
-  integrated; P18 (HS-019) is the next dependency-ready dispatch
+- **Last ledger update:** 2026-07-25; P18 (HS-019) dispatched to `human_scratch_implementer` at
+  revision 01 from clean HEAD `493bf19` with `HANDOFF.md` rewritten; recovery-phrase secret-safety
+  is a blocking checkpoint
 
 ## Package ledger
 
@@ -60,7 +60,7 @@ review evidence.
 | P17B    | HS-007         | Shared rule editor and automations-page UX                                          | P17A, P02            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P17C    | HS-007         | Description inline proposals, robot drift state and scoped application              | P17B                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P17D    | HS-007         | Tags/allocation parity, bulk/new application, performance and polish                | P17C                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
-| P18     | HS-019         | Password-manager-compatible recovery phrase creation and unlock                     | P01                  | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
+| P18     | HS-019         | Password-manager-compatible recovery phrase creation and unlock                     | P01                  | implementing       | 01   | —                                                                                    | `evidence/P18/implementation-01.md` | —                          | —                                          |
 | P19     | HS-020         | WebAuthn PRF passkeys sharing the vault identity secret                             | P04, P06, P18        | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P20A    | HS-016         | Truthful marketing copy and responsive feature presentation                         | P17D, P19            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P20B    | HS-021         | Full-codebase style-guide/code-quality sweep after all feature work                 | P20A                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -3187,3 +3187,18 @@ passed HS requirements; FS-001 remains byte-identical at
 Rolling scratch SHA advances `ce52d7df87daf63117931e5bdee928212051242ae7f2b5d90e76f5610abcb00f` ->
 `9a0f6633ba671446684221679a2ef148122c09f7f1ed06978d8a9786a7170d4d`; authorized checked-ID
 metadata gains HS-009. FS-001 stays immutable/open pending P16E and no other requirement is affected.
+
+**2026-07-25T19:30:00+10:00 — P18/01 `queued -> implementing`:** P01 is passed and no other package is
+dependency-ready (P08/P10/P16E and their P17/P19/P20 descendants remain gated behind P05
+`blocked_external`), so P18 (HS-019, password-manager-compatible recovery phrase creation and unlock)
+is the sole independent dispatch. Root rewrote `HANDOFF.md` for P18/01 from clean pre-product HEAD
+`493bf19d3219f44efd4d4437fd8b0e33d012fba9` with binding task
+`tasks/HS-019-password-manager-recovery.md`, frozen source `specs/human-scratch.md:344-346`, the sole
+evidence `evidence/P18/implementation-01.md`, exact authorized identity-component and onboarding-page
+product paths plus identity/onboarding tests, and read-only crypto seed/derivation ownership. The
+dispatch emphasizes a standards-based canonical credential-form contract (`new-password` on creation,
+`current-password` on unlock, stable account identifier, one canonical field synchronized to the
+usable 12-word UI) and a blocking secret-safety rule: the real recovery phrase must never reach logs,
+URLs, analytics, persistence, fixtures or any evidence/review artifact, and only public BIP39 test
+vectors may appear in tests. HS-009 stays complete; the scratch rolling SHA remains
+`9a0f6633ba671446684221679a2ef148122c09f7f1ed06978d8a9786a7170d4d` and FS-001 byte-identical.
