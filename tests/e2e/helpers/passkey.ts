@@ -10,7 +10,10 @@
  * device layer, so only `hasPrf` is set.
  */
 
+import { readFileSync } from "node:fs";
+
 import type { CDPSession, Page } from "@playwright/test";
+import { createClient } from "@supabase/supabase-js";
 
 export interface VirtualAuthenticator {
     client: CDPSession;
@@ -108,4 +111,59 @@ export async function countCredentials(authenticator: VirtualAuthenticator): Pro
         authenticatorId: authenticator.authenticatorId
     });
     return credentials.length;
+}
+
+// ============================================================================
+// Server-side state fixtures
+// ============================================================================
+
+/**
+ * Counts of every server row a creation flow can leave behind.
+ *
+ * A cancelled creation must move NONE of these. Counting them is the only way to assert "no
+ * partial state" for real - the browser cannot see the server's tables, and an assertion that
+ * only inspects the page would pass over an orphaned identity exactly as review-01 found.
+ */
+export interface ServerIdentityFootprint {
+    users: number;
+    vaultMemberships: number;
+    passkeyCredentials: number;
+}
+
+function localEnvironment(): Readonly<Record<string, string>> {
+    const entries = readFileSync(".env.local", "utf8")
+        .split(/\r?\n/)
+        .filter((line) => line.length > 0 && !line.startsWith("#"))
+        .flatMap((line) => {
+            const separator = line.indexOf("=");
+            return separator > 0 ? [[line.slice(0, separator), line.slice(separator + 1)]] : [];
+        });
+    return Object.fromEntries(entries);
+}
+
+function createAdminClient() {
+    const fallback = localEnvironment();
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? fallback.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? fallback.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !serviceKey) throw new Error("Supabase E2E fixture configuration is unavailable");
+    return createClient(url, serviceKey, {
+        auth: { persistSession: false, autoRefreshToken: false }
+    });
+}
+
+async function countRows(table: "user_data" | "vault_memberships" | "passkey_credentials") {
+    const admin = createAdminClient();
+    const { count, error } = await admin.from(table).select("*", { count: "exact", head: true });
+    if (error || count == null) throw new Error(`Passkey fixture could not count ${table}`);
+    return count;
+}
+
+/** Snapshot every server table a creation flow writes to. */
+export async function readServerIdentityFootprint(): Promise<ServerIdentityFootprint> {
+    const [users, vaultMemberships, passkeyCredentials] = await Promise.all([
+        countRows("user_data"),
+        countRows("vault_memberships"),
+        countRows("passkey_credentials")
+    ]);
+    return { users, vaultMemberships, passkeyCredentials };
 }

@@ -12,20 +12,42 @@
 
 import { expect, type Page, test } from "@playwright/test";
 
-import { createNewIdentity } from "./helpers";
+import { createNewIdentity, extractSeedPhrase } from "./helpers";
 import {
     addSecondAuthenticator,
     addVirtualAuthenticator,
+    readServerIdentityFootprint,
     removeAuthenticatorById,
     removeVirtualAuthenticator,
     type VirtualAuthenticator
 } from "./helpers/passkey";
 
-/** Complete passkey-only account creation from the new-user page. */
-async function createAccountWithPasskey(page: Page): Promise<void> {
+/**
+ * The public BIP39 English test vector. It is checksum-valid and derives a well-known identity
+ * that is nobody's real vault, which is exactly why it is the right probe for a phrase gate.
+ */
+const PUBLIC_BIP39_VECTOR =
+    "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+
+/**
+ * Complete passkey-only account creation from the new-user page.
+ *
+ * The recovery phrase step is not optional decoration: a passkey-only vault whose phrase was
+ * never shown has no second unlock factor, and the phrase cannot be reconstructed afterwards.
+ */
+async function createAccountWithPasskey(page: Page): Promise<string[]> {
     await page.goto("/new-user");
     await page.getByTestId("passkey-create-button").click();
+
+    await page.getByTestId("passkey-backup-phrase").waitFor({ state: "visible", timeout: 20000 });
+    await page.getByRole("button", { name: /click to reveal/i }).click();
+    const words = await extractSeedPhrase(page);
+
+    await page.getByTestId("passkey-phrase-confirm-checkbox").check();
+    await page.getByTestId("passkey-phrase-continue-button").click();
     await page.waitForURL("**/settings", { timeout: 20000 });
+
+    return words;
 }
 
 /** Unlock an existing identity with a registered passkey. */
@@ -290,16 +312,98 @@ test.describe("Passkey", () => {
     }) => {
         await page.goto("/new-user");
 
+        // Counted before the attempt so the assertions below are about THIS flow, not about
+        // whatever else the parallel suite happens to be creating.
+        const before = await readServerIdentityFootprint();
+
         // A cancelled ceremony is what the browser reports when the user dismisses the
         // system prompt. It must surface as a recoverable error, not a stuck spinner.
         await removeVirtualAuthenticator(authenticator);
         await page.getByTestId("passkey-create-button").click();
 
-        await expect(page.getByTestId("passkey-error")).toBeVisible({ timeout: 20000 });
-        await expect(page).toHaveURL(/\/new-user/);
-        await expect(page.getByTestId("generate-button")).toBeEnabled();
+        await test.step("the failure is surfaced and both controls become usable again", async () => {
+            await expect(page.getByTestId("passkey-error")).toBeVisible({ timeout: 20000 });
+            await expect(page).toHaveURL(/\/new-user/);
+            await expect(page.getByTestId("generate-button")).toBeEnabled();
+            // The busy flag must be released, or the passkey branch is a one-shot dead end.
+            await expect(page.getByTestId("passkey-create-button")).toBeEnabled();
+        });
 
-        authenticator = await addVirtualAuthenticator(page);
+        await test.step("no session was installed", async () => {
+            const session = await page.evaluate(() => sessionStorage.getItem("moneyflow_session"));
+            expect(session).toBeNull();
+        });
+
+        await test.step("no server identity, vault or credential row was created", async () => {
+            const after = await readServerIdentityFootprint();
+            expect(after.users).toBe(before.users);
+            expect(after.vaultMemberships).toBe(before.vaultMemberships);
+            expect(after.passkeyCredentials).toBe(before.passkeyCredentials);
+        });
+
+        await test.step("the recovery branch still works after the failed attempt", async () => {
+            authenticator = await addVirtualAuthenticator(page);
+            await page.getByTestId("generate-button").click();
+            await expect(page.getByTestId("confirm-checkbox")).toBeVisible({ timeout: 20000 });
+        });
+    });
+
+    test("passkey-only creation shows the recovery phrase and it unlocks the same identity", async ({
+        page
+    }) => {
+        const words = await createAccountWithPasskey(page);
+        const createdHash = await readSessionPubkeyHash(page);
+
+        await test.step("the phrase shown at creation is a real 12-word phrase", () => {
+            expect(words).toHaveLength(12);
+        });
+
+        await test.step("that phrase unlocks the identity the passkey created", async () => {
+            await page.evaluate(() => sessionStorage.clear());
+            await page.goto("/unlock");
+            await page.getByTestId("recovery-phrase-credential").fill(words.join(" "));
+            await page.getByTestId("unlock-button").click();
+            await page.waitForURL("**/transactions", { timeout: 20000 });
+            expect(await readSessionPubkeyHash(page)).toBe(createdHash);
+        });
+    });
+
+    test("the last passkey cannot be revoked without proving the recovery phrase", async ({
+        page
+    }) => {
+        const words = await createAccountWithPasskey(page);
+
+        await page.goto("/settings");
+        await expect(page.getByTestId("passkey-credential-row")).toHaveCount(1, { timeout: 20000 });
+        await page.getByTestId("revoke-passkey-button").click();
+
+        await test.step("removing the only credential demands the phrase, not just a confirm", async () => {
+            await expect(page.getByTestId("last-passkey-phrase-gate")).toBeVisible();
+            await expect(page.getByTestId("confirm-revoke-button")).toBeDisabled();
+        });
+
+        await test.step("a valid phrase for a DIFFERENT identity is refused", async () => {
+            // The public BIP39 all-abandon vector: a real, checksum-valid phrase that derives
+            // some other identity. Accepting it would make the gate pure theatre.
+            await page
+                .getByTestId("last-passkey-phrase-gate")
+                .getByTestId("recovery-phrase-credential")
+                .fill(PUBLIC_BIP39_VECTOR);
+            await page.getByTestId("confirm-revoke-button").click();
+            await expect(page.getByTestId("last-passkey-phrase-error")).toBeVisible();
+            await expect(page.getByTestId("passkey-credential-row")).toHaveCount(1);
+        });
+
+        await test.step("the user's own phrase releases the guard", async () => {
+            await page
+                .getByTestId("last-passkey-phrase-gate")
+                .getByTestId("recovery-phrase-credential")
+                .fill(words.join(" "));
+            await page.getByTestId("confirm-revoke-button").click();
+            await expect(page.getByTestId("passkey-credential-row")).toHaveCount(0, {
+                timeout: 20000
+            });
+        });
     });
 
     test("passkey unlock is fully operable by keyboard alone", async ({ page }) => {
