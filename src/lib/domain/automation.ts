@@ -12,6 +12,7 @@ import {
     copyAllocationData,
     prepareAllocationReplacement,
     replaceTransactionAllocations,
+    type AllocationBoundaryError,
     type AllocationBoundaryResult
 } from "@/lib/crdt/allocations";
 import { DEFAULT_AUTOMATION_ORDER } from "@/lib/crdt/defaults";
@@ -33,7 +34,7 @@ export interface AutomationResult {
     /** The automation that matched (for tracking) */
     automationId?: string;
     /** Error if condition evaluation failed */
-    error?: string;
+    error?: AllocationBoundaryError;
 }
 
 /**
@@ -43,12 +44,12 @@ export interface AutomationResult {
 export interface TransactionChanges {
     tagIds?: string[];
     statusId?: string;
-    allocations?: Record<string, number>;
+    allocations?: unknown;
 }
 
 type PreparedActionsResult =
     | { readonly changes: TransactionChanges; readonly ok: true }
-    | { readonly error: string; readonly ok: false };
+    | { readonly error: AllocationBoundaryError; readonly ok: false };
 
 function prepareActions(actions: ActionData[]): PreparedActionsResult {
     let allocations: Record<string, number> | undefined;
@@ -57,7 +58,7 @@ function prepareActions(actions: ActionData[]): PreparedActionsResult {
         const prepared = prepareAllocationReplacement(action.value);
         if (!prepared.ok) {
             return {
-                error: `Invalid allocation action: ${prepared.error.type}`,
+                error: prepared.error,
                 ok: false
             };
         }
@@ -194,12 +195,12 @@ export function evaluateAutomation(
     const actions = (automation.actions ?? []) as ActionData[];
     const prepared = prepareActions(actions);
     if (!prepared.ok) {
-        return {
+        return Object.freeze({
             matched: true,
-            changes: {},
+            changes: Object.freeze({}),
             automationId: automation.id,
             error: prepared.error
-        };
+        });
     }
 
     return {
@@ -322,9 +323,9 @@ export function createAutomationFromTransaction(
     }
 
     const allocations = transaction.allocations;
-    if (allocations && typeof allocations === "object" && Object.keys(allocations).length > 0) {
+    if (allocations && typeof allocations === "object") {
         const prepared = prepareAllocationReplacement(allocations);
-        if (prepared.ok) {
+        if (prepared.ok && Object.keys(prepared.value).length > 0) {
             actions.push({
                 id: crypto.randomUUID(),
                 type: "setAllocation",
@@ -354,7 +355,7 @@ export interface AutomationApplicationData {
     previousValues: {
         tagIds?: string[];
         statusId?: string;
-        allocations?: Record<string, number>;
+        allocations?: Record<string, unknown>;
     };
 }
 

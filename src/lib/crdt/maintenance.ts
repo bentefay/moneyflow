@@ -7,6 +7,7 @@ import {
     type LoroEventBatch
 } from "loro-crdt";
 
+import { storedAllocationDataEntries } from "./allocations";
 import {
     hardDeleteProvenDescriptionAliasSymlink,
     rewriteDescriptionAliasMaintenanceReference,
@@ -1427,7 +1428,7 @@ function getDayPair(
 type CloneableTransaction = Transaction | Transaction["suspectedDuplicates"][number];
 
 interface AllocationIteratorState {
-    readonly iterator: Generator<readonly [string, number]>;
+    readonly iterator: Generator<readonly [string, unknown]>;
     readonly sourceCid: string;
 }
 
@@ -1454,15 +1455,6 @@ function forgetTransactionShadow(doc: LoroDoc, shadow: LoroMap): void {
 function invalidateActiveTransactionShadow(doc: LoroDoc): void {
     acceptImportedTransactionShadows.delete(doc);
     trustedShadows(doc).clear();
-}
-
-function* numericRecordEntries(
-    record: Transaction["allocations"]
-): Generator<readonly [string, number]> {
-    for (const key in record) {
-        const value = record[key];
-        if (key !== "$cid" && typeof value === "number") yield [key, value];
-    }
 }
 
 function setTransactionScalars(
@@ -1547,13 +1539,13 @@ function nextAllocationEntry(
     doc: LoroDoc,
     key: string,
     source: CloneableTransaction
-): IteratorResult<readonly [string, number]> {
+): IteratorResult<readonly [string, unknown]> {
     const iterators = getAllocationIterators(doc);
     const existing = iterators.get(key);
     const state =
         existing != null && existing.sourceCid === source.$cid
             ? existing
-            : { iterator: numericRecordEntries(source.allocations), sourceCid: source.$cid };
+            : { iterator: storedAllocationDataEntries(source.allocations), sourceCid: source.$cid };
     iterators.set(key, state);
     const next = state.iterator.next();
     if (next.done) iterators.delete(key);

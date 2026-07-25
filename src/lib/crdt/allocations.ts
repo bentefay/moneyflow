@@ -21,6 +21,10 @@ import {
 
 const LORO_COLLECTION_METADATA_KEY = "$cid";
 
+function compareCodeUnits(left: string, right: string): number {
+    return left < right ? -1 : left > right ? 1 : 0;
+}
+
 export type AllocationBoundaryError =
     | {
           readonly personId: string;
@@ -102,7 +106,7 @@ function inspectOwnDataEntries(
 ):
     | { readonly ok: true; readonly value: Record<string, unknown> }
     | { readonly error: AllocationBoundaryError; readonly ok: false } {
-    if (input == null || typeof input !== "object" || Array.isArray(input)) {
+    if (input == null || typeof input !== "object") {
         return {
             error: { reason: "not-record", type: "invalid-allocation-container" },
             ok: false
@@ -111,6 +115,12 @@ function inspectOwnDataEntries(
 
     const materialized = Object.create(null) as Record<string, unknown>;
     try {
+        if (Array.isArray(input)) {
+            return {
+                error: { reason: "not-record", type: "invalid-allocation-container" },
+                ok: false
+            };
+        }
         const prototype = Object.getPrototypeOf(input);
         if (prototype !== null && prototype !== Object.prototype) {
             return {
@@ -119,7 +129,8 @@ function inspectOwnDataEntries(
             };
         }
 
-        for (const key of Reflect.ownKeys(input)) {
+        const keys = Reflect.ownKeys(input);
+        for (const key of keys) {
             const descriptor = Reflect.getOwnPropertyDescriptor(input, key);
             if (!descriptor || !descriptor.enumerable) continue;
             if (typeof key !== "string") {
@@ -128,6 +139,12 @@ function inspectOwnDataEntries(
                     ok: false
                 };
             }
+        }
+        for (const key of keys
+            .filter((key): key is string => typeof key === "string")
+            .sort(compareCodeUnits)) {
+            const descriptor = Reflect.getOwnPropertyDescriptor(input, key);
+            if (!descriptor || !descriptor.enumerable) continue;
             if (key === LORO_COLLECTION_METADATA_KEY) continue;
             if (!("value" in descriptor)) {
                 return {
@@ -158,7 +175,12 @@ export function prepareAllocationReplacement(
 
     const validation = validateAllocationSet(inspected.value);
     if (!validation.ok) {
-        return error({ errors: validation.errors, type: "invalid-allocations" });
+        return error({
+            errors: [...validation.errors].sort((left, right) =>
+                compareCodeUnits(left.personId, right.personId)
+            ),
+            type: "invalid-allocations"
+        });
     }
 
     const explicit = Object.create(null) as Record<string, AllocationPercentage>;
@@ -168,21 +190,24 @@ export function prepareAllocationReplacement(
     return ok(explicit);
 }
 
-/** Copy own allocation data while excluding only loro-mirror's exact collection metadata key. */
-export function copyAllocationData(
+/** Iterate own stored allocation data without invoking accessors. */
+export function* storedAllocationDataEntries(
     allocations: Readonly<Record<string, unknown>>
-): Record<string, number> {
-    const copy = Object.create(null) as Record<string, number>;
+): Generator<readonly [string, unknown]> {
     for (const key of Reflect.ownKeys(allocations)) {
         if (typeof key !== "string" || key === LORO_COLLECTION_METADATA_KEY) continue;
         const descriptor = Reflect.getOwnPropertyDescriptor(allocations, key);
-        if (
-            descriptor?.enumerable &&
-            "value" in descriptor &&
-            typeof descriptor.value === "number"
-        ) {
-            defineEntry(copy, key, descriptor.value);
-        }
+        if (descriptor?.enumerable && "value" in descriptor) yield [key, descriptor.value];
+    }
+}
+
+/** Copy own allocation data while excluding only loro-mirror's exact collection metadata key. */
+export function copyAllocationData(
+    allocations: Readonly<Record<string, unknown>>
+): Record<string, unknown> {
+    const copy = Object.create(null) as Record<string, unknown>;
+    for (const [key, value] of storedAllocationDataEntries(allocations)) {
+        defineEntry(copy, key, value);
     }
     return copy;
 }

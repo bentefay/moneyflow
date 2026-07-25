@@ -111,12 +111,12 @@ function injectRawAllocations(
     for (const [key, value] of Object.entries(values)) Reflect.set(allocations, key, value);
 }
 
-function revokedAllocationContainer(): {
+function revokedAllocationContainer(sentinel = "unchanged"): {
     readonly holder: { readonly allocations: object; readonly sentinel: string };
     readonly proxy: object;
 } {
     const { proxy, revoke } = Proxy.revocable(Object.create(null) as Record<string, unknown>, {});
-    const holder = Object.freeze({ allocations: proxy, sentinel: "unchanged" });
+    const holder = Object.freeze({ allocations: proxy, sentinel });
     revoke();
     return { holder, proxy };
 }
@@ -440,7 +440,9 @@ describe("allocation mutation boundary", () => {
         expect(Object.getPrototypeOf(prepared.value)).toBeNull();
     });
 
-    it("contains a genuinely revoked allocation proxy in every central CRDT entry point", () => {
+    it("contains every central revoked-proxy mechanism with seed 2607252201", () => {
+        const random = pseudoRandom(2_607_252_201);
+        const nextSentinel = () => `unchanged-${Math.floor(random() * 0x1_0000_0000)}`;
         const expected = {
             error: {
                 reason: "uninspectable-record",
@@ -449,19 +451,17 @@ describe("allocation mutation boundary", () => {
             ok: false
         };
 
-        const direct = revokedAllocationContainer();
+        const direct = revokedAllocationContainer(nextSentinel());
         let directResult: ReturnType<typeof prepareAllocationReplacement> | undefined;
         expect(() => {
             directResult = prepareAllocationReplacement(direct.proxy);
         }).not.toThrow();
         expect(directResult).toEqual(expected);
         expect(isDeeplyFrozen(directResult)).toBe(true);
-        expect(direct.holder).toEqual({
-            allocations: direct.proxy,
-            sentinel: "unchanged"
-        });
+        expect(direct.holder.allocations).toBe(direct.proxy);
+        expect(direct.holder.sentinel).toBe("unchanged-664432436");
 
-        const replacement = revokedAllocationContainer();
+        const replacement = revokedAllocationContainer(nextSentinel());
         const replacementVault = seededMirror();
         const replacementHistory = new VaultUndoCoordinator(replacementVault.doc);
         const replacementVersion = replacementVault.doc.version().encode();
@@ -486,10 +486,11 @@ describe("allocation mutation boundary", () => {
         });
         expect(replacementHistory.getSnapshot().canUndo).toBe(false);
         expect(replacement.holder.allocations).toBe(replacement.proxy);
+        expect(replacement.holder.sentinel).toBe("unchanged-2745782531");
         replacementHistory.dispose();
         replacementVault.mirror.dispose();
 
-        const insertion = revokedAllocationContainer();
+        const insertion = revokedAllocationContainer(nextSentinel());
         const insertionVault = createVaultMirror();
         const insertionHistory = new VaultUndoCoordinator(insertionVault.doc);
         const insertionVersion = insertionVault.doc.version().encode();
@@ -510,6 +511,7 @@ describe("allocation mutation boundary", () => {
         expect(insertionVault.mirror.getState().transactions).toEqual({});
         expect(insertionHistory.getSnapshot().canUndo).toBe(false);
         expect(Reflect.get(insertionInput, "allocations")).toBe(insertion.proxy);
+        expect(insertion.holder.sentinel).toBe("unchanged-3952755334");
         insertionHistory.dispose();
         insertionVault.mirror.dispose();
     });
