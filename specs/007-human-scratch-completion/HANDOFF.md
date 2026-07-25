@@ -4,35 +4,30 @@ Root rewrites this compact file for one package/revision. Workers may read but n
 
 ## Implementation dispatch
 
-- **Package / revision:** P16B / 04
-- **Scope ID:** FS-001; this revision closes only residual P16B review-03 F-04/F-05 while preserving
-  every independently proven settlement invariant. FS-001 remains incomplete.
-- **State:** changes requested after immutable revision-04 FAIL; failure integration pending
+- **Package / revision:** P16B / 05
+- **Scope ID:** FS-001; this revision closes only P16B review-04 F-06 while preserving every
+  independently proven revision-04 settlement invariant. FS-001 remains incomplete.
+- **State:** implementing after immutable revision-04 failure integration; reviewer is undispatched
 - **Binding task:** `tasks/FS-001-transaction-percentage-allocations-settlement.md` P16B
 - **Canonical authority:** all 715 immutable lines of
   `specs/008-transaction-percentage-allocations-settlement/spec.md`
 - **Dependency:** P16A/02 passed
 - **Literal original cumulative review BASE:** `4c102600240e2804b801c2a320e10164defb14ea`
-- **Revision-03 product/test HEAD:** `cd643afc8f168b3c8328eb54f1d5f280ca7ec717`
-- **Frozen revision-03 evidence:** `evidence/P16B/implementation-03.md`, SHA-256
-  `f3dc7f26695109ec941eb308846872474cba72008e824970a86d7189334ef649`, 298 lines /
-  18,960 bytes
-- **Immutable revision-03 review:** `reviews/P16B-review-03.md`, FAIL, SHA-256
-  `5eac6d9a52f5cf96fe921df734a4f52367b898ce94a7af9130ee6af21883af8d`, 377 lines /
-  21,986 bytes
-- **Revision-03 failure integration / clean pre-revision HEAD:**
-  `f343f496f8838ce237d3866124f7a3112b6a6938`
+- **Revision-04 product/test HEAD:** `e09eb6bdbbfd796d970d85ef36c212795bcb4912`
 - **Frozen revision-04 implementer artifact:** `evidence/P16B/implementation-04.md`, SHA-256
   `a49c3f89693fae09e7b176612e11c57c416814ecb531313ac6ffa7c4882ab001`, 283 lines /
   19,250 bytes
 - **Revision-04 red-test checkpoints:** `0d96c25c50f86590c5c7df3dccc8370ea247e9e3`
   (complete snapshot/identity/calendar) and `3d2a51e56060388c4d34f6181eb2d806d8259bb6`
   (real Loro-mirror metadata)
-- **Revision-04 product/test HEAD:** `e09eb6bdbbfd796d970d85ef36c212795bcb4912`
 - **Immutable revision-04 review artifact:** `reviews/P16B-review-04.md`, FAIL, SHA-256
   `8cc169c08f6c87fc16eec1fa3c6615b033abd291faaa0969619230558949b241`, 403 lines /
   24,640 bytes
-- **Allowed revision-04 product/test paths:** exactly
+- **Revision-04 failure integration / clean pre-revision HEAD:**
+  `618254f1f381cd1e4dfb68a9258cccb667a0c838`
+- **Sole revision-05 implementer artifact:** `evidence/P16B/implementation-05.md`
+- **Future immutable revision-05 review artifact:** `reviews/P16B-review-05.md`
+- **Allowed revision-05 product/test paths:** exactly
   `src/lib/domain/settlement.ts` and `tests/unit/domain/settlement.test.ts`.
 - **Forbidden writes:** every caller/component including BalanceSummary, balance/barrel/PeopleTable,
   every other product/test path, CRDT/schema/query/mutation owners, E2E, dependencies/configuration,
@@ -43,81 +38,63 @@ Root rewrites this compact file for one package/revision. Workers may read but n
   exact two authorized product/test paths with a no-parentheses message; leave evidence uncommitted.
   Never use `git add .` or `git add -A`.
 
-## Required residual F-04 closure — one exception-safe snapshot boundary
+## Required F-06 closure — only exact `$cid` is collection metadata
 
-- Before any untrusted enumeration, property access, identity encoding or traversal, snapshot each
-  materialized envelope through one reusable exception-safe boundary. Cover account/status
-  collections, store root/account tree/year/month/day/transaction records, duplicate lists,
-  hierarchy arrays, allocation/ownership maps and every cache/fingerprint input.
-- Catch the complete inspection lifecycle: prototype, own-key, descriptor, data-property, length/
-  index and iterator-related traps. Never invoke accessors while validating. A throwing
-  `getPrototypeOf`, `ownKeys`, `getOwnPropertyDescriptor`, getter, length/index or iterator trap must
-  become a stable contextual typed issue, never escape `calculateSettlementBalances`.
-- Accept only coherent contract-approved ordinary/null-prototype data snapshots. Reject enumerable
-  accessors, hidden/non-enumerable financial entries, unexpected symbols, inconsistent descriptors
-  and observably spoofed record shapes. A transparent wrapper that is observationally identical to
-  an approved data record must still be snapshotted into new safe data before downstream use; no
-  later operation may touch the untrusted wrapper.
-- Invalid branches contribute no plausible total; valid siblings remain calculable only with the
-  complete issue set making the result incomplete. Result/input immutability, issue privacy and
-  deterministic ordering remain.
-- Check in direct red tests against byte-identical revision-03 product for every exact review
-  reproduction: allocation/ownership ownKeys, descriptor and getter traps; hidden Bob entry;
-  prototype-spoofed class; account/status/store ownKeys; tree years getter; years iterator and index
-  traps. Add adjacent traps at transaction fields/duplicates and snapshot identity/cache inputs.
-  Assert no throw, exact typed context, atomic exclusion, valid-sibling preservation, frozen output
-  and unchanged/unfrozen input.
-
-## Required residual F-05 closure — identity and calendar semantics
-
-- Each account-tree `accountId` is required, must be a canonical string, must equal its retained map
-  key and must agree with every participating transaction/account context. Missing, null, numeric or
-  mismatched identity emits a stable hierarchy issue and excludes that branch.
-- Year/month/day discriminators must be finite safe integers, reject negative zero/fractions/unsafe
-  integers, and form a real supported calendar date. Reuse an established repository/library date
-  authority rather than inventing calendar arithmetic. Validate the full supported date range,
-  month 1–12 and actual day for year/month, including leap/non-leap February.
-- Invalid identity/date branches cannot contribute to qualifying count or financial output. Preserve
-  valid siblings with complete deterministic contextual issues, frozen outputs and caller purity.
-- Check in direct and generated tests for missing/null/primitive/mismatched account IDs; transaction
-  account mismatch; `NaN`, both infinities, negative zero, fractions, unsafe integers and supported
-  year boundaries; invalid months; impossible dates and leap/non-leap February. Exercise insertion
-  permutations, multiple simultaneous invalid branches, stable issue order/context and valid
-  sibling preservation.
+- In `recordFromLoroMap`, skip only the exact sanctioned `$cid` collection key. Every other account
+  or status entry, including every primitive string, must enter the existing exception-safe
+  entry-snapshot/validation path and emit the stable contextual `account` or `status` hierarchy
+  issue when invalid.
+- Preserve exact initialized-Loro mirror compatibility: the root non-enumerable string `$cid`
+  remains accepted, never becomes a false hierarchy issue and is not generalized into a
+  type-based metadata exemption.
+- Check in direct red tests against byte-identical revision-04 production for all four exact review
+  reproductions: referenced string account, referenced string status, unreferenced string account
+  beside a valid branch and unreferenced string status beside a valid branch. Assert complete issue
+  type/context, affected-transaction atomic exclusion, valid-sibling financial preservation only
+  under an incomplete result, deterministic issue order, frozen output and unchanged/unfrozen
+  caller input.
+- Add a fixed-seed mechanism-generating property across account/status boundaries, referenced/
+  unreferenced placement, primitive payloads and insertion permutations. It must independently
+  derive the expected exact issue set and cannot merely select from the four direct factories.
+- F-06 is narrow: no caller, schema, dependency, E2E, component or broader runtime-shape expansion
+  is authorized. Any temptation to weaken complete typed exclusion or treat arbitrary strings as
+  metadata is a blocker, not a compatibility decision.
 
 ## Preservation and evidence
 
-- Preserve revision-03 ordinary `Map`/`Set`/Date/RegExp/typed/class rejection, plain/null-prototype
-  acceptance, complete malformed-container issues and all revision-01/02 F-01/F-02/F-03 closures.
+- Preserve revision-04's independently accepted exception-safe record/array snapshots, exact
+  sanctioned hidden string `$cid`, no post-snapshot wrapper reads, account identity/calendar
+  semantics, ordinary/null-prototype acceptance, arbitrary-object rejection and all F-01–F-05
+  closures.
 - Preserve sole engine/export/caller boundary; named A–H; exact P16A signed positions; canonical
   topology/active-copy/nested exclusion; collision-free cache/aggregate identity; deterministic
   matching; currency isolation; reverse netting; signed source traceability; safe aggregate
   rejection; unknown/deleted People; full result freezing/input purity; issue privacy; no persisted
   cache; and current incomplete-state safety.
-- Preserve reviewer arithmetic seeds/oracles and add fixed revision-04 trap/snapshot and
-  identity/calendar properties with independent expected issue/context oracles. Properties must
-  generate mechanisms, not merely repeat a finite direct-case factory list.
-- Red before green: add every residual F-04/F-05 regression while revision-03 product is
-  byte-identical, run to exact failure, then implement without deleting/weakening prior expectations.
+- Preserve reviewer seeds/oracles `2607250601` (2,000 snapshot mechanisms), `2607250701` (5,000
+  dates), `26072501` (5,000 signed rational cases) and `16001611` (1,000 reverse/currency batches).
+  Add the revision-05 primitive-entry generator with an independent exact issue/context oracle.
+- Red before green: add every F-06 reproduction while revision-04 product is byte-identical, run to
+  exact failure, then implement without deleting or weakening any prior expectation.
 - Run focused settlement/balance/caller tests in three clean processes, broader domain/current
   caller, full Vitest, typecheck, lint, build, exact two-path oxfmt/ESLint and cumulative diff check.
   Report inherited repository-format baseline without rewriting frozen files.
 - Run affected Accounts/Transactions Chromium and full Chromium with one worker/retries zero; E2E
   files are read-only. Rerun deterministic 10k/50k/100k full-output benchmark after warmup and retain
   the honest P16E follow-up if all five 100k samples do not meet strict 200ms.
-- Use installed headless `playwright-cli` only, unique session `p16b-impl-04` and root-owned keyed
+- Use installed headless `playwright-cli` only, unique session `p16b-impl-05` and root-owned keyed
   server. Exercise honest current onboarding/caller preservation, reload, responsive/zoom,
   dark/reduced, console/network and boolean-only privacy. Do not manufacture malformed retained
   state through UI or claim P16D/E behavior. Close/delete/list and request exact root cleanup.
 - Evidence records original BASE, pre-product HEAD, red checkpoint, product HEAD, exact paths/index,
-  snapshot/date mechanisms, direct/generated properties, seeds/oracles, all gates/benchmark/manual,
-  exclusions, cleanup, frozen hashes, risks and any complete Q proposal. Format before freeze; never
-  claim independent PASS.
+  F-06 mechanism/direct/generated properties, preserved snapshot/calendar/arithmetic oracles, all
+  gates/benchmark/manual, exclusions, cleanup, frozen hashes, risks and any complete Q proposal.
+  Format before freeze; never claim independent PASS.
 - **Applicable guides:** `.claude/CLAUDE.md`, coding/TypeScript rules, components and E2E skills.
-- **Decision rule:** a material ambiguity becomes complete `Q-PROPOSAL-P16B-04-*` in evidence under
-  PROCESS hierarchy; continue without asking the human. No proposal may weaken no-throw legacy
-  safety, complete typed exclusion, topology identity/calendar validity, exact money, traceability
-  or currency isolation.
+- **Decision rule:** a material ambiguity becomes complete `Q-PROPOSAL-P16B-05-*` in evidence under
+  PROCESS hierarchy; continue without asking the human. No proposal may weaken exact-key metadata,
+  no-throw safety, complete typed exclusion, topology identity/calendar validity, exact money,
+  traceability or currency isolation.
 - **Frozen boundary:** scratch SHA
   `ce52d7df87daf63117931e5bdee928212051242ae7f2b5d90e76f5610abcb00f`, checked set
   HS-001/HS-002/HS-004/HS-005/HS-006/HS-008/HS-010/HS-013/HS-014/HS-017/HS-018, 21 normalized blocks
@@ -127,26 +104,23 @@ Root rewrites this compact file for one package/revision. Workers may read but n
 
 ## Independent review contract
 
-- **Reviewer:** distinct `human_scratch_reviewer`, completed after revision-04 evidence freeze
-  commit `86dd6fc63a8476bd9aaf3a6b56f1571240803f45`
+- **Reviewer:** distinct `human_scratch_reviewer`, undispatched until revision-05 evidence freezes
 - **Literal cumulative review BASE:** `4c102600240e2804b801c2a320e10164defb14ea`
-- **Literal revision-04 product/test HEAD:** `e09eb6bdbbfd796d970d85ef36c212795bcb4912`
-- **Implementation evidence:** `evidence/P16B/implementation-04.md`
-- **Sole reviewer artifact:** `reviews/P16B-review-04.md`
+- **Literal revision-05 product/test HEAD:** pending exact committed HEAD
+- **Implementation evidence:** `evidence/P16B/implementation-05.md`
+- **Sole reviewer artifact:** `reviews/P16B-review-05.md`
 - **Reviewer writes:** only that new review file; no other edit/commit
-- **Required focus:** independently reproduce then close all trap/snapshot/spoof/hidden-value and
-  identity/calendar residuals; re-prove all prior closures, exact arithmetic/netting/source/currency/
-  issue/immutability core, named A–H, sole API/caller, full gates and honest scale.
+- **Required focus:** independently reproduce then close F-06 across referenced/unreferenced
+  primitive account/status entries and insertion permutations; prove exact `$cid` compatibility;
+  re-prove F-01–F-05, exact arithmetic/netting/source/currency/issue/immutability core, named A–H,
+  sole API/caller, full gates and honest scale.
 - **Verdict:** one PASS/FAIL with exact findings, canonical mapping, independent generated
-  mechanisms/oracles, browser/manual/cleanup and Q proposals. Any trap escape, later access to an
-  untrusted envelope, hidden plausible value loss, invalid identity/date contribution, issue-free
-  plausible invalid total or preservation regression fails.
-- **Actual verdict:** FAIL. F-06 proves `recordFromLoroMap` skips every string-valued account/status
-  entry instead of only exact `$cid`, allowing missing contextual issues and issue-free plausible
-  valid-sibling totals. Revision-03 F-04/F-05 and every preserved core/gate pass independently.
+  mechanisms/oracles, browser/manual/cleanup and Q proposals. Any arbitrary non-`$cid` primitive
+  entry skipped without its contextual issue, false `$cid` rejection, issue-free plausible invalid
+  total or preservation regression fails.
 
 ## Next root action
 
-Persist the immutable revision-04 FAIL, transcribe F-06 to risks and package state, then prepare
-P16B revision 05 over the same original cumulative BASE. Keep HS-009 unchanged and FS-001
-immutable/open.
+Commit this revision-05 handoff/progress transition, then dispatch `human_scratch_implementer`
+against the exact failure-integration HEAD and sole evidence path. Keep reviewer undispatched,
+HS-009 unchanged and FS-001 immutable/open.
