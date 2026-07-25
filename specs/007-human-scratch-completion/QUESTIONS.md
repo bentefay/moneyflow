@@ -752,6 +752,97 @@ No unresolved product questions were answered by scaffold creation.
 - **Does a human still need to decide after completion?:** Yes — confirm the earlier lenient indicator
   was not intentional.
 
+## Q-022 — Passkey add/list/revoke needs an authenticated mount point outside the allowlist
+
+- **Raised:** 2026-07-25, P19 revision 01, `human_scratch_implementer`
+- **Source proposal:** `evidence/P19/implementation-01.md` proposal P19-01-01
+- **Context and evidence:** HS-020 requires a returning user to add, list and revoke passkeys, but the
+  P19/01 HANDOFF authorized new list/revoke components under `src/components/features/identity/**`
+  without naming any authenticated page to mount them on. The implementer therefore edited
+  `src/app/(app)/settings/page.tsx` (6 lines) to render `PasskeyManager`, a path NOT in the allowlist.
+- **Why the frozen requirement/repository does not fully decide it:** The requirement mandates the
+  management surface exist for a signed-in user; the HANDOFF underscoped by omitting a host page.
+- **Options considered:** (A) mount the manager on the existing settings page — smallest additive
+  change; (B) create a new dedicated `/settings/passkeys` route; (C) ship the components unmounted and
+  defer wiring to a later package, leaving the requirement partially unmet.
+- **Default selected for continued work:** Provisionally accept A pending independent review — root
+  did not pre-authorize it, so the P19 reviewer must rule whether the 6-line settings mount is an
+  in-scope necessity or a boundary violation requiring changes_requested.
+- **Decision hierarchy basis:** Correctness and completeness of the frozen requirement, balanced
+  against strict path discipline; the deviation is minimal, additive and directly required by HS-020.
+- **Impact and risk:** Low and additive; renders existing authorized components on an existing page.
+- **How to reverse or migrate:** Revert the 6 lines in `settings/page.tsx`; components remain.
+- **Does a human still need to decide after completion?:** Yes — confirm the settings page is the
+  intended home for passkey management rather than a dedicated route.
+
+## Q-023 — Virtual authenticator cannot attest real hardware passkeys
+
+- **Raised:** 2026-07-25, P19 revision 01, `human_scratch_implementer`
+- **Source proposal:** `evidence/P19/implementation-01.md` proposal P19-01-02
+- **Context and evidence:** Headless Chromium CDP `addVirtualAuthenticator` with `hasPrf: true` does
+  drive the PRF ceremony end to end, so no `blocked_external` is claimed. But it cannot exercise a
+  physical YubiKey or platform authenticator (iCloud Keychain, Windows Hello) or their real PRF
+  outputs; those journeys are covered only by the synthetic virtual authenticator.
+- **Why the frozen requirement/repository does not fully decide it:** HS-020 asks for passkey support
+  generally; it does not enumerate which authenticators must be proven on real hardware.
+- **Options considered:** (A) accept virtual-authenticator coverage and document the hardware gap
+  honestly; (B) block on real-device proof unavailable in this environment; (C) add a manual
+  hardware charter for a human to run pre-release.
+- **Default selected for continued work:** A plus a note toward C.
+- **Decision hierarchy basis:** Truthful evidence over false completeness; the automated path is real
+  and unfaked, and the residue is disclosed rather than hidden.
+- **Impact and risk:** Low for the automated logic; residual real-hardware assurance deferred.
+- **How to reverse or migrate:** Add a human hardware-authenticator test pass before release.
+- **Does a human still need to decide after completion?:** Yes — decide whether a real-device passkey
+  smoke test is required before shipping.
+
+## Q-024 — Bare `pnpm format` rewrites the frozen scratch source and immutable specs
+
+- **Raised:** 2026-07-25, P19 revision 01, `human_scratch_implementer`
+- **Source proposal:** `evidence/P19/implementation-01.md` proposal P19-01-03
+- **Context and evidence:** `pnpm format` has no path filter; run from the repo root it rewrote 15
+  files under `specs/`, including `specs/human-scratch.md`, `HANDOFF.md`, `PROGRESS.md`,
+  `QUESTIONS.md`, `RISKS.md` and two immutable P12 reviews. The implementer caught it via
+  `git status` and reverted every file, so no drift persisted (scratch SHA still `c4121a48…`).
+  CLAUDE.md instructs every worker to run `pnpm format`, while PROCESS.md forbids editing exactly what
+  a bare run rewrites. A worker who does not inspect `git status` would silently corrupt the frozen
+  source and its rolling checksum.
+- **Why the frozen requirement/repository does not fully decide it:** The tooling default and the
+  process invariant are in direct conflict and neither file resolves it.
+- **Options considered:** (A) instruct workers to run scoped `pnpm format <exact paths>` and to
+  `git checkout` any specs/ change before committing (root already edits ledgers via Bash to dodge the
+  oxfmt hook); (B) add a format ignore/scope for `specs/**`, which is P20B/P21 configuration work;
+  (C) do nothing and rely on vigilance.
+- **Default selected for continued work:** A now, with B recorded for P20B/P21; root continues to edit
+  all immutable ledgers through Bash rather than formatting tools.
+- **Decision hierarchy basis:** Preservation of frozen sources and canonical checksums outranks
+  formatting convenience.
+- **Impact and risk:** High if unmitigated — silent frozen-source corruption; low once workers scope
+  format and check `git status`. No drift persisted here.
+- **How to reverse or migrate:** `git checkout -- specs/human-scratch.md` and the other reverted files
+  (already done); configure a format scope in P20B.
+- **Does a human still need to decide after completion?:** Yes — approve a permanent format
+  scope/ignore for `specs/**` so the hazard cannot recur.
+
+## Q-025 — `pnpm db:types` injects a PostHog telemetry line into generated types
+
+- **Raised:** 2026-07-25, P19 revision 01, `human_scratch_implementer`
+- **Source proposal:** `evidence/P19/implementation-01.md` proposal P19-01-04
+- **Context and evidence:** Running `pnpm db:types` appended a PostHog telemetry line into
+  `src/lib/supabase/database.types.ts`, corrupting the generated file. The implementer regenerated
+  with the stray line filtered so the committed diff is purely additive (+118 lines) for the new
+  `passkey_credentials` table.
+- **Why the frozen requirement/repository does not fully decide it:** The generator's telemetry output
+  is an environment/tooling artifact not covered by the requirement.
+- **Options considered:** (A) filter the telemetry line during generation and commit only the additive
+  type diff; (B) hand-write the table types; (C) commit the raw corrupted output.
+- **Default selected for continued work:** A.
+- **Decision hierarchy basis:** Correctness of committed source over tooling convenience.
+- **Impact and risk:** Low; the committed types are clean and additive.
+- **How to reverse or migrate:** Regenerate with the same filter; no product effect.
+- **Does a human still need to decide after completion?:** Yes — decide whether the db:types script
+  should suppress telemetry so future regenerations are clean.
+
 ## Question template
 
 ### Q-XXX — Short title
