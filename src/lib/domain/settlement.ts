@@ -232,12 +232,17 @@ function snapshotMaterializedRecord(
         for (const key of keys) {
             if (typeof key !== "string") return { ok: false };
             const descriptor = Reflect.getOwnPropertyDescriptor(value, key);
-            if (descriptor == null || !descriptor.enumerable || !("value" in descriptor)) {
+            if (
+                descriptor == null ||
+                !("value" in descriptor) ||
+                (!descriptor.enumerable && key !== "$cid") ||
+                (key === "$cid" && typeof descriptor.value !== "string")
+            ) {
                 return { ok: false };
             }
             Object.defineProperty(snapshot, key, {
                 configurable: true,
-                enumerable: true,
+                enumerable: descriptor.enumerable,
                 value: descriptor.value,
                 writable: true
             });
