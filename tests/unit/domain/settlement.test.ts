@@ -96,7 +96,7 @@ class BobAllocationEnvelope {
 
 class EmptyAllocationEnvelope {}
 
-type SnapshotTrap = "descriptor" | "ownKeys";
+type SnapshotTrap = "descriptor" | "ownKeys" | "prototype";
 
 function throwingRecordProxy(
     value: Readonly<Record<string, unknown>>,
@@ -107,6 +107,10 @@ function throwingRecordProxy(
             if (trap === "descriptor") throw new Error("descriptor trap");
             return Reflect.getOwnPropertyDescriptor(target, property);
         },
+        getPrototypeOf(target) {
+            if (trap === "prototype") throw new Error("prototype trap");
+            return Reflect.getPrototypeOf(target);
+        },
         ownKeys(target) {
             if (trap === "ownKeys") throw new Error("ownKeys trap");
             return Reflect.ownKeys(target);
@@ -116,7 +120,7 @@ function throwingRecordProxy(
 
 function throwingArrayProxy(
     value: readonly unknown[],
-    trap: "descriptor" | "index" | "iterator" | "length" | "ownKeys"
+    trap: "descriptor" | "index" | "iterator" | "length" | "ownKeys" | "prototype"
 ): readonly unknown[] {
     return new Proxy(value, {
         getOwnPropertyDescriptor(target, property) {
@@ -132,6 +136,10 @@ function throwingArrayProxy(
                 throw new Error(`${trap} trap`);
             }
             return Reflect.get(target, property, receiver);
+        },
+        getPrototypeOf(target) {
+            if (trap === "prototype") throw new Error("array prototype trap");
+            return Reflect.getPrototypeOf(target);
         },
         ownKeys(target) {
             if (trap === "ownKeys") throw new Error("array ownKeys trap");
@@ -193,29 +201,39 @@ function baseStatuses(
 }
 
 function transactionStore(buckets: readonly (readonly Transaction[])[]): TransactionStore {
+    const accountIds = Array.from(
+        new Set(buckets.flatMap((transactions) => transactions.map(({ accountId }) => accountId)))
+    ).sort();
     return {
         $cid: "transaction-store",
-        "account-a": {
-            $cid: "account-a-tree",
-            accountId: "account-a",
-            years: [
+        ...Object.fromEntries(
+            accountIds.map((accountId) => [
+                accountId,
                 {
-                    $cid: "year-2024",
-                    months: [
+                    $cid: `${accountId}-tree`,
+                    accountId,
+                    years: [
                         {
-                            $cid: "month-1",
-                            days: buckets.map((transactions, index) => ({
-                                $cid: `day-${String(index + 1)}`,
-                                day: index + 1,
-                                transactions
-                            })),
-                            month: 1
+                            $cid: `${accountId}-year-2024`,
+                            months: [
+                                {
+                                    $cid: `${accountId}-month-1`,
+                                    days: buckets.map((transactions, index) => ({
+                                        $cid: `${accountId}-day-${String(index + 1)}`,
+                                        day: index + 1,
+                                        transactions: transactions.filter(
+                                            (entry) => entry.accountId === accountId
+                                        )
+                                    })),
+                                    month: 1
+                                }
+                            ],
+                            year: 2024
                         }
-                    ],
-                    year: 2024
+                    ]
                 }
-            ]
-        }
+            ])
+        )
     } as unknown as TransactionStore;
 }
 
@@ -900,14 +918,18 @@ describe("complete exception-safe materialized snapshots", () => {
         type
     });
 
-    it.each(["ownKeys", "descriptor"] as const)(
+    it.each(["ownKeys", "descriptor", "prototype"] as const)(
         "catches %s traps on top-level account and status collections",
         (trap) => {
             const input = transactionStore([
                 [transaction("collection-trap", -100, { allocations: { bob: 100 } })]
             ]);
-            const accounts = throwingRecordProxy(baseAccounts(), trap);
-            const statuses = throwingRecordProxy(baseStatuses(), trap);
+            const accounts = throwingRecordProxy(baseAccounts(), trap) as unknown as Readonly<
+                Record<string, Account | string>
+            >;
+            const statuses = throwingRecordProxy(baseStatuses(), trap) as unknown as Readonly<
+                Record<string, Status | string>
+            >;
 
             expect(() =>
                 calculateSettlementBalances(input, accounts, baseStatuses())
@@ -938,7 +960,7 @@ describe("complete exception-safe materialized snapshots", () => {
         }
     );
 
-    it.each(["ownKeys", "descriptor"] as const)(
+    it.each(["ownKeys", "descriptor", "prototype"] as const)(
         "catches %s traps on store and retained records",
         (trap) => {
             const input = transaction("record-trap", -100, { allocations: { bob: 100 } });
@@ -1023,7 +1045,7 @@ describe("complete exception-safe materialized snapshots", () => {
         ).toEqual([invalidContainerIssue("invalid-ownership", "ownership-getter")]);
     });
 
-    it.each(["ownKeys", "descriptor"] as const)(
+    it.each(["ownKeys", "descriptor", "prototype"] as const)(
         "catches %s traps at allocation and ownership boundaries",
         (trap) => {
             const allocations = throwingRecordProxy({ bob: 100 }, trap);
@@ -1103,6 +1125,72 @@ describe("complete exception-safe materialized snapshots", () => {
         ]);
     });
 
+    it("does not traverse an untrusted core-field object while deriving physical-copy identity", () => {
+        const amount = new Proxy(
+            {},
+            {
+                get() {
+                    throw new Error("amount get trap");
+                },
+                getOwnPropertyDescriptor() {
+                    throw new Error("amount descriptor trap");
+                },
+                ownKeys() {
+                    throw new Error("amount ownKeys trap");
+                }
+            }
+        );
+        const input = runtimeTransaction(transaction("object-amount", -100), { amount });
+
+        expect(() => settle([input])).not.toThrow();
+        expect(settle([input]).issues).toEqual([
+            {
+                accountId: "account-a",
+                reason: "not-safe-integer",
+                transactionId: "object-amount",
+                type: "invalid-amount"
+            }
+        ]);
+    });
+
+    it("rejects a tree years accessor and an array index accessor without invoking either", () => {
+        const trappedTree = accessorRecord({ accountId: "account-a", years: [] }, "years");
+        const accessorYears: unknown[] = [];
+        Object.defineProperty(accessorYears, "0", {
+            enumerable: true,
+            get() {
+                throw new Error("year index getter");
+            }
+        });
+        const treeStore = { "account-a": trappedTree } as unknown as TransactionStore;
+        const arrayStore = {
+            "account-a": { accountId: "account-a", years: accessorYears }
+        } as unknown as TransactionStore;
+
+        expect(() => settleStore(treeStore)).not.toThrow();
+        expect(settleStore(treeStore).issues).toEqual([
+            {
+                accountId: "account-a",
+                hierarchyLevel: "account-tree",
+                hierarchyPath: "account-tree",
+                reason: "invalid-hierarchy",
+                transactionId: "<transaction-store>",
+                type: "invalid-transaction"
+            }
+        ]);
+        expect(() => settleStore(arrayStore)).not.toThrow();
+        expect(settleStore(arrayStore).issues).toEqual([
+            {
+                accountId: "account-a",
+                hierarchyLevel: "years",
+                hierarchyPath: "years",
+                reason: "invalid-hierarchy",
+                transactionId: "<transaction-store>",
+                type: "invalid-transaction"
+            }
+        ]);
+    });
+
     it.each(["iterator", "index", "length"] as const)(
         "does not use trapped %s access while traversing materialized hierarchy arrays",
         (trap) => {
@@ -1140,7 +1228,7 @@ describe("complete exception-safe materialized snapshots", () => {
         }
     );
 
-    it.each(["ownKeys", "descriptor"] as const)(
+    it.each(["ownKeys", "descriptor", "prototype"] as const)(
         "rejects hierarchy arrays whose %s reflection traps",
         (trap) => {
             const years = throwingArrayProxy([], trap);
@@ -1162,8 +1250,23 @@ describe("complete exception-safe materialized snapshots", () => {
         }
     );
 
-    it("catches duplicate-list iterator, index and descriptor traps with transaction context", () => {
-        for (const trap of ["iterator", "index", "descriptor"] as const) {
+    it("copies duplicate lists without invoking iterator, index or length access", () => {
+        for (const trap of ["iterator", "index", "length"] as const) {
+            const input = runtimeTransaction(transaction(`duplicates-${trap}`, -100), {
+                suspectedDuplicates: throwingArrayProxy(
+                    [nestedTransaction("nested-trap", -100)],
+                    trap
+                )
+            });
+
+            expect(() => settle([input])).not.toThrow();
+            expect(settle([input]).issues).toEqual([]);
+            expect(settle([input]).qualifyingTransactionCount).toBe(1);
+        }
+    });
+
+    it("catches duplicate-list ownKeys and descriptor traps with transaction context", () => {
+        for (const trap of ["ownKeys", "descriptor", "prototype"] as const) {
             const input = runtimeTransaction(transaction(`duplicates-${trap}`, -100), {
                 suspectedDuplicates: throwingArrayProxy(
                     [nestedTransaction("nested-trap", -100)],
@@ -1189,7 +1292,14 @@ describe("complete exception-safe materialized snapshots", () => {
                 fc.string({ maxLength: 24, minLength: 1 }),
                 fc.integer({ max: 100, min: 0 }),
                 fc.boolean(),
-                fc.constantFrom("ownKeys", "descriptor", "accessor", "hidden", "symbol"),
+                fc.constantFrom(
+                    "ownKeys",
+                    "descriptor",
+                    "prototype",
+                    "accessor",
+                    "hidden",
+                    "symbol"
+                ),
                 (rawPersonId, percentage, ownershipBoundary, mechanism) => {
                     const personId = rawPersonId === "__proto__" ? "generated-person" : rawPersonId;
                     const target = Object.create(null) as Record<PropertyKey, unknown>;
@@ -1209,7 +1319,11 @@ describe("complete exception-safe materialized snapshots", () => {
                         });
                     } else if (mechanism === "symbol") {
                         target[Symbol(rawPersonId)] = percentage;
-                    } else if (mechanism === "ownKeys" || mechanism === "descriptor") {
+                    } else if (
+                        mechanism === "ownKeys" ||
+                        mechanism === "descriptor" ||
+                        mechanism === "prototype"
+                    ) {
                         container = throwingRecordProxy(target, mechanism);
                     }
                     const id = ownershipBoundary ? "generated-ownership" : "generated-allocation";
@@ -1521,6 +1635,8 @@ describe("hierarchical retained-topology eligibility", () => {
         ["year fraction", 2024.5, 1, 1, "year", "years[]"],
         ["year negative zero", -0, 1, 1, "year", "years[]"],
         ["year unsafe integer", Number.MAX_SAFE_INTEGER + 1, 1, 1, "year", "years[]"],
+        ["year before supported range", -271822, 7, 1, "year", "years[]"],
+        ["year after supported range", 275761, 7, 1, "year", "years[]"],
         ["month zero", 2024, 0, 1, "month", "years[].months[]"],
         ["month thirteen", 2024, 13, 1, "month", "years[].months[]"],
         ["month fraction", 2024, 1.5, 1, "month", "years[].months[]"],
@@ -1586,8 +1702,19 @@ describe("hierarchical retained-topology eligibility", () => {
             fc.property(discriminator, discriminator, discriminator, (year, month, day) => {
                 const isComponent = (value: number) =>
                     Number.isSafeInteger(value) && !Object.is(value, -0);
+                let validYear = false;
+                if (isComponent(year)) {
+                    try {
+                        Temporal.PlainDate.from({ day: 1, month: 7, year }, { overflow: "reject" });
+                        validYear = true;
+                    } catch {
+                        validYear = false;
+                    }
+                }
+                const validMonth = isComponent(month) && month >= 1 && month <= 12;
+                const validDayComponent = isComponent(day) && day >= 1 && day <= 31;
                 let validDate = false;
-                if (isComponent(year) && isComponent(month) && isComponent(day)) {
+                if (validYear && validMonth && validDayComponent) {
                     try {
                         Temporal.PlainDate.from({ day, month, year }, { overflow: "reject" });
                         validDate = true;
@@ -1602,9 +1729,9 @@ describe("hierarchical retained-topology eligibility", () => {
                     expect(result.qualifyingTransactionCount).toBe(1);
                     return;
                 }
-                const [level, path] = !isComponent(year)
+                const [level, path] = !validYear
                     ? (["year", "years[]"] as const)
-                    : !isComponent(month)
+                    : !validMonth
                       ? (["month", "years[].months[]"] as const)
                       : (["day", "years[].months[].days[]"] as const);
                 expect(result.issues).toEqual([topologyIssue("account-a", level, path)]);

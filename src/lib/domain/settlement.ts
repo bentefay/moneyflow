@@ -5,6 +5,8 @@
  * immutable results from retained vault state and never persists a cache or rewrites source data.
  */
 
+import { Temporal } from "temporal-polyfill";
+
 import {
     getTransactionMaintenanceShadowIdentity,
     type Account,
@@ -59,11 +61,15 @@ export interface SettlementCurrencyPositions {
 }
 
 export type SettlementHierarchyLevel =
+    | "account"
     | "account-tree"
+    | "accounts"
     | "day"
     | "days"
     | "month"
     | "months"
+    | "status"
+    | "statuses"
     | "store-root"
     | "transaction"
     | "transactions"
@@ -165,6 +171,12 @@ interface TransactionProjection {
     readonly transactions: readonly RetainedTransaction[];
 }
 
+interface MaterializedCollection {
+    readonly entries: ReadonlyMap<string, Readonly<Record<string, unknown>>>;
+    readonly issues: readonly SettlementIssue[];
+    readonly validRoot: boolean;
+}
+
 interface TransactionCalculation {
     readonly contributions: readonly Omit<SettlementContribution, "currency" | "transactionId">[];
     readonly positions: Readonly<Record<string, number>>;
@@ -197,36 +209,135 @@ function freezeResultGraph<T extends object>(value: T): T {
 }
 
 function isRuntimeRecord(value: unknown): value is Readonly<Record<string, unknown>> {
-    return value != null && typeof value === "object" && !Array.isArray(value);
-}
-
-function isMaterializedRecord(value: unknown): value is Readonly<Record<string, unknown>> {
-    if (!isRuntimeRecord(value)) return false;
+    if (value == null || typeof value !== "object") return false;
     try {
-        const prototype = Object.getPrototypeOf(value);
-        return prototype === Object.prototype || prototype === null;
+        return !Array.isArray(value);
     } catch {
         return false;
     }
 }
 
-function recordFromLoroMap(collection: unknown): Map<string, Readonly<Record<string, unknown>>> {
-    const result = new Map<string, Readonly<Record<string, unknown>>>();
-    if (!isRuntimeRecord(collection)) return result;
-    for (const [id, value] of Object.entries(collection)) {
-        if (isRuntimeRecord(value)) result.set(id, value);
+function snapshotMaterializedRecord(
+    value: unknown
+):
+    | { readonly ok: false }
+    | { readonly ok: true; readonly value: Readonly<Record<string, unknown>> } {
+    if (!isRuntimeRecord(value)) return { ok: false };
+    try {
+        const prototype = Reflect.getPrototypeOf(value);
+        if (prototype !== Object.prototype && prototype !== null) return { ok: false };
+
+        const keys = Reflect.ownKeys(value);
+        const snapshot = Object.create(null) as Record<string, unknown>;
+        for (const key of keys) {
+            if (typeof key !== "string") return { ok: false };
+            const descriptor = Reflect.getOwnPropertyDescriptor(value, key);
+            if (descriptor == null || !descriptor.enumerable || !("value" in descriptor)) {
+                return { ok: false };
+            }
+            Object.defineProperty(snapshot, key, {
+                configurable: true,
+                enumerable: true,
+                value: descriptor.value,
+                writable: true
+            });
+        }
+        return { ok: true, value: snapshot };
+    } catch {
+        return { ok: false };
     }
-    return result;
+}
+
+function snapshotMaterializedArray(
+    value: unknown
+): { readonly ok: false } | { readonly ok: true; readonly value: readonly unknown[] } {
+    try {
+        if (!Array.isArray(value) || Reflect.getPrototypeOf(value) !== Array.prototype) {
+            return { ok: false };
+        }
+        const keys = Reflect.ownKeys(value);
+        const lengthDescriptor = Reflect.getOwnPropertyDescriptor(value, "length");
+        if (
+            lengthDescriptor == null ||
+            !("value" in lengthDescriptor) ||
+            lengthDescriptor.enumerable ||
+            typeof lengthDescriptor.value !== "number" ||
+            !Number.isSafeInteger(lengthDescriptor.value) ||
+            lengthDescriptor.value < 0
+        ) {
+            return { ok: false };
+        }
+        const length = lengthDescriptor.value;
+        if (keys.length !== length + 1) return { ok: false };
+
+        const snapshot = new Array<unknown>(length);
+        const seen = new Set<number>();
+        for (const key of keys) {
+            if (key === "length") continue;
+            if (typeof key !== "string" || !/^(?:0|[1-9]\d*)$/u.test(key)) {
+                return { ok: false };
+            }
+            const index = Number(key);
+            if (!Number.isSafeInteger(index) || index < 0 || index >= length || seen.has(index)) {
+                return { ok: false };
+            }
+            const descriptor = Reflect.getOwnPropertyDescriptor(value, key);
+            if (descriptor == null || !descriptor.enumerable || !("value" in descriptor)) {
+                return { ok: false };
+            }
+            Object.defineProperty(snapshot, index, {
+                configurable: true,
+                enumerable: true,
+                value: descriptor.value,
+                writable: true
+            });
+            seen.add(index);
+        }
+        return seen.size === length ? { ok: true, value: snapshot } : { ok: false };
+    } catch {
+        return { ok: false };
+    }
+}
+
+function recordFromLoroMap(
+    collection: unknown,
+    rootLevel: "accounts" | "statuses",
+    entryLevel: "account" | "status"
+): MaterializedCollection {
+    const snapshot = snapshotMaterializedRecord(collection);
+    if (!snapshot.ok) {
+        return {
+            entries: new Map(),
+            issues: [hierarchyIssue("<unknown-account>", rootLevel, rootLevel)],
+            validRoot: false
+        };
+    }
+
+    const result = new Map<string, Readonly<Record<string, unknown>>>();
+    const issues: SettlementIssue[] = [];
+    for (const [id, value] of Object.entries(snapshot.value)) {
+        if (id === "$cid" || typeof value === "string") continue;
+        const entry = snapshotMaterializedRecord(value);
+        if (entry.ok) {
+            result.set(id, entry.value);
+        } else {
+            issues.push(
+                hierarchyIssue(
+                    entryLevel === "account" ? id : "<unknown-account>",
+                    entryLevel,
+                    `${rootLevel}[]`
+                )
+            );
+        }
+    }
+    return { entries: result, issues, validRoot: true };
 }
 
 function encodePart(value: string): string {
     return `${value.length}:${value}`;
 }
 
-function runtimeValueKey(
-    value: unknown,
-    ancestors: ReadonlySet<object> = new Set<object>()
-): string {
+function runtimeScalarKey(value: unknown): string {
     if (value === undefined) return "undefined";
     if (value === null) return "null";
     if (typeof value === "string") return `string${encodePart(value)}`;
@@ -239,49 +350,51 @@ function runtimeValueKey(
         return `number${encodePart(String(value))}`;
     }
     if (typeof value === "bigint") return `bigint${encodePart(String(value))}`;
-    if (typeof value === "symbol") return `symbol${encodePart(String(value.description))}`;
-    if (typeof value === "function") return `function${encodePart(value.name)}`;
-    if (ancestors.has(value)) return "cycle";
+    return typeof value;
+}
 
-    const nextAncestors = new Set(ancestors);
-    nextAncestors.add(value);
-    if (Array.isArray(value)) {
-        return `array${encodePart(
-            value.map((entry) => encodePart(runtimeValueKey(entry, nextAncestors))).join("")
-        )}`;
-    }
-    return `record${encodePart(
-        Object.entries(value)
-            .sort(([left], [right]) => compareStrings(left, right))
-            .map(
-                ([key, entry]) =>
-                    `${encodePart(key)}${encodePart(runtimeValueKey(entry, nextAncestors))}`
-            )
-            .join("")
-    )}`;
+function materializedScalarRecordKey(value: unknown): string {
+    if (value === undefined) return "undefined";
+    const snapshot = snapshotMaterializedRecord(value);
+    if (!snapshot.ok) return "invalid-record";
+    return Object.entries(snapshot.value)
+        .sort(([left], [right]) => compareStrings(left, right))
+        .map(([key, entry]) => `${encodePart(key)}${encodePart(runtimeScalarKey(entry))}`)
+        .join("");
 }
 
 function transactionSelectionKey(transaction: RetainedTransaction): string {
     const cid = transaction.raw.$cid;
     if (typeof cid === "string") return `cid${encodePart(cid)}`;
-    return `semantic${encodePart(runtimeValueKey(transaction.raw))}`;
+    return `semantic${encodePart(
+        [
+            transaction.accountId,
+            transaction.id,
+            transaction.statusId,
+            runtimeScalarKey(transaction.amount),
+            materializedScalarRecordKey(transaction.raw.allocations)
+        ]
+            .map(encodePart)
+            .join("")
+    )}`;
 }
 
 function retainedTransaction(
-    value: unknown,
+    record: Readonly<Record<string, unknown>>,
     fallbackAccountId: string
 ):
     | { readonly issue: SettlementIssue; readonly ok: false }
     | { readonly ok: true; readonly transaction: RetainedTransaction } {
-    const record = isRuntimeRecord(value) ? value : EMPTY_RUNTIME_RECORD;
     const id = record.id;
     const accountId = record.accountId;
     const statusId = record.statusId;
     if (
-        !isRuntimeRecord(value) ||
         typeof id !== "string" ||
+        id.length === 0 ||
         typeof accountId !== "string" ||
-        typeof statusId !== "string"
+        accountId.length === 0 ||
+        typeof statusId !== "string" ||
+        statusId.length === 0
     ) {
         return {
             issue: {
@@ -325,6 +438,23 @@ function hierarchyIssue(
     };
 }
 
+function isCalendarComponent(value: unknown): value is number {
+    return typeof value === "number" && Number.isSafeInteger(value) && !Object.is(value, -0);
+}
+
+function isSupportedPlainDate(year: number, month: number, day: number): boolean {
+    try {
+        Temporal.PlainDate.from({ day, month, year }, { overflow: "reject" });
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function isSupportedCalendarYear(year: number): boolean {
+    return isSupportedPlainDate(year, 7, 1);
+}
+
 function projectTransactionStore(store: unknown): TransactionProjection {
     const activeById = new Map<string, RetainedTransaction[]>();
     const invalidLogicalIds = new Set<string>();
@@ -339,99 +469,148 @@ function projectTransactionStore(store: unknown): TransactionProjection {
         transactionIssues.set(key, issue);
     };
 
-    if (!isMaterializedRecord(store)) {
+    const storeSnapshot = snapshotMaterializedRecord(store);
+    if (!storeSnapshot.ok) {
         return {
             issues: [hierarchyIssue("<unknown-account>", "store-root", "store-root")],
             transactions: []
         };
     }
 
-    for (const [treeKey, treeValue] of Object.entries(store)) {
+    for (const [treeKey, unsafeTreeValue] of Object.entries(storeSnapshot.value)) {
         if (treeKey === "$cid") continue;
-        if (!isMaterializedRecord(treeValue)) {
+        const treeSnapshot = snapshotMaterializedRecord(unsafeTreeValue);
+        if (!treeSnapshot.ok) {
             hierarchyIssues.push(hierarchyIssue(treeKey, "account-tree", "account-tree"));
             continue;
         }
-        const fallbackAccountId =
-            typeof treeValue.accountId === "string" ? treeValue.accountId : treeKey;
-        const years = treeValue.years;
-        if (!Array.isArray(years)) {
-            hierarchyIssues.push(hierarchyIssue(fallbackAccountId, "years", "years"));
+        const treeValue = treeSnapshot.value;
+        if (
+            typeof treeValue.accountId !== "string" ||
+            treeValue.accountId.length === 0 ||
+            treeValue.accountId !== treeKey
+        ) {
+            hierarchyIssues.push(hierarchyIssue(treeKey, "account-tree", "account-tree.accountId"));
             continue;
         }
+        const accountId = treeValue.accountId;
+        const yearsSnapshot = snapshotMaterializedArray(treeValue.years);
+        if (!yearsSnapshot.ok) {
+            hierarchyIssues.push(hierarchyIssue(accountId, "years", "years"));
+            continue;
+        }
+        const years = yearsSnapshot.value;
         for (const yearValue of years) {
-            if (!isMaterializedRecord(yearValue) || typeof yearValue.year !== "number") {
-                hierarchyIssues.push(hierarchyIssue(fallbackAccountId, "year", "years[]"));
+            const yearSnapshot = snapshotMaterializedRecord(yearValue);
+            if (!yearSnapshot.ok) {
+                hierarchyIssues.push(hierarchyIssue(accountId, "year", "years[]"));
                 continue;
             }
-            if (!Array.isArray(yearValue.months)) {
-                hierarchyIssues.push(hierarchyIssue(fallbackAccountId, "months", "years[].months"));
+            const retainedYear = yearSnapshot.value;
+            const year = retainedYear.year;
+            if (!isCalendarComponent(year) || !isSupportedCalendarYear(year)) {
+                hierarchyIssues.push(hierarchyIssue(accountId, "year", "years[]"));
                 continue;
             }
-            for (const monthValue of yearValue.months) {
-                if (!isMaterializedRecord(monthValue) || typeof monthValue.month !== "number") {
+            const monthsSnapshot = snapshotMaterializedArray(retainedYear.months);
+            if (!monthsSnapshot.ok) {
+                hierarchyIssues.push(hierarchyIssue(accountId, "months", "years[].months"));
+                continue;
+            }
+            for (const monthValue of monthsSnapshot.value) {
+                const monthSnapshot = snapshotMaterializedRecord(monthValue);
+                if (!monthSnapshot.ok) {
+                    hierarchyIssues.push(hierarchyIssue(accountId, "month", "years[].months[]"));
+                    continue;
+                }
+                const retainedMonth = monthSnapshot.value;
+                const month = retainedMonth.month;
+                if (!isCalendarComponent(month) || month < 1 || month > 12) {
+                    hierarchyIssues.push(hierarchyIssue(accountId, "month", "years[].months[]"));
+                    continue;
+                }
+                const daysSnapshot = snapshotMaterializedArray(retainedMonth.days);
+                if (!daysSnapshot.ok) {
                     hierarchyIssues.push(
-                        hierarchyIssue(fallbackAccountId, "month", "years[].months[]")
+                        hierarchyIssue(accountId, "days", "years[].months[].days")
                     );
                     continue;
                 }
-                if (!Array.isArray(monthValue.days)) {
-                    hierarchyIssues.push(
-                        hierarchyIssue(fallbackAccountId, "days", "years[].months[].days")
-                    );
-                    continue;
-                }
-                for (const dayValue of monthValue.days) {
-                    if (!isMaterializedRecord(dayValue) || typeof dayValue.day !== "number") {
+                for (const dayValue of daysSnapshot.value) {
+                    const daySnapshot = snapshotMaterializedRecord(dayValue);
+                    if (
+                        !daySnapshot.ok ||
+                        !isCalendarComponent(daySnapshot.value.day) ||
+                        daySnapshot.value.day < 1 ||
+                        daySnapshot.value.day > 31 ||
+                        !isSupportedPlainDate(year, month, daySnapshot.value.day)
+                    ) {
                         hierarchyIssues.push(
-                            hierarchyIssue(fallbackAccountId, "day", "years[].months[].days[]")
+                            hierarchyIssue(accountId, "day", "years[].months[].days[]")
                         );
                         continue;
                     }
-                    if (!Array.isArray(dayValue.transactions)) {
+                    const transactionsSnapshot = snapshotMaterializedArray(
+                        daySnapshot.value.transactions
+                    );
+                    if (!transactionsSnapshot.ok) {
                         hierarchyIssues.push(
                             hierarchyIssue(
-                                fallbackAccountId,
+                                accountId,
                                 "transactions",
                                 "years[].months[].days[].transactions"
                             )
                         );
                         continue;
                     }
-                    for (const transactionValue of dayValue.transactions) {
-                        if (!isMaterializedRecord(transactionValue)) {
+                    for (const transactionValue of transactionsSnapshot.value) {
+                        const transactionSnapshot = snapshotMaterializedRecord(transactionValue);
+                        if (!transactionSnapshot.ok) {
                             hierarchyIssues.push(
                                 hierarchyIssue(
-                                    fallbackAccountId,
+                                    accountId,
                                     "transaction",
                                     "years[].months[].days[].transactions[]"
                                 )
                             );
                             continue;
                         }
-                        const retained = retainedTransaction(transactionValue, fallbackAccountId);
+                        const retained = retainedTransaction(transactionSnapshot.value, accountId);
                         if (!retained.ok) {
                             addTransactionIssue(retained.issue);
                             continue;
                         }
                         const transaction = retained.transaction;
+                        if (transaction.accountId !== accountId) {
+                            hierarchyIssues.push(
+                                hierarchyIssue(
+                                    accountId,
+                                    "transaction",
+                                    "years[].months[].days[].transactions[].accountId"
+                                )
+                            );
+                            continue;
+                        }
                         if (getTransactionMaintenanceShadowIdentity(transaction) != null) continue;
 
                         const duplicatesValue = transaction.raw.suspectedDuplicates;
                         let validDuplicateList = true;
                         if (duplicatesValue !== undefined) {
-                            if (!Array.isArray(duplicatesValue)) {
+                            const duplicatesSnapshot = snapshotMaterializedArray(duplicatesValue);
+                            if (!duplicatesSnapshot.ok) {
                                 validDuplicateList = false;
                             } else {
-                                for (const duplicate of duplicatesValue) {
+                                for (const duplicate of duplicatesSnapshot.value) {
+                                    const duplicateSnapshot = snapshotMaterializedRecord(duplicate);
                                     if (
-                                        !isRuntimeRecord(duplicate) ||
-                                        typeof duplicate.id !== "string"
+                                        !duplicateSnapshot.ok ||
+                                        typeof duplicateSnapshot.value.id !== "string" ||
+                                        duplicateSnapshot.value.id.length === 0
                                     ) {
                                         validDuplicateList = false;
                                         continue;
                                     }
-                                    nestedIds.add(duplicate.id);
+                                    nestedIds.add(duplicateSnapshot.value.id);
                                 }
                             }
                         }
@@ -817,7 +996,7 @@ function numericRecordKey(record: Readonly<Record<string, unknown>>): string | n
     const encoded: string[] = [];
     for (const [key, value] of entries) {
         if (typeof value !== "number") return null;
-        encoded.push(encodePart(key), encodePart(runtimeValueKey(value)));
+        encoded.push(encodePart(key), encodePart(runtimeScalarKey(value)));
     }
     return `${entries.length}:${encoded.join("")}`;
 }
@@ -877,8 +1056,10 @@ export function calculateSettlementBalances(
     statuses: Readonly<Record<string, Status | string>>,
     vaultDefaultCurrency?: string
 ): SettlementResult {
-    const accountMap = recordFromLoroMap(accounts);
-    const statusMap = recordFromLoroMap(statuses);
+    const accountCollection = recordFromLoroMap(accounts, "accounts", "account");
+    const statusCollection = recordFromLoroMap(statuses, "statuses", "status");
+    const accountMap = accountCollection.entries;
+    const statusMap = statusCollection.entries;
     const derivationCache = new Map<string, Map<string, SuccessfulEffectiveAllocationResult>>();
     const calculationCache = new WeakMap<
         EffectiveAllocationDerivation,
@@ -888,10 +1069,16 @@ export function calculateSettlementBalances(
     const aggregates: AggregateMap = new Map();
     const contributions: SettlementContribution[] = [];
     const projection = projectTransactionStore(transactions);
-    const issues: SettlementIssue[] = [...projection.issues];
+    const issues: SettlementIssue[] = [
+        ...accountCollection.issues,
+        ...statusCollection.issues,
+        ...projection.issues
+    ];
     let qualifyingTransactionCount = 0;
 
+    const collectionsUsable = accountCollection.validRoot && statusCollection.validRoot;
     for (const transaction of projection.transactions) {
+        if (!collectionsUsable) continue;
         const retainedStatus = statusMap.get(transaction.statusId);
         if (retainedStatus?.behavior !== "treatAsPaid") continue;
 
@@ -927,13 +1114,11 @@ export function calculateSettlementBalances(
         }
 
         const allocationValue = transaction.raw.allocations;
-        const allocations =
+        const allocationSnapshot =
             allocationValue === undefined
-                ? EMPTY_RUNTIME_RECORD
-                : isMaterializedRecord(allocationValue)
-                  ? allocationValue
-                  : null;
-        if (allocations == null) {
+                ? { ok: true as const, value: EMPTY_RUNTIME_RECORD }
+                : snapshotMaterializedRecord(allocationValue);
+        if (!allocationSnapshot.ok) {
             issues.push({
                 accountId: transaction.accountId,
                 reason: "invalid-container",
@@ -942,8 +1127,10 @@ export function calculateSettlementBalances(
             });
             continue;
         }
+        const allocations = allocationSnapshot.value;
         const ownershipValue = account.ownerships;
-        if (!isMaterializedRecord(ownershipValue)) {
+        const ownershipSnapshot = snapshotMaterializedRecord(ownershipValue);
+        if (!ownershipSnapshot.ok) {
             issues.push({
                 accountId: transaction.accountId,
                 reason: "invalid-container",
@@ -953,7 +1140,11 @@ export function calculateSettlementBalances(
             continue;
         }
 
-        const derivation = getCachedDerivation(allocations, ownershipValue, derivationCache);
+        const derivation = getCachedDerivation(
+            allocations,
+            ownershipSnapshot.value,
+            derivationCache
+        );
         const validationIssues = allocationAndOwnershipIssues(
             derivation,
             transaction.id,
