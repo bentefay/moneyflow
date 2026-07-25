@@ -872,6 +872,57 @@ No unresolved product questions were answered by scaffold creation.
 - **Does a human still need to decide after completion?:** Yes — a genuine product-values call on how
   hard to push a recovery phrase onto a user who chose a passkey precisely to avoid one.
 
+## Q-027 — Reveal-phrase-in-settings is not buildable; passkey-only creation shows the phrase at creation
+
+- **Raised:** 2026-07-25, P19 revision 02, `human_scratch_implementer`
+- **Source proposal:** `evidence/P19/implementation-02.md` section 6, Q-PROPOSAL-P19-02-01
+- **Supersedes option (b) of:** [[Q-026]]
+- **Context and evidence:** Q-026 recorded the reviewer's recommended default (b) — a phrase-gated
+  reveal surface in settings. Implementation showed (b) is not buildable: BIP39 runs mnemonic->seed
+  one-way through PBKDF2, so retaining the words for a later reveal would require persisting a mnemonic
+  in plaintext, which the blocking secret-safety rule forbids. P19/02 therefore took option (a): the
+  passkey-only creation flow shows the recovery phrase after the ceremony succeeds and requires
+  acknowledgement before navigating away. The phrase lives in React state for one step only.
+- **Why the frozen requirement/repository does not fully decide it:** HS-020 requires recoverability
+  be "clearly explained" but does not resolve how aggressively to surface the phrase for a user who
+  chose a passkey to avoid one.
+- **Options considered:** (a) show the phrase during passkey-only creation [selected]; (b) reveal
+  surface in settings [ruled out as unbuildable without a plaintext-mnemonic leak]; (c) warning text
+  only [rejected — reopens B-1/B-2 loss].
+- **Default selected for continued work:** (a).
+- **Decision hierarchy basis:** Preservation of user data (#3) over convenience (#4), constrained by
+  secret-safety.
+- **Impact and risk:** Low and additive; closes the silent-loss route without any schema/protocol
+  change. Residual product-values question is push-strength, not recoverability.
+- **How to reverse or migrate:** Additive UI; removable without migration.
+- **Does a human still need to decide after completion?:** Yes — confirm that showing the phrase once
+  at creation (with acknowledgement) is the intended strength, given (b) is off the table.
+
+## Q-028 — Last-credential revocation requires proving the phrase derives THIS identity
+
+- **Raised:** 2026-07-25, P19 revision 02, `human_scratch_implementer`
+- **Source proposal:** `evidence/P19/implementation-02.md` section 6, Q-PROPOSAL-P19-02-02
+- **Context and evidence:** The P19/02 HANDOFF said last-credential revocation must be gated behind
+  "explicit recovery-phrase confirmation" without specifying strength. A validity-only check would be
+  theatre: the public all-`abandon` vector passes the BIP39 checksum, so a user who lost their real
+  phrase could still destroy their last unlock factor. The implementer therefore derives the pubkey
+  hash from the entered phrase and compares it to the session identity, so only the genuine
+  phrase-holder for THIS vault may revoke the last credential; a non-holder is blocked outright. This
+  makes the HANDOFF's two branches (block outright vs gate behind confirmation) coincide. Verified by
+  mutation: replacing the identity check with `false` fails exactly and only the targeting test.
+- **Why the frozen requirement/repository does not fully decide it:** HS-020 requires "no silent
+  downgrade" but does not specify the confirmation strength for destroying the last factor.
+- **Options considered:** (a) validity-only checksum check [rejected — theatre]; (b) derive-and-match
+  this identity [selected]; (c) block last-credential revocation outright with no override [also safe;
+  (b) preserves a legitimate escape hatch for a phrase-holder].
+- **Default selected for continued work:** (b).
+- **Decision hierarchy basis:** Preservation of user data (#3) — a stronger gate on an irreversible
+  destructive action.
+- **Impact and risk:** Low; strictly tightens a destructive path. No false blocks for a real holder.
+- **How to reverse or migrate:** Adjust the gate predicate; no schema change.
+- **Does a human still need to decide after completion?:** Yes — confirm derive-and-match is the
+  intended strength rather than an unconditional block.
+
 ## Question template
 
 ### Q-XXX — Short title

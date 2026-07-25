@@ -7,11 +7,14 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P19/02 (HS-020) implementing; remediation of review-01 FAIL (B-1/B-2) dispatched to `human_scratch_implementer` from build BASE `77038d1`
-- **Next action:** await `evidence/P19/implementation-02.md` and the P19/02 `ready_for_review`
-  handoff, then re-dispatch `human_scratch_reviewer` (p19-reviewer-01) over original BASE `e72befd` ->
-  new HEAD to confirm B-1 and B-2 are closed and sections 2-5 remain unchanged. Keep FS-001
-  immutable/open and all P05-gated packages (P08/P10/P16E and descendants) blocked
+- **Current package:** P19/02 (HS-020) `ready_for_review` at product HEAD `bb8a557`; awaiting re-review by `human_scratch_reviewer`
+- **Next action:** re-dispatch `human_scratch_reviewer` (p19-reviewer-01) over original BASE
+  `e72befd` -> new HEAD `bb8a557` to confirm B-1 (creation strand) and B-2 (last-credential
+  revocation) are closed, the preserved crypto/server/migration surface is byte-identical (root
+  verified empty diff), and to independently re-run gates (implementer self-reported a mid-run
+  tree-mutation it corrected and re-ran clean — reviewer must confirm 119/119 from a clean tree). On
+  PASS: two-commit integration then the HS-020 forward marker. Keep FS-001 immutable/open and all
+  P05-gated packages (P08/P10/P16E and descendants) blocked
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -24,10 +27,13 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** thirteen passed; HS-015 blocked externally; seven other HS requirements
   (HS-003/007/011/012/016/020/021) plus FS-001 queued
-- **Last ledger update:** 2026-07-25; P19/01 (HS-020) `ready_for_review -> changes_requested`:
-  independent review-01 VERDICT FAIL, 2 blocking (B-1 creation strands vault, B-2 last-credential
-  revocation loses vault), 5 non-blocking; crypto/server/migration/secret-safety all independently
-  re-pass and are preserved for P19/02. `reviews/P19-review-01.md` committed immutable; Q-026
+- **Last ledger update:** 2026-07-26; P19/02 (HS-020) `implementing -> ready_for_review` at product
+  HEAD `bb8a557`; B-1 closed by reordering so no server identity/session/vault commits before the
+  passkey ceremony (with a 90s client deadline + phrase shown/acknowledged after success) and B-2 by
+  requiring the entered phrase to derive THIS identity before last-credential revocation. Root
+  independently verified the preserved crypto/server/migration surface is byte-identical (empty diff
+  `77038d1..bb8a557`) and the derivation core untouched across the full range. Q-027 (reveal-in-
+  settings unbuildable, chose show-at-creation) and Q-028 (derive-and-match revocation gate)
   transcribed. Requirement HS-020 stays `queued`; scratch rolling SHA unchanged `c4121a48…`; thirteen
   requirements remain `passed`
 
@@ -63,7 +69,7 @@ review evidence.
 | P17C    | HS-007         | Description inline proposals, robot drift state and scoped application              | P17B                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P17D    | HS-007         | Tags/allocation parity, bulk/new application, performance and polish                | P17C                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P18     | HS-019         | Password-manager-compatible recovery phrase creation and unlock                     | P01                  | passed             | 01   | `493bf19d3219f44efd4d4437fd8b0e33d012fba9..4cda92d40e9cc5b6490636c25d99b655905cb40a` | `evidence/P18/implementation-01.md` | `reviews/P18-review-01.md` | `fa9ae8d0b6b7948bd2c4a508ad869d5d6955a6a1` |
-| P19     | HS-020         | WebAuthn PRF passkeys sharing the vault identity secret                             | P04, P06, P18        | implementing | 02  | `77038d1` (rev01)                                                                    | `reviews/P19-review-01.md` FAIL     | —                          | rev02 fixing B-1 creation strand + B-2 last-cred revoke |
+| P19     | HS-020         | WebAuthn PRF passkeys sharing the vault identity secret                             | P04, P06, P18        | ready_for_review | 02  | `bb8a557`                                                                            | `reviews/P19-review-01.md` FAIL (rev01) | —                          | rev02 closes B-1/B-2; preserved surface byte-identical; re-review pending |
 | P20A    | HS-016         | Truthful marketing copy and responsive feature presentation                         | P17D, P19            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P20B    | HS-021         | Full-codebase style-guide/code-quality sweep after all feature work                 | P20A                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P21     | control        | [Executable final audit](tasks/P21-final-audit.md)                                  | all prior            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -3389,3 +3395,34 @@ derivation core stays read-only. Cumulative re-review spans original BASE `e72be
 Q-024 formatting hazard restated in the HANDOFF (no bare `pnpm format`). Requirement HS-020 stays
 `queued`. Scratch rolling SHA unchanged `c4121a48…`; FS-001 immutable/open; thirteen requirements
 remain `passed`; no halt condition applies.
+
+### 2026-07-26 — P19/02 ready_for_review (HS-020 B-1/B-2 remediation)
+
+`implementing -> ready_for_review`. `human_scratch_implementer` returned P19/02 at product HEAD
+`bb8a557d37190058c68b2cebfe721d3e15f18629` (RED `9c6d494`, GREEN `bb8a557`) built on the review-01
+FAIL record `6d05811`; full ancestry intact (my `9699fde`/`ad4103c`/`6d05811` are ancestors, the
+immutable `reviews/P19-review-01.md` present at HEAD). Root independently verified: HEAD matches; tree
+clean but for untracked `evidence/P19/`; scratch `sha256 = c4121a48…` with HS-020 marker line 348
+unchecked; FS-001 `sha256 = 0d0e2a14…`; the preserved surface `git diff --stat 77038d1 bb8a557 --
+src/lib/crypto/ src/server/ supabase/ src/types/ src/lib/supabase/database.types.ts package.json
+pnpm-lock.yaml` is EMPTY (byte-identical, no dependency change); derivation core untouched across
+`e72befd..bb8a557`. Rev02 changed only authorized client/test paths:
+`src/app/(onboarding)/new-user/page.tsx`, `src/components/features/identity/PasskeyBackupPhrase.tsx`
+(new), `PasskeyManager.tsx`, `index.ts`, `src/hooks/use-passkey.ts`, and unit/E2E tests. B-1 closed:
+new order generate(local) -> reversible client session -> derive seed -> passkey ceremony ->
+`registerIdentity` -> show+acknowledge phrase -> navigate, with best-effort credential revoke + session
+clear on any failure (reported 0 `user_data`/0 `vault_memberships` rows for a cancelled attempt) and a
+90s client-side ceremony deadline (a never-answered prompt previously never rejected). B-2 closed: last-
+credential revocation requires the entered phrase to derive THIS identity's pubkey hash, so a
+non-holder is blocked outright while a holder retains an escape hatch; verified by mutation. Reported
+gates at `bb8a557`: typecheck PASS, lint 0 errors, unit 1627 passed/2 skipped (+12), E2E 119/119 (+3),
+passkey spec 36/36 with `--repeat-each=3`; `pnpm format:check` fails only on the pre-existing 16
+`specs/**` files (Q-024, not attributable). Implementer self-reported a process error (mutated the tree
+mid-run during a full-suite execution, invalidating it; restored the file, killed the run, re-ran clean
+— only the clean 119/119 counts; evidence §4.3) and added a 12th E2E distinguishing cancellation from
+an unanswered prompt; the reviewer must independently re-run gates from a clean tree. Secret-safety
+reaffirmed: no master secret/PRF output/mnemonic/entropy in any log/URL/storage/fixture/artifact;
+creation phrase in React state one step only; revocation phrase derived locally; secrets zeroized in
+`finally`. Q-027/Q-028 transcribed. Requirement HS-020 stays `queued` (no marker until PASS). Scratch
+rolling SHA unchanged `c4121a48…`; FS-001 immutable/open; thirteen requirements remain `passed`; no
+halt condition applies.
