@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
     allocationPresenceField,
+    copyAllocationData,
     prepareAllocationReplacement,
     replaceTransactionAllocations,
     setTransactionAllocation
@@ -23,7 +24,7 @@ import {
     unnestDuplicate,
     updateTransaction
 } from "@/lib/crdt/mutations";
-import type { TransactionInput, TransactionStore, VaultState } from "@/lib/crdt/schema";
+import type { Automation, TransactionInput, TransactionStore, VaultState } from "@/lib/crdt/schema";
 import {
     applyEncryptedUpdate,
     createEncryptedSnapshot,
@@ -34,6 +35,7 @@ import { VaultUndoCoordinator } from "@/lib/crdt/undo";
 import {
     applyAutomationChanges,
     createAutomationApplication,
+    evaluateAutomation,
     restoreAutomationApplication
 } from "@/lib/domain/automation";
 import { asMinorUnits } from "@/lib/domain/currency";
@@ -81,6 +83,55 @@ function explicitAllocations(store: TransactionStore, location = LOCATION): Reco
         if (personId !== "$cid" && typeof value === "number") explicit[personId] = value;
     }
     return explicit;
+}
+
+function rawAllocations(store: TransactionStore, location = LOCATION): Record<string, unknown> {
+    const allocations = findTransactionInStore(store, location)?.allocations;
+    if (!allocations) throw new Error("Expected transaction allocations");
+    const explicit = Object.create(null) as Record<string, unknown>;
+    for (const key of Reflect.ownKeys(allocations)) {
+        if (typeof key !== "string" || key === "$cid") continue;
+        const descriptor = Reflect.getOwnPropertyDescriptor(allocations, key);
+        if (!descriptor?.enumerable || !("value" in descriptor)) continue;
+        Object.defineProperty(explicit, key, {
+            enumerable: true,
+            value: descriptor.value
+        });
+    }
+    return explicit;
+}
+
+function injectRawAllocations(
+    store: TransactionStore,
+    values: Readonly<Record<string, unknown>>,
+    location = LOCATION
+): void {
+    const allocations = findTransactionInStore(store, location)?.allocations;
+    if (!allocations) throw new Error("Expected transaction allocations");
+    for (const [key, value] of Object.entries(values)) Reflect.set(allocations, key, value);
+}
+
+function revokedAllocationContainer(): {
+    readonly holder: { readonly allocations: object; readonly sentinel: string };
+    readonly proxy: object;
+} {
+    const { proxy, revoke } = Proxy.revocable(Object.create(null) as Record<string, unknown>, {});
+    const holder = Object.freeze({ allocations: proxy, sentinel: "unchanged" });
+    revoke();
+    return { holder, proxy };
+}
+
+function isDeeplyFrozen(value: unknown, seen = new Set<object>()): boolean {
+    if (value == null || typeof value !== "object" || seen.has(value)) return true;
+    if (!Object.isFrozen(value)) return false;
+    seen.add(value);
+    return Reflect.ownKeys(value).every((key) => {
+        const descriptor = Reflect.getOwnPropertyDescriptor(value, key);
+        return (
+            descriptor != null &&
+            (!("value" in descriptor) || isDeeplyFrozen(descriptor.value, seen))
+        );
+    });
 }
 
 function mirrorStore(mirror: ReturnType<typeof createVaultMirror>["mirror"]): TransactionStore {
@@ -387,6 +438,291 @@ describe("allocation mutation boundary", () => {
             __proto__: 30
         });
         expect(Object.getPrototypeOf(prepared.value)).toBeNull();
+    });
+
+    it("contains a genuinely revoked allocation proxy in every central CRDT entry point", () => {
+        const expected = {
+            error: {
+                reason: "uninspectable-record",
+                type: "invalid-allocation-container"
+            },
+            ok: false
+        };
+
+        const direct = revokedAllocationContainer();
+        let directResult: ReturnType<typeof prepareAllocationReplacement> | undefined;
+        expect(() => {
+            directResult = prepareAllocationReplacement(direct.proxy);
+        }).not.toThrow();
+        expect(directResult).toEqual(expected);
+        expect(isDeeplyFrozen(directResult)).toBe(true);
+        expect(direct.holder).toEqual({
+            allocations: direct.proxy,
+            sentinel: "unchanged"
+        });
+
+        const replacement = revokedAllocationContainer();
+        const replacementVault = seededMirror();
+        const replacementHistory = new VaultUndoCoordinator(replacementVault.doc);
+        const replacementVersion = replacementVault.doc.version().encode();
+        let replacementResult: ReturnType<typeof replaceTransactionAllocations> | undefined;
+        expect(() => {
+            replacementVault.mirror.setState((state) => {
+                replacementResult = replaceTransactionAllocations(
+                    state.transactions as unknown as TransactionStore,
+                    {
+                        allocations: replacement.proxy,
+                        location: LOCATION
+                    }
+                );
+            });
+        }).not.toThrow();
+        expect(replacementResult).toEqual(expected);
+        expect(isDeeplyFrozen(replacementResult)).toBe(true);
+        expect(replacementVault.doc.version().encode()).toEqual(replacementVersion);
+        expect(rawAllocations(mirrorStore(replacementVault.mirror))).toEqual({
+            alice: 40,
+            bob: 60
+        });
+        expect(replacementHistory.getSnapshot().canUndo).toBe(false);
+        expect(replacement.holder.allocations).toBe(replacement.proxy);
+        replacementHistory.dispose();
+        replacementVault.mirror.dispose();
+
+        const insertion = revokedAllocationContainer();
+        const insertionVault = createVaultMirror();
+        const insertionHistory = new VaultUndoCoordinator(insertionVault.doc);
+        const insertionVersion = insertionVault.doc.version().encode();
+        const insertionInput = transaction();
+        Reflect.set(insertionInput, "allocations", insertion.proxy);
+        let insertionResult: ReturnType<typeof insertTransaction> | undefined;
+        expect(() => {
+            insertionVault.mirror.setState((state) => {
+                insertionResult = insertTransaction(
+                    state.transactions as unknown as TransactionStore,
+                    { transaction: insertionInput }
+                );
+            });
+        }).not.toThrow();
+        expect(insertionResult).toEqual(expected);
+        expect(isDeeplyFrozen(insertionResult)).toBe(true);
+        expect(insertionVault.doc.version().encode()).toEqual(insertionVersion);
+        expect(insertionVault.mirror.getState().transactions).toEqual({});
+        expect(insertionHistory.getSnapshot().canUndo).toBe(false);
+        expect(Reflect.get(insertionInput, "allocations")).toBe(insertion.proxy);
+        insertionHistory.dispose();
+        insertionVault.mirror.dispose();
+    });
+
+    it("contains revoked proxies in automation evaluation, application, and restoration", () => {
+        const expectedError = {
+            reason: "uninspectable-record",
+            type: "invalid-allocation-container"
+        };
+        const evaluation = revokedAllocationContainer();
+        const automation = {
+            id: "revoked-automation",
+            name: "Revoked",
+            conditions: [
+                {
+                    id: "condition-1",
+                    column: "description",
+                    operator: "contains",
+                    value: "Allocation",
+                    caseSensitive: false
+                }
+            ],
+            actions: [
+                {
+                    id: "action-1",
+                    type: "setAllocation",
+                    value: evaluation.proxy
+                }
+            ],
+            order: 0,
+            excludedTransactionIds: [],
+            deletedAt: undefined
+        } as unknown as Automation;
+        let evaluationResult: ReturnType<typeof evaluateAutomation> | undefined;
+        expect(() => {
+            evaluationResult = evaluateAutomation(
+                automation,
+                findTransactionInStore(populatedStore({}), LOCATION) as Parameters<
+                    typeof evaluateAutomation
+                >[1]
+            );
+        }).not.toThrow();
+        expect(evaluationResult).toMatchObject({
+            automationId: "revoked-automation",
+            changes: {},
+            error: expectedError,
+            matched: true
+        });
+        expect(isDeeplyFrozen(evaluationResult)).toBe(true);
+        expect(evaluation.holder.allocations).toBe(evaluation.proxy);
+
+        const application = revokedAllocationContainer();
+        const vault = seededMirror();
+        const history = new VaultUndoCoordinator(vault.doc);
+        const beforeVersion = vault.doc.version().encode();
+        const beforeMap = rawAllocations(mirrorStore(vault.mirror));
+        let applicationResult: ReturnType<typeof applyAutomationChanges> | undefined;
+        expect(() => {
+            vault.mirror.setState((state) => {
+                applicationResult = applyAutomationChanges(
+                    state.transactions as unknown as TransactionStore,
+                    LOCATION,
+                    {
+                        allocations: application.proxy,
+                        statusId: "must-not-apply",
+                        tagIds: ["must-not-apply"]
+                    } as unknown as Parameters<typeof applyAutomationChanges>[2]
+                );
+            });
+        }).not.toThrow();
+        expect(applicationResult).toEqual({ error: expectedError, ok: false });
+        expect(isDeeplyFrozen(applicationResult)).toBe(true);
+        expect(vault.doc.version().encode()).toEqual(beforeVersion);
+        expect(rawAllocations(mirrorStore(vault.mirror))).toEqual(beforeMap);
+        expect(findTransactionInStore(mirrorStore(vault.mirror), LOCATION)).toMatchObject({
+            statusId: "status-1",
+            tagIds: []
+        });
+        expect(history.getSnapshot().canUndo).toBe(false);
+        expect(application.holder.allocations).toBe(application.proxy);
+
+        const restoration = revokedAllocationContainer();
+        let restorationResult: ReturnType<typeof restoreAutomationApplication> | undefined;
+        expect(() => {
+            vault.mirror.setState((state) => {
+                restorationResult = restoreAutomationApplication(
+                    state.transactions as unknown as TransactionStore,
+                    LOCATION,
+                    {
+                        id: "application-1",
+                        transactionId: LOCATION.transactionId,
+                        automationId: "automation-1",
+                        appliedAt: Temporal.Instant.from("2026-07-25T01:00:00Z"),
+                        previousValues: {
+                            allocations: restoration.proxy,
+                            statusId: "must-not-restore",
+                            tagIds: ["must-not-restore"]
+                        }
+                    } as unknown as Parameters<typeof restoreAutomationApplication>[2]
+                );
+            });
+        }).not.toThrow();
+        expect(restorationResult).toEqual({ error: expectedError, ok: false });
+        expect(isDeeplyFrozen(restorationResult)).toBe(true);
+        expect(vault.doc.version().encode()).toEqual(beforeVersion);
+        expect(rawAllocations(mirrorStore(vault.mirror))).toEqual(beforeMap);
+        expect(history.getSnapshot().canUndo).toBe(false);
+        expect(restoration.holder.allocations).toBe(restoration.proxy);
+        history.dispose();
+        vault.mirror.dispose();
+    });
+
+    it("canonicalizes every invalid-result permutation with seed 2607252202", () => {
+        const invalidEntries = [
+            ["10", Number.POSITIVE_INFINITY, "not-finite"],
+            ["2", -0, "negative-zero"],
+            ["", 101, "out-of-range"],
+            ["é", "bad", "not-number"],
+            ["😀", -101, "out-of-range"],
+            ["\u0000", Number.NaN, "not-finite"],
+            ["constructor", null, "not-number"],
+            ["__proto__", false, "not-number"],
+            ["$cid-like", Number.NEGATIVE_INFINITY, "not-finite"],
+            ["alpha", {}, "not-number"],
+            ["zulu", 100.001, "out-of-range"]
+        ] as const;
+        const metadata = ["$cid", "ignored"] as const;
+        const comparePersonIds = (left: string, right: string) =>
+            left < right ? -1 : left > right ? 1 : 0;
+        const expectedErrors = invalidEntries
+            .map(([personId, , reason]) => ({
+                domain: "allocation",
+                personId,
+                reason,
+                type: "invalid-allocation"
+            }))
+            .sort((left, right) => comparePersonIds(left.personId, right.personId));
+        const random = pseudoRandom(2_607_252_202);
+        const baselineJson = JSON.stringify({
+            error: { errors: expectedErrors, type: "invalid-allocations" },
+            ok: false
+        });
+
+        for (let schedule = 0; schedule < 128; schedule += 1) {
+            const shuffled = [...invalidEntries, metadata];
+            for (let index = shuffled.length - 1; index > 0; index -= 1) {
+                const swapIndex = Math.floor(random() * (index + 1));
+                [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+            }
+            const input =
+                schedule % 2 === 0
+                    ? ({} as Record<string, unknown>)
+                    : (Object.create(null) as Record<string, unknown>);
+            for (const [key, value] of shuffled) {
+                Object.defineProperty(input, key, {
+                    configurable: true,
+                    enumerable: true,
+                    value,
+                    writable: true
+                });
+            }
+            const descriptors = Object.getOwnPropertyDescriptors(input);
+
+            const result = prepareAllocationReplacement(input);
+
+            expect(JSON.stringify(result)).toBe(baselineJson);
+            expect(result).toEqual({
+                error: { errors: expectedErrors, type: "invalid-allocations" },
+                ok: false
+            });
+            expect(isDeeplyFrozen(result)).toBe(true);
+            expect(Object.getOwnPropertyDescriptors(input)).toEqual(descriptors);
+        }
+    });
+
+    it("copies every own enumerable stored data sibling except exact metadata", () => {
+        let getterCalls = 0;
+        const inherited = { inherited: "must-not-copy" };
+        const allocations = Object.create(inherited) as Record<PropertyKey, unknown>;
+        for (const [key, value] of [
+            ["stringLegacy", "bad"],
+            ["booleanLegacy", false],
+            ["nullLegacy", null],
+            ["outOfRange", 150],
+            ["notFinite", Number.POSITIVE_INFINITY],
+            ["valid", -12.5],
+            ["$cid", "metadata"]
+        ] as const) {
+            Object.defineProperty(allocations, key, { enumerable: true, value });
+        }
+        const symbol = Symbol("legacy");
+        Object.defineProperty(allocations, symbol, { enumerable: true, value: "must-not-copy" });
+        Object.defineProperty(allocations, "accessor", {
+            enumerable: true,
+            get: () => {
+                getterCalls += 1;
+                return "must-not-read";
+            }
+        });
+
+        const copy = copyAllocationData(allocations as Readonly<Record<string, unknown>>);
+
+        expect(copy).toEqual({
+            stringLegacy: "bad",
+            booleanLegacy: false,
+            nullLegacy: null,
+            outOfRange: 150,
+            notFinite: Number.POSITIVE_INFINITY,
+            valid: -12.5
+        });
+        expect(Object.getPrototypeOf(copy)).toBeNull();
+        expect(Reflect.ownKeys(copy)).not.toContain(symbol);
+        expect(getterCalls).toBe(0);
     });
 
     it("merges different keys and converges same-key LWW in both literal update orders", () => {
@@ -708,6 +1044,241 @@ describe("allocation mutation boundary", () => {
             bob: 25
         });
         hydrated.mirror.dispose();
+    });
+
+    it("preserves the exact review legacy map through an initialized-Loro move", () => {
+        const vault = seededMirror({ valid: 25 });
+        vault.mirror.setState((state) => {
+            injectRawAllocations(state.transactions as unknown as TransactionStore, {
+                outOfRange: 150,
+                stringLegacy: "bad",
+                valid: 25
+            });
+            expect(
+                setTransactionAllocation(state.transactions as unknown as TransactionStore, {
+                    location: LOCATION,
+                    personId: "valid",
+                    value: -12.5
+                })
+            ).toMatchObject({ ok: true });
+        });
+        expect(rawAllocations(mirrorStore(vault.mirror))).toEqual({
+            outOfRange: 150,
+            stringLegacy: "bad",
+            valid: -12.5
+        });
+        const movedDate = DATE.add({ days: 1 });
+
+        vault.mirror.setState((state) => {
+            moveTransaction(state.transactions as unknown as TransactionStore, {
+                location: LOCATION,
+                newDate: movedDate
+            });
+        });
+
+        expect(
+            rawAllocations(mirrorStore(vault.mirror), {
+                ...LOCATION,
+                date: movedDate
+            })
+        ).toEqual({
+            outOfRange: 150,
+            stringLegacy: "bad",
+            valid: -12.5
+        });
+        vault.mirror.dispose();
+    });
+
+    it("preserves the exact review legacy map during initialized-Loro import promotion", () => {
+        const vault = seededMirror({ parent: 100 });
+        const duplicateDate = DATE.add({ days: 2 });
+        const duplicate = transaction({ valid: 25 });
+        duplicate.id = "legacy-import-survivor";
+        duplicate.date = duplicateDate;
+        duplicate.importId = "import-b";
+        vault.mirror.setState((state) => {
+            const store = state.transactions as unknown as TransactionStore;
+            const parent = findTransactionInStore(store, LOCATION);
+            if (!parent || !("suspectedDuplicates" in parent)) {
+                throw new Error("Expected import parent");
+            }
+            parent.importId = "import-a";
+            expect(
+                insertTransaction(store, {
+                    transaction: duplicate,
+                    suspectedDuplicateOf: LOCATION
+                })
+            ).toMatchObject({ ok: true });
+            injectRawAllocations(
+                store,
+                { stringLegacy: "bad", valid: 25 },
+                { ...LOCATION, transactionId: duplicate.id }
+            );
+        });
+
+        vault.mirror.setState((state) => {
+            deleteTransactionsByImport(
+                state.transactions as unknown as TransactionStore,
+                "import-a"
+            );
+        });
+
+        expect(
+            rawAllocations(mirrorStore(vault.mirror), {
+                accountId: LOCATION.accountId,
+                date: duplicateDate,
+                transactionId: duplicate.id
+            })
+        ).toEqual({ stringLegacy: "bad", valid: 25 });
+        vault.mirror.dispose();
+    });
+
+    it("preserves generated raw legacy siblings through move, nest, unnest, and swap", () => {
+        const random = pseudoRandom(2_607_252_203);
+        const rawLegacy = {
+            stringLegacy: `bad-${Math.floor(random() * 1_000_000)}`,
+            booleanLegacy: random() > 0.5,
+            nullLegacy: null,
+            outOfRange: 100 + Math.round(random() * 100),
+            positiveInfinity: Number.POSITIVE_INFINITY,
+            negativeInfinity: Number.NEGATIVE_INFINITY,
+            notANumber: Number.NaN,
+            valid: Math.round((random() * 200 - 100) * 1000) / 1000
+        };
+        const movedDate = DATE.add({ days: 3 });
+        const vault = seededMirror({ valid: 25 });
+        const nested = transaction({ valid: 50 });
+        nested.id = "legacy-nested";
+        nested.accountId = "account-2";
+        nested.date = movedDate;
+        vault.mirror.setState((state) => {
+            const store = state.transactions as unknown as TransactionStore;
+            injectRawAllocations(store, rawLegacy);
+            expect(
+                insertTransaction(store, {
+                    transaction: nested,
+                    suspectedDuplicateOf: LOCATION
+                })
+            ).toMatchObject({ ok: true });
+            injectRawAllocations(store, rawLegacy, { ...LOCATION, transactionId: nested.id });
+        });
+        expect(
+            rawAllocations(mirrorStore(vault.mirror), {
+                ...LOCATION,
+                transactionId: nested.id
+            })
+        ).toEqual(rawLegacy);
+
+        const movedLocation = {
+            accountId: "account-2",
+            date: movedDate,
+            transactionId: LOCATION.transactionId
+        };
+        vault.mirror.setState((state) => {
+            moveTransaction(state.transactions as unknown as TransactionStore, {
+                location: LOCATION,
+                newAccountId: movedLocation.accountId,
+                newDate: movedDate
+            });
+        });
+        expect(rawAllocations(mirrorStore(vault.mirror), movedLocation)).toEqual(rawLegacy);
+        const nestedLocation = { ...movedLocation, transactionId: nested.id };
+        expect(rawAllocations(mirrorStore(vault.mirror), nestedLocation)).toEqual(rawLegacy);
+
+        vault.mirror.setState((state) => {
+            unnestDuplicate(state.transactions as unknown as TransactionStore, {
+                duplicateId: nested.id,
+                parentLocation: movedLocation
+            });
+        });
+        expect(rawAllocations(mirrorStore(vault.mirror), nestedLocation)).toEqual(rawLegacy);
+
+        const swapCandidate = transaction({ valid: 75 });
+        swapCandidate.id = "legacy-swap";
+        swapCandidate.accountId = movedLocation.accountId;
+        swapCandidate.date = movedDate;
+        vault.mirror.setState((state) => {
+            const store = state.transactions as unknown as TransactionStore;
+            expect(
+                insertTransaction(store, {
+                    transaction: swapCandidate,
+                    suspectedDuplicateOf: movedLocation
+                })
+            ).toMatchObject({ ok: true });
+            injectRawAllocations(store, rawLegacy, {
+                ...movedLocation,
+                transactionId: swapCandidate.id
+            });
+            swapDuplicate(store, {
+                duplicateId: swapCandidate.id,
+                parentLocation: movedLocation
+            });
+        });
+        expect(
+            rawAllocations(mirrorStore(vault.mirror), {
+                ...movedLocation,
+                transactionId: swapCandidate.id
+            })
+        ).toEqual(rawLegacy);
+        expect(rawAllocations(mirrorStore(vault.mirror), movedLocation)).toEqual(rawLegacy);
+        vault.mirror.dispose();
+    });
+
+    it("captures raw automation history and returns typed failure without losing legacy data", () => {
+        const rawLegacy = {
+            stringLegacy: "bad",
+            booleanLegacy: true,
+            nullLegacy: null,
+            outOfRange: 150,
+            notFinite: Number.POSITIVE_INFINITY,
+            valid: 25
+        };
+        const legacyVault = seededMirror({ valid: 25 });
+        legacyVault.mirror.setState((state) => {
+            injectRawAllocations(state.transactions as unknown as TransactionStore, rawLegacy);
+        });
+        const stored = findTransactionInStore(mirrorStore(legacyVault.mirror), LOCATION);
+        if (!stored) throw new Error("Expected legacy automation transaction");
+        const application = createAutomationApplication(
+            LOCATION.transactionId,
+            "automation-legacy",
+            stored as Parameters<typeof createAutomationApplication>[2],
+            { allocations: { repaired: 50 } }
+        );
+
+        expect(application.previousValues.allocations).toEqual(rawLegacy);
+        const legacyVersion = legacyVault.doc.version().encode();
+        let applyResult: ReturnType<typeof applyAutomationChanges> | undefined;
+        legacyVault.mirror.setState((state) => {
+            applyResult = applyAutomationChanges(
+                state.transactions as unknown as TransactionStore,
+                LOCATION,
+                { allocations: { repaired: 50 }, statusId: "must-not-apply" }
+            );
+        });
+        expect(applyResult).toMatchObject({ ok: false });
+        expect(legacyVault.doc.version().encode()).toEqual(legacyVersion);
+        expect(rawAllocations(mirrorStore(legacyVault.mirror))).toEqual(rawLegacy);
+
+        const validVault = seededMirror({ alice: 40, bob: 60 });
+        const validVersion = validVault.doc.version().encode();
+        let restoreResult: ReturnType<typeof restoreAutomationApplication> | undefined;
+        validVault.mirror.setState((state) => {
+            restoreResult = restoreAutomationApplication(
+                state.transactions as unknown as TransactionStore,
+                LOCATION,
+                application
+            );
+        });
+        expect(restoreResult).toMatchObject({ ok: false });
+        expect(validVault.doc.version().encode()).toEqual(validVersion);
+        expect(rawAllocations(mirrorStore(validVault.mirror))).toEqual({
+            alice: 40,
+            bob: 60
+        });
+        expect(application.previousValues.allocations).toEqual(rawLegacy);
+        validVault.mirror.dispose();
+        legacyVault.mirror.dispose();
     });
 
     it("preserves exact allocations through move, nest, unnest, and parent swap", () => {

@@ -194,6 +194,17 @@ function physicalTransactions(state: VaultState) {
     );
 }
 
+function rawAllocationData(record: Readonly<Record<string, unknown>>): Record<string, unknown> {
+    const data = Object.create(null) as Record<string, unknown>;
+    for (const key of Reflect.ownKeys(record)) {
+        if (typeof key !== "string" || key === "$cid") continue;
+        const descriptor = Reflect.getOwnPropertyDescriptor(record, key);
+        if (!descriptor?.enumerable || !("value" in descriptor)) continue;
+        Object.defineProperty(data, key, { enumerable: true, value: descriptor.value });
+    }
+    return data;
+}
+
 describe("bounded vault maintenance", () => {
     it("enforces explicit item and measured-time bounds without sleeps", () => {
         expect(DEFAULT_VAULT_MAINTENANCE_BUDGET).toEqual({
@@ -274,6 +285,58 @@ describe("bounded vault maintenance", () => {
         expect(result.frames).toBeGreaterThan(1);
         expect(result.maxProcessed).toBeLessThanOrEqual(DEFAULT_VAULT_MAINTENANCE_BUDGET.maxItems);
         mirror.dispose();
+    });
+
+    it("preserves raw parent and nested allocation data through initialized-Loro relocation", () => {
+        const randomValues = [
+            ["stringLegacy", "bad-2607252203"],
+            ["booleanLegacy", false],
+            ["nullLegacy", null],
+            ["outOfRange", 150],
+            ["positiveInfinity", Number.POSITIVE_INFINITY],
+            ["negativeInfinity", Number.NEGATIVE_INFINITY],
+            ["notANumber", Number.NaN],
+            ["valid", -12.5]
+        ] as const;
+        const expected = Object.fromEntries(randomValues);
+        const vault = createDuplicateBucketMirror(["a-target"], ["z-legacy"]);
+        vault.mirror.setState((state: VaultState) => {
+            const source = physicalTransactions(state).find(({ id }) => id === "z-legacy");
+            if (!source) throw new Error("Missing legacy relocation source");
+            for (const [key, value] of randomValues) Reflect.set(source.allocations, key, value);
+            expect(
+                insertTransaction(state.transactions, {
+                    transaction: transactionInput("legacy-nested", 20),
+                    suspectedDuplicateOf: {
+                        accountId: "account",
+                        date: DATE,
+                        transactionId: source.id
+                    }
+                })
+            ).toMatchObject({ ok: true });
+            const nested = source.suspectedDuplicates.find(({ id }) => id === "legacy-nested");
+            if (!nested) throw new Error("Missing legacy nested source");
+            for (const [key, value] of randomValues) Reflect.set(nested.allocations, key, value);
+        });
+        const before = physicalTransactions(vault.mirror.getState()).find(
+            ({ id }) => id === "z-legacy"
+        );
+        if (!before) throw new Error("Missing initialized legacy source");
+        expect(rawAllocationData(before.allocations)).toEqual(expected);
+        expect(rawAllocationData(before.suspectedDuplicates[0].allocations)).toEqual(expected);
+
+        drainMaintenance(vault.mirror, vault.doc);
+
+        const relocated = physicalTransactions(vault.mirror.getState()).filter(
+            ({ id }) => id === "z-legacy"
+        );
+        expect(relocated).toHaveLength(1);
+        expect(rawAllocationData(relocated[0].allocations)).toEqual(expected);
+        expect(rawAllocationData(relocated[0].suspectedDuplicates[0].allocations)).toEqual(
+            expected
+        );
+        expect(Object.keys(relocated[0].allocations).filter((key) => key === "$cid")).toEqual([]);
+        vault.mirror.dispose();
     });
 
     it("builds an oversized private shadow with bounded attached operations before atomic reveal", () => {
