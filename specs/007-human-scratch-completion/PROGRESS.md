@@ -7,10 +7,12 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P16D revision 01 (`reviewing`)
-- **Next action:** integrate the P16D/01 PASS by flipping the package to `passed` citing this
-  integration commit, then execute the authorized HS-009 forward marker only after its
-  `completion_pending` is durably recorded; keep FS-001 immutable/open through P16E
+- **Current package:** P16D revision 01 (`passed`); HS-009 forward marker `completion_pending`
+- **Next action:** finalize the authorized HS-009 forward marker: change scratch line 302 `- []` to
+  `- [x]` as a one-line diff, re-verify normalized blocks and after-SHA, then in one control commit
+  set HS-009 `passed`, cite integration `47867d506978a3f571ef0feef6185e9436d5a908` and the mapped
+  P16A/P16C/P16D reviews, and update the rolling SHA plus authorized checked-ID metadata; keep
+  FS-001 immutable/open through P16E
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -18,14 +20,14 @@ review evidence.
 - **Rolling scratch SHA-256:** `ce52d7df87daf63117931e5bdee928212051242ae7f2b5d90e76f5610abcb00f`
 - **Authorized checked HS IDs:** HS-001, HS-002, HS-004, HS-005, HS-006, HS-008, HS-010, HS-013,
   HS-014, HS-017, HS-018
-- **Active completion marker event:** none
+- **Active completion marker event:** HS-009 `completion_pending` (before `ce52d7df87daf63117931e5bdee928212051242ae7f2b5d90e76f5610abcb00f`, intended `[] -> [x]`, mapped P16A/P16C/P16D all passed)
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE
 - **Requirement state:** eleven passed; HS-015 blocked externally; HS-011/HS-012 and seven other HS
   requirements plus FS-001 queued
-- **Last ledger update:** 2026-07-25; P16D/01 independent PASS (`reviews/P16D-review-01.md`) frozen
-  and persisted alongside RISKS R-017/R-018/R-019 mitigation transcription; package integration
-  recorded in this control commit and pending the `passed` flip
+- **Last ledger update:** 2026-07-25; P16D/01 integrated as `passed` in `47867d506978a3f571ef0feef6185e9436d5a908`;
+  HS-009 `completion_pending` durably recorded before the scratch marker; the scratch source is not
+  yet modified and its SHA still equals the rolling checksum
 
 ## Package ledger
 
@@ -52,7 +54,7 @@ review evidence.
 | P16A    | FS-001, HS-009 | Allocation/ownership validation, remainder/effective shares and exact apportionment | P01                  | passed | 02 | `1b42d27e11494a167a4768e0c2c308010aa51651..f84f66758708529c44342313e8632ee8b7dcead3` | `evidence/P16A/implementation-02.md` | `reviews/P16A-review-02.md` | `41f5760f77c1a93ab650a93912bfaf3c0b627ab0` |
 | P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | passed | 05 | `4c102600240e2804b801c2a320e10164defb14ea..46d8f9feb79c6dfc080c0869922fb8cd4c20ec6c` | `evidence/P16B/implementation-05.md` | `reviews/P16B-review-05.md` | `136678a0ac864cf2d120b2b5b896d4fadcabcdd1` |
 | P16C    | FS-001, HS-009 | CRDT per-key/complete-set APIs and every mutation, hydration and history path       | P16A, P16B, P09, P14 | passed | 02 | `0a7c9a49722ddc4d955f910af6dbb19cfffbd600..207e8c5758a48e66980b95eaeff51c0e5a605f7e` | `evidence/P16C/implementation-02.md` | `reviews/P16C-review-02.md` | `e0f06f7fb60ce08ef2f75b0a9ca7769630a2a55c` |
-| P16D    | FS-001, HS-009 | Actual grid/add-row person columns, virtualization, history and presence UX         | P16C, P13            | reviewing    | 01  | `3a5081ac37e09817e0d02ae8799469d1bf09dad5..b5ebc2a8edbf5e1fc522873fb5ee7455266a3bcc` | `evidence/P16D/implementation-01.md` | `reviews/P16D-review-01.md` | —                                          |
+| P16D    | FS-001, HS-009 | Actual grid/add-row person columns, virtualization, history and presence UX         | P16C, P13            | passed       | 01  | `3a5081ac37e09817e0d02ae8799469d1bf09dad5..b5ebc2a8edbf5e1fc522873fb5ee7455266a3bcc` | `evidence/P16D/implementation-01.md` | `reviews/P16D-review-01.md` | `47867d506978a3f571ef0feef6185e9436d5a908` |
 | P16E    | FS-001         | People obligations/issues/source UX plus full integration, E2E, manual and perf     | P16D, P08, P11C      | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P17A    | HS-007         | Automation schema/migration, exact matcher, precedence, preferences, import engine  | P11C, P14, P16E      | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P17B    | HS-007         | Shared rule editor and automations-page UX                                          | P17A, P02            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -3150,3 +3152,26 @@ FS-001 `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c` at 715
 SCOPE `d03f33e718f1ec5f7c8ad0119d283397dcc59407199da4b5887a2e5eee7ef0f9`. R-017 invalid-data
 surfacing, R-018 grid/add-row routing and R-019 grid-UX mitigations are transcribed to RISKS. HS-009
 stays unchecked pending its authorized marker; FS-001 stays immutable/open pending P16E.
+
+**2026-07-25T19:20:10+10:00 — P16D/01 `reviewing -> passed`:** PASS definition is complete at exact
+reviewed product/test HEAD `b5ebc2a8edbf5e1fc522873fb5ee7455266a3bcc`, unchanged since dispatch.
+Immutable revision-01 evidence and review plus the R-017/R-018/R-019 mitigation transcription are
+integrated in `47867d506978a3f571ef0feef6185e9436d5a908`; no product finding or Q proposal remains. P16D
+delivers the independently accepted real transaction grid where dynamic per-Person allocation columns
+render explicit, effective and owner-remainder values as distinct P16A strings, every edit routes
+through P16C `setTransactionAllocation` with local reject-only validation, virtualization/keyboard/
+history and honest P10-boundary behaviour hold, and invalid legacy data is retained and repairable.
+With P16A, P16C and P16D all passed, HS-009's mapped packages are complete and its authorized forward
+marker is now enabled; FS-001 still requires P16E and its canonical source remains byte-identical, so
+no FS completion is recorded.
+
+**2026-07-25T19:20:55+10:00 — HS-009 `queued -> completion_pending`:** Root durably prepares the
+authorized forward marker for HS-009 ("People percent allocations should not be able to exceed + or -
+100", scratch line 302) after all mapped packages passed: P16A integration `41f5760f77c1a93ab650a93912bfaf3c0b627ab0` (`reviews/P16A-review-02.md`),
+P16C integration `e0f06f7fb60ce08ef2f75b0a9ca7769630a2a55c` (`reviews/P16C-review-02.md`) and P16D
+integration `47867d506978a3f571ef0feef6185e9436d5a908` (`reviews/P16D-review-01.md`). Exact pre-change
+scratch SHA-256 `ce52d7df87daf63117931e5bdee928212051242ae7f2b5d90e76f5610abcb00f` equals the rolling
+checksum; the intended single change is line 302 `- []` -> `- [x]` with byte-identical text. While
+this event is pending, no package dispatch is allowed. The scratch source is not modified in this
+commit; a private mktemp comparison copy is taken and the one-line patch, diff, normalization,
+after-SHA and requirement `passed` flip land in the immediately following finalize control commit.
