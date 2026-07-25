@@ -9,7 +9,7 @@ literal field is `pending`. Workers may read but never edit it.
 - **Scope IDs:** FS-001 and HS-009; this package owns CRDT allocation mutation boundaries,
   concurrency, persistence, structural preservation and every current non-visual write/restore/
   hydration path. Neither requirement can complete from P16C alone.
-- **State:** revision-01 implementation frozen; ready for independent review
+- **State:** reviewing after the current root review-dispatch control commit
 - **Binding tasks:** `tasks/FS-001-transaction-percentage-allocations-settlement.md` P16C and
   `tasks/HS-009-allocation-bounds.md` P16C
 - **Canonical authority:** read all 715 immutable lines of
@@ -25,6 +25,7 @@ literal field is `pending`. Workers may read but never edit it.
 - **RED checkpoint:** `ff45176c5e30f66e8d10990daddb955d1c2277ad`
 - **Product/test HEAD:** `7cf66fbf7f4b845355c5f956cdfa955ee6db2b59`, tree
   `3e6e80a030e81ae68a4ab3b499a544b1b9ceac26`
+- **Evidence freeze commit:** `92ce0a75cc5ced114e8a81e8d452961f738e1a60`
 - **Future immutable review artifact:** `reviews/P16C-review-01.md`
 - **Implementation-start boundary:** clean HEAD/index/worktree; P16B/05 is fully integrated and its
   immutable evidence/review plus settlement owner are preservation authority
@@ -169,8 +170,8 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Independent review contract
 
-- **Reviewer:** distinct `human_scratch_reviewer`, ready for dispatch after this revision-01
-  evidence freeze
+- **Reviewer:** distinct `human_scratch_reviewer`, dispatched after evidence freeze commit
+  `92ce0a75cc5ced114e8a81e8d452961f738e1a60`
 - **Literal cumulative review BASE:** `0a7c9a49722ddc4d955f910af6dbb19cfffbd600`
 - **Literal revision-01 HEAD:** `7cf66fbf7f4b845355c5f956cdfa955ee6db2b59`
 - **Implementation evidence:** `evidence/P16C/implementation-01.md`
@@ -192,6 +193,6 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Next root action
 
-Freeze the exact revision-01 evidence and ready-for-review transition, then dispatch the distinct
-`human_scratch_reviewer` over the literal cumulative range and sole review output. Keep HS-009
-unchecked and FS-001 immutable/open.
+Await the distinct reviewer's one PASS/FAIL artifact over the literal cumulative range. Root then
+verifies the sole-write boundary, performs exact generated-artifact cleanup and integrates findings,
+risks and any Q proposal. Keep HS-009 unchecked and FS-001 immutable/open.
