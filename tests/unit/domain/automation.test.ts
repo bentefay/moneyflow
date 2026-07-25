@@ -366,6 +366,15 @@ describe("applyActions", () => {
         expect(changes.tagIds).toEqual(["tag-1"]);
         expect(changes.statusId).toBe("status-paid");
     });
+
+    it("rejects an invalid allocation action without returning unrelated changes", () => {
+        const actions: ActionData[] = [
+            { id: "a1", type: "setTags", value: ["must-not-apply"] },
+            { id: "a2", type: "setAllocation", value: { alice: 40, bob: -0 } }
+        ];
+
+        expect(applyActions(actions, createTransaction())).toEqual({});
+    });
 });
 
 describe("evaluateAutomation", () => {
