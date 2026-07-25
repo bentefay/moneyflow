@@ -7,7 +7,7 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P19/02 (HS-020) `ready_for_review` at product HEAD `bb8a557`; awaiting re-review by `human_scratch_reviewer`
+- **Current package:** P19/02 (HS-020) reviewing -> PASS; integration-persistence commit recorded, control commit + HS-020 marker next
 - **Next action:** re-dispatch `human_scratch_reviewer` (p19-reviewer-01) over original BASE
   `e72befd` -> new HEAD `bb8a557` to confirm B-1 (creation strand) and B-2 (last-credential
   revocation) are closed, the preserved crypto/server/migration surface is byte-identical (root
@@ -69,7 +69,7 @@ review evidence.
 | P17C    | HS-007         | Description inline proposals, robot drift state and scoped application              | P17B                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P17D    | HS-007         | Tags/allocation parity, bulk/new application, performance and polish                | P17C                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P18     | HS-019         | Password-manager-compatible recovery phrase creation and unlock                     | P01                  | passed             | 01   | `493bf19d3219f44efd4d4437fd8b0e33d012fba9..4cda92d40e9cc5b6490636c25d99b655905cb40a` | `evidence/P18/implementation-01.md` | `reviews/P18-review-01.md` | `fa9ae8d0b6b7948bd2c4a508ad869d5d6955a6a1` |
-| P19     | HS-020         | WebAuthn PRF passkeys sharing the vault identity secret                             | P04, P06, P18        | ready_for_review | 02  | `bb8a557`                                                                            | `reviews/P19-review-01.md` FAIL (rev01) | —                          | rev02 closes B-1/B-2; preserved surface byte-identical; re-review pending |
+| P19     | HS-020         | WebAuthn PRF passkeys sharing the vault identity secret                             | P04, P06, P18        | reviewing    | 02  | `bb8a557`                                                                            | `reviews/P19-review-02.md` PASS     | integration pending         | rev02 PASS 0 blocking; integration-persistence commit next |
 | P20A    | HS-016         | Truthful marketing copy and responsive feature presentation                         | P17D, P19            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P20B    | HS-021         | Full-codebase style-guide/code-quality sweep after all feature work                 | P20A                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P21     | control        | [Executable final audit](tasks/P21-final-audit.md)                                  | all prior            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -3426,3 +3426,36 @@ creation phrase in React state one step only; revocation phrase derived locally;
 `finally`. Q-027/Q-028 transcribed. Requirement HS-020 stays `queued` (no marker until PASS). Scratch
 rolling SHA unchanged `c4121a48…`; FS-001 immutable/open; thirteen requirements remain `passed`; no
 halt condition applies.
+
+### 2026-07-26 — P19/02 reviewing -> PASS (integration-persistence)
+
+`ready_for_review -> reviewing -> passed (integration pending)`. The distinct `human_scratch_reviewer`
+returned VERDICT **PASS** with 0 blocking and 5 non-blocking findings over original BASE
+`e72befd9ba1b2cbbf5c189b7d855e47cc752240e` -> product HEAD
+`bb8a557d37190058c68b2cebfe721d3e15f18629`; immutable output `reviews/P19-review-02.md` is committed
+in THIS integration-persistence commit, whose own hash is the P19 integration commit cited by the
+following control commit. Root independently re-verified before recording: review-02 present with
+VERDICT PASS; product HEAD unchanged at `bb8a557`; no 12-word BIP39 run or secret leaked into the
+review; no `.playwright-cli/`/`test-results/` artifacts; the pre-marker normalized-block check passes
+(unique HS-001 first line at scratch index 150, exactly 21 ordered blocks in SCOPE array order, the
+13 currently-passed IDs checked and every block byte-identical to `SCOPE.json#sourceTextLines`, marker/
+state consistent) and `sha256sum specs/human-scratch.md` == rolling `c4121a48…`. The reviewer closed
+both prior blockers by mutation, not diff-reading: B-1 — reverting to the BASE ordering
+(registerIdentity before ceremony) makes the tightened cancellation E2E fail on `footprint.users`
+Expected 0 Received 1, and a live headless reproduction past the 90s deadline recovered the button,
+surfaced the timeout error, left sessionStorage null and 0/0/0 rows for the attempted identity, with a
+mid-ceremony DB query also 0/0/0 (no server row ever exists); B-2 — replacing the compound revocation
+gate with validity-only fails exactly the "valid phrase that derives a different identity" test, and a
+null session fails closed. Preserved surface confirmed empty diff `77038d1..bb8a557`; path discipline
+clean (exactly the 10 authorized paths, 0 `specs/` touched by implementer commits); RED `9c6d494`
+genuinely fails (6/3) at that commit. Reviewer's own clean-tree gates: typecheck PASS, lint 0 errors,
+`format:check` fails only pre-existing `specs/**` (confirmed same 15 fail at BASE, not attributable),
+unit 1627 passed/2 skipped, E2E 119/119 independently reproduced (invalidated-run residue explicitly
+searched for and not found), passkey spec 36/36 with `--repeat-each=3`. Secret-safety: no leak; the
+creation phrase is nulled before navigation. Reviewer withdrew its own review-01 recommendation (b) as
+unbuildable, endorsing Q-027's show-at-creation, and endorsed Q-028's derive-and-match as strictly
+stronger. Non-blocking NB-1..NB-5 recorded (pre-existing format Q-024; untested best-effort revoke
+path; single-factor-after-abandon context for the human's Q-027 call; hard-coded 90s constant; slightly
+widened `registerPasskey` contract ruled in scope). Requirement HS-020 remains `queued` until the
+control commit applies the marker. Scratch rolling SHA unchanged `c4121a48…`; FS-001 immutable/open;
+thirteen requirements remain `passed`.
