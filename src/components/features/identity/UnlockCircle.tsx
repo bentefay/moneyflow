@@ -15,12 +15,13 @@
 "use client";
 
 import { Loader2, Lock, Unlock } from "lucide-react";
-import { type FormEvent, useCallback, useState } from "react";
+import { type FormEvent, type ReactNode, useCallback, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { cn } from "@/lib/utils";
 
+import { CredentialChoiceDivider } from "./CredentialChoiceDivider";
 import { SeedPhraseInput } from "./SeedPhraseInput";
 
 // ============================================================================
@@ -42,6 +43,12 @@ export interface UnlockCircleProps {
     /** Error to display */
     error?: UnlockError | null;
 
+    /**
+     * The passkey alternative, rendered above the phrase form with an OR separator between them.
+     * Omitted entirely when there is no passkey branch to offer.
+     */
+    passkeyOption?: ReactNode;
+
     /** Additional className for the circle */
     className?: string;
 }
@@ -54,6 +61,7 @@ export function UnlockCircle({
     onUnlock,
     isUnlocking = false,
     error = null,
+    passkeyOption,
     className
 }: UnlockCircleProps) {
     const [phrase, setPhrase] = useState("");
@@ -116,81 +124,94 @@ export function UnlockCircle({
                 className
             )}
         >
-            {/* Inner content container - a real login form so managers offer to fill */}
-            <form
-                method="post"
-                action="/unlock"
-                onSubmit={handleUnlock}
-                className="flex w-full max-w-sm flex-col items-center gap-6 px-8 py-12"
-            >
-                {/* Lock icon */}
-                <div
-                    className={cn(
-                        "flex h-16 w-16 items-center justify-center rounded-full",
-                        "bg-primary/10 text-primary",
-                        "transition-all duration-300",
-                        isUnlocking && "animate-pulse"
-                    )}
-                >
-                    {isUnlocking ? (
-                        <Loader2 className="h-8 w-8 animate-spin" />
-                    ) : isValid ? (
-                        <Unlock className="h-8 w-8" />
-                    ) : (
-                        <Lock className="h-8 w-8" />
-                    )}
-                </div>
-
-                {/* Title */}
-                <div className="text-center">
-                    <h1 className="text-2xl font-semibold">Welcome Back</h1>
-                    <p className="text-muted-foreground mt-1 text-sm">
-                        Enter your recovery phrase to unlock your vault
-                    </p>
-                </div>
-
-                {/* Error message */}
-                {error && (
-                    <ErrorAlert
-                        title="Unable to unlock"
-                        message={error.message}
-                        details={error.details}
-                        className="w-full"
-                    />
+            <div className="flex w-full max-w-sm flex-col items-center gap-6 px-8 py-12">
+                {/*
+                 * The passkey branch sits outside the phrase form on purpose: nesting a button
+                 * inside it would submit the credential form on click.
+                 */}
+                {passkeyOption && (
+                    <>
+                        <div className="w-full">{passkeyOption}</div>
+                        <CredentialChoiceDivider />
+                    </>
                 )}
 
-                {/* Seed phrase input - simplified for circle */}
-                <div className="w-full">
-                    <SeedPhraseInput
-                        value={phrase}
-                        onChange={handleChange}
-                        onComplete={handlePhraseComplete}
-                        layout="4x3"
-                        autoFocus
-                        disabled={isUnlocking}
-                    />
-                </div>
-
-                {/* Unlock button */}
-                <Button
-                    data-testid="unlock-button"
-                    type="submit"
-                    disabled={!isValid || isUnlocking}
-                    size="lg"
-                    className="w-full"
+                {/* Inner content container - a real login form so managers offer to fill */}
+                <form
+                    method="post"
+                    action="/unlock"
+                    onSubmit={handleUnlock}
+                    className="flex w-full flex-col items-center gap-6"
                 >
-                    {isUnlocking ? (
-                        <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Unlocking...
-                        </>
-                    ) : (
-                        <>
-                            <Unlock className="mr-2 h-4 w-4" />
-                            Unlock Vault
-                        </>
+                    {/* Lock icon */}
+                    <div
+                        className={cn(
+                            "flex h-16 w-16 items-center justify-center rounded-full",
+                            "bg-primary/10 text-primary",
+                            "transition-all duration-300",
+                            isUnlocking && "animate-pulse"
+                        )}
+                    >
+                        {isUnlocking ? (
+                            <Loader2 className="h-8 w-8 animate-spin" />
+                        ) : isValid ? (
+                            <Unlock className="h-8 w-8" />
+                        ) : (
+                            <Lock className="h-8 w-8" />
+                        )}
+                    </div>
+
+                    {/* Title */}
+                    <div className="text-center">
+                        <h1 className="text-2xl font-semibold">Welcome Back</h1>
+                        <p className="text-muted-foreground mt-1 text-sm">
+                            Enter your recovery phrase to unlock your vault
+                        </p>
+                    </div>
+
+                    {/* Error message */}
+                    {error && (
+                        <ErrorAlert
+                            title="Unable to unlock"
+                            message={error.message}
+                            details={error.details}
+                            className="w-full"
+                        />
                     )}
-                </Button>
+
+                    {/* Seed phrase input - simplified for circle */}
+                    <div className="w-full">
+                        <SeedPhraseInput
+                            value={phrase}
+                            onChange={handleChange}
+                            onComplete={handlePhraseComplete}
+                            layout="4x3"
+                            autoFocus
+                            disabled={isUnlocking}
+                        />
+                    </div>
+
+                    {/* Unlock button */}
+                    <Button
+                        data-testid="unlock-button"
+                        type="submit"
+                        disabled={!isValid || isUnlocking}
+                        size="lg"
+                        className="w-full"
+                    >
+                        {isUnlocking ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Unlocking...
+                            </>
+                        ) : (
+                            <>
+                                <Unlock className="mr-2 h-4 w-4" />
+                                Unlock Vault
+                            </>
+                        )}
+                    </Button>
+                </form>
 
                 {/* New user link */}
                 <p className="text-muted-foreground text-center text-sm">
@@ -202,7 +223,7 @@ export function UnlockCircle({
                         Create one
                     </a>
                 </p>
-            </form>
+            </div>
         </div>
     );
 }

@@ -23,7 +23,12 @@ export interface VirtualAuthenticator {
  * Only one `internal` transport authenticator may exist per context, so callers must remove the
  * previous one before adding another.
  */
-export async function addVirtualAuthenticator(page: Page): Promise<VirtualAuthenticator> {
+export async function addVirtualAuthenticator(
+    page: Page,
+    // Only one `internal` authenticator may exist per context, so a test needing a genuinely
+    // second device (one credential each, as `excludeCredentials` enforces) uses another transport.
+    transport: "internal" | "usb" = "internal"
+): Promise<VirtualAuthenticator> {
     const client = await page.context().newCDPSession(page);
     await client.send("WebAuthn.enable");
 
@@ -31,7 +36,7 @@ export async function addVirtualAuthenticator(page: Page): Promise<VirtualAuthen
         options: {
             protocol: "ctap2",
             ctap2Version: "ctap2_1",
-            transport: "internal",
+            transport,
             hasResidentKey: true,
             hasUserVerification: true,
             hasPrf: true,
@@ -59,6 +64,42 @@ export async function removeVirtualAuthenticator(
             // The context may already be closing during teardown.
         });
     await authenticator.client.detach().catch(() => {});
+}
+
+/**
+ * Attach an additional authenticator on an existing CDP session.
+ *
+ * Reusing the session matters: disabling the WebAuthn domain when a session detaches tears down
+ * every virtual authenticator on the page, so a second session would take the first device with it.
+ */
+export async function addSecondAuthenticator(
+    authenticator: VirtualAuthenticator,
+    transport: "usb" | "nfc" | "ble" = "usb"
+): Promise<string> {
+    const { authenticatorId } = await authenticator.client.send(
+        "WebAuthn.addVirtualAuthenticator",
+        {
+            options: {
+                protocol: "ctap2",
+                ctap2Version: "ctap2_1",
+                transport,
+                hasResidentKey: true,
+                hasUserVerification: true,
+                hasPrf: true,
+                isUserVerified: true,
+                automaticPresenceSimulation: true
+            }
+        }
+    );
+    return authenticatorId;
+}
+
+/** Detach one authenticator while leaving the session and its other devices intact. */
+export async function removeAuthenticatorById(
+    authenticator: VirtualAuthenticator,
+    authenticatorId: string
+): Promise<void> {
+    await authenticator.client.send("WebAuthn.removeVirtualAuthenticator", { authenticatorId });
 }
 
 /** Count the credentials the authenticator currently holds. */

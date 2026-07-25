@@ -1,5 +1,10 @@
 export type { AuroraBackgroundProps } from "./AuroraBackground";
 export { AuroraBackground } from "./AuroraBackground";
+export type { CredentialChoiceDividerProps } from "./CredentialChoiceDivider";
+export { CredentialChoiceDivider } from "./CredentialChoiceDivider";
+export { PasskeyManager } from "./PasskeyManager";
+export type { PasskeyUnlockButtonProps } from "./PasskeyUnlockButton";
+export { PasskeyUnlockButton } from "./PasskeyUnlockButton";
 export type { RecoveryPhraseCredentialFieldsProps } from "./RecoveryPhraseCredentialFields";
 export { RecoveryPhraseCredentialFields } from "./RecoveryPhraseCredentialFields";
 export {

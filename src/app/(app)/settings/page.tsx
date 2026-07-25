@@ -7,6 +7,7 @@
  * This page is the default landing page for newly created vaults.
  */
 
+import { PasskeyManager } from "@/components/features/identity";
 import { VaultSettingsForm } from "@/components/features/vault/VaultSettingsForm";
 
 export default function SettingsPage() {
@@ -21,8 +22,11 @@ export default function SettingsPage() {
             </div>
 
             {/* Settings form */}
-            <div className="flex-1 overflow-auto p-6">
+            <div className="flex-1 space-y-8 overflow-auto p-6">
                 <VaultSettingsForm />
+                {/* Passkeys belong to the identity rather than the vault, but this is the only
+                    authenticated settings surface a returning user can reach today. */}
+                <PasskeyManager />
             </div>
         </div>
     );

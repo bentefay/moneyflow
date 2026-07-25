@@ -84,9 +84,9 @@ describe("stripPrfResults", () => {
         const stripped = stripPrfResults({
             id: "a",
             rawId: "a",
-            type: "public-key",
+            type: "public-key" as const,
             response: { clientDataJSON: "e30" },
-            clientExtensionResults: {}
+            clientExtensionResults: {} as Record<string, unknown>
         });
 
         expect(stripped.clientExtensionResults).toEqual({});
@@ -114,24 +114,12 @@ describe("extractPrfOutput", () => {
     });
 
     it("returns null when extension results are absent", () => {
-        expect(
-            extractPrfOutput({
-                id: "a",
-                rawId: "a",
-                type: "public-key",
-                response: { clientDataJSON: "e30" },
-                clientExtensionResults: {}
-            })
-        ).toBeNull();
+        expect(extractPrfOutput({ clientExtensionResults: {} })).toBeNull();
     });
 
     it("refuses a PRF result of the wrong width rather than padding it", () => {
         expect(
             extractPrfOutput({
-                id: "a",
-                rawId: "a",
-                type: "public-key",
-                response: { clientDataJSON: "e30" },
                 clientExtensionResults: { prf: { results: { first: new Uint8Array(16).buffer } } }
             })
         ).toBeNull();
@@ -156,7 +144,7 @@ describe("isPasskeySupportedResult", () => {
         expect(
             isPasskeySupportedResult({
                 ...registrationResponse(),
-                clientExtensionResults: { credProps: { rk: true } }
+                clientExtensionResults: { credProps: { rk: true } } as Record<string, unknown>
             })
         ).toBe(false);
     });

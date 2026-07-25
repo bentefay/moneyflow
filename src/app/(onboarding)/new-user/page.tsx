@@ -11,16 +11,23 @@
 
 "use client";
 
-import { AlertTriangle, ArrowRight, CheckCircle2, Loader2, Sparkles } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle2, KeyRound, Loader2, Sparkles } from "lucide-react";
 import { type FormEvent, useCallback, useRef, useState } from "react";
 
-import { AuroraBackground, SeedPhraseDisplay } from "@/components/features/identity";
+import {
+    AuroraBackground,
+    CredentialChoiceDivider,
+    SeedPhraseDisplay
+} from "@/components/features/identity";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { Label } from "@/components/ui/label";
 import { useIdentity } from "@/hooks";
+import { usePasskey } from "@/hooks/use-passkey";
 import type { NewIdentity } from "@/lib/crypto/identity";
+import { zeroize } from "@/lib/crypto/passkeyWrap";
+import { mnemonicToMasterSeed } from "@/lib/crypto/seed";
 import { cn } from "@/lib/utils";
 
 // ============================================================================
@@ -35,6 +42,12 @@ type Step = "intro" | "generate" | "confirm" | "complete";
 
 export default function NewUserPage() {
     const { generateNew, registerIdentity, error } = useIdentity();
+    const {
+        capability,
+        isBusy: isPasskeyBusy,
+        error: passkeyError,
+        registerPasskey
+    } = usePasskey();
 
     const [step, setStep] = useState<Step>("intro");
     const [mnemonic, setMnemonic] = useState<string | null>(null);
@@ -62,6 +75,31 @@ export default function NewUserPage() {
             setIsCreating(false);
         }
     }, [generateNew]);
+
+    // -------------------------------------------------------------------------
+    // Create with a passkey
+    // -------------------------------------------------------------------------
+
+    // A passkey-created account still has a full-entropy recovery phrase behind it. The passkey
+    // wraps that same master secret rather than replacing it, so the phrase remains a valid way
+    // back in and can be revealed later from settings.
+    const handleCreateWithPasskey = useCallback(async () => {
+        let masterSecret: Uint8Array | null = null;
+
+        try {
+            const identity = await generateNew();
+            await registerIdentity(identity);
+
+            masterSecret = await mnemonicToMasterSeed(identity.mnemonic);
+            await registerPasskey(masterSecret, "This device");
+
+            window.location.assign("/settings");
+        } catch {
+            // Errors surface through the useIdentity and usePasskey hooks.
+        } finally {
+            if (masterSecret) zeroize(masterSecret);
+        }
+    }, [generateNew, registerIdentity, registerPasskey]);
 
     // -------------------------------------------------------------------------
     // Complete registration (only after user consents)
@@ -109,8 +147,8 @@ export default function NewUserPage() {
                         <div>
                             <h1 className="text-3xl font-bold">Get Started</h1>
                             <p className="text-muted-foreground mt-2 max-w-md">
-                                We're going to create a recovery phrase for you. It is the only way
-                                to access your data - there&apos;s no password reset.
+                                Choose how you&apos;ll unlock your vault. Either way you hold the
+                                only key - there&apos;s no password reset.
                             </p>
                         </div>
 
@@ -150,26 +188,73 @@ export default function NewUserPage() {
                             />
                         )}
 
-                        {/* Action button */}
-                        <Button
-                            data-testid="generate-button"
-                            size="lg"
-                            onClick={handleGenerate}
-                            disabled={isCreating}
-                            className="gap-2"
-                        >
-                            {isCreating ? (
+                        {/* Two ways in, presented as equals */}
+                        <div className="flex w-full max-w-lg flex-col items-center gap-6">
+                            {capability === "supported" && (
                                 <>
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                    Generating...
-                                </>
-                            ) : (
-                                <>
-                                    Generate Recovery Phrase
-                                    <ArrowRight className="h-4 w-4" />
+                                    <div className="flex w-full flex-col items-center gap-3">
+                                        {passkeyError && (
+                                            <div data-testid="passkey-error" className="w-full">
+                                                <ErrorAlert
+                                                    title="Passkey setup failed"
+                                                    message={passkeyError.message}
+                                                />
+                                            </div>
+                                        )}
+                                        <Button
+                                            data-testid="passkey-create-button"
+                                            size="lg"
+                                            onClick={handleCreateWithPasskey}
+                                            disabled={isPasskeyBusy || isCreating}
+                                            className="w-full gap-2"
+                                        >
+                                            {isPasskeyBusy ? (
+                                                <>
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                    Waiting for passkey...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <KeyRound className="h-4 w-4" />
+                                                    Create with a passkey
+                                                </>
+                                            )}
+                                        </Button>
+                                        <p
+                                            data-testid="passkey-loss-warning"
+                                            className="text-muted-foreground text-center text-sm"
+                                        >
+                                            Your device unlocks your vault. If you lose access to it
+                                            and haven&apos;t saved your recovery phrase, your data
+                                            cannot be recovered by anyone, including us.
+                                        </p>
+                                    </div>
+
+                                    <CredentialChoiceDivider />
                                 </>
                             )}
-                        </Button>
+
+                            <Button
+                                data-testid="generate-button"
+                                size="lg"
+                                variant={capability === "supported" ? "outline" : "default"}
+                                onClick={handleGenerate}
+                                disabled={isCreating || isPasskeyBusy}
+                                className="w-full gap-2"
+                            >
+                                {isCreating ? (
+                                    <>
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        Generating...
+                                    </>
+                                ) : (
+                                    <>
+                                        Generate Recovery Phrase
+                                        <ArrowRight className="h-4 w-4" />
+                                    </>
+                                )}
+                            </Button>
+                        </div>
 
                         {/* Back link */}
                         <p className="text-muted-foreground text-sm">

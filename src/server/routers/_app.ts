@@ -8,6 +8,7 @@
 import { router } from "../trpc";
 import { inviteRouter } from "./invite";
 import { membershipRouter } from "./membership";
+import { passkeyRouter } from "./passkey";
 import { realtimeRouter } from "./realtime";
 import { syncRouter } from "./sync";
 import { userRouter } from "./user";
@@ -28,7 +29,9 @@ export const appRouter = router({
     /** Short-lived vault-scoped Supabase Realtime authorization */
     realtime: realtimeRouter,
     /** Vault invitations */
-    invite: inviteRouter
+    invite: inviteRouter,
+    /** WebAuthn PRF passkey registration and unlock */
+    passkey: passkeyRouter
 });
 
 /**

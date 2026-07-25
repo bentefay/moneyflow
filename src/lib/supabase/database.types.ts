@@ -28,6 +28,81 @@ export type Database = {
     };
     public: {
         Tables: {
+            passkey_challenges: {
+                Row: {
+                    ceremony: string;
+                    challenge: string;
+                    created_at: string;
+                    expires_at: string;
+                    id: string;
+                    pubkey_hash: string | null;
+                };
+                Insert: {
+                    ceremony: string;
+                    challenge: string;
+                    created_at?: string;
+                    expires_at: string;
+                    id?: string;
+                    pubkey_hash?: string | null;
+                };
+                Update: {
+                    ceremony?: string;
+                    challenge?: string;
+                    created_at?: string;
+                    expires_at?: string;
+                    id?: string;
+                    pubkey_hash?: string | null;
+                };
+                Relationships: [];
+            };
+            passkey_credentials: {
+                Row: {
+                    aaguid: string | null;
+                    backed_up: boolean;
+                    counter: number;
+                    created_at: string;
+                    credential_id: string;
+                    device_type: string;
+                    label: string;
+                    last_used_at: string | null;
+                    pubkey_hash: string;
+                    public_key: string;
+                    transports: string[];
+                    wrap_version: number;
+                    wrapped_secret: string;
+                };
+                Insert: {
+                    aaguid?: string | null;
+                    backed_up?: boolean;
+                    counter?: number;
+                    created_at?: string;
+                    credential_id: string;
+                    device_type?: string;
+                    label?: string;
+                    last_used_at?: string | null;
+                    pubkey_hash: string;
+                    public_key: string;
+                    transports?: string[];
+                    wrap_version?: number;
+                    wrapped_secret: string;
+                };
+                Update: {
+                    aaguid?: string | null;
+                    backed_up?: boolean;
+                    counter?: number;
+                    created_at?: string;
+                    credential_id?: string;
+                    device_type?: string;
+                    label?: string;
+                    last_used_at?: string | null;
+                    pubkey_hash?: string;
+                    public_key?: string;
+                    transports?: string[];
+                    wrap_version?: number;
+                    wrapped_secret?: string;
+                };
+                Relationships: [];
+            };
             realtime_grants: {
                 Row: {
                     created_at: string;
@@ -386,6 +461,13 @@ export type Database = {
                 Args: { p_author_pubkey_hash: string; p_ops: Json; p_vault_id: string };
                 Returns: string[];
             };
+            claim_passkey_challenge: {
+                Args: { p_ceremony: string; p_challenge_id: string };
+                Returns: {
+                    challenge: string;
+                    pubkey_hash: string;
+                }[];
+            };
             claim_request_nonce: {
                 Args: {
                     p_nonce: string;
@@ -395,6 +477,18 @@ export type Database = {
                 Returns: boolean;
             };
             cleanup_expired_invites: { Args: never; Returns: undefined };
+            create_passkey_challenge: {
+                Args: {
+                    p_ceremony: string;
+                    p_challenge: string;
+                    p_pubkey_hash?: string;
+                    p_ttl_seconds: number;
+                };
+                Returns: {
+                    challenge: string;
+                    challenge_id: string;
+                }[];
+            };
             create_vault_for_owner: {
                 Args: {
                     p_enc_public_key: string;
@@ -416,12 +510,36 @@ export type Database = {
                 Args: { p_extension: string; p_topic: string };
                 Returns: boolean;
             };
+            record_passkey_authentication: {
+                Args: { p_counter: number; p_credential_id: string };
+                Returns: boolean;
+            };
+            register_passkey_credential: {
+                Args: {
+                    p_aaguid: string;
+                    p_backed_up: boolean;
+                    p_counter: number;
+                    p_credential_id: string;
+                    p_device_type: string;
+                    p_label: string;
+                    p_pubkey_hash: string;
+                    p_public_key: string;
+                    p_transports: string[];
+                    p_wrap_version: number;
+                    p_wrapped_secret: string;
+                };
+                Returns: boolean;
+            };
             rekey_vault_members: {
                 Args: {
                     p_member_keys: Json;
                     p_owner_pubkey_hash: string;
                     p_vault_id: string;
                 };
+                Returns: boolean;
+            };
+            revoke_passkey_credential: {
+                Args: { p_credential_id: string; p_pubkey_hash: string };
                 Returns: boolean;
             };
             revoke_realtime_grant: {

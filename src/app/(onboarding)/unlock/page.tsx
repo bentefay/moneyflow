@@ -14,8 +14,14 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-import { AuroraBackground, UnlockAnimation, UnlockCircle } from "@/components/features/identity";
+import {
+    AuroraBackground,
+    PasskeyUnlockButton,
+    UnlockAnimation,
+    UnlockCircle
+} from "@/components/features/identity";
 import { useIdentity } from "@/hooks";
+import { usePasskey } from "@/hooks/use-passkey";
 
 // ============================================================================
 // Component
@@ -24,6 +30,12 @@ import { useIdentity } from "@/hooks";
 export default function UnlockPage() {
     const router = useRouter();
     const { status, unlock, error, clearError } = useIdentity();
+    const {
+        capability,
+        isBusy: isPasskeyBusy,
+        error: passkeyError,
+        unlockWithPasskey
+    } = usePasskey();
 
     const [isUnlocking, setIsUnlocking] = useState(false);
     const [showAnimation, setShowAnimation] = useState(false);
@@ -58,6 +70,22 @@ export default function UnlockPage() {
         },
         [unlock, clearError]
     );
+
+    // -------------------------------------------------------------------------
+    // Handle passkey unlock
+    // -------------------------------------------------------------------------
+
+    const handlePasskeyUnlock = useCallback(async () => {
+        try {
+            await unlockWithPasskey();
+            // A passkey unlock installs the same identity a recovery phrase would, so the
+            // destination is identical. A full navigation keeps React Query from serving another
+            // identity's cached vault list.
+            window.location.assign("/transactions");
+        } catch {
+            // Surfaced through the passkey hook's error state.
+        }
+    }, [unlockWithPasskey]);
 
     // -------------------------------------------------------------------------
     // Handle animation complete
@@ -95,7 +123,19 @@ export default function UnlockPage() {
                         />
                     </UnlockAnimation>
                 ) : (
-                    <UnlockCircle onUnlock={handleUnlock} isUnlocking={isUnlocking} error={error} />
+                    <UnlockCircle
+                        onUnlock={handleUnlock}
+                        isUnlocking={isUnlocking}
+                        error={error}
+                        passkeyOption={
+                            <PasskeyUnlockButton
+                                capability={capability}
+                                isBusy={isPasskeyBusy}
+                                error={passkeyError}
+                                onUnlock={handlePasskeyUnlock}
+                            />
+                        }
+                    />
                 )}
             </div>
         </AuroraBackground>

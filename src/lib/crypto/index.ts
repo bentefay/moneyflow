@@ -57,6 +57,24 @@ export {
     wrapKey,
     wrapKeyToBase64
 } from "./keywrap";
+// Passkey ceremony helpers
+export {
+    browserSupportsPasskeys,
+    type CeremonyResponse,
+    extractPrfOutput,
+    isPasskeySupportedResult,
+    stripPrfResults
+} from "./passkeyCeremony";
+// Passkey PRF identity wrapping
+export {
+    deriveKeyEncryptionKey,
+    PASSKEY_PRF_SALT,
+    PASSKEY_WRAP_VERSION,
+    PRF_OUTPUT_BYTES,
+    unwrapMasterSecret,
+    wrapMasterSecret,
+    zeroize
+} from "./passkeyWrap";
 // Vault re-keying
 export {
     performCompleteRekey,

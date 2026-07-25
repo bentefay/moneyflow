@@ -375,12 +375,14 @@ describe("registration verification", () => {
 describe("authentication is public but fails closed", () => {
     it("mints an authentication challenge without requiring a signature", async () => {
         await expect(
-            passkeyRouter.createCaller(createContext(false)).startAuthentication()
+            passkeyRouter.createCaller(createContext(false)).startAuthentication({})
         ).resolves.toMatchObject({ options: expect.anything() });
     });
 
     it("never reveals which identities exist in the authentication options", async () => {
-        const result = await passkeyRouter.createCaller(createContext(false)).startAuthentication();
+        const result = await passkeyRouter
+            .createCaller(createContext(false))
+            .startAuthentication({});
 
         expect(JSON.stringify(result)).not.toContain(verifiedHash);
         const options = mocks.generateAuthenticationOptions.mock.calls[0][0];

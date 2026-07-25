@@ -14,9 +14,11 @@ import { expect, type Page, test } from "@playwright/test";
 
 import { createNewIdentity } from "./helpers";
 import {
+    addSecondAuthenticator,
     addVirtualAuthenticator,
-    type VirtualAuthenticator,
-    removeVirtualAuthenticator
+    removeAuthenticatorById,
+    removeVirtualAuthenticator,
+    type VirtualAuthenticator
 } from "./helpers/passkey";
 
 /** Complete passkey-only account creation from the new-user page. */
@@ -30,6 +32,26 @@ async function createAccountWithPasskey(page: Page): Promise<void> {
 async function unlockWithPasskey(page: Page): Promise<void> {
     await page.goto("/unlock");
     await page.getByTestId("passkey-unlock-button").click();
+}
+
+/**
+ * Add a passkey from an unlocked session.
+ *
+ * The recovery phrase is required here by design: the master secret is never held in session
+ * storage, so minting a new unlock factor demands proof of the existing root factor.
+ */
+async function addPasskeyFromSettings(
+    page: Page,
+    seedWords: string[],
+    expectedCount: number
+): Promise<void> {
+    await page.goto("/settings");
+    await page.getByTestId("add-passkey-button").click();
+    await page.getByTestId("recovery-phrase-credential").fill(seedWords.join(" "));
+    await page.getByTestId("confirm-add-passkey-button").click();
+    await expect(page.getByTestId("passkey-credential-row")).toHaveCount(expectedCount, {
+        timeout: 20000
+    });
 }
 
 async function readSessionPubkeyHash(page: Page): Promise<string> {
@@ -111,11 +133,7 @@ test.describe("Passkey", () => {
         });
 
         await test.step("add a passkey from the unlocked session", async () => {
-            await page.goto("/settings");
-            await page.getByTestId("add-passkey-button").click();
-            await expect(page.getByTestId("passkey-credential-row")).toHaveCount(1, {
-                timeout: 20000
-            });
+            await addPasskeyFromSettings(page, seedWords, 1);
         });
 
         await test.step("unlocking by passkey yields the identity created by the phrase", async () => {
@@ -138,19 +156,24 @@ test.describe("Passkey", () => {
     test("multiple passkeys each unlock the same identity, and revocation is scoped", async ({
         page
     }) => {
-        await createAccountWithPasskey(page);
+        const seedWords = await createNewIdentity(page);
         const originalHash = await readSessionPubkeyHash(page);
 
-        await test.step("register a second credential", async () => {
-            await page.goto("/settings");
-            await page.getByTestId("add-passkey-button").click();
-            await expect(page.getByTestId("passkey-credential-row")).toHaveCount(2, {
-                timeout: 20000
-            });
+        await test.step("register a credential on each of two devices", async () => {
+            await addPasskeyFromSettings(page, seedWords, 1);
+
+            // A genuinely separate device: excludeCredentials rightly stops the same
+            // authenticator registering twice.
+            const secondDeviceId = await addSecondAuthenticator(authenticator);
+            try {
+                await addPasskeyFromSettings(page, seedWords, 2);
+            } finally {
+                await removeAuthenticatorById(authenticator, secondDeviceId);
+            }
         });
 
         await test.step("revoking one credential leaves the other working", async () => {
-            await page.getByTestId("revoke-passkey-button").first().click();
+            await page.getByTestId("revoke-passkey-button").last().click();
             await page.getByTestId("confirm-revoke-button").click();
             await expect(page.getByTestId("passkey-credential-row")).toHaveCount(1, {
                 timeout: 20000
@@ -167,10 +190,7 @@ test.describe("Passkey", () => {
         page
     }) => {
         const seedWords = await createNewIdentity(page);
-
-        await page.goto("/settings");
-        await page.getByTestId("add-passkey-button").click();
-        await expect(page.getByTestId("passkey-credential-row")).toHaveCount(1, { timeout: 20000 });
+        await addPasskeyFromSettings(page, seedWords, 1);
 
         await test.step("destroy the authenticator's credentials", async () => {
             await removeVirtualAuthenticator(authenticator);
@@ -178,6 +198,8 @@ test.describe("Passkey", () => {
         });
 
         await test.step("passkey unlock fails visibly rather than hanging or half-signing-in", async () => {
+            // Sign out first, or the unlock page redirects the still-live session away.
+            await page.evaluate(() => sessionStorage.clear());
             await page.goto("/unlock");
             await page.getByTestId("passkey-unlock-button").click();
             await expect(page.getByTestId("passkey-error")).toBeVisible({ timeout: 20000 });
