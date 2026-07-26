@@ -8,8 +8,8 @@ literal field is `pending`. Workers may read but never edit it.
 - **Package / revision:** P08 / 01
 - **Scope IDs:** HS-011 (deliver the selected journey) + HS-012 (auto-person linkage). No other
   requirement IDs. HS-011's checkbox waits for BOTH P07 (already `passed`) and this P08 to pass.
-- **State:** implementing.
-- **Binding tasks:** `tasks/HS-011-membership-invite-ux.md` (the **P08 — Deliver the selected
+- **State:** implementing (boundary-safe core; scope fixed by D-018).
+- **Binding tasks:** `tasks/HS-011-membership-invite-ux.md` (the **P08 - Deliver the selected
   coherent journey** section) and `tasks/HS-012-auto-person-link.md`. Frozen text is authoritative in
   `SCOPE.json#HS-011` (lines 307-311) and `SCOPE.json#HS-012` (lines 313-315).
 - **Build BASE:** current HEAD `c5c99195bef523c1d4ba2f55e54c886a1aa68533`.
@@ -18,80 +18,85 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Governing decision (READ FIRST)
 
-- **D-013 is the binding contract.** Read it in full in `DECISIONS.md`, then read the accepted P07
-  architecture it rests on: `evidence/P07/implementation-04.md` (the ~1,019-line contract, SHA
-  `313ce10c…`) and `reviews/P07-review-04.md`. D-013 chose a **linked hybrid**: **Vault Settings is
-  the sole authoritative location for Members/Invites**; **People** remains encrypted financial state
-  with an OPTIONAL stable membership link — never merge the two concepts or expose one as the other.
-- You must implement all of D-013's clauses (the 29 accessibility/security/migration/real-browser
-  requirements the P07 review enumerates), not a subset. Key mandated mechanisms: sender-bound
-  authenticated `crypto_box` (NOT sealed-box, NOT a random placeholder key); access-generation-scoped
-  per-epoch envelope history; locked server-side rotation; a persistent same-store edit fence/journal
-  that preserves every exact peer-specific Loro operation (semantic receipts must NEVER substitute for
-  exact-op permanence); reconstructible SQL truth followed by fenced encrypted client sagas;
-  frontier-bound repair for late/distinct Person claims; and creation links canonical
-  `person-default-me` in place while preserving 100% default-account ownership/references.
-- **The P05/D-011 gate is CLEARED.** P07's review said P08 was "not dispatch-ready until root performs
-  the D-011/P05 hidden-topology recheck." That is now satisfied: **P05/HS-015 passed under D-017**
-  (which superseded D-011; the hidden-tab timing edge is an accepted unmeasured non-issue). Do NOT
-  reopen realtime timing work.
+- **D-018 is the binding scope contract; read it in full in `DECISIONS.md`.** It rescopes P08 after
+  an independent fresh-context scope adjudication (`adjudications/P08-scope-01.md`, distinct opus-tier
+  reviewer, ruled from the frozen text). **D-013's linked-hybrid DATA MODEL still stands** and is
+  frozen-traceable: **Vault Settings is the sole authoritative location for Members/Invites**;
+  **People** remains encrypted financial state with an OPTIONAL stable membership link — never merge
+  the two concepts or expose one as the other.
+- **D-013's 29-clause epoch/reconciliation MANDATE is OUT of P08 (superseded-in-part by D-018).** Do
+  NOT build epoch rotation, monotonic vault epochs, per-epoch/`access_generation` envelope history,
+  `exact_operation_id` / peer / frontier op metadata, IndexedDB edit-admission fences or
+  epoch-transition journals, the rotation state machine, fragment-derived Ed25519 capability signing /
+  preflight challenge, `pendingAcceptances`/`pendingCreations` sagas, frontier-bound causal repair,
+  soft removal / tenure denial, or epoch-0 backfill. These map to NO frozen requirement, MUST NOT be
+  spun into a new package, and MUST NOT touch the preserved `vault_ops` boundary.
+- **The P05/D-011 gate is CLEARED.** P05/HS-015 passed under D-017 (which superseded D-011; the
+  hidden-tab timing edge is an accepted unmeasured non-issue). Do NOT reopen realtime timing work.
 
 ## Known real defects to fix (from the task evidence — revalidate, do not assume)
 
-- People page currently hardcodes owner/key inputs so `InviteLinkGenerator` is unreachable — owners
-  cannot discover/create/revoke/inspect invites from the authoritative location.
-- Invite redemption appears to wrap a RANDOM PLACEHOLDER vault key rather than the selected vault's
-  real key — redemption must unwrap the REAL vault key and open the same encrypted vault. Placeholder
-  cryptography is a blocking defect.
+- People page currently hardcodes owner/key inputs (`isOwner=false`, `vaultKey=undefined`) so
+  `InviteLinkGenerator` is unreachable — owners cannot discover/create/revoke/inspect invites from the
+  authoritative location.
+- Invite redemption wraps a RANDOM PLACEHOLDER vault key (`sodium.randombytes_buf(48)`) rather than
+  the selected vault's real key — redemption must unwrap the REAL vault key and open the same encrypted
+  vault. Placeholder cryptography is a blocking defect.
 - No reliable creator/invite-acceptance path idempotently creates/links the per-user Person.
 
-## What to complete to PASS (real crypto, real two-user journey, NO placeholder)
+## Definition-of-done to PASS (D-018 boundary-safe core; real crypto, real two-user journey, NO placeholder)
 
-1. **HS-011 secure invite/member journey (Vault Settings authoritative):**
-   - Owners discover, create, revoke, cancel and inspect invites and manage members from Vault
-     Settings; unauthorized roles cannot (owner/member/outsider enforced server-side). People may show
-     an optional link/invitation status only if D-013 calls for it.
-   - Invite URLs keep bearer secrets in the URL **fragment** (or another non-server-visible channel) —
-     never in path, query, server logs, analytics or network. Expiry, single-use, cancellation, role
-     and recipient intent are explicit. Redemption unwraps the REAL vault key and opens the same
-     encrypted vault; edits then sync both ways.
-   - Member removal/rekey (rotation) implications are handled and explained; removed/re-added tenure
-     denial and honest past-copy limits per D-013.
-2. **HS-012 auto-person linkage:**
-   - On vault creation AND invite acceptance, idempotently ensure exactly one linked Person per member
-     — no duplicates under refresh, retries, concurrent tabs or membership re-add. Link via the stable
-     privacy-preserving user identifier consistent with P04/P07 (NOT plaintext key or unverified client
-     label). Person name becomes optional with a deterministic accessible fallback; centralize
-     display-name resolution. Renames/unlinks/removal retain financial allocation integrity.
-   - Migrate existing people/members safely; preserve ambiguous duplicates for reversible repair.
-3. **Tests (all real, none bypassing the UI on the journey):**
-   - Unit/property: legal linked/unlinked/named/unnamed Person states and fallback resolution.
-   - Integration/security: owner/member/outsider permissions, expiry/reuse/revoke/tamper, REAL key
-     wrap/unwrap, cross-vault denial, creator/acceptance concurrency, migration, member removal/re-add.
-   - Two-user E2E with isolated contexts: owner creates invite -> second user creates/unlocks identity,
-     accepts, decrypts the SAME vault, syncs edits, sees permissions, then removal/revocation. Accept
-     twice/concurrently to prove person idempotence.
+1. **HS-011 - real, secure invite redemption.** Remove the `randombytes_buf(48)` placeholder. The
+   invitee unwraps the REAL vault key via authenticated `crypto_box` (fragment-derived ephemeral secret
+   + owner's authoritative X25519 sender key, resolved SERVER-SIDE — no schema change, no
+   caller-claimed sender) and self-wraps it, so a redeemed member opens the SAME vault. Fragment secret
+   stays in the URL fragment only.
+2. **HS-011 - authoritative, reachable membership/access surface.** An "Access & Members" surface in
+   **Vault Settings** where the owner discovers/creates/copies/revokes invites and lists members;
+   members see a privacy-safe roster. Server-side role authorization is enforced (unauthorized mutation
+   rejected). The dead People-page hardcoding is removed; People keeps financial semantics with at most
+   an optional membership-link display and a deep link to Settings.
+3. **HS-011 - member removal via the EXISTING preserved path only.** Removal must be reachable and must
+   invoke the existing `membership.remove` + `membership.rekey` (`rekey_vault_members` RPC) mechanism
+   so a removed member loses future-envelope access at the strength the preserved boundary already
+   provides. Rekey-on-removal is IN **only as the existing preserved capability wired up — NOT new
+   epoch machinery**; the lossless/crash-safe/concurrent-offline guarantee is OUT. If wiring the
+   existing rekey fully is out of reach, removal may ship as the pre-existing behavior unchanged;
+   either way NO new security regression is introduced.
+4. **HS-012 - auto-linked Person per user.** Deterministic, idempotent Person-per-member: owner links
+   `person-default-me` in place (`linkedUserId = ownerPubkeyHash`); invitee idempotently upserts one
+   Person keyed on the stable pubkey hash so concurrent tabs / refresh / re-add converge to a single
+   Person. `Person.name` becomes OPTIONAL with a centralized display-name resolver (explicit name →
+   self label → deterministic non-identifying fallback; never renders a raw pubkey hash). Existing
+   allocations/settlement/financial state are untouched by linkage. Preserve — never auto-merge —
+   ambiguous legacy duplicate links.
+5. **Real tests.** Unit/property tests for the resolver and idempotent linkage; integration tests for
+   invite create → redeem → membership and for removal+rekey authorization; a two-user E2E that
+   exercises the REAL invite UI journey (owner creates invite → second user creates/unlocks identity,
+   accepts, decrypts the SAME vault, syncs edits bidirectionally, sees permissions, then
+   removal/revocation), accepting twice/concurrently to prove person idempotence. No service-role
+   admin-key-wrap bypass on the journey.
+6. **Gates.** `pnpm typecheck && lint && format:check && test && test:e2e` green.
 
 ## Allowed changes
 
 - `tests/unit/**`, `tests/integration/**`, `tests/e2e/**` — the coverage above.
 - Product code strictly within the **invite / membership / person / People / Vault Settings** domain
-  required by D-013 and the two tasks — e.g. the invite components (`InviteLinkGenerator` and the
+  required by D-018 and the two tasks — e.g. the invite components (`InviteLinkGenerator` and the
   invite/redemption pages/effects), membership & invite tRPC routers and their Zod schemas, the Person
-  schema/resolution and People UI, Vault Settings access UI, and the vault-creation/acceptance sagas.
-  TRACE the actual routes yourself (the task mandates it); keep each change minimal and justify every
-  touched path in evidence. Anything OUTSIDE this domain must be called out explicitly for reviewer
-  scrutiny with its justification (as a scope-boundary note), not silently included.
-- A Supabase migration ONLY as D-013's reversal/migration path requires (epoch/envelope/link backfill,
-  revoke legacy pending invites); never destructively down-migrate advanced epochs or delete
-  referenced financial state.
+  schema/resolution and People UI, Vault Settings access UI, and the vault-creation/acceptance link
+  logic. TRACE the actual routes yourself; keep each change minimal and justify every touched path in
+  evidence. Anything OUTSIDE this domain must be called out explicitly for reviewer scrutiny with its
+  justification (as a scope-boundary note), not silently included.
 
-## Preserve unchanged (do NOT touch)
+## Preserve unchanged (do NOT touch) — HARD boundary
 
 - The P04 database/RLS threat-model boundary and the P05 realtime pubkey-hash authorization boundary
   (`src/server/routers/realtime.ts`, `src/lib/supabase/realtime.ts`, `src/server/schemas/realtime.ts`,
-  `vault_ops` scoping) — verify your diff over these stays empty unless D-013 provably requires a
-  change, in which case raise a Q-proposal first.
+  `vault_ops` scoping). **NO `vault_ops` schema change and NO new migration are permitted in P08** —
+  the adjudicator independently confirmed the full contract would require `epoch`/`exact_operation_id`/
+  frontier columns on `vault_ops`, and D-018 rules that change OUT (moot, must not be made). Verify your
+  diff over these files and `supabase/migrations/**` is EMPTY.
 - All unrelated feature surfaces (aliases, undo, GC, import, virtualization, passkeys). No scope
   widening beyond HS-011 + HS-012.
 
@@ -130,16 +135,19 @@ literal field is `pending`. Workers may read but never edit it.
 
 ## Q-proposals
 
-- Place any `Q-*` proposal (the D-013-mandated user-name/storage source and duplicate-repair proposals,
-  plus any residual architecture preference) in `evidence/P08/implementation-01.md` and continue with
-  the safest reversible data-preserving choice. Root alone transcribes `QUESTIONS.md`.
+- Place any `Q-*` proposal in `evidence/P08/implementation-01.md` and continue with the safest
+  reversible data-preserving choice. Root alone transcribes `QUESTIONS.md`. The scope tension is
+  already resolved: Q-025 (local) → binding ruling (b) → D-018; the name-storage, duplicate-repair and
+  link-identifier proposals are transcribed as Q-030 / Q-031 / Q-032 with the implementer's
+  safest-reversible defaults accepted. Do NOT reopen the epoch-scope question.
 
 ## Hand back
 
 - When GREEN with all gates passing, summarize final HEAD, exact changed paths (with per-path
   justification and any out-of-domain path flagged), test counts, how the invite journey is proven with
   REAL key wrap/unwrap (adversarial reproduction of an outsider/expired/reused/revoked/tampered
-  rejection and a real two-user accept -> same-vault decrypt -> bidirectional sync), how Person linkage
-  is proven idempotent under concurrency/refresh/re-add, how member removal/rekey is handled, and
-  confirm no placeholder cryptography, no secret/fragment leak, and no regression of the P04/P05
-  boundaries. Message root `ready_for_review`. Do not edit any ledger or mark the requirement.
+  rejection and a real two-user accept → same-vault decrypt → bidirectional sync), how Person linkage
+  is proven idempotent under concurrency/refresh/re-add, how member removal via the EXISTING
+  remove+rekey path is handled, and confirm no placeholder cryptography, no secret/fragment leak, an
+  EMPTY diff over the P04/P05/`vault_ops`/migration boundary, and no epoch machinery introduced. Message
+  root `ready_for_review`. Do not edit any ledger or mark the requirement.

@@ -923,6 +923,58 @@ No unresolved product questions were answered by scaffold creation.
 - **Does a human still need to decide after completion?:** Yes — confirm derive-and-match is the
   intended strength rather than an unconditional block.
 
+## Q-029 — P08 scope: full D-013 epoch contract vs frozen-aligned secure core
+
+- **Raised:** 2026-07-26, P08 revision 01, `human_scratch_implementer` (implementer local label Q-025)
+- **Source proposal:** `evidence/P08/implementation-01.md` section 2, Q-025
+- **Context and evidence:** Honoring D-013's full 29-clause contract would force adding `epoch` + `exact_operation_id` + peer/frontier columns to the PRESERVED P04 `vault_ops` table and rewriting the local op-admission pipeline (verified absent in `supabase/migrations/005_vault_ops.sql:235-241`). The dispatch's own rule forbids touching the boundary without a Q-proposal. Root did NOT self-adjudicate this scope reduction (highest conflict of interest); it dispatched a distinct fresh-context opus-tier adjudicator (`adjudications/P08-scope-01.md`), never P08's implementer or reviewer, ruling from the frozen text.
+- **Why the frozen requirement/repository does not fully decide it:** Frozen HS-011 (`specs/human-scratch.md:307-311`) / HS-012 (`:313-315`) is a UX-and-data-model ask about *adding* users and *where* management lives; it never mentions member removal, forward secrecy, epochs, exact-op permanence, crash-safe rotation, or causal repair — the entire problem domain the epoch protocol solves.
+- **Options considered:** (a) full D-013 contract as a multi-revision package with an explicit `vault_ops` boundary-change Q-approval [rejected — no frozen root; modifies preserved boundary for an unmandated goal]; (b) frozen-aligned secure core as P08/01 with the epoch machinery classified future-work carrying NO frozen mandate and NOT spun into a new package [selected].
+- **Default selected for continued work:** (b) — binding independent adjudicator ruling, transcribed as D-018.
+- **Decision hierarchy basis:** Frozen-traceability floor and preserved-boundary integrity (no boundary change without a frozen mandate); the boundary-safe core still fixes the only genuine security defect (placeholder redemption).
+- **Impact and risk:** Low; the core fixes the real defect, preserves the P04/P05/RLS boundaries, and introduces no new regression. Removed members lose future-envelope access at the strength the existing preserved remove+rekey path already provides.
+- **How to reverse or migrate:** Reopen forward-secrecy-on-removal as a future frozen requirement with its own independently reviewed ADR + `vault_ops` boundary-change Q, built on the linked-hybrid data model retained by D-013/D-018.
+- **Does a human still need to decide after completion?:** Yes — human audits the adjudicator's ruling after the fact and confirms the epoch machinery stays out of goal scope. Resolved binding by D-018.
+
+## Q-030 — HS-012 user display-name storage source
+
+- **Raised:** 2026-07-26, P08 revision 01, `human_scratch_implementer` (implementer local label Q-026)
+- **Source proposal:** `evidence/P08/implementation-01.md` section 5, Q-026
+- **Context and evidence:** HS-012 makes `Person.name` optional with the user name as fallback. The display name lives in the optional encrypted-CRDT `Person.name` only — no server plaintext, no reintroduced user blob (consistent with D-012/P06). The fallback is a deterministic vault-scoped "Member N" label via a centralized `resolvePersonDisplayName` resolver; a raw or truncated pubkey hash is never rendered.
+- **Why the frozen requirement/repository does not fully decide it:** The frozen text says "uses the user name as a fallback if it has an associated user" but does not specify whether a separate encrypted per-membership profile name is also wanted, nor the exact non-identifying fallback.
+- **Options considered:** (a) encrypted-CRDT `Person.name` only + deterministic non-identifying fallback [selected]; (b) additional encrypted per-membership profile name; (c) server-visible name [rejected — violates zero-knowledge].
+- **Default selected for continued work:** (a).
+- **Decision hierarchy basis:** Client-side-encryption invariant (#1) and preservation of financial state; the resolver keeps identity non-identifying.
+- **Impact and risk:** Low; reversible resolver change, no schema impact.
+- **How to reverse or migrate:** Adjust the resolver / add an encrypted profile field later; no destructive migration.
+- **Does a human still need to decide after completion?:** Yes — confirm whether an encrypted per-membership profile name is also wanted beyond `Person.name`.
+
+## Q-031 — HS-012 legacy duplicate-link repair
+
+- **Raised:** 2026-07-26, P08 revision 01, `human_scratch_implementer` (implementer local label Q-027)
+- **Source proposal:** `evidence/P08/implementation-01.md` section 5, Q-027
+- **Context and evidence:** Idempotent linkage uses a deterministic key derived from the stable pubkey hash so new links cannot create duplicates. Any ambiguous pre-existing duplicate links are PRESERVED — never auto-merged or deleted. Automatic convergent repair of pre-existing duplicates is deferred (it needs the claim/winner maps from the excised full contract).
+- **Why the frozen requirement/repository does not fully decide it:** The frozen text asks for one auto-Person per user but is silent on how to reconcile pre-existing ambiguous duplicate links.
+- **Options considered:** (a) preserve duplicates, deterministic idempotent key prevents new ones [selected]; (b) auto-merge/auto-delete duplicates [rejected — destructive, needs winner maps not in scope].
+- **Default selected for continued work:** (a).
+- **Decision hierarchy basis:** Preservation of user data (#3) — a data-preserving default over a destructive merge.
+- **Impact and risk:** Low; no data loss. A residual duplicate may persist until a future repair pass.
+- **How to reverse or migrate:** Add a reviewed convergent-repair pass later if forward-secrecy/tenure work lands.
+- **Does a human still need to decide after completion?:** Yes — confirm deferring convergent duplicate repair is acceptable.
+
+## Q-032 — HS-012 linkage identifier: pubkey hash vs membership UUID
+
+- **Raised:** 2026-07-26, P08 revision 01, `human_scratch_implementer` (implementer local label Q-028)
+- **Source proposal:** `evidence/P08/implementation-01.md` section 5, Q-028
+- **Context and evidence:** Linkage keys on the stable P04 `pubkey_hash` (matches the existing `linkedUserId` and the frozen "user identifier"), not the membership UUID. Re-add of the same identity reuses the same Person. Membership-UUID linkage (needed for tenure/history semantics) is deferred with the excised full contract.
+- **Why the frozen requirement/repository does not fully decide it:** The frozen text says "optional user id (pub key hash?)" — it suggests the pubkey hash but does not settle pubkey-hash vs membership-UUID for tenure semantics.
+- **Options considered:** (a) key on stable pubkey hash [selected — matches frozen hint and existing `linkedUserId`]; (b) key on membership UUID [deferred — needed only for tenure/history, which is out of the frozen scope].
+- **Default selected for continued work:** (a).
+- **Decision hierarchy basis:** Frozen-text alignment ("pub key hash?") and consistency with the existing P04 identifier.
+- **Impact and risk:** Low; re-add reuses one Person. Tenure-scoped history is not modeled (out of frozen scope per D-018).
+- **How to reverse or migrate:** Introduce membership-UUID linkage if tenure semantics become a future frozen requirement.
+- **Does a human still need to decide after completion?:** Yes — confirm pubkey-hash linkage is the intended identifier.
+
 ## Question template
 
 ### Q-XXX — Short title

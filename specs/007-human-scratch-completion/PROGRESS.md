@@ -7,13 +7,20 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P08 / 01 (HS-012 + HS-011) implementing. Delivers D-013's linked-hybrid
-  journey: Vault-Settings-authoritative invites/members with REAL key wrap/unwrap and idempotent
-  auto-person linkage. BASE `c5c9919`. Downstream cascade P08 -> P10/P16E -> P17A-D -> P20A/P20B -> P21
+- **Current package:** P08 / 01 (HS-012 + HS-011) implementing, rescoped to the boundary-safe frozen
+  core by **D-018** (supersedes D-013's 29-clause epoch mandate; linked-hybrid data model retained).
+  Delivers REAL authenticated `crypto_box` invite redemption (kills the placeholder key), a
+  Vault-Settings-authoritative "Access & Members" surface with server-side authz, member removal via the
+  EXISTING preserved remove+rekey path only, and idempotent auto-person linkage with an optional name +
+  non-identifying resolver. Epoch machinery is OUT (future-work, no frozen mandate, no new package). BASE
+  `c5c9919`. Downstream cascade P08 -> P10/P16E -> P17A-D -> P20A/P20B -> P21
 - **Next action:** await `human_scratch_implementer` (p08-implementer-01) `ready_for_review` handback
   at a new HEAD, then dispatch a DISTINCT `human_scratch_reviewer` over BASE `c5c9919` -> new HEAD to
-  confirm D-013 clauses, REAL (non-placeholder) invite key wrap/unwrap, fragment-only secrets,
-  idempotent person linkage, preserved P04/P05 boundaries and a genuine two-user E2E. Keep FS-001
+  confirm the **D-018** definition-of-done (items 1-6): REAL non-placeholder invite key wrap/unwrap so the
+  invitee opens the SAME vault, a reachable Vault-Settings access surface with server-side authz, member
+  removal via the EXISTING remove+rekey path (NO new epoch machinery), idempotent person linkage +
+  optional-name resolver, an EMPTY diff over the P04/P05/`vault_ops`/migration boundary, and a genuine
+  two-user E2E over the REAL invite UI. Review against D-018, NOT D-013's 29 clauses. Keep FS-001
   immutable/open
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
@@ -27,11 +34,16 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE (15 checked IDs)
 - **Requirement state:** fifteen passed (adding HS-015 under D-017); six HS requirements
   (HS-003/007/011/012/016/021) plus FS-001 not yet passed
-- **Last ledger update:** 2026-07-26; P05 (HS-015) control commit `reviewing -> passed` under D-017
-  (integration-persistence `8101bb2`, marker `specs/human-scratch.md:325` one line, rolling scratch
-  SHA `ddd53142… -> 29bbb2fc…`, normalized-block check green with 15 checked IDs). P05 was the last
-  `blocked_external` gate; its pass unblocks P08 (deps P05, P07 both `passed`). 22 packages now
-  `passed`, 10 queued (P08 next-dispatchable); fifteen requirements `passed`, FS-001 immutable/open
+- **Last ledger update:** 2026-07-26; P08/01 scope adjudication resolved. Implementer p08-implementer-01
+  surfaced a D-013-vs-frozen-text tension (the full 29-clause epoch contract would force adding
+  `epoch`/`exact_operation_id`/frontier columns to the PRESERVED `vault_ops` boundary). Per the standing
+  over-scoped-stall rule root did NOT self-adjudicate and did NOT pause the human; it dispatched a distinct
+  fresh-context opus-tier scope adjudicator (`adjudications/P08-scope-01.md`), which ruled **(b)**: rescope
+  P08 to the boundary-safe frozen core, classify the epoch machinery as future-work with NO frozen mandate
+  (not a new package), keep `vault_ops` preserved (boundary change confirmed-but-moot, must NOT be made).
+  Transcribed to **D-018** (supersedes D-013 in part), **Q-029..Q-032** (implementer local Q-025..Q-028),
+  and a rescoped HANDOFF. Rolling scratch SHA unchanged `29bbb2fc…`; fifteen requirements `passed`, FS-001
+  immutable/open; no marker until independent PASS
 
 ## Package ledger
 
@@ -3635,3 +3647,36 @@ two-user E2E. Preserve P04 RLS and P05 realtime pubkey-hash boundaries. Dispatch
 `human_scratch_implementer` as `p08-implementer-01`. Sole implementer artifact
 `evidence/P08/implementation-01.md`; future immutable review `reviews/P08-review-01.md`. Rolling scratch
 SHA unchanged `29bbb2fc…`; fifteen requirements `passed`; no marker until independent PASS.
+
+### 2026-07-26 — P08/01 scope adjudication: ruling (b), D-018 rescope (supersedes D-013 in part)
+
+During P08/01 implementation, `p08-implementer-01` surfaced a blocking scope/boundary tension (evidence
+`evidence/P08/implementation-01.md` section 2, local proposal Q-025): honoring D-013's full 29-clause epoch
+contract would require adding `epoch` + `exact_operation_id` + peer/frontier columns to the PRESERVED P04
+`vault_ops` table and rewriting the local op-admission pipeline — a change the dispatch forbids without a
+Q-proposal. Because resolving it would REDUCE committed scope / supersede a prior decision (the
+highest-conflict-of-interest call), root applied the standing over-scoped-stall rule: it did NOT
+self-adjudicate and did NOT pause the human. Root told the implementer to keep building the boundary-safe
+core (the subset needed under either outcome) and dispatched a DISTINCT fresh-context opus-tier scope
+adjudicator — never P08's implementer or reviewer — to rule from the frozen HS-011/HS-012 text.
+
+Ruling (`adjudications/P08-scope-01.md`): **(b)**. The epoch / per-epoch-envelope / `exact_operation_id` /
+fence / journal / rotation / causal-repair / saga / backfill machinery maps to NO frozen requirement —
+HS-011/HS-012 never mention removal, forward secrecy, epochs, exact-op permanence, or crash-safe rotation.
+It is a losslessness/crash-safety hardening of an ALREADY-EXISTING rekey capability
+(`src/server/routers/membership.ts` remove + `rekey_vault_members`; `vault_memberships.enc_public_key`),
+invented by the P07 ADR from a self-imposed member-removal/forward-secrecy ambition. D-013's linked-hybrid
+DATA MODEL stands (frozen-traceable); its 29-clause mandate is over-scope. The boundary-change claim is
+CONFIRMED but MOOT under (b): `vault_ops` MUST stay preserved, no boundary Q-approval issued.
+
+Root independently reverified the load-bearing fact (verify-not-trust): `supabase/migrations/005_vault_ops.sql`
+shows `vault_ops` has exactly six columns (id, vault_id, version_vector, encrypted_data, author_pubkey_hash,
+created_at) with no epoch/exact_operation_id/frontier metadata. Transcribed the ruling as binding authority:
+**D-018** appended to DECISIONS.md (rescope P08 to the boundary-safe core; D-013 marked superseded-in-part);
+implementer proposals renumbered from local Q-025..Q-028 to **Q-029..Q-032** in QUESTIONS.md (Q-029 = scope,
+resolved (b); Q-030/Q-031/Q-032 = name-source / duplicate-repair / link-identifier, safest-reversible
+defaults accepted); HANDOFF.md rewritten so the eventual reviewer reviews against the D-018 definition-of-done,
+not D-013's 29 clauses. Epoch machinery classified future-work with NO frozen mandate — explicitly NOT spun
+into a new package. Rolling scratch SHA unchanged `29bbb2fc…`; fifteen requirements `passed`; no marker until
+independent PASS. Human audits this ruling after the fact. Next: await p08-implementer-01 handback, then
+dispatch a distinct P08 reviewer over the D-018 DoD.
