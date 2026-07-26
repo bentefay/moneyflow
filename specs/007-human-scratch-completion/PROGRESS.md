@@ -7,52 +7,40 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P08 / 02 (HS-012 + HS-011) **reviewing** — B-2 remediation delivered. Implementer
-  handed back rev-02 at HEAD `d40b854` (product base rev-01 `d2762f9`; sole commit `d40b854`, EXACTLY the 6
-  authorized product/test paths, boundary untouched, no epoch machinery, evidence-02 uncommitted — all
-  root-verified). B-2 fix is client-only: `handleAccept` now calls `setActiveVaultStorage({id: vaultId})`
-  before `router.push`, delivering the accepting member into the SHARED vault so the init effect runs and the
-  Person materializes; the pending-person-link marker moved sessionStorage(one-shot) -> localStorage
-  check-and-clear-on-confirmation (idempotent, retrying, no permanent-miss). New two-user E2E asserts from the
-  MEMBER's app (shared vault active + self/owner linked + bidirectional), RED with fix stashed. A distinct
-  reviewer (`p08-reviewer-01`, not the implementer) is verifying the delta `d2762f9..d40b854`, including an
-  explicitly-flagged design call (marker retained rather than pure markerless reconcile, to preserve the
-  realtime-recovery E2E). BASE `c5c9919`. Downstream cascade P08 -> P10/P16E -> P17A-D -> P20A/P20B -> P21
-- **Next action:** await `p08-reviewer-01` VERDICT on `reviews/P08-review-02.md` over `d2762f9..d40b854`.
-  Reviewer must reproduce (not trust): B-2 closed on the real journey (member's own app opens the SHARED
-  vault, Person materializes), permanent-miss fragility actually removed (localStorage + clear-on-
-  confirmation + retry, idempotent/convergent), E2E genuinely RED->GREEN and asserting on the member's app,
-  N-4a/b/c, and no regression of rev-01 DoD 1/2/3 or gates; plus the flagged design ruling — whether keeping
-  the acceptance marker (vs pure markerless reconcile) is a defensible product signal that meets the HANDOFF
-  intent or a scope reduction. If the reviewer deems it a genuine scope reduction, it must NOT self-resolve —
-  flag to root, who routes scope reductions to an independent adjudicator. On PASS: two-commit integration
-  (A: reviewing->PASS event + persist review; B: control + authorized forward marker flipping P08 passed,
-  one-line scratch checkbox for HS-012 [and HS-011 once its P07+P08 both pass], advance rolling SHA + checked
-  IDs). On CHANGES_REQUESTED: record + rescope HANDOFF to rev-03. Keep FS-001 immutable/open
+- **Current package:** none active — **P08 / 02 PASSED** and integrated. Independent reviewer
+  `p08-reviewer-01` returned VERDICT PASS (0 blocking) on `reviews/P08-review-02.md` over `d2762f9..d40b854`;
+  root verified every load-bearing fact (B-2 closed on the member's real journey, permanent-miss fragility
+  removed, E2E RED->GREEN asserting on the member app, N-4a/b/c, no rev-01 DoD/gate regression) and confirmed
+  the flagged marker-vs-markerless design call was ruled **(a) legitimate BY THE REVIEWER on grounds
+  independent of the test suite** — so no independent-adjudicator routing was required. Two-commit integration
+  complete: Commit A `a1e1b2d` (reviewing->PASS event + persisted review); Commit B (this control commit)
+  applied the authorized forward markers for **HS-011** (`specs/human-scratch.md:307`) and **HS-012** (`:313`),
+  advanced the rolling SHA to `df8ad9ce...`, and flipped P08 `reviewing -> passed`. Newly dispatchable: **P10**
+  (HS-003; deps P08 now passed) and **P16E** (deps P16D, P08, P11C — all passed)
+- **Next action:** rewrite HANDOFF and dispatch **P10** (HS-003) at the current product HEAD; note **P16E** is
+  now co-dispatchable (deps P16D, P08, P11C all `passed`). Remaining after P08: P10, P16E, P17A-D, P20A/P20B,
+  P21; requirements HS-003, HS-007, HS-016, HS-021 + FS-001. Keep FS-001 immutable/open
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
   `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines and 25,441 bytes
-- **Rolling scratch SHA-256:** `29bbb2fc970ceadc58e13d8216a35317663a0b5331a7ba6e5c9d44e4b2949a16`
+- **Rolling scratch SHA-256:** `df8ad9cee30241f4d7be34a3a8e1388a6d0bbf116820b64786b3b6940c840cf3`
 - **Authorized checked HS IDs:** HS-001, HS-002, HS-004, HS-005, HS-006, HS-008, HS-009, HS-010,
-  HS-013, HS-014, HS-015, HS-017, HS-018, HS-019, HS-020
+  HS-011, HS-012, HS-013, HS-014, HS-015, HS-017, HS-018, HS-019, HS-020
 - **Active completion marker event:** none
 - **Active P21 rollback batch:** none
-- **Sema- **Last ledger update:** 2026-07-26; P08/02 remediation handback received and dispatched for independent
-  review. Implementer `p08-implementer-01` fixed the sole blocker B-2 at HEAD `d40b854` (client-only: open the
-  shared vault on accept via `setActiveVaultStorage` so HS-012 linkage runs on the real journey; move the
-  person-link marker to localStorage check-and-clear-on-confirmation removing the permanent-miss fragility;
-  new member-app-asserting two-user E2E proven RED->GREEN) plus non-blocking N-4a/b/c. Root independently
-  verified handback integrity: commit `d40b854` touches ONLY the 6 authorized product/test paths, zero
-  forbidden writes, EMPTY diff over migrations/routers/realtime/`vault_ops`, no epoch content, evidence-02
-  uncommitted. Distinct reviewer `p08-reviewer-01` (rev-01 reviewer; not the implementer) tasked over
-  `d2762f9..d40b854`, with the implementer's flagged marker-vs-markerless design call routed for explicit
-  adjudication. P08 `changes_requested -> reviewing`; rev stays 02. Rolling scratch SHA unchanged
-  `29bbb2fc…`; fifteen requirements `passed`; NO marker until independent PASS
-
-wing -> changes_requested`; HANDOFF rescoped to rev-02 (fix B-2 + N-4 honesty items).
-  Rolling scratch SHA unchanged `29bbb2fc…`; fifteen requirements `passed`; NO marker (no PASS). Re-tasking
-  `p08-implementer-01` for rev-02
+- **Last ledger update:** 2026-07-26; **P08 / 02 PASSED, integrated, and HS-011 + HS-012 marked**.
+  Independent reviewer `p08-reviewer-01` returned VERDICT PASS (0 blocking) on `reviews/P08-review-02.md`
+  over `d2762f9..d40b854`; the flagged marker-vs-markerless design call was ruled (a) legitimate by the
+  reviewer on grounds independent of the test suite, so no adjudicator routing was needed. Commit A `a1e1b2d`
+  persisted the review + PASS event (P08 stayed `reviewing`). Commit B (this control commit) applied the two
+  authorized forward markers `specs/human-scratch.md:307` (HS-011) and `:313` (HS-012), each first line
+  `- [] ` -> `- [x] `; pre-change scratch SHA `29bbb2fc...` -> post-change `df8ad9ce...`; `git diff` exactly
+  the two checkbox-prefix-only lines, confirmed against a private `mktemp` copy before deletion. Post-marker
+  normalized-block check re-run **green**: 21 ordered SRC-HUMAN-SCRATCH blocks byte-match SCOPE, the 17
+  `[x]` IDs are exactly the authorized set, and `sha256sum specs/human-scratch.md` == new rolling
+  `df8ad9ce...`. P08 `reviewing -> passed`; HS-011 + HS-012 `queued -> passed` (**seventeen** requirements
+  now `passed`); FS-001 immutable/open. Newly dispatchable: P10 (HS-003) and P16E.
 
 ## Package ledger
 
@@ -66,7 +54,7 @@ wing -> changes_requested`; HANDOFF rescoped to rev-02 (fix B-2 + N-4 honesty it
 | P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | passed | 13 | `92dfd4d002e8bcb2a6694c35aff8f713ba4689dc..b34dcf6ad53b6bb3fc6482180d2b0aaedd7fc1bc` | `evidence/P05/implementation-13.md` | `reviews/P05-review-13.md` | `8101bb2355a9894dd5cac9540afd38045973dd01` |
 | P06     | HS-010         | Remove unused user-state storage and dead API surface                               | P04                  | passed | 01  | `a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1..95e91dbcb17ffb9600eaa6cb795336898297ebae` | `evidence/P06/implementation-01.md` | `reviews/P06-review-01.md` | `8e269ab9a6fc15ed6d845542b879e5499828134e` |
 | P07     | HS-011         | Evidence-led person/member/invite UX architecture and acceptance decision           | P04, P06             | passed | 04  | `fe1871ce7dce1e831b57ee5656d38ce5c800aae3..dfffea3c19b110b6021b050b8d9e36b01ae75ab9` | `evidence/P07/implementation-04.md` | `reviews/P07-review-04.md` | `1f6cb96b27c8093f0ba2c319f32d3c79c8aab126` |
-| P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | reviewing         | 02 | `d2762f9..d40b854`                                    | `evidence/P08/implementation-02.md` | `reviews/P08-review-02.md` | D-018 core; rev-02 B-2 fix under review     |
+| P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | passed            | 02 | `d2762f9..d40b854`                                    | `evidence/P08/implementation-02.md` | `reviews/P08-review-02.md` | PASS; A `a1e1b2d`; B markers HS-011/012    |
 | P09     | HS-006         | Loro UndoManager integration, controls, shortcuts and action grouping               | P01                  | passed       | 02 | `c9146fae2c5534313d21b4f34cb2b012eaeeb4ed..418234e28ac649e03ce8ad184d08a8a2f2416149` | `evidence/P09/implementation-02.md` | `reviews/P09-review-02.md` | `59bf82e894e45e034858e25255240701a3afb0b8` |
 | P10     | HS-003         | Encrypted Loro EphemeralStore presence and active transaction                       | P05, P08             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | passed | 04 | `eb5ab2e215130c358130d5411a92b51951c3c53a..fb72abdaf531dff40c59f6b3525fb1b9ce50f805` | `evidence/P11A/implementation-04.md` | `reviews/P11A-review-04.md` | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f` |
@@ -123,8 +111,8 @@ required marker rollbacks before the next dispatch.
 | HS-008      | human scratch block               | P14                          | authorized marker after package PASS       | passed       | P14 integration `a2182116db08200b8b4df28412512b9ca3406aa2`; `reviews/P14-review-04.md`; marker `b09454de… -> f0adfef6…` |
 | HS-009      | human scratch block               | P16A, P16C, P16D             | authorized marker after all package PASSes | passed | P16A integration `41f5760f77c1a93ab650a93912bfaf3c0b627ab0`, P16C `e0f06f7fb60ce08ef2f75b0a9ca7769630a2a55c`, P16D `47867d506978a3f571ef0feef6185e9436d5a908`; reviews `P16A-review-02.md`/`P16C-review-02.md`/`P16D-review-01.md`; marker `ce52d7df… -> 9a0f6633…` |
 | HS-010      | human scratch block               | P06                          | authorized marker after package PASS       | passed | P06 integration `8e269ab9a6fc15ed6d845542b879e5499828134e`; `reviews/P06-review-01.md`; marker `c74a2a78… -> 753be6b7…` |
-| HS-011      | human scratch block               | P07, P08                     | authorized marker after all package PASSes | queued | P07 PASS/integration `1f6cb96b27c8093f0ba2c319f32d3c79c8aab126`; P08 still required/gated; no marker |
-| HS-012      | human scratch block               | P08                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
+| HS-011      | human scratch block               | P07, P08                     | authorized marker after all package PASSes | passed | P07 PASS `1f6cb96b...` + P08 PASS integration A `a1e1b2d`; marker `:307` applied; rolling `df8ad9ce...` |
+| HS-012      | human scratch block               | P08                          | authorized marker after package PASS       | passed | P08 PASS integration A `a1e1b2d`; marker `:313` applied; rolling `df8ad9ce...` |
 | HS-013      | human scratch block               | P15                          | authorized marker after package PASS       | passed | P15 integration `9c5d7be8ee4cf7c3fda5f1a7320c053362672e3a`; `reviews/P15-review-02.md`; marker `f0adfef6… -> ce52d7df…` |
 | HS-014      | human scratch block               | P04                          | authorized marker after package PASS       | passed | P04 integration `b905ecb810334ed9697f57140047964135ade6ea`; `reviews/P04-review-02.md`; marker `db97178a… -> c74a2a78…` |
 | HS-015      | human scratch block               | P05                          | authorized marker after package PASS       | passed | marker `specs/human-scratch.md:325` `[x]`; review `reviews/P05-review-13.md` PASS 0 blocking; integration `8101bb2` |
@@ -3864,3 +3852,40 @@ members get no linked Person — the intended discriminator) carried forward, ne
 Control commit (Commit B) follows immediately: apply the authorized forward marker completing HS-012 AND
 HS-011 (its other package P07 already `passed`), flip P08 -> `passed`, advance the rolling scratch SHA.
 
+
+### 2026-07-26 — HS-011 + HS-012 completion_pending (authorized forward markers)
+
+Root-owned `completion_pending` for the two markers mapped to package **P08**. HS IDs: **HS-011** and
+**HS-012**. Exact pre-change scratch SHA-256
+`29bbb2fc970ceadc58e13d8216a35317663a0b5331a7ba6e5c9d44e4b2949a16` (equals rolling SHA; normalized blocks
+byte-match SCOPE in array order with the 15 currently-passed IDs checked, HS-011 and HS-012 still `[]`).
+Mapped package: **P08** `reviewing -> passed` — independent review `reviews/P08-review-02.md` VERDICT PASS 0
+blocking over `d2762f9..d40b854`, integration-persistence commit `a1e1b2d` (Commit A, which persisted the
+review and appended the PASS event). HS-011 requires ALL its mapped packages passed (P07 integration
+`1f6cb96b27c8093f0ba2c319f32d3c79c8aab126` + P08 now passed) — both satisfied; HS-012 maps to P08 only.
+Intended marker changes: `specs/human-scratch.md:307` first line `- [] ` -> `- [x] ` for the HS-011 block
+(lines 307-311 per `SCOPE.json#sourceLineRange`) and `:313` for the HS-012 block (lines 313-315). While this
+event is pending, no package dispatch is allowed. A private `mktemp` copy of the scratch file was taken for
+exact-diff comparison. Finalization follows in this same control commit after the markers are applied and
+re-verified.
+
+### 2026-07-26 — HS-011 + HS-012 completion finalize (authorized forward markers) + P08 control
+
+Root-owned finalize of the `completion_pending` above. **HS-011** marker applied at
+`specs/human-scratch.md:307` and **HS-012** at `:313`: each block's first line `- [] ` -> `- [x] `.
+Pre-change scratch SHA-256 `29bbb2fc970ceadc58e13d8216a35317663a0b5331a7ba6e5c9d44e4b2949a16` -> post-change
+`df8ad9cee30241f4d7be34a3a8e1388a6d0bbf116820b64786b3b6940c840cf3`; `git diff` on the scratch is exactly two
+changed lines (`307c307` and `313c313`, checkbox prefix only) and the private `mktemp` diff comparison
+confirmed it before deletion. Post-marker normalized-block check re-run **green**: exactly 21 ordered
+SRC-HUMAN-SCRATCH blocks in SCOPE array order, all 17 currently-passed IDs (adding HS-011 and HS-012)
+byte-identical to `SCOPE.json#sourceTextLines`, every `[x]` legitimate, and `sha256sum specs/human-scratch.md`
+== new rolling `df8ad9ce...`. Package **P08** `reviewing -> passed` citing integration commit `a1e1b2d`
+(Commit A, which persisted `reviews/P08-review-02.md` and appended the PASS event);
+`evidence/P08/implementation-02.md` persisted in this control commit. Requirements **HS-011** and **HS-012**
+`queued -> passed`, mapped package P08 review `reviews/P08-review-02.md` VERDICT PASS 0 blocking; the
+implementer's flagged marker-vs-markerless design call was ruled (a) legitimate by the reviewer on grounds
+independent of the test suite, so no independent-adjudicator routing was required. Rolling scratch SHA advanced
+to `df8ad9ce...`; authorized checked HS IDs += HS-011, HS-012 (**seventeen**). Seventeen requirements now
+`passed`; FS-001 immutable/open. P08's pass unblocks **P10** (HS-003; deps P08) and **P16E** (deps P16D, P08,
+P11C — all passed). No dispatch was active while `completion_pending`. Next: rewrite HANDOFF and dispatch P10
+(HS-003), noting P16E is co-dispatchable.

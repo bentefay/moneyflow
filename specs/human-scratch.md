@@ -304,13 +304,13 @@
 - [x] We should drop the user state column from the user table until we use it (we'd want it to use
   the same sync and crdt logic, which is unnecessary complexity at this point).
 
-- [] What is the current UX for adding a new user to a vault? I thought we had an invite flow? But I
+- [x] What is the current UX for adding a new user to a vault? I thought we had an invite flow? But I
   can't see it? Does it make sense that each user must be a person in the vault? You can then
   optionally invite that person to join the vault as a user? So the person page is also used for
   managing users that have access to the vault? Or perhaps users with access should live in vault
   settings?
 
-- [] There should be a person created for each user automatically, person should have an optional
+- [x] There should be a person created for each user automatically, person should have an optional
   user id (pub key hash?) and the person name should become optional and uses the user name as a
   fallback if it has an associated user.
 
