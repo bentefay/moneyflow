@@ -91,13 +91,16 @@ export function VaultProvider({ children, registerDisconnect }: VaultProviderPro
     useEffect(() => {
         trpcUtilsRef.current = trpcUtils;
     }, [trpcUtils]);
+    // Sync reads go through the direct client, never the React Query cache. `utils.*.fetch()`
+    // honours the 60s default `staleTime`, so a catch-up triggered by foregrounding or reconnecting
+    // would be answered from cache and silently drop the very operations it exists to recover.
     const getSnapshot = useCallback(
-        (input: { vaultId: string }) => trpcUtilsRef.current.sync.getSnapshot.fetch(input),
+        (input: { vaultId: string }) => trpcUtilsRef.current.client.sync.getSnapshot.query(input),
         []
     );
     const getUpdates = useCallback(
         (input: { vaultId: string; versionVector: string; hasUnpushed: boolean }) =>
-            trpcUtilsRef.current.sync.getUpdates.fetch(input),
+            trpcUtilsRef.current.client.sync.getUpdates.query(input),
         []
     );
     const pushOps = useCallback(
