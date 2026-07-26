@@ -7,28 +7,8 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P16E / 02 (FS-001 final package) **reviewing**. Implementer `p16e-implementer-02`
-  handed back `ready_for_review` at HEAD `bb12e0c` (one product commit `bb12e0c` fixing F-1, on top of the
-  root ledger commits above the rev-01 product `be82ad0`; cumulative review range `191d070..bb12e0c`). Root
-  independently verified handback integrity (verify-not-trust): the rev-02 delta `d79a630..bb12e0c` touches
-  EXACTLY the 3 authorized paths (`transactions/page.tsx`, `people/README.md`,
-  `tests/e2e/people-settlement.spec.ts`), zero forbidden writes; EMPTY diff over `src/lib/**`, the P16D grid
-  (byte-identical), migrations, the realtime paths and any `vault_ops`; the F-1 root cause is removed
-  (`selectedTransactionIds` reverted to the param-free BASE form `selectedIds ∩ displayedTransactionIds`; the
-  deep link is now a one-shot `landedSourceId` guard + `router.replace`); single engine intact
-  (`calculateSettlementBalances` sole def, consumers `BalanceSummary.tsx` + re-export); no cache; two new F-1
-  E2E regressions present; evidence uncommitted; no premature review file. A DISTINCT reviewer
-  `p16e-reviewer-02` (NOT `p16e-implementer-02`, NOT `p16e-reviewer-01`) is verifying `191d070..bb12e0c`,
-  reproducing the F-1 fix in-app, re-running all gates, and confirming no regression of rev-01's passing §7/
-  §12/§13/§14/§15.3 acceptance. Calls A (benchmark, Q-033/R-020) and B (console allowlist) are SETTLED from
-  rev-01 and not re-litigated (rev-02 touched no engine). Rolling scratch SHA `df8ad9ce…` unchanged; seventeen
-  requirements `passed`; FS-001 immutable/open
-- **Next action:** await `p16e-reviewer-02` VERDICT on `reviews/P16E-review-02.md` over `191d070..bb12e0c`.
-  On PASS: two-commit integration (A: reviewing->PASS event + persist review; B: control setting P16E
-  `passed`), then complete **FS-001** by verifying the canonical source is byte-identical at `0d0e2a14…` /
-  715 lines / 25,441 bytes WITHOUT editing it (no scratch marker — FS-001 has no checkbox), setting FS-001
-  `passed`. That makes P17A dispatchable; P10 (HS-003) remains co-dispatchable. On CHANGES_REQUESTED:
-  persist the failed review/evidence, transcribe proposals, rescope HANDOFF to rev-03
+- **Current package:** none active. P16E / 02 PASSED and **FS-001 completed** this turn (18/22 requirements `passed`). P16E rev-02 review `reviews/P16E-review-02.md` VERDICT PASS over `191d070..bb12e0c`; two-commit PASS integration A `b0023f6` (persist review + evidence + PASS event + R-034) then B (control: P16E `reviewing -> passed`, FS-001 `queued -> passed`). FS-001 completed markerless by verifying the canonical source `specs/008-transaction-percentage-allocations-settlement/spec.md` byte-identical at `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c` / 715 lines / 25,441 bytes WITHOUT editing it (FS-001 has no scratch checkbox). All five packages P16A-P16E now `passed`. Rolling scratch SHA `df8ad9ce…` unchanged (no HS marker for FS-001).
+- **Next action:** recompute the dispatchable set and resume the serial loop, setting exactly one package to `implementing`. With FS-001 done, P17A becomes dispatchable and P10 (HS-003) remains co-dispatchable; dispatch the next package serially (rewrite HANDOFF, spawn a fresh implementer, arm implementer-liveness cron). Also delete the P16E reviewer-liveness cron `deac2fb8`. Remaining packages: P10, P17A-D, P20A/B, P21; remaining requirements: HS-003, HS-007, HS-016, HS-021.
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -73,7 +53,7 @@ review evidence.
 | P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | passed | 05 | `4c102600240e2804b801c2a320e10164defb14ea..46d8f9feb79c6dfc080c0869922fb8cd4c20ec6c` | `evidence/P16B/implementation-05.md` | `reviews/P16B-review-05.md` | `136678a0ac864cf2d120b2b5b896d4fadcabcdd1` |
 | P16C    | FS-001, HS-009 | CRDT per-key/complete-set APIs and every mutation, hydration and history path       | P16A, P16B, P09, P14 | passed | 02 | `0a7c9a49722ddc4d955f910af6dbb19cfffbd600..207e8c5758a48e66980b95eaeff51c0e5a605f7e` | `evidence/P16C/implementation-02.md` | `reviews/P16C-review-02.md` | `e0f06f7fb60ce08ef2f75b0a9ca7769630a2a55c` |
 | P16D    | FS-001, HS-009 | Actual grid/add-row person columns, virtualization, history and presence UX         | P16C, P13            | passed       | 01  | `3a5081ac37e09817e0d02ae8799469d1bf09dad5..b5ebc2a8edbf5e1fc522873fb5ee7455266a3bcc` | `evidence/P16D/implementation-01.md` | `reviews/P16D-review-01.md` | `47867d506978a3f571ef0feef6185e9436d5a908` |
-| P16E    | FS-001         | People obligations/issues/source UX plus full integration, E2E, manual and perf     | P16D, P08, P11C      | reviewing     | 02  | `191d070..bb12e0c`                                                                   | `evidence/P16E/implementation-02.md` | `reviews/P16E-review-02.md` | rev-01 FAIL `839665d`; rev-02 handback verified; p16e-reviewer-02 dispatched |
+| P16E    | FS-001         | People obligations/issues/source UX plus full integration, E2E, manual and perf     | P16D, P08, P11C      | passed        | 02  | `191d070..bb12e0c`                                                                   | `evidence/P16E/implementation-02.md` | `reviews/P16E-review-02.md` | PASS; A `b0023f6`; B control -> passed (FS-001 markerless) |
 | P17A    | HS-007         | Automation schema/migration, exact matcher, precedence, preferences, import engine  | P11C, P14, P16E      | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P17B    | HS-007         | Shared rule editor and automations-page UX                                          | P17A, P02            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P17C    | HS-007         | Description inline proposals, robot drift state and scoped application              | P17B                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -127,7 +107,7 @@ required marker rollbacks before the next dispatch.
 | HS-019      | human scratch block               | P18                          | authorized marker after package PASS       | passed | P18 integration `fa9ae8d0b6b7948bd2c4a508ad869d5d6955a6a1`; `reviews/P18-review-01.md`; marker `9a0f6633… -> c4121a48…` |
 | HS-020      | human scratch block               | P19                          | authorized marker after package PASS       | passed | P19 integration `c06c851669f00093d1c78653125f784a48b1ed80`; `reviews/P19-review-02.md`; marker `c4121a48… -> ddd53142…` |
 | HS-021      | human scratch block               | P20B                         | authorized marker after package PASS       | queued       | —                                                                                                                       |
-| FS-001      | immutable whole-file feature spec | P16A, P16B, P16C, P16D, P16E | ledger completion; source never edited     | queued       | —                                                                                                                       |
+| FS-001      | immutable whole-file feature spec | P16A, P16B, P16C, P16D, P16E | ledger completion; source never edited     | passed       | P16A `41f5760f77c1a93ab650a93912bfaf3c0b627ab0`, P16B `136678a0ac864cf2d120b2b5b896d4fadcabcdd1`, P16C `e0f06f7fb60ce08ef2f75b0a9ca7769630a2a55c`, P16D `47867d506978a3f571ef0feef6185e9436d5a908`, P16E A `b0023f6`; reviews `P16A-review-02.md`/`P16B-review-05.md`/`P16C-review-02.md`/`P16D-review-01.md`/`P16E-review-02.md`; canonical `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c` 715 lines/25,441 bytes verified byte-identical, source never edited |
 
 ## Package event log
 
@@ -4125,3 +4105,9 @@ accessible name degrades to `"Select transaction "` when a row description is em
 discoverable/focusable/keyboard-operable by role). Routed to P21 as **R-034**. Root acceptance and the
 `reviewing -> passed` control + FS-001 completion follow in the next control commit. Rolling scratch SHA
 unchanged `df8ad9ce…`; seventeen requirements `passed`; FS-001 immutable/open.
+
+### 2026-07-27 — P16E/02 reviewing -> passed; FS-001 completed (control commit)
+
+Control commit (Commit B) of the two-commit PASS integration; Commit A was `b0023f6` (persisted the immutable rev-02 PASS review `reviews/P16E-review-02.md`, the evidence `evidence/P16E/implementation-02.md`, the PASS recommendation event, and R-034). Preconditions re-verified at `b0023f6` immediately before this commit: product tree untouched (only the benign untracked `evidence/P08/implementation-01.md`), P16E review first line `VERDICT: PASS`, P16A-P16D all `passed`, canonical FS-001 source byte-identical (`0d0e2a14…` / 715 / 25,441), canary == 1.
+
+This commit: (1) P16E package row `reviewing -> passed`, integration `PASS; A `b0023f6`; B control`; (2) **FS-001 completed** — requirement row `queued -> passed`. FS-001 is the immutable whole-file feature spec and is markerless (no scratch checkbox), so completion is recorded purely by ledger after all five mapped packages (P16A `41f5760f…`, P16B `136678a0…`, P16C `e0f06f7f…`, P16D `47867d50…`, P16E) passed independent review, and by verifying the canonical source `specs/008-transaction-percentage-allocations-settlement/spec.md` is byte-identical at SHA-256 `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines, 25,441 bytes — WITHOUT editing it. No scratch marker applied; rolling scratch SHA `df8ad9ce…` unchanged. Eighteen of twenty-two requirements now `passed` (HS-003, HS-007, HS-016, HS-021 remain). Reviewer-liveness cron `deac2fb8` to be deleted. Next: recompute the dispatchable set and dispatch the next package serially (P17A dispatchable; P10/HS-003 co-dispatchable).
