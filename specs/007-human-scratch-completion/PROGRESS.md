@@ -7,19 +7,25 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** none active — **P08 / 02 PASSED** and integrated. Independent reviewer
-  `p08-reviewer-01` returned VERDICT PASS (0 blocking) on `reviews/P08-review-02.md` over `d2762f9..d40b854`;
-  root verified every load-bearing fact (B-2 closed on the member's real journey, permanent-miss fragility
-  removed, E2E RED->GREEN asserting on the member app, N-4a/b/c, no rev-01 DoD/gate regression) and confirmed
-  the flagged marker-vs-markerless design call was ruled **(a) legitimate BY THE REVIEWER on grounds
-  independent of the test suite** — so no independent-adjudicator routing was required. Two-commit integration
-  complete: Commit A `a1e1b2d` (reviewing->PASS event + persisted review); Commit B (this control commit)
-  applied the authorized forward markers for **HS-011** (`specs/human-scratch.md:307`) and **HS-012** (`:313`),
-  advanced the rolling SHA to `df8ad9ce...`, and flipped P08 `reviewing -> passed`. Newly dispatchable: **P10**
-  (HS-003; deps P08 now passed) and **P16E** (deps P16D, P08, P11C — all passed)
-- **Next action:** rewrite HANDOFF and dispatch **P10** (HS-003) at the current product HEAD; note **P16E** is
-  now co-dispatchable (deps P16D, P08, P11C all `passed`). Remaining after P08: P10, P16E, P17A-D, P20A/P20B,
-  P21; requirements HS-003, HS-007, HS-016, HS-021 + FS-001. Keep FS-001 immutable/open
+- **Current package:** P16E / 01 (FS-001 final package) **implementing**. All P16A–D allocation work,
+  P08 people/member work and P11C alias flows are `passed` and in the tree at BASE
+  `191d0707f5e6dbfa5871dbddaa7318b9a14885dd`. P16E delivers the canonical People-page settlement
+  experience: obligations in separate per-currency sections (no cross-currency total), expand-to-
+  contributing-transactions with "View transaction" source navigation into the existing P16D grid,
+  the distinct settled / neutral / Settlement-incomplete-with-count / multi-currency / deleted-unknown
+  states, and integrated memoization/performance hardening. Mandatory coverage: a named E2E for EACH
+  canonical example A–H against the production settlement path plus the 12-step end-to-end journey and
+  the additional matrices, with a linked production benchmark. Consumes the SOLE P16B engine
+  `src/lib/domain/settlement.ts` (no second engine, no settlement cache). Dispatched
+  `general-purpose` as `p16e-implementer-01`. On PASS, FS-001's five packages are all `passed` → FS-001
+  completes via canonical-source byte-identity verification (no marker). Downstream: P16E -> P17A-D
+  (HS-007) -> P20A (HS-016) / P20B (HS-021) -> P21
+- **Next action:** await `p16e-implementer-01` `ready_for_review` at a literal HEAD over `191d070..HEAD`.
+  Verify handback integrity (only People/settlement-display + test + doc paths; EMPTY diff over
+  `vault_ops`/migration/P04/P05; single settlement engine preserved; no settlement cache; all eight
+  example E2Es + 12-step journey genuinely present and green; benchmark linked), then set `reviewing`
+  and dispatch a DISTINCT `human_scratch_reviewer` over `191d070..HEAD`. P10 (HS-003) remains the other
+  independently-dispatchable package but the loop is serial. Keep FS-001 immutable/open
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -29,18 +35,19 @@ review evidence.
   HS-011, HS-012, HS-013, HS-014, HS-015, HS-017, HS-018, HS-019, HS-020
 - **Active completion marker event:** none
 - **Active P21 rollback batch:** none
-- **Last ledger update:** 2026-07-26; **P08 / 02 PASSED, integrated, and HS-011 + HS-012 marked**.
-  Independent reviewer `p08-reviewer-01` returned VERDICT PASS (0 blocking) on `reviews/P08-review-02.md`
-  over `d2762f9..d40b854`; the flagged marker-vs-markerless design call was ruled (a) legitimate by the
-  reviewer on grounds independent of the test suite, so no adjudicator routing was needed. Commit A `a1e1b2d`
-  persisted the review + PASS event (P08 stayed `reviewing`). Commit B (this control commit) applied the two
-  authorized forward markers `specs/human-scratch.md:307` (HS-011) and `:313` (HS-012), each first line
-  `- [] ` -> `- [x] `; pre-change scratch SHA `29bbb2fc...` -> post-change `df8ad9ce...`; `git diff` exactly
-  the two checkbox-prefix-only lines, confirmed against a private `mktemp` copy before deletion. Post-marker
-  normalized-block check re-run **green**: 21 ordered SRC-HUMAN-SCRATCH blocks byte-match SCOPE, the 17
-  `[x]` IDs are exactly the authorized set, and `sha256sum specs/human-scratch.md` == new rolling
-  `df8ad9ce...`. P08 `reviewing -> passed`; HS-011 + HS-012 `queued -> passed` (**seventeen** requirements
-  now `passed`); FS-001 immutable/open. Newly dispatchable: P10 (HS-003) and P16E.
+- **Last ledger update:** 2026-07-27; **P16E / 01 dispatched** (FS-001 final package). With P08 `passed`,
+  root recomputed the dispatchable set: P16E (deps P16D, P08, P11C — all `passed`) and P10 (deps P05, P08)
+  are both dispatchable; the loop is serial and P16E is on the deep critical chain
+  (P16E -> P17A-D -> P20A/P20B -> P21) AND is FS-001's last package, so it goes first. HANDOFF rewritten for
+  P16E / 01 at BASE `191d0707f5e6dbfa5871dbddaa7318b9a14885dd`, scoped to the P16E slice ONLY (People-page
+  canonical obligations by currency with no cross-currency total, expand-to-source + "View transaction"
+  navigation, distinct settlement states, memoization/perf hardening) and the mandatory named E2E per
+  canonical example A–H + the 12-step journey + benchmark. Binds the full canonical source
+  `specs/008-.../spec.md` (`0d0e2a14…`) with P16E-relevant sections routed. Consumes the SOLE P16B engine
+  and P16A/P16C/P16D contracts — no duplicate engine, no settlement cache, EMPTY `vault_ops`/migration/
+  P04/P05 diff. Dispatched `general-purpose` as `p16e-implementer-01`; sole artifact
+  `evidence/P16E/implementation-01.md` (uncommitted), future review `reviews/P16E-review-01.md`. Rolling
+  scratch SHA unchanged `df8ad9ce…`; seventeen requirements `passed`; FS-001 immutable/open; no marker
 
 ## Package ledger
 
@@ -68,7 +75,7 @@ review evidence.
 | P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | passed | 05 | `4c102600240e2804b801c2a320e10164defb14ea..46d8f9feb79c6dfc080c0869922fb8cd4c20ec6c` | `evidence/P16B/implementation-05.md` | `reviews/P16B-review-05.md` | `136678a0ac864cf2d120b2b5b896d4fadcabcdd1` |
 | P16C    | FS-001, HS-009 | CRDT per-key/complete-set APIs and every mutation, hydration and history path       | P16A, P16B, P09, P14 | passed | 02 | `0a7c9a49722ddc4d955f910af6dbb19cfffbd600..207e8c5758a48e66980b95eaeff51c0e5a605f7e` | `evidence/P16C/implementation-02.md` | `reviews/P16C-review-02.md` | `e0f06f7fb60ce08ef2f75b0a9ca7769630a2a55c` |
 | P16D    | FS-001, HS-009 | Actual grid/add-row person columns, virtualization, history and presence UX         | P16C, P13            | passed       | 01  | `3a5081ac37e09817e0d02ae8799469d1bf09dad5..b5ebc2a8edbf5e1fc522873fb5ee7455266a3bcc` | `evidence/P16D/implementation-01.md` | `reviews/P16D-review-01.md` | `47867d506978a3f571ef0feef6185e9436d5a908` |
-| P16E    | FS-001         | People obligations/issues/source UX plus full integration, E2E, manual and perf     | P16D, P08, P11C      | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
+| P16E    | FS-001         | People obligations/issues/source UX plus full integration, E2E, manual and perf     | P16D, P08, P11C      | implementing  | 01  | `191d070..pending`                                                                   | `evidence/P16E/implementation-01.md` | `reviews/P16E-review-01.md` | FS-001 final package; dispatched p16e-implementer-01 |
 | P17A    | HS-007         | Automation schema/migration, exact matcher, precedence, preferences, import engine  | P11C, P14, P16E      | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P17B    | HS-007         | Shared rule editor and automations-page UX                                          | P17A, P02            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P17C    | HS-007         | Description inline proposals, robot drift state and scoped application              | P17B                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -3889,3 +3896,39 @@ to `df8ad9ce...`; authorized checked HS IDs += HS-011, HS-012 (**seventeen**). S
 `passed`; FS-001 immutable/open. P08's pass unblocks **P10** (HS-003; deps P08) and **P16E** (deps P16D, P08,
 P11C — all passed). No dispatch was active while `completion_pending`. Next: rewrite HANDOFF and dispatch P10
 (HS-003), noting P16E is co-dispatchable.
+
+### 2026-07-27 — P16E/01 dispatch (FS-001 final package: People-page settlement experience)
+
+With **P08** `passed`, root recomputed the dispatchable set. Two packages are dispatchable — **P16E**
+(deps P16D, P08, P11C — all `passed`) and **P10** (deps P05, P08 — both `passed`) — and are independent of
+each other. The root loop is serial (PROCESS step 3: exactly one package `implementing`). P16E is chosen
+first because it sits on the deep remaining critical chain (P16E -> P17A -> P17B -> P17C -> P17D -> P20A ->
+P20B -> P21) AND is the FINAL package of FS-001 (P16A–D already `passed`); P10 is a leaf feeding only HS-003
+and can follow. HANDOFF rewritten for **P16E / 01** at BASE `191d0707f5e6dbfa5871dbddaa7318b9a14885dd`
+(current HEAD; all P16A–D allocation work, P08 people/member work and P11C alias flows are in this tree),
+root reviews `191d070..HEAD`. Scoped to the P16E slice of FS-001 ONLY: replace the People summary
+(`src/components/features/people/BalanceSummary.tsx` from `src/app/(app)/people/page.tsx`) with the
+canonical structured obligations grouped in separate per-currency sections (never a combined cross-currency
+total), highlight the linked Person; expand each obligation to contributing transactions (date, resolved
+description/alias, account, signed contribution, explicit/effective allocations) with a "View transaction"
+affordance that focuses the STABLE source transaction ID in the existing P16D grid; the distinct states
+(everyone-settled only with no obligations AND no issues; neutral no-qualifying-paid; prominent
+"Settlement incomplete" with affected count/reasons; multi-currency; deleted/unknown stable labels); and
+integrated memoization/performance hardening with NO settlement cache. Mandatory coverage: a named E2E for
+EACH canonical example A–H (§7) against the production settlement path — all eight individually required,
+no substitute — plus the 12-step end-to-end journey (§15.3) and the additional matrices (add row, imported
+edit, joint ownership, multi-currency, historical Person, invalid warnings, collaboration, keyboard,
+responsive/horizontal scroll, dark/reduced-motion, accessibility, console/network, retries-disabled
+repeats), with a linked production benchmark (near-linear engine, <100ms interaction, preserved
+virtualization, 100k). Binds the whole canonical source `specs/008-.../spec.md` SHA-256 `0d0e2a14…`; P16E
+MUST consume the SOLE P16B engine `src/lib/domain/settlement.ts` and the P16A/P16C/P16D contracts — no
+second/duplicate settlement engine, no settlement cache/persistence, and an EMPTY diff over
+`supabase/migrations/**` and the `vault_ops`/P04/P05 boundary. Dispatched `general-purpose` as
+`p16e-implementer-01` (role: human_scratch_implementer). Sole implementer artifact
+`evidence/P16E/implementation-01.md` (uncommitted); future immutable review `reviews/P16E-review-01.md`.
+P16E state `queued -> implementing`, revision 01. Rolling scratch SHA unchanged `df8ad9ce…`; seventeen
+requirements `passed`; FS-001 immutable/open; no marker until FS-001's completion is recorded after P16E
+PASS. On PASS: two-commit integration (A: reviewing->PASS event + persist review; B: control setting P16E
+`passed`); then FS-001 completes by verifying the canonical source remains byte-identical at `0d0e2a14…`,
+715 lines / 25,441 bytes, recording completion WITHOUT editing it (no scratch marker — FS-001 has no
+checkbox). Next after P16E PASS: dispatch P10 (HS-003) and, once P16E passed, P17A becomes dispatchable.
