@@ -7,25 +7,29 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P16E / 01 (FS-001 final package) **implementing**. All P16A–D allocation work,
-  P08 people/member work and P11C alias flows are `passed` and in the tree at BASE
-  `191d0707f5e6dbfa5871dbddaa7318b9a14885dd`. P16E delivers the canonical People-page settlement
-  experience: obligations in separate per-currency sections (no cross-currency total), expand-to-
-  contributing-transactions with "View transaction" source navigation into the existing P16D grid,
-  the distinct settled / neutral / Settlement-incomplete-with-count / multi-currency / deleted-unknown
-  states, and integrated memoization/performance hardening. Mandatory coverage: a named E2E for EACH
-  canonical example A–H against the production settlement path plus the 12-step end-to-end journey and
-  the additional matrices, with a linked production benchmark. Consumes the SOLE P16B engine
-  `src/lib/domain/settlement.ts` (no second engine, no settlement cache). Dispatched
-  `general-purpose` as `p16e-implementer-01`. On PASS, FS-001's five packages are all `passed` → FS-001
-  completes via canonical-source byte-identity verification (no marker). Downstream: P16E -> P17A-D
-  (HS-007) -> P20A (HS-016) / P20B (HS-021) -> P21
-- **Next action:** await `p16e-implementer-01` `ready_for_review` at a literal HEAD over `191d070..HEAD`.
-  Verify handback integrity (only People/settlement-display + test + doc paths; EMPTY diff over
-  `vault_ops`/migration/P04/P05; single settlement engine preserved; no settlement cache; all eight
-  example E2Es + 12-step journey genuinely present and green; benchmark linked), then set `reviewing`
-  and dispatch a DISTINCT `human_scratch_reviewer` over `191d070..HEAD`. P10 (HS-003) remains the other
-  independently-dispatchable package but the loop is serial. Keep FS-001 immutable/open
+- **Current package:** P16E / 01 (FS-001 final package) **reviewing**. Implementer `p16e-implementer-01`
+  handed back `ready_for_review` at HEAD `be82ad0` (one product commit `be82ad0` on top of the docs-only
+  dispatch `1712d29`; review range `191d070..be82ad0`). Root independently verified handback integrity:
+  the product commit touches EXACTLY 12 authorized paths (`src/components/features/people/**`, the flagged
+  `src/app/(app)/transactions/page.tsx` source-navigation glue, `README.md`, and `tests/**`), zero
+  forbidden writes; EMPTY diff over `supabase/migrations/**`, the realtime/`vault_ops` boundary and the
+  P16D grid (`src/components/features/transactions/` byte-identical); single settlement engine preserved
+  (`calculateSettlementBalances` defined only in `settlement.ts`, re-exported once, consumed only in
+  `BalanceSummary.tsx`); no settlement cache; evidence uncommitted. A DISTINCT reviewer
+  (`p16e-reviewer-01`, not the implementer) is verifying `191d070..be82ad0` against §7/§12/§13/§14/§15.3,
+  re-running all gates, and adjudicating two implementer-flagged calls: (A) the ~0.8s-vs-~200ms benchmark
+  shortfall — legitimate §14 measured-evidence branch vs genuine scope reduction (if the latter, flag to
+  root for INDEPENDENT adjudication, not self-resolve); (B) the E2E console allowlist not masking real
+  errors. Downstream: P16E -> P17A-D (HS-007) -> P20A (HS-016) / P20B (HS-021) -> P21; P10 (HS-003) is the
+  other independently-dispatchable package (serial loop)
+- **Next action:** await `p16e-reviewer-01` VERDICT on `reviews/P16E-review-01.md` over `191d070..be82ad0`.
+  On PASS (both flagged calls resolved on the merits, or benchmark routed to an independent adjudicator if
+  the reviewer deems it a genuine scope reduction): two-commit integration (A: reviewing->PASS event +
+  persist review; B: control setting P16E `passed`), then complete **FS-001** by verifying the canonical
+  source is byte-identical at `0d0e2a14…` / 715 lines / 25,441 bytes and recording completion WITHOUT
+  editing it (FS-001 has no scratch marker). On CHANGES_REQUESTED: persist the failed review/evidence,
+  transcribe proposals, set `changes_requested`, rescope HANDOFF to rev-02. Then P17A becomes dispatchable
+  and P10 remains dispatchable. Keep FS-001 immutable/open until its completion is recorded
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -35,19 +39,17 @@ review evidence.
   HS-011, HS-012, HS-013, HS-014, HS-015, HS-017, HS-018, HS-019, HS-020
 - **Active completion marker event:** none
 - **Active P21 rollback batch:** none
-- **Last ledger update:** 2026-07-27; **P16E / 01 dispatched** (FS-001 final package). With P08 `passed`,
-  root recomputed the dispatchable set: P16E (deps P16D, P08, P11C — all `passed`) and P10 (deps P05, P08)
-  are both dispatchable; the loop is serial and P16E is on the deep critical chain
-  (P16E -> P17A-D -> P20A/P20B -> P21) AND is FS-001's last package, so it goes first. HANDOFF rewritten for
-  P16E / 01 at BASE `191d0707f5e6dbfa5871dbddaa7318b9a14885dd`, scoped to the P16E slice ONLY (People-page
-  canonical obligations by currency with no cross-currency total, expand-to-source + "View transaction"
-  navigation, distinct settlement states, memoization/perf hardening) and the mandatory named E2E per
-  canonical example A–H + the 12-step journey + benchmark. Binds the full canonical source
-  `specs/008-.../spec.md` (`0d0e2a14…`) with P16E-relevant sections routed. Consumes the SOLE P16B engine
-  and P16A/P16C/P16D contracts — no duplicate engine, no settlement cache, EMPTY `vault_ops`/migration/
-  P04/P05 diff. Dispatched `general-purpose` as `p16e-implementer-01`; sole artifact
-  `evidence/P16E/implementation-01.md` (uncommitted), future review `reviews/P16E-review-01.md`. Rolling
-  scratch SHA unchanged `df8ad9ce…`; seventeen requirements `passed`; FS-001 immutable/open; no marker
+- **Last ledger update:** 2026-07-27; **P16E / 01 handback verified and dispatched for independent review**.
+  `p16e-implementer-01` returned `ready_for_review` at HEAD `be82ad0` (one product commit on top of docs
+  dispatch `1712d29`). Root independently verified: product diff = EXACTLY 12 authorized paths
+  (People/settlement UI + flagged `transactions/page.tsx` navigation glue + tests + docs), zero forbidden
+  writes; EMPTY diff over migrations, realtime/`vault_ops` and the P16D grid (byte-identical); single
+  settlement engine (`settlement.ts` sole def, one re-export, sole consumer `BalanceSummary.tsx`); no
+  settlement cache; evidence uncommitted; no premature review file. P16E `implementing -> reviewing`; rev
+  stays 01. DISTINCT reviewer `p16e-reviewer-01` dispatched over `191d070..be82ad0` with two flagged calls
+  routed for explicit adjudication: (A) ~0.8s vs ~200ms benchmark (rule §14 measured-evidence branch vs
+  scope reduction; if scope reduction, flag to root for independent adjudicator); (B) E2E console allowlist.
+  Rolling scratch SHA unchanged `df8ad9ce…`; seventeen requirements `passed`; FS-001 immutable/open; no marker
 
 ## Package ledger
 
@@ -75,7 +77,7 @@ review evidence.
 | P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | passed | 05 | `4c102600240e2804b801c2a320e10164defb14ea..46d8f9feb79c6dfc080c0869922fb8cd4c20ec6c` | `evidence/P16B/implementation-05.md` | `reviews/P16B-review-05.md` | `136678a0ac864cf2d120b2b5b896d4fadcabcdd1` |
 | P16C    | FS-001, HS-009 | CRDT per-key/complete-set APIs and every mutation, hydration and history path       | P16A, P16B, P09, P14 | passed | 02 | `0a7c9a49722ddc4d955f910af6dbb19cfffbd600..207e8c5758a48e66980b95eaeff51c0e5a605f7e` | `evidence/P16C/implementation-02.md` | `reviews/P16C-review-02.md` | `e0f06f7fb60ce08ef2f75b0a9ca7769630a2a55c` |
 | P16D    | FS-001, HS-009 | Actual grid/add-row person columns, virtualization, history and presence UX         | P16C, P13            | passed       | 01  | `3a5081ac37e09817e0d02ae8799469d1bf09dad5..b5ebc2a8edbf5e1fc522873fb5ee7455266a3bcc` | `evidence/P16D/implementation-01.md` | `reviews/P16D-review-01.md` | `47867d506978a3f571ef0feef6185e9436d5a908` |
-| P16E    | FS-001         | People obligations/issues/source UX plus full integration, E2E, manual and perf     | P16D, P08, P11C      | implementing  | 01  | `191d070..pending`                                                                   | `evidence/P16E/implementation-01.md` | `reviews/P16E-review-01.md` | FS-001 final package; dispatched p16e-implementer-01 |
+| P16E    | FS-001         | People obligations/issues/source UX plus full integration, E2E, manual and perf     | P16D, P08, P11C      | reviewing     | 01  | `191d070..be82ad0`                                                                   | `evidence/P16E/implementation-01.md` | `reviews/P16E-review-01.md` | handback verified; dispatched distinct p16e-reviewer-01 |
 | P17A    | HS-007         | Automation schema/migration, exact matcher, precedence, preferences, import engine  | P11C, P14, P16E      | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P17B    | HS-007         | Shared rule editor and automations-page UX                                          | P17A, P02            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P17C    | HS-007         | Description inline proposals, robot drift state and scoped application              | P17B                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -3932,3 +3934,37 @@ PASS. On PASS: two-commit integration (A: reviewing->PASS event + persist review
 `passed`); then FS-001 completes by verifying the canonical source remains byte-identical at `0d0e2a14…`,
 715 lines / 25,441 bytes, recording completion WITHOUT editing it (no scratch marker — FS-001 has no
 checkbox). Next after P16E PASS: dispatch P10 (HS-003) and, once P16E passed, P17A becomes dispatchable.
+
+### 2026-07-27 — P16E/01 ready_for_review handback verified; dispatched distinct reviewer
+
+Implementer `p16e-implementer-01` messaged `ready_for_review` for P16E/01 at final HEAD
+`be82ad0622086759365d38a74982f492d1d9fc59` (one product commit `be82ad0` — "feat(P16E): render canonical
+settlement on the People page" — on top of root's docs-only dispatch commit `1712d29`; review range
+`191d070..be82ad0`). Root independently verified handback integrity (verify-not-trust) BEFORE accepting:
+(1) the product commit touches EXACTLY 12 authorized paths — `BalanceSummary.tsx`, new `settlement-view.ts`
+and `settlement-allocations.ts`, `PeopleTable.tsx`, `people/index.ts`, `people/README.md`, root `README.md`,
+the flagged `src/app/(app)/transactions/page.tsx` (the HANDOFF-permitted minimal open+focus-source glue),
+and four test files — with ZERO forbidden writes (no ledger/scratch/SCOPE/task/review/`.claude`/`.codex`);
+(2) EMPTY diff over `supabase/migrations/**`, `src/server/routers/realtime.ts`, `src/lib/supabase/realtime.ts`,
+`src/server/schemas/realtime.ts` and the entire P16D grid dir `src/components/features/transactions/`
+(byte-identical — grid untouched), and no `vault_ops` change in any product path; (3) the single-engine
+invariant holds — `calculateSettlementBalances` is defined only in `src/lib/domain/settlement.ts`, re-exported
+once in `domain/index.ts`, and consumed only by `BalanceSummary.tsx`; no competing engine, and a cache/persist
+grep for settlement returns nothing; (4) `evidence/P16E/implementation-01.md` is present and UNCOMMITTED and no
+`reviews/P16E-*` file exists yet. P16E state `implementing -> reviewing`, rev 01; evidence path frozen.
+
+A DISTINCT reviewer `p16e-reviewer-01` (role human_scratch_reviewer; NOT the implementer) was dispatched to
+reproduce and verify `191d070..be82ad0` against canonical §7 (named E2E per example A–H), §12 (result model),
+§13 (People-page obligations/states/navigation), §14 (performance), §15.3 (E2E journeys) and §17 (DoD),
+re-running all gates independently with retries disabled and repeated. The reviewer must adjudicate two
+implementer-flagged calls: **(A)** the benchmark shortfall (measured ~0.8s for 100k, near-linear, reported as
+§14 measured-evidence-with-follow-up and explicitly NOT claimed as passing the ~200ms target; residual cost
+attributed to P16B's already-reviewed defensive materialization boundary) — rule on the merits whether this
+is §14's legitimate branch or a genuine scope reduction, and if the latter, do NOT self-resolve but flag to
+root for an INDEPENDENT scope adjudicator (standing rule; per `diagnose-overscoped-stalls`); **(B)** whether
+the E2E console allowlist of local `sync.pushOps`/`Failed to fetch` transport noise masks any real
+P16E-originated error; plus confirm the RED→GREEN corrections changed only tests/fixtures, never the engine
+or UI. Rolling scratch SHA unchanged `df8ad9ce…`; seventeen requirements `passed`; FS-001 immutable/open; no
+marker until FS-001 completion is recorded after P16E PASS. On PASS: two-commit integration then FS-001
+completion by canonical-source byte-identity (no marker). On CHANGES_REQUESTED: persist failed artifacts,
+transcribe proposals, rescope HANDOFF to rev-02.
