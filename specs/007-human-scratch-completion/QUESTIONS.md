@@ -1040,6 +1040,32 @@ No unresolved product questions were answered by scaffold creation.
 - **How to reverse or migrate:** A later reviewed pass can widen conversion; retained legacy rules make it reversible.
 - **Does a human still need to decide after completion?:** Yes — confirm the contains->exact tightening and the retained-legacy skip taxonomy are acceptable.
 
+### Q-038 — P17A field-rule application at the PRODUCTION import commit
+
+- **Raised:** 2026-07-27, P17A revision 01 continuation, `p17a-implementer-01b` (local Q-P17A-PROD-IMPORT); **routed to an INDEPENDENT opus-tier adjudicator** 2026-07-27 by root (potential scope reduction — root is barred from self-ruling)
+- **Source proposal:** `evidence/P17A/implementation-01.md`
+- **Context and evidence:** The continuation delivered a working application library `src/lib/crdt/field-rules.ts` (apply highest rule at import + bulk apply-all/apply-newer on a `VaultState`) and wired migration reachably at hydration, but did NOT invoke application at the production import-commit seam `src/app/(app)/imports/new/page.tsx` (`createImportBatch`). Root confirmed by inspection: (1) that seam is a UI page component, outside P17A's engine/no-UI allowed paths; (2) `ApplicationVaultState = Omit<VaultState,"descriptionAliases">` (`src/lib/crdt/context.tsx:182`) structurally forbids the P11 description-alias write through the application mutate context, so wiring it additively is not possible without changing that cross-package type boundary; (3) `field-rules.ts` apply is invoked nowhere under `src/app/**`/`src/hooks/**`/`src/components/**`. Net: rules apply via the library and at hydration/migration, but a real user import does not yet apply them.
+- **Why the frozen requirement/repository does not fully decide it:** `specs/human-scratch.md:248-295` requires "apply the highest rule at import"; it does not state whether that means a callable engine (delivered) or the invocation wired into the production import event, nor which of P17A vs the P17B-D UI packages owns that wiring given the `ApplicationVaultState` boundary.
+- **Options considered:** (a) production-import invocation is IN P17A committed scope — a further continuation must wire it (and resolve the `ApplicationVaultState` alias-write barrier) before P17A can pass [default / block-standing]; (b) the production-import invocation belongs to a later UI package (P17B/C/D) and P17A passes as the model+engine+migration+library slice [only if the frozen text/package split clearly assigns it there].
+- **Default selected for continued work:** DEFERRED to the independent adjudicator (`ad004bb8…`, read-only). Root applies the block-standing default (a) if the adjudicator finds any ambiguity. No P17A state change until the ruling lands.
+- **Decision hierarchy basis:** Binding rule — a scope reduction/supersession is adjudicated by a DISTINCT fresh-context reviewer, never the implementer/reviewer/root, defaulting to the block standing.
+- **Impact and risk:** High for scope correctness — determines whether HS-007's user-visible "apply at import" is satisfied by P17A or later. Low code risk either way (additive).
+- **How to reverse or migrate:** N/A pending ruling; either a further continuation wires it, or it is explicitly reallocated to a named later package in the ledger.
+- **Does a human still need to decide after completion?:** No — the adjudicator's ruling governs; recorded for audit.
+
+### Q-039 — P17A manual-row projection semantics for rule application
+
+- **Raised:** 2026-07-27, P17A revision 01 continuation, `p17a-implementer-01b` (local Q-P17A-MANUAL-MATCH); reversible default accepted 2026-07-27 by root (human confirms)
+- **Source proposal:** `evidence/P17A/implementation-01.md`; `src/lib/crdt/field-rules.ts`
+- **Context and evidence:** Rule application must skip manual rows for description rules while including them for tag/allocation rules. The continuation projects a row as manual via `isManual = tx.importId == null` and matches description via `descriptionText = tx.description || null`.
+- **Why the frozen requirement/repository does not fully decide it:** `specs/human-scratch.md:269` and `:294-295` describe manual-vs-imported handling but do not give the exact field predicate.
+- **Options considered:** (a) `importId == null` ⇒ manual; description text from `tx.description` [selected — the obvious, reversible reading]; (b) a dedicated manual flag [rejected — no such field exists; would need schema change].
+- **Default selected for continued work:** (a).
+- **Decision hierarchy basis:** Safest reversible default consistent with the repository's existing import/manual distinction.
+- **Impact and risk:** Low; predicate is localized and easily changed if the human reads the frozen text differently.
+- **How to reverse or migrate:** Swap the predicate in `field-rules.ts`; no data migration.
+- **Does a human still need to decide after completion?:** Yes — confirm `importId == null` is the intended manual-row test against human-scratch.md:269,294-295.
+
 ## Question template
 
 ### Q-XXX — Short title
