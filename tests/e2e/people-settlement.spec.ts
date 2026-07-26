@@ -13,7 +13,7 @@
  * test computes a settlement value itself.
  */
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { createNewIdentity, goToAccounts, goToPeople, goToTransactions } from "./helpers";
 import {
@@ -731,5 +731,106 @@ test.describe("People page settlement matrices", () => {
         });
 
         health.assertClean();
+    });
+});
+
+// ---------------------------------------------------------------------------
+// "View transaction" is a one-shot navigation intent, not a standing selection override.
+//
+// The landing must select and reveal the source row, but from then on the row is an ordinary
+// selection the user owns: deselecting it must stick, and a later bulk action must not touch it.
+// ---------------------------------------------------------------------------
+
+test.describe("View transaction deep link", () => {
+    /** Deep-links to a source transaction the way the People page does and waits for the landing. */
+    async function openSourceTransaction(page: Page, transactionId: string): Promise<void> {
+        await page.goto(`/transactions?transaction=${encodeURIComponent(transactionId)}`);
+        await expect(rowById(page, transactionId)).toHaveAttribute("aria-selected", "true");
+    }
+
+    /** The row's selection checkbox, addressed by the row's stable transaction ID. */
+    function rowCheckbox(page: Page, transactionId: string): Locator {
+        return rowById(page, transactionId).getByTestId("row-checkbox");
+    }
+
+    /** The count the toolbar reports as selected, which is the set every bulk handler acts on. */
+    function selectedCountLabel(page: Page): Locator {
+        return page.getByTestId("transaction-table-toolbar");
+    }
+
+    test("the deep-linked row lands selected and revealed, and can then be deselected", async ({
+        page
+    }) => {
+        test.setTimeout(120_000);
+        await createNewIdentity(page);
+        await addPeople(page, ["Bob"]);
+
+        const transactionId = await createTransaction(page, {
+            allocations: { Bob: "50", Me: "50" },
+            amount: "-100.00",
+            description: "Deep link deselect"
+        });
+
+        // Arrive the way "View transaction" does: the row is revealed, highlighted and selected.
+        await openSourceTransaction(page, transactionId);
+        const row = rowById(page, transactionId);
+        await expect(row).toBeInViewport();
+        await expect(selectedCountLabel(page)).toContainText("1 selected");
+
+        // The landing is spent: the param is dropped so it cannot re-assert the selection.
+        await expect(page).toHaveURL(/\/transactions$/);
+
+        // Deselecting the landed row must actually deselect it.
+        await rowCheckbox(page, transactionId).click();
+        await expect(row).toHaveAttribute("aria-selected", "false");
+        await expect(selectedCountLabel(page)).not.toContainText("selected");
+        await expect(page.getByTestId("bulk-edit-toolbar")).toHaveCount(0);
+
+        // And it stays deselected across re-renders rather than snapping back.
+        await expect(row).toHaveAttribute("aria-selected", "false");
+    });
+
+    test("a bulk delete after deselecting the deep-linked row preserves it", async ({ page }) => {
+        test.setTimeout(120_000);
+        await createNewIdentity(page);
+        await addPeople(page, ["Bob"]);
+
+        await goToTransactions(page);
+        const firstTransactionId = await addTransaction(page, {
+            allocations: { Bob: "50", Me: "50" },
+            amount: "-100.00",
+            description: "Deep link survivor"
+        });
+        const secondTransactionId = await addTransaction(page, {
+            amount: "-40.00",
+            description: "Bulk delete target"
+        });
+
+        // Land on t1 through the deep link, then deselect it and select t2 instead.
+        await openSourceTransaction(page, firstTransactionId);
+        await rowCheckbox(page, firstTransactionId).click();
+        await expect(rowById(page, firstTransactionId)).toHaveAttribute("aria-selected", "false");
+
+        await rowCheckbox(page, secondTransactionId).click();
+        await expect(rowById(page, secondTransactionId)).toHaveAttribute("aria-selected", "true");
+        // The bulk bar reports the user's real intent: exactly one row.
+        await expect(selectedCountLabel(page)).toContainText("1 selected");
+        await expect(page.getByTestId("bulk-edit-toolbar")).toContainText("Edit 1");
+
+        await page.getByTestId("bulk-delete").click();
+        await page.getByTestId("bulk-delete").click();
+
+        // Only the row the user actually selected is deleted; the deep-linked row survives.
+        await expect(rowById(page, secondTransactionId)).toHaveCount(0);
+        await expect(rowById(page, firstTransactionId)).toHaveCount(1);
+
+        // The surviving transaction still explains its obligation on the People page.
+        await goToPeople(page);
+        await expectObligation(page, {
+            amountText: "$50.00",
+            creditor: "Me",
+            currencyCode: "USD",
+            debtor: "Bob"
+        });
     });
 });

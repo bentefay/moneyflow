@@ -52,8 +52,14 @@ A negative contribution is a reverse-direction amount removed by netting and kee
 "View transaction" links to `/transactions?transaction=<stableId>`. The transactions route reads
 that param (`SOURCE_TRANSACTION_PARAM`) and reuses the existing reveal mechanism to raise the page
 size, select and scroll to the row. It matches on the **stable transaction ID**, never a row index,
-so the target survives filtering, pagination and reordering; if the source is filtered out, the
-filters are cleared so it stays reachable.
+so the target survives pagination and reordering; the target is never hidden by a filter because the
+transactions page holds its filters in component state, which starts empty on every arrival at the
+route.
+
+The param is a **one-shot navigation intent**, not a standing selection override. It is consumed
+once — seeding the real selection state and the reveal — and then dropped from the URL with
+`router.replace`. From then on the landed row is an ordinary selection the user owns: deselecting it
+sticks, and bulk actions act only on the user's current selection.
 
 ## Memoization
 

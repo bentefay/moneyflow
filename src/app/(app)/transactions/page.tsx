@@ -210,41 +210,53 @@ function TransactionsPageContent() {
         });
     }, [transactions, filters]);
 
-    // "View transaction" from the People page focuses one stable source ID. The paging, selection
-    // and scroll are all derived from that ID so the existing reveal path is reused unchanged and
-    // the target survives filtering and reordering. It is never a row index.
-    const focusedSourceIndex = useMemo(
-        () =>
-            requestedTransactionId == null
-                ? -1
-                : filteredTransactions.findIndex(
-                      (transaction) => transaction.id === requestedTransactionId
-                  ),
-        [filteredTransactions, requestedTransactionId]
-    );
+    // "View transaction" from the People page carries one stable source ID. It is a one-shot
+    // navigation intent, not a standing selection override: the row is paged in, selected and
+    // revealed exactly once, and the param is then dropped from the URL. Every later render — and
+    // therefore every bulk action — derives selection from `selectedIds` alone, so the landed row
+    // can be deselected like any other row. Matching is on the stable ID, never a row index, so the
+    // target survives filtering, pagination and reordering.
+    //
+    // The seed runs during render rather than in an effect so the row is already selected on its
+    // first paint (no flicker), which is React's documented adjust-state-while-rendering pattern.
+    // `landedSourceId` makes it idempotent, and the vault loads asynchronously, so an intent whose
+    // target has not arrived yet stays pending instead of being dropped against an empty list.
+    const [landedSourceId, setLandedSourceId] = useState<string | null>(null);
+    const pendingSourceIndex =
+        requestedTransactionId == null || requestedTransactionId === landedSourceId
+            ? -1
+            : filteredTransactions.findIndex(
+                  (transaction) => transaction.id === requestedTransactionId
+              );
+    if (requestedTransactionId == null) {
+        // The param is gone, so the intent is spent and the same source can be revisited later.
+        if (landedSourceId != null) setLandedSourceId(null);
+    } else if (pendingSourceIndex >= 0) {
+        setLandedSourceId(requestedTransactionId);
+        // Extend the page just far enough to include the requested source.
+        const requiredDisplayCount = Math.ceil((pendingSourceIndex + 1) / PAGE_SIZE) * PAGE_SIZE;
+        setDisplayCount((currentDisplayCount) =>
+            Math.max(currentDisplayCount, requiredDisplayCount)
+        );
+        setSelectedIds(new Set([requestedTransactionId]));
+        setTransactionIdToReveal(requestedTransactionId);
+    }
 
-    // Paginate. A requested source beyond the current page extends it just far enough to include it.
-    const effectiveDisplayCount =
-        focusedSourceIndex < 0
-            ? displayCount
-            : Math.max(displayCount, Math.ceil((focusedSourceIndex + 1) / PAGE_SIZE) * PAGE_SIZE);
+    // Paginate
     const displayedTransactions = useMemo(
-        () => filteredTransactions.slice(0, effectiveDisplayCount),
-        [filteredTransactions, effectiveDisplayCount]
+        () => filteredTransactions.slice(0, displayCount),
+        [filteredTransactions, displayCount]
     );
     const displayedTransactionIds = useMemo(
         () => new Set(displayedTransactions.map((transaction) => transaction.id)),
         [displayedTransactions]
     );
-    const selectedTransactionIds = useMemo(() => {
-        const explicit = new Set([...selectedIds].filter((id) => displayedTransactionIds.has(id)));
-        if (requestedTransactionId != null && displayedTransactionIds.has(requestedTransactionId)) {
-            explicit.add(requestedTransactionId);
-        }
-        return explicit;
-    }, [displayedTransactionIds, requestedTransactionId, selectedIds]);
+    const selectedTransactionIds = useMemo(
+        () => new Set([...selectedIds].filter((id) => displayedTransactionIds.has(id))),
+        [displayedTransactionIds, selectedIds]
+    );
     const selectedCount = selectedTransactionIds.size;
-    const hasMore = effectiveDisplayCount < filteredTransactions.length;
+    const hasMore = displayCount < filteredTransactions.length;
 
     // Selection-driven actions must never target a transaction outside the displayed page.
     useEffect(() => {
@@ -256,15 +268,18 @@ function TransactionsPageContent() {
         }
     }, [selectedCount, toast]);
 
-    // A newly added row and a People-page source both scroll into view through this one path.
-    const idToReveal = transactionIdToReveal ?? requestedTransactionId;
-    const revealedIdRef = useRef<string | null>(null);
+    // Consuming the intent is what clears the param, so the deep link cannot re-assert itself on a
+    // later render. Navigation is a side effect, so it lives here rather than in the render body.
     useEffect(() => {
-        if (idToReveal == null) return;
-        if (idToReveal === requestedTransactionId && revealedIdRef.current === idToReveal) return;
+        if (requestedTransactionId == null || requestedTransactionId !== landedSourceId) return;
+        router.replace("/transactions", { scroll: false });
+    }, [landedSourceId, requestedTransactionId, router]);
+
+    useEffect(() => {
+        if (transactionIdToReveal == null) return;
 
         const transactionIndex = displayedTransactions.findIndex(
-            (transaction) => transaction.id === idToReveal
+            (transaction) => transaction.id === transactionIdToReveal
         );
         if (transactionIndex < 0) return;
 
@@ -277,9 +292,8 @@ function TransactionsPageContent() {
         const estimatedRowHeight = grid.scrollHeight / displayedTransactions.length;
         const precedingVisibleRowIndex = Math.max(0, transactionIndex - 1);
         scrollContainer.scrollTop = grid.offsetTop + precedingVisibleRowIndex * estimatedRowHeight;
-        revealedIdRef.current = idToReveal;
         setTransactionIdToReveal(null);
-    }, [displayedTransactions, idToReveal, requestedTransactionId]);
+    }, [displayedTransactions, transactionIdToReveal]);
 
     // Load more handler
     const handleLoadMore = useCallback(() => {
