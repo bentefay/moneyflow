@@ -31,7 +31,12 @@ import {
     TransactionTable,
     TransactionTableToolbar
 } from "@/components/features/transactions";
+import { materializeAllocationRecord } from "@/components/features/transactions/allocation-columns";
 import type { DescriptionAliasEditOrigin } from "@/components/features/transactions/cells/InlineEditableDescriptionAlias";
+import {
+    computeFieldRuleRobotState,
+    type RobotCurrentValue
+} from "@/components/features/transactions/field-rule-robot-state";
 import { TransactionRuleRobot } from "@/components/features/transactions/TransactionRuleRobot";
 import { useToast } from "@/components/ui/toast";
 /** Threshold for showing warning when selecting all */
@@ -41,6 +46,7 @@ import { Temporal } from "temporal-polyfill";
 
 import {
     useActiveAccounts,
+    useActiveFieldRules,
     useActivePeople,
     useActiveTags,
     useActiveTransactions,
@@ -351,16 +357,22 @@ function TransactionsPageContent() {
         [displayedTransactions, accounts, statuses, tags, aliasLookup]
     );
 
-    // Per-row inputs for the inline description-rule robot. The match subject faithfully mirrors the
-    // engine's own projection (raw imported description, account, amount, importId => isManual) so
-    // the robot's drift detection agrees with what applying the rule would actually do. The current
-    // alias is resolved through symlinks to a final real alias id, matching the id a rule implies.
+    const activeFieldRules = useActiveFieldRules();
+
+    // Per-row inputs for the inline rule robots. The match subject faithfully mirrors the engine's
+    // own projection (raw imported description, account, amount, importId => isManual) so the robots'
+    // drift detection agrees with what applying the rule would actually do. Description rules exclude
+    // manual rows via the matcher; tags/allocation rules include them (frozen `:294-295`). The three
+    // per-field current values let each robot compare "implied" against "current". The alias is
+    // resolved through symlinks to a final real alias id, matching the id a rule implies.
     const robotContextById = useMemo(() => {
         const byId = new Map<
             string,
             {
                 readonly subject: RuleMatchSubject;
                 readonly currentAliasId: string | null;
+                readonly currentTagIds: readonly string[];
+                readonly currentAllocations: Readonly<Record<string, number>>;
                 readonly referenceDate: Temporal.PlainDate;
             }
         >();
@@ -370,6 +382,12 @@ function TransactionsPageContent() {
             const resolvedAliasId = tx.descriptionAliasId
                 ? (aliasLookup.resolve(tx.descriptionAliasId)?.id ?? null)
                 : null;
+            const currentAllocations: Record<string, number> = {};
+            for (const [personId, value] of Object.entries(
+                materializeAllocationRecord(tx.allocations)
+            )) {
+                if (typeof value === "number") currentAllocations[personId] = value;
+            }
             byId.set(tx.id, {
                 subject: {
                     descriptionText: rawDescription,
@@ -378,6 +396,8 @@ function TransactionsPageContent() {
                     isManual: tx.importId == null
                 },
                 currentAliasId: resolvedAliasId,
+                currentTagIds: tx.tagIds ?? [],
+                currentAllocations,
                 referenceDate: tx.date
             });
         }
@@ -390,19 +410,58 @@ function TransactionsPageContent() {
         (transactionId: string, context: { readonly isEditing: boolean }): React.ReactNode => {
             const entry = robotContextById.get(transactionId);
             if (entry == null) return null;
+
+            // Every field's current value; the description robot hides while its cell is edited,
+            // tags/allocation robots stay put. Each robot is mounted only when a rule of that field
+            // actually matches, so unmatched rows carry no extra hooks (bounded at scale).
+            const currents: ReadonlyArray<{
+                readonly current: RobotCurrentValue;
+                readonly isEditing: boolean;
+                readonly autoOpenable: boolean;
+            }> = [
+                {
+                    current: { field: "descriptionAlias", currentAliasId: entry.currentAliasId },
+                    isEditing: context.isEditing,
+                    autoOpenable: true
+                },
+                {
+                    current: { field: "tags", currentTagIds: entry.currentTagIds },
+                    isEditing: false,
+                    autoOpenable: false
+                },
+                {
+                    current: { field: "allocation", currentAllocations: entry.currentAllocations },
+                    isEditing: false,
+                    autoOpenable: false
+                }
+            ];
+
             return (
-                <TransactionRuleRobot
-                    autoOpen={autoOpenRobotTxId === transactionId}
-                    currentAliasId={entry.currentAliasId}
-                    isEditing={context.isEditing}
-                    onAutoOpenHandled={() => setAutoOpenRobotTxId(null)}
-                    referenceDate={entry.referenceDate}
-                    subject={entry.subject}
-                    transactionId={transactionId}
-                />
+                <>
+                    {currents.map(({ current, isEditing, autoOpenable }) => {
+                        if (
+                            computeFieldRuleRobotState(activeFieldRules, entry.subject, current)
+                                .kind === "none"
+                        ) {
+                            return null;
+                        }
+                        return (
+                            <TransactionRuleRobot
+                                autoOpen={autoOpenable && autoOpenRobotTxId === transactionId}
+                                current={current}
+                                isEditing={isEditing}
+                                key={current.field}
+                                onAutoOpenHandled={() => setAutoOpenRobotTxId(null)}
+                                referenceDate={entry.referenceDate}
+                                subject={entry.subject}
+                                transactionId={transactionId}
+                            />
+                        );
+                    })}
+                </>
             );
         },
-        [autoOpenRobotTxId, robotContextById]
+        [activeFieldRules, autoOpenRobotTxId, robotContextById]
     );
 
     const allocationColumnModel = useMemo(

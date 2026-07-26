@@ -326,7 +326,8 @@ export function persistUserAutomationPreference(
         lastRuleField: record.lastRuleField,
         lastTagMode: record.lastTagMode,
         lastUseAccountScope: record.lastUseAccountScope,
-        lastUseAmountScope: record.lastUseAmountScope
+        lastUseAmountScope: record.lastUseAmountScope,
+        lastApplyMode: record.lastApplyMode
     };
 }
 
@@ -342,6 +343,7 @@ export function readUserAutomationChoice(
         lastRuleField: record.lastRuleField,
         lastTagMode: record.lastTagMode,
         lastUseAccountScope: record.lastUseAccountScope,
-        lastUseAmountScope: record.lastUseAmountScope
+        lastUseAmountScope: record.lastUseAmountScope,
+        lastApplyMode: record.lastApplyMode
     });
 }

@@ -275,7 +275,8 @@ describe("field-rule CRUD mutations", () => {
                         field: "tags",
                         tagMode: "set",
                         useAccountScope: true,
-                        useAmountScope: false
+                        useAmountScope: false,
+                        applyMode: "updatingAll"
                     }
                 });
             });
@@ -284,6 +285,7 @@ describe("field-rule CRUD mutations", () => {
             expect(choice.tagMode).toBe("set");
             expect(choice.useAccountScope).toBe(true);
             expect(choice.useAmountScope).toBe(false);
+            expect(choice.applyMode).toBe("updatingAll");
         });
 
         it("returns defaults for an unknown user", () => {

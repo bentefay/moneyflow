@@ -21,19 +21,34 @@ import { useId, useState } from "react";
 import { type Temporal } from "temporal-polyfill";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { type RuleMatchSubject } from "@/lib/domain/automation/rules";
+import { type RuleField, type RuleMatchSubject } from "@/lib/domain/automation/rules";
 import { cn } from "@/lib/utils";
 
+import { type RobotCurrentValue } from "./field-rule-robot-state";
 import { TransactionRulePopup } from "./TransactionRulePopup";
 import { useTransactionRuleWorkflow } from "./use-transaction-rule-workflow";
+
+/** Stable, field-specific testid so each surface (description/tags/allocation) is addressable. */
+const ROBOT_TESTID: Readonly<Record<RuleField, string>> = {
+    descriptionAlias: "description-rule-robot",
+    tags: "tags-rule-robot",
+    allocation: "allocation-rule-robot"
+};
+
+const FIELD_NOUN: Readonly<Record<RuleField, string>> = {
+    descriptionAlias: "description",
+    tags: "tags",
+    allocation: "person percentages"
+};
 
 export interface TransactionRuleRobotProps {
     readonly transactionId: string;
     readonly subject: RuleMatchSubject;
-    readonly currentAliasId: string | null;
+    /** The transaction's current value for the field this robot surfaces. */
+    readonly current: RobotCurrentValue;
     /** This transaction's date; "apply to new imports" is scoped to strictly-newer rows. */
     readonly referenceDate: Temporal.PlainDate;
-    /** True while the description field is focused; hides the robot to avoid clutter. */
+    /** True while the related cell is focused; hides the robot to avoid clutter. */
     readonly isEditing: boolean;
     /** Request the popup open itself (e.g. right after an alias change created drift). */
     readonly autoOpen: boolean;
@@ -41,11 +56,12 @@ export interface TransactionRuleRobotProps {
 }
 
 export function TransactionRuleRobot(props: TransactionRuleRobotProps): React.JSX.Element | null {
-    const { transactionId, subject, currentAliasId, referenceDate, isEditing } = props;
+    const { transactionId, subject, current, referenceDate, isEditing } = props;
+    const field = current.field;
     const workflow = useTransactionRuleWorkflow({
         transactionId,
         subject,
-        currentAliasId,
+        current,
         referenceDate
     });
     const [localOpen, setLocalOpen] = useState(false);
@@ -71,9 +87,10 @@ export function TransactionRuleRobot(props: TransactionRuleRobotProps): React.JS
     // Hidden while editing or when nothing matches. Hooks above always run.
     if (isEditing || robotState.kind === "none") return null;
 
+    const noun = FIELD_NOUN[field];
     const label = isDrift
-        ? "This transaction differs from its automation rule. Open rule."
-        : "This transaction matches an automation rule. Open rule.";
+        ? `This transaction's ${noun} differs from its automation rule. Open rule.`
+        : `This transaction's ${noun} matches an automation rule. Open rule.`;
 
     return (
         <Popover onOpenChange={handleOpenChange} open={isOpen}>
@@ -85,7 +102,7 @@ export function TransactionRuleRobot(props: TransactionRuleRobotProps): React.JS
                         isDrift ? "text-destructive" : "text-muted-foreground"
                     )}
                     data-drift={isDrift ? "true" : "false"}
-                    data-testid="description-rule-robot"
+                    data-testid={ROBOT_TESTID[field]}
                     onClick={(event) => event.stopPropagation()}
                     title={label}
                     type="button"

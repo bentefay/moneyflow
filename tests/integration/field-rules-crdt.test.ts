@@ -141,13 +141,36 @@ describe("field-rule root wiring and hydration", () => {
                 lastRuleField: "tags",
                 lastTagMode: "add",
                 lastUseAccountScope: true,
-                lastUseAmountScope: false
+                lastUseAmountScope: false,
+                lastApplyMode: "updateAll"
             };
         });
         const stored = vault.mirror.getState().userAutomationPreferences["pubkey-abc"];
         expect(stored?.lastRuleField).toBe("tags");
         expect(stored?.lastTagMode).toBe("add");
         expect(stored?.lastUseAccountScope).toBe(true);
+        // The new optional apply-mode slot survives the CRDT round-trip (frozen :270).
+        expect(stored?.lastApplyMode).toBe("updateAll");
+    });
+
+    it("accepts a preference record without the optional apply-mode slot", () => {
+        const vault = createVaultMirror();
+        vault.mirror.setState((state: VaultState) => {
+            const prefs: Record<string, UserAutomationPreferenceInput> =
+                state.userAutomationPreferences;
+            // lastApplyMode absent (undefined): valid without migration (required: false).
+            prefs["pubkey-legacy"] = {
+                pubkeyHash: "pubkey-legacy",
+                lastRuleField: "descriptionAlias",
+                lastTagMode: undefined,
+                lastUseAccountScope: undefined,
+                lastUseAmountScope: undefined,
+                lastApplyMode: undefined
+            };
+        });
+        const stored = vault.mirror.getState().userAutomationPreferences["pubkey-legacy"];
+        expect(stored?.lastRuleField).toBe("descriptionAlias");
+        expect(stored?.lastApplyMode).toBeUndefined();
     });
 });
 

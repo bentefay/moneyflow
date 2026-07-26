@@ -32,6 +32,7 @@ import {
     useApplyFieldRulesToTransaction,
     useFieldRuleActions,
     usePersistAutomationPreference,
+    useUserAutomationChoice,
     useVaultPreferences
 } from "@/lib/crdt";
 import { type BulkFieldRuleEntry } from "@/lib/crdt/field-rules";
@@ -46,7 +47,11 @@ import {
     type RuleEditorFieldErrors,
     validateRuleDraft
 } from "../automations/rule-editor-model";
-import { computeDescriptionRobotState, type DescriptionRobotState } from "./description-rule-state";
+import {
+    computeFieldRuleRobotState,
+    type FieldRuleRobotState,
+    type RobotCurrentValue
+} from "./field-rule-robot-state";
 
 /** Result of applying the rule set to just this transaction / to a scope. */
 export interface ApplyOutcomeSummary {
@@ -55,7 +60,7 @@ export interface ApplyOutcomeSummary {
 }
 
 export interface TransactionRuleWorkflow {
-    readonly robotState: DescriptionRobotState;
+    readonly robotState: FieldRuleRobotState;
     readonly accounts: readonly RuleEditorOption[];
     readonly tags: readonly RuleEditorOption[];
     readonly people: readonly RuleEditorOption[];
@@ -92,10 +97,11 @@ function countBulk(entries: readonly BulkFieldRuleEntry[]): ApplyOutcomeSummary 
 export function useTransactionRuleWorkflow(params: {
     readonly transactionId: string;
     readonly subject: RuleMatchSubject;
-    readonly currentAliasId: string | null;
+    /** The transaction's current value for the rule field this robot surfaces. */
+    readonly current: RobotCurrentValue;
     readonly referenceDate: Temporal.PlainDate;
 }): TransactionRuleWorkflow {
-    const { transactionId, subject, currentAliasId, referenceDate } = params;
+    const { transactionId, subject, current, referenceDate } = params;
 
     const rules = useActiveFieldRules();
     const accountsRecord = useActiveAccounts();
@@ -104,6 +110,7 @@ export function useTransactionRuleWorkflow(params: {
     const aliasesCollection = useActiveDescriptionAliases();
     const preferences = useVaultPreferences();
     const pubkeyHash = usePubkeyHash();
+    const remembered = useUserAutomationChoice(pubkeyHash);
 
     const { update, remove } = useFieldRuleActions();
     const { applyAll: applyAllRules, applyNewerThan } = useApplyFieldRules();
@@ -113,8 +120,8 @@ export function useTransactionRuleWorkflow(params: {
     const currencyCode = preferences?.defaultCurrency ?? "USD";
 
     const robotState = useMemo(
-        () => computeDescriptionRobotState(rules, subject, currentAliasId),
-        [rules, subject, currentAliasId]
+        () => computeFieldRuleRobotState(rules, subject, current),
+        [rules, subject, current]
     );
 
     const accounts = useMemo<readonly RuleEditorOption[]>(
@@ -155,13 +162,14 @@ export function useTransactionRuleWorkflow(params: {
 
     // The editor draft is DERIVED from the winning rule so the popup never needs an effect to
     // "seed" itself on open. User edits are held in `draftOverride`; clearing it reverts to the
-    // rule's current baseline. The apply-mode select is not persisted (owned by P17D).
+    // rule's current baseline. The apply-mode select is seeded from the user's remembered choice
+    // (frozen `:270`) and re-remembered on save.
     const baselineDraft = useMemo<RuleEditorDraft | null>(
         () =>
             robotState.kind === "none"
                 ? null
-                : draftFromRule(robotState.rule, currencyCode, "updateNew"),
-        [robotState, currencyCode]
+                : draftFromRule(robotState.rule, currencyCode, remembered.applyMode),
+        [robotState, currencyCode, remembered.applyMode]
     );
     const draft = draftOverride ?? baselineDraft;
 
@@ -176,15 +184,16 @@ export function useTransactionRuleWorkflow(params: {
     }, []);
 
     const rememberChoice = useCallback(
-        (current: RuleEditorDraft) => {
+        (chosen: RuleEditorDraft) => {
             if (pubkeyHash == null) return;
             persistPreference({
                 pubkeyHash,
                 choice: {
-                    field: current.field,
-                    tagMode: current.tagMode,
-                    useAccountScope: current.useAccountScope,
-                    useAmountScope: current.useAmountScope
+                    field: chosen.field,
+                    tagMode: chosen.tagMode,
+                    useAccountScope: chosen.useAccountScope,
+                    useAmountScope: chosen.useAmountScope,
+                    applyMode: chosen.applyMode
                 }
             });
         },

@@ -148,7 +148,8 @@ export function FieldRulesManager({
                 field: remembered.field,
                 tagMode: remembered.tagMode,
                 useAccountScope: remembered.useAccountScope,
-                useAmountScope: remembered.useAmountScope
+                useAmountScope: remembered.useAmountScope,
+                applyMode: remembered.applyMode
             })
         );
     };
@@ -157,7 +158,7 @@ export function FieldRulesManager({
         setTarget({ mode: "edit", ruleId: rule.id });
         setErrors({});
         setApplySummary(null);
-        setDraft(draftFromRule(rule, currencyCode, "updateNew"));
+        setDraft(draftFromRule(rule, currencyCode, remembered.applyMode));
     };
 
     const closeEditor = (): void => {
@@ -174,7 +175,8 @@ export function FieldRulesManager({
                 field: current.field,
                 tagMode: current.tagMode,
                 useAccountScope: current.useAccountScope,
-                useAmountScope: current.useAmountScope
+                useAmountScope: current.useAmountScope,
+                applyMode: current.applyMode
             }
         });
     };

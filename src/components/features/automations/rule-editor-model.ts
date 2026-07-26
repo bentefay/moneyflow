@@ -12,23 +12,26 @@
  */
 
 import { type FieldRuleActionInput } from "@/lib/crdt/field-rule-mutations";
+import {
+    type ApplyMode,
+    APPLY_MODES,
+    applyModeIsAutomatic,
+    applyModeTargetsNewOnly,
+    DEFAULT_APPLY_MODE
+} from "@/lib/domain/automation/apply-mode";
 import { type RuleField, type TagRuleMode } from "@/lib/domain/automation/rules";
 import { toMinorUnitsForCurrency } from "@/lib/domain/currency";
 
-/**
- * The four frozen apply modes. "updating*" apply automatically when the edited row loses focus (the
- * P17C inline surface); "update*" apply only on an explicit tick/Apply click. "*All" cover all
- * existing and new transactions; "*New" cover only newer ones. On the Automations page the explicit
- * Apply buttons are authoritative; this choice is remembered so the inline surface pre-fills it.
- */
-export type ApplyMode = "updatingAll" | "updatingNew" | "updateAll" | "updateNew";
-
-export const APPLY_MODES: readonly ApplyMode[] = [
-    "updatingAll",
-    "updatingNew",
-    "updateAll",
-    "updateNew"
-];
+// The four-mode apply type + its pure predicates live in the domain (`apply-mode.ts`) so the
+// per-user preference chain can remember the SELECT without a component import. Re-export them here
+// so the editor and its callers keep their single import surface.
+export {
+    type ApplyMode,
+    APPLY_MODES,
+    applyModeIsAutomatic,
+    applyModeTargetsNewOnly,
+    DEFAULT_APPLY_MODE
+};
 
 /** Human label for an apply mode (frozen numbering: 1 updating all … 4 update new). */
 export function applyModeLabel(mode: ApplyMode): string {
@@ -41,34 +44,6 @@ export function applyModeLabel(mode: ApplyMode): string {
             return "Update all";
         case "updateNew":
             return "Update new";
-        default:
-            return assertNever(mode);
-    }
-}
-
-/** True when the mode targets only newer transactions (vs all existing + new). */
-export function applyModeTargetsNewOnly(mode: ApplyMode): boolean {
-    switch (mode) {
-        case "updatingNew":
-        case "updateNew":
-            return true;
-        case "updatingAll":
-        case "updateAll":
-            return false;
-        default:
-            return assertNever(mode);
-    }
-}
-
-/** True when the mode applies automatically on blur ("updating…") rather than on an explicit tick. */
-export function applyModeIsAutomatic(mode: ApplyMode): boolean {
-    switch (mode) {
-        case "updatingAll":
-        case "updatingNew":
-            return true;
-        case "updateAll":
-        case "updateNew":
-            return false;
         default:
             return assertNever(mode);
     }
@@ -138,7 +113,7 @@ export function emptyRuleDraft(defaults: {
         tagMode: defaults.tagMode,
         tagIds: [],
         allocations: {},
-        applyMode: defaults.applyMode ?? "updateNew"
+        applyMode: defaults.applyMode ?? DEFAULT_APPLY_MODE
     };
 }
 
