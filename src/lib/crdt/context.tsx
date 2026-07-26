@@ -26,6 +26,8 @@ import {
     type DescriptionAliasCollection
 } from "@/lib/domain/description-aliases";
 
+import type { BulkFieldRuleEntry } from "./field-rules";
+import { commitImportBatch, type CommitImportBatchInput } from "./import-commit";
 import { startVaultMaintenanceScheduler } from "./maintenance";
 import type { VaultMirror } from "./mirror";
 import { getActivePublicTransactionIdentities, getAllTransactions } from "./queries";
@@ -1083,4 +1085,24 @@ export function useDescriptionAliasActions() {
         removeOneDescriptionAlias,
         removeAllDescriptionAliases
     };
+}
+
+/**
+ * Import-commit action (P14 batch insert + HS-007/P17A field-rule application).
+ *
+ * Runs on the full VaultState — not the application projection — so one grouped, undoable mutation
+ * can both create the import batch and apply the winning field rule to each imported transaction,
+ * including description-alias rules that write through the P11 alias boundary. That boundary needs
+ * the `descriptionAliases` collection which {@link ApplicationVaultState} deliberately omits, so a
+ * generic `useVaultAction` cannot reach it. This is a named internal action, added additively: the
+ * ApplicationVaultState projection stays intact for every other caller.
+ */
+export function useCommitImportBatch(): (
+    input: CommitImportBatchInput
+) => readonly BulkFieldRuleEntry[] {
+    return useInternalVaultAction(
+        (state, input: CommitImportBatchInput) => commitImportBatch(state, input),
+        [],
+        "import"
+    );
 }

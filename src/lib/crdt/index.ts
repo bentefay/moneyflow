@@ -29,6 +29,7 @@ export {
     useActiveTags,
     useActiveTransactions,
     useAutomations,
+    useCommitImportBatch,
     useDescriptionAliasActions,
     useDescriptionAliases,
     useImports,
@@ -65,6 +66,12 @@ export {
     migrateVaultAutomationsToFieldRules,
     readActiveFieldRules
 } from "./field-rules";
+// Production import commit (P14 batch insert + P17A field-rule application)
+export {
+    commitImportBatch,
+    type CommitImportBatchInput,
+    type ImportBatchTransactionInput
+} from "./import-commit";
 // Vault defaults initialization
 export {
     DEFAULT_ACCOUNT,

@@ -21,15 +21,14 @@ import {
     useActiveAccounts,
     useActiveStatuses,
     useActiveTransactions,
+    useCommitImportBatch,
     useImportTemplates,
     useVaultAction,
     useVaultPreferences
 } from "@/lib/crdt/context";
 import { DEFAULT_CURRENCY } from "@/lib/crdt/defaults";
-import { type InsertTransactionInput, insertTransaction } from "@/lib/crdt/mutations";
-import { findTransactionById } from "@/lib/crdt/queries";
 import type { Account, ImportTemplate as ImportTemplateRecord, Status } from "@/lib/crdt/schema";
-import { asMinorUnits, type MoneyMinorUnits } from "@/lib/domain/currency";
+import { asMinorUnits } from "@/lib/domain/currency";
 import type { ImportConfig } from "@/lib/import/types";
 
 /** Generate unique ID */
@@ -136,71 +135,9 @@ export default function NewImportPage() {
         }
     );
 
-    // Create import batch and transactions in CRDT
-    const createImportBatch = useVaultAction(
-        (
-            state,
-            data: {
-                importId: string;
-                fileName: string;
-                creationInstant: Temporal.Instant;
-                transactions: Array<{
-                    id: string;
-                    date: Temporal.PlainDate;
-                    description: string;
-                    amount: MoneyMinorUnits;
-                    accountId: string;
-                    statusId: string;
-                    importRowIndex: number;
-                    duplicateOf: string | null;
-                }>;
-            }
-        ) => {
-            // Create import record
-            state.imports[data.importId] = {
-                id: data.importId,
-                filename: data.fileName,
-                transactionCount: data.transactions.length,
-                createdAt: data.creationInstant
-            } as unknown as (typeof state.imports)[string];
-
-            // Create transactions using hierarchical structure
-            for (const tx of data.transactions) {
-                // If this is a duplicate, find the parent transaction location to nest under
-                let suspectedDuplicateOf = undefined;
-                if (tx.duplicateOf) {
-                    const parentResult = findTransactionById(state.transactions, tx.duplicateOf);
-                    if (parentResult) {
-                        suspectedDuplicateOf = {
-                            accountId: parentResult.transaction.accountId,
-                            date: parentResult.transaction.date,
-                            transactionId: parentResult.transaction.id
-                        };
-                    }
-                }
-
-                insertTransaction(state.transactions, {
-                    transaction: {
-                        id: tx.id,
-                        date: tx.date,
-                        description: tx.description,
-                        notes: "",
-                        amount: tx.amount,
-                        accountId: tx.accountId,
-                        tagIds: [],
-                        statusId: tx.statusId,
-                        importId: data.importId,
-                        allocations: {},
-                        creationInstant: data.creationInstant,
-                        importRowIndex: tx.importRowIndex
-                    } as unknown as InsertTransactionInput["transaction"],
-                    suspectedDuplicateOf
-                });
-            }
-        },
-        [],
-        "import"
-    );
+    // Create import batch, insert transactions, and apply active field rules (HS-007/P17A) — all in
+    // one grouped, undoable vault action on the full VaultState.
+    const commitImportBatch = useCommitImportBatch();
 
     // Get existing transactions - already filtered for active only
     const existingTransactions = transactions;
@@ -262,8 +199,8 @@ export default function NewImportPage() {
                 duplicateOf: tx.duplicateOf
             }));
 
-            // Create import batch and all transactions in one action
-            createImportBatch({
+            // Create import batch, insert all transactions, and apply field rules in one action
+            commitImportBatch({
                 importId,
                 fileName,
                 creationInstant,
@@ -272,7 +209,7 @@ export default function NewImportPage() {
 
             return importId;
         },
-        [createImportBatch, createAccount, updateAccountNumber, defaultStatusId, defaultCurrency]
+        [commitImportBatch, createAccount, updateAccountNumber, defaultStatusId, defaultCurrency]
     );
 
     // Handle import complete - navigate to transactions
