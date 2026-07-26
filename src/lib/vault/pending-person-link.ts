@@ -2,16 +2,22 @@
  * Pending member-person link marker (HS-012).
  *
  * The owner's linked Person is seeded into the vault at creation
- * (`ensureDefaultVault`), so a passive re-open never needs to write one. A
- * member who accepts an invite has no such seed: their linked Person must be
- * materialized once, the first time they open the shared vault after accepting.
+ * (`ensureDefaultVault`). A member who accepts an invite has no such seed:
+ * their linked Person must be materialized when they first open the shared
+ * vault after accepting.
  *
- * Gating that one-time write on an explicit acceptance marker — rather than
- * running it on every vault open — keeps ordinary re-opens from emitting a
- * redundant synced `vault_ops` op (which would otherwise perturb live-sync
- * timing for every already-linked member).
+ * Acceptance records a durable per-vault marker in localStorage, so it survives
+ * a refresh and is shared across tabs. Opening the shared vault reconciles the
+ * marker: it materializes the member's Person if absent and clears the marker
+ * only once the Person is confirmed durably present. The reconcile is therefore
+ * idempotent and re-runnable — a lost sync, a refresh, or a concurrent tab all
+ * converge on the single deterministic member Person rather than silently
+ * missing it forever.
  *
- * The marker is per-vault and consumed exactly once.
+ * Gating the write on this acceptance marker is what keeps an ordinary re-open
+ * (an already-linked member, or a member added out-of-band by a test fixture)
+ * from emitting a redundant synced `vault_ops` op that would perturb live-sync
+ * timing for every already-linked member.
  */
 
 const STORAGE_KEY_PREFIX = "moneyflow_pending_person_link:";
@@ -20,20 +26,23 @@ function storageKey(vaultId: string): string {
     return `${STORAGE_KEY_PREFIX}${vaultId}`;
 }
 
-/** Flags a vault so its next open materializes the current member's Person. */
+/** Records that the given vault's next open must materialize this member's Person. */
 export function markPendingPersonLink(vaultId: string): void {
-    if (typeof sessionStorage === "undefined") return;
-    sessionStorage.setItem(storageKey(vaultId), "1");
+    if (typeof localStorage === "undefined") return;
+    localStorage.setItem(storageKey(vaultId), "1");
+}
+
+/** Whether a pending materialization is still outstanding for this vault. */
+export function hasPendingPersonLink(vaultId: string): boolean {
+    if (typeof localStorage === "undefined") return false;
+    return localStorage.getItem(storageKey(vaultId)) != null;
 }
 
 /**
- * Returns true at most once per marked vault, clearing the flag so subsequent
- * opens do not repeat the linkage write.
+ * Retires the marker once the member's Person is confirmed durably present, so
+ * later opens neither repeat the linkage write nor re-emit a synced op.
  */
-export function consumePendingPersonLink(vaultId: string): boolean {
-    if (typeof sessionStorage === "undefined") return false;
-    const key = storageKey(vaultId);
-    const pending = sessionStorage.getItem(key) != null;
-    if (pending) sessionStorage.removeItem(key);
-    return pending;
+export function clearPendingPersonLink(vaultId: string): void {
+    if (typeof localStorage === "undefined") return;
+    localStorage.removeItem(storageKey(vaultId));
 }

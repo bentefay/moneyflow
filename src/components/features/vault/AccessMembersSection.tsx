@@ -102,6 +102,13 @@ export function AccessMembersSection({ className }: AccessMembersSectionProps) {
             {/* Member roster */}
             <div className="mb-6 max-w-md">
                 <h3 className="mb-2 text-sm font-medium">Members</h3>
+                {isOwner && (
+                    <p className="text-muted-foreground mb-2 text-xs">
+                        Removing a member revokes their access to future changes immediately. The
+                        vault key is not rotated, so anything they already downloaded stays readable
+                        to them.
+                    </p>
+                )}
                 {isLoading || membersQuery.isLoading ? (
                     <div className="flex items-center gap-2 py-4">
                         <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />

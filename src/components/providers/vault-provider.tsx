@@ -29,7 +29,7 @@ import { unwrapKeyFromBase64 } from "@/lib/crypto/keywrap";
 import { getSession } from "@/lib/crypto/session";
 import { createSyncManager, type SyncManager } from "@/lib/sync";
 import { trpc } from "@/lib/trpc";
-import { consumePendingPersonLink } from "@/lib/vault/pending-person-link";
+import { clearPendingPersonLink, hasPendingPersonLink } from "@/lib/vault/pending-person-link";
 
 interface VaultProviderProps {
     children: React.ReactNode;
@@ -212,12 +212,17 @@ export function VaultProvider({ children, registerDisconnect }: VaultProviderPro
                 await hydrateAndRepairVaultDocument(doc, manager);
 
                 // A member who just accepted an invite has no seeded Person (the
-                // owner's is seeded at vault creation). Materialize it once, the
-                // first time the shared vault opens after acceptance (HS-012).
-                // Gating on the acceptance marker keeps ordinary re-opens from
-                // emitting a redundant synced vault_ops op. A joining member never
-                // adopts the seeded default Person, so adoptDefaultPerson is false.
-                if (consumePendingPersonLink(initializingVaultId)) {
+                // owner's is seeded at vault creation). Materialize it when the
+                // shared vault opens after acceptance (HS-012). The reconcile is
+                // idempotent and re-runnable: gating on the acceptance marker keeps
+                // ordinary re-opens (and out-of-band fixture members) from emitting
+                // a redundant synced vault_ops op, while ensureMemberPersonLinked's
+                // deterministic person id lets refreshes and concurrent tabs
+                // converge on one Person. A joining member never adopts the seeded
+                // default Person, so adoptDefaultPerson is false. The marker is
+                // retired only after the Person is durably present; if forceSync
+                // throws we never reach the clear, so the next open retries.
+                if (hasPendingPersonLink(initializingVaultId)) {
                     const linkedChanged = ensureMemberPersonLinked(
                         doc,
                         initializingPubkeyHash,
@@ -227,6 +232,7 @@ export function VaultProvider({ children, registerDisconnect }: VaultProviderPro
                         await manager.awaitLocalPersistence();
                         await manager.forceSync();
                     }
+                    clearPendingPersonLink(initializingVaultId);
                 }
 
                 if (cancelled) {

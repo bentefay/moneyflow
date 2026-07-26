@@ -18,6 +18,7 @@ import { CheckCircle2, Loader2, Users, XCircle } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { setActiveVaultStorage } from "@/components/providers/active-vault-provider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -194,9 +195,13 @@ export default function InvitePage() {
                 encPublicKey: userEncPublicKeyBase64
             });
 
-            // Materialize this member's linked Person (HS-012) the first time the
-            // shared vault opens, not on every subsequent open.
+            // Deliver the member INTO the shared vault: the first open there
+            // materializes their linked Person (HS-012). The marker survives the
+            // navigation and any refresh, and the open reconciles it idempotently.
+            // This page renders outside ActiveVaultProvider, so the selection is
+            // persisted through storage; the (app) layout reads it on mount.
             markPendingPersonLink(inviteInfo.vaultId);
+            setActiveVaultStorage({ id: inviteInfo.vaultId });
 
             setState("success");
 
