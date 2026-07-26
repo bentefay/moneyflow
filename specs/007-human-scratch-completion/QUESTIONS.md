@@ -1066,6 +1066,19 @@ No unresolved product questions were answered by scaffold creation.
 - **How to reverse or migrate:** Swap the predicate in `field-rules.ts`; no data migration.
 - **Does a human still need to decide after completion?:** Yes — confirm `importId == null` is the intended manual-row test against human-scratch.md:269,294-295.
 
+### Q-P17B-03 — Apply-mode SELECT choice persistence is an unmet frozen HS-007 requirement
+
+- **Raised:** 2026-07-27, P17B review, root (from `p17b-reviewer-01` verify-not-trust caveat, confirmed by root against frozen text)
+- **Source proposal:** `reviews/P17B-review-01.md` (Q-P17B-02 adjudication + honest caveat); `evidence/P17B/implementation-01.md` Q-PROPOSAL-P17B-02
+- **Context and evidence:** Frozen text `specs/human-scratch.md:270` states: "We remember the user's last choices for **the select and check boxes** in a new user preferences part of the vault." P17B persists the check boxes plus field/tag-mode but NOT the four-mode apply **select**, because the P17A `userAutomationPreferences` schema (in `src/lib/crdt/schema.ts`) has no `applyMode` slot and `schema.ts` is a P17B hard boundary. Root re-read the frozen block and CONFIRMED the requirement is real and only partially delivered — this is not a P17B defect (P17B correctly stayed inside its boundary) but a genuine remaining slice of HS-007.
+- **Why the frozen requirement/repository does not fully decide it:** Frozen text mandates persisting the select choice but does not name which package delivers it or whether the preference key is per-field or global; the P17A schema deliberately shipped without the slot.
+- **Options considered:** (a) additively extend `userAutomationPreferences` in a later HS-007 package (P17C or P17D) to add an `applyMode` slot and wire the editor's mode select to persist/restore it; (b) reopen passed P17A with a schema revision; (c) drop it (VIOLATES frozen text — rejected).
+- **Default selected for continued work:** Option (a), owner **P17D** (the HS-007 polish/parity package, which already extends the automation preference surface for tag/allocation parity). P17D additively adds the `applyMode` slot to `userAutomationPreferences` and wires the shared `FieldRuleEditor` mode select through `nextUserPreference`/persistence. P17C may subsume it if it proves more natural when the popup lands. This is completing HS-007's committed scope (MORE work, additive) — NOT a scope reduction — so the independent scope adjudicator is not triggered; the requirement stays tracked and HS-007 stays UNCHECKED until it is delivered and all of P17A-D pass.
+- **Decision hierarchy basis:** Frozen text is authoritative and requires persistence; the block-standing/complete-the-scope default compels delivering it, not dropping it.
+- **Impact and risk:** Low-medium; additive schema field + editor wiring, no data migration for existing vaults (absent key = current default `updateNew`). Deferring to P17D risks nothing because HS-007 cannot be checked until then regardless.
+- **How to reverse or migrate:** Remove the additive preference key; absent key falls back to the session default. No destructive migration.
+- **Does a human still need to decide after completion?:** Yes — confirm the P17D ownership and that per-field-vs-global apply-mode persistence matches the human's intent for `human-scratch.md:270`.
+
 ## Question template
 
 ### Q-XXX — Short title
