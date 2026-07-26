@@ -7,18 +7,17 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** none active. P19 (HS-020) passed via two-commit integration + authorized
-  forward marker. 21 of 32 packages passed; P05 `blocked_external`; the 10 remaining queued packages
-  are ALL transitively gated on P05
-- **Next action:** HALT — genuine `blocked_external` gate, no independent work left. P20A is NOT
-  dispatchable: its dep P17D is queued and P17D->P17C->P17B->P17A->P16E->P08->P05 all chain to P05
-  `blocked_external` (D-011). Every remaining queued package (P08, P10, P16E, P17A-D, P20A, P20B,
-  P21) roots at P05. P05's recheck trigger is a capable headless-CLI upgrade or P21; neither is
-  available here (npm registry unreachable; `@playwright/cli` pinned `0.1.17` cannot simulate a
-  genuinely-hidden background tab to measure the first late Realtime edge). Reported to the human.
-  On a capable-CLI upgrade or authorized real-hidden topology: reopen P05 with a no-product
-  diagnostic revision per D-011, then unblock P08 and the downstream chain. Keep FS-001
-  immutable/open
+- **Current package:** P05 / 13 (HS-015) implementing. Reopened per D-017 (supersedes D-011): HS-015
+  rescoped to its frozen websocket-security ask; the hidden-tab timing edge is an accepted unmeasured
+  non-issue. Unblocking P05 cascades to P08 -> P16E/P10 -> P17A-D -> P20A/P20B -> P21
+- **Next action:** await `human_scratch_implementer` (p05-implementer-13) handback of P05/13, then
+  dispatch a DISTINCT `human_scratch_reviewer` over original BASE `007651be` -> new HEAD to confirm
+  the preserved rev-11 pubkey-hash authorization boundary and `vault_ops` scoping are intact, the new
+  security acceptance (adversarial outsider/expired/replayed rejection, owner/member/outsider + cross-
+  vault authorization, publication correctness, revoke, reconnect/offline catch-up, CORS/origin
+  documentation) is proven, and background is verified as mock-driven re-sync BEHAVIOR only with no
+  faked hidden-tab timing. On PASS: two-commit integration + HS-015 forward marker, then P08 becomes
+  dispatchable. Keep FS-001 immutable/open
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -29,8 +28,8 @@ review evidence.
 - **Active completion marker event:** none
 - **Active P21 rollback batch:** none
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE (14 checked IDs)
-- **Requirement state:** fourteen passed; HS-015 blocked externally; six other HS requirements
-  (HS-003/007/011/012/016/021) plus FS-001 queued
+- **Requirement state:** fourteen passed; HS-015 reopened and implementing under P05/13 (D-017);
+  seven HS requirements (HS-003/007/011/012/015/016/021) plus FS-001 not yet passed
 - **Last ledger update:** 2026-07-26; P19 (HS-020) control commit `reviewing -> passed` at
   `d14800f` (integration `c06c851`, marker `specs/human-scratch.md:348` one line, rolling scratch SHA
   `c4121a48… -> ddd53142…`, normalized-block check green with 14 checked IDs). Post-pass dependency
@@ -48,7 +47,7 @@ review evidence.
 | P02     | HS-017         | Animate UI evaluation, ADR, and representative migration only if justified          | P01                  | passed       | 02  | `19d73035b33b639f9927d2f78a55d74c44f65544..213100fadf5acea30aad7e90998bd575cdcd508c` | `evidence/P02/implementation-02.md` | `reviews/P02-review-02.md` | `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7` |
 | P03     | HS-018         | TanStack Virtual PR #1100 release gate and `useFlushSync`                           | P01                  | passed       | 01  | `c60f605bd811d8920122a66f3d6743d8a3ac044d..b8d4b448f52022970ca388654be14d24e347deb5` | `evidence/P03/implementation-01.md` | `reviews/P03-review-01.md` | `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34` |
 | P04     | HS-014         | Database/table/RLS threat model, migrations, and permission remediation             | P01                  | passed | 02 | `9de8b0e8c41087b96523ecc55faa10bf19ec0ff9..dbcf180e829c81a218e9a73791e40902c4f9eb31` | `evidence/P04/implementation-02.md` | `reviews/P04-review-02.md` | `b905ecb810334ed9697f57140047964135ade6ea` |
-| P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | blocked_external | 12 | `007651beb814d98646aa2e786801b647e2abd0b5..824bb1570f1e52bcd0afcbf89040d1c0ffac50ec` | `evidence/P05/implementation-12.md` | `reviews/P05-review-12.md` | diagnostic gate `0f7ee5222dd23794411427fdc013cf3a5b6f8648` |
+| P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | implementing | 13 | `92dfd4d002e8bcb2a6694c35aff8f713ba4689dc..` | `evidence/P05/implementation-13.md` | `reviews/P05-review-13.md` | reopened per D-017; security-scope completion |
 | P06     | HS-010         | Remove unused user-state storage and dead API surface                               | P04                  | passed | 01  | `a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1..95e91dbcb17ffb9600eaa6cb795336898297ebae` | `evidence/P06/implementation-01.md` | `reviews/P06-review-01.md` | `8e269ab9a6fc15ed6d845542b879e5499828134e` |
 | P07     | HS-011         | Evidence-led person/member/invite UX architecture and acceptance decision           | P04, P06             | passed | 04  | `fe1871ce7dce1e831b57ee5656d38ce5c800aae3..dfffea3c19b110b6021b050b8d9e36b01ae75ab9` | `evidence/P07/implementation-04.md` | `reviews/P07-review-04.md` | `1f6cb96b27c8093f0ba2c319f32d3c79c8aab126` |
 | P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -112,7 +111,7 @@ required marker rollbacks before the next dispatch.
 | HS-012      | human scratch block               | P08                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-013      | human scratch block               | P15                          | authorized marker after package PASS       | passed | P15 integration `9c5d7be8ee4cf7c3fda5f1a7320c053362672e3a`; `reviews/P15-review-02.md`; marker `f0adfef6… -> ce52d7df…` |
 | HS-014      | human scratch block               | P04                          | authorized marker after package PASS       | passed | P04 integration `b905ecb810334ed9697f57140047964135ade6ea`; `reviews/P04-review-02.md`; marker `db97178a… -> c74a2a78…` |
-| HS-015      | human scratch block               | P05                          | authorized marker after package PASS       | blocked_external | revision-12 diagnostic PASS reconfirms D-011 unchanged; no marker |
+| HS-015      | human scratch block               | P05                          | authorized marker after package PASS       | queued | reopened at P05/13 per D-017 (websocket-security scope); no marker |
 | HS-016      | human scratch block               | P20A                         | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-017      | human scratch block               | P02                          | authorized marker after package PASS       | passed       | P02 integration `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7`; `reviews/P02-review-02.md`; marker `dcd03b23… -> 5d283ab1…` |
 | HS-018      | human scratch block               | P03                          | authorized marker after package PASS       | passed       | P03 integration `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34`; `reviews/P03-review-01.md`; marker `5d283ab1… -> db97178a…` |
@@ -3516,3 +3515,23 @@ blocks byte-match SCOPE with 14 checked IDs, canary intact). Reporting to the hu
 trigger: a capable real-hidden-tab CLI/topology becomes available (or repository authorization for
 one), at which point reopen P05 with a no-product diagnostic revision per D-011 and, on a measured
 first late edge, proceed to unblock P08 -> P16E/P10 -> P17A-D -> P20A/P20B -> P21.
+
+### 2026-07-26 — P05 reopened at revision 13 (D-017 rescope; supersedes D-011)
+
+Root reopened P05 after a user-directed re-examination. Findings: (1) HS-015's frozen text asks only
+about websocket connection security, CORS and public-key-hash vault access — NOT hidden-tab timing;
+(2) that security substance is implemented and independently green — `src/server/routers/realtime.ts`
+mints a 60s HS256 grant only after `rotate_realtime_grant` verifies the caller `pubkey_hash` has vault
+access, scoped to `vault_ops`/topic/role with refresh+revoke, and `src/lib/supabase/realtime.ts`
+subscribes to authoritative `vault_ops`; (3) a 2026-07-26 root capability probe confirmed raw CDP
+`Emulation.setVisibilityState` is absent in the bundled Chromium and the `addInitScript` visibility
+mock flips only the JS `visibilityState`/`hidden` predicate (fires `visibilitychange`) WITHOUT
+throttling the real socket. Therefore the hidden-tab "first late edge" timing study D-011/Q-013
+pursued is out of HS-015 scope and cannot be genuinely measured here; it is accepted as an unmeasured
+non-issue. **D-017** records this and supersedes D-011's hard external block; D-011 marked superseded;
+R-026 -> mitigated, R-004 updated. P05 dispatched at revision 13 to COMPLETE security acceptance with
+real adversarial/authorization/publication/revoke/reconnect-catch-up/CORS tests and to verify
+background as mock-driven re-sync BEHAVIOR only (never faked timing). HANDOFF rewritten for P05/13;
+`evidence/P05/implementation-13.md` sole artifact, `reviews/P05-review-13.md` future immutable review.
+No product code touched by root. Rolling scratch SHA unchanged `ddd53142…`; HS-015 remains unchecked
+until independent PASS; fourteen requirements still `passed`.

@@ -179,7 +179,7 @@ need evidence, alternatives, security/UX impact, and a reversal path.
 
 - **Date:** 2026-07-20
 - **Package / scope:** P05 / HS-015
-- **Status:** accepted external-gate disposition
+- **Status:** superseded by D-017 on 2026-07-26; previously accepted external-gate disposition
 - **Evidence:** `evidence/P05/implementation-11.md`, independent
   `reviews/P05-review-11.md`, Q-013 and the installed `@playwright/cli` 0.1.17 help/README plus its
   bundled CDP protocol declarations; before-P08 diagnostic
@@ -347,6 +347,46 @@ need evidence, alternatives, security/UX impact, and a reversal path.
   are backward-compatible and should be retained when rolling UI behavior back; never remove only
   active nested enumeration, bounded encoding or collision correction while keeping dependent
   count/delete, scale or tooltip behavior.
+
+## D-017 — Rescope P05/HS-015 to websocket security and accept the hidden-tab timing edge as an unmeasured non-issue
+
+- **Date:** 2026-07-26
+- **Package / scope:** P05 / HS-015
+- **Status:** accepted; supersedes D-011
+- **Evidence:** Frozen HS-015 text `specs/human-scratch.md:325-326` / `SCOPE.json#HS-015` asks only how
+  the client websocket connection to Supabase is handled, whether it works with CORS, and whether it is
+  properly secured by public-key-hash vault access. Implemented `src/server/routers/realtime.ts`
+  mints a 60s HS256 grant only after `rotate_realtime_grant` verifies the caller `pubkey_hash` has
+  vault access, scoped to `vault_ops` and topic `vault:{id}:{purpose}` with `vault_role`, refresh and
+  revoke; `src/lib/supabase/realtime.ts` subscribes to authoritative `vault_ops`, not legacy
+  `vault_updates`. P05 rev-11 (`reviews/P05-review-11.md`) independently accepted the same-identity
+  live-sync correction. Capability probe 2026-07-26: raw CDP `Emulation.setVisibilityState` is absent
+  in the bundled Chromium and is a forbidden substitute anyway; the `addInitScript` visibility mock
+  flips only the JS `visibilityState`/`hidden` predicate and fires `visibilitychange`, without
+  throttling the real socket. D-011 and `reviews/P05-review-12.md` record the prior hard block.
+- **Alternatives:** Keep D-011's hard external block (the Goal cannot complete in this environment);
+  accept mock or CDP numbers as genuine hidden-tab timing (false evidence, forbidden by Q-013); add a
+  speculative `worker: true`/timeout/reload/poll mitigation for an unmeasured edge.
+- **Decision and reason:** HS-015's frozen requirement is websocket **security**, not hidden-tab
+  network latency. The security substance is built and independently green; P05 reopens to COMPLETE
+  its acceptance with real tests — adversarial outsider/expired/replayed rejection, owner/member/
+  outsider and cross-vault authorization, `vault_ops`-only publication with no legacy duplication,
+  token mint/expiry/refresh/revoke, reconnect and offline catch-up, and CORS/origin documentation.
+  The hidden-tab "first late edge" timing study that D-011/Q-013 pursued is OUT OF HS-015 scope and
+  cannot be genuinely measured here. The JS-visibility mock legitimately tests background *behavior*
+  (a hidden->visible transition re-syncs missed `vault_ops` without leaking data or stalling) but is
+  never presented as measured network timing; any timing numbers are labelled visible-page controls.
+  The unmeasured hidden-tab network-latency micro-edge is accepted as a documented non-issue — by
+  D-011's own analysis, worker mode adds per-client worker/CSP/disconnect surface for no measured
+  benefit. This supersedes D-011's hard external block; P05 becomes dispatchable again.
+- **Security, data, UX, and compatibility impact:** The pubkey-hash-bound, short-lived, channel-scoped
+  authorization boundary and server-side write verification are preserved and hardened by adversarial
+  tests; unauthorized clients cannot enumerate or subscribe; live state stays truthful and self-
+  recovering with no refresh requirement, infinite spinner or silent missed update. No emulated
+  evidence enters the record and no speculative client mitigation is introduced.
+- **Reversal/migration path:** If a genuinely-backgrounded-tab topology later measures a real late
+  edge, reopen with an independently reviewed product/test diff. Never destructively alter the
+  authorization boundary, weaken token scope/TTL, or subscribe to legacy tables on reversal.
 
 ## Decision template
 
