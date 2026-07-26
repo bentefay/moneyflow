@@ -9,9 +9,16 @@ import {
     updateFieldRule
 } from "@/lib/crdt/field-rule-mutations";
 import { readActiveFieldRules } from "@/lib/crdt/field-rules";
-import { applyFieldRulesToAllTransactions } from "@/lib/crdt/field-rules";
+import {
+    applyFieldRulesToAllTransactions,
+    applyFieldRulesToNewerTransactions
+} from "@/lib/crdt/field-rules";
 import { createVaultMirror } from "@/lib/crdt/mirror";
-import { insertTransaction, type TransactionLocation } from "@/lib/crdt/mutations";
+import {
+    findTransactionInStore,
+    insertTransaction,
+    type TransactionLocation
+} from "@/lib/crdt/mutations";
 import { type TransactionInput, type VaultState } from "@/lib/crdt/schema";
 import { asMinorUnits } from "@/lib/domain/currency";
 
@@ -332,6 +339,46 @@ describe("field-rule CRUD mutations", () => {
             const state = vault.mirror.getState();
             const tx = state.transactions[ACCOUNT];
             expect(JSON.stringify(tx)).not.toContain("tag-coffee");
+        });
+    });
+
+    describe("apply-new is scoped strictly to transactions after the reference date", () => {
+        // Mirrors the P17C transaction-context "apply to new imports" affordance, where the
+        // reference date is THAT row's date: only strictly-later transactions are updated, while the
+        // row itself and same-day siblings are left untouched.
+        const EARLIER = DATE.subtract({ days: 1 });
+        const LATER = DATE.add({ days: 1 });
+
+        it("applies to strictly-later transactions but not the reference date or earlier", () => {
+            const vault = createVaultMirror();
+            vault.mirror.setState((state: VaultState) => {
+                for (const seed of [
+                    txInput({ id: "t-earlier", date: EARLIER }),
+                    txInput({ id: "t-reference", date: DATE }),
+                    txInput({ id: "t-later", date: LATER })
+                ]) {
+                    const inserted = insertTransaction(state.transactions, { transaction: seed });
+                    if (!inserted.ok) throw new Error("seed failed");
+                }
+                createFieldRule(state, {
+                    id: "rule-1",
+                    descriptionText: DESCRIPTION,
+                    action: { field: "tags", mode: "add", tagIds: ["tag-coffee"] },
+                    createdAtEpochMs: 1000
+                });
+            });
+            vault.mirror.setState((state: VaultState) => {
+                const entries = applyFieldRulesToNewerTransactions(state, { referenceDate: DATE });
+                expect(entries.length).toBe(1);
+            });
+
+            const store = vault.mirror.getState().transactions;
+            const later = findTransactionInStore(store, locationOf("t-later", LATER));
+            const reference = findTransactionInStore(store, locationOf("t-reference", DATE));
+            const earlier = findTransactionInStore(store, locationOf("t-earlier", EARLIER));
+            expect(later?.tagIds).toContain("tag-coffee");
+            expect(reference?.tagIds ?? []).not.toContain("tag-coffee");
+            expect(earlier?.tagIds ?? []).not.toContain("tag-coffee");
         });
     });
 });

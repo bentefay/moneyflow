@@ -32,6 +32,7 @@ export {
     useActiveTags,
     useActiveTransactions,
     useApplyFieldRules,
+    useApplyFieldRulesToTransaction,
     useAutomations,
     useCommitImportBatch,
     useDescriptionAliasActions,
@@ -88,6 +89,11 @@ export {
     migrateVaultAutomationsToFieldRules,
     readActiveFieldRules
 } from "./field-rules";
+// Apply active field rules to a single transaction (HS-007 / P17C "apply to this transaction")
+export {
+    applyFieldRulesToSingleTransaction,
+    type ApplyFieldRulesToTransactionResult
+} from "./apply-field-rule-to-transaction";
 // Production import commit (P14 batch insert + P17A field-rule application)
 export {
     commitImportBatch,

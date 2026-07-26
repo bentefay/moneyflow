@@ -34,10 +34,10 @@ import {
 import { type BulkFieldRuleEntry } from "@/lib/crdt/field-rules";
 import { resolvePersonDisplayName } from "@/lib/crdt/person";
 import { type FieldRule } from "@/lib/domain/automation/rules";
-import { toMajorUnits } from "@/lib/domain/currency";
 import { cn } from "@/lib/utils";
 
 import { FieldRuleEditor, type RuleEditorOption } from "./FieldRuleEditor";
+import { draftFromRule, mutationErrorToFieldErrors } from "./rule-editor-data";
 import {
     applyModeTargetsNewOnly,
     emptyRuleDraft,
@@ -71,38 +71,6 @@ function countOutcomes(entries: readonly BulkFieldRuleEntry[]): {
         }
     }
     return { applied, rejected };
-}
-
-function draftFromRule(
-    rule: FieldRule,
-    currencyCode: string,
-    applyMode: RuleEditorDraft["applyMode"]
-): RuleEditorDraft {
-    const base = emptyRuleDraft({
-        field: rule.action.field,
-        tagMode: rule.action.field === "tags" ? rule.action.mode : "add",
-        useAccountScope: rule.accountId != null,
-        useAmountScope: rule.amount != null,
-        applyMode
-    });
-    const allocations: Record<string, string> =
-        rule.action.field === "allocation"
-            ? Object.fromEntries(
-                  Object.entries(rule.action.allocations).map(([personId, value]) => [
-                      personId,
-                      String(value)
-                  ])
-              )
-            : {};
-    return {
-        ...base,
-        descriptionText: rule.descriptionText,
-        accountId: rule.accountId ?? "",
-        amountText: rule.amount == null ? "" : String(toMajorUnits(rule.amount, currencyCode)),
-        aliasId: rule.action.field === "descriptionAlias" ? rule.action.aliasId : "",
-        tagIds: rule.action.field === "tags" ? [...rule.action.tagIds] : [],
-        allocations
-    };
 }
 
 function summarizeRule(rule: FieldRule): string {
@@ -351,20 +319,4 @@ export function FieldRulesManager({
             </p>
         </div>
     );
-}
-
-function mutationErrorToFieldErrors(error: {
-    readonly type: string;
-    readonly existingRuleId?: string;
-}): RuleEditorFieldErrors {
-    if (error.type === "duplicate-key") {
-        return {
-            descriptionText:
-                "A rule already exists for this field, description and constraints. Edit or delete it instead."
-        };
-    }
-    if (error.type === "invalid-allocations") {
-        return { allocations: "Enter a valid percentage set (each between -100 and 100)." };
-    }
-    return { descriptionText: "This rule is not valid. Check the fields and try again." };
 }

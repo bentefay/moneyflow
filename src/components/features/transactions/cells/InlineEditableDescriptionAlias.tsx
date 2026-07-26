@@ -33,6 +33,8 @@ export interface InlineEditableDescriptionAliasProps {
     onCommitText: (text: string, origin: DescriptionAliasEditOrigin) => void;
     /** Select an existing final real alias. */
     onSelectAlias: (aliasId: string, origin: DescriptionAliasEditOrigin) => void;
+    /** Notify the container when the field gains (`true`) or loses (`false`) edit focus. */
+    onEditingChange?: (editing: boolean) => void;
     className?: string;
     inputClassName?: string;
     placeholder?: string;
@@ -82,6 +84,7 @@ export function InlineEditableDescriptionAlias({
     availableAliases,
     onCommitText,
     onSelectAlias,
+    onEditingChange,
     className,
     inputClassName,
     placeholder = "",
@@ -232,12 +235,14 @@ export function InlineEditableDescriptionAlias({
                 setHasEdited(false);
                 setActiveOptionIndex(null);
                 setIsAutocompleteDismissed(false);
+                onEditingChange?.(true);
             }}
             onBlur={() => {
                 setIsFocused(false);
                 setHasEdited(false);
                 setActiveOptionIndex(null);
                 commitOnce();
+                onEditingChange?.(false);
             }}
             onClick={(event) => event.stopPropagation()}
             disabled={disabled}

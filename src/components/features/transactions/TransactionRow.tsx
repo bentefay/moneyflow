@@ -111,6 +111,12 @@ export interface TransactionRowProps {
     onDelete?: () => void;
     /** Callback when a field is updated via inline edit */
     onFieldUpdate?: (field: keyof TransactionRowData, value: unknown) => void;
+    /**
+     * Render the inline description-rule robot for this row. Receives whether the description field
+     * is actively being edited so the affordance can hide itself. Kept as a render prop so the row
+     * stays presentational and the CRDT wiring lives in the page.
+     */
+    renderDescriptionRobot?: (context: { readonly isEditing: boolean }) => React.ReactNode;
     /** Ordered person-specific columns shared with the table header */
     allocationColumns?: readonly AllocationColumn[];
     /** Shared dynamic grid template */
@@ -148,6 +154,7 @@ export function TransactionRow({
     onResolveDuplicate,
     onDelete,
     onFieldUpdate,
+    renderDescriptionRobot,
     allocationColumns = [],
     gridTemplateColumns = TRANSACTION_GRID_TEMPLATE,
     onAllocationUpdate,
@@ -159,6 +166,7 @@ export function TransactionRow({
     const notesRef = useRef<HTMLTextAreaElement>(null);
 
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [isEditingDescription, setIsEditingDescription] = useState(false);
 
     const effectiveData = transaction;
     const effectiveExpanded = isExpanded;
@@ -286,23 +294,27 @@ export function TransactionRow({
                 </div>
 
                 {/* Description */}
-                <div data-cell="description" className="min-w-0">
-                    <InlineEditableDescriptionAlias
-                        value={effectiveData.descriptionAliasName ?? effectiveData.description}
-                        descriptionAliasId={effectiveData.descriptionAliasId}
-                        originalDescription={effectiveData.originalDescription}
-                        availableAliases={availableAliases}
-                        onCommitText={(text, origin) => {
-                            onDescriptionCommitText?.(text, origin);
-                        }}
-                        onSelectAlias={(aliasId, origin) => {
-                            onDescriptionSelectAlias?.(aliasId, origin);
-                        }}
-                        className="truncate font-medium"
-                        inputClassName="font-medium"
-                        placeholder="No description"
-                        data-testid="description-editable"
-                    />
+                <div data-cell="description" className="flex min-w-0 items-center gap-1">
+                    <div className="min-w-0 flex-1">
+                        <InlineEditableDescriptionAlias
+                            value={effectiveData.descriptionAliasName ?? effectiveData.description}
+                            descriptionAliasId={effectiveData.descriptionAliasId}
+                            originalDescription={effectiveData.originalDescription}
+                            availableAliases={availableAliases}
+                            onCommitText={(text, origin) => {
+                                onDescriptionCommitText?.(text, origin);
+                            }}
+                            onSelectAlias={(aliasId, origin) => {
+                                onDescriptionSelectAlias?.(aliasId, origin);
+                            }}
+                            onEditingChange={setIsEditingDescription}
+                            className="truncate font-medium"
+                            inputClassName="font-medium"
+                            placeholder="No description"
+                            data-testid="description-editable"
+                        />
+                    </div>
+                    {renderDescriptionRobot?.({ isEditing: isEditingDescription })}
                 </div>
 
                 {/* Account */}

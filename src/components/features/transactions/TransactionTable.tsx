@@ -71,6 +71,14 @@ export interface TransactionTableProps {
     onTransactionFocus?: (id: string) => void;
     /** Callback when transaction is updated */
     onTransactionUpdate?: (id: string, updates: Partial<TransactionRowData>) => void;
+    /**
+     * Render the inline description-rule robot for a given transaction. The table forwards each
+     * row's live editing state so the affordance can hide while the description is being edited.
+     */
+    renderDescriptionRobot?: (
+        transactionId: string,
+        context: { readonly isEditing: boolean }
+    ) => React.ReactNode;
     /** Person-specific allocation columns shared by the header and every row */
     allocationColumns?: readonly AllocationColumn[];
     /** Memoized grid template matching allocationColumns */
@@ -202,6 +210,7 @@ export function TransactionTable({
     isLoading = false,
     onTransactionDelete,
     onResolveDuplicate,
+    renderDescriptionRobot,
     className
 }: TransactionTableProps) {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -444,6 +453,12 @@ export function TransactionTable({
                                                           aliasId,
                                                           origin
                                                       )
+                                                : undefined
+                                        }
+                                        renderDescriptionRobot={
+                                            renderDescriptionRobot
+                                                ? (ctx) =>
+                                                      renderDescriptionRobot(transaction.id, ctx)
                                                 : undefined
                                         }
                                         onClick={() => handleRowClick(transaction.id)}

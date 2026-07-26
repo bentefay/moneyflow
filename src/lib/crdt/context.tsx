@@ -30,6 +30,10 @@ import {
 } from "@/lib/domain/description-aliases";
 
 import {
+    applyFieldRulesToSingleTransaction,
+    type ApplyFieldRulesToTransactionResult
+} from "./apply-field-rule-to-transaction";
+import {
     type CreateFieldRuleInput,
     createFieldRule,
     type DeleteFieldRuleInput,
@@ -1190,6 +1194,23 @@ export function useApplyFieldRules(): ApplyFieldRuleActions {
         "mutation"
     );
     return useMemo(() => ({ applyAll, applyNewerThan }), [applyAll, applyNewerThan]);
+}
+
+/**
+ * Apply the active field rules to ONE transaction ("apply to this transaction"). Delegates to the
+ * additive {@link applyFieldRulesToSingleTransaction} composition, which reuses the P17A engine, so
+ * allocation writes remain P16C-only and alias writes remain on the P11 boundary. Runs on the full
+ * VaultState so alias application can reach `descriptionAliases`.
+ */
+export function useApplyFieldRulesToTransaction(): (
+    transactionId: string
+) => ApplyFieldRulesToTransactionResult {
+    return useInternalVaultAction(
+        (state, transactionId: string) =>
+            applyFieldRulesToSingleTransaction(state, { transactionId }),
+        [],
+        "mutation"
+    );
 }
 
 /** Read a user's remembered editor choice (defaults applied). */

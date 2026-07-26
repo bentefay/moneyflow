@@ -32,6 +32,7 @@ import {
     TransactionTableToolbar
 } from "@/components/features/transactions";
 import type { DescriptionAliasEditOrigin } from "@/components/features/transactions/cells/InlineEditableDescriptionAlias";
+import { TransactionRuleRobot } from "@/components/features/transactions/TransactionRuleRobot";
 import { useToast } from "@/components/ui/toast";
 /** Threshold for showing warning when selecting all */
 const LARGE_SELECTION_THRESHOLD = 500;
@@ -55,6 +56,7 @@ import { resolvePersonDisplayName } from "@/lib/crdt/person";
 import { compareTransactionOrder, filterTransactions } from "@/lib/crdt/queries";
 import type { Account, Person, Status, Tag, Transaction } from "@/lib/crdt/schema";
 import { getNextTagColor } from "@/lib/domain";
+import { type RuleMatchSubject } from "@/lib/domain/automation/rules";
 import { asMinorUnits } from "@/lib/domain/currency";
 
 // Number of transactions to load per page
@@ -349,6 +351,60 @@ function TransactionsPageContent() {
         [displayedTransactions, accounts, statuses, tags, aliasLookup]
     );
 
+    // Per-row inputs for the inline description-rule robot. The match subject faithfully mirrors the
+    // engine's own projection (raw imported description, account, amount, importId => isManual) so
+    // the robot's drift detection agrees with what applying the rule would actually do. The current
+    // alias is resolved through symlinks to a final real alias id, matching the id a rule implies.
+    const robotContextById = useMemo(() => {
+        const byId = new Map<
+            string,
+            {
+                readonly subject: RuleMatchSubject;
+                readonly currentAliasId: string | null;
+                readonly referenceDate: Temporal.PlainDate;
+            }
+        >();
+        for (const tx of displayedTransactions) {
+            const rawDescription =
+                tx.description != null && tx.description.length > 0 ? tx.description : null;
+            const resolvedAliasId = tx.descriptionAliasId
+                ? (aliasLookup.resolve(tx.descriptionAliasId)?.id ?? null)
+                : null;
+            byId.set(tx.id, {
+                subject: {
+                    descriptionText: rawDescription,
+                    accountId: tx.accountId,
+                    amount: tx.amount,
+                    isManual: tx.importId == null
+                },
+                currentAliasId: resolvedAliasId,
+                referenceDate: tx.date
+            });
+        }
+        return byId;
+    }, [displayedTransactions, aliasLookup]);
+
+    const [autoOpenRobotTxId, setAutoOpenRobotTxId] = useState<string | null>(null);
+
+    const renderDescriptionRobot = useCallback(
+        (transactionId: string, context: { readonly isEditing: boolean }): React.ReactNode => {
+            const entry = robotContextById.get(transactionId);
+            if (entry == null) return null;
+            return (
+                <TransactionRuleRobot
+                    autoOpen={autoOpenRobotTxId === transactionId}
+                    currentAliasId={entry.currentAliasId}
+                    isEditing={context.isEditing}
+                    onAutoOpenHandled={() => setAutoOpenRobotTxId(null)}
+                    referenceDate={entry.referenceDate}
+                    subject={entry.subject}
+                    transactionId={transactionId}
+                />
+            );
+        },
+        [autoOpenRobotTxId, robotContextById]
+    );
+
     const allocationColumnModel = useMemo(
         () =>
             buildAllocationColumnModel({
@@ -628,6 +684,9 @@ function TransactionsPageContent() {
                             name: intent.target.name
                         });
                     }
+                    // A newly assigned alias may now differ from a matching rule; let the robot
+                    // open so the user can update the rule (P17C alias-edit -> update rule).
+                    setAutoOpenRobotTxId(txId);
                     return;
                 case "rename-one":
                     renameDescriptionAlias({ aliasId: intent.aliasId, name: intent.name });
@@ -639,6 +698,7 @@ function TransactionsPageContent() {
                         expectedAliasId: tx.descriptionAliasId,
                         target: materializeAliasTarget(intent.target)
                     });
+                    setAutoOpenRobotTxId(txId);
                     return;
                 case "remove-one":
                     if (!tx.descriptionAliasId) return;
@@ -1003,6 +1063,7 @@ function TransactionsPageContent() {
                     onResolveDuplicate={handleResolveDuplicate}
                     onTransactionUpdate={handleTransactionUpdate}
                     onTransactionAllocationUpdate={handleTransactionAllocationUpdate}
+                    renderDescriptionRobot={renderDescriptionRobot}
                 />
             </ImportDropTarget>
 
