@@ -322,7 +322,7 @@
   (can't be intercepted), and then your row level access is determined by whether you have
   permission to access that vault?)
 
-- [] How are we handling the client connection to supabase for websockets? Does this work with CORS?
+- [x] How are we handling the client connection to supabase for websockets? Does this work with CORS?
   Is it properly secured based on pub key hash access to vault?
 
 - [] Update the marketing pages to include all these features. Be clear, succinct and not too

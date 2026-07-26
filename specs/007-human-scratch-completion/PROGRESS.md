@@ -7,32 +7,30 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P05 / 13 (HS-015) reviewing. Reopened per D-017 (supersedes D-011): HS-015
-  rescoped to its frozen websocket-security ask; the hidden-tab timing edge is an accepted unmeasured
-  non-issue. Unblocking P05 cascades to P08 -> P16E/P10 -> P17A-D -> P20A/P20B -> P21
-- **Next action:** await `p05-reviewer-13` (a DISTINCT reviewer, never the implementer) verdict on
-  P05/13 over BASE `007651be` -> HEAD `b34dcf6`. On independent PASS: two-commit integration + HS-015
-  authorized forward marker, then P08 becomes dispatchable (cascade P08 -> P10 -> P17A-D -> P20A/B ->
-  P21). On changes_requested: reopen at revision 14. Keep FS-001 immutable/open
+- **Current package:** P08 / — (HS-012, HS-011) queued, now dispatchable. P05 / 13 (HS-015) PASSED
+  under D-017 (websocket-security scope); the hidden-tab timing edge is an accepted unmeasured
+  non-issue. P05 unblocked the cascade P08 -> P10/P16E -> P17A-D -> P20A/P20B -> P21
+- **Next action:** rewrite HANDOFF for P08 (HS-012 auto-person linkage + HS-011 secure invite/member
+  management; deps P05, P07 both `passed`) and dispatch a fresh `human_scratch_implementer`. Then
+  re-run the dependency sweep; remaining queued after P08: P10, P16E, P17A-D, P20A/B, P21. Keep FS-001
+  immutable/open
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
   `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines and 25,441 bytes
-- **Rolling scratch SHA-256:** `ddd5314297d9ffa9f6ebb9f3261c9f8b14c69a6d55b76d4490194980c4d2db49`
+- **Rolling scratch SHA-256:** `29bbb2fc970ceadc58e13d8216a35317663a0b5331a7ba6e5c9d44e4b2949a16`
 - **Authorized checked HS IDs:** HS-001, HS-002, HS-004, HS-005, HS-006, HS-008, HS-009, HS-010,
-  HS-013, HS-014, HS-017, HS-018, HS-019, HS-020
+  HS-013, HS-014, HS-015, HS-017, HS-018, HS-019, HS-020
 - **Active completion marker event:** none
 - **Active P21 rollback batch:** none
-- **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE (14 checked IDs)
-- **Requirement state:** fourteen passed; HS-015 reopened and implementing under P05/13 (D-017);
-  seven HS requirements (HS-003/007/011/012/015/016/021) plus FS-001 not yet passed
-- **Last ledger update:** 2026-07-26; P19 (HS-020) control commit `reviewing -> passed` at
-  `d14800f` (integration `c06c851`, marker `specs/human-scratch.md:348` one line, rolling scratch SHA
-  `c4121a48… -> ddd53142…`, normalized-block check green with 14 checked IDs). Post-pass dependency
-  sweep then established that ALL 10 remaining queued packages transitively depend on P05
-  `blocked_external`, so no package is dispatchable and no independent work remains: HALT and report.
-  21 packages `passed`, P05 `blocked_external`, 10 queued-but-blocked; fourteen requirements `passed`,
-  HS-015 blocked externally, FS-001 immutable/open
+- **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE (15 checked IDs)
+- **Requirement state:** fifteen passed (adding HS-015 under D-017); six HS requirements
+  (HS-003/007/011/012/016/021) plus FS-001 not yet passed
+- **Last ledger update:** 2026-07-26; P05 (HS-015) control commit `reviewing -> passed` under D-017
+  (integration-persistence `8101bb2`, marker `specs/human-scratch.md:325` one line, rolling scratch
+  SHA `ddd53142… -> 29bbb2fc…`, normalized-block check green with 15 checked IDs). P05 was the last
+  `blocked_external` gate; its pass unblocks P08 (deps P05, P07 both `passed`). 22 packages now
+  `passed`, 10 queued (P08 next-dispatchable); fifteen requirements `passed`, FS-001 immutable/open
 
 ## Package ledger
 
@@ -43,7 +41,7 @@ review evidence.
 | P02     | HS-017         | Animate UI evaluation, ADR, and representative migration only if justified          | P01                  | passed       | 02  | `19d73035b33b639f9927d2f78a55d74c44f65544..213100fadf5acea30aad7e90998bd575cdcd508c` | `evidence/P02/implementation-02.md` | `reviews/P02-review-02.md` | `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7` |
 | P03     | HS-018         | TanStack Virtual PR #1100 release gate and `useFlushSync`                           | P01                  | passed       | 01  | `c60f605bd811d8920122a66f3d6743d8a3ac044d..b8d4b448f52022970ca388654be14d24e347deb5` | `evidence/P03/implementation-01.md` | `reviews/P03-review-01.md` | `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34` |
 | P04     | HS-014         | Database/table/RLS threat model, migrations, and permission remediation             | P01                  | passed | 02 | `9de8b0e8c41087b96523ecc55faa10bf19ec0ff9..dbcf180e829c81a218e9a73791e40902c4f9eb31` | `evidence/P04/implementation-02.md` | `reviews/P04-review-02.md` | `b905ecb810334ed9697f57140047964135ade6ea` |
-| P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | reviewing | 13 | `92dfd4d002e8bcb2a6694c35aff8f713ba4689dc..b34dcf6ad53b6bb3fc6482180d2b0aaedd7fc1bc` | `evidence/P05/implementation-13.md` | `reviews/P05-review-13.md` | reopened per D-017; security-scope completion |
+| P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | passed | 13 | `92dfd4d002e8bcb2a6694c35aff8f713ba4689dc..b34dcf6ad53b6bb3fc6482180d2b0aaedd7fc1bc` | `evidence/P05/implementation-13.md` | `reviews/P05-review-13.md` | `8101bb2355a9894dd5cac9540afd38045973dd01` |
 | P06     | HS-010         | Remove unused user-state storage and dead API surface                               | P04                  | passed | 01  | `a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1..95e91dbcb17ffb9600eaa6cb795336898297ebae` | `evidence/P06/implementation-01.md` | `reviews/P06-review-01.md` | `8e269ab9a6fc15ed6d845542b879e5499828134e` |
 | P07     | HS-011         | Evidence-led person/member/invite UX architecture and acceptance decision           | P04, P06             | passed | 04  | `fe1871ce7dce1e831b57ee5656d38ce5c800aae3..dfffea3c19b110b6021b050b8d9e36b01ae75ab9` | `evidence/P07/implementation-04.md` | `reviews/P07-review-04.md` | `1f6cb96b27c8093f0ba2c319f32d3c79c8aab126` |
 | P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -107,7 +105,7 @@ required marker rollbacks before the next dispatch.
 | HS-012      | human scratch block               | P08                          | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-013      | human scratch block               | P15                          | authorized marker after package PASS       | passed | P15 integration `9c5d7be8ee4cf7c3fda5f1a7320c053362672e3a`; `reviews/P15-review-02.md`; marker `f0adfef6… -> ce52d7df…` |
 | HS-014      | human scratch block               | P04                          | authorized marker after package PASS       | passed | P04 integration `b905ecb810334ed9697f57140047964135ade6ea`; `reviews/P04-review-02.md`; marker `db97178a… -> c74a2a78…` |
-| HS-015      | human scratch block               | P05                          | authorized marker after package PASS       | queued | reopened at P05/13 per D-017 (websocket-security scope); no marker |
+| HS-015      | human scratch block               | P05                          | authorized marker after package PASS       | passed | marker `specs/human-scratch.md:325` `[x]`; review `reviews/P05-review-13.md` PASS 0 blocking; integration `8101bb2` |
 | HS-016      | human scratch block               | P20A                         | authorized marker after package PASS       | queued       | —                                                                                                                       |
 | HS-017      | human scratch block               | P02                          | authorized marker after package PASS       | passed       | P02 integration `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7`; `reviews/P02-review-02.md`; marker `dcd03b23… -> 5d283ab1…` |
 | HS-018      | human scratch block               | P03                          | authorized marker after package PASS       | passed       | P03 integration `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34`; `reviews/P03-review-01.md`; marker `5d283ab1… -> db97178a…` |
@@ -3587,3 +3585,35 @@ realtime integration 57/57, `realtime-recovery` e2e 3/3; limitations recorded (d
 e2e suite; did not replay the RED DB-function-weakening step — verified the restored end-state instead;
 did not re-run format:check). P05 remains `reviewing` and HS-015 remains unchecked until the control
 commit applies the forward marker. Rolling scratch SHA unchanged `ddd53142…`.
+
+### 2026-07-26 — HS-015 completion_pending (authorized forward marker)
+
+Root-owned `completion_pending`. HS ID: **HS-015**. Exact pre-change scratch SHA-256
+`ddd5314297d9ffa9f6ebb9f3261c9f8b14c69a6d55b76d4490194980c4d2db49` (equals rolling SHA; normalized
+blocks byte-match SCOPE in array order with the 14 currently-passed IDs checked, HS-015 still `[]`).
+Mapped package: **P05** `reviewing -> passed` — review `reviews/P05-review-13.md` VERDICT PASS 0
+blocking, integration-persistence commit `8101bb2355a9894dd5cac9540afd38045973dd01`. Intended marker
+change: `specs/human-scratch.md:325` first line `- [] ` -> `- [x] ` for the HS-015 block (lines
+325-326 per `SCOPE.json#sourceLineRange`). While this event is pending, no package dispatch is
+allowed. A private `mktemp` copy of the scratch file was taken for one-line-diff comparison.
+Finalization follows in this same control commit after the marker is applied and re-verified.
+
+### 2026-07-26 — HS-015 completion finalize (authorized forward marker) + P05 control
+
+Root-owned finalize of the `completion_pending` above. **HS-015** marker applied at
+`specs/human-scratch.md:325`: first line `- [] ` -> `- [x] ` for the HS-015 block. Pre-change scratch
+SHA-256 `ddd5314297d9ffa9f6ebb9f3261c9f8b14c69a6d55b76d4490194980c4d2db49` -> post-change
+`29bbb2fc970ceadc58e13d8216a35317663a0b5331a7ba6e5c9d44e4b2949a16`; `git diff` on the scratch is
+exactly one changed line (`325c325`, checkbox prefix only) and the private `mktemp` one-line-diff
+comparison confirmed it before deletion. Post-marker normalized-block check re-run **green**: exactly
+21 ordered SRC-HUMAN-SCRATCH blocks in SCOPE array order, all 15 currently-passed IDs (adding HS-015)
+byte-identical to `SCOPE.json#sourceTextLines`, every `[x]` legitimate, and `sha256sum
+specs/human-scratch.md` == new rolling `29bbb2fc…`. Package **P05** `reviewing -> passed` citing
+integration commit `8101bb2355a9894dd5cac9540afd38045973dd01` (Commit A, which persisted
+`reviews/P05-review-13.md` and whose own hash is the integration hash);
+`evidence/P05/implementation-13.md` persisted in this control commit. Requirement **HS-015** `queued ->
+passed`, mapped package P05 review `reviews/P05-review-13.md` VERDICT PASS 0 blocking. Rolling scratch
+SHA advanced to `29bbb2fc…`; authorized checked HS IDs += HS-015 (**fifteen**). Fifteen requirements
+now `passed`; FS-001 immutable/open. P05 was the final `blocked_external` gate — its pass unblocks P08
+(deps P05, P07 both `passed`). No dispatch was active while `completion_pending`. Next: rewrite HANDOFF
+and dispatch P08 (HS-012, HS-011).
