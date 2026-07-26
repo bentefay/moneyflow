@@ -38,3 +38,4 @@
 
 Update risk status only with evidence. A package PASS must link mitigation for every applicable
 high-impact risk.
+| R-034 | Accessibility | Row checkbox accessible name degrades to "Select transaction " when a transaction description is empty | P16E/02 review flagged this NON-BLOCKING (explicitly not a P16E finding): `TransactionRow.tsx:274` is P16D-owned and byte-unchanged across the P16E range; the control stays discoverable/focusable/keyboard-operable by role. Route a name fallback (amount/date) for the P21 audit | open      |

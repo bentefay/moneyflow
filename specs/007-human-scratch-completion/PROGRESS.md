@@ -73,7 +73,7 @@ review evidence.
 | P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | passed | 05 | `4c102600240e2804b801c2a320e10164defb14ea..46d8f9feb79c6dfc080c0869922fb8cd4c20ec6c` | `evidence/P16B/implementation-05.md` | `reviews/P16B-review-05.md` | `136678a0ac864cf2d120b2b5b896d4fadcabcdd1` |
 | P16C    | FS-001, HS-009 | CRDT per-key/complete-set APIs and every mutation, hydration and history path       | P16A, P16B, P09, P14 | passed | 02 | `0a7c9a49722ddc4d955f910af6dbb19cfffbd600..207e8c5758a48e66980b95eaeff51c0e5a605f7e` | `evidence/P16C/implementation-02.md` | `reviews/P16C-review-02.md` | `e0f06f7fb60ce08ef2f75b0a9ca7769630a2a55c` |
 | P16D    | FS-001, HS-009 | Actual grid/add-row person columns, virtualization, history and presence UX         | P16C, P13            | passed       | 01  | `3a5081ac37e09817e0d02ae8799469d1bf09dad5..b5ebc2a8edbf5e1fc522873fb5ee7455266a3bcc` | `evidence/P16D/implementation-01.md` | `reviews/P16D-review-01.md` | `47867d506978a3f571ef0feef6185e9436d5a908` |
-| P16E    | FS-001         | People obligations/issues/source UX plus full integration, E2E, manual and perf     | P16D, P08, P11C      | reviewing     | 02  | `191d070..bb12e0c`                                                                   | `evidence/P16E/implementation-02.md` | `reviews/P16E-review-02.md` (pending) | rev-01 FAIL `839665d`; rev-02 handback verified; p16e-reviewer-02 dispatched |
+| P16E    | FS-001         | People obligations/issues/source UX plus full integration, E2E, manual and perf     | P16D, P08, P11C      | reviewing     | 02  | `191d070..bb12e0c`                                                                   | `evidence/P16E/implementation-02.md` | `reviews/P16E-review-02.md` | rev-01 FAIL `839665d`; rev-02 handback verified; p16e-reviewer-02 dispatched |
 | P17A    | HS-007         | Automation schema/migration, exact matcher, precedence, preferences, import engine  | P11C, P14, P16E      | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P17B    | HS-007         | Shared rule editor and automations-page UX                                          | P17A, P02            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P17C    | HS-007         | Description inline proposals, robot drift state and scoped application              | P17B                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -4089,3 +4089,39 @@ gates with retries disabled and repeated. The rev-01 adjudications A (benchmark,
 integration then FS-001 completion by canonical byte-identity (no marker). On CHANGES_REQUESTED: persist
 failed artifacts, transcribe proposals, rescope to rev-03. Rolling scratch SHA unchanged `df8ad9ce…`;
 seventeen requirements `passed`; FS-001 immutable/open; no marker.
+### 2026-07-27 — P16E/02 `reviewing -> reviewing` (independent PASS recommendation)
+
+Distinct reviewer `p16e-reviewer-02` returned **VERDICT: PASS**, 0 blocking findings, over
+`191d070..bb12e0c`. Review artifact `reviews/P16E-review-02.md` is 300 lines / 19,411 bytes at SHA-256
+`c952838f2182bf18be0c3fc27d7a16d52d734024af58ac1f64b7dcd919bc028f`. Root verified before accepting
+(verify-not-trust): product HEAD is still `bb12e0c` (only a root ledger commit above it; `bb12e0c..HEAD`
+product/test diff empty), and the review's first line is `VERDICT: PASS`.
+
+The reviewer reproduced the F-1 fix in the REAL app via the canonical §13 "View transaction" link (not only
+via tests): the deep-linked row lands selected + highlighted + in viewport with exactly 1 selected; the URL
+is already reduced to `/transactions` on arrival (one-shot); deselection sticks across forced re-renders
+(scroll + resize); and the data-loss path is CLOSED — after deselecting the deep-linked row and selecting a
+different one, bulk delete + confirm yields `{t1Present: 1, t2Present: 0}` (rev-01 destroyed both). Beyond
+the four required behaviours the reviewer independently established: no render/replace loop (13 URL samples,
+`history.length` +1), no first-paint flicker (a MutationObserver recorded a single `aria-selected` entry
+`init:…:true`), correct cold async-vault landing, unknown-ID no-op without looping, repeatable revisits, and
+provable guard termination; `focusedSourceIndex`/`revealedIdRef`/`effectiveDisplayCount` removed and
+`selectedTransactionIds`/`displayedTransactions`/`hasMore` byte-identical to BASE. Delta = exactly the 3
+authorized paths; boundaries all EMPTY over the range (`src/lib/**` 0, P16D grid 0 bytes, `supabase/**` 0,
+realtime 0, `vault_ops` 0); single engine, no cache, no cross-currency-total field; frozen spec
+SHA/715/25441 match. Gates re-run independently: typecheck clean, lint 0 errors, `format:check` fails only on
+the 15 untouched `specs/**` files, unit 1735 passed / 2 skipped, full E2E 142/142 at retries=0,
+`people-settlement --repeat-each=3 --retries=0` 54/54 zero flaky, local Supabase healthy. RED reproduced by
+the reviewer (revert product only → both new tests fail on the real defect); GREEN corrections tests-only
+(`git diff --name-only d79a630 bb12e0c -- src/lib/ src/components/features/transactions/` = 0).
+Adjudications A (benchmark, Q-033, R-020 open) and B (console allowlist) not re-opened — rev-02 touched no
+engine code.
+
+No new Q proposals. Rev-01's `Q-PROPOSAL-P16E-01-001` (100k/200ms measured follow-up) was ALREADY
+transcribed by root as **Q-033** in the rev-01 FAIL integration `839665d`, with R-020 kept open — nothing
+further owed there. One NON-BLOCKING reviewer observation, explicitly NOT a P16E finding: the row checkbox's
+accessible name degrades to `"Select transaction "` when a row description is empty
+(`TransactionRow.tsx:274`, P16D-owned and byte-unchanged across this range; the control stays
+discoverable/focusable/keyboard-operable by role). Routed to P21 as **R-034**. Root acceptance and the
+`reviewing -> passed` control + FS-001 completion follow in the next control commit. Rolling scratch SHA
+unchanged `df8ad9ce…`; seventeen requirements `passed`; FS-001 immutable/open.
