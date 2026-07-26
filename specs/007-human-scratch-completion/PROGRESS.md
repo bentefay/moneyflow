@@ -7,26 +7,28 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P08 / 02 (HS-012 + HS-011) remediation, D-018 boundary-safe core. Rev-01 (HEAD
-  `d2762f9`) got an independent review: initially 2 blockers, but **B-1 was WITHDRAWN** by the reviewer
-  after it ran the decisive BASE-vs-HEAD query (root-reconfirmed: `rekey` has zero real call sites at BOTH
-  BASE `c5c9919` and HEAD, so revoke-without-rotate downgrades no existing guarantee — membership-scoped RLS
-  `is_vault_member` + per-message realtime `realtime_grant_allows` already revoke future-envelope access at
-  the preserved strength; item 3 MET). **One blocker remains — B-2:** the invite-acceptance handler never
-  opens the shared vault (no `setActiveVault`), so the HS-012 consume-once person-link marker is stranded and
-  no member Person materializes on the real journey. Everything else PASSED (DoD 1/2/3, boundary empty-diff,
-  secret-safety incl. plaintext-log removal, trpc nonce fix, Person.name resolver ripple). Rev-02 fixes B-2
-  (+ non-blocking N-4 honesty items). BASE `c5c9919`. Downstream cascade P08 -> P10/P16E -> P17A-D -> P20A/P20B -> P21
-- **Next action:** await `p08-implementer-01` rev-02 `ready_for_review` at a new HEAD fixing **B-2**: deliver
-  the accepting member into the shared vault on acceptance (call `setActiveVault` to the shared vaultId) so
-  `consumePendingPersonLink` runs and the member Person materializes, remove the permanent-miss fragility of
-  the `sessionStorage` consume-once marker (reconcile on shared-vault open, not one-shot), and strengthen the
-  E2E to assert on what the member's app actually opens (2 persons, shared vault active), not just the DB row.
-  Also address non-blocking N-4: the remove control should explain access is revoked but the key is NOT
-  rotated (binding task's "removal/rekey implications explained"), add the DoD-5 removal-authorization
-  integration test, and correct the evidence section 4 "sealed-box rekey" overstatement. Then dispatch a
-  distinct reviewer (may reuse `p08-reviewer-01`) over the rev-02 delta + confirm B-2 closed and no regression
-  of the rev-01 passes. Keep FS-001 immutable/open
+- **Current package:** P08 / 02 (HS-012 + HS-011) **reviewing** — B-2 remediation delivered. Implementer
+  handed back rev-02 at HEAD `d40b854` (product base rev-01 `d2762f9`; sole commit `d40b854`, EXACTLY the 6
+  authorized product/test paths, boundary untouched, no epoch machinery, evidence-02 uncommitted — all
+  root-verified). B-2 fix is client-only: `handleAccept` now calls `setActiveVaultStorage({id: vaultId})`
+  before `router.push`, delivering the accepting member into the SHARED vault so the init effect runs and the
+  Person materializes; the pending-person-link marker moved sessionStorage(one-shot) -> localStorage
+  check-and-clear-on-confirmation (idempotent, retrying, no permanent-miss). New two-user E2E asserts from the
+  MEMBER's app (shared vault active + self/owner linked + bidirectional), RED with fix stashed. A distinct
+  reviewer (`p08-reviewer-01`, not the implementer) is verifying the delta `d2762f9..d40b854`, including an
+  explicitly-flagged design call (marker retained rather than pure markerless reconcile, to preserve the
+  realtime-recovery E2E). BASE `c5c9919`. Downstream cascade P08 -> P10/P16E -> P17A-D -> P20A/P20B -> P21
+- **Next action:** await `p08-reviewer-01` VERDICT on `reviews/P08-review-02.md` over `d2762f9..d40b854`.
+  Reviewer must reproduce (not trust): B-2 closed on the real journey (member's own app opens the SHARED
+  vault, Person materializes), permanent-miss fragility actually removed (localStorage + clear-on-
+  confirmation + retry, idempotent/convergent), E2E genuinely RED->GREEN and asserting on the member's app,
+  N-4a/b/c, and no regression of rev-01 DoD 1/2/3 or gates; plus the flagged design ruling — whether keeping
+  the acceptance marker (vs pure markerless reconcile) is a defensible product signal that meets the HANDOFF
+  intent or a scope reduction. If the reviewer deems it a genuine scope reduction, it must NOT self-resolve —
+  flag to root, who routes scope reductions to an independent adjudicator. On PASS: two-commit integration
+  (A: reviewing->PASS event + persist review; B: control + authorized forward marker flipping P08 passed,
+  one-line scratch checkbox for HS-012 [and HS-011 once its P07+P08 both pass], advance rolling SHA + checked
+  IDs). On CHANGES_REQUESTED: record + rescope HANDOFF to rev-03. Keep FS-001 immutable/open
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -36,19 +38,19 @@ review evidence.
   HS-013, HS-014, HS-015, HS-017, HS-018, HS-019, HS-020
 - **Active completion marker event:** none
 - **Active P21 rollback batch:** none
-- **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE (15 checked IDs)
-- **Requirement state:** fifteen passed (adding HS-015 under D-017); six HS requirements
-  (HS-003/007/011/012/016/021) plus FS-001 not yet passed
-- **Last ledger update:** 2026-07-26; P08/01 independent review returned **CHANGES_REQUESTED**. Reviewer
-  first raised 2 blockers, then **WITHDREW B-1** (removal-without-rekey) after running the decisive query:
-  `rekey` was never auto-triggered at BASE (zero real call sites) NOR at HEAD, so revoke-without-rotate
-  downgrades no existing guarantee — item 3 MET. Root independently reconfirmed the zero-call-site fact at
-  both BASE `c5c9919` and HEAD `d2762f9`, plus the membership-scoped RLS + per-message realtime re-check that
-  provide preserved-strength revocation. **Sole remaining blocker B-2:** the acceptance handler
-  (`invite/[token]/page.tsx:191-203`) calls `markPendingPersonLink` + `router.push` but never `setActiveVault`,
-  so the shared vault never opens and HS-012 acceptance-side linkage never runs on the real journey. All other
-  DoD items pass (DoD 1/2/3, boundary empty-diff, secret-safety, trpc nonce fix, resolver ripple). Review
-  persisted; P08 `reviewing -> changes_requested`; HANDOFF rescoped to rev-02 (fix B-2 + N-4 honesty items).
+- **Sema- **Last ledger update:** 2026-07-26; P08/02 remediation handback received and dispatched for independent
+  review. Implementer `p08-implementer-01` fixed the sole blocker B-2 at HEAD `d40b854` (client-only: open the
+  shared vault on accept via `setActiveVaultStorage` so HS-012 linkage runs on the real journey; move the
+  person-link marker to localStorage check-and-clear-on-confirmation removing the permanent-miss fragility;
+  new member-app-asserting two-user E2E proven RED->GREEN) plus non-blocking N-4a/b/c. Root independently
+  verified handback integrity: commit `d40b854` touches ONLY the 6 authorized product/test paths, zero
+  forbidden writes, EMPTY diff over migrations/routers/realtime/`vault_ops`, no epoch content, evidence-02
+  uncommitted. Distinct reviewer `p08-reviewer-01` (rev-01 reviewer; not the implementer) tasked over
+  `d2762f9..d40b854`, with the implementer's flagged marker-vs-markerless design call routed for explicit
+  adjudication. P08 `changes_requested -> reviewing`; rev stays 02. Rolling scratch SHA unchanged
+  `29bbb2fc…`; fifteen requirements `passed`; NO marker until independent PASS
+
+wing -> changes_requested`; HANDOFF rescoped to rev-02 (fix B-2 + N-4 honesty items).
   Rolling scratch SHA unchanged `29bbb2fc…`; fifteen requirements `passed`; NO marker (no PASS). Re-tasking
   `p08-implementer-01` for rev-02
 
@@ -64,7 +66,7 @@ review evidence.
 | P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | passed | 13 | `92dfd4d002e8bcb2a6694c35aff8f713ba4689dc..b34dcf6ad53b6bb3fc6482180d2b0aaedd7fc1bc` | `evidence/P05/implementation-13.md` | `reviews/P05-review-13.md` | `8101bb2355a9894dd5cac9540afd38045973dd01` |
 | P06     | HS-010         | Remove unused user-state storage and dead API surface                               | P04                  | passed | 01  | `a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1..95e91dbcb17ffb9600eaa6cb795336898297ebae` | `evidence/P06/implementation-01.md` | `reviews/P06-review-01.md` | `8e269ab9a6fc15ed6d845542b879e5499828134e` |
 | P07     | HS-011         | Evidence-led person/member/invite UX architecture and acceptance decision           | P04, P06             | passed | 04  | `fe1871ce7dce1e831b57ee5656d38ce5c800aae3..dfffea3c19b110b6021b050b8d9e36b01ae75ab9` | `evidence/P07/implementation-04.md` | `reviews/P07-review-04.md` | `1f6cb96b27c8093f0ba2c319f32d3c79c8aab126` |
-| P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | changes_requested | 02 | `c5c99195bef523c1d4ba2f55e54c886a1aa68533..d2762f9`                                    | `evidence/P08/implementation-01.md` | `reviews/P08-review-01.md` | D-018 core; B-1 withdrawn, B-2 open rev-02  |
+| P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | reviewing         | 02 | `d2762f9..d40b854`                                    | `evidence/P08/implementation-02.md` | `reviews/P08-review-02.md` | D-018 core; rev-02 B-2 fix under review     |
 | P09     | HS-006         | Loro UndoManager integration, controls, shortcuts and action grouping               | P01                  | passed       | 02 | `c9146fae2c5534313d21b4f34cb2b012eaeeb4ed..418234e28ac649e03ce8ad184d08a8a2f2416149` | `evidence/P09/implementation-02.md` | `reviews/P09-review-02.md` | `59bf82e894e45e034858e25255240701a3afb0b8` |
 | P10     | HS-003         | Encrypted Loro EphemeralStore presence and active transaction                       | P05, P08             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | passed | 04 | `eb5ab2e215130c358130d5411a92b51951c3c53a..fb72abdaf531dff40c59f6b3525fb1b9ce50f805` | `evidence/P11A/implementation-04.md` | `reviews/P11A-review-04.md` | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f` |
@@ -3772,4 +3774,41 @@ root-owned `specs/**` docs (Q-024, not attributable).
 Root persisted the review (immutable) and did NOT integrate / did NOT apply any forward marker (no PASS).
 Package **P08** `reviewing -> changes_requested`. HANDOFF rescoped to **P08 / 02** fixing B-2 + N-4 with all
 rev-01 passes preserved. Re-tasked `p08-implementer-01` for rev-02.
+
+### 2026-07-26 — P08/02 ready_for_review (B-2 remediation) + distinct reviewer dispatch
+
+`p08-implementer-01` handed back rev-02 at HEAD `d40b854` (sole commit on top of root's `2bf89b3`; product
+base == rev-01 `d2762f9`). Root verified handback integrity BEFORE dispatch (verify-not-trust): `d40b854`
+touches EXACTLY the six authorized paths (`invite/[token]/page.tsx`, `vault-provider.tsx`,
+`pending-person-link.ts`, `AccessMembersSection.tsx`, `tests/e2e/invite-redemption.spec.ts`,
+`tests/integration/membership-remove-authz.test.ts`); zero forbidden writes; EMPTY diff over
+`supabase/migrations/**`, `src/server/routers/**`, the Realtime path and `vault_ops`; no
+epoch/`exact_operation_id`/fence/journal/saga content; `evidence/P08/implementation-02.md` left uncommitted.
+
+**Reported B-2 fix (to be reviewer-verified):** `handleAccept` now calls `setActiveVaultStorage({id:
+vaultId})` before `router.push` — the invite page is outside `ActiveVaultProvider`, so it uses the app's own
+non-React vault switch and `/transactions` reads it on mount; this delivers the accepting member into the
+SHARED vault so the init effect runs and the member Person materializes. The pending-person-link marker moved
+from sessionStorage (one-shot, permanent-miss) to localStorage with check-and-clear-ON-CONFIRMATION — clears
+only once the Person is durably present, retries on `forceSync` throw, no-ops when already linked, converges
+concurrent tabs/refresh/re-accept to one deterministic Person. New two-user E2E asserts from the MEMBER's app
+(shared vault active + self "You" + owner "Linked" + no raw pubkey hash + bidirectional); RED with the fix
+stashed (member stuck in own vault), GREEN with it; `--repeat-each=3` on invite + realtime-recovery = 15/15,
+retries disabled. Non-blocking: N-4a owner copy (revoked-but-not-rotated), N-4b `membership-remove-authz.test`
+(non-owner->FORBIDDEN, non-member->NOT_FOUND), N-4c corrected "sealed-box rekey" wording. Claimed gates:
+typecheck clean, lint 0, `pnpm test` 1716 passed/2 skipped, `pnpm test:e2e` 124 passed; format:check fails
+only on `specs/**` (pre-existing).
+
+**Flagged design call (routed for explicit reviewer adjudication, NOT root-decided):** the implementer did NOT
+implement a pure markerless "reconcile on every shared-vault open"; it states a markerless reading provably
+regresses the PRESERVED `realtime-recovery:108` E2E 3/3 (the fixture receiver would emit a racing `vault_ops`
+op), so it retained the acceptance marker as the real-invitee vs fixture-receiver discriminator, and
+explicitly did NOT self-adjudicate this as a scope change. Reviewer must rule whether this is a defensible
+product signal meeting the HANDOFF intent (idempotent, re-runnable, permanent-miss removed) or a genuine scope
+reduction / test-driven contortion; if the latter, reviewer flags to root (scope reductions route to an
+independent adjudicator, never reviewer/implementer).
+
+Distinct reviewer `p08-reviewer-01` (the rev-01 reviewer; NOT the implementer, NOT the scope adjudicator)
+dispatched over `d2762f9..d40b854` to write `reviews/P08-review-02.md`. Package **P08** `changes_requested ->
+reviewing`; rev stays 02; no forward marker (no PASS yet).
 
