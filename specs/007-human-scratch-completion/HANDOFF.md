@@ -3,90 +3,114 @@
 Root rewrites this compact file for one package/revision. It is not a dispatch while an applicable
 literal field is `pending`. Workers may read but never edit it.
 
-## Review dispatch (P17A / 01 — REVIEW)
+## Implement dispatch (P17B / 01 — shared rule editor + automations-page UX)
 
-- **Package / revision:** P17A / 01 (HS-007 automation redesign — MODEL + ENGINE incl. import
-  application) — **REVIEW**
-- **Role:** human_scratch_reviewer, fresh instance `p17a-reviewer-01`. You are DISTINCT from every
-  implementer of this package (`p17a-implementer-01`, `-01b`, `-01c`) and share none of their
-  context. You independently RE-RUN the gates and critically read the code. You write only
-  `reviews/P17A-review-01.md`; you never edit product code, any ledger, SCOPE, QUESTIONS, RISKS,
-  HANDOFF, scratch, or canonical source, and never commit anything.
-- **Verdict contract:** end your review file and your SendMessage to `main` with an explicit
-  `VERDICT: PASS` (zero blocking findings) or `VERDICT: CHANGES_REQUIRED` (list each blocking
-  finding with file:line, why it blocks, and the frozen-text or rule it violates). Non-blocking
-  observations go in a separate NON-BLOCKING section and never gate the pass.
+- **Package / revision:** P17B / 01 (HS-007 — shared management editor) — **IMPLEMENT**
+- **Role:** human_scratch_implementer, fresh instance `p17b-implementer-01`. You write only
+  authorized product/test code and your evidence file; you never commit the evidence, never edit any
+  ledger/SCOPE/QUESTIONS/RISKS/HANDOFF/scratch/canonical source, and never dispatch anyone.
+- **CRITICAL — git discipline:** the working tree is already at the integrated HEAD on branch
+  `main`. Do NOT `git checkout`, `git switch`, `git reset`, or create/switch branches. Commit
+  directly on top of the CURRENT `HEAD`. BASE `5e2ddd0` is the review-range start — reference only,
+  never check it out.
+- **Scope ID:** HS-007 (P17B slice). Frozen text: `specs/human-scratch.md:248-295` (read the whole
+  block — it defines exact-description rules, the four modes, optional amount/account constraints,
+  apply-for-all vs apply-for-new, precedence, and the manual-vs-imported distinction). Task detail:
+  `tasks/HS-007-automation-redesign.md` **P17B — Shared management editor** section.
+- **Your evidence file (write, do NOT commit):** `evidence/P17B/implementation-01.md`.
 
-## What to review
+## What P17B must deliver
 
-- **Review range:**
-  `a09c4b4e2002542b742690e5be0b30bc541dd108..ee83b1b77409cbef2d873edf30bb810a6de99a58` on branch
-  `main`. Root ledger/control commits are interleaved in this range (docs-only, touching only
-  `specs/007-human-scratch-completion/**`) — IGNORE them; review only the product/test delta.
-- **Scope ID:** HS-007 (P17A slice). Frozen text: `specs/human-scratch.md:248-295`. Task detail and
-  acceptance: `tasks/HS-007-automation-redesign.md` (**P17A** section). Adjudicated questions you
-  must hold the code to: `QUESTIONS.md` Q-034..Q-039 (esp. Q-038 = apply-at-import is IN P17A; Q-039
-  = manual row is `importId == null`).
-- **Implementer evidence (read, do not trust blindly):** `evidence/P17A/implementation-01.md`.
+1. **One shared, accessible rule editor** that is genuinely reused (a single component, not two
+   copies) — it powers the Automations page NOW and is structured so P17C can mount the SAME editor
+   in a contextual popup later. It must cover: the field selector, optional amount and/or account
+   constraints, the four modes, the value(s), inline validation, delete, apply-all and apply-new
+   actions. Explain precedence and impact clearly (which rule wins, and what apply-all vs apply-new
+   will change). Preserve the established page's responsive layout, focus management and
+   accessibility.
+2. **Rework the existing pre-redesign automations UI onto the P17A field-rule model.** The current
+   `src/components/features/automations/{ActionEditor,ConditionEditor,AutomationRow,AutomationsTable}.tsx`
+   and `src/app/(app)/automations/page.tsx` are the OLD generic-rule UI — rework/replace them so the
+   Automations page manages FIELD RULES (from `readActiveFieldRules`), using the P17A types.
+3. **Add the thin field-rule CRUD + remembered-preference persistence the editor needs** — P17A
+   deliberately shipped none. Add, ADDITIVELY, vault write actions to create / update / delete a
+   field rule and to persist a user's remembered choice, in NEW files under `src/lib/crdt/**` (e.g.
+   `field-rule-mutations.ts`) plus their `context.tsx` hooks and `index.ts` re-exports. REUSE P17A's
+   `fieldRuleSchema` + validation and `nextUserPreference`
+   (`src/lib/domain/automation/preferences.ts`) — do not re-implement precedence, matching, apply,
+   or migration. Enforce key uniqueness on create/ update exactly as the model requires. Do NOT
+   modify `field-rules.ts`, `import-commit.ts`, the automation domain apply/migration code, or P16C
+   — call them, don't change them. Put new mutations in a NEW file so `src/lib/crdt/mutations.ts`
+   (which holds P16C `replaceTransactionAllocations`) stays byte-identical.
+4. **Apply-all / apply-new actions** from the editor call the EXISTING P17A engine
+   (`applyFieldRulesToAllTransactions` / `applyFieldRulesToNewerTransactions`) — never a bespoke
+   re-application, never a direct allocation-map write. Any allocation write remains P16C-only.
 
-## Gates — RE-RUN ALL yourself and report REAL counts (do not copy the implementer's numbers)
+## Allowed write paths (anything else → raise a Q-proposal; do NOT silently write)
 
-`pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm test:e2e`. A local Supabase
-container is required for integration/E2E; if it is genuinely unobtainable, say so precisely rather
-than reporting unverified passes. Never use Playwright `--headed/--ui/--debug/show`. The
-pre-existing `specs/**` `format:check` failures on untouched docs are NOT a P17A finding; a
-`format:check` failure on any `.ts`/`.tsx` in the delta IS.
+- `src/components/features/automations/**` (the shared editor + reworked page components)
+- `src/app/(app)/automations/page.tsx`
+- `src/components/ui/**` ONLY if you must add a shadcn primitive the editor needs — prefer reusing
+  existing primitives; if you add one, note it in evidence.
+- `src/lib/crdt/**` — ADDITIVE only: a NEW file for field-rule CRUD + preference-persist mutations,
+  plus additive `context.tsx` hooks and `index.ts` re-exports. You MUST NOT modify `field-rules.ts`,
+  `import-commit.ts`, `mutations.ts`, `defaults.ts`/`schema.ts` beyond what genuinely requires
+  additive change (if a schema/default change seems needed, prefer none and raise a Q).
+- `src/hooks/**` (UI state only, if needed)
+- `tests/unit/**`, `tests/integration/**`, `tests/e2e/**`
+- `evidence/P17B/implementation-01.md` (write, never commit)
 
-## Correctness bar — verify against frozen text, not the implementer's claims
+## Hard boundaries — MUST be byte-EMPTY in your diff (a breach is a self-finding to report)
 
-1. **Apply at the real import (Q-038).** A user-committed import through
-   `src/app/(app)/imports/new/page.tsx` must actually apply the highest-precedence field rule to
-   each imported transaction (`useCommitImportBatch` → `commitImportBatch` →
-   `applyFieldRulesToImport`). Confirm this is genuinely reachable from the production commit, not
-   just a library. Confirm all pre-existing P14 import behaviour (duplicate nesting, counts) is
-   preserved.
-2. **Precedence & matching.** Exact-description match with optional amount/account constraints;
-   deterministic unscoped/amount/account/account+amount precedence; date/import boundary for
-   new/newer. Look for ties, non-determinism, and off-by-one on the boundary.
-3. **Manual-row gating (Q-039).** Description rules skip manual rows (`importId == null`); tag and
-   whole-allocation rules include them. Verify the predicate matches the frozen text at
-   `human-scratch.md:269,294-295`.
-4. **Allocations only via P16C.** Every allocation write (import, bulk, undo, migration) routes
-   through P16C `replaceTransactionAllocations` as a complete validated set — never a direct
-   allocation-key write, clamp, or normalise. An invalid complete set must be rejected with ZERO
-   mutation. Confirm `src/lib/crdt/mutations.ts` and `src/lib/domain/settlement.ts` are
-   byte-identical to BASE (no competing settlement/remainder logic).
-5. **Description aliases via P11.** Alias rules reuse the existing P11 `assignDescriptionAlias` path
-   additively; `src/lib/crdt/description-aliases.ts` is byte-unchanged; P11 alias semantics (incl.
-   the `transactionIds` back-map) are preserved.
-6. **Migration.** Legacy generic rules migrate once, idempotently, at hydration; clean/onboarding
-   vaults get NO write (side-effect-free — check the tab-duplication invariant holds); no data loss
-   (unconvertible legacy rules retained and reported per Q-037).
-7. **Vault wiring.** `fieldRules` + `userAutomationPreferences` are `vaultSchema` root keys with
-   seeded defaults; existing vaults hydrate without loss; the `ApplicationVaultState` projection is
-   NOT weakened for other callers (the import action is an additive full-`VaultState` internal
-   action).
-8. **Type/rule hygiene.** No `as`/`any`/`!` in the delta; ts-pattern is not a repo dep (switch +
-   assertNever); money in integer minor units. No automation UI was added (that is P17B-D).
+- `src/lib/domain/settlement.ts` and all settlement/remainder logic; `src/lib/crdt/mutations.ts`
+  P16C `replaceTransactionAllocations`; `src/lib/crdt/field-rules.ts`,
+  `src/lib/crdt/import-commit.ts`, and `src/lib/domain/automation/{rules,migration,apply}.ts` (P17A
+  engine — call, don't edit).
+- `specs/008-.../spec.md` and `specs/human-scratch.md` (never edit).
+- The P17C inline/popup workflow and P17D tag/allocation-parity work are NOT this package. You build
+  the editor so it CAN be reused in a popup, but you do not build the popup, the robot drift state,
+  or the tag/allocation-parity surfaces here.
+- The three realtime files, `supabase/migrations/**`, any `vault_ops`. Every ledger/control file.
 
-## Boundaries you must confirm are byte-EMPTY in the product delta
+## Rules / questions
 
-`src/lib/domain/settlement.ts`, P16C `replaceTransactionAllocations`, `specs/human-scratch.md`,
-`specs/008-.../spec.md`, all automation UI (`src/components/features/automations/**`,
-`AutomationDropdown.tsx`, automations page), the three realtime files, `supabase/migrations/**`, any
-`vault_ops`, and every ledger/control file. A breach in any of these is a blocking finding.
+- **Do NOT invent final wording or architecture.** Where the frozen text leaves labels, copy, or a
+  design choice open (duplicate-rule naming, destructive-bulk confirmation copy,
+  precedence-explainer wording, etc.), pick the SAFEST REVERSIBLE default, implement it, and record
+  a complete Q-proposal (evidence + the default you chose) in your evidence file — do not pause.
+- No `as`/`any`/`!`; ts-pattern is NOT a repo dependency — use `switch` + `assertNever`. Money is
+  integer minor units. Match the conventions of the files you rework. Favour pure functions +
+  immutable data; loro-mirror draft-style mutations mutate in place.
+
+## Tests (TDD — RED honestly, GREEN in product only)
+
+Cover P17B's slice: field-rule CRUD (create/update/delete) with key-uniqueness enforcement and
+atomic undo; remembered-preference persistence; the editor's validation states; apply-all and
+apply-new invoking the P17A engine (proving no path bypasses P16C and invalid complete-sets are
+rejected with zero mutation); and E2E journeys for the Automations page — create/update/delete a
+rule, apply-all, apply-new, the precedence/impact explanation, responsive + keyboard/focus +
+accessible. Establish RED first; never weaken a test. Use established libraries. No-retry, no
+flakiness.
+
+## Gates (run ALL, report REAL counts)
+
+`pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm test:e2e`. Local Supabase
+container required for integration/E2E; if genuinely unobtainable, say so precisely rather than
+reporting unverified passes. Never use Playwright `--headed/--ui/--debug/show`. Pre-existing
+`specs/**` `format:check` failures on untouched docs are not yours.
 
 ## Secret-safety (blocking)
 
-Scan the delta: no vault master key, invite-fragment bearer secret, `crypto_box` secret, seed
-phrase, recovery material, `SUPABASE_JWT_SECRET`, or vault plaintext in any
-code/test/fixture/log/URL. Tests must use synthetic/public vectors only. Any real-material leak is
-an immediate blocking finding reported to `main`.
+No vault master key, invite-fragment bearer secret, `crypto_box` secret, seed phrase, recovery
+material, `SUPABASE_JWT_SECRET`, or vault plaintext in any code/test/fixture/log/URL/evidence.
+Synthetic/public vectors only. Any real-material leak: stop and report it.
 
 ## When done
 
-Write `reviews/P17A-review-01.md` (do NOT commit it — root persists it during integration) with: the
-real gate counts you obtained, per-correctness-item findings, boundary confirmations, secret-scan
-result, and the explicit `VERDICT`. Then SendMessage to `main` with the verdict, blocking findings
-(if any) with file:line, and your real gate counts. Verify, do not trust — if a claim in the
-evidence does not match the code or the gates, the code and gates win.
+Commit only authorized product/test changes on top of the CURRENT HEAD (no branch/checkout games).
+Write `evidence/P17B/implementation-01.md` (do NOT commit) covering: the shared-editor design and
+how it stays reusable for P17C, the reworked page, the additive CRUD/preference mutations (which new
+files, reusing which P17A APIs), the RED→GREEN story, every gate's real result, exact paths touched,
+confirmation the hard boundaries are byte-empty, proof apply-all/apply-new route through the P17A
+engine and allocations stay P16C-only, and any Q-proposals. Then SendMessage to `main` with your
+literal final HEAD, the paths you changed, and your gate results.
