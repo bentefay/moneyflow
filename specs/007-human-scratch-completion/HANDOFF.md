@@ -3,123 +3,90 @@
 Root rewrites this compact file for one package/revision. It is not a dispatch while an applicable
 literal field is `pending`. Workers may read but never edit it.
 
-## Implement dispatch (P17A / 01 — CONTINUATION 2: wire application at the PRODUCTION import commit)
+## Review dispatch (P17A / 01 — REVIEW)
 
-- **Package / revision:** P17A / 01 (HS-007 automation redesign — MODEL + ENGINE) — **IMPLEMENT
-  (second continuation of rev 01)**
-- **Role:** human_scratch_implementer, fresh instance `p17a-implementer-01c`. You write only
-  authorized product/test code and your evidence file; you never commit the evidence, never edit any
-  ledger/SCOPE/QUESTIONS/RISKS/HANDOFF/scratch/canonical source, and never dispatch anyone.
-- **CRITICAL — git discipline:** The working tree is already at the integrated product HEAD on
-  branch `main`. **Do NOT `git checkout`, `git switch`, `git reset`, or create/switch branches.**
-  Commit directly on top of the CURRENT `HEAD`. (A prior attempt broke itself by checking out an old
-  BASE — do not repeat that.)
-- **Scope ID:** HS-007 (P17A slice). Frozen text: `specs/human-scratch.md:248-295` (esp. lines ~272
-  and ~287: a created rule "will run for newly imported transactions" / rules "apply to new
-  imports"). Task detail: `tasks/HS-007-automation-redesign.md` (**P17A** section: "Apply the
-  highest rule deterministically **at import** and explicit bulk operations"; test list requires
-  "Integration for import application").
-- **Review-range BASE (reference only — do NOT check it out):** `a09c4b4`. Report your literal final
-  HEAD when done.
-- **Your evidence file (write, do NOT commit):** UPDATE `evidence/P17A/implementation-01.md` so it
-  covers the COMPLETE rev-01 deliverable including this production-import wiring.
+- **Package / revision:** P17A / 01 (HS-007 automation redesign — MODEL + ENGINE incl. import
+  application) — **REVIEW**
+- **Role:** human_scratch_reviewer, fresh instance `p17a-reviewer-01`. You are DISTINCT from every
+  implementer of this package (`p17a-implementer-01`, `-01b`, `-01c`) and share none of their
+  context. You independently RE-RUN the gates and critically read the code. You write only
+  `reviews/P17A-review-01.md`; you never edit product code, any ledger, SCOPE, QUESTIONS, RISKS,
+  HANDOFF, scratch, or canonical source, and never commit anything.
+- **Verdict contract:** end your review file and your SendMessage to `main` with an explicit
+  `VERDICT: PASS` (zero blocking findings) or `VERDICT: CHANGES_REQUIRED` (list each blocking
+  finding with file:line, why it blocks, and the frozen-text or rule it violates). Non-blocking
+  observations go in a separate NON-BLOCKING section and never gate the pass.
 
-## Why this continuation exists (an independent adjudicator ruling — not optional)
+## What to review
 
-The prior continuation delivered the field-rule model, exact matcher, precedence, per-user
-preferences, hydration-time migration, and a working application library
-(`src/lib/crdt/field-rules.ts` — `applyFieldRulesToImport` + bulk apply-all/apply-newer), all tested
-and green. BUT `applyFieldRulesToImport` is invoked NOWHERE: the production import commit
-`createImportBatch` in `src/app/(app)/imports/new/page.tsx` inserts transactions without applying
-any rule. A distinct opus-tier scope adjudicator ruled (Q-038, high confidence) that applying rules
-at the real import event is P17A's COMMITTED scope — so it must be wired before P17A can pass.
+- **Review range:**
+  `a09c4b4e2002542b742690e5be0b30bc541dd108..ee83b1b77409cbef2d873edf30bb810a6de99a58` on branch
+  `main`. Root ledger/control commits are interleaved in this range (docs-only, touching only
+  `specs/007-human-scratch-completion/**`) — IGNORE them; review only the product/test delta.
+- **Scope ID:** HS-007 (P17A slice). Frozen text: `specs/human-scratch.md:248-295`. Task detail and
+  acceptance: `tasks/HS-007-automation-redesign.md` (**P17A** section). Adjudicated questions you
+  must hold the code to: `QUESTIONS.md` Q-034..Q-039 (esp. Q-038 = apply-at-import is IN P17A; Q-039
+  = manual row is `importId == null`).
+- **Implementer evidence (read, do not trust blindly):** `evidence/P17A/implementation-01.md`.
 
-## What this continuation MUST complete
+## Gates — RE-RUN ALL yourself and report REAL counts (do not copy the implementer's numbers)
 
-1. **Invoke rule application at the production import commit.** Wire `applyFieldRulesToImport` (and
-   the migration-verified engine) into `createImportBatch` (`src/app/(app)/imports/new/page.tsx`) so
-   that when a user commits an import, the highest-precedence field rule is applied
-   deterministically to each imported transaction. Preserve ALL existing P14 import behavior;
-   application is additive and must be bounded, idempotent, and convergent; group the mutation for
-   undo (P09).
-2. **Resolve the description-alias write barrier additively.**
-   `ApplicationVaultState = Omit<VaultState,"descriptionAliases">` (`src/lib/crdt/context.tsx:182`)
-   means the import-commit mutate updater cannot write `descriptionAliases` directly. Do NOT hack
-   around it by casting. Reuse the EXISTING P11 alias-write path the app already uses for
-   description aliases (find how aliases are assigned today — `src/lib/crdt/description-aliases.ts`
-   `assignDescriptionAlias` and its real call-site/vault-action) and route description-rule
-   application through that same path. If — and only if — no existing path can set an alias from the
-   import seam, make a MINIMAL, ADDITIVE adjustment to the vault-action/context boundary (e.g.
-   expose a full-`VaultState` action for this write) WITHOUT weakening the existing
-   `ApplicationVaultState` projection for other callers, and record a Q-proposal explaining exactly
-   what you changed and why. Never change P11's alias semantics; any behavior change to P11 code is
-   a finding — raise a Q instead.
-3. **Keep allocations on P16C.** Any allocation-setting rule applied at import writes ONLY through
-   P16C `replaceTransactionAllocations` (complete explicit set, validated). Never write allocation
-   keys directly, never clamp/normalize/bypass, never modify that API.
+`pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm test:e2e`. A local Supabase
+container is required for integration/E2E; if it is genuinely unobtainable, say so precisely rather
+than reporting unverified passes. Never use Playwright `--headed/--ui/--debug/show`. The
+pre-existing `specs/**` `format:check` failures on untouched docs are NOT a P17A finding; a
+`format:check` failure on any `.ts`/`.tsx` in the delta IS.
 
-## Allowed write paths (anything else → raise a Q-proposal; do NOT silently write)
+## Correctness bar — verify against frozen text, not the implementer's claims
 
-- `src/app/(app)/imports/new/page.tsx` — **ONLY** the minimal call-site that invokes rule
-  application at import commit. Add NO automation UI here (no rule editor, dropdown, inline
-  proposal, robot state — those are P17B/C/D).
-- `src/lib/crdt/**` — additive engine/wiring only: `field-rules.ts`, `index.ts`,
-  `description-aliases.ts` (additive alias-rule invocation only), and — only if unavoidable per item
-  2 — a minimal additive vault-action/context seam in `context.tsx`. You may CALL P16C
-  `replaceTransactionAllocations` and P11 `assignDescriptionAlias` but MUST NOT modify them.
-- `src/lib/domain/automation/**` (extend the engine if genuinely needed)
-- `src/hooks/**` (only if the import commit routes through a hook you must extend additively)
-- `tests/unit/**`, `tests/integration/**`, `tests/e2e/**`
-- `evidence/P17A/implementation-01.md` (write, never commit)
+1. **Apply at the real import (Q-038).** A user-committed import through
+   `src/app/(app)/imports/new/page.tsx` must actually apply the highest-precedence field rule to
+   each imported transaction (`useCommitImportBatch` → `commitImportBatch` →
+   `applyFieldRulesToImport`). Confirm this is genuinely reachable from the production commit, not
+   just a library. Confirm all pre-existing P14 import behaviour (duplicate nesting, counts) is
+   preserved.
+2. **Precedence & matching.** Exact-description match with optional amount/account constraints;
+   deterministic unscoped/amount/account/account+amount precedence; date/import boundary for
+   new/newer. Look for ties, non-determinism, and off-by-one on the boundary.
+3. **Manual-row gating (Q-039).** Description rules skip manual rows (`importId == null`); tag and
+   whole-allocation rules include them. Verify the predicate matches the frozen text at
+   `human-scratch.md:269,294-295`.
+4. **Allocations only via P16C.** Every allocation write (import, bulk, undo, migration) routes
+   through P16C `replaceTransactionAllocations` as a complete validated set — never a direct
+   allocation-key write, clamp, or normalise. An invalid complete set must be rejected with ZERO
+   mutation. Confirm `src/lib/crdt/mutations.ts` and `src/lib/domain/settlement.ts` are
+   byte-identical to BASE (no competing settlement/remainder logic).
+5. **Description aliases via P11.** Alias rules reuse the existing P11 `assignDescriptionAlias` path
+   additively; `src/lib/crdt/description-aliases.ts` is byte-unchanged; P11 alias semantics (incl.
+   the `transactionIds` back-map) are preserved.
+6. **Migration.** Legacy generic rules migrate once, idempotently, at hydration; clean/onboarding
+   vaults get NO write (side-effect-free — check the tab-duplication invariant holds); no data loss
+   (unconvertible legacy rules retained and reported per Q-037).
+7. **Vault wiring.** `fieldRules` + `userAutomationPreferences` are `vaultSchema` root keys with
+   seeded defaults; existing vaults hydrate without loss; the `ApplicationVaultState` projection is
+   NOT weakened for other callers (the import action is an additive full-`VaultState` internal
+   action).
+8. **Type/rule hygiene.** No `as`/`any`/`!` in the delta; ts-pattern is not a repo dep (switch +
+   assertNever); money in integer minor units. No automation UI was added (that is P17B-D).
 
-## Hard boundaries — MUST be byte-EMPTY in your diff (a breach is a self-finding to report)
+## Boundaries you must confirm are byte-EMPTY in the product delta
 
-- `src/lib/domain/settlement.ts` and all settlement/remainder logic (FS-001 frozen). P16C's
-  allocation complete-set API (`src/lib/crdt/mutations.ts` `replaceTransactionAllocations`) stays
-  byte-identical.
-- `specs/008-.../spec.md` and `specs/human-scratch.md` (never edit).
-- ALL automation UI: `src/components/features/automations/**`, `AutomationDropdown.tsx`, the
-  automations page, and any transactions/people UI beyond the single import-commit call-site above.
-- The three realtime paths, `supabase/migrations/**` (MUST stay byte-empty — rules live in the
-  encrypted vault; if you think SQL is needed, STOP and raise a Q), any `vault_ops`.
-- Every ledger/control file (PROGRESS, SCOPE.json, QUESTIONS, RISKS, HANDOFF, tasks, FINAL-AUDIT).
-
-## Tests (TDD — RED honestly, GREEN in product only)
-
-Add an E2E and/or integration test that PROVES a real import applies rules end-to-end: import a
-batch containing a transaction whose exact description matches a field rule → after commit the
-transaction has the rule's field set (description alias set via the P11 back-map, tag added, or
-allocations replaced via P16C — as applicable); a manual row is skipped for description rules but
-included for tag/allocation rules; an invalid allocation complete-set is rejected with zero
-mutation; no import/undo path bypasses P16C. Establish RED against the current gap (import applies
-nothing) first; GREEN only by wiring product. Never weaken a test. Use established libraries.
-
-## Gates (run ALL, report REAL counts)
-
-`pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm test:e2e`. Local Supabase
-container required for integration/E2E; if genuinely unobtainable, say so precisely rather than
-reporting unverified passes. Never use Playwright `--headed/--ui/--debug/show`. The pre-existing
-`specs/**` `format:check` failures on untouched files are not yours.
+`src/lib/domain/settlement.ts`, P16C `replaceTransactionAllocations`, `specs/human-scratch.md`,
+`specs/008-.../spec.md`, all automation UI (`src/components/features/automations/**`,
+`AutomationDropdown.tsx`, automations page), the three realtime files, `supabase/migrations/**`, any
+`vault_ops`, and every ledger/control file. A breach in any of these is a blocking finding.
 
 ## Secret-safety (blocking)
 
-No vault master key, invite-fragment bearer secret, `crypto_box` secret, seed phrase, recovery
-material, `SUPABASE_JWT_SECRET`, or vault plaintext in any code/test/fixture/log/URL/evidence. Rules
-and preferences are encrypted vault data — the server never sees rule plaintext. Synthetic/public
-vectors only. Any real-material leak: stop and report it.
-
-## Questions / risks
-
-Where frozen text is ambiguous, pick the SAFEST REVERSIBLE default, implement it, record a complete
-Q-proposal in your evidence file, and keep going — do not pause. Q-034..Q-039 are already ruled/
-recorded; honor them (esp. Q-038 IN_P17A, Q-039 manual-row = `importId == null`).
+Scan the delta: no vault master key, invite-fragment bearer secret, `crypto_box` secret, seed
+phrase, recovery material, `SUPABASE_JWT_SECRET`, or vault plaintext in any
+code/test/fixture/log/URL. Tests must use synthetic/public vectors only. Any real-material leak is
+an immediate blocking finding reported to `main`.
 
 ## When done
 
-Commit only authorized product/test changes on top of the CURRENT HEAD (no branch/checkout games).
-Update `evidence/P17A/implementation-01.md` (do NOT commit) to cover the full rev-01 deliverable:
-the import-commit wiring, how you resolved the alias-write barrier (which existing path you reused,
-or the minimal additive seam + its Q), the RED→GREEN story, every gate's real result, exact paths
-touched, confirmation the hard boundaries are byte-empty, and proof allocations route only through
-P16C and P11 alias behavior is preserved. Then SendMessage to `main` with your literal final HEAD,
-the paths you changed, and your gate results.
+Write `reviews/P17A-review-01.md` (do NOT commit it — root persists it during integration) with: the
+real gate counts you obtained, per-correctness-item findings, boundary confirmations, secret-scan
+result, and the explicit `VERDICT`. Then SendMessage to `main` with the verdict, blocking findings
+(if any) with file:line, and your real gate counts. Verify, do not trust — if a claim in the
+evidence does not match the code or the gates, the code and gates win.
