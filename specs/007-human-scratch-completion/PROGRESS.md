@@ -3552,3 +3552,38 @@ output `reviews/P05-review-13.md`, with explicit scrutiny of: the vault-provider
 controls, background asserting BEHAVIOR-only (no faked hidden-tab timing), the CORS-does-not-gate-upgrade conclusion,
 secret-safety, and the `nonTransportProblems` console-error filter judgement call. Rolling scratch SHA unchanged
 `ddd53142…`; HS-015 unchecked until independent PASS.
+
+### 2026-07-26 — P05/13 reviewing -> PASS (integration-persistence)
+
+`p05-reviewer-13` (a DISTINCT reviewer, never the implementer) returned **VERDICT: PASS**, 0 blocking
+defects, for HS-015 under D-017. Immutable review `reviews/P05-review-13.md` is persisted in THIS
+integration-persistence commit; its own hash is the P05/13 integration commit cited by the following
+control commit. Root independently re-verified before recording: review-13 present with VERDICT PASS;
+product HEAD unchanged at `b34dcf6` (no product/test diff `b34dcf6..HEAD`; only root ledger commit
+`ffd187a` intervened); PRESERVED AUTHORIZATION BOUNDARY empty — `git diff 92dfd4d..b34dcf6` over
+`src/server/routers/realtime.ts`, `src/lib/supabase/realtime.ts`, `src/server/schemas/realtime.ts`,
+`src/lib/sync/manager.ts` and `supabase/**` is 0 lines (60s HS256 pubkey-hash grant, `vault_ops`
+scoping, rev-11 duplicate-tab correction all intact); no secret/12-word-mnemonic/recovery material in
+the review; no `.playwright-cli/`, and `test-results/` is gitignored; pre-marker normalized-block check
+GREEN (21 ordered SRC-HUMAN-SCRATCH blocks byte-identical to `SCOPE.json#sourceTextLines`, 14 checked
+IDs, HS-015 correctly still `[]`) and `sha256sum specs/human-scratch.md` == rolling `ddd53142…`.
+Reviewer's independently-reproduced findings: security acceptance proven against the REAL local Supabase
+server (57 integration tests: 23 grant-lifecycle + 25 live-socket + 9 origin/CORS —
+outsider/expired/replayed/revoked/cross-vault/table/topic/role denial, publication correctness, revoke,
+membership-removal fail-safe; real WebSocket + psql, not mocks on security paths); live DB confirmed the
+publication is `vault_ops`-only and `realtime_grant_allows` is the real strict body with `authenticated`
+holding no grant SELECT / no rotate EXECUTE; the sole product change `vault-provider.tsx`
+(`getSnapshot`/`getUpdates` via `client.*.query` instead of `utils.*.fetch`) fixes a REAL
+silent-missed-update defect (the 60s React Query staleTime answered recovery reads from cache, dropping
+ops), is minimal (matches the existing pushOps/pushSnapshot pattern), is the only consumer of that cache
+so cold-start/P08/P10 are unaffected — ACCEPTED on merits though outside the enumerated realtime.ts-only
+src grant (grant-scope deviation noted, non-blocking); no faked timing (visibility helper flips only the
+JS predicate; recovery spec asserts convergence with a suppressedCount()>0 guard, never wall-clock);
+CORS-does-not-gate-upgrade supported; secret-safe (JWT key derived at runtime from JWKS/env, never
+logged/returned/asserted; tests assert the token excludes both the secret AND the identity hash); the
+`nonTransportProblems` filter is broad but security is asserted directly, a non-blocking nit. Reviewer
+gates: typecheck PASS, lint 0 errors (10 pre-existing warnings), `pnpm test` 1,684 passed/2 skipped,
+realtime integration 57/57, `realtime-recovery` e2e 3/3; limitations recorded (did not run the full 122
+e2e suite; did not replay the RED DB-function-weakening step — verified the restored end-state instead;
+did not re-run format:check). P05 remains `reviewing` and HS-015 remains unchecked until the control
+commit applies the forward marker. Rolling scratch SHA unchanged `ddd53142…`.
