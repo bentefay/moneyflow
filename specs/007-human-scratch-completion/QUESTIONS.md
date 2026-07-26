@@ -1079,6 +1079,19 @@ No unresolved product questions were answered by scaffold creation.
 - **How to reverse or migrate:** Remove the additive preference key; absent key falls back to the session default. No destructive migration.
 - **Does a human still need to decide after completion?:** Yes — confirm the P17D ownership and that per-field-vs-global apply-mode persistence matches the human's intent for `human-scratch.md:270`.
 
+### Q-P17C-01..06 — Inline description-rule popup/robot presentational defaults (all faithful, non-blocking)
+
+- **Raised:** 2026-07-27, P17C implement, `p17c-implementer-01`; adjudicated by `p17c-reviewer-01` and root at P17C review.
+- **Source proposal:** `evidence/P17C/implementation-01.md` local proposals Q-P17C-01..06; `reviews/P17C-review-01.md` adjudication.
+- **Context and evidence:** Frozen text `specs/human-scratch.md:279-295` describes the robot-on-transaction-rows behaviour, the contextual popup reusing the automations UI, and apply-this/all/new — but leaves UI placement, glyph, drift copy, confirm-affordance, and the exact meaning of "actively being edited" open. Each was implemented as the safest reversible default: **01** portaled Radix Popover from the robot trigger with `onOpenAutoFocus` prevented (no table resize/scroll/focus-steal; content width `w-96` in code — evidence's `w-72` is stale prose); **02** lucide `Bot` glyph, muted normal / destructive on drift, `data-drift` + descriptive `aria-label`; **03** drift-explainer copy stating the current description differs from its rule and can be reconciled; **04** a single "apply to this transaction" button with no extra confirm dialog (additive, re-runnable, drift visibly clears); **05** "actively being edited" = the description cell input holding focus (robot hidden while focused, reappears on commit/blur); **06** the four-mode apply SELECT is NOT persisted (no `applyMode` schema slot yet) and defaults per session, while already-persisted field-mode/scope checkboxes ARE honoured via `draftFromRule`.
+- **Why the frozen requirement/repository does not fully decide it:** The frozen block specifies behaviour and constraints (don't resize/occlude/steal focus; normal vs red drift; reuse the automations UI) but not the concrete widget/glyph/copy; those are presentation choices with no schema or engine impact.
+- **Options considered:** implement the safest reversible default now and record for human confirmation (chosen), vs. pause for human wording/placement input (rejected under the no-pause rule for reversible UI defaults).
+- **Default selected for continued work:** the defaults above stand. **Q-P17C-06 apply-mode SELECT persistence is explicitly deferred to Q-P17B-03 (owner P17D)** — it needs an additive `applyMode` slot in the `userAutomationPreferences` schema (a P17C hard boundary), so P17C correctly persists only the checkboxes/field-mode. This is NOT a P17C gap and NOT a scope reduction.
+- **Decision hierarchy basis:** frozen text is authoritative on behaviour/constraints (all honoured) and silent on the presentational specifics; reversible-default rule applies. Q-P17C-06 defers to the tracked Q-P17B-03 so `human-scratch.md:270` stays honestly incomplete until P17D.
+- **Impact and risk:** low — presentational/copy only; no schema/engine change; each is a one-file reversible tweak.
+- **How to reverse or migrate:** change the widget/glyph/copy/threshold in the transactions-feature files; no data migration. Apply-mode persistence is added additively by P17D (absent key → session default).
+- **Does a human still need to decide after completion?:** Yes — confirm the glyph, drift copy, no-confirm apply-this affordance, and the "focus == actively editing" interpretation match intent; and (via Q-P17B-03) confirm P17D's apply-mode persistence shape.
+
 ## Question template
 
 ### Q-XXX — Short title
