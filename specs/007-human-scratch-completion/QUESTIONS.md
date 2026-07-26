@@ -1078,6 +1078,7 @@ No unresolved product questions were answered by scaffold creation.
 - **Impact and risk:** Low-medium; additive schema field + editor wiring, no data migration for existing vaults (absent key = current default `updateNew`). Deferring to P17D risks nothing because HS-007 cannot be checked until then regardless.
 - **How to reverse or migrate:** Remove the additive preference key; absent key falls back to the session default. No destructive migration.
 - **Does a human still need to decide after completion?:** Yes — confirm the P17D ownership and that per-field-vs-global apply-mode persistence matches the human's intent for `human-scratch.md:270`.
+- **RESOLVED 2026-07-27 (P17D/01, delivered):** P17D additively added the optional `lastApplyMode` slot to `userAutomationPreferenceSchema` (`StringEnum` of the four frozen modes, `required:false`, no migration) and wired the shared editor's four-mode apply SELECT through `apply-mode.ts` + `preferences.ts`/`field-rule-mutations.ts` to persist on save and re-read on open. `p17d-reviewer-01` PASS confirmed choose -> reopen -> restored via E2E. `human-scratch.md:270` (select AND checkboxes) is now fully delivered. CLOSED.
 
 ### Q-P17C-01..06 — Inline description-rule popup/robot presentational defaults (all faithful, non-blocking)
 
@@ -1104,6 +1105,19 @@ No unresolved product questions were answered by scaffold creation.
 - **Impact and risk:** low-medium; a projection change threading the alias registry through `subjectForTransaction`/`targetForTransaction` + its call sites, guarded by existing passed P17A tests plus a new manual-row match test. No data migration. Description-alias rules provably unaffected (the `isManual` gate at `rules.ts:192` excludes them regardless of `descriptionText`).
 - **How to reverse or migrate:** revert the projection to `tx.description || null`; no data migration.
 - **Does a human still need to decide after completion?:** Yes — confirm that matching manual rows by their description-alias name is the intended reading of `:294-295`, and confirm precedence behaviour when multiple alias-name rules exist.
+
+### Q-P17D-02 — Dead `description-rule-state.ts` superseded by `field-rule-robot-state.ts` (OPEN, non-blocking, deferred)
+
+- **Raised:** 2026-07-27, P17D review, `p17d-reviewer-01` (non-blocking observation). Adjudicated by root as non-blocking; deferred.
+- **Source proposal:** `reviews/P17D-review-01.md` non-blocking observation 1.
+- **Context and evidence:** `src/components/features/transactions/description-rule-state.ts` and its unit test `tests/unit/components/description-rule-state.test.ts` are superseded by the per-field `field-rule-robot-state.ts` introduced in P17D and are no longer referenced by production code; a stale JSDoc `@link computeDescriptionRobotState` remains in `use-transaction-rule-workflow.ts:9`. All gates pass (lint 0 errors — no unused-export rule fires), so this is pure hygiene, not a correctness or boundary issue.
+- **Why the frozen requirement/repository does not fully decide it:** frozen text is silent on internal module hygiene; CLAUDE.md's "no dead code / reuse-and-simplicity" is a standing style rule, not a gate failure.
+- **Options considered:** (a) **[SELECTED]** defer removal to a P20/P21 cleanup sweep so the FINAL HS-007 marker is not delayed for non-blocking hygiene; (b) bounce a P17D revision solely to delete two files + fix a comment — REJECTED as disproportionate (a whole revision + re-review for zero behavioural change would delay HS-007 completion); (c) leave permanently — REJECTED (CLAUDE.md asks dead code be removed).
+- **Default selected for continued work:** Option (a). HS-007 integrates now; the dead module + stale `@link` are swept during P20/P21 polish (root will dispatch the deletion to an implementer then — root never edits product code). Removal is byte-reversible and touches no engine/boundary file.
+- **Decision hierarchy basis:** frozen text (authoritative) is satisfied; the block-standing default does not compel blocking a completed, reviewed, gate-green requirement on non-blocking hygiene.
+- **Impact and risk:** negligible; deleting unreferenced files + one comment. No schema/engine/allocation/settlement impact.
+- **How to reverse or migrate:** none needed; deletion is trivially reversible from git history.
+- **Does a human still need to decide after completion?:** No — mechanical cleanup; root will action it in P20/P21.
 
 ## Question template
 
