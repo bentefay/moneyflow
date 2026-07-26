@@ -7,17 +7,13 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P05 / 13 (HS-015) implementing. Reopened per D-017 (supersedes D-011): HS-015
+- **Current package:** P05 / 13 (HS-015) reviewing. Reopened per D-017 (supersedes D-011): HS-015
   rescoped to its frozen websocket-security ask; the hidden-tab timing edge is an accepted unmeasured
   non-issue. Unblocking P05 cascades to P08 -> P16E/P10 -> P17A-D -> P20A/P20B -> P21
-- **Next action:** await `human_scratch_implementer` (p05-implementer-13) handback of P05/13, then
-  dispatch a DISTINCT `human_scratch_reviewer` over original BASE `007651be` -> new HEAD to confirm
-  the preserved rev-11 pubkey-hash authorization boundary and `vault_ops` scoping are intact, the new
-  security acceptance (adversarial outsider/expired/replayed rejection, owner/member/outsider + cross-
-  vault authorization, publication correctness, revoke, reconnect/offline catch-up, CORS/origin
-  documentation) is proven, and background is verified as mock-driven re-sync BEHAVIOR only with no
-  faked hidden-tab timing. On PASS: two-commit integration + HS-015 forward marker, then P08 becomes
-  dispatchable. Keep FS-001 immutable/open
+- **Next action:** await `p05-reviewer-13` (a DISTINCT reviewer, never the implementer) verdict on
+  P05/13 over BASE `007651be` -> HEAD `b34dcf6`. On independent PASS: two-commit integration + HS-015
+  authorized forward marker, then P08 becomes dispatchable (cascade P08 -> P10 -> P17A-D -> P20A/B ->
+  P21). On changes_requested: reopen at revision 14. Keep FS-001 immutable/open
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -47,7 +43,7 @@ review evidence.
 | P02     | HS-017         | Animate UI evaluation, ADR, and representative migration only if justified          | P01                  | passed       | 02  | `19d73035b33b639f9927d2f78a55d74c44f65544..213100fadf5acea30aad7e90998bd575cdcd508c` | `evidence/P02/implementation-02.md` | `reviews/P02-review-02.md` | `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7` |
 | P03     | HS-018         | TanStack Virtual PR #1100 release gate and `useFlushSync`                           | P01                  | passed       | 01  | `c60f605bd811d8920122a66f3d6743d8a3ac044d..b8d4b448f52022970ca388654be14d24e347deb5` | `evidence/P03/implementation-01.md` | `reviews/P03-review-01.md` | `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34` |
 | P04     | HS-014         | Database/table/RLS threat model, migrations, and permission remediation             | P01                  | passed | 02 | `9de8b0e8c41087b96523ecc55faa10bf19ec0ff9..dbcf180e829c81a218e9a73791e40902c4f9eb31` | `evidence/P04/implementation-02.md` | `reviews/P04-review-02.md` | `b905ecb810334ed9697f57140047964135ade6ea` |
-| P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | implementing | 13 | `92dfd4d002e8bcb2a6694c35aff8f713ba4689dc..` | `evidence/P05/implementation-13.md` | `reviews/P05-review-13.md` | reopened per D-017; security-scope completion |
+| P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | reviewing | 13 | `92dfd4d002e8bcb2a6694c35aff8f713ba4689dc..b34dcf6ad53b6bb3fc6482180d2b0aaedd7fc1bc` | `evidence/P05/implementation-13.md` | `reviews/P05-review-13.md` | reopened per D-017; security-scope completion |
 | P06     | HS-010         | Remove unused user-state storage and dead API surface                               | P04                  | passed | 01  | `a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1..95e91dbcb17ffb9600eaa6cb795336898297ebae` | `evidence/P06/implementation-01.md` | `reviews/P06-review-01.md` | `8e269ab9a6fc15ed6d845542b879e5499828134e` |
 | P07     | HS-011         | Evidence-led person/member/invite UX architecture and acceptance decision           | P04, P06             | passed | 04  | `fe1871ce7dce1e831b57ee5656d38ce5c800aae3..dfffea3c19b110b6021b050b8d9e36b01ae75ab9` | `evidence/P07/implementation-04.md` | `reviews/P07-review-04.md` | `1f6cb96b27c8093f0ba2c319f32d3c79c8aab126` |
 | P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -3535,3 +3531,24 @@ background as mock-driven re-sync BEHAVIOR only (never faked timing). HANDOFF re
 `evidence/P05/implementation-13.md` sole artifact, `reviews/P05-review-13.md` future immutable review.
 No product code touched by root. Rolling scratch SHA unchanged `ddd53142…`; HS-015 remains unchecked
 until independent PASS; fourteen requirements still `passed`.
+
+### 2026-07-26 — P05/13 ready_for_review (HS-015 websocket security; root verification + reviewer dispatch)
+
+`p05-implementer-13` handed back at HEAD `b34dcf6`. Root independently verified before dispatching review:
+(1) commit is exactly 7 files, no ledger/scratch/evidence touched; (2) PRESERVED AUTHORIZATION BOUNDARY intact —
+`git diff 92dfd4d..b34dcf6` over `src/server/routers/realtime.ts`, `src/lib/supabase/realtime.ts`,
+`src/server/schemas/realtime.ts`, `src/lib/sync/manager.ts` and `supabase/**` is EMPTY; (3) sole product change is
+`src/components/providers/vault-provider.tsx` (2 functional + 3 comment lines) routing durable sync catch-up through
+the direct tRPC client instead of the React Query 60s-staleTime cache — a genuine "silent missed update" defect fix,
+but OUTSIDE the HANDOFF's enumerated src grant (realtime.ts x3), FLAGGED for reviewer minimality/cross-consumer scrutiny;
+(4) secret-safety clean — `realtime-stack.ts` derives the local symmetric key from the Docker realtime JWKS at runtime,
+no hardcoded secret, none logged/asserted/written to evidence; (5) evidence `evidence/P05/implementation-13.md` complete
+(all sections; uncommitted). Implementer-reported gates on `b34dcf6`: typecheck pass, lint 0 errors, `pnpm test`
+1,684 passed / 2 skipped (57 new), `pnpm test:e2e` 122/122 x2 at retries=0, serial repeat-each=3 15/15, format:check
+failures all pre-existing specs/** (Q-024). PROGRESS -> reviewing. Dispatched a DISTINCT reviewer `p05-reviewer-13`
+(NOT the implementer) over BASE `007651be` -> HEAD `b34dcf6`, task `tasks/HS-015-realtime-security.md` under D-017,
+output `reviews/P05-review-13.md`, with explicit scrutiny of: the vault-provider.tsx cache-bypass
+(correctness/minimality/other sync consumers + P08/P10 impact), the live-server security acceptance, the two RED
+controls, background asserting BEHAVIOR-only (no faked hidden-tab timing), the CORS-does-not-gate-upgrade conclusion,
+secret-safety, and the `nonTransportProblems` console-error filter judgement call. Rolling scratch SHA unchanged
+`ddd53142…`; HS-015 unchecked until independent PASS.
