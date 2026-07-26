@@ -52,6 +52,19 @@ export {
     type RealDescriptionAlias,
     type SymlinkDescriptionAlias
 } from "../domain/description-aliases";
+// Field-rule engine wiring (HS-007 / P17A)
+export {
+    type AppliedFieldRuleOutcome,
+    applyFieldRulesToAllTransactions,
+    applyFieldRulesToImport,
+    applyFieldRulesToNewerTransactions,
+    applyFieldRulesToTransaction,
+    AUTOMATION_RULES_MIGRATION_VERSION,
+    type AutomationMigrationSummary,
+    type BulkFieldRuleEntry,
+    migrateVaultAutomationsToFieldRules,
+    readActiveFieldRules
+} from "./field-rules";
 // Vault defaults initialization
 export {
     DEFAULT_ACCOUNT,

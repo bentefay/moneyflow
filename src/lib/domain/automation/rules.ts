@@ -382,6 +382,68 @@ export function decodeFieldRule(wire: unknown): FieldRuleDecodeResult {
     }
 }
 
+/**
+ * Plain serialised shape of a field rule (the Loro wire object). This is the exact inverse of
+ * {@link decodeFieldRule}: `encodeFieldRule(rule)` produces an object that decodes back to `rule`.
+ * Action-specific fields absent for a given `field` are emitted empty (never as illegal values), so
+ * the discriminated domain action can never leak an out-of-band field.
+ */
+export interface FieldRuleWireObject {
+    readonly id: string;
+    readonly field: RuleField;
+    readonly descriptionText: string;
+    readonly accountId?: string;
+    readonly amount?: number;
+    readonly aliasId?: string;
+    readonly tagMode?: TagRuleMode;
+    readonly tagIds: readonly string[];
+    readonly allocations: Readonly<Record<string, number>>;
+    readonly createdAtEpochMs: number;
+    readonly deletedAtEpochMs?: number;
+}
+
+/**
+ * Serialise a domain rule into its wire object. Pure and total; the round-trip
+ * `decodeFieldRule(encodeFieldRule(rule))` is the identity on valid rules.
+ */
+export function encodeFieldRule(rule: FieldRule): FieldRuleWireObject {
+    const base = {
+        id: rule.id,
+        descriptionText: rule.descriptionText,
+        accountId: rule.accountId,
+        amount: rule.amount,
+        createdAtEpochMs: rule.createdAt.epochMilliseconds
+    } satisfies Partial<FieldRuleWireObject>;
+
+    switch (rule.action.field) {
+        case "descriptionAlias":
+            return {
+                ...base,
+                field: "descriptionAlias",
+                aliasId: rule.action.aliasId,
+                tagIds: [],
+                allocations: {}
+            };
+        case "tags":
+            return {
+                ...base,
+                field: "tags",
+                tagMode: rule.action.mode,
+                tagIds: [...rule.action.tagIds],
+                allocations: {}
+            };
+        case "allocation":
+            return {
+                ...base,
+                field: "allocation",
+                tagIds: [],
+                allocations: { ...rule.action.allocations }
+            };
+        default:
+            return assertNever(rule.action);
+    }
+}
+
 function okRule(rule: FieldRule): FieldRuleDecodeResult {
     return { ok: true, value: rule };
 }

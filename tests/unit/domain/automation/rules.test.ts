@@ -2,6 +2,7 @@ import * as fc from "fast-check";
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
+import { AllocationPercentageSchema } from "@/lib/domain/allocation";
 import {
     type FieldRule,
     FieldRuleIdSchema,
@@ -10,6 +11,7 @@ import {
     type RuleMatchSubject,
     decodeFieldRule,
     dedupeRulesByUniqueness,
+    encodeFieldRule,
     fieldAppliesToManual,
     groupRulesByUniquenessKey,
     hasUniqueRuleKeys,
@@ -335,5 +337,40 @@ describe("decodeFieldRule", () => {
             createdAtEpochMs
         });
         expect(result.ok).toBe(false);
+    });
+});
+
+describe("encodeFieldRule round-trips through decodeFieldRule", () => {
+    it.each<{ readonly name: string; readonly action: RuleAction }>([
+        { name: "tags/add", action: tagsAction("add", ["t1", "t2"]) },
+        { name: "tags/set", action: tagsAction("set", ["t3"]) },
+        { name: "descriptionAlias", action: { field: "descriptionAlias", aliasId: "alias-1" } },
+        {
+            name: "allocation",
+            action: {
+                field: "allocation",
+                allocations: {
+                    "person-a": AllocationPercentageSchema.parse(60),
+                    "person-b": AllocationPercentageSchema.parse(40)
+                }
+            }
+        }
+    ])("preserves a $name rule", ({ action }) => {
+        const rule = makeRule({
+            id: "rule-rt",
+            descriptionText: "COFFEE SHOP 123",
+            accountId: "acct-checking",
+            amount: -450,
+            action
+        });
+        const decoded = decodeFieldRule(encodeFieldRule(rule));
+        expect(decoded.ok).toBe(true);
+        if (decoded.ok) {
+            expect(decoded.value.id).toBe(rule.id);
+            expect(decoded.value.descriptionText).toBe(rule.descriptionText);
+            expect(decoded.value.accountId).toBe(rule.accountId);
+            expect(decoded.value.amount).toBe(rule.amount);
+            expect(decoded.value.action).toEqual(rule.action);
+        }
     });
 });

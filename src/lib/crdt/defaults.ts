@@ -158,10 +158,13 @@ export function getDefaultVaultState(options?: DefaultVaultStateOptions): VaultI
         importTemplates: {},
         automations: {},
         automationApplications: {},
+        fieldRules: {},
+        userAutomationPreferences: {},
         preferences: {
             name: DEFAULT_VAULT_NAME,
             automationCreationPreference: DEFAULT_AUTOMATION_CREATION_PREFERENCE,
-            defaultCurrency: currency
+            defaultCurrency: currency,
+            automationRulesMigrationVersion: 0
         }
     };
 }
@@ -208,7 +211,8 @@ export function initializeVaultDefaults(
         draft.preferences = {
             name: DEFAULT_VAULT_NAME,
             automationCreationPreference: DEFAULT_AUTOMATION_CREATION_PREFERENCE,
-            defaultCurrency: currency
+            defaultCurrency: currency,
+            automationRulesMigrationVersion: 0
         };
     }
 }

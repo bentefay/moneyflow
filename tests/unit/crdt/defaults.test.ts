@@ -207,7 +207,8 @@ describe("initializeVaultDefaults", () => {
                 preferences: {
                     name: "My Vault",
                     automationCreationPreference: "manual",
-                    defaultCurrency: "USD"
+                    defaultCurrency: "USD",
+                    automationRulesMigrationVersion: 0
                 }
             },
             validateUpdates: true
@@ -248,7 +249,8 @@ describe("initializeVaultDefaults", () => {
                 preferences: {
                     name: "My Vault",
                     automationCreationPreference: "manual",
-                    defaultCurrency: "USD"
+                    defaultCurrency: "USD",
+                    automationRulesMigrationVersion: 0
                 }
             },
             validateUpdates: true
@@ -292,7 +294,8 @@ describe("initializeVaultDefaults", () => {
                 preferences: {
                     name: "My Vault",
                     automationCreationPreference: "manual",
-                    defaultCurrency: "USD"
+                    defaultCurrency: "USD",
+                    automationRulesMigrationVersion: 0
                 }
             },
             validateUpdates: true

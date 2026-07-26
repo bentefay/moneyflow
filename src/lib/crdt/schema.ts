@@ -389,7 +389,15 @@ export const vaultPreferencesSchema = schema.LoroMap({
         defaultValue: DEFAULT_AUTOMATION_CREATION_PREFERENCE
     }),
     /** Default currency for new accounts and imports (ISO 4217 code) */
-    defaultCurrency: richSchema.CurrencyCode({ defaultValue: DEFAULT_CURRENCY })
+    defaultCurrency: richSchema.CurrencyCode({ defaultValue: DEFAULT_CURRENCY }),
+    /**
+     * In-code CRDT migration version for the HS-007 (P17A) legacy-automation -> field-rule
+     * migration. Absent/0 = not yet migrated; 1 = the migration has run. This marker makes the
+     * migration run exactly once so re-hydration never re-derives (and never resurrects a
+     * user-deleted) rule. The server never sees rule plaintext; this is purely in-code versioning.
+     * Defaults to 0 (not yet migrated) on vaults that predate this field.
+     */
+    automationRulesMigrationVersion: schema.Number({ defaultValue: 0 })
 });
 
 // ============================================
@@ -413,12 +421,11 @@ export const vaultSchema = schema({
     importTemplates: schema.LoroMapRecord(importTemplateSchema),
     automations: schema.LoroMapRecord(automationSchema),
     automationApplications: schema.LoroMapRecord(automationApplicationSchema),
-    // NOTE (HS-007 / P17A): the typed field-rule and per-user-preference collections
-    // (`fieldRuleSchema`, `userAutomationPreferenceSchema`) are defined above as the wire contract
-    // but are intentionally NOT yet added as root keys here. Adding a required root collection
-    // forces a matching default in `src/lib/crdt/defaults.ts` (`getDefaultVaultState` /
-    // `initializeVaultDefaults`), which is outside P17A's allowed write paths. Root wiring is
-    // deferred to when defaults.ts is in scope; see Q-proposal Q-P17A-DEFAULTS.
+    // HS-007 / P17A: typed field-rule collection (shared vault state) and per-user automation
+    // preferences (keyed by user pubkeyHash). Both are additive root keys; existing vaults hydrate
+    // them as empty records with no data loss.
+    fieldRules: schema.LoroMapRecord(fieldRuleSchema),
+    userAutomationPreferences: schema.LoroMapRecord(userAutomationPreferenceSchema),
     preferences: vaultPreferencesSchema
 });
 
@@ -476,6 +483,9 @@ export type ImportInput = InferInputType<typeof importSchema>;
 export type ImportTemplateInput = InferInputType<typeof importTemplateSchema>;
 export type AutomationInput = InferInputType<typeof automationSchema>;
 export type AutomationApplicationInput = InferInputType<typeof automationApplicationSchema>;
+/** Input (write) shape of a field rule, accepted by loro-mirror drafts. */
+export type FieldRuleInput = InferInputType<typeof fieldRuleSchema>;
+export type UserAutomationPreferenceInput = InferInputType<typeof userAutomationPreferenceSchema>;
 export type NestedDuplicateInput = InferInputType<typeof nestedDuplicateSchema>;
 
 /** Hierarchical transaction storage input types */

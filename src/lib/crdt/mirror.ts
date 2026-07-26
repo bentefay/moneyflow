@@ -13,9 +13,11 @@ import {
     DEFAULT_CURRENCY,
     DEFAULT_VAULT_NAME
 } from "./defaults";
+import { migrateVaultAutomationsToFieldRules } from "./field-rules";
 import { migrateVaultSentinels } from "./migration";
 import { ensureMemberPerson } from "./person";
 import { type VaultState, vaultSchema } from "./schema";
+import { getVaultSystemOrigin } from "./undo";
 
 const LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY = "__moneyflow_gc_metadata__";
 
@@ -58,10 +60,13 @@ export const DEFAULT_VAULT_STATE = {
     imports: {},
     importTemplates: {},
     automations: {},
+    fieldRules: {},
+    userAutomationPreferences: {},
     preferences: {
         name: DEFAULT_VAULT_NAME,
         automationCreationPreference: DEFAULT_AUTOMATION_CREATION_PREFERENCE,
-        defaultCurrency: DEFAULT_CURRENCY
+        defaultCurrency: DEFAULT_CURRENCY,
+        automationRulesMigrationVersion: 0
     }
 } as const;
 
@@ -118,6 +123,7 @@ export function createVaultMirror(options: CreateVaultMirrorOptions = {}): {
     });
 
     migrateVaultSentinels(mirror);
+    migrateVaultAutomations(mirror);
 
     return { mirror, doc };
 }
@@ -154,8 +160,25 @@ export function createVaultMirrorFromSnapshot(
     // Migrate legacy sentinel values (deletedAt: 0, behavior: "", currency: "")
     // to undefined before any consumers read state
     migrateVaultSentinels(mirror);
+    migrateVaultAutomations(mirror);
 
     return { mirror, doc };
+}
+
+/**
+ * Run the one-shot legacy-automation -> field-rule migration (HS-007 / P17A) at hydration.
+ *
+ * Idempotent (guarded by a version marker in vault preferences) and deterministic (derived rule
+ * ids converge across devices), so it is safe to invoke on every vault open. Runs under a
+ * system:migration origin so it is excluded from the user undo history, matching sentinel repair.
+ */
+export function migrateVaultAutomations(mirror: VaultMirror): void {
+    mirror.setState(
+        (draft: VaultState) => {
+            migrateVaultAutomationsToFieldRules(draft);
+        },
+        { origin: getVaultSystemOrigin("migration") }
+    );
 }
 
 function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
@@ -177,6 +200,7 @@ export function repairHydratedVaultDocument(doc: LoroDoc): boolean {
     });
     try {
         migrateVaultSentinels(mirror);
+        migrateVaultAutomations(mirror);
     } finally {
         mirror.dispose();
     }
