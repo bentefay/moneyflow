@@ -181,23 +181,21 @@ test.describe("Allocation field-rule parity", () => {
 });
 
 test.describe("Manual-row applicability", () => {
-    // BLOCKED (Q-P17D-MANUAL-MATCH): frozen `:294-295` requires tag/allocation rules to apply to
-    // manually-created transactions, which per frozen `:269` carry NO raw description text (only a
-    // description alias). The frozen matcher subject (`subjectForTransaction`,
-    // src/lib/crdt/field-rules.ts:83-94) derives `descriptionText` from the raw `transaction.description`
-    // field only, which is empty for UI-created manual rows, so no tag/allocation rule can match them.
-    // Resolving the alias id -> alias name into the subject requires editing that FROZEN engine file
-    // (and threading the alias registry through it) — surfaced to root rather than silently edited.
-    // The inline robot WIRING is already in place (the page mounts tags/allocation robots for manual
-    // rows, gated on the engine match), so this journey passes with zero UI change once the engine
-    // projects the alias name. Kept as an executable, self-documenting spec of the intended behaviour.
-    test.fixme("a tag rule surfaces a robot on a manual transaction and apply-to-this resolves drift", async ({
+    // Frozen `:294-295`: tag/allocation rules apply to manually-created rows, which per frozen `:269`
+    // carry NO raw description text — only a description alias. The engine now projects that alias's
+    // resolved NAME as the match text (Q-P17D-01) so tag/allocation robots surface on manual rows,
+    // while description-alias rules stay excluded via the manual-row field gate. The engine-level
+    // proof of all four behaviours lives in tests/integration/field-rule-mutations.test.ts; this
+    // journey exercises the same behaviours through the real UI end to end.
+    test("tag and allocation rules apply to a manual aliased row while description rules never do", async ({
         page
     }) => {
         await createNewIdentity(page);
+        await goToPeople(page);
+        await addPerson(page, "Alex");
         await createTag(page, "Coffee");
 
-        await test.step("create an add-mode tag rule", async () => {
+        await test.step("create an add-mode tag rule keyed on the alias name", async () => {
             await openCreateEditor(page);
             await chooseFromSelect(page, "rule-tag-mode", "Add tags");
             await page.getByLabel(/exact description text/i).fill("MANUAL COFFEE");
@@ -209,23 +207,67 @@ test.describe("Manual-row applicability", () => {
             await expect(page.getByText(/MANUAL COFFEE/)).toBeVisible();
         });
 
-        await goToTransactions(page);
-        await addTransaction(page, { description: "MANUAL COFFEE", amount: "-4.50" });
-
-        const robot = page.getByTestId("tags-rule-robot");
-
-        await test.step("the manual row shows a drifting tag robot (rule matches, tags absent)", async () => {
-            await expect(robot).toBeVisible();
-            await expect(robot).toHaveAttribute("data-drift", "true");
+        await test.step("create an allocation rule keyed on the same alias name", async () => {
+            await openCreateEditor(page);
+            await chooseFromSelect(page, "rule-field", "Person percentages");
+            const grid = page.getByTestId("rule-allocation-grid");
+            await grid.getByLabel(DEFAULT_PERSON_NAME).fill("60");
+            await grid.getByLabel("Alex").fill("40");
+            await page.getByLabel(/exact description text/i).fill("MANUAL COFFEE");
+            await page.locator('[data-testid="rule-save"]').click();
         });
 
-        await test.step("apply-to-this applies the rule to only this manual row and clears drift", async () => {
-            await robot.click();
+        await goToTransactions(page);
+        // A manual grid row stores "MANUAL COFFEE" as a description ALIAS; the raw description is empty.
+        await addTransaction(page, { description: "MANUAL COFFEE", amount: "-4.50" });
+
+        const tagsRobot = page.getByTestId("tags-rule-robot");
+        const allocationRobot = page.getByTestId("allocation-rule-robot");
+
+        await test.step("(a,b) the manual row surfaces drifting tag + allocation robots; (c) never a description robot", async () => {
+            await expect(tagsRobot).toBeVisible();
+            await expect(tagsRobot).toHaveAttribute("data-drift", "true");
+            await expect(allocationRobot).toBeVisible();
+            await expect(allocationRobot).toHaveAttribute("data-drift", "true");
+            // The SAME projected alias name drives the tag/allocation robots above, yet no
+            // description-alias robot mounts: description rules are gated off manual rows.
+            await expect(page.getByTestId("description-rule-robot")).toHaveCount(0);
+        });
+
+        await test.step("(a,b) apply-to-this reconciles the tag and allocation rules for the manual row", async () => {
+            await tagsRobot.click();
             await expect(page.getByTestId("transaction-rule-drift")).toBeVisible();
             await page.getByTestId("rule-apply-this").click();
             await expect(page.getByTestId("transaction-rule-popover")).toHaveCount(0);
-            await expect(robot).toHaveAttribute("data-drift", "false");
+            // Apply-to-this reconciles every matching rule for the row at once: the tag rule and the
+            // allocation rule (written through the P16C complete-set boundary) both land, so both
+            // robots stop drifting.
+            await expect(tagsRobot).toHaveAttribute("data-drift", "false");
+            await expect(allocationRobot).toHaveAttribute("data-drift", "false");
         });
+    });
+
+    test("(d) a manual row whose alias name matches no rule carries no robot", async ({ page }) => {
+        await createNewIdentity(page);
+        await createTag(page, "Coffee");
+
+        await test.step("create a tag rule for one specific description", async () => {
+            await openCreateEditor(page);
+            await page.getByLabel(/exact description text/i).fill("MANUAL COFFEE");
+            await page
+                .getByRole("group", { name: /tags to apply/i })
+                .getByRole("button", { name: "Coffee" })
+                .click();
+            await page.locator('[data-testid="rule-save"]').click();
+            await expect(page.getByText(/MANUAL COFFEE/)).toBeVisible();
+        });
+
+        await goToTransactions(page);
+        await addTransaction(page, { description: "SOMETHING ELSE", amount: "-9.99" });
+
+        // The manual row's alias name differs from every rule, so nothing matches and no robot mounts.
+        await expect(page.getByTestId("tags-rule-robot")).toHaveCount(0);
+        await expect(page.getByTestId("allocation-rule-robot")).toHaveCount(0);
     });
 });
 

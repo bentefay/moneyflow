@@ -1,6 +1,7 @@
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
+import { insertManualDescriptionAliasedTransaction } from "@/lib/crdt/description-aliases";
 import {
     createFieldRule,
     deleteFieldRule,
@@ -381,6 +382,126 @@ describe("field-rule CRUD mutations", () => {
             expect(later?.tagIds).toContain("tag-coffee");
             expect(reference?.tagIds ?? []).not.toContain("tag-coffee");
             expect(earlier?.tagIds ?? []).not.toContain("tag-coffee");
+        });
+    });
+
+    // Q-P17D-01: a manual grid row stores the user's typed text as a description ALIAS and leaves the
+    // raw `description` empty. The engine projects that alias's resolved NAME as the match text so
+    // tag and whole-allocation rules apply to manual rows, while description-alias rules stay excluded
+    // (frozen `human-scratch.md:288-295`). `isManual` remains keyed on `importId` alone.
+    describe("manual-row matching keys on the resolved description-alias name", () => {
+        const MANUAL_ALIAS_NAME = "WEEKLY GROCERIES";
+
+        function seedManualRow(state: VaultState, id: string, name: string): void {
+            const result = insertManualDescriptionAliasedTransaction(state, {
+                transaction: {
+                    id,
+                    date: DATE,
+                    notes: "",
+                    amount: asMinorUnits(-1200),
+                    accountId: ACCOUNT,
+                    tagIds: [],
+                    statusId: "status-1",
+                    allocations: {},
+                    creationInstant: CREATION,
+                    importRowIndex: undefined,
+                    suspectedDuplicates: [],
+                    deletedAt: undefined
+                },
+                newAliasId: `alias-${id}`,
+                name
+            });
+            if (!result.ok) throw new Error(`manual seed failed: ${result.error.code}`);
+        }
+
+        it("applies a tag rule keyed on the alias name to a manual row", () => {
+            const vault = createVaultMirror();
+            vault.mirror.setState((state: VaultState) => {
+                seedManualRow(state, "m-1", MANUAL_ALIAS_NAME);
+                createFieldRule(state, {
+                    id: "rule-tag",
+                    descriptionText: MANUAL_ALIAS_NAME,
+                    action: { field: "tags", mode: "add", tagIds: ["tag-groceries"] },
+                    createdAtEpochMs: 1000
+                });
+            });
+            vault.mirror.setState((state: VaultState) => {
+                applyFieldRulesToAllTransactions(state);
+            });
+            const manual = findTransactionInStore(
+                vault.mirror.getState().transactions,
+                locationOf("m-1")
+            );
+            expect(manual?.tagIds).toContain("tag-groceries");
+            // Provenance invariant: the raw description is never rewritten by the projection.
+            expect(manual?.description ?? "").toBe("");
+        });
+
+        it("applies an allocation rule keyed on the alias name via the P16C boundary", () => {
+            const vault = createVaultMirror();
+            vault.mirror.setState((state: VaultState) => {
+                seedManualRow(state, "m-2", MANUAL_ALIAS_NAME);
+                createFieldRule(state, {
+                    id: "rule-alloc",
+                    descriptionText: MANUAL_ALIAS_NAME,
+                    action: { field: "allocation", allocations: { "person-1": 100 } },
+                    createdAtEpochMs: 1000
+                });
+            });
+            vault.mirror.setState((state: VaultState) => {
+                applyFieldRulesToAllTransactions(state);
+            });
+            const manual = findTransactionInStore(
+                vault.mirror.getState().transactions,
+                locationOf("m-2")
+            );
+            const entries = Object.entries(manual?.allocations ?? {}).filter(
+                ([id]) => id !== "$cid"
+            );
+            expect(entries).toEqual([["person-1", 100]]);
+        });
+
+        it("never applies a description-alias rule to a manual row", () => {
+            const vault = createVaultMirror();
+            vault.mirror.setState((state: VaultState) => {
+                seedManualRow(state, "m-3", MANUAL_ALIAS_NAME);
+                createFieldRule(state, {
+                    id: "rule-alias",
+                    descriptionText: MANUAL_ALIAS_NAME,
+                    action: { field: "descriptionAlias", aliasId: "alias-other" },
+                    createdAtEpochMs: 1000
+                });
+            });
+            vault.mirror.setState((state: VaultState) => {
+                applyFieldRulesToAllTransactions(state);
+            });
+            const manual = findTransactionInStore(
+                vault.mirror.getState().transactions,
+                locationOf("m-3")
+            );
+            // The row keeps its own alias; the alias rule did not repoint it.
+            expect(manual?.descriptionAliasId).toBe("alias-m-3");
+        });
+
+        it("matches nothing on a manual row whose alias name differs from the rule", () => {
+            const vault = createVaultMirror();
+            vault.mirror.setState((state: VaultState) => {
+                seedManualRow(state, "m-4", "SOMETHING ELSE");
+                createFieldRule(state, {
+                    id: "rule-tag",
+                    descriptionText: MANUAL_ALIAS_NAME,
+                    action: { field: "tags", mode: "add", tagIds: ["tag-groceries"] },
+                    createdAtEpochMs: 1000
+                });
+            });
+            vault.mirror.setState((state: VaultState) => {
+                applyFieldRulesToAllTransactions(state);
+            });
+            const manual = findTransactionInStore(
+                vault.mirror.getState().transactions,
+                locationOf("m-4")
+            );
+            expect(manual?.tagIds ?? []).not.toContain("tag-groceries");
         });
     });
 });

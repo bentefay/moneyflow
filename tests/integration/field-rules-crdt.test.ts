@@ -336,9 +336,20 @@ describe("field-rule application at import and bulk operations", () => {
         const manualLocation = locationOf("t-manual");
         let fields: readonly string[] = [];
         vault.mirror.setState((state: VaultState) => {
+            // A manual grid row (no importId) carries its text as a description ALIAS, not a raw
+            // description (frozen `:269`). The engine keys on the resolved alias NAME (Q-P17D-01), so
+            // tag rules apply to the manual row while description-alias rules stay excluded.
+            const manualAlias = createDescriptionAlias(state, {
+                aliasId: "alias-manual",
+                name: DESCRIPTION
+            });
+            if (!manualAlias.ok) throw new Error("manual alias seed failed");
             insertTransaction(state.transactions, {
-                // Manual: no importId; a non-empty description exercises the isManual gate precisely.
-                transaction: txInput({ id: "t-manual", description: DESCRIPTION })
+                transaction: txInput({
+                    id: "t-manual",
+                    description: "",
+                    descriptionAliasId: "alias-manual"
+                })
             });
             const created = createDescriptionAlias(state, {
                 aliasId: "alias-coffee",
@@ -378,8 +389,8 @@ describe("field-rule application at import and bulk operations", () => {
             manualLocation
         );
         expect([...(applied?.tagIds ?? [])]).toEqual(["coffee"]);
-        // The alias rule never touched the manual row.
-        expect(applied?.descriptionAliasId).toBeUndefined();
+        // The alias rule never touched the manual row; it keeps its own alias.
+        expect(applied?.descriptionAliasId).toBe("alias-manual");
     });
 
     it("excludes rules with an invalid complete allocation set (rejected at decode, no mutation)", () => {

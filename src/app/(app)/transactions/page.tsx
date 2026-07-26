@@ -377,11 +377,22 @@ function TransactionsPageContent() {
             }
         >();
         for (const tx of displayedTransactions) {
-            const rawDescription =
-                tx.description != null && tx.description.length > 0 ? tx.description : null;
-            const resolvedAliasId = tx.descriptionAliasId
-                ? (aliasLookup.resolve(tx.descriptionAliasId)?.id ?? null)
-                : null;
+            const resolvedAlias =
+                tx.descriptionAliasId != null
+                    ? (aliasLookup.resolve(tx.descriptionAliasId) ?? null)
+                    : null;
+            const resolvedAliasId = resolvedAlias?.id ?? null;
+            // Mirror the engine's projection (`descriptionTextForMatching`): imported rows key on the
+            // raw imported text; manual rows have no raw text and key on their resolved alias name so
+            // tag/allocation robots surface. A manual row with no alias matches nothing.
+            const descriptionText =
+                tx.importId != null
+                    ? tx.description != null && tx.description.length > 0
+                        ? tx.description
+                        : null
+                    : resolvedAlias != null && resolvedAlias.name.length > 0
+                      ? resolvedAlias.name
+                      : null;
             const currentAllocations: Record<string, number> = {};
             for (const [personId, value] of Object.entries(
                 materializeAllocationRecord(tx.allocations)
@@ -390,7 +401,7 @@ function TransactionsPageContent() {
             }
             byId.set(tx.id, {
                 subject: {
-                    descriptionText: rawDescription,
+                    descriptionText,
                     accountId: tx.accountId,
                     amount: tx.amount,
                     isManual: tx.importId == null

@@ -32,24 +32,31 @@ is introduced. The existing invariant test
 (`tests/integration/apply-field-rule-to-transaction.test.ts`) already proves an invalid complete set
 yields zero mutation.
 
-### 3. MANUAL-ROW applicability — WIRING DONE; engine-match BLOCKED (surfaced)
+### 3. MANUAL-ROW applicability — DONE (rev-01, Q-P17D-01 authorised)
 
-The inline robot wiring mounts tags/allocation robots for manual rows too (page-level, gated on the
-engine match so unmatched rows carry no extra hooks). However, frozen `:294-295` requires tag/
-allocation rules to APPLY to manually-created transactions, while frozen `:269` states manual rows
-have no raw description text (only a description alias). The frozen matcher subject
-(`subjectForTransaction`, `src/lib/crdt/field-rules.ts:83-94`) derives `descriptionText` solely from
-the raw `transaction.description` field, which is empty for UI-created manual rows (they store text
-as `descriptionAliasId`). Consequently no tag/allocation rule can match a UI-created manual row.
+Frozen `:294-295` requires tag/allocation rules to APPLY to manually-created transactions, while
+frozen `:269` states manual rows have no raw description text — only a description alias. Root
+authorised reopening the P17A engine seam for THIS projection only (**Q-P17D-01**, RESOLVED). The
+change is surgical and confined to `src/lib/crdt/field-rules.ts`:
 
-Resolving this requires the FROZEN engine `subjectForTransaction` to project the manual row's alias
-NAME as `descriptionText` (and thread the alias registry through it). Per the dispatch, a passed
-engine file must not be silently edited — this is surfaced to root as **Q-P17D-MANUAL-MATCH**. An
-independent fresh-context adjudication confirmed there is no byte-identical alternative (writing the
-alias name into the raw `description` field would corrupt the documented provenance invariant). The
-robot wiring is forward-compatible: manual rows light up with zero UI change once the engine
-projects the alias name. The corresponding E2E journey is retained as an executable `test.fixme`
-documenting the intended behaviour.
+- New pure helper `descriptionTextForMatching(transaction, aliases)`: imported rows
+  (`importId != null`) keep the exact raw imported text (empty → `null`); a MANUAL row
+  (`importId == null`) with a `descriptionAliasId` projects the alias's resolved (symlink-followed)
+  NAME via the existing pure `resolveAlias` from `@/lib/domain/description-aliases`; a manual row
+  with no alias projects `null`.
+- `subjectForTransaction` / `targetForTransaction` now take the alias collection and delegate to
+  that helper; `applyFieldRulesToTransaction` threads `state.descriptionAliases` in. All bulk
+  appliers, the import applier and the P17C single-row path route through
+  `applyFieldRulesToTransaction`, so no public signature changed and every call site is covered.
+- `isManual` is UNCHANGED (`transaction.importId == null`), so description-alias rules stay excluded
+  from manual rows via the `rules.ts` `fieldAppliesToManual` gate — that gate was not weakened.
+- Provenance invariant preserved: the raw `transaction.description` is never rewritten; matching
+  reads the alias name instead. No direct allocation/alias/transaction write is added in the engine;
+  allocation writes still go exclusively through P16C `replaceTransactionAllocations`.
+
+The page projection (`transactions/page.tsx` `robotContextById`) mirrors the same rule so the inline
+robots agree with what applying would do. Result: tag and whole-allocation rules light up on manual
+rows keyed on the alias name; description-alias rules never surface there.
 
 ### 4. APPLY-MODE select persistence (Q-P17B-03) — DONE
 
@@ -76,9 +83,13 @@ and the popup is non-intrusive (nothing auto-opens en masse). Covered by the sca
 
 ## Boundaries preserved (byte-identical)
 
-`settlement.ts`, `mutations.ts`, `field-rules.ts`, `import-commit.ts`,
-`domain/automation/{rules,apply,migration}.ts` are unchanged. No direct allocation-map write; no
-settlement recompute. No secret material in any code/test/fixture.
+The five hard boundaries are byte-identical BASE→HEAD:
+`domain/automation/{rules,apply,migration}.ts` and `crdt/import-commit.ts` are absent from the diff;
+`domain/settlement.ts` blob `010f3c93582a2ce311594d4dde8464760ca49c43` and P16C `crdt/mutations.ts`
+blob `118e994af45b4b531bebd4bf1ed0a4a861a6b6f0` are unchanged. `field-rules.ts` is the ONLY engine
+file touched, additively, under the Q-P17D-01 authorisation. No direct allocation-map write;
+allocation writes stay on the P16C boundary; no settlement recompute. No secret material in any
+code/test/fixture.
 
 ## Tests
 
@@ -88,18 +99,25 @@ settlement recompute. No secret material in any code/test/fixture.
 - Unit (extended): `tests/unit/domain/automation/preferences.test.ts` (apply-mode default +
   round-trip).
 - Integration (extended): `tests/integration/field-rules-crdt.test.ts` (new `lastApplyMode` slot
-  round-trips; absent slot accepted without migration);
-  `tests/integration/field-rule-mutations.test.ts` (apply-mode threaded).
-- E2E (new): `tests/e2e/field-rule-parity.spec.ts` — tag add/set select + inline popup parity;
-  allocation column-per-person grid; apply-mode remembered across reopen; popup non-intrusive at
-  scale; manual-row robot/apply retained as `test.fixme` (blocked on Q-P17D-MANUAL-MATCH).
+  round-trips; absent slot accepted without migration; the manual-row exclusion test now models the
+  manual row as an aliased row per frozen `:269` and proves the tag rule applies via the alias name
+  while the description-alias rule does not — same intent, corrected setup for Q-P17D-01);
+  `tests/integration/field-rule-mutations.test.ts` (apply-mode threaded; new "manual-row matching
+  keys on the resolved description-alias name" block: tag rule applies, allocation rule applies via
+  the P16C complete-set, description-alias rule never applies, and a differently-named alias matches
+  nothing).
+- E2E: `tests/e2e/field-rule-parity.spec.ts` — tag add/set select + inline popup parity; allocation
+  column-per-person grid; apply-mode remembered across reopen; popup non-intrusive at scale. The
+  manual-row journey is now a real (un-fixme'd) test: a manual aliased row surfaces drifting tag +
+  allocation robots (never a description robot), apply-to-this reconciles both, and a manual row
+  whose alias matches no rule carries no robot.
 
 ## Gates
 
 - `pnpm typecheck`: clean.
-- `pnpm lint`: 0 errors (10 pre-existing warnings on untouched files).
-- `pnpm format:check`: only the 15 pre-existing spec/markdown files flagged; none authored here.
-- `pnpm test`: 1873 passed / 2 skipped; sole failure is the known pre-existing perf-timing flake
-  `tests/unit/import/duplicates.test.ts` (O(n+m) ratio, JIT/GC-sensitive; untouched file).
-- `pnpm test:e2e` (P17D spec): 4 passed, 1 skipped (fixme); existing `transaction-rules.spec.ts` and
-  `automations.spec.ts` still pass (no regression).
+- `pnpm lint`: 0 errors (10 pre-existing warnings on untouched `tests/unit/crdt/*` files).
+- `pnpm format:check`: fails only on 15 pre-existing markdown/spec files (evidence for other
+  packages plus the FROZEN `specs/human-scratch.md`); none are authored or authored-touched here and
+  the frozen file must not be reformatted. All six changed source files pass `oxfmt --check`.
+- `pnpm test`: 1878 passed / 2 skipped (97 files); no failures.
+- `pnpm test:e2e`: 153 passed (full suite), including the 6 `field-rule-parity.spec.ts` journeys.

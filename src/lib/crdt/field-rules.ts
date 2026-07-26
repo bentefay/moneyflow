@@ -36,6 +36,7 @@ import {
     type RuleMatchSubject
 } from "@/lib/domain/automation/rules";
 import { asMinorUnits } from "@/lib/domain/currency";
+import { resolveAlias } from "@/lib/domain/description-aliases";
 import { asPercentage, type Percentage } from "@/types";
 
 import { type AllocationBoundaryError } from "./allocations";
@@ -74,28 +75,58 @@ export function readActiveFieldRules(state: VaultState): readonly FieldRule[] {
 // ============================================================================
 
 /**
- * Project a stored transaction into the engine's match subject.
+ * Resolve the text the match engine keys on for one transaction.
  *
- * `descriptionText` is the exact raw imported text (empty text projects to `null`, matching
- * nothing). `isManual` (no `importId`) gates eligibility: description-alias rules never touch
- * manual rows, while tag and whole-allocation rules do. See Q-P17A-MANUAL-MATCH.
+ * - Imported rows (`importId != null`): the exact raw imported text (empty projects to `null`,
+ *   matching nothing). Provenance is preserved — the raw description is never rewritten.
+ * - Manual rows (`importId == null`): the manual grid stores the user's typed text as a description
+ *   ALIAS, leaving the raw description empty. Project the alias's resolved (symlink-followed) NAME
+ *   so tag and whole-allocation rules can key on what the user actually sees. A manual row with no
+ *   alias (or a dangling one) projects to `null` and matches nothing. See Q-P17D-01.
+ *
+ * `isManual` (below) still gates eligibility purely on `importId`, so description-alias rules remain
+ * excluded from manual rows via `fieldAppliesToManual` regardless of this projection.
  */
-function subjectForTransaction(transaction: Transaction): RuleMatchSubject {
-    const rawDescription =
-        transaction.description != null && transaction.description.length > 0
+function descriptionTextForMatching(
+    transaction: Transaction,
+    aliases: VaultState["descriptionAliases"]
+): string | null {
+    if (transaction.importId != null) {
+        return transaction.description != null && transaction.description.length > 0
             ? transaction.description
             : null;
+    }
+    const aliasId = transaction.descriptionAliasId;
+    if (aliasId == null) return null;
+    const resolved = resolveAlias(aliasId, aliases);
+    return resolved != null && resolved.name.length > 0 ? resolved.name : null;
+}
+
+/**
+ * Project a stored transaction into the engine's match subject.
+ *
+ * `descriptionText` comes from {@link descriptionTextForMatching}. `isManual` (no `importId`) gates
+ * eligibility: description-alias rules never touch manual rows, while tag and whole-allocation rules
+ * do. See Q-P17A-MANUAL-MATCH / Q-P17D-01.
+ */
+function subjectForTransaction(
+    transaction: Transaction,
+    aliases: VaultState["descriptionAliases"]
+): RuleMatchSubject {
     return {
-        descriptionText: rawDescription,
+        descriptionText: descriptionTextForMatching(transaction, aliases),
         accountId: transaction.accountId,
         amount: transaction.amount,
         isManual: transaction.importId == null
     };
 }
 
-function targetForTransaction(transaction: Transaction): RuleApplicationTarget {
+function targetForTransaction(
+    transaction: Transaction,
+    aliases: VaultState["descriptionAliases"]
+): RuleApplicationTarget {
     return {
-        subject: subjectForTransaction(transaction),
+        subject: subjectForTransaction(transaction, aliases),
         location: {
             accountId: transaction.accountId,
             date: transaction.date,
@@ -152,7 +183,7 @@ export function applyFieldRulesToTransaction(
     rules: readonly FieldRule[],
     transaction: Transaction
 ): readonly AppliedFieldRuleOutcome[] {
-    const target = targetForTransaction(transaction);
+    const target = targetForTransaction(transaction, state.descriptionAliases);
     const plans = planRuleApplications(rules, target);
 
     const aliasPlans = plans.filter((plan) => plan.field === "descriptionAlias");
