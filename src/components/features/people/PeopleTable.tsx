@@ -11,9 +11,10 @@ import { Plus, Users } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { Temporal } from "temporal-polyfill";
 
+import { useDescriptionAliasLookup } from "@/components/features/description-aliases/useDescriptionAliasLookup";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useVaultAction, useVaultSelector } from "@/lib/crdt/context";
+import { useDescriptionAliases, useVaultAction, useVaultSelector } from "@/lib/crdt/context";
 import { resolvePersonDisplayName } from "@/lib/crdt/person";
 import { getAllTransactions } from "@/lib/crdt/queries";
 import type { Person, PersonInput } from "@/lib/crdt/schema";
@@ -48,6 +49,25 @@ export function PeopleTable({ className }: PeopleTableProps) {
     const statuses = useVaultSelector((state) => state.statuses);
     const accounts = useVaultSelector((state) => state.accounts);
     const preferences = useVaultSelector((state) => state.preferences);
+    const aliases = useDescriptionAliases();
+    const aliasLookup = useDescriptionAliasLookup(aliases);
+
+    // Settlement source rows show the resolved alias when a transaction has one (P11C).
+    const transactionDescriptions = useMemo(() => {
+        const map = new Map<string, string>();
+        for (const transaction of getAllTransactions(transactions)) {
+            const aliasId = transaction.descriptionAliasId;
+            const resolved = aliasId == null ? undefined : aliasLookup.resolve(aliasId);
+            if (resolved != null) map.set(transaction.id, resolved.name);
+        }
+        return map;
+    }, [aliasLookup, transactions]);
+
+    const resolveDescription = useCallback(
+        (transactionId: string, description: string) =>
+            transactionDescriptions.get(transactionId) ?? description,
+        [transactionDescriptions]
+    );
 
     // Create CRDT mutation action
     const updateVault = useVaultAction(
@@ -229,6 +249,7 @@ export function PeopleTable({ className }: PeopleTableProps) {
                 transactions={transactions}
                 statuses={statuses}
                 currentPersonId={currentPersonId}
+                resolveDescription={resolveDescription}
                 vaultDefaultCurrency={preferences.defaultCurrency}
             />
         </div>

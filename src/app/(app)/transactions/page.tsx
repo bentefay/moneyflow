@@ -10,8 +10,8 @@
  * and pre-sorted data (date desc, creationInstant desc, importRowIndex asc).
  */
 
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { DescriptionAliasChangeModal } from "@/components/features/description-aliases/DescriptionAliasChangeModal";
 import {
@@ -60,6 +60,13 @@ import { asMinorUnits } from "@/lib/domain/currency";
 // Number of transactions to load per page
 const PAGE_SIZE = 50;
 
+/**
+ * Search param carrying a stable source-transaction ID, used by the People page "View transaction"
+ * action. It is always the stable ID, never a row index, so the target survives filtering,
+ * pagination and reordering.
+ */
+export const SOURCE_TRANSACTION_PARAM = "transaction";
+
 /** Generate unique ID */
 function generateId(): string {
     return crypto.randomUUID();
@@ -72,10 +79,26 @@ function materializeAliasTarget(target: DescriptionAliasTargetIntent): Descripti
 }
 
 /**
- * Transactions page component.
+ * Transactions page route.
+ *
+ * `useSearchParams` requires a Suspense boundary during prerendering, so the interactive page is
+ * mounted underneath one.
  */
 export default function TransactionsPage() {
+    return (
+        <Suspense fallback={null}>
+            <TransactionsPageContent />
+        </Suspense>
+    );
+}
+
+/**
+ * Transactions page component.
+ */
+function TransactionsPageContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const requestedTransactionId = searchParams.get(SOURCE_TRANSACTION_PARAM);
     const { stageImportFile } = useImportFileTransfer();
 
     // Toast notifications
@@ -187,21 +210,41 @@ export default function TransactionsPage() {
         });
     }, [transactions, filters]);
 
-    // Paginate
+    // "View transaction" from the People page focuses one stable source ID. The paging, selection
+    // and scroll are all derived from that ID so the existing reveal path is reused unchanged and
+    // the target survives filtering and reordering. It is never a row index.
+    const focusedSourceIndex = useMemo(
+        () =>
+            requestedTransactionId == null
+                ? -1
+                : filteredTransactions.findIndex(
+                      (transaction) => transaction.id === requestedTransactionId
+                  ),
+        [filteredTransactions, requestedTransactionId]
+    );
+
+    // Paginate. A requested source beyond the current page extends it just far enough to include it.
+    const effectiveDisplayCount =
+        focusedSourceIndex < 0
+            ? displayCount
+            : Math.max(displayCount, Math.ceil((focusedSourceIndex + 1) / PAGE_SIZE) * PAGE_SIZE);
     const displayedTransactions = useMemo(
-        () => filteredTransactions.slice(0, displayCount),
-        [filteredTransactions, displayCount]
+        () => filteredTransactions.slice(0, effectiveDisplayCount),
+        [filteredTransactions, effectiveDisplayCount]
     );
     const displayedTransactionIds = useMemo(
         () => new Set(displayedTransactions.map((transaction) => transaction.id)),
         [displayedTransactions]
     );
-    const selectedTransactionIds = useMemo(
-        () => new Set([...selectedIds].filter((id) => displayedTransactionIds.has(id))),
-        [displayedTransactionIds, selectedIds]
-    );
+    const selectedTransactionIds = useMemo(() => {
+        const explicit = new Set([...selectedIds].filter((id) => displayedTransactionIds.has(id)));
+        if (requestedTransactionId != null && displayedTransactionIds.has(requestedTransactionId)) {
+            explicit.add(requestedTransactionId);
+        }
+        return explicit;
+    }, [displayedTransactionIds, requestedTransactionId, selectedIds]);
     const selectedCount = selectedTransactionIds.size;
-    const hasMore = displayCount < filteredTransactions.length;
+    const hasMore = effectiveDisplayCount < filteredTransactions.length;
 
     // Selection-driven actions must never target a transaction outside the displayed page.
     useEffect(() => {
@@ -213,11 +256,15 @@ export default function TransactionsPage() {
         }
     }, [selectedCount, toast]);
 
+    // A newly added row and a People-page source both scroll into view through this one path.
+    const idToReveal = transactionIdToReveal ?? requestedTransactionId;
+    const revealedIdRef = useRef<string | null>(null);
     useEffect(() => {
-        if (transactionIdToReveal == null) return;
+        if (idToReveal == null) return;
+        if (idToReveal === requestedTransactionId && revealedIdRef.current === idToReveal) return;
 
         const transactionIndex = displayedTransactions.findIndex(
-            (transaction) => transaction.id === transactionIdToReveal
+            (transaction) => transaction.id === idToReveal
         );
         if (transactionIndex < 0) return;
 
@@ -230,8 +277,9 @@ export default function TransactionsPage() {
         const estimatedRowHeight = grid.scrollHeight / displayedTransactions.length;
         const precedingVisibleRowIndex = Math.max(0, transactionIndex - 1);
         scrollContainer.scrollTop = grid.offsetTop + precedingVisibleRowIndex * estimatedRowHeight;
+        revealedIdRef.current = idToReveal;
         setTransactionIdToReveal(null);
-    }, [displayedTransactions, transactionIdToReveal]);
+    }, [displayedTransactions, idToReveal, requestedTransactionId]);
 
     // Load more handler
     const handleLoadMore = useCallback(() => {

@@ -13,6 +13,9 @@ encrypted on your device before storage—the server never sees your plaintext d
   rules learn to categorize for you.
 - **👥 Shared Finance Management**: Track ownership and split expenses with household members.
   Real-time collaboration via CRDT sync.
+- **⚖️ Deterministic Settlement**: Per-person percentage allocations derive who owes whom, grouped
+  by currency and traceable back to every contributing transaction. See
+  [`src/components/features/people/README.md`](src/components/features/people/README.md).
 - **📥 Easy Data Import**: Import CSV or OFX files from any bank. Duplicate detection included.
 - **🔑 Key-Only Authentication**: No passwords to remember or reset. Your 12-word recovery phrase IS
   your identity.
