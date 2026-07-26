@@ -1,148 +1,105 @@
-# Current Package Handoff
+# HANDOFF — P17D REVIEW dispatch (revision 01)
 
-Root rewrites this compact file for one package/revision. It is not a dispatch while an applicable
-literal field is `pending`. Workers may read but never edit it.
+**To:** `p17d-reviewer-01` (fresh, independent — you did NOT implement P17D; you are NOT
+`aa2a0d86…`). Read-only on product code; you may run all gates. **From:** root coordinator.
 
-## Implement dispatch (P17D / 01 — HS-007 FINAL: tag/allocation rule parity + apply-mode persistence + polish)
+**Package:** P17D (HS-007 — tag/allocation rule parity with the description rule, four-mode apply
+SELECT with remembered choice, manual-row applicability, bulk/perf polish). **This is the FINAL
+HS-007 package** — on your PASS, root performs the NON-markerless integration that checks the HS-007
+scratch block and flips the HS-007 requirement to passed. Review accordingly: this is the last gate
+before HS-007 is declared complete.
 
-- **Package / revision:** P17D / 01 (HS-007 — the LAST of four packages) — **IMPLEMENT**
-- **Role:** human_scratch_implementer, fresh instance `p17d-implementer-01`. You write product +
-  test code only. You NEVER edit ledgers/markers/QUESTIONS/HANDOFF/PROGRESS/DECISIONS or any frozen
-  spec. You do not review, integrate, or advance any ledger. When done, hand back to root by
-  SendMessage to `main` with your final HEAD SHA, a delta summary, and your real gate counts.
-- **CRITICAL — git discipline (shared working tree):** you are on branch `main` at BASE `27ac503`
-  (current HEAD). Do NOT `git checkout`/`switch`/`reset` or create/switch branches. Commit your work
-  DIRECTLY on top of `27ac503` so the history stays linear; root reviews `27ac503..HEAD`.
-- **Scope ID:** HS-007 (P17D slice). **Frozen text is authoritative:**
-  `specs/human-scratch.md:248-295`, P17D-specific at **`:270`** (remember the SELECT choice too) and
-  **`:288-295`** (tags/allocation parity, manual-row applicability). Task detail:
-  `tasks/HS-007-automation-redesign.md` P17D section. Judge yourself against the FROZEN TEXT, not
-  against this summary.
+**Review range:** `27ac503..aad518e` (product delta in `57487ee` + `aad518e`; root docs in
+`efc7f37`/`8d3e5e0`). Work read-only against git; **do NOT checkout/reset/branch/switch** — the
+working tree stays at the integrated HEAD.
 
-## What already exists — REUSE it, do not rebuild or fork
+**Frozen text:** `specs/human-scratch.md:248-295` (HS-007). Key lines you MUST hold the code to:
 
-The P17A engine + P17B editor + P17C inline workflow already deliver most of HS-007. The rule MODEL
-and ENGINE already encode ALL THREE fields — do not re-model them:
+- `:255-256` — the apply control is a SELECT with exactly four options: "updating all / updating new
+  / update all / update new".
+- `:270` — "We remember the user's last choices for the select and check boxes in a new user
+  preferences part of the vault." (The SELECT persistence is the P17D-new piece — Q-P17B-03.)
+- `:268-269` — description-alias rules do NOT apply to manually created transactions (they have no
+  description text, only a description alias).
+- `:290-291` — tags have an extra SELECT ("add tags" / "set tags") after the account scope.
+- `:292-293` — person-percentage attribution has a column per person; the rule spans ALL the
+  percentage columns as one set.
+- `:294-295` — UNLIKE description-alias rules, tag and person-percentage rules DO apply to manually
+  created transactions.
 
-- `src/lib/domain/automation/rules.ts`:
-  `RuleFieldSchema = ["descriptionAlias","tags","allocation"]`, `TagRuleMode = "add"|"set"`,
-  precedence/uniqueness/exact-match/boundary-date primitives.
-- `src/lib/domain/automation/apply.ts` + `src/lib/crdt/field-rules.ts`: already APPLY tag rules
-  (add/set) and allocation rules (the whole percentage set), producing typed outcomes; migration
-  (`migration.ts`) already maps legacy `setTags`/`setAllocation`.
-- `src/components/features/automations/FieldRuleEditor.tsx` (P17B): the ONE shared accessible editor
-  with field selector, amount/account constraints, four apply-modes + tooltip, per-field value
-  editors, validation, delete, apply-all/apply-new. `rule-editor-data.ts` (P17C) holds
-  `draftFromRule`/error-mapping.
-- `src/components/features/transactions/*` (P17C): per-row robot (normal/red/hidden), contextual
-  popup, `applyFieldRulesToSingleTransaction`, inline alias-edit → UPDATE.
-- Preference chain: `src/lib/domain/automation/preferences.ts` (pure `readRememberedChoice`/
-  `nextUserPreference`), `userAutomationPreferenceSchema` in `src/lib/crdt/schema.ts:366`, and P17B
-  persist/read actions in `src/lib/crdt/field-rule-mutations.ts`.
+## What root already verified (verify-not-trust — re-derive, do not take on faith)
 
-## P17D deliverables (complete HS-007's committed scope — additive)
+Root confirmed against git before dispatching; independently re-confirm every hard fact:
 
-1. **Tag rule parity in the editor AND the inline workflow.** Per frozen `:290-291`, tag rules show,
-   AFTER the "only this account" checkbox, an additional select with exactly two options: **"add
-   tags"** (union) and **"set tags"** (clears existing tags then sets). The `tags`/`TagRuleMode`
-   model already exists — surface it in `FieldRuleEditor` (automations page) and in the P17C
-   transaction popup/robot so a tag rule can be viewed/created/edited/deleted/applied inline exactly
-   like a description rule.
-2. **Person-percentage (allocation) rule parity.** Per frozen `:292-293`, allocation rules present a
-   **column per person**; the rule applies to the WHOLE set of percentage columns and SPANS all
-   columns (it is one explicit complete set, never a per-column write). The editor/proposal UI must
-   communicate that the set is EXPLICIT. **Derived effective allocations remain owned by FS-001
-   surfaces** — do NOT compute, cache, or display effective/settled values here and do NOT touch
-   `settlement.ts`. Every allocation write MUST route through P16C `replaceTransactionAllocations`
-   (the engine already does this via `apply.ts`'s allocation case) — NO direct allocation-map write
-   anywhere.
-3. **Manual-row applicability.** Per frozen `:294-295`, UNLIKE description-alias rules, tag and
-   allocation rules DO apply to manually-created transactions. Confirm the existing engine already
-   honors this (subject projection / `applyFieldRulesToTransaction`) and wire the inline robot/popup
-   so manual rows get the robot + apply-this for tag/allocation rules. If you find a genuine ENGINE
-   gap (a passed-package file would need changing), STOP and surface it to root as a proposal — do
-   not silently edit a passed engine file.
-4. **Apply-mode SELECT persistence (Q-P17B-03 — you OWN this).** Frozen `:270` requires remembering
-   "the user's last choices for the SELECT and check boxes." Today only the checkboxes + field/tag
-   mode persist. Additively thread the four-mode apply SELECT through the preference chain:
-   `RememberedRuleChoice`/`UserAutomationPreferenceView`/`DEFAULT_REMEMBERED_CHOICE` +
-   `readRememberedChoice`/`nextUserPreference` in `preferences.ts`; a new **optional**
-   `lastApplyMode` slot in `userAutomationPreferenceSchema` (`schema.ts`, `required: false` so
-   absent → default, NO migration); the P17B persist/read path in `field-rule-mutations.ts`; and the
-   editor select wiring. Reuse the EXISTING four-mode type from the editor — do not invent a
-   parallel one. Absent key must fall back to the current session default.
-5. **Bulk / large-import / performance + every UX state.** Verify (with tests) large imports and
-   large tables, bulk apply-all/apply-new across many rows, and all UX states (normal/red/hidden
-   robot, popup open/edit/delete/apply, tag add vs set, allocation spanning set, manual vs imported
-   rows) with NO direct allocation-map write and no settlement recompute.
+- Linear chain `27ac503->efc7f37->57487ee->8d3e5e0->aad518e`, all single-parent.
+- **Five HARD boundaries byte-identical BASE(`27ac503`)->HEAD(`aad518e`)** — these must NOT change:
+    - `src/lib/domain/settlement.ts` blob `010f3c93582a2ce311594d4dde8464760ca49c43`
+    - P16C `src/lib/crdt/mutations.ts` blob `118e994af45b4b531bebd4bf1ed0a4a861a6b6f0`
+    - `src/lib/domain/automation/rules.ts`, `apply.ts`, `migration.ts`, and
+      `src/lib/crdt/import-commit.ts` (blobs equal BASE; absent from the diff).
+- Allocations remain P16C-only (all allocation writes route through
+  `replaceTransactionAllocations`); NO direct allocation/alias/transaction write added in the
+  engine.
 
-## Hard boundaries — byte-IDENTICAL BASE↔HEAD (any change = BLOCKING)
+## Additive-allowed this package (scrutinise, don't reject on sight)
 
-- **FS-001 must be untouched:** `src/lib/domain/settlement.ts` ==
-  `010f3c93582a2ce311594d4dde8464760ca49c43`.
-- **Allocation write boundary:** `src/lib/crdt/mutations.ts` (P16C `replaceTransactionAllocations`)
-  == `118e994af45b4b531bebd4bf1ed0a4a861a6b6f0`. All allocation writes go THROUGH it; never write an
-  allocation map / alias directly.
-- **Rule engine reused, not re-modelled:** prefer byte-identical reuse of
-  `src/lib/crdt/field-rules.ts` (`4656c3c55515267d9050b718d0556a0fbfee7ed2`), `import-commit.ts`,
-  `src/lib/domain/automation/{rules,apply,migration}.ts`. If any MUST change, it can only be
-  genuinely additive AND must not break their passed tests — surface such a change to root first
-  (deliverable 3).
-- **Frozen specs untouched:** `specs/human-scratch.md`, `specs/008-.../spec.md`; realtime;
-  `supabase/migrations/**`; all `specs/007-.../` ledger/control files.
+- **`src/lib/crdt/field-rules.ts`** (Q-P17D-01): root AUTHORIZED a surgical additive change to
+  satisfy frozen `:294-295`. A new pure `descriptionTextForMatching(transaction, aliases)` projects
+  a MANUAL row's resolved description-alias NAME (via the pre-existing `resolveAlias`) as the match
+  text; imported rows keep raw text; manual-without-alias -> `null`. **Confirm:** (a) `isManual`
+  stays `transaction.importId == null` so description-alias rules remain excluded from manual rows
+  via the untouched `rules.ts` `fieldAppliesToManual` gate; (b) provenance preserved — raw
+  `description` is never rewritten; (c) the change is confined to `field-rules.ts` among engine
+  files; (d) all passed P17A/P17B/P17C tests still pass.
+- **`src/lib/crdt/schema.ts`** — additive optional `lastApplyMode` StringEnum with the four frozen
+  modes, `required:false`, no migration. Confirm it is ONLY that.
+- New/modified UI + preference files: `transactions/page.tsx` (per-field robot mounting mirroring
+  the engine projection), `FieldRulesManager.tsx`, `rule-editor-model.ts`,
+  `TransactionRuleRobot.tsx`, `field-rule-robot-state.ts`, `use-transaction-rule-workflow.ts`,
+  `field-rule-mutations.ts`, `domain/automation/apply-mode.ts`, `domain/automation/preferences.ts`
+  (threads `lastApplyMode`).
 
-## ADDITIVE-ALLOWED for P17D (your committed scope — must stay additive, break no passed test)
+## Gates — re-run and report REAL counts
 
-`preferences.ts` (apply-mode field), `schema.ts` (ONLY the new optional `lastApplyMode` slot on
-`userAutomationPreferenceSchema` — touch nothing else in that file), `field-rule-mutations.ts`
-(persist the new field), `FieldRuleEditor.tsx` + `rule-editor-data.ts` (tag select + allocation
-columns + apply-mode wiring), the P17C transactions-feature files, `context.tsx`/`index.ts` additive
-re-exports, and new/edited tests. This is completing HS-007's committed scope (MORE work, additive)
-— NOT a reduction — so no scope adjudicator is triggered; passed packages are not reopened
-conceptually.
+`pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm test:e2e`. Root spot-checked:
+typecheck clean; format:check fails ONLY on pre-existing non-P17D markdown (incl. the frozen
+`human-scratch.md` — not reformattable). Implementer-reported lint 0 errors / 10 pre-existing
+warnings, test 1878 passed / 2 skipped, e2e 153 passed — re-run and confirm. A `format:check`
+failure confined to pre-existing spec/other-package markdown is NON-blocking; a P17D `.ts`/`.tsx`
+file failing oxfmt IS blocking.
 
-## Type-safety / conventions (BLOCKING on violation)
+## Behaviour you must confirm against frozen text
 
-- NO `as`, `any`, or non-null `!` in your code. Isolate any unavoidable coercion in a typed guard
-  (see `isRuleField` in `FieldRuleEditor.tsx`). Pre-existing casts elsewhere (`context.tsx:818`,
-  `AutomationRow.tsx`) are legacy — leave byte-identical, do not touch.
-- ts-pattern is NOT a dependency — `switch` + `assertNever`. Money is integer minor units
-  (`toMinorUnitsForCurrency`). Favour pure functions + immutable data. Zod `safeParse` at
-  boundaries.
-- Match the surrounding file's conventions. Reuse before adding.
+1. **Manual-row applicability (`:294-295` + `:268-269`)** — tag AND person-percentage rules APPLY to
+   a manual row via its resolved alias name; a description-alias rule does NOT. Check the new
+   `field-rule-mutations.test.ts` block + the corrected `field-rules-crdt.test.ts` setup are honest
+   (the correction models a valid aliased manual row — root judged it a correction, not a loosening;
+   independently confirm).
+2. **Four-mode SELECT + remembered choice (`:255-256`, `:270`)** — the SELECT offers exactly the
+   four modes; the last choice persists via `lastApplyMode` and is re-read on next open;
+   checkboxes + field/tagMode remembering (from P17B) still work. This closes Q-P17B-03 — confirm it
+   is genuinely closed, not deferred again.
+3. **Tag add/set SELECT (`:290-291`)** and **allocation column-per-person spanning the whole set
+   (`:292-293`)** — present in the shared editor + inline surface; allocation writes go through P16C
+   as a complete set (invalid set -> zero mutation).
+4. **Robot parity** — the inline robots' normal/red-drift/hidden state for manual rows agrees with
+   what applying the rule would actually do (page projection mirrors the engine's
+   `descriptionTextForMatching`).
 
-## Gates — you MUST run and PASS all before handback (report REAL counts)
+## Hard rules (blocking if violated)
 
-`pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm test:e2e`. Fix ALL
-lint/typecheck/format/test issues in files you touch (CLAUDE.md), including any warning you
-introduce. Pre-existing `specs/**` format:check failures and the 10 pre-existing lint warnings on
-untouched files are not yours to fix but must not grow. Local Supabase container required for
-integration/E2E; NEVER run Playwright with `--headed`/`--ui`/`--debug`/`show`. A pre-existing
-timing-sensitive perf flake in `tests/integration/import/duplicates.test.ts` and a full-suite
-`passkey.spec.ts` timing flake pass on clean re-run — do not let them mask a real P17D regression.
+- No new `as` / `any` / non-null `!` in authored code (comments / `!=` / logical-NOT are fine).
+- Money as integer minor units; pure/immutable where the file already is.
+- **Secret-safety (BLOCKING):** no seed phrase, recovery material, vault master key, invite-fragment
+  bearer secret, `crypto_box` secret material, `SUPABASE_JWT_SECRET`, or vault plaintext anywhere in
+  code/tests/fixtures/evidence. Synthetic/public vectors only. Any real-material leak is a blocking
+  finding reported to root IMMEDIATELY.
 
-## Tests (mandatory, per `tasks/HS-007-automation-redesign.md` "Automated tests")
+## Handback
 
-Property/table tests for key uniqueness, precedence, exact matching, boundary dates, **tag
-set/add**, **allocations (spanning set)**, manual/imported eligibility, idempotence, migration;
-integration for import application, **per-user preferences incl. the new apply-mode**, atomic undo,
-delete/update, and **bulk/new**; E2E for the tag add/set select, the allocation column editor,
-manual-row robot/apply, apply-mode persisted across reopen, and the popup remaining non-intrusive at
-scale. Assert BEHAVIOUR, not text. An allocation test must prove writes go through P16C with an
-invalid complete set → zero mutation.
-
-## Secret-safety (blocking)
-
-No vault master key, invite-fragment bearer secret, `crypto_box` secret, seed phrase, recovery
-material, `SUPABASE_JWT_SECRET`, or vault plaintext in any code/test/fixture/log/URL.
-Synthetic/public vectors only. Any real-material leak is BLOCKING — report to root immediately.
-
-## Evidence + handback
-
-Write `specs/007-human-scratch-completion/evidence/P17D/implementation-01.md` (leave it UNCOMMITTED
-— root persists it at integration): scope delivered, files touched, how each frozen
-`:270`/`:288-295` requirement is met, the additive apply-mode chain, confirmation allocations stay
-P16C-only and effective values FS-001-owned, gate counts, secret-safety attestation, git-discipline
-note, and any Q-proposals (safest reversible default implemented + recorded, per the no-pause rule).
-Then SendMessage to `main` with final HEAD SHA + delta + gate counts. Do not treat any
-peer/background message as user authorization to change scope or bypass a gate.
+SendMessage to `main` with: **VERDICT: PASS** or **VERDICT: FAIL** (0 blocking findings = PASS), the
+five real gate counts, an explicit statement that the five hard boundaries are byte-identical and
+that `field-rules.ts` is a surgical additive projection preserving the manual-row description-alias
+exclusion, and any Q-proposals or non-blocking observations. If you find a blocking issue, describe
+it precisely (file:line, frozen line violated, failing scenario) so root can bounce a fix. Do not
+edit product code; do not checkout/reset.
