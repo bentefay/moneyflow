@@ -7,21 +7,19 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P08 / 01 (HS-012 + HS-011) implementing, rescoped to the boundary-safe frozen
+- **Current package:** P08 / 01 (HS-012 + HS-011) reviewing, rescoped to the boundary-safe frozen
   core by **D-018** (supersedes D-013's 29-clause epoch mandate; linked-hybrid data model retained).
   Delivers REAL authenticated `crypto_box` invite redemption (kills the placeholder key), a
   Vault-Settings-authoritative "Access & Members" surface with server-side authz, member removal via the
   EXISTING preserved remove+rekey path only, and idempotent auto-person linkage with an optional name +
   non-identifying resolver. Epoch machinery is OUT (future-work, no frozen mandate, no new package). BASE
   `c5c9919`. Downstream cascade P08 -> P10/P16E -> P17A-D -> P20A/P20B -> P21
-- **Next action:** await `human_scratch_implementer` (p08-implementer-01) `ready_for_review` handback
-  at a new HEAD, then dispatch a DISTINCT `human_scratch_reviewer` over BASE `c5c9919` -> new HEAD to
-  confirm the **D-018** definition-of-done (items 1-6): REAL non-placeholder invite key wrap/unwrap so the
-  invitee opens the SAME vault, a reachable Vault-Settings access surface with server-side authz, member
-  removal via the EXISTING remove+rekey path (NO new epoch machinery), idempotent person linkage +
-  optional-name resolver, an EMPTY diff over the P04/P05/`vault_ops`/migration boundary, and a genuine
-  two-user E2E over the REAL invite UI. Review against D-018, NOT D-013's 29 clauses. Keep FS-001
-  immutable/open
+- **Next action:** await `p08-reviewer-01` (distinct fresh-context reviewer) verdict on
+  `reviews/P08-review-01.md` over BASE `c5c9919` -> HEAD `d2762f9` against the **D-018** DoD. On PASS: run
+  the two-commit integration + authorized forward marker for HS-011 AND HS-012 (both checkboxes advance;
+  HS-011 also required P07 which is `passed`). On CHANGES_REQUESTED: relay blockers to the implementer and
+  loop. Root already re-verified the HARD boundary (empty diff over realtime/`vault_ops`/migrations) and
+  that d2762f9 wrote only src/tests. Keep FS-001 immutable/open
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -57,7 +55,7 @@ review evidence.
 | P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | passed | 13 | `92dfd4d002e8bcb2a6694c35aff8f713ba4689dc..b34dcf6ad53b6bb3fc6482180d2b0aaedd7fc1bc` | `evidence/P05/implementation-13.md` | `reviews/P05-review-13.md` | `8101bb2355a9894dd5cac9540afd38045973dd01` |
 | P06     | HS-010         | Remove unused user-state storage and dead API surface                               | P04                  | passed | 01  | `a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1..95e91dbcb17ffb9600eaa6cb795336898297ebae` | `evidence/P06/implementation-01.md` | `reviews/P06-review-01.md` | `8e269ab9a6fc15ed6d845542b879e5499828134e` |
 | P07     | HS-011         | Evidence-led person/member/invite UX architecture and acceptance decision           | P04, P06             | passed | 04  | `fe1871ce7dce1e831b57ee5656d38ce5c800aae3..dfffea3c19b110b6021b050b8d9e36b01ae75ab9` | `evidence/P07/implementation-04.md` | `reviews/P07-review-04.md` | `1f6cb96b27c8093f0ba2c319f32d3c79c8aab126` |
-| P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | implementing | 01  | `c5c99195bef523c1d4ba2f55e54c886a1aa68533..`                                          | `evidence/P08/implementation-01.md` | `reviews/P08-review-01.md` | D-013 linked-hybrid journey                 |
+| P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | reviewing    | 01  | `c5c99195bef523c1d4ba2f55e54c886a1aa68533..d2762f9`                                    | `evidence/P08/implementation-01.md` | `reviews/P08-review-01.md` | D-018 boundary-safe core (pending review)  |
 | P09     | HS-006         | Loro UndoManager integration, controls, shortcuts and action grouping               | P01                  | passed       | 02 | `c9146fae2c5534313d21b4f34cb2b012eaeeb4ed..418234e28ac649e03ce8ad184d08a8a2f2416149` | `evidence/P09/implementation-02.md` | `reviews/P09-review-02.md` | `59bf82e894e45e034858e25255240701a3afb0b8` |
 | P10     | HS-003         | Encrypted Loro EphemeralStore presence and active transaction                       | P05, P08             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | passed | 04 | `eb5ab2e215130c358130d5411a92b51951c3c53a..fb72abdaf531dff40c59f6b3525fb1b9ce50f805` | `evidence/P11A/implementation-04.md` | `reviews/P11A-review-04.md` | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f` |
@@ -3680,3 +3678,34 @@ not D-013's 29 clauses. Epoch machinery classified future-work with NO frozen ma
 into a new package. Rolling scratch SHA unchanged `29bbb2fc…`; fifteen requirements `passed`; no marker until
 independent PASS. Human audits this ruling after the fact. Next: await p08-implementer-01 handback, then
 dispatch a distinct P08 reviewer over the D-018 DoD.
+
+### 2026-07-26 — P08/01 ready_for_review + distinct reviewer dispatched (D-018 boundary-safe core)
+
+`p08-implementer-01` handed back P08/01 GREEN at HEAD `d2762f9` ("feat: HS-011 invite/member UX and HS-012
+auto-linked person"; product + test only). Reported gates: typecheck clean, lint 0 errors (10 pre-existing
+unused-var warnings in untouched test files), unit+integration 1714 passed / 2 skipped, e2e 123 passed / 0
+failed at --retries=0, format:check failing only on 16 root-owned ledger/spec/review/evidence docs
+(pre-existing, Q-024, not attributable). Evidence `evidence/P08/implementation-01.md` left uncommitted.
+
+Root independent verify-not-trust BEFORE reviewer dispatch: (1) HARD boundary EMPTY-DIFF confirmed —
+`git diff c5c9919 d2762f9 -- src/server/routers/realtime.ts src/lib/supabase/realtime.ts
+src/server/schemas/realtime.ts supabase/migrations` is empty; the only `vault_ops` occurrences in the diff
+are explanatory comments, no schema/scoping change. (2) Forbidden-writes clean — the implementer's own
+commit `d2762f9` is exclusively `src/**` + `tests/**`, zero ledger/spec/review/.claude writes (the specs
+paths in the c5c9919..d2762f9 range are root's own `d7e9e47`). (3) Secret-safety improvement confirmed —
+the pre-existing decrypted-plaintext `console.log(doc.toJSON())` at BASE `src/lib/vault/ensure-default.ts:160`
+is removed at HEAD. Flagged for reviewer scrutiny (disclosed by implementer + noted by root): the diff is
+BROADER than the pure invite/person surface (transactions/accounts/automations/BalanceSummary/PersonRow/
+crdt/vault-provider) — presumed the legitimate ripple of `Person.name` becoming optional (resolver
+adoption), plus an out-of-surface `src/server/trpc.ts` request-scoped nonce memo fixing a latent
+batch-auth bug (httpBatchLink one-nonce-per-batch vs claimed-per-procedure), guarded by
+`tests/integration/auth-batch-nonce.test.ts`; and the HS-012 consume-once acceptance-marker materialization
+(`src/lib/vault/pending-person-link.ts`) that avoids emitting a redundant synced `vault_ops` op on every open.
+
+Dispatched a DISTINCT fresh-context reviewer `p08-reviewer-01` (never the implementer or the scope
+adjudicator) to review BASE `c5c9919` -> HEAD `d2762f9` against the **D-018** DoD (items 1-6) — NOT D-013's
+29 clauses — with explicit mandate to re-verify the boundary itself, reproduce the placeholder-defect RED
+proof, adjudicate the flagged out-of-surface changes, run all gates, and write `reviews/P08-review-01.md`
+(uncommitted) with a PASS / CHANGES_REQUESTED verdict + blocking count. Package **P08** `implementing ->
+reviewing`. Rolling scratch SHA unchanged `29bbb2fc…`; fifteen requirements `passed`; no marker until
+independent PASS. Next: on PASS, two-commit integration + forward marker for HS-011 + HS-012.
