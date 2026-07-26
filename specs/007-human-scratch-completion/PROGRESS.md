@@ -3812,3 +3812,55 @@ Distinct reviewer `p08-reviewer-01` (the rev-01 reviewer; NOT the implementer, N
 dispatched over `d2762f9..d40b854` to write `reviews/P08-review-02.md`. Package **P08** `changes_requested ->
 reviewing`; rev stays 02; no forward marker (no PASS yet).
 
+### 2026-07-26 — P08/02 review PASS (integration-persistence)
+
+`p08-reviewer-01` (distinct fresh-context reviewer; not the implementer, not the scope adjudicator)
+returned **VERDICT: PASS — 0 blocking findings** on `reviews/P08-review-02.md` over `d2762f9..d40b854`.
+This is the integration-persistence commit (Commit A): it persists the immutable review and records the
+verdict; package **P08 stays `reviewing`** until the control commit (Commit B) applies the authorized
+forward marker. Root independently re-verified the load-bearing facts before persisting (verify-not-trust):
+the review file states PASS/0-blocking; the tree is clean except the review file + untracked evidence; the
+`d2762f9..d40b854` diff over `supabase/migrations` + `src/server/routers` + the Realtime path + schemas is
+EMPTY; the core B-2 fix line (`setActiveVaultStorage({ id: inviteInfo.vaultId })`) is genuinely present in
+`invite/[token]/page.tsx`.
+
+**Why the PASS is trustworthy (reviewer method, recorded for audit):** the reviewer reproduced B-2 both
+directions — stashing ONLY the `setActiveVaultStorage` line made the new E2E FAIL at
+`invite-redemption.spec.ts:110` (member stuck in their OWN vault), restored it went 6/6 at
+`--repeat-each=3 --retries=0`. It confirmed the mechanism by reading that `ActiveVaultProvider` mounts only
+at `src/app/(app)/layout.tsx:92` while the invite page lives in the `(onboarding)` group (so the localStorage
+write is the correct mechanism, not a shortcut) and that `active-vault-provider.tsx:91-94` seeds state
+synchronously from the same key/shape on first render. It confirmed the permanent-miss fragility is removed
+(localStorage marker cleared only AFTER `awaitLocalPersistence()+forceSync()` at `vault-provider.tsx:225-236`,
+no `finally` defeating it, retry on throw; deterministic `person-member-${pubkeyHash}` id so concurrent tabs
+merge the same CRDT key; already-linked open is a no-op).
+
+**Flagged design call — reviewer ruled (a) LEGITIMATE, independently; NO scope question raised.** The
+reviewer did NOT accept the implementer's framing: it built the markerless variant itself and A/B-ran it
+(`--repeat-each=6 --retries=0 --workers=1`) — markerless 4 FAILED/18 on `realtime-recovery` (serial
+repetition only; 3/3 GREEN under parallel workers, which is why a shallow reviewer would wrongly call the
+claim a rationalization), as-shipped 18/18 — confirming the regression is REAL (the fixture inserts a
+membership row via the admin client, so under markerless a never-accepted receiver emits a synced `vault_ops`
+op exactly while the test suppresses/counts them). Crucially it ruled (a) on grounds INDEPENDENT of the test:
+`PeopleTable.tsx:70-74` lets a user soft-delete their own Person and `person.ts:85` deliberately ignores a
+soft-deleted linked Person, so a pure "reconcile on every open" would RESURRECT a Person the user chose to
+delete — a real product defect. Against the frozen HANDOFF (defect = "a one-shot marker that is never
+retried"; criteria idempotent + re-runnable + concurrent-tabs/refresh/re-accept converge to one Person),
+every criterion is met; only the literal "whenever the shared vault is opened" sub-reading is not taken, and
+that reading both regresses a PRESERVED test and introduces a defect. Intent satisfied in full → defensible
+implementation choice, not a scope reduction. Therefore no independent-adjudicator routing is warranted.
+
+**No rev-01 regression; N-4 discharged (reviewer-reproduced):** DoD 1/2/3 hold (crypto byte-identical; only
+N-4a copy added; zero epoch/rekey vocabulary in the delta). N-4a owner-gated revoked-but-not-rotated copy at
+`AccessMembersSection.tsx:105-112`, accurate. N-4b `membership-remove-authz.test.ts` MUTATION-TESTED
+(neutering owner check fails FORBIDDEN; neutering membership check fails NOT_FOUND). N-4c evidence wording
+corrected (`implementation-02.md:96-103`). Gates reproduced by the reviewer: typecheck PASS, lint 0 errors,
+`pnpm test` 1716 passed/2 skipped, `pnpm test:e2e` 124 passed/0 failed, format:check fails only on 16
+root-owned `specs/**` docs (Q-024). Secret-safety CLEAN (zero `console.*`, synthetic hashes only, E2E reads
+the owner hash solely to assert ABSENCE). Non-blocking notes N-6 (marker keyed per-vault not per-identity;
+worst case a self-healing missed materialization, never a wrong Person) and N-7 (out-of-band-provisioned
+members get no linked Person — the intended discriminator) carried forward, neither needed for PASS.
+
+Control commit (Commit B) follows immediately: apply the authorized forward marker completing HS-012 AND
+HS-011 (its other package P07 already `passed`), flip P08 -> `passed`, advance the rolling scratch SHA.
+
