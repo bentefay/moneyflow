@@ -327,6 +327,18 @@ identities/selectors never change during Goal execution.
 and next recheck trigger. Continue independent packages and revisit before milestones/P21; never
 fake an unreleased dependency.
 
+Before recording or halting on any `blocked_external` gate, root first runs a stall diagnosis and
+proves the blocking work traces to the mapped requirement's frozen `sourceTextLines` in SCOPE, not
+merely to an accumulated decision, risk, review tangent or inferred sub-goal. A block that does not
+trace to the frozen text is an over-scope, not an external gate: re-derive scope from the frozen
+source, record a `Q-*` proposal, and continue on the safest reversible path rather than halting.
+Because such a rescope reduces committed scope or supersedes a prior accepted decision, it is
+surfaced loudly -- logged as a proposal and named in the status report -- and is never a silent
+downgrade. Genuine halt-and-report is reserved for a block that both traces to frozen text and needs
+a capability root cannot obtain, with no independent work left. When a single external gate stalls
+the whole remaining graph, re-run this diagnosis on that gate before halting; a transitive freeze is
+the signal to re-derive, not to stop.
+
 Every package runs affected tests and relevant no-retry E2E/manual charter. High-risk milestones and
 P21 run build, full unit/integration/E2E, migration/security checks. Diagnose every inconsistent
 run; no arbitrary waits or accepted retry-dependent result.
