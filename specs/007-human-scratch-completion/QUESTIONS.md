@@ -988,6 +988,58 @@ No unresolved product questions were answered by scaffold creation.
 - **How to reverse or migrate:** A later reviewed pass may memoize the projection / intern safely to approach 200ms; if that lands, R-020 can close.
 - **Does a human still need to decide after completion?:** Yes — confirm that deferring the strict 200ms optimization (measured ~0.8s, near-linear, correct) to a post-FS-001 follow-up is acceptable.
 
+### Q-034 — P17A vault root wiring for field-rule and preference collections
+
+- **Raised:** 2026-07-27, P17A revision 01, `human_scratch_implementer` (local Q-P17A-DEFAULTS); adjudicated 2026-07-27 by root (scope COMPLETION, not reduction — no independent adjudicator required)
+- **Source proposal:** `evidence/P17A/implementation-01.md`; corroborated by `src/lib/crdt/schema.ts:416-421` NOTE
+- **Context and evidence:** Rev-01 defined `fieldRuleSchema` and `userAutomationPreferenceSchema` as wire contracts but did NOT add them as `vaultSchema` root keys, because a required root collection forces a matching seed in `src/lib/crdt/defaults.ts` (`getDefaultVaultState`/`initializeVaultDefaults`), which was outside the paths rev-01 wrote. Without root registration the collections do not exist in the vault and the engine is unreachable.
+- **Why the frozen requirement/repository does not fully decide it:** The frozen text mandates the behavior (rules persisted per vault, preferences per user per vault) but does not name the file that registers the collection; loro-mirror's `required:false` does not make a root VaultInput key optional, so defaults.ts must change.
+- **Options considered:** (a) wire the collections into `vaultSchema` + seed `defaults.ts` as part of P17A [selected — required by P17A acceptance]; (b) defer wiring to a later package [rejected — leaves P17A engine dead code and cannot satisfy "preferences per user per vault"/"migrate existing rules"].
+- **Default selected for continued work:** (a). `src/lib/crdt/**` (incl. defaults.ts) added to P17A allowed paths for a continuation of rev 01; additive wiring only, all other-package vault behavior preserved byte-for-byte, P16C `replaceTransactionAllocations` and settlement untouched.
+- **Decision hierarchy basis:** Explicit P17A task text ("preferences are per user per vault", "migrate existing rules safely") + repository reality (root-key registration requires defaults.ts). Completing committed scope, not reducing it.
+- **Impact and risk:** Low. Additive root collections + empty-collection seed; migration guarded.
+- **How to reverse or migrate:** Remove the root keys + seed; the typed wire contracts remain harmless.
+- **Does a human still need to decide after completion?:** No — required by acceptance; noted for audit.
+
+### Q-035 — P17A application at import and migration at hydration
+
+- **Raised:** 2026-07-27, P17A revision 01, `human_scratch_implementer` (local Q-P17A-IMPORT-WIRING); adjudicated 2026-07-27 by root
+- **Source proposal:** `evidence/P17A/implementation-01.md`
+- **Context and evidence:** Rev-01 shipped `apply.ts` (rule application) and `migration.ts` (legacy->field-rule) as pure, tested functions but did NOT invoke them at the import-commit or vault-hydration call-sites, which were outside rev-01's paths. As delivered, no imported transaction has rules applied and no existing vault is migrated.
+- **Why the frozen requirement/repository does not fully decide it:** The P17A task text is explicit ("Apply the highest rule deterministically at import and explicit bulk operations"; "migrate existing rules safely") but the exact call-sites are implementation detail the implementer must locate.
+- **Options considered:** (a) wire application at the import seam + migration at hydration within P17A rev-01 continuation [selected — P17A acceptance]; (b) defer invocation to P17B-D [rejected — P17B/C/D own UI, not the engine's import/hydration invocation, which the task assigns to P17A].
+- **Default selected for continued work:** (a). Import seam (`src/hooks/use-import-state.ts` and the vault import-commit/hydration path under `src/lib/crdt/**`) added to allowed paths; preserve all existing P14 import + P16C behavior; application must be bounded, idempotent, convergent and route allocations only through P16C.
+- **Decision hierarchy basis:** Explicit P17A task text; package boundary (engine invocation = P17A, UI = P17B-D).
+- **Impact and risk:** Medium — touches the import path; mitigated by idempotence/convergence tests and preserving P14 behavior.
+- **How to reverse or migrate:** Remove the call-site invocation; pure functions remain unused but harmless.
+- **Does a human still need to decide after completion?:** No.
+
+### Q-036 — P17A description-alias rule write ownership
+
+- **Raised:** 2026-07-27, P17A revision 01, `human_scratch_implementer` (local Q-P17A-ALIAS-WRITE); adjudicated 2026-07-27 by root
+- **Source proposal:** `evidence/P17A/implementation-01.md`; boundary at `src/lib/crdt/description-aliases.ts:204`
+- **Context and evidence:** A description-alias field rule, when it matches an imported transaction, must set the transaction's `descriptionAliasId`. The existing P11 write path (`description-aliases.ts`) owns that mutation; rev-01's `apply.ts` planned alias rules but did not write, pending an ownership ruling.
+- **Why the frozen requirement/repository does not fully decide it:** The frozen text says description rules "set the field on a transaction" at import but does not say whether P17A writes directly or reuses P11's function.
+- **Options considered:** (a) P17A invokes P11's existing alias-write function additively (P11 owns the mechanics, P17A owns the rule-driven trigger) [selected]; (b) P17A writes `descriptionAliasId` directly [rejected — bypasses P11's boundary/invariants]; (c) defer to P17C [rejected — P17C is the inline UI, not the import-time engine application].
+- **Default selected for continued work:** (a). `src/lib/crdt/description-aliases.ts` allowed for an ADDITIVE integration point only; all existing P11 alias behavior preserved; any behavior change to P11 code is a finding, raise a Q.
+- **Decision hierarchy basis:** Package boundaries; reuse over duplication; preserve P11 invariants.
+- **Impact and risk:** Low-medium; mitigated by additive-only rule and preservation tests.
+- **How to reverse or migrate:** Remove the rule-driven invocation; P11 path unchanged.
+- **Does a human still need to decide after completion?:** No.
+
+### Q-037 — P17A legacy-rule migration semantics
+
+- **Raised:** 2026-07-27, P17A revision 01, `human_scratch_implementer` (local Q-P17A-MIGRATION-SEMANTICS); adjudicated 2026-07-27 by root
+- **Source proposal:** `evidence/P17A/implementation-01.md`; `src/lib/domain/automation/migration.ts`
+- **Context and evidence:** Legacy generic rules use `contains`/`regex`; the new model is EXACT-description. Rev-01 migrates a single `contains`-description rule to an exact rule (a documented tightening) and SKIPS regex/notes/amount/multi-condition/`setStatus` rules, retaining the legacy rule untouched (no data loss), reporting each skip.
+- **Why the frozen requirement/repository does not fully decide it:** The frozen text specifies the new exact model and that existing rules migrate safely, but does not enumerate the mapping for every legacy shape.
+- **Options considered:** (a) convert single contains-description to exact, retain-and-report all other legacy shapes with no data loss [selected — safe, reversible, lossless]; (b) attempt lossy conversion of regex/multi rules [rejected — semantics not equivalent, risks silent behavior change]; (c) delete unconvertible legacy rules [rejected — data loss].
+- **Default selected for continued work:** (a).
+- **Decision hierarchy basis:** No-data-loss + honest reporting; safest reversible default.
+- **Impact and risk:** Low; legacy rules retained, skips audited.
+- **How to reverse or migrate:** A later reviewed pass can widen conversion; retained legacy rules make it reversible.
+- **Does a human still need to decide after completion?:** Yes — confirm the contains->exact tightening and the retained-legacy skip taxonomy are acceptable.
+
 ## Question template
 
 ### Q-XXX — Short title
