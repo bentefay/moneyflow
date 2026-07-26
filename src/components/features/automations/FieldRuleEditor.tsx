@@ -75,6 +75,12 @@ const FIELD_LABELS: Readonly<Record<RuleField, string>> = {
 
 const FIELD_OPTIONS: readonly RuleField[] = ["descriptionAlias", "tags", "allocation"];
 
+const RULE_FIELD_SET: ReadonlySet<string> = new Set(FIELD_OPTIONS);
+
+function isRuleField(value: string): value is RuleField {
+    return RULE_FIELD_SET.has(value);
+}
+
 const APPLY_MODE_TOOLTIP =
     "Update all applies to every existing and new transaction with this exact description. " +
     'Update new applies only to newer transactions. "Updating" applies automatically when the ' +
@@ -132,7 +138,9 @@ export function FieldRuleEditor(props: FieldRuleEditorProps): React.JSX.Element 
                 <Label htmlFor={fieldId}>Field</Label>
                 <Select
                     value={draft.field}
-                    onValueChange={(value) => set({ field: value as RuleField })}
+                    onValueChange={(value) => {
+                        if (isRuleField(value)) set({ field: value });
+                    }}
                 >
                     <SelectTrigger data-testid="rule-field" id={fieldId}>
                         <SelectValue />
