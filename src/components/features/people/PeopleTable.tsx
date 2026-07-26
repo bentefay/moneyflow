@@ -14,6 +14,7 @@ import { Temporal } from "temporal-polyfill";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useVaultAction, useVaultSelector } from "@/lib/crdt/context";
+import { resolvePersonDisplayName } from "@/lib/crdt/person";
 import { getAllTransactions } from "@/lib/crdt/queries";
 import type { Person, PersonInput } from "@/lib/crdt/schema";
 import { getEntriesOfLoroMap } from "@/lib/crdt/utils";
@@ -21,32 +22,20 @@ import { getSessionPubkeyHash } from "@/lib/crypto/session";
 import { cn } from "@/lib/utils";
 
 import { BalanceSummary } from "./BalanceSummary";
-import { InviteLinkGenerator } from "./InviteLinkGenerator";
 import { PersonRow } from "./PersonRow";
 
 export interface PeopleTableProps {
-    /** Vault ID for invite generation */
-    vaultId: string;
-    /** Vault key (unwrapped) for invite key wrapping */
-    vaultKey?: Uint8Array;
-    /** User's X25519 secret key */
-    encSecretKey?: Uint8Array;
-    /** Whether current user is vault owner */
-    isOwner?: boolean;
     /** Additional CSS classes */
     className?: string;
 }
 
 /**
  * Main people management component.
+ *
+ * Membership and invites live in Vault Settings (see AccessMembersSection);
+ * this table manages only the vault's encrypted people/financial state.
  */
-export function PeopleTable({
-    vaultId,
-    vaultKey,
-    encSecretKey,
-    isOwner = false,
-    className
-}: PeopleTableProps) {
+export function PeopleTable({ className }: PeopleTableProps) {
     const [isAdding, setIsAdding] = useState(false);
     const [newPersonName, setNewPersonName] = useState("");
 
@@ -93,7 +82,7 @@ export function PeopleTable({
         return getEntriesOfLoroMap(people)
             .filter(([, person]) => person && !person.deletedAt)
             .map(([id, person]) => ({ ...person, id }))
-            .sort((a, b) => a.name.localeCompare(b.name));
+            .sort((a, b) => resolvePersonDisplayName(a).localeCompare(resolvePersonDisplayName(b)));
     }, [people]);
 
     // Check if a person has transactions (can't delete if so)
@@ -242,16 +231,6 @@ export function PeopleTable({
                 currentPersonId={currentPersonId}
                 vaultDefaultCurrency={preferences.defaultCurrency}
             />
-
-            {/* Invite link generator */}
-            {isOwner && vaultKey && encSecretKey && (
-                <InviteLinkGenerator
-                    vaultId={vaultId}
-                    vaultKey={vaultKey}
-                    encSecretKey={encSecretKey}
-                    isOwner={isOwner}
-                />
-            )}
         </div>
     );
 }

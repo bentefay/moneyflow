@@ -22,13 +22,14 @@ import { useSyncStatusManager } from "@/hooks/use-sync-status";
 import { useAuthGuard } from "@/lib/auth";
 import { VaultProvider as BaseVaultProvider } from "@/lib/crdt/context";
 import { getDefaultVaultState } from "@/lib/crdt/defaults";
-import { repairHydratedVaultDocument } from "@/lib/crdt/mirror";
+import { ensureMemberPersonLinked, repairHydratedVaultDocument } from "@/lib/crdt/mirror";
 import { VaultUndoCoordinator, VaultUndoProvider } from "@/lib/crdt/undo";
 import { base64ToPrivateKey, initCrypto } from "@/lib/crypto";
 import { unwrapKeyFromBase64 } from "@/lib/crypto/keywrap";
 import { getSession } from "@/lib/crypto/session";
 import { createSyncManager, type SyncManager } from "@/lib/sync";
 import { trpc } from "@/lib/trpc";
+import { consumePendingPersonLink } from "@/lib/vault/pending-person-link";
 
 interface VaultProviderProps {
     children: React.ReactNode;
@@ -209,6 +210,24 @@ export function VaultProvider({ children, registerDisconnect }: VaultProviderPro
 
                 // Load durable state, repair it under system origin, and flush before first read.
                 await hydrateAndRepairVaultDocument(doc, manager);
+
+                // A member who just accepted an invite has no seeded Person (the
+                // owner's is seeded at vault creation). Materialize it once, the
+                // first time the shared vault opens after acceptance (HS-012).
+                // Gating on the acceptance marker keeps ordinary re-opens from
+                // emitting a redundant synced vault_ops op. A joining member never
+                // adopts the seeded default Person, so adoptDefaultPerson is false.
+                if (consumePendingPersonLink(initializingVaultId)) {
+                    const linkedChanged = ensureMemberPersonLinked(
+                        doc,
+                        initializingPubkeyHash,
+                        false
+                    );
+                    if (linkedChanged) {
+                        await manager.awaitLocalPersistence();
+                        await manager.forceSync();
+                    }
+                }
 
                 if (cancelled) {
                     await manager.disconnect();

@@ -43,6 +43,8 @@ export interface InviteLinkGeneratorProps {
     encSecretKey: Uint8Array;
     /** Whether user is vault owner (only owners can create invites) */
     isOwner: boolean;
+    /** Called after an invite is successfully created on the server. */
+    onInviteCreated?: () => void;
     /** Additional CSS classes */
     className?: string;
 }
@@ -55,6 +57,7 @@ export function InviteLinkGenerator({
     vaultKey,
     encSecretKey,
     isOwner,
+    onInviteCreated,
     className
 }: InviteLinkGeneratorProps) {
     const [inviteUrl, setInviteUrl] = useState<string | null>(null);
@@ -119,12 +122,22 @@ export function InviteLinkGenerator({
 
             setInviteUrl(url);
             setExpiresAt(result.expiresAt);
+            onInviteCreated?.();
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to create invite");
         } finally {
             setIsGenerating(false);
         }
-    }, [vaultId, vaultKey, encSecretKey, role, expiryHours, isOwner, createInviteMutation]);
+    }, [
+        vaultId,
+        vaultKey,
+        encSecretKey,
+        role,
+        expiryHours,
+        isOwner,
+        createInviteMutation,
+        onInviteCreated
+    ]);
 
     // Copy invite URL to clipboard
     const handleCopy = useCallback(async () => {
@@ -208,6 +221,7 @@ export function InviteLinkGenerator({
                     onClick={handleGenerate}
                     disabled={isGenerating}
                     className="w-full sm:w-auto"
+                    data-testid="generate-invite-button"
                 >
                     {isGenerating ? (
                         <>
@@ -226,7 +240,12 @@ export function InviteLinkGenerator({
                 {inviteUrl && (
                     <div className="space-y-2">
                         <div className="flex items-center gap-2">
-                            <Input value={inviteUrl} readOnly className="font-mono text-xs" />
+                            <Input
+                                value={inviteUrl}
+                                readOnly
+                                className="font-mono text-xs"
+                                data-testid="invite-url-input"
+                            />
                             <Button variant="outline" size="icon" onClick={handleCopy}>
                                 {isCopied ? (
                                     <Check className="h-4 w-4 text-green-600" />

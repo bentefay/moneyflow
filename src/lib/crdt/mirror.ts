@@ -14,6 +14,7 @@ import {
     DEFAULT_VAULT_NAME
 } from "./defaults";
 import { migrateVaultSentinels } from "./migration";
+import { ensureMemberPerson } from "./person";
 import { type VaultState, vaultSchema } from "./schema";
 
 const LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY = "__moneyflow_gc_metadata__";
@@ -176,6 +177,39 @@ export function repairHydratedVaultDocument(doc: LoroDoc): boolean {
     });
     try {
         migrateVaultSentinels(mirror);
+    } finally {
+        mirror.dispose();
+    }
+    return !bytesEqual(before, doc.version().encode());
+}
+
+/**
+ * Ensure the current member has a linked {@link Person} in the hydrated vault
+ * document (HS-012). Idempotent and deterministic, so it is safe to run on every
+ * vault open and converges across concurrent devices.
+ *
+ * @param doc - The fully hydrated vault document.
+ * @param pubkeyHash - The current member's stable identity.
+ * @param adoptDefaultPerson - When true (vault owner), adopt the seeded "Me"
+ *   person if it is still unlinked instead of creating a new person.
+ * @returns true if the document changed (caller should persist/sync).
+ */
+export function ensureMemberPersonLinked(
+    doc: LoroDoc,
+    pubkeyHash: string,
+    adoptDefaultPerson: boolean
+): boolean {
+    const before = doc.version().encode();
+    const mirror = new Mirror({
+        doc,
+        schema: vaultSchema,
+        initialState: DEFAULT_VAULT_STATE,
+        validateUpdates: true
+    });
+    try {
+        mirror.setState((draft) => {
+            ensureMemberPerson(draft, pubkeyHash, { adoptDefaultPerson });
+        });
     } finally {
         mirror.dispose();
     }

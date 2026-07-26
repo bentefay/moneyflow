@@ -1254,7 +1254,7 @@ describe("vault background maintenance integration", () => {
     );
 
     it.each([
-        ["PeopleTable", () => createElement(PeopleTable, { vaultId: "selector-consumer" })],
+        ["PeopleTable", () => createElement(PeopleTable, {})],
         ["StatusesTable", () => createElement(StatusesTable)],
         ["TagsTable", () => createElement(TagsTable)]
     ] as const)("sanitizes generic transaction state used by %s", async (_name, consumer) => {

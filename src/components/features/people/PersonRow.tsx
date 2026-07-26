@@ -13,6 +13,7 @@ import { useCallback, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { resolvePersonDisplayName } from "@/lib/crdt/person";
 import type { Person } from "@/lib/crdt/schema";
 import { cn } from "@/lib/utils";
 
@@ -43,7 +44,7 @@ export function PersonRow({
     className
 }: PersonRowProps) {
     const [isEditing, setIsEditing] = useState(false);
-    const [editedName, setEditedName] = useState(person.name);
+    const [editedName, setEditedName] = useState(person.name ?? "");
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     // Check if this person is the current user
@@ -63,7 +64,7 @@ export function PersonRow({
 
     // Handle canceling inline edits
     const handleCancel = useCallback(() => {
-        setEditedName(person.name);
+        setEditedName(person.name ?? "");
         setIsEditing(false);
     }, [person.name]);
 
@@ -142,7 +143,9 @@ export function PersonRow({
                     </div>
                 ) : (
                     <div className="flex items-center gap-2">
-                        <span className="truncate font-medium">{person.name}</span>
+                        <span className="truncate font-medium">
+                            {resolvePersonDisplayName(person)}
+                        </span>
                         {isCurrentUser && (
                             <Badge variant="secondary" className="text-xs">
                                 You

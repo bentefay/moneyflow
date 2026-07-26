@@ -11,6 +11,7 @@ import { ArrowRight, Scale } from "lucide-react";
 import { useMemo } from "react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { resolvePersonDisplayName } from "@/lib/crdt/person";
 import type { Account, Person, Status, TransactionStore } from "@/lib/crdt/schema";
 import { getEntriesOfLoroMap } from "@/lib/crdt/utils";
 import { Currencies } from "@/lib/domain/currencies";
@@ -75,7 +76,7 @@ export function BalanceSummary({
     const getPersonName = (personId: string | undefined): string => {
         if (!personId) return "Unknown";
         const person = personMap.get(personId);
-        return person?.name || `Unknown (${personId})`;
+        return person ? resolvePersonDisplayName(person) : `Unknown (${personId})`;
     };
 
     // Check if balance involves current user

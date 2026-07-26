@@ -8,6 +8,7 @@
  */
 
 import { PasskeyManager } from "@/components/features/identity";
+import { AccessMembersSection } from "@/components/features/vault/AccessMembersSection";
 import { VaultSettingsForm } from "@/components/features/vault/VaultSettingsForm";
 
 export default function SettingsPage() {
@@ -24,6 +25,9 @@ export default function SettingsPage() {
             {/* Settings form */}
             <div className="flex-1 space-y-8 overflow-auto p-6">
                 <VaultSettingsForm />
+                {/* Members and invites are authoritative here (D-013); the People page holds
+                    only encrypted financial state. */}
+                <AccessMembersSection />
                 {/* Passkeys belong to the identity rather than the vault, but this is the only
                     authenticated settings surface a returning user can reach today. */}
                 <PasskeyManager />

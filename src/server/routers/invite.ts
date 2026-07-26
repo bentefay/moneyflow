@@ -21,9 +21,11 @@ import {
     inviteAcceptInput,
     inviteCreateInput,
     inviteGetByPubkeyInput,
+    inviteGetByPubkeyOutput,
     inviteListInput,
     inviteRevokeInput
 } from "../schemas/invite";
+import { vaultRoleSchema } from "../schemas/vault";
 import { protectedProcedure, publicProcedure, router } from "../trpc";
 
 export const inviteRouter = router({
@@ -102,49 +104,80 @@ export const inviteRouter = router({
      * Client derives pubkey from invite secret and looks up the invite.
      * Returns encrypted vault key that can be unwrapped with invite secret.
      */
-    getByPubkey: publicProcedure.input(inviteGetByPubkeyInput).query(async ({ input }) => {
-        const supabase = await createSupabaseClient();
+    getByPubkey: publicProcedure
+        .input(inviteGetByPubkeyInput)
+        .output(inviteGetByPubkeyOutput)
+        .query(async ({ input }) => {
+            const supabase = await createSupabaseClient();
 
-        const { data: invite, error } = await supabase
-            .from("vault_invites")
-            .select("id, vault_id, encrypted_vault_key, role, expires_at")
-            .eq("invite_pubkey", input.invitePubkey)
-            .single();
+            const { data: invite, error } = await supabase
+                .from("vault_invites")
+                .select("id, vault_id, encrypted_vault_key, role, expires_at, created_by")
+                .eq("invite_pubkey", input.invitePubkey)
+                .single();
 
-        if (error) {
-            if (error.code === "PGRST116") {
+            if (error) {
+                if (error.code === "PGRST116") {
+                    throw new TRPCError({
+                        code: "NOT_FOUND",
+                        message: "Invalid invite"
+                    });
+                }
+                throw new TRPCError({
+                    code: "INTERNAL_SERVER_ERROR",
+                    message: "Unable to load invite"
+                });
+            }
+
+            // Resolve the owner's X25519 public key that authenticated the envelope.
+            // The recipient needs it as the `crypto_box` sender key to unwrap the
+            // real vault key (authenticated, sender-bound — not a sealed box).
+            const { data: ownerMembership, error: ownerError } = await supabase
+                .from("vault_memberships")
+                .select("enc_public_key")
+                .eq("vault_id", invite.vault_id)
+                .eq("pubkey_hash", invite.created_by)
+                .single();
+
+            if (ownerError || ownerMembership?.enc_public_key == null) {
+                // Without the sender key the envelope cannot be authenticated/unwrapped.
                 throw new TRPCError({
                     code: "NOT_FOUND",
                     message: "Invalid invite"
                 });
             }
-            throw new TRPCError({
-                code: "INTERNAL_SERVER_ERROR",
-                message: "Unable to load invite"
-            });
-        }
 
-        // Check if expired
-        if (
-            Temporal.Instant.compare(
-                Temporal.Instant.from(invite.expires_at),
-                Temporal.Now.instant()
-            ) < 0
-        ) {
-            throw new TRPCError({
-                code: "NOT_FOUND",
-                message: "Invalid invite"
-            });
-        }
+            // Check if expired
+            if (
+                Temporal.Instant.compare(
+                    Temporal.Instant.from(invite.expires_at),
+                    Temporal.Now.instant()
+                ) < 0
+            ) {
+                throw new TRPCError({
+                    code: "NOT_FOUND",
+                    message: "Invalid invite"
+                });
+            }
 
-        return {
-            inviteId: invite.id,
-            vaultId: invite.vault_id,
-            encryptedVaultKey: invite.encrypted_vault_key,
-            role: invite.role,
-            expiresAt: invite.expires_at
-        };
-    }),
+            // Narrow the persisted role at the DB boundary rather than casting.
+            const role = vaultRoleSchema.safeParse(invite.role);
+            if (!role.success) {
+                throw new TRPCError({
+                    code: "INTERNAL_SERVER_ERROR",
+                    message: "Unable to load invite"
+                });
+            }
+
+            return {
+                inviteId: invite.id,
+                vaultId: invite.vault_id,
+                encryptedVaultKey: invite.encrypted_vault_key,
+                senderEncPublicKey: ownerMembership.enc_public_key,
+                role: role.data,
+                expiresAt: invite.expires_at
+            };
+        }),
 
     /**
      * Accept an invite to join a vault.

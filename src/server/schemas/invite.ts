@@ -115,6 +115,11 @@ export const inviteGetByPubkeyOutput = z.object({
     vaultId: z.string().uuid(),
     /** Vault key wrapped with ephemeral pubkey (recipient unwraps with secret) */
     encryptedVaultKey: encryptedVaultKeySchema,
+    /**
+     * Owner's X25519 public key that authenticated the envelope. The recipient
+     * needs it as the `crypto_box` sender key to unwrap the real vault key.
+     */
+    senderEncPublicKey: encPublicKeySchema,
     /** Role that will be granted */
     role: vaultRoleSchema,
     /** When the invite expires */

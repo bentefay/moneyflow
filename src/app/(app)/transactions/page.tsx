@@ -51,6 +51,7 @@ import {
     useVaultAction
 } from "@/lib/crdt/context";
 import type { DescriptionAliasTarget } from "@/lib/crdt/description-aliases";
+import { resolvePersonDisplayName } from "@/lib/crdt/person";
 import { compareTransactionOrder, filterTransactions } from "@/lib/crdt/queries";
 import type { Account, Person, Status, Tag, Transaction } from "@/lib/crdt/schema";
 import { getNextTagColor } from "@/lib/domain";
@@ -293,7 +294,7 @@ export default function TransactionsPage() {
                     .filter(
                         (person): person is Person & { $cid: string } => typeof person === "object"
                     )
-                    .map((person) => ({ id: person.id, name: person.name })),
+                    .map((person) => ({ id: person.id, name: resolvePersonDisplayName(person) })),
                 allPeople: Object.values(allPeople)
                     .filter(
                         (person): person is Person & { $cid: string } => typeof person === "object"
@@ -301,7 +302,7 @@ export default function TransactionsPage() {
                     .map((person) => ({
                         deletedAt: person.deletedAt,
                         id: person.id,
-                        name: person.name
+                        name: resolvePersonDisplayName(person)
                     })),
                 transactions: displayedTransactions
             }),
@@ -886,7 +887,7 @@ export default function TransactionsPage() {
                 .filter((p): p is Person & { $cid: string } => typeof p === "object")
                 .map((p) => ({
                     id: p.id,
-                    label: p.name
+                    label: resolvePersonDisplayName(p)
                 })),
         [people]
     );

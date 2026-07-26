@@ -15,5 +15,7 @@ export {
     useSyncStatus,
     useSyncStatusManager
 } from "./use-sync-status";
+export type { VaultAccess } from "./use-vault-access";
+export { useVaultAccess } from "./use-vault-access";
 export type { UseVaultPresenceOptions, VaultPresence } from "./use-vault-presence";
 export { useVaultPresence } from "./use-vault-presence";

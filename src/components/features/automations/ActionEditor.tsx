@@ -18,6 +18,7 @@ import {
     SelectTrigger,
     SelectValue
 } from "@/components/ui/select";
+import { resolvePersonDisplayName } from "@/lib/crdt/person";
 import type { Person, Status, Tag } from "@/lib/crdt/schema";
 
 export interface ActionData {
@@ -166,7 +167,9 @@ export function ActionEditor({
                     <div className="space-y-2">
                         {people.map((person) => (
                             <div key={person.id} className="flex items-center gap-2">
-                                <span className="w-24 truncate text-sm">{person.name}</span>
+                                <span className="w-24 truncate text-sm">
+                                    {resolvePersonDisplayName(person)}
+                                </span>
                                 <Select
                                     value={String(currentAlloc[person.id] ?? 0)}
                                     onValueChange={(v) =>

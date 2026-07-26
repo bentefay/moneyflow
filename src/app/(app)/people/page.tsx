@@ -7,33 +7,17 @@
  * and settlement balances.
  */
 
-import { useMemo } from "react";
-
 import { PeopleTable } from "@/components/features/people";
 import { useActiveVault } from "@/hooks/use-active-vault";
-import { getSessionEncSecretKey } from "@/lib/crypto/session";
 
 /**
  * People page component.
+ *
+ * Membership and invites are managed in Vault Settings; this page manages only
+ * the vault's encrypted people/financial state.
  */
 export default function PeoplePage() {
     const { activeVault } = useActiveVault();
-
-    // Get encryption secret key for invite generation
-    const encSecretKey = useMemo(() => {
-        const keyBase64 = getSessionEncSecretKey();
-        if (!keyBase64) return undefined;
-        try {
-            return Uint8Array.from(atob(keyBase64), (c) => c.charCodeAt(0));
-        } catch {
-            return undefined;
-        }
-    }, []);
-
-    // TODO: These values should come from vault membership data
-    // For now, we don't have the vault key or ownership info
-    const isOwner = false;
-    const vaultKey: Uint8Array | undefined = undefined;
 
     return (
         <div className="flex h-full flex-col">
@@ -48,12 +32,7 @@ export default function PeoplePage() {
             {/* People table */}
             <div className="flex-1 overflow-auto p-6">
                 {activeVault?.id ? (
-                    <PeopleTable
-                        vaultId={activeVault.id}
-                        vaultKey={vaultKey}
-                        encSecretKey={encSecretKey}
-                        isOwner={isOwner}
-                    />
+                    <PeopleTable />
                 ) : (
                     <div className="flex h-full items-center justify-center">
                         <p className="text-muted-foreground">

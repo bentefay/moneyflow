@@ -12,6 +12,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useActivePeople } from "@/lib/crdt/context";
+import { resolvePersonDisplayName } from "@/lib/crdt/person";
 import type { Person } from "@/lib/crdt/schema";
 import {
     addOwner,
@@ -64,8 +65,8 @@ export function OwnershipEditor({
     const getPersonName = useCallback(
         (personId: string): string => {
             const person = allPeople[personId];
-            if (typeof person === "object" && person.name) {
-                return person.name;
+            if (typeof person === "object") {
+                return resolvePersonDisplayName(person);
             }
             return personId.slice(0, 8);
         },
@@ -207,7 +208,7 @@ export function OwnershipEditor({
                                         onClick={() => handleAddOwner(person.id)}
                                         className="h-7"
                                     >
-                                        {person.name}
+                                        {resolvePersonDisplayName(person)}
                                     </Button>
                                 ))}
                                 <Button

@@ -14,6 +14,7 @@ import { LoroDoc } from "loro-crdt";
 import { Mirror } from "loro-mirror";
 
 import { DEFAULT_VAULT_NAME, getDefaultVaultState } from "@/lib/crdt/defaults";
+import { ensureMemberPerson } from "@/lib/crdt/person";
 import { vaultSchema } from "@/lib/crdt/schema";
 import { generateVaultKey } from "@/lib/crypto/encryption";
 import { initCrypto } from "@/lib/crypto/keypair";
@@ -146,6 +147,10 @@ export async function ensureDefaultVault(
     const doc = new LoroDoc();
     const defaultState = getDefaultVaultState({ defaultCurrency: detectedCurrency });
 
+    // Link the seeded "Me" person to the owner (HS-012) so the default account's
+    // ownership belongs to the owner's member-person from the start.
+    ensureMemberPerson(defaultState, session.pubkeyHash, { adoptDefaultPerson: true });
+
     const mirror = new Mirror({
         doc,
         schema: vaultSchema,
@@ -156,8 +161,6 @@ export async function ensureDefaultVault(
     mirror.setState(() => {
         return defaultState;
     });
-
-    console.log(doc.toJSON());
 
     // 5. Export snapshot and encrypt
     const snapshot = doc.export({ mode: "snapshot" });

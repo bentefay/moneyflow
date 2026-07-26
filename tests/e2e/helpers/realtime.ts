@@ -182,7 +182,7 @@ function localEnvironment(): Readonly<Record<string, string>> {
     return Object.fromEntries(entries);
 }
 
-function createAdminClient() {
+export function createAdminClient() {
     const fallback = localEnvironment();
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? fallback.NEXT_PUBLIC_SUPABASE_URL;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? fallback.SUPABASE_SERVICE_ROLE_KEY;

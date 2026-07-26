@@ -22,6 +22,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { resolvePersonDisplayName } from "@/lib/crdt/person";
 import type { Account, Person } from "@/lib/crdt/schema";
 import { Currencies } from "@/lib/domain/currencies";
 import {
@@ -127,9 +128,9 @@ export function AccountRow({
     const ownerNames = Object.keys(account.ownerships || {})
         .map((personId) => {
             const person = people[personId];
-            if (typeof person === "object" && person.name) {
+            if (typeof person === "object") {
                 const pct = account.ownerships[personId];
-                return `${person.name} (${pct.toFixed(0)}%)`;
+                return `${resolvePersonDisplayName(person)} (${pct.toFixed(0)}%)`;
             }
             return null;
         })

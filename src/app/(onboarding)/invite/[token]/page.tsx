@@ -22,9 +22,15 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useIdentity } from "@/hooks";
-import { initCrypto } from "@/lib/crypto/keypair";
+import { base64ToPrivateKey, initCrypto } from "@/lib/crypto/keypair";
 import { getSessionEncPublicKey, getSessionEncSecretKey } from "@/lib/crypto/session";
 import { trpc } from "@/lib/trpc/client";
+import {
+    deriveInviteKeypairFromFragment,
+    redeemRealVaultKey,
+    selfWrapVaultKey
+} from "@/lib/vault/invite-redemption";
+import { markPendingPersonLink } from "@/lib/vault/pending-person-link";
 
 type RedeemState =
     | "checking-auth"
@@ -48,10 +54,15 @@ export default function InvitePage() {
     const [inviteInfo, setInviteInfo] = useState<{
         vaultId: string;
         role: "owner" | "member";
+        /** Owner's authenticated `crypto_box` envelope wrapping the real vault key. */
+        encryptedVaultKey: string;
+        /** Owner's X25519 sender public key needed to unwrap the envelope. */
+        senderEncPublicKey: string;
     } | null>(null);
 
     // tRPC mutation for accepting invite
     const acceptMutation = trpc.invite.accept.useMutation();
+    const utils = trpc.useUtils();
 
     // Check authentication
     useEffect(() => {
@@ -102,15 +113,17 @@ export default function InvitePage() {
                 // Look up invite by pubkey - we need to make a direct API call
                 // since the useQuery pattern doesn't work well for this flow
                 try {
-                    const utils = trpc.useUtils();
                     const result = await utils.invite.getByPubkey.fetch({
                         invitePubkey: invitePubkeyBase64
                     });
 
-                    // Store invite info for display
+                    // Store invite info for display and redemption. The envelope
+                    // and sender key are needed to unwrap the REAL vault key.
                     setInviteInfo({
                         vaultId: result.vaultId,
-                        role: result.role as "owner" | "member"
+                        role: result.role,
+                        encryptedVaultKey: result.encryptedVaultKey,
+                        senderEncPublicKey: result.senderEncPublicKey
                     });
 
                     setState("ready");
@@ -136,7 +149,7 @@ export default function InvitePage() {
         }
 
         processInvite();
-    }, [authStatus, state]);
+    }, [authStatus, state, utils]);
 
     // Handle accept invite
     const handleAccept = useCallback(async () => {
@@ -148,14 +161,9 @@ export default function InvitePage() {
         try {
             await initCrypto();
 
-            // Get invite secret from URL fragment again
+            // Re-derive the ephemeral invite keypair from the URL fragment secret.
             const fragment = window.location.hash.slice(1);
-            const inviteSecret = sodium.from_base64(fragment, sodium.base64_variants.URLSAFE);
-            const inviteKeypair = sodium.crypto_box_seed_keypair(inviteSecret);
-            const invitePubkeyBase64 = sodium.to_base64(
-                inviteKeypair.publicKey,
-                sodium.base64_variants.ORIGINAL
-            );
+            const invite = await deriveInviteKeypairFromFragment(fragment);
 
             // Get user's keys
             const userEncPublicKeyBase64 = getSessionEncPublicKey();
@@ -165,20 +173,30 @@ export default function InvitePage() {
                 throw new Error("Session keys not available");
             }
 
-            // For now, create a placeholder wrapped key for the user
-            // TODO: Implement proper key unwrapping when vault key exchange is fixed
-            // The user will need to re-sync the vault key from another member
-            const placeholderWrappedKey = sodium.to_base64(
-                sodium.randombytes_buf(48), // nonce + ciphertext placeholder
-                sodium.base64_variants.ORIGINAL
-            );
+            // Unwrap the REAL vault key from the owner's authenticated envelope,
+            // then re-wrap it for our own membership row (sender == self), exactly
+            // as vault creation does so `VaultProvider` can open the same vault.
+            const realVaultKey = await redeemRealVaultKey({
+                encryptedVaultKey: inviteInfo.encryptedVaultKey,
+                senderEncPublicKey: inviteInfo.senderEncPublicKey,
+                inviteSecretKey: invite.inviteSecretKey
+            });
+            const membershipKey = await selfWrapVaultKey({
+                vaultKey: realVaultKey,
+                ownEncPublicKey: userEncPublicKeyBase64,
+                ownEncSecretKey: base64ToPrivateKey(userEncSecretKeyBase64)
+            });
 
             // Accept the invite
             await acceptMutation.mutateAsync({
-                invitePubkey: invitePubkeyBase64,
-                encryptedVaultKey: placeholderWrappedKey,
+                invitePubkey: invite.invitePubkeyBase64,
+                encryptedVaultKey: membershipKey,
                 encPublicKey: userEncPublicKeyBase64
             });
+
+            // Materialize this member's linked Person (HS-012) the first time the
+            // shared vault opens, not on every subsequent open.
+            markPendingPersonLink(inviteInfo.vaultId);
 
             setState("success");
 

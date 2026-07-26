@@ -43,7 +43,9 @@ import { richSchema } from "./rich-schema";
  */
 export const personSchema = schema.LoroMap({
     id: schema.String({ required: true }),
-    name: schema.String({ required: true }),
+    // Optional: auto-created member people (HS-012) start unnamed. Use
+    // resolvePersonDisplayName() for display rather than reading name directly.
+    name: schema.String({ required: false }),
     linkedUserId: schema.String({ required: false }), // Optional: links to a user's pubkeyHash
     deletedAt: richSchema.Instant({ required: false }) // Soft delete timestamp
 });
