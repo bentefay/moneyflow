@@ -7,29 +7,31 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P16E / 01 (FS-001 final package) **reviewing**. Implementer `p16e-implementer-01`
-  handed back `ready_for_review` at HEAD `be82ad0` (one product commit `be82ad0` on top of the docs-only
-  dispatch `1712d29`; review range `191d070..be82ad0`). Root independently verified handback integrity:
-  the product commit touches EXACTLY 12 authorized paths (`src/components/features/people/**`, the flagged
-  `src/app/(app)/transactions/page.tsx` source-navigation glue, `README.md`, and `tests/**`), zero
-  forbidden writes; EMPTY diff over `supabase/migrations/**`, the realtime/`vault_ops` boundary and the
-  P16D grid (`src/components/features/transactions/` byte-identical); single settlement engine preserved
-  (`calculateSettlementBalances` defined only in `settlement.ts`, re-exported once, consumed only in
-  `BalanceSummary.tsx`); no settlement cache; evidence uncommitted. A DISTINCT reviewer
-  (`p16e-reviewer-01`, not the implementer) is verifying `191d070..be82ad0` against §7/§12/§13/§14/§15.3,
-  re-running all gates, and adjudicating two implementer-flagged calls: (A) the ~0.8s-vs-~200ms benchmark
-  shortfall — legitimate §14 measured-evidence branch vs genuine scope reduction (if the latter, flag to
-  root for INDEPENDENT adjudication, not self-resolve); (B) the E2E console allowlist not masking real
-  errors. Downstream: P16E -> P17A-D (HS-007) -> P20A (HS-016) / P20B (HS-021) -> P21; P10 (HS-003) is the
-  other independently-dispatchable package (serial loop)
-- **Next action:** await `p16e-reviewer-01` VERDICT on `reviews/P16E-review-01.md` over `191d070..be82ad0`.
-  On PASS (both flagged calls resolved on the merits, or benchmark routed to an independent adjudicator if
-  the reviewer deems it a genuine scope reduction): two-commit integration (A: reviewing->PASS event +
-  persist review; B: control setting P16E `passed`), then complete **FS-001** by verifying the canonical
-  source is byte-identical at `0d0e2a14…` / 715 lines / 25,441 bytes and recording completion WITHOUT
-  editing it (FS-001 has no scratch marker). On CHANGES_REQUESTED: persist the failed review/evidence,
-  transcribe proposals, set `changes_requested`, rescope HANDOFF to rev-02. Then P17A becomes dispatchable
-  and P10 remains dispatchable. Keep FS-001 immutable/open until its completion is recorded
+- **Current package:** P16E / 01 (FS-001 final package) **changes_requested**. Distinct reviewer
+  `p16e-reviewer-01` returned **VERDICT: CHANGES_REQUESTED** over `191d070..be82ad0`, review SHA-256
+  `94e22dd1d69ddb8023b36a52e3dec4eb3221a603419c0ff8ae1cc0f5b5c765cc`, with ONE blocking finding (F-1).
+  Product HEAD `be82ad0` unchanged (only root ledger commits sit above it). F-1, root-confirmed in the
+  code: `src/app/(app)/transactions/page.tsx:239-245` force-adds `requestedTransactionId` into the derived
+  `selectedTransactionIds` on every render while `?transaction=` is present, so a deep-linked row cannot be
+  deselected and is swept into every bulk handler (`handleBulkDelete` 431-447 and the row-delete at 748) —
+  reproduced user-data destruction (deselect silently fails; a later bulk delete removes the sticky row).
+  Both implementer-flagged calls were adjudicated ACCEPTABLE on the merits, NEITHER a scope reduction: (A)
+  the benchmark shortfall is §14's measured-evidence-with-follow-up branch — reviewer independently measured
+  0.93-1.10s (worse than the implementer reported), near-linear, target explicitly unclaimed, residual cost
+  inside P16B's byte-unchanged defensive materialization boundary — so it is NOT escalated and R-020 stays
+  open; (B) the E2E console allowlist masks no real error (no `console.*` anywhere in `features/people/**`;
+  the `toEqual([])` assertion stays meaningful). Non-blocking: `people/README.md:56` sentence is inaccurate
+  (behaviour is correct). rev-02 fixes F-1 (treat the param as one-shot intent: seed real `selectedIds` then
+  `router.replace`; add deselection + post-deselect bulk-action regression tests) and the README sentence
+  ONLY. Rolling scratch SHA `df8ad9ce…` unchanged; seventeen requirements `passed`; FS-001 immutable/open
+- **Next action:** dispatch **P16E / 02** to a fresh implementer over original BASE `191d070`
+  (pre-implementation HEAD = current HEAD after this FAIL integration), scoped to F-1 + the README sentence
+  ONLY; evidence `evidence/P16E/implementation-02.md`, future immutable review `reviews/P16E-review-02.md`.
+  On rev-02 PASS: two-commit integration (A: reviewing->PASS event + persist review; B: control setting
+  P16E `passed`), then complete **FS-001** by verifying the canonical source is byte-identical at
+  `0d0e2a14…` / 715 lines / 25,441 bytes WITHOUT editing it (no scratch marker — FS-001 has no checkbox).
+  P17A becomes dispatchable on FS-001 completion; P10 (HS-003) remains co-dispatchable. Keep FS-001
+  immutable/open until its completion is recorded
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -39,17 +41,15 @@ review evidence.
   HS-011, HS-012, HS-013, HS-014, HS-015, HS-017, HS-018, HS-019, HS-020
 - **Active completion marker event:** none
 - **Active P21 rollback batch:** none
-- **Last ledger update:** 2026-07-27; **P16E / 01 handback verified and dispatched for independent review**.
-  `p16e-implementer-01` returned `ready_for_review` at HEAD `be82ad0` (one product commit on top of docs
-  dispatch `1712d29`). Root independently verified: product diff = EXACTLY 12 authorized paths
-  (People/settlement UI + flagged `transactions/page.tsx` navigation glue + tests + docs), zero forbidden
-  writes; EMPTY diff over migrations, realtime/`vault_ops` and the P16D grid (byte-identical); single
-  settlement engine (`settlement.ts` sole def, one re-export, sole consumer `BalanceSummary.tsx`); no
-  settlement cache; evidence uncommitted; no premature review file. P16E `implementing -> reviewing`; rev
-  stays 01. DISTINCT reviewer `p16e-reviewer-01` dispatched over `191d070..be82ad0` with two flagged calls
-  routed for explicit adjudication: (A) ~0.8s vs ~200ms benchmark (rule §14 measured-evidence branch vs
-  scope reduction; if scope reduction, flag to root for independent adjudicator); (B) E2E console allowlist.
-  Rolling scratch SHA unchanged `df8ad9ce…`; seventeen requirements `passed`; FS-001 immutable/open; no marker
+- **Last ledger update:** 2026-07-27; **P16E / 01 CHANGES_REQUESTED — failed review persisted; rescoping
+  to rev-02**. Distinct reviewer `p16e-reviewer-01` returned CHANGES_REQUESTED over `191d070..be82ad0`,
+  review SHA-256 `94e22dd1…`, ONE blocking finding F-1 (deep-linked transaction row un-deselectable →
+  swept into bulk delete; root-confirmed at `transactions/page.tsx:239-245`, bulk handlers 431-447/748).
+  Calls A (benchmark) and B (console allowlist) adjudicated ACCEPTABLE on the merits — no scope reduction,
+  no independent adjudicator needed; R-020 stays open with the production follow-up; Q-PROPOSAL-P16E-01-001
+  transcribed as Q-033. Product HEAD `be82ad0` unchanged. P16E `reviewing -> changes_requested`, rev stays
+  01; immutable review + rev-01 evidence committed. Rolling scratch SHA unchanged `df8ad9ce…`; seventeen
+  requirements `passed`; FS-001 immutable/open; no marker
 
 ## Package ledger
 
@@ -77,7 +77,7 @@ review evidence.
 | P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | passed | 05 | `4c102600240e2804b801c2a320e10164defb14ea..46d8f9feb79c6dfc080c0869922fb8cd4c20ec6c` | `evidence/P16B/implementation-05.md` | `reviews/P16B-review-05.md` | `136678a0ac864cf2d120b2b5b896d4fadcabcdd1` |
 | P16C    | FS-001, HS-009 | CRDT per-key/complete-set APIs and every mutation, hydration and history path       | P16A, P16B, P09, P14 | passed | 02 | `0a7c9a49722ddc4d955f910af6dbb19cfffbd600..207e8c5758a48e66980b95eaeff51c0e5a605f7e` | `evidence/P16C/implementation-02.md` | `reviews/P16C-review-02.md` | `e0f06f7fb60ce08ef2f75b0a9ca7769630a2a55c` |
 | P16D    | FS-001, HS-009 | Actual grid/add-row person columns, virtualization, history and presence UX         | P16C, P13            | passed       | 01  | `3a5081ac37e09817e0d02ae8799469d1bf09dad5..b5ebc2a8edbf5e1fc522873fb5ee7455266a3bcc` | `evidence/P16D/implementation-01.md` | `reviews/P16D-review-01.md` | `47867d506978a3f571ef0feef6185e9436d5a908` |
-| P16E    | FS-001         | People obligations/issues/source UX plus full integration, E2E, manual and perf     | P16D, P08, P11C      | reviewing     | 01  | `191d070..be82ad0`                                                                   | `evidence/P16E/implementation-01.md` | `reviews/P16E-review-01.md` | handback verified; dispatched distinct p16e-reviewer-01 |
+| P16E    | FS-001         | People obligations/issues/source UX plus full integration, E2E, manual and perf     | P16D, P08, P11C      | changes_requested | 01  | `191d070..be82ad0`                                                                   | `evidence/P16E/implementation-01.md` | `reviews/P16E-review-01.md` | rev-01 FAIL persisted; F-1 blocking; rescoping rev-02   |
 | P17A    | HS-007         | Automation schema/migration, exact matcher, precedence, preferences, import engine  | P11C, P14, P16E      | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P17B    | HS-007         | Shared rule editor and automations-page UX                                          | P17A, P02            | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P17C    | HS-007         | Description inline proposals, robot drift state and scoped application              | P17B                 | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
@@ -3968,3 +3968,65 @@ or UI. Rolling scratch SHA unchanged `df8ad9ce…`; seventeen requirements `pass
 marker until FS-001 completion is recorded after P16E PASS. On PASS: two-commit integration then FS-001
 completion by canonical-source byte-identity (no marker). On CHANGES_REQUESTED: persist failed artifacts,
 transcribe proposals, rescope HANDOFF to rev-02.
+### 2026-07-27 — P16E/01 CHANGES_REQUESTED — failed review persisted; rescoping to rev-02
+
+Distinct reviewer `p16e-reviewer-01` (role human_scratch_reviewer; NOT the implementer) returned
+**VERDICT: CHANGES_REQUESTED** for P16E/01 over `191d070..be82ad0`. Review artifact
+`reviews/P16E-review-01.md` is 402 lines / 29,016 bytes at SHA-256
+`94e22dd1d69ddb8023b36a52e3dec4eb3221a603419c0ff8ae1cc0f5b5c765cc`. Root verified before accepting
+(verify-not-trust): product HEAD is still `be82ad0` (only root ledger commits above it; no new product
+commit → no escalation on that ground), and the review file's first line is `VERDICT: CHANGES_REQUESTED`.
+
+**Blocking finding F-1 (root-confirmed in the code, not taken on trust):** in the flagged
+`src/app/(app)/transactions/page.tsx`, `selectedTransactionIds` (lines 239-245) unconditionally
+`explicit.add(requestedTransactionId)` on every render whenever `?transaction=` is in the URL; the param
+is never cleared and the set is not backed by `selectedIds`. This is the exact set every bulk handler
+iterates (`handleBulkDelete` 431-447, bulk tag/status/account/notes/amount 449-548, row-delete 748), so a
+deep-linked row cannot be deselected and is destroyed by a subsequent bulk delete. Reviewer reproduced end
+to end at `be82ad0` (deselect silently fails → "2 selected" when one was chosen → confirm deletes both,
+`t1StillPresent: 0`); the control with no param deselects normally, proving it is P16E-introduced, not
+pre-existing. No existing test catches it: every P16E selection assertion checks the target IS selected,
+none asserts it can be DESELECTED, and none combines a deep link with a bulk action.
+
+**Adjudication of the two implementer-flagged calls (both ACCEPTABLE on the merits; NEITHER a scope
+reduction, so NO independent scope adjudicator is triggered):**
+- **(A) Benchmark shortfall (Q-PROPOSAL-P16E-01-001):** ruled within §14 / the P16B benchmark clause's
+  explicit disjunction — "meet ~200ms OR provide measured evidence + documented optimization follow-up
+  without claiming the target passed". All three conditions hold, each re-established by the reviewer: it
+  independently measured 0.93-1.10s (worse than the implementer's reported 0.76-0.86s — no flattering
+  number), the target is explicitly NOT claimed as passing, and §14 near-linearity holds (~10-11x wall
+  for 10x input) with exact correctness output. Residual cost is in P16B's `snapshotMaterialized*`
+  defensive boundary, which is byte-unchanged in this range (`src/lib/**` = 0 files) and was required by
+  a prior immutable P16B/05 FAIL for invalid-data honesty. Committed scope always included this branch, so
+  this is NOT a reduction or supersession of the 200ms target. Transcribed as **Q-033**; **R-020** stays
+  open with the production follow-up (carried to P21).
+- **(B) E2E console allowlist:** ruled non-masking. The four allowlisted literals are exact strings from
+  `vault-provider.tsx:203` / `manager.ts:888` plus two browser transport strings with no product source;
+  `grep -rn "console\." src/components/features/people/` returns nothing, so no People/settlement code can
+  emit a console error to be hidden. The assertion stays meaningful (`toEqual([])`; React/hydration/render
+  errors and ≥500 responses still fail). Reviewer corroborated live: 0 console errors, 0 failed requests
+  with no allowlist applied at all.
+- Reviewer also confirmed structurally that the RED→GREEN "engine-right/fixture-wrong" corrections touched
+  ONLY `tests/` (`src/lib/**` and the grid dir have 0 changed files), so no engine/UI was altered to make a
+  wrong result look right.
+
+**Everything else PASSED, each established independently by the reviewer:** boundaries empty
+(migrations/realtime/`vault_ops` = 0 bytes; P16D grid dir byte-identical by blob hash; `src/lib/**` = 0
+changed); single engine (`calculateSettlementBalances` defined once, sole consumer `BalanceSummary.tsx` +
+`domain/index.ts` re-export; no cache/persistence; `balance.ts` has no settlement logic); gates re-run
+(typecheck clean; lint 0 errors; `pnpm test` 1735 passed / 2 skipped; `people-settlement --repeat-each=2
+--retries=0` 32/32 zero flaky; full E2E 140/140 zero flaky, no P16D grid/keyboard/selection regression;
+`format:check` fails only on 15 untouched `specs/**` files); §13 has no type-graph path capable of a
+cross-currency total; distinct states (invalid data reads "Settlement incomplete", never settled); all
+eight Examples A-H present as named E2E tests against the production path plus the 12-step journey and the
+`-101`/`101`-preserved-not-clamped matrices; secret-safety clean (opaque UUID deep link, no plaintext in 76
+request URLs, recovery phrase never revealed). **Non-blocking note:** `people/README.md:56` claims filters
+are cleared when the source is filtered out — no such code exists (reachability comes from filters being
+component state that resets on route change); behaviour is correct, the sentence is inaccurate. rev-02 will
+correct it alongside F-1.
+
+**Control:** P16E `reviewing -> changes_requested`, revision stays 01. Immutable failure artifacts
+(`reviews/P16E-review-01.md` + frozen `evidence/P16E/implementation-01.md`) and this ledger update are
+persisted in this integration-persistence commit. Rolling scratch SHA unchanged `df8ad9ce…`; seventeen
+requirements `passed`; FS-001 immutable/open; no scratch marker (FAIL grants none). rev-02 dispatch and the
+`changes_requested -> implementing` event follow in the next control commit.

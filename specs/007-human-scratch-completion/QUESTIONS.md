@@ -975,6 +975,19 @@ No unresolved product questions were answered by scaffold creation.
 - **How to reverse or migrate:** Introduce membership-UUID linkage if tenure semantics become a future frozen requirement.
 - **Does a human still need to decide after completion?:** Yes — confirm pubkey-hash linkage is the intended identifier.
 
+## Q-033 — Strict 100k/200ms settlement benchmark is not met; carry measured evidence + follow-up
+
+- **Raised:** 2026-07-26, P16E revision 01, `human_scratch_implementer` (implementer local label Q-PROPOSAL-P16E-01-001); adjudicated 2026-07-27 by distinct reviewer `p16e-reviewer-01`
+- **Source proposal:** `evidence/P16E/implementation-01.md` section 13 (Q-PROPOSAL-P16E-01-001); reviewer ruling `reviews/P16E-review-01.md` section A
+- **Context and evidence:** The production 100k settlement benchmark measures ~0.8s (implementer 0.76-0.86s; reviewer independently 0.93-1.10s), not the approximate 200ms §14 target. Scaling stays near-linear (~10-11x wall for 10x input) and correctness output is exact (100k qualifying, 75k contributions, 2 obligations, 0 issues, conservation true). The residual cost lies inside P16B's `snapshotMaterialized*` defensive materialization boundary, which is byte-unchanged in the P16E range (`src/lib/**` = 0 changed files) and was mandated by a prior immutable P16B/05 FAIL review for invalid-data honesty.
+- **Why the frozen requirement/repository does not fully decide it:** §14 (spec 575-588) and the P16B benchmark clause state an explicit disjunction: meet ~200ms OR provide measured evidence and a documented optimization follow-up WITHOUT claiming the target passed. The frozen text permits the second branch; it does not fix which branch a given package must land in.
+- **Options considered:** (a) report measured evidence + follow-up, target explicitly unclaimed [selected — reviewer ruled this is exactly §14's second branch, taken honestly]; (b) claim the target passed [rejected — false]; (c) treat ~0.8s as a scope reduction requiring an independent scope adjudicator [rejected by the reviewer on the merits — committed scope always included this branch, so it is not a reduction/supersession].
+- **Default selected for continued work:** (a).
+- **Decision hierarchy basis:** Frozen §14 disjunction + P16B's already-reviewed defensive-materialization boundary (byte-unchanged here); honest reporting.
+- **Impact and risk:** Low-medium. The 200ms target is not abandoned — R-020 stays open and the production optimization follow-up is carried to P21. No correctness impact; scaling is near-linear.
+- **How to reverse or migrate:** A later reviewed pass may memoize the projection / intern safely to approach 200ms; if that lands, R-020 can close.
+- **Does a human still need to decide after completion?:** Yes — confirm that deferring the strict 200ms optimization (measured ~0.8s, near-linear, correct) to a post-FS-001 follow-up is acceptable.
+
 ## Question template
 
 ### Q-XXX — Short title
