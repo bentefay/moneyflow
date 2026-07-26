@@ -324,6 +324,61 @@ export const automationApplicationSchema = schema.LoroMap({
 });
 
 /**
+ * Field rule schema (HS-007 / P17A) - typed, field-specific exact-description automation rule.
+ *
+ * Serialisation for the domain model in `src/lib/domain/automation/rules.ts`. A rule targets one
+ * field (descriptionAlias | tags | allocation) and matches an EXACT raw description, optionally
+ * narrowed by account and/or exact amount. Action-specific fields are optional here; the domain
+ * boundary (`decodeFieldRule`) validates that the ones required by `field` are present.
+ *
+ * `createdAtEpochMs` is stored as absolute epoch milliseconds (not a wall-clock string) so
+ * precedence tie-breaking is free of locale/timezone ambiguity.
+ */
+export const fieldRuleSchema = schema.LoroMap({
+    id: schema.String({ required: true }),
+    field: richSchema.StringEnum(["descriptionAlias", "tags", "allocation"], { required: true }),
+    /** Exact raw imported description text this rule keys on. */
+    descriptionText: schema.String({ required: true }),
+    /** Optional account narrowing (absent = any account). */
+    accountId: schema.String({ required: false }),
+    /** Optional exact-amount narrowing in minor units (absent = any amount). */
+    amount: richSchema.MoneyMinorUnits({ required: false }),
+    /** descriptionAlias action: target alias id. */
+    aliasId: schema.String({ required: false }),
+    /** tags action: add (union) or set (replace). */
+    tagMode: richSchema.StringEnum(["add", "set"], { required: false }),
+    /** tags action: tag ids to apply. */
+    tagIds: schema.LoroList(schema.String(), (id) => id),
+    /** allocation action: explicit whole-person allocation set (validated at the boundary). */
+    allocations: schema.LoroMapRecord(richSchema.Percentage({})),
+    /** Absolute creation time (epoch ms) - drives recency tie-breaks. */
+    createdAtEpochMs: schema.Number({ required: true }),
+    /** Soft-delete time (epoch ms). Deleted rules are excluded from matching. */
+    deletedAtEpochMs: schema.Number({ required: false })
+});
+
+/**
+ * Per-user automation preferences (HS-007 / P17A) - keyed by user pubkeyHash.
+ *
+ * This is per-user UI state (last-used mode/constraint choices), NOT shared financial state, so it
+ * lives in its own record keyed by the user rather than in `vaultPreferencesSchema`.
+ */
+export const userAutomationPreferenceSchema = schema.LoroMap({
+    /** Owning user (pubkeyHash). Also the record key. */
+    pubkeyHash: schema.String({ required: true }),
+    /** Last field the user created a rule for. */
+    lastRuleField: richSchema.StringEnum(["descriptionAlias", "tags", "allocation"], {
+        required: false
+    }),
+    /** Last tag mode chosen (add | set). */
+    lastTagMode: richSchema.StringEnum(["add", "set"], { required: false }),
+    /** Whether the last rule narrowed by account. */
+    lastUseAccountScope: schema.Boolean({ required: false }),
+    /** Whether the last rule narrowed by exact amount. */
+    lastUseAmountScope: schema.Boolean({ required: false })
+});
+
+/**
  * Vault preferences schema - vault-scoped settings synced across members
  */
 export const vaultPreferencesSchema = schema.LoroMap({
@@ -358,6 +413,12 @@ export const vaultSchema = schema({
     importTemplates: schema.LoroMapRecord(importTemplateSchema),
     automations: schema.LoroMapRecord(automationSchema),
     automationApplications: schema.LoroMapRecord(automationApplicationSchema),
+    // NOTE (HS-007 / P17A): the typed field-rule and per-user-preference collections
+    // (`fieldRuleSchema`, `userAutomationPreferenceSchema`) are defined above as the wire contract
+    // but are intentionally NOT yet added as root keys here. Adding a required root collection
+    // forces a matching default in `src/lib/crdt/defaults.ts` (`getDefaultVaultState` /
+    // `initializeVaultDefaults`), which is outside P17A's allowed write paths. Root wiring is
+    // deferred to when defaults.ts is in scope; see Q-proposal Q-P17A-DEFAULTS.
     preferences: vaultPreferencesSchema
 });
 
@@ -392,6 +453,9 @@ export type Automation = InferType<typeof automationSchema>;
 export type AutomationCondition = InferType<typeof automationConditionSchema>;
 export type AutomationAction = InferType<typeof automationActionSchema>;
 export type AutomationApplication = InferType<typeof automationApplicationSchema>;
+/** Serialised (wire) shape of a field rule; domain model lives in automation/rules.ts. */
+export type FieldRuleWire = InferType<typeof fieldRuleSchema>;
+export type UserAutomationPreference = InferType<typeof userAutomationPreferenceSchema>;
 export type VaultPreferences = InferType<typeof vaultPreferencesSchema>;
 
 /** Hierarchical transaction storage types */
