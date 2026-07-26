@@ -19,14 +19,34 @@ import {
 } from "react";
 import { useSyncExternalStore } from "react";
 import type { ComponentProps, DependencyList } from "react";
+import { Temporal } from "temporal-polyfill";
 
+import { type RememberedRuleChoice } from "@/lib/domain/automation/preferences";
+import { type FieldRule } from "@/lib/domain/automation/rules";
 import {
     getActiveDescriptionAliases,
     toDescriptionAliasCollection,
     type DescriptionAliasCollection
 } from "@/lib/domain/description-aliases";
 
-import type { BulkFieldRuleEntry } from "./field-rules";
+import {
+    type CreateFieldRuleInput,
+    createFieldRule,
+    type DeleteFieldRuleInput,
+    deleteFieldRule,
+    type FieldRuleMutationResult,
+    persistUserAutomationPreference,
+    type PersistUserAutomationPreferenceInput,
+    readUserAutomationChoice,
+    type UpdateFieldRuleInput,
+    updateFieldRule
+} from "./field-rule-mutations";
+import {
+    applyFieldRulesToAllTransactions,
+    applyFieldRulesToNewerTransactions,
+    type BulkFieldRuleEntry,
+    readActiveFieldRules
+} from "./field-rules";
 import { commitImportBatch, type CommitImportBatchInput } from "./import-commit";
 import { startVaultMaintenanceScheduler } from "./maintenance";
 import type { VaultMirror } from "./mirror";
@@ -1104,5 +1124,86 @@ export function useCommitImportBatch(): (
         (state, input: CommitImportBatchInput) => commitImportBatch(state, input),
         [],
         "import"
+    );
+}
+
+// ============================================================================
+// HS-007 / P17B: field-rule management (shared editor) hooks
+// ============================================================================
+
+/**
+ * The active (non-deleted, valid) field rules for the shared automations editor. Runs on the full
+ * VaultState (the `fieldRules` collection is present on both, but reusing the P17A reader keeps a
+ * single decode/precedence source of truth).
+ */
+export function useActiveFieldRules(): readonly FieldRule[] {
+    return useInternalVaultSelector((state) => readActiveFieldRules(state));
+}
+
+/** Create/update/delete callbacks for field rules, each one grouped undo step. */
+export interface FieldRuleActions {
+    readonly create: (input: CreateFieldRuleInput) => FieldRuleMutationResult;
+    readonly update: (input: UpdateFieldRuleInput) => FieldRuleMutationResult;
+    readonly remove: (input: DeleteFieldRuleInput) => FieldRuleMutationResult;
+}
+
+/**
+ * Field-rule CRUD actions. Each mutation is a single undoable group and returns the typed result so
+ * the editor can surface duplicate-key / validation failures without a partial write.
+ */
+export function useFieldRuleActions(): FieldRuleActions {
+    const create = useInternalVaultAction(
+        (state, input: CreateFieldRuleInput) => createFieldRule(state, input),
+        []
+    );
+    const update = useInternalVaultAction(
+        (state, input: UpdateFieldRuleInput) => updateFieldRule(state, input),
+        []
+    );
+    const remove = useInternalVaultAction(
+        (state, input: DeleteFieldRuleInput) => deleteFieldRule(state, input),
+        []
+    );
+    return useMemo(() => ({ create, update, remove }), [create, update, remove]);
+}
+
+/**
+ * Apply-all / apply-new actions. These route EXCLUSIVELY through the P17A engine
+ * (`applyFieldRules*`), so allocation writes stay P16C-only and description-alias writes stay on the
+ * P11 boundary. Runs on the full VaultState so alias application can reach `descriptionAliases`.
+ */
+export interface ApplyFieldRuleActions {
+    readonly applyAll: () => readonly BulkFieldRuleEntry[];
+    readonly applyNewerThan: (referenceDate: Temporal.PlainDate) => readonly BulkFieldRuleEntry[];
+}
+
+export function useApplyFieldRules(): ApplyFieldRuleActions {
+    const applyAll = useInternalVaultAction(
+        (state) => applyFieldRulesToAllTransactions(state),
+        [],
+        "mutation"
+    );
+    const applyNewerThan = useInternalVaultAction(
+        (state, referenceDate: Temporal.PlainDate) =>
+            applyFieldRulesToNewerTransactions(state, { referenceDate }),
+        [],
+        "mutation"
+    );
+    return useMemo(() => ({ applyAll, applyNewerThan }), [applyAll, applyNewerThan]);
+}
+
+/** Read a user's remembered editor choice (defaults applied). */
+export function useUserAutomationChoice(pubkeyHash: string | null): RememberedRuleChoice {
+    return useInternalVaultSelector((state) => readUserAutomationChoice(state, pubkeyHash ?? ""));
+}
+
+/** Persist a user's last-used editor choice for `pubkeyHash`. */
+export function usePersistAutomationPreference(): (
+    input: PersistUserAutomationPreferenceInput
+) => void {
+    return useInternalVaultAction(
+        (state, input: PersistUserAutomationPreferenceInput) =>
+            persistUserAutomationPreference(state, input),
+        []
     );
 }

@@ -41,6 +41,13 @@ export async function goToPeople(page: Page): Promise<void> {
     await page.getByRole("heading", { name: "People", level: 1 }).waitFor({ timeout: 15000 });
 }
 
+export async function goToAutomations(page: Page): Promise<void> {
+    await page.goto("/automations");
+    await page.getByRole("heading", { name: "Automations", level: 1 }).waitFor({ timeout: 15000 });
+    // The field-rule manager only renders once a vault is selected.
+    await page.locator('[data-testid="new-rule-btn"]').waitFor({ timeout: 15000 });
+}
+
 export async function goToImports(page: Page): Promise<void> {
     await page.goto("/imports");
     await page.getByRole("heading", { name: "Imports", level: 1 }).waitFor({ timeout: 15000 });

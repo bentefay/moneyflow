@@ -14,6 +14,7 @@ export {
 } from "./realtime";
 export {
     goToAccounts,
+    goToAutomations,
     goToDashboard,
     goToImportNew,
     goToImports,

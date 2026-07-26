@@ -19,22 +19,28 @@ export {
 // React context and hooks
 export {
     type ApplicationVaultState,
+    type ApplyFieldRuleActions,
+    type FieldRuleActions,
     useAccount,
     useAccounts,
     useActiveAccounts,
     useActiveDescriptionAliases,
+    useActiveFieldRules,
     useActiveImports,
     useActivePeople,
     useActiveStatuses,
     useActiveTags,
     useActiveTransactions,
+    useApplyFieldRules,
     useAutomations,
     useCommitImportBatch,
     useDescriptionAliasActions,
     useDescriptionAliases,
+    useFieldRuleActions,
     useImports,
     useImportTemplates,
     usePeople,
+    usePersistAutomationPreference,
     usePerson,
     useStatuses,
     useTag,
@@ -42,11 +48,27 @@ export {
     useTransaction,
     useTransactionActions,
     useTransactions,
+    useUserAutomationChoice,
     useVaultAction,
     useVaultPreferences,
     useVaultSelector,
     VaultProvider
 } from "./context";
+// Field-rule CRUD + remembered-preference persistence (HS-007 / P17B shared editor)
+export {
+    type CreateFieldRuleInput,
+    createFieldRule,
+    type DeleteFieldRuleInput,
+    deleteFieldRule,
+    type FieldRuleActionInput,
+    type FieldRuleMutationError,
+    type FieldRuleMutationResult,
+    persistUserAutomationPreference,
+    type PersistUserAutomationPreferenceInput,
+    readUserAutomationChoice,
+    type UpdateFieldRuleInput,
+    updateFieldRule
+} from "./field-rule-mutations";
 export {
     type DescriptionAlias,
     type DescriptionAliasCollection,

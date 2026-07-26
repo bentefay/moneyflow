@@ -6,7 +6,7 @@
  * Page for managing transaction automation rules.
  */
 
-import { AutomationsTable } from "@/components/features/automations";
+import { FieldRulesManager } from "@/components/features/automations";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useActiveVault } from "@/hooks/use-active-vault";
 
@@ -22,22 +22,24 @@ export default function AutomationsPage() {
             <div className="border-b px-6 py-4">
                 <h1 className="text-2xl font-semibold">Automations</h1>
                 <p className="text-muted-foreground mt-1 text-sm">
-                    Create rules to automatically categorize and tag transactions based on patterns.
+                    Create rules that set a transaction field for an exact description, optionally
+                    narrowed by account and amount.
                 </p>
             </div>
 
-            {/* Automations table */}
+            {/* Field-rule manager */}
             <div className="flex-1 overflow-auto p-6">
                 {activeVault?.id ? (
                     <Card>
                         <CardHeader>
                             <CardTitle>Automation Rules</CardTitle>
                             <CardDescription>
-                                Rules are applied in order from top to bottom. Drag to reorder.
+                                Each rule sets one field for transactions whose description matches
+                                exactly. More specific rules (account and amount) take precedence.
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <AutomationsTable />
+                            <FieldRulesManager />
                         </CardContent>
                     </Card>
                 ) : (
