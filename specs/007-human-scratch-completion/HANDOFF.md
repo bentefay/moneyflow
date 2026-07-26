@@ -3,98 +3,92 @@
 Root rewrites this compact file for one package/revision. It is not a dispatch while an applicable
 literal field is `pending`. Workers may read but never edit it.
 
-## Review dispatch
+## Implement dispatch
 
-- **Package / revision:** P16E / 01 (FS-001 final package) — **REVIEW**
-- **Role:** human_scratch_reviewer. You are DISTINCT from `p16e-implementer-01`; you reproduce and
-  verify, you never accept the implementer's claims on trust, and you never commit product/test
-  code.
-- **Scope IDs:** FS-001 (the P16E slice). P16A–P16D are already `passed`; do not re-review them
-  except to confirm P16E did not regress or duplicate them.
-- **Review range:**
-  `191d0707f5e6dbfa5871dbddaa7318b9a14885dd..be82ad0622086759365d38a74982f492d1d9fc59`. The range
-  contains root's docs-only dispatch commit `1712d29` (ledger; ignore it) plus the single product
-  commit `be82ad0`. Run `git diff --stat 191d070..be82ad0` yourself; the product diff is 12 files
-  (People/settlement UI + the flagged `transactions/page.tsx` glue + tests + docs).
-- **Evidence to review (frozen, do NOT edit):** `evidence/P16E/implementation-01.md`.
-- **Your immutable verdict artifact:** `reviews/P16E-review-01.md` (create it; do NOT commit — root
-  persists it on integration). Start with a single line `VERDICT: PASS` or
-  `VERDICT: CHANGES_REQUESTED`.
+- **Package / revision:** P16E / 02 (FS-001 final package) — **IMPLEMENT (remediation)**
+- **Role:** human_scratch_implementer, fresh instance `p16e-implementer-02`. You are NOT the
+  reviewer and NOT `p16e-implementer-01`; you remediate revision 01's single blocking finding,
+  commit, and hand back `ready_for_review`. You never edit any
+  ledger/scratch/SCOPE/task/review/`.claude`/`.codex`.
+- **Scope IDs:** FS-001 (the P16E slice). P16A–P16D are already `passed`; do not touch them.
+- **Original BASE:** `191d0707f5e6dbfa5871dbddaa7318b9a14885dd` (unchanged from rev-01).
+- **Pre-implementation HEAD:** `839665d8bfb124da633a7d62dd711b569c4b3af4`. The commits between the
+  rev-01 product HEAD `be82ad0` and this HEAD are root ledger-only (the rev-01 CHANGES_REQUESTED
+  integration); product/test state at this HEAD equals `be82ad0`. Root will review
+  `191d070..<your HEAD>`.
+- **Your evidence (uncommitted until root integrates):** `evidence/P16E/implementation-02.md`.
+- **Prior immutable artifacts (read, do NOT edit):** `reviews/P16E-review-01.md` (the FAIL) and
+  `evidence/P16E/implementation-01.md` (rev-01 evidence).
 
-## Binding sources (read fully before judging)
+## What failed (fix EXACTLY this, nothing more)
 
-- The ENTIRE canonical source `specs/008-transaction-percentage-allocations-settlement/spec.md` (715
-  lines, SHA-256 `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`). P16E sections:
-  §7 Examples A–H (274-376), §12 result model (518-545), §13 People page (545-575), §14 performance
-  (575-588), §15.3 E2E (635-670), §17 DoD (688-715). The canonical source wins over the task, older
-  specs, existing behavior and old tests.
-- `tasks/FS-001-transaction-percentage-allocations-settlement.md` — P16E section (162-191),
-  acceptance (177-191), evidence ownership (224-227), FS-001 DoD (238-246).
-- The implementer's dispatch HANDOFF intent (prior revision of this file) is preserved in the
-  `1712d29` commit if you need the original acceptance framing.
+**F-1 — a deep-linked transaction row cannot be deselected and is destroyed by a later bulk
+delete.** In `src/app/(app)/transactions/page.tsx`, `selectedTransactionIds` (currently lines
+239-245) unconditionally re-adds `requestedTransactionId` (the `?transaction=` deep-link param) into
+the derived selection on EVERY render while the param is in the URL. The param is never cleared and
+the set is not backed by real `selectedIds`, so the user's deselection has nowhere to land, and this
+same set is what every bulk handler iterates (`handleBulkDelete` ~431-447, bulk
+tag/status/account/notes/amount ~449-548, row-delete ~748). Reproduced: deep-link a row → its
+checkbox deselect silently fails → select a second row → the bar reads "2 selected" → confirm bulk
+delete → BOTH rows deleted (user data loss). With no param present, check-then-uncheck works
+normally — so this is P16E-introduced, not pre-existing.
 
-## Reproduce and verify (do not trust — establish each yourself)
+## Required behaviour for rev-02
 
-1. **Range non-empty:** `git diff --exit-code 191d070 be82ad0` fails (expected); confirm product
-   paths are exactly the 12 files, all within `src/components/features/people/**`, the flagged
-   `src/app/(app)/transactions/page.tsx` glue, `README.md`, and `tests/**`. Any other product path
-   is a finding.
-2. **Boundaries EMPTY:**
-   `git diff 191d070..be82ad0 -- 'supabase/migrations/**' src/server/routers/realtime.ts src/lib/supabase/realtime.ts src/server/schemas/realtime.ts`
-   and `-- src/components/features/transactions/` must both be empty (no migration, no
-   realtime/`vault_ops` change, P16D grid byte-identical). Confirm yourself.
-3. **Single-engine invariant:** the sole production settlement engine is
-   `src/lib/domain/settlement.ts`; `calculateSettlementBalances` is consumed only by
-   `BalanceSummary.tsx` (plus the `domain/index.ts` re-export). No second/duplicate settlement
-   implementation; NO settlement cache/persistence (grep for cache/persist/localStorage/idb settle
-   patterns). `balance.ts` must contain no settlement logic.
-4. **Acceptance — People page (§13):** obligations rendered in SEPARATE per-currency sections with
-   NO field or path capable of producing a combined cross-currency total (verify at the
-   type/view-model level, not just visually); debtor/creditor names correct; positive amounts;
-   linked-Person highlight. Expand shows contributing transactions (date, resolved alias, account,
-   signed contribution, explicit AND effective allocations). "View transaction" targets the STABLE
-   transaction ID (survives filter/paginate/reorder), not an index.
-5. **Distinct states:** everyone-settled ONLY with zero obligations AND zero issues; neutral
-   no-qualifying-paid; prominent "Settlement incomplete" with affected count + reasons whenever
-   typed issues exist (invalid data must NEVER read as settled); multi-currency; deleted/unknown
-   stable labels. Prove settled and neutral are genuinely distinct code paths.
-6. **Examples A–H (§7):** confirm a NAMED, individually-present E2E expectation for EACH of A, B, C,
-   D, E, F, G, H against the production settlement path — all eight, no substitute, no combined case
-   standing in for any one. Confirm the 12-step journey (§15.3) and the additional matrices exist
-   and assert what they claim (esp. negative reversal direction, `-101`/`101` rejected with the
-   original PRESERVED not clamped, and stable-ID-addressed source navigation).
-7. **Gates — re-run independently, do not take reported counts on trust:**
-   `pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm test:e2e`. Run the P16E
-   E2E with retries DISABLED and repeated (`--repeat-each`); confirm no flakes and no
-   P16D-grid/keyboard/ selection regression. The pre-existing `specs/**` `format:check` failure is
-   not attributable. NEVER use `--headed/--ui/--debug/show`. A local Supabase container is required;
-   if genuinely unobtainable, say so precisely rather than passing on unverified evidence.
-8. **Secret-safety:** confirm no key/seed/recovery/JWT-secret/`crypto_box`/plaintext material in any
-   P16E file, fixture, URL or the evidence. The source deep link must carry only an opaque ID.
+Treat the `?transaction=` deep link as a **one-shot navigation intent**, not a permanent selection
+force:
 
-## Two implementer-flagged calls you MUST adjudicate
+1. On arrival with `?transaction=<stableId>`, still **reveal/scroll-to/focus** that row and start it
+   **selected** (the canonical §13 "View transaction" landing behaviour and the rev-01
+   initial-selected state must be preserved) — but seed the row into the REAL `selectedIds` state
+   ONCE, then clear the param (`router.replace` to the paramless URL) so subsequent renders derive
+   selection ONLY from real `selectedIds`.
+2. After that, deselecting the deep-linked row must actually deselect it (`aria-selected` flips to
+   `false`), and every bulk handler must operate on the user's real current selection only.
+3. Do not regress the passing rev-01 behaviour: the row must still be revealed/highlighted on
+   arrival, stable-ID (not index) source navigation from the People page must still work, and no
+   double-reveal or selection flicker. Guard the one-shot seed so it fires once per navigation (not
+   every render, not on unrelated `selectedIds` changes).
 
-- **A. Benchmark shortfall (Q-PROPOSAL-P16E-01-001).** Measured ~0.8s (not ~200ms) for the 100k
-  production benchmark; reported as measured evidence with follow-up, explicitly NOT claimed as
-  passing the target. Rule on the MERITS from the frozen text: §14 / the P16B benchmark clause
-  permit a "measured evidence + documented optimization follow-up without claiming the target
-  passed" branch. If the shortfall genuinely falls within that canonical branch (residual cost is
-  P16B's already-reviewed defensive materialization boundary, near-linear scaling holds, honest
-  reporting), that is acceptable — say so on grounds independent of convenience. **If instead you
-  judge accepting ~0.8s to be a genuine REDUCTION of committed scope or a supersession of the ~200ms
-  target, do NOT self-resolve it: flag it to root, who routes scope reductions to an INDEPENDENT
-  scope adjudicator.**
-- **B. E2E console allowlist.** The spec allowlists local `sync.pushOps` / `Failed to fetch`
-  transport noise. Verify this does NOT mask any real P16E-originated console error and that the
-  console assertion remains meaningful; if it hides real errors, that is a finding.
-- Also verify the RED→GREEN "engine-right/fixture-wrong" corrections (evidence §9) changed ONLY
-  tests/fixtures, never the engine or UI to make a wrong result look right.
+Also fix the **non-blocking** inaccuracy at `src/components/features/people/README.md:56`: it claims
+filters are cleared when the source transaction is filtered out; no such code exists — reachability
+comes from filters being component state that resets on route change. Correct the sentence to
+describe the actual mechanism. Behaviour is already correct; this is a doc-only wording fix.
 
-## Verdict
+## Hard boundaries (any violation is a review failure)
 
-- Write `reviews/P16E-review-01.md` starting `VERDICT: PASS` or `VERDICT: CHANGES_REQUESTED`, with
-  reproduction notes, per-acceptance-item findings, the two adjudications (A/B), and any Q proposals
-  transcribed for root. On any material acceptance gap, misleading total, validation bypass,
-  traceability gap, competing engine, cache, boundary breach or secret leak: `CHANGES_REQUESTED`
-  with specific blockers. Do NOT commit. Do NOT edit any ledger, scratch, SCOPE, task, the canonical
-  source, or the implementer's evidence. Message root with the verdict and the range you reviewed.
+- **Only these paths may change:** `src/app/(app)/transactions/page.tsx`,
+  `src/components/features/people/README.md`, and files under `tests/**`. NOTHING else.
+- **EMPTY diff required** over: the settlement engine `src/lib/domain/settlement.ts` and all of
+  `src/lib/**`; `src/components/features/people/settlement-view.ts` / `settlement-allocations.ts` /
+  `BalanceSummary.tsx`; the entire P16D grid dir `src/components/features/transactions/`
+  (byte-identical); `supabase/migrations/**`; `src/server/routers/realtime.ts`;
+  `src/lib/supabase/realtime.ts`; `src/server/schemas/realtime.ts`; and any `vault_ops` path. No new
+  migration. No settlement cache/persistence.
+- Single-engine invariant stays intact: `calculateSettlementBalances` defined only in
+  `settlement.ts`, re-exported once in `domain/index.ts`, consumed only by `BalanceSummary.tsx`.
+
+## Required regression coverage (add to `tests/**`)
+
+- **Deselection:** deep-link a row, then click its checkbox — assert `aria-selected` goes
+  `true -> false` and the bulk bar count drops to 0.
+- **Post-deselection bulk action (the data-loss path):** deep-link row t1, deselect it, select a
+  different row t2, run bulk delete + confirm — assert t2 is deleted and **t1 is preserved**.
+- Keep an assertion that arrival still starts the deep-linked row selected AND revealed/highlighted,
+  so the one-shot seed cannot silently regress the landing behaviour.
+- Re-run the full P16E E2E with retries disabled and repeated; no flakes, no P16D
+  grid/keyboard/selection regression.
+
+## Gates before handback
+
+Run and pass `pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm test:e2e`. The
+pre-existing `specs/**` `format:check` failure on untouched files is not yours; all changed paths
+must be format-clean. NEVER use `--headed/--ui/--debug/show`. No `as`/`any`/`!`. Money stays integer
+minor units.
+
+## Handback
+
+Commit only the allowed paths, write `evidence/P16E/implementation-02.md` (uncommitted), and message
+root `ready_for_review` with your final HEAD and the range `191d070..<HEAD>`. Record any genuine
+ambiguity as a Q-PROPOSAL in your evidence and continue on the safest reversible choice; do not ask
+the human.
