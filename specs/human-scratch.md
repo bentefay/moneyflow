@@ -245,7 +245,7 @@
 - [x] Add undo and redo buttons and standard ctrl + z / ctrl + shift + z / ctrl + y bindings. Use the
   standard loro UndoManager for this.
 
-- [] Change how automations work. They work differently for each field.
+- [x] Change how automations work. They work differently for each field.
     - For description aliases, when you apply a description alias to a transaction on the
       transactions page where the description text doesn't already match a rule, some controls
       appear.
