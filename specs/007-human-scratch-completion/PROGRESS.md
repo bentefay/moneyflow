@@ -7,12 +7,13 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P08 / — (HS-012, HS-011) queued, now dispatchable. P05 / 13 (HS-015) PASSED
-  under D-017 (websocket-security scope); the hidden-tab timing edge is an accepted unmeasured
-  non-issue. P05 unblocked the cascade P08 -> P10/P16E -> P17A-D -> P20A/P20B -> P21
-- **Next action:** rewrite HANDOFF for P08 (HS-012 auto-person linkage + HS-011 secure invite/member
-  management; deps P05, P07 both `passed`) and dispatch a fresh `human_scratch_implementer`. Then
-  re-run the dependency sweep; remaining queued after P08: P10, P16E, P17A-D, P20A/B, P21. Keep FS-001
+- **Current package:** P08 / 01 (HS-012 + HS-011) implementing. Delivers D-013's linked-hybrid
+  journey: Vault-Settings-authoritative invites/members with REAL key wrap/unwrap and idempotent
+  auto-person linkage. BASE `c5c9919`. Downstream cascade P08 -> P10/P16E -> P17A-D -> P20A/P20B -> P21
+- **Next action:** await `human_scratch_implementer` (p08-implementer-01) `ready_for_review` handback
+  at a new HEAD, then dispatch a DISTINCT `human_scratch_reviewer` over BASE `c5c9919` -> new HEAD to
+  confirm D-013 clauses, REAL (non-placeholder) invite key wrap/unwrap, fragment-only secrets,
+  idempotent person linkage, preserved P04/P05 boundaries and a genuine two-user E2E. Keep FS-001
   immutable/open
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
@@ -44,7 +45,7 @@ review evidence.
 | P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | passed | 13 | `92dfd4d002e8bcb2a6694c35aff8f713ba4689dc..b34dcf6ad53b6bb3fc6482180d2b0aaedd7fc1bc` | `evidence/P05/implementation-13.md` | `reviews/P05-review-13.md` | `8101bb2355a9894dd5cac9540afd38045973dd01` |
 | P06     | HS-010         | Remove unused user-state storage and dead API surface                               | P04                  | passed | 01  | `a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1..95e91dbcb17ffb9600eaa6cb795336898297ebae` | `evidence/P06/implementation-01.md` | `reviews/P06-review-01.md` | `8e269ab9a6fc15ed6d845542b879e5499828134e` |
 | P07     | HS-011         | Evidence-led person/member/invite UX architecture and acceptance decision           | P04, P06             | passed | 04  | `fe1871ce7dce1e831b57ee5656d38ce5c800aae3..dfffea3c19b110b6021b050b8d9e36b01ae75ab9` | `evidence/P07/implementation-04.md` | `reviews/P07-review-04.md` | `1f6cb96b27c8093f0ba2c319f32d3c79c8aab126` |
-| P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
+| P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | implementing | 01  | `c5c99195bef523c1d4ba2f55e54c886a1aa68533..`                                          | `evidence/P08/implementation-01.md` | `reviews/P08-review-01.md` | D-013 linked-hybrid journey                 |
 | P09     | HS-006         | Loro UndoManager integration, controls, shortcuts and action grouping               | P01                  | passed       | 02 | `c9146fae2c5534313d21b4f34cb2b012eaeeb4ed..418234e28ac649e03ce8ad184d08a8a2f2416149` | `evidence/P09/implementation-02.md` | `reviews/P09-review-02.md` | `59bf82e894e45e034858e25255240701a3afb0b8` |
 | P10     | HS-003         | Encrypted Loro EphemeralStore presence and active transaction                       | P05, P08             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | passed | 04 | `eb5ab2e215130c358130d5411a92b51951c3c53a..fb72abdaf531dff40c59f6b3525fb1b9ce50f805` | `evidence/P11A/implementation-04.md` | `reviews/P11A-review-04.md` | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f` |
@@ -3617,3 +3618,20 @@ SHA advanced to `29bbb2fc…`; authorized checked HS IDs += HS-015 (**fifteen**)
 now `passed`; FS-001 immutable/open. P05 was the final `blocked_external` gate — its pass unblocks P08
 (deps P05, P07 both `passed`). No dispatch was active while `completion_pending`. Next: rewrite HANDOFF
 and dispatch P08 (HS-012, HS-011).
+
+### 2026-07-26 — P08/01 dispatch (HS-011 journey + HS-012 auto-person linkage)
+
+With P05 `passed` (the final `blocked_external` gate, cleared under D-017), root recomputed the
+dispatchable set: **P08** (deps P05, P07 — both `passed`) is now dispatchable and is the sole
+next-dispatchable package (P10, P16E, P17A-D, P20A/B, P21 remain transitively gated behind P08). HANDOFF
+rewritten for **P08 / 01** at BASE `c5c99195bef523c1d4ba2f55e54c886a1aa68533` (HANDOFF commit `e123146`),
+scoped to HS-011 (deliver the selected journey) + HS-012 (auto-person linkage) ONLY, governed by
+**D-013** (linked hybrid: Vault Settings authoritative for Members/Invites; People optional-linked
+encrypted financial state) and the accepted P07 contract (`evidence/P07/implementation-04.md` SHA
+`313ce10c…`, `reviews/P07-review-04.md`). Mandated: real sender-bound authenticated `crypto_box` (no
+placeholder key), fragment-only bearer secrets, per-epoch envelope history, locked server rotation,
+exact-op edit fence/journal, idempotent `person-default-me` linkage, safe migration, and a genuine
+two-user E2E. Preserve P04 RLS and P05 realtime pubkey-hash boundaries. Dispatched
+`human_scratch_implementer` as `p08-implementer-01`. Sole implementer artifact
+`evidence/P08/implementation-01.md`; future immutable review `reviews/P08-review-01.md`. Rolling scratch
+SHA unchanged `29bbb2fc…`; fifteen requirements `passed`; no marker until independent PASS.
