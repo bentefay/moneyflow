@@ -7,19 +7,26 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** P08 / 01 (HS-012 + HS-011) reviewing, rescoped to the boundary-safe frozen
-  core by **D-018** (supersedes D-013's 29-clause epoch mandate; linked-hybrid data model retained).
-  Delivers REAL authenticated `crypto_box` invite redemption (kills the placeholder key), a
-  Vault-Settings-authoritative "Access & Members" surface with server-side authz, member removal via the
-  EXISTING preserved remove+rekey path only, and idempotent auto-person linkage with an optional name +
-  non-identifying resolver. Epoch machinery is OUT (future-work, no frozen mandate, no new package). BASE
-  `c5c9919`. Downstream cascade P08 -> P10/P16E -> P17A-D -> P20A/P20B -> P21
-- **Next action:** await `p08-reviewer-01` (distinct fresh-context reviewer) verdict on
-  `reviews/P08-review-01.md` over BASE `c5c9919` -> HEAD `d2762f9` against the **D-018** DoD. On PASS: run
-  the two-commit integration + authorized forward marker for HS-011 AND HS-012 (both checkboxes advance;
-  HS-011 also required P07 which is `passed`). On CHANGES_REQUESTED: relay blockers to the implementer and
-  loop. Root already re-verified the HARD boundary (empty diff over realtime/`vault_ops`/migrations) and
-  that d2762f9 wrote only src/tests. Keep FS-001 immutable/open
+- **Current package:** P08 / 02 (HS-012 + HS-011) remediation, D-018 boundary-safe core. Rev-01 (HEAD
+  `d2762f9`) got an independent review: initially 2 blockers, but **B-1 was WITHDRAWN** by the reviewer
+  after it ran the decisive BASE-vs-HEAD query (root-reconfirmed: `rekey` has zero real call sites at BOTH
+  BASE `c5c9919` and HEAD, so revoke-without-rotate downgrades no existing guarantee — membership-scoped RLS
+  `is_vault_member` + per-message realtime `realtime_grant_allows` already revoke future-envelope access at
+  the preserved strength; item 3 MET). **One blocker remains — B-2:** the invite-acceptance handler never
+  opens the shared vault (no `setActiveVault`), so the HS-012 consume-once person-link marker is stranded and
+  no member Person materializes on the real journey. Everything else PASSED (DoD 1/2/3, boundary empty-diff,
+  secret-safety incl. plaintext-log removal, trpc nonce fix, Person.name resolver ripple). Rev-02 fixes B-2
+  (+ non-blocking N-4 honesty items). BASE `c5c9919`. Downstream cascade P08 -> P10/P16E -> P17A-D -> P20A/P20B -> P21
+- **Next action:** await `p08-implementer-01` rev-02 `ready_for_review` at a new HEAD fixing **B-2**: deliver
+  the accepting member into the shared vault on acceptance (call `setActiveVault` to the shared vaultId) so
+  `consumePendingPersonLink` runs and the member Person materializes, remove the permanent-miss fragility of
+  the `sessionStorage` consume-once marker (reconcile on shared-vault open, not one-shot), and strengthen the
+  E2E to assert on what the member's app actually opens (2 persons, shared vault active), not just the DB row.
+  Also address non-blocking N-4: the remove control should explain access is revoked but the key is NOT
+  rotated (binding task's "removal/rekey implications explained"), add the DoD-5 removal-authorization
+  integration test, and correct the evidence section 4 "sealed-box rekey" overstatement. Then dispatch a
+  distinct reviewer (may reuse `p08-reviewer-01`) over the rev-02 delta + confirm B-2 closed and no regression
+  of the rev-01 passes. Keep FS-001 immutable/open
 - **Frozen sources:** `specs/human-scratch.md` at SHA-256
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
@@ -32,16 +39,18 @@ review evidence.
 - **Semantic drift state:** clean; 21 normalized blocks byte-match SCOPE (15 checked IDs)
 - **Requirement state:** fifteen passed (adding HS-015 under D-017); six HS requirements
   (HS-003/007/011/012/016/021) plus FS-001 not yet passed
-- **Last ledger update:** 2026-07-26; P08/01 scope adjudication resolved. Implementer p08-implementer-01
-  surfaced a D-013-vs-frozen-text tension (the full 29-clause epoch contract would force adding
-  `epoch`/`exact_operation_id`/frontier columns to the PRESERVED `vault_ops` boundary). Per the standing
-  over-scoped-stall rule root did NOT self-adjudicate and did NOT pause the human; it dispatched a distinct
-  fresh-context opus-tier scope adjudicator (`adjudications/P08-scope-01.md`), which ruled **(b)**: rescope
-  P08 to the boundary-safe frozen core, classify the epoch machinery as future-work with NO frozen mandate
-  (not a new package), keep `vault_ops` preserved (boundary change confirmed-but-moot, must NOT be made).
-  Transcribed to **D-018** (supersedes D-013 in part), **Q-029..Q-032** (implementer local Q-025..Q-028),
-  and a rescoped HANDOFF. Rolling scratch SHA unchanged `29bbb2fc…`; fifteen requirements `passed`, FS-001
-  immutable/open; no marker until independent PASS
+- **Last ledger update:** 2026-07-26; P08/01 independent review returned **CHANGES_REQUESTED**. Reviewer
+  first raised 2 blockers, then **WITHDREW B-1** (removal-without-rekey) after running the decisive query:
+  `rekey` was never auto-triggered at BASE (zero real call sites) NOR at HEAD, so revoke-without-rotate
+  downgrades no existing guarantee — item 3 MET. Root independently reconfirmed the zero-call-site fact at
+  both BASE `c5c9919` and HEAD `d2762f9`, plus the membership-scoped RLS + per-message realtime re-check that
+  provide preserved-strength revocation. **Sole remaining blocker B-2:** the acceptance handler
+  (`invite/[token]/page.tsx:191-203`) calls `markPendingPersonLink` + `router.push` but never `setActiveVault`,
+  so the shared vault never opens and HS-012 acceptance-side linkage never runs on the real journey. All other
+  DoD items pass (DoD 1/2/3, boundary empty-diff, secret-safety, trpc nonce fix, resolver ripple). Review
+  persisted; P08 `reviewing -> changes_requested`; HANDOFF rescoped to rev-02 (fix B-2 + N-4 honesty items).
+  Rolling scratch SHA unchanged `29bbb2fc…`; fifteen requirements `passed`; NO marker (no PASS). Re-tasking
+  `p08-implementer-01` for rev-02
 
 ## Package ledger
 
@@ -55,7 +64,7 @@ review evidence.
 | P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | passed | 13 | `92dfd4d002e8bcb2a6694c35aff8f713ba4689dc..b34dcf6ad53b6bb3fc6482180d2b0aaedd7fc1bc` | `evidence/P05/implementation-13.md` | `reviews/P05-review-13.md` | `8101bb2355a9894dd5cac9540afd38045973dd01` |
 | P06     | HS-010         | Remove unused user-state storage and dead API surface                               | P04                  | passed | 01  | `a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1..95e91dbcb17ffb9600eaa6cb795336898297ebae` | `evidence/P06/implementation-01.md` | `reviews/P06-review-01.md` | `8e269ab9a6fc15ed6d845542b879e5499828134e` |
 | P07     | HS-011         | Evidence-led person/member/invite UX architecture and acceptance decision           | P04, P06             | passed | 04  | `fe1871ce7dce1e831b57ee5656d38ce5c800aae3..dfffea3c19b110b6021b050b8d9e36b01ae75ab9` | `evidence/P07/implementation-04.md` | `reviews/P07-review-04.md` | `1f6cb96b27c8093f0ba2c319f32d3c79c8aab126` |
-| P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | reviewing    | 01  | `c5c99195bef523c1d4ba2f55e54c886a1aa68533..d2762f9`                                    | `evidence/P08/implementation-01.md` | `reviews/P08-review-01.md` | D-018 boundary-safe core (pending review)  |
+| P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | changes_requested | 02 | `c5c99195bef523c1d4ba2f55e54c886a1aa68533..d2762f9`                                    | `evidence/P08/implementation-01.md` | `reviews/P08-review-01.md` | D-018 core; B-1 withdrawn, B-2 open rev-02  |
 | P09     | HS-006         | Loro UndoManager integration, controls, shortcuts and action grouping               | P01                  | passed       | 02 | `c9146fae2c5534313d21b4f34cb2b012eaeeb4ed..418234e28ac649e03ce8ad184d08a8a2f2416149` | `evidence/P09/implementation-02.md` | `reviews/P09-review-02.md` | `59bf82e894e45e034858e25255240701a3afb0b8` |
 | P10     | HS-003         | Encrypted Loro EphemeralStore presence and active transaction                       | P05, P08             | queued       | —   | —                                                                                    | —                                   | —                          | —                                          |
 | P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | passed | 04 | `eb5ab2e215130c358130d5411a92b51951c3c53a..fb72abdaf531dff40c59f6b3525fb1b9ce50f805` | `evidence/P11A/implementation-04.md` | `reviews/P11A-review-04.md` | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f` |
@@ -3709,3 +3718,58 @@ proof, adjudicate the flagged out-of-surface changes, run all gates, and write `
 (uncommitted) with a PASS / CHANGES_REQUESTED verdict + blocking count. Package **P08** `implementing ->
 reviewing`. Rolling scratch SHA unchanged `29bbb2fc…`; fifteen requirements `passed`; no marker until
 independent PASS. Next: on PASS, two-commit integration + forward marker for HS-011 + HS-012.
+
+### 2026-07-26 — P08/01 changes_requested (review-01: 1 blocker B-2; B-1 withdrawn, item 3 MET) + rev-02 dispatch
+
+`p08-reviewer-01` (distinct fresh-context reviewer; not the implementer, not the scope adjudicator)
+returned **VERDICT: CHANGES_REQUESTED** on `reviews/P08-review-01.md` over BASE `c5c9919` -> HEAD `d2762f9`.
+It initially raised 2 blockers, then — prompted by root to adjudicate the removal nuance from the code
+rather than by inference — ran the decisive query and **WITHDREW B-1**, recording the withdrawal explicitly
+for the ledger rather than silently deleting it.
+
+**B-1 (DoD 3) — WITHDRAWN; item 3 MET.** The reviewer's original inference ("BASE had no removal UI, so a new
+removal UI that doesn't rotate is a regression") was overturned by the decisive comparison: `rekeyVault`,
+`performCompleteRekey`, `reencryptSnapshot` had ZERO real call sites at BASE `c5c9919` (only the
+`crypto/index.ts` barrel re-exports; the router's 6-step remove-then-rekey header was aspirational, step 6
+never called by any client) AND still zero at HEAD. Rotation posture is unchanged: BASE never rotated, HEAD
+never rotates — a capability that never existed cannot be downgraded. HEAD strictly ADDS owner-only
+membership revocation. Removed-member future-envelope access is revoked at exactly "the strength the preserved
+boundary already provides" (D-018's wording): `vault_ops` RLS is membership-scoped via `is_vault_member`
+(`005_vault_ops.sql:114`), and realtime re-checks membership on every message via `realtime_grant_allows`
+(`007_realtime_authorization.sql:36-66`, `revoked_at IS NULL`, 60s TTL). The residual (retained key +
+already-downloaded data) is the exact limit D-018 rules OUT and that even the 29-clause contract conceded it
+could not fix. Root independently reconfirmed the zero-call-site fact at both BASE and HEAD before accepting
+the withdrawal (verify-not-trust; a blocker removal is scope-relevant).
+
+**B-2 (DoD 4/5) — SOLE REMAINING BLOCKER.** Invite acceptance never switches the member into the shared vault:
+`invite/[token]/page.tsx:191-203` calls `markPendingPersonLink` + `router.push` but never `setActiveVault`;
+the `vault-provider.tsx:136-140` reconciler only reassigns when the current selection is INACCESSIBLE, and the
+member's own vault is accessible, so `consumePendingPersonLink` is never reached and no member Person
+materializes. Reviewer reproduced live (two-context probe): `openedShared=false`, marker stranded, member's
+People shows only "Me". Forcing the switch proves the linkage LOGIC is correct (both peers converge to 2
+persons, `Member <first8>` fallback renders, marker consumed) — this is a pure wiring defect. Aggravating: the
+`sessionStorage` consume-once marker has no reconciliation path, so a miss is permanent. The shipped E2E asserts
+only on the DB membership row, never on what the member's app opens, so it cannot catch this.
+
+**Non-blocking (N-4 revised + coverage):** (i) the remove control should state access is revoked but the key is
+NOT rotated (discharges the binding task's "removal/rekey implications explained"); (ii) add the DoD-5 removal
+authorization integration test (authorization itself is pre-existing/server-side, verified at
+`membership.ts:102-107` / `:196-201`); (iii) evidence section 4's "sealed-box rekey ... unchanged" overstates —
+no rekey runs at all (`sealKeyToBase64` reachable only from the uncalled `rekeyVault`); the "unchanged" part is
+fair.
+
+**Verified PASSES (reviewer reproduced, not trusted):** boundary EMPTY diff (zero epoch / exact_operation_id /
+fence / journal / saga hits); DoD 1 (real authenticated `crypto_box` unwrap + 32-byte validation + self-wrap,
+owner sender key resolved server-side from `vault_memberships.created_by`, fail-closed NOT_FOUND, `safeParse`
+replaces an `as` cast, RED placeholder guard real); DoD 2 (Settings-mounted surface, People hardcoding deleted
+at the type level, server-side owner authz); DoD 3 (revoke-at-preserved-strength, per above); secret-safety
+(synthetic vectors, zero `console.*` additions, plaintext `doc.toJSON()` dump removed); `trpc.ts` nonce memo
+justified (guard proven by reversion -> `auth-batch-nonce.test.ts` 2/2 FAIL then restored, replay preserved);
+Person.name resolver ripple justified across 7 files. Gates reproduced: typecheck PASS, lint 0 errors, `pnpm
+test` 1714 passed / 2 skipped, `pnpm test:e2e --retries=0` 123 passed / 0 failed; format:check fails only on 16
+root-owned `specs/**` docs (Q-024, not attributable).
+
+Root persisted the review (immutable) and did NOT integrate / did NOT apply any forward marker (no PASS).
+Package **P08** `reviewing -> changes_requested`. HANDOFF rescoped to **P08 / 02** fixing B-2 + N-4 with all
+rev-01 passes preserved. Re-tasked `p08-implementer-01` for rev-02.
+
