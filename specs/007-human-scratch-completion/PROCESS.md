@@ -330,14 +330,27 @@ fake an unreleased dependency.
 Before recording or halting on any `blocked_external` gate, root first runs a stall diagnosis and
 proves the blocking work traces to the mapped requirement's frozen `sourceTextLines` in SCOPE, not
 merely to an accumulated decision, risk, review tangent or inferred sub-goal. A block that does not
-trace to the frozen text is an over-scope, not an external gate: re-derive scope from the frozen
-source, record a `Q-*` proposal, and continue on the safest reversible path rather than halting.
-Because such a rescope reduces committed scope or supersedes a prior accepted decision, it is
-surfaced loudly -- logged as a proposal and named in the status report -- and is never a silent
-downgrade. Genuine halt-and-report is reserved for a block that both traces to frozen text and needs
-a capability root cannot obtain, with no independent work left. When a single external gate stalls
-the whole remaining graph, re-run this diagnosis on that gate before halting; a transitive freeze is
-the signal to re-derive, not to stop.
+trace to the frozen text is an over-scope, not an external gate.
+
+When resolving the over-scope would reduce committed scope or supersede a prior accepted decision,
+root neither self-adjudicates nor pauses for the human. Self-adjudication is barred because the
+coordinator has an interest in unblocking; the scope call gets the same independence the process
+already requires of every review. Root dispatches a distinct fresh-context scope adjudicator -- an
+independent reviewer-tier agent, opus-tier for a scope-reducing ruling, never the package's
+implementer or reviewer -- whose sole task is to rule, from the frozen `sourceTextLines`, the
+binding task and the decision being superseded, whether the blocked work is genuinely required or an
+over-scope. The adjudicator defaults to the block standing unless the frozen text plainly does not
+require the blocked work. Its written ruling is the authority: root transcribes it into
+DECISIONS/QUESTIONS with a link to the ruling artifact, proceeds on that verdict via the safest
+reversible path, and names it in the status report for after-the-fact human audit. This keeps the
+scope call independent of the coordinator, without a human pause and without loading the research
+into root context.
+
+Genuine halt-and-report is reserved for a block that both traces to frozen text and needs a
+capability root cannot obtain, with no independent work left. When a single external gate stalls the
+whole remaining graph, run this diagnosis -- and, for a scope-reducing resolution, the independent
+adjudication -- on that gate before halting; a transitive freeze is the signal to adjudicate, not to
+stop.
 
 Every package runs affected tests and relevant no-retry E2E/manual charter. High-risk milestones and
 P21 run build, full unit/integration/E2E, migration/security checks. Diagnose every inconsistent
