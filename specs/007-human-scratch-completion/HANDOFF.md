@@ -1,94 +1,90 @@
-# HANDOFF — P20B REVIEW dispatch (revision 01 — HS-021 full-codebase sweep) — to `p20b-reviewer-01`
+# HANDOFF — P21 final-audit COLLECTOR dispatch (revision 01 — executable completion gate) — to `p21-collector-01`
 
-**To:** `p20b-reviewer-01` — a DISTINCT, fresh-context reviewer who did NOT implement P20B.
-**From:** root coordinator. This is an independent review dispatch, not an integration. Your job is
-to adversarially verify the P20B revision-01 committed range and return a single **VERDICT: PASS**
-or **VERDICT: FAIL** with blocking findings enumerated. Root has already run a boundary-level
-verify-not-trust and found it clean; you must re-derive everything yourself and go deeper — root's
-pass is not yours to inherit.
+**To:** `p21-collector-01` — a fresh-context agent acting as the `human_scratch_implementer` in the
+narrow role of FINAL-AUDIT EVIDENCE COLLECTOR. **From:** root coordinator. This is the goal's
+completion gate. You do NOT implement, fix, or integrate anything. You RUN the full audit, observe,
+and write your findings to exactly one file. You commit NOTHING.
 
-## Scope under review
+## Literal coordinates
 
-- **Package:** P20B — HS-021, "Full-codebase style-guide/code-quality sweep after all feature work."
-- **Committed range:** `659ca20..f058a98` (BASE `659ca20` is the P20A Commit-B HEAD; 20
-  single-parent commits, no merges). The implementer reported "23 commits" — that is a benign
-  miscount; git shows 20. Confirm the count yourself.
-- **Evidence to read:** `evidence/P20B/implementation-01.md` (inventory + fixes + Q-proposals §3),
-  `implementation-02.md` (E2E + manual charter), `implementation-03.md` (findings B-13/B-14/B-15,
-  re-run gate counts, the reverted `pnpm format` incident, Q-13).
-- **Requirement text is frozen:** read HS-021 in `specs/human-scratch.md` and the mapped 008 spec
-  section. Judge PASS/FAIL against the FROZEN requirement, not against the implementer's evidence.
+- **Package:** P21 (control; no scratch requirement, no marker).
+- **BASE == HEAD == `4c20206`.** The range is expected EMPTY. You must not create commits; if the
+  tree gains committed changes, that is a reconciliation event for root, not you.
+- **Your ONLY persistent write:**
+  `specs/007-human-scratch-completion/evidence/P21/implementation-01.md` (create the `evidence/P21/`
+  directory). Do NOT write or edit any product/test/migration file, any other evidence/review file,
+  any ledger (`PROGRESS.md`/`SCOPE.json`/`QUESTIONS.md`/`HANDOFF.md`/
+  `DECISIONS.md`/`FINAL-AUDIT.md`), `tasks/**`, or `specs/human-scratch.md`. No `git add`/`commit`/
+  `checkout`/`reset`/`branch`/`rebase`. You may create disposable browser/test/IndexedDB state and
+  isolated synthetic users, then clean them up.
 
-## What you must independently do
+## Current verified state (root already established — re-verify, do not assume)
 
-1. **Re-run ALL gates** against a clean checkout of HEAD `f058a98`:
-   `pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm test:e2e` plus
-   `pnpm build`. Report the REAL counts you observe; do not copy the implementer's. `format:check`
-   failing ONLY on pre-existing `specs/**` markdown (including frozen `human-scratch.md`, which must
-   NOT be reformatted) is non-blocking; any touched `.ts`/`.tsx` failing oxfmt is blocking.
-2. **Re-derive the cast counts** across the range yourself (`as`, `any`, non-null `!` in PRODUCT
-   code, excluding tests). Cast counts are grep-PATTERN-sensitive, so state the exact pattern you
-   use and compare BASE `659ca20` to HEAD `f058a98` with that SAME pattern. The claim that matters
-   is DIRECTIONAL and per-commit-checkable regardless of pattern: net direction DOWN and NO new
-   `as`/`any`/`!` introduced into product code by any commit in the range. For reference, root
-   re-derived with `git grep -hEn ' as [A-Za-z_{(]' <ref> -- 'src/**/*.ts' 'src/**/*.tsx'`: `as`
-   420->369, and `any` (`: any`/`<any>`/`as any`) 9->6, non-null `!` flat — but do NOT try to
-   reconcile against any specific figure whose pattern is unstated; use your own pattern and confirm
-   the direction.
-3. **Verify each behaviour-changing fix is real AND regression-tested** — walk the commits and
-   confirm the claimed defect existed and the fix addresses it with a test that fails without it.
-   Non-exhaustive list to check: `compareTransactionOrder` NaN for manual rows; snapshot base64
-   `RangeError` past ~125 KB; OFX negative-UTC off-by-one; `minDescriptionSimilarity` unenforced;
-   module-level import-config mutation (now `readonly` + `structuredClone`); async `beforeunload`;
-   dead `dark:` utilities; `detectNumberFormat` sign/space-separator repair
-   (`FormattingTab.tsx:138` + `tests/unit/components/formatting-detection.test.ts`); the B-15
-   unlock-journey pre-hydration flake fix in `identity.spec.ts` (commit `3a241f8`).
-4. **Hunt for missed or newly-introduced violations** — this is a full-codebase style/quality sweep,
-   so a spot-check is not enough. Look for style-guide breaches the sweep should have caught but
-   didn't, and for any regression the sweep itself introduced.
-5. **Explicitly rule on EVERY deferral Q-P20B-00..13** (root has transcribed them into
-   `QUESTIONS.md`; the implementer's rationale is in `evidence/P20B/implementation-01.md §3` and
-   `implementation-03.md`). For each: is deferral acceptable for HS-021 to be considered met, or
-   does it block? Two need special attention:
-    - **Q-P20B-00 — `pruneBuckets` concurrent-write data loss** (blocker-class, deliberately left
-      unfixed and surfaced). Reproduce the two-peer scenario (including the `moveTransaction` path).
-      Decide accept-defer-with-tracked-followup vs bounce. State your reasoning against the frozen
-      requirement — HS-021 is a style/quality sweep, so whether a latent CRDT data-loss bug is in
-      scope for THIS package is itself a judgement you must make and defend.
-    - **Q-P20B-13 — residual `import.spec.ts:301` vault-session-init flake** (~1-in-489, test
-      byte-identical to BASE, deliberately not retry-papered). Decide accept vs bounce.
-    - Note also Q-P20B-06 (ts-pattern mandated but not installed) and Q-P20B-08 (branded key types
-      mandated but absent) are root rule-vs-reality items; assess whether their deferral is honestly
-      surfaced, but you need not resolve the rule conflict — flag it to root.
+- All 31 feature packages P00–P20B `passed`; all 22 requirement rows `passed`; P21 is the only open
+  package. Authorized checked HS IDs = 21 (HS-001..HS-021); FS-001 is markerless.
+- Rolling scratch SHA `469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a` ==
+  `sha256sum specs/human-scratch.md`; normalized scope byte-matches SCOPE (21 blocks / 0
+  mismatches).
+- FS-001 hard boundary: `specs/008-.../spec.md` sha256
+  `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines, 25,441 bytes;
+  `src/lib/domain/settlement.ts` blob `010f3c93582a2ce311594d4dde8464760ca49c43`.
+- History is linear single-parent, no merges. Worktree carries only generated `next-env.d.ts` churn
+  and an inert untracked `evidence/P08/implementation-01.md` stray (self-labeled "Intentionally
+  UNCOMMITTED", references old BASE `97d85844`, outside every committed range). Classify that stray
+  in your evidence; do not delete it.
 
-## Boundaries you must confirm untouched (blocking if violated)
+## Audit contract — evidence must record, for every item: exact command(s), timestamp, status, duration, counts/seeds, reproduction, and sanitized output
 
-- Frozen `specs/human-scratch.md` — byte-identical across the whole range (git blob at HEAD
-  `e1c9a8654dc85c051334e0ea57a5a2f50f889d95`, on-disk sha256 `f46c2d35…`).
-- `specs/008-.../spec.md` — canonical, unchanged.
-- `src/lib/domain/settlement.ts` — blob MUST remain `010f3c93582a2ce311594d4dde8464760ca49c43`
-  (FS-001 hard boundary).
-- Root-owned files (`PROGRESS.md`, `SCOPE.json`, `QUESTIONS.md`, `HANDOFF.md`, `DECISIONS.md`,
-  `FINAL-AUDIT.md`, `reviews/**` except your own file, `tasks/**`) untouched by any implementer
-  commit in the range. (Root's own commits `47e197f` and `fd0729c` touched ledgers — that is
-  expected and not an implementer violation.)
-- No secret material anywhere in code/tests/evidence (no vault master key, invite-fragment bearer
-  secret, `crypto_box` secret material, seed phrase, recovery material, `SUPABASE_JWT_SECRET`,
-  vault-derived presence key, or vault plaintext). Tests use public/synthetic vectors only. Any real
-  leak is BLOCKING and must be reported to root immediately.
+1. **Reconciliation & provenance:** scope/package/review/integration/question/marker rows all agree
+   with git; final repository provenance (HEAD, linear history, no merges); the 22 requirement rows
+   and 21 authorized markers; confirm no unclassified drift.
+2. **Dependency currency + P03 primary-source release-gate recheck** (versions still safe-chain).
+3. **Migrations:** fresh migrate + supported-upgrade path; existing IndexedDB/vault compatibility.
+4. **Gates:** `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm build`, and ALL
+   unit/property/integration tests (`pnpm test`). Record exact pass/fail/skip counts and durations.
+   Any `.ts`/`.tsx` oxfmt failure is blocking; `specs/**` markdown format failures are pre-existing
+   and non-blocking (do NOT reformat `human-scratch.md`).
+5. **E2E with retries disabled** (`pnpm test:e2e`), plus repeat the critical journeys enough times
+   to expose flakes. Two residual flakes are already tracked and must be characterized, not papered:
+   **`import.spec.ts:301`** (~1-in-489 vault-session race, Q-P20B-13) and the **`duplicates.test.ts`
+   perf timing-ratio** unit flake (Q-P20A-05, passes in isolation). Report observed rates; a NEW
+   flake or a logic failure is blocking.
+6. **Security:** malicious cross-vault API/database/realtime/invite/auth attempts must be rejected;
+   inspect logs/URLs/fixtures/storage for any secret or plaintext (vault master key, invite-fragment
+   bearer secret, `crypto_box` secret material, seed phrase, recovery material,
+   `SUPABASE_JWT_SECRET`, vault-derived presence key, vault plaintext). ANY real secret/plaintext
+   exposure is BLOCKING and must be reported to root (SendMessage `main`) immediately.
+7. **Performance:** large import/table/alias/automation/GC/allocation; duplicate-tab convergence;
+   **sub-100ms allocation edits** and **near-linear ~100k/200ms settlement** evidence (or the
+   canonical measured follow-up).
+8. **Manual product journey** via disposable headless Playwright CLI + isolated users: recovery/
+   passkey, vaults, imports/drop zones/provenance, transactions/empty rows, aliases, tags,
+   allocations, automations, undo/redo, people/invites/realtime/presence, and marketing copy
+   truthfulness. NEVER run Playwright with `--debug`/`--ui`/`--headed`/`show` (blocks on a GUI).
+9. **Responsive/state matrix:** pointer/keyboard/focus; desktop + mobile; 320px reflow; 200% zoom;
+   dark + reduced-motion; empty/loading/error/offline; refresh; multi-tab.
+10. **Accessibility:** deterministic role/name/state snapshots and computed contrast ratios for
+    focus/error/status/changed controls.
+11. **Exhaustive FS-001 audit:** signed unit conservation; separate named production unit/property
+    expectations AND separate named E2E expectations for EACH canonical example A–H; owner
+    remainder/effective totals; reject-never-clamp; sole per-currency settlement engine; typed
+    invalid-data issues; traceable obligations/source navigation; all P16C current mutation paths;
+    the actual virtualized/historical/presence grid/add-row UX; and P17 complete-set API use.
+12. **Throughout:** console + suspicious/failed network inspection; and restate the complete set of
+    open Q proposals (Q-P20B-00 `pruneBuckets` CRDT data loss routed to the owning package;
+    Q-P20B-13 / Q-P20A-05 flakes; Q-P17D-02 dead `description-rule-state.ts`; Q-P20A-02 stale
+    XChaCha20 comments; Q-P20B-06/08 rule-vs-reality ts-pattern/branded-keys) so none is silently
+    dropped.
 
-## Your write boundary
-
-You may write ONLY `reviews/P20B-review-01.md` and notes under `evidence/P20B/**`. Do NOT edit any
-other root-owned file, product code, or tests. Do NOT touch `specs/human-scratch.md`. Do NOT
-`checkout`/`reset`/`branch`/`rebase`. No parentheses in any commit message. If you commit your
-review, use an explicit pathspec so nothing else is swept in.
+Use only PROCESS-permitted CLI run-code/eval for observation/media/accessibility. Propose the
+FINAL-AUDIT contents inside your evidence file — only root transcribes them, and only after an
+independent reviewer PASS.
 
 ## Handback
 
-SendMessage to `main` with: **VERDICT: PASS** or **VERDICT: FAIL**; the exact HEAD you reviewed and
-the gate counts you observed; your independently-derived cast counts; a per-fix
-real/regression-tested confirmation; a per-deferral ruling for Q-P20B-00..13 (with your Q-P20B-00
-and Q-P20B-13 reasoning spelled out); and any blocking findings. Verify every claim against git
-before handing back — do not trust the implementer's evidence where you can re-derive from the
-commits themselves.
+SendMessage to `main` with: confirmation the tree is still at HEAD `4c20206` with no new commits and
+`git status --porcelain` proof; a top-line PASS-candidate/FAIL summary; the blocking findings (if
+any); and the exact path `evidence/P21/implementation-01.md`. Any failing check, unexplained flake,
+material UX/a11y/security/data/perf finding, false marketing claim, missing evidence, write-boundary
+breach, or unclassified drift is a FAIL — report it honestly rather than papering it. Verify every
+headline claim against git/commands before handing back.
