@@ -5392,3 +5392,9 @@ cleans sessions/secrets. On collector handback root confirms HEAD still == BASE,
 DISTINCT `p21-reviewer-01` (`reviews/P21-review-01.md`) for a single unconditional PASS/FAIL. Only
 after independent PASS does root transcribe FINAL-AUDIT.md, set P21 `passed`, and check the GOAL
 definition-of-done.
+
+Collector `p21-collector-01` DISPATCHED (fresh context) at root HEAD `79dc067`. Dispatch is
+SHA-stable: the collector records its own start HEAD, verifies BASE `4c20206`..HEAD contains ONLY
+root-owned ledger commits (`PROGRESS.md` + `HANDOFF.md`, product range empty), and must hand back
+with HEAD unchanged and zero new commits. Awaiting handback; on receipt root re-verifies the empty
+product range read-only before dispatching the distinct reviewer.
