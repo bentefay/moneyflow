@@ -602,10 +602,18 @@ test.describe("Identity", () => {
         await test.step("fill the canonical credential only, then unlock", async () => {
             await page.goto("/unlock");
             const credential = page.getByTestId("recovery-phrase-credential");
+
+            // The credential is a controlled React input, so a fill that lands before hydration
+            // is dropped: the DOM value is overwritten by the next render and onChange never
+            // fires, leaving the word grid empty and the button disabled forever. The preceding
+            // step deliberately tests the pre-hydration race; this one tests the ordinary path,
+            // so wait for the grid to be interactive first rather than racing it.
+            await expect(page.getByTestId("seed-word-input-0")).toBeEditable();
             await credential.fill(savedPhrase);
+            await expect(page.getByTestId("seed-word-input-0")).not.toHaveValue("");
 
             const unlockButton = page.getByTestId("unlock-button");
-            await expect(unlockButton).toBeEnabled({ timeout: 5000 });
+            await expect(unlockButton).toBeEnabled({ timeout: 15000 });
             await unlockButton.click();
 
             await page.waitForURL("**/transactions", { timeout: 15000 });
