@@ -6,8 +6,12 @@
   verdicts).
 - **You are the final-audit EVIDENCE COLLECTOR**, not the gate. A DISTINCT reviewer gives the formal
   verdict afterward. Your candidate PASS/FAIL is advisory; root routes on the reviewer's verdict.
-- **BASE == HEAD == `ffc76b9`.** The tree must stay at this HEAD. Commit NOTHING; make no product,
-  test, migration, or ledger edits. `BASE == HEAD` is required — if HEAD moves, tell root.
+- **BASE = current `main` tip** (run `git rev-parse HEAD` at start — it is a root docs commit; the
+  docs tip may advance as root records events, so pin PRODUCT identity, not a frozen hash). The
+  product tree MUST be byte-identical to the last product commit `371a88a` (the HS-002 fix): verify
+  `git diff 371a88a HEAD -- . ':(exclude)specs'` is EMPTY. Commit NOTHING; make no product, test,
+  migration, or ledger edits. If any PRODUCT file differs from `371a88a`, or HEAD's product changes
+  while you run, STOP and tell root.
 - **Your ONLY allowed persistent write:**
   `specs/007-human-scratch-completion/evidence/P21/implementation-04.md`. You MAY create disposable
   browser/test/session state, but clean it up and commit nothing.
@@ -22,7 +26,7 @@
   self-labeled "Intentionally UNCOMMITTED" artifact, outside any committed range; left pending
   disposition. Neither affects integrity. Both are recorded in PROGRESS "Anomaly noted (inert)".
 
-## Entry conditions (root pre-verified at `ffc76b9` — re-confirm independently)
+## Entry conditions (root pre-verified at product `371a88a` — re-confirm independently)
 
 - 21 of 21 feature packages `passed`; only control P21 is `changes_requested`. 22 of 22 requirement
   rows `passed`.
@@ -43,9 +47,9 @@ reproduction. In summary the required coverage is:
 
 1. scope/package/review/integration/question/marker reconciliation + repository provenance;
 2. **dependency currency + the HS-002 fix**: `pnpm audit --prod` MUST be exit 0 / 0 advisories at
-   `ffc76b9` (resolved `next@16.2.11` — the safe-chain-supported latest, NOT age-suppressed 16.2.12
-   — and `sharp@0.35.3` via the workspace override); P03 TanStack Virtual primary-source
-   release-gate recheck;
+   the current product tree `371a88a` (resolved `next@16.2.11` — the safe-chain-supported latest,
+   NOT age-suppressed 16.2.12 — and `sharp@0.35.3` via the workspace override); P03 TanStack Virtual
+   primary-source release-gate recheck;
 3. fresh + supported-upgrade migrations, IndexedDB/vault compatibility;
 4. `pnpm format:check` (only frozen `specs/**` md may flag — known-acceptable), `pnpm lint` (0
    errors; the one `TransactionTable.tsx:401` react-hooks/incompatible-library WARNING is
