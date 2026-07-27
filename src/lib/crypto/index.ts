@@ -4,7 +4,7 @@
  * Client-side cryptography for MoneyFlow:
  * - BIP39 seed phrase generation
  * - Ed25519/X25519 keypair derivation
- * - XChaCha20-Poly1305 encryption
+ * - XSalsa20-Poly1305 encryption via crypto_secretbox
  * - X25519 key wrapping
  * - Ed25519 request signing
  */

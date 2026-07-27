@@ -24,6 +24,7 @@ import {
     type RuleMatchSubject,
     selectWinningRule
 } from "@/lib/domain/automation/rules";
+import { assertNever } from "@/lib/utils/exhaustive";
 
 export type FieldRuleRobotState =
     | { readonly kind: "none" }
@@ -41,10 +42,6 @@ export type RobotCurrentValue =
           readonly field: "allocation";
           readonly currentAllocations: Readonly<Record<string, number>>;
       };
-
-function assertNever(value: never): never {
-    throw new Error(`Unexpected robot value: ${JSON.stringify(value)}`);
-}
 
 function sameSequence(left: readonly string[], right: readonly string[]): boolean {
     return left.length === right.length && left.every((value, index) => value === right[index]);
@@ -98,6 +95,6 @@ export function computeFieldRuleRobotState(
                 : { kind: "drift", rule: winner };
         }
         default:
-            return assertNever(current);
+            return assertNever(current, "robot value");
     }
 }

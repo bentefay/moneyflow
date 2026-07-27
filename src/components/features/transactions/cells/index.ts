@@ -17,5 +17,4 @@ export {
     type InlineEditableTagsProps,
     type TagOption
 } from "./InlineEditableTags";
-export { InlineEditableText, type InlineEditableTextProps } from "./InlineEditableText";
 export { PersonAllocationCell, type PersonAllocationCellProps } from "./PersonAllocationCell";

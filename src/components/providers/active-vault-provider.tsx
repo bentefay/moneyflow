@@ -14,7 +14,8 @@
  * - Components use useActiveVaultContext() instead of the old hook
  */
 
-import { createContext, type ReactNode, useCallback, useContext, useState } from "react";
+import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from "react";
+import { z } from "zod";
 
 // ============================================================================
 // Constants
@@ -26,10 +27,18 @@ const ACTIVE_VAULT_STORAGE_KEY = "moneyflow_active_vault";
 // Types
 // ============================================================================
 
-export interface ActiveVault {
-    id: string;
-    name?: string;
-}
+/**
+ * Wire shape of the persisted vault.
+ *
+ * localStorage is a boundary: a corrupt or hand-edited entry previously produced an ActiveVault
+ * with an undefined id, which then drove vault initialisation.
+ */
+const ActiveVaultSchema = z.object({
+    id: z.string().min(1),
+    name: z.string().optional()
+});
+
+export type ActiveVault = z.infer<typeof ActiveVaultSchema>;
 
 interface ActiveVaultContextValue {
     /** The currently active vault */
@@ -51,31 +60,6 @@ interface ActiveVaultContextValue {
 const ActiveVaultContext = createContext<ActiveVaultContextValue | null>(null);
 
 // ============================================================================
-// Storage Helper (for use outside React)
-// ============================================================================
-
-/**
- * Get the active vault from localStorage synchronously.
- * Safe to call during component initialization.
- */
-function getActiveVaultFromStorage(): ActiveVault | null {
-    if (typeof window === "undefined" || typeof localStorage === "undefined") {
-        return null;
-    }
-
-    try {
-        const stored = localStorage.getItem(ACTIVE_VAULT_STORAGE_KEY);
-        if (stored) {
-            return JSON.parse(stored) as ActiveVault;
-        }
-    } catch (error) {
-        console.error("Failed to read active vault from storage:", error);
-    }
-
-    return null;
-}
-
-// ============================================================================
 // Provider
 // ============================================================================
 
@@ -90,7 +74,7 @@ export function ActiveVaultProvider({ children, initialVault }: ActiveVaultProvi
     // This avoids the flash of "no vault selected" on navigation
     const [activeVault, setActiveVaultState] = useState<ActiveVault | null>(() => {
         if (initialVault) return initialVault;
-        return getActiveVaultFromStorage();
+        return getActiveVaultStorage();
     });
     // Reserved: const [_isLoading, _setIsLoading] = useState(false);
 
@@ -114,13 +98,17 @@ export function ActiveVaultProvider({ children, initialVault }: ActiveVaultProvi
         setActiveVault(null);
     }, [setActiveVault]);
 
-    const value: ActiveVaultContextValue = {
-        activeVault,
-        isLoading: false, // Reserved for future async loading
-        setActiveVault,
-        clearActiveVault,
-        hasActiveVault: activeVault !== null
-    };
+    // Memoized because this provider wraps the app: a fresh object re-renders every consumer.
+    const value = useMemo<ActiveVaultContextValue>(
+        () => ({
+            activeVault,
+            isLoading: false, // Reserved for future async loading
+            setActiveVault,
+            clearActiveVault,
+            hasActiveVault: activeVault !== null
+        }),
+        [activeVault, setActiveVault, clearActiveVault]
+    );
 
     return <ActiveVaultContext.Provider value={value}>{children}</ActiveVaultContext.Provider>;
 }
@@ -177,9 +165,14 @@ export function getActiveVaultStorage(): ActiveVault | null {
 
     try {
         const stored = localStorage.getItem(ACTIVE_VAULT_STORAGE_KEY);
-        if (stored) {
-            return JSON.parse(stored) as ActiveVault;
+        if (stored == null) return null;
+
+        const parsed = ActiveVaultSchema.safeParse(JSON.parse(stored));
+        if (!parsed.success) {
+            console.error("Discarding malformed active vault in storage:", parsed.error.message);
+            return null;
         }
+        return parsed.data;
     } catch (error) {
         console.error("Failed to read active vault from storage:", error);
     }

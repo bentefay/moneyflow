@@ -22,6 +22,7 @@ import { getEntriesOfLoroMap } from "@/lib/crdt/utils";
 import { getSessionPubkeyHash } from "@/lib/crypto/session";
 import { cn } from "@/lib/utils";
 
+import { insertIntoDraftRecord } from "../draft-record";
 import { BalanceSummary } from "./BalanceSummary";
 import { PersonRow } from "./PersonRow";
 
@@ -78,8 +79,7 @@ export function PeopleTable({ className }: PeopleTableProps) {
             switch (action.type) {
                 case "add":
                     if (action.data) {
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        (draft.people as any)[action.id] = action.data as PersonInput;
+                        insertIntoDraftRecord(draft.people, action.id, action.data);
                     }
                     break;
                 case "update":

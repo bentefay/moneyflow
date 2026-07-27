@@ -12,10 +12,7 @@
  * four-mode type across the whole feature, never a parallel one.
  */
 
-/** Compile-time exhaustiveness guard (ts-pattern is not a dependency of this package). */
-function assertNever(value: never): never {
-    throw new Error(`Unexpected apply mode: ${JSON.stringify(value)}`);
-}
+import { assertNever } from "@/lib/utils/exhaustive";
 
 export type ApplyMode = "updatingAll" | "updatingNew" | "updateAll" | "updateNew";
 
@@ -50,7 +47,7 @@ export function applyModeTargetsNewOnly(mode: ApplyMode): boolean {
         case "updateAll":
             return false;
         default:
-            return assertNever(mode);
+            return assertNever(mode, "apply mode");
     }
 }
 
@@ -64,6 +61,6 @@ export function applyModeIsAutomatic(mode: ApplyMode): boolean {
         case "updateNew":
             return false;
         default:
-            return assertNever(mode);
+            return assertNever(mode, "apply mode");
     }
 }

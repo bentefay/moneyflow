@@ -1,3 +1,5 @@
+"use client";
+
 import { useCallback } from "react";
 
 import { Checkbox } from "@/components/ui/checkbox";
@@ -63,7 +65,7 @@ export function CheckboxCell({
     return (
         <div
             className={cn("relative flex h-full w-full items-center justify-center", className)}
-            role="gridcell"
+            role="presentation"
         >
             <Checkbox
                 checked={indeterminate ? "indeterminate" : checked}

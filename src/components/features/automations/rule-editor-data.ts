@@ -10,6 +10,7 @@
 import { type FieldRuleMutationError } from "@/lib/crdt/field-rule-mutations";
 import { type FieldRule } from "@/lib/domain/automation/rules";
 import { toMajorUnits } from "@/lib/domain/currency";
+import { assertNever } from "@/lib/utils/exhaustive";
 
 import { type ApplyMode, emptyRuleDraft, type RuleEditorDraft } from "./rule-editor-model";
 
@@ -65,8 +66,4 @@ export function mutationErrorToFieldErrors(error: FieldRuleMutationError): {
         default:
             return assertNever(error);
     }
-}
-
-function assertNever(value: never): never {
-    throw new Error(`Unexpected value: ${JSON.stringify(value)}`);
 }

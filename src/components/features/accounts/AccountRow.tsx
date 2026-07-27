@@ -22,6 +22,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useTransientFlag } from "@/components/ui/use-transient-flag";
 import { resolvePersonDisplayName } from "@/lib/crdt/person";
 import type { Account, Person } from "@/lib/crdt/schema";
 import { Currencies } from "@/lib/domain/currencies";
@@ -40,8 +41,11 @@ import { OwnershipEditor } from "./OwnershipEditor";
 export interface AccountRowProps {
     /** Account data */
     account: Account;
-    /** All people in the vault (for displaying owner names) */
-    people: Record<string, Person>;
+    /**
+     * All people in the vault, keyed by id. Loro map projections can also carry the `$cid`
+     * container marker as a plain string, so the row guards on the value shape before reading it.
+     */
+    people: Record<string, Person | string>;
     /** Vault's default currency code (used for fallback display) */
     vaultDefaultCurrency: string;
     /** Callback when account is updated */
@@ -58,6 +62,9 @@ export interface AccountRowProps {
     className?: string;
 }
 
+/** How long the two-click delete confirmation stays armed. */
+const DELETE_CONFIRM_MS = 3000;
+
 /** Account type labels */
 const ACCOUNT_TYPES: Record<string, string> = {
     checking: "Checking",
@@ -70,6 +77,21 @@ const ACCOUNT_TYPES: Record<string, string> = {
 
 /** Which field is currently being edited (or "all" for full edit mode) */
 type EditingField = "name" | "accountNumber" | "type" | "currency" | "all" | null;
+
+/**
+ * Activates a `role="button"` element from the keyboard.
+ *
+ * Enter and Space are the two keys a native button responds to, so div/span affordances must
+ * reproduce them to stay reachable without a mouse.
+ */
+function activateOnEnterOrSpace(activate: () => void) {
+    return (event: React.KeyboardEvent) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        event.stopPropagation();
+        activate();
+    };
+}
 
 /**
  * Account row component with per-field inline editing.
@@ -93,7 +115,11 @@ export function AccountRow({
         "checking" | "savings" | "credit" | "cash" | "loan"
     >(account.accountType || "checking");
     const [editedCurrency, setEditedCurrency] = useState(account.currency || "");
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const {
+        isActive: showDeleteConfirm,
+        activate: armDeleteConfirm,
+        reset: clearDeleteConfirm
+    } = useTransientFlag(DELETE_CONFIRM_MS);
     const [previousAccount, setPreviousAccount] = useState(account);
 
     // Adjust draft state during render when an externally updated account arrives.
@@ -205,6 +231,15 @@ export function AccountRow({
         setEditingField(field);
     }, []);
 
+    // Toggle the ownership panel from the dedicated expand control
+    const handleExpandClick = useCallback(
+        (e: React.MouseEvent) => {
+            e.stopPropagation();
+            onToggleExpand?.();
+        },
+        [onToggleExpand]
+    );
+
     // Enter full edit mode (all fields editable)
     const enterEditMode = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
@@ -268,13 +303,12 @@ export function AccountRow({
             e.stopPropagation();
             if (showDeleteConfirm) {
                 onDelete(account.id);
-                setShowDeleteConfirm(false);
+                clearDeleteConfirm();
             } else {
-                setShowDeleteConfirm(true);
-                setTimeout(() => setShowDeleteConfirm(false), 3000);
+                armDeleteConfirm();
             }
         },
-        [account.id, onDelete, showDeleteConfirm]
+        [account.id, armDeleteConfirm, clearDeleteConfirm, onDelete, showDeleteConfirm]
     );
 
     // Check if ownerships are valid
@@ -287,6 +321,7 @@ export function AccountRow({
                 !ownershipsValid && "border-l-4 border-l-amber-400",
                 className
             )}
+            role="presentation"
         >
             {/* Main row */}
             <div
@@ -298,21 +333,33 @@ export function AccountRow({
                 onClick={onToggleExpand}
                 role="row"
             >
-                {/* Expand/collapse indicator */}
-                <div className="text-muted-foreground w-5 shrink-0">
-                    <svg
-                        className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-90")}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
+                {/* Expand/collapse control — the keyboard route into the ownership panel. */}
+                <div className="w-5 shrink-0">
+                    <button
+                        type="button"
+                        onClick={handleExpandClick}
+                        aria-expanded={isExpanded}
+                        aria-label={`${isExpanded ? "Collapse" : "Expand"} ownership for ${account.name}`}
+                        className="text-muted-foreground hover:text-foreground focus-visible:ring-ring flex h-5 w-5 items-center justify-center rounded focus-visible:ring-2 focus-visible:outline-none"
                     >
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 5l7 7-7 7"
-                        />
-                    </svg>
+                        <svg
+                            className={cn(
+                                "h-4 w-4 transition-transform",
+                                isExpanded && "rotate-90"
+                            )}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            aria-hidden="true"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 5l7 7-7 7"
+                            />
+                        </svg>
+                    </button>
                 </div>
 
                 {/* Account name & number */}
@@ -334,9 +381,13 @@ export function AccountRow({
                         <div
                             className={cn(
                                 "group/name -mx-1 cursor-text truncate rounded px-1 font-medium",
-                                "hover:bg-accent/50 hover:ring-border hover:ring-1"
+                                "hover:bg-accent/50 hover:ring-border hover:ring-1",
+                                "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none"
                             )}
                             onClick={(e) => startEditing("name", e)}
+                            onKeyDown={activateOnEnterOrSpace(() => setEditingField("name"))}
+                            role="button"
+                            tabIndex={0}
                             title="Click to edit name"
                         >
                             {account.name}
@@ -362,9 +413,15 @@ export function AccountRow({
                         <div
                             className={cn(
                                 "text-muted-foreground -mx-1 cursor-text truncate rounded px-1 text-sm",
-                                "hover:bg-accent/50 hover:ring-border hover:ring-1"
+                                "hover:bg-accent/50 hover:ring-border hover:ring-1",
+                                "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none"
                             )}
                             onClick={(e) => startEditing("accountNumber", e)}
+                            onKeyDown={activateOnEnterOrSpace(() =>
+                                setEditingField("accountNumber")
+                            )}
+                            role="button"
+                            tabIndex={0}
                             title="Click to edit account number"
                         >
                             ···{account.accountNumber.slice(-4)}
@@ -373,9 +430,15 @@ export function AccountRow({
                         <div
                             className={cn(
                                 "text-muted-foreground/50 -mx-1 cursor-text rounded px-1 text-sm italic",
-                                "hover:bg-accent/50 hover:ring-border hover:ring-1"
+                                "hover:bg-accent/50 hover:ring-border hover:ring-1",
+                                "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none"
                             )}
                             onClick={(e) => startEditing("accountNumber", e)}
+                            onKeyDown={activateOnEnterOrSpace(() =>
+                                setEditingField("accountNumber")
+                            )}
+                            role="button"
+                            tabIndex={0}
                             title="Click to add account number"
                         >
                             No account number
@@ -419,10 +482,14 @@ export function AccountRow({
                     ) : (
                         <span
                             className={cn(
-                                "bg-muted text-muted-foreground cursor-pointer rounded px-2 py-0.5 text-xs",
-                                "hover:bg-accent hover:ring-border hover:ring-1"
+                                "bg-muted text-muted-foreground inline-block cursor-pointer rounded px-2 py-0.5 text-xs",
+                                "hover:bg-accent hover:ring-border hover:ring-1",
+                                "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none"
                             )}
                             onClick={(e) => startEditing("type", e)}
+                            onKeyDown={activateOnEnterOrSpace(() => setEditingField("type"))}
+                            role="button"
+                            tabIndex={0}
                             title="Click to change type"
                         >
                             {ACCOUNT_TYPES[account.accountType || "checking"] ||
@@ -447,9 +514,13 @@ export function AccountRow({
                             className={cn(
                                 "-mx-1 inline-flex cursor-pointer items-center gap-1 rounded px-1",
                                 "hover:bg-accent/50 hover:ring-border hover:ring-1",
+                                "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
                                 isInherited && "text-muted-foreground"
                             )}
                             onClick={(e) => startEditing("currency", e)}
+                            onKeyDown={activateOnEnterOrSpace(() => setEditingField("currency"))}
+                            role="button"
+                            tabIndex={0}
                             title="Click to change currency"
                         >
                             {resolvedCurrency}
@@ -479,7 +550,9 @@ export function AccountRow({
                 <div
                     className={cn(
                         "flex w-20 shrink-0 gap-1 transition-opacity",
-                        isEditMode ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                        isEditMode
+                            ? "opacity-100"
+                            : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"
                     )}
                 >
                     {/* Edit / Done button */}

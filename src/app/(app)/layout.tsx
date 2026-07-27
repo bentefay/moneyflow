@@ -247,10 +247,6 @@ function AppLayoutContent({
                             vaults={vaultOptions}
                             currentVaultName={currentVaultName}
                             isLoading={isVaultsLoading}
-                            onCreateVault={() => {
-                                console.log("Create vault");
-                                setIsMobileMenuOpen(false);
-                            }}
                         />
                         <SyncStatus
                             state={syncState}
@@ -310,9 +306,6 @@ function AppLayoutContent({
                             vaults={vaultOptions}
                             currentVaultName={currentVaultName}
                             isLoading={isVaultsLoading}
-                            onCreateVault={() => {
-                                console.log("Create vault");
-                            }}
                             iconMode
                         />
                         <SyncStatus
@@ -337,12 +330,9 @@ function AppLayoutContent({
                             vaults={vaultOptions}
                             currentVaultName={currentVaultName}
                             isLoading={isVaultsLoading}
-                            onCreateVault={() => {
-                                console.log("Create vault");
-                            }}
                             showAvatar
                         />
-                        <div className="ml-1 flex max-w-full min-w-0 items-center justify-between gap-4 self-start overflow-hidden rounded-b-lg border border-gray-100 bg-gray-50 py-1 pr-4 pl-2 whitespace-nowrap">
+                        <div className="border-border bg-muted ml-1 flex max-w-full min-w-0 items-center justify-between gap-4 self-start overflow-hidden rounded-b-lg border py-1 pr-4 pl-2 whitespace-nowrap">
                             <SyncStatus
                                 state={syncState}
                                 hasUnsavedChanges={hasUnsavedChanges}

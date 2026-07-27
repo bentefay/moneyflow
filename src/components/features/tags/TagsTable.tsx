@@ -18,63 +18,16 @@ import { useVaultAction, useVaultSelector } from "@/lib/crdt/context";
 import { getAllTransactions } from "@/lib/crdt/queries";
 import type { Tag, TagInput } from "@/lib/crdt/schema";
 import { getEntriesOfLoroMap } from "@/lib/crdt/utils";
-import { getNextTagColor } from "@/lib/domain";
+import { buildHierarchicalTagList, getNextTagColor } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
+import { insertIntoDraftRecord } from "../draft-record";
 import { ParentTagSelector } from "./ParentTagSelector";
 import { TagRow } from "./TagRow";
 
 export interface TagsTableProps {
     /** Additional CSS classes */
     className?: string;
-}
-
-interface TagWithDepth {
-    tag: Tag;
-    depth: number;
-    parentName?: string;
-}
-
-/**
- * Build hierarchical list of tags with depths for display.
- */
-function buildHierarchicalTagList(tags: Tag[]): TagWithDepth[] {
-    const result: TagWithDepth[] = [];
-    const tagMap = new Map<string, Tag>();
-    const childrenMap = new Map<string, Tag[]>();
-
-    // Build maps
-    for (const tag of tags) {
-        tagMap.set(tag.id, tag);
-        const parentId = tag.parentTagId ?? "";
-        if (!childrenMap.has(parentId)) {
-            childrenMap.set(parentId, []);
-        }
-        childrenMap.get(parentId)!.push(tag);
-    }
-
-    // Sort children alphabetically
-    for (const children of childrenMap.values()) {
-        children.sort((a, b) => a.name.localeCompare(b.name));
-    }
-
-    // DFS traversal
-    function traverse(parentId: string, depth: number) {
-        const children = childrenMap.get(parentId) ?? [];
-        for (const child of children) {
-            const parent = parentId ? tagMap.get(parentId) : undefined;
-            result.push({
-                tag: child,
-                depth,
-                parentName: parent?.name
-            });
-            traverse(child.id, depth + 1);
-        }
-    }
-
-    traverse("", 0);
-
-    return result;
 }
 
 /**
@@ -106,8 +59,7 @@ export function TagsTable({ className }: TagsTableProps) {
             switch (action.type) {
                 case "add":
                     if (action.data) {
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        (draft.tags as any)[action.id] = action.data as TagInput;
+                        insertIntoDraftRecord(draft.tags, action.id, action.data);
                     }
                     break;
                 case "update":

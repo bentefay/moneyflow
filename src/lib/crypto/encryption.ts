@@ -1,18 +1,19 @@
 /**
- * XChaCha20-Poly1305 Encryption
+ * XSalsa20-Poly1305 Encryption
  *
- * Provides symmetric encryption for vault data using XChaCha20-Poly1305.
- * Uses 192-bit random nonces for safe random generation without collision risk.
+ * Provides symmetric encryption for vault data via libsodium's crypto_secretbox,
+ * whose primitive is XSalsa20-Poly1305. Uses 192-bit random nonces for safe random
+ * generation without collision risk.
  */
 
 import sodium from "libsodium-wrappers";
 
 import { initCrypto } from "./keypair";
 
-/** Nonce size for XChaCha20-Poly1305 (24 bytes = 192 bits) */
+/** Nonce size for XSalsa20-Poly1305 (24 bytes = 192 bits) */
 export const NONCE_BYTES = 24; // sodium.crypto_secretbox_NONCEBYTES
 
-/** Key size for XChaCha20-Poly1305 (32 bytes = 256 bits) */
+/** Key size for XSalsa20-Poly1305 (32 bytes = 256 bits) */
 export const KEY_BYTES = 32; // sodium.crypto_secretbox_KEYBYTES
 
 /**
@@ -26,7 +27,7 @@ export async function generateVaultKey(): Promise<Uint8Array> {
 }
 
 /**
- * Encrypts data using XChaCha20-Poly1305.
+ * Encrypts data using XSalsa20-Poly1305.
  *
  * Uses random 192-bit nonces which are safe up to ~2^96 encryptions
  * per key without collision risk (birthday bound).
@@ -59,7 +60,7 @@ export async function encrypt(
 }
 
 /**
- * Decrypts data using XChaCha20-Poly1305.
+ * Decrypts data using XSalsa20-Poly1305.
  *
  * @param ciphertext - Encrypted data
  * @param nonce - 24-byte nonce used for encryption

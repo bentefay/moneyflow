@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * Vault Settings Page
  *

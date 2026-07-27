@@ -18,7 +18,7 @@ import {
     useVaultAction,
     useVaultPreferences
 } from "@/lib/crdt/context";
-import type { Account, AccountInput, Person } from "@/lib/crdt/schema";
+import type { Account, AccountInput } from "@/lib/crdt/schema";
 import { createEqualOwnerships } from "@/lib/domain/ownership";
 import { cn } from "@/lib/utils";
 
@@ -132,25 +132,38 @@ export function AccountsTable({ className }: AccountsTableProps) {
     }, []);
 
     return (
-        <div className={cn("flex flex-col", className)}>
+        <div className={cn("flex flex-col", className)} role="table" aria-label="Accounts">
             {/* Header */}
-            <div className="bg-muted/50 flex items-center gap-4 border-b px-4 py-2 text-sm font-medium">
-                <div className="w-5 shrink-0" /> {/* Expand indicator space */}
-                <div className="min-w-0 flex-1">Account</div>
-                <div className="w-28 shrink-0">Type</div>
-                <div className="w-32 shrink-0 text-center">Currency</div>
-                <div className="hidden w-32 shrink-0 md:block">Owners</div>
-                <div className="w-28 shrink-0 text-right">Balance</div>
-                <div className="w-20 shrink-0" /> {/* Actions space */}
+            <div
+                className="bg-muted/50 flex items-center gap-4 border-b px-4 py-2 text-sm font-medium"
+                role="row"
+            >
+                <div className="w-5 shrink-0" role="columnheader" aria-label="Expand" />
+                <div className="min-w-0 flex-1" role="columnheader">
+                    Account
+                </div>
+                <div className="w-28 shrink-0" role="columnheader">
+                    Type
+                </div>
+                <div className="w-32 shrink-0 text-center" role="columnheader">
+                    Currency
+                </div>
+                <div className="hidden w-32 shrink-0 md:block" role="columnheader">
+                    Owners
+                </div>
+                <div className="w-28 shrink-0 text-right" role="columnheader">
+                    Balance
+                </div>
+                <div className="w-20 shrink-0" role="columnheader" aria-label="Actions" />
             </div>
 
             {/* Account rows */}
-            <div className="divide-y">
+            <div className="divide-y" role="rowgroup">
                 {sortedAccounts.map((account) => (
                     <AccountRow
                         key={account.id}
                         account={account}
-                        people={people as unknown as Record<string, Person>}
+                        people={people}
                         vaultDefaultCurrency={defaultCurrency}
                         onUpdate={handleUpdate}
                         onDelete={handleDelete}

@@ -21,6 +21,7 @@ import {
 } from "@/lib/domain/automation/apply-mode";
 import { type RuleField, type TagRuleMode } from "@/lib/domain/automation/rules";
 import { toMinorUnitsForCurrency } from "@/lib/domain/currency";
+import { assertNever } from "@/lib/utils/exhaustive";
 
 // The four-mode apply type + its pure predicates live in the domain (`apply-mode.ts`) so the
 // per-user preference chain can remember the SELECT without a component import. Re-export them here
@@ -47,10 +48,6 @@ export function applyModeLabel(mode: ApplyMode): string {
         default:
             return assertNever(mode);
     }
-}
-
-function assertNever(value: never): never {
-    throw new Error(`Unexpected value: ${JSON.stringify(value)}`);
 }
 
 /** Editable form state for one rule. Strings hold raw user input; validation parses them. */

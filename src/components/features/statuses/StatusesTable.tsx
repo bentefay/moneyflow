@@ -18,6 +18,7 @@ import { getAllTransactions } from "@/lib/crdt/queries";
 import type { Status, StatusInput } from "@/lib/crdt/schema";
 import { getEntriesOfLoroMap } from "@/lib/crdt/utils";
 
+import { insertIntoDraftRecord } from "../draft-record";
 import { BehaviorSelector } from "./BehaviorSelector";
 import { StatusRow } from "./StatusRow";
 
@@ -51,8 +52,7 @@ export function StatusesTable({ className }: StatusesTableProps) {
             switch (action.type) {
                 case "add":
                     if (action.data) {
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        (draft.statuses as any)[action.id] = action.data as StatusInput;
+                        insertIntoDraftRecord(draft.statuses, action.id, action.data);
                     }
                     break;
                 case "update":

@@ -13,10 +13,14 @@ import { useCallback, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useTransientFlag } from "@/components/ui/use-transient-flag";
 import type { Status } from "@/lib/crdt/schema";
 import { cn } from "@/lib/utils";
 
 import { BehaviorSelector } from "./BehaviorSelector";
+
+/** Grace period before a blurred delete button drops back out of confirm mode. */
+const DELETE_CONFIRM_BLUR_MS = 200;
 
 export interface StatusRowProps {
     /** Status data */
@@ -47,7 +51,12 @@ export function StatusRow({
     const [isEditing, setIsEditing] = useState(false);
     const [editedName, setEditedName] = useState(status.name);
     const [editedBehavior, setEditedBehavior] = useState<string>(status.behavior ?? "");
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const {
+        isActive: showDeleteConfirm,
+        hold: armDeleteConfirm,
+        reset: clearDeleteConfirm,
+        resetSoon: clearDeleteConfirmSoon
+    } = useTransientFlag(DELETE_CONFIRM_BLUR_MS);
 
     // Handle starting edit mode
     const handleStartEdit = useCallback(() => {
@@ -105,16 +114,11 @@ export function StatusRow({
     const handleDeleteClick = useCallback(() => {
         if (showDeleteConfirm) {
             onDelete(status.id);
-            setShowDeleteConfirm(false);
+            clearDeleteConfirm();
         } else {
-            setShowDeleteConfirm(true);
+            armDeleteConfirm();
         }
-    }, [showDeleteConfirm, status.id, onDelete]);
-
-    // Reset delete confirmation on blur
-    const handleDeleteBlur = useCallback(() => {
-        setTimeout(() => setShowDeleteConfirm(false), 200);
-    }, []);
+    }, [armDeleteConfirm, clearDeleteConfirm, showDeleteConfirm, status.id, onDelete]);
 
     return (
         <div
@@ -172,7 +176,7 @@ export function StatusRow({
             </div>
 
             {/* Actions */}
-            <div className="flex flex-shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="flex flex-shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
                 {isEditing ? (
                     <>
                         <Button
@@ -181,6 +185,7 @@ export function StatusRow({
                             onClick={handleSave}
                             className="h-7 w-7"
                             title="Save"
+                            aria-label="Save status"
                             data-testid="save-status-btn"
                         >
                             <Check className="h-4 w-4" />
@@ -191,6 +196,7 @@ export function StatusRow({
                             onClick={handleCancel}
                             className="h-7 w-7"
                             title="Cancel"
+                            aria-label="Cancel status"
                             data-testid="cancel-status-btn"
                         >
                             <X className="h-4 w-4" />
@@ -205,6 +211,7 @@ export function StatusRow({
                                 onClick={() => onSetDefault(status.id)}
                                 className="h-7 w-7"
                                 title="Set as default"
+                                aria-label="Set as default status"
                                 data-testid="set-default-btn"
                             >
                                 <CircleCheck className="h-4 w-4" />
@@ -216,6 +223,7 @@ export function StatusRow({
                             onClick={handleStartEdit}
                             className="h-7 w-7"
                             title="Edit"
+                            aria-label="Edit status"
                             data-testid="edit-status-btn"
                         >
                             <Pencil className="h-4 w-4" />
@@ -225,12 +233,15 @@ export function StatusRow({
                                 variant="ghost"
                                 size="icon"
                                 onClick={handleDeleteClick}
-                                onBlur={handleDeleteBlur}
+                                onBlur={clearDeleteConfirmSoon}
                                 className={cn(
                                     "h-7 w-7",
                                     showDeleteConfirm && "text-destructive hover:text-destructive"
                                 )}
                                 title={showDeleteConfirm ? "Click again to confirm" : "Delete"}
+                                aria-label={
+                                    showDeleteConfirm ? "Confirm delete status" : "Delete status"
+                                }
                                 data-testid="delete-status-btn"
                             >
                                 <Trash2 className="h-4 w-4" />

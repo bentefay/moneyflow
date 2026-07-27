@@ -15,6 +15,7 @@ import { AccountCombobox, AccountOption } from "@/components/features/accounts";
 import { PresenceAvatar } from "@/components/features/presence/PresenceAvatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useTransientFlag } from "@/components/ui/use-transient-flag";
 import { memberFallbackName } from "@/lib/crdt/person";
 import { deriveEffectiveAllocations } from "@/lib/domain";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,9 @@ import { InlineEditableTags, type TagOption } from "./cells/InlineEditableTags";
 import { PersonAllocationCell } from "./cells/PersonAllocationCell";
 import { DuplicateBadge } from "./DuplicateBadge";
 import { TRANSACTION_GRID_TEMPLATE } from "./TransactionTable";
+
+/** How long the two-click delete confirmation stays armed. */
+const DELETE_CONFIRM_MS = 3000;
 
 export interface TransactionRowData {
     id: string;
@@ -175,7 +179,11 @@ export function TransactionRow({
 }: TransactionRowProps) {
     const notesRef = useRef<HTMLTextAreaElement>(null);
 
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const {
+        isActive: showDeleteConfirm,
+        activate: armDeleteConfirm,
+        reset: clearDeleteConfirm
+    } = useTransientFlag(DELETE_CONFIRM_MS);
     const [isEditingDescription, setIsEditingDescription] = useState(false);
 
     const effectiveData = transaction;
@@ -215,11 +223,9 @@ export function TransactionRow({
         e.stopPropagation();
         if (showDeleteConfirm) {
             onDelete?.();
-            setShowDeleteConfirm(false);
+            clearDeleteConfirm();
         } else {
-            setShowDeleteConfirm(true);
-            // Auto-hide after 3 seconds
-            setTimeout(() => setShowDeleteConfirm(false), 3000);
+            armDeleteConfirm();
         }
     };
 
@@ -267,7 +273,7 @@ export function TransactionRow({
     );
 
     return (
-        <div className="flex flex-col">
+        <div className="flex flex-col" role="presentation">
             {/* Main row */}
             <div
                 onClick={() => onClick?.()}
@@ -315,6 +321,7 @@ export function TransactionRow({
                     data-testid="row-checkbox"
                     onClick={handleCheckboxClick}
                     className="flex h-full w-full cursor-pointer items-center justify-center"
+                    role="gridcell"
                 >
                     <CheckboxCell
                         checked={isSelected}
@@ -325,7 +332,7 @@ export function TransactionRow({
                 </div>
 
                 {/* Date */}
-                <div data-cell="date">
+                <div data-cell="date" role="gridcell">
                     <InlineEditableDate
                         value={effectiveData.date}
                         onSave={(value) => onFieldUpdate?.("date", value)}
@@ -334,7 +341,11 @@ export function TransactionRow({
                 </div>
 
                 {/* Description */}
-                <div data-cell="description" className="flex min-w-0 items-center gap-1">
+                <div
+                    data-cell="description"
+                    className="flex min-w-0 items-center gap-1"
+                    role="gridcell"
+                >
                     <div className="min-w-0 flex-1">
                         <InlineEditableDescriptionAlias
                             value={effectiveData.descriptionAliasName ?? effectiveData.description}
@@ -358,7 +369,7 @@ export function TransactionRow({
                 </div>
 
                 {/* Account */}
-                <div data-cell="account" className="min-w-0">
+                <div data-cell="account" className="min-w-0" role="gridcell">
                     <AccountCombobox
                         value={effectiveData.accountId ?? ""}
                         onChange={(accountId) => onFieldUpdate?.("accountId", accountId)}
@@ -369,7 +380,7 @@ export function TransactionRow({
                 </div>
 
                 {/* Tags */}
-                <div data-cell="tags">
+                <div data-cell="tags" role="gridcell">
                     <InlineEditableTags
                         value={effectiveData.tags?.map((t) => t.id) ?? []}
                         tags={effectiveData.tags ?? []}
@@ -381,7 +392,7 @@ export function TransactionRow({
                 </div>
 
                 {/* Status */}
-                <div data-cell="status">
+                <div data-cell="status" role="gridcell">
                     <InlineEditableStatus
                         value={effectiveData.statusId}
                         statusName={effectiveData.status}
@@ -394,7 +405,12 @@ export function TransactionRow({
                 {allocationColumns.map((column) => {
                     const explicitValue = allocations[column.personId];
                     return (
-                        <div key={column.personId} data-cell={column.field} className="min-w-0">
+                        <div
+                            key={column.personId}
+                            data-cell={column.field}
+                            className="min-w-0"
+                            role="gridcell"
+                        >
                             <PersonAllocationCell
                                 personId={column.personId}
                                 personLabel={column.label}
@@ -409,7 +425,7 @@ export function TransactionRow({
                 })}
 
                 {/* Amount */}
-                <div data-cell="amount" className="text-right">
+                <div data-cell="amount" className="text-right" role="gridcell">
                     <InlineEditableAmount
                         value={effectiveData.amount}
                         originalValue={effectiveData.originalAmount}
@@ -431,7 +447,7 @@ export function TransactionRow({
 
                     {/* Expand/Notes toggle button */}
                     {onToggleExpand && (
-                        <div data-cell="expand">
+                        <div data-cell="expand" role="presentation">
                             <Button
                                 variant="ghost"
                                 size="icon-sm"
@@ -466,7 +482,7 @@ export function TransactionRow({
 
                     {/* Delete button */}
                     {onDelete && (
-                        <div data-cell="delete">
+                        <div data-cell="delete" role="presentation">
                             <Button
                                 variant="ghost"
                                 size="icon-sm"
@@ -520,7 +536,7 @@ export function TransactionRow({
                     role="row"
                 >
                     <div />
-                    <div style={{ gridColumn: "2 / -1" }} data-cell="notes">
+                    <div style={{ gridColumn: "2 / -1" }} data-cell="notes" role="gridcell">
                         <Textarea
                             ref={notesRef}
                             value={effectiveData.notes || ""}

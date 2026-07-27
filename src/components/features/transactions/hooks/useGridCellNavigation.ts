@@ -107,7 +107,10 @@ function getTransactionRowGroups(grid: Element): Array<{
     mainRow: Element;
     notesRow?: Element;
 }> {
-    const allRows = Array.from(grid.querySelectorAll('[role="row"]'));
+    // The header is a `role="row"` of column headers, not a navigable transaction row.
+    const allRows = Array.from(grid.querySelectorAll('[role="row"]')).filter(
+        (row) => row.querySelector('[role="columnheader"]') == null
+    );
     const groups: Array<{ mainRow: Element; notesRow?: Element }> = [];
 
     for (let i = 0; i < allRows.length; i++) {

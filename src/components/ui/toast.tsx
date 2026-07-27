@@ -7,7 +7,16 @@
  * Uses a singleton pattern with React portal for global notifications.
  */
 
-import { createContext, type ReactNode, useCallback, useContext, useState } from "react";
+import {
+    createContext,
+    type ReactNode,
+    useCallback,
+    useContext,
+    useEffect,
+    useMemo,
+    useRef,
+    useState
+} from "react";
 import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
@@ -29,32 +38,60 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 
 let toastId = 0;
 
+/** How long a toast stays up when the caller does not specify a duration. */
+const DEFAULT_TOAST_DURATION_MS = 4000;
+
 /**
  * Toast provider component.
  */
 export function ToastProvider({ children }: { children: ReactNode }) {
     const [toasts, setToasts] = useState<ToastData[]>([]);
+    // Auto-dismiss timers, so manually dismissing a toast does not leave one pending.
+    const dismissTimersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
-    const addToast = useCallback((toast: Omit<ToastData, "id">) => {
-        const id = `toast-${++toastId}`;
-        const duration = toast.duration ?? 4000;
-
-        setToasts((prev) => [...prev, { ...toast, id }]);
-
-        // Auto-remove after duration
-        if (duration > 0) {
-            setTimeout(() => {
-                setToasts((prev) => prev.filter((t) => t.id !== id));
-            }, duration);
-        }
+    useEffect(() => {
+        const timers = dismissTimersRef.current;
+        return () => {
+            for (const timer of timers.values()) clearTimeout(timer);
+            timers.clear();
+        };
     }, []);
 
     const removeToast = useCallback((id: string) => {
+        const timer = dismissTimersRef.current.get(id);
+        if (timer != null) {
+            clearTimeout(timer);
+            dismissTimersRef.current.delete(id);
+        }
         setToasts((prev) => prev.filter((t) => t.id !== id));
     }, []);
 
+    const addToast = useCallback(
+        (toast: Omit<ToastData, "id">) => {
+            const id = `toast-${++toastId}`;
+            const duration = toast.duration ?? DEFAULT_TOAST_DURATION_MS;
+
+            setToasts((prev) => [...prev, { ...toast, id }]);
+
+            if (duration > 0) {
+                dismissTimersRef.current.set(
+                    id,
+                    setTimeout(() => removeToast(id), duration)
+                );
+            }
+        },
+        [removeToast]
+    );
+
+    // The provider wraps the entire app, so an unmemoized value would re-render every consumer on
+    // every render of any ancestor.
+    const value = useMemo(
+        () => ({ toasts, addToast, removeToast }),
+        [toasts, addToast, removeToast]
+    );
+
     return (
-        <ToastContext.Provider value={{ toasts, addToast, removeToast }}>
+        <ToastContext.Provider value={value}>
             {children}
             {typeof document !== "undefined" &&
                 createPortal(

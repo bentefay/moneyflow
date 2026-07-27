@@ -29,10 +29,14 @@ import {
     SelectTrigger,
     SelectValue
 } from "@/components/ui/select";
+import { useTransientFlag } from "@/components/ui/use-transient-flag";
 import { initCrypto } from "@/lib/crypto/keypair";
 import { wrapKey } from "@/lib/crypto/keywrap";
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
+
+/** How long the "Copied!" affordance stays visible. */
+const COPIED_FEEDBACK_MS = 2000;
 
 export interface InviteLinkGeneratorProps {
     /** Current vault ID */
@@ -65,7 +69,7 @@ export function InviteLinkGenerator({
     const [role, setRole] = useState<"member" | "owner">("member");
     const [expiryHours, setExpiryHours] = useState<number>(48);
     const [isGenerating, setIsGenerating] = useState(false);
-    const [isCopied, setIsCopied] = useState(false);
+    const { isActive: isCopied, activate: markCopied } = useTransientFlag(COPIED_FEEDBACK_MS);
     const [error, setError] = useState<string | null>(null);
 
     const createInviteMutation = trpc.invite.create.useMutation();
@@ -145,12 +149,11 @@ export function InviteLinkGenerator({
 
         try {
             await navigator.clipboard.writeText(inviteUrl);
-            setIsCopied(true);
-            setTimeout(() => setIsCopied(false), 2000);
+            markCopied();
         } catch {
             setError("Failed to copy to clipboard");
         }
-    }, [inviteUrl]);
+    }, [inviteUrl, markCopied]);
 
     // Format expiry time
     const formatExpiry = (isoString: string) => {

@@ -8,7 +8,7 @@
  * Includes progress indicator for large bulk operations.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -98,6 +98,8 @@ export function BulkEditToolbar({
     const [amountValue, setAmountValue] = useState("");
     const notesInputRef = useRef<HTMLInputElement>(null);
     const amountInputRef = useRef<HTMLInputElement>(null);
+    const toolbarRef = useRef<HTMLDivElement>(null);
+    const panelIdPrefix = useId();
 
     // Focus input when dropdown opens
     useEffect(() => {
@@ -109,14 +111,46 @@ export function BulkEditToolbar({
         }
     }, [activeDropdown]);
 
-    // Handle Escape key to close dropdown
-    const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-        if (e.key === "Escape") {
-            setActiveDropdown(null);
-            setNotesValue("");
-            setAmountValue("");
-        }
+    const dismiss = useCallback(() => {
+        setActiveDropdown(null);
+        setConfirmDelete(false);
+        setNotesValue("");
+        setAmountValue("");
     }, []);
+
+    // Handle Escape key to close dropdown
+    const handleKeyDown = useCallback(
+        (e: React.KeyboardEvent) => {
+            if (e.key === "Escape") dismiss();
+        },
+        [dismiss]
+    );
+
+    // Escape anywhere, and any click outside the toolbar, closes the open panel. Without this the
+    // Tags/Status/Account menus could only be dismissed by re-clicking their own trigger.
+    useEffect(() => {
+        if (activeDropdown == null) return;
+
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === "Escape") dismiss();
+        };
+        const handleClickOutside = (e: MouseEvent) => {
+            if (
+                e.target instanceof Node &&
+                toolbarRef.current &&
+                !toolbarRef.current.contains(e.target)
+            ) {
+                dismiss();
+            }
+        };
+
+        document.addEventListener("keydown", handleEscape);
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("keydown", handleEscape);
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, [activeDropdown, dismiss]);
 
     if (selectedCount === 0) {
         return null;
@@ -154,6 +188,7 @@ export function BulkEditToolbar({
                 className
             )}
             data-testid="bulk-edit-toolbar"
+            ref={toolbarRef}
         >
             <div className="flex items-center gap-2 px-4 py-3">
                 {/* Progress indicator or selection count */}
@@ -173,6 +208,11 @@ export function BulkEditToolbar({
                             data-testid="bulk-edit-tags-button"
                             onClick={() =>
                                 setActiveDropdown(activeDropdown === "tags" ? null : "tags")
+                            }
+                            aria-haspopup="true"
+                            aria-expanded={activeDropdown === "tags"}
+                            aria-controls={
+                                activeDropdown === "tags" ? `${panelIdPrefix}-tags` : undefined
                             }
                             disabled={!!progress}
                             className={cn(
@@ -199,7 +239,10 @@ export function BulkEditToolbar({
                         </button>
 
                         {activeDropdown === "tags" && (
-                            <div className="bg-popover absolute bottom-full left-0 mb-2 w-48 rounded-lg border p-2 shadow-lg">
+                            <div
+                                className="bg-popover absolute bottom-full left-0 mb-2 w-48 rounded-lg border p-2 shadow-lg"
+                                id={`${panelIdPrefix}-tags`}
+                            >
                                 {availableTags.map((tag) => (
                                     <button
                                         key={tag.id}
@@ -227,6 +270,11 @@ export function BulkEditToolbar({
                             onClick={() =>
                                 setActiveDropdown(activeDropdown === "status" ? null : "status")
                             }
+                            aria-haspopup="true"
+                            aria-expanded={activeDropdown === "status"}
+                            aria-controls={
+                                activeDropdown === "status" ? `${panelIdPrefix}-status` : undefined
+                            }
                             disabled={!!progress}
                             className={cn(
                                 "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm",
@@ -252,7 +300,10 @@ export function BulkEditToolbar({
                         </button>
 
                         {activeDropdown === "status" && (
-                            <div className="bg-popover absolute bottom-full left-0 mb-2 w-40 rounded-lg border p-2 shadow-lg">
+                            <div
+                                className="bg-popover absolute bottom-full left-0 mb-2 w-40 rounded-lg border p-2 shadow-lg"
+                                id={`${panelIdPrefix}-status`}
+                            >
                                 {availableStatuses.map((status) => (
                                     <button
                                         key={status.id}
@@ -279,6 +330,13 @@ export function BulkEditToolbar({
                             onClick={() =>
                                 setActiveDropdown(activeDropdown === "account" ? null : "account")
                             }
+                            aria-haspopup="true"
+                            aria-expanded={activeDropdown === "account"}
+                            aria-controls={
+                                activeDropdown === "account"
+                                    ? `${panelIdPrefix}-account`
+                                    : undefined
+                            }
                             disabled={!!progress}
                             className={cn(
                                 "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm",
@@ -304,7 +362,10 @@ export function BulkEditToolbar({
                         </button>
 
                         {activeDropdown === "account" && (
-                            <div className="bg-popover absolute bottom-full left-0 mb-2 w-48 rounded-lg border p-2 shadow-lg">
+                            <div
+                                className="bg-popover absolute bottom-full left-0 mb-2 w-48 rounded-lg border p-2 shadow-lg"
+                                id={`${panelIdPrefix}-account`}
+                            >
                                 {availableAccounts.map((account) => (
                                     <button
                                         key={account.id}

@@ -6,7 +6,7 @@
  * Reusable multi-select dropdown for filtering by tags, people, accounts, or statuses.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -49,6 +49,8 @@ export function MultiSelectFilter({
     const [searchQuery, setSearchQuery] = useState("");
     const containerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const triggerRef = useRef<HTMLButtonElement>(null);
+    const panelId = useId();
 
     // Handle click outside
     useEffect(() => {
@@ -63,6 +65,21 @@ export function MultiSelectFilter({
 
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [isOpen]);
+
+    // Escape closes the dropdown and returns focus to the trigger
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key !== "Escape") return;
+            setIsOpen(false);
+            setSearchQuery("");
+            triggerRef.current?.focus();
+        };
+
+        document.addEventListener("keydown", handleEscape);
+        return () => document.removeEventListener("keydown", handleEscape);
     }, [isOpen]);
 
     // Focus search input when opening
@@ -119,8 +136,12 @@ export function MultiSelectFilter({
         <div ref={containerRef} className={cn("relative", className)}>
             {/* Trigger button */}
             <button
+                ref={triggerRef}
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
+                aria-haspopup="true"
+                aria-expanded={isOpen}
+                aria-controls={isOpen ? panelId : undefined}
                 className={cn(
                     "flex items-center gap-2 rounded-md border px-3 py-2 text-sm",
                     "hover:bg-accent focus:ring-primary focus:ring-2 focus:outline-none",
@@ -188,11 +209,18 @@ export function MultiSelectFilter({
                     </div>
 
                     {/* Options list */}
-                    <div className="max-h-48 overflow-auto p-1">
+                    <div
+                        className="max-h-48 overflow-auto p-1"
+                        aria-label={placeholder}
+                        id={panelId}
+                    >
                         {Object.entries(groupedOptions).map(([group, groupOptions]) => (
-                            <div key={group}>
+                            <div key={group} role="group" aria-label={group || undefined}>
                                 {group && (
-                                    <div className="text-muted-foreground px-2 py-1 text-xs font-medium tracking-wide uppercase">
+                                    <div
+                                        className="text-muted-foreground px-2 py-1 text-xs font-medium tracking-wide uppercase"
+                                        aria-hidden="true"
+                                    >
                                         {group}
                                     </div>
                                 )}
@@ -200,6 +228,7 @@ export function MultiSelectFilter({
                                     <button
                                         key={option.id}
                                         type="button"
+                                        aria-pressed={selectedIds.includes(option.id)}
                                         onClick={() => toggleOption(option.id)}
                                         className={cn(
                                             "flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm",
@@ -216,7 +245,7 @@ export function MultiSelectFilter({
                                         >
                                             {selectedIds.includes(option.id) && (
                                                 <svg
-                                                    className="h-3 w-3 text-white"
+                                                    className="text-primary-foreground h-3 w-3"
                                                     fill="none"
                                                     viewBox="0 0 24 24"
                                                     stroke="currentColor"

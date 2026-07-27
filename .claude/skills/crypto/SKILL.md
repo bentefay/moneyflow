@@ -11,7 +11,8 @@ description: Client-side cryptography with libsodium. Use when working on files 
 
 - Seed phrase (128-bit) → Ed25519 keypair (signing) → X25519 keypair (encryption)
 - Vault key (random 256-bit) wrapped with user's X25519 public key
-- Data encrypted with XChaCha20-Poly1305
+- Vault data and wrapped keys encrypted with XSalsa20-Poly1305 (`crypto_secretbox` / `crypto_box`)
+- Presence payloads encrypted with XChaCha20-Poly1305 (`crypto_aead_xchacha20poly1305_ietf`)
 
 ## Critical Rules
 

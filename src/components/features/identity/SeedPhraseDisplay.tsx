@@ -19,6 +19,7 @@ import { AlertTriangle, Check, Copy, Eye, EyeOff } from "lucide-react";
 import { useCallback, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useTransientFlag } from "@/components/ui/use-transient-flag";
 import { cn } from "@/lib/utils";
 
 import { RecoveryPhraseCredentialFields } from "./RecoveryPhraseCredentialFields";
@@ -26,6 +27,9 @@ import { RecoveryPhraseCredentialFields } from "./RecoveryPhraseCredentialFields
 // ============================================================================
 // Types
 // ============================================================================
+
+/** How long the "Copied!" affordance stays visible. */
+const COPIED_FEEDBACK_MS = 2000;
 
 export interface SeedPhraseDisplayProps {
     /** The 12-word mnemonic phrase */
@@ -64,7 +68,7 @@ export function SeedPhraseDisplay({
     showWarning = true
 }: SeedPhraseDisplayProps) {
     const [isRevealed, setIsRevealed] = useState(initiallyRevealed);
-    const [isCopied, setIsCopied] = useState(false);
+    const { isActive: isCopied, activate: markCopied } = useTransientFlag(COPIED_FEEDBACK_MS);
 
     const words = mnemonic.trim().split(/\s+/);
 
@@ -75,12 +79,11 @@ export function SeedPhraseDisplay({
     const handleCopy = useCallback(async () => {
         try {
             await navigator.clipboard.writeText(mnemonic);
-            setIsCopied(true);
-            setTimeout(() => setIsCopied(false), 2000);
+            markCopied();
         } catch (err) {
             console.error("Failed to copy:", err);
         }
-    }, [mnemonic]);
+    }, [markCopied, mnemonic]);
 
     // -------------------------------------------------------------------------
     // Toggle reveal

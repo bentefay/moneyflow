@@ -35,6 +35,7 @@ import {
     type TagRuleMode
 } from "@/lib/domain/automation/rules";
 import { asMinorUnits } from "@/lib/domain/currency";
+import { assertNever } from "@/lib/utils/exhaustive";
 import { asPercentage, type Percentage } from "@/types";
 
 import { readActiveFieldRules } from "./field-rules";
@@ -146,13 +147,8 @@ function buildWireObject(input: {
                 allocations: { ...input.action.allocations }
             };
         default:
-            return assertNeverAction(input.action);
+            return assertNever(input.action, "field-rule action");
     }
-}
-
-/** Compile-time exhaustiveness guard (ts-pattern is not a dependency of this package). */
-function assertNeverAction(value: never): never {
-    throw new Error(`Unexpected field-rule action: ${JSON.stringify(value)}`);
 }
 
 /**
@@ -198,12 +194,8 @@ function decodeOrError(
                 error: { type: "invalid-allocations", errors: decoded.error.errors }
             };
         default:
-            return assertNeverDecode(decoded.error);
+            return assertNever(decoded.error, "decode error");
     }
-}
-
-function assertNeverDecode(value: never): never {
-    throw new Error(`Unexpected decode error: ${JSON.stringify(value)}`);
 }
 
 /**

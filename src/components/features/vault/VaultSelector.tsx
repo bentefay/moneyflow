@@ -65,20 +65,29 @@ export function VaultSelector({
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    // Close dropdown when clicking outside
+    // Close dropdown when clicking outside. This component renders on every page, so the listeners
+    // only attach while the dropdown is actually open.
     useEffect(() => {
+        if (!isOpen) return;
+
         function handleClickOutside(event: MouseEvent) {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+            if (
+                event.target instanceof Node &&
+                dropdownRef.current &&
+                !dropdownRef.current.contains(event.target)
+            ) {
                 setIsOpen(false);
             }
         }
 
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
+    }, [isOpen]);
 
     // Close on escape key
     useEffect(() => {
+        if (!isOpen) return;
+
         function handleEscape(event: KeyboardEvent) {
             if (event.key === "Escape") {
                 setIsOpen(false);
@@ -87,7 +96,7 @@ export function VaultSelector({
 
         document.addEventListener("keydown", handleEscape);
         return () => document.removeEventListener("keydown", handleEscape);
-    }, []);
+    }, [isOpen]);
 
     // Auto-select first vault if none selected
     useEffect(() => {
@@ -216,7 +225,7 @@ function RoleBadge({ role }: { role: VaultOption["role"] }) {
     const colors = {
         owner: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
         admin: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-        member: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
+        member: "bg-muted text-muted-foreground"
     };
 
     return (

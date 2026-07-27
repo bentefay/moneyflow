@@ -3,8 +3,8 @@ import { useCallback, useMemo, useState } from "react";
 export interface UseTableSelectionOptions {
     /** All transaction IDs matching current filter (not just visible/rendered rows) */
     filteredIds: string[];
-    /** Externally controlled selected IDs */
-    selectedIds: Set<string>;
+    /** Externally controlled selected IDs (read-only; the hook never mutates it) */
+    selectedIds: ReadonlySet<string>;
     /** Callback when selection changes */
     onSelectionChange?: (selectedIds: Set<string>) => void;
 }

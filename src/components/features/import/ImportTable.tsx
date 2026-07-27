@@ -196,20 +196,20 @@ export function ImportTable({
                 )}
             >
                 <table className="w-full text-sm">
-                    <thead className="sticky top-0 z-10 bg-slate-100">
+                    <thead className="bg-muted sticky top-0 z-10">
                         {/* Section header row */}
                         <tr className="border-b">
-                            <th className="bg-slate-100" />
+                            <th className="bg-muted" />
                             <th
                                 colSpan={rawColCount}
-                                className="text-muted-foreground bg-slate-100 px-2 py-1 text-center text-xs font-semibold tracking-wider uppercase"
+                                className="text-muted-foreground bg-muted px-2 py-1 text-center text-xs font-semibold tracking-wider uppercase"
                             >
                                 Raw
                             </th>
                             <th className="bg-border w-px" />
                             <th
                                 colSpan={previewColCount}
-                                className="text-muted-foreground bg-slate-50 px-2 py-1 text-center text-xs font-semibold tracking-wider uppercase"
+                                className="text-muted-foreground bg-muted/50 px-2 py-1 text-center text-xs font-semibold tracking-wider uppercase"
                             >
                                 Preview
                             </th>
@@ -217,7 +217,7 @@ export function ImportTable({
                         {/* Column headers row */}
                         <tr>
                             {/* Row number */}
-                            <th className="text-muted-foreground w-10 border-r bg-slate-100 px-2 py-1.5 text-left text-xs font-medium">
+                            <th className="text-muted-foreground bg-muted w-10 border-r px-2 py-1.5 text-left text-xs font-medium">
                                 #
                             </th>
                             {/* Raw data headers */}
@@ -237,16 +237,16 @@ export function ImportTable({
                             {/* Divider column */}
                             <th className="bg-border w-px" />
                             {/* Preview headers */}
-                            <th className="text-muted-foreground w-10 bg-slate-50 px-2 py-1.5 text-left text-xs font-medium">
+                            <th className="text-muted-foreground bg-muted/50 w-10 px-2 py-1.5 text-left text-xs font-medium">
                                 Status
                             </th>
-                            <th className="text-muted-foreground bg-slate-50 px-2 py-1.5 text-left text-xs font-medium">
+                            <th className="text-muted-foreground bg-muted/50 px-2 py-1.5 text-left text-xs font-medium">
                                 Date
                             </th>
-                            <th className="text-muted-foreground bg-slate-50 px-2 py-1.5 text-left text-xs font-medium">
+                            <th className="text-muted-foreground bg-muted/50 px-2 py-1.5 text-left text-xs font-medium">
                                 Description
                             </th>
-                            <th className="text-muted-foreground bg-slate-50 px-2 py-1.5 text-right text-xs font-medium">
+                            <th className="text-muted-foreground bg-muted/50 px-2 py-1.5 text-right text-xs font-medium">
                                 Amount
                             </th>
                         </tr>

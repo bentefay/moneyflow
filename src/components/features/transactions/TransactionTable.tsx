@@ -32,13 +32,22 @@ import {
  */
 export const TRANSACTION_GRID_TEMPLATE = buildTransactionGridTemplate(0);
 
+/**
+ * Stable empty selection.
+ *
+ * A `new Set()` default parameter allocates on every render, and the selection feeds the document
+ * keydown effect's dependency list — a fresh identity tore the listener down and re-added it on
+ * every render of the virtualized table.
+ */
+const EMPTY_SELECTION: ReadonlySet<string> = new Set();
+
 export interface TransactionTableProps {
     /** Array of transactions to display */
     transactions: TransactionRowData[];
     /** Presence data keyed by transaction ID */
     presenceByTransactionId?: Record<string, TransactionRowPresence>;
     /** Currently selected transaction IDs */
-    selectedIds?: Set<string>;
+    selectedIds?: ReadonlySet<string>;
     /** Available accounts for inline editing */
     availableAccounts?: AccountOption[];
     /** Available statuses for inline editing */
@@ -124,11 +133,12 @@ function TransactionTableHeader({
 }: TransactionTableHeaderProps) {
     return (
         <div
-            className="sticky top-0 z-10 grid min-w-fit items-center gap-4 border-b bg-slate-50 px-4 py-2 text-sm font-medium"
+            className="bg-muted sticky top-0 z-10 grid min-w-fit items-center gap-4 border-b px-4 py-2 text-sm font-medium"
             style={{ gridTemplateColumns }}
+            role="row"
         >
             {/* Checkbox column */}
-            <div data-testid="header-checkbox">
+            <div data-testid="header-checkbox" role="columnheader" aria-label="Select all">
                 <CheckboxCell
                     checked={isAllSelected}
                     indeterminate={isSomeSelected}
@@ -138,22 +148,29 @@ function TransactionTableHeader({
                     }
                 />
             </div>
-            <div>Date</div>
-            <div className="truncate">Description</div>
-            <div className="truncate">Account</div>
-            <div>Tags</div>
-            <div>Status</div>
+            <div role="columnheader">Date</div>
+            <div className="truncate" role="columnheader">
+                Description
+            </div>
+            <div className="truncate" role="columnheader">
+                Account
+            </div>
+            <div role="columnheader">Tags</div>
+            <div role="columnheader">Status</div>
             {allocationColumns.map((column) => (
                 <div
                     key={column.personId}
                     className="truncate text-right"
                     title={`${column.label} allocation percentage`}
+                    role="columnheader"
                 >
                     {column.label} %
                 </div>
             ))}
-            <div className="text-right">Amount</div>
-            <div>{/* Actions */}</div>
+            <div className="text-right" role="columnheader">
+                Amount
+            </div>
+            <div role="columnheader" aria-label="Actions" />
         </div>
     );
 }
@@ -191,7 +208,7 @@ function EmptyState() {
 export function TransactionTable({
     transactions,
     presenceByTransactionId = {},
-    selectedIds = new Set(),
+    selectedIds = EMPTY_SELECTION,
     availableAccounts = [],
     availableStatuses = [],
     availableTags = [],
@@ -272,11 +289,16 @@ export function TransactionTable({
                 focusedId || (selectedIds.size === 1 ? Array.from(selectedIds)[0] : null);
             if (!targetId) return;
 
+            // Only handle keys pressed while focus is inside the grid — a bare "d" or Backspace
+            // aimed at a button or select elsewhere on the page must never delete a transaction.
+            const target = event.target;
+            if (!(target instanceof Node) || !containerRef.current?.contains(target)) return;
+
             // Don't handle if user is typing in an input
             if (
-                event.target instanceof HTMLInputElement ||
-                event.target instanceof HTMLTextAreaElement ||
-                (event.target as HTMLElement)?.isContentEditable
+                target instanceof HTMLInputElement ||
+                target instanceof HTMLTextAreaElement ||
+                (target instanceof HTMLElement && target.isContentEditable)
             ) {
                 return;
             }
@@ -408,14 +430,6 @@ export function TransactionTable({
     return (
         <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden", className)}>
             <div ref={containerRef} className="flex min-h-0 flex-1 flex-col overflow-auto">
-                <TransactionTableHeader
-                    allocationColumns={allocationColumns}
-                    gridTemplateColumns={gridTemplateColumns}
-                    isAllSelected={isAllSelected}
-                    isSomeSelected={isSomeSelected}
-                    onSelectAll={selectAll}
-                />
-
                 <div
                     className="relative min-w-fit flex-1"
                     role="grid"
@@ -424,6 +438,14 @@ export function TransactionTable({
                     onKeyDown={handleGridKeyDown}
                     onBlur={handleGridBlur}
                 >
+                    <TransactionTableHeader
+                        allocationColumns={allocationColumns}
+                        gridTemplateColumns={gridTemplateColumns}
+                        isAllSelected={isAllSelected}
+                        isSomeSelected={isSomeSelected}
+                        onSelectAll={selectAll}
+                    />
+
                     <div
                         className="relative min-w-fit"
                         role="rowgroup"
@@ -441,6 +463,7 @@ export function TransactionTable({
                                     style={{
                                         transform: `translateY(${virtualRow.start}px)`
                                     }}
+                                    role="presentation"
                                 >
                                     <TransactionRow
                                         transaction={transaction}

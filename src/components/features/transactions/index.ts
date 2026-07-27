@@ -2,7 +2,6 @@ export { BulkEditToolbar, type BulkEditToolbarProps } from "./BulkEditToolbar";
 export * from "./cells";
 export * from "./filters";
 
-export { InlineTagEditor, type InlineTagEditorProps } from "./InlineTagEditor";
 export {
     createEmptyFilters,
     hasActiveFilters,

@@ -6,7 +6,7 @@
  * Date range selector with preset options like "Last 14 days", "MTD", etc.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -111,9 +111,23 @@ export function DateRangeFilter({ value, onChange, className }: DateRangeFilterP
     const [isOpen, setIsOpen] = useState(false);
     const [customStart, setCustomStart] = useState(value.start ?? "");
     const [customEnd, setCustomEnd] = useState(value.end ?? "");
+    const [previousValue, setPreviousValue] = useState(value);
     const containerRef = useRef<HTMLDivElement>(null);
+    const triggerRef = useRef<HTMLButtonElement>(null);
+    const panelId = useId();
+    const startInputId = useId();
+    const endInputId = useId();
 
-    const presets = getPresets();
+    // Adjust the custom-range drafts during render when a new controlled value arrives.
+    if (value !== previousValue) {
+        setPreviousValue(value);
+        setCustomStart(value.start ?? "");
+        setCustomEnd(value.end ?? "");
+    }
+
+    // Each preset allocates a closure, so recompute only when the day rolls over rather than on
+    // every render.
+    const presets = useMemo(() => getPresets(), []);
 
     // Find current preset label
     const currentPresetLabel = presets.find((p) => {
@@ -128,14 +142,6 @@ export function DateRangeFilter({ value, onChange, className }: DateRangeFilterP
             ? `${value.start} - ${value.end}`
             : value.start || value.end || "All time");
 
-    // Sync custom inputs with value - derived state from controlled prop
-    useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- Sync controlled input with parent
-        setCustomStart(value.start ?? "");
-
-        setCustomEnd(value.end ?? "");
-    }, [value]);
-
     // Handle click outside
     useEffect(() => {
         if (!isOpen) return;
@@ -148,6 +154,20 @@ export function DateRangeFilter({ value, onChange, className }: DateRangeFilterP
 
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [isOpen]);
+
+    // Escape closes the dropdown and returns focus to the trigger
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key !== "Escape") return;
+            setIsOpen(false);
+            triggerRef.current?.focus();
+        };
+
+        document.addEventListener("keydown", handleEscape);
+        return () => document.removeEventListener("keydown", handleEscape);
     }, [isOpen]);
 
     const handlePresetClick = (preset: DateRangePreset) => {
@@ -167,8 +187,12 @@ export function DateRangeFilter({ value, onChange, className }: DateRangeFilterP
         <div ref={containerRef} className={cn("relative", className)}>
             {/* Trigger button */}
             <button
+                ref={triggerRef}
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
+                aria-haspopup="true"
+                aria-expanded={isOpen}
+                aria-controls={isOpen ? panelId : undefined}
                 className={cn(
                     "flex items-center gap-2 rounded-md border px-3 py-2 text-sm",
                     "hover:bg-accent focus:ring-primary focus:ring-2 focus:outline-none",
@@ -207,11 +231,12 @@ export function DateRangeFilter({ value, onChange, className }: DateRangeFilterP
                         <div className="text-muted-foreground mb-2 text-xs font-medium">
                             Quick Select
                         </div>
-                        <div className="grid grid-cols-2 gap-1">
+                        <div className="grid grid-cols-2 gap-1" id={panelId}>
                             {presets.map((preset) => (
                                 <button
                                     key={preset.label}
                                     type="button"
+                                    aria-pressed={currentPresetLabel === preset.label}
                                     onClick={() => handlePresetClick(preset)}
                                     className={cn(
                                         "rounded px-2 py-1.5 text-left text-sm",
@@ -233,10 +258,14 @@ export function DateRangeFilter({ value, onChange, className }: DateRangeFilterP
                         </div>
                         <div className="flex gap-2">
                             <div className="flex-1">
-                                <label className="text-muted-foreground mb-1 block text-xs">
+                                <label
+                                    htmlFor={startInputId}
+                                    className="text-muted-foreground mb-1 block text-xs"
+                                >
                                     From
                                 </label>
                                 <input
+                                    id={startInputId}
                                     type="date"
                                     value={customStart}
                                     onChange={(e) => setCustomStart(e.target.value)}
@@ -244,10 +273,14 @@ export function DateRangeFilter({ value, onChange, className }: DateRangeFilterP
                                 />
                             </div>
                             <div className="flex-1">
-                                <label className="text-muted-foreground mb-1 block text-xs">
+                                <label
+                                    htmlFor={endInputId}
+                                    className="text-muted-foreground mb-1 block text-xs"
+                                >
                                     To
                                 </label>
                                 <input
+                                    id={endInputId}
                                     type="date"
                                     value={customEnd}
                                     onChange={(e) => setCustomEnd(e.target.value)}

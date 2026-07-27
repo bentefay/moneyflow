@@ -177,6 +177,10 @@ export function ImportPanel({
     const handleImport = useCallback(async () => {
         if (!canImport || !session) return;
 
+        // Narrowed once, so the per-transaction map below needs no assertion.
+        const selectedAccountId = session.selectedAccountId;
+        if (!selectedAccountId) return;
+
         setIsImporting(true);
         try {
             // Collect valid transactions to import (valid + duplicate, not filtered/invalid)
@@ -186,7 +190,7 @@ export function ImportPanel({
                     date: tx.date,
                     description: tx.description,
                     amount: tx.amount,
-                    accountId: session.selectedAccountId!,
+                    accountId: selectedAccountId,
                     duplicateOf: tx.duplicateOf
                 }));
 

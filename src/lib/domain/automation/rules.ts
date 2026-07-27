@@ -22,11 +22,7 @@ import {
     validateAllocationSet
 } from "@/lib/domain/allocation";
 import { asMinorUnits, type MoneyMinorUnits } from "@/lib/domain/currency";
-
-/** Compile-time exhaustiveness guard (ts-pattern is not a dependency of this package). */
-function assertNever(value: never): never {
-    throw new Error(`Unexpected value: ${JSON.stringify(value)}`);
-}
+import { assertNever } from "@/lib/utils/exhaustive";
 
 // ============================================================================
 // Branded identity and enums

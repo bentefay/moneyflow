@@ -10,8 +10,6 @@ export {
     ActionEditor,
     type ActionEditorProps
 } from "./ActionEditor";
-export { AutomationRow, type AutomationRowProps } from "./AutomationRow";
-export { AutomationsTable } from "./AutomationsTable";
 export {
     CONDITION_COLUMNS,
     CONDITION_OPERATORS,

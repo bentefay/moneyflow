@@ -950,11 +950,16 @@ function TransactionsPageContent() {
             // Convert string date from TransactionRowData to PlainDate for comparison
             const newPlainDate = updates.date ? Temporal.PlainDate.from(updates.date) : undefined;
             const newAccountId = updates.accountId;
-            const dateChanged =
-                newPlainDate && Temporal.PlainDate.compare(newPlainDate, tx.date) !== 0;
-            const accountChanged = newAccountId && newAccountId !== tx.accountId;
+            // Carry the moved *values*, not booleans about them, so the destination location below
+            // narrows without assertions.
+            const movedDate =
+                newPlainDate && Temporal.PlainDate.compare(newPlainDate, tx.date) !== 0
+                    ? newPlainDate
+                    : undefined;
+            const movedAccountId =
+                newAccountId && newAccountId !== tx.accountId ? newAccountId : undefined;
 
-            if (dateChanged || accountChanged) {
+            if (movedDate || movedAccountId) {
                 // Use moveTransaction for date/account changes
                 moveTransaction({
                     location: {
@@ -963,7 +968,7 @@ function TransactionsPageContent() {
                         transactionId: tx.id
                     },
                     newDate: newPlainDate ?? tx.date,
-                    newAccountId: accountChanged ? newAccountId : undefined
+                    newAccountId: movedAccountId
                 });
                 // Remove date and accountId from updates since moveTransaction handles them
                 delete updates.date;
@@ -998,8 +1003,8 @@ function TransactionsPageContent() {
             if (Object.keys(transactionUpdates).length > 0) {
                 // Use the new location if it changed
                 const location = {
-                    accountId: accountChanged ? newAccountId! : tx.accountId,
-                    date: dateChanged ? newPlainDate! : tx.date,
+                    accountId: movedAccountId ?? tx.accountId,
+                    date: movedDate ?? tx.date,
                     transactionId: tx.id
                 };
                 updateTransaction({
