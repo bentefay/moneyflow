@@ -39,7 +39,9 @@ review evidence.
 - **Rolling scratch SHA-256:** `9fcdc51e0d45176f887383bfdc9406ff19caecf6d9dc885e8f4b78219d2761cb`
 - **Authorized checked HS IDs:** HS-001, HS-002, HS-003, HS-004, HS-005, HS-006, HS-007, HS-008,
   HS-009, HS-010, HS-011, HS-012, HS-013, HS-014, HS-015, HS-017, HS-018, HS-019, HS-020
-- **Active completion marker event:** none
+- **Active completion marker event:** HS-016 `completion_pending` (pre-change SHA `9fcdc51e…`;
+  intended `- []` -> `- [x]` at scratch `:328`; SOLE package P20A PASS via
+  `reviews/P20A-review-02.md`) — applied and finalized in Commit B; NO dispatch while pending
 - **Active P21 rollback batch:** none
 - **Last ledger update:** 2026-07-27; **P20A / 02 `implementing -> reviewing`** (B1 fix handback
   verified clean; re-dispatching distinct reviewer over `e5dc9f2..e50cbb23`). Prior: **P20A / 01
@@ -5144,3 +5146,51 @@ settings disclosure, confirm no new issue introduced, and re-run all five gates.
 integrate (Commit A persist `reviews/P20A-review-02.md`; Commit B flip `passed` + SOLE-package
 HS-016 authorized forward marker `- []` -> `- [x]` at scratch `:328`, advancing rolling SHA). TWENTY
 of twenty-two requirements `passed`; remaining packages P20A, P20B, P21.
+
+### 2026-07-27 — P20A/02 review PASS (Commit A integration-persistence) + HS-016 completion_pending
+
+`p20a-reviewer-01` (DISTINCT from implementer `p20a-implementer-01`) returned **VERDICT: PASS — 0
+blocking findings** over `e5dc9f2..e50cbb23`. **Root verify-not-trust — every hard claim re-derived
+against git, all confirmed:** (1) `git rev-list --parents e5dc9f2..e50cbb23` = one commit
+`e50cbb23`, one parent `e5dc9f2`, no merges; (2) `git diff --name-status e5dc9f2 e50cbb23` = EXACTLY
+`M src/components/features/landing/SecuritySection.tsx` + `A evidence/P20A/implementation-02.md`;
+(3)
+`git grep -nE "re-keyed|rekeyed" e50cbb23 -- src/components/features/landing src/app/(marketing)` =
+ZERO hits (false claim gone); the replacement at `SecuritySection.tsx:35` reads _"…Removing a member
+cuts off their access to future changes; the vault key is not rotated, so anything they already
+downloaded stays readable to them."_ — matching the in-app disclosure
+`AccessMembersSection.tsx:106-109`; (4) FS-001 `settlement.ts` blob
+`010f3c93582a2ce311594d4dde8464760ca49c43` byte-identical at `e50cbb23`; boundary dirs
+`src/lib`/`src/server`/`supabase`/`src/app`/`package.json`/lockfile empty in the delta; (5) no new
+`as`/`any`/non-null `!` on the added product line; (6) secret scan over the rev-02 product diff =
+zero hits. `git diff --name-only e50cbb23 HEAD -- src/ tests/` is EMPTY (HEAD = dispatch commit
+`e55fc7f`), so the reviewer's gate run measured exactly the reviewed product state. **Reviewer gate
+counts (re-run, real):** typecheck 0; lint 0 errors / 10 pre-existing warnings; format:check 13
+pre-existing `specs/**` markdown only (0 `.ts`/`.tsx`); test 1939 passed / 2 skipped; e2e 163
+passed. **Unit flake (non-blocking, not P20A):** first full run hit
+`tests/unit/import/duplicates.test.ts:748` ("scales linearly O(n+m)", `4.44 < 4` on sub-millisecond
+wall-clock ratios) — a pre-existing timing-ratio flake; the file is untouched by both revisions and
+the rev-02 delta has no `src/lib/**` change; reviewer re-ran it 3/3 green isolated and the full
+suite green at 1939/2. Recorded as **Q-P20A-05** (suggest operation-count assertion or wider
+threshold; pre-existing, unrelated to HS-016). The reviewer additionally proved the NEW clause
+_"cuts off their access to future changes"_ end-to-end (`membership.remove` hard-deletes the
+`vault_memberships` row `membership.ts:132-137`; every sync read path + `realtime.authorize` gate on
+that row) rather than trusting the evidence file — a genuine fresh proof, not a rubber-stamp — and
+noted the marketing wording drops "immediately", i.e. is marginally _weaker_ than the in-app claim
+(understatement, not overclaim). **B1 is resolved.**
+
+**Commit A (integration-persistence):** persists `reviews/P20A-review-02.md` (evidence
+`evidence/P20A/implementation-02.md` already tracked at `e50cbb23`) + this event; keeps row P20A
+`reviewing`. **Pre-marker verification GREEN:** actual `sha256sum specs/human-scratch.md` == rolling
+`9fcdc51e0d45176f887383bfdc9406ff19caecf6d9dc885e8f4b78219d2761cb`; normalized-block check 0
+mismatches over all 21 ordered HS blocks vs SCOPE `sourceTextLines` (checkbox token canonicalized so
+a flip normalizes away); HS-016 block first line (`:328`) currently UNCHECKED; authorized checked
+set = exactly the 19 prior IDs.
+
+**completion_pending (HS-016):** SOLE mapped package P20A now PASS (review
+`reviews/P20A-review-02.md`); pre-change scratch SHA
+`9fcdc51e0d45176f887383bfdc9406ff19caecf6d9dc885e8f4b78219d2761cb`; intended `- []` -> `- [x]` on
+the HS-016 block first line at scratch `:328`. While this marker is pending, NO package dispatch is
+allowed. Commit B will apply the marker via a `mktemp` copy (single-line diff only), re-verify
+normalized blocks + new SHA, flip P20A + HS-016 rows to `passed`, advance the rolling SHA, and add
+HS-016 to the authorized checked set (-> 20 IDs).
