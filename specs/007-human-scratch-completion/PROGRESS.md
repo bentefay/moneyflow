@@ -5671,3 +5671,29 @@ root-ledger-only; product/test tip `5576175`; commits must touch only `tests/e2e
 MUST be many full-suite `--retries=0` runs (isolation is useless for this load-dependent flake).
 Evidence -> `evidence/P20B/implementation-05.md`. P20B stays `changes_requested` (rev 03) until a
 clean handback is verify-not-trusted and a DISTINCT reviewer PASSES.
+
+### 2026-07-27 — P20B rev 03 handback verify-not-trust GREEN; reviewer HELD; rev 04 sweep for two new flakes
+
+`p20b-implementer-03` handed back. Root verify-not-trust GREEN: commits `63787ec` (test) + `ac29202`
+(evidence); `git diff --stat 5576175..HEAD -- . ':(exclude)specs'` == ONLY
+`tests/e2e/transactions.spec.ts` (12 ins / 6 del); no `src/**`, `identity.spec.ts` untouched. The
+diff is exactly four `{ timeout: 15_000 }` additions on the 500-count re-render assertions (chartered
+`:696` post-"Clear search" + the 3 structural siblings: post-nav, post-reload, duplicate-tab), all
+mirroring the existing sibling `:578`; no `--retries`/`waitForTimeout`/try-catch. Validation: 8
+sequential full-suite `--retries=0` runs → `transactions:523` **8/8 PASS**, `identity:282` **8/8
+PASS** (no regression). The chartered `transactions:696` defect (Q-P20B-15) is FIXED.
+
+**Two NEW untracked flakes surfaced during that validation (implementer correctly flagged, did NOT
+scope-creep):** `passkey.spec.ts:387` (run #5; 30s unlock-click timeout amid tRPC "Failed to fetch")
+and `import.spec.ts:1573` (run #8; import-preview "4 rows" not found within its existing 5s wait).
+Each 1/8. Neither is in the accepted set ⇒ each is an "unexplained flake" that WOULD FAIL a P21 rev
+03 audit. Surfaced as **Q-P20B-16** and **Q-P20B-17**.
+
+**Coordinator decision:** re-passing HS-021 into a suite that still flakes ~2/8 would guarantee a P21
+rollback (churn). Per the GOAL DoD ("clean full-suite E2E, no unexplained flake") this is more work
+to complete committed scope — NOT a scope reduction, no adjudicator required. So: (1) HOLD the
+distinct P20B reviewer until the E2E-stability sweep is complete, so ONE review covers the cumulative
+hardening (`5576175..HEAD`); (2) dispatch **P20B rev 04** to DIAGNOSE `passkey:387` + `import:1573`
+and classify each into fix-the-timing / accept-environmental / escalate-real-defect, then fix the
+fixable ones and validate the whole suite clean-or-explained across many full runs. P20B stays
+`changes_requested`; HS-021 stays rolled back (`[]`, rolling `f46c2d35…`).

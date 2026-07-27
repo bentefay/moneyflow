@@ -1943,3 +1943,55 @@ decisions.
   default.
 - **Does a human still need to decide after completion?:** No — the P20B rev-03 reviewer and the
   P21 rev-03 audit rule on whether the hardened assertion holds under load. Not a human gate.
+
+## Q-P20B-16 — `passkey.spec.ts:387` unlock-button click timeout under parallel load (under investigation)
+
+- **Raised by:** root, from the P20B rev-03 implementer's full-suite validation (run #5 of 8;
+  `evidence/P20B/implementation-05.md`).
+- **Context:** In one of 8 sequential full-suite `--retries=0` runs, `passkey.spec.ts:387` failed —
+  a click on the unlock-button (`:401`) timed out at 30s amid tRPC auth / "Failed to fetch" console
+  errors. Different subsystem (WebAuthn recovery + sync auth) and different failure mode (a 30s
+  action-click timeout, NOT an undersized visibility assertion) from the tx523/identity load-timing
+  class. Observed 1/8.
+- **Why it matters:** it is NOT in the accepted-flake set (`import:301`/Q-P20B-13,
+  `import:1527`/Q-P20B-14, `duplicates`/Q-P20A-05). Left untracked it is an "unexplained flake" that
+  would FAIL the P21 rev 03 audit. Must be diagnosed and either fixed (if a fixable test-timing
+  defect) or explained+tracked as accepted-environmental (isolation-green + external mechanism)
+  BEFORE the next audit.
+- **Options considered:** (a) harden a test wait — only valid if the mechanism is an undersized
+  wait; a 30s click timeout amid "Failed to fetch" suggests a backend/sync-availability cause, not an
+  undersized assertion; (b) classify as accepted-environmental — valid iff isolation-green with a
+  plausible external mechanism (sync/auth backend contention under 4-worker load); (c) escalate as a
+  real product/sync defect — if it reproduces a genuine race. **[SELECTED: investigate first]** —
+  routed to a P20B rev-04 diagnosis pass that classifies into (a)/(b)/(c); do NOT blindly mask.
+- **Default selected for continued work:** diagnose (P20B rev 04), then fix-or-classify-or-escalate.
+- **Decision hierarchy basis:** GOAL DoD "clean full-suite E2E with no unexplained flake" + audit
+  line 71. Diagnosing/tracking it is more work to complete committed scope, not a reduction.
+- **Impact and risk:** ~1/8 full parallel runs; unknown in isolation until diagnosed. If a real
+  sync-auth race, could indicate a product issue; if backend contention, environmental.
+- **How to reverse or migrate:** if hardened, revert the test change; if classified, remove the Q.
+- **Does a human still need to decide after completion?:** the P21 rev-03 audit reviewer rules on
+  acceptability; if escalated as a real defect it may need a product package.
+
+## Q-P20B-17 — `import.spec.ts:1573` import-preview "4 rows" not found within its 5s wait (under investigation)
+
+- **Raised by:** root, from the P20B rev-03 implementer's full-suite validation (run #8 of 8;
+  `evidence/P20B/implementation-05.md`).
+- **Context:** `import.spec.ts:1573` — `getByText(/4 rows/i).toBeVisible({ timeout: 5000 })` not
+  found after a 2nd CSV upload's import-preview render, in 1 of 8 full-suite runs. Unlike tx523 it
+  ALREADY has an explicit 5s wait, so it is not a bare/missing-timeout of the exact tx523 class,
+  though 5s may still be undersized for the preview re-render under 4-worker load. A THIRD distinct
+  `import.spec.ts` flake alongside the accepted `:301` and `:1527`. Observed 1/8.
+- **Why it matters:** untracked ⇒ unexplained ⇒ would FAIL the P21 rev 03 audit. Must be fixed or
+  explained+tracked before the audit.
+- **Options considered:** (a) **[likely]** harden — bump the 5s wait / await a deterministic
+  post-upload settle signal, consistent with the load-timing class, IF the diagnosis shows a
+  deterministic-but-slow preview render; (b) classify as environmental (isolation-green) like its
+  sibling import flakes; (c) escalate if a real 2nd-upload state race. **[SELECTED: investigate
+  first]** via the P20B rev-04 diagnosis pass.
+- **Default selected for continued work:** diagnose (P20B rev 04), then fix-or-classify.
+- **Decision hierarchy basis:** GOAL DoD + audit line 71; more work to complete committed scope.
+- **Impact and risk:** ~1/8 full parallel runs; import.spec.ts is an established flake hotspot.
+- **How to reverse or migrate:** revert the wait change, or remove the Q if classified.
+- **Does a human still need to decide after completion?:** P21 rev-03 audit reviewer rules on
+  acceptability.
