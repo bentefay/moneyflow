@@ -7,10 +7,32 @@
  * subheadline, and call-to-action buttons.
  */
 
-import { Shield, Users, Zap } from "lucide-react";
+import { FileUp, Lock, Users } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+
+/**
+ * The three steps a real user actually takes, in order. This stands in for a product screenshot:
+ * a truthful description of the flow is more useful than a placeholder that shows nothing.
+ */
+const howItWorks = [
+    {
+        step: "1",
+        title: "Import a statement",
+        detail: "Drop in a CSV or OFX file. Columns are mapped for you and duplicates are flagged."
+    },
+    {
+        step: "2",
+        title: "Tag and allocate",
+        detail: "Sort transactions with nested tags and split them across the people in your vault."
+    },
+    {
+        step: "3",
+        title: "Let it repeat itself",
+        detail: "Save that as a rule and the next import arrives already tagged and allocated."
+    }
+];
 
 export function HeroSection() {
     return (
@@ -37,71 +59,76 @@ export function HeroSection() {
                     {/* Badge */}
                     <div className="mb-8 flex justify-center">
                         <div className="rounded-full bg-violet-100 px-4 py-1.5 text-sm font-medium text-violet-700 ring-1 ring-violet-200 ring-inset dark:bg-violet-900/30 dark:text-violet-300 dark:ring-violet-800">
-                            🔐 Zero-Knowledge • 100% Private
+                            Encrypted in your browser before it is stored
                         </div>
                     </div>
 
                     {/* Headline */}
                     <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-6xl dark:text-white">
-                        Household finances,{" "}
+                        Categorise and allocate{" "}
                         <span className="bg-gradient-to-r from-violet-600 to-cyan-600 bg-clip-text text-transparent">
-                            truly private
+                            shared money
                         </span>
                     </h1>
 
                     {/* Subheadline */}
                     <p className="mt-6 text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-                        Track expenses together without trusting anyone with your data. MoneyFlow
-                        uses end-to-end encryption so only your household sees your finances. No
-                        accounts. No cloud access. Just you and your data.
+                        MoneyFlow imports your CSV and OFX statements, sorts transactions into tags,
+                        and splits them across the people who shared the cost. Several people can
+                        work in the same vault at once. It is not a budgeting app — there are no
+                        limits to set and no spending targets to miss.
                     </p>
 
                     {/* CTA Buttons */}
-                    <div className="mt-10 flex items-center justify-center gap-4">
+                    <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
                         <Button asChild size="lg" className="rounded-full px-8">
-                            <Link href="/new-user">Get Started</Link>
+                            <Link href="/new-user">Create a vault</Link>
                         </Button>
                         <Button asChild variant="outline" size="lg" className="rounded-full px-8">
-                            <Link href="#features">Learn More</Link>
+                            <Link href="#features">See what it does</Link>
                         </Button>
                     </div>
 
                     {/* Trust indicators */}
-                    <div className="mt-12 flex items-center justify-center gap-8 text-sm text-zinc-500 dark:text-zinc-500">
+                    <div className="mt-12 flex flex-col items-center justify-center gap-4 text-sm text-zinc-600 sm:flex-row sm:gap-8 dark:text-zinc-400">
                         <div className="flex items-center gap-2">
-                            <Shield className="h-4 w-4 text-green-500" />
-                            <span>End-to-end encrypted</span>
+                            <Lock className="h-4 w-4 text-green-600 dark:text-green-500" />
+                            <span>Encrypted on your device</span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <Zap className="h-4 w-4 text-amber-500" />
-                            <span>Offline-first</span>
+                            <FileUp className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+                            <span>CSV and OFX import</span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <Users className="h-4 w-4 text-violet-500" />
-                            <span>Real-time sync</span>
+                            <Users className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                            <span>Real-time collaboration</span>
                         </div>
                     </div>
                 </div>
 
-                {/* Hero Image/Demo */}
+                {/* How it works */}
                 <div className="mt-16 sm:mt-24">
                     <div className="relative mx-auto max-w-5xl">
                         <div className="absolute -inset-4 rounded-2xl bg-gradient-to-r from-violet-500/20 to-cyan-500/20 blur-xl" />
-                        <div className="relative rounded-xl border border-zinc-200 bg-white/80 p-2 shadow-2xl backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80">
-                            <div className="aspect-[16/9] rounded-lg bg-gradient-to-br from-zinc-100 to-zinc-50 dark:from-zinc-800 dark:to-zinc-900">
-                                {/* Placeholder for app screenshot/demo */}
-                                <div className="flex h-full items-center justify-center text-zinc-400 dark:text-zinc-600">
-                                    <div className="text-center">
-                                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/30">
-                                            <Shield className="h-8 w-8 text-violet-600 dark:text-violet-400" />
+                        <div className="relative rounded-xl border border-zinc-200 bg-white/80 p-8 shadow-2xl backdrop-blur sm:p-10 dark:border-zinc-800 dark:bg-zinc-900/80">
+                            <h2 className="text-center text-lg font-semibold text-zinc-900 dark:text-white">
+                                How it works
+                            </h2>
+                            <ol className="mt-8 grid grid-cols-1 gap-8 sm:grid-cols-3">
+                                {howItWorks.map((item) => (
+                                    <li key={item.step}>
+                                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 text-sm font-semibold text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
+                                            {item.step}
                                         </div>
-                                        <p className="text-lg font-medium">Your data stays yours</p>
-                                        <p className="mt-1 text-sm">
-                                            Encrypted locally, synced securely
+                                        <h3 className="mt-4 font-semibold text-zinc-900 dark:text-white">
+                                            {item.title}
+                                        </h3>
+                                        <p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+                                            {item.detail}
                                         </p>
-                                    </div>
-                                </div>
-                            </div>
+                                    </li>
+                                ))}
+                            </ol>
                         </div>
                     </div>
                 </div>

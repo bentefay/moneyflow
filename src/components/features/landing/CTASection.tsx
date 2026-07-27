@@ -29,11 +29,11 @@ export function CTASection() {
 
                     <div className="mx-auto max-w-2xl text-center">
                         <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-                            Ready to take control of your finances?
+                            Start with your last statement
                         </h2>
                         <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-violet-100">
-                            Start tracking your household expenses in minutes. No credit card
-                            required. Your data stays yours—forever.
+                            Create a vault, import a CSV or OFX file, and start tagging and
+                            allocating. Nothing to install and no card required.
                         </p>
                         <div className="mt-10 flex items-center justify-center gap-4">
                             <Button
@@ -42,13 +42,14 @@ export function CTASection() {
                                 className="rounded-full bg-white px-8 text-violet-600 hover:bg-violet-50"
                             >
                                 <Link href="/new-user">
-                                    Get Started
-                                    <ArrowRight className="ml-2 h-4 w-4" />
+                                    Create a vault
+                                    <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
                                 </Link>
                             </Button>
                         </div>
-                        <p className="mt-6 text-sm text-violet-200">
-                            No account needed. Just a 12-word phrase to remember.
+                        <p className="mt-6 text-sm text-violet-100">
+                            No email or password. You unlock with a 12-word recovery phrase or a
+                            passkey.
                         </p>
                     </div>
                 </div>

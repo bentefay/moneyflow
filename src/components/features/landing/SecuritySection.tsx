@@ -1,44 +1,50 @@
 /**
  * Security Section Component
  *
- * Explains the security model and privacy guarantees of MoneyFlow.
+ * Explains the security model and privacy properties of MoneyFlow.
+ *
+ * Wording here is deliberately literal and states the limits of the model as plainly as its
+ * strengths. Primitive names match the actual calls in src/lib/crypto, not the labels in the
+ * surrounding comments.
  */
 
-import { CheckCircle2, Eye, Key, Lock, Server, Shield } from "lucide-react";
+import { CheckCircle2, Key, Lock, Server, Shield, Users } from "lucide-react";
 
 const securityFeatures = [
     {
-        title: "End-to-End Encryption",
+        title: "Encrypted before it is stored",
         description:
-            "Your data is encrypted with XChaCha20-Poly1305 before leaving your device. Only people with the vault key can decrypt it.",
+            "Your transactions are encrypted in your browser. What gets uploaded is a blob the server has no key for, so nobody operating it can read what you spent.",
         icon: Lock
     },
     {
-        title: "Zero-Knowledge Architecture",
+        title: "What the server can still see",
         description:
-            "Our servers only see encrypted blobs. We literally cannot read your financial data, even if compelled by law.",
-        icon: Eye
+            "It sees who shares a vault with whom, who made each change and when, and how much data changed. It cannot see amounts, descriptions, tags or allocations.",
+        icon: Server
     },
     {
-        title: "No Account Required",
+        title: "No email, no password",
         description:
-            "Your 12-word seed phrase is your identity. No email, no password, no personal information stored.",
+            "A 12-word recovery phrase derives your keys, and you can add a passkey to unlock on a device you have. There is no password to reset and no account to recover.",
         icon: Key
     },
     {
-        title: "Local-First Storage",
+        title: "Shared without sharing keys",
         description:
-            "Your data lives on your device first. The cloud is just for sync—you're never locked out.",
-        icon: Server
+            "Inviting someone wraps the vault key to their key. The invite secret stays in the link fragment and never reaches the server. Remove a member and the vault is re-keyed.",
+        icon: Users
     }
 ];
 
 const cryptoDetails = [
     "Ed25519 signatures for identity",
     "X25519 key exchange for sharing",
-    "XChaCha20-Poly1305 encryption",
-    "BLAKE2b for key derivation",
-    "BIP-39 seed phrase standard",
+    "XSalsa20-Poly1305 encryption",
+    "HKDF-SHA256 for key derivation",
+    "BLAKE2b for identity hashing",
+    "BIP-39 recovery phrases",
+    "WebAuthn PRF for passkeys",
     "CRDT for conflict-free sync"
 ];
 
@@ -49,14 +55,17 @@ export function SecuritySection() {
                 {/* Section Header */}
                 <div className="mx-auto max-w-2xl text-center">
                     <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-                        <Shield className="h-6 w-6 text-green-600 dark:text-green-400" />
+                        <Shield
+                            className="h-6 w-6 text-green-600 dark:text-green-400"
+                            aria-hidden="true"
+                        />
                     </div>
                     <h2 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl dark:text-white">
-                        Built on proven cryptography
+                        How your data is protected
                     </h2>
                     <p className="mt-6 text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-                        We don't invent our own crypto. MoneyFlow uses the same battle-tested
-                        algorithms that protect your cryptocurrency and secure messaging apps.
+                        MoneyFlow does not invent its own cryptography — it uses standard, widely
+                        reviewed primitives. Below is what that does and does not protect.
                     </p>
                 </div>
 
@@ -69,7 +78,10 @@ export function SecuritySection() {
                                 className="rounded-2xl border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-900"
                             >
                                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-100 dark:bg-violet-900/30">
-                                    <feature.icon className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                                    <feature.icon
+                                        className="h-5 w-5 text-violet-600 dark:text-violet-400"
+                                        aria-hidden="true"
+                                    />
                                 </div>
                                 <h3 className="mt-4 text-lg font-semibold text-zinc-900 dark:text-white">
                                     {feature.title}
@@ -86,33 +98,30 @@ export function SecuritySection() {
                 <div className="mx-auto mt-16 max-w-3xl">
                     <div className="rounded-2xl border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-900">
                         <h3 className="text-center text-lg font-semibold text-zinc-900 dark:text-white">
-                            Our cryptographic stack
+                            The primitives in use
                         </h3>
-                        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
+                        <ul className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
                             {cryptoDetails.map((detail) => (
-                                <div key={detail} className="flex items-center gap-2">
-                                    <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-green-500" />
+                                <li key={detail} className="flex items-center gap-2">
+                                    <CheckCircle2
+                                        className="h-4 w-4 flex-shrink-0 text-green-600 dark:text-green-500"
+                                        aria-hidden="true"
+                                    />
                                     <span className="text-sm text-zinc-600 dark:text-zinc-400">
                                         {detail}
                                     </span>
-                                </div>
+                                </li>
                             ))}
-                        </div>
+                        </ul>
                     </div>
                 </div>
 
-                {/* Open Source Badge */}
-                <div className="mt-12 text-center">
-                    <p className="text-sm text-zinc-500 dark:text-zinc-500">
-                        All encryption code is open source and auditable.{" "}
-                        <a
-                            href="https://github.com/benallfree/moneyflow"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="font-medium text-violet-600 hover:text-violet-500 dark:text-violet-400 dark:hover:text-violet-300"
-                        >
-                            View on GitHub →
-                        </a>
+                {/* Recovery caveat */}
+                <div className="mx-auto mt-12 max-w-3xl">
+                    <p className="text-center text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+                        Holding the only key cuts both ways. If you lose your recovery phrase and
+                        every device with a passkey, your data cannot be recovered — not by you and
+                        not by us.
                     </p>
                 </div>
             </div>

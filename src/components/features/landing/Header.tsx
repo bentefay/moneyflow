@@ -13,16 +13,15 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
 const navigation = [
-    { name: "Features", href: "#features" },
-    { name: "Security", href: "#security" },
-    { name: "Open Source", href: "https://github.com/bentefay/moneyflow", external: true }
+    { name: "What it does", href: "#features" },
+    { name: "Security", href: "#security" }
 ];
 
 export function Header() {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     return (
-        <header className="fixed inset-x-0 top-0 z-50 bg-white/80 backdrop-blur-md">
+        <header className="fixed inset-x-0 top-0 z-50 bg-white/80 backdrop-blur-md dark:bg-zinc-950/80">
             <div className="mx-auto max-w-7xl px-6 lg:px-8">
                 <nav className="flex h-16 items-center justify-between" aria-label="Global">
                     {/* Logo */}
@@ -60,8 +59,6 @@ export function Header() {
                             <a
                                 key={item.name}
                                 href={item.href}
-                                target={item.external ? "_blank" : undefined}
-                                rel={item.external ? "noopener noreferrer" : undefined}
                                 className="text-sm font-medium text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
                             >
                                 {item.name}
@@ -75,7 +72,7 @@ export function Header() {
                             <Link href="/unlock">Unlock</Link>
                         </Button>
                         <Button asChild size="sm" className="rounded-full">
-                            <Link href="/new-user">Get Started</Link>
+                            <Link href="/new-user">Create a vault</Link>
                         </Button>
                     </div>
                 </nav>
@@ -116,8 +113,6 @@ export function Header() {
                                         <a
                                             key={item.name}
                                             href={item.href}
-                                            target={item.external ? "_blank" : undefined}
-                                            rel={item.external ? "noopener noreferrer" : undefined}
                                             className="-mx-3 block rounded-lg px-3 py-2 text-base font-medium text-zinc-900 hover:bg-zinc-50 dark:text-white dark:hover:bg-zinc-800"
                                             onClick={() => setMobileMenuOpen(false)}
                                         >
@@ -138,7 +133,7 @@ export function Header() {
                                         className="-mx-3 block rounded-lg bg-violet-600 px-3 py-2.5 text-center text-base font-medium text-white hover:bg-violet-500"
                                         onClick={() => setMobileMenuOpen(false)}
                                     >
-                                        Get Started
+                                        Create a vault
                                     </Link>
                                 </div>
                             </div>

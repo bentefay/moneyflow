@@ -2,83 +2,86 @@
  * Features Section Component
  *
  * Displays the key features of MoneyFlow in a grid layout.
+ *
+ * Every entry here must map to a capability a user can reach today. Nothing is listed ahead of
+ * shipping it.
  */
 
 import {
-    BarChart3,
+    FileUp,
     Lock,
-    PiggyBank,
     RefreshCw,
-    Shield,
     Smartphone,
+    SplitSquareHorizontal,
+    Tags,
     Users,
-    Zap
+    Wand2
 } from "lucide-react";
 
 const features = [
     {
-        name: "Zero-Knowledge Privacy",
+        name: "CSV and OFX import",
         description:
-            "Your financial data is encrypted before it ever leaves your device. We can't see it, hackers can't steal it.",
-        icon: Shield,
-        color: "text-violet-600 dark:text-violet-400",
-        bgColor: "bg-violet-100 dark:bg-violet-900/30"
-    },
-    {
-        name: "Household Collaboration",
-        description:
-            "Share a vault with your partner or family. Everyone sees updates in real-time, with automatic conflict resolution.",
-        icon: Users,
-        color: "text-cyan-600 dark:text-cyan-400",
-        bgColor: "bg-cyan-100 dark:bg-cyan-900/30"
-    },
-    {
-        name: "Offline-First",
-        description:
-            "Works without internet. Make changes offline, and everything syncs automatically when you're back online.",
-        icon: Zap,
+            "Load statements as CSV or OFX. The format is detected for you, columns are mapped, and rows that look like ones you already have are flagged before anything is added.",
+        icon: FileUp,
         color: "text-amber-600 dark:text-amber-400",
         bgColor: "bg-amber-100 dark:bg-amber-900/30"
     },
     {
-        name: "Seed Phrase Security",
+        name: "Nested tags",
         description:
-            "No passwords to remember or reset. Your 12-word seed phrase is the only key to your data.",
+            "Sort transactions with tags that nest, so you can keep a broad category and its detail at the same time. Edit one transaction inline or a whole selection at once.",
+        icon: Tags,
+        color: "text-violet-600 dark:text-violet-400",
+        bgColor: "bg-violet-100 dark:bg-violet-900/30"
+    },
+    {
+        name: "Allocations to people",
+        description:
+            "Split a transaction across the people in your vault by percentage. Balances roll up into who owes whom, so you can settle up without a spreadsheet.",
+        icon: SplitSquareHorizontal,
+        color: "text-cyan-600 dark:text-cyan-400",
+        bgColor: "bg-cyan-100 dark:bg-cyan-900/30"
+    },
+    {
+        name: "Rules that carry forward",
+        description:
+            "Save the way you handled a transaction as a rule. Your tags, aliases and allocations are then applied to matching transactions as they arrive in new imports.",
+        icon: Wand2,
+        color: "text-emerald-600 dark:text-emerald-400",
+        bgColor: "bg-emerald-100 dark:bg-emerald-900/30"
+    },
+    {
+        name: "Shared vaults",
+        description:
+            "Invite the people you share money with. Several of you can work in the same vault at once and see who is editing what.",
+        icon: Users,
+        color: "text-blue-600 dark:text-blue-400",
+        bgColor: "bg-blue-100 dark:bg-blue-900/30"
+    },
+    {
+        name: "Edits merge cleanly",
+        description:
+            "Two people editing at the same time will not overwrite each other. Changes are merged with conflict-free replicated data types rather than last-write-wins.",
+        icon: RefreshCw,
+        color: "text-teal-600 dark:text-teal-400",
+        bgColor: "bg-teal-100 dark:bg-teal-900/30"
+    },
+    {
+        name: "Encrypted on your device",
+        description:
+            "Your transactions are encrypted in your browser before they are stored. The server keeps blobs it has no key for, so nobody there can read what you spent.",
         icon: Lock,
         color: "text-green-600 dark:text-green-400",
         bgColor: "bg-green-100 dark:bg-green-900/30"
     },
     {
-        name: "Real-Time Sync",
+        name: "Saves locally first",
         description:
-            "See changes instantly as your household members add transactions. Powered by conflict-free replicated data types.",
-        icon: RefreshCw,
-        color: "text-blue-600 dark:text-blue-400",
-        bgColor: "bg-blue-100 dark:bg-blue-900/30"
-    },
-    {
-        name: "Works Everywhere",
-        description:
-            "Access from any device with a web browser. No app downloads required. Your data follows you.",
+            "Changes are written to your browser first and pushed when the network allows, so you can keep working when your connection drops. Runs in a browser, no install.",
         icon: Smartphone,
         color: "text-rose-600 dark:text-rose-400",
         bgColor: "bg-rose-100 dark:bg-rose-900/30"
-    },
-    {
-        name: "Smart Budgeting",
-        description:
-            "Set budgets for categories and track spending. Get gentle nudges when you're approaching limits.",
-        icon: PiggyBank,
-        color: "text-emerald-600 dark:text-emerald-400",
-        bgColor: "bg-emerald-100 dark:bg-emerald-900/30"
-    },
-    {
-        name: "Spending Insights",
-        description:
-            "Understand where your money goes with clear visualizations. No AI analyzing your data—just local charts.",
-        icon: BarChart3,
-        color: "text-orange-600 dark:text-orange-400",
-        bgColor: "bg-orange-100 dark:bg-orange-900/30"
     }
 ];
 
@@ -88,16 +91,13 @@ export function FeaturesSection() {
             <div className="mx-auto max-w-7xl px-6 lg:px-8">
                 {/* Section Header */}
                 <div className="mx-auto max-w-2xl text-center">
-                    <h2 className="text-base leading-7 font-semibold text-violet-600 dark:text-violet-400">
-                        Everything you need
+                    <h2 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl dark:text-white">
+                        What MoneyFlow does
                     </h2>
-                    <p className="mt-2 text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl dark:text-white">
-                        Privacy meets simplicity
-                    </p>
                     <p className="mt-6 text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-                        MoneyFlow combines military-grade encryption with an intuitive interface.
-                        Track expenses, share with family, and stay in control—all without
-                        sacrificing privacy.
+                        It takes the transactions you already have and makes them legible: tagged,
+                        split between the right people, and kept that way as new statements come in.
+                        It does not set budgets, track you against limits, or tell you how to spend.
                     </p>
                 </div>
 
