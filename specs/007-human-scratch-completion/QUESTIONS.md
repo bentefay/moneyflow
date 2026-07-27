@@ -2133,3 +2133,35 @@ if a human later wants them. Per the no-pause rule root records this and proceed
 - **Impact and risk:** cosmetic currency only; zero security advisories; all patch bumps except one icon minor.
 - **How to reverse or migrate:** a trivial future P01 dependency bump if desired.
 - **Does a human still need to decide after completion?:** Optional — a human may later elect the patch bumps; not required for Goal completion.
+
+## Q-P20B-20 — `import.spec.ts` cross-worker temp-file collision is a real parallel-safety bug, NOT the eager-assertion class
+
+**Surfaced:** P20B rev 06 campaign (run 2 of 10, digest `3fd09f48`), by `p20b-implementer-06`.
+
+**Symptom:** `import.spec.ts:1527` "selecting template and importing auto-updates template config"
+failed in its `cleanup` step with `ENOENT: unlink '/tmp/.../test-import-<ms>.csv'` at
+`import.spec.ts:1637` (`fs.unlinkSync(csvPath)`).
+
+**Root cause:** `createTestFile` (`import.spec.ts:74-80`) builds the temp path from
+`Date.now()` (millisecond resolution) into the shared `os.tmpdir()`. Under `fullyParallel` + 4
+workers, two callers entering in the same millisecond get the IDENTICAL path; the second
+`writeFileSync` overwrites the first, and whichever test finishes first unlinks the shared file, so
+the other's cleanup hits ENOENT. Nine call sites funnel through this one helper. This is a genuine
+cross-worker parallel-safety defect — no timeout value can fix it.
+
+**Fix (rev 06, inside allowed writes, `import.spec.ts` only):** append a random suffix —
+`const uniqueName = \`test-import-${Date.now()}-${crypto.randomUUID().slice(0, 8)}\``. Root-verified:
+`crypto` is already imported at `import.spec.ts:16` (pre-existing, no new import); the three
+filename assertions (`:1524`, `:1586`, `:1627`) use the UNANCHORED regex `/test-import-\d+/i`, which
+still matches the unchanged `test-import-<digits>` prefix.
+
+**Material consequence for the audit trail:** the rev-04 F-1 diagnosis was INCOMPLETE.
+`import.spec.ts:1527` was charted as an eager-assertion cohort member (and it does contain those),
+but at least one of its observed failures was this ENOENT, which a timeout change would never have
+fixed. **If a future audit sees `:1527` fail again, check WHICH error before assuming the
+timeout fix regressed** — ENOENT ⇒ this parallel-safety class (should be closed by rev 06); a
+5s-timeout timeout ⇒ the eager class. This is why 10 back-to-back full-suite runs surface defects a
+single `pnpm test:e2e` never applied enough scheduling pressure to expose.
+
+**Status:** fixed in rev 06 pending DISTINCT-reviewer confirmation under repeated full-suite load.
+Not a scope reduction (completing committed HS-021 code-quality scope); no adjudicator required.
