@@ -1,66 +1,62 @@
-# HANDOFF — P20A IMPLEMENT dispatch (revision 02 — B1 fix)
+# HANDOFF — P20A REVIEW dispatch (revision 02 — confirm B1 resolved)
 
-**To:** `p20a-implementer-01` (you implemented rev 01; this is your one-sentence fix). **From:**
-root coordinator.
+**To:** `p20a-reviewer-01` (you reviewed rev 01 and correctly FAILED it on B1; you retain that
+context). **From:** root coordinator. You remain DISTINCT from the implementer `p20a-implementer-01`
+— role separation holds.
 
-**Package:** P20A (HS-016 — Truthful marketing pages). Rev 01 FAILED review with **1 blocking
-finding (B1)**. This revision fixes ONLY B1. The rest of your rev-01 work was verified clean and
-must stay byte-for-byte as-is.
+**Package:** P20A (HS-016 — Truthful marketing pages). Rev 01 FAILED on your **B1** (false "vault is
+re-keyed" security claim). The implementer shipped a one-sentence rev-02 fix. This review confirms
+B1 is resolved and nothing else regressed.
 
-**BASE = current HEAD `c9c7874f9da65e87f604dadb4d54b0750323c896`.** Commit your fix forward on top
-of BASE. **No-checkout discipline: do NOT checkout/reset/branch/switch.** One small feat commit.
+## Scope of THIS review — the rev-02 delta only
 
-## The blocking finding to fix — B1
+**Review range: `e5dc9f2..e50cbb23`** (rev-02 tip = `e50cbb23119d8b916d0100f36b86cce6f6a04392`,
+parent `e5dc9f2`). Root has already verified the chain is linear and the delta is exactly 2 files:
 
-`src/components/features/landing/SecuritySection.tsx:35` — the "Shared without sharing keys" card
-currently reads:
+- `M src/components/features/landing/SecuritySection.tsx` — the one-line copy fix
+- `A specs/007-human-scratch-completion/evidence/P20A/implementation-02.md` — implementer's B1 note
 
-> "Inviting someone wraps the vault key to their key. The invite secret stays in the link fragment
-> and never reaches the server. **Remove a member and the vault is re-keyed.**"
+The entire rest of rev 01 was verified clean at your rev-01 review and is unchanged — do NOT
+re-litigate it. Focus tightly on the changed sentence.
 
-The **third sentence is false.** The re-key primitives exist (`src/lib/crypto/rekey.ts`,
-`membership.rekey`) but have **zero callers** — member removal does NOT rotate the vault key. The
-app's own settings page `src/components/features/vault/AccessMembersSection.tsx:108` correctly
-discloses: _"...The vault key is not rotated, so anything they already downloaded stays readable to
-them."_ The landing page must not promise a security property the product does not deliver.
+## What to confirm
 
-## The fix (do EXACTLY this — nothing more)
+1. **B1 is gone.** The false _"Remove a member and the vault is re-keyed."_ sentence no longer
+   appears in `SecuritySection.tsx` (or anywhere under `src/components/features/landing/`). The
+   "Shared without sharing keys" card now reads:
 
-Replace the false third sentence with the honest behavior, matching the in-app wording. Recommended
-copy for that card's body (keep the first two sentences unchanged):
+    > "Inviting someone wraps the vault key to their key. The invite secret stays in the link
+    > fragment and never reaches the server. Removing a member cuts off their access to future
+    > changes; the vault key is not rotated, so anything they already downloaded stays readable to
+    > them."
 
-> "Inviting someone wraps the vault key to their key. The invite secret stays in the link fragment
-> and never reaches the server. Removing a member cuts off their access to future changes; the vault
-> key is not rotated, so anything they already downloaded stays readable to them."
+2. **The replacement copy is itself truthful.** It must match the product's actual behavior and the
+   in-app disclosure at `src/components/features/vault/AccessMembersSection.tsx:106-109` ("The vault
+   key is not rotated, so anything they already downloaded stays readable to them."). Confirm the
+   member-removal path (`membership.remove`) does NOT rotate the key and that the new sentence
+   claims no property the product does not deliver. It must introduce NO new unbacked claim.
 
-(If the card's length budget is tight, simply deleting the false sentence — ending after "never
-reaches the server." — is also acceptable. Do NOT invent any new claim.)
+3. **No collateral change.** Delta is exactly the 2 files above; FS-001
+   `src/lib/domain/settlement.ts` byte-identical (`010f3c93582a2ce311594d4dde8464760ca49c43`);
+   nothing under `src/lib`/`src/server`/`supabase`/`src/app` changed beyond the one landing string;
+   no new `as`/`any`/non-null `!`; no secret material.
 
-## Hard constraints
-
-- **Change ONLY the copy string in `SecuritySection.tsx` for B1.** Do not touch any other landing
-  component, the marketing layout, or any other file — the rest of rev 01 passed review.
-- If your `tests/unit/components/landing-page.test.tsx` asserts anything about that card's text,
-  update the assertion to match the corrected copy — but keep the truthfulness guards intact and do
-  NOT weaken them. Do not add coupling to incidental prose.
-- **No new `as`/`any`/non-null `!`** in product code.
-- **Secret-safety** unchanged: no real secret material anywhere.
-- **FS-001 `src/lib/domain/settlement.ts` stays byte-identical**
-  (`010f3c93582a2ce311594d4dde8464760ca49c43`); nothing under `src/lib/**` changes.
-- Do NOT edit root-owned files except appending your rev-02 note to
-  `evidence/P20A/implementation-01.md` (or add `evidence/P20A/implementation-02.md`) recording the
-  B1 fix.
+4. **If `tests/unit/components/landing-page.test.tsx` was touched** to match the corrected copy,
+   confirm the truthfulness guards remain intact and were not weakened (root's delta shows the test
+   file was NOT modified in rev 02 — confirm the existing assertions still pass and none reference
+   the removed false sentence).
 
 ## Gates — run ALL and report REAL counts
 
 `pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm test:e2e`. `format:check`
 failing only on pre-existing `specs/**` markdown is non-blocking; any P20A `.ts`/`.tsx` failing
-oxfmt is blocking (`pnpm format` your own files).
+oxfmt is blocking.
 
 ## Handback
 
-SendMessage to `main` with: the final HEAD SHA + the linear chain from `c9c7874`; the exact
-corrected copy; confirmation that (a) the false re-key sentence is gone and the card now matches the
-in-app no-rotation disclosure, (b) no other landing copy changed, (c) FS-001 byte-identical and
-nothing under `src/lib/**` changed, (d) the five real gate counts, (e) no new casts, (f) no secret
-material. Do not checkout/reset.
+SendMessage to `main` with: **VERDICT: PASS or FAIL**; the review range you actually diffed and the
+resolved rev-02 tip SHA; explicit confirmation that (a) B1's false sentence is gone, (b) the
+replacement copy is truthful and matches the in-app no-rotation disclosure, (c) the delta is the 2
+expected files with FS-001 byte-identical, (d) the five real gate counts, (e) no new casts, (f) no
+secret material. If PASS, note it is ready for NON-markerless final integration (HS-016 marker at
+scratch `:328`). Persist your review as `reviews/P20A-review-02.md`. Do not checkout/reset/branch.
