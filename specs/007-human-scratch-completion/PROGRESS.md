@@ -5318,3 +5318,33 @@ stale `.claude` FACTUAL text only with repo proof, never weaken a rule; frozen s
 down); secret-safety; regression tests for behavior changes + E2E flake sample; full gates +
 `pnpm build`; manual Playwright charter headless. Serial: no other package dispatchable while P20B
 is open. Next: verify-not-trust the handback, then dispatch the distinct reviewer.
+
+### 2026-07-27 — P20B/01 review PASS (Commit A integration-persistence) + HS-021 completion_pending
+
+`p20b-reviewer-01` (DISTINCT from `p20b-implementer-01`; fresh context) returned **VERDICT: PASS — 0
+blocking** over `659ca20..f058a98`, written to `reviews/P20B-review-01.md`. Root re-derived every
+hard claim independently against git: (1) 20 single-parent commits, no merges (implementer's "23" a
+benign miscount); (2) frozen `human-scratch.md` + 008 spec empty diff BASE..HEAD; `settlement.ts`
+blob `010f3c93582a2ce311594d4dde8464760ca49c43` intact (FS-001); (3) reviewer stayed in its write
+boundary — only untracked `reviews/P20B-review-01.md`, no product/root-owned edits, no commit; (4)
+casts net DOWN (`git grep ' as [A-Za-z_{(]' -- src`: `as` 420->369, `any` 9->6, non-null `!` flat)
+and per-commit scan shows NO commit adds a prohibited escape to product code — the only `as`-in-
+added-lines are `as const` idioms and an `aria-label`; (5) secret scan of the review clean (only the
+reviewer's own negation prose); (6) canary==1. The one gate discrepancy — reviewer observed vitest
+2090/1-fail vs implementer's all-pass — is the tracked `duplicates.test.ts` timing-ratio flake
+(Q-P20A-05): byte-identical to BASE, `duplicates.ts` delta is only a cast-removal + an earlier
+short-circuit guard (can only be faster), and it passes 43/43 in isolation 3/3 here. Non-blocking.
+Every deferral Q-P20B-00..13 ruled acceptable by the reviewer (Q-P20B-00 `pruneBuckets` data loss:
+real but a CRDT-correctness redesign out of scope for a style/quality sweep — proven and surfaced,
+routed to the owning CRDT package; Q-P20B-13 import flake: pre-existing, correctly not
+retry-papered; Q-06/Q-08 rule-vs-reality flags to root; Q-11 RESOLVED in `9ab6119`).
+
+**completion_pending (HS-021):** SOLE mapped package P20B now review-PASS
+(`reviews/P20B-review-01.md`). Pre-change scratch SHA `sha256sum specs/human-scratch.md` == rolling
+`f46c2d3559c3110013330c9ff6a56650b72ad56e10c84349b9e2171ab5bfef28`; normalized-block check 21 blocks
+/ 0 mismatches. Intended forward marker: scratch `:159`
+`- [] Do a sweep of the full code base for code quality based on our style guide` -> `- [x] …`,
+`[] -> [x]`. While this marker is pending, NO package dispatch is allowed. Commit B will apply the
+marker via a `mktemp` copy (single-line diff only) using `sed` (NEVER Edit/Write — formatter reflow
+hazard), re-verify normalized blocks + recompute the rolling SHA, flip P20B + HS-021 rows to
+`passed`, and add HS-021 to the authorized checked-ID set (21 IDs, 22/22 requirements).
