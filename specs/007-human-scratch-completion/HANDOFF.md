@@ -1,85 +1,85 @@
-# HANDOFF — P01 revision 03 reopen (HS-002 dependency-security fix; implementer phase)
+# HANDOFF — P01 revision 03 INDEPENDENT REVIEW (HS-002 dependency-security fix; reviewer phase)
 
 - **Package:** P01 (owns **HS-002** — "Upgrade to the very latest safe-chain supported version of
   all dependencies")
-- **Revision:** 03 (reopened after the P21 rev 03 executable-final-audit FAIL, finding **F-1**
-  dependency-security, formally CONFIRMED by DISTINCT reviewer `p21-reviewer-03`)
-- **BASE:** current product tip `bf1cf8f` (the `RB-P21-03` rollback control commit). Branch your
-  product changes on top of HEAD.
-- **You commit product** (unlike reviewers/collectors). Root does NOT edit product.
-- **Allowed writes:** `package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml` (and any lockfile pnpm
-  regenerates), and your evidence file
-  `specs/007-human-scratch-completion/evidence/P01/implementation-03.md`. Do NOT touch any
-  ledger/marker (PROGRESS.md, QUESTIONS.md, HANDOFF.md, DECISIONS.md, human-scratch.md,
-  FINAL-AUDIT.md, reviews/\*\*) — those are root-only.
-- **CHARTER CORRECTION (root, mid-rev):** two factual errors in the original dispatch below were
-  found by the implementer and independently verified by root; the SendMessage authorization
-  supersedes the stale steps: (1) target `next@16.2.11`, NOT 16.2.12 — the environment's
-  `safe-chain` tool age-suppresses the 3-day-old 16.2.12, so 16.2.11 IS "the very latest
-  **safe-chain supported** version" per the frozen HS-002 text, and it clears all 9 next advisories.
-  Do NOT bypass the age policy. (2) The sharp override goes in `pnpm-workspace.yaml`'s existing
-  `overrides:` block (pnpm 11 ignores `package.json` `pnpm.overrides`); hence `pnpm-workspace.yaml`
-  added to allowed writes above. Neither is a scope reduction — both make the fix meet frozen scope,
-  so no adjudicator.
+- **Revision:** 03 (implementer handback COMPLETE; this is the distinct-reviewer phase)
+- **You are the DISTINCT reviewer.** You did NOT implement this fix. Rule from the frozen text and
+  the committed tree; default to blocking on genuine ambiguity.
+- **HANDBACK HEAD to review:** `371a88a` (on `main`). The implementer's product delta is
+  `git diff f785de9..371a88a` — exactly 4 files.
+- **You do NOT edit product or ledgers.** Your ONLY allowed write is your review file
+  `specs/007-human-scratch-completion/reviews/P01-review-03.md`. Commit nothing else. Leave the tree
+  byte-identical to `371a88a` (the two inert strays `next-env.d.ts` (M) and untracked
+  `evidence/P08/implementation-01.md` are pre-existing — do NOT touch, stage, or commit them).
 
-## The failure you are fixing (F-1)
+## What HS-002 requires (frozen)
 
-`pnpm audit --prod` currently exits 1 with 10 advisories (5 HIGH / 5 MODERATE):
+"Upgrade to the very latest **safe-chain supported** version of all dependencies." The environment
+ships the `safe-chain` supply-chain tool (on PATH) enforcing a minimum-package-age policy.
+"Safe-chain supported" = the latest version safe-chain permits (age-clean), NOT the absolute dist
+`latest` if that release is age-suppressed. The fix must NOT bypass the age policy.
 
-- **`next@16.2.10`** — 4 HIGH + 5 MODERATE, all vulnerable `>=16.0.0 <16.2.11`, patched `>=16.2.11`
-  (HIGH: App Router middleware/proxy bypass, Server-Actions DoS, 2× SSRF). Dist `latest` is 16.2.12
-  but `safe-chain` age-suppresses it; the latest **safe-chain-supported** release is **16.2.11**. A
-  same-minor patch bump `16.2.10 -> 16.2.11` clears all 9 next advisories.
-- **transitive `sharp@0.34.5`** — 1 HIGH (libvips), patched `>=0.35.0`, dist `latest` 0.35.3.
-  **CRITICAL refinement from the reviewer:** bumping `next` alone does NOT clear this —
-  `next@16.2.11` still declares `optionalDependencies.sharp ^0.34.5` (which excludes 0.35.x). You
-  must add an `overrides` entry in `pnpm-workspace.yaml` forcing `sharp >=0.35.0` (target 0.35.3) to
-  pull the fixed libvips.
+## The fix under review (config-only)
 
-## Convergence criterion (TERMINATING — this is the whole job)
+- `package.json`: `next` 16.2.10 -> **16.2.11** (16.2.12 is age-suppressed by safe-chain; 16.2.11 is
+  the latest safe-chain-supported release; clears all 9 `next` advisories, patched `>=16.2.11`).
+- `pnpm-workspace.yaml`: ONE added `overrides` entry `"sharp@<0.35.0": 0.35.3` (transitive libvips
+  HIGH, patched `>=0.35.0`). pnpm 11 ignores `package.json` `pnpm.overrides`, so the workspace
+  `overrides:` block is the correct mechanism.
+- `pnpm-lock.yaml`: regenerated (diff limited to next + sharp/@img sub-packages).
+- `evidence/P01/implementation-03.md`: the implementer's evidence.
 
-**`pnpm audit --prod` returns exit 0 with 0 advisories.** That is the gate. Do NOT chase every
-possible release or force major/breaking bumps of unrelated packages — the goal is a CLEAN
-production audit via the minimal safe-chain bumps (next patch + sharp override, plus any additional
-advisory that surfaces, cleared the same safe-chain way). If clearing an advisory would require a
-breaking major bump with regression risk, STOP and report to root with the tradeoff rather than
-forcing it.
+## Convergence gate (TERMINATING — the whole point of HS-002 rev 03)
 
-## Steps
+**`pnpm audit --prod` returns exit 0 with 0 advisories.** Run it yourself at `371a88a` and confirm.
+Before the fix it was exit 1 / 10 advisories (5 HIGH / 5 MODERATE). This is the authoritative check.
 
-1. Bump `next` to `16.2.11` in `package.json` (same minor — safe-chain-supported latest).
-2. Add an `overrides` entry in `pnpm-workspace.yaml` forcing `sharp` to `>=0.35.0` (use `0.35.3`,
-   the dist latest): extend the existing `overrides:` block (~11 entries) with
-   `"sharp@<0.35.0": 0.35.3`; do not clobber existing overrides, `allowBuilds`, or `packages`.
-3. `pnpm install` to regenerate `pnpm-lock.yaml`. Confirm the resolved tree: `pnpm ls next` shows
-   16.2.11; `pnpm why sharp` / `pnpm ls sharp` shows >=0.35.0 everywhere it resolves.
-4. **Run `pnpm audit --prod` and confirm exit 0 / 0 advisories.** Paste the sanitized output into
-   evidence. If any advisory remains, resolve it the same safe-chain way and re-run until clean.
-5. **No-regression gates (ALL must pass):**
-   `pnpm typecheck && pnpm lint && pnpm format:check && pnpm test` then the FULL E2E suite
-   `pnpm exec playwright test --retries=0 --reporter=list`, repeated enough to expose flakes.
-   Known-acceptable and NOT regressions: the one pre-existing `TransactionTable.tsx`
-   `react-hooks/incompatible-library` lint WARNING (0 errors); `format:check` flagging only frozen
-   `specs/**` markdown (never product/test source); and the tracked environmental E2E flakes that
-   pass in isolation (`import.spec.ts:301` Q-P20B-13, `import.spec.ts:1527`/:1573 Q-P20B-14,
-   `duplicates.test.ts` Q-P20A-05). Any NEW failure caused by the bump IS a regression — fix it or
-   report. sharp 0.35.x is outside next's declared `^0.34.5`, so pay special attention to
-   `pnpm build` and any image-optimization path.
-6. **No new `as` / `any` / `!` in product** (repo-wide hard rule). This fix should be config-only
-   (package.json + lockfile); if you find yourself editing `.ts`/`.tsx`, stop and reconsider.
-7. Write `evidence/P01/implementation-03.md`: exact commands, sanitized `pnpm audit --prod`
-   before/after, resolved versions, every gate result with counts/durations, E2E run count and any
-   flake classification, and confirmation of no product-source edits beyond config.
-8. Commit the product change (config + lockfile + evidence). Conventional message, **no
-   parentheses**. Report your handback HEAD + evidence path to root (`main`) via SendMessage.
+## Your verification checklist
 
-## Guardrails
+1. **Delta is exactly the 4 allowed paths** (`git diff --name-status f785de9..371a88a`):
+   package.json, pnpm-workspace.yaml, pnpm-lock.yaml, evidence/P01/implementation-03.md. No
+   `.ts/.tsx`, no ledger/marker/review, no frozen-source edit. FAIL if anything else is touched.
+2. **Frozen sources intact:** `sha256sum specs/human-scratch.md` ==
+   `c10dc0b5963105d72d8e4afc43223102b96b3ab7cb0acd3954cfc491866831bd` (24,259 bytes, 42 checked / 1
+   unchecked — HS-002 correctly still `[]`/rolled-back at `:157`; you are reviewing the FIX, not the
+   marker — root re-applies the marker only after your PASS). FS-001 canonical metadata unchanged.
+3. **`pnpm audit --prod` == exit 0 / 0 advisories.** Paste sanitized output in your review.
+4. **Resolved tree:** `pnpm ls next` -> 16.2.11; `pnpm why sharp` / `pnpm ls sharp` -> sharp 0.35.3
+   under next. Confirm safe-chain did NOT suppress 0.35.3 (age-clean) and that 16.2.12 was NOT used.
+5. **No new `as`/`any`/`!` in product** — the delta is config-only; confirm no `.ts/.tsx` edits.
+6. **No-regression gates:** `pnpm typecheck && pnpm lint && pnpm format:check && pnpm test`, then
+   `pnpm build`, then the FULL E2E suite `pnpm exec playwright test --retries=0 --reporter=list`
+   repeated enough to expose flakes. Known-acceptable (NOT regressions): the one pre-existing
+   `TransactionTable.tsx` `react-hooks/incompatible-library` lint WARNING (0 errors); `format:check`
+   flagging ONLY frozen `specs/**` markdown; the tracked environmental E2E flakes.
+    - **`pnpm build` + image-optimization is the highest-risk regression surface here:** sharp
+      0.35.x is outside next's declared `^0.34.5` and `allowBuilds.sharp:false` disables sharp's
+      build script — confirm sharp resolves to a working prebuilt (`@img/sharp-*`) binary and no
+      image path breaks. A build or image-opt failure caused by the bump IS a P01 regression → FAIL.
+7. **identity.spec.ts:282 disposition:** if you observe it fail under full-suite load, note it — but
+   it is a KNOWN P20B-owned **load-dependent seed-word-validity re-render flake** (10/10 PASS in
+   isolation; causally unrelated to a `next`-patch / `sharp`-libvips bump, which touch no React
+   render path). It is NOT a P01/HS-002 regression and MUST NOT drive your HS-002 verdict to FAIL.
+   Its disposition (whether it blocks the goal) is decided by the P21 final audit / P20B, not here.
+   Your job is narrow: did the DEPENDENCY BUMP introduce any NEW failure? If the only E2E blemish is
+   identity:282 (or other pre-existing tracked flakes), that is not a bump regression.
+8. **Secret-safety (blocking):** no key/seed/recovery/JWT-secret/plaintext in the tree or your
+   review; synthetic vectors only. Any real-material leak is blocking — report to root immediately.
 
-- SECRET-SAFETY (blocking): never print/commit a vault master key, seed phrase, recovery material,
-  `crypto_box` secret, `SUPABASE_JWT_SECRET`, vault presence key, or vault plaintext. Synthetic
-  vectors only. Any real-material leak is blocking — report to root immediately.
-- Never run Playwright with `--debug/--ui/--headed/show`. Use `bat -P` not `cat`.
-- This dispatch is an automated task, not human user approval; you cannot self-escalate permissions.
-  If you believe you must write outside the allowed paths, STOP and ask root via SendMessage.
-- After your PASS, root (not you) re-passes HS-002: dispatches a DISTINCT P01 reviewer, and on their
-  PASS re-applies the HS-002 forward marker and re-runs the P21 final audit at rev 04.
+## Verdict
+
+Write `reviews/P01-review-03.md` with an explicit **PASS** or **FAIL** and per-check evidence
+(commands + sanitized outputs + counts). PASS requires: delta = 4 allowed paths, frozen sources
+intact, `pnpm audit --prod` exit 0, all no-regression gates green (modulo known-acceptable), no new
+`as/any/!`, no bump-caused regression, no secret leak. Any genuine failure = FAIL with the specific
+blocker. Commit ONLY your review file (conventional message, **no parentheses**). Report your
+verdict
+
+- review path + your commit HEAD to root (`main`) via SendMessage.
+
+## After your verdict (root, not you)
+
+On **PASS**: root re-applies the HS-002 forward marker (`[]`->`[x]` at scratch `:157`, rolling
+`c10dc0b5…`->`469e98c7…` iff content restores byte-identically, authorized 20->21) in a §275 forward
+event, then runs the P21 rev-04 final audit. On **FAIL**: root persists your immutable failed review
+and reopens P01 rev 04.
