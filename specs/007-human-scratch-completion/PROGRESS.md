@@ -5576,3 +5576,22 @@ E2E retries-disabled to prove the rev-01 `identity.spec.ts:282` flake is gone, c
 flakes (Q-P20B-14 / Q-P20B-13 / Q-P20A-05) rather than failing on them. Collector writes ONLY
 `evidence/P21/implementation-02.md`, commits nothing (HEAD must stay `daf80ff`). A DISTINCT reviewer
 will give the formal verdict afterward.
+
+### 2026-07-27 — P21 rev 02 collector handback (FAIL-candidate) verify-not-trust; REVIEWER dispatched
+
+`p21-collector-02` handed back **FAIL-candidate**. Root verified: HEAD == BASE `453e984` (collector
+committed nothing; `git diff --stat 5576175..HEAD` specs-only); evidence
+`evidence/P21/implementation-02.md` present, secret-clean (the grep hits are the collector's own
+scan-pattern description, not leaked values); frozen `sha256sum specs/human-scratch.md` == `469e98c7…`
+intact. Blocking finding: the P20B rev 02 fix for `identity.spec.ts:282` did NOT hold — full E2E
+`--retries=0` reproduced the failure **2 of 5 runs (~40%)**, 20/20 in isolation (load-dependent
+hydration race; the `toHaveClass` wait relocated but did not fix the dropped-fill root cause). All 11
+other dimensions GREEN (2091 unit passed, typecheck/build clean, FS-001 A–H, security, perf, a11y,
+reconciliation 21/0 + 22/22).
+
+Per §114 the FORMAL verdict is the reviewer's, and the §275 rollback machinery requires an immutable
+FAILED REVIEW as a precondition — so root does NOT act on collector evidence alone. Transitioned P21
+`changes_requested -> reviewing` (rev 02) and dispatched a DISTINCT `p21-reviewer-02` (not collector,
+not `p21-reviewer-01`) to independently reproduce the blocking E2E finding + sample the GREEN
+dimensions and write the single formal PASS/FAIL to `reviews/P21-review-02.md`. Collector BASE
+preserved; reviewer commits nothing.
