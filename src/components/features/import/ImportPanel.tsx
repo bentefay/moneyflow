@@ -10,7 +10,6 @@
  * - Summary statistics
  * - Import button
  *
- * Replaces the old step-by-step ImportWizard with a more flexible tabbed UI.
  */
 
 import { Loader2, Upload, X } from "lucide-react";
