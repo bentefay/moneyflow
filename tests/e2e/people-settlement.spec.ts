@@ -47,6 +47,7 @@ import {
 import {
     createStatus,
     deleteStatus,
+    disableTreatAsPaid,
     enableTreatAsPaid,
     renameStatus,
     statusRow,
@@ -706,7 +707,10 @@ test.describe("People page settlement matrices", () => {
             // referenced element is the revealed source list, then restore the collapsed state
             // the next step starts from.
             const controls = await toggle.getAttribute("aria-controls");
-            const controlled = page.locator(`#${controls ?? "missing-controls-id"}`);
+            expect(controls).not.toBeNull();
+            // Matched by attribute, not `#id`: these ids embed colon-separated UUIDs, which are
+            // not valid in a bare CSS id selector and make querySelectorAll throw.
+            const controlled = page.locator(`[id="${controls ?? ""}"]`);
             await expect(controlled).toHaveCount(0);
             await toggle.click();
             await expect(controlled).toBeVisible();
@@ -933,25 +937,12 @@ test.describe("Statuses page", () => {
             await expect(row.getByTestId("delete-status-btn")).toHaveCount(0);
         });
 
-        // NOTE: this step exercises a suspected production defect in the toggle-off path.
-        // `BehaviorSelector` renders the "None" option with the sentinel value "none"
-        // (src/components/features/statuses/BehaviorSelector.tsx:49). `StatusesTable.handleCreate`
-        // maps that sentinel back to "no behavior" before writing
-        // (StatusesTable.tsx:129), but `StatusRow.handleSave` does not — it writes
-        // `editedBehavior` straight through (StatusRow.tsx:82), so clearing a behavior through
-        // the row editor persists the literal string "none" into a
-        // `richSchema.StringEnum(["treatAsPaid"])` field under `validateUpdates: true`.
-        // Settlement still correctly excludes the transaction either way, so the assertions below
-        // describe the behavior a user should get. If this step fails, the bug is in
-        // StatusRow.handleSave, not in the test.
+        // Regression cover for the sentinel leak this journey originally exposed: the row editor
+        // used to write the literal string "none" into a StringEnum(["treatAsPaid"]) field,
+        // because only the create path translated the Radix placeholder value back to "no
+        // behavior". The sentinel is now confined to BehaviorSelector, so both paths agree.
         await test.step("turning Treat as Paid back off withdraws the obligation", async () => {
-            const row = statusRow(page, "Settled Up");
-            await row.hover();
-            await row.getByTestId("edit-status-btn").click();
-            await row.getByTestId("behavior-selector").click();
-            await page.getByRole("option", { name: "None", exact: true }).click();
-            await row.getByTestId("save-status-btn").click();
-            await expect(statusRow(page, "Settled Up")).not.toContainText(TREAT_AS_PAID_LABEL);
+            await disableTreatAsPaid(page, "Settled Up");
 
             await goToPeople(page);
             await expectNoQualifyingTransactions(page);
