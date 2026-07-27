@@ -1842,3 +1842,34 @@ decisions.
 - **Impact and risk:** one residual `as T` behind a vendored-only API; net cast count still down.
 - **How to reverse or migrate:** discriminated props union if a first-party consumer ever appears.
 - **Does a human still need to decide after completion?:** No hard gate.
+
+### Q-P20B-13 — `import.spec.ts:301` races vault-session initialisation (pre-existing E2E flake)
+
+- **Raised:** 2026-07-27, P20B, p20b-implementer-01 (during the clean-tree gate re-run)
+- **Source proposal:** `evidence/P20B/implementation-03.md §Q-13`
+- **Context and evidence:** `import.spec.ts:301` ("transaction surface drop transfers one File
+  without plaintext storage and cancel returns") fails ~1 run in 489 under full-suite load, timing
+  out at `:365` waiting for `/transactions` after import, with `Failed to initialize vault: No
+  session - user must be authenticated` in the server log. The test is byte-identical to BASE
+  (`git diff --stat 659ca20 HEAD -- tests/e2e/import.spec.ts` empty) and passes 10/10 and 80/80
+  under targeted repetition, so it is a PRE-EXISTING vault-session bootstrap race, not sweep-induced.
+  The implementer deliberately did NOT paper it over with a retry (that would violate the E2E guide
+  the sweep enforces) and instead surfaced it. Distinct from the sweep-induced B-15 flake, which WAS
+  fixed at cause (`3a241f8`).
+- **Why not decided by frozen text:** the remedy is in vault-session bootstrap or the post-import
+  wait, neither of which P20B touched; diagnosing a 0.2%-rate auth race needs its own reproduction
+  budget. It is a pre-existing correctness/reliability issue, not a style-guide item HS-021 committed.
+- **Options considered:** (a) **[SELECTED for continued work]** surface as a follow-up flake
+  Q-proposal; do NOT add a retry to mask it; (b) fix the race inside P20B — REJECTED (bootstrap race
+  outside the sweep's diff, needs a dedicated repro budget); (c) add a retry — REJECTED (violates the
+  E2E no-arbitrary-waits/no-mask guide the sweep enforces).
+- **Default selected for continued work:** Option (a).
+- **Decision hierarchy basis:** pre-existing, test byte-identical to BASE; not introduced by and not
+  committed by HS-021. Reviewer to judge whether a 1-in-489 pre-existing flake is acceptable to defer
+  or must block.
+- **Impact and risk:** occasional CI flake at 0.2% under full-suite load; targeted runs green. No
+  product-behavior change.
+- **How to reverse or migrate:** a follow-up hardens the vault-session bootstrap or the post-import
+  wait with a deterministic signal (no arbitrary timeout).
+- **Does a human still need to decide after completion?:** Reviewer/P21 rule on acceptability; if
+  accepted, a follow-up owns the bootstrap-race fix. Not a HS-021 style-guide gate.
