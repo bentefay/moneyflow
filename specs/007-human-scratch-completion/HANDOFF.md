@@ -1,64 +1,96 @@
-# HANDOFF — P20B revision 02 REVIEW (independent verdict) — to `p20b-reviewer-02`
+# HANDOFF — P21 revision 02 final-audit COLLECTOR dispatch — to `p21-collector-02`
 
-**To:** `p20b-reviewer-02` — a fresh-context agent acting as the independent
-`human_scratch_reviewer` for **P20B revision 02**. **From:** root coordinator. You are DISTINCT from
-the implementer (`p20b-implementer-01`) and from the rev-01 reviewer (`p20b-reviewer-01`); if you
-are either of those, STOP and tell root. You do NOT implement or fix anything. You INDEPENDENTLY
-verify and return a **single unconditional PASS or FAIL**.
+**To:** `p21-collector-02` — a fresh-context agent acting as the `human_scratch_implementer` in its
+final-audit **evidence-collector** role. **From:** root coordinator. You run the complete executable
+final audit and PROPOSE FINAL-AUDIT contents in your evidence file. You are NOT the formal verdict —
+a DISTINCT reviewer independently reruns and gives PASS/FAIL afterward. You do NOT fix, integrate,
+edit ledgers, or transcribe FINAL-AUDIT.
 
-## What rev 02 is
+## Literal dispatch parameters
 
-P20B (HS-021 = "full-codebase style-guide/code-quality sweep") rev 01 PASSED, but the P21 rev 01
-final audit independently reproduced a NEW E2E test-timing flake at `tests/e2e/identity.spec.ts:282`
-(the `test.step("validate BIP39 words with visual feedback", ...)` step). Per §114 step4 P20B owns
-it. Rev 02 is a **test-only** fix.
+- **Package / revision:** P21 / revision **02**
+- **BASE == HEAD:** `daf80ff` (current HEAD). The product/test tip is `5576175`; the commits
+  `5576175..daf80ff` are ONLY root control-plane ledger commits plus the authorized HS-021 marker
+  re-application (`specs/human-scratch.md` `:159`). Verify this yourself:
+  `git diff --stat 5576175..daf80ff` must touch only `specs/**` (ledgers + human-scratch.md marker),
+  NO `src/**` and NO `tests/**`.
+- **Your ONLY persistent write:**
+  `specs/007-human-scratch-completion/evidence/P21/implementation-02.md`
+- **Commit nothing.** HEAD must still equal `daf80ff` when you hand back. You may create disposable
+  browser/test/session state but must clean it up.
+- **Authority for the audit contract:**
+  `specs/007-human-scratch-completion/tasks/P21-final-audit.md` (the 12-part audit checklist, lines
+  29-60) and `FINAL-AUDIT.md`. Complete EVERY checklist item with exact commands, timestamps,
+  status, durations, counts/seeds, reproduction and sanitized outputs.
 
-- **Commit under review:** `5576175` (range `4e950b7..5576175`, single commit).
-- **Change:** in that test.step, two auto-retrying assertions added before each
-  `getAttribute("class")` read — `await expect(firstInput).toHaveClass(/border-green-500/)` after
-  filling a valid BIP39 word, `await expect(firstInput).toHaveClass(/border-destructive/)` after an
-  invalid word — so the validity className is observed to flip before it is read. +4 lines, no
-  deletions. The product component `src/components/features/identity/SeedPhraseInput.tsx` is CORRECT
-  and untouched (synchronous useMemo → `border-green-500` / `border-destructive`).
-- **Evidence:** `evidence/P20B/implementation-04.md`.
+## What changed since rev 01 (so you can be efficient but complete)
 
-## Verify independently (do not trust the implementer)
+Rev 01 FAILED on ONE thing only: a NEW E2E test-timing flake at `tests/e2e/identity.spec.ts:282`
+(the `validate BIP39 words with visual feedback` step). All other 11 audit dimensions were GREEN in
+rev 01 (`evidence/P21/implementation-01.md`). The fix (P20B rev 02, commit `5576175`, test-only, +4
+lines) added auto-retrying `toHaveClass(/border-green-500/)` / `toHaveClass(/border-destructive/)`
+waits before reading the validity className. The product component `SeedPhraseInput.tsx` was NOT
+changed.
 
-1. **Scope/diff:** `git show --stat 5576175` must be ONLY `tests/e2e/identity.spec.ts`, +4/-0.
-   `git rev-list --count 4e950b7..5576175` == 1. Read the actual diff; confirm it is exactly the two
-   `toHaveClass` waits + comment, no `as`/`any`/`!`, no product/spec/ledger files touched, no new
-   deps.
-2. **Frozen sources unchanged:** `sha256sum specs/human-scratch.md` ==
-   `f46c2d3559c3110013330c9ff6a56650b72ad56e10c84349b9e2171ab5bfef28`; `settlement.ts` blob
-   `010f3c93…` intact; 008 spec unchanged. Any drift here is a blocking FAIL — report to root.
-3. **Flake actually fixed:** run `pnpm test:e2e --retries=0` focused on `identity.spec.ts`
-   repeatedly (≥8 focused runs) and confirm the `:282` step passes every time. A single failure of
-   that step is a FAIL. (The product styling is synchronous, so a correct wait should be
-   deterministic.)
-4. **No masking / no collateral:** confirm the fix waits on a real render signal (the class), not an
-   arbitrary timeout/sleep, and does not weaken the final
-   `expect(validClasses).not.toBe(invalidClasses)` assertion or the existing
-   `toBeEditable()`/`toHaveValue()` guards.
-5. **Gates:** `pnpm typecheck`, `pnpm lint`, and `oxfmt --check tests/e2e/identity.spec.ts` on the
-   edited file. (The bare `pnpm format:check` reports ONLY pre-existing `specs/**` frozen/ledger
-   drift — out of scope; do not touch it.)
-6. **Tracked flakes are NOT new blockers:** if during a full-suite run you hit `import.spec.ts:1527`
-   (Q-P20B-14, environmental — 20/20 in isolation), `import.spec.ts:301` (Q-P20B-13), or
-   `duplicates.test.ts` (Q-P20A-05), rerun that test in isolation to confirm it is the tracked
-   environmental flake, not a regression. These are explained/tracked and are NOT P20B rev-02
-   blockers. Only a NEW unexplained flake or an in-isolation-reproducing failure blocks.
+You must still run a COMPLETE audit, but you may reference `evidence/P21/implementation-01.md` for
+dimensions whose underlying artifacts are byte-identical — provided you FRESHLY re-derive the
+identity/provenance facts (SHAs, counts, line/byte metadata) and FRESHLY re-run every automated
+gate.
+
+## Mandatory fresh re-runs (do not merely cite rev 01)
+
+1. **Reconciliation/provenance (contract item 1):** all 21 package rows + 22 requirement rows
+   `passed` in PROGRESS; `sha256sum specs/human-scratch.md` == rolling
+   `469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a`; normalized scratch blocks
+   byte-match SCOPE (21/0 — you may reuse `evidence/P21/norm_check.py`); frozen scratch identity SHA
+   `b91ca932…`; linear single-parent history no merges over the whole goal range; no unclassified
+   drift; the canary invariant holds.
+2. **FS-001 (contract item 11):** `008/spec.md` SHA-256 `0d0e2a14…`, exactly 715 lines and 25,441
+   bytes, no source mutation; `settlement.ts` blob `010f3c93…`; the full FS-001 A–H unit/property +
+   E2E expectations present and passing; signed unit conservation; reject-never-clamp; sole
+   per-currency settlement engine.
+3. **Gate battery (contract item 4):** `pnpm format:check` (note: pre-existing `specs/**` ledger
+   drift is out of scope — report it as such, do not fail on it), `pnpm lint`, `pnpm typecheck`,
+   `pnpm build` (production), `pnpm test` (all unit/property/integration).
+4. **E2E (contract item 5) — THE headline for rev 02:** `pnpm test:e2e --retries=0` for the FULL
+   suite, repeated enough to expose flakes (≥3 full runs), PLUS a focused loop on `identity.spec.ts`
+   (≥8 runs) proving the `:282` step no longer flakes. Report exact pass/fail per run.
+5. **Security/secret inspection (item 6), performance (item 7), manual product journey (item 8),
+   responsive/a11y (items 9-10), console/network (item 12):** re-verify. Where an artifact is
+   byte-identical to rev 01 you may cite rev-01 evidence, but you must confirm the identity yourself
+   and re-run any live check that could have regressed.
+
+## Flake classification rule (critical)
+
+The FAIL trigger is an **unexplained** flake (task line 71), not any flake. On ANY full-suite
+failure, rerun that exact test in ISOLATION (≥15×, `--retries=0`). If it passes in isolation and
+matches a tracked Q, classify it as the tracked environmental flake and continue — do NOT fail the
+audit on it, and do NOT add a retry/sleep to mask it. Tracked environmental flakes:
+
+- `import.spec.ts:1527` — Q-P20B-14 (20/20 in isolation)
+- `import.spec.ts:301` — Q-P20B-13 (vault-session bootstrap race, ~1/489)
+- `duplicates.test.ts` timing — Q-P20A-05 Only a NEW unexplained flake, or one that reproduces
+  deterministically in isolation, is a FAIL — and `identity.spec.ts:282` reproducing again would be
+  a FAIL (the fix must hold).
+
+## Q proposals (contract item 12)
+
+Confirm the full carry-forward Q set is surfaced (not silently dropped): Q-P20B-00 (`pruneBuckets`
+CRDT data loss), Q-P20B-14, Q-P20B-13, Q-P20A-05, Q-P17D-02 (dead `description-rule-state.ts`),
+Q-P20A-02 (stale XChaCha20 comments), Q-P20B-06/08 (rule-vs-reality).
 
 ## Secret-safety (blocking)
 
-No real vault key / seed / recovery material / crypto secret anywhere in code, logs, or your review.
-Tests use synthetic BIP39 vectors only (`abandon…`). Any real-material leak is a blocking FAIL,
-reported to root immediately.
+No vault master key, seed phrase, recovery material, crypto secret, SUPABASE_JWT_SECRET, or vault
+plaintext in logs/URLs/fixtures/evidence. Synthetic/public vectors only (`abandon…`). Any
+real-material leak is blocking — report to root immediately.
 
 ## Output
 
-Write your verdict to `specs/007-human-scratch-completion/reviews/P20B-review-02.md`: a single
-unconditional **PASS** or **FAIL** with reproduced evidence for each check above, your run tallies,
-and explicit confirmation of the scope/diff and frozen-SHA facts. An empty/near-empty diff is
-expected but is NEVER automatic approval — you must independently reproduce the flake-fixed state.
-Then hand back to root with your verdict. Root will verify-not-trust and, on PASS, integrate +
-re-pass HS-021.
+Write the complete proposed FINAL-AUDIT results to
+`specs/007-human-scratch-completion/evidence/P21/implementation-02.md` with a TOP-LINE
+PASS-candidate / FAIL-candidate verdict and per-dimension evidence. Do NOT transcribe
+FINAL-AUDIT.md. Commit nothing. Hand back to root with: your top-line candidate verdict, the exact
+E2E run tallies (full + focused), the gate results, the reconciliation + FS-001 SHA/line/byte facts
+you re-derived, any flakes hit and how you classified them, and confirmation HEAD is still
+`daf80ff`.

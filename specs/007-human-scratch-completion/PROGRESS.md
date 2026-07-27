@@ -5562,3 +5562,17 @@ pre-rollback authorized SHA (the forward flip exactly reverses batch `RB-P21-01`
   §287 checked⟺passed integrity holds: HS-021 is again both checked and passed. Requirement tally
   **21 -> 22 of 22 passed**; all 21 feature packages P00–P20B `passed`. Only P21 (control) remains.
 - Next: start P21 revision 02 from fresh BASE (product tip `5576175`).
+
+### 2026-07-27 — P21 revision 02 final-audit COLLECTOR dispatched
+
+Entry conditions verified: all 21 feature packages P00–P20B `passed`; 22/22 requirement rows
+`passed`; scratch `:159` marker `[x]`, `sha256sum specs/human-scratch.md` == rolling `469e98c7…`,
+normalized 21/0; frozen scratch identity `b91ca932…`; `Active P21 rollback batch` == `none`; no
+pending implementation/review artifact. BASE for P21 rev 02 == current HEAD `daf80ff` (product/test
+tip `5576175`; `5576175..daf80ff` is only root ledger commits + the authorized HS-021 marker
+re-application, no `src/**` or `tests/**`). Dispatched a fresh `p21-collector-02` (HANDOFF rewritten)
+to run the complete 12-part audit per `tasks/P21-final-audit.md`, freshly re-running all gates + full
+E2E retries-disabled to prove the rev-01 `identity.spec.ts:282` flake is gone, classifying tracked
+flakes (Q-P20B-14 / Q-P20B-13 / Q-P20A-05) rather than failing on them. Collector writes ONLY
+`evidence/P21/implementation-02.md`, commits nothing (HEAD must stay `daf80ff`). A DISTINCT reviewer
+will give the formal verdict afterward.
