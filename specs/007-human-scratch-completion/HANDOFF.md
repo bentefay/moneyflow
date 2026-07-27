@@ -85,6 +85,10 @@ that file; it is the spec every sweep skipped.
 
 - `tests/e2e/identity.spec.ts`, `tests/e2e/import.spec.ts`, `tests/e2e/transactions.spec.ts` (and
   any E2E helper you must touch, e.g. `tests/e2e/helpers/*`).
+- EXTENDED for whole-class hardening (rev 06): `tests/e2e/automations.spec.ts`,
+  `tests/e2e/field-rule-parity.spec.ts`, `tests/e2e/transaction-rules.spec.ts` — apply the same
+  `5000 -> 15_000` transform to the 7 `field-rule-editor` `waitFor` sites only. Diff spans up to 30
+  same-class sites across 7 files; this is the "harden the whole class" lesson, not scope creep.
 - IF you take the F-2 source route: `src/components/ui/input.tsx` (and only what that requires).
 - `specs/007-human-scratch-completion/evidence/P20B/implementation-07.md` (your evidence — NOTE the
   +1 skew: rev 06 files to implementation-07.md; `implementation-06.md` is the frozen, cited rev-05
