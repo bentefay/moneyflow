@@ -345,11 +345,20 @@ test.describe("Identity", () => {
         await test.step("validate BIP39 words with visual feedback", async () => {
             const firstInput = page.locator('[data-testid="seed-word-input-0"]');
 
+            // The word inputs are controlled React inputs, so a fill landing before hydration is
+            // dropped: the next render overwrites the DOM value and onChange never fires, so the
+            // validity styling never updates and the comparison below sees two identical class
+            // strings. Visibility alone does not imply hydrated - wait for editable, and assert
+            // each fill propagated before reading the class off it.
+            await expect(firstInput).toBeEditable();
+
             await firstInput.fill("abandon");
+            await expect(firstInput).toHaveValue("abandon");
             const validClasses = await firstInput.getAttribute("class");
 
             await firstInput.clear();
             await firstInput.fill("invalidword123");
+            await expect(firstInput).toHaveValue("invalidword123");
             const invalidClasses = await firstInput.getAttribute("class");
 
             // A BIP39 word and a non-word must render differently, otherwise there is no feedback.
@@ -362,6 +371,7 @@ test.describe("Identity", () => {
             await page.evaluate((phrase) => navigator.clipboard.writeText(phrase), testPhrase);
 
             const firstInput = page.locator('[data-testid="seed-word-input-0"]');
+            await expect(firstInput).toBeEditable();
             await firstInput.focus();
             await page.keyboard.press("ControlOrMeta+v");
 
