@@ -9,15 +9,17 @@ edit ledgers, or transcribe FINAL-AUDIT.
 ## Literal dispatch parameters
 
 - **Package / revision:** P21 / revision **02**
-- **BASE == HEAD:** `daf80ff` (current HEAD). The product/test tip is `5576175`; the commits
-  `5576175..daf80ff` are ONLY root control-plane ledger commits plus the authorized HS-021 marker
-  re-application (`specs/human-scratch.md` `:159`). Verify this yourself:
-  `git diff --stat 5576175..daf80ff` must touch only `specs/**` (ledgers + human-scratch.md marker),
-  NO `src/**` and NO `tests/**`.
+- **BASE == HEAD:** record `git rev-parse HEAD` at the moment you start — that value is your BASE
+  (it will be the latest root control-plane commit, at or after `8a0631a`). The product/test tip is
+  `5576175`. The delta from the product tip to your BASE is ONLY root control-plane ledger commits
+  plus the authorized HS-021 marker re-application (`specs/human-scratch.md` `:159`). Verify this
+  yourself: `git diff --stat 5576175..HEAD` must touch only `specs/**` (ledgers + human-scratch.md
+  marker), NO `src/**` and NO `tests/**`. If any `src/**` or `tests/**` file differs in that range,
+  STOP and report to root.
 - **Your ONLY persistent write:**
   `specs/007-human-scratch-completion/evidence/P21/implementation-02.md`
-- **Commit nothing.** HEAD must still equal `daf80ff` when you hand back. You may create disposable
-  browser/test/session state but must clean it up.
+- **Commit nothing.** HEAD must still equal your recorded BASE when you hand back. You may create
+  disposable browser/test/session state but must clean it up.
 - **Authority for the audit contract:**
   `specs/007-human-scratch-completion/tasks/P21-final-audit.md` (the 12-part audit checklist, lines
   29-60) and `FINAL-AUDIT.md`. Complete EVERY checklist item with exact commands, timestamps,
