@@ -1595,12 +1595,11 @@ No unresolved product questions were answered by scaffold creation.
 
 ## P20B (HS-021 full-codebase style-guide sweep) — Q-proposals
 
-These 13 proposals were surfaced by `p20b-implementer-01` in
-`evidence/P20B/implementation-01.md §3` during the whole-codebase quality sweep. Root transcribes
-them verbatim-in-substance; they are transparently-surfaced deferrals (not silent narrowing). None
-alters HS-021's committed scope. `p20b-reviewer-01` must judge whether any deferral — especially
-Q-P20B-00 — is acceptable or must bounce the package; Q-P20B-06 and Q-P20B-08 are root rule-vs-reality
-decisions.
+These 13 proposals were surfaced by `p20b-implementer-01` in `evidence/P20B/implementation-01.md §3`
+during the whole-codebase quality sweep. Root transcribes them verbatim-in-substance; they are
+transparently-surfaced deferrals (not silent narrowing). None alters HS-021's committed scope.
+`p20b-reviewer-01` must judge whether any deferral — especially Q-P20B-00 — is acceptable or must
+bounce the package; Q-P20B-06 and Q-P20B-08 are root rule-vs-reality decisions.
 
 ### Q-P20B-00 — `pruneBuckets` destroys concurrent writes on merge (data loss)
 
@@ -1619,11 +1618,12 @@ decisions.
   gaps — duplicate badge `page.tsx:335`, mutation resolvers `mutations.ts:444,:487`, nested-dup
   re-materialization `:872-900` — must close first; no tombstone GC exists). A style sweep is the
   wrong vehicle for a merge-safety redesign.
-- **Options considered:** (a) **[SELECTED for continued work]** surface as a blocker-class Q-proposal,
-  do NOT attempt a merge-safety redesign inside a style sweep; reviewer + P21 audit judge severity;
-  (b) flip `deleteTransaction` `cascade` default to soft-delete now — REJECTED (motivation disproven,
-  large blast radius, does not fix `moveTransaction`); (c) make pruning merge-safe / stop pruning
-  containers — the likely real fix, but a bounded feature package of its own, out of P20B scope.
+- **Options considered:** (a) **[SELECTED for continued work]** surface as a blocker-class
+  Q-proposal, do NOT attempt a merge-safety redesign inside a style sweep; reviewer + P21 audit
+  judge severity; (b) flip `deleteTransaction` `cascade` default to soft-delete now — REJECTED
+  (motivation disproven, large blast radius, does not fix `moveTransaction`); (c) make pruning
+  merge-safe / stop pruning containers — the likely real fix, but a bounded feature package of its
+  own, out of P20B scope.
 - **Default selected for continued work:** Option (a).
 - **Decision hierarchy basis:** a correctness redesign is not committed by HS-021's frozen text; a
   style sweep must not silently take on a merge-safety rewrite. Flagged for human/product decision.
@@ -1639,12 +1639,13 @@ decisions.
 
 - **Raised:** 2026-07-27, P20B, p20b-implementer-01
 - **Source proposal:** `evidence/P20B/implementation-01.md §3 Q-1`
-- **Context and evidence:** `membership.remove` deletes a member but nothing calls `membership.rekey`;
-  `src/lib/crypto/rekey.ts` has zero callers. In-app copy already states the key is NOT rotated.
+- **Context and evidence:** `membership.remove` deletes a member but nothing calls
+  `membership.rekey`; `src/lib/crypto/rekey.ts` has zero callers. In-app copy already states the key
+  is NOT rotated.
 - **Why not decided by frozen text:** duplicates the standing Q-016/P20A rekey product question;
   wiring key rotation is a security-design decision, not a style fix.
-- **Options considered:** (a) **[SELECTED]** leave as the standing product question already logged for
-  P20A/HS-016; (b) wire rekey now — REJECTED (out of a style sweep's scope).
+- **Options considered:** (a) **[SELECTED]** leave as the standing product question already logged
+  for P20A/HS-016; (b) wire rekey now — REJECTED (out of a style sweep's scope).
 - **Default selected for continued work:** Option (a). See the earlier HS-016 rekey question.
 - **Decision hierarchy basis:** threat-model decision, not committed by HS-021.
 - **Impact and risk:** removed member's retained ciphertext stays readable; disclosed truthfully.
@@ -1655,11 +1656,11 @@ decisions.
 
 - **Raised:** 2026-07-27, P20B, p20b-implementer-01
 - **Source proposal:** `§3 Q-2`
-- **Context and evidence:** `sync.ts:127` selects every op for the vault with no limit and ignores the
-  client version vector, so a 499-op vault returns all 499 on every catch-up.
+- **Context and evidence:** `sync.ts:127` selects every op for the vault with no limit and ignores
+  the client version vector, so a 499-op vault returns all 499 on every catch-up.
 - **Why not decided by frozen text:** performance/protocol change, not a style nit.
-- **Options considered:** (a) **[SELECTED]** defer as a protocol/perf question; (b) redesign paging in
-  P20B — REJECTED (behavior-level sync change beyond a style sweep).
+- **Options considered:** (a) **[SELECTED]** defer as a protocol/perf question; (b) redesign paging
+  in P20B — REJECTED (behavior-level sync change beyond a style sweep).
 - **Default selected for continued work:** Option (a).
 - **Decision hierarchy basis:** not committed by HS-021.
 - **Impact and risk:** bandwidth/latency scales with vault history; correctness unaffected.
@@ -1670,9 +1671,9 @@ decisions.
 
 - **Raised:** 2026-07-27, P20B, p20b-implementer-01
 - **Source proposal:** `§3 Q-3`
-- **Context and evidence:** `sync.ts:276` lets any member overwrite the single authoritative snapshot
-  with no version-vector monotonicity check and a check-then-write TOCTOU; `vault_ops` has an
-  append-only trigger but snapshots do not.
+- **Context and evidence:** `sync.ts:276` lets any member overwrite the single authoritative
+  snapshot with no version-vector monotonicity check and a check-then-write TOCTOU; `vault_ops` has
+  an append-only trigger but snapshots do not.
 - **Why not decided by frozen text:** server integrity/authorization design, not style.
 - **Options considered:** (a) **[SELECTED]** defer as a server-integrity question; (b) add
   monotonicity + atomic guard now — REJECTED (schema/RLS design beyond a style sweep).
@@ -1706,10 +1707,11 @@ decisions.
   field-rule engine, and it inverts layering by importing from `@/components`),
   `src/lib/import/processor.ts` (a second CSV pipeline already diverged from `use-import-state.ts`),
   `src/lib/crypto/rekey.ts`, and eight unused tRPC procedures are production-dead.
-- **Why not decided by frozen text:** deletion of whole modules is a structural call with import-graph
-  and future-use implications, not a mechanical style fix; some (rekey) tie to open product questions.
-- **Options considered:** (a) **[SELECTED]** defer deletion as a structural cleanup Q; (b) delete now
-  in P20B — REJECTED (couples to Q-P20B-01/04 decisions; risk of removing intended-future code).
+- **Why not decided by frozen text:** deletion of whole modules is a structural call with
+  import-graph and future-use implications, not a mechanical style fix; some (rekey) tie to open
+  product questions.
+- **Options considered:** (a) **[SELECTED]** defer deletion as a structural cleanup Q; (b) delete
+  now in P20B — REJECTED (couples to Q-P20B-01/04 decisions; risk of removing intended-future code).
 - **Default selected for continued work:** Option (a).
 - **Decision hierarchy basis:** structural; not committed by HS-021.
 - **Impact and risk:** dead code + a layering inversion; no runtime effect.
@@ -1726,16 +1728,17 @@ decisions.
   closest compliant option.
 - **Why not decided by frozen text:** a rule-strength/tooling decision; the sweep charter forbids
   weakening `.claude` rules and defers rule conflicts to root as Q-proposals.
-- **Options considered:** (a) **[SELECTED for continued work]** keep the shared `assertNever` helper;
-  root decides later whether to add ts-pattern or amend the rule; (b) add ts-pattern dependency in
-  P20B — REJECTED (adds a dependency + churn under a style sweep); (c) delete the rule — REJECTED
-  (rule-strength change, out of scope).
+- **Options considered:** (a) **[SELECTED for continued work]** keep the shared `assertNever`
+  helper; root decides later whether to add ts-pattern or amend the rule; (b) add ts-pattern
+  dependency in P20B — REJECTED (adds a dependency + churn under a style sweep); (c) delete the rule
+  — REJECTED (rule-strength change, out of scope).
 - **Default selected for continued work:** Option (a).
 - **Decision hierarchy basis:** repo hard rule "do not weaken `.claude` rules"; rule-vs-reality is a
   root decision.
 - **Impact and risk:** exhaustiveness enforced via shared helper rather than ts-pattern; equivalent
   safety.
-- **How to reverse or migrate:** add ts-pattern and migrate, OR amend the rule to bless `assertNever`.
+- **How to reverse or migrate:** add ts-pattern and migrate, OR amend the rule to bless
+  `assertNever`.
 - **Does a human still need to decide after completion?:** Root rule-vs-reality decision; not a
   correctness gate.
 
@@ -1760,7 +1763,8 @@ decisions.
 - **Source proposal:** `§3 Q-8`
 - **Context and evidence:** `.claude/skills/crypto/SKILL.md` mandates branded key types (`VaultKey`,
   `SigningKey`); neither exists. Every key is a raw `Uint8Array`, so a vault key, an X25519 secret
-  and a PRF output are mutually substitutable in `wrapKey`, where argument order is security-critical.
+  and a PRF output are mutually substitutable in `wrapKey`, where argument order is
+  security-critical.
 - **Why not decided by frozen text:** introducing branded types touches the crypto surface and every
   key call site — a security-typing project, not a style sweep edit; the charter defers rule
   conflicts to root.
@@ -1797,14 +1801,16 @@ decisions.
 - **Raised:** 2026-07-27, P20B, p20b-implementer-01
 - **Source proposal:** `§3 Q-10`
 - **Context and evidence:** import uses `file.text()` (always UTF-8), so Latin-1/Windows-1252 bank
-  exports get U+FFFD in non-ASCII payee names; OFX files even declare `CHARSET:1252` in their header.
+  exports get U+FFFD in non-ASCII payee names; OFX files even declare `CHARSET:1252` in their
+  header.
 - **Why not decided by frozen text:** charset detection/transcoding is a feature-sized addition.
 - **Options considered:** (a) **[SELECTED]** defer as a feature; (b) add charset handling in P20B —
   REJECTED (feature scope).
 - **Default selected for continued work:** Option (a).
 - **Decision hierarchy basis:** feature, not style; not committed by HS-021.
 - **Impact and risk:** non-ASCII names corrupted on affected files; data-quality, not crash.
-- **How to reverse or migrate:** detect charset (incl. OFX header) and decode with an established lib.
+- **How to reverse or migrate:** detect charset (incl. OFX header) and decode with an established
+  lib.
 - **Does a human still need to decide after completion?:** No hard gate; import backlog.
 
 ### Q-P20B-11 — `detectNumberFormat` fails on leading-minus / EU format (parsing)
@@ -1832,13 +1838,15 @@ decisions.
 - **Context and evidence:** `use-controlled-state.tsx:16` casts `defaultValue as T`, which lies when
   neither `value` nor `defaultValue` is supplied (state is genuinely `undefined`). The honest fix is
   a discriminated props union. Its only consumer is vendored `animate-ui/.../tabs.tsx`. The `any` in
-  its generic constraint WAS fixed (`Rest extends any[]` → `unknown[]`), removing the eslint-disable.
+  its generic constraint WAS fixed (`Rest extends any[]` → `unknown[]`), removing the
+  eslint-disable.
 - **Why not decided by frozen text:** changing the hook's public shape is churn against vendored
   third-party code for no first-party benefit.
-- **Options considered:** (a) **[SELECTED]** keep the single `as T` (only consumer is vendored), having
-  removed the `any`; (b) discriminated union rewrite — REJECTED (churn vs vendored code).
+- **Options considered:** (a) **[SELECTED]** keep the single `as T` (only consumer is vendored),
+  having removed the `any`; (b) discriminated union rewrite — REJECTED (churn vs vendored code).
 - **Default selected for continued work:** Option (a).
-- **Decision hierarchy basis:** cast tolerated where it only serves vendored code; `any` was removed.
+- **Decision hierarchy basis:** cast tolerated where it only serves vendored code; `any` was
+  removed.
 - **Impact and risk:** one residual `as T` behind a vendored-only API; net cast count still down.
 - **How to reverse or migrate:** discriminated props union if a first-party consumer ever appears.
 - **Does a human still need to decide after completion?:** No hard gate.
@@ -1849,24 +1857,25 @@ decisions.
 - **Source proposal:** `evidence/P20B/implementation-03.md §Q-13`
 - **Context and evidence:** `import.spec.ts:301` ("transaction surface drop transfers one File
   without plaintext storage and cancel returns") fails ~1 run in 489 under full-suite load, timing
-  out at `:365` waiting for `/transactions` after import, with `Failed to initialize vault: No
-  session - user must be authenticated` in the server log. The test is byte-identical to BASE
-  (`git diff --stat 659ca20 HEAD -- tests/e2e/import.spec.ts` empty) and passes 10/10 and 80/80
-  under targeted repetition, so it is a PRE-EXISTING vault-session bootstrap race, not sweep-induced.
-  The implementer deliberately did NOT paper it over with a retry (that would violate the E2E guide
-  the sweep enforces) and instead surfaced it. Distinct from the sweep-induced B-15 flake, which WAS
-  fixed at cause (`3a241f8`).
+  out at `:365` waiting for `/transactions` after import, with
+  `Failed to initialize vault: No session - user must be authenticated` in the server log. The test
+  is byte-identical to BASE (`git diff --stat 659ca20 HEAD -- tests/e2e/import.spec.ts` empty) and
+  passes 10/10 and 80/80 under targeted repetition, so it is a PRE-EXISTING vault-session bootstrap
+  race, not sweep-induced. The implementer deliberately did NOT paper it over with a retry (that
+  would violate the E2E guide the sweep enforces) and instead surfaced it. Distinct from the
+  sweep-induced B-15 flake, which WAS fixed at cause (`3a241f8`).
 - **Why not decided by frozen text:** the remedy is in vault-session bootstrap or the post-import
   wait, neither of which P20B touched; diagnosing a 0.2%-rate auth race needs its own reproduction
-  budget. It is a pre-existing correctness/reliability issue, not a style-guide item HS-021 committed.
+  budget. It is a pre-existing correctness/reliability issue, not a style-guide item HS-021
+  committed.
 - **Options considered:** (a) **[SELECTED for continued work]** surface as a follow-up flake
   Q-proposal; do NOT add a retry to mask it; (b) fix the race inside P20B — REJECTED (bootstrap race
-  outside the sweep's diff, needs a dedicated repro budget); (c) add a retry — REJECTED (violates the
-  E2E no-arbitrary-waits/no-mask guide the sweep enforces).
+  outside the sweep's diff, needs a dedicated repro budget); (c) add a retry — REJECTED (violates
+  the E2E no-arbitrary-waits/no-mask guide the sweep enforces).
 - **Default selected for continued work:** Option (a).
 - **Decision hierarchy basis:** pre-existing, test byte-identical to BASE; not introduced by and not
-  committed by HS-021. Reviewer to judge whether a 1-in-489 pre-existing flake is acceptable to defer
-  or must block.
+  committed by HS-021. Reviewer to judge whether a 1-in-489 pre-existing flake is acceptable to
+  defer or must block.
 - **Impact and risk:** occasional CI flake at 0.2% under full-suite load; targeted runs green. No
   product-behavior change.
 - **How to reverse or migrate:** a follow-up hardens the vault-session bootstrap or the post-import
@@ -1910,29 +1919,30 @@ decisions.
 
 ## Q-P20B-15 — `transactions.spec.ts:523` "Clear search" count-restore flake is a fixable test-timing defect, not environmental
 
-- **Raised by:** root, from the independent `p21-reviewer-02` FAIL (`reviews/P21-review-02.md`),
-  rev 02 final audit.
+- **Raised by:** root, from the independent `p21-reviewer-02` FAIL (`reviews/P21-review-02.md`), rev
+  02 final audit.
 - **Context:** In the virtualized-large-list E2E, the step "filter the large list and restore its
   edited row" clears the search and asserts `getByText("500 transactions", { exact: true })` with a
   **bare** `toBeVisible()` (default 5s) at `transactions.spec.ts:696`. It failed 1 of 5 full
   retries-disabled runs under 163-test / 4-worker load; 10/10 in isolation. Same load-dependent
   class as identity:282.
 - **Why this is NOT the same as the accepted environmental flakes (Q-P20A-05 / Q-P20B-13 / -14):**
-  there is a clear, specific mechanism and a clean fix. The structurally identical "500 transactions"
-  assertion at `:578` already uses `{ timeout: 15_000 }` and the CSV-row assertion at `:563` uses
-  `10_000`; only the post-"Clear search" restore at `:696` was left on the bare 5s default. The
-  virtualized list must re-expand the full 500-row count after the filter clears, which under
-  parallel load can exceed 5s. This is an under-specified eager assertion — a genuine test-quality
-  defect within HS-021's "code quality sweep" charter, NOT an unexplained/irreducible environmental
-  flake.
+  there is a clear, specific mechanism and a clean fix. The structurally identical "500
+  transactions" assertion at `:578` already uses `{ timeout: 15_000 }` and the CSV-row assertion at
+  `:563` uses `10_000`; only the post-"Clear search" restore at `:696` was left on the bare 5s
+  default. The virtualized list must re-expand the full 500-row count after the filter clears, which
+  under parallel load can exceed 5s. This is an under-specified eager assertion — a genuine
+  test-quality defect within HS-021's "code quality sweep" charter, NOT an unexplained/irreducible
+  environmental flake.
 - **Options considered:** (a) classify as environmental like the import flakes — REJECTED (there IS
-  a reproducible mechanism and a principled fix; masking it as environmental would be papering);
-  (b) **[SELECTED]** harden the assertion to be robust to the virtualized re-render under load —
-  give the count-restore assertion an explicit timeout / wait on a settled signal (mirroring the
-  `:578` sibling that already waits 15s), and sweep the E2E specs for other same-class bare-eager
-  assertions after async re-renders; (c) add `--retries` — REJECTED (violates the no-mask E2E guide).
-- **Default selected for continued work:** Option (b), routed to **P20B rev 03** (cross-cutting
-  E2E test-quality; P16C virtualized-transactions-table is feature lineage only).
+  a reproducible mechanism and a principled fix; masking it as environmental would be papering); (b)
+  **[SELECTED]** harden the assertion to be robust to the virtualized re-render under load — give
+  the count-restore assertion an explicit timeout / wait on a settled signal (mirroring the `:578`
+  sibling that already waits 15s), and sweep the E2E specs for other same-class bare-eager
+  assertions after async re-renders; (c) add `--retries` — REJECTED (violates the no-mask E2E
+  guide).
+- **Default selected for continued work:** Option (b), routed to **P20B rev 03** (cross-cutting E2E
+  test-quality; P16C virtualized-transactions-table is feature lineage only).
 - **Decision hierarchy basis:** this is "more work to complete committed scope" (HS-021 code-quality
   sweep + GOAL DoD "clean full-suite E2E under final audit"), NOT a scope reduction — no independent
   adjudicator required. A deterministic wait is not a blind mask because it targets a specific,
@@ -1941,8 +1951,8 @@ decisions.
   10/10. No product-behavior change — product is byte-identical to rev 01 across the range.
 - **How to reverse or migrate:** revert the test-timing change; the assertion returns to the bare
   default.
-- **Does a human still need to decide after completion?:** No — the P20B rev-03 reviewer and the
-  P21 rev-03 audit rule on whether the hardened assertion holds under load. Not a human gate.
+- **Does a human still need to decide after completion?:** No — the P20B rev-03 reviewer and the P21
+  rev-03 audit rule on whether the hardened assertion holds under load. Not a human gate.
 
 ## Q-P20B-16 — `passkey.spec.ts:387` unlock-button click timeout under parallel load (under investigation)
 
@@ -1959,8 +1969,8 @@ decisions.
   defect) or explained+tracked as accepted-environmental (isolation-green + external mechanism)
   BEFORE the next audit.
 - **Options considered:** (a) harden a test wait — only valid if the mechanism is an undersized
-  wait; a 30s click timeout amid "Failed to fetch" suggests a backend/sync-availability cause, not an
-  undersized assertion; (b) classify as accepted-environmental — valid iff isolation-green with a
+  wait; a 30s click timeout amid "Failed to fetch" suggests a backend/sync-availability cause, not
+  an undersized assertion; (b) classify as accepted-environmental — valid iff isolation-green with a
   plausible external mechanism (sync/auth backend contention under 4-worker load); (c) escalate as a
   real product/sync defect — if it reproduces a genuine race. **[SELECTED: investigate first]** —
   routed to a P20B rev-04 diagnosis pass that classifies into (a)/(b)/(c); do NOT blindly mask.
@@ -1973,7 +1983,19 @@ decisions.
 - **Does a human still need to decide after completion?:** the P21 rev-03 audit reviewer rules on
   acceptability; if escalated as a real defect it may need a product package.
 
-## Q-P20B-17 — `import.spec.ts:1573` import-preview "4 rows" not found within its 5s wait (under investigation)
+## Q-P20B-17 — `import.spec.ts:1573` import-preview "4 rows" not found within its 5s wait (RESOLVED — SUBSUMED BY Q-P20B-14)
+
+- **RESOLUTION (2026-07-27, root):** SUBSUMED by **Q-P20B-14**. Line 1573 is an assertion _inside_
+  the test declared at `import.spec.ts:1527` ("selecting template and importing auto-updates
+  template config") — the Playwright reporter identifies this test as `import.spec.ts:1527`, which
+  is exactly the flake already classified environmental under Q-P20B-14 (20/20 in isolation, ~1-in-6
+  under full parallel load, no reproducible mechanism, no product-behavior change). The rev-03
+  implementer named it by its internal assertion line (1573) rather than the test-declaration line
+  (1527); it is the SAME already-tracked environmental flake, not a new one. It passed cleanly in
+  the P20B rev-04 full-suite runs (e.g. 8.0s in runs 1 and 2). **No new fix required**; the P21
+  audit rule is to rerun this test in isolation and classify against Q-P20B-14, not fail. This Q
+  remains only as a cross-reference pointer to Q-P20B-14. No human decision needed beyond the
+  standing Q-P20B-14 disposition.
 
 - **Raised by:** root, from the P20B rev-03 implementer's full-suite validation (run #8 of 8;
   `evidence/P20B/implementation-05.md`).

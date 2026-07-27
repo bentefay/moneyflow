@@ -5697,3 +5697,33 @@ hardening (`5576175..HEAD`); (2) dispatch **P20B rev 04** to DIAGNOSE `passkey:3
 and classify each into fix-the-timing / accept-environmental / escalate-real-defect, then fix the
 fixable ones and validate the whole suite clean-or-explained across many full runs. P20B stays
 `changes_requested`; HS-021 stays rolled back (`[]`, rolling `f46c2d35…`).
+
+### 2026-07-27 — P20B rev 04 in-flight: import:1573 SUBSUMED by Q-P20B-14; passkey:387 is class-A hydration race
+
+Root inspection while the rev-04 validation loop runs (implementer `p20b-implementer-04` keeps
+poll-returning without a synchronous finish; runs still in progress under PID 4135515, logs
+`/tmp/moneyflow_full_run_${i}.log`):
+
+- **`import.spec.ts:1573` (Q-P20B-17) → RESOLVED, subsumed by Q-P20B-14.** Line 1573 is an assertion
+  inside the test declared at `import.spec.ts:1527`; the Playwright reporter names it
+  `import.spec.ts:1527:9 › Import Panel › selecting template and importing auto-updates template
+  config` — exactly the already-accepted environmental flake Q-P20B-14 (20/20 isolation). Not a new
+  flake. Passed 8.0s in rev-04 runs 1 and 2. No new fix needed; audit reruns-in-isolation-and-
+  classifies against Q-P20B-14. Q-P20B-17 downgraded to a cross-reference.
+
+- **`passkey.spec.ts:387` (Q-P20B-16) → class A (test-timing), NOT a product defect; but the
+  implementer's committed comment mis-states the mechanism.** The rev-04 change (uncommitted) swaps
+  the `:400` unlock input from `.fill()` on the single `recovery-phrase-credential` field to the
+  per-word grid via `enterSeedPhrase(words, true)`. Adjudication (root, independent): (1) coverage of
+  the single-field path is retained — `.fill()` on `recovery-phrase-credential` is still exercised at
+  `passkey:72/171/232/431/441`, `identity:458/530/606/618`, `onboarding-vault:104…`; (2) the change
+  is class A not class C (product-defect) because a deterministic product space-stripping bug would
+  fail 100%, not 1/8, and the IDENTICAL `.fill(seedWords.join(" "))` at `passkey:72/171/232` do NOT
+  flake — so the committed comment's "the field strips spaces from a programmatic .fill() under load"
+  is a MIS-DIAGNOSIS; (3) true mechanism is a post-`goto("/unlock")` hydration/controlled-input race
+  specific to the `:387` test's `sessionStorage.clear()`→`goto`→immediate-`.fill()` sequence — the
+  SAME load-dependent hydration-race class as identity:282; the grid switch fixes it incidentally by
+  adding `enterSeedPhrase(expectValid=true)`'s "Valid recovery phrase" settle-wait. passkey:387
+  passed in rev-04 runs 1 and 2 (4.8s / 5.3s). **Required before accept:** correct the comment to the
+  real mechanism; author evidence-06; commit test-only. Root will require this on the agent's fast
+  finish once the run loop completes.
