@@ -7,19 +7,23 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** **P21** (control — executable final audit / completion gate), **revision 03
-  pending**. After the rev-02 audit surfaced two more load-dependent E2E timing flakes owned by
+- **Current package:** **P21** (control — executable final audit / completion gate), **revision 04
+  pending** (rev 03 FAILED: F-1 dependency-security). After the rev-02 audit surfaced two more load-dependent E2E timing flakes owned by
   P20B (`transactions.spec.ts:696` Q-P20B-15, `passkey.spec.ts:387` Q-P20B-16), HS-021 was rolled
   back via `RB-P21-02`; P20B rev 03 (`63787ec`, virtualized 500-count re-render waits -> 15s) + rev
   05 (`3e0318a`, `passkey` unlock via `enterSeedPhrase` settle) fixed them test-only over
   `5576175..HEAD`, and DISTINCT `p20b-reviewer-03` returned **PASS** (8/8 clean full-suite
   `--retries=0`, `reviews/P20B-review-03.md`). Root integrated: P20B + HS-021 re-passed, HS-021
   forward marker re-applied `[] -> [x]` at scratch `:159` (rolling `f46c2d35… -> 469e98c7…`,
-  all-checked authorized `469e98c7…`, 24,260 bytes, normalized 21/0). **Tally: ALL 22 requirements
-  `passed`; all 21 feature packages P00–P20B `passed`.** Only control package **P21** remains; its
-  sole blocker (P20B flake ownership) is cleared. `identity.spec.ts:282`, `transactions.spec.ts:696`,
+  all-checked authorized `469e98c7…`, 24,260 bytes, normalized 21/0). **Tally: 21 of 22 requirements
+  `passed`** (HS-002 rolled back via `RB-P21-03` after the P21 rev 03 audit FAIL F-1
+  dependency-security); **20 of 21 feature packages `passed`** (P01 reopened for the `next`/`sharp`
+  bump). Control package **P21** is `changes_requested`, rev 04 pending. `identity.spec.ts:282`, `transactions.spec.ts:696`,
   `passkey.spec.ts:387` all fixed; `import.spec.ts:1527` tracked environmental (Q-P20B-14).
-- **Next action:** start **P21 revision 02** from a fresh BASE (current product tip `5576175`).
+- **Next action:** **reopen P01** (rev 03) to bump `next` 16.2.10 -> 16.2.12 and force `sharp`
+  `>=0.35.0` via `pnpm.overrides` so `pnpm audit --prod` is CLEAN; DISTINCT P01 reviewer; on PASS
+  re-pass HS-002 (forward marker `[] -> [x]` at `:157`, rolling `c10dc0b5… -> 469e98c7…` if content
+  restores byte-identically, authorized 20 -> 21). THEN start **P21 revision 04** from a fresh BASE.
   Dispatch a fresh collector to run the full executable final audit (`tasks/P21-final-audit.md`) —
   all 21 package rows + 22 requirement rows `passed`; scratch normalized blocks byte-match SCOPE and
   actual `sha256sum specs/human-scratch.md` == rolling `469e98c7…`; FS-001 canonical `008/spec.md`
@@ -42,24 +46,24 @@ review evidence.
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
   `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines and 25,441 bytes
-- **Rolling scratch SHA-256:** `469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a`
-- **Authorized checked HS IDs:** HS-001, HS-002, HS-003, HS-004, HS-005, HS-006, HS-007, HS-008,
-  HS-009, HS-010, HS-011, HS-012, HS-013, HS-014, HS-015, HS-016, HS-017, HS-018, HS-019, HS-020,
-  HS-021 (21 of 21 human-scratch IDs; **HS-021 RE-APPLIED FORWARD** after P20B rev 03/05 PASS via
-  `p20b-reviewer-03`;
-  FS-001 is markerless, completed via ledger)
-- **Active completion marker event:** HS-021 marker RE-APPLIED FORWARD after P20B rev 03/05 PASS
-  (DISTINCT `p20b-reviewer-03`, 8/8 clean full-suite `--retries=0` runs), scratch `:159` `- []` ->
-  `- [x]`, rolling `f46c2d35… -> 469e98c7…` (marker-only one-line diff verified against a mktemp
-  snapshot; after-SHA byte-identical to the original authorized all-checked state `469e98c7…`;
-  normalized blocks 21/0; file 24,260 bytes = complete all-checked authorized state, 43 checked / 0
-  unchecked)
-- **Active P21 rollback batch:** none (`RB-P21-02` COMPLETED + cleared — see the completed-batch
-  event at EOF). Batch summary: failed review `reviews/P21-review-02.md`; owning package `P20B` (now
-  `changes_requested`); downstream `P21` (`changes_requested`, rev 02 FAIL); one-ID pending set
-  `[HS-021]` fully processed; completed `[HS-021: [x]->[], 469e98c7… -> f46c2d35…]`; contiguous hash
-  chain `469e98c7… -> f46c2d35…` ends at actual rolling SHA `f46c2d35…`; FS-001 never entered the
-  batch. (Prior `RB-P21-01` likewise COMPLETED + cleared.)
+- **Rolling scratch SHA-256:** `c10dc0b5963105d72d8e4afc43223102b96b3ab7cb0acd3954cfc491866831bd`
+- **Authorized checked HS IDs:** HS-001, HS-003, HS-004, HS-005, HS-006, HS-007, HS-008, HS-009,
+  HS-010, HS-011, HS-012, HS-013, HS-014, HS-015, HS-016, HS-017, HS-018, HS-019, HS-020, HS-021 (20
+  of 21 human-scratch IDs; **HS-002 ROLLED BACK** via `RB-P21-03` after the P21 rev 03 audit FAIL
+  (F-1 dependency-security); re-passes when P01 clears `pnpm audit --prod`; FS-001 is markerless,
+  completed via ledger)
+- **Active completion marker event:** HS-002 marker ROLLED BACK via `RB-P21-03` after the P21 rev 03
+  audit FAIL (F-1 dependency-security; DISTINCT `p21-reviewer-03` verdict), scratch `:157` `- [x]` ->
+  `- []`, rolling `469e98c7… -> c10dc0b5…` (marker-only one-line diff `157c157` verified against a
+  mktemp snapshot; normalized blocks 21/0; file 24,259 bytes = one authorized marker short of
+  all-checked; 42 checked / 1 unchecked)
+- **Active P21 rollback batch:** none (`RB-P21-03` COMPLETED + cleared — see the completed-batch
+  event at EOF). Batch summary: failed review `reviews/P21-review-03.md` (P21 rev 03 audit FAIL, F-1
+  dependency-security); owning package `P01` (now `changes_requested`, rev 03 reopen); requirement
+  `HS-002` (now `changes_requested`); one-ID pending set `[HS-002]` fully processed; completed
+  `[HS-002: [x]->[], 469e98c7… -> c10dc0b5…]`; contiguous hash chain `469e98c7… -> c10dc0b5…` ends at
+  actual rolling SHA `c10dc0b5…`; FS-001 never entered the batch. (Prior `RB-P21-02`/`RB-P21-01`
+  likewise COMPLETED + cleared.)
 - **Last ledger update:** 2026-07-27; **P20B / 01 clean re-handback verify-not-trust GREEN ->
   transitioned to `reviewing`; DISTINCT `p20b-reviewer-01` dispatched over `659ca20..f058a98`.**
   After the earlier hygiene bounce (uncommitted import drift + evidence/code contradiction),
@@ -138,7 +142,7 @@ review evidence.
 | Package | Scope          | Work / task                                                                         | Depends on           | Status            | Rev | BASE..HEAD                                                                                                                                                                                                                                                                  | Implementation evidence                                                                                                | Review                                                                                                        | Integration commit                                                                                                                                                                                                                                                                      |
 | ------- | -------------- | ----------------------------------------------------------------------------------- | -------------------- | ----------------- | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | P00     | control        | [Executable baseline](tasks/P00-baseline.md)                                        | —                    | passed            | 02  | `0ea864f5d0142530b2d524add228d3b51f162876..8f12d82ddb576af5cc8c6f04d32617d805e300de`                                                                                                                                                                                        | `evidence/P00/implementation-02.md`                                                                                    | `reviews/P00-review-02.md`                                                                                    | `7eb78075e0be7b6a881e59f03d2bfd2e202fc0f8`                                                                                                                                                                                                                                              |
-| P01     | HS-002         | Upgrade dependencies by compatible safe chains                                      | P00                  | passed            | 02  | `d54a6285dd9b9f0824927b3d8a3a4e14c5315c73..71aa257bb9bdad736fb7ef7315854fce42c5cbb4`                                                                                                                                                                                        | `evidence/P01/implementation-02.md`                                                                                    | `reviews/P01-review-02.md`                                                                                    | `c2b89b6676271142ad6802dcf2a30acf8899df48`                                                                                                                                                                                                                                              |
+| P01     | HS-002         | Upgrade dependencies by compatible safe chains                                      | P00                  | changes_requested | 03  | `d54a6285dd9b9f0824927b3d8a3a4e14c5315c73..71aa257bb9bdad736fb7ef7315854fce42c5cbb4`                                                                                                                                                                                        | `evidence/P01/implementation-02.md`                                                                                    | `reviews/P01-review-02.md`                                                                                    | `c2b89b6676271142ad6802dcf2a30acf8899df48`                                                                                                                                                                                                                                              |
 | P02     | HS-017         | Animate UI evaluation, ADR, and representative migration only if justified          | P01                  | passed            | 02  | `19d73035b33b639f9927d2f78a55d74c44f65544..213100fadf5acea30aad7e90998bd575cdcd508c`                                                                                                                                                                                        | `evidence/P02/implementation-02.md`                                                                                    | `reviews/P02-review-02.md`                                                                                    | `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7`                                                                                                                                                                                                                                              |
 | P03     | HS-018         | TanStack Virtual PR #1100 release gate and `useFlushSync`                           | P01                  | passed            | 01  | `c60f605bd811d8920122a66f3d6743d8a3ac044d..b8d4b448f52022970ca388654be14d24e347deb5`                                                                                                                                                                                        | `evidence/P03/implementation-01.md`                                                                                    | `reviews/P03-review-01.md`                                                                                    | `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34`                                                                                                                                                                                                                                              |
 | P04     | HS-014         | Database/table/RLS threat model, migrations, and permission remediation             | P01                  | passed            | 02  | `9de8b0e8c41087b96523ecc55faa10bf19ec0ff9..dbcf180e829c81a218e9a73791e40902c4f9eb31`                                                                                                                                                                                        | `evidence/P04/implementation-02.md`                                                                                    | `reviews/P04-review-02.md`                                                                                    | `b905ecb810334ed9697f57140047964135ade6ea`                                                                                                                                                                                                                                              |
@@ -168,7 +172,7 @@ review evidence.
 | P19     | HS-020         | WebAuthn PRF passkeys sharing the vault identity secret                             | P04, P06, P18        | passed            | 02  | `e72befd9ba1b2cbbf5c189b7d855e47cc752240e..bb8a557d37190058c68b2cebfe721d3e15f18629`                                                                                                                                                                                        | `evidence/P19/implementation-02.md`                                                                                    | `reviews/P19-review-02.md`                                                                                    | `c06c851669f00093d1c78653125f784a48b1ed80`                                                                                                                                                                                                                                              |
 | P20A    | HS-016         | Truthful marketing copy and responsive feature presentation                         | P17D, P19            | passed            | 02  | `e5dc9f2..e50cbb23119d8b916d0100f36b86cce6f6a04392` (rev 02 B1 fix, verified)                                                                                                                                                                                               | `evidence/P20A/implementation-02.md`                                                                                   | `reviews/P20A-review-02.md` (rev 02 PASS)                                                                     | PASS; A `3814bd8` persist review; B row -> passed + HS-016 marker `9fcdc51e… -> f46c2d35…`                                                                                                                                                                                              |
 | P20B    | HS-021         | Full-codebase style-guide/code-quality sweep after all feature work                 | P20A                 | passed            | 03  | rev 03/05 cumulative E2E-stability fix over `5576175..HEAD` (transactions rev-03 + passkey rev-05, product tip `3e0318a`) PASSED via DISTINCT `p20b-reviewer-03` (8/8 full-suite `--retries=0`, reviews/P20B-review-03.md); HS-021 re-passed and forward marker re-applied. Prior: rev 02 `4e950b7..5576175` PASS was INVALIDATED by the P21 rev 02 audit FAIL; rev 03 required from a fresh BASE to harden the flaky `transactions.spec.ts:696` count-restore assertion (Q-P20B-15) and sweep same-class eager E2E waits; rev 01 `659ca20..f058a98` (INVALID) | `evidence/P20B/implementation-01.md` … `implementation-04.md`; rev 03 evidence TBD                                     | `reviews/P20B-review-01.md` (INVALID); `reviews/P20B-review-02.md` (rev 02 PASS, INVALIDATED by P21/02)       | rev 02 PASS invalidated by P21 rev 02 audit FAIL; HS-021 marker rolled back via RB-P21-02 (`469e98c7… -> f46c2d35…`); rev 03/05 PASSED (p20b-reviewer-03, 8/8 full-suite --retries=0); integrated at product tip `3e0318a`; HS-021 re-passed and forward marker re-applied `[] -> [x]`                                                                                   |
-| P21     | control        | [Executable final audit](tasks/P21-final-audit.md)                                  | all prior            | changes_requested | 02  | rev 02 BASE ~`453e984` (HEAD `fb97149` at audit); rev 02 FAILED (independent reviewer): blocking flake `transactions.spec.ts:696`. Requires rev 03 from a fresh BASE after P20B rev 03 passes + clean full-suite retries-disabled E2E                                       | `evidence/P21/implementation-01.md` (`d952cdc`); `evidence/P21/implementation-02.md` (rev 02 collector FAIL-candidate) | `reviews/P21-review-01.md` (rev 01 **FAIL**); `reviews/P21-review-02.md` (rev 02 **FAIL**, DISTINCT reviewer) | rev 02 FAIL: reviewer OVERTURNED `identity:282` (0/5 full, 10/10 iso — rev-02 fix held) but found NEW blocking flake `transactions.spec.ts:696` (1/5 full, 10/10 iso); owner P20B (Q-P20B-15); HS-021 rollback via RB-P21-02; NO product/FS-001 defect. Prior rev 01 FAIL: identity:282 |
+| P21     | control        | [Executable final audit](tasks/P21-final-audit.md)                                  | all prior            | changes_requested | 03  | rev 03 FAIL: F-1 next@16.2.10 HIGH advisories (Q-P21-03-01), DISTINCT `p21-reviewer-03` CONFIRMED, routed via RB-P21-03 to P01 reopen, rev 04 pending from fresh BASE. rev 02 BASE ~`453e984` (HEAD `fb97149` at audit); rev 02 FAILED (independent reviewer): blocking flake `transactions.spec.ts:696`. Requires rev 03 from a fresh BASE after P20B rev 03 passes + clean full-suite retries-disabled E2E                                       | `evidence/P21/implementation-01.md` (`d952cdc`); `evidence/P21/implementation-02.md` (rev 02 collector FAIL-candidate) | `reviews/P21-review-01.md` (rev 01 **FAIL**); `reviews/P21-review-02.md` (rev 02 **FAIL**, DISTINCT reviewer) | rev 02 FAIL: reviewer OVERTURNED `identity:282` (0/5 full, 10/10 iso — rev-02 fix held) but found NEW blocking flake `transactions.spec.ts:696` (1/5 full, 10/10 iso); owner P20B (Q-P20B-15); HS-021 rollback via RB-P21-02; NO product/FS-001 defect. Prior rev 01 FAIL: identity:282 |
 
 Every active/reviewed row must contain the exact revision, literal SHAs, evidence path, immutable
 revisioned review path and root integration-control commit; `—` is valid only before dispatch.
@@ -193,7 +197,7 @@ required marker rollbacks before the next dispatch.
 | Requirement | Frozen source                     | Packages                     | Completion recording                       | Status            | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | ----------- | --------------------------------- | ---------------------------- | ------------------------------------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | HS-001      | human scratch block               | P13                          | authorized marker after package PASS       | passed            | P13 integration `7a04338fa7c3f68463d12d11082bc56e87c1872b`; `reviews/P13-review-03.md`; marker `aa8a1f56… -> b09454de…`                                                                                                                                                                                                                                                                                                                                                             |
-| HS-002      | human scratch block               | P01                          | authorized marker after package PASS       | passed            | P01 integration `c2b89b6676271142ad6802dcf2a30acf8899df48`; `reviews/P01-review-02.md`; marker `b91ca932… -> dcd03b23…`                                                                                                                                                                                                                                                                                                                                                             |
+| HS-002      | human scratch block               | P01                          | authorized marker after package PASS       | changes_requested | ROLLED BACK via `RB-P21-03` after P21 rev 03 audit FAIL F-1 (next@16.2.10 HIGH advisories; see Q-P21-03-01); marker `[x] -> []` at `:157` (rolling `469e98c7… -> c10dc0b5…`); re-passes when P01 clears `pnpm audit --prod`. Prior pass: P01 integration `c2b89b6676271142ad6802dcf2a30acf8899df48`; `reviews/P01-review-02.md`; marker `b91ca932… -> dcd03b23…`                                                                                                                                                                                                                                                                                                                                                             |
 | HS-003      | human scratch block               | P10                          | authorized marker after package PASS       | passed            | P10 integration (Commit B); `reviews/P10-review-01.md`; `evidence/P10/implementation-01.md`; marker `1b56b21c… -> 9fcdc51e…`                                                                                                                                                                                                                                                                                                                                                        |
 | HS-004      | human scratch block               | P11A, P11B, P11C             | authorized marker after all package PASSes | passed            | P11A integration `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f`, P11B `0426866fa66cc022efca6d74cd5088d586d3d11b`, P11C `78e2f978f8d258d8c4d379f53e75089a2ce975db`; reviews `P11A-review-04.md`/`P11B-review-01.md`/`P11C-review-03.md`; marker `c2b986fd... -> 2c52bd78...`                                                                                                                                                                                                             |
 | HS-005      | human scratch block               | P12                          | authorized marker after package PASS       | passed            | P12 integration `f8cbb5a8caacb763c0bb77199595a5ee332ab729`; `reviews/P12-review-08.md`; marker `2c52bd78… -> aa8a1f56…`                                                                                                                                                                                                                                                                                                                                                             |
@@ -5863,3 +5867,42 @@ carry-forward, not a P21 blocker.
 This is the §275 immutable-failed-review precondition. Root persists the review + collector evidence
 in this commit, THEN executes §275 `RB-P21-03` next. P21 -> `changes_requested`, rev 04 pending from a
 fresh BASE after P01 clears `pnpm audit --prod`.
+
+### 2026-07-28 — §275 rollback_batch_prepared: RB-P21-03 (HS-002) grounded in the formal FAIL
+
+**rollback_batch_prepared** (root-only; NO dispatch allowed while a batch is prepared/active).
+- **Batch ID:** `RB-P21-03`
+- **Immutable failed review (precondition MET):** `reviews/P21-review-03.md` — DISTINCT
+  `p21-reviewer-03` FORMAL verdict FAIL, F-1 dependency-security CONFIRMED (persisted commit
+  `fb723d0`). Corroborated by root's independent `pnpm audit --prod` + `evidence/P21/implementation-03.md`.
+- **Actual owning/affected packages:** **P01** (owns HS-002 dependency-upgrade). No other package
+  impacted (E2E / FS-001 / all other gates GREEN per collector + reviewer sanity-check).
+- **Impacted requirements:** **HS-002**.
+- **Impacted checked HS IDs (SCOPE order):** `[HS-002]`.
+- **FS-001:** NOT impacted; never enters the marker batch; no source/scratch edit.
+- **Starting == current rolling SHA:** `469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a`.
+- Integrity precondition verified: actual scratch SHA == rolling SHA; HS-002 marker `[x]` at `:157`,
+  authorized; normalized blocks byte-match SCOPE (21/0); FS-001 `0d0e2a14…` unchanged.
+
+### 2026-07-28 — §275 RB-P21-03 activated, HS-002 rolled back, batch COMPLETED + cleared
+
+**Activated** `RB-P21-03`: HS-002 -> `rollback_pending`; **P01** -> `changes_requested`. FS-001 not
+impacted (no source/scratch edit).
+
+**Processed HS-002** (order 1, the sole batched ID). Precondition met: `[x]`, `rollback_pending`,
+authorized, actual SHA == batch current rolling SHA `469e98c7…`. Snapshotted scratch to a private
+mktemp; applied marker `[x]` -> `[]` at scratch `:157` via `sed`; verified a ONE-LINE marker-only diff
+`157c157` against the snapshot; deleted the snapshot; normalized blocks byte-compared to SCOPE (still
+match). Completed record: `[HS-002: order 1, [x] -> [], before 469e98c7… / after c10dc0b5…, P21 rev
+03 FAIL F-1]`. Batch + global rolling SHA updated `469e98c7… -> c10dc0b5…`; HS-002 removed from
+pending and from authorized checked IDs; HS-002 set `changes_requested`. File now 24,259 bytes, 42
+checked / 1 unchecked.
+
+**Batch COMPLETED + cleared.** Pending empty; batched HS-002 is `[]`, unauthorized,
+`changes_requested`; all normalized text matches SCOPE; package downgrade (P01 -> `changes_requested`,
+rev 03 reopen) recorded; FS-001 untouched; contiguous hash chain `469e98c7… -> c10dc0b5…` ends at
+actual rolling SHA `c10dc0b5…`. Active P21 rollback batch -> **none**. Fix dispatch to P01 is now
+permitted.
+
+- **Rolling scratch SHA-256 (post-RB-P21-03):** `c10dc0b5963105d72d8e4afc43223102b96b3ab7cb0acd3954cfc491866831bd`
+- **Authorized checked HS IDs (post-RB-P21-03):** 20 of 21 (HS-002 rolled back; HS-001, HS-003..HS-021 remain).
