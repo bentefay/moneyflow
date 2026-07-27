@@ -1873,3 +1873,37 @@ decisions.
   wait with a deterministic signal (no arbitrary timeout).
 - **Does a human still need to decide after completion?:** Reviewer/P21 rule on acceptability; if
   accepted, a follow-up owns the bootstrap-race fix. Not a HS-021 style-guide gate.
+
+---
+
+### Q-P20B-14 — `import.spec.ts:1527` template auto-update flakes under full-parallel suite only (environmental)
+
+- **Raised:** 2026-07-27, P20B rev 02, root (during P21/01-triggered flake triage)
+- **Source proposal:** surfaced by `p20b-implementer-01`'s rev-02 full-suite runs;
+  `evidence/P20B/implementation-04.md §Pre-existing/unrelated flakes`
+- **Context and evidence:** `import.spec.ts:1527` ("selecting template and importing auto-updates
+  template config") failed once in 6 full-suite `--retries=0` runs during the rev-02 identity fix.
+  Root sent the implementer to classify it: a focused isolation loop of that single test at
+  `--retries=0` was **20 PASS / 0 FAIL**, with NO failure signature reproduced. It is therefore an
+  environmental / full-parallel-run resource-contention flake, NOT a deterministic in-isolation
+  read-before-render race. Distinct from Q-P20B-13 (`import.spec.ts:301`, a vault-session bootstrap
+  race). The test file is byte-identical to BASE (rev 02 changed only `identity.spec.ts`).
+- **Why not decided by frozen text:** there is no identifiable failing line or mechanism to harden
+  (20/20 in isolation) — adding waits blindly would be exactly the retry/mask papering the E2E guide
+  the sweep enforces forbids. It is not a style-guide item HS-021 committed.
+- **Options considered:** (a) **[SELECTED]** classify + track as an explained environmental flake
+  under the existing Q-P20A-05 / Q-P20B-13 precedent; do NOT paper it with a retry; (b) harden the
+  test — REJECTED (no reproducible mechanism; blind waits = masking); (c) add a retry — REJECTED
+  (violates the no-mask E2E guide).
+- **Default selected for continued work:** Option (a).
+- **Decision hierarchy basis:** explained via 20/20 isolation evidence; converts an "unexplained
+  flake" (P21 FAIL trigger, tasks/P21-final-audit.md line 71) into a tracked environmental one. The
+  P21 rev-02 audit must, on any recurrence, rerun the test in isolation and classify it against this
+  Q rather than fail on it.
+- **Impact and risk:** occasional CI flake (~1 in 6 full parallel runs observed); isolation runs
+  green 20/20. No product-behavior change.
+- **How to reverse or migrate:** a follow-up may harden the import-template flow's post-navigation
+  settle with a deterministic signal if the flake rate proves material under CI.
+- **Does a human still need to decide after completion?:** Reviewer/P21 rule on acceptability under
+  the "unexplained flake" bar; if accepted, a follow-up owns any deterministic hardening. Not a
+  HS-021 style-guide gate.
