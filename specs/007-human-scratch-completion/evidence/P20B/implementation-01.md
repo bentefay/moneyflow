@@ -303,12 +303,22 @@ excluding vendored `animate-ui`:
 | ------------------------------ | -------------- | ----- | ------- |
 | `as` assertions in `src/`      | 151            | 113   | **−38** |
 | non-null `!` in `src/`         | 22             | 2     | **−20** |
-| explicit `any` in product code | 1              | **0** | −1      |
+| explicit `any` in product code | 5              | **0** | **−5**  |
 | `any` in `tests/`              | 1              | **0** | −1      |
 | `waitForTimeout` in `tests/`   | 1              | **0** | −1      |
 
-The 2 remaining `!` hits are prose false positives — `"user must save this!"` and the word
-`"Copied!"`. Zero new `as`/`any`/`!` were introduced in product code.
+The residual hits are prose false positives, verified individually rather than assumed: the 2 `!`
+are `"user must save this!"` and the word `"Copied!"`; the 2 `any` matches are both inside comments,
+one of them the doc-comment in `draft-record.ts` describing the very `(draft.tags as any)` pattern
+it replaced. **No `as`, `any` or `!` was added to product code anywhere in this range.**
+
+Queries, for reproduction:
+
+```
+rg -n -P '(?<![\w$])as\s+(?!const\b)[A-Z_$][\w$<>\[\]\.]*' -g '*.ts' -g '*.tsx' -g '!**/animate-ui/**' src
+rg -n -P ':\s*any\b|<any>|\bas any\b|\bany\[\]|extends any\b'  -g '*.ts' -g '*.tsx' -g '!**/animate-ui/**' src
+rg -n -P '[\w$\)\]]!(?=[\.\[\)\,;\s]|$)(?!=)'                  -g '*.ts' -g '*.tsx' -g '!**/animate-ui/**' src
+```
 
 ### Secret-safety — clean
 
