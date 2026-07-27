@@ -1548,6 +1548,36 @@ No unresolved product questions were answered by scaffold creation.
   human must add a `LICENSE` and update `README`/`package.json`; until then the truthful default
   stands. Not a completion gate for HS-016.
 
+### Q-P20A-04 — Dead-but-working re-key-on-removal machinery (product decision, out of P20A scope)
+
+- **Raised:** 2026-07-27, P20A, `p20a-reviewer-01` (recorded by root)
+- **Source proposal:** `reviews/P20A-review-01.md`, non-blocking observation 1 (surfaced while
+  verifying blocking finding B1)
+- **Question:** the vault re-key machinery is fully built and tested but never wired to a caller:
+  `rekeyVault`/`performCompleteRekey` (`src/lib/crypto/rekey.ts:50,120`), the tRPC
+  `membership.rekey` procedure (`src/server/routers/membership.ts`), and the `rekey_vault_members`
+  SQL function (`supabase/migrations/006_rls_hardening.sql:161`, covered by
+  `tests/database/rls-audit.sql:91-107`). Member removal (`AccessMembersSection.tsx`) calls only
+  `membership.remove`; no re-key follows, and the in-app copy correctly discloses that the key is
+  NOT rotated. Should the product actually re-key on removal (invalidating a removed member's
+  retained key wrap), or is cutting off future server access the intended threat model?
+- **Options considered:** (a) **[SELECTED for P20A]** marketing states the truthful current behavior
+  (no rotation); the wiring decision is deferred as a separate product question; (b) wire the re-key
+  path into removal now — REJECTED for P20A (product/security change far outside a marketing
+  package).
+- **Default selected for continued work:** Option (a) — P20A B1 fix makes the copy match the shipped
+  no-rotation behavior; no product change in this package.
+- **Decision hierarchy basis:** HS-016 is marketing-truthfulness only; whether removal should rotate
+  the key is a threat-model/product decision not committed by HS-016's frozen text.
+- **Impact and risk:** if the intended model is rotation-on-removal, a removed member's retained
+  ciphertext stays readable until a future wiring change — a real security consideration, tracked
+  here for a human/product decision, NOT a P20A or completion gate.
+- **How to reverse or migrate:** the primitives exist; a future package can wire
+  `performCompleteRekey`
+    - `membership.rekey` into the removal flow and then the marketing claim could truthfully return.
+- **Does a human still need to decide after completion?:** Yes — a product owner should decide
+  whether removal must rotate the key. Not a gate for HS-016 completion.
+
 ## Question template
 
 ### Q-XXX — Short title

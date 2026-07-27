@@ -1,109 +1,66 @@
-# HANDOFF — P20A REVIEW dispatch (revision 01)
+# HANDOFF — P20A IMPLEMENT dispatch (revision 02 — B1 fix)
 
-**To:** `p20a-reviewer-01` (fresh, independent — you did NOT implement P20A; you are NOT
-`p20a-implementer-01`). Read-only on product code; you may run all gates. **From:** root
-coordinator.
+**To:** `p20a-implementer-01` (you implemented rev 01; this is your one-sentence fix). **From:**
+root coordinator.
 
-**Package:** P20A (HS-016 — Truthful marketing pages). **This is the SOLE HS-016 package** — on your
-PASS, root performs the NON-markerless final integration that checks the HS-016 scratch block and
-flips the HS-016 requirement to `passed`. Review as the last gate before HS-016 is declared
-complete.
+**Package:** P20A (HS-016 — Truthful marketing pages). Rev 01 FAILED review with **1 blocking
+finding (B1)**. This revision fixes ONLY B1. The rest of your rev-01 work was verified clean and
+must stay byte-for-byte as-is.
 
-**Review range:** `b79c77d..6509ce7c` (product/test delta in `6d5b5db` test + `6509ce7c` feat; docs
-commit was the dispatch commit `b79c77d` = BASE). Linear single-parent chain
-`b79c77d->6d5b5db->6509ce7c`. Work read-only against git; **do NOT checkout/reset/branch/switch** —
-the tree stays at HEAD.
+**BASE = current HEAD `c9c7874f9da65e87f604dadb4d54b0750323c896`.** Commit your fix forward on top
+of BASE. **No-checkout discipline: do NOT checkout/reset/branch/switch.** One small feat commit.
 
-**Frozen text:** `specs/human-scratch.md:328-331` (HS-016), exact bytes in `SCOPE.json#HS-016`:
+## The blocking finding to fix — B1
 
-> Update the marketing pages to include all these features. Be clear, succinct and not too
-> "markety". It's private. It's for categorising and allocating your transactions, not budgeting.
-> Supports importing CSV and ofx. Multiple people can collaborate in real-time. It intelligently
-> applies your tags, aliases and allocations to new imports.
+`src/components/features/landing/SecuritySection.tsx:35` — the "Shared without sharing keys" card
+currently reads:
 
-Full brief: `specs/007-human-scratch-completion/tasks/HS-016-marketing-pages.md`. The implementer's
-evidence + claim-to-evidence table is `evidence/P20A/implementation-01.md` — read the frozen text,
-not the evidence, as your source of truth, and **independently confirm every claim against the
-actual codebase and running app.**
+> "Inviting someone wraps the vault key to their key. The invite secret stays in the link fragment
+> and never reaches the server. **Remove a member and the vault is re-keyed.**"
 
-## What root already verified (verify-not-trust — re-derive, do not take on faith)
+The **third sentence is false.** The re-key primitives exist (`src/lib/crypto/rekey.ts`,
+`membership.rekey`) but have **zero callers** — member removal does NOT rotate the vault key. The
+app's own settings page `src/components/features/vault/AccessMembersSection.tsx:108` correctly
+discloses: _"...The vault key is not rotated, so anything they already downloaded stays readable to
+them."_ The landing page must not promise a security property the product does not deliver.
 
-- Linear single-parent chain `b79c77d->6d5b5db->6509ce7c`, no merges.
-- Delta = `src/app/(marketing)/layout.tsx`, six `src/components/features/landing/*.tsx`
-  (`HeroSection`, `FeaturesSection`, `SecuritySection`, `CTASection`, `Footer`, `Header`),
-  `tests/unit/components/landing-page.test.tsx`, `tests/e2e/landing.spec.ts`, and
-  `evidence/P20A/implementation-01.md`. **NOTHING under
-  `src/lib/**`, `src/server/**`, `supabase/**`, or `src/app/(app)/**`; `package.json`/lockfile
-  untouched.**
-- **Hard boundary byte-identical BASE(`b79c77d`)->HEAD** — must NOT change: FS-001
-  `src/lib/domain/settlement.ts` blob `010f3c93582a2ce311594d4dde8464760ca49c43`.
-- Product code cast-free; no new `as`/`any`/non-null `!` in added lines; root spot-check
-  `pnpm typecheck` clean.
+## The fix (do EXACTLY this — nothing more)
 
-## The core of this review: TRUTHFULNESS (verify, do not trust the table)
+Replace the false third sentence with the honest behavior, matching the in-app wording. Recommended
+copy for that card's body (keep the first two sentences unchanged):
 
-The frozen requirement is that the marketing pages be **clear, succinct, non-markety, and true.**
-Your central job is to independently confirm the copy matches reality — the implementer's
-claim-to-evidence table is a starting point to CHECK, not accept.
+> "Inviting someone wraps the vault key to their key. The invite secret stays in the link fragment
+> and never reaches the server. Removing a member cuts off their access to future changes; the vault
+> key is not rotated, so anything they already downloaded stays readable to them."
 
-1. **Every KEPT claim must be backed by a capability reachable today.** For each advertised feature,
-   find the shipping code path and, where practical, exercise it in the running app. Spot-check at
-   minimum: CSV **and OFX** import (`src/lib/import/csv.ts`, `src/lib/import/ofx.ts`, reachable at
-   `/imports/new`); categorising + **percentage** People allocations
-   (`src/lib/domain/allocation.ts`, `/transactions`, `/people`); rules auto-applying
-   tags/aliases/allocations to **new imports** (`applyFieldRulesToImport` from
-   `src/lib/crdt/import-commit.ts`); real-time multi-person collaboration/presence
-   (`src/lib/sync/**`, `src/lib/supabase/realtime.ts`); client-side encryption before storage
-   (`src/lib/crypto/encryption.ts`); 12-word phrase **or passkey** unlock. **If any advertised
-   feature is not actually usable, that is a blocking finding** ("no feature advertised before it is
-   usable").
-2. **Every CUT claim must be genuinely false/unbacked** — confirm the removals are justified, not
-   over-eager. Confirm "Smart Budgeting"/"Spending Insights" have no shipping support (no budget in
-   `src/lib/crdt/schema.ts`, no charting dep, `/dashboard` behaviour), and that the removed
-   open-source/MIT claim is indeed contradicted by `README.md` + absent `LICENSE` + `package.json`
-   `"private": true`.
-3. **Crypto corrections must be ACCURATE.** The copy now says vault data is **XSalsa20-Poly1305**
-   (`crypto_secretbox_easy`) with **HKDF-SHA256** derivation, and that XChaCha20 is presence-only.
-   Verify against `src/lib/crypto/encryption.ts` and the presence path. If the corrected copy is
-   itself wrong, that is blocking. (The stale XChaCha20 comments still in
-   `src/lib/crypto/encryption.ts` + `supabase/migrations/005_vault_ops.sql` are OUT of P20A scope —
-   root tracks them as **Q-P20A-02** for a later sweep; do not require them changed here.)
-4. **Privacy wording must match the threat model — no false absolutes.** Confirm no
-   "zero-knowledge", "100% private", "unhackable", "military-grade", or offline-that-does-not-exist
-   claims survive, and that the honest server-visibility disclosure (membership graph, per-op
-   author + timestamp, data volume) is accurate.
+(If the card's length budget is tight, simply deleting the false sentence — ending after "never
+reaches the server." — is also acceptable. Do NOT invent any new claim.)
 
-## Presentation / accessibility (confirm, not just trust the tests)
+## Hard constraints
 
-Responsive at desktop + mobile (implementer claims no horizontal overflow at 390px), dark/light,
-`prefers-reduced-motion` respected, metadata/`<title>`/semantics, single `h1`, no skipped heading
-levels, discernible link names, focus order, and **all CTA/nav links resolve to live destinations**
-(the implementer removed `href="#"` dead links and a wrong GitHub account — confirm none remain).
+- **Change ONLY the copy string in `SecuritySection.tsx` for B1.** Do not touch any other landing
+  component, the marketing layout, or any other file — the rest of rev 01 passed review.
+- If your `tests/unit/components/landing-page.test.tsx` asserts anything about that card's text,
+  update the assertion to match the corrected copy — but keep the truthfulness guards intact and do
+  NOT weaken them. Do not add coupling to incidental prose.
+- **No new `as`/`any`/non-null `!`** in product code.
+- **Secret-safety** unchanged: no real secret material anywhere.
+- **FS-001 `src/lib/domain/settlement.ts` stays byte-identical**
+  (`010f3c93582a2ce311594d4dde8464760ca49c43`); nothing under `src/lib/**` changes.
+- Do NOT edit root-owned files except appending your rev-02 note to
+  `evidence/P20A/implementation-01.md` (or add `evidence/P20A/implementation-02.md`) recording the
+  B1 fix.
 
-## Hard rules (blocking if violated)
+## Gates — run ALL and report REAL counts
 
-- No new `as` / `any` / non-null `!` in **product** code. Confirm.
-- **SECRET-SAFETY (BLOCKING):** no seed phrase, recovery material, vault master key, vault-derived
-  key, invite bearer secret, `crypto_box` secret material, `SUPABASE_JWT_SECRET`, or vault plaintext
-  anywhere in copy/code/tests/fixtures/evidence — synthetic/public content only. Any real-material
-  leak is a blocking finding reported to root IMMEDIATELY.
-- FS-001 `settlement.ts` byte-identical; nothing under `src/lib/**` changed.
-
-## Gates — re-run and report REAL counts
-
-`pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm test:e2e`. Implementer
-reported: typecheck 0 errors; lint 0 errors / 10 pre-existing warnings; format:check 14 pre-existing
-`specs/**` markdown only (0 `.ts`/`.tsx`); test 1939 passed / 2 skipped; e2e 163 passed. Re-run and
-confirm real counts. A `format:check` failure confined to pre-existing markdown is NON-blocking; any
-P20A `.ts`/`.tsx` failing oxfmt IS blocking. Never run Playwright with `--debug/--ui/--headed/show`.
+`pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm test:e2e`. `format:check`
+failing only on pre-existing `specs/**` markdown is non-blocking; any P20A `.ts`/`.tsx` failing
+oxfmt is blocking (`pnpm format` your own files).
 
 ## Handback
 
-SendMessage to `main` with: **VERDICT: PASS** or **VERDICT: FAIL** (0 blocking findings = PASS); the
-five real gate counts; a plain-language **truthfulness + UX verdict**; and an explicit statement
-that (a) every advertised feature is backed by a capability usable today, (b) every removed claim
-was genuinely false/unbacked, (c) the crypto corrections are accurate and privacy wording carries no
-false absolutes, (d) the FS-001 boundary is byte-identical and nothing under `src/lib/**` changed,
-(e) all CTA/nav links resolve, and (f) no secret material anywhere. Include any Q-proposals or
-non-blocking observations. For any blocking issue give file:line, the frozen line violated, and the
-failing scenario so root can bounce a fix. Do not edit product code; do not checkout/reset.
+SendMessage to `main` with: the final HEAD SHA + the linear chain from `c9c7874`; the exact
+corrected copy; confirmation that (a) the false re-key sentence is gone and the card now matches the
+in-app no-rotation disclosure, (b) no other landing copy changed, (c) FS-001 byte-identical and
+nothing under `src/lib/**` changed, (d) the five real gate counts, (e) no new casts, (f) no secret
+material. Do not checkout/reset.
