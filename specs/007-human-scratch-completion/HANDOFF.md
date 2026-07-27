@@ -1,75 +1,95 @@
-# HANDOFF — P21 revision 02 final-audit REVIEWER dispatch (independent formal verdict) — to `p21-reviewer-02`
+# HANDOFF — P20B revision 03 IMPLEMENTER dispatch (harden flaky E2E waits) — to `p20b-implementer-03`
 
-**To:** `p21-reviewer-02` — a fresh-context agent acting as the independent `human_scratch_reviewer`
-for the FINAL AUDIT, revision 02. **From:** root coordinator. You give the FORMAL verdict (the
-collector's is only a candidate). You are DISTINCT from the collector (`p21-collector-02`) and from
-the rev-01 reviewer (`p21-reviewer-01`); if you are either, STOP and tell root. You do NOT
-implement, fix, integrate, edit ledgers, or transcribe FINAL-AUDIT. You independently rerun/sample
-and write a single unconditional **PASS** or **FAIL**.
+**To:** `p20b-implementer-03` — a fresh-context developer implementing the `human_scratch` package
+**P20B** ("Full-codebase style-guide/code-quality sweep"), revision **03**. **From:** root
+coordinator. You implement and commit a **test-only** fix. You do NOT edit ledgers
+(`PROGRESS.md`/`QUESTIONS.md`/`HANDOFF.md`/`DECISIONS.md`), markers (`specs/human-scratch.md`), or
+review files — those are root-only. You do NOT run the final audit.
 
-## Literal parameters
+## Why this revision exists
 
-- **Package / revision:** P21 / revision **02**
-- **BASE == HEAD:** record `git rev-parse HEAD` at start — it must equal `453e984` (no product/test
-  commits have landed; only root ledger). The product/test tip is `5576175`. Confirm
-  `git diff --stat 5576175..HEAD` touches ONLY `specs/**` (no `src/**`, no `tests/**`).
-- **Collector evidence to scrutinize (do NOT trust):**
-  `specs/007-human-scratch-completion/evidence/P21/implementation-02.md`
-- **Your ONLY persistent write:** `specs/007-human-scratch-completion/reviews/P21-review-02.md`
-- **Commit nothing.** HEAD must still equal BASE at handback.
-- **Audit contract:** `specs/007-human-scratch-completion/tasks/P21-final-audit.md` (12-part
-  checklist) + `FINAL-AUDIT.md`.
+The P21 rev 02 final audit FAILED (independent reviewer `reviews/P21-review-02.md`). The chartered
+`identity.spec.ts:282` fix from rev 02 HELD (0/5 full runs, 10/10 isolation — do NOT touch it), but
+a NEW blocking flake of the **same class** surfaced:
 
-## The collector proposed FAIL — your job is to independently confirm or overturn it
+- **`tests/e2e/transactions.spec.ts:696`** — in the step "filter the large list and restore its
+  edited row", after clicking "Clear search" the test asserts
+  `await expect(page.getByText("500 transactions", { exact: true })).toBeVisible();` on the **bare
+  default 5s timeout**. Under full-suite parallel load (163 tests / 4 workers) the virtualized
+  500-row list did not re-expand its count within 5s → failed 1 of 5 full retries-disabled runs
+  (10/10 in isolation). Tracked as **Q-P20B-15**.
 
-The collector (`p21-collector-02`) proposed **FAIL-candidate**: the rev-02 fix for
-`tests/e2e/identity.spec.ts:282` ("validate BIP39 words with visual feedback") did NOT hold. It
-reported the full E2E suite `--retries=0` reproduced the failure in **2 of 5 runs (~40%)**, while
-the test passes **20/20 in isolation** — a load-dependent React-hydration race where `fill()` lands
-before hydration, the controlled input drops it, and the validity className never flips (the rev-02
-`toHaveClass` wait then times out). Root's rev-02 charter declared that a recurrence of
-`identity.spec.ts:282` IS a FAIL.
+The mechanism is specific and the fix is principled: the structurally identical "500 transactions"
+assertion at **`transactions.spec.ts:578`** already uses `{ timeout: 15_000 }`, and the CSV-row
+assertion at `:563` uses `10_000`. Only the post-"Clear search" restore at `:696` was left on the
+bare 5s default. The count restoration IS deterministic — it always eventually succeeds; the wait
+was simply undersized for the virtualized re-expansion under load.
 
-**Independently reproduce this first.** Run `pnpm test:e2e --retries=0` on the FULL suite multiple
-times (≥5, more if needed) and report exact per-run pass/fail for `identity.spec.ts:282`. Also run
-it in isolation (`identity.spec.ts` focused, `--retries=0`, ≥10×) to confirm the load-dependence.
+## Your task
 
-- If you reproduce the failure in ANY full-suite run → **FAIL** (the fix does not hold; the flake is
-  a named in-scope defect under active remediation, not an accepted environmental one).
-- If you CANNOT reproduce it in a substantial number of full-suite runs (e.g. ≥10 clean) → you may
-  overturn to a possible PASS, but then you MUST independently complete the rest of the audit before
-  granting PASS (see below). Report your run count honestly; an empty/near-empty diff is NEVER
-  automatic approval.
+1. **Fix `transactions.spec.ts:696`** so the "500 transactions" count-restore assertion is robust to
+   the virtualized re-render under parallel load. Size the wait to the operation — mirror the
+   sibling `:578` (an explicit `{ timeout: 15_000 }`), and/or first await a deterministic settle
+   signal (e.g. the transaction row/count settling) before the count assertion. This is NOT a blind
+   retry/mask: the outcome is deterministic (the count always restores); you are correctly sizing a
+   wait for a known slow re-render, exactly as `:578` already does for the initial 500-count render.
+   Do NOT add Playwright `--retries`, `waitForTimeout` sleeps, or try/catch swallowing.
+2. **Sweep the E2E suite for the same class of defect** (this is HS-021's "code-quality sweep"
+   charter): grep `tests/e2e/**` for bare `getByText(...).toBeVisible()` / `toBeVisible()`
+   assertions that immediately follow an async re-render (filter clear, navigation, import,
+   virtualized scroll) and lack an explicit timeout where the operation is known-slow. Harden the
+   ones that match THIS class. Be conservative — do NOT churn stable passing assertions with no
+   evidence of fragility; prefer the ones near virtualized-list / count-restore / post-navigation
+   re-renders. If you find none beyond `:696`, say so explicitly in evidence.
+3. **Do NOT touch `identity.spec.ts:282`** (its rev-02 fix held) and do NOT change any `src/**`
+   product code — the product is correct; this is a test-timing defect only.
 
-## Distinguish from ACCEPTED environmental flakes
+## Validation — this is the crux (isolation is USELESS here)
 
-These are tracked/explained and are NOT by themselves a FAIL — on hitting one, rerun it in isolation
-and classify against its Q, do not fail on it: `import.spec.ts:1527` (Q-P20B-14, 20/20 isolation),
-`import.spec.ts:301` (Q-P20B-13, ~1/489), `duplicates.test.ts` (Q-P20A-05). The difference:
-`identity.spec.ts:282` is a NAMED defect this revision was chartered to fix and reproduces at ~40%
-under load — its recurrence is a FAIL.
+The flake is **load-dependent**: it passes 10/10 in isolation and only fails under full-suite
+parallel load. Therefore:
 
-## If (and only if) the flake does not reproduce, independently verify the GREEN dimensions before PASS
+- Validate with the **FULL suite, retries disabled**, run **MANY times** (≥8, more if you can):
+  `pnpm exec playwright test --retries=0 --reporter=list`. Report exact per-run pass/fail for
+  `transactions.spec.ts:523` (the whole virtualized test) AND `identity.spec.ts:282` (must stay
+  green — no regression). Your fix holds only if `transactions:696` passes across all your
+  full-suite runs.
+- Isolation runs are fine as a supplement but are NOT sufficient evidence — do not rely on them.
+- Never run Playwright with `--debug`, `--ui`, `--headed`, or `show` (opens a GUI, can block).
 
-Sample/rerun the high-risk gates and reconciliation the collector claims GREEN — do not take them on
-trust: reconciliation (21 packages + 22 requirements `passed`; `sha256sum specs/human-scratch.md` ==
-`469e98c7…`; normalized blocks 21/0; frozen scratch identity `b91ca932…`; linear no-merge history;
-canary==1); FS-001 (`008/spec.md` `0d0e2a14…` / 715 lines / 25,441 bytes; `settlement.ts` blob
-`010f3c93…`; A–H unit+E2E; reject-never-clamp); gates (`pnpm typecheck` / `lint` / `build` /
-`pnpm test`); security/secret scan; performance; the required manual + a11y matrix.
+## Gates + constraints (CLAUDE.md + repo hard rules)
+
+- Before handback run and report: `pnpm typecheck && pnpm lint && pnpm format:check && pnpm test`
+  (unit) — all green — plus the full-suite E2E runs above. Fix any issue you surface even if
+  pre-existing.
+- **No `as` / `any` / `!`** in product code (repo-wide). Test-fixture casts are tolerated per
+  precedent, but keep this change minimal and cast-free if possible.
+- Favour functional/immutable style; match the conventions of `transactions.spec.ts`.
+- **No parentheses in commit messages.** Commit your test-only change with a clear message.
+
+## Provenance / BASE (SHA-stable)
+
+- Record `git rev-parse HEAD` at start — it should be `7e9cdb5` or a later **root-ledger-only**
+  commit (root may advance HEAD with ledger commits; that is fine). The current product/test tip is
+  `5576175`.
+- Your commit(s) must touch **ONLY
+  `tests/e2e/**`** (no `src/**`, no `specs/**`). After committing, verify `git diff --stat
+  5576175..HEAD`shows only`tests/e2e/**`product/test changes (root ledger under`specs/**` is
+  expected and separate).
+- Write your evidence to `specs/007-human-scratch-completion/evidence/P20B/implementation-05.md`
+  (this is the ONE `specs/**` file you author). Include: the diff summary, your per-run full-suite
+  E2E tallies for `transactions:523` and `identity:282`, the sweep results (what else you hardened
+  or why nothing), and the unit-gate results.
 
 ## Secret-safety (blocking)
 
-No vault key / seed / recovery material / crypto secret / SUPABASE_JWT_SECRET / vault plaintext in
-logs/URLs/fixtures/evidence/review. Synthetic vectors only. Any real-material leak is a blocking
-FAIL reported to root immediately.
+No vault key / seed phrase / recovery material / crypto_box secret / SUPABASE_JWT_SECRET /
+vault-derived presence key / vault plaintext in code, logs, URLs, fixtures, or evidence. Synthetic /
+public vectors only (the BIP39 `abandon…` test vectors are fine). Any real-material leak is blocking
+— stop and report to root immediately.
 
-## Output
+## Handback
 
-Write your single unconditional **PASS** or **FAIL** to
-`specs/007-human-scratch-completion/reviews/P21-review-02.md` with reproduced evidence: your
-full-suite E2E run tallies for `identity.spec.ts:282`, the isolation tally, your
-reconciliation/FS-001 SHA facts, and (if PASS) the independently-verified GREEN dimensions. If FAIL,
-name the owning package for routing (a cross-cutting test-timing defect in `identity.spec.ts` →
-**P20B**). Then hand back to root with your verdict. Root will verify-not-trust and, on FAIL,
-persist your immutable review and execute the rollback + fix machinery.
+Commit your test-only change + write `implementation-05.md`, then return to root: state the commit
+SHA(s), your full-suite E2E run tallies for `transactions:523` and `identity:282`, the unit-gate
+results, and the sweep outcome. Root will verify-not-trust, then dispatch a DISTINCT reviewer.

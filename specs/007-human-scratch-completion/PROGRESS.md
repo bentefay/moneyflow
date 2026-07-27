@@ -5658,3 +5658,16 @@ Completed batch summary `[HS-021: [x]->[], 469e98c7… -> f46c2d35…]`. Next: d
 harden the flaky `transactions.spec.ts:696` count-restore assertion (and sweep same-class eager E2E
 waits) from a fresh BASE; re-review (DISTINCT reviewer); re-integrate; re-apply the HS-021 forward
 marker; then start P21 rev 03 from a new BASE.
+
+### 2026-07-27 — P20B rev 03 IMPLEMENTER dispatched (RB-P21-02 closed; dispatch legal)
+
+Rollback batch `RB-P21-02` is CLOSED and `Active P21 rollback batch` == `none`, so dispatch is
+legal. HANDOFF rewritten for `p20b-implementer-03` (test-only). Charter: harden the flaky
+`transactions.spec.ts:696` "500 transactions" count-restore assertion (size the wait to the
+virtualized re-expansion under load, mirroring the sibling `:578` `{ timeout: 15_000 }` — NOT a blind
+mask) and sweep `tests/e2e/**` for same-class bare-eager assertions after async re-renders; do NOT
+touch `identity.spec.ts:282` (rev-02 fix held) or any `src/**`. BASE SHA-stable (`7e9cdb5` or later
+root-ledger-only; product/test tip `5576175`; commits must touch only `tests/e2e/**`). Validation
+MUST be many full-suite `--retries=0` runs (isolation is useless for this load-dependent flake).
+Evidence -> `evidence/P20B/implementation-05.md`. P20B stays `changes_requested` (rev 03) until a
+clean handback is verify-not-trusted and a DISTINCT reviewer PASSES.
