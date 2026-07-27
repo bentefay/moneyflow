@@ -5906,3 +5906,34 @@ permitted.
 
 - **Rolling scratch SHA-256 (post-RB-P21-03):** `c10dc0b5963105d72d8e4afc43223102b96b3ab7cb0acd3954cfc491866831bd`
 - **Authorized checked HS IDs (post-RB-P21-03):** 20 of 21 (HS-002 rolled back; HS-001, HS-003..HS-021 remain).
+
+### 2026-07-28 — P01 rev 03 charter correction (root, verified) — two factual fixes, NOT a scope reduction
+
+`p01-implementer-03` correctly HALTED before writing outside its allowed paths and surfaced two
+factual errors in root's original P01 rev-03 dispatch charter. Root independently verified both and
+AUTHORIZED (SendMessage), then corrected HANDOFF.md to match:
+
+1. **Target `next@16.2.11`, NOT 16.2.12.** The environment ships the real `safe-chain`
+   supply-chain tool (on PATH: `/nix/store/…-safe-chain/bin`) which enforces a minimum-package-age
+   policy; the 3-day-old `next@16.2.12` is age-suppressed and therefore NOT safe-chain-supported.
+   `16.2.11` is the latest safe-chain-supported release and clears all 9 `next` advisories (all
+   patched `>=16.2.11`). The frozen HS-002 text (SCOPE.json heading "Safe-chain dependency upgrades")
+   literally reads "the very latest **safe-chain supported** version" — so 16.2.11 is what the frozen
+   requirement DEMANDS. Bypassing the age policy to grab 16.2.12 would VIOLATE the requirement.
+
+2. **Sharp override mechanism = `pnpm-workspace.yaml`, not `package.json`.** pnpm 11.13.1 ignores
+   `package.json` `pnpm.overrides` (warns the field is no longer read); the live mechanism is the
+   existing `overrides:` block in `pnpm-workspace.yaml`. Root EXPANDED the implementer's allowed
+   writes to include `pnpm-workspace.yaml` for the minimal scoped addition `"sharp@<0.35.0": 0.35.3`
+   (must not clobber the ~11 existing overrides / `allowBuilds` / `packages`). Root does not edit
+   product itself — the implementer makes the edit.
+
+**Adjudicator NOT required.** Neither change reduces committed scope nor supersedes a frozen
+committed decision — both make the fix meet the frozen HS-002 text exactly (correcting root's own
+erroneous dispatch prose, not a prior committed decision). Per the standing rule, requiring the fix
+to correctly satisfy committed scope is not a reduction. Convergence gate unchanged: `pnpm audit
+--prod` exit 0 / 0 advisories, full no-regression gates + full E2E `--retries=0`.
+
+- **State unchanged by this event:** rolling scratch SHA `c10dc0b5…` (HS-002 still rolled back,
+  `[]` at `:157`, unauthorized, `changes_requested`); authorized checked HS IDs 20 of 21; P01 row
+  `changes_requested | rev 03`. No marker/ledger-SHA mutation — this is a dispatch-charter correction.
