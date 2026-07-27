@@ -49,11 +49,14 @@ review evidence.
   scratch `:159` `- []` -> `- [x]`, rolling `f46c2d35… -> 469e98c7…` (restores the exact
   pre-rollback bytes; after-SHA byte-identical to the original authorized `469e98c7…`, normalized
   blocks 21/0)
-- **Active P21 rollback batch:** none (`RB-P21-01` COMPLETED + cleared — see the completed-batch
-  event at EOF). Batch summary: failed review `reviews/P21-review-01.md`; owning package `P20B` (now
-  `changes_requested`); downstream `P21` (`changes_requested`); one-ID pending set `[HS-021]` fully
-  processed; completed `[HS-021: [x]->[], 469e98c7… -> f46c2d35…]`; contiguous hash chain
-  `469e98c7… -> f46c2d35…` ends at actual rolling SHA `f46c2d35…`; FS-001 never entered the batch.
+- **Active P21 rollback batch:** `RB-P21-02` **PREPARED** (per §275). Failed review (immutable):
+  `reviews/P21-review-02.md` (persisted `ae846dc`). Owning package: `P20B`; downstream: `P21` (rev
+  02 FAIL). Ordered pending HS IDs: `[HS-021]` (the code-quality-sweep marker; the blocking defect
+  is a cross-cutting E2E test-timing flake owned by P20B). Starting rolling SHA == current
+  `469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a`. FS-001 does NOT enter the
+  batch (markerless). **No dispatch is legal while this batch is prepared/active.** (Prior
+  `RB-P21-01` COMPLETED + cleared; its summary: failed review `reviews/P21-review-01.md`, one-ID
+  `[HS-021]`, completed `[HS-021: [x]->[], 469e98c7… -> f46c2d35…]`.)
 - **Last ledger update:** 2026-07-27; **P20B / 01 clean re-handback verify-not-trust GREEN ->
   transitioned to `reviewing`; DISTINCT `p20b-reviewer-01` dispatched over `659ca20..f058a98`.**
   After the earlier hygiene bounce (uncommitted import drift + evidence/code contradiction),
@@ -5555,9 +5558,10 @@ After-SHA `sha256sum specs/human-scratch.md` ==
 pre-rollback authorized SHA (the forward flip exactly reverses batch `RB-P21-01`'s single edit).
 
 - **Forward marker record — HS-021:** before-SHA `f46c2d35…` -> after-SHA `469e98c7…`; hash chain of
-  the rollback+re-pass round is `469e98c7… -(RB-P21-01 rollback)-> f46c2d35… -(rev 02 re-pass)->
-  469e98c7…`, returning to the original authorized identity. HS-021 re-added to authorized checked
-  IDs (20 -> 21). Rolling scratch SHA advanced `f46c2d35… -> 469e98c7…`.
+  the rollback+re-pass round is
+  `469e98c7… -(RB-P21-01 rollback)-> f46c2d35… -(rev 02 re-pass)-> 469e98c7…`, returning to the
+  original authorized identity. HS-021 re-added to authorized checked IDs (20 -> 21). Rolling
+  scratch SHA advanced `f46c2d35… -> 469e98c7…`.
 - P20B row `reviewing -> passed` (rev 02); HS-021 requirement row `changes_requested -> passed`.
   §287 checked⟺passed integrity holds: HS-021 is again both checked and passed. Requirement tally
   **21 -> 22 of 22 passed**; all 21 feature packages P00–P20B `passed`. Only P21 (control) remains.
@@ -5570,30 +5574,30 @@ Entry conditions verified: all 21 feature packages P00–P20B `passed`; 22/22 re
 normalized 21/0; frozen scratch identity `b91ca932…`; `Active P21 rollback batch` == `none`; no
 pending implementation/review artifact. BASE for P21 rev 02 == current HEAD `daf80ff` (product/test
 tip `5576175`; `5576175..daf80ff` is only root ledger commits + the authorized HS-021 marker
-re-application, no `src/**` or `tests/**`). Dispatched a fresh `p21-collector-02` (HANDOFF rewritten)
-to run the complete 12-part audit per `tasks/P21-final-audit.md`, freshly re-running all gates + full
-E2E retries-disabled to prove the rev-01 `identity.spec.ts:282` flake is gone, classifying tracked
-flakes (Q-P20B-14 / Q-P20B-13 / Q-P20A-05) rather than failing on them. Collector writes ONLY
-`evidence/P21/implementation-02.md`, commits nothing (HEAD must stay `daf80ff`). A DISTINCT reviewer
-will give the formal verdict afterward.
+re-application, no `src/**` or `tests/**`). Dispatched a fresh `p21-collector-02` (HANDOFF
+rewritten) to run the complete 12-part audit per `tasks/P21-final-audit.md`, freshly re-running all
+gates + full E2E retries-disabled to prove the rev-01 `identity.spec.ts:282` flake is gone,
+classifying tracked flakes (Q-P20B-14 / Q-P20B-13 / Q-P20A-05) rather than failing on them.
+Collector writes ONLY `evidence/P21/implementation-02.md`, commits nothing (HEAD must stay
+`daf80ff`). A DISTINCT reviewer will give the formal verdict afterward.
 
 ### 2026-07-27 — P21 rev 02 collector handback (FAIL-candidate) verify-not-trust; REVIEWER dispatched
 
 `p21-collector-02` handed back **FAIL-candidate**. Root verified: HEAD == BASE `453e984` (collector
 committed nothing; `git diff --stat 5576175..HEAD` specs-only); evidence
 `evidence/P21/implementation-02.md` present, secret-clean (the grep hits are the collector's own
-scan-pattern description, not leaked values); frozen `sha256sum specs/human-scratch.md` == `469e98c7…`
-intact. Blocking finding: the P20B rev 02 fix for `identity.spec.ts:282` did NOT hold — full E2E
-`--retries=0` reproduced the failure **2 of 5 runs (~40%)**, 20/20 in isolation (load-dependent
-hydration race; the `toHaveClass` wait relocated but did not fix the dropped-fill root cause). All 11
-other dimensions GREEN (2091 unit passed, typecheck/build clean, FS-001 A–H, security, perf, a11y,
-reconciliation 21/0 + 22/22).
+scan-pattern description, not leaked values); frozen `sha256sum specs/human-scratch.md` ==
+`469e98c7…` intact. Blocking finding: the P20B rev 02 fix for `identity.spec.ts:282` did NOT hold —
+full E2E `--retries=0` reproduced the failure **2 of 5 runs (~40%)**, 20/20 in isolation
+(load-dependent hydration race; the `toHaveClass` wait relocated but did not fix the dropped-fill
+root cause). All 11 other dimensions GREEN (2091 unit passed, typecheck/build clean, FS-001 A–H,
+security, perf, a11y, reconciliation 21/0 + 22/22).
 
 Per §114 the FORMAL verdict is the reviewer's, and the §275 rollback machinery requires an immutable
 FAILED REVIEW as a precondition — so root does NOT act on collector evidence alone. Transitioned P21
-`changes_requested -> reviewing` (rev 02) and dispatched a DISTINCT `p21-reviewer-02` (not collector,
-not `p21-reviewer-01`) to independently reproduce the blocking E2E finding + sample the GREEN
-dimensions and write the single formal PASS/FAIL to `reviews/P21-review-02.md`. Collector BASE
+`changes_requested -> reviewing` (rev 02) and dispatched a DISTINCT `p21-reviewer-02` (not
+collector, not `p21-reviewer-01`) to independently reproduce the blocking E2E finding + sample the
+GREEN dimensions and write the single formal PASS/FAIL to `reviews/P21-review-02.md`. Collector BASE
 preserved; reviewer commits nothing.
 
 ### 2026-07-27 — P21 rev 02 INDEPENDENT REVIEWER verdict: FAIL (verify-not-trust GREEN); impact routed to P20B
@@ -5605,6 +5609,7 @@ review `reviews/P21-review-02.md` present and secret-clean (grep hits at 116/129
 reviewer's own scan-pattern descriptions, not leaked material).
 
 **Verdict substance:**
+
 - The chartered `identity.spec.ts:282` finding is **OVERTURNED** — 0 of 5 full retries-disabled runs
   failed, 10/10 in isolation. The P20B rev-02 `toHaveClass` fix HELD in the reviewer's environment.
 - **NEW blocking finding:** `tests/e2e/transactions.spec.ts:523` ("virtualized large list … filter
@@ -5627,9 +5632,10 @@ precedent, root routes it to **P20B** (rev 03). P16C (virtualized-transactions-t
 lineage but the defect is test-quality, not a product regression (product byte-identical across the
 range). Tracked as **Q-P20B-15** with SELECTED disposition = harden the assertion (not classify as
 environmental; there is a clear mechanism + fix). This is more work to complete committed scope
-(HS-021 code-quality sweep + DoD), NOT a scope reduction — no independent scope adjudicator required.
+(HS-021 code-quality sweep + DoD), NOT a scope reduction — no independent scope adjudicator
+required.
 
 **Next per §275/§114:** persist this immutable failed review (done in this commit), then execute
 rollback batch **RB-P21-02** (roll back HS-021 marker `[x]->[]`; downgrade P20B/HS-021/P21 through
-`changes_requested`) before any dispatch, then dispatch P20B rev 03 to harden the flaky assertion(s),
-re-review, re-integrate, re-pass HS-021, and start P21 rev 03 from a fresh BASE.
+`changes_requested`) before any dispatch, then dispatch P20B rev 03 to harden the flaky
+assertion(s), re-review, re-integrate, re-pass HS-021, and start P21 rev 03 from a fresh BASE.
