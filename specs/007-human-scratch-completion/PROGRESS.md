@@ -16,15 +16,16 @@ review evidence.
   `pnpm format` incident (HEAD blob `e1c9a865…`, worktree SHA `f46c2d35…` == rolling — no drift
   reached index or HEAD); `settlement.ts` blob `010f3c93…` intact (FS-001); root-owned files touched
   ONLY by root's own commits (`47e197f` dispatch, `fd0729c` reconcile) — no implementer commit
-  touched them; product casts net DOWN (`as` 383→332, `any` 6→2, no new casts in the reconciliation
-  delta); no secret material; canary==1. Two non-gap extra commits verified in allowed paths:
-  `1a2ed20` (comment-only, `use-import-state.ts`) and `3a241f8` (test-only B-15 flake fix,
-  `identity.spec.ts`). Both reconciliation gaps closed: `Q-P20B-11` evidence now
-  WITHDRAWN/fixed-in-`9ab6119`; gates re-run against the clean tree (implementer counts: typecheck
-  clean, lint 0e/1w, format:check 14 specs-md/0 ts, test 2091/2skip/111 files, build ok, e2e 163).
-  New deferral **Q-P20B-13** (pre- existing `import.spec.ts:301` vault-session flake, 1-in-489, test
-  byte-identical to BASE, not retry-papered) transcribed to QUESTIONS.md; 14 Q-proposals total now
-  Q-P20B-00..13.
+  touched them; product casts net DOWN (pattern `git grep ' as [A-Za-z_{(]' -- src`: `as` 420→369,
+  `any` 9→6, non-null `!` flat; grep-pattern-sensitive so the directional per-commit claim is what
+  binds — no new casts in the reconciliation delta); no secret material; canary==1. Two non-gap
+  extra commits verified in allowed paths: `1a2ed20` (comment-only, `use-import-state.ts`) and
+  `3a241f8` (test-only B-15 flake fix, `identity.spec.ts`). Both reconciliation gaps closed:
+  `Q-P20B-11` evidence now WITHDRAWN/fixed-in-`9ab6119`; gates re-run against the clean tree
+  (implementer counts: typecheck clean, lint 0e/1w, format:check 14 specs-md/0 ts, test
+  2091/2skip/111 files, build ok, e2e 163). New deferral **Q-P20B-13** (pre- existing
+  `import.spec.ts:301` vault-session flake, 1-in-489, test byte-identical to BASE, not
+  retry-papered) transcribed to QUESTIONS.md; 14 Q-proposals total now Q-P20B-00..13.
 - **Next action:** **P20B DISPATCHED for REVIEW** to a DISTINCT `p20b-reviewer-01` (fresh context,
   did NOT implement) over the full `659ca20..f058a98` range. It must independently re-run ALL gates,
   re-derive cast counts, verify each behavior-changing fix is real + regression-tested, hunt for
@@ -66,11 +67,13 @@ review evidence.
   reverted `pnpm format` incident (HEAD blob `e1c9a865…`, worktree SHA `f46c2d35…` == rolling — no
   drift reached index/HEAD); (3) `settlement.ts` blob `010f3c93…` byte-identical (FS-001); (4)
   root-owned files touched ONLY by root's own commits `47e197f` (dispatch) + `fd0729c` (reconcile) —
-  no implementer commit touched them; (5) product casts net DOWN (`as` 383->332, `any` 6->2, no new
-  casts in the reconciliation delta); (6) secret scan clean; (7) canary==1; (8) both reconciliation
-  gaps closed — `Q-P20B-11` evidence WITHDRAWN/fixed-in-`9ab6119`, gates re-run on clean tree
-  (typecheck clean; lint 0e/1w; format:check 14 specs-md/0 ts; test 2091/2skip/111 files; build ok;
-  e2e 163); (9) two non-gap extra commits verified in allowed paths — `1a2ed20` comment-only
+  no implementer commit touched them; (5) product casts net DOWN (pattern
+  `git grep ' as [A-Za-z_{(]' -- src`: `as` 420->369, `any` 9->6, non-null `!` flat; counts are
+  grep-pattern-sensitive so the binding claim is the directional per-commit one — no new casts in
+  the reconciliation delta); (6) secret scan clean; (7) canary==1; (8) both reconciliation gaps
+  closed — `Q-P20B-11` evidence WITHDRAWN/fixed-in-`9ab6119`, gates re-run on clean tree (typecheck
+  clean; lint 0e/1w; format:check 14 specs-md/0 ts; test 2091/2skip/111 files; build ok; e2e 163);
+  (9) two non-gap extra commits verified in allowed paths — `1a2ed20` comment-only
   (`use-import-state.ts`), `3a241f8` test-only B-15 flake fix (`identity.spec.ts`). New deferral
   **Q-P20B-13** (pre-existing `import.spec.ts:301` vault-session flake, 1-in-489, test
   byte-identical to BASE, not retry-papered) transcribed; QUESTIONS.md now holds Q-P20B-00..13 (14

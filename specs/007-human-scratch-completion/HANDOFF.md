@@ -27,9 +27,14 @@ pass is not yours to inherit.
    failing ONLY on pre-existing `specs/**` markdown (including frozen `human-scratch.md`, which must
    NOT be reformatted) is non-blocking; any touched `.ts`/`.tsx` failing oxfmt is blocking.
 2. **Re-derive the cast counts** across the range yourself (`as`, `any`, non-null `!` in PRODUCT
-   code, excluding tests). Confirm the net direction is DOWN and that NO new `as`/`any`/`!` was
-   introduced into product code by any commit in the range. Implementer claims `as` 383->332, `any`
-   6->2, non-null flat — verify or refute.
+   code, excluding tests). Cast counts are grep-PATTERN-sensitive, so state the exact pattern you
+   use and compare BASE `659ca20` to HEAD `f058a98` with that SAME pattern. The claim that matters
+   is DIRECTIONAL and per-commit-checkable regardless of pattern: net direction DOWN and NO new
+   `as`/`any`/`!` introduced into product code by any commit in the range. For reference, root
+   re-derived with `git grep -hEn ' as [A-Za-z_{(]' <ref> -- 'src/**/*.ts' 'src/**/*.tsx'`: `as`
+   420->369, and `any` (`: any`/`<any>`/`as any`) 9->6, non-null `!` flat — but do NOT try to
+   reconcile against any specific figure whose pattern is unstated; use your own pattern and confirm
+   the direction.
 3. **Verify each behaviour-changing fix is real AND regression-tested** — walk the commits and
    confirm the claimed defect existed and the fix addresses it with a test that fails without it.
    Non-exhaustive list to check: `compareTransactionOrder` NaN for manual rows; snapshot base64
