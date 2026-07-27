@@ -2043,3 +2043,93 @@ CLEAN `pnpm audit --prod` (a terminating condition), not "chase every future rel
 no-pause rule root records this proposal and proceeds with the safe reversible choice (do the bump);
 no human halt (halt criteria — frozen-source drift / secret exposure / blocked_external — do not
 apply).
+
+## Q-P20B-18 — P21 rev 04 audit FAIL F-1: `import.spec.ts:1512` eager `toBeVisible` default-timeout cohort
+
+**Surfaced by:** P21 rev-04 final-audit collector (`evidence/P21/implementation-04.md`, 1/8 full-suite)
+and upheld as a blocker by the DISTINCT reviewer (`reviews/P21-review-04.md`, 0/8 but mechanism + novelty
+independently confirmed). NOT reproduced by the reviewer, but non-reproduction is not exoneration for a
+load-dependent class.
+
+**Finding.** `tests/e2e/import.spec.ts:1445` "CSV import creates transactions and auto-saves template on
+first import", step "verify template was auto-saved on first import", assertion `:1512`
+`await expect(page.getByText(/6 rows/i)).toBeVisible({ timeout: 5000 })` -> element(s) not found under
+4-worker parallel load. NEW: zero prior hits for `1445`/`1512` in QUESTIONS.md / evidence / reviews.
+NOT absorbable into Q-P20B-14 (that ticket is the test declared at `:1527`; F-1 sits inside the test
+declared at `:1445` — different declarations). Mechanism: `loadFile` (`use-import-state.ts:242-445`) is
+async file-read -> parse -> template sort -> `setSession`; `ImportPanel.tsx:262-297` only renders the
+row count after that; `:1512` is the SECOND import in its test so it additionally sorts+applies templates
+= the most load-exposed instance. The `{ timeout: 5000 }` merely pins Playwright's DEFAULT expect
+timeout — it looks like a wait but grants no extra slack.
+
+**Cohort (fix the class, not the line).** `toBeVisible({ timeout: 5000 })` appears exactly 13x in 2
+files: 8 in `import.spec.ts` (incl. `:1279 :1412 :1459 :1512 :1539 :1616`), 5 in `transactions.spec.ts`.
+`git log -- tests/e2e/import.spec.ts` shows no prior P20B revision ever touched that file — the one spec
+every sweep skipped.
+
+**Disposition (root, no adjudicator).** P21 FAIL (audit contract item 71: unexplained flake = FAIL).
+Routing to P20B to harden the cohort with a deterministic settle signal is "more work to complete
+committed HS-021 scope" and needs no adjudicator. The reviewer granted NO new carry-forward: unlike
+Q-P20B-14 (no identifiable failing line/mechanism, 20/20 isolation), F-1 has a specific line, a specific
+mechanism, and a clean fix. Owner P20B rev 06. Related: [[e2e-load-dependent-flake-validation]].
+- **Impact and risk:** ~1/8 full parallel; import.spec.ts is an established flake hotspot; test-only defect (20/20 isolation, no product implicated).
+- **How to reverse or migrate:** replace default-timeout `toBeVisible` with a deterministic post-parse settle wait sized like the file's existing `{ timeout: 15_000 }` siblings.
+- **Does a human still need to decide after completion?:** No — fix + re-validate under full-suite load.
+
+## Q-P20B-19 — P21 rev 04 audit FAIL F-2: `identity.spec.ts:282` RE-FLAKE; rev-02 fix cannot prove hydration for a controlled `Input`
+
+**Surfaced by:** P21 rev-04 DISTINCT reviewer (`reviews/P21-review-04.md`): `identity.spec.ts:282`
+FAILED 1 of 8 full-suite runs — the very test P20B rev 02 was dispatched to fix and whose fix was
+accepted. NO accepted-flake ticket exists for it. A failing check on a CLOSED fix is strictly stronger
+than an untracked flake -> contract item 71 FAIL. (The rev-04 collector saw it green 8/8 — honest sample
+difference; the class is environment-dependent, so a single clean environment never proves a fix holds.)
+
+**Finding.** Step "validate BIP39 words with visual feedback", assertion `:359`
+`expect(firstInput).toHaveClass(/border-green-500/)`, first input observed 14x with `value=""`.
+Mechanism (root INDEPENDENTLY CONFIRMED by reading source): `SeedPhraseInput.tsx:329-332` is a fully
+controlled input (`value={word}` off `useState`). The rev-02 fix guards with `toBeEditable()` ->
+`fill()` -> `toHaveValue()`. But `src/components/ui/button.tsx:50` gates on `useIsHydrated()` while
+`src/components/ui/input.tsx` has NO such gate (confirmed: `grep useIsHydrated` -> button yes, input no).
+So `toBeEditable`/`toBeEnabled` is a genuine hydration proof for a Button and NO proof at all for an
+Input, which is editable from first paint. The pre-hydration `fill` sets the DOM value (so `toHaveValue`
+passes), React never runs `onChange`, and the next commit clobbers it back to `""`. The rev-02
+implementer reused the `helpers/auth.ts:20` idiom that works for gated controls and applied it to an
+ungated one.
+
+**Why it got through.** `reviews/P20B-review-02.md:39-45` validated with ISOLATION ONLY ("9/9"), which
+cannot exercise a 4-worker load race — exactly the validation-method error the P21 contract and
+[[e2e-load-dependent-flake-validation]] warn about.
+
+**Disposition (root, no adjudicator).** P21 FAIL. Fix must gate on post-state-propagation evidence
+(onChange applied / value survives a React commit) NOT the raw DOM value — OR close the class at source
+by giving `src/components/ui/input.tsx` the `useIsHydrated` treatment `button.tsx` already has (product
+change, within P20B's remit). MUST be validated under repeated FULL-SUITE `--retries=0` load, never
+isolation. Owner P20B rev 06 (same batch as Q-P20B-18). "More work to complete committed HS-021 scope" —
+no adjudicator.
+- **Impact and risk:** ~1/8 full parallel; a regression of a fix believed closed; test-side (or a small hydration-gate product change).
+- **How to reverse or migrate:** re-run >=8 full-suite `--retries=0` after the fix; isolation is not acceptable validation.
+- **Does a human still need to decide after completion?:** No.
+
+## Q-P21-04-01 — P21 rev 04 non-blocking C-1: upstream registry currency drift after the P01 rev-03 selection
+
+**Surfaced by:** P21 rev-04 collector + DISTINCT reviewer. `pnpm audit --prod` is CLEAN (exit 0 / 0
+advisories) so this is currency, not security — categorically unlike the rev-03 F-1 security FAIL
+(Q-P21-03-01).
+
+**Finding.** Some prod deps have a newer registry `latest` published 2026-07-20..24, AFTER the P01
+rev-03 selection: `react`/`react-dom` 19.2.7->19.2.8, `@tanstack/react-virtual` 3.14.6->3.14.8,
+`loro-crdt` 1.13.7->1.13.8, `radix-ui` 1.6.2->1.6.7, `supabase-js` 2.110.7->2.110.8, `lucide-react`
+1.25.0->1.26.0 (an icon-set minor; the rest patch). `next`, `sharp`, `zod`, `motion` are EXACTLY current.
+
+**Disposition (root, no adjudicator — adopts the DISTINCT reviewer's frozen-text ruling).** ACCEPTED as
+an explicit human-visible carry-forward; NOT a blocker and does NOT reopen P01/HS-002. Reasoning: HS-002's
+frozen "very latest safe-chain supported version" is satisfied at the audit instant (the same principle
+already proven by `next` — 16.2.12 exists but is safe-chain age-suppressed, so 16.2.11 IS "latest
+safe-chain supported"); the drift published after selection; `pnpm audit --prod` is clean so there is no
+security exposure; and chasing every post-selection npm publish has no terminating condition (it would
+reopen P01 on every release). This is an interpretation of the frozen phrase's temporal boundary, NOT a
+scope reduction (no committed work is dropped). Reversible: a future P01 revision can bump these patches
+if a human later wants them. Per the no-pause rule root records this and proceeds; no human halt.
+- **Impact and risk:** cosmetic currency only; zero security advisories; all patch bumps except one icon minor.
+- **How to reverse or migrate:** a trivial future P01 dependency bump if desired.
+- **Does a human still need to decide after completion?:** Optional — a human may later elect the patch bumps; not required for Goal completion.
