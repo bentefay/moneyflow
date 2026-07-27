@@ -13,6 +13,15 @@ export {
     shareActiveVaultWithMember
 } from "./realtime";
 export {
+    expectPresentRows,
+    observePresenceTraffic,
+    openDuplicateTab,
+    type PresenceTrafficReport,
+    readPresentRowIds,
+    readRowId,
+    readRowPresenceEditing
+} from "./presence";
+export {
     goToAccounts,
     goToAutomations,
     goToDashboard,

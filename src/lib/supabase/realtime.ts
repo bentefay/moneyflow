@@ -46,6 +46,11 @@ export type OnPresenceCallback = (
         userId: string;
         joinedAt: string;
         lastSeen: string;
+        /**
+         * Opaque application payload tracked by that session, if any. P10 carries an encrypted
+         * ephemeral-presence envelope here; this transport never inspects or logs it.
+         */
+        payload?: unknown;
     }[]
 ) => void;
 
@@ -76,6 +81,10 @@ function readPresenceTimestamp(value: unknown, key: "joined_at" | "last_seen"): 
     if (!isUnknownRecord(value)) return Temporal.Now.instant().toString();
     const timestamp = value[key];
     return typeof timestamp === "string" ? timestamp : Temporal.Now.instant().toString();
+}
+
+function readPresencePayload(value: unknown): unknown {
+    return isUnknownRecord(value) ? value.payload : undefined;
 }
 
 /** Serializes short-lived token refresh and explicit revocation for one vault/purpose. */
@@ -246,7 +255,8 @@ export class VaultRealtimeSync {
                               {
                                   userId: key,
                                   joinedAt: readPresenceTimestamp(latest, "joined_at"),
-                                  lastSeen: readPresenceTimestamp(latest, "last_seen")
+                                  lastSeen: readPresenceTimestamp(latest, "last_seen"),
+                                  payload: readPresencePayload(latest)
                               }
                           ]
                         : [];
@@ -277,10 +287,34 @@ export class VaultRealtimeSync {
         });
     }
 
-    async updatePresence(): Promise<void> {
+    /**
+     * Publishes this session's presence heartbeat.
+     *
+     * `payload` is an opaque, already-encrypted application blob. The Realtime grant for the
+     * presence purpose authorizes the Presence extension only, so this is the sole authorized
+     * publish path on this topic — the RLS send policy denies raw Broadcast here.
+     */
+    async updatePresence(payload?: unknown): Promise<void> {
         if (!this.channel || !this.isSubscribed || this.purpose !== "presence") return;
         const now = Temporal.Now.instant().toString();
-        await this.channel.track({ joined_at: now, last_seen: now });
+        await this.channel.track({
+            joined_at: now,
+            last_seen: now,
+            ...(payload === undefined ? {} : { payload })
+        });
+    }
+
+    /**
+     * Retracts this session's tracked presence without tearing the channel down.
+     *
+     * Used on `pagehide`, where the document is being discarded and there is no opportunity to await
+     * the full {@link unsubscribe} (which must round-trip a credential revocation). Firing `untrack`
+     * on the still-open socket is what lets peers drop the indicator immediately instead of waiting
+     * out the ephemeral expiry window.
+     */
+    retractPresence(): void {
+        if (!this.channel || !this.isSubscribed || this.purpose !== "presence") return;
+        void this.channel.untrack();
     }
 
     async unsubscribe(): Promise<void> {

@@ -38,6 +38,7 @@ import {
     type RobotCurrentValue
 } from "@/components/features/transactions/field-rule-robot-state";
 import { TransactionRuleRobot } from "@/components/features/transactions/TransactionRuleRobot";
+import { useVaultPresenceContext as useVaultPresence } from "@/components/providers/vault-presence-provider";
 import { useToast } from "@/components/ui/toast";
 /** Threshold for showing warning when selecting all */
 const LARGE_SELECTION_THRESHOLD = 500;
@@ -188,10 +189,26 @@ function TransactionsPageContent() {
     // Clear selection helper
     const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
-    // Convert presence list to presence by transaction ID
-    // For now, we don't have transaction-level presence tracking
-    // This would require extending the presence system
-    const presenceByTransactionId = useMemo(() => ({}), []);
+    // Row-level presence from the shared Loro ephemeral session (HS-003). Publishing focus is a
+    // side effect of navigating the table, never of rendering it, so presence cannot loop.
+    const { snapshot: presenceSnapshot, setPresenceState, clearPresenceFocus } = useVaultPresence();
+    const presenceByTransactionId = presenceSnapshot.byTransactionId;
+
+    // Focus inside a cell counts as editing; focus on the row chrome is merely viewing. The manager
+    // drops no-op updates, so landing on the same cell twice costs nothing.
+    const handleTransactionFieldFocus = useCallback(
+        (transactionId: string, field: string | undefined) => {
+            setPresenceState(
+                field == null
+                    ? { transactionId, editing: false }
+                    : { transactionId, field, editing: true }
+            );
+        },
+        [setPresenceState]
+    );
+
+    // Leaving the page must retract focus; otherwise a peer sees a stale indicator until expiry.
+    useEffect(() => clearPresenceFocus, [clearPresenceFocus]);
 
     // Filter transactions using the query helper
     // Data is already sorted by the hierarchical structure
@@ -1118,6 +1135,8 @@ function TransactionsPageContent() {
                     allocationColumns={allocationColumnModel.columns}
                     gridTemplateColumns={allocationColumnModel.gridTemplateColumns}
                     presenceByTransactionId={presenceByTransactionId}
+                    onTransactionFieldFocus={handleTransactionFieldFocus}
+                    onTransactionBlur={clearPresenceFocus}
                     selectedIds={selectedTransactionIds}
                     availableAccounts={accountOptions}
                     availableStatuses={statusOptionsForInlineEdit}

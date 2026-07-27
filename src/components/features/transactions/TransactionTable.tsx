@@ -37,8 +37,6 @@ export interface TransactionTableProps {
     transactions: TransactionRowData[];
     /** Presence data keyed by transaction ID */
     presenceByTransactionId?: Record<string, TransactionRowPresence>;
-    /** Current user's pubkey hash */
-    currentUserId?: string;
     /** Currently selected transaction IDs */
     selectedIds?: Set<string>;
     /** Available accounts for inline editing */
@@ -67,8 +65,12 @@ export interface TransactionTableProps {
     onSelectionChange?: (ids: Set<string>) => void;
     /** Callback when a transaction is clicked */
     onTransactionClick?: (id: string) => void;
-    /** Callback when a transaction field is focused for editing */
+    /** Callback when a transaction row receives focus */
     onTransactionFocus?: (id: string) => void;
+    /** Callback when focus lands in a specific cell, identified by its stable field name */
+    onTransactionFieldFocus?: (id: string, field: string | undefined) => void;
+    /** Callback when focus leaves the table entirely */
+    onTransactionBlur?: () => void;
     /** Callback when transaction is updated */
     onTransactionUpdate?: (id: string, updates: Partial<TransactionRowData>) => void;
     /**
@@ -189,7 +191,6 @@ function EmptyState() {
 export function TransactionTable({
     transactions,
     presenceByTransactionId = {},
-    currentUserId,
     selectedIds = new Set(),
     availableAccounts = [],
     availableStatuses = [],
@@ -201,6 +202,8 @@ export function TransactionTable({
     onSelectionChange,
     onTransactionClick,
     onTransactionFocus,
+    onTransactionFieldFocus,
+    onTransactionBlur,
     onTransactionUpdate,
     allocationColumns = [],
     gridTemplateColumns = TRANSACTION_GRID_TEMPLATE,
@@ -219,6 +222,22 @@ export function TransactionTable({
 
     // Grid cell navigation for arrow up/down between cells
     const { handleGridKeyDown } = useGridCellNavigation();
+
+    /**
+     * Retracts presence when focus leaves the table entirely.
+     *
+     * Checked against `relatedTarget` so moving between rows or cells does not retract — that would
+     * make a peer's indicator flicker on every arrow key. Only leaving the grid (or the document)
+     * clears focus.
+     */
+    const handleGridBlur = useCallback(
+        (event: React.FocusEvent<HTMLDivElement>) => {
+            const next = event.relatedTarget;
+            if (next instanceof Node && event.currentTarget.contains(next)) return;
+            onTransactionBlur?.();
+        },
+        [onTransactionBlur]
+    );
 
     // Extract transaction IDs for selection hook
     const filteredIds = useMemo(() => transactions.map((t) => t.id), [transactions]);
@@ -403,6 +422,7 @@ export function TransactionTable({
                     aria-label="Transactions"
                     data-testid="transaction-table"
                     onKeyDown={handleGridKeyDown}
+                    onBlur={handleGridBlur}
                 >
                     <div
                         className="relative min-w-fit"
@@ -425,7 +445,6 @@ export function TransactionTable({
                                     <TransactionRow
                                         transaction={transaction}
                                         presence={presenceByTransactionId[transaction.id]}
-                                        currentUserId={currentUserId}
                                         isSelected={isSelected}
                                         isExpanded={expandedIds.has(transaction.id)}
                                         availableAccounts={availableAccounts}
@@ -466,6 +485,9 @@ export function TransactionTable({
                                             setFocusedId(transaction.id);
                                             onTransactionFocus?.(transaction.id);
                                         }}
+                                        onFieldFocus={(field) =>
+                                            onTransactionFieldFocus?.(transaction.id, field)
+                                        }
                                         onFieldUpdate={
                                             onTransactionUpdate
                                                 ? (field, value) =>

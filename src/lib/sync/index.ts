@@ -12,5 +12,32 @@ export {
     markOpsPushed,
     saveLocalSnapshot
 } from "./persistence";
-export type { OnPresenceStateChange, PresenceData } from "./presence";
-export { createEphemeralPresenceManager, EphemeralPresenceManager } from "./presence";
+// Loro ephemeral presence (HS-003)
+export type { OnPresenceSnapshot, PresenceManagerOptions, PresenceSnapshot } from "./presence";
+export {
+    createEphemeralPresenceManager,
+    EMPTY_PRESENCE_SNAPSHOT,
+    EphemeralPresenceManager
+} from "./presence";
+export type {
+    PresenceEntry,
+    PresenceEnvelope,
+    PresenceRejectionReason,
+    PresenceSession,
+    PresenceState,
+    TransactionPresence
+} from "./presence-protocol";
+export {
+    applyPresenceUpdate,
+    buildTransactionPresence,
+    createPresenceEntry,
+    IDLE_PRESENCE_STATE,
+    isSamePresenceState,
+    openPresenceEnvelope,
+    PRESENCE_PROTOCOL_VERSION,
+    PRESENCE_REFRESH_MS,
+    PRESENCE_TIMEOUT_MS,
+    readOnlineIdentities,
+    readPresenceSessions,
+    sealPresenceUpdate
+} from "./presence-protocol";

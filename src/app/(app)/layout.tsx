@@ -36,6 +36,10 @@ import { PresenceAvatarGroup } from "@/components/features/presence/PresenceAvat
 import { UndoControls, UndoKeyboardShortcuts } from "@/components/features/undo/UndoControls";
 import { VaultSelector } from "@/components/features/vault/VaultSelector";
 import { ActiveVaultProvider } from "@/components/providers/active-vault-provider";
+import {
+    useVaultPresenceContext,
+    VaultPresenceProvider
+} from "@/components/providers/vault-presence-provider";
 import { VaultProvider } from "@/components/providers/vault-provider";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -43,8 +47,7 @@ import { SyncStatus } from "@/components/ui/sync-status";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useActiveVault } from "@/hooks/use-active-vault";
 import { SyncStatusProvider, usePollUnsavedChanges, useSyncStatus } from "@/hooks/use-sync-status";
-import { useVaultPresence } from "@/hooks/use-vault-presence";
-import { AuthGuard, useAuthGuard } from "@/lib/auth";
+import { AuthGuard } from "@/lib/auth";
 import { useVaultPreferences } from "@/lib/crdt/context";
 import { clearSession } from "@/lib/crypto/session";
 import { trpc } from "@/lib/trpc";
@@ -92,9 +95,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <ActiveVaultProvider>
                 <SyncStatusProvider>
                     <VaultProvider registerDisconnect={registerVaultDisconnect}>
-                        <AppLayoutContent disconnectVault={disconnectVault}>
-                            {children}
-                        </AppLayoutContent>
+                        <VaultPresenceProvider>
+                            <AppLayoutContent disconnectVault={disconnectVault}>
+                                {children}
+                            </AppLayoutContent>
+                        </VaultPresenceProvider>
                     </VaultProvider>
                 </SyncStatusProvider>
             </ActiveVaultProvider>
@@ -110,7 +115,6 @@ function AppLayoutContent({
     disconnectVault: () => Promise<void>;
 }) {
     const router = useRouter();
-    const { pubkeyHash } = useAuthGuard({ redirect: false });
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const { activeVault } = useActiveVault();
@@ -129,12 +133,12 @@ function AppLayoutContent({
         });
     }, [vaultListQuery.data]);
 
-    // Track presence in active vault
+    // Presence for the active vault, shared with the transactions table via the provider.
     const {
-        onlineUsers,
+        onlineIdentities,
         isConnected,
         disconnect: disconnectPresence
-    } = useVaultPresence(activeVault?.id ?? null, pubkeyHash);
+    } = useVaultPresenceContext();
 
     // Get sync status from context
     const { state: syncState } = useSyncStatus();
@@ -210,10 +214,10 @@ function AppLayoutContent({
                 {/* Right side: Presence + Menu */}
                 <div className="flex items-center gap-2">
                     <UndoControls />
-                    {isConnected && onlineUsers.length > 0 && (
+                    {isConnected && onlineIdentities.length > 0 && (
                         <PresenceAvatarGroup
-                            users={onlineUsers.map((u) => ({
-                                userId: u.userId,
+                            users={onlineIdentities.map((userId) => ({
+                                userId,
                                 isOnline: true
                             }))}
                             size="sm"
@@ -345,10 +349,10 @@ function AppLayoutContent({
                                 iconMode
                                 showLabel
                             />
-                            {isConnected && onlineUsers.length > 0 && (
+                            {isConnected && onlineIdentities.length > 0 && (
                                 <PresenceAvatarGroup
-                                    users={onlineUsers.map((u) => ({
-                                        userId: u.userId,
+                                    users={onlineIdentities.map((userId) => ({
+                                        userId,
                                         isOnline: true
                                     }))}
                                     size="sm"

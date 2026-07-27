@@ -15,6 +15,7 @@ import { AccountCombobox, AccountOption } from "@/components/features/accounts";
 import { PresenceAvatar } from "@/components/features/presence/PresenceAvatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { memberFallbackName } from "@/lib/crdt/person";
 import { deriveEffectiveAllocations } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 import { hashToColor } from "@/lib/utils/color";
@@ -67,13 +68,19 @@ export interface TransactionRowData {
     accountOwnerships?: unknown;
 }
 
+/**
+ * Row presence projected from the vault's Loro ephemeral store (HS-003).
+ *
+ * Identities only — a presence payload never carries financial text, so nothing here can leak a
+ * description or amount into the UI of a peer who is looking at a different row.
+ */
 export interface TransactionRowPresence {
-    /** User ID who is focused on this row */
-    focusedBy?: string;
-    /** User ID who is editing this row */
-    editingBy?: string;
-    /** Field being edited */
-    editingField?: string;
+    /** Identities with a session focused on this row. */
+    readonly focusedBy: readonly string[];
+    /** Identities actively editing a field in this row. */
+    readonly editingBy: readonly string[];
+    /** Stable cell names being edited, never their values. */
+    readonly fields: readonly string[];
 }
 
 export interface TransactionRowProps {
@@ -81,8 +88,6 @@ export interface TransactionRowProps {
     transaction: TransactionRowData;
     /** Presence info for this row */
     presence?: TransactionRowPresence;
-    /** Current user's pubkey hash */
-    currentUserId?: string;
     /** Whether this row is selected */
     isSelected?: boolean;
     /** Whether the notes row is expanded */
@@ -105,6 +110,11 @@ export interface TransactionRowProps {
     onClick?: () => void;
     /** Callback when row is focused */
     onFocus?: () => void;
+    /**
+     * Callback when focus lands inside a specific cell, identified by its stable `data-cell` name.
+     * Drives field-level presence; the cell's *value* is never reported.
+     */
+    onFieldFocus?: (field: string | undefined) => void;
     /** Callback when resolving duplicate (keep = clear flag, delete = remove) */
     onResolveDuplicate?: (action: "keep" | "delete") => void;
     /** Callback when deleting the transaction */
@@ -139,7 +149,6 @@ export interface TransactionRowProps {
 export function TransactionRow({
     transaction,
     presence,
-    currentUserId,
     isSelected = false,
     isExpanded = false,
     availableAccounts = [],
@@ -151,6 +160,7 @@ export function TransactionRow({
     onDescriptionSelectAlias,
     onClick,
     onFocus,
+    onFieldFocus,
     onResolveDuplicate,
     onDelete,
     onFieldUpdate,
@@ -183,10 +193,21 @@ export function TransactionRow({
         [accountOwnerships, allocations]
     );
 
-    const focusedByOther = presence?.focusedBy && presence.focusedBy !== currentUserId;
-    const editingByOther = presence?.editingBy && presence.editingBy !== currentUserId;
-    const presenceUserId = presence?.editingBy || presence?.focusedBy;
+    // Presence arrives already excluding this tab's own session, so no identity filtering happens
+    // here: a second tab of the same identity is a genuine other session and must be shown, which
+    // is the whole point of a per-tab session id.
+    const focusedByOthers = presence?.focusedBy ?? [];
+    const editingByOthers = presence?.editingBy ?? [];
+    const presenceUserId = editingByOthers[0] ?? focusedByOthers[0];
     const borderColor = presenceUserId ? hashToColor(presenceUserId) : undefined;
+    const presenceLabel = presenceUserId
+        ? `${editingByOthers.length > 0 ? "Editing" : "Viewing"}: ${(editingByOthers.length > 0
+              ? editingByOthers
+              : focusedByOthers
+          )
+              .map(memberFallbackName)
+              .join(", ")}`
+        : undefined;
 
     const isDuplicate = !!effectiveData.possibleDuplicateOf;
 
@@ -228,12 +249,29 @@ export function TransactionRow({
         }
     }, [effectiveExpanded]);
 
+    /**
+     * Reports row and field focus from a single delegated listener. Reading the enclosing
+     * `data-cell` / `data-presence-field` marker keeps every cell free of presence wiring, so a new
+     * column reports focus correctly without touching this component.
+     */
+    const handleRowFocus = useCallback(
+        (event: React.FocusEvent<HTMLDivElement>) => {
+            onFocus?.();
+            const cell = event.target.closest("[data-presence-field], [data-cell]");
+            const marker =
+                cell?.getAttribute("data-presence-field") ?? cell?.getAttribute("data-cell");
+            // The checkbox is selection, not editing, so it reports the row without a field.
+            onFieldFocus?.(marker == null || marker === "checkbox" ? undefined : marker);
+        },
+        [onFieldFocus, onFocus]
+    );
+
     return (
         <div className="flex flex-col">
             {/* Main row */}
             <div
                 onClick={() => onClick?.()}
-                onFocus={onFocus}
+                onFocus={handleRowFocus}
                 tabIndex={0}
                 data-testid="transaction-row"
                 data-transaction-id={effectiveData.id}
@@ -253,19 +291,21 @@ export function TransactionRow({
                 aria-selected={isSelected}
                 aria-expanded={onToggleExpand ? isExpanded : undefined}
             >
-                {/* Presence indicator - colored left border */}
-                {(focusedByOther || editingByOther) && (
+                {/* Presence indicator - colored left border. Purely decorative and never
+                    interactive, so it cannot take focus or block editing. Editing is distinguished
+                    by width rather than motion, and the pulse is dropped under reduced-motion. */}
+                {presenceUserId && (
                     <div
+                        aria-hidden="true"
+                        data-testid="row-presence-indicator"
+                        data-presence-editing={editingByOthers.length > 0 ? "true" : "false"}
+                        data-presence-count={focusedByOthers.length}
                         className={cn(
-                            "absolute top-0 bottom-0 left-0 w-1",
-                            editingByOther && "animate-pulse"
+                            "pointer-events-none absolute top-0 bottom-0 left-0",
+                            editingByOthers.length > 0 ? "w-1.5 motion-safe:animate-pulse" : "w-1"
                         )}
                         style={{ backgroundColor: borderColor }}
-                        title={
-                            editingByOther
-                                ? `Being edited by ${presence?.editingBy}`
-                                : `Viewed by ${presence?.focusedBy}`
-                        }
+                        title={presenceLabel}
                     />
                 )}
 
@@ -453,9 +493,14 @@ export function TransactionRow({
                     )}
                 </div>
 
-                {/* Presence avatar - shows when someone is focused/editing */}
-                {presenceUserId && presenceUserId !== currentUserId && (
-                    <div className="absolute top-1/2 -right-2 -translate-y-1/2">
+                {/* Presence avatar - shows who else is on this row. Non-interactive so keyboard
+                    navigation across the table never stops on it. */}
+                {presenceUserId && (
+                    <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute top-1/2 -right-2 -translate-y-1/2"
+                        title={presenceLabel}
+                    >
                         <PresenceAvatar
                             userId={presenceUserId}
                             isOnline={true}

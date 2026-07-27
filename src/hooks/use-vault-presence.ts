@@ -1,166 +1,132 @@
 "use client";
 
 /**
- * Vault Presence Hook
+ * Vault Presence Hook (HS-003)
  *
- * Tracks which users are online in a vault for collaborative features.
+ * Single source of vault presence: who is online, which transaction each session is on, and which
+ * field they are editing. Backed by one Loro `EphemeralStore` per tab, broadcast encrypted over the
+ * P05-authorized presence channel.
+ *
+ * There is deliberately only one presence system. The former parallel Supabase-Presence hook and
+ * heartbeat are gone; this hook is the only presence subscriber in the app.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Temporal } from "temporal-polyfill";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { OnPresenceCallback } from "@/lib/supabase/realtime";
-import { createVaultRealtimeSync, type VaultRealtimeSync } from "@/lib/supabase/realtime";
+import { derivePresenceKey } from "@/lib/crypto/presence-key";
+import {
+    createEphemeralPresenceManager,
+    EMPTY_PRESENCE_SNAPSHOT,
+    type EphemeralPresenceManager,
+    type PresenceSnapshot
+} from "@/lib/sync/presence";
+import { IDLE_PRESENCE_STATE, type PresenceState } from "@/lib/sync/presence-protocol";
 
-/**
- * Presence state for a user in a vault.
- */
 export interface VaultPresence {
-    userId: string;
-    joinedAt: string;
-    lastSeen: string;
-    isOnline: boolean;
+    /** Live remote sessions, one entry per tab. */
+    readonly snapshot: PresenceSnapshot;
+    /** Identities with at least one live session, excluding this one. */
+    readonly onlineIdentities: readonly string[];
+    /** Whether the presence channel is connected. */
+    readonly isConnected: boolean;
+    /** Declare what this session is focused on. */
+    readonly setPresenceState: (state: PresenceState) => void;
+    /** Clear row focus while staying connected. */
+    readonly clearPresenceFocus: () => void;
+    /** Leave the channel — used on lock/logout. */
+    readonly disconnect: () => Promise<void>;
 }
 
 /**
- * Options for the useVaultPresence hook.
- */
-export interface UseVaultPresenceOptions {
-    /** Update presence every N milliseconds (default: 30000) */
-    heartbeatInterval?: number;
-    /** Consider offline after N milliseconds without heartbeat (default: 60000) */
-    offlineThreshold?: number;
-}
-
-/**
- * Hook to track presence in a vault.
+ * Tracks presence for a vault.
  *
- * @param vaultId - The vault to track presence for
- * @param pubkeyHash - Current user's pubkey hash
- * @param options - Configuration options
- * @returns Presence state and control functions
+ * @param vaultId - Vault to track, or null when none is selected
+ * @param pubkeyHash - This identity's pubkey hash
+ * @param vaultKey - Vault encryption key; the presence key is derived from it
  */
 export function useVaultPresence(
     vaultId: string | null,
     pubkeyHash: string | null,
-    options: UseVaultPresenceOptions = {}
-) {
-    const { heartbeatInterval = 30000, offlineThreshold = 60000 } = options;
-
-    const [presence, setPresence] = useState<VaultPresence[]>([]);
+    vaultKey: Uint8Array | undefined
+): VaultPresence {
+    const [snapshot, setSnapshot] = useState<PresenceSnapshot>(EMPTY_PRESENCE_SNAPSHOT);
     const [isConnected, setIsConnected] = useState(false);
-    const syncRef = useRef<VaultRealtimeSync | null>(null);
-    const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
+    const managerRef = useRef<EphemeralPresenceManager | null>(null);
 
-    // Handle presence updates with online status
-    const handlePresence: OnPresenceCallback = useCallback(
-        (presenceList) => {
-            const now = Temporal.Now.instant();
-            const withOnlineStatus = presenceList.map((p) => ({
-                ...p,
-                isOnline:
-                    now.epochMilliseconds - Temporal.Instant.from(p.lastSeen).epochMilliseconds <
-                    offlineThreshold
-            }));
-            setPresence(withOnlineStatus);
-        },
-        [offlineThreshold]
+    // Derivation is pure and cheap; memoising keeps the connect effect from re-running on every
+    // render just because the caller handed us a fresh view over the same key bytes.
+    const presenceKey = useMemo(
+        () => (vaultKey == null ? undefined : derivePresenceKey(vaultKey)),
+        [vaultKey]
     );
 
-    // Connect/disconnect based on vaultId and pubkeyHash
     useEffect(() => {
-        if (!vaultId || !pubkeyHash) {
-            // Cleanup existing connection
-            if (syncRef.current) {
-                syncRef.current.unsubscribe();
-                syncRef.current = null;
-            }
-            if (heartbeatRef.current) {
-                clearInterval(heartbeatRef.current);
-                heartbeatRef.current = null;
-            }
-            // eslint-disable-next-line react-hooks/set-state-in-effect -- Cleanup state on unmount/disconnect
-            setIsConnected(false);
+        if (vaultId == null || pubkeyHash == null || presenceKey == null) return;
 
-            setPresence([]);
-            return;
-        }
-
-        // Create new sync instance
-        const sync = createVaultRealtimeSync(vaultId, "presence");
-        syncRef.current = sync;
+        const manager = createEphemeralPresenceManager({ vaultId, pubkeyHash, presenceKey });
+        managerRef.current = manager;
         let cancelled = false;
 
-        async function connect() {
-            try {
-                await sync.subscribe({
-                    onPresence: handlePresence
-                });
+        void manager
+            .connect((next) => {
+                if (!cancelled) setSnapshot(next);
+            })
+            .then(() => {
+                if (!cancelled) setIsConnected(true);
+            })
+            .catch(() => {
+                // Presence is an enhancement: a failed channel must never block editing, so we
+                // stay disconnected and silent rather than surfacing an error.
+                if (!cancelled) setIsConnected(false);
+            });
 
-                if (cancelled) {
-                    await sync.unsubscribe();
-                    return;
-                }
+        // React cleanup does not run when the tab is closed or navigated away from, so peers would
+        // otherwise hold a stale indicator until the ephemeral entry expires. Both events are
+        // needed: `pagehide` covers navigation and bfcache eviction, while some teardown paths
+        // (including a scripted tab close) deliver only `beforeunload`. Retracting twice is
+        // harmless — the second call finds no channel.
+        const leaveOnUnload = () => {
+            // Retract synchronously first: an awaited disconnect is not guaranteed to finish during
+            // teardown, whereas untracking on the still-open socket reaches peers immediately.
+            manager.retract();
+            void manager.disconnect();
+        };
+        window.addEventListener("pagehide", leaveOnUnload);
+        window.addEventListener("beforeunload", leaveOnUnload);
 
-                setIsConnected(true);
-                heartbeatRef.current = setInterval(() => {
-                    void sync.updatePresence();
-                }, heartbeatInterval);
-            } catch (error) {
-                if (cancelled) return;
-                console.error("Failed to connect vault presence:", error);
-                setIsConnected(false);
-            }
-        }
-
-        void connect();
-
-        // Cleanup on unmount or change
         return () => {
             cancelled = true;
-            if (syncRef.current === sync) {
-                syncRef.current = null;
-            }
-            void sync.unsubscribe();
-            if (heartbeatRef.current) {
-                clearInterval(heartbeatRef.current);
-                heartbeatRef.current = null;
-            }
+            window.removeEventListener("pagehide", leaveOnUnload);
+            window.removeEventListener("beforeunload", leaveOnUnload);
+            if (managerRef.current === manager) managerRef.current = null;
+            setIsConnected(false);
+            setSnapshot(EMPTY_PRESENCE_SNAPSHOT);
+            void manager.disconnect();
         };
-    }, [vaultId, pubkeyHash, heartbeatInterval, handlePresence]);
+    }, [vaultId, pubkeyHash, presenceKey]);
 
-    // Force presence update
-    const updatePresence = useCallback(async () => {
-        await syncRef.current?.updatePresence();
+    const setPresenceState = useCallback((state: PresenceState) => {
+        void managerRef.current?.setState(state);
     }, []);
 
-    // Disconnect manually
+    const clearPresenceFocus = useCallback(() => {
+        void managerRef.current?.setState(IDLE_PRESENCE_STATE);
+    }, []);
+
     const disconnect = useCallback(async () => {
-        await syncRef.current?.unsubscribe();
-        syncRef.current = null;
-        if (heartbeatRef.current) {
-            clearInterval(heartbeatRef.current);
-            heartbeatRef.current = null;
-        }
+        const manager = managerRef.current;
+        managerRef.current = null;
         setIsConnected(false);
-        setPresence([]);
+        setSnapshot(EMPTY_PRESENCE_SNAPSHOT);
+        await manager?.disconnect();
     }, []);
-
-    // Get online users (excluding current user)
-    const onlineUsers = presence.filter((p) => p.isOnline && p.userId !== pubkeyHash);
 
     return {
-        /** All presence entries */
-        presence,
-        /** Only online users (excluding current user) */
-        onlineUsers,
-        /** Number of online users (excluding current user) */
-        onlineCount: onlineUsers.length,
-        /** Whether connected to realtime */
+        snapshot,
+        onlineIdentities: snapshot.onlineIdentities,
         isConnected,
-        /** Force a presence update */
-        updatePresence,
-        /** Disconnect from realtime */
+        setPresenceState,
+        clearPresenceFocus,
         disconnect
     };
 }
