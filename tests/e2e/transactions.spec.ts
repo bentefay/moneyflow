@@ -39,7 +39,11 @@ async function createTestTransaction(
     const addButton = page.getByTestId("add-transaction-button");
     await addButton.click();
 
+    // Add selects the new row and deselects every other, but the two do not land in the same
+    // frame. Waiting for exactly one selected row keeps a stale selection from a previous call
+    // out of the locator, which would otherwise resolve to a row whose cells are already gone.
     const addedRow = page.getByRole("row", { selected: true });
+    await expect(addedRow).toHaveCount(1);
     await expect(addedRow).toBeVisible();
 
     const descriptionInput = addedRow.getByTestId("description-editable");
