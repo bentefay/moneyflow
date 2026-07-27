@@ -5749,3 +5749,27 @@ in any committed file; run a CLEAN 8-run full-suite validation FOREGROUND one-ru
 background/monitor, no spec mutation during the loop); write `evidence/P20B/implementation-06.md`; run
 unit gates; commit test-only. import:1573 needs no work (Q-P20B-14 duplicate). P20B stays
 `changes_requested`; HS-021 stays rolled back.
+
+### 2026-07-28 — P20B rev 05 handback root-VERIFIED clean; DISTINCT reviewer dispatched over 5576175..HEAD
+
+`p20b-implementer-05` handed back commit `3e0318a` ("test: settle passkey unlock flake via validated
+seed entry"). Root ran verify-not-trust independently (did NOT trust the handback): HEAD == `3e0318a`,
+test-only, `passkey.spec.ts` 11 insertions/2 deletions; the diff is EXACTLY the `enterSeedPhrase`
+import + the `:400` unlock-step swap `.fill(words.join(" ")) -> enterSeedPhrase(page, words, true)` +
+an HONEST comment (load-dependent test-timing flake, single-field path still covered at
+`:72/:171/:232`, references Q-P20B-16) — the prior "strips spaces" mis-diagnosis wording is GONE; 12
+`test(...)` blocks unchanged; no DIAG/console.log/keyboard.type residue. `git diff --stat
+5576175..HEAD -- . ':(exclude)specs'` == exactly `transactions.spec.ts` (rev-03) + `passkey.spec.ts`
+(rev-05), both test-only. `evidence/P20B/implementation-06.md` present and secret-clean (no real
+recovery material; explicit secret-safety attestation; no 12-word phrase). Working tree carries only
+inert strays (`next-env.d.ts` M, untracked `evidence/P08/implementation-01.md`). Canary invariant
+== 1.
+
+**Dispatched DISTINCT `p20b-reviewer-03`** (fresh context, never a P20B implementer) to independently
+re-validate the CUMULATIVE P20B E2E-stability fix over `5576175..HEAD` (transactions rev-03 + passkey
+rev-05) under MANY foreground full-suite `--retries=0` runs (isolation is useless for this
+load-dependent class) plus unit gates; adjudicate principled-vs-mask + product-clean + secret-clean;
+write `reviews/P20B-review-03.md` and report PASS/FAIL. HS-021 stays rolled back (marker `[]` at
+`:159`, rolling `f46c2d35…`, authorized IDs 20) until the reviewer independently confirms — no
+re-pass until then, to avoid rollback churn. On PASS root re-applies HS-021 forward via §275
+(`f46c2d35… -> 469e98c7…`, authorized 20 -> 21, restore P20B/HS-021/P21 rows) then starts P21 rev 03.
