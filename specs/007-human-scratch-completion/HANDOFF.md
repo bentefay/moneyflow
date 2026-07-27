@@ -8,8 +8,11 @@ and write your findings to exactly one file. You commit NOTHING.
 ## Literal coordinates
 
 - **Package:** P21 (control; no scratch requirement, no marker).
-- **BASE == HEAD == `4c20206`.** The range is expected EMPTY. You must not create commits; if the
-  tree gains committed changes, that is a reconciliation event for root, not you.
+- **BASE (last integration) `4c20206`; you operate at current HEAD `3b6a6b6`.** The only delta
+  `4c20206..3b6a6b6` is root's own P21-dispatch docs commit (`PROGRESS.md` + `HANDOFF.md`, no
+  product change) — that is the control plane, expected. The PRODUCT/collector range must stay
+  EMPTY: you must NOT create any commit. At your handback HEAD must still be `3b6a6b6`; any new
+  commit is a reconciliation event for root, not you.
 - **Your ONLY persistent write:**
   `specs/007-human-scratch-completion/evidence/P21/implementation-01.md` (create the `evidence/P21/`
   directory). Do NOT write or edit any product/test/migration file, any other evidence/review file,
@@ -82,7 +85,7 @@ independent reviewer PASS.
 
 ## Handback
 
-SendMessage to `main` with: confirmation the tree is still at HEAD `4c20206` with no new commits and
+SendMessage to `main` with: confirmation the tree is still at HEAD `3b6a6b6` with no new commits and
 `git status --porcelain` proof; a top-line PASS-candidate/FAIL summary; the blocking findings (if
 any); and the exact path `evidence/P21/implementation-01.md`. Any failing check, unexplained flake,
 material UX/a11y/security/data/perf finding, false marketing claim, missing evidence, write-boundary
