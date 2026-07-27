@@ -135,7 +135,7 @@ function AppLayoutContent({
 
     // Presence for the active vault, shared with the transactions table via the provider.
     const {
-        onlineIdentities,
+        presentIdentities,
         isConnected,
         disconnect: disconnectPresence
     } = useVaultPresenceContext();
@@ -214,9 +214,9 @@ function AppLayoutContent({
                 {/* Right side: Presence + Menu */}
                 <div className="flex items-center gap-2">
                     <UndoControls />
-                    {isConnected && onlineIdentities.length > 0 && (
+                    {isConnected && presentIdentities.length > 0 && (
                         <PresenceAvatarGroup
-                            users={onlineIdentities.map((userId) => ({
+                            users={presentIdentities.map((userId) => ({
                                 userId,
                                 isOnline: true
                             }))}
@@ -349,9 +349,9 @@ function AppLayoutContent({
                                 iconMode
                                 showLabel
                             />
-                            {isConnected && onlineIdentities.length > 0 && (
+                            {isConnected && presentIdentities.length > 0 && (
                                 <PresenceAvatarGroup
-                                    users={onlineIdentities.map((userId) => ({
+                                    users={presentIdentities.map((userId) => ({
                                         userId,
                                         isOnline: true
                                     }))}

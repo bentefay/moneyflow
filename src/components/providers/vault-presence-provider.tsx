@@ -22,6 +22,7 @@ const noop = () => {};
 const DISCONNECTED: VaultPresence = {
     snapshot: EMPTY_PRESENCE_SNAPSHOT,
     onlineIdentities: [],
+    presentIdentities: [],
     isConnected: false,
     setPresenceState: noop,
     clearPresenceFocus: noop,

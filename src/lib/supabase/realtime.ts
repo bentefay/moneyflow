@@ -239,7 +239,7 @@ export class VaultRealtimeSync {
         }
 
         if (this.purpose === "presence" && this.onPresence) {
-            channel.on("presence", { event: "sync" }, () => {
+            const emitPresenceState = () => {
                 if (
                     generation !== this.generation ||
                     this.channel !== channel ||
@@ -262,7 +262,15 @@ export class VaultRealtimeSync {
                         : [];
                 });
                 this.onPresence(presence);
-            });
+            };
+
+            // `sync` alone is not enough: a departing peer produces a `leave` diff that does not
+            // always surface as a sync for this client, which would leave a stale indicator up
+            // until the ephemeral entry expired. Every event re-reads the full presence state, so
+            // handling all three is idempotent rather than additive.
+            channel.on("presence", { event: "sync" }, emitPresenceState);
+            channel.on("presence", { event: "join" }, emitPresenceState);
+            channel.on("presence", { event: "leave" }, emitPresenceState);
         }
 
         await new Promise<void>((resolve, reject) => {

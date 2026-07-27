@@ -25,8 +25,13 @@ import { IDLE_PRESENCE_STATE, type PresenceState } from "@/lib/sync/presence-pro
 export interface VaultPresence {
     /** Live remote sessions, one entry per tab. */
     readonly snapshot: PresenceSnapshot;
-    /** Identities with at least one live session, excluding this one. */
+    /** Peer identities with at least one live session, excluding this one. */
     readonly onlineIdentities: readonly string[];
+    /**
+     * Everyone currently in the vault, this identity first. The header renders this rather than
+     * {@link onlineIdentities} so a lone member still sees an avatar confirming they are connected.
+     */
+    readonly presentIdentities: readonly string[];
     /** Whether the presence channel is connected. */
     readonly isConnected: boolean;
     /** Declare what this session is focused on. */
@@ -121,9 +126,18 @@ export function useVaultPresence(
         await manager?.disconnect();
     }, []);
 
+    const presentIdentities = useMemo(
+        () =>
+            isConnected && pubkeyHash != null
+                ? [pubkeyHash, ...snapshot.onlineIdentities.filter((id) => id !== pubkeyHash)]
+                : snapshot.onlineIdentities,
+        [isConnected, pubkeyHash, snapshot.onlineIdentities]
+    );
+
     return {
         snapshot,
         onlineIdentities: snapshot.onlineIdentities,
+        presentIdentities,
         isConnected,
         setPresenceState,
         clearPresenceFocus,

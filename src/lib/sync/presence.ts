@@ -163,11 +163,20 @@ export class EphemeralPresenceManager {
     /**
      * Synchronously retracts this session from the channel.
      *
-     * For page teardown (`pagehide`), where nothing async is guaranteed to complete. Peers see the
-     * departure at once; the credential revocation in {@link disconnect} is left to whatever time
-     * the browser allows, and the server-side grant expires on its own regardless.
+     * For page teardown, where nothing async is guaranteed to complete. Peers see the departure at
+     * once; the credential revocation in {@link disconnect} is left to whatever time the browser
+     * allows, and the server-side grant expires on its own regardless.
+     *
+     * Marking the manager disposed *before* untracking is what makes this stick: the refresh timer
+     * and any publish still queued behind {@link publishChain} would otherwise call `track()` again
+     * straight after the untrack, and the peer would see leave-then-join instead of a departure.
      */
     retract(): void {
+        this.disposed = true;
+        if (this.refreshTimer != null) {
+            clearInterval(this.refreshTimer);
+            this.refreshTimer = null;
+        }
         this.transport?.retractPresence();
     }
 

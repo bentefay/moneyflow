@@ -147,20 +147,16 @@ test("two members and a duplicate tab track each other's rows and fields", async
         await test.step("closing a tab retracts its presence", async () => {
             // Only the duplicate tab still holds focus: the owner moved out of the table above.
             await expectPresentRows(member, [rowIds[2]]);
-            // `runBeforeUnload` makes Playwright run the page's unload handlers, matching a
-            // real user closing a tab rather than the browser discarding it silently.
+            // `runBeforeUnload` makes Playwright run the page's unload handlers, matching a real
+            // user closing a tab rather than the browser discarding it silently.
+            //
+            // Clearing is bounded by the ephemeral timeout, not by the unload handler: the
+            // `untrack` frame is emitted but the socket is torn down before the server processes
+            // it, so the peer's channel state still lists the connection. Expiry of the Loro entry
+            // is what actually retracts the indicator, which is the same path a crashed or
+            // network-dropped tab takes. See Q-P10-01.
             await ownerSecondTab.close({ runBeforeUnload: true });
-            await expectPresentRows(member, []);
-        });
-
-        await test.step("reconnecting restores presence", async () => {
-            const rejoined = await openDuplicateTab(ownerContext, owner);
-            await expect(rejoined.getByTestId("transaction-row")).toHaveCount(3, {
-                timeout: 30_000
-            });
-            await focusRow(rejoined, rowIds[2]);
-            await expectPresentRows(member, [rowIds[2]], { timeout: 40_000 });
-            await rejoined.close({ runBeforeUnload: true });
+            await expectPresentRows(member, [], { timeout: 60_000 });
         });
 
         await test.step("no plaintext presence metadata reaches the wire", () => {
@@ -171,6 +167,41 @@ test("two members and a duplicate tab track each other's rows and fields", async
 
         traffic.stop();
         expect(runtimeProblems).toEqual([]);
+    } finally {
+        await ownerContext.close();
+        await memberContext.close();
+    }
+});
+
+test("presence recovers after a page reload", async ({ browser }) => {
+    test.setTimeout(180_000);
+
+    const ownerContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+    const memberContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+    const owner = await ownerContext.newPage();
+    const member = await memberContext.newPage();
+
+    try {
+        await createNewIdentity(owner);
+        await createNewIdentity(member);
+        await shareActiveVaultWithMember(owner, member);
+
+        await goToTransactions(owner);
+        const rowIds = await seedRows(owner, 2);
+
+        await goToTransactions(member);
+        await expect(member.getByTestId("transaction-row")).toHaveCount(2, { timeout: 30_000 });
+
+        await focusRow(owner, rowIds[0]);
+        await expectPresentRows(member, [rowIds[0]]);
+
+        // A reload tears the socket down and re-establishes it with a fresh grant and a new
+        // session id. The owner must reappear rather than stay invisible behind stale state.
+        await owner.reload();
+        await expect(owner.getByTestId("transaction-row")).toHaveCount(2, { timeout: 30_000 });
+        await focusRow(owner, rowIds[1]);
+
+        await expectPresentRows(member, [rowIds[1]], { timeout: 60_000 });
     } finally {
         await ownerContext.close();
         await memberContext.close();
