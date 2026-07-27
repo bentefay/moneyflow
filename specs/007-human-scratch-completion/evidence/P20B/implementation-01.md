@@ -47,14 +47,20 @@ each behaviour-changing fix has a regression test verified to fail against the p
 
 ## 2. Inventory summary
 
-100 findings. Severity is user impact, not effort.
+102 findings. Severity is user impact, not effort.
 
 | Severity | Total | Fixed | Deferred / no-action                |
 | -------- | ----- | ----- | ----------------------------------- |
 | BLOCKER  | 7     | 6     | 1 deferred (Q-0, with the evidence) |
-| MAJOR    | 36    | 29    | 7 deferred (Q-1 … Q-5, Q-8, Q-9)    |
-| MINOR    | 39    | 31    | 8 deferred                          |
+| MAJOR    | 37    | 30    | 7 deferred (Q-1 … Q-5, Q-8, Q-9)    |
+| MINOR    | 40    | 33    | 7 deferred                          |
 | NIT      | 18    | 9     | 9 no-action-justified               |
+
+Counts include the two findings written up in `implementation-03.md`, which landed after the first
+handback: **B-13** (MINOR — the import config types were mutable, so the module-constant corruption
+was guarded only by a comment; now `readonly`) and **B-14** (MAJOR — `detectNumberFormat`'s FR
+space-grouped branch was unreachable, found while verifying the Q-11 sign defect). Q-11 itself moved
+from deferred to fixed in the same commit, which is why MINOR deferrals drop from 8 to 7.
 
 The one unfixed BLOCKER is Q-0 below: `pruneBuckets` discards concurrent writes. It is deferred
 rather than fixed because the safe remedy is a design decision with a 14-test blast radius, not
@@ -71,18 +77,23 @@ because it is small — the investigation and proof are in §3.
 | B-5 | `src/lib/import/processor.ts:166`, `src/hooks/use-import-state.ts:646` | import skill "return structured errors, don't throw" | `parseNumber` can return `Infinity`, which passes `isNaN` and then makes `asMinorUnits` throw, aborting the entire import instead of recording one row error. `processCSVImport` has no try/catch.                                                                                               | A row with `1e999` threw `MoneyMinorUnits must be an integer, got Infinity`.                                             |
 | B-6 | `src/components/features/accounts/AccountRow.tsx:334,362,373,420,446`  | components skill a11y                                | Four of five account fields were edited through `div`/`span` with only `onClick` — no `role`, `tabIndex` or `onKeyDown`. Keyboard users could not edit them at all.                                                                                                                              | Read directly; no keyboard path exists in the JSX.                                                                       |
 
-### 2.2 MAJOR — fixed (27)
+### 2.2 MAJOR — fixed (28)
 
 Correctness and data integrity: hard delete where the CRDT skill mandates soft delete
 (`mutations.ts:672` — `cascade` defaults true and every production caller omits it); `addOwner`
 divide-by-zero producing `NaN` owners (`ownership.ts:263`); `updateOwnerPercentage` erasing the real
 owner and dropping non-owners (`ownership.ts:313`); raw unvalidated value written while the
 validated one went unused (`allocations.ts:303`); module-level default-config mutation poisoning
-every later import in the session and reaching CRDT schema defaults (`use-import-state.ts:274`);
-hand-rolled date-format→regex compiler mis-compiling any token that prefixes a longer one
-(`csv.ts:220` — replaced with date-fns per the established-libraries rule); `parseNumber`
-mis-scaling money 100× on mis-grouped input (`csv.ts:197`); multi-account OFX giving every statement
-the first statement's balance (`ofx.ts:265,294`).
+every later import in the session and reaching CRDT schema defaults (`use-import-state.ts:274` —
+`9ab6119` later made the config types `readonly`, so the guard is a compiler rule rather than a
+comment; B-13 in `implementation-03.md`); hand-rolled date-format→regex compiler mis-compiling any
+token that prefixes a longer one (`csv.ts:220` — replaced with date-fns per the
+established-libraries rule); `parseNumber` mis-scaling money 100× on mis-grouped input
+(`csv.ts:197`); multi-account OFX giving every statement the first statement's balance
+(`ofx.ts:265,294`); `detectNumberFormat` returning `null` for any signed sample and for every
+space-grouped one, so a EU file whose first sampled amount was a debit — the common case — was
+parsed with the US separators (`FormattingTab.tsx:138`, landed in `9ab6119`, detailed as B-14 in
+`implementation-03.md`).
 
 Security and platform: `signData` never zeroized its decoded secret key though its sibling
 `signRequest` does (`signing.ts:238`); `JSON.parse(...) as SessionData` trusting sessionStorage
@@ -244,10 +255,18 @@ individually and are all over fixed-order, non-reorderable lists.
 - **Q-10 (MINOR, encoding).** Import reads files with `file.text()`, which always decodes UTF-8, so
   Latin-1/Windows-1252 bank exports get U+FFFD in every non-ASCII payee name — and OFX files declare
   `CHARSET:1252` in their own header. Deferred as feature-sized.
-- **Q-11 (MINOR).** `detectNumberFormat`'s regexes are anchored `^\d`, so a leading minus defeats
-  detection and EU-format files fall back to US parsing. B-4's fix converts the resulting corruption
-  into a structured per-row error, but auto-detection still fails; completing it needs a component
-  file that was being edited concurrently.
+- **Q-11 — WITHDRAWN, fixed in `9ab6119`.** This was raised as a deferral on the mistaken belief
+  that the fix needed a component file outside this package's scope. Root ruled P20B has no internal
+  partition boundary, and the fix landed: `detectNumberFormat`
+  (`src/components/features/import/tabs/FormattingTab.tsx:138`) now strips accounting parentheses
+  and a leading `-`/`+` via `stripAmountSign` before matching, so signed EU amounts detect correctly
+  instead of falling back to US parsing. Verifying the sign claim also surfaced a second defect in
+  the same function: whitespace was stripped before the patterns ran, so the `1 234,56 (FR)` branch
+  was unreachable for its entire life. Both are fixed. Regression cover:
+  `tests/unit/components/formatting-detection.test.ts` (9 tests, including a round-trip asserting
+  `parseNumber` agrees with the separators `detectNumberFormat` reports) and a hook-level test in
+  `tests/unit/import/default-config-immutability.test.tsx`. Nothing about this item remains
+  deferred. Full write-up in `implementation-03.md` as finding B-14.
 - **Q-12 (MINOR, typing).** `useControlledState` (`src/hooks/use-controlled-state.tsx:16`) casts
   `defaultValue as T`, which lies: when neither `value` nor `defaultValue` is supplied the state is
   genuinely `undefined`. The honest fix is a discriminated props union making "neither supplied"
