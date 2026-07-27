@@ -1486,6 +1486,68 @@ No unresolved product questions were answered by scaffold creation.
 - **Does a human still need to decide after completion?:** No — cell-level meets the frozen
   requirement.
 
+### Q-P20A-01 — Marketing tone preference (plain/declarative vs warmer)
+
+- **Raised:** 2026-07-27, P20A, `p20a-implementer-01` (recorded by root)
+- **Source proposal:** `evidence/P20A/implementation-01.md`, Q-proposal 1
+- **Question:** the rewritten landing copy is plain and declarative; a warmer register is possible.
+- **Options considered:** (a) **[SELECTED]** plain, declarative, factual copy; (b) warmer/friendlier
+  tone.
+- **Default selected for continued work:** Option (a), already in place — factual accuracy wins
+  without pausing (frozen: "clear, succinct and not too markety").
+- **Decision hierarchy basis:** frozen text prefers non-markety clarity; tone is presentational.
+- **Impact and risk:** none; purely a wording preference, reversible.
+- **How to reverse or migrate:** edit copy strings in the landing components later.
+- **Does a human still need to decide after completion?:** No — a human may re-tune tone anytime;
+  not a gate.
+
+### Q-P20A-02 — Crypto source-comment vs corrected marketing mismatch (follow-up sweep)
+
+- **Raised:** 2026-07-27, P20A, `p20a-implementer-01` (recorded by root)
+- **Source proposal:** `evidence/P20A/implementation-01.md`, Q-proposal 2
+- **Question:** P20A corrected the marketing copy to state vault data uses **XSalsa20-Poly1305**
+  (`crypto_secretbox_easy` in `src/lib/crypto/encryption.ts`) and **HKDF-SHA256** key derivation. A
+  code comment in `src/lib/crypto/encryption.ts` and the column comment in
+  `supabase/migrations/005_vault_ops.sql` still say "XChaCha20-Poly1305" (genuine XChaCha20 is used
+  only on the presence channel). Not a security defect — both are sound constructions — but the
+  source comments now disagree with the corrected copy.
+- **Options considered:** (a) **[SELECTED]** leave the `src/lib/**` + migration comments untouched
+  in P20A (out of its marketing-only scope) and record a follow-up; (b) edit those comments in P20A
+  — REJECTED (crosses the P20A editable boundary into `src/lib/**` and a migration).
+- **Default selected for continued work:** Option (a) — implementer correctly did NOT touch those
+  files.
+- **Decision hierarchy basis:** P20A scope is marketing pages only; comment hygiene in engine/crypto
+  files is out of scope.
+- **Impact and risk:** low — comment-only mismatch, no runtime effect. Track for the P20/P21 cleanup
+  sweep alongside [[diagnose-overscoped-stalls]]-style hygiene (cf. Q-P17D-02 dead-code sweep).
+- **How to reverse or migrate:** a later hygiene commit corrects the two comments to XSalsa20/HKDF.
+- **Does a human still need to decide after completion?:** No — mechanical comment fix; scheduled
+  for P21 sweep.
+
+### Q-P20A-03 — Licensing contradiction resolved by removing open-source claims
+
+- **Raised:** 2026-07-27, P20A, `p20a-implementer-01` (recorded by root)
+- **Source proposal:** `evidence/P20A/implementation-01.md`, Q-proposal 3
+- **Question:** the landing pages claimed "Open source under MIT license" with an "Open Source" nav
+  item and an auditability claim, but `README.md` states the project is proprietary/all-rights-
+  reserved, there is no `LICENSE` file, and `package.json` is `"private": true`. The claim is
+  therefore false as shipped.
+- **Options considered:** (a) **[SELECTED]** remove the open-source/MIT/auditability claims
+  (truthful given current repo state); (b) keep the claims and add a real `LICENSE` + fix `README`
+  to make the project actually open source — REJECTED for P20A (would require a licensing decision +
+  files outside the marketing scope; not the coordinator's or implementer's call to make
+  unilaterally).
+- **Default selected for continued work:** Option (a) — safe reversible default: do not advertise
+  what is not true today.
+- **Decision hierarchy basis:** frozen text demands truthful marketing; an unbacked license claim
+  violates "no feature/claim advertised before it is real".
+- **Impact and risk:** none negative; if the project is later made open source the claims can return
+  with a real LICENSE.
+- **How to reverse or migrate:** re-add the claims once a `LICENSE` exists and `README` is updated.
+- **Does a human still need to decide after completion?:** Yes — IF the intent is open source, a
+  human must add a `LICENSE` and update `README`/`package.json`; until then the truthful default
+  stands. Not a completion gate for HS-016.
+
 ## Question template
 
 ### Q-XXX — Short title
