@@ -108,16 +108,86 @@ Regression cover:
   `.`/`,` and that the preview amounts land at `-123456`/`-234567` minor units rather than 100x
   over.
 
+## Finding B-15 — unlock journey dropped pre-hydration fills
+
+| Field       | Value                                                                            |
+| ----------- | -------------------------------------------------------------------------------- |
+| Location    | `tests/e2e/identity.spec.ts:345,365`                                             |
+| Rule        | `e2e/SKILL.md` — no arbitrary waits, tests must be independent and deterministic |
+| Severity    | Medium — test flake, not a product defect                                        |
+| Disposition | **Fixed** in `3a241f8`                                                           |
+
+The whole-suite flake sample below caught `identity.spec.ts:282 unlock journey` failing 1 run
+in 326. It did not reproduce in isolation — 10/10 and 36/36 green — which is characteristic of a
+race that only opens under full-suite scheduling pressure.
+
+Root cause is the same one already fixed at `identity.spec.ts:580` in `9de7285`: the seed word
+inputs are controlled React inputs, so a fill that lands before hydration is dropped outright. The
+next render overwrites the DOM value and `onChange` never fires. `toBeVisible()` does not imply
+hydrated, and this test previously relied on a `waitForLoadState("networkidle")` that `51215b4`
+removed as redundant against the following element wait — correct in isolation, but it had been
+incidentally serialising the hydration.
+
+The consequence lands on the BIP39 feedback assertion: with both fills dropped, `validClasses` and
+`invalidClasses` read identical strings and `expect(validClasses).not.toBe(invalidClasses)` fails.
+That assertion is itself one this sweep tightened in `51215b4` — the original only checked both were
+truthy, which could not fail and so hid the race.
+
+Fixed at the cause rather than by restoring the removed wait: the step now waits for the input to be
+editable and asserts each fill propagated before reading the class off it. The paste step below it
+had the same exposure and got the same guard. **90/90** with retries disabled at `--repeat-each=10`.
+
 ## Verification
 
-| Check                         | Result                                                  |
-| ----------------------------- | ------------------------------------------------------- |
-| `pnpm typecheck`              | clean                                                   |
-| `pnpm lint`                   | 0 errors, 1 warning (pre-existing TanStack Virtual)     |
-| `pnpm test`                   | **2091 passed / 2 skipped, 111 files** (was 2081 / 110) |
-| `pnpm build`                  | succeeds                                                |
-| `pnpm test:e2e`               | **163 passed**, 0 failed, exit 0                        |
-| oxfmt on touched `.ts`/`.tsx` | all 6 files pass                                        |
+Re-run against the clean committed tree, per root's Gap 2, not against a dirty worktree.
+
+| Check                         | Result                                                    |
+| ----------------------------- | --------------------------------------------------------- |
+| `pnpm typecheck`              | clean                                                     |
+| `pnpm lint`                   | 0 errors, 1 warning (pre-existing TanStack Virtual)       |
+| `pnpm format:check`           | 14 pre-existing `specs/**` markdown files; 0 `.ts`/`.tsx` |
+| `pnpm test`                   | **2091 passed / 2 skipped, 111 files** (was 2081 / 110)   |
+| `pnpm build`                  | succeeds                                                  |
+| `pnpm test:e2e`               | **163 passed**, 0 failed, exit 0                          |
+| oxfmt on touched `.ts`/`.tsx` | all 7 files pass                                          |
+
+Flake sampling, all with `--retries=0`:
+
+| Sample                                               | Result                                              |
+| ---------------------------------------------------- | --------------------------------------------------- |
+| `import.spec.ts` at `--repeat-each=5`                | 80/80                                               |
+| whole suite at `--repeat-each=2`                     | 325/326 — the B-15 flake, diagnosed and fixed above |
+| whole suite at `--repeat-each=2`                     | 326/326                                             |
+| `identity.spec.ts` at `--repeat-each=10`             | 90/90 after the B-15 fix                            |
+| whole suite at `--repeat-each=3`                     | **488/489** — one residual flake, analysed below    |
+| `import.spec.ts` at `--repeat-each=10` (single test) | 10/10                                               |
+| `import.spec.ts` at `--repeat-each=5` (whole file)   | 80/80                                               |
+
+### The residual 1-in-489 flake is pre-existing, not from this range
+
+`import.spec.ts:301 transaction surface drop transfers one File without plaintext storage and cancel returns`
+failed once at line 365, waiting for `/transactions` after the import completes. Reported rather
+than re-run until green, and checked for causation rather than assumed to be noise:
+
+- **The test is byte-identical to BASE.** `git diff --stat 659ca20 HEAD -- tests/e2e/import.spec.ts`
+  is empty. P20B never touched this file.
+- **My detection change cannot reach it.** Its fixture amounts are `1.00`-style US values. Running
+  the pre-fix and post-fix `detectNumberFormat` side by side on `"1.00"` returns
+  `{thousand: ",", decimal: "."}` from both — identical behaviour on this input.
+- **It does not reproduce under targeted load:** 10/10 for the single test, 80/80 for the whole
+  file.
+- The captured server log shows
+  `Failed to initialize vault: No session - user must be authenticated`, i.e. a vault-session
+  initialisation race under full-suite scheduling pressure, not an import-parsing failure.
+
+That is a genuine pre-existing flake in the suite and I am not claiming otherwise; it is a candidate
+for a follow-up, but fixing an untouched test's unrelated auth race is outside this package's
+charter and would be unreviewable churn against the sweep's diff. Raised as **Q-13** below.
+
+The `format:check` list is 14 files, one more than the 13 reported in `implementation-01.md`: root's
+own `QUESTIONS.md` transcription in `fd0729c` added the fourteenth. All are `specs/**` markdown that
+was already unformatted, including the frozen `human-scratch.md`, which must not be reformatted. No
+`.ts`/`.tsx` fails oxfmt.
 
 Type escapes are unchanged by this commit and remain below base: `as` 113 (base 151), non-null `!` 2
 (base 22), explicit `any` 0 (base 5). Re-measured with the published queries in
@@ -150,7 +220,19 @@ file is root-owned, so it is raised here rather than edited.
 
 ## Q-proposals
 
-No new Q-proposals. The lead's dispatch asked that any deliberately deferred piece of the correlated
-fix be recorded as one — nothing was deferred. All three pieces shipped: the `readonly` fields, both
-component call-site rewrites, and the `detectNumberFormat` sign tolerance, plus the FR whitespace
-defect found while verifying the sign claim.
+Nothing from the lead's correlated fix was deferred — all three pieces shipped: the `readonly`
+fields, both component call-site rewrites, and the `detectNumberFormat` sign tolerance, plus the FR
+whitespace defect found while verifying the sign claim. One new proposal, from the flake sampling:
+
+### Q-13 (MINOR, test flake) — `import.spec.ts:301` races vault-session initialisation
+
+`transaction surface drop transfers one File without plaintext storage and cancel returns` fails
+roughly 1 run in 489 under full-suite load, timing out at line 365 waiting for `/transactions` after
+import, with `Failed to initialize vault: No session - user must be authenticated` in the server
+log. The test is unchanged since BASE and passes 10/10 and 80/80 under targeted repetition, so this
+is a pre-existing race rather than sweep-induced — see the analysis in the Verification section.
+
+**Recommendation:** leave for a follow-up. The remedy is in the vault-session bootstrap or the
+test's post-import wait, neither of which this package touched, and diagnosing a 0.2%-rate auth race
+properly needs its own reproduction budget. Flagged rather than papered over with a retry, since
+adding retries to hide it would violate the E2E guide the sweep is enforcing.
