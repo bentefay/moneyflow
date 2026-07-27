@@ -5493,3 +5493,15 @@ HS-021 requirement -> `rollback_pending`; owning package `P20B` + downstream `P2
   §287 checked⟺passed integrity holds: no marker is checked-while-non-passed (HS-021 is now both
   unchecked and non-passed). Batch `RB-P21-01` CLOSED. Requirement tally 22 -> **21 of 22 passed**
   (HS-021 open). Dispatch is now legal again (batch field == `none`).
+
+### 2026-07-27 — P20B rev 02 implementer DISPATCHED
+
+RB-P21-01 batch is CLOSED and the `Active P21 rollback batch` field == `none`, so dispatch is legal.
+Dispatched a fresh implementer for **P20B revision 02** (HANDOFF.md rewritten). Scope: test-only
+hardening of `tests/e2e/identity.spec.ts:282` — wait for the validity className to flip
+(`toHaveClass(/border-green-500/)` / `/border-destructive/`) before reading it, mirroring the
+existing hydration-aware waits; the `SeedPhraseInput.tsx` component is CORRECT and untouched. BASE ==
+current HEAD `4e01e6b` (product delta from P20B rev 01 tip is empty; intervening commits are root
+control-plane + the marker rollback). Implementer commits ONLY the one test file, proves the flake
+gone via repeated `pnpm test:e2e --retries=0`, and writes `evidence/P20B/implementation-04.md`. Root
+will verify-not-trust the handback, then dispatch a DISTINCT `p20b-reviewer-02`.
