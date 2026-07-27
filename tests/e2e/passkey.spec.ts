@@ -12,7 +12,7 @@
 
 import { expect, type Page, test } from "@playwright/test";
 
-import { createNewIdentity, extractSeedPhrase } from "./helpers";
+import { createNewIdentity, enterSeedPhrase, extractSeedPhrase } from "./helpers";
 import {
     addSecondAuthenticator,
     addVirtualAuthenticator,
@@ -397,7 +397,16 @@ test.describe("Passkey", () => {
         await test.step("that phrase unlocks the identity the passkey created", async () => {
             await page.evaluate(() => sessionStorage.clear());
             await page.goto("/unlock");
-            await page.getByTestId("recovery-phrase-credential").fill(words.join(" "));
+            // This unlock step flaked ~1 in 8 full-suite --retries=0 runs under parallel
+            // load; the identical page.getByTestId("recovery-phrase-credential")
+            // .fill(words.join(" ")) pattern at :72/:171/:232 passes reliably, and a
+            // deterministic product bug would fail every run, not ~1/8 — so this is a
+            // load-dependent test-timing flake, not a product defect. Entering the phrase
+            // via the validated per-word grid waits for the "Valid recovery phrase"
+            // indicator, giving a deterministic settle before the unlock click, consistent
+            // with the other unlock tests. The single-field credential path stays covered
+            // at :72/:171/:232 (and identity/onboarding-vault specs). See Q-P20B-16.
+            await enterSeedPhrase(page, words, true);
             await page.getByTestId("unlock-button").click();
             await page.waitForURL("**/transactions", { timeout: 20000 });
             expect(await readSessionPubkeyHash(page)).toBe(createdHash);
