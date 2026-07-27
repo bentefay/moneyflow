@@ -1,94 +1,64 @@
-# HANDOFF — P20B IMPLEMENT dispatch (revision 01 — HS-021 full-codebase style-guide sweep)
+# HANDOFF — P20B pre-review reconciliation (revision 01 — HS-021 sweep) — to `p20b-implementer-01`
 
-**To:** `p20b-implementer-01` (fresh implementer). **From:** root coordinator. You are the
-IMPLEMENTER; a DISTINCT reviewer (`p20b-reviewer-01`) will review your work — never review your own.
+**To:** `p20b-implementer-01` (same implementer, resumed from your own transcript). **From:** root
+coordinator. This is NOT a review verdict. Your committed range `659ca20..9ab6119` verifies clean at
+the boundary level — but two things must be reconciled before an independent reviewer can be
+dispatched, because a reviewer must read evidence that matches the code and run gates that reflect
+the committed tree.
 
-**Package:** P20B — the SOLE package for **HS-021**: _"Do a sweep of the full code base for code
-quality based on our style guide."_ Frozen source `specs/human-scratch.md:159`, exact text in
-`SCOPE.json#HS-021`. Full brief:
-`specs/007-human-scratch-completion/tasks/HS-021-code-quality-sweep.md` — read it in full; it is the
-charter. This is the last feature-quality package before the P21 executable final audit.
+## Context — what root already saw
 
-**BASE = current HEAD `659ca20d9819b389ba100b052dfdbe2c0043affc`.** Commit forward on top of BASE in
-coherent, reviewable sub-checkpoint commits. **No-checkout discipline: do NOT
-checkout/reset/branch/switch/rebase.**
+You self-committed the previously-uncommitted import work as
+**`9ab6119 fix(P20B): make import config immutable and repair amount-format detection`** on top of
+`5fbc0ed`. Root verified `9ab6119` read-only: it touches only import product/test files, no
+root-owned files, frozen sources and `settlement.ts` are byte-identical (blob
+`010f3c93582a2ce311594d4dde8464760ca49c43`), and it adds no `as`/`any`/non-null `!` to product code.
+Good. The worktree is now clean of product drift. Two gaps remain.
 
-## What the sweep IS
+## Gap 1 — evidence now contradicts the code (must fix)
 
-1. **Bounded inventory first, then fixes.** Produce `evidence/P20B/implementation-01.md` (you may
-   add more numbered files) with, BEFORE and alongside fixes: an inventory organized by `.claude`
-   guide (general coding-style, TypeScript rules, and the component/CRDT/crypto/sync/tRPC/import/E2E
-   skills) × subsystem, each finding with a file:line, the rule it violates, severity, and
-   disposition (fixed here / deferred with a Q-proposal / no-action-justified). Record scanned paths
-   and the tool queries you ran. Do not silently narrow the inventory — cover the whole first-party
-   codebase.
-2. **Fix concrete, demonstrated violations** in first-party code: correctness, type-safety
-   (especially removing `as`/`any`/non-null `!` — see below), maintainability (dead code,
-   duplication vs the "reuse before writing" rule, illegal-states-representable typing), boundary
-   validation, named exports, Tailwind token/dark/responsive correctness, semantic/focus/keyboard
-   a11y, CRDT draft-mutation + soft-delete rules, encrypted-sync/crypto safety, tRPC auth/permission
-   gating, money-as-integer-minor-units + import rules, and E2E
-   isolation/no-arbitrary-waits/flakiness.
-3. **Add regression tests** for every behavior-changing fix; property/security tests where an
-   invariant changes. Repeat every affected E2E journey with retries disabled and run a whole-suite
-   flake sample.
+`evidence/P20B/implementation-01.md §3 Q-P20B-11` still states that number-format auto-detection
+"still fails; completing it needs a component file that was being edited concurrently" — i.e.
+deferred. But `9ab6119` FIXES exactly that: `detectNumberFormat` now handles signed magnitudes and
+space thousands separators, with `tests/unit/components/formatting-detection.test.ts` as regression
+cover. The evidence and the tree disagree.
 
-## What the sweep IS NOT
+- Update `Q-P20B-11` (and the corresponding number-format row in your inventory, and any "deferred"
+  tally) to state the fix is now LANDED in `9ab6119`, with the file:line and the regression test
+  named. If any residual really is still deferred, scope it precisely to what remains, not the whole
+  item.
+- Root has already transcribed the Q-proposals into `QUESTIONS.md` as `Q-P20B-00..12`; do NOT edit
+  `QUESTIONS.md` (root-owned). Just make your own evidence internally consistent — root will re-sync
+  the QUESTIONS entry from your corrected evidence.
 
-- **No aesthetic churn, no unrelated redesign, no behavior change** except where fixing a
-  demonstrated defect. Preserve behavior otherwise.
-- **Do NOT weaken or delete a `.claude` rule to avoid a fix.** You MAY correct stale FACTUAL stack /
-  convention text in `.claude/**` ONLY when repository reality proves it stale (e.g. a version or
-  path that no longer matches) — cite the proof in evidence for each such edit. Rule-strength
-  changes are out of scope; if a rule seems wrong, raise a Q-proposal instead.
-- **Do NOT touch the frozen sources** `specs/human-scratch.md` and
-  `specs/008-transaction-percentage-allocations-settlement/spec.md` — not one byte.
-- **FS-001 hard boundary:** `src/lib/domain/settlement.ts` MUST stay byte-identical (blob
-  `010f3c93582a2ce311594d4dde8464760ca49c43`). Do not modify it even if you spot a style nit — flag
-  it as a deferred Q-proposal instead.
-- **Do NOT edit root-owned files:** `PROGRESS.md`, `SCOPE.json`, `QUESTIONS.md`, `HANDOFF.md`,
-  `DECISIONS.md`, `FINAL-AUDIT.md`, any `reviews/**`, or the `tasks/**` briefs. Your writes are
-  product/test/`.claude` code + your own `evidence/P20B/**`.
+## Gap 2 — gates must reflect the committed tree (must re-run)
 
-## Hard repo rules (blocking)
+Your previously reported counts (typecheck clean; lint 0e/1w; test 2081/2 skip/110 files; build ok;
+e2e 163; flake 213/213) were measured while these changes were uncommitted, so they describe a dirty
+tree. Re-run everything against the clean committed HEAD `9ab6119` and report the REAL counts:
 
-- **NO new `as` / `any` / non-null `!` in product code** — repo-wide hard rule. Net direction must
-  be DOWN, never up. Test-fixture casts tolerated only where existing precedent allows; product
-  stays cast-free. If a genuine type hole forces a cast, raise a Q-proposal rather than adding one
-  silently.
-- **Secret-safety (blocking):** no vault master key, invite-fragment bearer secret, crypto_box
-  secret material, seed phrase, recovery material, `SUPABASE_JWT_SECRET`, vault-derived presence
-  key, or vault plaintext in code/logs/URLs/fixtures/evidence. Tests use public/synthetic vectors
-  only. Any real-material exposure is a blocking finding — stop and report to root immediately.
-- **Functional/immutable style**, established libraries over custom algorithms, money as integer
-  minor units (`toMinorUnitsForCurrency()`), client-side encryption invariants intact.
-- **Playwright:** never run with `--debug`, `--ui`, `--headed`, or `show` (blocks on a GUI). Clean
-  up sessions/evidence. No secret material in any captured evidence.
-- **No parentheses in commit messages.**
+`pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm test:e2e` plus `pnpm build`.
+Re-run the affected import E2E journeys with retries disabled and re-sample flake. `format:check`
+failing only on pre-existing `specs/**` markdown (including frozen `human-scratch.md`, which must
+NOT be reformatted) is non-blocking; any touched `.ts`/`.tsx` failing oxfmt is blocking.
 
-## Manual Playwright CLI charter
+## Still binding
 
-Per the brief's exhaustive charter: after the sweep, smoke every top-level page and critical journey
-(create/unlock, imports, transactions, aliases/tags/allocations/automation,
-people/invites/realtime/presence, settings) across pointer/keyboard, desktop/mobile, dark/reduced
-motion, empty/loading/error/offline, refresh, duplicate tabs, isolated users. Inspect all console
-errors/warnings and failed/suspicious network requests. Record what you exercised and any defects in
-evidence. Headless only.
-
-## Gates — run ALL and report REAL counts
-
-`pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm test:e2e`, plus `pnpm build`.
-`format:check` failing only on pre-existing `specs/**` markdown is non-blocking; any `.ts`/`.tsx`
-you touched failing oxfmt is blocking (`pnpm format` your own files). Report the real counts, not
-"passing".
+- No new `as`/`any`/non-null `!` in product code; net direction stays DOWN.
+- Do NOT touch `specs/human-scratch.md`, `specs/008-.../spec.md`, or `src/lib/domain/settlement.ts`.
+- Do NOT edit root-owned files (`PROGRESS.md`, `SCOPE.json`, `QUESTIONS.md`, `HANDOFF.md`,
+  `DECISIONS.md`, `FINAL-AUDIT.md`, `reviews/**`, `tasks/**`). Your writes are
+  product/test/`.claude`
+    - your own `evidence/P20B/**`.
+- No secret material anywhere. No parentheses in commit messages. No checkout/reset/branch/rebase.
+- Leave the untracked stray `evidence/P08/implementation-01.md` alone — not yours; root tracks it.
+- The tree must end clean: `git status --porcelain` (excluding `next-env.d.ts` generated churn and
+  your own `evidence/P20B/**`) empty at re-handback.
 
 ## Handback
 
-When done, SendMessage to `main` with: final HEAD SHA + the linear chain from `659ca20`; a summary
-of the inventory (counts by severity, fixed vs deferred) with the evidence path; the exact list of
-`.claude/**` factual edits (if any) with proof; explicit confirmation that (a) frozen sources +
-`settlement.ts` are byte-identical, (b) no new `as`/`any`/`!` in product code (ideally a net
-reduction, with the before/after count), (c) no secret material anywhere, (d) all gate counts real,
-(e) regression tests added for behavior-changing fixes, (f) E2E flake sample result. List every
-Q-proposal you raised for root. Do not checkout/reset. Verify your own claims against git before
-handing back.
+SendMessage to `main` with: the final HEAD SHA (a small `docs`/evidence commit on top of `9ab6119`
+is expected for Gap 1) and the chain from `9ab6119`; confirmation the `Q-P20B-11` evidence now
+matches the committed fix; the REAL re-run gate counts against the clean tree; and
+`git status --porcelain` proof the tree is clean. Verify against git before handing back. After
+this, root re-verifies the delta and dispatches a DISTINCT `p20b-reviewer-01` over the full range.

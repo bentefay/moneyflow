@@ -1592,3 +1592,253 @@ No unresolved product questions were answered by scaffold creation.
 - **Impact and risk:**
 - **How to reverse or migrate:**
 - **Does a human still need to decide after completion?:** yes/no and why
+
+## P20B (HS-021 full-codebase style-guide sweep) — Q-proposals
+
+These 13 proposals were surfaced by `p20b-implementer-01` in
+`evidence/P20B/implementation-01.md §3` during the whole-codebase quality sweep. Root transcribes
+them verbatim-in-substance; they are transparently-surfaced deferrals (not silent narrowing). None
+alters HS-021's committed scope. `p20b-reviewer-01` must judge whether any deferral — especially
+Q-P20B-00 — is acceptable or must bounce the package; Q-P20B-06 and Q-P20B-08 are root rule-vs-reality
+decisions.
+
+### Q-P20B-00 — `pruneBuckets` destroys concurrent writes on merge (data loss)
+
+- **Raised:** 2026-07-27, P20B, p20b-implementer-01
+- **Source proposal:** `evidence/P20B/implementation-01.md §3 Q-0`
+- **Context and evidence:** `pruneBuckets` (`mutations.ts:287-330`) splices the day/month/year list
+  element and at `:325` deletes the account key outright. Reproduced independently with two-peer
+  LoroDoc merges: peer A deletes `tx-1` while peer B inserts an unrelated `tx-2` into the same
+  bucket → both converge to `[]`, `tx-2` lost. Not delete-specific: `moveTransaction` also calls
+  `pruneBuckets` (`:573`), so merely changing a transaction's date destroys a collaborator's brand
+  new unrelated transaction. The soft-delete hypothesis was investigated and REFUTED (hard delete is
+  merge-safe and does not resurrect); the real defect is that pruning containers is not merge-safe.
+- **Why the frozen requirement/repository does not fully decide it:** HS-021 is "sweep for code
+  quality per the style guide". This is a correctness/data-loss defect, not a style discrepancy;
+  fixing it is non-mechanical (14 tests + 20 assertions depend on physical removal; three production
+  gaps — duplicate badge `page.tsx:335`, mutation resolvers `mutations.ts:444,:487`, nested-dup
+  re-materialization `:872-900` — must close first; no tombstone GC exists). A style sweep is the
+  wrong vehicle for a merge-safety redesign.
+- **Options considered:** (a) **[SELECTED for continued work]** surface as a blocker-class Q-proposal,
+  do NOT attempt a merge-safety redesign inside a style sweep; reviewer + P21 audit judge severity;
+  (b) flip `deleteTransaction` `cascade` default to soft-delete now — REJECTED (motivation disproven,
+  large blast radius, does not fix `moveTransaction`); (c) make pruning merge-safe / stop pruning
+  containers — the likely real fix, but a bounded feature package of its own, out of P20B scope.
+- **Default selected for continued work:** Option (a).
+- **Decision hierarchy basis:** a correctness redesign is not committed by HS-021's frozen text; a
+  style sweep must not silently take on a merge-safety rewrite. Flagged for human/product decision.
+- **Impact and risk:** real multi-client data loss; needs two active clients to trigger. Severity
+  depends on whether concurrent multi-user editing is exercised in practice. Left UNFIXED
+  deliberately and transparently.
+- **How to reverse or migrate:** a future package makes pruning merge-safe (or removes container
+  pruning) with regression tests over the two reproduced two-peer scenarios.
+- **Does a human still need to decide after completion?:** Yes — prioritize a merge-safety fix; this
+  is not a HS-021 or completion gate but is a genuine data-loss risk.
+
+### Q-P20B-01 — vault re-key machinery has zero callers (security posture)
+
+- **Raised:** 2026-07-27, P20B, p20b-implementer-01
+- **Source proposal:** `evidence/P20B/implementation-01.md §3 Q-1`
+- **Context and evidence:** `membership.remove` deletes a member but nothing calls `membership.rekey`;
+  `src/lib/crypto/rekey.ts` has zero callers. In-app copy already states the key is NOT rotated.
+- **Why not decided by frozen text:** duplicates the standing Q-016/P20A rekey product question;
+  wiring key rotation is a security-design decision, not a style fix.
+- **Options considered:** (a) **[SELECTED]** leave as the standing product question already logged for
+  P20A/HS-016; (b) wire rekey now — REJECTED (out of a style sweep's scope).
+- **Default selected for continued work:** Option (a). See the earlier HS-016 rekey question.
+- **Decision hierarchy basis:** threat-model decision, not committed by HS-021.
+- **Impact and risk:** removed member's retained ciphertext stays readable; disclosed truthfully.
+- **How to reverse or migrate:** future package wires `performCompleteRekey` + `membership.rekey`.
+- **Does a human still need to decide after completion?:** Yes — same product decision as HS-016.
+
+### Q-P20B-02 — `sync.getUpdates` returns all ops, ignores version vector (availability)
+
+- **Raised:** 2026-07-27, P20B, p20b-implementer-01
+- **Source proposal:** `§3 Q-2`
+- **Context and evidence:** `sync.ts:127` selects every op for the vault with no limit and ignores the
+  client version vector, so a 499-op vault returns all 499 on every catch-up.
+- **Why not decided by frozen text:** performance/protocol change, not a style nit.
+- **Options considered:** (a) **[SELECTED]** defer as a protocol/perf question; (b) redesign paging in
+  P20B — REJECTED (behavior-level sync change beyond a style sweep).
+- **Default selected for continued work:** Option (a).
+- **Decision hierarchy basis:** not committed by HS-021.
+- **Impact and risk:** bandwidth/latency scales with vault history; correctness unaffected.
+- **How to reverse or migrate:** add version-vector filtering + output limit in a sync package.
+- **Does a human still need to decide after completion?:** No hard gate; product perf backlog.
+
+### Q-P20B-03 — `sync.pushSnapshot` allows any member to overwrite snapshot, TOCTOU (integrity)
+
+- **Raised:** 2026-07-27, P20B, p20b-implementer-01
+- **Source proposal:** `§3 Q-3`
+- **Context and evidence:** `sync.ts:276` lets any member overwrite the single authoritative snapshot
+  with no version-vector monotonicity check and a check-then-write TOCTOU; `vault_ops` has an
+  append-only trigger but snapshots do not.
+- **Why not decided by frozen text:** server integrity/authorization design, not style.
+- **Options considered:** (a) **[SELECTED]** defer as a server-integrity question; (b) add
+  monotonicity + atomic guard now — REJECTED (schema/RLS design beyond a style sweep).
+- **Default selected for continued work:** Option (a).
+- **Decision hierarchy basis:** not committed by HS-021.
+- **Impact and risk:** a stale/malicious snapshot could clobber newer state; mitigated by op log.
+- **How to reverse or migrate:** version-vector monotonicity check + atomic conditional write.
+- **Does a human still need to decide after completion?:** Yes — integrity hardening decision.
+
+### Q-P20B-04 — ~20 `*Output` tRPC schemas declared but never attached (contract)
+
+- **Raised:** 2026-07-27, P20B, p20b-implementer-01
+- **Source proposal:** `§3 Q-4`
+- **Context and evidence:** the `.max(1000)` in `schemas/sync.ts` is unenforced because `getUpdates`
+  has no `.output()`; ~20 `*Output` schemas are exported and never attached to procedures.
+- **Why not decided by frozen text:** attaching outputs can change runtime behavior (response
+  validation/stripping); needs per-procedure verification, not a blanket sweep edit.
+- **Options considered:** (a) **[SELECTED]** defer as a bounded follow-up; (b) attach all outputs in
+  P20B — REJECTED (risk of breaking clients if a response violates a stale schema).
+- **Default selected for continued work:** Option (a).
+- **Decision hierarchy basis:** behavior risk; not committed by HS-021.
+- **Impact and risk:** declared contracts unenforced; low correctness risk today.
+- **How to reverse or migrate:** attach `.output()` per procedure with response fixtures.
+- **Does a human still need to decide after completion?:** No hard gate; contract hygiene backlog.
+
+### Q-P20B-05 — production-dead modules (dead code)
+
+- **Raised:** 2026-07-27, P20B, p20b-implementer-01
+- **Source proposal:** `§3 Q-5`
+- **Context and evidence:** `src/lib/domain/automation.ts` (524 lines, superseded by the P17A
+  field-rule engine, and it inverts layering by importing from `@/components`),
+  `src/lib/import/processor.ts` (a second CSV pipeline already diverged from `use-import-state.ts`),
+  `src/lib/crypto/rekey.ts`, and eight unused tRPC procedures are production-dead.
+- **Why not decided by frozen text:** deletion of whole modules is a structural call with import-graph
+  and future-use implications, not a mechanical style fix; some (rekey) tie to open product questions.
+- **Options considered:** (a) **[SELECTED]** defer deletion as a structural cleanup Q; (b) delete now
+  in P20B — REJECTED (couples to Q-P20B-01/04 decisions; risk of removing intended-future code).
+- **Default selected for continued work:** Option (a).
+- **Decision hierarchy basis:** structural; not committed by HS-021.
+- **Impact and risk:** dead code + a layering inversion; no runtime effect.
+- **How to reverse or migrate:** delete with import-graph proof once rekey/output questions resolve.
+- **Does a human still need to decide after completion?:** Yes — confirm nothing is intended-future.
+
+### Q-P20B-06 — ts-pattern `.exhaustive()` mandated but not installed (rule vs reality)
+
+- **Raised:** 2026-07-27, P20B, p20b-implementer-01
+- **Source proposal:** `§3 Q-6`
+- **Context and evidence:** `.claude/rules/typescript-style.md` mandates ts-pattern `.exhaustive()`,
+  but ts-pattern is not a dependency and is not installed; three source files carry comments noting
+  so. The sweep consolidated seven hand-rolled `assertNever` copies into one shared helper as the
+  closest compliant option.
+- **Why not decided by frozen text:** a rule-strength/tooling decision; the sweep charter forbids
+  weakening `.claude` rules and defers rule conflicts to root as Q-proposals.
+- **Options considered:** (a) **[SELECTED for continued work]** keep the shared `assertNever` helper;
+  root decides later whether to add ts-pattern or amend the rule; (b) add ts-pattern dependency in
+  P20B — REJECTED (adds a dependency + churn under a style sweep); (c) delete the rule — REJECTED
+  (rule-strength change, out of scope).
+- **Default selected for continued work:** Option (a).
+- **Decision hierarchy basis:** repo hard rule "do not weaken `.claude` rules"; rule-vs-reality is a
+  root decision.
+- **Impact and risk:** exhaustiveness enforced via shared helper rather than ts-pattern; equivalent
+  safety.
+- **How to reverse or migrate:** add ts-pattern and migrate, OR amend the rule to bless `assertNever`.
+- **Does a human still need to decide after completion?:** Root rule-vs-reality decision; not a
+  correctness gate.
+
+### Q-P20B-07 — `--color-destructive-foreground` undefined in theme (token)
+
+- **Raised:** 2026-07-27, P20B, p20b-implementer-01
+- **Source proposal:** `§3 Q-7`
+- **Context and evidence:** `--color-destructive-foreground` is not defined in `globals.css`, so
+  `text-destructive-foreground` emits nothing; `ImportDropTarget` was left on its explicit red pair.
+- **Why not decided by frozen text:** adding a theme token is a small design decision.
+- **Options considered:** (a) **[SELECTED]** defer adding the token; keep the working explicit pair;
+  (b) add token in P20B — reasonable but a design choice left to root.
+- **Default selected for continued work:** Option (a).
+- **Decision hierarchy basis:** cosmetic token; not committed by HS-021.
+- **Impact and risk:** none currently (explicit colors render); latent for future consumers.
+- **How to reverse or migrate:** define the token in the theme and switch consumers.
+- **Does a human still need to decide after completion?:** No hard gate; theme hygiene.
+
+### Q-P20B-08 — branded key types mandated by crypto skill do not exist (crypto typing)
+
+- **Raised:** 2026-07-27, P20B, p20b-implementer-01
+- **Source proposal:** `§3 Q-8`
+- **Context and evidence:** `.claude/skills/crypto/SKILL.md` mandates branded key types (`VaultKey`,
+  `SigningKey`); neither exists. Every key is a raw `Uint8Array`, so a vault key, an X25519 secret
+  and a PRF output are mutually substitutable in `wrapKey`, where argument order is security-critical.
+- **Why not decided by frozen text:** introducing branded types touches the crypto surface and every
+  key call site — a security-typing project, not a style sweep edit; the charter defers rule
+  conflicts to root.
+- **Options considered:** (a) **[SELECTED for continued work]** defer as a dedicated crypto-typing
+  question; (b) introduce brands across crypto in P20B — REJECTED (wide security-critical surface,
+  needs its own review); (c) weaken the rule — REJECTED (out of scope).
+- **Default selected for continued work:** Option (a).
+- **Decision hierarchy basis:** security-critical typing change; root rule-vs-reality decision.
+- **Impact and risk:** key-confusion is currently type-permitted; no demonstrated live defect.
+- **How to reverse or migrate:** add `VaultKey`/`SigningKey`/`X25519Secret` brands with construction
+  at boundaries, in a dedicated package.
+- **Does a human still need to decide after completion?:** Root decision; not a correctness gate.
+
+### Q-P20B-09 — three FS-001 `settlement.ts` nits deferred (frozen boundary)
+
+- **Raised:** 2026-07-27, P20B, p20b-implementer-01
+- **Source proposal:** `§3 Q-9`
+- **Context and evidence:** in the frozen `settlement.ts`: a fourth copy of `freezeResultGraph`
+  (:204); `Object.create(null)` cast (:231, unavoidable); `issueOrder` falling back to
+  `JSON.stringify` on both operands per comparison (:915, correct but O(n log n) serialisations).
+  NOT touched — the file is the FS-001 byte-identical hard boundary (blob `010f3c93…`).
+- **Why not decided by frozen text:** the file is a frozen boundary; it MUST stay byte-identical, so
+  no fix is permitted here regardless of merit.
+- **Options considered:** (a) **[SELECTED]** defer all three, do not touch the boundary; (b) fix —
+  FORBIDDEN by the FS-001 boundary.
+- **Default selected for continued work:** Option (a).
+- **Decision hierarchy basis:** FS-001 byte-identical boundary overrides style.
+- **Impact and risk:** minor duplication + a perf micro-cost; behavior correct.
+- **How to reverse or migrate:** any change requires re-opening the FS-001 boundary decision.
+- **Does a human still need to decide after completion?:** No — boundary is intentional.
+
+### Q-P20B-10 — import decodes UTF-8 only, corrupts Latin-1/1252 exports (encoding)
+
+- **Raised:** 2026-07-27, P20B, p20b-implementer-01
+- **Source proposal:** `§3 Q-10`
+- **Context and evidence:** import uses `file.text()` (always UTF-8), so Latin-1/Windows-1252 bank
+  exports get U+FFFD in non-ASCII payee names; OFX files even declare `CHARSET:1252` in their header.
+- **Why not decided by frozen text:** charset detection/transcoding is a feature-sized addition.
+- **Options considered:** (a) **[SELECTED]** defer as a feature; (b) add charset handling in P20B —
+  REJECTED (feature scope).
+- **Default selected for continued work:** Option (a).
+- **Decision hierarchy basis:** feature, not style; not committed by HS-021.
+- **Impact and risk:** non-ASCII names corrupted on affected files; data-quality, not crash.
+- **How to reverse or migrate:** detect charset (incl. OFX header) and decode with an established lib.
+- **Does a human still need to decide after completion?:** No hard gate; import backlog.
+
+### Q-P20B-11 — `detectNumberFormat` fails on leading-minus / EU format (parsing)
+
+- **Raised:** 2026-07-27, P20B, p20b-implementer-01
+- **Source proposal:** `§3 Q-11`
+- **Context and evidence:** `detectNumberFormat` regexes are anchored `^\d`, so a leading minus
+  defeats detection and EU-format files fall back to US parsing. B-4's fix converts the resulting
+  corruption into a structured per-row error, but auto-detection still fails; completing it needs a
+  component file that was being edited concurrently.
+- **Why not decided by frozen text:** completion depends on a concurrently-edited component; the
+  safe partial fix (structured error instead of silent corruption) was landed.
+- **Options considered:** (a) **[SELECTED]** land the structured-error guard now, defer full
+  auto-detection; (b) rewrite detection in P20B — deferred to avoid the concurrent-edit conflict.
+- **Default selected for continued work:** Option (a).
+- **Decision hierarchy basis:** partial safe fix landed; remainder is a bounded follow-up.
+- **Impact and risk:** EU-format numbers now error clearly rather than silently corrupt.
+- **How to reverse or migrate:** anchor-tolerant detection handling a leading sign.
+- **Does a human still need to decide after completion?:** No hard gate; import backlog.
+
+### Q-P20B-12 — `useControlledState` casts `defaultValue as T` (typing)
+
+- **Raised:** 2026-07-27, P20B, p20b-implementer-01
+- **Source proposal:** `§3 Q-12`
+- **Context and evidence:** `use-controlled-state.tsx:16` casts `defaultValue as T`, which lies when
+  neither `value` nor `defaultValue` is supplied (state is genuinely `undefined`). The honest fix is
+  a discriminated props union. Its only consumer is vendored `animate-ui/.../tabs.tsx`. The `any` in
+  its generic constraint WAS fixed (`Rest extends any[]` → `unknown[]`), removing the eslint-disable.
+- **Why not decided by frozen text:** changing the hook's public shape is churn against vendored
+  third-party code for no first-party benefit.
+- **Options considered:** (a) **[SELECTED]** keep the single `as T` (only consumer is vendored), having
+  removed the `any`; (b) discriminated union rewrite — REJECTED (churn vs vendored code).
+- **Default selected for continued work:** Option (a).
+- **Decision hierarchy basis:** cast tolerated where it only serves vendored code; `any` was removed.
+- **Impact and risk:** one residual `as T` behind a vendored-only API; net cast count still down.
+- **How to reverse or migrate:** discriminated props union if a first-party consumer ever appears.
+- **Does a human still need to decide after completion?:** No hard gate.
