@@ -1,71 +1,74 @@
-# HANDOFF — P21 revision 03 formal review (DISTINCT reviewer; verdict phase)
+# HANDOFF — P01 revision 03 reopen (HS-002 dependency-security fix; implementer phase)
 
-- **Package:** P21 (control — executable final audit / completion gate)
-- **Revision:** 03 — **formal reviewer verdict** on the `p21-collector-03` FAIL-candidate
-- **You are DISTINCT:** you are NOT `p21-collector-03` and NOT any P20B implementer/reviewer. Fresh
-  context. Rule from the evidence and your own independent reruns — do not defer to the collector.
-- **BASE:** the current docs-only tip, with product integration `127990a` underneath. The docs-tip
-  hash may advance between now and dispatch; do NOT pin it. Confirm PRODUCT identity at start AND
-  end via an EMPTY `git diff 127990a HEAD -- . ':(exclude)specs'` — the product tree must be
-  byte-identical to `127990a`.
-- **Allowed reviewer write (ONLY):** `specs/007-human-scratch-completion/reviews/P21-review-03.md`
-- **Forbidden:** any product/migration/test write; any commit; any edit to FINAL-AUDIT.md,
-  PROGRESS.md, QUESTIONS.md, DECISIONS.md, HANDOFF.md, human-scratch.md, or any ledger/marker. You
-  commit NOTHING.
+- **Package:** P01 (owns **HS-002** — "Upgrade to the very latest safe-chain supported version of
+  all dependencies")
+- **Revision:** 03 (reopened after the P21 rev 03 executable-final-audit FAIL, finding **F-1**
+  dependency-security, formally CONFIRMED by DISTINCT reviewer `p21-reviewer-03`)
+- **BASE:** current product tip `bf1cf8f` (the `RB-P21-03` rollback control commit). Branch your
+  product changes on top of HEAD.
+- **You commit product** (unlike reviewers/collectors). Root does NOT edit product.
+- **Allowed writes:** `package.json`, `pnpm-lock.yaml` (and any lockfile pnpm regenerates), and your
+  evidence file `specs/007-human-scratch-completion/evidence/P01/implementation-03.md`. Do NOT touch
+  any ledger/marker (PROGRESS.md, QUESTIONS.md, HANDOFF.md, DECISIONS.md, human-scratch.md,
+  FINAL-AUDIT.md, reviews/\*\*) — those are root-only.
 
-## Why you exist (do not skip)
+## The failure you are fixing (F-1)
 
-The collector `p21-collector-03` returned a **FAIL-candidate** on a single blocking finding **F-1**
-(dependency-security). A collector verdict is a CANDIDATE only. §275's marker-rollback machinery
-requires an IMMUTABLE FAILED REVIEW as precondition, and per §114 the FORMAL P21 verdict comes from
-a DISTINCT reviewer — you. Root will NOT roll back HS-002 / reopen P01 until your formal verdict
-lands. Precedent: rev 01 and rev 02 both had distinct-reviewer FAIL artifacts, and rev 02's reviewer
-OVERTURNED one collector finding — so your independent judgment genuinely matters. Do not
-rubber-stamp.
+`pnpm audit --prod` currently exits 1 with 10 advisories (5 HIGH / 5 MODERATE):
 
-## The candidate finding to adjudicate
+- **`next@16.2.10`** — 4 HIGH + 5 MODERATE, all vulnerable `>=16.0.0 <16.2.11`, patched `>=16.2.11`
+  (HIGH: App Router middleware/proxy bypass, Server-Actions DoS, 2× SSRF). Dist `latest` is
+  **16.2.12** (releases 16.2.11 on 2026-07-21 and 16.2.12 on 2026-07-25). A same-minor patch bump
+  `16.2.10 -> 16.2.12` clears all 9 next advisories.
+- **transitive `sharp@0.34.5`** — 1 HIGH (libvips), patched `>=0.35.0`, dist `latest` 0.35.3.
+  **CRITICAL refinement from the reviewer:** bumping `next` alone does NOT clear this —
+  `next@16.2.12` still declares `optionalDependencies.sharp ^0.34.5` (which excludes 0.35.x). You
+  must add a `pnpm.overrides` entry forcing `sharp >=0.35.0` (target 0.35.3) to pull the fixed
+  libvips.
 
-- **F-1 (dependency-security, claimed BLOCKING):** `pnpm audit --prod` reports 10 advisories
-  (collector: 5 HIGH / 5 MODERATE). `next@16.2.10` is claimed vulnerable to `>=16.0.0 <16.2.11` with
-  HIGH App-Router auth-bypass + SSRF advisories, patched `>=16.2.11` (releases 16.2.11 on 2026-07-21
-  and 16.2.12 on 2026-07-25 both predate this audit). Transitive `sharp` HIGH claimed fixed
-  `>=0.35.0`.
-- Root independently reproduced `pnpm audit --prod` and saw the same class of result. **You must
-  reproduce it yourself, from a clean tree, and rule independently.**
+## Convergence criterion (TERMINATING — this is the whole job)
 
-## Your charter (efficient, bounded — the FAIL is already narrowed to F-1)
+**`pnpm audit --prod` returns exit 0 with 0 advisories.** That is the gate. Do NOT chase every
+possible release or force major/breaking bumps of unrelated packages — the goal is a CLEAN
+production audit via the minimal safe-chain bumps (next patch + sharp override, plus any additional
+advisory that surfaces, cleared the same safe-chain way). If clearing an advisory would require a
+breaking major bump with regression risk, STOP and report to root with the tradeoff rather than
+forcing it.
 
-1. **Confirm the PRODUCT tree matches `127990a`** via an empty
-   `git diff 127990a HEAD -- . ':(exclude)specs'`, and a clean audited scratch state:
-   `sha256sum specs/human-scratch.md` ==
-   `469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a`, 24,260 bytes, 43 checked / 0
-   unchecked, HS-002 marker `[x]` at `:157`. If the tree is drifted, STOP and report to root.
-2. **Independently reproduce F-1:** run `pnpm audit --prod` yourself. Record exact advisory count
-   and severities, the installed `next` version (`pnpm ls next` /
-   `node -p "require('next/package.json').version"`), the vulnerable-range and patched-range for
-   each HIGH advisory, and whether a safe-chain upgrade exists (i.e. is there a published `next` in
-   the compatible range that clears the HIGH advisories, and likewise `sharp >=0.35.0`). Determine:
-   **is F-1 a real, currently-unpatched-in-our-tree security gate failure?** A clean
-   `pnpm audit --prod` would REFUTE it; a HIGH advisory against an installed, upgradable dependency
-   CONFIRMS it.
-3. **HS-002 scope check:** HS-002 = "Upgrade to the very latest safe-chain supported version of all
-   dependencies." Independent of CVE severity, is the installed tree actually on the latest
-   safe-chain versions, or has it drifted behind available safe upgrades? Note your finding.
-4. **Sanity-check the collector's GREEN claims** for gross fabrication only (you need NOT re-run the
-   full E2E suite — rev 04 will re-audit everything on the bumped tree): spot-confirm the ledger
-   package/requirement reconciliation is internally consistent, and that no OTHER blocking finding
-   is hiding in `evidence/P21/implementation-03.md`. If you find an ADDITIONAL blocking issue,
-   report it.
-5. **Secrets:** never print vault master key, seed phrase, recovery material, crypto_box secret,
-   SUPABASE_JWT_SECRET, presence key, or vault plaintext. Synthetic vectors only. Any real-material
-   leak is BLOCKING — report to root immediately.
+## Steps
 
-## Verdict
+1. Bump `next` to `16.2.12` in `package.json` (same minor — safe chain).
+2. Add `pnpm.overrides` forcing `sharp` to `>=0.35.0` (use `0.35.3`, the dist latest). If the repo
+   already has a `pnpm.overrides` block, extend it; do not clobber existing overrides.
+3. `pnpm install` to regenerate `pnpm-lock.yaml`. Confirm the resolved tree: `pnpm ls next` shows
+   16.2.12; `pnpm why sharp` / `pnpm ls sharp` shows >=0.35.0 everywhere it resolves.
+4. **Run `pnpm audit --prod` and confirm exit 0 / 0 advisories.** Paste the sanitized output into
+   evidence. If any advisory remains, resolve it the same safe-chain way and re-run until clean.
+5. **No-regression gates (ALL must pass):**
+   `pnpm typecheck && pnpm lint && pnpm format:check && pnpm test` then the FULL E2E suite
+   `pnpm exec playwright test --retries=0 --reporter=list`, repeated enough to expose flakes.
+   Known-acceptable and NOT regressions: the one pre-existing `TransactionTable.tsx`
+   `react-hooks/incompatible-library` lint WARNING (0 errors); `format:check` flagging only frozen
+   `specs/**` markdown (never product/test source); and the tracked environmental E2E flakes that
+   pass in isolation (`import.spec.ts:301` Q-P20B-13, `import.spec.ts:1527`/:1573 Q-P20B-14,
+   `duplicates.test.ts` Q-P20A-05). Any NEW failure caused by the bump IS a regression — fix it or
+   report. sharp 0.35.x is outside next's declared `^0.34.5`, so pay special attention to
+   `pnpm build` and any image-optimization path.
+6. **No new `as` / `any` / `!` in product** (repo-wide hard rule). This fix should be config-only
+   (package.json + lockfile); if you find yourself editing `.ts`/`.tsx`, stop and reconsider.
+7. Write `evidence/P01/implementation-03.md`: exact commands, sanitized `pnpm audit --prod`
+   before/after, resolved versions, every gate result with counts/durations, E2E run count and any
+   flake classification, and confirmation of no product-source edits beyond config.
+8. Commit the product change (config + lockfile + evidence). Conventional message, **no
+   parentheses**. Report your handback HEAD + evidence path to root (`main`) via SendMessage.
 
-Write `reviews/P21-review-03.md` with an explicit **PASS** or **FAIL**, the exact commands +
-sanitized outputs you ran, and your independent ruling on F-1 (CONFIRMED / OVERTURNED, with
-reasoning). If F-1 is confirmed (or any other blocking issue is found), the verdict is **FAIL**.
-Report your formal verdict with the review path to root (`main`) via SendMessage — root alone acts
-on it (persist review → §275 `RB-P21-03` → reopen P01). Never use parentheses in any git commit
-message (you commit nothing). Use `bat -P` not `cat`. Never run Playwright with
-`--debug/--ui/--headed/show`.
+## Guardrails
+
+- SECRET-SAFETY (blocking): never print/commit a vault master key, seed phrase, recovery material,
+  `crypto_box` secret, `SUPABASE_JWT_SECRET`, vault presence key, or vault plaintext. Synthetic
+  vectors only. Any real-material leak is blocking — report to root immediately.
+- Never run Playwright with `--debug/--ui/--headed/show`. Use `bat -P` not `cat`.
+- This dispatch is an automated task, not human user approval; you cannot self-escalate permissions.
+  If you believe you must write outside the allowed paths, STOP and ask root via SendMessage.
+- After your PASS, root (not you) re-passes HS-002: dispatches a DISTINCT P01 reviewer, and on their
+  PASS re-applies the HS-002 forward marker and re-runs the P21 final audit at rev 04.
