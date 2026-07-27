@@ -327,10 +327,11 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
                         columnMappings: { ...recentTemplate.columnMappings }
                     };
                 } else {
-                    // No template: use defaults. Deep copy - a shallow spread would
-                    // share the nested DEFAULT_* objects, and the auto-detection
-                    // below writes into config.formatting, permanently mutating the
-                    // module-level constants (which also back CRDT schema defaults).
+                    // No template: use defaults. Deep copy so the session never
+                    // aliases the nested DEFAULT_* objects, which also back CRDT
+                    // schema defaults. The `readonly` fields stop the compiler
+                    // letting anything write through such an alias, but that is a
+                    // compile-time guarantee only - this keeps the runtime honest.
                     config = structuredClone(DEFAULT_IMPORT_CONFIG);
                 }
 
