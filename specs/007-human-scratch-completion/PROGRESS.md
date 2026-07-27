@@ -5529,3 +5529,15 @@ must rerun-in-isolation rather than fail on.
 P20B rev 02 transitioned `changes_requested -> reviewing`. Dispatching a DISTINCT `p20b-reviewer-02`
 (NOT `p20b-implementer-01`, NOT `p20b-reviewer-01`) for a single unconditional PASS/FAIL over the
 rev-02 delta.
+
+### 2026-07-27 — P20B rev 02 review PASS verify-not-trust GREEN -> integrating (Commit A)
+
+DISTINCT `p20b-reviewer-02` (not implementer, not rev-01 reviewer) returned **VERDICT: PASS
+(unconditional)** in `reviews/P20B-review-02.md` (81 lines, 6 reproduced checks + secret-safety).
+Root re-derived independently: reviewer made NO product commits (product tip still `5576175`;
+`git show --stat 5576175` == only `tests/e2e/identity.spec.ts` +4/-0; `4e950b7..5576175` == 1
+commit); frozen `sha256sum specs/human-scratch.md` == `f46c2d35…`, `settlement.ts` blob `010f3c93…`
+intact; review secret-clean; identity `:282` step passed 9/9 focused retries=0 in the review, 11/11
+in implementation. Tracked flakes handled per Q precedent. Commit A persists the immutable review and
+moves P20B `reviewing -> completion_pending`; Commit B will flip the row to `passed` and apply the
+authorized HS-021 forward marker.
