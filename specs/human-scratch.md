@@ -158,7 +158,7 @@
 
 - [] Do a sweep of the full code base for code quality based on our style guide
 
-- [] We should be using loro ephemeral state for tracking presence and active transaction. Make sure
+- [x] We should be using loro ephemeral state for tracking presence and active transaction. Make sure
   you understand https://loro.dev/llms-full.txt and https://github.com/loro-dev/loro-mirror before
   implementing.
 
