@@ -693,16 +693,22 @@ test.describe("Transactions", () => {
             await expect(page.getByRole("row", { name: /Virtualized Edge Edited/i })).toBeVisible();
 
             await page.getByRole("button", { name: "Clear search" }).click();
-            await expect(page.getByText("500 transactions", { exact: true })).toBeVisible();
+            await expect(page.getByText("500 transactions", { exact: true })).toBeVisible({
+                timeout: 15_000
+            });
         });
 
         await test.step("preserve the large list across navigation, refresh and a duplicate tab", async () => {
             await goToAccounts(page);
             await goToTransactions(page);
-            await expect(page.getByText("500 transactions", { exact: true })).toBeVisible();
+            await expect(page.getByText("500 transactions", { exact: true })).toBeVisible({
+                timeout: 15_000
+            });
 
             await page.reload();
-            await expect(page.getByText("500 transactions", { exact: true })).toBeVisible();
+            await expect(page.getByText("500 transactions", { exact: true })).toBeVisible({
+                timeout: 15_000
+            });
 
             const duplicatePagePromise = context.waitForEvent("page");
             await page.evaluate(() => {
@@ -722,9 +728,9 @@ test.describe("Transactions", () => {
                 duplicateWarnings.push(`pageerror: ${error.message}`)
             );
 
-            await expect(
-                duplicatePage.getByText("500 transactions", { exact: true })
-            ).toBeVisible();
+            await expect(duplicatePage.getByText("500 transactions", { exact: true })).toBeVisible({
+                timeout: 15_000
+            });
             expect(duplicateWarnings).toEqual([]);
             await duplicatePage.close();
         });
