@@ -1907,3 +1907,39 @@ decisions.
 - **Does a human still need to decide after completion?:** Reviewer/P21 rule on acceptability under
   the "unexplained flake" bar; if accepted, a follow-up owns any deterministic hardening. Not a
   HS-021 style-guide gate.
+
+## Q-P20B-15 — `transactions.spec.ts:523` "Clear search" count-restore flake is a fixable test-timing defect, not environmental
+
+- **Raised by:** root, from the independent `p21-reviewer-02` FAIL (`reviews/P21-review-02.md`),
+  rev 02 final audit.
+- **Context:** In the virtualized-large-list E2E, the step "filter the large list and restore its
+  edited row" clears the search and asserts `getByText("500 transactions", { exact: true })` with a
+  **bare** `toBeVisible()` (default 5s) at `transactions.spec.ts:696`. It failed 1 of 5 full
+  retries-disabled runs under 163-test / 4-worker load; 10/10 in isolation. Same load-dependent
+  class as identity:282.
+- **Why this is NOT the same as the accepted environmental flakes (Q-P20A-05 / Q-P20B-13 / -14):**
+  there is a clear, specific mechanism and a clean fix. The structurally identical "500 transactions"
+  assertion at `:578` already uses `{ timeout: 15_000 }` and the CSV-row assertion at `:563` uses
+  `10_000`; only the post-"Clear search" restore at `:696` was left on the bare 5s default. The
+  virtualized list must re-expand the full 500-row count after the filter clears, which under
+  parallel load can exceed 5s. This is an under-specified eager assertion — a genuine test-quality
+  defect within HS-021's "code quality sweep" charter, NOT an unexplained/irreducible environmental
+  flake.
+- **Options considered:** (a) classify as environmental like the import flakes — REJECTED (there IS
+  a reproducible mechanism and a principled fix; masking it as environmental would be papering);
+  (b) **[SELECTED]** harden the assertion to be robust to the virtualized re-render under load —
+  give the count-restore assertion an explicit timeout / wait on a settled signal (mirroring the
+  `:578` sibling that already waits 15s), and sweep the E2E specs for other same-class bare-eager
+  assertions after async re-renders; (c) add `--retries` — REJECTED (violates the no-mask E2E guide).
+- **Default selected for continued work:** Option (b), routed to **P20B rev 03** (cross-cutting
+  E2E test-quality; P16C virtualized-transactions-table is feature lineage only).
+- **Decision hierarchy basis:** this is "more work to complete committed scope" (HS-021 code-quality
+  sweep + GOAL DoD "clean full-suite E2E under final audit"), NOT a scope reduction — no independent
+  adjudicator required. A deterministic wait is not a blind mask because it targets a specific,
+  identified re-render race with a named settled signal.
+- **Impact and risk:** occasional CI flake (~1 in 5 full parallel runs observed); isolation green
+  10/10. No product-behavior change — product is byte-identical to rev 01 across the range.
+- **How to reverse or migrate:** revert the test-timing change; the assertion returns to the bare
+  default.
+- **Does a human still need to decide after completion?:** No — the P20B rev-03 reviewer and the
+  P21 rev-03 audit rule on whether the hardened assertion holds under load. Not a human gate.
