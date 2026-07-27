@@ -5836,3 +5836,30 @@ reproduce F-1 and issue the formal PASS/FAIL into `reviews/P21-review-03.md`. On
 does root persist that review and execute §275 `RB-P21-03` (HS-002) then reopen P01. Clean audited
 state preserved for the reviewer: scratch `469e98c7...`, 24,260 bytes, 43 checked / 0 unchecked,
 HS-002 marker `[x]` at `:157`. See **Q-P21-03-01** for the F-1 disposition.
+
+### 2026-07-28 — P21 rev 03 FORMAL VERDICT: FAIL; DISTINCT reviewer p21-reviewer-03; F-1 CONFIRMED
+
+DISTINCT reviewer `p21-reviewer-03` (fresh context, NOT the collector) issued the FORMAL verdict
+**FAIL** into `reviews/P21-review-03.md` (wrote only that file, committed nothing; HEAD unchanged
+`b39764d`; product tree byte-identical to `127990a`; start-check scratch `469e98c7...` 24,260B, 43/0,
+HS-002 `[x]` at `:157`). Verify-not-trust GREEN: only the one allowed review file added, nothing
+committed, secret-scan clean (the only pattern hits are the reviewer's own negative attestations and
+public SHAs).
+
+**F-1 (production dependency-security): CONFIRMED.** Independent `pnpm audit --prod` -> exit 1, 10
+advisories (5 HIGH / 5 MODERATE): 4 HIGH + 5 MODERATE against `next@16.2.10` (App Router middleware
+bypass, Server-Actions DoS, 2x SSRF; all `>=16.0.0 <16.2.11`, patched `>=16.2.11`) plus 1 HIGH
+transitive `sharp@0.34.5` (libvips; patched `>=0.35.0`). Safe-chain upgrade EXISTS: `next` dist
+`latest` 16.2.12 (16.2.11 / 16.2.12 both predate the audit) clears all 9 next advisories via a
+same-minor patch bump. HS-002 ("very latest safe-chain ... all dependencies") is 2 patches behind, so
+its completion claim is materially false at the gate.
+
+**Reviewer refinement folded into the P01 fix charter:** bumping `next` alone does NOT clear the
+`sharp` HIGH — `next@16.2.12` still declares `optionalDependencies.sharp ^0.34.5` (<0.35.0); a
+separate `pnpm.overrides` forcing `sharp >=0.35.0` (dist latest 0.35.3) is required. No ADDITIONAL
+blocking finding; Q-P20B-00 (pruneBuckets) confirmed a transparently-deferred out-of-scope
+carry-forward, not a P21 blocker.
+
+This is the §275 immutable-failed-review precondition. Root persists the review + collector evidence
+in this commit, THEN executes §275 `RB-P21-03` next. P21 -> `changes_requested`, rev 04 pending from a
+fresh BASE after P01 clears `pnpm audit --prod`.
