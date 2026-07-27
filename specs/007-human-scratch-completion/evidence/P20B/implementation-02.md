@@ -113,21 +113,50 @@ locator can briefly resolve against a stale selected row whose cells are already
 the virtualiser. Hardened by waiting for exactly one selected row before reading its cells — a
 correctness fix for the helper, cheap and independent of whether this package caused the failure.
 
-Final sample result: see §5. Every affected journey was additionally re-run individually with
-retries disabled.
+**Final sample: 213/213 passed**, retries disabled, `--workers=4 --repeat-each=3`. Every affected
+journey was additionally re-run individually with retries disabled.
 
 ## 3. Manual Playwright CLI charter
 
 Executed headless via the repository-installed `pnpm exec playwright-cli` — never `--debug`, `--ui`,
-`--headed` or `show`. Sessions are uniquely named and non-persistent, and are closed with
-`delete-data` afterwards; no `.playwright-cli/` artifacts remain.
+`--headed` or `show`. Sessions were uniquely named and non-persistent, closed with `delete-data`
+afterwards; `.playwright-cli/` was removed and the working tree is clean.
 
-See §5 for what was exercised and what was found.
+### Exercised
+
+Create-identity through the real onboarding flow; then every top-level route — `/transactions`,
+`/accounts`, `/people`, `/tags`, `/tx-descriptions`, `/statuses`, `/automations`, `/imports`,
+`/settings`, plus the marketing landing page. Add-transaction, reload persistence, keyboard
+interaction, desktop (1440×900) and mobile (390×844) widths, and a dark-mode toggle.
+
+### Findings
+
+**No defects found.** Console was clean on every route — `Errors: 0, Warnings: 0` throughout — and
+no failed or suspicious network request appeared. Notable confirmations, each measured in a real
+browser rather than inferred:
+
+| Check                         | Result                                                                                                                             |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| ARIA grid, after adding a row | `grid=true`, **9 columnheaders inside the grid** (0 before this sweep), 2 rows, 8 gridcells, 1 `aria-selected` row                 |
+| Destructive shortcut scoping  | Pressing `d` with the Add button focused left the row count at 2 — previously this deleted a transaction from anywhere on the page |
+| Dark mode                     | `body` background `lab(100 0 0)` light → `lab(1.77 1.33 -9.29)` with `.dark`; the theme genuinely switches now                     |
+| Focus escape hatches          | 0 `opacity-0` containers lacking `focus-within`/`focus:` on the statuses page                                                      |
+| Mobile 390 px                 | No horizontal overflow (`scrollWidth === clientWidth`)                                                                             |
+| Reload persistence            | Rows and column headers survive a reload                                                                                           |
+| Onboarding safety             | The recovery phrase renders masked by default; Create Account stays disabled until the confirmation checkbox is checked            |
+
+One environmental note worth recording so it is not mistaken for a defect: a first pass showed
+`Failed to initialize vault: Realtime authorization is unavailable`. That was my own dev server
+missing `SUPABASE_JWT_SECRET`, which `playwright.config.ts` injects from the local Realtime
+container's JWKS. Re-running with the secret supplied the same way gave zero console errors on every
+route. The secret was held only in a scratch file outside the repo, used as an env var, and deleted;
+it appears nowhere in the repository or this evidence.
 
 ## 4. Secret-safety in evidence
 
 No vault master key, invite bearer secret, seed phrase, recovery material, `SUPABASE_JWT_SECRET`,
 presence key or vault plaintext appears in this file, in captured console/network output, or in any
-fixture. Console and request inspection below reports shapes and status codes, never payload
-contents. The sweep also **removed** the one piece of identifying logging it found: the vault UUID
-console log on registration (`ensure-default.ts`).
+fixture. Console and request inspection reports counts and status only, never payload contents. The
+charter never revealed the generated recovery phrase — the flow was driven with it masked, since
+nothing in the charter needed it. The sweep also **removed** the one piece of identifying logging it
+found: the vault UUID console log on registration (`ensure-default.ts`).
