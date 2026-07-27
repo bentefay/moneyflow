@@ -2017,3 +2017,29 @@ bounce the package; Q-P20B-06 and Q-P20B-08 are root rule-vs-reality decisions.
 - **How to reverse or migrate:** revert the wait change, or remove the Q if classified.
 - **Does a human still need to decide after completion?:** P21 rev-03 audit reviewer rules on
   acceptability.
+
+## Q-P21-03-01 — P21 rev 03 audit FAIL F-1: post-freeze HIGH dependency advisories on `next@16.2.10`
+
+**Surfaced by:** P21 rev 03 final-audit collector (`evidence/P21/implementation-03.md`), independently
+reproduced by root.
+
+**Finding.** `pnpm audit --prod` at BASE product tip reports **10 advisories (5 HIGH, 5 MODERATE)** —
+`next@16.2.10` is vulnerable (`>=16.0.0 <16.2.11`), patched `>=16.2.11`; HIGH set includes App Router
+middleware/proxy AUTH BYPASS and SSRF in Server Actions/rewrites (e.g. GHSA-4c39-4ccg-62r3). Fixes
+shipped in `next@16.2.11` (2026-07-21) and `16.2.12` (2026-07-25), both BEFORE this audit. Also a
+transitive `sharp` HIGH fixed `>=0.35.0`. Prior P21 collectors rev 01/02 skipped `pnpm audit`; the
+rev-03 charter-required dependency-currency recheck (audit contract item 2) newly surfaced it.
+
+**Disposition (root, no independent adjudicator required).** This is a P21 FAIL: audit contract item
+71 makes a material security finding / failing check a FAIL, and HS-002 mandates the "very latest
+safe-chain supported version of all dependencies" — at audit time we do NOT meet that (16.2.10 vs
+patched >=16.2.11) with a HIGH auth-bypass exposed, and the remedy is a trivial IN-CHAIN patch bump.
+Routing the fix (reopen P01/HS-002 to bump `next` to the latest safe-chain that clears
+`pnpm audit --prod`, plus `sharp`) is "more work to complete committed scope" and needs no
+adjudicator. The alternative — recording F-1 as a human-accepted post-freeze currency carry-forward
+and passing P21 — would SUPERSEDE the HS-002 mandate = a scope reduction that routes to a DISTINCT
+fresh-context adjudicator DEFAULTING TO BLOCK; so block stands either way. Convergence criterion is a
+CLEAN `pnpm audit --prod` (a terminating condition), not "chase every future release." Per the
+no-pause rule root records this proposal and proceeds with the safe reversible choice (do the bump);
+no human halt (halt criteria — frozen-source drift / secret exposure / blocked_external — do not
+apply).

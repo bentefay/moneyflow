@@ -5812,3 +5812,27 @@ final audit (`tasks/P21-final-audit.md`); DISTINCT reviewer gives the single for
 PASS transcribe `FINAL-AUDIT.md` and set P21 `passed` (goal completion gate). Full-suite flakes are
 classified against tracked Qs (Q-P20B-13/14, Q-P20A-05, and now the settled Q-P20B-15/16); only an
 _unexplained_ flake FAILs (tasks/P21-final-audit.md line 71).
+
+### 2026-07-28 — P21 rev 03 FINAL-AUDIT: collector FAIL-candidate F-1; dispatch DISTINCT reviewer
+
+Fresh collector `p21-collector-03` (`evidence/P21/implementation-03.md`; wrote only that file,
+committed nothing, tree clean, HEAD `28858e2` unchanged) returned a **FAIL-candidate** on one blocking
+finding **F-1** (dependency-security): `pnpm audit --prod` = 10 advisories (5 HIGH / 5 MODERATE);
+`next@16.2.10` is vulnerable `>=16.0.0 <16.2.11` (HIGH: App Router auth bypass + SSRF), patched
+`>=16.2.11`; fixes 16.2.11 (2026-07-21) / 16.2.12 (2026-07-25) predate this audit; plus transitive
+`sharp` HIGH fixed `>=0.35.0`. Root INDEPENDENTLY reproduced `pnpm audit --prod` (10 vulns, 5 high /
+5 moderate; installed `next` `16.2.10`) — printed in-transcript. Collector reports ALL OTHER gates
+GREEN (21 packages + 22 requirements reconcile; unit gates clean bar the known TransactionTable lint
+warning; E2E 163 x2 full `--retries=0` = 326/326 with the rev-02 flake class GREEN; FS-001 intact;
+secret-scan clean).
+
+**Process correction (this session).** A collector verdict is a CANDIDATE only. §275's rollback
+machinery requires an IMMUTABLE FAILED REVIEW, and per §114 the FORMAL P21 verdict comes from a
+DISTINCT reviewer (rev 01/02 precedent; rev 02's reviewer even overturned a collector finding). Root
+does NOT self-authorize skipping that step, even for a deterministic security-gate finding; root's
+independent audit reproduction is corroboration, not the formal verdict. Therefore NO rollback yet.
+Dispatching a DISTINCT fresh-context reviewer (`p21-reviewer-03`, NOT the collector) to independently
+reproduce F-1 and issue the formal PASS/FAIL into `reviews/P21-review-03.md`. Only on a formal FAIL
+does root persist that review and execute §275 `RB-P21-03` (HS-002) then reopen P01. Clean audited
+state preserved for the reviewer: scratch `469e98c7...`, 24,260 bytes, 43 checked / 0 unchecked,
+HS-002 marker `[x]` at `:157`. See **Q-P21-03-01** for the F-1 disposition.
