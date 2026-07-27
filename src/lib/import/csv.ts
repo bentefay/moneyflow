@@ -5,6 +5,7 @@
  * Provides utilities for number and date parsing with configurable formats.
  */
 
+import { isValid, parse } from "date-fns";
 import Papa from "papaparse";
 import { Temporal } from "temporal-polyfill";
 
@@ -184,6 +185,15 @@ export function parseNumber(
         cleaned = cleaned.slice(1);
     }
 
+    // Validate the magnitude BEFORE stripping separators. parseFloat is
+    // lenient - it reads a leading numeric prefix and discards the rest, so
+    // "12abc" becomes 12 and "1.2.3" becomes 1.2. Validating after stripping
+    // is not enough either: when the separators are misconfigured (EU "45,99"
+    // read with a "," thousands separator) removing the separator produces the
+    // well-formed "4599", silently overstating the amount 100x. Checking the
+    // grouping first rejects that, because "99" is not a group of three.
+    if (!isWellFormedMagnitude(cleaned, thousandSeparator, decimalSeparator)) return NaN;
+
     // Remove thousands separator
     if (thousandSeparator) {
         cleaned = cleaned.split(thousandSeparator).join("");
@@ -198,108 +208,71 @@ export function parseNumber(
     return isNegative || hasMinusPrefix ? -num : num;
 }
 
+/** Escape a literal string for safe use inside a regular expression. */
+function escapeForRegex(literal: string): string {
+    return literal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /**
- * Date format tokens for parsing.
+ * Check that an unsigned number string is well formed for the given separators.
+ *
+ * Accepts an optionally grouped integer part with an optional fractional part
+ * (`1,234.56`, `1234.56`, `.5`) and nothing else - no exponents, no stray
+ * characters, no repeated decimal separator, and no partial thousands group.
  */
-const DATE_FORMAT_TOKENS: Record<string, { regex: string; extract: string }> = {
-    yyyy: { regex: "(\\d{4})", extract: "year4" },
-    yy: { regex: "(\\d{2})", extract: "year2" },
-    MM: { regex: "(\\d{2})", extract: "month" },
-    M: { regex: "(\\d{1,2})", extract: "month" },
-    dd: { regex: "(\\d{2})", extract: "day" },
-    d: { regex: "(\\d{1,2})", extract: "day" }
-};
+function isWellFormedMagnitude(
+    value: string,
+    thousandSeparator: string,
+    decimalSeparator: string
+): boolean {
+    const decimal = escapeForRegex(decimalSeparator);
+    const integer = thousandSeparator
+        ? `\\d{1,3}(?:${escapeForRegex(thousandSeparator)}\\d{3})+|\\d+`
+        : `\\d+`;
+    const fraction = `${decimal}\\d+`;
+    return new RegExp(`^(?:(?:${integer})(?:${fraction})?|${fraction})$`).test(value);
+}
+
+/**
+ * Fixed reference date for format patterns that omit a component.
+ * Deterministic so parsing never depends on when it runs.
+ */
+const DATE_PARSE_REFERENCE = new Date(2000, 0, 1);
 
 /**
  * Parse a date string according to a format.
  *
+ * Delegates to date-fns rather than compiling the format string to a regex
+ * ourselves: a hand-rolled compiler mis-handles tokens that are substrings of
+ * other tokens (e.g. "dd-MMM-yyyy" would read the month twice and never match)
+ * and cannot express month names at all.
+ *
  * @param value - The date string to parse
- * @param format - The date format (e.g., "yyyy-MM-dd", "MM/dd/yyyy")
+ * @param format - The date format (e.g., "yyyy-MM-dd", "MM/dd/yyyy", "dd-MMM-yyyy")
  * @returns Temporal.PlainDate or null if invalid
  */
 export function parseDate(value: string, format = "yyyy-MM-dd"): Temporal.PlainDate | null {
     if (!value || value.trim() === "") return null;
 
-    const cleaned = value.trim();
-
-    // Build regex from format using placeholders to avoid escaping issues
-    let regexStr = format;
-
-    // Sort tokens by length (longest first) to avoid partial matches (e.g., yyyy before yy)
-    const sortedTokens = Object.entries(DATE_FORMAT_TOKENS).sort(([a], [b]) => b.length - a.length);
-
-    // Replace tokens with numbered placeholders, tracking what each placeholder extracts
-    const placeholderMap: { placeholder: string; regex: string; extract: string }[] = [];
-    let placeholderNum = 0;
-
-    for (const [token, { regex, extract }] of sortedTokens) {
-        if (regexStr.includes(token)) {
-            const placeholder = `__${placeholderNum}__`;
-            regexStr = regexStr.replace(token, placeholder);
-            placeholderMap.push({ placeholder, regex, extract });
-            placeholderNum++;
+    // date-fns throws on malformed format strings; a bad format is a failed
+    // parse, not a crash, since formats come from user configuration.
+    const parsed = ((): Date | null => {
+        try {
+            return parse(value.trim(), format, DATE_PARSE_REFERENCE);
+        } catch {
+            return null;
         }
-    }
+    })();
 
-    // Escape regex special characters in separators
-    regexStr = regexStr.replace(/[/.\-\\]/g, "\\$&");
+    if (!parsed || !isValid(parsed)) return null;
 
-    // Sort placeholders by their position in the string to determine capture group order
-    const sortedByPosition = [...placeholderMap].sort((a, b) => {
-        return regexStr.indexOf(a.placeholder) - regexStr.indexOf(b.placeholder);
+    // date-fns builds a Date in local time, so local accessors read back the
+    // same civil date it constructed.
+    return Temporal.PlainDate.from({
+        year: parsed.getFullYear(),
+        month: parsed.getMonth() + 1,
+        day: parsed.getDate()
     });
-
-    // Replace placeholders with actual regex patterns
-    for (const { placeholder, regex } of placeholderMap) {
-        regexStr = regexStr.replace(placeholder, regex);
-    }
-
-    const regex = new RegExp(`^${regexStr}$`);
-    const match = cleaned.match(regex);
-
-    if (!match) return null;
-
-    // Extract values based on capture group order (sorted by position)
-    const values: { year?: number; month?: number; day?: number } = {};
-
-    for (let i = 0; i < sortedByPosition.length; i++) {
-        const val = parseInt(match[i + 1], 10);
-        const extractor = sortedByPosition[i].extract;
-
-        if (extractor === "year4") {
-            values.year = val;
-        } else if (extractor === "year2") {
-            values.year = val < 50 ? 2000 + val : 1900 + val;
-        } else if (extractor === "month") {
-            values.month = val;
-        } else if (extractor === "day") {
-            values.day = val;
-        }
-    }
-
-    // Validate values
-    if (
-        values.year === undefined ||
-        values.month === undefined ||
-        values.day === undefined ||
-        values.month < 1 ||
-        values.month > 12 ||
-        values.day < 1 ||
-        values.day > 31
-    ) {
-        return null;
-    }
-
-    // Return as Temporal.PlainDate (validates the date is real, e.g., no Feb 30)
-    try {
-        return Temporal.PlainDate.from({
-            year: values.year,
-            month: values.month,
-            day: values.day
-        });
-    } catch {
-        return null;
-    }
 }
 
 /**

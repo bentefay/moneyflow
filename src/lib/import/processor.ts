@@ -151,7 +151,10 @@ export function processCSVImport(
                 formatting.thousandSeparator,
                 formatting.decimalSeparator
             );
-            if (isNaN(parsedAmount)) {
+            // Number.isFinite rejects Infinity as well as NaN. Infinity reaches
+            // asMinorUnits as a non-integer and throws, aborting the whole
+            // import instead of recording a per-row error.
+            if (!Number.isFinite(parsedAmount)) {
                 rowErrors.push(`Invalid amount: ${row[amountIdx]}`);
             } else {
                 // Negate if requested

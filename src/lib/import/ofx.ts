@@ -16,6 +16,7 @@ import {
     type OFXTransaction as LibOFXTransaction,
     type OFXBankAccount,
     type OFXCreditCardAccount,
+    type OFXDate,
     type OFXDocument,
     parse
 } from "@f-o-t/ofx";
@@ -169,20 +170,27 @@ function preprocessOFX(content: string): string {
     return content.replace(pattern, "");
 }
 
-/** Convert a Date object to Temporal.PlainDate */
-function toPlainDate(date: Date): Temporal.PlainDate {
-    // Extract local date parts to avoid UTC shift issues
+/**
+ * Convert an OFX date to Temporal.PlainDate.
+ *
+ * Reads the calendar components the library already parsed out of the raw OFX
+ * token rather than round-tripping through `toDate()`. `toDate()` builds an
+ * instant via `Date.UTC(...)` adjusted by the tag's own timezone offset, so
+ * reading local calendar parts back off it shifts the civil date by a day in
+ * any timezone west of UTC. A bank statement date is a calendar date, not an
+ * instant, so the components are the authoritative value.
+ */
+function toPlainDate(date: OFXDate): Temporal.PlainDate {
     return Temporal.PlainDate.from({
-        year: date.getFullYear(),
-        month: date.getMonth() + 1,
-        day: date.getDate()
+        year: date.year,
+        month: date.month,
+        day: date.day
     });
 }
 
-/** Format a Date object to ISO date string (YYYY-MM-DD) - for metadata strings */
-function formatDateToISO(date: Date): string {
-    const pd = toPlainDate(date);
-    return pd.toString();
+/** Format an OFX date to ISO date string (YYYY-MM-DD) - for metadata strings */
+function formatDateToISO(date: OFXDate): string {
+    return toPlainDate(date).toString();
 }
 
 /** Generate a unique ID for transactions without FITID */
@@ -195,7 +203,7 @@ function convertTransaction(trn: LibOFXTransaction): ParsedOFXTransaction {
     return {
         fitId: trn.FITID ?? generateFitId(),
         type: trn.TRNTYPE,
-        datePosted: toPlainDate(trn.DTPOSTED.toDate()),
+        datePosted: toPlainDate(trn.DTPOSTED),
         amount: trn.TRNAMT,
         name: trn.NAME ?? "",
         memo: trn.MEMO ?? "",
@@ -228,13 +236,13 @@ function convertBalance(balanceInfo: BalanceInfo | undefined): ParsedOFXBalance 
         ledgerBalance: balanceInfo.ledger
             ? {
                   amount: balanceInfo.ledger.BALAMT,
-                  asOfDate: formatDateToISO(balanceInfo.ledger.DTASOF.toDate())
+                  asOfDate: formatDateToISO(balanceInfo.ledger.DTASOF)
               }
             : undefined,
         availableBalance: balanceInfo.available
             ? {
                   amount: balanceInfo.available.BALAMT,
-                  asOfDate: formatDateToISO(balanceInfo.available.DTASOF.toDate())
+                  asOfDate: formatDateToISO(balanceInfo.available.DTASOF)
               }
             : undefined
     };
@@ -262,9 +270,12 @@ function extractStatements(doc: OFXDocument): ParsedOFXStatement[] {
         const account = accounts.find(
             (a) => "BANKID" in a && a.ACCTID === bankStmt.BANKACCTFROM.ACCTID
         );
-        const balance = balances.find(
-            (b) => b.ledger?.BALAMT !== undefined || b.available?.BALAMT !== undefined
-        );
+        // Read the balance off this statement, not off a document-wide search:
+        // a multi-account OFX has one LEDGERBAL/AVAILBAL per statement.
+        const balance: BalanceInfo = {
+            ledger: bankStmt.LEDGERBAL,
+            available: bankStmt.AVAILBAL
+        };
 
         const tranList = bankStmt.BANKTRANLIST;
         const stmtTransactions = tranList?.STMTTRN ?? [];
@@ -274,8 +285,8 @@ function extractStatements(doc: OFXDocument): ParsedOFXStatement[] {
             currency: bankStmt.CURDEF ?? "USD",
             dateRange: tranList
                 ? {
-                      start: formatDateToISO(tranList.DTSTART.toDate()),
-                      end: formatDateToISO(tranList.DTEND.toDate())
+                      start: formatDateToISO(tranList.DTSTART),
+                      end: formatDateToISO(tranList.DTEND)
                   }
                 : null,
             transactions: stmtTransactions.map(convertTransaction),
@@ -291,9 +302,10 @@ function extractStatements(doc: OFXDocument): ParsedOFXStatement[] {
 
         const ccAcctFrom = ccStmt.CCACCTFROM;
         const account = accounts.find((a) => !("BANKID" in a) && a.ACCTID === ccAcctFrom.ACCTID);
-        const balance = balances.find(
-            (b) => b.ledger?.BALAMT !== undefined || b.available?.BALAMT !== undefined
-        );
+        const balance: BalanceInfo = {
+            ledger: ccStmt.LEDGERBAL,
+            available: ccStmt.AVAILBAL
+        };
 
         const tranList = ccStmt.BANKTRANLIST;
         const stmtTransactions = tranList?.STMTTRN ?? [];
@@ -303,8 +315,8 @@ function extractStatements(doc: OFXDocument): ParsedOFXStatement[] {
             currency: ccStmt.CURDEF ?? "USD",
             dateRange: tranList
                 ? {
-                      start: formatDateToISO(tranList.DTSTART.toDate()),
-                      end: formatDateToISO(tranList.DTEND.toDate())
+                      start: formatDateToISO(tranList.DTSTART),
+                      end: formatDateToISO(tranList.DTEND)
                   }
                 : null,
             transactions: stmtTransactions.map(convertTransaction),
@@ -392,7 +404,7 @@ export function parseOFX(content: string): OFXParseResult {
         ok: true,
         data: {
             statements,
-            serverDate: sonrs?.DTSERVER ? formatDateToISO(sonrs.DTSERVER.toDate()) : undefined,
+            serverDate: sonrs?.DTSERVER ? formatDateToISO(sonrs.DTSERVER) : undefined,
             financialInstitution: sonrs?.FI
                 ? {
                       org: sonrs.FI.ORG,

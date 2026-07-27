@@ -21,7 +21,7 @@ import {
 } from "@/components/features/import/tabs/FormattingTab";
 import type { Account, ImportTemplate, Transaction } from "@/lib/crdt/schema";
 import type { MoneyMinorUnits } from "@/lib/domain/currency";
-import { toMinorUnitsForCurrency } from "@/lib/domain/currency";
+import { asMinorUnits, toMinorUnitsForCurrency } from "@/lib/domain/currency";
 import { detectHeaders, detectSeparator, parseDate, parseNumber } from "@/lib/import/csv";
 import type { DuplicateCheckTransaction, DuplicateMatch } from "@/lib/import/duplicates";
 import { DEFAULT_DUPLICATE_CONFIG, detectDuplicates } from "@/lib/import/duplicates";
@@ -37,7 +37,7 @@ import {
     type PreviewTransaction,
     type ValidationError
 } from "@/lib/import/types";
-import type { ISODateString } from "@/types";
+import { toISODateString } from "@/types";
 
 // ============================================================================
 // Types
@@ -52,6 +52,15 @@ export interface UseImportStateOptions {
     templates: ImportTemplate[];
     /** Default currency code for amount parsing */
     defaultCurrency: string;
+}
+
+/** Preview state derived from the session's raw rows and current config. */
+interface ComputedPreview {
+    previewTransactions: PreviewTransaction[];
+    duplicateResults: DuplicateCheckResult[];
+    filteredOut: PreviewTransaction[];
+    validationErrors: ValidationError[];
+    canImport: boolean;
 }
 
 export interface UseImportStateReturn {
@@ -109,7 +118,7 @@ function parseRawRows(content: string): { rows: string[][]; headers: string[]; s
     const rows = result.data;
     const hasHeaders = detectHeaders(content, separator);
     const headers = hasHeaders
-        ? rows[0]?.map((h, i) => h?.trim() || `Column ${i + 1}`)
+        ? (rows[0]?.map((h, i) => h?.trim() || `Column ${i + 1}`) ?? [])
         : (rows[0]?.map((_, i) => `Column ${i + 1}`) ?? []);
     return { rows, headers, separator };
 }
@@ -129,7 +138,7 @@ function toDuplicateCheckFormat(transactions: Transaction[]): DuplicateCheckTran
         .filter((tx) => !tx.deletedAt)
         .map((tx) => ({
             id: tx.id,
-            date: tx.date.toString() as ISODateString,
+            date: toISODateString(tx.date),
             amount: tx.amount,
             description: tx.description ?? ""
         }));
@@ -270,8 +279,11 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
                         columnMappings: { ...recentTemplate.columnMappings }
                     };
                 } else {
-                    // No template: use defaults
-                    config = { ...DEFAULT_IMPORT_CONFIG };
+                    // No template: use defaults. Deep copy - a shallow spread would
+                    // share the nested DEFAULT_* objects, and the auto-detection
+                    // below writes into config.formatting, permanently mutating the
+                    // module-level constants (which also back CRDT schema defaults).
+                    config = structuredClone(DEFAULT_IMPORT_CONFIG);
                 }
 
                 // For OFX files, always use fixed column mappings since structure is known
@@ -496,8 +508,9 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
                 if (!prev) return prev;
 
                 if (!templateId) {
-                    // Reset to defaults, but preserve OFX column mappings if OFX file
-                    const defaultConfig = { ...DEFAULT_IMPORT_CONFIG };
+                    // Reset to defaults, but preserve OFX column mappings if OFX file.
+                    // Deep copy so later edits never reach the module constants.
+                    const defaultConfig = structuredClone(DEFAULT_IMPORT_CONFIG);
                     if (prev.fileType === "ofx") {
                         defaultConfig.columnMappings = {
                             "0": "date",
@@ -576,13 +589,13 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
      * Compute preview transactions from raw data and config.
      * This is memoized and recomputes when session or config changes.
      */
-    const computedPreview = useMemo(() => {
+    const computedPreview = useMemo<ComputedPreview>(() => {
         if (!session) {
             return {
-                previewTransactions: [] as PreviewTransaction[],
-                duplicateResults: [] as DuplicateCheckResult[],
-                filteredOut: [] as PreviewTransaction[],
-                validationErrors: [] as ValidationError[],
+                previewTransactions: [],
+                duplicateResults: [],
+                filteredOut: [],
+                validationErrors: [],
                 canImport: false
             };
         }
@@ -613,6 +626,9 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
         // Parse each row into preview transactions
         const previews: PreviewTransaction[] = [];
         const errors: ValidationError[] = [];
+        // Successfully parsed dates, keyed by row index. Kept as PlainDate so the
+        // branded ISODateString can be derived rather than asserted.
+        const parsedDates = new Map<number, Temporal.PlainDate>();
 
         for (let i = 0; i < dataRows.length; i++) {
             const row = dataRows[i];
@@ -626,6 +642,7 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
                 const parsed = parseDate(row[dateIdx], formatting.dateFormat);
                 if (parsed) {
                     date = parsed.toString();
+                    parsedDates.set(rowIndex, parsed);
                 } else {
                     rowErrors.push(`Invalid date: ${row[dateIdx]}`);
                 }
@@ -635,22 +652,25 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 
             // Parse amount
             const amountIdx = columnMap.get("amount");
-            let amount: MoneyMinorUnits = 0 as MoneyMinorUnits;
+            let amount: MoneyMinorUnits | null = null;
             if (amountIdx !== undefined && row[amountIdx]) {
                 const parsed = parseNumber(
                     row[amountIdx],
                     formatting.thousandSeparator,
                     formatting.decimalSeparator
                 );
-                // parseNumber returns NaN for invalid values (e.g., header text like "Amount")
-                if (!isNaN(parsed)) {
+                // parseNumber returns NaN for invalid values (e.g., header text like
+                // "Amount") and can return Infinity for absurd ones. Number.isFinite
+                // rejects both - Infinity would otherwise throw inside
+                // toMinorUnitsForCurrency and abort the entire import.
+                if (Number.isFinite(parsed)) {
                     // Convert from major units (e.g., dollars) to minor units (e.g., cents)
                     // using the selected account's currency for proper decimal handling
                     amount = toMinorUnitsForCurrency(parsed, accountCurrency);
                 } else {
                     rowErrors.push(`Invalid amount: ${row[amountIdx]}`);
                 }
-            } else if (fileType === "csv") {
+            } else {
                 rowErrors.push("Missing amount");
             }
 
@@ -665,7 +685,9 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
                 rowIndex,
                 date,
                 description,
-                amount,
+                // A row with no parseable amount always carries an error above, so
+                // it is shown as invalid and this placeholder is never imported.
+                amount: amount ?? asMinorUnits(0),
                 status: rowErrors.length > 0 ? "invalid" : "valid",
                 duplicateOf: null,
                 duplicateConfidence: 0,
@@ -680,12 +702,18 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 
         // Run duplicate detection (only for valid previews)
         const validPreviews = previews.filter((p) => p.status === "valid");
-        const duplicateCheckTxs: DuplicateCheckTransaction[] = validPreviews.map((p) => ({
-            id: `preview-${p.rowIndex}`,
-            date: p.date as ISODateString,
-            amount: p.amount,
-            description: p.description
-        }));
+        const duplicateCheckTxs: DuplicateCheckTransaction[] = validPreviews.flatMap((p) => {
+            const parsedDate = parsedDates.get(p.rowIndex);
+            if (!parsedDate) return [];
+            return [
+                {
+                    id: `preview-${p.rowIndex}`,
+                    date: toISODateString(parsedDate),
+                    amount: p.amount,
+                    description: p.description
+                }
+            ];
+        });
 
         const duplicateConfig = {
             ...DEFAULT_DUPLICATE_CONFIG,
@@ -767,7 +795,7 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
         return {
             previewTransactions: previews,
             duplicateResults,
-            filteredOut: filterResult.excluded as PreviewTransaction[],
+            filteredOut: filterResult.excluded,
             validationErrors: errors,
             canImport
         };

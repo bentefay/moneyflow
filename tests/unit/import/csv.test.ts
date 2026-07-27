@@ -345,9 +345,10 @@ describe("parseNumber", () => {
 
 // ============================================================================
 // parseDate tests
-// Note: The parseDate function has a bug in regex escaping that prevents it
-// from parsing dates correctly. These tests document the current (broken)
-// behavior while preserving the test structure for when the bug is fixed.
+// parseDate delegates to date-fns. It previously compiled the format string to
+// a regex by hand, which mis-handled tokens that are substrings of other tokens
+// (e.g. "dd-MMM-yyyy" read the month twice and never matched) and could not
+// express month names at all. See tests/unit/import/regressions.test.ts.
 // ============================================================================
 
 describe("parseDate", () => {

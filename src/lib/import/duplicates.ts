@@ -13,7 +13,7 @@
 
 import { Temporal } from "temporal-polyfill";
 
-import type { MoneyMinorUnits } from "@/lib/domain/currency";
+import { asMinorUnits, type MoneyMinorUnits } from "@/lib/domain/currency";
 import { fromISODateString, type ISODateString } from "@/types";
 
 import { normalizedSimilarity } from "./levenshtein";
@@ -78,7 +78,7 @@ export interface DuplicateDetectionConfig {
  */
 export const DEFAULT_DUPLICATE_CONFIG: DuplicateDetectionConfig = {
     ...DEFAULT_DUPLICATE_DETECTION_SETTINGS,
-    maxAmountDiff: 1 as MoneyMinorUnits, // Allow 1 cent difference for rounding
+    maxAmountDiff: asMinorUnits(1), // Allow 1 cent difference for rounding
     minConfidence: 0.7 // Overall 70% confidence
 };
 
@@ -181,8 +181,10 @@ export function checkDuplicate(
             ? descriptionSimilarity === 1.0
             : descriptionSimilarity >= config.minDescriptionSimilarity;
 
-    // If description doesn't match in exact mode, it's definitely not a duplicate
-    if (config.descriptionMatchMode === "exact" && !descriptionMatches) {
+    // The configured threshold is a hard gate in BOTH modes. Date+amount alone
+    // already scores 0.60, so without this gate any similarity above ~0.25
+    // clears the 0.7 confidence floor and unrelated transactions get flagged.
+    if (!descriptionMatches) {
         return null;
     }
 
