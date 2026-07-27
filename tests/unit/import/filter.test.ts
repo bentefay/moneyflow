@@ -11,9 +11,10 @@ import {
     calculateCutoffDate,
     type FilterableTransaction,
     filterOldTransactions,
+    getFilterModeDescription,
     isBeforeCutoff
 } from "@/lib/import/filter";
-import type { FilterConfig } from "@/lib/import/types";
+import type { FilterConfig, OldTransactionMode } from "@/lib/import/types";
 
 // ============================================================================
 // Test Helpers
@@ -337,5 +338,24 @@ describe("filterOldTransactions", () => {
             expect(result.stats.oldDuplicatesCount).toBe(1);
             expect(result.stats.oldNonDuplicatesCount).toBe(1);
         });
+    });
+});
+
+describe("getFilterModeDescription", () => {
+    // Every OldTransactionMode must produce its own distinct, non-empty description; the switch
+    // is exhaustive, so a new mode without a case would return undefined here.
+    const cases: ReadonlyArray<{ mode: OldTransactionMode; expected: string }> = [
+        { mode: "ignore-all", expected: "Skip all old transactions" },
+        { mode: "ignore-duplicates", expected: "Skip old duplicates, keep old non-duplicates" },
+        { mode: "do-not-ignore", expected: "Import all old transactions" }
+    ];
+
+    it.each(cases)("describes $mode", ({ mode, expected }) => {
+        expect(getFilterModeDescription(mode)).toBe(expected);
+    });
+
+    it("gives each mode a distinct description", () => {
+        const descriptions = cases.map(({ mode }) => getFilterModeDescription(mode));
+        expect(new Set(descriptions).size).toBe(cases.length);
     });
 });

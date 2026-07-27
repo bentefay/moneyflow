@@ -4,6 +4,7 @@
  * Tests for currency.js integration, branded types, and conversion utilities.
  */
 
+import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
 import { Currencies } from "@/lib/domain/currencies";
@@ -18,6 +19,7 @@ import {
     getMinorUnitMultiplier,
     isValidCurrencyCode,
     JPY,
+    toMajorUnits,
     toMinorUnits,
     toMinorUnitsForCurrency,
     USD
@@ -259,6 +261,81 @@ describe("toMinorUnitsForCurrency", () => {
 
     it("handles case-insensitivity", () => {
         expect(toMinorUnitsForCurrency(12.34, "usd")).toBe(1234);
+    });
+});
+
+describe("toMajorUnits", () => {
+    interface MajorUnitCase {
+        readonly name: string;
+        readonly minor: number;
+        readonly currencyCode: string;
+        readonly expected: number;
+    }
+
+    const cases: readonly MajorUnitCase[] = [
+        { name: "USD cents to dollars", minor: 1234, currencyCode: "USD", expected: 12.34 },
+        { name: "USD negative", minor: -5000, currencyCode: "USD", expected: -50 },
+        { name: "USD zero", minor: 0, currencyCode: "USD", expected: 0 },
+        { name: "JPY has no minor unit", minor: 1234, currencyCode: "JPY", expected: 1234 },
+        { name: "KRW has no minor unit", minor: 7, currencyCode: "KRW", expected: 7 },
+        { name: "KWD uses three decimals", minor: 1234, currencyCode: "KWD", expected: 1.234 },
+        { name: "BHD uses three decimals", minor: 10_000, currencyCode: "BHD", expected: 10 },
+        {
+            name: "BTC uses eight decimals",
+            minor: 100_000_001,
+            currencyCode: "BTC",
+            expected: 1.00000001
+        },
+        {
+            name: "unknown code defaults to two decimals",
+            minor: 1234,
+            currencyCode: "UNKNOWN",
+            expected: 12.34
+        },
+        { name: "lower-case code resolves", minor: 1234, currencyCode: "usd", expected: 12.34 }
+    ];
+
+    it.each(cases)("$name", ({ minor, currencyCode, expected }) => {
+        expect(toMajorUnits(asMinorUnits(minor), currencyCode)).toBeCloseTo(expected, 8);
+    });
+
+    // toMajorUnits is the inverse of toMinorUnitsForCurrency, so every major-unit amount
+    // expressible in a currency's own precision must survive the round trip exactly.
+    const roundTripCurrencies = [
+        "JPY", // zero-decimal, multiplier 1
+        "KRW",
+        "USD",
+        "EUR",
+        "KWD", // three-decimal, multiplier 1000
+        "BHD"
+    ] as const;
+
+    it("property: round-trips every representable major-unit amount", () => {
+        fc.assert(
+            fc.property(
+                fc.constantFrom(...roundTripCurrencies),
+                fc.integer({ min: -1_000_000, max: 1_000_000 }),
+                (currencyCode, minor) => {
+                    const major = toMajorUnits(asMinorUnits(minor), currencyCode);
+                    expect(toMinorUnitsForCurrency(major, currencyCode)).toBe(minor);
+                }
+            )
+        );
+    });
+
+    it("property: scales linearly with the currency's minor-unit multiplier", () => {
+        fc.assert(
+            fc.property(
+                fc.constantFrom(...roundTripCurrencies),
+                fc.integer({ min: -1_000_000, max: 1_000_000 }),
+                (currencyCode, minor) => {
+                    expect(toMajorUnits(asMinorUnits(minor), currencyCode)).toBeCloseTo(
+                        minor / getMinorUnitMultiplier(currencyCode),
+                        8
+                    );
+                }
+            )
+        );
     });
 });
 

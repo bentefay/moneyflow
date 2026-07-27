@@ -61,12 +61,8 @@ describe("Transaction type", () => {
 
     it("does not include duplicateOf field", () => {
         // Type-level check: duplicateOf should not be on Transaction
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const tx: any = { duplicateOf: "some-id" };
-        // Runtime check: if someone tried to add it, it wouldn't match the schema
         const validTx: Partial<Transaction> = { id: "test" };
         expect("duplicateOf" in validTx).toBe(false);
-        expect("duplicateOf" in tx).toBe(true); // The arbitrary object has it, but Transaction type doesn't
     });
 });
 
@@ -110,13 +106,6 @@ describe("NestedDuplicate type", () => {
             importRowIndex: 0,
             deletedAt: 0
         } as unknown as NestedDuplicate;
-
-        // All transaction fields except suspectedDuplicates should exist
-        expect(dup.id).toBeDefined();
-        expect(dup.date).toBeDefined();
-        expect(dup.description).toBeDefined();
-        expect(dup.amount).toBeDefined();
-        expect(dup.creationInstant).toBeDefined();
 
         // suspectedDuplicates should not be on the type
         expect("suspectedDuplicates" in dup).toBe(false);

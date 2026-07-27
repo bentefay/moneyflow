@@ -9,7 +9,7 @@
 
 import { expect, test } from "@playwright/test";
 
-import { createNewIdentity, goToTags, goToTransactions } from "./helpers";
+import { createNewIdentity, createTag, goToTags, goToTransactions } from "./helpers";
 
 test.describe("Sync Persistence", () => {
     test.describe("Sync Status Indicator", () => {
@@ -47,25 +47,7 @@ test.describe("Sync Persistence", () => {
 
             await test.step("create a tag", async () => {
                 await goToTags(page);
-
-                // Create a new tag
-                const addButton = page.getByRole("button", { name: /add tag|create tag|new tag/i });
-                if (await addButton.isVisible()) {
-                    await addButton.click();
-
-                    // Fill in tag name
-                    const nameInput = page.getByRole("textbox", { name: /name/i });
-                    await nameInput.fill("TestPersistenceTag");
-
-                    // Save the tag (if there's a save button)
-                    const saveButton = page.getByRole("button", { name: /save|create|add/i });
-                    if (await saveButton.isVisible()) {
-                        await saveButton.click();
-                    } else {
-                        // Some implementations auto-save on blur
-                        await nameInput.press("Tab");
-                    }
-                }
+                await createTag(page, { name: "TestPersistenceTag" });
             });
 
             await test.step("wait for sync to complete", async () => {
@@ -76,7 +58,6 @@ test.describe("Sync Persistence", () => {
 
             await test.step("reload page", async () => {
                 await page.reload();
-                await page.waitForLoadState("networkidle");
             });
 
             await test.step("verify tag still exists after reload", async () => {
@@ -96,32 +77,18 @@ test.describe("Sync Persistence", () => {
             });
         });
     });
-
-    test.describe("Saving Indicator", () => {
-        test("shows Saving state during active edits", async ({ page }) => {
-            await createNewIdentity(page);
-            await goToTags(page);
-
-            await test.step("start editing to trigger saving state", async () => {
-                // Try to create/edit something to trigger the saving indicator
-                const addButton = page.getByRole("button", { name: /add tag|create tag|new tag/i });
-                if (await addButton.isVisible()) {
-                    await addButton.click();
-
-                    // Fill in some data
-                    const nameInput = page.getByRole("textbox", { name: /name/i });
-                    await nameInput.fill("SavingTestTag");
-
-                    // Note: The saving indicator might show briefly
-                    // We just verify the workflow doesn't error
-                }
-            });
-
-            await test.step("wait for sync status to stabilize", async () => {
-                // Wait for sync to complete and show "Saved"
-                const syncIndicator = page.getByRole("status", { name: /saved/i });
-                await expect(syncIndicator).toBeVisible({ timeout: 15000 });
-            });
-        });
-    });
 });
+
+/*
+ * A "shows Saving state during active edits" test used to live here. It was vacuous: the mutation
+ * sat inside `if (await addButton.isVisible())` and the only assertion was that the indicator read
+ * *Saved*, which is equally true when nothing happened — a duplicate of "shows Saved state when no
+ * pending changes" above.
+ *
+ * The transient Saving state cannot be asserted deterministically. `SyncStatus` renders it only
+ * when `hasUnsavedChanges` is true, and that flag is produced by `usePollUnsavedChanges(vaultId,
+ * 2000)` in `src/app/(app)/layout.tsx` — a 2s poll racing the sync manager's ~2s push throttle. A
+ * mutation's unpushed window can therefore open and close entirely between two polls, so any
+ * assertion on Saving would need an arbitrary wait to be reliable. The test was deleted rather
+ * than left vacuous.
+ */

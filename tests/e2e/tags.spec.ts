@@ -8,44 +8,11 @@
 
 import { expect, type Page, test } from "@playwright/test";
 
-import { createNewIdentity, goToTags } from "./helpers";
+import { createNewIdentity, createTag, goToTags, goToTransactions } from "./helpers";
 
 // ============================================================================
 // Tag-Specific Helpers
 // ============================================================================
-
-/**
- * Create a new tag via the Add Tag form.
- */
-async function createTag(
-    page: Page,
-    data: {
-        name: string;
-        parentName?: string;
-        isTransfer?: boolean;
-    }
-): Promise<void> {
-    const addButton = page.getByRole("button", { name: /add tag/i });
-    await addButton.click();
-
-    const nameInput = page.getByPlaceholder(/enter tag name/i);
-    await nameInput.waitFor({ state: "visible", timeout: 3000 });
-    await nameInput.fill(data.name);
-
-    if (data.parentName) {
-        const parentSelect = page.getByRole("combobox");
-        await parentSelect.click();
-        await page.getByRole("option", { name: data.parentName }).click();
-    }
-
-    if (data.isTransfer) {
-        const transferCheckbox = page.getByLabel(/transfer tag/i);
-        await transferCheckbox.check();
-    }
-
-    const submitButton = page.getByRole("button", { name: /^add tag$/i });
-    await submitButton.click();
-}
 
 /**
  * Start editing a tag (clicks edit button, returns for further interaction).
@@ -226,8 +193,7 @@ test.describe("Tags", () => {
     test("navigation: sidebar link works", async ({ page }) => {
         await createNewIdentity(page);
         // Navigate to a different page first (settings is where new users land)
-        await page.goto("/transactions");
-        await page.waitForLoadState("networkidle");
+        await goToTransactions(page);
 
         // Click Tags in sidebar
         await page.getByRole("link", { name: /tags/i }).click();

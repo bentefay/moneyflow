@@ -7,7 +7,7 @@
 
 import { expect, type Page, test } from "@playwright/test";
 
-import { createNewIdentity, goToImportNew, goToTxDescriptions } from "./helpers";
+import { createNewIdentity, goToImportNew, goToTransactions, goToTxDescriptions } from "./helpers";
 
 // ============================================================================
 // Alias-Specific Helpers
@@ -173,8 +173,7 @@ test.describe("Description Aliases", () => {
     test("navigation: sidebar link works", async ({ page }) => {
         await createNewIdentity(page);
         // Navigate to a different page first
-        await page.goto("/transactions");
-        await page.waitForLoadState("networkidle");
+        await goToTransactions(page);
 
         // Click Tx Descriptions in sidebar
         await page.getByRole("link", { name: /tx descriptions/i }).click();

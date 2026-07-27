@@ -24,6 +24,8 @@ import {
     saveLocalSnapshot
 } from "@/lib/sync/persistence";
 
+import { assertDefined } from "./helpers/assert-defined";
+
 // Reset database between tests
 // Note: We use unique vault IDs per test to avoid database deletion issues
 // with fake-indexeddb
@@ -90,11 +92,10 @@ describe("Cold Start Flow", () => {
             });
 
             // Load the snapshot
-            const loaded = await loadLocalSnapshot(vaultId);
+            const loaded = assertDefined(await loadLocalSnapshot(vaultId), "local snapshot");
 
-            expect(loaded).not.toBeNull();
-            expect(loaded!.vault_id).toBe(vaultId);
-            expect(loaded!.encrypted_data).toBe(encryptedSnapshot);
+            expect(loaded.vault_id).toBe(vaultId);
+            expect(loaded.encrypted_data).toBe(encryptedSnapshot);
         });
 
         it("returns undefined when no local snapshot exists", async () => {
@@ -124,16 +125,18 @@ describe("Cold Start Flow", () => {
 
             // Simulate cold start: load snapshot
             const startTime = Date.now();
-            const localSnapshot = await loadLocalSnapshot(vaultId);
+            const localSnapshot = assertDefined(
+                await loadLocalSnapshot(vaultId),
+                "local snapshot on cold start"
+            );
             const loadTime = Date.now() - startTime;
 
             // Should load quickly (< 100ms for local IndexedDB)
             expect(loadTime).toBeLessThan(100);
-            expect(localSnapshot).not.toBeNull();
 
             // Create new doc and import snapshot
             const newDoc = createTestDoc();
-            const decryptedData = decryptData(localSnapshot!.encrypted_data);
+            const decryptedData = decryptData(localSnapshot.encrypted_data);
             const bytes = new Uint8Array(decryptedData.split("").map((c) => c.charCodeAt(0)));
             newDoc.import(bytes);
 
@@ -273,9 +276,12 @@ describe("Cold Start Flow", () => {
                 version_vector: '{"peer1": 10}'
             });
 
-            const loaded = await loadLocalSnapshot(vaultId);
-            expect(loaded!.encrypted_data).toBe(newSnapshotData);
-            expect(loaded!.version_vector).toBe('{"peer1": 10}');
+            const loaded = assertDefined(
+                await loadLocalSnapshot(vaultId),
+                "overwritten local snapshot"
+            );
+            expect(loaded.encrypted_data).toBe(newSnapshotData);
+            expect(loaded.version_vector).toBe('{"peer1": 10}');
         });
     });
 
@@ -351,8 +357,8 @@ describe("Version Vector Handling", () => {
             version_vector: versionVector
         });
 
-        const loaded = await loadLocalSnapshot(vaultId);
-        expect(loaded!.version_vector).toBe(versionVector);
+        const loaded = assertDefined(await loadLocalSnapshot(vaultId), "local snapshot");
+        expect(loaded.version_vector).toBe(versionVector);
     });
 
     it("stores version vector with ops", async () => {
@@ -423,9 +429,11 @@ describe("Concurrent Operations", () => {
         });
 
         // Last write should win
-        const snapshot = await loadLocalSnapshot(vaultId);
-        expect(snapshot).toBeDefined();
-        expect(snapshot!.encrypted_data).toBe("data-2");
+        const snapshot = assertDefined(
+            await loadLocalSnapshot(vaultId),
+            "last-write-wins snapshot"
+        );
+        expect(snapshot.encrypted_data).toBe("data-2");
     });
 });
 
@@ -448,8 +456,8 @@ describe("Error Recovery", () => {
             version_vector: "{}"
         });
 
-        const loaded = await loadLocalSnapshot(vaultId);
-        expect(loaded!.encrypted_data).toBe("fresh-data");
+        const loaded = assertDefined(await loadLocalSnapshot(vaultId), "snapshot after clear");
+        expect(loaded.encrypted_data).toBe("fresh-data");
     });
 
     it("handles partial op push gracefully", async () => {

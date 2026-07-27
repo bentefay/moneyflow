@@ -4,7 +4,7 @@
  * Helpers for identity creation, unlock, and session management.
  */
 
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 /**
  * Complete the new user flow: generate seed phrase, confirm, and create account.
@@ -12,9 +12,6 @@ import type { Page } from "@playwright/test";
  */
 export async function createNewIdentity(page: Page): Promise<string[]> {
     await page.goto("/new-user");
-
-    // Wait for network to be idle (all JS loaded and hydration typically complete)
-    await page.waitForLoadState("networkidle");
 
     // Wait for page to be fully loaded and generate button to be ready
     const generateButton = page.locator('[data-testid="generate-button"]');
@@ -33,8 +30,9 @@ export async function createNewIdentity(page: Page): Promise<string[]> {
     // Wait a moment for the button to be visible (it should be there initially)
     await revealButton.waitFor({ state: "visible", timeout: 5000 });
     await revealButton.click();
-    // Wait for reveal animation
-    await page.waitForTimeout(300);
+    // The reveal animation is complete once the words themselves are visible, which is exactly
+    // what extractSeedPhrase reads next.
+    await page.locator('[data-testid="seed-phrase-word"]').first().waitFor({ state: "visible" });
 
     // Extract seed phrase
     const words = await extractSeedPhrase(page);
@@ -45,18 +43,7 @@ export async function createNewIdentity(page: Page): Promise<string[]> {
     await checkbox.check();
 
     const continueButton = page.locator('[data-testid="continue-button"]');
-    await continueButton.waitFor({ state: "visible", timeout: 5000 });
-
-    // Ensure continue button is enabled
-    await page.waitForFunction(
-        () => {
-            const btn = document.querySelector(
-                '[data-testid="continue-button"]'
-            ) as HTMLButtonElement;
-            return btn && !btn.disabled;
-        },
-        { timeout: 5000 }
-    );
+    await expect(continueButton).toBeEnabled({ timeout: 5000 });
 
     await continueButton.click();
 

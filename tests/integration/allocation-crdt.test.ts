@@ -134,14 +134,27 @@ function isDeeplyFrozen(value: unknown, seen = new Set<object>()): boolean {
     });
 }
 
+/**
+ * The one documented bridge from a loro-mirror state/draft view of `transactions` to the
+ * `TransactionStore` shape the mutation helpers accept.
+ *
+ * loro-mirror decorates every nested node with a `$cid` tracking field, so its inferred state type
+ * is structurally incompatible with the hand-written `TransactionStore` even though the runtime
+ * object *is* a transaction store. Every call site in this file goes through here rather than
+ * repeating the cast.
+ */
+function draftStore(state: { readonly transactions: unknown }): TransactionStore {
+    return state.transactions as TransactionStore;
+}
+
 function mirrorStore(mirror: ReturnType<typeof createVaultMirror>["mirror"]): TransactionStore {
-    return mirror.getState().transactions as unknown as TransactionStore;
+    return draftStore(mirror.getState());
 }
 
 function seededMirror(allocations: Record<string, number> = { alice: 40, bob: 60 }) {
     const vault = createVaultMirror();
     vault.mirror.setState((state) => {
-        const result = insertTransaction(state.transactions as unknown as TransactionStore, {
+        const result = insertTransaction(draftStore(state), {
             transaction: transaction(allocations)
         });
         if (!result.ok) throw new Error(`Could not seed transaction: ${result.error.type}`);
@@ -298,7 +311,7 @@ describe("allocation mutation boundary", () => {
         const before = vault.doc.version().encode();
         let result: ReturnType<typeof setTransactionAllocation> | undefined;
         vault.mirror.setState((state) => {
-            result = setTransactionAllocation(state.transactions as unknown as TransactionStore, {
+            result = setTransactionAllocation(draftStore(state), {
                 location: LOCATION,
                 personId: "alice",
                 value
@@ -333,13 +346,10 @@ describe("allocation mutation boundary", () => {
         const before = vault.doc.version().encode();
         let failed: ReturnType<typeof replaceTransactionAllocations> | undefined;
         vault.mirror.setState((state) => {
-            failed = replaceTransactionAllocations(
-                state.transactions as unknown as TransactionStore,
-                {
-                    location: LOCATION,
-                    allocations: { alice: 50, bob: 101 }
-                }
-            );
+            failed = replaceTransactionAllocations(draftStore(state), {
+                location: LOCATION,
+                allocations: { alice: 50, bob: 101 }
+            });
         });
 
         expect(failed).toMatchObject({ ok: false });
@@ -352,7 +362,7 @@ describe("allocation mutation boundary", () => {
 
         vault.mirror.setState((state) => {
             expect(
-                replaceTransactionAllocations(state.transactions as unknown as TransactionStore, {
+                replaceTransactionAllocations(draftStore(state), {
                     location: LOCATION,
                     allocations: { alice: 50, zeroMeansAbsent: 0 }
                 })
@@ -361,7 +371,7 @@ describe("allocation mutation boundary", () => {
         expect(explicitAllocations(mirrorStore(vault.mirror))).toEqual({ alice: 50 });
 
         vault.mirror.setState((state) => {
-            replaceTransactionAllocations(state.transactions as unknown as TransactionStore, {
+            replaceTransactionAllocations(draftStore(state), {
                 location: LOCATION,
                 allocations: {}
             });
@@ -468,13 +478,10 @@ describe("allocation mutation boundary", () => {
         let replacementResult: ReturnType<typeof replaceTransactionAllocations> | undefined;
         expect(() => {
             replacementVault.mirror.setState((state) => {
-                replacementResult = replaceTransactionAllocations(
-                    state.transactions as unknown as TransactionStore,
-                    {
-                        allocations: replacement.proxy,
-                        location: LOCATION
-                    }
-                );
+                replacementResult = replaceTransactionAllocations(draftStore(state), {
+                    allocations: replacement.proxy,
+                    location: LOCATION
+                });
             });
         }).not.toThrow();
         expect(replacementResult).toEqual(expected);
@@ -499,10 +506,9 @@ describe("allocation mutation boundary", () => {
         let insertionResult: ReturnType<typeof insertTransaction> | undefined;
         expect(() => {
             insertionVault.mirror.setState((state) => {
-                insertionResult = insertTransaction(
-                    state.transactions as unknown as TransactionStore,
-                    { transaction: insertionInput }
-                );
+                insertionResult = insertTransaction(draftStore(state), {
+                    transaction: insertionInput
+                });
             });
         }).not.toThrow();
         expect(insertionResult).toEqual(expected);
@@ -571,15 +577,11 @@ describe("allocation mutation boundary", () => {
         let applicationResult: ReturnType<typeof applyAutomationChanges> | undefined;
         expect(() => {
             vault.mirror.setState((state) => {
-                applicationResult = applyAutomationChanges(
-                    state.transactions as unknown as TransactionStore,
-                    LOCATION,
-                    {
-                        allocations: application.proxy,
-                        statusId: "must-not-apply",
-                        tagIds: ["must-not-apply"]
-                    } as unknown as Parameters<typeof applyAutomationChanges>[2]
-                );
+                applicationResult = applyAutomationChanges(draftStore(state), LOCATION, {
+                    allocations: application.proxy,
+                    statusId: "must-not-apply",
+                    tagIds: ["must-not-apply"]
+                } as unknown as Parameters<typeof applyAutomationChanges>[2]);
             });
         }).not.toThrow();
         expect(applicationResult).toEqual({ error: expectedError, ok: false });
@@ -597,21 +599,17 @@ describe("allocation mutation boundary", () => {
         let restorationResult: ReturnType<typeof restoreAutomationApplication> | undefined;
         expect(() => {
             vault.mirror.setState((state) => {
-                restorationResult = restoreAutomationApplication(
-                    state.transactions as unknown as TransactionStore,
-                    LOCATION,
-                    {
-                        id: "application-1",
-                        transactionId: LOCATION.transactionId,
-                        automationId: "automation-1",
-                        appliedAt: Temporal.Instant.from("2026-07-25T01:00:00Z"),
-                        previousValues: {
-                            allocations: restoration.proxy,
-                            statusId: "must-not-restore",
-                            tagIds: ["must-not-restore"]
-                        }
-                    } as unknown as Parameters<typeof restoreAutomationApplication>[2]
-                );
+                restorationResult = restoreAutomationApplication(draftStore(state), LOCATION, {
+                    id: "application-1",
+                    transactionId: LOCATION.transactionId,
+                    automationId: "automation-1",
+                    appliedAt: Temporal.Instant.from("2026-07-25T01:00:00Z"),
+                    previousValues: {
+                        allocations: restoration.proxy,
+                        statusId: "must-not-restore",
+                        tagIds: ["must-not-restore"]
+                    }
+                } as unknown as Parameters<typeof restoreAutomationApplication>[2]);
             });
         }).not.toThrow();
         expect(restorationResult).toEqual({ error: expectedError, ok: false });
@@ -736,24 +734,24 @@ describe("allocation mutation boundary", () => {
         const rightBase = right.doc.version();
 
         left.mirror.setState((state) => {
-            setTransactionAllocation(state.transactions as unknown as TransactionStore, {
+            setTransactionAllocation(draftStore(state), {
                 location: LOCATION,
                 personId: "alice",
                 value: 12.5
             });
-            setTransactionAllocation(state.transactions as unknown as TransactionStore, {
+            setTransactionAllocation(draftStore(state), {
                 location: LOCATION,
                 personId: "shared",
                 value: -25
             });
         });
         right.mirror.setState((state) => {
-            setTransactionAllocation(state.transactions as unknown as TransactionStore, {
+            setTransactionAllocation(draftStore(state), {
                 location: LOCATION,
                 personId: "bob",
                 value: 87.5
             });
-            setTransactionAllocation(state.transactions as unknown as TransactionStore, {
+            setTransactionAllocation(draftStore(state), {
                 location: LOCATION,
                 personId: "shared",
                 value: 75
@@ -794,13 +792,13 @@ describe("allocation mutation boundary", () => {
                 const personId = `left-${index}`;
                 const value = Math.round((random() * 200 - 100) * 1000) / 1000;
                 independentOracle[personId] = value;
-                setTransactionAllocation(state.transactions as unknown as TransactionStore, {
+                setTransactionAllocation(draftStore(state), {
                     location: LOCATION,
                     personId,
                     value
                 });
             }
-            setTransactionAllocation(state.transactions as unknown as TransactionStore, {
+            setTransactionAllocation(draftStore(state), {
                 location: LOCATION,
                 personId: "shared",
                 value: -44.125
@@ -811,13 +809,13 @@ describe("allocation mutation boundary", () => {
                 const personId = `right-${index}`;
                 const value = Math.round((random() * 200 - 100) * 1000) / 1000;
                 independentOracle[personId] = value;
-                setTransactionAllocation(state.transactions as unknown as TransactionStore, {
+                setTransactionAllocation(draftStore(state), {
                     location: LOCATION,
                     personId,
                     value
                 });
             }
-            setTransactionAllocation(state.transactions as unknown as TransactionStore, {
+            setTransactionAllocation(draftStore(state), {
                 location: LOCATION,
                 personId: "shared",
                 value: 55.875
@@ -849,13 +847,10 @@ describe("allocation mutation boundary", () => {
         coordinator.runUserAction("edit", (origin) => {
             vault.mirror.setState(
                 (state) => {
-                    replaceTransactionAllocations(
-                        state.transactions as unknown as TransactionStore,
-                        {
-                            location: LOCATION,
-                            allocations: { alice: -10, carol: 110 }
-                        }
-                    );
+                    replaceTransactionAllocations(draftStore(state), {
+                        location: LOCATION,
+                        allocations: { alice: -10, carol: 110 }
+                    });
                 },
                 { origin }
             );
@@ -867,13 +862,10 @@ describe("allocation mutation boundary", () => {
         coordinator.runUserAction("edit", (origin) => {
             vault.mirror.setState(
                 (state) => {
-                    replaceTransactionAllocations(
-                        state.transactions as unknown as TransactionStore,
-                        {
-                            location: LOCATION,
-                            allocations: { alice: -10, carol: 25.5 }
-                        }
-                    );
+                    replaceTransactionAllocations(draftStore(state), {
+                        location: LOCATION,
+                        allocations: { alice: -10, carol: 25.5 }
+                    });
                 },
                 { origin }
             );
@@ -911,7 +903,7 @@ describe("allocation mutation boundary", () => {
 
         const since = vault.doc.version();
         vault.mirror.setState((state) => {
-            setTransactionAllocation(state.transactions as unknown as TransactionStore, {
+            setTransactionAllocation(draftStore(state), {
                 location: LOCATION,
                 personId: "carol",
                 value: 12.75
@@ -1008,15 +1000,12 @@ describe("allocation mutation boundary", () => {
     it("retains an invalid legacy value across ordinary mirror hydration", () => {
         const source = createVaultMirror();
         source.mirror.setState((state) => {
-            insertTransaction(state.transactions as unknown as TransactionStore, {
+            insertTransaction(draftStore(state), {
                 transaction: transaction({ alice: 50, bob: 25 })
             });
         });
         source.mirror.setState((state) => {
-            const stored = findTransactionInStore(
-                state.transactions as unknown as TransactionStore,
-                LOCATION
-            );
+            const stored = findTransactionInStore(draftStore(state), LOCATION);
             if (!stored) throw new Error("Expected seeded legacy transaction");
             stored.allocations.alice = 150 as (typeof stored.allocations)[string];
         });
@@ -1026,15 +1015,12 @@ describe("allocation mutation boundary", () => {
         const hydrated = createVaultMirrorFromSnapshot(snapshot);
 
         expect(
-            findTransactionInStore(
-                hydrated.mirror.getState().transactions as unknown as TransactionStore,
-                LOCATION
-            )?.allocations
+            findTransactionInStore(draftStore(hydrated.mirror.getState()), LOCATION)?.allocations
         ).toMatchObject({ alice: 150, bob: 25 });
 
         hydrated.mirror.setState((state) => {
             expect(
-                setTransactionAllocation(state.transactions as unknown as TransactionStore, {
+                setTransactionAllocation(draftStore(state), {
                     location: LOCATION,
                     personId: "alice",
                     value: -50
@@ -1051,13 +1037,13 @@ describe("allocation mutation boundary", () => {
     it("preserves the exact review legacy map through an initialized-Loro move", () => {
         const vault = seededMirror({ valid: 25 });
         vault.mirror.setState((state) => {
-            injectRawAllocations(state.transactions as unknown as TransactionStore, {
+            injectRawAllocations(draftStore(state), {
                 outOfRange: 150,
                 stringLegacy: "bad",
                 valid: 25
             });
             expect(
-                setTransactionAllocation(state.transactions as unknown as TransactionStore, {
+                setTransactionAllocation(draftStore(state), {
                     location: LOCATION,
                     personId: "valid",
                     value: -12.5
@@ -1072,7 +1058,7 @@ describe("allocation mutation boundary", () => {
         const movedDate = DATE.add({ days: 1 });
 
         vault.mirror.setState((state) => {
-            moveTransaction(state.transactions as unknown as TransactionStore, {
+            moveTransaction(draftStore(state), {
                 location: LOCATION,
                 newDate: movedDate
             });
@@ -1099,7 +1085,7 @@ describe("allocation mutation boundary", () => {
         duplicate.date = duplicateDate;
         duplicate.importId = "import-b";
         vault.mirror.setState((state) => {
-            const store = state.transactions as unknown as TransactionStore;
+            const store = draftStore(state);
             const parent = findTransactionInStore(store, LOCATION);
             if (!parent || !("suspectedDuplicates" in parent)) {
                 throw new Error("Expected import parent");
@@ -1119,10 +1105,7 @@ describe("allocation mutation boundary", () => {
         });
 
         vault.mirror.setState((state) => {
-            deleteTransactionsByImport(
-                state.transactions as unknown as TransactionStore,
-                "import-a"
-            );
+            deleteTransactionsByImport(draftStore(state), "import-a");
         });
 
         expect(
@@ -1154,7 +1137,7 @@ describe("allocation mutation boundary", () => {
         nested.accountId = "account-2";
         nested.date = movedDate;
         vault.mirror.setState((state) => {
-            const store = state.transactions as unknown as TransactionStore;
+            const store = draftStore(state);
             injectRawAllocations(store, rawLegacy);
             expect(
                 insertTransaction(store, {
@@ -1177,7 +1160,7 @@ describe("allocation mutation boundary", () => {
             transactionId: LOCATION.transactionId
         };
         vault.mirror.setState((state) => {
-            moveTransaction(state.transactions as unknown as TransactionStore, {
+            moveTransaction(draftStore(state), {
                 location: LOCATION,
                 newAccountId: movedLocation.accountId,
                 newDate: movedDate
@@ -1188,7 +1171,7 @@ describe("allocation mutation boundary", () => {
         expect(rawAllocations(mirrorStore(vault.mirror), nestedLocation)).toEqual(rawLegacy);
 
         vault.mirror.setState((state) => {
-            unnestDuplicate(state.transactions as unknown as TransactionStore, {
+            unnestDuplicate(draftStore(state), {
                 duplicateId: nested.id,
                 parentLocation: movedLocation
             });
@@ -1200,7 +1183,7 @@ describe("allocation mutation boundary", () => {
         swapCandidate.accountId = movedLocation.accountId;
         swapCandidate.date = movedDate;
         vault.mirror.setState((state) => {
-            const store = state.transactions as unknown as TransactionStore;
+            const store = draftStore(state);
             expect(
                 insertTransaction(store, {
                     transaction: swapCandidate,
@@ -1237,7 +1220,7 @@ describe("allocation mutation boundary", () => {
         };
         const legacyVault = seededMirror({ valid: 25 });
         legacyVault.mirror.setState((state) => {
-            injectRawAllocations(state.transactions as unknown as TransactionStore, rawLegacy);
+            injectRawAllocations(draftStore(state), rawLegacy);
         });
         const stored = findTransactionInStore(mirrorStore(legacyVault.mirror), LOCATION);
         if (!stored) throw new Error("Expected legacy automation transaction");
@@ -1252,11 +1235,10 @@ describe("allocation mutation boundary", () => {
         const legacyVersion = legacyVault.doc.version().encode();
         let applyResult: ReturnType<typeof applyAutomationChanges> | undefined;
         legacyVault.mirror.setState((state) => {
-            applyResult = applyAutomationChanges(
-                state.transactions as unknown as TransactionStore,
-                LOCATION,
-                { allocations: { repaired: 50 }, statusId: "must-not-apply" }
-            );
+            applyResult = applyAutomationChanges(draftStore(state), LOCATION, {
+                allocations: { repaired: 50 },
+                statusId: "must-not-apply"
+            });
         });
         expect(applyResult).toMatchObject({ ok: false });
         expect(legacyVault.doc.version().encode()).toEqual(legacyVersion);
@@ -1266,11 +1248,7 @@ describe("allocation mutation boundary", () => {
         const validVersion = validVault.doc.version().encode();
         let restoreResult: ReturnType<typeof restoreAutomationApplication> | undefined;
         validVault.mirror.setState((state) => {
-            restoreResult = restoreAutomationApplication(
-                state.transactions as unknown as TransactionStore,
-                LOCATION,
-                application
-            );
+            restoreResult = restoreAutomationApplication(draftStore(state), LOCATION, application);
         });
         expect(restoreResult).toMatchObject({ ok: false });
         expect(validVault.doc.version().encode()).toEqual(validVersion);

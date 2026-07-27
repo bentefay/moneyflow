@@ -22,6 +22,8 @@ import {
     saveLocalSnapshot
 } from "@/lib/sync/persistence";
 
+import { assertDefined } from "./helpers/assert-defined";
+
 // Use unique vault IDs per test to avoid database conflicts
 let testCounter = 0;
 function uniqueVaultId(prefix: string): string {
@@ -143,9 +145,11 @@ describe("Offline Operations", () => {
             await closeDB();
 
             // Verify data persisted
-            const snapshot = await loadLocalSnapshot(vaultId);
-            expect(snapshot).toBeDefined();
-            expect(snapshot!.version_vector).toBe('{"peer1": 5}');
+            const snapshot = assertDefined(
+                await loadLocalSnapshot(vaultId),
+                "snapshot after session restart"
+            );
+            expect(snapshot.version_vector).toBe('{"peer1": 5}');
 
             const unpushed = await getUnpushedOps(vaultId);
             expect(unpushed).toHaveLength(1);
@@ -343,9 +347,9 @@ describe("Snapshot Management", () => {
             version_vector: '{"peer1": 500}'
         });
 
-        const snapshot = await loadLocalSnapshot(vaultId);
-        expect(snapshot!.encrypted_data).toBe(createEncryptedData("new-snapshot"));
-        expect(snapshot!.version_vector).toBe('{"peer1": 500}');
+        const snapshot = assertDefined(await loadLocalSnapshot(vaultId), "replaced snapshot");
+        expect(snapshot.encrypted_data).toBe(createEncryptedData("new-snapshot"));
+        expect(snapshot.version_vector).toBe('{"peer1": 500}');
     });
 });
 

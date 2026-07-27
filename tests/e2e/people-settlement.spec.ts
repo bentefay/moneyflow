@@ -15,7 +15,13 @@
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { createNewIdentity, goToAccounts, goToPeople, goToTransactions } from "./helpers";
+import {
+    createNewIdentity,
+    goToAccounts,
+    goToPeople,
+    goToStatuses,
+    goToTransactions
+} from "./helpers";
 import {
     addAccount,
     addPeople,
@@ -27,6 +33,7 @@ import {
     expectNoQualifyingTransactions,
     expectObligation,
     expectSettlementIncomplete,
+    PAID_STATUS_NAME,
     readPersonIds,
     rowById,
     selectedRow,
@@ -37,6 +44,14 @@ import {
     settlementCard,
     UNPAID_STATUS_NAME
 } from "./helpers/settlement";
+import {
+    createStatus,
+    deleteStatus,
+    enableTreatAsPaid,
+    renameStatus,
+    statusRow,
+    TREAT_AS_PAID_LABEL
+} from "./helpers/statuses";
 
 /**
  * Pre-existing local-stack transport noise, not attributable to the settlement surface.
@@ -683,10 +698,21 @@ test.describe("People page settlement matrices", () => {
                 .getByRole("button")
                 .first();
             await expect(toggle).toHaveAttribute("aria-expanded", "false");
-            const controls = await toggle.getAttribute("aria-controls");
-            expect(controls).toBeTruthy();
             await expect(toggle).toHaveAccessibleName(/Bob/);
             await expect(toggle).toHaveAccessibleName(/Me/);
+
+            // aria-controls must name the panel the toggle actually reveals, otherwise the
+            // wiring is decorative. The panel only exists while expanded, so expand, assert the
+            // referenced element is the revealed source list, then restore the collapsed state
+            // the next step starts from.
+            const controls = await toggle.getAttribute("aria-controls");
+            const controlled = page.locator(`#${controls ?? "missing-controls-id"}`);
+            await expect(controlled).toHaveCount(0);
+            await toggle.click();
+            await expect(controlled).toBeVisible();
+            await expect(controlled).toHaveRole("list");
+            await toggle.click();
+            await expect(toggle).toHaveAttribute("aria-expanded", "false");
         });
 
         await test.step("keyboard-only expansion and navigation", async () => {
@@ -831,6 +857,108 @@ test.describe("View transaction deep link", () => {
             creditor: "Me",
             currencyCode: "USD",
             debtor: "Bob"
+        });
+    });
+});
+
+// ---------------------------------------------------------------------------
+// The /statuses page is the only control over which transactions settlement even looks at:
+// `calculateSettlementBalances` skips every transaction whose status lacks `behavior:
+// "treatAsPaid"`. This journey covers the page's full lifecycle and proves the behavior toggle
+// moves real money on the People page.
+// ---------------------------------------------------------------------------
+
+test.describe("Statuses page", () => {
+    test("status lifecycle: create, rename, toggle Treat as Paid and delete", async ({ page }) => {
+        test.setTimeout(120_000);
+        await createNewIdentity(page);
+        await addPeople(page, ["Bob"]);
+
+        await test.step("seeded statuses report their settlement behavior", async () => {
+            await goToStatuses(page);
+
+            // Only the seeded "Paid" status carries the settlement behavior.
+            await expect(statusRow(page, UNPAID_STATUS_NAME)).not.toContainText(
+                TREAT_AS_PAID_LABEL
+            );
+            await expect(statusRow(page, PAID_STATUS_NAME)).toContainText(TREAT_AS_PAID_LABEL);
+        });
+
+        await test.step("an unused status can be created and deleted again", async () => {
+            await createStatus(page, { name: "Awaiting Receipt" });
+            await deleteStatus(page, "Awaiting Receipt");
+        });
+
+        await test.step("create a status with no settlement behavior", async () => {
+            const row = await createStatus(page, { name: "Reimbursed" });
+            await expect(row).not.toContainText(TREAT_AS_PAID_LABEL);
+        });
+
+        await test.step("rename the status", async () => {
+            await renameStatus(page, "Reimbursed", "Settled Up");
+        });
+
+        const transactionId =
+            await test.step("a transaction on the renamed status does not qualify for settlement", async () => {
+                // The rename must have reached the transaction grid's status options.
+                const id = await createTransaction(page, {
+                    allocations: { Bob: "50", Me: "50" },
+                    amount: "-100.00",
+                    description: "Statuses journey",
+                    status: "Settled Up"
+                });
+
+                await goToPeople(page);
+                await expectNoQualifyingTransactions(page);
+                return id;
+            });
+
+        await test.step("turning on Treat as Paid produces the obligation", async () => {
+            await goToStatuses(page);
+            await enableTreatAsPaid(page, "Settled Up");
+
+            await goToPeople(page);
+            await expectObligation(page, {
+                amountText: "$50.00",
+                creditor: "Me",
+                currencyCode: "USD",
+                debtor: "Bob"
+            });
+        });
+
+        await test.step("a status in use cannot be deleted", async () => {
+            await goToStatuses(page);
+            const row = statusRow(page, "Settled Up");
+            await row.hover();
+            await expect(row.getByTestId("delete-status-btn")).toHaveCount(0);
+        });
+
+        // NOTE: this step exercises a suspected production defect in the toggle-off path.
+        // `BehaviorSelector` renders the "None" option with the sentinel value "none"
+        // (src/components/features/statuses/BehaviorSelector.tsx:49). `StatusesTable.handleCreate`
+        // maps that sentinel back to "no behavior" before writing
+        // (StatusesTable.tsx:129), but `StatusRow.handleSave` does not — it writes
+        // `editedBehavior` straight through (StatusRow.tsx:82), so clearing a behavior through
+        // the row editor persists the literal string "none" into a
+        // `richSchema.StringEnum(["treatAsPaid"])` field under `validateUpdates: true`.
+        // Settlement still correctly excludes the transaction either way, so the assertions below
+        // describe the behavior a user should get. If this step fails, the bug is in
+        // StatusRow.handleSave, not in the test.
+        await test.step("turning Treat as Paid back off withdraws the obligation", async () => {
+            const row = statusRow(page, "Settled Up");
+            await row.hover();
+            await row.getByTestId("edit-status-btn").click();
+            await row.getByTestId("behavior-selector").click();
+            await page.getByRole("option", { name: "None", exact: true }).click();
+            await row.getByTestId("save-status-btn").click();
+            await expect(statusRow(page, "Settled Up")).not.toContainText(TREAT_AS_PAID_LABEL);
+
+            await goToPeople(page);
+            await expectNoQualifyingTransactions(page);
+
+            // The transaction itself is untouched; only its status's behavior changed.
+            await goToTransactions(page);
+            await expect(rowById(page, transactionId)).toContainText("Settled Up");
         });
     });
 });

@@ -19,7 +19,7 @@ import type { Status, StatusInput } from "@/lib/crdt/schema";
 import { getEntriesOfLoroMap } from "@/lib/crdt/utils";
 
 import { insertIntoDraftRecord } from "../draft-record";
-import { BehaviorSelector } from "./BehaviorSelector";
+import { BehaviorSelector, type StatusBehavior } from "./BehaviorSelector";
 import { StatusRow } from "./StatusRow";
 
 export interface StatusesTableProps {
@@ -33,7 +33,7 @@ export interface StatusesTableProps {
 export function StatusesTable({ className }: StatusesTableProps) {
     const [isCreating, setIsCreating] = useState(false);
     const [newName, setNewName] = useState("");
-    const [newBehavior, setNewBehavior] = useState("");
+    const [newBehavior, setNewBehavior] = useState<StatusBehavior | undefined>(undefined);
 
     // Get statuses and transactions from CRDT state
     const statuses = useVaultSelector((state) => state.statuses);
@@ -126,21 +126,21 @@ export function StatusesTable({ className }: StatusesTableProps) {
             isDefault: false
         };
 
-        if (newBehavior && newBehavior !== "none") {
+        if (newBehavior !== undefined) {
             statusData.behavior = newBehavior;
         }
 
         updateVault({ type: "add", id, data: statusData as Partial<StatusInput> });
 
         setNewName("");
-        setNewBehavior("");
+        setNewBehavior(undefined);
         setIsCreating(false);
     }, [newName, newBehavior, updateVault]);
 
     // Handle canceling creation
     const handleCancelCreate = useCallback(() => {
         setNewName("");
-        setNewBehavior("");
+        setNewBehavior(undefined);
         setIsCreating(false);
     }, []);
 

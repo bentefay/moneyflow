@@ -17,7 +17,7 @@ import { useTransientFlag } from "@/components/ui/use-transient-flag";
 import type { Status } from "@/lib/crdt/schema";
 import { cn } from "@/lib/utils";
 
-import { BehaviorSelector } from "./BehaviorSelector";
+import { BehaviorSelector, type StatusBehavior } from "./BehaviorSelector";
 
 /** Grace period before a blurred delete button drops back out of confirm mode. */
 const DELETE_CONFIRM_BLUR_MS = 200;
@@ -50,7 +50,9 @@ export function StatusRow({
 }: StatusRowProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [editedName, setEditedName] = useState(status.name);
-    const [editedBehavior, setEditedBehavior] = useState<string>(status.behavior ?? "");
+    const [editedBehavior, setEditedBehavior] = useState<StatusBehavior | undefined>(
+        status.behavior
+    );
     const {
         isActive: showDeleteConfirm,
         hold: armDeleteConfirm,
@@ -61,7 +63,7 @@ export function StatusRow({
     // Handle starting edit mode
     const handleStartEdit = useCallback(() => {
         setEditedName(status.name);
-        setEditedBehavior(status.behavior ?? "");
+        setEditedBehavior(status.behavior);
         setIsEditing(true);
     }, [status.name, status.behavior]);
 
@@ -79,9 +81,8 @@ export function StatusRow({
             updates.name = trimmedName;
         }
 
-        const newBehavior = (editedBehavior || undefined) as "treatAsPaid" | undefined;
-        if (newBehavior !== status.behavior) {
-            updates.behavior = newBehavior;
+        if (editedBehavior !== status.behavior) {
+            updates.behavior = editedBehavior;
         }
 
         if (Object.keys(updates).length > 0) {
@@ -94,7 +95,7 @@ export function StatusRow({
     // Handle canceling inline edits
     const handleCancel = useCallback(() => {
         setEditedName(status.name);
-        setEditedBehavior(status.behavior ?? "");
+        setEditedBehavior(status.behavior);
         setIsEditing(false);
     }, [status.name, status.behavior]);
 

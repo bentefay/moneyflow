@@ -6,11 +6,6 @@
 
 import type { Page } from "@playwright/test";
 
-export async function goToDashboard(page: Page): Promise<void> {
-    await page.goto("/dashboard");
-    await page.waitForLoadState("networkidle");
-}
-
 export async function goToTransactions(page: Page): Promise<void> {
     await page.goto("/transactions");
     // Wait for the transaction table toolbar which is always present (even in empty state)
@@ -29,6 +24,13 @@ export async function goToTags(page: Page): Promise<void> {
     await page.getByRole("heading", { name: "Tags", level: 1 }).waitFor({ timeout: 15000 });
     // Tags table only renders once a vault is selected.
     await page.getByRole("button", { name: /add tag/i }).waitFor({ timeout: 15000 });
+}
+
+export async function goToStatuses(page: Page): Promise<void> {
+    await page.goto("/statuses");
+    await page.getByRole("heading", { name: "Statuses", level: 1 }).waitFor({ timeout: 15000 });
+    // The statuses table only renders once a vault is selected.
+    await page.getByTestId("add-status-btn").waitFor({ timeout: 15000 });
 }
 
 export async function goToAccounts(page: Page): Promise<void> {

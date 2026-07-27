@@ -96,7 +96,6 @@ test.describe("Identity", () => {
 
         await test.step("navigate to new user page and see intro", async () => {
             await page.goto("/new-user");
-            await page.waitForLoadState("networkidle");
 
             await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
             await expect(page.locator('[data-testid="generate-button"]')).toBeVisible();
@@ -295,7 +294,6 @@ test.describe("Identity", () => {
 
         await test.step("create identity first (setup)", async () => {
             await page.goto("/new-user");
-            await page.waitForLoadState("networkidle");
 
             const generateButton = page.locator('[data-testid="generate-button"]');
 
@@ -333,7 +331,6 @@ test.describe("Identity", () => {
 
         await test.step("unlock page shows 12 seed phrase inputs", async () => {
             await page.goto("/unlock");
-            await page.waitForLoadState("networkidle");
 
             const inputs = page.locator('[data-testid^="seed-word-input-"]');
             await expect(inputs.first()).toBeVisible({ timeout: 10000 });
@@ -350,12 +347,13 @@ test.describe("Identity", () => {
 
             await firstInput.fill("abandon");
             const validClasses = await firstInput.getAttribute("class");
-            expect(validClasses).toBeTruthy();
 
             await firstInput.clear();
             await firstInput.fill("invalidword123");
             const invalidClasses = await firstInput.getAttribute("class");
-            expect(invalidClasses).toBeTruthy();
+
+            // A BIP39 word and a non-word must render differently, otherwise there is no feedback.
+            expect(validClasses).not.toBe(invalidClasses);
         });
 
         await test.step("support paste functionality", async () => {

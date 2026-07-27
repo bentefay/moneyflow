@@ -24,12 +24,13 @@ export {
 export {
     goToAccounts,
     goToAutomations,
-    goToDashboard,
     goToImportNew,
     goToImports,
     goToPeople,
     goToSettings,
+    goToStatuses,
     goToTags,
     goToTransactions,
     goToTxDescriptions
 } from "./nav";
+export { createTag, type TagSpec } from "./tags";
