@@ -149,11 +149,12 @@ export function DuplicatesTab({
     const handleCutoffTypeChange = useCallback(
         (type: string) => {
             const newType = type as CutoffType;
-            const updates: Partial<FilterConfig> = { cutoffType: newType };
             // Set default cutoff date when switching to date mode
-            if (newType === "date" && !oldTransactionFilter.cutoffDate) {
-                updates.cutoffDate = defaultCutoffDate;
-            }
+            const needsDefaultDate = newType === "date" && !oldTransactionFilter.cutoffDate;
+            const updates: Partial<FilterConfig> = {
+                cutoffType: newType,
+                ...(needsDefaultDate ? { cutoffDate: defaultCutoffDate } : {})
+            };
             onFilterChange(updates);
         },
         [onFilterChange, oldTransactionFilter.cutoffDate, defaultCutoffDate]

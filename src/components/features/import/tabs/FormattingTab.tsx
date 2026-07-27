@@ -119,6 +119,20 @@ export function detectDateFormat(samples: string[]): string | null {
 }
 
 /**
+ * Strip the sign from an amount sample.
+ *
+ * Amounts arrive signed - bank exports lead with negatives, and accounting
+ * exports wrap them in parentheses. The grouping patterns below only describe
+ * the magnitude, so a signed sample would match nothing and silently leave the
+ * US defaults in place for a EU file. `parseNumber` accepts both spellings, so
+ * detection must too.
+ */
+function stripAmountSign(value: string): string {
+    const unwrapped = value.startsWith("(") && value.endsWith(")") ? value.slice(1, -1) : value;
+    return unwrapped.startsWith("-") || unwrapped.startsWith("+") ? unwrapped.slice(1) : unwrapped;
+}
+
+/**
  * Auto-detect number format from sample values.
  */
 export function detectNumberFormat(
@@ -126,10 +140,17 @@ export function detectNumberFormat(
 ): { thousand: string; decimal: string } | null {
     if (samples.length === 0) return null;
 
-    const sample = samples[0].trim();
-
-    // Remove currency symbols and whitespace
-    const cleaned = sample.replace(/[$€£¥]|\s/g, "");
+    // Normalise the separator spaces FR/CH exports emit (NBSP, narrow NBSP) to
+    // a plain space, drop currency symbols, then strip the sign. Interior
+    // spaces must survive: they are the FR thousands separator, and removing
+    // them here made the FR branch below unreachable - "1 234,56" collapsed to
+    // "1234,56", which matches none of the patterns and detected nothing.
+    const cleaned = stripAmountSign(
+        samples[0]
+            .replace(/[\u00a0\u202f]/g, " ")
+            .replace(/[$€£¥]/g, "")
+            .trim()
+    );
 
     // Look for patterns
     // 1,234.56 -> US
@@ -181,18 +202,18 @@ export function FormattingTab({
 
     // Handle auto-detection
     const handleAutoDetect = useCallback(() => {
-        const updates: Partial<FormattingSettings> = {};
-
         const detectedDate = detectDateFormat(sampleDates);
-        if (detectedDate) {
-            updates.dateFormat = detectedDate;
-        }
-
         const detectedNumber = detectNumberFormat(sampleAmounts);
-        if (detectedNumber) {
-            updates.thousandSeparator = detectedNumber.thousand;
-            updates.decimalSeparator = detectedNumber.decimal;
-        }
+
+        const updates: Partial<FormattingSettings> = {
+            ...(detectedDate ? { dateFormat: detectedDate } : {}),
+            ...(detectedNumber
+                ? {
+                      thousandSeparator: detectedNumber.thousand,
+                      decimalSeparator: detectedNumber.decimal
+                  }
+                : {})
+        };
 
         if (Object.keys(updates).length > 0) {
             onFormattingChange(updates);

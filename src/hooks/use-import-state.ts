@@ -30,6 +30,7 @@ import { isOFXFormat, parseOFX } from "@/lib/import/ofx";
 import {
     DEFAULT_IMPORT_CONFIG,
     type DuplicateCheckResult,
+    type FormattingSettings,
     type ImportConfig,
     type ImportFileType,
     type ImportSession,
@@ -86,6 +87,57 @@ export interface UseImportStateReturn {
 // ============================================================================
 // Helper Functions
 // ============================================================================
+
+/**
+ * Column mappings for OFX, whose structure is fixed: the rows are always
+ * built as ["Date", "Description", "Amount"].
+ */
+const OFX_COLUMN_MAPPINGS: Readonly<Record<string, string>> = {
+    "0": "date",
+    "1": "description",
+    "2": "amount"
+};
+
+/** Read the sample values of the column mapped to `field`, ignoring blanks. */
+function sampleColumn(
+    columnMappings: Readonly<Record<string, string>>,
+    sampleRows: readonly string[][],
+    field: string
+): string[] {
+    const columnIndex = Object.entries(columnMappings).find(([, mapped]) => mapped === field)?.[0];
+    if (columnIndex === undefined) return [];
+
+    return sampleRows
+        .map((row) => row[parseInt(columnIndex, 10)] ?? "")
+        .filter((value) => value.trim());
+}
+
+/**
+ * Derive formatting settings from the first few data rows.
+ *
+ * Returns a new object; detection never writes back into the settings it was
+ * given, which is what previously let it corrupt the module-level defaults.
+ */
+function detectFormatting(
+    formatting: FormattingSettings,
+    columnMappings: Readonly<Record<string, string>>,
+    dataRows: readonly string[][]
+): FormattingSettings {
+    const sampleRows = dataRows.slice(0, 5);
+    const dateFormat = detectDateFormat(sampleColumn(columnMappings, sampleRows, "date"));
+    const numberFormat = detectNumberFormat(sampleColumn(columnMappings, sampleRows, "amount"));
+
+    return {
+        ...formatting,
+        ...(dateFormat ? { dateFormat } : {}),
+        ...(numberFormat
+            ? {
+                  thousandSeparator: numberFormat.thousand,
+                  decimalSeparator: numberFormat.decimal
+              }
+            : {})
+    };
+}
 
 /**
  * Generate a unique session ID.
@@ -259,11 +311,7 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
                                 recentTemplate.oldTransactionFilter.cutoffDate?.toString() ?? null
                         },
                         // OFX has fixed column mappings
-                        columnMappings: {
-                            "0": "date",
-                            "1": "description",
-                            "2": "amount"
-                        }
+                        columnMappings: OFX_COLUMN_MAPPINGS
                     };
                 } else if (recentTemplate) {
                     // CSV with template: apply all settings
@@ -286,50 +334,25 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
                     config = structuredClone(DEFAULT_IMPORT_CONFIG);
                 }
 
-                // For OFX files, always use fixed column mappings since structure is known
-                // OFX headers are ["Date", "Description", "Amount"] (indices 0, 1, 2)
+                // Derive the final config rather than writing back into `config`.
+                // The fields are readonly, so auto-detection can no longer reach
+                // the shared DEFAULT_* constants that also back CRDT schema
+                // defaults - the immutability is now structural, not a habit.
                 if (fileType === "ofx") {
-                    config.columnMappings = {
-                        "0": "date",
-                        "1": "description",
-                        "2": "amount"
-                    };
+                    // OFX structure is known: headers are ["Date", "Description", "Amount"]
+                    config = { ...config, columnMappings: OFX_COLUMN_MAPPINGS };
                 } else if (!recentTemplate) {
                     // For CSV files without a template, auto-detect columns from headers
-                    config.columnMappings = autoDetectColumnMappings(headers);
-
-                    // Also auto-detect formatting settings from sample data
-                    const dataRows = config.formatting.hasHeaders ? rawRows.slice(1) : rawRows;
-                    const sampleRows = dataRows.slice(0, 5);
-
-                    // Find date column to get sample dates
-                    const dateColIdx = Object.entries(config.columnMappings).find(
-                        ([, field]) => field === "date"
-                    )?.[0];
-                    if (dateColIdx !== undefined) {
-                        const sampleDates = sampleRows
-                            .map((row) => row[parseInt(dateColIdx, 10)] ?? "")
-                            .filter((v) => v.trim());
-                        const detectedDateFormat = detectDateFormat(sampleDates);
-                        if (detectedDateFormat) {
-                            config.formatting.dateFormat = detectedDateFormat;
-                        }
-                    }
-
-                    // Find amount column to get sample amounts
-                    const amountColIdx = Object.entries(config.columnMappings).find(
-                        ([, field]) => field === "amount"
-                    )?.[0];
-                    if (amountColIdx !== undefined) {
-                        const sampleAmounts = sampleRows
-                            .map((row) => row[parseInt(amountColIdx, 10)] ?? "")
-                            .filter((v) => v.trim());
-                        const detectedNumberFormat = detectNumberFormat(sampleAmounts);
-                        if (detectedNumberFormat) {
-                            config.formatting.thousandSeparator = detectedNumberFormat.thousand;
-                            config.formatting.decimalSeparator = detectedNumberFormat.decimal;
-                        }
-                    }
+                    const columnMappings = autoDetectColumnMappings(headers);
+                    config = {
+                        ...config,
+                        columnMappings,
+                        formatting: detectFormatting(
+                            config.formatting,
+                            columnMappings,
+                            config.formatting.hasHeaders ? rawRows.slice(1) : rawRows
+                        )
+                    };
                 }
 
                 // Determine account selection and action for OFX files
@@ -509,19 +532,15 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
 
                 if (!templateId) {
                     // Reset to defaults, but preserve OFX column mappings if OFX file.
-                    // Deep copy so later edits never reach the module constants.
+                    // Deep copy so the session never aliases the module constants.
                     const defaultConfig = structuredClone(DEFAULT_IMPORT_CONFIG);
-                    if (prev.fileType === "ofx") {
-                        defaultConfig.columnMappings = {
-                            "0": "date",
-                            "1": "description",
-                            "2": "amount"
-                        };
-                    }
                     return {
                         ...prev,
                         templateId: null,
-                        config: defaultConfig
+                        config:
+                            prev.fileType === "ofx"
+                                ? { ...defaultConfig, columnMappings: OFX_COLUMN_MAPPINGS }
+                                : defaultConfig
                     };
                 }
 

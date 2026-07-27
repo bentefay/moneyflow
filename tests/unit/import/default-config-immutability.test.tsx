@@ -80,4 +80,38 @@ describe("DEFAULT_IMPORT_CONFIG immutability", () => {
         expect(config?.duplicateDetection).not.toBe(DEFAULT_IMPORT_CONFIG.duplicateDetection);
         expect(config?.oldTransactionFilter).not.toBe(DEFAULT_IMPORT_CONFIG.oldTransactionFilter);
     });
+
+    it("auto-detects the number format from a signed sample amount", async () => {
+        // The sampled amounts here are all negative, which is what a real bank export looks
+        // like. Detection used to test the patterns against the signed string, match nothing,
+        // and leave the US separators in place - so a EU file parsed "1.234,56" with "." as
+        // the thousands separator. See tests/unit/components/formatting-detection.test.ts.
+        const { result } = renderHook(() =>
+            useImportState({
+                existingTransactions: [],
+                accounts: [],
+                templates: [],
+                defaultCurrency: "EUR"
+            })
+        );
+
+        await result.current.loadFile(
+            csvFile(
+                [
+                    "Date;Description;Amount",
+                    "15/01/2024;Kaffee;-1.234,56",
+                    "16/01/2024;Tankstelle;-2.345,67"
+                ].join("\n")
+            )
+        );
+        await waitFor(() => expect(result.current.session).not.toBeNull());
+
+        expect(result.current.session?.config.formatting.thousandSeparator).toBe(".");
+        expect(result.current.session?.config.formatting.decimalSeparator).toBe(",");
+
+        // And the amounts land at their true magnitude rather than 100x over.
+        expect(result.current.previewTransactions.map((tx) => tx.amount)).toEqual([
+            -123456, -234567
+        ]);
+    });
 });

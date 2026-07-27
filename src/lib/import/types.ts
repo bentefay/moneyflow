@@ -34,13 +34,13 @@ export type CutoffType = "days" | "date";
  */
 export interface FilterConfig {
     /** How to handle old transactions */
-    mode: OldTransactionMode;
+    readonly mode: OldTransactionMode;
     /** Type of cutoff calculation */
-    cutoffType: CutoffType;
+    readonly cutoffType: CutoffType;
     /** Number of days before newest existing transaction to consider "old" (when cutoffType="days") */
-    cutoffDays: number;
+    readonly cutoffDays: number;
     /** Explicit cutoff date (when cutoffType="date") */
-    cutoffDate: string | null;
+    readonly cutoffDate: string | null;
 }
 
 /**
@@ -94,13 +94,13 @@ export type DescriptionMatchMode = "exact" | "similar";
  */
 export interface DuplicateDetectionSettings {
     /** How to match dates */
-    dateMatchMode: DateMatchMode;
+    readonly dateMatchMode: DateMatchMode;
     /** Max days difference when mode="within" */
-    maxDateDiffDays: number;
+    readonly maxDateDiffDays: number;
     /** How to match descriptions */
-    descriptionMatchMode: DescriptionMatchMode;
+    readonly descriptionMatchMode: DescriptionMatchMode;
     /** Min similarity (0-1) when mode="similar" */
-    minDescriptionSimilarity: number;
+    readonly minDescriptionSimilarity: number;
 }
 
 /**
@@ -132,15 +132,15 @@ export interface DuplicateCheckResult {
  */
 export interface FormattingSettings {
     /** Whether the file has a header row */
-    hasHeaders: boolean;
+    readonly hasHeaders: boolean;
     /** Character used for thousands (e.g., "," in "1,000") */
-    thousandSeparator: string;
+    readonly thousandSeparator: string;
     /** Character used for decimals (e.g., "." in "10.50") */
-    decimalSeparator: string;
+    readonly decimalSeparator: string;
     /** Date format pattern (e.g., "yyyy-MM-dd", "MM/dd/yyyy") */
-    dateFormat: string;
+    readonly dateFormat: string;
     /** Whether to collapse multiple spaces to single space */
-    collapseWhitespace: boolean;
+    readonly collapseWhitespace: boolean;
 }
 
 /**
@@ -163,13 +163,13 @@ export const DEFAULT_FORMATTING_SETTINGS: FormattingSettings = {
  */
 export interface ImportConfig {
     /** Parsing and formatting settings */
-    formatting: FormattingSettings;
+    readonly formatting: FormattingSettings;
     /** Duplicate detection settings */
-    duplicateDetection: DuplicateDetectionSettings;
+    readonly duplicateDetection: DuplicateDetectionSettings;
     /** Old transaction filter settings */
-    oldTransactionFilter: FilterConfig;
+    readonly oldTransactionFilter: FilterConfig;
     /** Column mappings: csvColumn -> entityField */
-    columnMappings: Record<string, string>;
+    readonly columnMappings: Readonly<Record<string, string>>;
 }
 
 /**
