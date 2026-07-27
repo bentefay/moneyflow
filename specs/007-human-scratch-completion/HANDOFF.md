@@ -86,7 +86,9 @@ that file; it is the spec every sweep skipped.
 - `tests/e2e/identity.spec.ts`, `tests/e2e/import.spec.ts`, `tests/e2e/transactions.spec.ts` (and
   any E2E helper you must touch, e.g. `tests/e2e/helpers/*`).
 - IF you take the F-2 source route: `src/components/ui/input.tsx` (and only what that requires).
-- `specs/007-human-scratch-completion/evidence/P20B/implementation-06.md` (your evidence).
+- `specs/007-human-scratch-completion/evidence/P20B/implementation-07.md` (your evidence — NOTE the
+  +1 skew: rev 06 files to implementation-07.md; `implementation-06.md` is the frozen, cited rev-05
+  artifact and MUST NOT be touched).
 - Do NOT edit any other product code, any ledger (`PROGRESS.md`/`QUESTIONS.md`/`HANDOFF.md`/
   `FINAL-AUDIT.md`), the frozen `specs/human-scratch.md`, or `settlement.ts` (blob
   `010f3c93582a2ce311594d4dde8464760ca49c43` must stay byte-identical). Leave the two inert strays
@@ -103,7 +105,7 @@ use `bat -P` not `cat`.
 
 ## Output + reporting
 
-- Write full evidence to `evidence/P20B/implementation-06.md`: the F-2 route chosen + why, the F-1
+- Write full evidence to `evidence/P20B/implementation-07.md`: the F-2 route chosen + why, the F-1
   cohort diff, your ≥8-run full-suite campaign table (per-run pass/fail, call out
   `identity.spec.ts:282` and `import.spec.ts:1512` explicitly), and a secret-safety self-scan.
 - SECRET-SAFETY (blocking): never print/commit any vault master key, seed phrase, recovery material,
