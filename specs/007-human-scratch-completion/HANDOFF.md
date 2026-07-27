@@ -1,119 +1,131 @@
-# HANDOFF — P20B revision 04 DIAGNOSIS+FIX dispatch (two new E2E flakes) — to `p20b-implementer-04`
+# HANDOFF — P20B revision 05 FINALIZE dispatch (passkey:387 test-timing fix) — to `p20b-implementer-05`
 
-**To:** `p20b-implementer-04` — a fresh-context developer continuing the `human_scratch` package
-**P20B** ("Full-codebase style-guide/code-quality sweep"), revision **04**. **From:** root
-coordinator. You DIAGNOSE, then fix-or-diagnose-only per a decision tree. You may commit
-**test-only** fixes. You do NOT edit ledgers
-(`PROGRESS.md`/`QUESTIONS.md`/`HANDOFF.md`/`DECISIONS.md`), markers (`specs/human-scratch.md`), or
-review files — those are root-only. You do NOT run the final audit. You do NOT change `src/**`
-product code — if you conclude a change to product/sync code is required, STOP and report to root;
-do not make it.
+**To:** `p20b-implementer-05` — a fresh-context developer finalizing one test-only fix for the
+`human_scratch` package **P20B** ("Full-codebase style-guide/code-quality sweep"), revision **05**.
+**From:** root coordinator. You edit ONE test file and author ONE evidence file, then commit. You do
+NOT edit ledgers (`PROGRESS.md`/`QUESTIONS.md`/`HANDOFF.md`/`DECISIONS.md`), markers
+(`specs/human-scratch.md`), or review files — those are root-only. You do NOT touch any `src/**`
+product code. You do NOT run the final audit.
+
+## Starting state — the fix already exists in the working tree
+
+`git status` shows an UNCOMMITTED change to `tests/e2e/passkey.spec.ts` (about 7 insertions / 2
+deletions). This is the fix from a prior aborted revision and it is SUBSTANTIVELY CORRECT — keep its
+mechanics, do not rewrite the approach. In the
+`test.step("that phrase unlocks the identity the passkey created")` around line 397-408, the unlock
+input was changed from `await page.getByTestId("recovery-phrase-credential").fill(words.join(" "))`
+to `await enterSeedPhrase(page, words, true)` (entering the phrase through the per-word grid, which
+waits for the "Valid recovery phrase" indicator before proceeding), plus the corresponding
+`enterSeedPhrase` import. That is the fix. Leave the mechanics as-is.
+
+Also note: `tests/e2e/transactions.spec.ts` and `identity.spec.ts` already contain committed fixes
+from earlier revisions — do NOT touch them. `next-env.d.ts` is an unrelated generated stray — ignore
+it. `specs/007-human-scratch-completion/evidence/P08/implementation-01.md` is an untracked stray —
+leave it.
 
 ## Why this revision exists
 
-Rev 03 fixed the chartered `transactions.spec.ts:696` flake (validated 8/8 full-suite runs). But
-during that 8-run validation, TWO NEW untracked flakes surfaced, each in 1 of 8 full-suite
-`--retries=0` runs. Neither is in the accepted-environmental set, so each is currently an
-"unexplained flake" that WOULD FAIL the next P21 final audit. Your job is to make the full E2E suite
-either clean or fully-explained for these two:
+`passkey.spec.ts:387` ("passkey-only creation shows the recovery phrase and it unlocks the same
+identity") flaked ~1 in 8 full-suite `--retries=0` runs under parallel load: the unlock step failed
+after a fresh `sessionStorage.clear()` → `goto("/unlock")` → immediate `.fill()` on the single
+off-screen `recovery-phrase-credential` credential field. Tracked as **Q-P20B-16**.
 
-- **`tests/e2e/passkey.spec.ts:387`** (tracked **Q-P20B-16**) — a click on the unlock-button (around
-  `:401`) timed out at ~30s, amid tRPC auth / "Failed to fetch" console errors. This is NOT
-  obviously an undersized-visibility-wait: a 30s action timeout amid backend fetch failures points
-  more toward sync/auth-backend availability under 4-worker load than a too-short assertion.
-  Diagnose before assuming.
-- **`tests/e2e/import.spec.ts:1573`** (tracked **Q-P20B-17**) —
-  `getByText(/4 rows/i).toBeVisible({ timeout: 5000 })` not found after a 2nd CSV upload's
-  import-preview render. It ALREADY has an explicit 5s wait, so it is not a bare-default-timeout of
-  the exact rev-03 class, though 5s may still be undersized for the preview re-render under load, OR
-  there may be a 2nd-upload state race.
+**This is a class-A load-dependent test-timing flake, NOT a product defect.** The evidence: the
+IDENTICAL `page.getByTestId("recovery-phrase-credential").fill(seedWords.join(" "))` pattern is used
+at `passkey.spec.ts:72`, `:171`, `:232` and passes reliably; the field accepts space-separated
+phrases correctly in general; and a deterministic product space-handling bug would fail 100% of the
+time, not ~1/8. So the failure is a load-dependent timing/hydration race in THIS test's interaction
+with the freshly-navigated `/unlock` page, not a defect in `RecoveryPhraseCredentialFields` or the
+unlock logic. Entering via the validated per-word grid (`enterSeedPhrase(..., expectValid=true)`)
+adds a deterministic "Valid recovery phrase" settle before the unlock click, exactly as the other
+unlock tests already do, and the single-field autofill path remains covered at `:72/:171/:232` and
+in `identity.spec.ts` / `onboarding-vault.spec.ts`.
 
-## Your task — DIAGNOSE FIRST, then classify each flake into A / B / C
+## Your tasks
 
-For EACH of the two flakes:
+1. **Correct the code comment.** The current uncommitted comment over-claims the mechanism — it
+   asserts the field "strips spaces from a programmatic `.fill()` under parallel load, collapsing
+   all 12 words into one unrecognised token." Root REJECTS that causal claim (it is unproven and
+   inconsistent with the passing identical siblings). Replace the comment with an HONEST one of this
+   substance, without over-claiming an unproven root cause:
+    - the single-field `.fill()` here flaked only ~1/8 under full-parallel load while the identical
+      `.fill()` at `:72/:171/:232` passes reliably, so this is a load-dependent test-timing flake,
+      not a product defect;
+    - entering the phrase through the validated per-word grid (`enterSeedPhrase(..., true)`) waits
+      for the "Valid recovery phrase" indicator, giving a deterministic settle before the unlock
+      click, consistent with the other unlock tests;
+    - the single-field credential path stays covered at `:72/:171/:232` (and identity/onboarding
+      specs). Reference Q-P20B-16. Do NOT claim "space stripping" unless you actually PROVE it (see
+      item 2). Keep the comment concise.
 
-1. **Reproduce and characterize.** Run the specific test in isolation many times
-   (`pnpm exec playwright test <file>:<line> --repeat-each=15 --retries=0 --reporter=list`), AND
-   observe it under a few FULL-suite `--retries=0` runs. Capture the EXACT failure: what selector/
-   action timed out, what console/network errors accompanied it, whether it is deterministic-slow vs
-   truly intermittent. (Redact any secret material from quoted logs — see secret-safety below.)
+2. **(Optional) If you want to state a more specific mechanism, PROVE it first — but only in a
+   throwaway.** If you choose to investigate the exact DOM/timing cause, do it in a scratch file
+   OUTSIDE `tests/e2e/` (e.g. `/tmp/…`) and DELETE it before validating. It is FORBIDDEN to add any
+   diagnostic / `DIAG` / exploratory `test(...)` to `passkey.spec.ts` or any committed file, and
+   FORBIDDEN to leave scaffolding behind. The prior revision was aborted for exactly this. If you do
+   not prove a specific mechanism, keep the honest comment from item 1 and move on — that is fine.
 
-2. **Classify into exactly one:**
-    - **(A) Fixable undersized test-timing / eager assertion** — the awaited outcome is
-      deterministic (it always eventually succeeds) but the wait is sized too short for the
-      re-render under parallel load, same class as `transactions:696`/`identity:282`. → **HARDEN it,
-      test-only**: size the wait to the operation (explicit `{ timeout: … }` mirroring nearby
-      siblings) and/or await a deterministic settle signal before the assertion. NO `--retries`, NO
-      `waitForTimeout` sleeps, NO try/catch swallowing.
-    - **(B) Environmental / infra** — passes reliably in isolation (isolation-green) and the cause
-      is external to the product (e.g. sync/auth backend contention or a "Failed to fetch" under
-      4-worker load), not a product bug and not a fixable test wait. → **do NOT change code**; write
-      a clear diagnosis + isolation evidence + the mechanism, and recommend root classify it as an
-      accepted environmental flake (like `import:301`/`:1527`, `duplicates`). Root makes the final
-      classify call.
-    - **(C) Real product/sync defect** — the flake reflects a genuine race or bug in `src/**` or the
-      sync/auth path. → **do NOT mask it with a test change and do NOT fix `src/**` yourself\*\*;
-      write the diagnosis (repro, mechanism, suspected code path) and STOP — report to root for
-      escalation/ routing.
+3. **Verify the committed file is clean:** `passkey.spec.ts` must declare exactly its original test
+   count (12 `test(...)` blocks — no added tests), contain no `DIAG`/`console.log`/`keyboard.type`
+   diagnostic residue, and differ from BASE only by the `enterSeedPhrase` swap + import + your
+   honest comment.
 
-    State your classification and the evidence for it explicitly per flake. When genuinely uncertain
-    between A and B, prefer diagnosing (B/C path with evidence) over a speculative mask — a wrong
-    "harden" that hides a real defect is worse than an honest "needs classification".
+## Validation — run it FOREGROUND, one run per call (do NOT background+monitor)
 
-3. **Do NOT touch** `transactions.spec.ts` (rev-03 fix — leave it), `identity.spec.ts:282` (rev-02
-   fix — leave it), or any `src/**`.
+The prior revision failed because it ran the 8-run loop in the background and its turn ended before
+the loop finished. DO NOT do that. Instead run the full suite **one run at a time as a foreground
+blocking command**, each call ~4 minutes (well under the tool timeout), and inspect the result
+before starting the next. Do NOT modify ANY spec file between or during these runs — the file must
+be byte-stable across all 8 runs, or the validation is void.
 
-## Validation — the crux (isolation alone is NOT sufficient)
-
-These are load-dependent. For anything you HARDEN (class A), you must show it holds under load:
-
-- Run the **FULL suite, retries disabled, MANY times** (≥8):
-  `pnpm exec playwright test --retries=0 --reporter=list`. Report exact per-run pass/fail for ALL
-  of: `passkey.spec.ts:387`, `import.spec.ts:1573`, `transactions.spec.ts:523` (rev-03, must stay
-  green), and `identity.spec.ts:282` (rev-02, must stay green). Your class-A fixes hold only if
-  their tests pass across all your full-suite runs with no regression elsewhere.
-- If, across your ≥8 full runs, OTHER new flakes appear, list them with per-run tallies — do not
-  silently drop them; do not scope-creep into fixing them without saying so.
+- For each run i = 1..8: `pnpm exec playwright test --retries=0 --reporter=list` (redirect to a
+  distinct log if you like, e.g. `/tmp/rev05_run_${i}.log`), wait for it to finish, then record the
+  pass/fail of: `passkey.spec.ts:387`, `transactions.spec.ts:523`, `identity.spec.ts:282`, and the
+  import template test reported as `import.spec.ts:1527` (this last is the accepted-environmental
+  flake Q-P20B-14 — if IT flakes, note it but it does NOT count against you; rerun it in isolation
+  to confirm it still passes 20/20-style).
+- Your fix holds only if `passkey.spec.ts:387` passes across ALL 8 full-suite runs with no
+  regression in `transactions:523` / `identity:282`.
+- If any OTHER new flake appears, list it with tallies — do not silently drop it, do not scope-creep
+  into fixing it without saying so.
 - Never run Playwright with `--debug`, `--ui`, `--headed`, or `show` (opens a GUI, can block).
 
 ## Gates + constraints (CLAUDE.md + repo hard rules)
 
 - Before handback run and report: `pnpm typecheck && pnpm lint && pnpm format:check && pnpm test`
-  (unit) — all green — plus the full-suite E2E runs above. Fix any issue you surface even if
-  pre-existing.
+  (unit) — all green — plus the 8 full-suite E2E runs above.
 - **No `as` / `any` / `!`** in product code (repo-wide). Test-fixture casts tolerated per precedent;
-  keep any change minimal and cast-free.
-- Favour functional/immutable; match the conventions of the file you edit.
-- **No parentheses in commit messages.** Commit any test-only change with a clear message. If you
-  make NO code change (both classified B/C), commit nothing and just write evidence + report.
+  keep this minimal and cast-free.
+- Favour functional/immutable; match the conventions of `passkey.spec.ts`.
+- **No parentheses in commit messages.**
 
 ## Provenance / BASE (SHA-stable)
 
-- Record `git rev-parse HEAD` at start — it should be `1bd1f07` or a later **root-ledger-only**
-  commit (root may advance HEAD with ledger commits under `specs/**`; that is fine and separate).
-  The current product/test tip is `63787ec`.
-- Any commit(s) you make must touch **ONLY
-  `tests/e2e/**`** (no `src/**`, no `specs/**`). After committing, verify `git diff --stat
-  5576175..HEAD -- . ':(exclude)specs'`shows only`tests/e2e/\*\*` changes.
+- Record `git rev-parse HEAD` at start — it should be `cd4d313` or a later **root-ledger-only**
+  commit under `specs/**` (root may advance HEAD; that is fine and separate). The current
+  product/test tip is `63787ec`.
+- Your commit(s) must touch **ONLY `tests/e2e/passkey.spec.ts`** (no `src/**`, no other test, no
+  `specs/**`). After committing, verify `git diff --stat 5576175..HEAD -- . ':(exclude)specs'` shows
+  only `tests/e2e/transactions.spec.ts` (the earlier rev-03 fix, already committed) and
+  `tests/e2e/passkey.spec.ts` (yours).
 - Write your evidence to `specs/007-human-scratch-completion/evidence/P20B/implementation-06.md`
-  (the ONE `specs/**` file you author). Include: per-flake repro method + raw-but-redacted failure
-  signature, your A/B/C classification + justification, the diff summary for anything hardened, your
-  per-run FULL-suite tallies for the four tests above, the unit-gate results, and any other flakes
-  observed.
+  (the ONE `specs/**` file you author). Include: the final diff summary, your honest mechanism
+  statement, the confirmation that no DIAG scaffolding remains and the test count is unchanged, your
+  per-run full-suite tallies for the four tests across all 8 runs, the unit-gate results, and any
+  other flakes observed.
 
 ## Secret-safety (blocking)
 
-No vault master key, seed phrase, recovery material, crypto_box secret, SUPABASE_JWT_SECRET,
-vault-derived presence key, invite-fragment bearer secret, or vault plaintext in code, logs, URLs,
-fixtures, or evidence. `passkey.spec.ts` exercises WebAuthn/recovery flows — be especially careful
-that any failure logs you quote in evidence contain NO real credential/recovery material; redact.
-Synthetic/public vectors only (BIP39 `abandon…` is fine). Any real-material leak is blocking — stop
-and report to root immediately.
+`passkey.spec.ts` exercises WebAuthn/recovery flows. No vault master key, seed phrase, recovery
+material, crypto_box secret, SUPABASE_JWT_SECRET, vault-derived presence key, invite-fragment bearer
+secret, or vault plaintext in code, logs, URLs, fixtures, or evidence — redact any failure logs you
+quote. Synthetic/public vectors only (BIP39 `abandon…` is fine). Any real-material leak is blocking
+— stop and report to root immediately.
 
 ## Handback
 
-Report to root: the commit SHA(s) if any (or "no code change"); your A/B/C classification for
-`passkey:387` and `import:1573` with the evidence; your full-suite per-run tallies for `passkey:387`
-/ `import:1573` / `transactions:523` / `identity:282`; the unit-gate results; and any other flakes
-observed. Root will verify-not-trust, decide classification/escalation for B/C items, then dispatch
-a DISTINCT reviewer over the cumulative P20B hardening.
+Report to root: the commit SHA; the final honest comment text; confirmation the file is clean (12
+tests, no scaffolding); your per-run full-suite tallies for `passkey:387` / `transactions:523` /
+`identity:282` / `import:1527` across all 8 runs; the unit-gate results; any other flakes. Root will
+verify-not-trust, then dispatch a DISTINCT reviewer over the cumulative P20B hardening
+`5576175..HEAD`.
