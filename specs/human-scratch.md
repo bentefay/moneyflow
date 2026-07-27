@@ -154,7 +154,7 @@
   it is just a normal, selectable row without the tick or cross buttons at the end. Pressing arrow
   keys moves between rows like normal. More than one empty row can be created.
 
-- [] Upgrade to the very latest safe-chain supported version of all dependencies
+- [x] Upgrade to the very latest safe-chain supported version of all dependencies
 
 - [x] Do a sweep of the full code base for code quality based on our style guide
 
