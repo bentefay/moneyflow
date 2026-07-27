@@ -32,7 +32,7 @@ const securityFeatures = [
     {
         title: "Shared without sharing keys",
         description:
-            "Inviting someone wraps the vault key to their key. The invite secret stays in the link fragment and never reaches the server. Remove a member and the vault is re-keyed.",
+            "Inviting someone wraps the vault key to their key. The invite secret stays in the link fragment and never reaches the server. Removing a member cuts off their access to future changes; the vault key is not rotated, so anything they already downloaded stays readable to them.",
         icon: Users
     }
 ];
