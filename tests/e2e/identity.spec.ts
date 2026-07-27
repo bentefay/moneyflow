@@ -354,11 +354,15 @@ test.describe("Identity", () => {
 
             await firstInput.fill("abandon");
             await expect(firstInput).toHaveValue("abandon");
+            // toHaveValue confirms the DOM value but not the re-render that flips the validity
+            // border colour, so wait for the class itself to reflect the valid word first.
+            await expect(firstInput).toHaveClass(/border-green-500/);
             const validClasses = await firstInput.getAttribute("class");
 
             await firstInput.clear();
             await firstInput.fill("invalidword123");
             await expect(firstInput).toHaveValue("invalidword123");
+            await expect(firstInput).toHaveClass(/border-destructive/);
             const invalidClasses = await firstInput.getAttribute("class");
 
             // A BIP39 word and a non-word must render differently, otherwise there is no feedback.
