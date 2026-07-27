@@ -8,11 +8,16 @@ and write your findings to exactly one file. You commit NOTHING.
 ## Literal coordinates
 
 - **Package:** P21 (control; no scratch requirement, no marker).
-- **BASE (last integration) `4c20206`; you operate at current HEAD `3b6a6b6`.** The only delta
-  `4c20206..3b6a6b6` is root's own P21-dispatch docs commit (`PROGRESS.md` + `HANDOFF.md`, no
-  product change) — that is the control plane, expected. The PRODUCT/collector range must stay
-  EMPTY: you must NOT create any commit. At your handback HEAD must still be `3b6a6b6`; any new
-  commit is a reconciliation event for root, not you.
+- **BASE (last product/integration commit) `4c20206`; operate at whatever `git rev-parse HEAD` you
+  observe at start — record it.** The delta `4c20206..HEAD` contains ONLY root's own control-plane
+  ledger commits, each touching solely `specs/007-human-scratch-completion/PROGRESS.md` and/or
+  `HANDOFF.md` (no product change) — verify this yourself with `git diff --name-only 4c20206..HEAD`
+  (must list only those two root-owned docs) and `git log --oneline 4c20206..HEAD` (must be root
+  docs commits only). That control plane is expected. The PRODUCT/collector range must stay EMPTY:
+  you must NOT create any commit and must not modify any product/test/migration file. At your
+  handback, HEAD must be unchanged from the SHA you recorded at start and
+  `git diff --name-only 4c20206..HEAD` must still list only those two root-owned docs; any new
+  commit of yours is a reconciliation event for root, not you.
 - **Your ONLY persistent write:**
   `specs/007-human-scratch-completion/evidence/P21/implementation-01.md` (create the `evidence/P21/`
   directory). Do NOT write or edit any product/test/migration file, any other evidence/review file,
@@ -85,7 +90,8 @@ independent reviewer PASS.
 
 ## Handback
 
-SendMessage to `main` with: confirmation the tree is still at HEAD `3b6a6b6` with no new commits and
+SendMessage to `main` with: confirmation the tree is still at the HEAD SHA you recorded at start (no
+new commits; `git diff --name-only 4c20206..HEAD` still only the two root-owned ledgers) and
 `git status --porcelain` proof; a top-line PASS-candidate/FAIL summary; the blocking findings (if
 any); and the exact path `evidence/P21/implementation-01.md`. Any failing check, unexplained flake,
 material UX/a11y/security/data/perf finding, false marketing claim, missing evidence, write-boundary
