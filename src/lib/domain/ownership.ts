@@ -259,12 +259,21 @@ export function addOwner(
         return { [personId]: Math.min(percentage, 100) };
     }
 
-    // Scale down existing ownerships proportionally to make room
-    const scaleFactor = (100 - percentage) / currentSum;
+    const remainder = 100 - percentage;
     const result: Record<string, number> = {};
 
-    for (const [pid, pct] of entries) {
-        result[pid] = pct * scaleFactor;
+    if (currentSum === 0) {
+        // Nothing to scale proportionally - share the remainder equally so no owner becomes NaN
+        const equalShare = remainder / entries.length;
+        for (const [pid] of entries) {
+            result[pid] = equalShare;
+        }
+    } else {
+        // Scale down existing ownerships proportionally to make room
+        const scaleFactor = remainder / currentSum;
+        for (const [pid, pct] of entries) {
+            result[pid] = pct * scaleFactor;
+        }
     }
 
     result[personId] = percentage;
@@ -310,8 +319,13 @@ export function updateOwnerPercentage(
 ): Record<string, number> {
     const entries = Object.entries(ownerships);
 
-    if (entries.length <= 1) {
-        // Single owner always gets 100%
+    if (entries.length === 0) {
+        // No existing owners - the named person becomes the sole owner
+        return { [personId]: 100 };
+    }
+
+    if (entries.length === 1 && entries[0][0] === personId) {
+        // The sole existing owner always holds 100%
         return { [personId]: 100 };
     }
 
@@ -330,12 +344,12 @@ export function updateOwnerPercentage(
     const scaleFactor = othersSum > 0 ? remainder / othersSum : 0;
 
     for (const [pid, pct] of entries) {
-        if (pid === personId) {
-            result[pid] = clampedPct;
-        } else {
-            result[pid] = pct * scaleFactor;
-        }
+        if (pid === personId) continue;
+        result[pid] = pct * scaleFactor;
     }
+
+    // Set last so a person who is not yet an owner is added rather than dropped
+    result[personId] = clampedPct;
 
     return result;
 }

@@ -217,7 +217,7 @@ export function allocationPresenceField(personId: string): `allocation:${string}
 }
 
 function allocationMap(transaction: Transaction | NestedDuplicate): Record<string, number> {
-    return transaction.allocations as unknown as Record<string, number>;
+    return transaction.allocations;
 }
 
 function findLogicalTransactions(
@@ -291,16 +291,19 @@ export function setTransactionAllocation(
     const transactions = findLogicalTransactions(store, input.location);
     if (transactions.length === 0) return error({ type: "transaction-not-found" });
 
+    // Zero means removal at the CRDT boundary, so prepareAllocationReplacement omits it.
+    const preparedValue = prepared.value[input.personId];
+
     let changed = false;
     for (const transaction of transactions) {
         const allocations = allocationMap(transaction);
-        if (input.value === 0) {
+        if (preparedValue == null) {
             if (Object.prototype.hasOwnProperty.call(allocations, input.personId)) {
                 delete allocations[input.personId];
                 changed = true;
             }
-        } else if (!Object.is(allocations[input.personId], input.value)) {
-            allocations[input.personId] = input.value as number;
+        } else if (!Object.is(allocations[input.personId], preparedValue)) {
+            allocations[input.personId] = preparedValue;
             changed = true;
         }
     }

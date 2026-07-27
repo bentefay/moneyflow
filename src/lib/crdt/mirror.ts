@@ -241,20 +241,6 @@ export function ensureMemberPersonLinked(
 }
 
 /**
- * Applies updates to an existing vault mirror.
- *
- * Used when receiving sync updates from other clients.
- *
- * @param doc - The LoroDoc to update
- * @param updates - Array of Loro update bytes (decrypted)
- */
-export function applyUpdates(doc: LoroDoc, updates: Uint8Array[]): void {
-    for (const update of updates) {
-        doc.import(update);
-    }
-}
-
-/**
  * Type alias for vault Mirror
  */
 export type VaultMirror = Mirror<typeof vaultSchema>;

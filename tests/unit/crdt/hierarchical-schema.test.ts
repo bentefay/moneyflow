@@ -14,7 +14,6 @@ import {
     type MonthBucket,
     type NestedDuplicate,
     type Transaction,
-    type TransactionStore,
     type YearBucket
 } from "@/lib/crdt/schema";
 

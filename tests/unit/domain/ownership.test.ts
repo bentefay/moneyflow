@@ -489,6 +489,16 @@ describe("addOwner", () => {
         expect(sumOwnerships(result)).toBeCloseTo(100);
     });
 
+    it("regression: distributes equally when every existing owner holds 0%", () => {
+        const result = addOwner({ alice: 0, bob: 0 }, "charlie", 40);
+
+        expect(result.alice).toBeCloseTo(30);
+        expect(result.bob).toBeCloseTo(30);
+        expect(result.charlie).toBeCloseTo(40);
+        expect(Object.values(result).every((pct) => Number.isFinite(pct))).toBe(true);
+        expect(sumOwnerships(result)).toBeCloseTo(100);
+    });
+
     it("property: adding owner maintains 100% total", () => {
         fc.assert(
             fc.property(
@@ -548,6 +558,14 @@ describe("removeOwner", () => {
 describe("updateOwnerPercentage", () => {
     it("single owner always gets 100%", () => {
         expect(updateOwnerPercentage({ alice: 100 }, "alice", 50)).toEqual({ alice: 100 });
+    });
+
+    it("regression: does not erase the sole owner when updating a different person", () => {
+        const result = updateOwnerPercentage({ alice: 100 }, "bob", 30);
+
+        expect(result.alice).toBeCloseTo(70);
+        expect(result.bob).toBeCloseTo(30);
+        expect(sumOwnerships(result)).toBeCloseTo(100);
     });
 
     it("updates percentage and scales others", () => {

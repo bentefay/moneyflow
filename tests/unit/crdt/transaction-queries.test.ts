@@ -8,7 +8,7 @@ import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
 import { createVaultMirror } from "@/lib/crdt/mirror";
-import { type InsertTransactionInput, insertTransaction } from "@/lib/crdt/mutations";
+import { insertTransaction } from "@/lib/crdt/mutations";
 import {
     filterTransactions,
     findTransaction,

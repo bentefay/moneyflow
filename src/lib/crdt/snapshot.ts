@@ -12,6 +12,28 @@ import { decryptFromStorage, encryptForStorage } from "../crypto/encryption";
 import { exportShallowSnapshot, exportSnapshot, exportUpdates, getVersionEncoded } from "./sync";
 
 /**
+ * Maximum bytes per `String.fromCharCode` call.
+ *
+ * Spreading a whole snapshot (hundreds of KB) as function arguments overflows the call stack
+ * with `RangeError: Maximum call stack size exceeded`, so conversion is chunked.
+ */
+const BASE64_CHUNK_SIZE = 0x8000;
+
+/** Convert arbitrary-length bytes to a base64 string without exhausting the call stack. */
+export function bytesToBase64(bytes: Uint8Array): string {
+    const chunks: string[] = [];
+    for (let offset = 0; offset < bytes.length; offset += BASE64_CHUNK_SIZE) {
+        chunks.push(String.fromCharCode(...bytes.subarray(offset, offset + BASE64_CHUNK_SIZE)));
+    }
+    return btoa(chunks.join(""));
+}
+
+/** Inverse of {@link bytesToBase64}. */
+export function base64ToBytes(base64: string): Uint8Array {
+    return Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
+}
+
+/**
  * Metadata stored alongside encrypted snapshots
  */
 export interface SnapshotMetadata {
@@ -68,8 +90,8 @@ export async function createEncryptedSnapshot(
     const versionVectorBytes = getVersionEncoded(doc);
 
     // Convert to base64 for JSON storage
-    const encryptedData = btoa(String.fromCharCode(...encrypted));
-    const versionVectorBase64 = btoa(String.fromCharCode(...versionVectorBytes));
+    const encryptedData = bytesToBase64(encrypted);
+    const versionVectorBase64 = bytesToBase64(versionVectorBytes);
 
     return {
         encryptedData,
@@ -108,8 +130,8 @@ export async function createEncryptedShallowSnapshot(
     const versionVectorBytes = getVersionEncoded(doc);
 
     // Convert to base64 for JSON storage
-    const encryptedData = btoa(String.fromCharCode(...encrypted));
-    const versionVectorBase64 = btoa(String.fromCharCode(...versionVectorBytes));
+    const encryptedData = bytesToBase64(encrypted);
+    const versionVectorBase64 = bytesToBase64(versionVectorBytes);
 
     return {
         encryptedData,
@@ -135,9 +157,7 @@ export async function loadEncryptedSnapshot(
     const { LoroDoc } = await import("loro-crdt");
 
     // Decode base64
-    const encrypted = Uint8Array.from(atob(encryptedSnapshot.encryptedData), (c) =>
-        c.charCodeAt(0)
-    );
+    const encrypted = base64ToBytes(encryptedSnapshot.encryptedData);
 
     // Decrypt
     const snapshot = await decryptFromStorage(encrypted, vaultKey);
@@ -169,7 +189,7 @@ export async function createEncryptedUpdate(
 
     // Encrypt
     const encrypted = await encryptForStorage(updates, vaultKey);
-    const encryptedData = btoa(String.fromCharCode(...encrypted));
+    const encryptedData = bytesToBase64(encrypted);
 
     // Create HLC timestamp (simplified - just using wall clock + counter)
     const hlcTimestamp = `${Temporal.Now.instant().epochMilliseconds}-0`;
@@ -193,7 +213,7 @@ export async function decryptUpdate(
     vaultKey: Uint8Array
 ): Promise<Uint8Array> {
     // Decode base64
-    const encrypted = Uint8Array.from(atob(encryptedUpdate.encryptedData), (c) => c.charCodeAt(0));
+    const encrypted = base64ToBytes(encryptedUpdate.encryptedData);
 
     // Decrypt and return raw bytes
     return decryptFromStorage(encrypted, vaultKey);
@@ -212,7 +232,7 @@ export async function applyEncryptedUpdate(
     vaultKey: Uint8Array
 ): Promise<void> {
     // Decode base64
-    const encrypted = Uint8Array.from(atob(encryptedUpdate.encryptedData), (c) => c.charCodeAt(0));
+    const encrypted = base64ToBytes(encryptedUpdate.encryptedData);
 
     // Decrypt
     const updates = await decryptFromStorage(encrypted, vaultKey);

@@ -15,18 +15,12 @@ import {
 
 import { isPublicTransaction } from "./schema";
 import type {
-    Account,
-    AccountTransactionTree,
     DayBucket,
     MonthBucket,
     NestedDuplicate,
-    Person,
-    Status,
-    Tag,
     Transaction,
     TransactionStore,
-    VaultState,
-    YearBucket
+    VaultState
 } from "./schema";
 
 // ============================================
@@ -53,26 +47,6 @@ export interface PaginatedResult<T> {
     hasNextPage: boolean;
     /** Whether there are previous pages */
     hasPreviousPage: boolean;
-}
-
-export interface CursorPaginationOptions {
-    /** Number of items to return */
-    limit: number;
-    /** Cursor for pagination (last item's sort key) */
-    cursor?: string;
-    /** Direction to paginate */
-    direction?: "forward" | "backward";
-}
-
-export interface CursorPaginatedResult<T> {
-    /** Items for the current page */
-    items: T[];
-    /** Cursor for the next page (null if no more pages) */
-    nextCursor: string | null;
-    /** Cursor for the previous page (null if at start) */
-    previousCursor: string | null;
-    /** Whether there are more items */
-    hasMore: boolean;
 }
 
 // ============================================
@@ -141,10 +115,12 @@ export function compareTransactionOrder(
     const instantCompare = Temporal.Instant.compare(right.creationInstant, left.creationInstant);
     if (instantCompare !== 0) return instantCompare;
 
+    // Explicit three-way comparison: subtraction yields NaN when both sides are Infinity,
+    // which would swallow the id tie-breaker and make the order input-dependent across peers.
     const leftIndex = left.importRowIndex ?? Infinity;
     const rightIndex = right.importRowIndex ?? Infinity;
-    const indexCompare = leftIndex - rightIndex;
-    if (indexCompare !== 0) return indexCompare;
+    if (leftIndex < rightIndex) return -1;
+    if (leftIndex > rightIndex) return 1;
 
     return left.id.localeCompare(right.id);
 }
@@ -219,16 +195,6 @@ export function getActiveItems<T extends { deletedAt?: Temporal.Instant }>(
         .filter((item) => !item.deletedAt);
 }
 
-/**
- * Get items by IDs from a collection
- * Filters out non-object values
- */
-export function getItemsByIds<T>(collection: Record<string, T | string>, ids: string[]): T[] {
-    return ids
-        .map((id) => collection[id])
-        .filter((item): item is T => typeof item === "object" && item !== null);
-}
-
 // ============================================
 // HIERARCHICAL TRANSACTION QUERIES
 // ============================================
@@ -254,10 +220,8 @@ export function getAccountTransactions(store: TransactionStore, accountId: strin
         }
 
         // Process months in descending order
-        const sortedMonths = Array.from(monthGroups.keys()).sort((a, b) => b - a);
-        for (const month of sortedMonths) {
-            const monthBuckets = monthGroups.get(month)!;
-
+        const sortedMonths = [...monthGroups].sort(([left], [right]) => right - left);
+        for (const [, monthBuckets] of sortedMonths) {
             // Group days by day number to handle CRDT duplicates
             const dayGroups = new Map<number, DayBucket[]>();
             for (const monthBucket of monthBuckets) {
@@ -269,9 +233,8 @@ export function getAccountTransactions(store: TransactionStore, accountId: strin
             }
 
             // Process days in descending order
-            const sortedDays = Array.from(dayGroups.keys()).sort((a, b) => b - a);
-            for (const day of sortedDays) {
-                const dayBuckets = dayGroups.get(day)!;
+            const sortedDays = [...dayGroups].sort(([left], [right]) => right - left);
+            for (const [, dayBuckets] of sortedDays) {
                 // Union transactions from all same-day buckets
                 for (const dayBucket of dayBuckets) {
                     result.push(...dayBucket.transactions);
@@ -568,30 +531,30 @@ export function filterTransactions(
     }
 
     // Tag filter (any match)
-    if (options.tagIds && options.tagIds.length > 0) {
-        results = results.filter((tx) =>
-            tx.tagIds?.some((tagId) => options.tagIds!.includes(tagId))
-        );
+    const tagIds = options.tagIds;
+    if (tagIds && tagIds.length > 0) {
+        results = results.filter((tx) => tx.tagIds?.some((tagId) => tagIds.includes(tagId)));
     }
 
     // Person filter (any allocation match)
-    if (options.personIds && options.personIds.length > 0) {
+    const personIds = options.personIds;
+    if (personIds && personIds.length > 0) {
         results = results.filter((tx) => {
             const allocations = tx.allocations ?? {};
-            return Object.keys(allocations).some((personId) =>
-                options.personIds!.includes(personId)
-            );
+            return Object.keys(allocations).some((personId) => personIds.includes(personId));
         });
     }
 
     // Account filter
-    if (options.accountIds && options.accountIds.length > 0) {
-        results = results.filter((tx) => options.accountIds!.includes(tx.accountId));
+    const accountIds = options.accountIds;
+    if (accountIds && accountIds.length > 0) {
+        results = results.filter((tx) => accountIds.includes(tx.accountId));
     }
 
     // Status filter
-    if (options.statusIds && options.statusIds.length > 0) {
-        results = results.filter((tx) => options.statusIds!.includes(tx.statusId));
+    const statusIds = options.statusIds;
+    if (statusIds && statusIds.length > 0) {
+        results = results.filter((tx) => statusIds.includes(tx.statusId));
     }
 
     // Text search
@@ -656,57 +619,6 @@ export function paginateTransactions(
 }
 
 /**
- * Paginate transactions with cursor-based pagination (date as cursor)
- * More efficient for large datasets and real-time updates
- */
-export function cursorPaginateTransactions(
-    transactions: Transaction[],
-    options: CursorPaginationOptions
-): CursorPaginatedResult<Transaction> {
-    const { limit, cursor, direction = "forward" } = options;
-
-    let filtered = transactions;
-
-    // Apply cursor
-    if (cursor) {
-        const cursorIndex = transactions.findIndex((tx) => tx.id === cursor);
-        if (cursorIndex !== -1) {
-            if (direction === "forward") {
-                filtered = transactions.slice(cursorIndex + 1);
-            } else {
-                filtered = transactions.slice(0, cursorIndex);
-            }
-        }
-    }
-
-    // Get page of items
-    const items = direction === "forward" ? filtered.slice(0, limit) : filtered.slice(-limit);
-
-    // Determine cursors
-    const nextCursor =
-        direction === "forward" && items.length === limit
-            ? (items[items.length - 1]?.id ?? null)
-            : null;
-
-    const previousCursor =
-        direction === "backward" || (cursor && transactions.findIndex((tx) => tx.id === cursor) > 0)
-            ? (items[0]?.id ?? null)
-            : null;
-
-    return {
-        items,
-        nextCursor,
-        previousCursor,
-        hasMore:
-            direction === "forward"
-                ? filtered.length > limit
-                : cursor
-                  ? transactions.findIndex((tx) => tx.id === cursor) > limit
-                  : false
-    };
-}
-
-/**
  * Query transactions with filtering and pagination.
  * Uses the hierarchical structure for efficient account filtering.
  */
@@ -757,83 +669,10 @@ export function queryTransactions(
 // ============================================
 
 /**
- * Get all active accounts
- */
-export function getActiveAccounts(state: VaultState): Account[] {
-    return getActiveItems(state.accounts);
-}
-
-/**
- * Get all active tags
- */
-export function getActiveTags(state: VaultState): Tag[] {
-    return getActiveItems(state.tags);
-}
-
-/**
  * Get all active description aliases
  */
 export function getActiveDescriptionAliases(state: VaultState): DescriptionAlias[] {
     return selectActiveDescriptionAliases(state.descriptionAliases);
-}
-
-/**
- * Get all active people
- */
-export function getActivePeople(state: VaultState): Person[] {
-    return getActiveItems(state.people);
-}
-
-/**
- * Get all statuses (including system statuses)
- * Filters out non-object values (loro-mirror may include $cid strings)
- */
-export function getStatuses(state: VaultState): Status[] {
-    return Object.values(state.statuses).filter(
-        (item): item is Status => typeof item === "object" && item !== null
-    );
-}
-
-/**
- * Get tag hierarchy as a tree structure
- */
-export interface TagTreeNode {
-    tag: Tag;
-    children: TagTreeNode[];
-}
-
-export function getTagTree(state: VaultState): TagTreeNode[] {
-    const activeTags = getActiveTags(state);
-    const tagMap = new Map(activeTags.map((tag) => [tag.id, tag]));
-    const roots: TagTreeNode[] = [];
-    const nodeMap = new Map<string, TagTreeNode>();
-
-    // Create nodes
-    for (const tag of activeTags) {
-        nodeMap.set(tag.id, { tag, children: [] });
-    }
-
-    // Build tree
-    for (const tag of activeTags) {
-        const node = nodeMap.get(tag.id)!;
-        if (tag.parentTagId && tagMap.has(tag.parentTagId)) {
-            const parent = nodeMap.get(tag.parentTagId)!;
-            parent.children.push(node);
-        } else {
-            roots.push(node);
-        }
-    }
-
-    // Sort by name
-    const sortNodes = (nodes: TagTreeNode[]) => {
-        nodes.sort((a, b) => a.tag.name.localeCompare(b.tag.name));
-        for (const node of nodes) {
-            sortNodes(node.children);
-        }
-    };
-    sortNodes(roots);
-
-    return roots;
 }
 
 /**
@@ -845,43 +684,4 @@ export function getAccountTransactionsQuery(
     pagination?: PaginationOptions
 ): PaginatedResult<Transaction> {
     return queryTransactions(state, { accountIds: [accountId] }, pagination);
-}
-
-/**
- * Get transactions for a specific tag (including child tags)
- */
-export function getTagTransactions(
-    state: VaultState,
-    tagId: string,
-    includeChildren = true,
-    pagination?: PaginationOptions
-): PaginatedResult<Transaction> {
-    const tagIds = [tagId];
-
-    if (includeChildren) {
-        const findChildren = (parentId: string) => {
-            for (const tag of Object.values(state.tags)) {
-                // Filter out non-object values (loro-mirror may include $cid strings)
-                if (typeof tag !== "object" || tag === null) continue;
-                if (tag.parentTagId === parentId && !tag.deletedAt) {
-                    tagIds.push(tag.id);
-                    findChildren(tag.id);
-                }
-            }
-        };
-        findChildren(tagId);
-    }
-
-    return queryTransactions(state, { tagIds }, pagination);
-}
-
-/**
- * Get transactions for a specific person (by allocation)
- */
-export function getPersonTransactions(
-    state: VaultState,
-    personId: string,
-    pagination?: PaginationOptions
-): PaginatedResult<Transaction> {
-    return queryTransactions(state, { personIds: [personId] }, pagination);
 }

@@ -5,7 +5,7 @@
  */
 
 import { Temporal } from "temporal-polyfill";
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import {
     deleteTransaction,
@@ -17,21 +17,14 @@ import {
     getOrCreateDayBucket,
     getOrCreateMonthBucket,
     getOrCreateYearBucket,
-    type InsertTransactionInput,
     insertTransaction,
     moveTransaction,
     pruneBuckets,
     swapDuplicate,
-    type TransactionLocation,
     unnestDuplicate,
     updateTransaction
 } from "@/lib/crdt/mutations";
-import type {
-    AccountTransactionTree,
-    AccountTransactionTreeInput,
-    TransactionInput,
-    TransactionStore
-} from "@/lib/crdt/schema";
+import type { AccountTransactionTree, TransactionInput, TransactionStore } from "@/lib/crdt/schema";
 import { asMinorUnits } from "@/lib/domain/currency";
 
 // Helper to create a minimal transaction input

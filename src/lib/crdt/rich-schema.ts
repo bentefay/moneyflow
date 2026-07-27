@@ -56,7 +56,7 @@ export const instantFromMillisTransform: TransformDefinition<number, Temporal.In
  */
 export const moneyMinorUnitsTransform: TransformDefinition<number, MoneyMinorUnits> = {
     decode: (value) => value as MoneyMinorUnits,
-    encode: (value) => value as number,
+    encode: (value) => value,
     validate: (value) => {
         if (!Number.isInteger(value)) return "MoneyMinorUnits must be an integer";
         return true;
@@ -69,7 +69,7 @@ export const moneyMinorUnitsTransform: TransformDefinition<number, MoneyMinorUni
  */
 export const percentageTransform: TransformDefinition<number, Percentage> = {
     decode: (value) => value as Percentage,
-    encode: (value) => value as number
+    encode: (value) => value
 };
 
 /**
@@ -78,9 +78,9 @@ export const percentageTransform: TransformDefinition<number, Percentage> = {
  */
 export const currencyCodeTransform: TransformDefinition<string, CurrencyCode> = {
     decode: (value) => value as CurrencyCode,
-    encode: (value) => value as string,
+    encode: (value) => value,
     validate: (value) => {
-        if (!isValidCurrencyCode(value as string)) return `Invalid currency code: ${value}`;
+        if (!isValidCurrencyCode(value)) return `Invalid currency code: ${value}`;
         return true;
     }
 };
@@ -95,9 +95,9 @@ export function createEnumTransform<T extends string>(
     const valueSet = new Set<string>(values);
     return {
         decode: (value) => value as T,
-        encode: (value) => value as string,
+        encode: (value) => value,
         validate: (value) => {
-            if (!valueSet.has(value as string)) {
+            if (!valueSet.has(value)) {
                 return `Expected one of: ${values.join(", ")}; got: ${value}`;
             }
             return true;

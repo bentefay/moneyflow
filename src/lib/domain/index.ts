@@ -27,9 +27,7 @@ export {
     calculateAccountBalance,
     calculateAllAccountBalances,
     calculateRunningBalances,
-    calculateTableRunningBalances,
-    type TransactionWithBalance,
-    useRunningBalances
+    calculateTableRunningBalances
 } from "./balance";
 export {
     addOwner,
@@ -58,6 +56,22 @@ export {
     type SettlementResult,
     type SettlementSourceContribution
 } from "./settlement";
+export {
+    buildHierarchicalTagList,
+    filterActiveTags,
+    getRootTags,
+    getTagAncestors,
+    getTagChildren,
+    getTagDepth,
+    getTagDescendants,
+    getTagPath,
+    getTagPathString,
+    isTagDescendant,
+    type TagLike,
+    type TagWithDepth,
+    validateTagHierarchy,
+    wouldCreateCircularReference
+} from "./tags";
 export {
     DEFAULT_TAG_COLOR,
     getContrastingTextColor,

@@ -749,7 +749,10 @@ describe("Mirror Integration - Import Batch Flow", () => {
                         statusId: "status-for-review",
                         importId: undefined,
                         allocations: {},
-                        creationInstant: firstInstant.add({ nanoseconds: index }),
+                        // Milliseconds, not nanoseconds: richSchema.Instant persists epoch
+                        // milliseconds, so sub-millisecond offsets collapse on roundtrip and
+                        // the order would fall through to the stable id tie-breaker instead.
+                        creationInstant: firstInstant.add({ milliseconds: index }),
                         importRowIndex: undefined,
                         deletedAt: undefined
                     }

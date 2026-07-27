@@ -9,6 +9,8 @@
 
 import { Temporal } from "temporal-polyfill";
 
+import { asPercentage, type Percentage } from "@/types";
+
 import {
     allocationPresenceField,
     copyAllocationData,
@@ -66,6 +68,21 @@ type WithCid<T> = T extends Temporal.PlainDate | Temporal.Instant
  */
 function withCid<T extends object>(input: T): WithCid<T> {
     return input as WithCid<T>;
+}
+
+/**
+ * Adapt a validated allocation set to the draft's `personId -> Percentage` record.
+ *
+ * The validated values are already range-checked, so `asPercentage` only re-brands them.
+ */
+function toPercentageRecord(
+    allocations: Readonly<Record<string, number>>
+): Record<string, Percentage> {
+    const result: Record<string, Percentage> = {};
+    for (const [personId, value] of Object.entries(allocations)) {
+        result[personId] = asPercentage(value);
+    }
+    return result;
 }
 
 // ============================================
@@ -149,7 +166,7 @@ export function getOrCreateAccountTree(
         };
         store[accountId] = withCid(tree);
     }
-    return store[accountId] as AccountTransactionTree;
+    return store[accountId];
 }
 
 /**
@@ -333,16 +350,12 @@ export function insertTransaction(
         if (!duplicateAllocations.ok) return duplicateAllocations;
         preparedDuplicates.push({
             ...duplicate,
-            allocations: Object.fromEntries(
-                Object.entries(duplicateAllocations.value)
-            ) as unknown as NestedDuplicateInput["allocations"]
+            allocations: toPercentageRecord(duplicateAllocations.value)
         });
     }
     const preparedTransaction = {
         ...transaction,
-        allocations: Object.fromEntries(
-            Object.entries(preparedAllocations.value)
-        ) as unknown as InsertTransactionInput["transaction"]["allocations"],
+        allocations: toPercentageRecord(preparedAllocations.value),
         suspectedDuplicates: preparedDuplicates
     };
 
@@ -369,7 +382,7 @@ export function insertTransaction(
                 deletedAt: preparedTransaction.deletedAt
             };
             if (!parentTx.suspectedDuplicates) {
-                (parentTx as { suspectedDuplicates: NestedDuplicate[] }).suspectedDuplicates = [];
+                parentTx.suspectedDuplicates = [];
             }
             parentTx.suspectedDuplicates.push(withCid(duplicate));
             return Object.freeze({

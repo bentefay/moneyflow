@@ -8,7 +8,7 @@ import * as fc from "fast-check";
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
-import { type InsertTransactionInput, insertTransaction } from "@/lib/crdt/mutations";
+import { insertTransaction } from "@/lib/crdt/mutations";
 import { getAccountTransactions, getAllTransactions } from "@/lib/crdt/queries";
 import type { TransactionInput, TransactionStore } from "@/lib/crdt/schema";
 import { asMinorUnits } from "@/lib/domain/currency";

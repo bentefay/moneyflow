@@ -5,6 +5,8 @@
  * Tags can have parent-child relationships forming a tree structure.
  */
 
+import type { Temporal } from "temporal-polyfill";
+
 /**
  * Minimal tag interface for hierarchy operations.
  * Compatible with both the full CRDT Tag type and simpler test types.
@@ -14,7 +16,7 @@ export interface TagLike {
     name: string;
     parentTagId?: string;
     isTransfer?: boolean;
-    deletedAt?: number;
+    deletedAt?: Temporal.Instant;
 }
 
 /**
@@ -84,10 +86,9 @@ export function getTagDescendants<T extends TagLike>(tagId: string, tags: T[]): 
     // Build children lookup
     for (const tag of tags) {
         const parentId = tag.parentTagId ?? "";
-        if (!childrenMap.has(parentId)) {
-            childrenMap.set(parentId, []);
-        }
-        childrenMap.get(parentId)!.push(tag);
+        const siblings = childrenMap.get(parentId) ?? [];
+        childrenMap.set(parentId, siblings);
+        siblings.push(tag);
     }
 
     const descendants: T[] = [];
@@ -95,7 +96,8 @@ export function getTagDescendants<T extends TagLike>(tagId: string, tags: T[]): 
     // BFS to collect all descendants
     const queue = [tagId];
     while (queue.length > 0) {
-        const currentId = queue.shift()!;
+        const currentId = queue.shift();
+        if (currentId == null) break;
         const children = childrenMap.get(currentId) ?? [];
         for (const child of children) {
             descendants.push(child);
@@ -168,10 +170,9 @@ export function buildHierarchicalTagList<T extends TagLike>(tags: T[]): TagWithD
     // Build children lookup
     for (const tag of tags) {
         const parentId = tag.parentTagId ?? "";
-        if (!childrenMap.has(parentId)) {
-            childrenMap.set(parentId, []);
-        }
-        childrenMap.get(parentId)!.push(tag);
+        const siblings = childrenMap.get(parentId) ?? [];
+        childrenMap.set(parentId, siblings);
+        siblings.push(tag);
     }
 
     // Sort children alphabetically

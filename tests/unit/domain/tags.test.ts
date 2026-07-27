@@ -6,8 +6,10 @@
  */
 
 import * as fc from "fast-check";
+import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
+import type { Tag } from "@/lib/crdt/schema";
 import {
     buildHierarchicalTagList,
     filterActiveTags,
@@ -36,7 +38,7 @@ interface TestTag {
     name: string;
     parentTagId?: string;
     isTransfer?: boolean;
-    deletedAt?: number;
+    deletedAt?: Temporal.Instant;
 }
 
 /**
@@ -47,7 +49,7 @@ function createTag(
     name: string,
     parentTagId?: string,
     isTransfer = false,
-    deletedAt?: number
+    deletedAt?: Temporal.Instant
 ): TestTag {
     return {
         id,
@@ -291,6 +293,38 @@ describe("buildHierarchicalTagList", () => {
     it("handles empty tag list", () => {
         expect(buildHierarchicalTagList([])).toEqual([]);
     });
+
+    it("regression: accepts a real CRDT Tag, whose deletedAt is a Temporal.Instant", () => {
+        // TagLike.deletedAt was declared `number`, so a real Tag did not satisfy the constraint
+        // and the component had to keep its own copy of this function.
+        const crdtTags: Tag[] = [
+            {
+                $cid: "cid-parent",
+                id: "parent",
+                name: "Parent",
+                parentTagId: undefined,
+                color: "#112233",
+                isTransfer: false,
+                deletedAt: undefined
+            },
+            {
+                $cid: "cid-child",
+                id: "child",
+                name: "Child",
+                parentTagId: "parent",
+                color: "#445566",
+                isTransfer: false,
+                deletedAt: Temporal.Now.instant()
+            }
+        ];
+
+        const list = buildHierarchicalTagList(crdtTags);
+
+        expect(list.map((entry) => [entry.tag.id, entry.depth, entry.parentName])).toEqual([
+            ["parent", 0, undefined],
+            ["child", 1, "Parent"]
+        ]);
+    });
 });
 
 // ============================================================================
@@ -365,7 +399,7 @@ describe("filterActiveTags", () => {
     it("removes deleted tags", () => {
         const tags = [
             createTag("a", "Active"),
-            createTag("b", "Deleted", undefined, false, Date.now()),
+            createTag("b", "Deleted", undefined, false, Temporal.Now.instant()),
             createTag("c", "Also Active")
         ];
 

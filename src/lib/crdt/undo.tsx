@@ -24,9 +24,6 @@ export type VaultSystemOriginKind =
 export type VaultUserOrigin = `user:${VaultUserActionKind}`;
 export type VaultSystemOrigin = `system:${VaultSystemOriginKind}`;
 
-export const VAULT_USER_ORIGIN_PREFIX = "user:";
-export const VAULT_SYSTEM_ORIGIN_PREFIX = "system:";
-
 const EXCLUDED_ORIGIN_PREFIXES: VaultSystemOrigin[] = [
     "system:gc",
     "system:hydration",

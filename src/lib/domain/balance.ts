@@ -14,19 +14,6 @@ import type { Account, Transaction } from "@/lib/crdt/schema";
 import type { MoneyMinorUnits } from "@/lib/domain/currency";
 
 /**
- * Transaction with calculated running balance.
- */
-export interface TransactionWithBalance {
-    id: string;
-    date: Temporal.PlainDate;
-    /** Amount in minor units (cents) */
-    amount: MoneyMinorUnits;
-    accountId: string;
-    /** Running balance in minor units (cents) */
-    runningBalance: MoneyMinorUnits;
-}
-
-/**
  * Options for balance calculation.
  */
 export interface BalanceCalculationOptions {
@@ -146,15 +133,4 @@ export function calculateAllAccountBalances(
     }
 
     return result;
-}
-
-/**
- * React hook for calculating running balances.
- * This is exported separately for use with useMemo.
- */
-export function useRunningBalances(
-    transactions: Pick<Transaction, "id" | "date" | "amount" | "accountId">[],
-    accounts: Record<string, Account>
-): Map<string, number> {
-    return calculateTableRunningBalances(transactions, accounts);
 }
