@@ -5727,3 +5727,25 @@ poll-returning without a synchronous finish; runs still in progress under PID 41
   passed in rev-04 runs 1 and 2 (4.8s / 5.3s). **Required before accept:** correct the comment to the
   real mechanism; author evidence-06; commit test-only. Root will require this on the agent's fast
   finish once the run loop completes.
+
+### 2026-07-27 — P20B rev 04 ABORTED unreliable; passkey:387 fix salvaged; dispatch rev 05 to finalize
+
+`p20b-implementer-04` proved unreliable: it returned idle 3× without finishing (its ~32-min
+background 8-run validation loop outlived each turn), and it injected diagnostic scaffolding
+("DIAG canonical field via keyboard.type", `passkey.spec.ts:416`) into the spec file MID-LOOP,
+contaminating runs 3-4 (runs 1-2 were clean: 163 passed, passkey:387 + import:1527 + tx523 + id282 all
+green). Root stopped the agent (TaskStop) and force-killed the orphaned loop/CLI/worker/chromium
+process tree; the environment is clean (next-dev webServer PID 972 left running). The working tree
+retains ONLY the legitimate `:400` change (grid-switch via `enterSeedPhrase(words, true)`; no DIAG
+scaffolding; 12 tests) — the fix is SOUND per root's class-A adjudication — but (a) its committed
+comment over-claims a "space-stripping" mechanism root rejects, and (b) it has no clean uncontaminated
+validation and no evidence file, and it is uncommitted.
+
+**Dispatched P20B rev 05** (`p20b-implementer-05`, fresh) to finalize: correct the passkey comment to
+an honest mechanism (load-dependent timing flake, NOT a product defect, NOT proven space-stripping —
+identical single-field `.fill()` passes at siblings `:72/:171/:232` and a deterministic product bug
+would fail 100% not ~1/8; single-field path stays covered at those sites); ensure NO DIAG scaffolding
+in any committed file; run a CLEAN 8-run full-suite validation FOREGROUND one-run-per-call (no
+background/monitor, no spec mutation during the loop); write `evidence/P20B/implementation-06.md`; run
+unit gates; commit test-only. import:1573 needs no work (Q-P20B-14 duplicate). P20B stays
+`changes_requested`; HS-021 stays rolled back.
