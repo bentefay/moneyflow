@@ -45,6 +45,19 @@ export const vaultRoleSchema = z.enum(["owner", "member"]);
 
 export type VaultRole = z.infer<typeof vaultRoleSchema>;
 
+/**
+ * The embedded `vaults:vault_id (...)` relation returned by a membership select.
+ *
+ * PostgREST types the embedded row loosely, and `created_at` is nullable in the schema, so this
+ * narrows the join result at the DB boundary instead of asserting its shape.
+ */
+export const membershipVaultSchema = z
+    .object({
+        id: vaultIdSchema,
+        created_at: z.string().nullable()
+    })
+    .nullable();
+
 // ============================================================================
 // Vault Creation
 // ============================================================================

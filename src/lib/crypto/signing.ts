@@ -7,6 +7,7 @@
 
 import sodium from "libsodium-wrappers";
 import { Temporal } from "temporal-polyfill";
+import { z } from "zod";
 
 import { initCrypto } from "./keypair";
 import { getSession } from "./session";
@@ -44,27 +45,25 @@ export interface SignedTRPCOperation {
     readonly input: unknown;
 }
 
-function isUnknownRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
-}
+/**
+ * Wire schema for one signed operation.
+ *
+ * `input` is deliberately checked for key *presence* rather than a value type: an operation that
+ * omits it entirely is not bound to any serialized payload, while an explicit `undefined` input is
+ * a legitimate no-argument procedure call.
+ */
+const signedTRPCOperationSchema = z
+    .looseObject({ path: z.string().min(1).max(200) })
+    .refine((operation) => "input" in operation);
 
 /**
  * Protect authenticated middleware from accepting a generic or malformed signed body.
  * Every operation must bind an exact procedure path and serialized wire input.
  */
+const signedTRPCOperationListSchema = z.array(signedTRPCOperationSchema).min(1);
+
 export function isSignedTRPCOperationList(body: unknown): body is readonly SignedTRPCOperation[] {
-    return (
-        Array.isArray(body) &&
-        body.length > 0 &&
-        body.every(
-            (operation) =>
-                isUnknownRecord(operation) &&
-                typeof operation.path === "string" &&
-                operation.path.length > 0 &&
-                operation.path.length <= 200 &&
-                "input" in operation
-        )
-    );
+    return signedTRPCOperationListSchema.safeParse(body).success;
 }
 
 function hashRequestBody(body: unknown): string {
@@ -241,7 +240,13 @@ export async function signData(data: Uint8Array): Promise<Uint8Array> {
     const dataNative = Uint8Array.from(data);
     const secretKeyNative = Uint8Array.from(secretKey);
 
-    return sodium.crypto_sign_detached(dataNative, secretKeyNative);
+    try {
+        return sodium.crypto_sign_detached(dataNative, secretKeyNative);
+    } finally {
+        // Both the decoded key and its native copy hold the Ed25519 secret; zeroize both.
+        sodium.memzero(secretKeyNative);
+        sodium.memzero(secretKey);
+    }
 }
 
 /**
@@ -269,19 +274,6 @@ export async function verifySignature(
     } catch {
         return false;
     }
-}
-
-/**
- * Signs a string and returns base64-encoded signature.
- *
- * @param text - String to sign
- * @returns Base64-encoded signature
- */
-export async function signString(text: string): Promise<string> {
-    await initCrypto();
-    const data = new TextEncoder().encode(text);
-    const signature = await signData(data);
-    return sodium.to_base64(signature, sodium.base64_variants.ORIGINAL);
 }
 
 /**

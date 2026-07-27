@@ -99,7 +99,6 @@ export {
     getSessionEncPublicKey,
     getSessionEncSecretKey,
     getSessionPubkeyHash,
-    getSessionPublicKey,
     getSessionSecretKey,
     hasSession,
     type SessionData,
@@ -110,7 +109,6 @@ export {
     type SignedRequestHeaders,
     signData,
     signRequest,
-    signString,
     verifyRequest,
     verifySignature,
     verifyStringSignature

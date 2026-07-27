@@ -16,7 +16,7 @@
  */
 
 import { throttle } from "lodash-es";
-import type { LoroDoc, VersionVector } from "loro-crdt";
+import type { LoroDoc } from "loro-crdt";
 
 import { repairHydratedVaultDocument } from "@/lib/crdt/mirror";
 import {
@@ -132,24 +132,6 @@ export interface SyncManagerOptions {
                     versionVector: string;
                 }) => Promise<{ success: boolean }>;
             };
-            // Legacy methods (deprecated)
-            saveSnapshot?: {
-                mutate: (input: {
-                    vaultId: string;
-                    encryptedData: string;
-                    versionVector: string;
-                    version: number;
-                }) => Promise<void>;
-            };
-            pushUpdate?: {
-                mutate: (input: {
-                    vaultId: string;
-                    encryptedData: string;
-                    baseSnapshotVersion: number;
-                    hlcTimestamp: string;
-                    versionVector: string;
-                }) => Promise<void>;
-            };
         };
     };
     /** Called when remote updates are applied */
@@ -191,7 +173,13 @@ export class SyncManager {
     private onRemoteUpdate: (() => void) | undefined;
     private onSyncStateChange: ((state: SyncState) => void) | undefined;
     private onError: ((error: Error) => void) | undefined;
-    private lastSyncedVersion: VersionVector | null = null;
+    /**
+     * Last known state of the durable IndexedDB op queue.
+     *
+     * `beforeunload` cannot await the probe, so this cached value is what the synchronous handler
+     * reads. It is refreshed by every path that already learns about durable state.
+     */
+    private durableUnpushedOps = false;
     private snapshotVersion = 0;
     private isSyncing = false;
     private isInitialized = false;
@@ -337,6 +325,9 @@ export class SyncManager {
                             version_vector: pending.versionVector,
                             pushed: false
                         });
+                        // A durable unpushed op now exists; `beforeunload` must see it without
+                        // re-probing IndexedDB.
+                        this.durableUnpushedOps = true;
                     } catch (error) {
                         this.disableLocalPersistence(error);
                     }
@@ -438,25 +429,50 @@ export class SyncManager {
         };
         window.addEventListener("online", this.onlineHandler);
 
-        // Warn on beforeunload if there are unpushed changes
-        this.beforeUnloadHandler = async (e: BeforeUnloadEvent) => {
-            let hasUnpushed = this.pendingLocalUpdates.size > 0 || this.memoryOps.size > 0;
-            if (this.localPersistenceAvailable) {
-                try {
-                    hasUnpushed ||= await hasUnpushedOps(this.vaultId);
-                } catch (error) {
-                    this.disableLocalPersistence(error);
-                }
-            }
-            if (hasUnpushed) {
-                // Attempt to flush
-                this.throttledServerSync?.flush();
-                // Show browser warning
-                e.preventDefault();
-                e.returnValue = "You have unsaved changes.";
-            }
+        // Warn on beforeunload if there are unpushed changes.
+        //
+        // `beforeunload` is strictly synchronous per the HTML spec: awaiting anything here yields
+        // to a microtask that runs *after* the event has been dispatched, so preventDefault() and
+        // returnValue would arrive too late to raise the dialog. The handler therefore reads only
+        // state the manager already holds in memory, plus a boolean the IndexedDB probe refreshes
+        // off the event path.
+        this.beforeUnloadHandler = (e: BeforeUnloadEvent) => {
+            void this.refreshDurableUnpushedFlag();
+            if (!this.hasPendingWorkSync()) return;
+
+            // Attempt to flush
+            this.throttledServerSync?.flush();
+            // Show browser warning
+            e.preventDefault();
+            e.returnValue = "You have unsaved changes.";
         };
         window.addEventListener("beforeunload", this.beforeUnloadHandler);
+
+        // Seed the cached flag so a reload immediately after startup still sees durable ops that
+        // were queued by a previous session.
+        void this.refreshDurableUnpushedFlag();
+    }
+
+    /** Synchronously readable view of unpushed work, safe to call from `beforeunload`. */
+    private hasPendingWorkSync(): boolean {
+        return (
+            this.pendingLocalUpdates.size > 0 || this.memoryOps.size > 0 || this.durableUnpushedOps
+        );
+    }
+
+    /** Refresh the cached durable-queue flag. Never called from inside a synchronous event. */
+    private async refreshDurableUnpushedFlag(): Promise<boolean> {
+        if (!this.localPersistenceAvailable) {
+            this.durableUnpushedOps = false;
+            return false;
+        }
+        try {
+            this.durableUnpushedOps = await hasUnpushedOps(this.vaultId);
+        } catch (error) {
+            this.disableLocalPersistence(error);
+            this.durableUnpushedOps = false;
+        }
+        return this.durableUnpushedOps;
     }
 
     /**
@@ -518,13 +534,16 @@ export class SyncManager {
                 this.disableLocalPersistence(localState.error);
             }
         } else {
+            const trpc = this.trpc;
             const startServerSnapshot = () => {
-                prefetchedServerSnapshotPromise ??= this.trpc!.sync.getSnapshot.query({
-                    vaultId: this.vaultId
-                }).then(
-                    (snapshot) => ({ ok: true as const, snapshot }),
-                    (error: unknown) => ({ ok: false as const, error })
-                );
+                prefetchedServerSnapshotPromise ??= trpc.sync.getSnapshot
+                    .query({
+                        vaultId: this.vaultId
+                    })
+                    .then(
+                        (snapshot) => ({ ok: true as const, snapshot }),
+                        (error: unknown) => ({ ok: false as const, error })
+                    );
                 return prefetchedServerSnapshotPromise;
             };
 
@@ -671,9 +690,6 @@ export class SyncManager {
                 await this.pushToServer();
             }
 
-            // Update last synced version
-            this.lastSyncedVersion = this.doc.version();
-
             console.log("SyncManager: Initial state loaded successfully");
         } catch (error) {
             console.error("Failed to load initial state from server:", error);
@@ -782,14 +798,7 @@ export class SyncManager {
     private async catchUpFromServer(): Promise<void> {
         if (!this.trpc || this.disconnectRequested) return;
 
-        let hasUnpushed = this.memoryOps.size > 0;
-        if (this.localPersistenceAvailable) {
-            try {
-                hasUnpushed ||= await hasUnpushedOps(this.vaultId);
-            } catch (error) {
-                this.disableLocalPersistence(error);
-            }
-        }
+        const hasUnpushed = this.memoryOps.size > 0 || (await this.refreshDurableUnpushedFlag());
 
         const response = await this.trpc.sync.getUpdates.query({
             vaultId: this.vaultId,
@@ -875,8 +884,8 @@ export class SyncManager {
             // Check if we should create a snapshot
             if (this.localPersistenceAvailable) await this.maybeCreateSnapshot();
 
-            // Update last synced version
-            this.lastSyncedVersion = this.doc.version();
+            // Every attempted op is now on the server, so the durable queue is drained.
+            this.durableUnpushedOps = false;
 
             this.setSyncState("idle");
             this.completePendingRemoteUpdates(pushedIds);
@@ -989,7 +998,6 @@ export class SyncManager {
      */
     async forceSync(): Promise<void> {
         await this.awaitLocalPersistence();
-        this.lastSyncedVersion = null;
         await this.pushToServer();
         await this.enqueueRemoteOperation(() => this.catchUpFromServer());
     }
@@ -1009,6 +1017,11 @@ export class SyncManager {
     async hasUnsavedChanges(): Promise<boolean> {
         if (this.pendingLocalUpdates.size > 0 || this.memoryOps.size > 0) return true;
         return hasUnpushedOps(this.vaultId);
+    }
+
+    /** Test seam: the exact synchronous view `beforeunload` uses. */
+    get pendingWork(): boolean {
+        return this.hasPendingWorkSync();
     }
 
     /**
@@ -1086,13 +1099,6 @@ export class SyncManager {
         return this.syncState;
     }
 }
-
-// Reserved for future HLC-based ordering
-// function generateHlcTimestamp(): string {
-// 	const now = Temporal.Now.instant();
-// 	const counter = Math.floor(Math.random() * 10000);
-// 	return `${now.toString()}-${counter.toString().padStart(4, "0")}`;
-// }
 
 /**
  * Create a sync manager for a vault.

@@ -18,7 +18,14 @@ import {
     verifyAuthenticationResponse,
     verifyRegistrationResponse
 } from "@simplewebauthn/server";
+import type {
+    AuthenticationExtensionsClientOutputs,
+    AuthenticationResponseJSON,
+    AuthenticatorTransportFuture,
+    RegistrationResponseJSON
+} from "@simplewebauthn/server";
 import { TRPCError } from "@trpc/server";
+import { z } from "zod";
 
 import { PASSKEY_PRF_SALT } from "@/lib/crypto/passkeyWrap";
 import { createSupabaseClient } from "@/lib/supabase/server";
@@ -37,6 +44,114 @@ import { protectedProcedure, publicProcedure, router } from "../trpc";
 
 const RP_NAME = "MoneyFlow";
 const CHALLENGE_TTL_SECONDS = 300;
+
+/**
+ * The transport hints WebAuthn defines, mirrored from @simplewebauthn's exported union.
+ *
+ * `satisfies` makes divergence from the library's type a compile error rather than something a
+ * cast would silence. Transports are non-authoritative UI hints - a stored value the library does
+ * not recognize is dropped rather than rejected, so an unknown authenticator cannot lock a user
+ * out of an otherwise-valid ceremony.
+ */
+const AUTHENTICATOR_TRANSPORTS = [
+    "ble",
+    "cable",
+    "hybrid",
+    "internal",
+    "nfc",
+    "smart-card",
+    "usb"
+] as const satisfies readonly AuthenticatorTransportFuture[];
+
+const authenticatorTransportSchema = z.enum(AUTHENTICATOR_TRANSPORTS);
+
+/** Narrows a persisted `transports` column to the transports the library accepts. */
+function toAuthenticatorTransports(value: unknown): AuthenticatorTransportFuture[] | undefined {
+    const entries = z.array(z.unknown()).safeParse(value);
+    if (!entries.success) return undefined;
+
+    return entries.data.flatMap((entry) => {
+        const transport = authenticatorTransportSchema.safeParse(entry);
+        return transport.success ? [transport.data] : [];
+    });
+}
+
+/**
+ * Projects a Zod-validated ceremony response onto the library's `RegistrationResponseJSON`.
+ *
+ * Only two fields need reconciling with the library's nominal types, and neither is
+ * security-bearing: `transports` is a UI hint, and `clientExtensionResults` is validated by
+ * {@link passkeyFinishRegistrationInput} to *exclude* `prf` - the one extension that would matter.
+ * Every field the signature actually covers is passed through untouched.
+ */
+function toRegistrationResponseJSON(
+    input: z.infer<typeof passkeyFinishRegistrationInput>["response"]
+): RegistrationResponseJSON {
+    return {
+        id: input.id,
+        rawId: input.rawId,
+        type: input.type,
+        ...(input.authenticatorAttachment === undefined
+            ? {}
+            : { authenticatorAttachment: input.authenticatorAttachment }),
+        response: {
+            clientDataJSON: input.response.clientDataJSON,
+            attestationObject: input.response.attestationObject,
+            ...(input.response.authenticatorData === undefined
+                ? {}
+                : { authenticatorData: input.response.authenticatorData }),
+            ...(input.response.publicKey === undefined
+                ? {}
+                : { publicKey: input.response.publicKey }),
+            ...(input.response.publicKeyAlgorithm === undefined
+                ? {}
+                : { publicKeyAlgorithm: input.response.publicKeyAlgorithm }),
+            ...(input.response.transports === undefined
+                ? {}
+                : { transports: toAuthenticatorTransports(input.response.transports) })
+        },
+        clientExtensionResults: toClientExtensionOutputs(input.clientExtensionResults)
+    };
+}
+
+/** Projects a Zod-validated assertion onto the library's `AuthenticationResponseJSON`. */
+function toAuthenticationResponseJSON(
+    input: z.infer<typeof passkeyFinishAuthenticationInput>["response"]
+): AuthenticationResponseJSON {
+    return {
+        id: input.id,
+        rawId: input.rawId,
+        type: input.type,
+        ...(input.authenticatorAttachment === undefined
+            ? {}
+            : { authenticatorAttachment: input.authenticatorAttachment }),
+        response: {
+            clientDataJSON: input.response.clientDataJSON,
+            authenticatorData: input.response.authenticatorData,
+            signature: input.response.signature,
+            ...(input.response.userHandle == null ? {} : { userHandle: input.response.userHandle })
+        },
+        clientExtensionResults: toClientExtensionOutputs(input.clientExtensionResults)
+    };
+}
+
+/**
+ * Narrows the client extension results the library declares it understands.
+ *
+ * `prf` is already rejected upstream by the input schema, so anything unrecognized here is an
+ * extension the verifier does not read. Dropping it keeps the value typed without discarding any
+ * signal the ceremony depends on.
+ */
+const clientExtensionOutputsSchema = z.object({
+    appid: z.boolean().optional(),
+    credProps: z.object({ rk: z.boolean().optional() }).optional(),
+    hmacCreateSecret: z.boolean().optional()
+});
+
+function toClientExtensionOutputs(value: unknown): AuthenticationExtensionsClientOutputs {
+    const parsed = clientExtensionOutputsSchema.safeParse(value);
+    return parsed.success ? parsed.data : {};
+}
 
 /**
  * Resolves the expected origin and RP ID from server configuration.
@@ -174,7 +289,7 @@ export const passkeyRouter = router({
                 attestationType: "none",
                 excludeCredentials: (existing ?? []).map((credential) => ({
                     id: credential.credential_id,
-                    transports: credential.transports as never
+                    transports: toAuthenticatorTransports(credential.transports)
                 })),
                 authenticatorSelection: {
                     residentKey: "required",
@@ -204,7 +319,7 @@ export const passkeyRouter = router({
             }
 
             const verification = await verifyRegistrationResponse({
-                response: input.response as never,
+                response: toRegistrationResponseJSON(input.response),
                 expectedChallenge: claimed.challenge,
                 expectedOrigin: origin,
                 expectedRPID: rpId,
@@ -292,7 +407,7 @@ export const passkeyRouter = router({
             }
 
             const verification = await verifyAuthenticationResponse({
-                response: input.response as never,
+                response: toAuthenticationResponseJSON(input.response),
                 expectedChallenge: claimed.challenge,
                 expectedOrigin: origin,
                 expectedRPID: rpId,
@@ -301,7 +416,7 @@ export const passkeyRouter = router({
                     id: stored.credential_id,
                     publicKey: new Uint8Array(Buffer.from(stored.public_key, "base64")),
                     counter: stored.counter,
-                    transports: stored.transports as never
+                    transports: toAuthenticatorTransports(stored.transports)
                 }
             }).catch(() => null);
 

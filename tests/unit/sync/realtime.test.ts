@@ -184,6 +184,88 @@ describe("VaultRealtimeSync", () => {
         );
     });
 
+    // The Realtime socket is an untrusted boundary. A frame that does not carry a complete
+    // vault_ops row, or that names a different vault, must never reach the decrypt path.
+    describe("vault_ops payload validation", () => {
+        const vaultId = "20000000-0000-4000-8000-000000000001";
+
+        function wellFormedRow() {
+            return {
+                id: "30000000-0000-4000-8000-000000000009",
+                vault_id: vaultId,
+                encrypted_data: "Y2lwaGVydGV4dA==",
+                version_vector: "AA==",
+                author_pubkey_hash: "b".repeat(64),
+                created_at: "2026-07-20T00:00:00.000Z"
+            };
+        }
+
+        async function emit(payloadNew: unknown) {
+            const onUpdate = vi.fn();
+            const realtime = createVaultRealtimeSync(vaultId, "sync");
+            await realtime.subscribe({ onUpdate });
+            const channel = mocks.channel.mock.results[0].value;
+            const handler = channel.on.mock.calls[0][2];
+            handler({ new: payloadNew });
+            return onUpdate;
+        }
+
+        it("forwards a well-formed row for this vault", async () => {
+            const onUpdate = await emit(wellFormedRow());
+
+            expect(onUpdate).toHaveBeenCalledExactlyOnceWith({
+                id: "30000000-0000-4000-8000-000000000009",
+                encryptedData: "Y2lwaGVydGV4dA==",
+                versionVector: "AA==",
+                authorPubkeyHash: "b".repeat(64),
+                createdAt: "2026-07-20T00:00:00.000Z"
+            });
+        });
+
+        /** The well-formed row minus one required column. */
+        function rowWithout(column: keyof ReturnType<typeof wellFormedRow>) {
+            const row: Record<string, unknown> = { ...wellFormedRow() };
+            delete row[column];
+            return row;
+        }
+
+        const malformed: Array<[string, unknown]> = [
+            ["an empty payload", {}],
+            ["null", null],
+            ["a JSON array", []],
+            ["a bare string", "vault_ops"],
+            ["a row missing encrypted_data", rowWithout("encrypted_data")],
+            ["a row missing version_vector", rowWithout("version_vector")],
+            ["a row missing author_pubkey_hash", rowWithout("author_pubkey_hash")],
+            [
+                "a row whose encrypted_data is not a string",
+                { ...wellFormedRow(), encrypted_data: 42 }
+            ],
+            ["a row whose id is not a string", { ...wellFormedRow(), id: null }]
+        ];
+
+        it.each(malformed)("drops %s", async (_label, payloadNew) => {
+            const onUpdate = await emit(payloadNew);
+            expect(onUpdate).not.toHaveBeenCalled();
+        });
+
+        it("drops a structurally valid row belonging to a different vault", async () => {
+            const onUpdate = await emit({
+                ...wellFormedRow(),
+                vault_id: "40000000-0000-4000-8000-000000000002"
+            });
+
+            expect(onUpdate).not.toHaveBeenCalled();
+        });
+
+        it("substitutes a timestamp when created_at is absent", async () => {
+            const onUpdate = await emit(rowWithout("created_at"));
+
+            expect(onUpdate).toHaveBeenCalledOnce();
+            expect(onUpdate.mock.calls[0][0].createdAt).toEqual(expect.any(String));
+        });
+    });
+
     it("keeps presence private without exposing an identity as the channel key", async () => {
         const presenceCredential = {
             ...credential(),

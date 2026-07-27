@@ -14,11 +14,13 @@ import { TRPCError } from "@trpc/server";
 import { createSupabaseClient } from "@/lib/supabase/server";
 
 import {
+    membershipVaultSchema,
     vaultCreateInput,
     vaultDeleteInput,
     vaultGetInput,
     vaultLeaveInput,
-    vaultMembersInput
+    vaultMembersInput,
+    vaultRoleSchema
 } from "../schemas/vault";
 import { protectedProcedure, router } from "../trpc";
 
@@ -54,18 +56,22 @@ export const vaultRouter = router({
             });
         }
 
-        // Transform to output format
-        const vaults = (memberships ?? [])
-            .map((m) => {
-                const vault = m.vaults as { id: string; created_at: string } | null;
-                return {
-                    id: vault?.id ?? "",
-                    role: m.role as "owner" | "member",
+        // Transform to output format, narrowing the persisted role at the DB boundary rather
+        // than casting. A membership with an unrecognized role or missing vault is dropped.
+        const vaults = (memberships ?? []).flatMap((m) => {
+            const vault = membershipVaultSchema.safeParse(m.vaults);
+            const role = vaultRoleSchema.safeParse(m.role);
+            if (!vault.success || !role.success || !vault.data) return [];
+
+            return [
+                {
+                    id: vault.data.id,
+                    role: role.data,
                     encryptedVaultKey: m.encrypted_vault_key,
-                    createdAt: vault?.created_at ?? m.created_at
-                };
-            })
-            .filter((v) => v.id); // Filter out any with missing vault
+                    createdAt: vault.data.created_at ?? m.created_at
+                }
+            ];
+        });
 
         return { vaults };
     }),

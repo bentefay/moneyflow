@@ -34,6 +34,54 @@ describe("isSignedTRPCOperationList", () => {
         expect(isSignedTRPCOperationList([{ path: "sync.getUpdates" }])).toBe(false);
         expect(isSignedTRPCOperationList([{ path: "", input: { json: null } }])).toBe(false);
     });
+
+    // This guard is on the authenticated request path: the middleware refuses to verify a
+    // signature over a body it cannot bind to exact procedure paths. These cases pin the accept
+    // and reject sets so the Zod implementation cannot silently widen what the auth path accepts.
+    const accepted: Array<[string, unknown]> = [
+        ["a single fully-formed operation", [{ path: "vault.create", input: { json: {} } }]],
+        [
+            "a batch of operations",
+            [
+                { path: "sync.pushOps", input: { json: { ops: [] } } },
+                { path: "sync.getUpdates", input: [] }
+            ]
+        ],
+        [
+            "an explicitly undefined input for a no-argument procedure",
+            [{ path: "v", input: undefined }]
+        ],
+        ["a null input", [{ path: "v", input: null }]],
+        ["extra sibling keys alongside path and input", [{ path: "v", input: 1, meta: "x" }]],
+        ["a path at the 200-character limit", [{ path: "p".repeat(200), input: 0 }]]
+    ];
+
+    it.each(accepted)("accepts %s", (_label, body) => {
+        expect(isSignedTRPCOperationList(body)).toBe(true);
+    });
+
+    const rejected: Array<[string, unknown]> = [
+        ["an empty batch", []],
+        ["a missing input key", [{ path: "v" }]],
+        ["a missing path key", [{ input: 1 }]],
+        ["an empty path", [{ path: "", input: 1 }]],
+        ["a path over the 200-character limit", [{ path: "p".repeat(201), input: 0 }]],
+        ["a non-string path", [{ path: 1, input: 1 }]],
+        [
+            "any single malformed operation in an otherwise valid batch",
+            [{ path: "a", input: 1 }, { path: "b" }]
+        ],
+        ["a nested array in place of an operation", [[{ path: "v", input: 1 }]]],
+        ["a null operation", [null]],
+        ["a non-array body", { path: "v", input: 1 }],
+        ["null", null],
+        ["undefined", undefined],
+        ["a string", "vault.create"]
+    ];
+
+    it.each(rejected)("rejects %s", (_label, body) => {
+        expect(isSignedTRPCOperationList(body)).toBe(false);
+    });
 });
 
 // Helper to create test user keys

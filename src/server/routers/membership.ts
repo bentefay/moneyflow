@@ -22,6 +22,7 @@ import {
     membershipRekeyInput,
     membershipRemoveInput
 } from "../schemas/membership";
+import { vaultRoleSchema } from "../schemas/vault";
 import { protectedProcedure, router } from "../trpc";
 
 export const membershipRouter = router({
@@ -62,13 +63,21 @@ export const membershipRouter = router({
             });
         }
 
+        // Narrow the persisted role at the DB boundary rather than casting.
         return {
-            members: (members ?? []).map((m) => ({
-                pubkeyHash: m.pubkey_hash,
-                role: m.role as "owner" | "member",
-                encPublicKey: m.enc_public_key,
-                createdAt: m.created_at
-            }))
+            members: (members ?? []).flatMap((m) => {
+                const role = vaultRoleSchema.safeParse(m.role);
+                return role.success
+                    ? [
+                          {
+                              pubkeyHash: m.pubkey_hash,
+                              role: role.data,
+                              encPublicKey: m.enc_public_key,
+                              createdAt: m.created_at
+                          }
+                      ]
+                    : [];
+            })
         };
     }),
 
@@ -158,12 +167,13 @@ export const membershipRouter = router({
 
         return {
             success: true,
-            remainingMembers: (remainingMembers ?? [])
-                .filter((m) => m.enc_public_key) // Only members with enc_public_key can receive new keys
-                .map((m) => ({
-                    pubkeyHash: m.pubkey_hash,
-                    encPublicKey: m.enc_public_key!
-                }))
+            // Only members with enc_public_key can receive new keys. flatMap narrows the nullable
+            // column in one step, which `.filter(...)` alone cannot do.
+            remainingMembers: (remainingMembers ?? []).flatMap((m) =>
+                m.enc_public_key == null || m.enc_public_key.length === 0
+                    ? []
+                    : [{ pubkeyHash: m.pubkey_hash, encPublicKey: m.enc_public_key }]
+            )
         };
     }),
 

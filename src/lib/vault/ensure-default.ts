@@ -123,8 +123,6 @@ export async function ensureDefaultVault(
     }
 
     // No vaults - create a default one
-    console.log("Creating default vault for new user...");
-
     // 1. Generate vault encryption key
     const vaultKey = await generateVaultKey();
 
@@ -142,7 +140,6 @@ export async function ensureDefaultVault(
     // 4. Initialize LoroDoc with default state
     // Detect user's preferred currency from browser locale
     const detectedCurrency = detectDefaultCurrency();
-    console.log(`Detected default currency from locale: ${detectedCurrency}`);
 
     const doc = new LoroDoc();
     const defaultState = getDefaultVaultState({ defaultCurrency: detectedCurrency });
@@ -185,8 +182,6 @@ export async function ensureDefaultVault(
         encryptedData: sodium.to_base64(encryptedData, sodium.base64_variants.ORIGINAL),
         versionVector
     });
-
-    console.log(`Created default vault: ${vaultId}`);
 
     return {
         vaultId,

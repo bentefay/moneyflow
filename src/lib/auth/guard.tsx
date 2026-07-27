@@ -14,7 +14,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { type ComponentType, type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect } from "react";
 
 import { getSession, hasSession } from "@/lib/crypto/session";
 
@@ -27,9 +27,6 @@ export const PUBLIC_ROUTES = ["/", "/unlock", "/new-user", "/invite"] as const;
 
 /** Route to redirect unauthenticated users to */
 export const UNLOCK_ROUTE = "/unlock";
-
-/** Route to redirect authenticated users to (from auth pages) */
-export const DASHBOARD_ROUTE = "/dashboard";
 
 // ============================================================================
 // Utility Functions
@@ -115,52 +112,6 @@ export function useAuthGuard(options: UseAuthGuardOptions = {}): UseAuthGuardRet
         isLoading: false, // Synchronous check, no loading state
         pubkeyHash
     };
-}
-
-// ============================================================================
-// withAuthGuard HOC
-// ============================================================================
-
-export interface WithAuthGuardOptions {
-    /** Loading component to show while checking auth */
-    LoadingComponent?: ComponentType;
-    /** Where to redirect unauthenticated users */
-    redirectTo?: string;
-}
-
-/**
- * HOC that wraps a component with authentication protection.
- * Redirects to unlock page if not authenticated.
- */
-export function withAuthGuard<P extends object>(
-    WrappedComponent: ComponentType<P>,
-    options: WithAuthGuardOptions = {}
-): ComponentType<P> {
-    const { LoadingComponent = DefaultLoadingComponent, redirectTo = UNLOCK_ROUTE } = options;
-
-    function AuthGuardedComponent(props: P) {
-        const { isAuthenticated, isLoading } = useAuthGuard({
-            redirect: true,
-            redirectTo
-        });
-
-        if (isLoading) {
-            return <LoadingComponent />;
-        }
-
-        if (!isAuthenticated) {
-            // Return loading while redirect happens
-            return <LoadingComponent />;
-        }
-
-        return <WrappedComponent {...props} />;
-    }
-
-    AuthGuardedComponent.displayName = `withAuthGuard(${
-        WrappedComponent.displayName || WrappedComponent.name || "Component"
-    })`;
-
-    return AuthGuardedComponent;
 }
 
 // ============================================================================

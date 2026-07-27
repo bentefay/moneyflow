@@ -38,6 +38,16 @@ const SERVER_OP_COUNT_THRESHOLD = 500;
 /** Max bytes of ops to return before telling client to use snapshot */
 const SERVER_BYTE_THRESHOLD = 5 * 1024 * 1024; // 5MB
 
+/**
+ * The version vector a client sends before it has imported anything.
+ *
+ * The client encodes Loro's `VersionVector` via `doc.version().encode()` and base64s the result.
+ * An empty vector encodes to the single byte `0x00`, which is `"AA=="` in standard base64. Treating
+ * it as "fresh" is what lets a just-created vault serve its initial snapshot instead of an empty
+ * op list.
+ */
+const EMPTY_ENCODED_VERSION_VECTOR = "AA==";
+
 export const syncRouter = router({
     /**
      * Get the latest snapshot for a vault.
@@ -137,8 +147,9 @@ export const syncRouter = router({
             });
         }
 
-        // Calculate total bytes
-        const totalBytes = ops.reduce((sum, op) => sum + (op.encrypted_data?.length ?? 0), 0);
+        // Calculate total bytes. `vault_ops.encrypted_data` is NOT NULL in the schema, so this
+        // matches the unguarded read in getSyncStatus below.
+        const totalBytes = ops.reduce((sum, op) => sum + op.encrypted_data.length, 0);
 
         // Decision: if client has unpushed changes, MUST return ops
         if (input.hasUnpushed) {
@@ -166,7 +177,8 @@ export const syncRouter = router({
         // Decision: if client has empty version vector (fresh state), use snapshot if available
         // This handles the case where a vault was just created with initial snapshot but no ops yet
         const clientVersionVector = input.versionVector ?? "";
-        const isClientFresh = clientVersionVector === "" || clientVersionVector === "AA=="; // empty base64
+        const isClientFresh =
+            clientVersionVector === "" || clientVersionVector === EMPTY_ENCODED_VERSION_VECTOR;
 
         if (isClientFresh && snapshotRaw?.encrypted_data) {
             return {

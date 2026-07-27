@@ -5,24 +5,31 @@
  * Keys are automatically cleared when the browser tab closes.
  */
 
+import { z } from "zod";
+
 const SESSION_KEY = "moneyflow_session";
 
 /**
  * Session data stored in sessionStorage.
  * Contains all keys needed for signing and encryption.
+ *
+ * sessionStorage is a boundary: a partially-written or version-skewed blob must be rejected here
+ * rather than surfacing as an undefined key deep inside libsodium.
  */
-export interface SessionData {
+const sessionDataSchema = z.object({
     /** Ed25519 signing public key, base64 */
-    publicKey: string;
+    publicKey: z.string().min(1),
     /** Ed25519 signing secret key, base64 */
-    secretKey: string;
+    secretKey: z.string().min(1),
     /** X25519 encryption public key, base64 */
-    encPublicKey: string;
+    encPublicKey: z.string().min(1),
     /** X25519 encryption secret key, base64 */
-    encSecretKey: string;
+    encSecretKey: z.string().min(1),
     /** BLAKE2b hash of signing publicKey, base64 */
-    pubkeyHash: string;
-}
+    pubkeyHash: z.string().min(1)
+});
+
+export type SessionData = z.infer<typeof sessionDataSchema>;
 
 /**
  * Checks if we're running in a browser environment with sessionStorage.
@@ -38,8 +45,9 @@ function isBrowser(): boolean {
  * @param data - Session data to store
  */
 export function storeSession(data: SessionData): void {
+    // Server rendering has no sessionStorage. This is an expected branch, not an error worth
+    // emitting to the server console on every render.
     if (!isBrowser()) {
-        console.warn("sessionStorage not available - running server-side?");
         return;
     }
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(data));
@@ -60,13 +68,23 @@ export function getSession(): SessionData | null {
         return null;
     }
 
-    try {
-        return JSON.parse(stored) as SessionData;
-    } catch {
-        // Corrupted data - clear it
+    const parsed = ((): unknown => {
+        try {
+            return JSON.parse(stored);
+        } catch {
+            return undefined;
+        }
+    })();
+
+    const session = sessionDataSchema.safeParse(parsed);
+    if (!session.success) {
+        // Unparseable, partial, or version-skewed data - clear it rather than hand back a
+        // half-populated session that fails later inside libsodium.
         clearSession();
         return null;
     }
+
+    return session.data;
 }
 
 /**
@@ -98,16 +116,6 @@ export function clearSession(): void {
 export function getSessionPubkeyHash(): string | null {
     const session = getSession();
     return session?.pubkeyHash ?? null;
-}
-
-/**
- * Gets the public signing key from the current session.
- *
- * @returns Base64-encoded public key if session exists, null otherwise
- */
-export function getSessionPublicKey(): string | null {
-    const session = getSession();
-    return session?.publicKey ?? null;
 }
 
 /**

@@ -75,12 +75,13 @@ export const userRouter = router({
      * Note: This is idempotent - calling with same pubkey_hash is safe.
      */
     register: protectedProcedure.input(userRegisterInput).mutation(async ({ ctx }) => {
-        let supabase;
-        try {
-            supabase = await createSupabaseClient();
-        } catch (error) {
-            handleDatabaseError(error, "user.register:connect");
-        }
+        const supabase = await (async () => {
+            try {
+                return await createSupabaseClient();
+            } catch (error) {
+                handleDatabaseError(error, "user.register:connect");
+            }
+        })();
 
         // Check if user already exists
         const { data: existing, error: selectError } = await supabase
@@ -128,12 +129,13 @@ export const userRouter = router({
      * The verified context is the only identity selector.
      */
     getOrCreate: protectedProcedure.input(userGetOrCreateInput).mutation(async ({ ctx }) => {
-        let supabase;
-        try {
-            supabase = await createSupabaseClient();
-        } catch (error) {
-            handleDatabaseError(error, "user.getOrCreate:connect");
-        }
+        const supabase = await (async () => {
+            try {
+                return await createSupabaseClient();
+            } catch (error) {
+                handleDatabaseError(error, "user.getOrCreate:connect");
+            }
+        })();
 
         // Try to get existing user
         const { data: existing, error: selectError } = await supabase
@@ -200,12 +202,13 @@ export const userRouter = router({
      * including their role and encrypted vault key.
      */
     myVaults: protectedProcedure.query(async ({ ctx }) => {
-        let supabase;
-        try {
-            supabase = await createSupabaseClient();
-        } catch (error) {
-            handleDatabaseError(error, "user.myVaults:connect");
-        }
+        const supabase = await (async () => {
+            try {
+                return await createSupabaseClient();
+            } catch (error) {
+                handleDatabaseError(error, "user.myVaults:connect");
+            }
+        })();
 
         const { data, error } = await supabase
             .from("vault_memberships")

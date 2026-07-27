@@ -10,7 +10,11 @@ import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/
 import { Temporal } from "temporal-polyfill";
 
 import { createTRPCClient } from "@/lib/trpc/client";
-import type { RealtimeCredential, RealtimePurpose } from "@/server/schemas/realtime";
+import {
+    type RealtimeCredential,
+    type RealtimePurpose,
+    vaultOpRealtimeRowSchema
+} from "@/server/schemas/realtime";
 
 import { createSupabaseClientForRealtime } from "./client";
 import type { Database } from "./types";
@@ -64,17 +68,6 @@ function createAuthorizationApi(): RealtimeAuthorizationApi {
 
 function isUnknownRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isVaultOpRow(value: unknown): value is VaultOpRow {
-    return (
-        isUnknownRecord(value) &&
-        typeof value.id === "string" &&
-        typeof value.vault_id === "string" &&
-        typeof value.encrypted_data === "string" &&
-        typeof value.version_vector === "string" &&
-        typeof value.author_pubkey_hash === "string"
-    );
 }
 
 function readPresenceTimestamp(value: unknown, key: "joined_at" | "last_seen"): string {
@@ -218,21 +211,25 @@ export class VaultRealtimeSync {
                     filter: `vault_id=eq.${this.vaultId}`
                 },
                 (payload: RealtimePostgresChangesPayload<VaultOpRow>) => {
-                    if (
-                        generation !== this.generation ||
-                        this.channel !== channel ||
-                        !this.onUpdate ||
-                        !isVaultOpRow(payload.new) ||
-                        payload.new.vault_id !== this.vaultId
-                    ) {
+                    if (generation !== this.generation || this.channel !== channel) return;
+
+                    const row = vaultOpRealtimeRowSchema.safeParse(payload.new);
+                    // Validating the row shape says nothing about scope. A socket frame naming a
+                    // different vault is still cross-vault data and must be dropped.
+                    if (!this.onUpdate || !row.success || row.data.vault_id !== this.vaultId) {
                         return;
                     }
+
+                    const createdAt = row.data.created_at;
                     void this.onUpdate({
-                        id: payload.new.id,
-                        encryptedData: payload.new.encrypted_data,
-                        versionVector: payload.new.version_vector,
-                        authorPubkeyHash: payload.new.author_pubkey_hash,
-                        createdAt: payload.new.created_at ?? Temporal.Now.instant().toString()
+                        id: row.data.id,
+                        encryptedData: row.data.encrypted_data,
+                        versionVector: row.data.version_vector,
+                        authorPubkeyHash: row.data.author_pubkey_hash,
+                        createdAt:
+                            typeof createdAt === "string"
+                                ? createdAt
+                                : Temporal.Now.instant().toString()
                     });
                 }
             );

@@ -10,8 +10,6 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
 import { requireSecureSupabaseUrl } from "./url";
 
-let supabaseClient: SupabaseClient<Database> | null = null;
-
 function getBrowserSupabaseConfiguration(): { url: string; anonKey: string } {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -26,28 +24,6 @@ function getBrowserSupabaseConfiguration(): { url: string; anonKey: string } {
         url: requireSecureSupabaseUrl(supabaseUrl, process.env.NODE_ENV),
         anonKey: supabaseAnonKey
     };
-}
-
-/**
- * Get the Supabase browser client (singleton).
- *
- * Uses anon key for client-side operations with RLS.
- */
-export function createSupabaseClientForBrowser(): SupabaseClient<Database> {
-    if (supabaseClient) {
-        return supabaseClient;
-    }
-
-    const configuration = getBrowserSupabaseConfiguration();
-
-    supabaseClient = createClient<Database>(configuration.url, configuration.anonKey, {
-        auth: {
-            persistSession: false,
-            autoRefreshToken: false
-        }
-    });
-
-    return supabaseClient;
 }
 
 /**
