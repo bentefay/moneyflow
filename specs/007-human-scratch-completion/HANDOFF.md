@@ -1,98 +1,113 @@
-# HANDOFF — P10 REVIEW dispatch (revision 01)
+# HANDOFF — P20A IMPLEMENT dispatch (revision 01)
 
-**To:** `p10-reviewer-01` (fresh, independent — you did NOT implement P10; you are NOT
-`p10-implementer-01`). Read-only on product code; you may run all gates. **From:** root coordinator.
+**To:** `p20a-implementer-01` (fresh implementer). **From:** root coordinator.
 
-**Package:** P10 (HS-003 — Loro ephemeral presence and active transaction). **This is the SOLE
-HS-003 package** — on your PASS, root performs the NON-markerless final integration that checks the
-HS-003 scratch block and flips the HS-003 requirement to passed. Review as the last gate before
-HS-003 is declared complete.
+**Package:** P20A (HS-016 — Truthful marketing pages). **This is the SOLE HS-016 package** — on the
+independent reviewer's PASS, root performs the NON-markerless final integration that checks the
+HS-016 scratch block and flips the HS-016 requirement to `passed`. Build it as the last product work
+before HS-016 is declared complete (only HS-021 remains after you).
 
-**Review range:** `54a88ae..71c378c` (product/test delta in `f6ae3fe` + `d832443`; docs commit
-`71c378c` is evidence-only). Linear single-parent chain `54a88ae->f6ae3fe->d832443->71c378c`. Work
-read-only against git; **do NOT checkout/reset/branch/switch** — the tree stays at HEAD.
+**BASE = current HEAD `42900590302030f9b38a56a560e9f53ecb3f65ed`.** Commit your work on top of BASE.
+**No-checkout discipline: do NOT checkout / reset / branch / switch** — the tree stays at HEAD; make
+commits forward only. Linear single-parent chain, one logical feat commit (plus optional test
+commit) is ideal.
 
-**Frozen text:** `specs/human-scratch.md:161-163` (HS-003), exact bytes in `SCOPE.json#HS-003`:
+## Frozen requirement — the source of truth
 
-> Use Loro ephemeral state for presence and active transaction, after understanding Loro's complete
-> model documentation and the loro-mirror repository.
+`specs/human-scratch.md:328-331` (HS-016), exact bytes (also in `SCOPE.json#HS-016`):
 
-Full brief: `specs/007-human-scratch-completion/tasks/HS-003-loro-ephemeral-presence.md`. The
-implementer's evidence is `evidence/P10/implementation-01.md` — read the frozen text, not the
-evidence, as your source of truth.
+> Update the marketing pages to include all these features. Be clear, succinct and not too
+> "markety". It's private. It's for categorising and allocating your transactions, not budgeting.
+> Supports importing CSV and ofx. Multiple people can collaborate in real-time. It intelligently
+> applies your tags, aliases and allocations to new imports.
 
-## What root already verified (verify-not-trust — re-derive, do not take on faith)
+Full brief: `specs/007-human-scratch-completion/tasks/HS-016-marketing-pages.md`. Read the frozen
+text, not any evidence, as your source of truth.
 
-- Linear single-parent chain `54a88ae->f6ae3fe->d832443->71c378c`, no merges.
-- Delta = 17 product/test files + evidence, ALL in `src/lib/sync/**`, `src/lib/crypto/**`,
-  `src/components/**`, `src/hooks/**`, `src/app/(app)/**`, `src/lib/supabase/realtime.ts`, and
-  `tests/**`. **NO file under `src/lib/crdt/**`\*\*, no root-owned/marker/spec/migration file.
-- **Two HARD boundaries byte-identical BASE(`54a88ae`)->HEAD** — must NOT change:
-    - FS-001 `src/lib/domain/settlement.ts` blob `010f3c93582a2ce311594d4dde8464760ca49c43`
-    - P05 `tests/database/rls-audit.sql` blob `9b04bef7e55929d3993efd82b037fcf02d7bb637`
-- Product code cast-free; root spot-check `pnpm typecheck` clean.
+## The marketing surface (your ONLY editable product scope)
 
-## Behaviour you MUST confirm against frozen text + the brief
+Public landing pages live under:
 
-1. **Real Loro `EphemeralStore` — not Supabase Presence.** Confirm the misleading Supabase-only
-   `EphemeralPresenceManager` and the separate `use-vault-presence` heartbeat channel are actually
-   GONE (one presence system, one channel, one session id per tab). Confirm presence uses a
-   standalone `EphemeralStore`, never the vault `LoroDoc`.
-2. **No ephemeral value reaches durable storage.** Independently confirm no presence value enters
-   the vault `LoroDoc`, `UndoManager`, IndexedDB, or `vault_ops`; `finalizeEphemeralPatches` /
-   loro-mirror's `setStateWithEphemeralPatch` are NOT used to fold ephemeral state into the doc.
-   (`git diff 54a88ae..71c378c` should touch no `src/lib/crdt/**`, no `sync/manager.ts`, no
-   `sync/persistence.ts` — verify.)
-3. **Authenticated encrypted transport over the P05-authorized channel.** The encrypted envelope
-   must ride as the opaque `payload` of the Presence `track()` on the existing `vault:<id>:presence`
-   topic — NO new channel, NO new grant purpose, NO migration. Confirm the RLS send policy still
-   denies raw Broadcast on that topic (the audit file is byte-identical — confirm the client does
-   not attempt a raw Broadcast publish). Crypto: XChaCha20-Poly1305 over
-   `EphemeralStore.encode(sessionId)`, key via HKDF-SHA256 from the vault key with a presence
-   domain, version+vault+session bound as AEAD additional data. Confirm ESTABLISHED primitives only
-   (no hand-rolled crypto) and that a relabelled/replayed/cross-vault envelope fails the tag / is
-   ignored.
-4. **Session-spoofing rejection (implementer claim to verify):** incoming updates are staged and
-   accepted only if the claimed key set is exactly `{sessionId}`, so a member cannot puppet another
-   session's indicator. Confirm there is a named regression test and it genuinely fails without the
-   guard.
-5. **Departure-as-filter, not delete (implementer claim to verify):** because a Loro `delete()`
-   tombstone can beat a same-millisecond rejoin under LWW, departure is tracked as a filter. Confirm
-   the named regression test.
-6. **Distinct tab/session id even when the pubkey identity is shared;** stale-session expiry; focus
-   cleared on blur/route/unmount; reconnect recovery; non-blocking row presence with NO financial
-   text on the wire.
+- `src/app/(marketing)/page.tsx`, `src/app/(marketing)/layout.tsx`
+- `src/components/features/landing/` — `HeroSection.tsx`, `FeaturesSection.tsx`,
+  `SecuritySection.tsx`, `CTASection.tsx`, `Footer.tsx`, `Header.tsx`, `index.ts`
+
+**Untruthful/off-positioning copy to audit and correct (non-exhaustive — inventory ALL of it):**
+
+- `FeaturesSection.tsx:68,76` — advertises **"Smart Budgeting"** ("Set budgets for categories and
+  track spending… nudges when you're approaching limits") and **"Spending Insights"**. Budgeting is
+  explicitly NOT what this product does (frozen: "not budgeting"). Remove/replace.
+- `CTASection.tsx:35` — "Start tracking your household expenses…"; `Footer.tsx:56` — "household
+  finance **tracking**"; `HeroSection.tsx:54` — "**Track** expenses together". Audit
+  "track/tracking" language that implies budgeting/expense-tracking rather than **categorising and
+  allocating**.
+
+You may add small presentational components/helpers under `src/components/features/landing/` if
+needed, but do **NOT** modify anything under `src/lib/**`, `src/server/**`, any migration, any
+`src/app/(app)/**` product page, or any root-owned spec/ledger/marker file.
+
+## What to build
+
+1. **Claim-to-evidence table FIRST (before copy changes).** In your evidence file
+   `evidence/P20A/implementation-01.md`, produce a table mapping every public claim you will make to
+   the independently-passed feature that supports it (privacy/client-side encryption; CSV **and
+   OFX** import; categorising + allocating transactions; People allocations; real-time
+   collaboration; intelligent auto-application of tags/aliases/allocations to new imports). **No
+   claim may be made for a feature that isn't actually usable** — if a claim has no shipped
+   evidence, cut the claim.
+2. **Rewrite copy to the frozen positioning:** private; **categorising and allocating** your
+   transactions, **not budgeting**; imports **CSV and OFX**; **multiple people collaborate in
+   real-time**; **intelligently applies your tags, aliases and allocations to new imports**. Clear,
+   succinct, plain, credible — **not "markety"**. Coherent information hierarchy; working CTA/nav
+   links (no dead destinations; auth/CTA copy correct after P18/P19).
+3. **Privacy wording must match the threat model — no false absolutes.** Describe client-side
+   encryption accurately (financial data encrypted on the client; the server never sees plaintext)
+   without overclaiming ("unhackable", "perfectly anonymous", metadata claims the model doesn't
+   support). When in doubt, understate.
+4. **Presentation stays polished:** responsive (desktop + mobile), dark/light,
+   `prefers-reduced- motion` respected, metadata/`<title>`/semantics and accessibility (heading
+   order, link text, focus order, contrast) intact.
 
 ## Hard rules (blocking if violated)
 
-- No new `as` / `any` / non-null `!` in **product** code. NOTE: there is one `as unknown as never`
-  in the TEST fixture `tests/integration/presence-ephemeral.test.ts:167` (a FakeTransport structural
-  shim) — root judged it non-blocking per the established test-fixture-cast precedent (product code
-  cast-free). Confirm it is confined to test scaffolding and the FakeTransport surface is honest; if
-  you believe it masks a real type mismatch in product behaviour, raise it — otherwise it does not
-  gate.
+- **No new `as` / `any` / non-null `!` in product code** (repo-wide hard rule; product stays
+  cast-free). Test-fixture casts tolerated only if genuinely necessary and honest.
 - **SECRET-SAFETY (BLOCKING):** no seed phrase, recovery material, vault master key, vault-derived
-  presence key, invite bearer secret, `crypto_box` secret material, `SUPABASE_JWT_SECRET`, or vault
-  plaintext anywhere in code/logs/URLs/tests/fixtures/evidence. Encrypted payloads/keys never logged
-  in plaintext; synthetic/public vectors only. Any real-material leak is a blocking finding reported
-  to root IMMEDIATELY.
-- FS-001 `settlement.ts` + effective/settled values untouched; P05 authorization surface unchanged.
+  key, invite bearer secret, `crypto_box` secret material, `SUPABASE_JWT_SECRET`, or vault plaintext
+  anywhere in copy/code/tests/fixtures/evidence. Synthetic/public content only. Any real-material
+  leak is a blocking finding reported to root IMMEDIATELY.
+- **Do not advertise unreleased or blocked behavior.** Every advertised feature must be usable
+  today.
+- **Hard boundary byte-identical BASE->HEAD:** FS-001 `src/lib/domain/settlement.ts` blob
+  `010f3c93582a2ce311594d4dde8464760ca49c43` — must NOT change (your scope is marketing only;
+  nothing under `src/lib/**` should move at all).
 
-## Gates — re-run and report REAL counts
+## Automated tests (required)
 
-`pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm test:e2e`. Implementer
-reported: typecheck 0 errors; lint 0 errors / 10 pre-existing warnings; format:check 15 pre-existing
-`specs/**` markdown only (0 `.ts`/`.tsx`); test 1919 passed / 2 skipped; e2e 156 passed. Re-run and
-confirm real counts. A `format:check` failure confined to pre-existing markdown is NON-blocking; any
-P10 `.ts`/`.tsx` failing oxfmt IS blocking. Never run Playwright with `--debug/--ui/--headed/show`.
+- **Component/accessibility tests** for the landing surface: semantic structure, heading order,
+  link/CTA destinations, and a **guard against false headings** — assert the page does **NOT**
+  render "Smart Budgeting" / "Spending Insights" / budgeting language. Assert the true positioning
+  is present (categorise/allocate, CSV + OFX, real-time collaboration, auto-apply to imports) at the
+  heading/landmark level, **not** brittle full-prose equality.
+- **A public landing-to-create E2E journey** (unauthenticated landing → primary CTA →
+  create/new-user entry), plus keep any existing visual/navigation coverage green. Assert behaviour
+  and destinations, not incidental wording.
+
+## Gates — run and report REAL counts
+
+`pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm test:e2e`. Report the real
+counts for each. A `format:check` failure confined to pre-existing `specs/**` markdown is
+NON-blocking; any P20A `.ts`/`.tsx` failing oxfmt IS blocking. Never run Playwright with
+`--debug/--ui/--headed/show`.
 
 ## Handback
 
-SendMessage to `main` with: **VERDICT: PASS** or **VERDICT: FAIL** (0 blocking findings = PASS); the
-five real gate counts; an explicit statement that (a) presence is a standalone `EphemeralStore` with
-no ephemeral value in durable CRDT/IndexedDB/server, (b) the two hard boundaries are byte-identical,
-(c) transport is encrypted over the authorized Presence path with no new channel/grant/migration,
-(d) session-spoofing and departure-as-filter regression tests are honest, and (e) no secret material
-anywhere. Include any Q-proposals or non-blocking observations. For any blocking issue give
-file:line, the frozen line violated, and the failing scenario so root can bounce a fix. Do not edit
-product code; do not checkout/reset.
+SendMessage to `main` with: the final HEAD SHA and the linear commit chain BASE(`4290059`)->HEAD;
+the **claim-to-evidence table**; the five real gate counts; an explicit statement that (a) all
+budgeting/insight/"tracking-as-budgeting" copy is gone and positioning is categorise+allocate (not
+budgeting), (b) every advertised feature is backed by a shipped/usable capability, (c) privacy
+wording matches the threat model with no false absolutes, (d) the FS-001 boundary is byte-identical
+and nothing under `src/lib/**` changed, (e) no secret material anywhere, and (f) responsive/dark/
+reduced-motion/accessibility are intact. Include any Q-proposals (e.g. tone preference — factual
+accuracy wins without pausing) and note the evidence path `evidence/P20A/implementation-01.md`. Do
+not edit root-owned ledger/marker/spec files; do not checkout/reset.
