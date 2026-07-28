@@ -5993,7 +5993,7 @@ Marker flip (sed-only, abort-safe): scratch `:159` `- [x]` -> `- []`, one-line d
 
 ### Event — P20B rev 06 handback verified read-only; DISTINCT reviewer dispatched
 
-- **Handback commit:** `3f8e2f2` ("test(P20B): close eager-assertion flake class under full-suite
+- **Handback commit:** `ea8f927` (recorded earlier as orphan `3f8e2f2`; corrected — amended twice, evidence-header-only delta) ("test(P20B): close eager-assertion flake class under full-suite
   load"). Verify-not-trust (root, read-only) CLEAN: touches only the 8 allowed E2E paths +
   `evidence/P20B/implementation-07.md`; no product code changed; frozen `human-scratch.md`
   (`f46c2d35…`) and `src/lib/domain/settlement.ts` (`010f3c93…`) byte-identical; no new

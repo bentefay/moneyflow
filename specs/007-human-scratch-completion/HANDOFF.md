@@ -6,11 +6,14 @@
   Your job: independently decide PASS or FAIL on whether rev 06 closes the P21 rev-04 E2E blockers
   under load, without regressing anything. Do NOT edit product/test code, ledgers, markers, or the
   frozen scratch. Write only your review file. Root re-passes HS-021 only on your PASS.
-- **Handback under review:** commit **`3f8e2f2`** ("test(P20B): close eager-assertion flake class
-  under full-suite load"). BASE for the diff = its parent `95dea1b` (a root docs commit); the last
-  product commit is `371a88a`. Root has already verified read-only that `3f8e2f2` touches only the 8
-  allowed E2E paths + `evidence/P20B/implementation-07.md`, that no product code changed, that
-  frozen `human-scratch.md` (`f46c2d35…`) and `src/lib/domain/settlement.ts` (`010f3c93…`) are
+- **Handback under review:** commit **`ea8f927`** (NOT the orphaned `3f8e2f2` — the implementer
+  amended twice after first committing, so `3f8e2f2` is dangling and
+  `git merge-base --is-ancestor 3f8e2f2 HEAD` is false; the orphan→`ea8f927` delta is
+  evidence-header-only, zero code) ("test(P20B): close eager-assertion flake class under full-suite
+  load"). BASE for the diff = its parent `95dea1b` (a root docs commit); the last product commit is
+  `371a88a`. Root has already verified read-only that `ea8f927` touches only the 8 allowed E2E
+  paths + `evidence/P20B/implementation-07.md`, that no product code changed, that frozen
+  `human-scratch.md` (`f46c2d35…`) and `src/lib/domain/settlement.ts` (`010f3c93…`) are
   byte-identical, and that no new `as`/`any`/`!` or secret material appears. You re-verify
   independently.
 
@@ -18,10 +21,11 @@
 
 - **F-1 eager-assertion class (33 timeout widenings, 5000 → 15_000)** sized on the principled
   sibling `transactions.spec.ts:578/697`. Cohort: `import.spec.ts` (13), `transactions.spec.ts` (5),
-  `identity.spec.ts` (4), `helpers/auth.ts` (3), plus the 7 `field-rule-editor` `waitFor` sites root
-  authorised — `automations.spec.ts:34/83/95`, `field-rule-parity.spec.ts:51/175/293`,
-  `transaction-rules.spec.ts:41`. A timeout raise cannot fail a passing test; it only converts a
-  load-induced failure into a pass.
+  `identity.spec.ts` (4), `helpers/auth.ts` (3 in the F-1 timeout column; auth.ts carries a 4th
+  widened site under the F-2 `expectValid` wait, counted in §1.4 not the F-1 cohort), plus the 7
+  `field-rule-editor` `waitFor` sites root authorised — `automations.spec.ts:34/83/95`,
+  `field-rule-parity.spec.ts:51/175/293`, `transaction-rules.spec.ts:41`. A timeout raise cannot
+  fail a passing test; it only converts a load-induced failure into a pass.
 - **F-2 identity hydration (Q-P20B-19)** — replaced the invalid `toBeEditable()`/`toHaveValue()`
   "hydration wait" on an ungated controlled Input with a new `waitForUnlockHydration()` helper in
   `tests/e2e/helpers/auth.ts` that gates on the passkey branch (a hydration-gated control), then
@@ -43,8 +47,9 @@
   either (0/8), so a clean campaign is necessary but WEAK evidence. Your independent campaign in a
   different environment is the real test. Record per-run pass/fail and call out `identity.spec.ts`
   (F-2), the `import.spec.ts`/`transactions.spec.ts` eager cohort (F-1), and any
-  `import.spec.ts:1527` ENOENT (Q-P20B-20). **If `:1527` fails, check WHICH error: ENOENT ⇒
-  parallel-safety regressed; a 5s-style timeout ⇒ eager class.**
+  `import.spec.ts:1532` ENOENT (Q-P20B-20 — the fix shifted this test +5 from the rev-04 `:1527`;
+  same test/body). **If `:1532` fails, check WHICH error: ENOENT ⇒ parallel-safety regressed; a
+  5s-style timeout ⇒ eager class.**
 - Also run and record the static gates
   (`pnpm typecheck && pnpm lint && pnpm format:check && pnpm test`). Known-acceptable: the
   `TransactionTable.tsx:401` react-hooks WARNING; `format:check` flags only frozen `specs/**` md.
