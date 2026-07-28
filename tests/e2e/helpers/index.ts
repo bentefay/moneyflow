@@ -4,7 +4,13 @@
  * Re-exports all helper modules for convenience.
  */
 
-export { clearSession, createNewIdentity, enterSeedPhrase, extractSeedPhrase } from "./auth";
+export {
+    clearSession,
+    createNewIdentity,
+    enterSeedPhrase,
+    extractSeedPhrase,
+    waitForUnlockHydration
+} from "./auth";
 export {
     countRealtimeGrants,
     readActiveVaultId,

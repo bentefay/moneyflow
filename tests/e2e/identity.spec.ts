@@ -7,6 +7,8 @@
 
 import { expect, type Page, test } from "@playwright/test";
 
+import { waitForUnlockHydration } from "./helpers";
+
 // ============================================================================
 // Test Fixtures
 // ============================================================================
@@ -47,6 +49,10 @@ async function extractSeedPhrase(page: Page): Promise<string[]> {
  * Enter seed phrase into the unlock inputs.
  */
 async function enterSeedPhrase(page: Page, words: string[]): Promise<void> {
+    // The slots are controlled inputs with no hydration gate of their own, so a fill that lands
+    // before hydration is dropped and the next render clears it. See waitForUnlockHydration.
+    await waitForUnlockHydration(page);
+
     for (let i = 0; i < words.length; i++) {
         const input = page.locator(`[data-testid="seed-word-input-${i}"]`);
         await input.fill(words[i]);
@@ -306,7 +312,7 @@ test.describe("Identity", () => {
 
             // Reveal seed phrase (it's hidden by default)
             const revealButton = page.getByRole("button", { name: /click to reveal/i });
-            await revealButton.waitFor({ state: "visible", timeout: 5000 });
+            await revealButton.waitFor({ state: "visible", timeout: 15_000 });
             await revealButton.click();
             // Wait for reveal animation to complete
             await page
@@ -345,24 +351,22 @@ test.describe("Identity", () => {
         await test.step("validate BIP39 words with visual feedback", async () => {
             const firstInput = page.locator('[data-testid="seed-word-input-0"]');
 
-            // The word inputs are controlled React inputs, so a fill landing before hydration is
-            // dropped: the next render overwrites the DOM value and onChange never fires, so the
-            // validity styling never updates and the comparison below sees two identical class
-            // strings. Visibility alone does not imply hydrated - wait for editable, and assert
-            // each fill propagated before reading the class off it.
-            await expect(firstInput).toBeEditable();
+            // The word inputs are controlled React inputs with no hydration gate of their own, so
+            // toBeEditable/toHaveValue prove nothing here: a fill landing before hydration sets
+            // the DOM value without ever running onChange, and the next render clears it, leaving
+            // the validity class permanently unset. Gate on the passkey branch instead - it cannot
+            // render at all until the page's effects have flushed. See waitForUnlockHydration.
+            await waitForUnlockHydration(page);
 
             await firstInput.fill("abandon");
-            await expect(firstInput).toHaveValue("abandon");
-            // toHaveValue confirms the DOM value but not the re-render that flips the validity
-            // border colour, so wait for the class itself to reflect the valid word first.
-            await expect(firstInput).toHaveClass(/border-green-500/);
+            // The class is the post-propagation signal: it can only appear once onChange ran and
+            // React re-rendered from its own state, so it also confirms the fill was not dropped.
+            await expect(firstInput).toHaveClass(/border-green-500/, { timeout: 15_000 });
             const validClasses = await firstInput.getAttribute("class");
 
             await firstInput.clear();
             await firstInput.fill("invalidword123");
-            await expect(firstInput).toHaveValue("invalidword123");
-            await expect(firstInput).toHaveClass(/border-destructive/);
+            await expect(firstInput).toHaveClass(/border-destructive/, { timeout: 15_000 });
             const invalidClasses = await firstInput.getAttribute("class");
 
             // A BIP39 word and a non-word must render differently, otherwise there is no feedback.
@@ -425,7 +429,9 @@ test.describe("Identity", () => {
             await enterSeedPhrase(page, savedSeedPhrase);
 
             const unlockButton = page.locator('[data-testid="unlock-button"]');
-            await expect(unlockButton).toBeEnabled({ timeout: 5000 });
+            // Enablement trails the React commit for all twelve words, so this is the same
+            // post-propagation wait as the validity assertions above and gets the same slack.
+            await expect(unlockButton).toBeEnabled({ timeout: 15_000 });
             await unlockButton.click();
 
             // Existing users (unlock) land on transactions
@@ -553,6 +559,9 @@ test.describe("Identity", () => {
         await test.step("a manager-style fill distributes into all twelve inputs", async () => {
             const testVector =
                 "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+            // Distribution is driven by the credential's onChange, so the fill must land after
+            // hydration or it is silently discarded. See waitForUnlockHydration.
+            await waitForUnlockHydration(page);
             await credential.fill(testVector);
 
             for (let index = 0; index < 11; index++) {
@@ -621,10 +630,13 @@ test.describe("Identity", () => {
             // is dropped: the DOM value is overwritten by the next render and onChange never
             // fires, leaving the word grid empty and the button disabled forever. The preceding
             // step deliberately tests the pre-hydration race; this one tests the ordinary path,
-            // so wait for the grid to be interactive first rather than racing it.
-            await expect(page.getByTestId("seed-word-input-0")).toBeEditable();
+            // so gate on hydration first rather than racing it. toBeEditable would not do -
+            // an ungated input is editable from first paint. See waitForUnlockHydration.
+            await waitForUnlockHydration(page);
             await credential.fill(savedPhrase);
-            await expect(page.getByTestId("seed-word-input-0")).not.toHaveValue("");
+            await expect(page.getByTestId("seed-word-input-0")).not.toHaveValue("", {
+                timeout: 15_000
+            });
 
             const unlockButton = page.getByTestId("unlock-button");
             await expect(unlockButton).toBeEnabled({ timeout: 15000 });
@@ -662,12 +674,14 @@ test.describe("Identity", () => {
     test("auth guard: protected routes redirect to unlock", async ({ page }) => {
         await test.step("dashboard redirects to unlock", async () => {
             await page.goto("/dashboard");
-            await page.waitForURL("**/unlock", { timeout: 5000 });
+            // The guard redirect is client-side, so it cannot fire until the route has compiled
+            // and hydrated - both of which stretch well past 5s under full-suite parallel load.
+            await page.waitForURL("**/unlock", { timeout: 15_000 });
         });
 
         await test.step("transactions redirects to unlock", async () => {
             await page.goto("/transactions");
-            await page.waitForURL("**/unlock", { timeout: 5000 });
+            await page.waitForURL("**/unlock", { timeout: 15_000 });
         });
 
         await test.step("marketing pages accessible without auth", async () => {

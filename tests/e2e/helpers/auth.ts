@@ -27,8 +27,9 @@ export async function createNewIdentity(page: Page): Promise<string[]> {
     // Reveal seed phrase if hidden (click the reveal button)
     // The SeedPhraseDisplay starts with initiallyRevealed=false on new-user page
     const revealButton = page.getByRole("button", { name: /click to reveal/i });
-    // Wait a moment for the button to be visible (it should be there initially)
-    await revealButton.waitFor({ state: "visible", timeout: 5000 });
+    // Sized like the sibling waits on this path: the button only paints after the generate step
+    // re-renders, and under full-suite parallel load that re-render can exceed the 5s default.
+    await revealButton.waitFor({ state: "visible", timeout: 15_000 });
     await revealButton.click();
     // The reveal animation is complete once the words themselves are visible, which is exactly
     // what extractSeedPhrase reads next.
@@ -39,11 +40,11 @@ export async function createNewIdentity(page: Page): Promise<string[]> {
 
     // Check confirm checkbox and continue
     const checkbox = page.locator('[data-testid="confirm-checkbox"]');
-    await checkbox.waitFor({ state: "visible", timeout: 5000 });
+    await checkbox.waitFor({ state: "visible", timeout: 15_000 });
     await checkbox.check();
 
     const continueButton = page.locator('[data-testid="continue-button"]');
-    await expect(continueButton).toBeEnabled({ timeout: 5000 });
+    await expect(continueButton).toBeEnabled({ timeout: 15_000 });
 
     await continueButton.click();
 
@@ -85,6 +86,35 @@ export async function extractSeedPhrase(page: Page): Promise<string[]> {
 }
 
 /**
+ * Wait until the unlock page's React tree has hydrated, so a subsequent fill into the recovery
+ * phrase fields actually reaches their onChange handlers.
+ *
+ * Why a dedicated signal is needed: the word slots and the canonical credential are fully
+ * controlled inputs (`SeedPhraseInput.tsx`, `RecoveryPhraseCredentialFields.tsx`), and
+ * `components/ui/input.tsx` carries no hydration gate — unlike `components/ui/button.tsx`, which
+ * disables itself until `useIsHydrated()` flips. An input is therefore editable from the moment
+ * the server HTML paints, so `toBeVisible()`/`toBeEditable()`/`toHaveValue()` prove nothing about
+ * hydration: a fill landing early sets the DOM value but never runs `onChange`, and the next
+ * React commit re-asserts empty state over it.
+ *
+ * The passkey branch is the deterministic signal. `usePasskey` starts at `capability: "checking"`
+ * and `PasskeyUnlockButton` renders `null` for that value, moving to the button or the unsupported
+ * notice only from a `useEffect`. Neither element can exist in the server HTML, so seeing either
+ * one proves the unlock page's root has hydrated and flushed its effects — which is the same
+ * commit that attached the seed inputs' handlers. Asserting it is also enabled adds the
+ * `useIsHydrated` gate itself in the supported branch, since it is a `Button`; the notice is a
+ * `<p>`, which Playwright treats as trivially enabled.
+ */
+export async function waitForUnlockHydration(page: Page): Promise<void> {
+    const passkeyBranch = page
+        .getByTestId("passkey-unlock-button")
+        .or(page.getByTestId("passkey-unsupported-notice"));
+
+    await expect(passkeyBranch).toBeVisible({ timeout: 15_000 });
+    await expect(passkeyBranch).toBeEnabled({ timeout: 15_000 });
+}
+
+/**
  * Enter seed phrase into the unlock inputs.
  * Clears all inputs first and then fills each word.
  *
@@ -97,6 +127,10 @@ export async function enterSeedPhrase(
     words: string[],
     expectValid = false
 ): Promise<void> {
+    // A fill into an unhydrated controlled input is silently discarded, so gate on hydration
+    // before touching the grid at all.
+    await waitForUnlockHydration(page);
+
     // First, clear all inputs to ensure clean state
     for (let i = 0; i < 12; i++) {
         const input = page.locator(`[data-testid="seed-word-input-${i}"]`);
@@ -109,9 +143,14 @@ export async function enterSeedPhrase(
         await input.fill(words[i]);
     }
 
-    // If we expect the phrase to be valid, wait for the validation indicator
+    // If we expect the phrase to be valid, wait for the validation indicator. This is the
+    // post-propagation signal: it can only render once every onChange ran and the BIP39 checksum
+    // was recomputed from React state, so it proves the twelve fills landed in the component and
+    // not merely in the DOM.
     if (expectValid) {
-        await page.getByText("Valid recovery phrase").waitFor({ state: "visible", timeout: 5000 });
+        await page
+            .getByText("Valid recovery phrase")
+            .waitFor({ state: "visible", timeout: 15_000 });
     }
 }
 

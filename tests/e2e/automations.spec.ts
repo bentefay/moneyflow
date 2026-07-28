@@ -31,7 +31,7 @@ async function createTag(page: Page, name: string): Promise<void> {
 /** Open the create-rule editor from the manager. */
 async function openCreateEditor(page: Page): Promise<void> {
     await page.locator('[data-testid="new-rule-btn"]').click();
-    await page.locator('[data-testid="field-rule-editor"]').waitFor({ timeout: 5000 });
+    await page.locator('[data-testid="field-rule-editor"]').waitFor({ timeout: 15_000 });
 }
 
 // ============================================================================
@@ -80,7 +80,7 @@ test.describe("Automations", () => {
 
         await test.step("edit the rule to add an amount constraint", async () => {
             await page.getByText(/COFFEE SHOP 123/).click();
-            await page.locator('[data-testid="field-rule-editor"]').waitFor({ timeout: 5000 });
+            await page.locator('[data-testid="field-rule-editor"]').waitFor({ timeout: 15_000 });
 
             await page.locator('[data-testid="rule-amount-toggle"]').click();
             await page.locator('[data-testid="rule-amount"]').fill("4.50");
@@ -92,7 +92,7 @@ test.describe("Automations", () => {
 
         await test.step("delete the rule returns to empty state", async () => {
             await page.getByText(/COFFEE SHOP 123/).click();
-            await page.locator('[data-testid="field-rule-editor"]').waitFor({ timeout: 5000 });
+            await page.locator('[data-testid="field-rule-editor"]').waitFor({ timeout: 15_000 });
             await page.locator('[data-testid="rule-delete"]').click();
 
             await expect(page.getByText(/no automation rules yet/i)).toBeVisible();

@@ -48,7 +48,7 @@ async function createTag(page: Page, name: string): Promise<void> {
 async function openCreateEditor(page: Page): Promise<void> {
     await goToAutomations(page);
     await page.locator('[data-testid="new-rule-btn"]').click();
-    await page.locator('[data-testid="field-rule-editor"]').waitFor({ timeout: 5000 });
+    await page.locator('[data-testid="field-rule-editor"]').waitFor({ timeout: 15_000 });
 }
 
 /** Pick an option from a shadcn Select identified by its trigger testid. */
@@ -172,7 +172,7 @@ test.describe("Allocation field-rule parity", () => {
 
         await test.step("reopening the rule shows the persisted per-person columns", async () => {
             await page.getByText(/SPLIT DINNER/).click();
-            await page.locator('[data-testid="field-rule-editor"]').waitFor({ timeout: 5000 });
+            await page.locator('[data-testid="field-rule-editor"]').waitFor({ timeout: 15_000 });
             const grid = page.getByTestId("rule-allocation-grid");
             await expect(grid.getByLabel(DEFAULT_PERSON_NAME)).toHaveValue("60");
             await expect(grid.getByLabel("Alex")).toHaveValue("40");
@@ -290,7 +290,7 @@ test.describe("Apply-mode persistence", () => {
 
         await test.step("a freshly opened editor restores the remembered apply mode", async () => {
             await page.locator('[data-testid="new-rule-btn"]').click();
-            await page.locator('[data-testid="field-rule-editor"]').waitFor({ timeout: 5000 });
+            await page.locator('[data-testid="field-rule-editor"]').waitFor({ timeout: 15_000 });
             await expect(page.getByTestId("rule-apply-mode")).toContainText(/updating all/i);
         });
     });

@@ -38,7 +38,7 @@ async function createDescriptionAliasRule(
 ): Promise<void> {
     await goToAutomations(page);
     await page.locator('[data-testid="new-rule-btn"]').click();
-    await page.locator('[data-testid="field-rule-editor"]').waitFor({ timeout: 5000 });
+    await page.locator('[data-testid="field-rule-editor"]').waitFor({ timeout: 15_000 });
 
     // Ensure the rule targets the descriptionAlias field.
     await page.locator('[data-testid="rule-field"]').click();

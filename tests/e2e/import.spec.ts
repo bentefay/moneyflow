@@ -13,6 +13,7 @@
  * - Duplicate detection settings
  */
 
+import * as crypto from "crypto";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
@@ -73,7 +74,11 @@ const DROP_COLLISION_MARGIN_PX = 8;
  */
 function createTestFile(content: string, extension: string): string {
     const tmpDir = os.tmpdir();
-    const filePath = path.join(tmpDir, `test-import-${Date.now()}.${extension}`);
+    // Date.now() alone collides: the suite runs 4 workers against one shared tmpdir, so two
+    // callers landing in the same millisecond get the same path and the first cleanup unlinks
+    // the other's file. The random suffix makes the name unique per call.
+    const uniqueName = `test-import-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+    const filePath = path.join(tmpDir, `${uniqueName}.${extension}`);
     fs.writeFileSync(filePath, content);
     return filePath;
 }
@@ -1275,7 +1280,7 @@ NEWFILEUID:NONE
             await (await fileChooser).setFiles(csvPath);
 
             // Should show file name and stats (6 rows including header)
-            await expect(page.getByText(/\.csv/i)).toBeVisible({ timeout: 5000 });
+            await expect(page.getByText(/\.csv/i)).toBeVisible({ timeout: 15_000 });
             await expect(page.getByText(/6 rows/i)).toBeVisible();
         });
 
@@ -1366,7 +1371,7 @@ NEWFILEUID:NONE
             await fileInput.setInputFiles(ofxPath);
 
             // Should show file type as "OFX" in the header stats
-            await expect(page.getByText(/OFX • \d+ rows/i)).toBeVisible({ timeout: 5000 });
+            await expect(page.getByText(/OFX • \d+ rows/i)).toBeVisible({ timeout: 15_000 });
         });
 
         await test.step("verify OFX-specific tab visibility", async () => {
@@ -1409,7 +1414,7 @@ NEWFILEUID:NONE
             await fileInput.setInputFiles(csvPath);
 
             // 6 rows including header
-            await expect(page.getByText(/6 rows/i)).toBeVisible({ timeout: 5000 });
+            await expect(page.getByText(/6 rows/i)).toBeVisible({ timeout: 15_000 });
         });
 
         await test.step("access duplicates tab", async () => {
@@ -1456,7 +1461,7 @@ NEWFILEUID:NONE
             const fileInput = page.locator('input[type="file"]');
             await fileInput.setInputFiles(csvPath);
 
-            await expect(page.getByText(/6 rows/i)).toBeVisible({ timeout: 5000 });
+            await expect(page.getByText(/6 rows/i)).toBeVisible({ timeout: 15_000 });
         });
 
         await test.step("configure column mappings", async () => {
@@ -1468,7 +1473,7 @@ NEWFILEUID:NONE
             await autoDetectBtn.click();
             // Wait for mappings to apply - check for the green "All required fields mapped" message
             await expect(page.getByText(/All required fields mapped/i)).toBeVisible({
-                timeout: 5000
+                timeout: 15_000
             });
         });
 
@@ -1485,7 +1490,7 @@ NEWFILEUID:NONE
         await test.step("verify import button is enabled and click", async () => {
             // Should show import button with transaction count (5 data rows)
             const importButton = page.getByRole("button", { name: /Import \d+ Transactions/i });
-            await expect(importButton).toBeEnabled({ timeout: 5000 });
+            await expect(importButton).toBeEnabled({ timeout: 15_000 });
             await importButton.click();
         });
 
@@ -1495,7 +1500,7 @@ NEWFILEUID:NONE
 
             // Should show all 5 imported transactions - check for rows containing description text
             await expect(page.getByRole("row", { name: /Coffee Shop/i })).toBeVisible({
-                timeout: 5000
+                timeout: 15_000
             });
             await expect(page.getByRole("row", { name: /Direct Deposit/i })).toBeVisible();
             await expect(page.getByText("5 transactions")).toBeVisible();
@@ -1509,7 +1514,7 @@ NEWFILEUID:NONE
             const fileInput = page.locator('input[type="file"]');
             await fileInput.setInputFiles(csvPath);
 
-            await expect(page.getByText(/6 rows/i)).toBeVisible({ timeout: 5000 });
+            await expect(page.getByText(/6 rows/i)).toBeVisible({ timeout: 15_000 });
 
             // Go to Template tab - should now have auto-saved template
             await page.getByRole("tab", { name: /Template/i }).click();
@@ -1536,7 +1541,7 @@ NEWFILEUID:NONE
 
             const fileInput = page.locator('input[type="file"]');
             await fileInput.setInputFiles(csvPath);
-            await expect(page.getByText(/6 rows/i)).toBeVisible({ timeout: 5000 });
+            await expect(page.getByText(/6 rows/i)).toBeVisible({ timeout: 15_000 });
 
             // Configure column mappings
             await page.getByRole("tab", { name: /Columns/i }).click();
@@ -1552,7 +1557,7 @@ NEWFILEUID:NONE
 
             // Import
             const importBtn = page.getByRole("button", { name: /Import \d+ Transactions/i });
-            await expect(importBtn).toBeEnabled({ timeout: 5000 });
+            await expect(importBtn).toBeEnabled({ timeout: 15_000 });
             await importBtn.click();
             await expect(page).toHaveURL(/\/transactions/);
         });
@@ -1570,7 +1575,7 @@ NEWFILEUID:NONE
 
             const fileInput = page.locator('input[type="file"]');
             await fileInput.setInputFiles(csvPath2);
-            await expect(page.getByText(/4 rows/i)).toBeVisible({ timeout: 5000 });
+            await expect(page.getByText(/4 rows/i)).toBeVisible({ timeout: 15_000 });
 
             // Select the auto-saved template from the Template tab
             await page.getByRole("tab", { name: /Template/i }).click();
@@ -1600,7 +1605,7 @@ NEWFILEUID:NONE
 
             // Import (should auto-update template)
             const importBtn = page.getByRole("button", { name: /Import \d+ Transactions/i });
-            await expect(importBtn).toBeEnabled({ timeout: 5000 });
+            await expect(importBtn).toBeEnabled({ timeout: 15_000 });
             await importBtn.click();
             await expect(page).toHaveURL(/\/transactions/);
 
@@ -1613,7 +1618,7 @@ NEWFILEUID:NONE
             );
             const fileInput2 = page.locator('input[type="file"]');
             await fileInput2.setInputFiles(csvPath3);
-            await expect(page.getByText(/2 rows/i)).toBeVisible({ timeout: 5000 });
+            await expect(page.getByText(/2 rows/i)).toBeVisible({ timeout: 15_000 });
 
             // Select template and check if config persisted
             await page.getByRole("tab", { name: /Template/i }).click();

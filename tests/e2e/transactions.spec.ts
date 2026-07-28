@@ -1137,14 +1137,14 @@ test.describe("Transactions", () => {
             await test.step("click on account cell to open dropdown", async () => {
                 // Wait for transaction row to be visible (it may still be saving)
                 const transactionRow = page.locator('[data-testid="transaction-row"]').first();
-                await expect(transactionRow).toBeVisible({ timeout: 5000 });
+                await expect(transactionRow).toBeVisible({ timeout: 15_000 });
 
                 // Spreadsheet-style: click opens the dropdown
                 const accountTrigger = transactionRow
                     .locator('[data-cell="account"]')
                     .getByRole("combobox");
 
-                await expect(accountTrigger).toBeVisible({ timeout: 5000 });
+                await expect(accountTrigger).toBeVisible({ timeout: 15_000 });
                 await accountTrigger.click();
 
                 // Dropdown should be visible with account options
@@ -1222,7 +1222,7 @@ test.describe("Transactions", () => {
 
                 // Wait for the dropdown to appear with search input (portaled to body)
                 const searchInput = page.getByPlaceholder("Search tags...");
-                await expect(searchInput).toBeVisible({ timeout: 5000 });
+                await expect(searchInput).toBeVisible({ timeout: 15_000 });
             });
 
             await test.step("select a tag (saves immediately)", async () => {
@@ -1262,7 +1262,7 @@ test.describe("Transactions", () => {
 
                 // Dropdown is portaled to body
                 const searchInput = page.getByPlaceholder("Search tags...");
-                await expect(searchInput).toBeVisible({ timeout: 5000 });
+                await expect(searchInput).toBeVisible({ timeout: 15_000 });
 
                 // Type a new tag name that doesn't exist
                 await searchInput.fill("NewInlineTag");
@@ -1330,7 +1330,7 @@ test.describe("Transactions", () => {
 
                 // Dropdown is portaled to body
                 const searchInput = page.getByPlaceholder("Search tags...");
-                await expect(searchInput).toBeVisible({ timeout: 5000 });
+                await expect(searchInput).toBeVisible({ timeout: 15_000 });
 
                 // Type exact name of existing tag
                 await searchInput.fill("ExistingTag");
