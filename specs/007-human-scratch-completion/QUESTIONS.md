@@ -2165,3 +2165,52 @@ single `pnpm test:e2e` never applied enough scheduling pressure to expose.
 
 **Status:** fixed in rev 06 pending DISTINCT-reviewer confirmation under repeated full-suite load.
 Not a scope reduction (completing committed HS-021 code-quality scope); no adjudicator required.
+
+---
+
+## Q-P21-05-01 — M-1: "Edits merge cleanly" copy overstates a known-imperfect CRDT guarantee
+
+**Surfaced by:** `p21-collector-05` (P21 rev 05 final-audit evidence, §11). **Status:** OPEN —
+awaiting DISTINCT `p21-reviewer-05` formal adjudication; NOT yet dispositioned by root.
+
+`FeaturesSection.tsx` "Edits merge cleanly" asserts "Two people editing at the same time **will not
+overwrite each other**." That is an unqualified durability promise. Q-P20B-00 documents a real,
+still-unfixed merge defect: `pruneBuckets` (`mutations.ts:325` `delete store[accountId]`) discards a
+concurrent peer's insert into the same day/month/year subtree on merge. The collector re-confirmed
+the code is unchanged at HEAD and that the pruning paths are reachable from ORDINARY UI actions —
+`deleteTransaction` (`:704`), `moveTransaction` (`:573`, i.e. merely editing a transaction's date),
+bulk delete (`page.tsx:594`), and import-delete — so the claim is contradicted in a UI-reachable
+case, not only an exotic one.
+
+**Collector severity call (non-binding):** NON-BLOCKING, because (a) the underlying engine defect is
+already surfaced and formally accepted by `p20b-reviewer-01 §6.1` and routed to a future scoped CRDT
+package, (b) the claim's second sentence is literally true (the app genuinely uses Loro CRDTs, not
+last-write-wins) and the general merge behaviour holds for the everyday cases the E2E suite
+exercises, and (c) the failure needs two clients concurrently touching the same day bucket. Proposed
+owner **P20A** (minimal fix: soften the absolute "will not overwrite each other"); the engine fix
+stays Q-P20B-00. **The collector explicitly does NOT claim the copy is fully accurate.**
+
+**Root note:** PROCESS lists "false marketing claim" as an explicit FAIL trigger and HS-016 requires
+truthful marketing copy. Whether M-1 is a P21 FAIL is the central adjudication of rev 05 and is
+reserved to the DISTINCT reviewer, who may overrule the collector's severity call. Requiring the
+copy be softened to complete committed HS-016 scope is MORE work to complete committed scope, not a
+scope reduction. If the reviewer FAILs on M-1, root routes to P20A.
+
+## Q-P21-05-02 — O-1: no CSP / security response headers (OUT OF FROZEN SCOPE)
+
+**Surfaced by:** `p21-collector-05` (§12.2). **Status:** OPEN — deployment-hardening follow-up.
+
+`next.config.ts` has no `headers()` and there is no middleware, so no Content-Security-Policy or
+security response headers are emitted. The collector rules this OUT OF FROZEN SCOPE: HS-015 is
+scoped to websocket/CORS/pubkey-hash vault access, which IS delivered. Non-blocking; owner = a future
+security package. Reviewer to confirm scope classification.
+
+## Q-P21-05-03 — A-1: R-034 empty-row checkbox accessible-name fallback
+
+**Surfaced by:** `p21-collector-05` (§12.7). **R-034 was explicitly routed to the P21 audit**, so the
+collector adjudicated it. The transaction-row selection checkbox accessible name degrades to
+`"Select transaction "` when the description is empty, and HS-001 makes empty rows routine, so two
+added rows yield two identically-named checkboxes. **Status:** OPEN. Collector severity:
+NON-BLOCKING (operable, correctly role-typed, other cells named, pre-existing/P16D-owned). Concrete
+fix: fall back to amount+date in the accessible name. Note: the E2E suite scopes lookups per-row so
+it cannot catch this class. Proposed owner **P16D**. Reviewer may overrule the severity call.
