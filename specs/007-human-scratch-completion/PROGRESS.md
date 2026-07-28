@@ -5990,3 +5990,21 @@ Reviewer E2E campaign: 8 full-suite `--retries=0`, 1304 executions, run 3 held t
 **Precondition:** immutable DISTINCT-reviewer failed review `reviews/P21-review-04.md` committed `60c2eca`. **Owning package:** P20B (HS-021). **Requirement:** HS-021 -> `changes_requested`. **Pending set:** `[HS-021]` fully processed.
 
 Marker flip (sed-only, abort-safe): scratch `:159` `- [x]` -> `- []`, one-line diff `159c159` verified against a mktemp snapshot; 42 checked / 1 unchecked; file 24,259 bytes; normalized blocks 20/1. Rolling scratch SHA `469e98c7… -> f46c2d35…` (completed pair `[HS-021: [x]->[], 469e98c7… -> f46c2d35…]`); contiguous hash chain ends at actual `sha256sum specs/human-scratch.md` == `f46c2d35…`. FS-001 (markerless) never entered the batch. Authorized checked HS IDs 21 -> 20 (HS-021 dropped). Batch CLOSED; no active rollback batch remains.
+
+### Event — P20B rev 06 handback verified read-only; DISTINCT reviewer dispatched
+
+- **Handback commit:** `3f8e2f2` ("test(P20B): close eager-assertion flake class under full-suite
+  load"). Verify-not-trust (root, read-only) CLEAN: touches only the 8 allowed E2E paths +
+  `evidence/P20B/implementation-07.md`; no product code changed; frozen `human-scratch.md`
+  (`f46c2d35…`) and `src/lib/domain/settlement.ts` (`010f3c93…`) byte-identical; no new
+  `as`/`any`/`!`; secret-safety clean (all hits self-scan prose / comments / UI-label strings).
+- **Cohort:** 34 changes across 7 files (33 timeout widenings 5000→15_000 + 1 `import.spec.ts`
+  parallel-safety fix for Q-P20B-20) plus a `helpers/index.ts` re-export (the 8th file in the tree
+  digest `e5e1eb18`).
+- **Implementer campaign:** 10/10 full-suite `--retries=0` runs green, 163 tests each, constant tree
+  digest `e5e1eb18`. Static gates green (2091 passed / 2 skipped). Implementer honestly flags a green
+  campaign as necessary-but-weak evidence (load-dependent; F-1 did not reproduce for the rev-04
+  reviewer either), so the DISTINCT reviewer must run its own independent load campaign.
+- **Next:** DISTINCT `p20b-reviewer-06` (fresh context, not the implementer) dispatched per
+  `HANDOFF.md` to confirm PASS/FAIL under repeated full-suite load → on PASS integrate + re-pass
+  HS-021 + §275 forward marker at scratch `:159` (`f46c2d35… → 469e98c7…`) → open P21 rev 05.
