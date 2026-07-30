@@ -13,12 +13,15 @@ import { expect, test } from "@playwright/test";
 
 import {
     createNewIdentity,
+    expectPresentRows,
     goToAccounts,
     goToImportNew,
     goToPeople,
     goToTags,
     goToTransactions,
-    goToTxDescriptions
+    goToTxDescriptions,
+    readRowPresenceEditing,
+    shareActiveVaultWithMember
 } from "./helpers";
 import { addEmptyTransaction, newlyAddedRow, readSelectedRowIds } from "./helpers/settlement";
 
@@ -293,6 +296,52 @@ test.describe("Transactions", () => {
             await expect(newlyAddedRow(page)).toHaveCount(0);
             expect(await readSelection()).toEqual(chosenIds);
         });
+    });
+
+    test("creating a row tells peers nothing until the user actually edits it", async ({
+        browser
+    }) => {
+        test.setTimeout(180_000);
+
+        // Presence answers "is a person working on this row". Add moves the caret on the user's
+        // behalf, before they have touched anything, so it must stay silent — otherwise a peer is
+        // told someone is editing a transaction they have not looked at. The first real gesture
+        // must still report normally, which is what makes this a guard rather than a mute switch.
+        const ownerContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+        const memberContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+        const owner = await ownerContext.newPage();
+        const member = await memberContext.newPage();
+
+        try {
+            await createNewIdentity(owner);
+            await createNewIdentity(member);
+            await shareActiveVaultWithMember(owner, member);
+
+            await goToTransactions(owner);
+            await goToTransactions(member);
+
+            const createdId = await addEmptyTransaction(owner);
+            await expect(member.getByTestId("transaction-row")).toHaveCount(1, { timeout: 30_000 });
+            await expect(owner.getByTestId("description-editable")).toBeFocused();
+
+            // The caret is in the row on the owner's screen, yet the peer is told nothing.
+            await expectPresentRows(member, []);
+            expect(await readRowPresenceEditing(member, createdId)).toBe(false);
+
+            // A real gesture into the very same input reports as editing, so the suppression is
+            // scoped to the programmatic focus rather than disabling presence for the row. The
+            // caret is already sitting in that input, and clicking a focused element fires no
+            // focus event, so this leaves the grid first to make the return a genuine transition.
+            await owner.getByTestId("add-transaction-button").focus();
+            await owner.getByTestId("description-editable").click();
+            await expectPresentRows(member, [createdId]);
+            await expect
+                .poll(() => readRowPresenceEditing(member, createdId), { timeout: 20_000 })
+                .toBe(true);
+        } finally {
+            await ownerContext.close();
+            await memberContext.close();
+        }
     });
 
     test("Add reveals an ordinary row through every excluding filter class", async ({ page }) => {

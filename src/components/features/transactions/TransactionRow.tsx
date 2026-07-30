@@ -265,17 +265,28 @@ export function TransactionRow({
      * Reports row and field focus from a single delegated listener. Reading the enclosing
      * `data-cell` / `data-presence-field` marker keeps every cell free of presence wiring, so a new
      * column reports focus correctly without touching this component.
+     *
+     * Presence answers "is a person working on this row", so it must describe a person rather than
+     * a render. Placing the caret in a newly created row is the app moving focus on the user's
+     * behalf, before they have touched anything, so that one focus reports nothing at all — exactly
+     * as creating a row did before it moved focus. Reporting it as merely viewing would be just as
+     * untrue, and would additionally leave this session's published state already naming the row,
+     * so the user's first real focus would dedupe away and never reach peers. The request is
+     * consumed on the commit that applies it, so every genuine gesture reports normally, including
+     * a click straight back into the same input.
      */
     const handleRowFocus = useCallback(
         (event: React.FocusEvent<HTMLDivElement>) => {
             onFocus?.();
+            if (focusDescriptionRequested) return;
+
             const cell = event.target.closest("[data-presence-field], [data-cell]");
             const marker =
                 cell?.getAttribute("data-presence-field") ?? cell?.getAttribute("data-cell");
             // The checkbox is selection, not editing, so it reports the row without a field.
             onFieldFocus?.(marker == null || marker === "checkbox" ? undefined : marker);
         },
-        [onFieldFocus, onFocus]
+        [focusDescriptionRequested, onFieldFocus, onFocus]
     );
 
     return (
