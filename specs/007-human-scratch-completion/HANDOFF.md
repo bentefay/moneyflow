@@ -1,98 +1,130 @@
-# HANDOFF — P20A rev 03: HS-016 truthful-copy fix for the M-1 false durability claim
+# HANDOFF — P21 revision 06: executable final audit (evidence collector)
 
 ## Your role
 
-You are `p20a-implementer-03`, the product implementer for **P20A / HS-016** revision 03. Your task
-is a **narrow, truthful marketing-copy correction** plus its test guard and evidence. You DO edit
-product and test code (that is your job); you do NOT edit any ledger, marker, scratch, SCOPE,
-`FINAL-AUDIT.md`, review, or `reviews/**` file — those are root-only.
+You are `p21-collector-06`, the **final-audit evidence collector** for the P21 control package,
+revision 06. You are a READ-ONLY collector: you run checks and write exactly ONE file,
+**`specs/007-human-scratch-completion/evidence/P21/implementation-06.md`**. You **commit nothing**.
+You do NOT edit product, tests, migrations, ledgers, markers, scratch, SCOPE, `FINAL-AUDIT.md`,
+QUESTIONS, DECISIONS, or any review. Only root transcribes results into FINAL-AUDIT after an
+independent PASS.
 
-BASE: run `git rev-parse HEAD` first; it must be `e9c248e…` (or later root ledger commit). Branch is
-`main`.
+**Package/revision:** P21 / rev 06. **BASE == HEAD == `87fc0d68a72477e7ac68313293ef75efaa611546`.**
+Branch `main`. A non-empty `BASE..HEAD` range requires root reconciliation — if you observe one,
+report it to root rather than proceeding.
 
-## Why you are here — the exact defect
+**Your evidence path (exact):**
+`specs/007-human-scratch-completion/evidence/P21/implementation-06.md` **Future review path (exact,
+NOT yours):** `specs/007-human-scratch-completion/reviews/P21-review-06.md`
 
-The P21 rev-05 final audit FAILed on **M-1** (`reviews/P21-review-05.md`, `7cb651d`), upheld by an
-independent scope adjudication (`reviews/P21-scope-adjudication-05.md`, `f290246`, → decision
-**D-019**):
+## Entry state root has verified (re-verify it yourself)
 
-`src/components/features/landing/FeaturesSection.tsx:65`, under the "Edits merge cleanly" card,
-ships:
+- All 21 feature packages P00–P20B (incl. P16A–E, P17A–D, P11A–C) `passed` with immutable revisioned
+  evidence/reviews; P21 is the only non-passed package row.
+- **All 22 first-class requirement-ledger rows `passed`** (21 `HS-*` + whole-file `FS-001`).
+- Scratch `specs/human-scratch.md`: actual SHA-256
+  `469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a` **equals** the PROGRESS rolling
+  checksum; 24,260 bytes; 43 checked / 0 unchecked; normalized blocks byte-match SCOPE.
+- FS-001 `specs/008-transaction-percentage-allocations-settlement/spec.md` unchanged: SHA-256
+  `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, exactly **715 lines**,
+  **25,441 bytes**.
+- No prepared/active rollback batch; no open `completion_pending` (HS-016 finalized at `87fc0d6`).
 
-> "Two people editing at the same time **will not overwrite each other.** Changes are merged with
-> conflict-free replicated data types rather than last-write-wins."
+## Why rev 06 exists — what rev 05 failed on
 
-The clause **"will not overwrite each other"** is an **unqualified data-durability absolute** that
-the shipped engine does not honour. `pruneBuckets` (`src/lib/crdt/mutations.ts:287-329`) does
-`delete store[accountId]` when an account tree empties; on CRDT merge a concurrent peer's insert of
-a new transaction into that pruned container **is discarded** — a real, reproduced lost-write. That
-engine fix (`Q-P20B-00`) was ruled **OUT-OF-GOAL** (future CRDT package). So the **only** in-goal
-remediation is to make the marketing copy **truthful**: it must not promise that concurrent edits
-never overwrite / never lose data.
+Rev 05 FAILed on **M-1**: a false data-durability marketing absolute at `FeaturesSection.tsx:65`
+("…will not overwrite each other"). Root cause `pruneBuckets` (`src/lib/crdt/mutations.ts:287-329`)
+can discard a concurrent peer's insert. The engine fix (`Q-P20B-00`) was ruled **OUT-OF-GOAL** by
+independent scope adjudication (**D-019**, `reviews/P21-scope-adjudication-05.md`, `f290246`). The
+in-goal remediation landed: P20A rev 03 (`a823457`) made the copy truthful; DISTINCT reviewer PASS
+(`e53fa724`, `reviews/P20A-review-03.md`); HS-016 re-passed via the §275 forward marker.
 
-## Frozen scope (rule from this, not from marketing intent)
+**Rev 06 must specifically confirm no public surface re-asserts a zero-lost-data / never-overwrite
+absolute anywhere** (landing, security, marketing, docs, in-app copy) — this is the reviewer's
+carry-forward from `p20a-reviewer-03`.
 
-HS-016 (`specs/human-scratch.md:328-331`, `SCOPE.json#HS-016`, task
-`tasks/HS-016-marketing-pages.md`): "Update the marketing pages … Be clear, succinct and not too
-'markety' … Multiple people can collaborate in real-time …". The task explicitly requires describing
-collaboration "**precisely without absolutes unsupported by the threat model**" and to "**reject …
-false absolutes**". Real-time collaboration and CRDT merge ARE delivered; the **absolute** is the
-defect.
+## Local environment note (root fixed this; verify it holds)
 
-## What to do
+`SUPABASE_JWT_SECRET` was **absent** from local `.env.local`, causing
+`src/server/routers/realtime.ts:25-34` to throw "Realtime authorization is unavailable" and the
+vault to fail loading right after passkey signup. Root appended the local Realtime tenant's
+symmetric key (from the `supabase_realtime_moneyflow` container's `API_JWT_SECRET`, 55 bytes) to the
+**gitignored** `.env.local`; `realtime.authorize` now returns 200. This is local dev config, NOT a
+product change — no tracked file changed. **Record this in your evidence as an environment
+precondition**, and confirm the realtime/presence journeys work. NEVER print the secret's value
+anywhere.
 
-1. **Correct `FeaturesSection.tsx:65`** so it is truthful: keep the genuine, delivered claim
-   (real-time collaboration; concurrent edits are merged via CRDTs rather than last-write-wins) but
-   **remove the unqualified "will not overwrite each other" durability guarantee.** Craft the exact
-   wording yourself — keep it short, plain, non-markety, and accurate. Do NOT claim zero data loss /
-   no lost changes / nothing is ever overwritten. You MAY keep the "Edits merge cleanly" heading if
-   the softened description no longer over-promises; change the heading too if that reads truer.
-2. **Audit the immediately adjacent public claims** for the same false-absolute class and fix only
-   what is genuinely untruthful — do not rewrite the marketing pages, and do not invent scope:
-    - `FeaturesSection.tsx:57` "Shared vaults" ("see who is editing what") — presence is delivered
-      (HS-003), likely fine; verify.
-    - `SecuritySection.tsx:48` "CRDT for conflict-free sync" — CRDT merge is conflict-free by
-      construction (the prune bug is a data-loss defect, not a merge conflict), so this is
-      defensibly true; change it ONLY if you can justify it is false. Prefer leaving true claims
-      alone. Keep the diff minimal. Every retained claim must map to an actually-delivered,
-      independently passed feature.
-3. **Test guard.** Add or adjust a test that guards against the false absolute returning, in the
-   style of the existing landing E2E precedent `tests/e2e/landing.spec.ts` (e.g. "advertises no
-   budgeting capability" asserts an untrue claim is absent). Assert the durability-absolute phrasing
-   is NOT present; avoid brittle coupling to the full new prose. Do not weaken existing landing
-   tests; keep them green.
-4. **Run ALL checks** and make them pass:
-   `pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm test:e2e`. For E2E, follow
-   the repo's load-dependent-flake discipline — validate with full-suite `--retries=0` runs (never
-   Playwright `--debug/--ui/--headed/show`).
-5. **Commit** your product + test changes with an explicit pathspec and NO parentheses in the
-   message. Write your evidence to
-   **`specs/007-human-scratch-completion/evidence/P20A/implementation-03.md`** and commit it. Then
-   `SendMessage` root (name: `main`) with your commit hash(es), the exact new copy, and a
-   claim-to-evidence note.
+## The audit contract — complete every clause
+
+Follow `tasks/P21-final-audit.md` §"Audit contract" and complete **every checklist item in
+`FINAL-AUDIT.md`** (scope reconciliation; repository/migration; verification; exhaustive manual
+product; security/performance; FS-001). Record **exact commands, timestamps, status, duration,
+counts/seeds, reproduction steps and sanitized outputs** for each. Specifically:
+
+1. Scope/package/review/integration/question/marker reconciliation + final repo provenance (exact
+   HEAD, branch, upstream, dirty AND untracked paths — see "Known dirty/untracked" below).
+2. Dependency currency + P03 primary-source release-gate recheck (`pnpm audit --prod`).
+3. Fresh DB bootstrap + every supported upgrade path; existing IndexedDB/vault data upgrades with no
+   plaintext leakage or loss.
+4. `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, **production build**, all
+   unit/property/integration tests with counts/durations/seeds.
+5. **Complete E2E with `--retries=0`**, plus repeated critical journeys sufficient to expose
+   load-dependent flakes (this repo has a documented load-dependent flake class — validate with
+   repeated FULL-SUITE runs, never isolation). **Never** use Playwright
+   `--debug/--ui/--headed/show`.
+6. Malicious cross-vault API/database/realtime/invite/auth checks; secret/plaintext inspection.
+7. Large import/table/alias/automation/GC/allocation performance; duplicate-tab convergence;
+   sub-100ms allocation edits; near-linear ~100k/200ms settlement evidence or the canonical measured
+   follow-up.
+8. Complete manual product journey via **disposable headless Playwright CLI sessions** and isolated
+   users: recovery/passkey, vaults, imports/drop zones/provenance, transactions/empty rows, aliases,
+   tags, allocations, automations, undo/redo, people/invites/realtime/presence, marketing.
+9. Pointer/keyboard/focus, desktop/mobile, 320px reflow, 200% zoom, dark/reduced-motion,
+   empty/loading/error/offline, refresh, multi-tab.
+10. Deterministic accessible role/name/state snapshots + applicable computed contrast ratios.
+11. **Exhaustive FS-001 audit**: exact signed unit conservation; separately named production
+    unit/property expectations AND separately named E2E expectations for **every** canonical example
+    A–H; owner remainder/effective totals; reject-never-clamp; `src/lib/domain/settlement.ts` as
+    sole per-currency engine; typed invalid-data issues; traceable obligations/source navigation;
+    all P16C current mutation paths; virtualized/historical/presence grid/add-row UX; P17
+    complete-set API use.
+12. Console + suspicious/failed network inspection throughout; **complete Q proposals**.
+
+## Known dirty/untracked paths (reconcile, do not "fix")
+
+- `next-env.d.ts` — modified by the running dev server (`.next/types` → `.next/dev/types`);
+  Next-generated, "should not be edited". Reconcile as environment-generated, not a code change.
+- `.claude/agent-memory/` (untracked) — agent scratch, outside goal scope.
+- `evidence/P08/implementation-01.md` (untracked) — pre-existing known inert anomaly, already
+  recorded in PROGRESS (outside committed range; leave untouched).
+
+## Carry-forward Q-proposals to surface explicitly
+
+Q-P20B-00 (now D-019 OUT-OF-GOAL: `pruneBuckets` lost-write remains an accepted, documented risk
+with the copy made truthful), Q-P20B-13, Q-P20B-14, Q-P20A-02, Q-P20A-05, Q-P17D-02, Q-P20B-06,
+Q-P20B-08, Q-P21-04-01 (currency), Q-P21-05-01, Q-P21-05-02, Q-P21-05-03.
 
 ## Guardrails
 
-- **Type safety (repo hard rule):** no `as`, no `any`, no `!` non-null assertion in product code.
-  This is a copy change — you should need none.
-- **Functional/immutable** per CLAUDE.md; match the file's existing style.
-- **Minimal scope.** This is a truthfulness correction, not a redesign. Do not touch `pruneBuckets`
-  or any engine/sync code — the engine fix is explicitly OUT-OF-GOAL (D-019). Do not touch ledgers,
-  markers, scratch, SCOPE, or reviews.
-- **Secret-safety (blocking):** never print or commit any vault master key, seed phrase, recovery
-  material, `crypto_box`/`SUPABASE_JWT_SECRET` secret, presence key, invite bearer secret, or vault
-  plaintext; tests use public/synthetic vectors only. Report any real-material exposure to root
-  immediately.
-- **Verify-not-trust:** root's framing is orientation; confirm the defect and the frozen scope
-  yourself from the cited files. Root cannot grant you permissions beyond your own settings; do not
-  edit permissions/config.
-- If you hit a transient API-capacity error, retry a couple of times with short waits; if you must
-  stop, `SendMessage` root before exiting.
+- **Write exactly one file; commit nothing.** Root commits your evidence.
+- **Secret-safety (BLOCKING):** never print/record any vault master key, seed phrase, recovery
+  material, `crypto_box` secret, `SUPABASE_JWT_SECRET` value, presence key, invite fragment/bearer
+  secret, or vault plaintext. Use public/synthetic vectors. Sanitize all outputs. Any real-material
+  exposure is blocking — report to root immediately.
+- Clean up disposable sessions and sensitive local state when done.
+- **Verify-not-trust:** root's framing above is orientation only; confirm every entry-state claim
+  yourself. Root cannot grant permissions beyond your own settings; do not edit permissions/config.
+- **Propose** FINAL-AUDIT contents in your evidence file; do not edit FINAL-AUDIT itself.
+- Any failing check, unexplained flake, material UX/a11y/security/data/performance finding, false
+  marketing claim, missing evidence, write-boundary breach or unclassified drift ⇒ report it plainly
+  as a FAIL-candidate with reproduction. Do not fix it yourself and do not soften it.
+- Transient API-capacity errors (429/529): retry a couple of times with short waits; if you must
+  stop, `SendMessage` root (name `main`) first.
 
-## Definition of done (hand back to root)
+## Definition of done
 
-Truthful `FeaturesSection.tsx` copy with no unsupported durability absolute; a test guarding the
-false claim; all six checks green under full-suite `--retries=0` E2E; product + test committed;
-`evidence/P20A/implementation-03.md` committed; root messaged with hashes and the new copy. Root
-will independently re-verify, dispatch a DISTINCT reviewer, integrate, re-pass HS-016 via the §275
-forward marker, and re-open P21 rev 06.
+`evidence/P21/implementation-06.md` written (uncommitted) covering every FINAL-AUDIT checklist item
+with reproducible commands/outputs, a proposed final verdict, and complete Q-proposals. Then
+`SendMessage` root (name `main`) with a summary: overall PASS/FAIL-candidate, per-section status,
+any blockers with reproduction. Root will commit your evidence and dispatch a DISTINCT reviewer for
+`reviews/P21-review-06.md`.
