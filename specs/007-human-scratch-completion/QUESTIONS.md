@@ -2255,3 +2255,123 @@ running.**
 - `p20b-reviewer-01 §6.1` (deferral) UPHELD, not superseded. `FINAL-AUDIT.md:90` "lost changes" clause does NOT trace to frozen text for the transaction-prune scenario (only anchor is allocation-scoped :703; the broadened reading is an over-scope per PROCESS.md:330-333). The allocation-scoped capability it rests on is met.
 - **Owning package: none in-goal.** Q-P20B-00 stays routed to a future out-of-goal CRDT package. The ONLY in-goal work from rev-05 M-1 is the P20A/HS-016 copy correction at `FeaturesSection.tsx:65`.
 - **Status: RESOLVED.** Root proceeds: execute §275 RB-P21-05 marker rollback of HS-016, then re-implement the truthful copy, re-review, and re-open P21 rev 06.
+
+## Q-USER-2026-07-30 — Four user-reported items raised during P21 rev 06
+
+Raised by the human user in-session on 2026-07-30 while `p21-collector-06` was mid-audit against BASE
+`4e6ccee`. Recorded here by root; NONE were implemented at the time of writing (tree-drift discipline:
+a product edit would invalidate the running audit, which is evidence only for the tree it ran on).
+
+### U-1 — Add-transaction button selects the new row; should focus the description instead
+
+**User decision: LOCKED IN as in-goal work — "focus only".**
+
+`handleAddTransaction` (`src/app/(app)/transactions/page.tsx:538-585`) ends with
+`setSelectedIds(new Set([transactionId]))` (`:584`). Discoverability is ALREADY handled without it:
+filters reset (`:542`), `displayCount` bumped so the row is on the rendered page (`:571-579`), and
+`setTransactionIdToReveal` (`:580`) drives the scroll-into-view effect (`:303-321`). The selection is
+therefore not functionally necessary; it is being borrowed as a highlight mechanism.
+
+Three problems with the current behaviour: (a) selection in this table means "target for bulk
+operations" (`handleBulkDelete` `:588`, `BulkEditToolbar`), but a new empty row is an EDIT target, not
+a bulk target — semantic mismatch; (b) `new Set([id])` REPLACES rather than adds, so an in-progress
+multi-row selection is silently destroyed; (c) it does not actually help the user start typing.
+
+**Agreed design — focus only:** drop the selection entirely and focus the new row's description
+input. Reuse the EXISTING consume-once reveal channel (`transactionIdToReveal` or a sibling intent)
+rather than adding a parallel mechanism — that effect already runs exactly when the row lands in
+`displayedTransactions`, which is the correct moment to focus because the row is guaranteed rendered.
+Preserve the "consume once and clear" discipline (see the deliberate comment at `:296-297`).
+Precedent for the ref-then-focus idiom already exists in this codebase: `TransactionRow.tsx:254`,
+`PersonAllocationCell.tsx:104`, `InlineEditableTags.tsx:134`, `BulkEditToolbar.tsx:107-110`.
+
+Implementation care: the grid is VIRTUALIZED, so the row must be mounted when `.focus()` is called,
+and the scroll must not immediately unmount/remount it. Rationale for focus-only over keeping the
+highlight: focusing the description makes the row unmistakable AND immediately useful, subsuming the
+highlight's discoverability job without hijacking bulk-selection semantics. If a highlight is later
+wanted independently, a transient "recently added" style is a truer fit than selection.
+
+### U-2 — Search misses alias-displayed descriptions (CONFIRMED DEFECT)
+
+**User repro:** created a row with description "Testing" (aliased to a Tx Description), searched
+"test", got no results.
+
+**NOT case sensitivity** — `filterTransactions` lowercases both sides correctly
+(`src/lib/crdt/queries.ts:560-567`). The actual cause is that search reads ONLY the raw stored field:
+
+```
+tx.description?.toLowerCase().includes(searchLower) ||
+tx.notes?.toLowerCase().includes(searchLower)
+```
+
+When a transaction is aliased, the VISIBLE text is resolved from a different place —
+`descriptionAliasId` via `aliasLookup.resolve(...)` (`page.tsx:337-338`, `:398-399`) — and aliases
+form a one-hop symlink graph (`src/lib/crdt/schema.ts:87-94`). So the user searches what is displayed
+while the filter matches what is stored. Consistent with the repro: manual rows are created with
+`description: ""` (`page.tsx:557`) and then aliased.
+
+**Open design question (decide before implementing):** should search match the resolved alias, the
+raw description, or BOTH? Root's recommendation is BOTH — matching raw text preserves finding
+pre-alias imported text, matching resolved text meets user expectation. One-hop symlink resolution
+must be handled. Note `filterTransactions` is a pure query in `queries.ts` with no alias lookup in
+scope today, so the alias resolver must be threaded in (or the search predicate lifted) — this is a
+real design choice, not a one-line fix.
+
+### U-3 — Presence avatar shows pubkey-hash initials, not the member name (CONFIRMED DEFECT)
+
+**User repro:** a pink circle labelled "AD" next to "Saved"; hovering shows a long id; the user's name
+is the default "Me".
+
+"AD" is the first two hex characters of the user's PUBKEY HASH, not their name.
+`src/app/(app)/layout.tsx:218-224` (and the second render site at `:343`) build presence users as
+`{ userId, isOnline: true }` and **never pass `name`**. `PresenceAvatar.tsx:48` then does
+`const displayName = name || userId`, falling back to the hash; `getInitials`
+(`src/lib/utils/color.ts`) takes its hash branch (`/^[a-f0-9]+$/i` → first 2 chars uppercased) and
+yields "AD". The tooltip is the same hash because `title={displayName…}` (`:56`) shares the fallback.
+The pink is `hashToColor(userId)` — deterministic, hence stable but arbitrary.
+
+Two distinct defects: (1) the display name is never plumbed through to presence avatars — it should
+resolve from vault membership/people data; (2) a raw 64-char hex hash is not an acceptable
+user-facing tooltip. The `getInitials` hash branch is a reasonable LAST-RESORT fallback; the bug is
+that it is reached at all in the ordinary single-user case.
+
+**Secret-safety note (non-blocking):** the exposed value is a PUBLIC key hash, not secret material —
+this is a UX defect, NOT a secret-safety breach. No key, seed or recovery material is involved.
+
+**Scope routing (root does NOT self-decide):** presence is HS-003 (scratch `:161-163`, package P10,
+`passed`). Whether "presence avatar renders a hash instead of a name" is a defect IN delivered HS-003
+scope — rather than new scope — determines routing. If in-scope it is a P10 defect and fixing it
+COMPLETES committed scope (no adjudicator needed, per the rule that requiring more work to complete
+committed scope is not a reduction). The FINAL-AUDIT checklist already covers presence and
+deterministic accessible role/name/state snapshots, so `p21-collector-06` may surface it
+independently; a P21 FAIL would route it in cleanly. Root will let the audit finding determine
+routing rather than pre-empting it.
+
+### U-4 — Default currency inferred from timezone: OUT OF FROZEN SCOPE (future work)
+
+**User request:** implement choosing the default currency from the user's timezone via a lookup, as
+discussed in design history.
+
+**Root's finding — two blockers, so this is recorded as future work, NOT goal work:**
+
+(a) **It is already implemented — but by LOCALE, not timezone.** `src/lib/domain/detect-currency.ts`
+resolves `navigator.languages[0]` → BCP 47 region subtag → `REGION_TO_CURRENCY` (~70 countries,
+`:170-260`), falling back to USD. Its header (`:4-6`) explicitly argues locale is "more reliable than
+timezone because locale directly encodes cultural/regional preferences" — the OPPOSITE conclusion to
+the scratch note's guess. Switching to timezone is therefore a deliberate BEHAVIOUR CHANGE reversing
+a prior decision, not missing work, and deserves an explicit recorded decision rather than a silent
+flip.
+
+(b) **It is outside the frozen SCOPE selection.** The scratch note lives at `specs/human-scratch.md:33`
+("When creating a vault the default currency should be inferred from time zone or culture … I'm
+guessing time zone is probably a better indicator of country?"). SCOPE's 21 frozen top-level blocks
+span lines **151-350** only (HS-001 `151-155` … HS-020 `348-350`). Line 33 is in an earlier region
+never selected into this goal; it carries an `[x]` that was NOT set by this campaign's marker
+mechanic and is not in the authorized checked-ID set. `SCOPE.json#sources[SRC-HUMAN-SCRATCH]` freezes
+the file at `b91ca932…` with the leading-marker flip as the ONLY permitted edit, so root cannot
+retroactively pull line 33 into SCOPE without breaking the freeze all 22 requirements validate
+against.
+
+**Disposition:** recorded as future work. Pulling it into this goal would be a scope EXPANSION; per
+PROCESS.md root must not self-decide it — it would require dispatching the independent fresh-context
+scope adjudicator. Root offered that route to the user and did not take it unilaterally.
