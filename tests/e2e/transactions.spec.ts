@@ -55,7 +55,8 @@ async function createTestTransaction(
         name: new RegExp(`${escapedDescription}(Default|$|\\s)`)
     });
     await expect(transactionRow).toBeVisible();
-    await transactionRow.getByTestId("row-checkbox").getByRole("checkbox").click();
+    // Add no longer selects the row it creates, so callers start from an empty selection with no
+    // cleanup click needed. Asserting it leaves the invariant guarded for every caller.
     await expect(transactionRow).toHaveAttribute("aria-selected", "false");
 }
 
