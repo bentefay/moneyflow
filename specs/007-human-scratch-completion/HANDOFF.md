@@ -9,7 +9,7 @@ You do NOT edit product, tests, migrations, ledgers, markers, scratch, SCOPE, `F
 QUESTIONS, DECISIONS, or any review. Only root transcribes results into FINAL-AUDIT after an
 independent PASS.
 
-**Package/revision:** P21 / rev 06. **BASE == HEAD == `87fc0d68a72477e7ac68313293ef75efaa611546`.**
+**Package/revision:** P21 / rev 06. **BASE == HEAD == `8f34242e2ccf0add273767ff3688224d6b9d36a0`.**
 Branch `main`. A non-empty `BASE..HEAD` range requires root reconciliation — if you observe one,
 report it to root rather than proceeding.
 
