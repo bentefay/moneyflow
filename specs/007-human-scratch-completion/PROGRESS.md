@@ -7,7 +7,7 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** **P21** (control — executable final audit), **revision 05 returned FAIL (M-1); Q-P20B-00 engine ruled OUT-OF-GOAL (D-019, f290246); **RB-P21-05 COMPLETED** (HS-016 marker `[x] -> []` at `:328`, rolling `469e98c7… -> 00291e2d…`, batch cleared); **P20A rev 03 implementer `p20a-implementer-03` DISPATCHED** for the truthful-copy fix — see EOF events 2026-07-30**
+- **Current package:** **P21** (control — executable final audit), **revision 05 returned FAIL (M-1); Q-P20B-00 engine ruled OUT-OF-GOAL (D-019, f290246); **RB-P21-05 COMPLETED** (HS-016 marker `[x] -> []` at `:328`, rolling `469e98c7… -> 00291e2d…`, batch cleared); **P20A rev 03 handback VERIFIED** (`a823457`): copy truthful, 3 authorized files only, fast gates green; **DISTINCT reviewer `p20a-reviewer-03` DISPATCHED** — see EOF events 2026-07-30**
   (all 21 feature packages passed; HS-021 RE-PASSED after P20B rev 06 PASS). DISTINCT `p21-reviewer-04` returned the single formal
   **FAIL** (`reviews/P21-review-04.md`, committed `60c2eca`) on E2E stability alone — every other
   contract clause passed independently (`pnpm audit --prod` exit 0; typecheck/lint/build/unit green;
@@ -6113,3 +6113,21 @@ OUT-OF-GOAL (D-019); implementer must not touch `pruneBuckets`/engine/sync or an
 On handback root will verify-not-trust, dispatch a DISTINCT reviewer (`reviews/P20A-review-03.md`),
 integrate, re-pass HS-016 via the §275 forward marker (`00291e2d… -> ` all-checked), restore the
 authorized set 20 -> 21, set P20A/HS-016 `passed`, and re-open P21 rev 06.
+
+### 2026-07-30 — P20A rev 03 handback VERIFIED; DISTINCT reviewer dispatched
+
+`p20a-implementer-03` handed back commit `a823457` (parent `88a6abf`, clean linear history). Root
+verify-not-trust: touched EXACTLY three authorized files — `src/components/features/landing/FeaturesSection.tsx`
+(1 line), `tests/e2e/landing.spec.ts` (+10, new guard "makes no data-durability absolute about
+concurrent edits"), `evidence/P20A/implementation-03.md` (+71) — no ledger/marker/scratch/SCOPE/
+reviews/engine edits; no `as`/`any`/`!` in the product diff. New copy at `FeaturesSection.tsx:65`:
+"Two people can edit at the same time, and their changes are merged with conflict-free replicated
+data types rather than last-write-wins." — the false absolute "will not overwrite each other" is
+removed; the delivered real-time-collaboration + CRDT-merge mechanism claim is kept (truthful).
+Root independently re-ran the fast gates GREEN: typecheck clean; lint 0 errors (only the pre-existing
+unrelated TanStack Virtual warning); `oxfmt --check` on both changed files correct; unit 2091 passed
+/ 2 skipped. E2E full-suite `--retries=0` left to the DISTINCT reviewer (implementer reported 164
+passed over 3 consecutive runs). Product identity now legitimately diverges from the P20B rev-06
+baseline `371a88a` by exactly this one truthful copy line (superseded baseline; not drift).
+**Dispatched `p20a-reviewer-03`** (DISTINCT, fresh context, never a P20A implementer) to independently
+review and run all six checks, writing `reviews/P20A-review-03.md`.
