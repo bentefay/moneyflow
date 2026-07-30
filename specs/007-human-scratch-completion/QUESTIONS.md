@@ -2375,3 +2375,29 @@ against.
 **Disposition:** recorded as future work. Pulling it into this goal would be a scope EXPANSION; per
 PROCESS.md root must not self-decide it — it would require dispatching the independent fresh-context
 scope adjudicator. Root offered that route to the user and did not take it unilaterally.
+
+### U-3 AMENDMENT (2026-07-30) — design LOCKED IN by the user: show the member's NAME INITIALS
+
+The user confirmed the intended behaviour: the presence avatar must show the member's **initials
+derived from their display name**, not pubkey-hash characters.
+
+**Locked design:** plumb the member's display name through to `PresenceAvatar` at BOTH render sites
+(`src/app/(app)/layout.tsx:218-224` desktop/mobile and `:343`), resolving the name from vault
+membership/people data instead of passing only `userId`. No change is required to `getInitials`
+(`src/lib/utils/color.ts`): its ordinary word-initials branch already produces the desired result once
+fed a real name — default name "Me" -> "M", "Ben Tefay" -> "BT". The existing hash branch
+(`/^[a-f0-9]+$/i` -> first 2 chars) is retained ONLY as a genuine last-resort fallback for the case
+where no name can be resolved; the defect is that it is currently reached in the ordinary case.
+
+**Tooltip:** `PresenceAvatar.tsx:56` `title={`${displayName}${isOnline ? " (online)" : ""}`}` must
+likewise show the resolved name, not the raw 64-char hex hash. With the name plumbed through, the
+existing expression yields the correct title automatically via the same `name || userId` fallback at
+`:48`.
+
+**Colour:** `hashToColor(userId)` (`:50`) should CONTINUE to key off the stable `userId`, not the
+name — per-user colour stability must survive a rename, and distinct members with identical initials
+must remain visually distinguishable.
+
+Scope routing is unchanged by this amendment and is still NOT self-decided by root: the design is
+settled, but whether this is an in-scope HS-003/P10 defect or new scope is left to the P21 rev 06
+audit finding (see U-3 above).
