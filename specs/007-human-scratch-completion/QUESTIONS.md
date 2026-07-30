@@ -2214,3 +2214,34 @@ added rows yield two identically-named checkboxes. **Status:** OPEN. Collector s
 NON-BLOCKING (operable, correctly role-typed, other cells named, pre-existing/P16D-owned). Concrete
 fix: fall back to amount+date in the accessible name. Note: the E2E suite scopes lookups per-row so
 it cannot catch this class. Proposed owner **P16D**. Reviewer may overrule the severity call.
+
+## P21 rev-05 reviewer rulings + Q-P20B-00 scope adjudication dispatched (2026-07-30)
+
+DISTINCT `p21-reviewer-05` formal **FAIL** (`reviews/P21-review-05.md`, preserved by root at
+`7cb651d`). Status updates to the rev-05 questions:
+
+- **Q-P21-05-01 (M-1) → CONFIRMED BLOCKING.** The reviewer OVERTURNED the collector's NON-BLOCKING
+  call and independently reproduced the data loss through the real sync merge path, establishing that
+  the loss spans the whole pruned subtree [not just "same day bucket" — the collector's mitigation
+  was factually wrong]. Audit contract `:72` names "false marketing claim" a FAIL trigger.
+  **Owner P20A / HS-016** for the one-line copy correction at `FeaturesSection.tsx:65`. Root: routing
+  the copy fix is more work to complete HS-016's committed "truthful marketing copy" scope, NOT a
+  reduction → no adjudicator for the copy.
+- **Q-P21-05-02 (O-1) → CONFIRMED out of frozen scope, non-blocking.** HS-015 frozen text is scoped
+  to websocket/CORS/pubkey-hash vault access, which IS delivered and enforced; CSP is deployment
+  hardening. Future security package.
+- **Q-P21-05-03 (A-1) → UPHELD non-blocking; owner P16D.** Name-quality degradation, not a
+  name-absence/operability failure; fix via a stable disambiguator (amount+date) and add a guard.
+
+**Q-P20B-00 — SCOPE ADJUDICATION DISPATCHED (engine in/out-of-goal).** The reviewer recommends
+routing only the copy and leaving the `pruneBuckets` merge-safety fix to a future CRDT package, but
+whether the goal's committed scope REQUIRES the engine fix is a scope call that would supersede the
+prior accepted `p20b-reviewer-01 §6.1` deferral and/or reduce the FINAL-AUDIT "converge without lost
+changes" clause. Per PROCESS.md:335-347, root does NOT self-adjudicate [interest in unblocking] and
+does NOT pause for the human. A DISTINCT fresh-context opus-tier **scope adjudicator** — never the
+P21/P20A/P20B implementer or reviewer — is dispatched to rule, from the frozen `sourceTextLines`, the
+binding task, and the decision being superseded, whether the `pruneBuckets` merge-safety fix is
+genuinely required in-goal or is an over-scope, **defaulting to the block standing** unless the
+frozen text plainly does not require it. Its written ruling is the authority; root transcribes it
+here and into DECISIONS and proceeds on the safest reversible path. **Status: OPEN — adjudicator
+running.**

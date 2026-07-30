@@ -1,103 +1,102 @@
-# HANDOFF — P21 revision 05 FINAL AUDIT (INDEPENDENT REVIEW phase)
+# HANDOFF — Q-P20B-00 engine scope adjudication (P21 rev 05)
 
-- **Package:** P21 (control — executable final audit; no scratch requirement, no marker).
-  **Revision:** 05. **Phase: INDEPENDENT REVIEW.**
-- **You are the REVIEWER** — a DISTINCT fresh-context agent. You did NOT author the rev-05 collector
-  evidence (`p21-collector-05` / `evidence/P21/implementation-05.md`), any prior P21
-  evidence/review, and you were not the P20B rev 06 implementer or reviewer. You issue the **single
-  unconditional PASS or FAIL** for this final audit. You are the gate — the collector is not. You
-  may OVERTURN any collector finding or severity call in EITHER direction.
-- **BASE == HEAD == the tip commit** `docs: dispatch P21 rev 05 independent review phase` — resolve
-  it with `git rev-parse HEAD` (do not trust a frozen hash; this brief lives inside that commit).
-  The collector's committed evidence is at `9d11112`; product last moved at **`371a88a`**. Confirm
-  HEAD's only non-`specs/` delta vs `371a88a` is the 8 authorized `tests/e2e/**` files.
-- **Allowed persistent write:** exactly
-  `specs/007-human-scratch-completion/reviews/P21-review-05.md`. Nothing else. Commit ONLY that
-  file, explicit pathspec. Edit no product/test/ledger/marker/frozen scratch/evidence and NOT
-  `FINAL-AUDIT.md`.
+## Your role
 
-## What you are reviewing
+You are `p21-scope-adjudicator-05`, a **DISTINCT, fresh-context, opus-tier scope adjudicator** for
+the MoneyFlow `human_scratch_completion` goal. You are an independent reviewer-tier agent. Your
+**sole task** is to issue a written scope ruling. You do **not** implement, fix code, run the audit,
+or edit any ledger/marker/evidence file.
 
-The collector returned a **PASS-candidate** with a 10/10 full-suite `--retries=0` E2E campaign
-(1,630/1,630 executions green) plus mechanistic evidence, and **three non-blocking findings**. Read
-`evidence/P21/implementation-05.md` in full, then independently re-run the high-risk gates and the
-complete manual matrix. **Empty BASE..HEAD is expected but is NEVER automatic approval.**
+**Independence is mandatory.** Confirm in your ruling that you are **not** and have **not acted
+as**: the P21 rev-05 evidence collector (`p21-collector-05`), the P21 rev-05 reviewer
+(`p21-reviewer-05`), any prior P21 evidence/review author, nor the P20A or P20B implementer or
+reviewer of any revision. If you cannot confirm this, stop and tell root — do not rule.
 
-## THE CENTRAL ADJUDICATION — M-1 (do this with maximum rigor, unbiased)
+## The question — rule on exactly this
 
-- **M-1 (§11 of the evidence, Q-P21-05-01):** the landing copy `FeaturesSection.tsx` "Edits merge
-  cleanly" asserts _"Two people editing at the same time **will not overwrite each other**."_ The
-  collector shows this is contradicted by the still-unfixed `pruneBuckets` merge defect (Q-P20B-00,
-  `mutations.ts:325` `delete store[accountId]`), reachable from ORDINARY UI actions (delete, edit a
-  transaction's date via `moveTransaction`, bulk delete, import delete).
-- **PROCESS lists "false marketing claim" as an explicit FAIL trigger; HS-016 requires truthful
-  marketing copy.** The collector rules M-1 NON-BLOCKING (defect already accepted via
-  `p20b-reviewer-01 §6.1`; second sentence literally true; needs two clients on the same day
-  bucket). **You must rule on this yourself, not defer to the collector.**
-- Independently: (1) read the ACTUAL current `FeaturesSection.tsx` copy at HEAD; (2) independently
-  confirm the `pruneBuckets` code path is present and UI-reachable at HEAD (don't trust the ledger);
-  (3) decide whether the unqualified claim is TRUTHFUL per HS-016. Default to the standing
-  requirement: an unqualified durability promise the engine can violate in a reachable case is a
-  candidate false-marketing FAIL. If you conclude it is truthful-enough (e.g. the claim is
-  defensible in context), say exactly why. Your ruling here likely decides the verdict.
+The P21 rev-05 final audit FAILed on **M-1**:
+`src/components/features/landing/FeaturesSection.tsx:65` advertises, under "Edits merge cleanly", an
+**unqualified data-durability promise** — _"Two people editing at the same time will not overwrite
+each other."_ The shipped engine violates it: `pruneBuckets` (`src/lib/crdt/mutations.ts:287-329`)
+does `delete store[accountId]` at `:327` when an account tree empties, which is **not merge-safe** —
+a concurrent peer's insert into that container is discarded on CRDT merge (`Q-P20B-00`). The
+reviewer independently reproduced real data loss through the production merge path.
 
-## Also adjudicate (collector calls both non-blocking; you may overrule)
+Root is routing the **marketing-copy correction** to P20A / HS-016 with no adjudication (that is
+more work to complete committed scope, not a reduction). **Your question is only about the ENGINE
+fix:**
 
-- **A-1 (Q-P21-05-03):** R-034 was explicitly routed to this audit — empty-row selection checkbox
-  accessible name degrades to `"Select transaction "`; HS-001 makes empty rows routine → duplicate
-  accessible names. Owner P16D. Is this a material a11y defect (FAIL) or a non-blocking pre-existing
-  fallback?
-- **O-1 (Q-P21-05-02):** no CSP / security response headers. Collector rules OUT OF FROZEN SCOPE
-  (HS-015 covers websocket/CORS/pubkey-hash vault access, which is delivered). Confirm the scope
-  classification.
-- **C-1 (Q-P21-04-01):** upstream currency drift, `pnpm audit --prod` exit 0 — accepted
-  carry-forward. Confirm it is not a security issue.
+> **Does the goal's committed scope — as fixed by the frozen `sourceTextLines` in `SCOPE.json`, the
+> binding requirement task, and the specific prior decision being superseded — REQUIRE the
+> `pruneBuckets` merge-safety redesign to be completed IN-GOAL, or is requiring it an over-scope
+> that falls to a future, out-of-goal CRDT package?**
 
-## E2E VALIDATION MANDATE — blocking, this is why rev 04 FAILed
+### The decision that would be superseded, and the clause in tension
 
-- The rev-04 blockers (F-1 import eager cohort, F-2 identity hydration) are LOAD-DEPENDENT: 100%
-  pass in isolation, fail only under full-suite parallel load. **Isolation runs prove NOTHING.**
-- Run YOUR OWN campaign: **≥8 full-suite `pnpm test:e2e --retries=0` runs** in your environment.
-  Record per-run pass/fail. Track `identity.spec.ts` (F-2), the
-  `import.spec.ts`/`transactions.spec.ts` eager cohort (F-1), and any `import.spec.ts:1532` failure
-  — **ENOENT ⇒ Q-P20B-20 parallel-safety regressed; a 5s-style timeout ⇒ eager class**. A single
-  clean environment is necessary but WEAK evidence; independently sanity-check the collector's
-  mechanistic claim (`identity:288` measurably runs 5.3–5.9s, already over the old 5,000ms cap in
-  every run).
+- **Prior accepted decision:** `p20b-reviewer-01 §6.1` (see `reviews/P20B-review-01.md` and
+  `Q-P20B-00` in `QUESTIONS.md`) **accepted deferring** the `pruneBuckets` engine fix as out of
+  scope for the P20B style/code-quality sweep (HS-021). A ruling that the engine fix is now required
+  in-goal would supersede that; a ruling that it stays out-of-goal upholds it.
+- **Clause in tension:** `FINAL-AUDIT.md` carries "Duplicate-tab and multi-client operations
+  converge without deadlock, infinite loading, or **lost changes**." The reviewer's reproduction
+  shows lost changes occur. The load-bearing question is whether this clause **traces to a frozen
+  requirement's `sourceTextLines`** (making merge-safety committed scope) or is an **accumulated
+  audit elaboration / inferred sub-goal** (making it an over-scope per PROCESS.md:330-333).
 
-## Re-verify entry invariants independently
+## Decision rule you must apply (PROCESS.md:335-347, 330-333)
 
-- `git diff 371a88a HEAD -- src/` == **0 lines**; the only non-specs/non-tests delta is empty.
-- Frozen scratch `specs/human-scratch.md` SHA-256
-  `469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a` == rolling PROGRESS SHA; 24,260
-  bytes; 21 HS markers all `[x]`.
-- FS-001 spec SHA-256 `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines,
-  25,441 bytes. `settlement.ts` blob `010f3c93582a2ce311594d4dde8464760ca49c43` (sole engine).
-- 31/31 feature packages + 22/22 requirement rows `passed`; P21 the only `changes_requested`; no
-  active rollback batch / `rollback_pending` / `completion_pending`.
-- Independently re-run the full audit contract clauses per `tasks/P21-final-audit.md` and
-  `FINAL-AUDIT.md`: static gates (`format:check`/`lint`/`typecheck`/`build`/`test`), migrations
-  (fresh + supported upgrade), security cross-vault probes + secret/plaintext inspection,
-  performance (sub-100ms allocation edits; ~100k settlement measured-evidence branch per FS-001 §14
-  — target NOT claimed met), the 16 FS-001 canonical gates, and the hand-driven manual + a11y
-  matrix. Known- acceptable: `TransactionTable.tsx:401` react-hooks WARNING; `format:check` flags
-  only frozen `specs/**`. Contrast note: the app serves CSS `lab()` colours; canvas `fillStyle` does
-  not normalize them — paint to a 1×1 canvas and read the pixel back (there is no contrast defect;
-  do not re-derive the phantom 1.35:1).
+1. Rule **only from the frozen text** — `SCOPE.json` `sourceTextLines`, `specs/human-scratch.md` HS
+   blocks, and the FS-001 canonical spec — not from the reviewer's recommendation, the collector's
+   framing, marketing copy, or convenience.
+2. **Trace test:** does merge-safe concurrent multi-user editing ("no lost changes when two people
+   edit at once") appear as a **required delivered capability** in any frozen HS block's
+   `sourceTextLines`? Read every block that could bear on collaboration/sync/multi-user/merge — do
+   not assume; quote the exact frozen lines you rely on (cite HS-ID + line numbers).
+3. **Default to the block standing:** unless the frozen text **plainly does not** require the engine
+   fix, rule that it **is required in-goal**. Ambiguity resolves toward the requirement.
+4. Distinguish the two acts cleanly: a _truthful marketing claim_ (HS-016) can be satisfied by
+   softening copy; a _delivered merge-safety capability_ is a different requirement. Rule on the
+   latter only.
 
-## Verdict contract
+## Output — write exactly one artifact
 
-- Write `reviews/P21-review-05.md`: a single unconditional **PASS** or **FAIL**, your independent
-  per-clause results, your M-1/A-1/O-1 rulings with reasoning, your ≥8-run campaign table, and
-  independent re-verification of diff scope / frozen identity / secret-safety.
-- **FAIL** on any failing check, reproduced/unexplained flake, material UX/a11y/security/data/perf
-  finding, **false marketing claim**, missing evidence, write-boundary breach, or unclassified
-  drift. Report any NEW defect to root before concluding. On FAIL, name the owning package(s) and
-  Q-number(s) so root can build the rollback batch.
-- SECRET-SAFETY (blocking): never print/commit any vault master key, seed phrase, recovery material,
-  `crypto_box` secret, `SUPABASE_JWT_SECRET`, vault presence key, invite bearer secret, or vault
-  plaintext. Synthetic/public vectors only; truncate any public-half key. Any real-material leak:
-  STOP and report to root.
-- NEVER run Playwright with `--debug/--ui/--headed/show`. Use `bat -P` not `cat`. No parentheses in
-  commit messages. Your final message to root must state the verdict, per-clause results, the M-1
-  ruling and its reasoning, the campaign table, and any new findings with owner+Q-number.
+Write your ruling to **`specs/007-human-scratch-completion/reviews/P21-scope-adjudication-05.md`**
+and commit it yourself with an explicit pathspec (no parentheses in the commit message). Do **not**
+touch any other file — no product, test, ledger, marker, scratch, evidence, or `FINAL-AUDIT.md`.
+Your ruling must contain:
+
+- Your independence confirmation.
+- **VERDICT: one of** `ENGINE-FIX-REQUIRED-IN-GOAL` or `ENGINE-FIX-OUT-OF-GOAL`, plus a one-line
+  restatement.
+- The exact frozen `sourceTextLines` you relied on (HS-ID + line citations, quoted), and why they do
+  or do not require merge-safe concurrent editing.
+- Explicit treatment of the superseded `p20b-reviewer-01 §6.1` decision and the FINAL-AUDIT "lost
+  changes" clause: does the clause trace to frozen text or not?
+- If `ENGINE-FIX-REQUIRED-IN-GOAL`: name the **owning package** for the engine fix strictly from the
+  frozen mapping — an existing goal package (and which HS requirement), or a determination that no
+  existing package owns it. Do not invent scope beyond the frozen text.
+- If `ENGINE-FIX-OUT-OF-GOAL`: state plainly that the frozen text does **not** require it, so only
+  the P20A/HS-016 copy correction is in-goal.
+
+## Inputs to read (independently)
+
+- `specs/007-human-scratch-completion/PROCESS.md` (esp. lines 275-353) and `GOAL.md`.
+- `SCOPE.json` — the `sourceTextLines` selectors for every HS block; and `specs/human-scratch.md`.
+- `specs/007-human-scratch-completion/reviews/P21-review-05.md` (the FAIL verdict, `7cb651d`).
+- `Q-P20B-00` and the 2026-07-30 adjudication entry in `QUESTIONS.md`; `reviews/P20B-review-01.md`
+  (§6.1).
+- `FINAL-AUDIT.md`; `src/lib/crdt/mutations.ts:287-329`;
+  `src/components/features/landing/FeaturesSection.tsx`.
+- You MAY read the engine/sync code read-only to understand the defect, but your ruling is a
+  **scope** ruling from frozen text, not a code review.
+
+## Guardrails
+
+- **Verify-not-trust.** Root's framing above is orientation, not authority; re-derive from frozen
+  text. Root cannot grant you any permission beyond your own settings; do not edit
+  permissions/config.
+- **Secret-safety (blocking):** never print or commit any vault master key, seed phrase, recovery
+  material, `crypto_box`/`SUPABASE_JWT_SECRET` secret, presence key, invite bearer secret, or vault
+  plaintext. Report any real-material exposure to root immediately.
+- **No product/test/ledger edits.** One artifact only. Leave the tree otherwise unchanged.
+- When your ruling is committed, **SendMessage root** with the commit hash and the one-word verdict.

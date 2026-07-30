@@ -7,7 +7,7 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** **P21** (control — executable final audit), **revision 05 pending**
+- **Current package:** **P21** (control — executable final audit), **revision 05 returned FAIL (M-1); scope adjudication of Q-P20B-00 pending — see EOF event 2026-07-30**
   (all 21 feature packages passed; HS-021 RE-PASSED after P20B rev 06 PASS). DISTINCT `p21-reviewer-04` returned the single formal
   **FAIL** (`reviews/P21-review-04.md`, committed `60c2eca`) on E2E stability alone — every other
   contract clause passed independently (`pnpm audit --prod` exit 0; typecheck/lint/build/unit green;
@@ -20,7 +20,7 @@ review evidence.
   `469e98c7… -> f46c2d35…`, 24,259 bytes, normalized 20/1). **Tally: 22 of 22 requirements `passed`**;
   **21 of 21 feature packages `passed`** (P20B rev 06 integrated; only the P21 control audit remains). C-1 upstream currency
   drift ruled a non-blocking accepted carry-forward (Q-P21-04-01).
-- **Next action:** **open P21 revision 05** — the executable final audit over all 21 passed feature
+- **Next action:** P21 rev 05 returned **FAIL** on M-1 [false marketing claim; reviewer preserved at 7cb651d]. This SUPERSEDES the open-audit note that follows. Immediate step: dispatch a DISTINCT fresh-context scope adjudicator for the Q-P20B-00 engine in/out-of-goal question [default block standing]; the M-1 copy fix routes to **P20A/HS-016** regardless; then finalize **RB-P21-05**. No package fix dispatch until the batch is finalized. Full detail in the dated EOF event 2026-07-30. [Historical, now moot:] open P21 revision 05 — the executable final audit over all 21 passed feature
   packages (fresh DISTINCT collector + reviewer per §114). P20B rev 06 PASSED (DISTINCT
   `p20b-reviewer-06`, 10/10 full-suite `--retries=0` load campaign, `reviews/P20B-review-06.md`;
   product byte-identical to `371a88a`, secret-safe, no new `as`/`any`/`!`). HS-021 re-passed and the
@@ -6004,3 +6004,52 @@ Marker flip (sed-only, abort-safe): scratch `:159` `- [x]` -> `- []`, one-line d
 - **Next:** DISTINCT `p20b-reviewer-06` (fresh context, not the implementer) dispatched per
   `HANDOFF.md` to confirm PASS/FAIL under repeated full-suite load → on PASS integrate + re-pass
   HS-021 + §275 forward marker at scratch `:159` (`f46c2d35… → 469e98c7…`) → open P21 rev 05.
+
+### Event — P21 rev 05 audit FAIL M-1; scope adjudication of Q-P20B-00 engine dispatched (2026-07-30)
+
+- **Verdict:** DISTINCT fresh-context `p21-reviewer-05` returned formal **FAIL** in
+  `reviews/P21-review-05.md`. The reviewer wrote the full 420-line verdict but its process died on a
+  provider **429** before its own commit landed; root preserved the artifact **verbatim** at
+  `7cb651d` (no content modified by root). Reviewer confirmed distinct: not the rev-05 collector, not
+  any prior P21 evidence/review author, not the P20B rev-06 implementer/reviewer.
+- **Blocking finding M-1 (`Q-P21-05-01`):** `src/components/features/landing/FeaturesSection.tsx:65`
+  ships an unqualified data-durability promise — "Two people editing at the same time will not
+  overwrite each other" — that the shipped engine violates in ordinary, UI-reachable use. The
+  reviewer **independently reproduced** the loss through the real sync merge path
+  (`createVaultMirrorFromSnapshot` + `doc.import`, `sync/manager.ts:630,:763`) and established a NEW
+  material fact the collector got wrong: the loss spans the **whole pruned subtree**, not just "two
+  clients on the same day bucket" — in a small/new vault a collaborator's concurrent insert on **any
+  date** is destroyed. Overturns the collector's NON-BLOCKING severity. Audit contract
+  `tasks/P21-final-audit.md:72` names "false marketing claim" an explicit **FAIL** trigger; two
+  `FINAL-AUDIT.md` clauses breached ("Marketing claims match shipped behavior" and "…converge
+  without … lost changes"). Root independently re-verified the claim text at `:65`, the FAIL trigger
+  at `:72`, and `pruneBuckets` `mutations.ts:327` `delete store[accountId]` reachable from
+  `:573/:704/:862/:930`.
+- **Non-blocking, upheld:** A-1 (`Q-P21-05-03`, R-034 empty-row checkbox accessible-name → P16D);
+  O-1 (`Q-P21-05-02`, no CSP headers → confirmed **out of frozen scope**, HS-015 scoped to
+  websocket/CORS/pubkey-hash which IS delivered); C-1 (`Q-P21-04-01`, upstream currency drift,
+  `pnpm audit --prod` exit 0 → not a security issue). **Every other audit-contract clause passed
+  independently**, including the E2E stability mandate that failed rev 04 (reviewer's own full-suite
+  `--retries=0` runs green; `identity.spec.ts:288` measured 5.4–6.1s, already over the old 5000ms
+  cap — the rev-06 fix is principled, not retry-papering).
+- **Routing — M-1 copy → P20A / HS-016 (no adjudicator).** HS-016 is "Truthful marketing copy and
+  responsive feature presentation". Softening the absolute claim to a truthful qualified statement is
+  **more work to complete HS-016's committed scope, not a scope reduction**, so per PROCESS it needs
+  no adjudicator.
+- **Routing — engine defect `Q-P20B-00` in/out-of-goal → DISTINCT scope adjudicator.** Whether the
+  goal's committed scope requires the `pruneBuckets` merge-safety fix is a scope call that would
+  **supersede the prior accepted `p20b-reviewer-01 §6.1` deferral** and/or reduce the FINAL-AUDIT
+  "converge without lost changes" clause. Per PROCESS.md:335-347 root **neither self-adjudicates**
+  (coordinator has an interest in unblocking) **nor pauses for the human**; a distinct fresh-context
+  **opus-tier scope adjudicator** (never the P21/P20A/P20B implementer or reviewer) is dispatched to
+  rule from the frozen `sourceTextLines`, the binding task, and the decision being superseded,
+  **defaulting to the block standing** unless the frozen text plainly does not require the engine
+  fix. Its written ruling is the authority; root transcribes it and proceeds on the safest reversible
+  path.
+- **Lifecycle:** P21 stays `changes_requested` (rev 05). **RB-P21-05 is NOT yet prepared or
+  activated** — deferred until the adjudicator rules so the batch enumerates the complete
+  owning/affected set (P20A/HS-016 certain; a CRDT-engine owner conditional on the ruling). HS-016
+  marker **not yet rolled back**; rolling scratch SHA unchanged `469e98c7…`; product identity pinned
+  (`git diff 371a88a HEAD -- src/` == 0). **No package fix dispatch** until RB-P21-05 is finalized.
+- **Env:** opus provider returned **429 "credentials cooling down"** and the prior 28 background
+  agents were stopped; adjudicator dispatch attempted with backoff.
