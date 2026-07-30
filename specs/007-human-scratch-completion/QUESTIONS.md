@@ -2245,3 +2245,13 @@ genuinely required in-goal or is an over-scope, **defaulting to the block standi
 frozen text plainly does not require it. Its written ruling is the authority; root transcribes it
 here and into DECISIONS and proceeds on the safest reversible path. **Status: OPEN — adjudicator
 running.**
+
+## Q-P20B-00 SCOPE ADJUDICATION — RESOLVED OUT-OF-GOAL (2026-07-30)
+
+**Ruling:** `reviews/P21-scope-adjudication-05.md` (commit `f290246`), independent fresh-context opus-tier scope adjudicator `p21-scope-adjudicator-05` (DISTINCT — never P20A/P20B/P21-05 implementer or reviewer). **VERDICT: ENGINE-FIX-OUT-OF-GOAL.** Transcribed to DECISIONS as **D-019**.
+
+- No frozen `sourceTextLine` requires transaction-lifecycle merge-safety. `pruneBuckets` (`mutations.ts:327` `delete store[accountId]`) is in the transaction-container lifecycle, triggered by delete/move/duplicate/import — never by an allocation edit.
+- The one frozen concurrency requirement is FS-001 allocation-map scope (`spec.md:451,452,628-629,703`, all "person"-qualified); a different capability, and per the rev-05 reviewer it IS delivered (16/16 gates).
+- `p20b-reviewer-01 §6.1` (deferral) UPHELD, not superseded. `FINAL-AUDIT.md:90` "lost changes" clause does NOT trace to frozen text for the transaction-prune scenario (only anchor is allocation-scoped :703; the broadened reading is an over-scope per PROCESS.md:330-333). The allocation-scoped capability it rests on is met.
+- **Owning package: none in-goal.** Q-P20B-00 stays routed to a future out-of-goal CRDT package. The ONLY in-goal work from rev-05 M-1 is the P20A/HS-016 copy correction at `FeaturesSection.tsx:65`.
+- **Status: RESOLVED.** Root proceeds: execute §275 RB-P21-05 marker rollback of HS-016, then re-implement the truthful copy, re-review, and re-open P21 rev 06.

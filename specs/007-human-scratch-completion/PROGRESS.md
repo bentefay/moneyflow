@@ -7,7 +7,7 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** **P21** (control — executable final audit), **revision 05 returned FAIL (M-1); scope adjudication of Q-P20B-00 pending — see EOF event 2026-07-30**
+- **Current package:** **P21** (control — executable final audit), **revision 05 returned FAIL (M-1); Q-P20B-00 engine scope adjudication RESOLVED OUT-OF-GOAL (D-019, ruling f290246); executing RB-P21-05 rollback of the HS-016 marker, then P20A copy re-fix — see EOF event 2026-07-30**
   (all 21 feature packages passed; HS-021 RE-PASSED after P20B rev 06 PASS). DISTINCT `p21-reviewer-04` returned the single formal
   **FAIL** (`reviews/P21-review-04.md`, committed `60c2eca`) on E2E stability alone — every other
   contract clause passed independently (`pnpm audit --prod` exit 0; typecheck/lint/build/unit green;
@@ -20,7 +20,7 @@ review evidence.
   `469e98c7… -> f46c2d35…`, 24,259 bytes, normalized 20/1). **Tally: 22 of 22 requirements `passed`**;
   **21 of 21 feature packages `passed`** (P20B rev 06 integrated; only the P21 control audit remains). C-1 upstream currency
   drift ruled a non-blocking accepted carry-forward (Q-P21-04-01).
-- **Next action:** P21 rev 05 returned **FAIL** on M-1 [false marketing claim; reviewer preserved at 7cb651d]. This SUPERSEDES the open-audit note that follows. Immediate step: dispatch a DISTINCT fresh-context scope adjudicator for the Q-P20B-00 engine in/out-of-goal question [default block standing]; the M-1 copy fix routes to **P20A/HS-016** regardless; then finalize **RB-P21-05**. No package fix dispatch until the batch is finalized. Full detail in the dated EOF event 2026-07-30. [Historical, now moot:] open P21 revision 05 — the executable final audit over all 21 passed feature
+- **Next action:** P21 rev 05 returned **FAIL** on M-1 [false marketing claim; reviewer preserved at 7cb651d]. This SUPERSEDES the open-audit note that follows. Q-P20B-00 ruled **OUT-OF-GOAL** (D-019, `f290246`): the `pruneBuckets` engine fix is future out-of-goal work and `p20b-reviewer-01 §6.1` is upheld. In-goal step: execute **RB-P21-05** §275 rollback of the HS-016 marker (`:328` `[x] -> []`), downgrade P20A -> `changes_requested`, then dispatch the P20A/HS-016 truthful-copy re-fix + a DISTINCT reviewer. No package fix dispatch until the batch is finalized and cleared. Full detail in the dated EOF event 2026-07-30. [Historical, now moot:] open P21 revision 05 — the executable final audit over all 21 passed feature
   packages (fresh DISTINCT collector + reviewer per §114). P20B rev 06 PASSED (DISTINCT
   `p20b-reviewer-06`, 10/10 full-suite `--retries=0` load campaign, `reviews/P20B-review-06.md`;
   product byte-identical to `371a88a`, secret-safe, no new `as`/`any`/`!`). HS-021 re-passed and the
