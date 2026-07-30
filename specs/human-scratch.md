@@ -325,7 +325,7 @@
 - [x] How are we handling the client connection to supabase for websockets? Does this work with CORS?
   Is it properly secured based on pub key hash access to vault?
 
-- [] Update the marketing pages to include all these features. Be clear, succinct and not too
+- [x] Update the marketing pages to include all these features. Be clear, succinct and not too
   "markety". It's private. It's for categorising and allocating your transactions, not budgeting.
   Supports importing CSV and ofx. Multiple people can collaborate in real-time. It intelligently
   applies your tags, aliases and allocations to new imports.
