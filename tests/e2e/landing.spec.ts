@@ -98,4 +98,14 @@ test.describe("Public landing page", () => {
         await expect(page.getByRole("heading", { name: /smart budgeting/i })).toHaveCount(0);
         await expect(page.getByText(/spending insights/i)).toHaveCount(0);
     });
+
+    test("makes no data-durability absolute about concurrent edits", async ({ page }) => {
+        await page.setViewportSize(DESKTOP);
+        await page.goto("/");
+
+        // The merge engine can drop a concurrent insert into a pruned account tree, so the copy
+        // must not promise that simultaneous edits never overwrite one another (HS-016 / M-1).
+        await expect(page.getByText(/will not overwrite each other/i)).toHaveCount(0);
+        await expect(page.getByText(/never overwrite/i)).toHaveCount(0);
+    });
 });

@@ -62,7 +62,7 @@ const features = [
     {
         name: "Edits merge cleanly",
         description:
-            "Two people editing at the same time will not overwrite each other. Changes are merged with conflict-free replicated data types rather than last-write-wins.",
+            "Two people can edit at the same time, and their changes are merged with conflict-free replicated data types rather than last-write-wins.",
         icon: RefreshCw,
         color: "text-teal-600 dark:text-teal-400",
         bgColor: "bg-teal-100 dark:bg-teal-900/30"
