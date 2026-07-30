@@ -20,6 +20,7 @@ import {
     goToTransactions,
     goToTxDescriptions
 } from "./helpers";
+import { addEmptyTransaction, newlyAddedRow, readSelectedRowIds } from "./helpers/settlement";
 
 // ============================================================================
 // Helper: Create a test transaction
@@ -36,14 +37,9 @@ async function createTestTransaction(
         amount: string;
     }
 ) {
-    const addButton = page.getByTestId("add-transaction-button");
-    await addButton.click();
-
-    // Add selects the new row and deselects every other, but the two do not land in the same
-    // frame. Waiting for exactly one selected row keeps a stale selection from a previous call
-    // out of the locator, which would otherwise resolve to a row whose cells are already gone.
-    const addedRow = page.getByRole("row", { selected: true });
-    await expect(addedRow).toHaveCount(1);
+    // Add puts the caret in the new row's description without touching selection, so the row is
+    // addressed by the stable ID that focus identifies rather than by a selection side effect.
+    const addedRow = page.locator(`[data-transaction-id="${await addEmptyTransaction(page)}"]`);
     await expect(addedRow).toBeVisible();
 
     const descriptionInput = addedRow.getByTestId("description-editable");
@@ -122,8 +118,7 @@ test.describe("Transactions", () => {
         }
 
         await goToTransactions(page);
-        await page.getByTestId("add-transaction-button").click();
-        const row = page.getByRole("row", { selected: true });
+        const row = page.locator(`[data-transaction-id="${await addEmptyTransaction(page)}"]`);
         const editorButton = row.getByRole("button", {
             name: /edit Grid Person 00 allocation/i
         });
@@ -188,19 +183,21 @@ test.describe("Transactions", () => {
         await goToTransactions(page);
 
         const addButton = page.getByTestId("add-transaction-button");
-        await addButton.click();
+        const firstAddedRowId = await addEmptyTransaction(page);
+        const firstAddedRow = page.locator(`[data-transaction-id="${firstAddedRowId}"]`);
 
         await expect(addButton).toBeEnabled();
-        await expect(addButton).toBeFocused();
         await expect(page.getByTestId("transaction-row")).toHaveCount(1);
         await expect(page.getByTestId("new-transaction-description")).toHaveCount(0);
         await expect(page.getByTestId("add-transaction-submit")).toHaveCount(0);
         await expect(page.getByTestId("add-transaction-cancel")).toHaveCount(0);
 
-        const firstAddedRow = page.getByRole("row", { selected: true });
+        // Add identifies the new row by putting the caret in it, and leaves it unselected: an empty
+        // edit target is not a bulk-operation target.
+        await expect(firstAddedRow.getByTestId("description-editable")).toBeFocused();
         await expect(
             firstAddedRow.getByRole("checkbox", { name: "Select transaction" })
-        ).toBeChecked();
+        ).not.toBeChecked();
         await expect(firstAddedRow.getByTestId("description-editable")).toHaveValue("");
         await expect(firstAddedRow.getByTestId("description-editable")).toHaveAttribute(
             "placeholder",
@@ -213,10 +210,10 @@ test.describe("Transactions", () => {
         await expect(firstAddedRow.getByTestId("status-editable")).toContainText("For Review");
         await expect(firstAddedRow.getByTestId("amount-editable")).toHaveValue("0.00");
 
-        await addButton.click();
-        await addButton.click();
+        await addEmptyTransaction(page);
+        await addEmptyTransaction(page);
         await expect(page.getByTestId("transaction-row")).toHaveCount(3);
-        await expect(page.getByRole("row", { selected: true })).toHaveCount(1);
+        await expect(page.getByRole("row", { selected: true })).toHaveCount(0);
 
         const descriptions = page.getByTestId("description-editable");
         await descriptions.nth(0).focus();
@@ -240,6 +237,61 @@ test.describe("Transactions", () => {
         await expect(page.getByTestId("description-editable").nth(1)).toHaveValue(
             "Ordinary empty row"
         );
+    });
+
+    test("Add focuses the new row's description and preserves a multi-row selection", async ({
+        page
+    }) => {
+        test.setTimeout(120_000);
+        await createNewIdentity(page);
+        await goToTransactions(page);
+
+        const existingIds: string[] = [];
+        for (let index = 0; index < 3; index += 1)
+            existingIds.push(await addEmptyTransaction(page));
+
+        // Rows sort newest-first, so the selection is compared as a set rather than in row order.
+        const chosenIds = [existingIds[0], existingIds[2]].sort();
+        const readSelection = async () => (await readSelectedRowIds(page)).sort();
+
+        await test.step("build a multi-row selection the user intends to bulk edit", async () => {
+            for (const id of chosenIds) {
+                await page
+                    .locator(`[data-transaction-id="${id}"] [data-testid="row-checkbox"] button`)
+                    .click();
+            }
+            expect(await readSelection()).toEqual(chosenIds);
+            await expect(page.getByTestId("bulk-edit-toolbar")).toContainText("Edit 2");
+        });
+
+        await test.step("Add leaves that selection untouched and takes the caret", async () => {
+            const addedId = await addEmptyTransaction(page);
+            expect(existingIds).not.toContain(addedId);
+
+            const addedRow = page.locator(`[data-transaction-id="${addedId}"]`);
+            await expect(addedRow.getByTestId("description-editable")).toBeFocused();
+            await expect(addedRow).toHaveAttribute("aria-selected", "false");
+
+            // The pre-existing selection survives verbatim, so the bulk edit the user was building
+            // is still aimed at exactly the rows they picked.
+            expect(await readSelection()).toEqual(chosenIds);
+            await expect(page.getByTestId("bulk-edit-toolbar")).toContainText("Edit 2");
+        });
+
+        await test.step("the focus intent does not re-assert on a later render", async () => {
+            const firstDescription = page
+                .locator(`[data-transaction-id="${existingIds[0]}"]`)
+                .getByTestId("description-editable");
+            await firstDescription.click();
+            await firstDescription.fill("Typed somewhere else");
+            // Committing re-renders the whole grid. A focus intent that had not been consumed
+            // would yank the caret back into the created row mid-edit.
+            await firstDescription.press("Enter");
+
+            await expect(firstDescription).toHaveValue("Typed somewhere else");
+            await expect(newlyAddedRow(page)).toHaveCount(0);
+            expect(await readSelection()).toEqual(chosenIds);
+        });
     });
 
     test("Add reveals an ordinary row through every excluding filter class", async ({ page }) => {
@@ -268,10 +320,9 @@ test.describe("Transactions", () => {
                 await expect(page.getByTestId("transaction-row")).toHaveCount(0);
                 await expect(page.getByRole("button", { name: /^Clear all/ })).toBeVisible();
 
-                const addButton = page.getByTestId("add-transaction-button");
-                await addButton.click();
+                const transactionId = await addEmptyTransaction(page);
+                const addedRow = page.locator(`[data-transaction-id="${transactionId}"]`);
 
-                await expect(addButton).toBeFocused();
                 await expect(page.getByTestId("transaction-row")).toHaveCount(expectedCount);
                 await expect(page.getByRole("button", { name: /^Clear all/ })).toHaveCount(0);
 
@@ -279,24 +330,19 @@ test.describe("Transactions", () => {
                 await expect(toolbar).toContainText(
                     `${expectedCount} transaction${expectedCount === 1 ? "" : "s"}`
                 );
-                await expect(toolbar).toContainText("1 selected");
+                // Revealing a row is discoverability, not a bulk-operation target: nothing selects.
+                await expect(toolbar).not.toContainText("selected");
                 await expect(toolbar).not.toContainText("(filtered)");
                 await expect(page.getByTestId("search-filter")).toHaveValue("");
+                await expect(page.getByRole("row", { selected: true })).toHaveCount(0);
 
-                const selectedRow = page.getByRole("row", { selected: true });
-                await expect(selectedRow).toHaveCount(1);
-                await expect(selectedRow.getByTestId("description-editable")).toHaveValue("");
-                const selectedAccount = selectedRow.getByRole("combobox", {
-                    name: "Select account"
-                });
-                await expect(selectedAccount).not.toHaveText("");
-                await expect(selectedRow.getByTestId("status-editable")).toContainText(
-                    "For Review"
-                );
+                await expect(addedRow.getByTestId("description-editable")).toBeFocused();
+                await expect(addedRow.getByTestId("description-editable")).toHaveValue("");
+                const addedAccount = addedRow.getByRole("combobox", { name: "Select account" });
+                await expect(addedAccount).not.toHaveText("");
+                await expect(addedRow.getByTestId("status-editable")).toContainText("For Review");
 
-                const transactionId = await selectedRow.getAttribute("data-transaction-id");
-                if (!transactionId) throw new Error("Expected persisted transaction identity");
-                const accountName = (await selectedAccount.textContent())?.trim();
+                const accountName = (await addedAccount.textContent())?.trim();
                 if (!accountName) throw new Error("Expected persisted transaction account");
                 return { transactionId, accountName };
             });
@@ -307,34 +353,28 @@ test.describe("Transactions", () => {
             await search.fill("definitely-no-match-p13-r02");
             await search.press("Enter");
         });
-        await page.getByTestId("clear-selection").click();
         await addThroughExcludingFilter("date", 2, async () => {
             await page.getByRole("button", { name: "All time" }).click();
             await page.getByRole("button", { name: "Last year" }).click();
         });
-        await page.getByTestId("clear-selection").click();
         await addThroughExcludingFilter("tag", 3, async () => {
             await page.getByRole("button", { name: "Tags" }).click();
             await page.getByRole("button", { name: "Excluded Tag", exact: true }).click();
         });
-        await page.getByTestId("clear-selection").click();
         await addThroughExcludingFilter("person", 4, async () => {
             await page.getByRole("button", { name: "People" }).click();
             await page.getByRole("button", { name: "Me", exact: true }).click();
         });
-        await page.getByTestId("clear-selection").click();
         await addThroughExcludingFilter("account", 5, async () => {
             await page.getByRole("button", { name: "Accounts" }).click();
             const excludingAccount =
                 firstTransaction.accountName === "Savings" ? "Default" : "Savings";
             await page.getByRole("button", { name: excludingAccount, exact: true }).click();
         });
-        await page.getByTestId("clear-selection").click();
         await addThroughExcludingFilter("status", 6, async () => {
             await page.getByRole("button", { name: "Status" }).click();
             await page.getByRole("button", { name: "Paid", exact: true }).click();
         });
-        await page.getByTestId("clear-selection").click();
         const historyTransaction = await addThroughExcludingFilter("duplicates", 7, async () => {
             await page.getByTestId("duplicates-filter").click();
         });
@@ -351,7 +391,7 @@ test.describe("Transactions", () => {
         await page.getByRole("button", { name: "Redo" }).click();
         await expect(historyRow).toBeVisible();
         await expect(page.getByTestId("transaction-row")).toHaveCount(7);
-        await expect(historyRow).toHaveAttribute("aria-selected", "true");
+        await expect(historyRow).toHaveAttribute("aria-selected", "false");
         await expect(page.getByRole("button", { name: /^Clear all/ })).toHaveCount(0);
 
         await page.reload();
@@ -397,41 +437,38 @@ test.describe("Transactions", () => {
             });
         });
 
-        await test.step("clear an excluding filter and reveal the selected canonical row", async () => {
+        await test.step("clear an excluding filter and focus the canonical row", async () => {
             const search = page.getByTestId("search-filter");
             await search.fill("definitely-no-match-p13-r03");
             await search.press("Enter");
             await expect(page.getByTestId("transaction-row")).toHaveCount(0);
             await expect(page.getByRole("button", { name: /^Clear all/ })).toBeVisible();
 
-            const addButton = page.getByTestId("add-transaction-button");
-            await addButton.click();
+            // The new row sorts to index 51, well past the first virtual window, so this is the
+            // load-bearing virtualization case: the row must mount and take the caret anyway.
+            const transactionId = await addEmptyTransaction(page);
+            const exactRow = page.locator(`[data-transaction-id="${transactionId}"]`);
 
-            await expect(addButton).toBeFocused();
             await expect(search).toHaveValue("");
             await expect(page.getByRole("button", { name: /^Clear all/ })).toHaveCount(0);
 
             const toolbar = page.getByTestId("transaction-table-toolbar");
             await expect(toolbar).toContainText("52 transactions");
-            await expect(toolbar).toContainText("1 selected");
+            await expect(toolbar).not.toContainText("selected");
             await expect(toolbar).not.toContainText("(filtered)");
-            await expect(page.getByTestId("bulk-edit-toolbar")).toContainText("Edit 1");
+            await expect(page.getByTestId("bulk-edit-toolbar")).toHaveCount(0);
 
-            const selectedRow = page.getByRole("row", { selected: true });
-            await expect(selectedRow).toBeVisible();
-            await expect(selectedRow.getByTestId("description-editable")).toHaveValue("");
-            await expect(selectedRow.getByTestId("date-editable")).not.toHaveValue("");
-            await expect(
-                selectedRow.getByRole("combobox", { name: "Select account" })
-            ).toContainText("Default");
-            await expect(selectedRow.getByTestId("status-editable")).toContainText("For Review");
-            await expect(selectedRow.getByTestId("amount-editable")).toHaveValue("0.00");
+            await expect(exactRow).toBeVisible();
+            await expect(exactRow.getByTestId("description-editable")).toBeFocused();
+            await expect(exactRow.getByTestId("description-editable")).toHaveValue("");
+            await expect(exactRow.getByTestId("date-editable")).not.toHaveValue("");
+            await expect(exactRow.getByRole("combobox", { name: "Select account" })).toContainText(
+                "Default"
+            );
+            await expect(exactRow.getByTestId("status-editable")).toContainText("For Review");
+            await expect(exactRow.getByTestId("amount-editable")).toHaveValue("0.00");
+            await expect(exactRow.locator("../..")).toHaveAttribute("data-index", "51");
 
-            const transactionId = await selectedRow.getAttribute("data-transaction-id");
-            if (!transactionId) throw new Error("Expected persisted transaction identity");
-            await expect(selectedRow.locator("../..")).toHaveAttribute("data-index", "51");
-
-            const exactRow = page.locator(`[data-transaction-id="${transactionId}"]`);
             await page.getByRole("button", { name: "Undo" }).click();
             await expect(exactRow).toHaveCount(0);
             await expect(page.getByRole("row", { selected: true })).toHaveCount(0);
@@ -441,11 +478,11 @@ test.describe("Transactions", () => {
 
             await page.getByRole("button", { name: "Redo" }).click();
             await expect(exactRow).toBeVisible();
-            await expect(exactRow).toHaveAttribute("aria-selected", "true");
+            await expect(exactRow).toHaveAttribute("aria-selected", "false");
             await expect(exactRow.locator("../..")).toHaveAttribute("data-index", "51");
             await expect(toolbar).toContainText("52 transactions");
-            await expect(toolbar).toContainText("1 selected");
-            await expect(page.getByTestId("bulk-edit-toolbar")).toContainText("Edit 1");
+            await expect(toolbar).not.toContainText("selected");
+            await expect(page.getByTestId("bulk-edit-toolbar")).toHaveCount(0);
 
             await page.reload();
             await expect(toolbar).toContainText("52 transactions");
@@ -774,11 +811,9 @@ test.describe("Transactions", () => {
         await goToTransactions(page);
 
         await test.step("activate add transaction row and fill some data", async () => {
-            const addButton = page.locator('[data-testid="add-transaction-button"]');
-            await addButton.click();
-
+            const addedRowId = await addEmptyTransaction(page);
             const descriptionInput = page
-                .getByRole("row", { selected: true })
+                .locator(`[data-transaction-id="${addedRowId}"]`)
                 .getByTestId("description-editable");
             await descriptionInput.fill("Test transaction");
             await descriptionInput.press("Enter");

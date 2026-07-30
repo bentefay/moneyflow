@@ -72,6 +72,14 @@ export interface TransactionTableProps {
     ) => void;
     /** Callback when selection changes */
     onSelectionChange?: (ids: Set<string>) => void;
+    /**
+     * Stable ID of a transaction whose description input should take keyboard focus as soon as its
+     * row mounts. The table pins that row into the virtual range so a row outside the visible
+     * window still mounts and can be focused, rather than the request being silently dropped.
+     */
+    focusDescriptionTransactionId?: string | null;
+    /** Reports that the {@link focusDescriptionTransactionId} request landed, so it can be cleared. */
+    onFocusDescriptionApplied?: () => void;
     /** Callback when a transaction is clicked */
     onTransactionClick?: (id: string) => void;
     /** Callback when a transaction row receives focus */
@@ -217,6 +225,8 @@ export function TransactionTable({
     onDescriptionCommitText,
     onDescriptionSelectAlias,
     onSelectionChange,
+    focusDescriptionTransactionId = null,
+    onFocusDescriptionApplied,
     onTransactionClick,
     onTransactionFocus,
     onTransactionFieldFocus,
@@ -263,14 +273,25 @@ export function TransactionTable({
         [transactions]
     );
     const focusedIndex = focusedId == null ? undefined : transactionIndexById.get(focusedId);
+    const focusDescriptionIndex =
+        focusDescriptionTransactionId == null
+            ? undefined
+            : transactionIndexById.get(focusDescriptionTransactionId);
+    // Both the row that currently holds focus and the row that has been asked to take focus must
+    // stay mounted regardless of scroll position: unmounting the former loses the caret, and
+    // unmounting the latter means the focus request never lands at all.
     const extractVirtualRange = useCallback(
         (range: Range) => {
             const visibleIndexes = defaultRangeExtractor(range);
-            if (focusedIndex == null || visibleIndexes.includes(focusedIndex))
-                return visibleIndexes;
-            return [...visibleIndexes, focusedIndex].sort((left, right) => left - right);
+            const pinnedIndexes = [focusedIndex, focusDescriptionIndex].filter(
+                (index): index is number => index != null && !visibleIndexes.includes(index)
+            );
+            if (pinnedIndexes.length === 0) return visibleIndexes;
+            return [...new Set([...visibleIndexes, ...pinnedIndexes])].sort(
+                (left, right) => left - right
+            );
         },
-        [focusedIndex]
+        [focusDescriptionIndex, focusedIndex]
     );
 
     // Use table selection hook for managing selection actions
@@ -470,6 +491,10 @@ export function TransactionTable({
                                         presence={presenceByTransactionId[transaction.id]}
                                         isSelected={isSelected}
                                         isExpanded={expandedIds.has(transaction.id)}
+                                        focusDescriptionRequested={
+                                            focusDescriptionTransactionId === transaction.id
+                                        }
+                                        onFocusDescriptionApplied={onFocusDescriptionApplied}
                                         availableAccounts={availableAccounts}
                                         availableStatuses={availableStatuses}
                                         availableTags={availableTags}

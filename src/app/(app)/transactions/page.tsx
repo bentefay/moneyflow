@@ -37,6 +37,14 @@ import {
     computeFieldRuleRobotState,
     type RobotCurrentValue
 } from "@/components/features/transactions/field-rule-robot-state";
+import {
+    pendingFocusDescriptionId,
+    retireFocusDescription,
+    retireScroll,
+    revealCreatedTransaction,
+    revealExistingTransaction,
+    type TransactionRevealIntent
+} from "@/components/features/transactions/transaction-reveal-intent";
 import { TransactionRuleRobot } from "@/components/features/transactions/TransactionRuleRobot";
 import { useVaultPresenceContext as useVaultPresence } from "@/components/providers/vault-presence-provider";
 import { useToast } from "@/components/ui/toast";
@@ -170,7 +178,7 @@ function TransactionsPageContent() {
 
     // Pagination state
     const [displayCount, setDisplayCount] = useState(PAGE_SIZE);
-    const [transactionIdToReveal, setTransactionIdToReveal] = useState<string | null>(null);
+    const [revealIntent, setRevealIntent] = useState<TransactionRevealIntent | null>(null);
     const transactionTableContainerRef = useRef<HTMLDivElement>(null);
 
     // Selection state - simple Set instead of custom hook
@@ -264,7 +272,7 @@ function TransactionsPageContent() {
             Math.max(currentDisplayCount, requiredDisplayCount)
         );
         setSelectedIds(new Set([requestedTransactionId]));
-        setTransactionIdToReveal(requestedTransactionId);
+        setRevealIntent(revealExistingTransaction(requestedTransactionId));
     }
 
     // Paginate
@@ -300,11 +308,13 @@ function TransactionsPageContent() {
         router.replace("/transactions", { scroll: false });
     }, [landedSourceId, requestedTransactionId, router]);
 
+    // Scrolling retires only the scroll step. A pending focus step outlives it, because the table
+    // keeps the target row mounted across the scroll and reports back once the caret has landed.
     useEffect(() => {
-        if (transactionIdToReveal == null) return;
+        if (revealIntent == null || !revealIntent.scrollPending) return;
 
         const transactionIndex = displayedTransactions.findIndex(
-            (transaction) => transaction.id === transactionIdToReveal
+            (transaction) => transaction.id === revealIntent.transactionId
         );
         if (transactionIndex < 0) return;
 
@@ -317,8 +327,15 @@ function TransactionsPageContent() {
         const estimatedRowHeight = grid.scrollHeight / displayedTransactions.length;
         const precedingVisibleRowIndex = Math.max(0, transactionIndex - 1);
         scrollContainer.scrollTop = grid.offsetTop + precedingVisibleRowIndex * estimatedRowHeight;
-        setTransactionIdToReveal(null);
-    }, [displayedTransactions, transactionIdToReveal]);
+        setRevealIntent(retireScroll(revealIntent));
+    }, [displayedTransactions, revealIntent]);
+
+    const focusDescriptionTransactionId = pendingFocusDescriptionId(revealIntent);
+    const handleFocusDescriptionApplied = useCallback(() => {
+        setRevealIntent((currentIntent) =>
+            currentIntent == null ? null : retireFocusDescription(currentIntent)
+        );
+    }, []);
 
     // Load more handler
     const handleLoadMore = useCallback(() => {
@@ -577,11 +594,13 @@ function TransactionsPageContent() {
         setDisplayCount((currentDisplayCount) =>
             Math.max(currentDisplayCount, requiredDisplayCount)
         );
-        setTransactionIdToReveal(transactionId);
+        // Selection means "target for bulk operations", and an empty new row is an edit target, not
+        // a bulk-operation target. So creating a row leaves any in-progress multi-row selection
+        // exactly as the user left it, and identifies the new row by putting the caret in it.
+        setRevealIntent(revealCreatedTransaction(transactionId));
         insertTransaction({
             transaction
         });
-        setSelectedIds(new Set([transactionId]));
     }, [accountOptions, defaultStatusId, insertTransaction, transactions]);
 
     // Handle bulk delete - uses deleteTransaction mutation
@@ -1151,6 +1170,8 @@ function TransactionsPageContent() {
                     onDescriptionCommitText={handleDescriptionCommitText}
                     onDescriptionSelectAlias={handleDescriptionSelectAlias}
                     onSelectionChange={setSelectedIds}
+                    focusDescriptionTransactionId={focusDescriptionTransactionId}
+                    onFocusDescriptionApplied={handleFocusDescriptionApplied}
                     onLoadMore={handleLoadMore}
                     hasMore={hasMore}
                     onTransactionDelete={handleSingleDelete}

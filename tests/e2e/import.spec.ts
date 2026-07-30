@@ -21,6 +21,7 @@ import * as path from "path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { createNewIdentity, goToImportNew, goToImports, goToTransactions } from "./helpers";
+import { addEmptyTransaction } from "./helpers/settlement";
 
 const XML_OFX_CONTENT = `<?xml version="1.0" encoding="UTF-8"?>
 <?OFX OFXHEADER="200" VERSION="220" SECURITY="NONE" OLDFILEUID="NONE" NEWFILEUID="NONE"?>
@@ -803,10 +804,8 @@ test.describe("Import Panel", () => {
         });
 
         await test.step("add a manual row and import a distinct OFX batch", async () => {
-            await page.getByTestId("add-transaction-button").click();
-            const manualRow = page.getByRole("row", { selected: true });
-            manualTransactionId = (await manualRow.getAttribute("data-transaction-id")) ?? "";
-            if (!manualTransactionId) throw new Error("Missing manual transaction identity");
+            manualTransactionId = await addEmptyTransaction(page);
+            const manualRow = page.locator(`[data-transaction-id="${manualTransactionId}"]`);
             await manualRow.getByTestId("description-editable").fill(manualDescription);
             await manualRow.getByTestId("description-editable").press("Enter");
             await manualRow.getByTestId("amount-editable").fill("7.77");
@@ -980,10 +979,8 @@ NEWFILEUID:NONE
         let manualTransactionId = "";
         let unrelatedTransactionId = "";
         await test.step("add unrelated manual and imported survivors", async () => {
-            await page.getByTestId("add-transaction-button").click();
-            const manualRow = page.getByRole("row", { selected: true });
-            manualTransactionId = (await manualRow.getAttribute("data-transaction-id")) ?? "";
-            if (!manualTransactionId) throw new Error("Missing nested journey manual identity");
+            manualTransactionId = await addEmptyTransaction(page);
+            const manualRow = page.locator(`[data-transaction-id="${manualTransactionId}"]`);
             await manualRow.getByTestId("description-editable").fill("P14 nested manual survivor");
             await manualRow.getByTestId("description-editable").press("Enter");
 

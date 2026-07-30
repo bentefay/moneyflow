@@ -24,6 +24,7 @@ import {
 } from "./helpers";
 import {
     addAccount,
+    addEmptyTransaction,
     addPeople,
     addTransaction,
     createTransaction,
@@ -36,7 +37,6 @@ import {
     PAID_STATUS_NAME,
     readPersonIds,
     rowById,
-    selectedRow,
     setAccountCurrency,
     setAccountOwnership,
     setAllocation,
@@ -497,8 +497,7 @@ test.describe("People page settlement matrices", () => {
 
         await goToTransactions(page);
         // Allocations entered on the freshly added row, before any reload.
-        await page.getByTestId("add-transaction-button").click();
-        const row = selectedRow(page);
+        const row = rowById(page, await addEmptyTransaction(page));
         const amount = row.getByTestId("amount-editable");
         await amount.click();
         await amount.fill("-60.00");

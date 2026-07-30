@@ -96,6 +96,10 @@ export interface TransactionRowProps {
     isSelected?: boolean;
     /** Whether the notes row is expanded */
     isExpanded?: boolean;
+    /** One-shot request to focus this row's description input as soon as the row mounts. */
+    focusDescriptionRequested?: boolean;
+    /** Reports that a {@link focusDescriptionRequested} request landed. */
+    onFocusDescriptionApplied?: () => void;
     /** Available accounts for inline editing */
     availableAccounts?: AccountOption[];
     /** Available statuses for inline editing */
@@ -155,6 +159,8 @@ export function TransactionRow({
     presence,
     isSelected = false,
     isExpanded = false,
+    focusDescriptionRequested = false,
+    onFocusDescriptionApplied,
     availableAccounts = [],
     availableStatuses = [],
     availableTags = [],
@@ -359,6 +365,8 @@ export function TransactionRow({
                                 onDescriptionSelectAlias?.(aliasId, origin);
                             }}
                             onEditingChange={setIsEditingDescription}
+                            focusRequested={focusDescriptionRequested}
+                            onFocusRequestApplied={onFocusDescriptionApplied}
                             className="truncate font-medium"
                             inputClassName="font-medium"
                             placeholder="No description"

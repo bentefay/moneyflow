@@ -8,6 +8,7 @@
 import { expect, type Page, test } from "@playwright/test";
 
 import { createNewIdentity, goToImportNew, goToTransactions, goToTxDescriptions } from "./helpers";
+import { addEmptyTransaction } from "./helpers/settlement";
 
 // ============================================================================
 // Alias-Specific Helpers
@@ -268,10 +269,8 @@ test.describe("Description Aliases", () => {
                 if (request.url().includes("sync.pushOps"))
                     pushedBodies.push(request.postData() ?? "");
             });
-            await page.getByTestId("add-transaction-button").click();
-            const addedRow = page.getByRole("row", { selected: true });
-            const addedRowId = await addedRow.getAttribute("data-transaction-id");
-            if (!addedRowId) throw new Error("Expected persisted transaction identity");
+            const addedRowId = await addEmptyTransaction(page);
+            const addedRow = page.locator(`[data-transaction-id="${addedRowId}"]`);
             const addedDescription = addedRow.getByTestId("description-editable");
             await addedDescription.fill("Manual alias only");
             await addedDescription.press("Enter");

@@ -6,6 +6,7 @@ import path from "node:path";
 import { expect, chromium, test } from "@playwright/test";
 
 import { readActiveVaultId } from "./helpers";
+import { addEmptyTransaction } from "./helpers/settlement";
 
 function countFixtureVaultOps(vaultId: string): number {
     if (
@@ -146,8 +147,8 @@ test("a browser-duplicated tab hydrates onboarding and an authenticated vault", 
         const receiverPushBaseline = receiverPushOps;
         const description = "Duplicate tab live sync";
 
-        await authenticatedDuplicate.getByTestId("add-transaction-button").click();
-        const addedRow = authenticatedDuplicate.getByRole("row", { selected: true });
+        const addedRowId = await addEmptyTransaction(authenticatedDuplicate);
+        const addedRow = authenticatedDuplicate.locator(`[data-transaction-id="${addedRowId}"]`);
         const descriptionInput = addedRow.getByTestId("description-editable");
         await descriptionInput.fill(description);
         await descriptionInput.press("Enter");

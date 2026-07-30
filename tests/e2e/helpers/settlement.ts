@@ -148,9 +148,25 @@ export async function setAccountOwnership(
     await expect(panel).toContainText("Total: 100.00%");
 }
 
-/** The row created most recently by {@link addTransaction}, which is left selected. */
-export function selectedRow(page: Page): Locator {
-    return page.getByRole("row", { selected: true });
+/**
+ * The row created most recently by Add, identified by the caret being in its description.
+ *
+ * Add deliberately does not touch selection (UR-001), so the new row is identified the same way a
+ * user identifies it: it is the row holding keyboard focus. Focus lands only once the virtualized
+ * row has actually mounted, which makes this the correct point to synchronise on — waiting for it
+ * needs no sleep and no retry.
+ */
+export function newlyAddedRow(page: Page): Locator {
+    return page.locator('[data-transaction-id]:has([data-testid="description-editable"]:focus)');
+}
+
+/** IDs of every currently selected row, in row order. */
+export async function readSelectedRowIds(page: Page): Promise<string[]> {
+    return page
+        .locator('[data-transaction-id][aria-selected="true"]')
+        .evaluateAll((elements) =>
+            elements.map((element) => element.getAttribute("data-transaction-id") ?? "")
+        );
 }
 
 /** Locates a transaction row by its stable transaction ID. */
@@ -188,16 +204,29 @@ export async function setStatus(page: Page, row: Locator, statusName: string): P
 }
 
 /**
+ * Clicks Add and returns the new row's stable ID once its description holds the caret.
+ *
+ * Waiting for focus rather than for a row count is what makes this deterministic: focus can only
+ * land after the row has mounted, so the caller never races the virtualizer.
+ */
+export async function addEmptyTransaction(page: Page): Promise<string> {
+    await page.getByTestId("add-transaction-button").click();
+    const row = newlyAddedRow(page);
+    await expect(row).toHaveCount(1);
+    return readTransactionId(row);
+}
+
+/**
  * Creates a transaction through the real grid and returns its stable ID.
  *
  * Assumes the Transactions page is open. Allocation entry, status and amount all go through the
  * production controls so the resulting vault state is exactly what a user would produce.
  */
 export async function addTransaction(page: Page, spec: TransactionSpec): Promise<string> {
-    await page.getByTestId("add-transaction-button").click();
-    const row = selectedRow(page);
-    await expect(row).toBeVisible();
-    const transactionId = await readTransactionId(row);
+    const transactionId = await addEmptyTransaction(page);
+    // The focused-row locator stops matching the moment a field is committed and focus moves on, so
+    // every later step addresses the row by its stable ID instead.
+    const row = rowById(page, transactionId);
 
     if (spec.account != null) {
         const account = row.locator('[data-cell="account"]').getByRole("combobox");

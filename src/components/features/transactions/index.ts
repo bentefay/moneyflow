@@ -17,6 +17,14 @@ export {
 } from "./TransactionRow";
 export { TransactionTable, type TransactionTableProps } from "./TransactionTable";
 export {
+    pendingFocusDescriptionId,
+    retireFocusDescription,
+    retireScroll,
+    revealCreatedTransaction,
+    revealExistingTransaction,
+    type TransactionRevealIntent
+} from "./transaction-reveal-intent";
+export {
     type AllocationColumn,
     type AllocationColumnModel,
     buildAllocationColumnModel
