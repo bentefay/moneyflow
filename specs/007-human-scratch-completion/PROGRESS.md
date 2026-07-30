@@ -17,8 +17,8 @@ review evidence.
   1/8 full-suite; the rev-02 `toBeEditable`/`toHaveValue` idiom cannot prove hydration for a
   controlled `Input`, which — unlike `Button` — has no `useIsHydrated` gate, root-confirmed by
   source; Q-P20B-19). HS-021 ROLLED BACK via §275 `RB-P21-04` (marker `:159` `[x] -> []`, rolling
-  `469e98c7… -> f46c2d35…`, 24,259 bytes, normalized 20/1). **Tally: 22 of 22 requirements `passed`**;
-  **21 of 21 feature packages `passed`** (P20B rev 06 integrated; only the P21 control audit remains). C-1 upstream currency
+  `469e98c7… -> f46c2d35…`, 24,259 bytes, normalized 20/1). **Tally: 21 of 22 requirements `passed`** (HS-016 rolled back via RB-P21-05, `changes_requested`);
+  **20 of 21 feature packages `passed`** (P20A REOPENED rev 03 for the HS-016 truthful-copy fix; P20B rev 06 integrated). C-1 upstream currency
   drift ruled a non-blocking accepted carry-forward (Q-P21-04-01).
 - **Next action:** P21 rev 05 returned **FAIL** on M-1 [false marketing claim; reviewer preserved at 7cb651d]. This SUPERSEDES the open-audit note that follows. Q-P20B-00 ruled **OUT-OF-GOAL** (D-019, `f290246`): the `pruneBuckets` engine fix is future out-of-goal work and `p20b-reviewer-01 §6.1` is upheld. In-goal step: execute **RB-P21-05** §275 rollback of the HS-016 marker (`:328` `[x] -> []`), downgrade P20A -> `changes_requested`, then dispatch the P20A/HS-016 truthful-copy re-fix + a DISTINCT reviewer. No package fix dispatch until the batch is finalized and cleared. Full detail in the dated EOF event 2026-07-30. [Historical, now moot:] open P21 revision 05 — the executable final audit over all 21 passed feature
   packages (fresh DISTINCT collector + reviewer per §114). P20B rev 06 PASSED (DISTINCT
@@ -40,17 +40,17 @@ review evidence.
   `b91ca932d536285fc3e47091baea176ab2f4c314d02147e61df3615ff8cd5e8b` and immutable
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
   `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines and 25,441 bytes
-- **Rolling scratch SHA-256:** `469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a`
+- **Rolling scratch SHA-256:** `00291e2d94a5691cd666a6cabf679de1115eef38e22bbc5e072e072024beaaca`
 - **Authorized checked HS IDs:** HS-001, HS-002, HS-003, HS-004, HS-005, HS-006, HS-007, HS-008,
-  HS-009, HS-010, HS-011, HS-012, HS-013, HS-014, HS-015, HS-016, HS-017, HS-018, HS-019, HS-020, HS-021
-  (21 of 21 human-scratch IDs; HS-021 RE-PASSED after P20B rev 06 PASS — DISTINCT `p20b-reviewer-06`
+  HS-009, HS-010, HS-011, HS-012, HS-013, HS-014, HS-015, HS-017, HS-018, HS-019, HS-020, HS-021
+  (20 of 21 human-scratch IDs; HS-016 ROLLED BACK via RB-P21-05 after P21 rev-05 M-1 [D-019]; HS-021 RE-PASSED after P20B rev 06 PASS — DISTINCT `p20b-reviewer-06`
   10/10 full-suite `--retries=0` load campaign; §275 forward marker re-applied `:159` `[] -> [x]`
   (rolling `f46c2d35… -> 469e98c7…`); FS-001 is markerless, completed via ledger)
 - **Active completion marker event:** none pending. HS-021 marker ROLLED BACK via §275 `RB-P21-04`
   after the P21 rev-04 audit FAIL, scratch `:159` `- [x]` -> `- []`, rolling
   `469e98c7… -> f46c2d35…` (marker-only one-line diff `159c159` verified against a mktemp snapshot;
   file 24,259 bytes; 42 checked / 1 unchecked; normalized blocks 20/1)
-- **Active P21 rollback batch:** **RB-P21-05 ACTIVE** — P21 rev-05 audit FAIL M-1 (false durability marketing claim at `FeaturesSection.tsx:65`; Q-P20B-00 engine ruled OUT-OF-GOAL D-019); owner `P20A`/`HS-016`; single-ID ordered pending set `[HS-016]`; empty completed list; starting == current rolling SHA `469e98c7…`. See EOF prepared/activated batch event 2026-07-30. Prior: none (`RB-P21-04` COMPLETED + cleared — see the completed-batch
+- **Active P21 rollback batch:** none (**RB-P21-05 COMPLETED + cleared** — P21 rev-05 M-1; owner `P20A`/`HS-016`; single-ID pending set `[HS-016]` fully processed; completed `[HS-016: [x]->[], 469e98c7… -> 00291e2d…]`; contiguous hash chain `469e98c7… -> 00291e2d…` ends at actual rolling SHA `00291e2d…`; FS-001 never entered the batch; see the completed-batch EOF event 2026-07-30). Prior: none (`RB-P21-04` COMPLETED + cleared — see the completed-batch
   event at EOF). Batch summary: failed review `reviews/P21-review-04.md` (P21 rev 04 audit FAIL, F-1
   `import.spec.ts:1512` eager-assert cohort Q-P20B-18 + F-2 `identity.spec.ts:282` re-flake
   Q-P20B-19); owning package `P20B` (now `changes_requested`, rev 06 reopen); requirement `HS-021`
@@ -205,7 +205,7 @@ required marker rollbacks before the next dispatch.
 | HS-013      | human scratch block               | P15                          | authorized marker after package PASS       | passed            | P15 integration `9c5d7be8ee4cf7c3fda5f1a7320c053362672e3a`; `reviews/P15-review-02.md`; marker `f0adfef6… -> ce52d7df…`                                                                                                                                                                                                                                                                                                                                                             |
 | HS-014      | human scratch block               | P04                          | authorized marker after package PASS       | passed            | P04 integration `b905ecb810334ed9697f57140047964135ade6ea`; `reviews/P04-review-02.md`; marker `db97178a… -> c74a2a78…`                                                                                                                                                                                                                                                                                                                                                             |
 | HS-015      | human scratch block               | P05                          | authorized marker after package PASS       | passed            | marker `specs/human-scratch.md:325` `[x]`; review `reviews/P05-review-13.md` PASS 0 blocking; integration `8101bb2`                                                                                                                                                                                                                                                                                                                                                                 |
-| HS-016      | human scratch block               | P20A                         | authorized marker after package PASS       | rollback_pending  | **RB-P21-05 ACTIVE (P21 rev-05 M-1, D-019): marker rollback in progress; marker still `[x]` while `rollback_pending`.** Prior pass: P20A integration (Commit B); `reviews/P20A-review-02.md`; `evidence/P20A/implementation-02.md`; marker `9fcdc51e… -> f46c2d35…`                                                                                                                                                                                                                                                                                                                                                     |
+| HS-016      | human scratch block               | P20A                         | authorized marker after package PASS       | changes_requested | **ROLLED BACK via RB-P21-05 after P21 rev-05 audit FAIL M-1 (D-019): marker `[x] -> []` at scratch `:328`, rolling `469e98c7… -> 00291e2d…`, 24,259 bytes, one-line diff 328c328, block byte-matches SCOPE HS-016. Re-passes when P20A re-passes the truthful copy and the §275 forward marker is re-applied.** Prior pass: P20A integration (Commit B); `reviews/P20A-review-02.md`; `evidence/P20A/implementation-02.md`; marker `9fcdc51e… -> f46c2d35…`                                                                                                                                                                                                                                                                                                                                                     |
 | HS-017      | human scratch block               | P02                          | authorized marker after package PASS       | passed            | P02 integration `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7`; `reviews/P02-review-02.md`; marker `dcd03b23… -> 5d283ab1…`                                                                                                                                                                                                                                                                                                                                                             |
 | HS-018      | human scratch block               | P03                          | authorized marker after package PASS       | passed            | P03 integration `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34`; `reviews/P03-review-01.md`; marker `5d283ab1… -> db97178a…`                                                                                                                                                                                                                                                                                                                                                             |
 | HS-019      | human scratch block               | P18                          | authorized marker after package PASS       | passed            | P18 integration `fa9ae8d0b6b7948bd2c4a508ad869d5d6955a6a1`; `reviews/P18-review-01.md`; marker `9a0f6633… -> c4121a48…`                                                                                                                                                                                                                                                                                                                                                             |
@@ -6076,3 +6076,27 @@ owning/affected package `P20A`; impacted requirement `HS-016`; ordered pending s
 `changes_requested`. FS-001 not impacted (no source or scratch edit). HS-016 remains validly `[x]`
 while `rollback_pending`. No dispatch is legal while the batch is active. Marker processing (step 3)
 follows in the next control commit.
+
+### 2026-07-30 — §275 RB-P21-05 COMPLETED + cleared: HS-016 rolled back, rolling 469e98c7 to 00291e2d
+
+**Process (step 3).** HS-016 verified `[x]`, `rollback_pending`, authorized-ID member, actual SHA ==
+batch current rolling SHA `469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a`.
+Snapshotted scratch to a private `mktemp`; `sed`-flipped scratch `:328` `- [x]` -> `- []`
+(marker-only; `diff` shows exactly one hunk `328c328`); deleted the snapshot; normalized/byte-compared
+every block to SCOPE — HS-016 block (scratch 328-331) now byte-matches SCOPE `sourceTextLines`
+exactly (SCOPE stores the frozen unchecked state), all other blocks unchanged; file 24,259 bytes,
+42 checked / 1 unchecked, normalized blocks 42/1 vs SCOPE.
+
+**Finalize (steps 4-5).** After-SHA `00291e2d94a5691cd666a6cabf679de1115eef38e22bbc5e072e072024beaaca`.
+Completed record: `[HS-016: order 1, [x] -> [], before 469e98c7… / after 00291e2d…, P21 rev 05 FAIL
+M-1]`. Batch + global rolling SHA advanced `469e98c7… -> 00291e2d…`; HS-016 removed from the
+authorized checked set (21 -> 20); requirement `HS-016` `rollback_pending -> changes_requested`;
+package `P20A` `changes_requested` (rev 03 reopen) recorded at activation. FS-001 never entered the
+batch and received no source or scratch edit. Pending set now empty; all batched IDs `[]`,
+unauthorized, `changes_requested`. Contiguous hash chain `469e98c7… -> 00291e2d…` ends at the ACTUAL
+`sha256sum specs/human-scratch.md` == `00291e2d…`. Batch **RB-P21-05 CLOSED**; active rollback batch
+reset to `none`. Immutable frozen identity `b91ca932…` and FS-001 `0d0e2a14…` (715 lines / 25,441
+bytes) unchanged; settlement blob `010f3c93…`; product identity pinned (`git diff 371a88a HEAD -- src/`
+== 0). **Next (fix dispatch now permitted):** dispatch the P20A/HS-016 implementer to soften the
+`FeaturesSection.tsx:65` durability claim to a truthful statement, plus a DISTINCT reviewer; integrate;
+re-pass HS-016 via the §275 forward marker; re-open P21 rev 06.
