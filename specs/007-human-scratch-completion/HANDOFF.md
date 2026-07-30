@@ -9,7 +9,10 @@ You do NOT edit product, tests, migrations, ledgers, markers, scratch, SCOPE, `F
 QUESTIONS, DECISIONS, or any review. Only root transcribes results into FINAL-AUDIT after an
 independent PASS.
 
-**Package/revision:** P21 / rev 06. **BASE == HEAD == `8f34242e2ccf0add273767ff3688224d6b9d36a0`.**
+**Package/revision:** P21 / rev 06. **BASE == HEAD == the commit `git rev-parse HEAD` reports when
+you start** (root dispatches you immediately after the final ledger commit, so BASE is HEAD by
+construction; the literal hash is given in your dispatch message). Verify `git status` is clean of
+unexpected tracked changes.
 Branch `main`. A non-empty `BASE..HEAD` range requires root reconciliation — if you observe one,
 report it to root rather than proceeding.
 
