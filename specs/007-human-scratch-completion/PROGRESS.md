@@ -7,7 +7,7 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** **P21** (control — executable final audit), **revision 05 returned FAIL (M-1); Q-P20B-00 engine scope adjudication RESOLVED OUT-OF-GOAL (D-019, ruling f290246); executing RB-P21-05 rollback of the HS-016 marker, then P20A copy re-fix — see EOF event 2026-07-30**
+- **Current package:** **P21** (control — executable final audit), **revision 05 returned FAIL (M-1); Q-P20B-00 engine ruled OUT-OF-GOAL (D-019, f290246); **RB-P21-05 COMPLETED** (HS-016 marker `[x] -> []` at `:328`, rolling `469e98c7… -> 00291e2d…`, batch cleared); **P20A rev 03 implementer `p20a-implementer-03` DISPATCHED** for the truthful-copy fix — see EOF events 2026-07-30**
   (all 21 feature packages passed; HS-021 RE-PASSED after P20B rev 06 PASS). DISTINCT `p21-reviewer-04` returned the single formal
   **FAIL** (`reviews/P21-review-04.md`, committed `60c2eca`) on E2E stability alone — every other
   contract clause passed independently (`pnpm audit --prod` exit 0; typecheck/lint/build/unit green;
@@ -6100,3 +6100,16 @@ bytes) unchanged; settlement blob `010f3c93…`; product identity pinned (`git d
 == 0). **Next (fix dispatch now permitted):** dispatch the P20A/HS-016 implementer to soften the
 `FeaturesSection.tsx:65` durability claim to a truthful statement, plus a DISTINCT reviewer; integrate;
 re-pass HS-016 via the §275 forward marker; re-open P21 rev 06.
+
+### 2026-07-30 — P20A rev 03 DISPATCHED (HS-016 truthful-copy fix)
+
+RB-P21-05 cleared, so fix dispatch is permitted. Rewrote `HANDOFF.md` (`f7db5cc`) as the
+`p20a-implementer-03` brief and dispatched the implementer (opus-tier, fresh context) at BASE
+`f7db5cc`. Charter: soften the false durability absolute at `FeaturesSection.tsx:65` ("will not
+overwrite each other") to a truthful statement — keep the delivered real-time-collaboration / CRDT
+merge claim, drop the zero-lost-data absolute — plus a landing test guard, all six checks green
+under full-suite `--retries=0` E2E, evidence `evidence/P20A/implementation-03.md`. Engine fix stays
+OUT-OF-GOAL (D-019); implementer must not touch `pruneBuckets`/engine/sync or any ledger/marker.
+On handback root will verify-not-trust, dispatch a DISTINCT reviewer (`reviews/P20A-review-03.md`),
+integrate, re-pass HS-016 via the §275 forward marker (`00291e2d… -> ` all-checked), restore the
+authorized set 20 -> 21, set P20A/HS-016 `passed`, and re-open P21 rev 06.
