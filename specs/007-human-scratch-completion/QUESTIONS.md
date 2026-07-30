@@ -2401,3 +2401,48 @@ must remain visually distinguishable.
 Scope routing is unchanged by this amendment and is still NOT self-decided by root: the design is
 settled, but whether this is an in-scope HS-003/P10 defect or new scope is left to the P21 rev 06
 audit finding (see U-3 above).
+
+### U-4 AMENDMENT (2026-07-30) — empirical evidence AGAINST the locale approach
+
+The user reported the app inferred **USD** for them and asked whether their locale is wrong. Root
+measured the actual environment:
+
+| Signal | Value | Implied currency |
+| --- | --- | --- |
+| Locale (`LANG` -> `navigator.language`) | `en-US` | **USD** (wrong) |
+| Timezone (`Intl.DateTimeFormat().resolvedOptions().timeZone`) | `Australia/Brisbane` | **AUD** (correct) |
+
+The user's locale is not misconfigured in any unusual sense: `LANG=en_US.UTF-8` is the default on most
+Linux installs, Docker images and dev environments, and it only visibly affects date/number
+formatting, so it is commonly left untouched. This is the systematic failure mode of the implemented
+approach: **`en-US` is the world's default locale string, so region-from-locale silently collapses to
+`US` for a large population who are not in the US**, biasing detection toward USD with no signal to
+the user that it is wrong.
+
+Timezone lacks that failure mode: it is set from a map at install time and is almost always genuinely
+correct, because an incorrect timezone visibly breaks clocks and calendars. There is no equivalent
+"default nobody changes".
+
+**This is a direct empirical counterexample to the rationale currently asserted in
+`src/lib/domain/detect-currency.ts:4-6`** ("more reliable than timezone because locale directly
+encodes cultural/regional preferences"). Locale encodes LANGUAGE preference; its region subtag is a
+frequently-inaccurate byproduct. The scratch note's original guess (`human-scratch.md:33`, "I'm
+guessing time zone is probably a better indicator of country?") is better supported than the
+implemented decision.
+
+**Revised recommendation for the future-work item:** timezone PRIMARY, locale FALLBACK. Timezone
+answers "where am I"; locale answers "how do I like things formatted"; currency follows location. A
+fallback is still required because timezone can be `UTC` in containers/VMs, which maps to no country.
+The detected value should remain a DEFAULT the user can override at vault creation, never a silent
+lock-in.
+
+**Implementation constraint:** there is NO IANA-zone -> ISO-3166 mapping in the dependency tree today,
+and `Intl` does not expose one directly. Per CLAUDE.md ("use established libraries for algorithms;
+custom implementations are bugs waiting to happen"), this must use a maintained tz->country package
+rather than a hand-rolled table. The existing `REGION_TO_CURRENCY` map
+(`detect-currency.ts:170-260`, ~70 countries) can be reused for the country -> currency half.
+
+Disposition is UNCHANGED: still future work, still outside the frozen SCOPE selection (scratch `:33`
+is outside the frozen 151-350 block range). This amendment records the evidence and the corrected
+design rationale so the future decision is not re-litigated from the wrong premise. Pulling it into
+this goal remains a scope EXPANSION requiring the independent scope adjudicator.
