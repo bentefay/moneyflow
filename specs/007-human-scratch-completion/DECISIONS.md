@@ -422,3 +422,56 @@ need evidence, alternatives, security/UX impact, and a reversal path.
 - **Decision and reason:**
 - **Security, data, UX, and compatibility impact:**
 - **Reversal/migration path:**
+
+## D-020 — UR-001..UR-004 admitted to committed scope via a new frozen source; human-scratch.md untouched
+
+- **Status:** accepted
+- **Date:** 2026-07-30
+- **Authority:** explicit in-session instruction from the human principal, the owner of this goal's
+  committed scope.
+
+**Decision.** Four user-reported refinements are admitted as first-class requirements of this goal:
+UR-001 (add transaction focuses the description instead of selecting the row), UR-002 (transaction
+search matches alias-resolved descriptions), UR-003 (presence avatars show member name initials),
+UR-004 (default currency inferred from time zone). Each gets an owning package — P22, P23, P24, P25 —
+requiring full implementation and a DISTINCT independent review, exactly like every other package.
+
+**Why no scope adjudicator.** PROCESS.md:335-347 bars root from self-adjudicating a scope call and
+requires a distinct fresh-context adjudicator when resolving an over-scope would REDUCE committed
+scope or supersede a prior accepted decision. Neither applies: this is an EXPANSION of committed
+scope directed by the principal who owns that scope. Root is recording an instruction, not ruling on
+one. Nothing previously accepted is withdrawn and no requirement loses its `passed` status.
+
+**Why a new frozen source rather than editing the scratch file.** `specs/human-scratch.md` is frozen
+at working-copy SHA `b91ca932…`; `SCOPE.json` selects 21 ordered top-level blocks from it (lines
+151-350) and permits exactly ONE edit — the leading `- []` -> `- [x]` marker flip — with rolling
+whole-file hashes. Editing it to add requirements, or retroactively widening the selector to cover
+earlier lines, would break the freeze that all 22 original requirements were validated against and
+invalidate every recorded rolling-SHA chain. So the scratch file was NOT touched: it remains at
+rolling SHA `469e98c7…`, 24,260 bytes, 43 checked / 0 unchecked, all blocks normalized-matching
+SCOPE. The four requirements live in a NEW frozen source,
+`specs/009-user-reported-refinements/spec.md` (SHA-256 `6d163635…`, 98 lines, 5,610 bytes), added to
+`SCOPE.json#sources` as `SRC-USER-REPORTED-REFINEMENTS`. `requirementCount` 22 -> 26.
+
+**Completion mechanic.** All four are markerless and immutable (`immutableNoSourceMutation`), the
+FS-001 mechanic: no checkbox, no source edit, completion recorded only in the requirement and package
+ledgers after independent review. This keeps the marker/rolling-SHA machinery exclusively bound to
+the scratch file and its 21 blocks.
+
+**Note on UR-004.** This supersedes the rationale asserted in `src/lib/domain/detect-currency.ts:4-6`
+("more reliable than timezone because locale directly encodes cultural/regional preferences"). That
+was a code comment, not a recorded decision — no accepted decision is being overturned. It is
+empirically refuted: the reporting user runs `LANG=en_US.UTF-8` in `Australia/Brisbane`, so locale
+yields USD while time zone yields the correct AUD, and `en-US` is the default locale on most Linux
+installs and container images. The implementing package must correct that comment so it does not
+contradict shipped behaviour.
+
+**Consequence — P21 rev 06 voided.** P21's entry conditions require every feature package passed.
+Admitting four queued packages invalidated the in-flight audit, so root stopped `p21-collector-06`
+and verified it had written no evidence and committed nothing; the tree was unchanged. P21 returns to
+`queued` with no revision consumed and no failed-review artifact, since no review occurred. Rev 06
+will be re-opened from a fresh BASE over all 25 feature packages after P22-P25 pass.
+
+**Reversal path.** Removing any UR requirement means deleting its SCOPE entry, its ledger rows and
+its package, and restoring `requirementCount`. That WOULD be a scope reduction and would require the
+independent scope adjudicator per PROCESS.md:335-347.

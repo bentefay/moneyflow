@@ -1,6 +1,6 @@
 {
     "schemaVersion": 2,
-    "requirementCount": 22,
+    "requirementCount": 26,
     "sources": [
         {
             "id": "SRC-HUMAN-SCRATCH",
@@ -27,6 +27,21 @@
                 "lineRange": "1-715"
             },
             "completionMechanic": "The source is immutable and has no checkbox or source edit; completion is recorded only in the requirement/package ledgers after identical implementation and independent-review gates."
+        },
+        {
+            "id": "SRC-USER-REPORTED-REFINEMENTS",
+            "path": "specs/009-user-reported-refinements/spec.md",
+            "sha256": "6d163635a8f3d6c61c27c5c0c061cd0ebf82292540a779f8a881da2b4e2e2942",
+            "lineCount": 98,
+            "byteCount": 5610,
+            "frozenAt": "2026-07-30",
+            "admittedBy": "human principal instruction, in-session 2026-07-30, during P21 rev 06",
+            "selector": {
+                "kind": "orderedTopLevelSections",
+                "count": 4,
+                "sourceTextField": "sourceTextLines"
+            },
+            "completionMechanic": "The source is immutable and has no checkbox or source edit; completion is recorded only in the requirement/package ledgers after identical implementation and independent-review gates, exactly as FS-001."
         }
     ],
     "requirementLifecycle": {
@@ -50,7 +65,9 @@
             "heading": "Normal empty Add Transaction rows",
             "sourceLineRange": "151-155",
             "task": "tasks/HS-001-add-transaction-rows.md",
-            "packages": ["P13"],
+            "packages": [
+                "P13"
+            ],
             "sourceTextLines": [
                 "- [] When clicking \"Add Transaction\" on the Transactions tab, it should just add a new empty row",
                 "  with all normal affordances. If we need to support empty descriptions as a result, that's fine.",
@@ -65,7 +82,9 @@
             "heading": "Safe-chain dependency upgrades",
             "sourceLineRange": "157",
             "task": "tasks/HS-002-dependency-upgrades.md",
-            "packages": ["P01"],
+            "packages": [
+                "P01"
+            ],
             "sourceTextLines": [
                 "- [] Upgrade to the very latest safe-chain supported version of all dependencies"
             ]
@@ -76,7 +95,9 @@
             "heading": "Full code-quality style-guide sweep",
             "sourceLineRange": "159",
             "task": "tasks/HS-021-code-quality-sweep.md",
-            "packages": ["P20B"],
+            "packages": [
+                "P20B"
+            ],
             "sourceTextLines": [
                 "- [] Do a sweep of the full code base for code quality based on our style guide"
             ]
@@ -87,7 +108,9 @@
             "heading": "Loro ephemeral presence and active transaction",
             "sourceLineRange": "161-163",
             "task": "tasks/HS-003-loro-ephemeral-presence.md",
-            "packages": ["P10"],
+            "packages": [
+                "P10"
+            ],
             "sourceTextLines": [
                 "- [] We should be using loro ephemeral state for tracking presence and active transaction. Make sure",
                 "  you understand https://loro.dev/llms-full.txt and https://github.com/loro-dev/loro-mirror before",
@@ -100,7 +123,11 @@
             "heading": "Description aliases",
             "sourceLineRange": "165-236",
             "task": "tasks/HS-004-description-aliases.md",
-            "packages": ["P11A", "P11B", "P11C"],
+            "packages": [
+                "P11A",
+                "P11B",
+                "P11C"
+            ],
             "sourceTextLines": [
                 "- [] Add description aliases - these are much like tags in that there is a single curated list of",
                 "  aliases. Stored as an optional ID on each transaction. There is a page (\"Tx Descriptions\" nav",
@@ -182,7 +209,9 @@
             "heading": "Background GC worker",
             "sourceLineRange": "238-243",
             "task": "tasks/HS-005-background-gc.md",
-            "packages": ["P12"],
+            "packages": [
+                "P12"
+            ],
             "sourceTextLines": [
                 "- [] Background GC worker - a requestAnimationFrame-based worker that incrementally processes a",
                 "  bounded number of transactions per frame. Responsibilities: (a) merge adjacent transaction buckets",
@@ -198,7 +227,9 @@
             "heading": "Loro undo and redo",
             "sourceLineRange": "245-246",
             "task": "tasks/HS-006-undo-redo.md",
-            "packages": ["P09"],
+            "packages": [
+                "P09"
+            ],
             "sourceTextLines": [
                 "- [] Add undo and redo buttons and standard ctrl + z / ctrl + shift + z / ctrl + y bindings. Use the",
                 "  standard loro UndoManager for this."
@@ -210,7 +241,12 @@
             "heading": "Automation redesign",
             "sourceLineRange": "248-295",
             "task": "tasks/HS-007-automation-redesign.md",
-            "packages": ["P17A", "P17B", "P17C", "P17D"],
+            "packages": [
+                "P17A",
+                "P17B",
+                "P17C",
+                "P17D"
+            ],
             "sourceTextLines": [
                 "- [] Change how automations work. They work differently for each field.",
                 "    - For description aliases, when you apply a description alias to a transaction on the",
@@ -268,7 +304,9 @@
             "heading": "Import lineage and reversible deletion",
             "sourceLineRange": "297-300",
             "task": "tasks/HS-008-import-lineage.md",
-            "packages": ["P14"],
+            "packages": [
+                "P14"
+            ],
             "sourceTextLines": [
                 "- [] We should save an importId on imported transactions. If the amount is edited we should save the",
                 "  amount in a originalAmount field and show that as a tooltip on the amount cell in the transactions",
@@ -282,7 +320,11 @@
             "heading": "Person allocation bounds",
             "sourceLineRange": "302",
             "task": "tasks/HS-009-allocation-bounds.md",
-            "packages": ["P16A", "P16C", "P16D"],
+            "packages": [
+                "P16A",
+                "P16C",
+                "P16D"
+            ],
             "sourceTextLines": [
                 "- [] People percent allocations should not be able to exceed + or - 100"
             ]
@@ -293,7 +335,9 @@
             "heading": "Remove unused user state",
             "sourceLineRange": "304-305",
             "task": "tasks/HS-010-remove-user-state.md",
-            "packages": ["P06"],
+            "packages": [
+                "P06"
+            ],
             "sourceTextLines": [
                 "- [] We should drop the user state column from the user table until we use it (we'd want it to use",
                 "  the same sync and crdt logic, which is unnecessary complexity at this point)."
@@ -305,7 +349,10 @@
             "heading": "Person, member, and invite UX",
             "sourceLineRange": "307-311",
             "task": "tasks/HS-011-membership-invite-ux.md",
-            "packages": ["P07", "P08"],
+            "packages": [
+                "P07",
+                "P08"
+            ],
             "sourceTextLines": [
                 "- [] What is the current UX for adding a new user to a vault? I thought we had an invite flow? But I",
                 "  can't see it? Does it make sense that each user must be a person in the vault? You can then",
@@ -320,7 +367,9 @@
             "heading": "Automatically linked person per user",
             "sourceLineRange": "313-315",
             "task": "tasks/HS-012-auto-person-link.md",
-            "packages": ["P08"],
+            "packages": [
+                "P08"
+            ],
             "sourceTextLines": [
                 "- [] There should be a person created for each user automatically, person should have an optional",
                 "  user id (pub key hash?) and the person name should become optional and uses the user name as a",
@@ -333,7 +382,9 @@
             "heading": "Import drop zones",
             "sourceLineRange": "317",
             "task": "tasks/HS-013-import-drop-zones.md",
-            "packages": ["P15"],
+            "packages": [
+                "P15"
+            ],
             "sourceTextLines": [
                 "- [] The transactions table and imports list page should be a drop zone to trigger an import."
             ]
@@ -344,7 +395,9 @@
             "heading": "Database tables and row-level permissions",
             "sourceLineRange": "319-323",
             "task": "tasks/HS-014-database-rls-audit.md",
-            "packages": ["P04"],
+            "packages": [
+                "P04"
+            ],
             "sourceTextLines": [
                 "- [] Review tables and row level permissions - why are there two ops and snapshot tables? Is the",
                 "  hashed public key used to enforce row level permissions consistently? (i.e. you are authenticed by",
@@ -359,7 +412,9 @@
             "heading": "Secure Supabase WebSocket connection",
             "sourceLineRange": "325-326",
             "task": "tasks/HS-015-realtime-security.md",
-            "packages": ["P05"],
+            "packages": [
+                "P05"
+            ],
             "sourceTextLines": [
                 "- [] How are we handling the client connection to supabase for websockets? Does this work with CORS?",
                 "  Is it properly secured based on pub key hash access to vault?"
@@ -371,7 +426,9 @@
             "heading": "Truthful marketing pages",
             "sourceLineRange": "328-331",
             "task": "tasks/HS-016-marketing-pages.md",
-            "packages": ["P20A"],
+            "packages": [
+                "P20A"
+            ],
             "sourceTextLines": [
                 "- [] Update the marketing pages to include all these features. Be clear, succinct and not too",
                 "  \"markety\". It's private. It's for categorising and allocating your transactions, not budgeting.",
@@ -385,7 +442,9 @@
             "heading": "Animate UI component investigation",
             "sourceLineRange": "333-339",
             "task": "tasks/HS-017-animate-ui-evaluation.md",
-            "packages": ["P02"],
+            "packages": [
+                "P02"
+            ],
             "sourceTextLines": [
                 "- [] Investigate animate-ui shadcn registry components (https://animate-ui.com/docs/components)",
                 "    - We've already used it for the import tabs - good to use it more broadly for consistency and",
@@ -402,7 +461,9 @@
             "heading": "TanStack Virtual useFlushSync release",
             "sourceLineRange": "341-342",
             "task": "tasks/HS-018-tanstack-virtual.md",
-            "packages": ["P03"],
+            "packages": [
+                "P03"
+            ],
             "sourceTextLines": [
                 "- [] Update tanstack virtual once https://github.com/TanStack/virtual/pull/1100 is released and",
                 "  enable useFlushSync"
@@ -414,7 +475,9 @@
             "heading": "Password-manager-compatible recovery phrase",
             "sourceLineRange": "344-346",
             "task": "tasks/HS-019-password-manager-recovery.md",
-            "packages": ["P18"],
+            "packages": [
+                "P18"
+            ],
             "sourceTextLines": [
                 "- [] Is there a way we can make the recovery phrase more compatible with password managers? It would",
                 "  be great if password managers automatically offer to save and fill the recovery phrase when",
@@ -427,7 +490,9 @@
             "heading": "WebAuthn PRF passkeys",
             "sourceLineRange": "348-350",
             "task": "tasks/HS-020-passkey-prf.md",
-            "packages": ["P19"],
+            "packages": [
+                "P19"
+            ],
             "sourceTextLines": [
                 "- [] Support using a passkey instead of, or in addition to, the recovery phrase, using the new PRF",
                 "  extension. Change the vault creation and login flows to support passkey as a second option using",
@@ -443,7 +508,161 @@
                 "lineRange": "1-715"
             },
             "task": "tasks/FS-001-transaction-percentage-allocations-settlement.md",
-            "packages": ["P16A", "P16B", "P16C", "P16D", "P16E"],
+            "packages": [
+                "P16A",
+                "P16B",
+                "P16C",
+                "P16D",
+                "P16E"
+            ],
+            "sourceCompletion": "immutableNoSourceMutation"
+        },
+        {
+            "id": "UR-001",
+            "sourceId": "SRC-USER-REPORTED-REFINEMENTS",
+            "heading": "Add transaction focuses the description instead of selecting the row",
+            "sourceSelector": {
+                "kind": "sectionLineRange",
+                "lineRange": "12-33"
+            },
+            "sourceTextLines": [
+                "## UR-001 — Add transaction focuses the description instead of selecting the row",
+                "",
+                "The \"Add transaction\" button must not select the newly created row. It must instead move keyboard",
+                "focus into the new row's description field so the user can begin typing immediately.",
+                "",
+                "Selection in the transaction table means \"target for bulk operations\". A newly created empty row is",
+                "an edit target, not a bulk-operation target, so using selection to highlight it is a semantic",
+                "mismatch. The current implementation additionally replaces rather than extends the selection set, so",
+                "creating a transaction silently discards an in-progress multi-row selection.",
+                "",
+                "Required behaviour:",
+                "",
+                "- Creating a transaction must leave any pre-existing selection unchanged.",
+                "- The new row's description input receives focus once the row is rendered.",
+                "- Existing discoverability behaviour is retained: filters reset, the page extends far enough to",
+                "  include the new row, and the row is scrolled into view.",
+                "- The focus intent is consumed exactly once and then cleared, so it cannot re-assert on a later",
+                "  render.",
+                "- The row is virtualized: focus must occur only when the row is actually mounted, and the",
+                "  scroll-into-view must not leave the row unmounted or the focus lost.",
+                "",
+                "Not required: any highlight or \"recently added\" styling. Focus alone identifies the row."
+            ],
+            "task": "tasks/ur-001.md",
+            "packages": [
+                "P22"
+            ],
+            "sourceCompletion": "immutableNoSourceMutation"
+        },
+        {
+            "id": "UR-002",
+            "sourceId": "SRC-USER-REPORTED-REFINEMENTS",
+            "heading": "Transaction search matches alias-resolved descriptions",
+            "sourceSelector": {
+                "kind": "sectionLineRange",
+                "lineRange": "35-53"
+            },
+            "sourceTextLines": [
+                "## UR-002 — Transaction search matches alias-resolved descriptions",
+                "",
+                "Transaction search must find transactions by the description text the user can actually see.",
+                "",
+                "When a transaction carries a description alias, the visible description is resolved through the",
+                "alias graph, while the raw stored description field may hold different text or be empty. Search",
+                "currently matches only the raw stored field, so a transaction displaying an alias cannot be found by",
+                "searching for the text shown on screen.",
+                "",
+                "Required behaviour:",
+                "",
+                "- Search matches against the alias-resolved description text when a transaction has a description",
+                "  alias.",
+                "- Search continues to match against the raw stored description, so imported text that predates an",
+                "  alias remains findable.",
+                "- Search continues to match against notes.",
+                "- Alias resolution follows the one-hop symlink relationship between aliases, matching whatever text",
+                "  the table displays for that transaction.",
+                "- Matching remains case-insensitive and substring-based, consistent with existing behaviour."
+            ],
+            "task": "tasks/ur-002.md",
+            "packages": [
+                "P23"
+            ],
+            "sourceCompletion": "immutableNoSourceMutation"
+        },
+        {
+            "id": "UR-003",
+            "sourceId": "SRC-USER-REPORTED-REFINEMENTS",
+            "heading": "Presence avatars show member name initials",
+            "sourceSelector": {
+                "kind": "sectionLineRange",
+                "lineRange": "55-74"
+            },
+            "sourceTextLines": [
+                "## UR-003 — Presence avatars show member name initials",
+                "",
+                "A presence avatar must show initials derived from the member's display name, and its tooltip must",
+                "show that display name.",
+                "",
+                "The avatar currently receives no display name and falls back to the member's public key hash, so it",
+                "renders the first characters of that hash and exposes the raw hash as the tooltip text. This is a",
+                "presentation defect, not a disclosure of secret material: the value is a public key hash.",
+                "",
+                "Required behaviour:",
+                "",
+                "- The member's display name is resolved and supplied to every presence avatar, at every place",
+                "  presence avatars are rendered.",
+                "- Initials derive from that display name using the existing initials derivation: a default name of",
+                "  \"Me\" yields \"M\"; a two-word name such as \"Ben Tefay\" yields \"BT\".",
+                "- The tooltip shows the resolved display name, not a key hash.",
+                "- Deriving initials from a key hash remains only as a last-resort fallback when no display name can",
+                "  be resolved.",
+                "- Avatar colour continues to derive from the stable per-member identifier rather than the name, so",
+                "  colour survives a rename and members sharing initials stay visually distinct."
+            ],
+            "task": "tasks/ur-003.md",
+            "packages": [
+                "P24"
+            ],
+            "sourceCompletion": "immutableNoSourceMutation"
+        },
+        {
+            "id": "UR-004",
+            "sourceId": "SRC-USER-REPORTED-REFINEMENTS",
+            "heading": "Default currency inferred from time zone",
+            "sourceSelector": {
+                "kind": "sectionLineRange",
+                "lineRange": "76-98"
+            },
+            "sourceTextLines": [
+                "## UR-004 — Default currency inferred from time zone",
+                "",
+                "When creating a vault, the default currency must be inferred primarily from the user's time zone",
+                "rather than from the browser or system locale.",
+                "",
+                "Locale encodes language preference; its region subtag is an unreliable indicator of location.",
+                "`en-US` is the default locale on most Linux installations, container images and development",
+                "environments, so inferring region from locale silently resolves to the United States for users who",
+                "are not there, and defaults them to US dollars with no indication that the value is wrong. A user in",
+                "`Australia/Brisbane` with an `en-US` locale is defaulted to USD when AUD is correct. Time zone does",
+                "not share this failure mode, because an incorrect time zone visibly breaks clocks and calendars and",
+                "is therefore usually correct.",
+                "",
+                "Required behaviour:",
+                "",
+                "- The user's time zone is the primary signal for the inferred default currency.",
+                "- Locale-derived inference remains as a fallback for when the time zone yields no country, such as",
+                "  the `UTC` time zone commonly configured in containers and virtual machines.",
+                "- A final fallback currency applies when neither signal yields a supported currency.",
+                "- The mapping from time zone to country uses an established, maintained library rather than a",
+                "  hand-written table. The existing country-to-currency mapping may be reused.",
+                "- The inferred currency is only a default. It is presented in the vault creation flow and the user",
+                "  can change it before and after creation. It is never silently locked in."
+            ],
+            "task": "tasks/ur-004.md",
+            "packages": [
+                "P25"
+            ],
             "sourceCompletion": "immutableNoSourceMutation"
         }
     ]
