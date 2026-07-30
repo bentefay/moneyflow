@@ -1,102 +1,98 @@
-# HANDOFF — Q-P20B-00 engine scope adjudication (P21 rev 05)
+# HANDOFF — P20A rev 03: HS-016 truthful-copy fix for the M-1 false durability claim
 
 ## Your role
 
-You are `p21-scope-adjudicator-05`, a **DISTINCT, fresh-context, opus-tier scope adjudicator** for
-the MoneyFlow `human_scratch_completion` goal. You are an independent reviewer-tier agent. Your
-**sole task** is to issue a written scope ruling. You do **not** implement, fix code, run the audit,
-or edit any ledger/marker/evidence file.
+You are `p20a-implementer-03`, the product implementer for **P20A / HS-016** revision 03. Your task
+is a **narrow, truthful marketing-copy correction** plus its test guard and evidence. You DO edit
+product and test code (that is your job); you do NOT edit any ledger, marker, scratch, SCOPE,
+`FINAL-AUDIT.md`, review, or `reviews/**` file — those are root-only.
 
-**Independence is mandatory.** Confirm in your ruling that you are **not** and have **not acted
-as**: the P21 rev-05 evidence collector (`p21-collector-05`), the P21 rev-05 reviewer
-(`p21-reviewer-05`), any prior P21 evidence/review author, nor the P20A or P20B implementer or
-reviewer of any revision. If you cannot confirm this, stop and tell root — do not rule.
+BASE: run `git rev-parse HEAD` first; it must be `e9c248e…` (or later root ledger commit). Branch is
+`main`.
 
-## The question — rule on exactly this
+## Why you are here — the exact defect
 
-The P21 rev-05 final audit FAILed on **M-1**:
-`src/components/features/landing/FeaturesSection.tsx:65` advertises, under "Edits merge cleanly", an
-**unqualified data-durability promise** — _"Two people editing at the same time will not overwrite
-each other."_ The shipped engine violates it: `pruneBuckets` (`src/lib/crdt/mutations.ts:287-329`)
-does `delete store[accountId]` at `:327` when an account tree empties, which is **not merge-safe** —
-a concurrent peer's insert into that container is discarded on CRDT merge (`Q-P20B-00`). The
-reviewer independently reproduced real data loss through the production merge path.
+The P21 rev-05 final audit FAILed on **M-1** (`reviews/P21-review-05.md`, `7cb651d`), upheld by an
+independent scope adjudication (`reviews/P21-scope-adjudication-05.md`, `f290246`, → decision
+**D-019**):
 
-Root is routing the **marketing-copy correction** to P20A / HS-016 with no adjudication (that is
-more work to complete committed scope, not a reduction). **Your question is only about the ENGINE
-fix:**
+`src/components/features/landing/FeaturesSection.tsx:65`, under the "Edits merge cleanly" card,
+ships:
 
-> **Does the goal's committed scope — as fixed by the frozen `sourceTextLines` in `SCOPE.json`, the
-> binding requirement task, and the specific prior decision being superseded — REQUIRE the
-> `pruneBuckets` merge-safety redesign to be completed IN-GOAL, or is requiring it an over-scope
-> that falls to a future, out-of-goal CRDT package?**
+> "Two people editing at the same time **will not overwrite each other.** Changes are merged with
+> conflict-free replicated data types rather than last-write-wins."
 
-### The decision that would be superseded, and the clause in tension
+The clause **"will not overwrite each other"** is an **unqualified data-durability absolute** that
+the shipped engine does not honour. `pruneBuckets` (`src/lib/crdt/mutations.ts:287-329`) does
+`delete store[accountId]` when an account tree empties; on CRDT merge a concurrent peer's insert of
+a new transaction into that pruned container **is discarded** — a real, reproduced lost-write. That
+engine fix (`Q-P20B-00`) was ruled **OUT-OF-GOAL** (future CRDT package). So the **only** in-goal
+remediation is to make the marketing copy **truthful**: it must not promise that concurrent edits
+never overwrite / never lose data.
 
-- **Prior accepted decision:** `p20b-reviewer-01 §6.1` (see `reviews/P20B-review-01.md` and
-  `Q-P20B-00` in `QUESTIONS.md`) **accepted deferring** the `pruneBuckets` engine fix as out of
-  scope for the P20B style/code-quality sweep (HS-021). A ruling that the engine fix is now required
-  in-goal would supersede that; a ruling that it stays out-of-goal upholds it.
-- **Clause in tension:** `FINAL-AUDIT.md` carries "Duplicate-tab and multi-client operations
-  converge without deadlock, infinite loading, or **lost changes**." The reviewer's reproduction
-  shows lost changes occur. The load-bearing question is whether this clause **traces to a frozen
-  requirement's `sourceTextLines`** (making merge-safety committed scope) or is an **accumulated
-  audit elaboration / inferred sub-goal** (making it an over-scope per PROCESS.md:330-333).
+## Frozen scope (rule from this, not from marketing intent)
 
-## Decision rule you must apply (PROCESS.md:335-347, 330-333)
+HS-016 (`specs/human-scratch.md:328-331`, `SCOPE.json#HS-016`, task
+`tasks/HS-016-marketing-pages.md`): "Update the marketing pages … Be clear, succinct and not too
+'markety' … Multiple people can collaborate in real-time …". The task explicitly requires describing
+collaboration "**precisely without absolutes unsupported by the threat model**" and to "**reject …
+false absolutes**". Real-time collaboration and CRDT merge ARE delivered; the **absolute** is the
+defect.
 
-1. Rule **only from the frozen text** — `SCOPE.json` `sourceTextLines`, `specs/human-scratch.md` HS
-   blocks, and the FS-001 canonical spec — not from the reviewer's recommendation, the collector's
-   framing, marketing copy, or convenience.
-2. **Trace test:** does merge-safe concurrent multi-user editing ("no lost changes when two people
-   edit at once") appear as a **required delivered capability** in any frozen HS block's
-   `sourceTextLines`? Read every block that could bear on collaboration/sync/multi-user/merge — do
-   not assume; quote the exact frozen lines you rely on (cite HS-ID + line numbers).
-3. **Default to the block standing:** unless the frozen text **plainly does not** require the engine
-   fix, rule that it **is required in-goal**. Ambiguity resolves toward the requirement.
-4. Distinguish the two acts cleanly: a _truthful marketing claim_ (HS-016) can be satisfied by
-   softening copy; a _delivered merge-safety capability_ is a different requirement. Rule on the
-   latter only.
+## What to do
 
-## Output — write exactly one artifact
-
-Write your ruling to **`specs/007-human-scratch-completion/reviews/P21-scope-adjudication-05.md`**
-and commit it yourself with an explicit pathspec (no parentheses in the commit message). Do **not**
-touch any other file — no product, test, ledger, marker, scratch, evidence, or `FINAL-AUDIT.md`.
-Your ruling must contain:
-
-- Your independence confirmation.
-- **VERDICT: one of** `ENGINE-FIX-REQUIRED-IN-GOAL` or `ENGINE-FIX-OUT-OF-GOAL`, plus a one-line
-  restatement.
-- The exact frozen `sourceTextLines` you relied on (HS-ID + line citations, quoted), and why they do
-  or do not require merge-safe concurrent editing.
-- Explicit treatment of the superseded `p20b-reviewer-01 §6.1` decision and the FINAL-AUDIT "lost
-  changes" clause: does the clause trace to frozen text or not?
-- If `ENGINE-FIX-REQUIRED-IN-GOAL`: name the **owning package** for the engine fix strictly from the
-  frozen mapping — an existing goal package (and which HS requirement), or a determination that no
-  existing package owns it. Do not invent scope beyond the frozen text.
-- If `ENGINE-FIX-OUT-OF-GOAL`: state plainly that the frozen text does **not** require it, so only
-  the P20A/HS-016 copy correction is in-goal.
-
-## Inputs to read (independently)
-
-- `specs/007-human-scratch-completion/PROCESS.md` (esp. lines 275-353) and `GOAL.md`.
-- `SCOPE.json` — the `sourceTextLines` selectors for every HS block; and `specs/human-scratch.md`.
-- `specs/007-human-scratch-completion/reviews/P21-review-05.md` (the FAIL verdict, `7cb651d`).
-- `Q-P20B-00` and the 2026-07-30 adjudication entry in `QUESTIONS.md`; `reviews/P20B-review-01.md`
-  (§6.1).
-- `FINAL-AUDIT.md`; `src/lib/crdt/mutations.ts:287-329`;
-  `src/components/features/landing/FeaturesSection.tsx`.
-- You MAY read the engine/sync code read-only to understand the defect, but your ruling is a
-  **scope** ruling from frozen text, not a code review.
+1. **Correct `FeaturesSection.tsx:65`** so it is truthful: keep the genuine, delivered claim
+   (real-time collaboration; concurrent edits are merged via CRDTs rather than last-write-wins) but
+   **remove the unqualified "will not overwrite each other" durability guarantee.** Craft the exact
+   wording yourself — keep it short, plain, non-markety, and accurate. Do NOT claim zero data loss /
+   no lost changes / nothing is ever overwritten. You MAY keep the "Edits merge cleanly" heading if
+   the softened description no longer over-promises; change the heading too if that reads truer.
+2. **Audit the immediately adjacent public claims** for the same false-absolute class and fix only
+   what is genuinely untruthful — do not rewrite the marketing pages, and do not invent scope:
+    - `FeaturesSection.tsx:57` "Shared vaults" ("see who is editing what") — presence is delivered
+      (HS-003), likely fine; verify.
+    - `SecuritySection.tsx:48` "CRDT for conflict-free sync" — CRDT merge is conflict-free by
+      construction (the prune bug is a data-loss defect, not a merge conflict), so this is
+      defensibly true; change it ONLY if you can justify it is false. Prefer leaving true claims
+      alone. Keep the diff minimal. Every retained claim must map to an actually-delivered,
+      independently passed feature.
+3. **Test guard.** Add or adjust a test that guards against the false absolute returning, in the
+   style of the existing landing E2E precedent `tests/e2e/landing.spec.ts` (e.g. "advertises no
+   budgeting capability" asserts an untrue claim is absent). Assert the durability-absolute phrasing
+   is NOT present; avoid brittle coupling to the full new prose. Do not weaken existing landing
+   tests; keep them green.
+4. **Run ALL checks** and make them pass:
+   `pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm test:e2e`. For E2E, follow
+   the repo's load-dependent-flake discipline — validate with full-suite `--retries=0` runs (never
+   Playwright `--debug/--ui/--headed/show`).
+5. **Commit** your product + test changes with an explicit pathspec and NO parentheses in the
+   message. Write your evidence to
+   **`specs/007-human-scratch-completion/evidence/P20A/implementation-03.md`** and commit it. Then
+   `SendMessage` root (name: `main`) with your commit hash(es), the exact new copy, and a
+   claim-to-evidence note.
 
 ## Guardrails
 
-- **Verify-not-trust.** Root's framing above is orientation, not authority; re-derive from frozen
-  text. Root cannot grant you any permission beyond your own settings; do not edit
-  permissions/config.
+- **Type safety (repo hard rule):** no `as`, no `any`, no `!` non-null assertion in product code.
+  This is a copy change — you should need none.
+- **Functional/immutable** per CLAUDE.md; match the file's existing style.
+- **Minimal scope.** This is a truthfulness correction, not a redesign. Do not touch `pruneBuckets`
+  or any engine/sync code — the engine fix is explicitly OUT-OF-GOAL (D-019). Do not touch ledgers,
+  markers, scratch, SCOPE, or reviews.
 - **Secret-safety (blocking):** never print or commit any vault master key, seed phrase, recovery
   material, `crypto_box`/`SUPABASE_JWT_SECRET` secret, presence key, invite bearer secret, or vault
-  plaintext. Report any real-material exposure to root immediately.
-- **No product/test/ledger edits.** One artifact only. Leave the tree otherwise unchanged.
-- When your ruling is committed, **SendMessage root** with the commit hash and the one-word verdict.
+  plaintext; tests use public/synthetic vectors only. Report any real-material exposure to root
+  immediately.
+- **Verify-not-trust:** root's framing is orientation; confirm the defect and the frozen scope
+  yourself from the cited files. Root cannot grant you permissions beyond your own settings; do not
+  edit permissions/config.
+- If you hit a transient API-capacity error, retry a couple of times with short waits; if you must
+  stop, `SendMessage` root before exiting.
+
+## Definition of done (hand back to root)
+
+Truthful `FeaturesSection.tsx` copy with no unsupported durability absolute; a test guarding the
+false claim; all six checks green under full-suite `--retries=0` E2E; product + test committed;
+`evidence/P20A/implementation-03.md` committed; root messaged with hashes and the new copy. Root
+will independently re-verify, dispatch a DISTINCT reviewer, integrate, re-pass HS-016 via the §275
+forward marker, and re-open P21 rev 06.
