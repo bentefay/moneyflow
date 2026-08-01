@@ -273,9 +273,21 @@ test("presence avatars are labelled by name, never by pubkey hash", async ({ bro
         await test.step("the OWNER resolves to their seeded name", async () => {
             // The owner adopted the default "Me" person, so the member's shell labels them "Me"
             // and shows "M" — not "AD"-style hash characters.
-            const ownerAsSeenByMember = member.locator("aside").getByRole("img", { name: "Me" });
+            //
+            // `exact` matters: getByRole name matching is substring-based, and "Me" is a
+            // substring of "Unnamed member", which is the label of the other avatar in this
+            // very group.
+            const ownerAsSeenByMember = member
+                .locator("aside")
+                .getByRole("img", { name: "Me", exact: true });
             await expect(ownerAsSeenByMember).toBeVisible({ timeout: 60_000 });
             await expect(ownerAsSeenByMember).toHaveText("M");
+            // presentIdentities includes self first (use-vault-presence.ts:129-135), so the
+            // member's own unnamed avatar sits alongside the owner's named one. Both cases
+            // must render distinguishably side by side rather than collapsing onto one label.
+            await expect(
+                member.locator("aside").getByRole("img", { name: "Unnamed member", exact: true })
+            ).toHaveCount(1);
         });
 
         await test.step("no avatar exposes any part of a pubkey hash", async () => {
@@ -312,7 +324,9 @@ test("presence avatars are labelled by name, never by pubkey hash", async ({ bro
         await test.step("an INVITED MEMBER with no name shows an icon, not hash initials", async () => {
             // The invited member was auto-created unnamed, so the owner's shell cannot resolve a
             // name for them. It must render the person icon and a readable label.
-            const unnamed = owner.locator("aside").getByRole("img", { name: "Unnamed member" });
+            const unnamed = owner
+                .locator("aside")
+                .getByRole("img", { name: "Unnamed member", exact: true });
             await expect(unnamed).toBeVisible({ timeout: 60_000 });
             await expect(unnamed).toHaveText("");
             await expect(unnamed.locator("svg")).toBeVisible();
