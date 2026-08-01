@@ -149,12 +149,12 @@ export async function setAccountOwnership(
 }
 
 /**
- * The row created most recently by Add, identified by the caret being in its description.
+ * Whichever row currently holds the caret in its description, if any.
  *
- * Add deliberately does not touch selection (UR-001), so the new row is identified the same way a
- * user identifies it: it is the row holding keyboard focus. Focus lands only once the virtualized
- * row has actually mounted, which makes this the correct point to synchronise on — waiting for it
- * needs no sleep and no retry.
+ * Add deliberately does not touch selection (UR-001), so this is how a user identifies the row they
+ * just created. It is a locator over *transient* state, though: focus is not monotonic the way a
+ * row count is, so a match can appear and disappear again. Use it to assert focus, not to
+ * synchronise on it — {@link addEmptyTransaction} does the synchronising.
  */
 export function newlyAddedRow(page: Page): Locator {
     return page.locator('[data-transaction-id]:has([data-testid="description-editable"]:focus)');
@@ -172,13 +172,6 @@ export async function readSelectedRowIds(page: Page): Promise<string[]> {
 /** Locates a transaction row by its stable transaction ID. */
 export function rowById(page: Page, transactionId: string): Locator {
     return page.locator(`[data-transaction-id="${transactionId}"]`);
-}
-
-/** Reads the stable transaction ID from a row. */
-export async function readTransactionId(row: Locator): Promise<string> {
-    const id = await row.getAttribute("data-transaction-id");
-    expect(id).toBeTruthy();
-    return id ?? "";
 }
 
 /** Sets one allocation through a real grid cell and waits for the committed display value. */
@@ -204,16 +197,91 @@ export async function setStatus(page: Page, row: Locator, statusName: string): P
 }
 
 /**
- * Clicks Add and returns the new row's stable ID once its description holds the caret.
+ * Attribute on `<html>` holding the stable ID latched by {@link latchNextDescriptionFocus}.
  *
- * Waiting for focus rather than for a row count is what makes this deterministic: focus can only
- * land after the row has mounted, so the caller never races the virtualizer.
+ * `<html>` is outside React's tree, so no re-render can clear it. The name is namespaced to the
+ * harness so it cannot collide with a product attribute.
+ */
+const LATCHED_ROW_ATTRIBUTE = "data-e2e-latched-description-focus";
+
+/**
+ * Arms a one-shot listener that records the next row to take description focus.
+ *
+ * Focus is *transient* state: a locator built on `:focus` is true only while the caret is still
+ * there, so it can settle and then un-settle if a later commit remounts the input or the
+ * virtualizer recycles the row. Waiting on such a locator is therefore not a converging wait — it
+ * can resolve to zero forever, which is exactly the load-dependent failure recorded against the
+ * previous version of {@link addEmptyTransaction}.
+ *
+ * `focusin` is the fix, for two independent reasons. It is delivered by the event loop rather than
+ * sampled, so a focus that lands and moves on between two samples cannot be missed; and writing the
+ * ID to an attribute converts that instant into monotonic state, which only ever goes from absent
+ * to present. The caller can then wait for it with an ordinary converging wait.
+ */
+async function latchNextDescriptionFocus(page: Page): Promise<void> {
+    await page.evaluate((attribute) => {
+        document.documentElement.removeAttribute(attribute);
+
+        // Only a row that does not exist yet can be the one Add is about to create. Ignoring the
+        // rows already on screen means a caret returning to the row the caller was previously
+        // editing — which a commit-driven remount can do — cannot be mistaken for the new row.
+        const preExistingRowIds = new Set(
+            Array.from(document.querySelectorAll("[data-transaction-id]"), (row) =>
+                row.getAttribute("data-transaction-id")
+            )
+        );
+
+        const latch = (event: FocusEvent) => {
+            const target = event.target;
+            if (!(target instanceof HTMLElement)) return;
+            if (target.getAttribute("data-testid") !== "description-editable") return;
+            const rowId = target
+                .closest("[data-transaction-id]")
+                ?.getAttribute("data-transaction-id");
+            if (rowId == null || rowId.length === 0 || preExistingRowIds.has(rowId)) return;
+            document.documentElement.setAttribute(attribute, rowId);
+            document.removeEventListener("focusin", latch);
+        };
+        document.addEventListener("focusin", latch);
+    }, LATCHED_ROW_ATTRIBUTE);
+}
+
+/**
+ * Clicks Add and returns the stable ID of the row it creates.
+ *
+ * The row is identified by the caret Add puts in it, because UR-001 deliberately leaves selection
+ * alone and focus is the only thing distinguishing the new row from its siblings. Identification
+ * and synchronisation are separated, though: the caret is captured the instant it lands, and
+ * everything after that waits on the row's stable `data-transaction-id`, which is monotonic.
+ *
+ * This helper does not assert that focus is still in the new row when it returns. That is UR-001
+ * behaviour rather than a precondition for creating a row, and asserting it here would put a
+ * transient-state assertion in the path of every Add-based test. It is asserted where it belongs:
+ * in the UR-001 specs that own the behaviour, and in the `add-transaction-focus*` unit tests.
  */
 export async function addEmptyTransaction(page: Page): Promise<string> {
+    await latchNextDescriptionFocus(page);
     await page.getByTestId("add-transaction-button").click();
-    const row = newlyAddedRow(page);
-    await expect(row).toHaveCount(1);
-    return readTransactionId(row);
+
+    // Sized like the sibling waits on `helpers/auth.ts:32`: Add resets the filters, extends the
+    // displayed page, mounts the row through the virtualizer and scrolls to it before the caret can
+    // land, and under full-suite parallel load that chain can exceed the 5s default. This is a
+    // ceiling on a latch that never un-sets, not a sleep and not a retry.
+    const latched = await page.waitForFunction(
+        (attribute) => document.documentElement.getAttribute(attribute),
+        LATCHED_ROW_ATTRIBUTE,
+        { timeout: 15_000 }
+    );
+    const transactionId = await latched.jsonValue();
+    await latched.dispose();
+    if (transactionId == null || transactionId.length === 0) {
+        throw new Error("Add did not focus a description belonging to a row with a stable ID");
+    }
+
+    // The row's own presence is the monotonic signal every caller actually depends on: they address
+    // it by this ID from here on, so it must be mounted before they do.
+    await expect(rowById(page, transactionId)).toHaveCount(1, { timeout: 15_000 });
+    return transactionId;
 }
 
 /**
@@ -240,6 +308,10 @@ export async function addTransaction(page: Page, spec: TransactionSpec): Promise
         await description.click();
         await description.fill(spec.description);
         await description.press("Enter");
+        // Committing re-sorts the grid and remounts the row, which detaches every element handle
+        // inside it. Settling on the committed value here means the next field is addressed against
+        // the post-commit DOM rather than racing the remount.
+        await expect(description).toHaveValue(spec.description);
     }
 
     const amount = row.getByTestId("amount-editable");

@@ -48,6 +48,10 @@ async function createTestTransaction(
     const descriptionInput = addedRow.getByTestId("description-editable");
     await descriptionInput.fill(data.description);
     await descriptionInput.press("Enter");
+    // Committing re-sorts the grid and remounts the row, detaching the handles inside it. Settling
+    // on the committed value first means the amount field below is resolved against the post-commit
+    // DOM instead of racing the remount and dying on "element was detached from the DOM".
+    await expect(descriptionInput).toHaveValue(data.description);
 
     const amountInput = addedRow.getByTestId("amount-editable");
     await amountInput.fill(data.amount);
@@ -272,6 +276,10 @@ test.describe("Transactions", () => {
             const addedId = await addEmptyTransaction(page);
             expect(existingIds).not.toContain(addedId);
 
+            // This is the load-bearing E2E assertion for UR-001's focus clause. `toBeFocused` is a
+            // converging assertion on the state the caret is *expected* to hold, which is what an
+            // expectation should be; it is deliberately not the thing `addEmptyTransaction`
+            // synchronises on, because focus is transient and can un-settle.
             const addedRow = page.locator(`[data-transaction-id="${addedId}"]`);
             await expect(addedRow.getByTestId("description-editable")).toBeFocused();
             await expect(addedRow).toHaveAttribute("aria-selected", "false");
