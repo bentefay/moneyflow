@@ -231,8 +231,10 @@ describe("getInitials remains the shared derivation", () => {
     });
 
     it("still has a hash branch, which the avatar no longer reaches", () => {
-        // The branch stays as a last-resort for other callers; UR-003's fix is that the
-        // avatar is never handed a hash in the first place.
+        // DELIBERATE, not an unfixed defect: "AD" is the exact string the principal
+        // reported, kept as a live fact. The branch stays as a last-resort for the other
+        // callers of getInitials; UR-003's fix is that the avatar is never handed a hash
+        // in the first place, which the avatar tests above prove.
         expect(getInitials(OWNER_HASH)).toBe("AD");
     });
 });
