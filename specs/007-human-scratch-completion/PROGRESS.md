@@ -6613,3 +6613,39 @@ known `passkey.spec.ts` flake did not appear.
 covered anywhere. Nothing in UR-002 requires it and search is local-only state.
 
 Dispatched `p23-reviewer-01` (DISTINCT, fresh context, never the P23 implementer).
+
+### 2026-08-01 — ROOT ERROR recorded: the "no UR-002 coverage at 5027787" claim is FALSE
+
+`p23-reviewer-01` raised an evidence-honesty finding against `evidence/P23/implementation-01.md:236-248`,
+which states that the `5027787` tree "contains no UR-002 E2E coverage at all". **That claim is false,
+and root introduced it.**
+
+Verified: `git show 5027787:tests/e2e/description-aliases.spec.ts` carries, at line 540, a standalone
+`test("search finds transactions by the alias-resolved description they display", ...)` added by
+`391bee6`, whose body creates a manual row, fills "Testing", and imports a second fixture so each
+search discriminates. So `5027787` DID exercise UR-002 end to end.
+
+**Provenance, stated plainly: this is root's error, not the implementer's.** The implementer correctly
+told root its campaign target was stale. Root then grepped `5027787` for the string
+`"search matches the alias-resolved description on display"` — the title of the RESTRUCTURED
+`test.step` introduced LATER by `11a01f4` — got 0, and concluded the tree had no UR-002 coverage. Root
+asserted that conclusion back to the implementer in writing, and the implementer recorded root's
+conclusion in its evidence. A grep for a string that only exists after a rename cannot establish
+absence of the renamed thing; it establishes absence of the new NAME. That is precisely the category
+of mechanism error root has been requiring workers to avoid, committed by root.
+
+**What survives and what does not.** The DECISION was right: re-targeting the campaign to `22f8f59`
+was correct, because the journey-step form is what `.claude/skills/e2e/SKILL.md:11` requires and is
+what shipped, and the reviewer independently reproduced digest `fad5caecaf75e94e032764a8f7d46c4f` as
+matching HEAD's `src`+`tests`. The stated JUSTIFICATION does not survive. The remedy is a corrected
+sentence in the evidence, not a re-run — the campaign at `22f8f59` genuinely exercises UR-002.
+
+Root has told the reviewer the finding is real, must not be softened, and that severity is the
+reviewer's call — while noting for its judgement that a false mechanism supporting a CORRECT decision
+is a documentation defect rather than a wrong decision, and that the implementer was repeating a claim
+its coordinator asserted to it. Verify-not-trust cuts both ways: the implementer should have checked
+root, exactly as the reviewer checked the implementer.
+
+**Carry-forward for P21 (`Q-ROOT-2026-08-01-01`):** a coordinator-asserted claim entered a worker's
+evidence unverified. Any P21 audit of evidence provenance should treat root assertions as claims to be
+checked, not as authority.
