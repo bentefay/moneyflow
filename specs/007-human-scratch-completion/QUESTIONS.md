@@ -2500,3 +2500,46 @@ fixtures reproducing the STRUCTURE only: no header row, `dd/MM/yyyy` dates, quot
 one leading-plus amount, at least one quoted description containing a comma. Root measured the real
 files read-only to locate the defect and committed no row of their content. This is a secret-safety
 posture, not a preference.
+
+### Q-UR008-01 and Q-UR008-02 — RESOLVED by the principal 2026-08-01
+
+**Q-UR008-01 CLOSED — the count is 15, not 22.** The principal confirmed: "it was 15 - I was wrong
+about 22." This matches root's independent measurement exactly: 15 rows in the reported CSV carry an
+amount with a leading `+`, and `parseAmount` (`src/lib/import/csv.ts:165-190`) has no branch for a
+leading plus. There is NO second error class to hunt. The frozen text is unchanged and remains
+correct — it requires that every row reported as an error be genuinely unparseable, which this single
+defect satisfies once fixed.
+
+**Q-UR008-02 CLOSED — the principal specified the exact summary breakdown.** Requested categories,
+verbatim:
+
+- Total Rows
+- Valid
+- Errors
+- Duplicates (will be marked)
+- Old New (excluded)
+- Old Duplicates (excluded)
+
+Read against the reported figures, this resolves the ambiguity the principal originally raised. The
+confusing `561 old` conflated two different exclusions; the requested breakdown splits them into
+**Old New** and **Old Duplicates**, and separates both from **Duplicates**, which are IMPORTED and
+merely marked. The parenthetical qualifiers carry the meaning: "(will be marked)" says the row is
+imported; "(excluded)" says it is not. Every row therefore lands in exactly one of Valid, Errors,
+Duplicates, Old New, or Old Duplicates, and those sum to Total Rows.
+
+**Effect on frozen scope: NONE — this is a refinement WITHIN the frozen requirement, not an
+expansion.** `specs/010-user-reported-refinements-2/spec.md:78-80` already mandates the semantic:
+"The import summary distinguishes rows excluded for being older than the cutoff from rows excluded as
+duplicates, and names separately those rows that are both old and duplicates, so no count is
+ambiguous about why a row was excluded or whether it will be imported." The principal's list is a
+concrete instance of exactly that. Root deliberately kept label STRINGS out of the frozen text so
+wording could be settled without a scope change; this is that path working as intended. No new frozen
+source, no SCOPE edit, no adjudicator.
+
+**Binding instruction to the P29 implementer:** implement precisely these six categories with these
+labels, preserving the parenthetical qualifiers, and assert in tests that the five outcome categories
+partition Total Rows with no row counted twice and none omitted.
+
+**Q-UR008-03 remains OPEN and unchanged** — treated as a labelling defect only. The requested
+breakdown is expected to resolve the confusion the principal reported about `561 old`, since that
+figure will now split into Old New and Old Duplicates.
