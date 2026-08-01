@@ -6464,3 +6464,45 @@ Root ALSO resolved the open design question the task recorded: `createDescriptio
 `useDescriptionAliasLookup` (a `useMemo` only). So the resolver can be threaded into the pure
 `filterTransactions` query without importing React or breaking purity, and without lifting the search
 predicate into the component. That is the preferred shape.
+
+### 2026-08-01 — P23 rev 01 handback VERIFIED except E2E, which is queued behind P22's campaign
+
+`p23-implementer-01` handed back `391bee6` (product), `c041795` (page-level test) and `5027787`
+(evidence), all verified ancestors of HEAD. It explicitly did NOT claim `test:e2e`, which it could not
+run — the correct call, and it said so plainly rather than reporting five green checks as near-done.
+
+Design: an optional `resolveDescriptionAliasName` on `TransactionQueryOptions`; the predicate ORs the
+resolved alias name ALONGSIDE the existing raw description and notes matches, never in place of them,
+so an absent option leaves the old behaviour byte-equivalent and no existing caller changes. Case
+handling untouched, since it was already correct — this was never a case-sensitivity bug.
+
+**Root verified the `page.tsx` overlap directly:** the diff is exactly 3 lines inside the
+`filteredTransactions` useMemo — the resolver, `aliasLookup` added to the dep array, and a comment.
+P22 rev 02's `ed94edf` is in the reveal-intent retirement effect. No line overlap, no shared
+identifier redefined, so P22's in-flight review is NOT voided.
+
+**Root independently verified the page-level regression test regresses:** removed only the resolver
+line, ran `tests/unit/transactions/search-alias-resolved-description.test.tsx`, observed **3 failed /
+3 tests**, restored, confirmed a clean tree. That test is the one that matters — the query-level
+tests supply the resolver themselves and would stay green even if the page never passed one, which is
+precisely the reported bug.
+
+**Root fast gates:** typecheck clean; unit **114 files, 2117 passed / 2 skipped**.
+
+**E2E QUEUED, not skipped.** `playwright.config.ts` pins `webServer.url` to `:3000` with
+`reuseExistingServer: false` and reads NO port/baseURL env override, so exactly one campaign can run
+repo-wide at a time. A git worktree isolates the distDir-scoped Next dev LOCK but NOT the port — root's
+earlier "run them in parallel in separate worktrees" instruction was only half a solution, and root
+owns that error. P22's reviewer campaign holds the port; the P23 implementer watched a gap open at
+17:17:01 and correctly declined to take it, since seizing the port between runs would void the P22
+campaign. P23 waits.
+
+Both agents independently identified the same trap and root confirms it: `CI=true` must NOT be used
+for the Playwright runs. `playwright.config.ts:56,60` sets `retries: CI ? 2 : 0` and
+`workers: CI ? 1 : 4`, so CI mode yields 1 worker and 2 RETRIES — the inverse of the 4-worker
+retries-disabled profile the flake discipline requires, and it would launder flakes into passes.
+`CI=true` for `pnpm install` only.
+
+P23 stays `implementing` until its campaign runs. UR-002 is NOT verified on five gates: they prove the
+pure predicate and the jsdom page wiring, and nothing about the debounced input under real timing, the
+virtualized re-render after a filter change, resolution over a live CRDT doc, or sync.
