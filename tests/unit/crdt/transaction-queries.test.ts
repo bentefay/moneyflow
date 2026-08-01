@@ -29,6 +29,10 @@ import type {
 } from "@/lib/crdt/schema";
 import { TRANSACTION_MAINTENANCE_SHADOW_ID_PREFIX } from "@/lib/crdt/schema";
 import { asMinorUnits } from "@/lib/domain/currency";
+import {
+    createDescriptionAliasLookup,
+    type DescriptionAliasCollection
+} from "@/lib/domain/description-aliases";
 import { asPercentage } from "@/types";
 
 // Helper to create a minimal transaction input
@@ -875,6 +879,184 @@ describe("filterTransactions", () => {
 
         expect(result[0].amount).toBe(asMinorUnits(-500));
         expect(result[1].amount).toBe(asMinorUnits(5000));
+    });
+
+    // UR-002: search must find rows by the description the table actually displays. Resolution runs
+    // through the production lookup so the one-hop symlink relationship is exercised, not stubbed.
+    describe("search over alias-resolved descriptions", () => {
+        const aliases: DescriptionAliasCollection = {
+            "alias-testing": {
+                kind: "real",
+                id: "alias-testing",
+                name: "Testing",
+                symlinkIds: { "alias-trial": true },
+                transactionIds: {}
+            },
+            "alias-trial": {
+                kind: "symlink",
+                id: "alias-trial",
+                targetAliasId: "alias-testing",
+                transactionIds: {}
+            },
+            "alias-groceries": {
+                kind: "real",
+                id: "alias-groceries",
+                name: "Groceries",
+                symlinkIds: {},
+                transactionIds: {}
+            }
+        };
+
+        const resolveDescriptionAliasName = (aliasId: string): string | undefined =>
+            createDescriptionAliasLookup(aliases).resolve(aliasId)?.name;
+
+        /**
+         * `tx-manual` reproduces the reported defect: a manually added row is stored with an empty
+         * description and only carries the alias. `tx-symlinked` points at a symlink, and
+         * `tx-imported` keeps raw imported text that differs from its alias.
+         */
+        function createAliasedTransactions(): Transaction[] {
+            const store = createEmptyStore();
+            const now = Date.now();
+            const rows: ReadonlyArray<{
+                readonly id: string;
+                readonly description: string;
+                readonly notes: string;
+                readonly descriptionAliasId: string | undefined;
+            }> = [
+                {
+                    id: "tx-manual",
+                    description: "",
+                    notes: "",
+                    descriptionAliasId: "alias-testing"
+                },
+                {
+                    id: "tx-symlinked",
+                    description: "",
+                    notes: "",
+                    descriptionAliasId: "alias-trial"
+                },
+                {
+                    id: "tx-imported",
+                    description: "SAFEWAY STORE 1234",
+                    notes: "weekly shop",
+                    descriptionAliasId: "alias-groceries"
+                },
+                {
+                    id: "tx-unaliased",
+                    description: "Bookshop",
+                    notes: "",
+                    descriptionAliasId: undefined
+                }
+            ];
+
+            for (const [index, row] of rows.entries()) {
+                insertTransaction(store, {
+                    transaction: {
+                        id: row.id,
+                        date: Temporal.PlainDate.from("2024-03-15"),
+                        description: row.description,
+                        notes: row.notes,
+                        amount: asMinorUnits(-1500),
+                        originalAmount: undefined,
+                        accountId: "acc-1",
+                        tagIds: [],
+                        statusId: "status-paid",
+                        importId: "",
+                        allocations: {},
+                        creationInstant: Temporal.Instant.fromEpochMilliseconds(now - index),
+                        importRowIndex: index,
+                        descriptionAliasId: row.descriptionAliasId,
+                        deletedAt: undefined
+                    }
+                });
+            }
+
+            return getAllTransactions(store);
+        }
+
+        const matchCases: ReadonlyArray<{
+            readonly name: string;
+            readonly search: string;
+            readonly expectedIds: readonly string[];
+        }> = [
+            {
+                name: "finds an aliased row with no stored description by its alias text",
+                search: "test",
+                expectedIds: ["tx-manual", "tx-symlinked"]
+            },
+            {
+                name: "follows a one-hop symlink to the real alias name",
+                search: "Testing",
+                expectedIds: ["tx-manual", "tx-symlinked"]
+            },
+            {
+                name: "still finds a row by its raw stored description",
+                search: "safeway",
+                expectedIds: ["tx-imported"]
+            },
+            {
+                name: "still finds a row by its notes",
+                search: "weekly",
+                expectedIds: ["tx-imported"]
+            },
+            {
+                name: "finds a row carrying both raw text and a different alias by the alias",
+                search: "groceries",
+                expectedIds: ["tx-imported"]
+            },
+            {
+                name: "lowercase search matches mixed-case alias text",
+                search: "groc",
+                expectedIds: ["tx-imported"]
+            },
+            {
+                name: "uppercase search matches mixed-case alias text",
+                search: "GROCERIES",
+                expectedIds: ["tx-imported"]
+            },
+            {
+                name: "matches an alias substring from the middle of the name",
+                search: "esti",
+                expectedIds: ["tx-manual", "tx-symlinked"]
+            },
+            {
+                name: "leaves an unaliased row findable by its description",
+                search: "bookshop",
+                expectedIds: ["tx-unaliased"]
+            },
+            {
+                name: "returns nothing when neither alias, description nor notes match",
+                search: "no-such-text",
+                expectedIds: []
+            }
+        ];
+
+        for (const { name, search, expectedIds } of matchCases) {
+            it(name, () => {
+                const result = filterTransactions(createAliasedTransactions(), {
+                    search,
+                    resolveDescriptionAliasName
+                });
+
+                expect(result.map((tx) => tx.id).sort()).toEqual([...expectedIds].sort());
+            });
+        }
+
+        it("matches only the raw description and notes when no resolver is supplied", () => {
+            const result = filterTransactions(createAliasedTransactions(), { search: "test" });
+
+            expect(result).toEqual([]);
+        });
+
+        it("ignores an alias id the resolver cannot resolve", () => {
+            const result = filterTransactions(createAliasedTransactions(), {
+                search: "safeway",
+                resolveDescriptionAliasName: () => undefined
+            });
+
+            expect(result.map((tx) => tx.id)).toEqual(["tx-imported"]);
+        });
     });
 
     it("filters by showDuplicatesOnly", () => {

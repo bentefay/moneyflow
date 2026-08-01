@@ -8,7 +8,7 @@
 import { expect, type Page, test } from "@playwright/test";
 
 import { createNewIdentity, goToImportNew, goToTransactions, goToTxDescriptions } from "./helpers";
-import { addEmptyTransaction } from "./helpers/settlement";
+import { addEmptyTransaction, rowById } from "./helpers/settlement";
 
 // ============================================================================
 // Alias-Specific Helpers
@@ -535,5 +535,69 @@ test.describe("Description Aliases", () => {
         });
 
         await duplicate.close();
+    });
+
+    test("search finds transactions by the alias-resolved description they display", async ({
+        page
+    }) => {
+        await createNewIdentity(page);
+        await goToTransactions(page);
+
+        // Reproduces the reported defect: a manually added row is stored with an empty description,
+        // so before UR-002 the only findable text — the alias the user can see — was never searched.
+        const manualRowId = await addEmptyTransaction(page);
+        const manualDescription = rowById(page, manualRowId).getByTestId("description-editable");
+        await manualDescription.fill("Testing");
+        await manualDescription.press("Enter");
+        await expect(manualDescription).toHaveValue("Testing");
+
+        // A second row keeps raw imported text under a different alias, so each search below has to
+        // discriminate rather than pass by matching everything on the page.
+        await importDescriptionFixtures(page, [
+            { date: "2026-07-04", description: "SAFEWAY STORE 1234" }
+        ]);
+        const importedDescription = descriptionInputFor(page, /SAFEWAY STORE 1234/);
+        await importedDescription.fill("Groceries");
+        await importedDescription.press("Enter");
+        await expect(importedDescription).toHaveValue("Groceries");
+
+        const search = page.getByTestId("search-filter");
+        const manualRow = rowById(page, manualRowId);
+        const importedRow = page.getByRole("row", { name: /SAFEWAY STORE 1234/ });
+
+        const searchFor = async (term: string): Promise<void> => {
+            await search.fill(term);
+            await search.press("Enter");
+        };
+
+        await test.step("the reported case: alias text finds the row it is displayed on", async () => {
+            await searchFor("test");
+            await expect(manualRow).toBeVisible({ timeout: 15_000 });
+            await expect(importedRow).toHaveCount(0);
+        });
+
+        await test.step("alias matching is case-insensitive in both directions", async () => {
+            await searchFor("TESTING");
+            await expect(manualRow).toBeVisible({ timeout: 15_000 });
+            await searchFor("groc");
+            await expect(importedRow).toBeVisible({ timeout: 15_000 });
+            await expect(manualRow).toHaveCount(0);
+        });
+
+        await test.step("raw imported text stays findable underneath its alias", async () => {
+            await searchFor("safeway");
+            await expect(importedRow).toBeVisible({ timeout: 15_000 });
+            await expect(manualRow).toHaveCount(0);
+        });
+
+        await test.step("unmatched text still filters everything out", async () => {
+            await searchFor("no-such-description-ur-002");
+            await expect(manualRow).toHaveCount(0);
+            await expect(importedRow).toHaveCount(0);
+
+            await page.getByRole("button", { name: "Clear search" }).click();
+            await expect(manualRow).toBeVisible({ timeout: 15_000 });
+            await expect(importedRow).toBeVisible({ timeout: 15_000 });
+        });
     });
 });

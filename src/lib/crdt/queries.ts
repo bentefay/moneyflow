@@ -10,7 +10,8 @@ import { Temporal } from "temporal-polyfill";
 
 import {
     getActiveDescriptionAliases as selectActiveDescriptionAliases,
-    type DescriptionAlias
+    type DescriptionAlias,
+    type DescriptionAliasNameResolver
 } from "@/lib/domain/description-aliases";
 
 import { isPublicTransaction } from "./schema";
@@ -67,8 +68,14 @@ export interface TransactionQueryOptions {
     accountIds?: string[];
     /** Filter by status IDs */
     statusIds?: string[];
-    /** Free text search in description/notes */
+    /** Free text search in description/notes, and in the alias-resolved description when resolvable */
     search?: string;
+    /**
+     * Resolves a transaction's `descriptionAliasId` to the name the table displays for it.
+     * Supplied by callers that hold the alias collection; when absent, search still matches the raw
+     * stored description and notes, so no existing caller changes behaviour.
+     */
+    resolveDescriptionAliasName?: DescriptionAliasNameResolver;
     /** Only show transactions with suspected duplicates */
     showDuplicatesOnly?: boolean;
     /** Exclude soft-deleted transactions */
@@ -557,14 +564,22 @@ export function filterTransactions(
         results = results.filter((tx) => statusIds.includes(tx.statusId));
     }
 
-    // Text search
+    // Text search. Matches what the user can see — the alias-resolved description — as well as the
+    // raw stored description, so imported text that predates an alias stays findable.
     if (options.search) {
         const searchLower = options.search.toLowerCase();
-        results = results.filter(
-            (tx) =>
-                tx.description?.toLowerCase().includes(searchLower) ||
-                tx.notes?.toLowerCase().includes(searchLower)
-        );
+        const resolveAliasName = options.resolveDescriptionAliasName;
+        const matchesSearch = (value: string | undefined): boolean =>
+            value != null && value.toLowerCase().includes(searchLower);
+        results = results.filter((tx) => {
+            const aliasName =
+                resolveAliasName && tx.descriptionAliasId
+                    ? resolveAliasName(tx.descriptionAliasId)
+                    : undefined;
+            return (
+                matchesSearch(tx.description) || matchesSearch(tx.notes) || matchesSearch(aliasName)
+            );
+        });
     }
 
     // Duplicates filter - show transactions with suspected duplicates

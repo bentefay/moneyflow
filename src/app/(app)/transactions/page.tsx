@@ -235,13 +235,16 @@ function TransactionsPageContent() {
             accountIds: filters.accountIds.length > 0 ? filters.accountIds : undefined,
             statusIds: filters.statusIds.length > 0 ? filters.statusIds : undefined,
             search: filters.search || undefined,
+            // Search must find rows by the description the table actually renders, which for an
+            // aliased row is the alias name resolved through the same one-hop symlink lookup.
+            resolveDescriptionAliasName: (aliasId) => aliasLookup.resolve(aliasId)?.name,
             showDuplicatesOnly: filters.showDuplicatesOnly,
             excludeDeleted: true,
             // Data is pre-sorted, but filterTransactions preserves order when sortBy is "date" and sortDirection is "desc"
             sortBy: "date",
             sortDirection: "desc"
         });
-    }, [transactions, filters]);
+    }, [transactions, filters, aliasLookup]);
 
     // "View transaction" from the People page carries one stable source ID. It is a one-shot
     // navigation intent, not a standing selection override: the row is paged in, selected and

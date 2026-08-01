@@ -37,6 +37,12 @@ export interface SymlinkDescriptionAlias {
 export type DescriptionAlias = RealDescriptionAlias | SymlinkDescriptionAlias;
 export type DescriptionAliasCollection = Readonly<Record<string, DescriptionAlias | string>>;
 
+/**
+ * Maps an alias id to the display name shown for it, following the one-hop symlink relationship.
+ * Injected into pure consumers so they can read displayed description text without a React scope.
+ */
+export type DescriptionAliasNameResolver = (aliasId: string) => string | undefined;
+
 export interface DescriptionAliasLookupStatistics {
     readonly sourceEntryCount: number;
     readonly activeAliasCount: number;
