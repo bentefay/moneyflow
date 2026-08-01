@@ -6912,3 +6912,47 @@ hits; the reviewer counts 62 and root's own narrower grep gives 59 — no varian
 UR-001 took three revisions: rev 01 shipped the product behaviour plus a focus-based E2E sync point;
 rev 02 fixed a frozen-text conformance defect but FAILED on the flake that sync point caused; rev 03
 replaced it with a monotonic latch. The product conformance work from revs 01-02 was never reopened.
+
+### 2026-08-02 — P24 scope ruling: THREE presence avatar render sites, not two
+
+`p24-implementer-01` verified all four of root's orientation findings as true, then raised a scope
+question root's dispatch had missed and corrected root twice on substance. Root ruled after verifying
+independently.
+
+**RULING: all three render sites are in scope.** `grep -rn '<PresenceAvatar' --include='*.tsx' src`
+returns exactly three paths — `PresenceAvatarGroup.tsx:74` (fed by `layout.tsx:218` and `:343`) and
+`TransactionRow.tsx:539` DIRECTLY. Root's dispatch named only the first two. Frozen
+`specs/009-user-reported-refinements/spec.md:66-67` requires the name be supplied "to every presence
+avatar, at every place presence avatars are rendered", and `:539` is such a place: its wrapper
+`title={presenceLabel}` at `:537` means that surface renders BOTH hash-derived initials AND an
+"Editing: Member 3f2a9b1c" tooltip. This is NOT scope expansion — the frozen text already required it
+and root's dispatch omitted a site, so requiring it completes committed scope. No adjudicator involved;
+P24 stays one package and the row site is NOT split out.
+
+**Correction 1, and the sharpest illustration of verify-not-trust in this package.** Root suggested
+checking whether `deriveMemberPersonId` allowed a direct person lookup instead of scanning. The
+implementer checked and found it WRONG: the owner adopts `DEFAULT_PERSON_ID` = `"person-default-me"`,
+so their person key is not `person-member-<hash>` and a derived-id lookup finds only INVITED MEMBERS.
+Had root's suggestion been taken at face value, the fix would have passed its invited-member tests and
+still shown the principal "AD" — the reported defect's own case. Scanning `linkedUserId`, exactly as
+`ensureMemberPerson` does at `:84-88`, is correct.
+
+**Correction 2, accepted as better than what root asked for.** Making `displayName` a REQUIRED prop
+carrying a discriminated union turns "avatar rendered without a resolved name" into a COMPILE ERROR
+rather than a silent fall-through to `name || userId` at `PresenceAvatar.tsx:48`. That satisfies the
+repo's make-illegal-states-unrepresentable rule and answers the question root could not: what prevents
+a fourth render site regressing this later.
+
+**Unnamed invited member: person icon, tooltip and accessible name "Unnamed member", zero hash
+characters, colour still from `hashToColor(userId)`.** Root accepted the implementer's reasoning that
+"Member 3f2a9b1c" embeds a key hash and so fails the frozen tooltip clause, and that keeping colour
+keyed on the identifier is the frozen text's own stated rationale. `memberFallbackName` is deliberately
+NOT changed, so `TransactionRow.tsx:222`'s presence label is unaltered.
+
+**Shared helper for P27/UR-006:** `resolveMemberDisplayName(people, pubkeyHash) -> MemberDisplayName`
+in `src/lib/crdt/person.ts`, built by extracting `personOwnName(person)` and rebuilding the existing
+`resolvePersonDisplayName` on top of it, behaviour-preserving with all 10 callers untouched. P27 must
+REUSE it rather than add a second resolution path.
+
+E2E bar RAISED to at least 5 consecutive full-suite `--retries=0` runs, because scope grew by a render
+site and a prop-contract change. Port :3000 is free and assigned to P24.
