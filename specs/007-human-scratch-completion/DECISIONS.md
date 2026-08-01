@@ -475,3 +475,37 @@ will be re-opened from a fresh BASE over all 25 feature packages after P22-P25 p
 **Reversal path.** Removing any UR requirement means deleting its SCOPE entry, its ledger rows and
 its package, and restoring `requirementCount`. That WOULD be a scope reduction and would require the
 independent scope adjudicator per PROCESS.md:335-347.
+
+## D-021 — UR-005..UR-008 admitted via a second frozen source; scratch and prior sources untouched
+
+- **Status:** accepted
+- **Date:** 2026-08-01
+- **Authority:** explicit in-session instruction from the human principal, owner of committed scope.
+
+**Decision.** Four further user-reported refinements are admitted as first-class requirements:
+UR-005 (minimal transaction-table chrome at rest), UR-006 (vault members listed by name), UR-007
+(dates in the browser's locale), UR-008 (CSV/OFX import parity and honest import counts). Owning
+packages P26, P27, P28, P29, each requiring full implementation and a DISTINCT independent review.
+
+**Mechanism, identical to D-020.** `specs/human-scratch.md` is NOT edited and stays frozen at
+working-copy `b91ca932…` / rolling `469e98c7…`. A NEW frozen source
+`specs/010-user-reported-refinements-2/spec.md` (SHA `a137e388…`, 86 lines, 4,902 bytes) is
+registered in `SCOPE.json#sources` as `SRC-USER-REPORTED-REFINEMENTS-2`; `requirementCount` 26 -> 30.
+All four are markerless and immutable (`immutableNoSourceMutation`) — the FS-001 mechanic — so the
+marker and rolling-SHA machinery stays bound exclusively to the scratch file's 21 blocks. Frozen
+`sourceTextLines` were verified byte-identical to the spec file at each section range.
+
+**No scope adjudicator required.** This is an EXPANSION directed by the principal who owns the
+scope, not a reduction and not the superseding of a prior accepted decision. PROCESS.md:335-347
+governs the latter cases. Removing any UR requirement later WOULD be a reduction and would require
+the adjudicator.
+
+**Measured finding backing UR-008.** Root read the principal's CSV read-only and established the
+reported errors' root cause: `parseAmount` at `src/lib/import/csv.ts:165-190` has no branch for a
+leading `+`, and the file contains exactly 15 such rows, matching the 15 errors reported. Ten further
+rows carry a quoted description containing a comma. Neither file's contents are committed; fixtures
+must be synthetic. Open ambiguities are recorded as Q-UR008-01..03 with the safest reversible choice
+taken in each case, per the no-pause rule.
+
+**Revised tallies: 22 of 30 requirements `passed`; 21 of 29 feature packages `passed`.** Completion
+now additionally requires P26-P29.

@@ -2446,3 +2446,57 @@ Disposition is UNCHANGED: still future work, still outside the frozen SCOPE sele
 is outside the frozen 151-350 block range). This amendment records the evidence and the corrected
 design rationale so the future decision is not re-litigated from the wrong premise. Pulling it into
 this goal remains a scope EXPANSION requiring the independent scope adjudicator.
+
+## Q-USER-2026-08-01 — Second scope admission UR-005..UR-008, with three open ambiguities
+
+Four further items reported by the human principal on 2026-08-01 and admitted to committed scope at
+the principal's instruction, via a NEW frozen source `specs/010-user-reported-refinements-2/spec.md`
+(SHA `a137e38848db04c656169c97e4ff5b862feec6ca29d6e6069c81c2c279dc95c5`, 86 lines, 4,902 bytes).
+`specs/human-scratch.md` was NOT edited; it remains frozen at rolling `469e98c7…`. See D-021.
+
+Root played the fourth item back to the principal for confirmation and, per the no-pause rule, did
+NOT wait for an answer: each ambiguity below is recorded with the safest reversible choice already
+taken, so implementation can proceed and be corrected cheaply if the principal says otherwise.
+
+### Q-UR008-01 — "22 rows errored" vs "15 errors"
+
+The principal's report said "it said I think 22 rows were errored" and later quoted the summary as
+`561 old, 46 duplicates and 15 errors`. Root measured the actual file: EXACTLY 15 rows carry an
+amount with a leading `+` (`+69.00`, `+5000.00`, …), and `parseAmount`
+(`src/lib/import/csv.ts:165-190`) handles `-`, accounting parentheses and currency symbols but has NO
+branch for a leading `+`, so those rows fail magnitude validation. 15 measured == 15 reported.
+
+**Safest reversible choice taken:** frozen text requires that EVERY row reported as an error be
+genuinely unparseable, rather than fixing a specific count. That wording holds whether the true
+figure is 15 or 22 — if a further error class exists, the requirement still fails until it is fixed.
+No count is hard-coded in the frozen text. If the principal confirms 22 was a distinct run, the
+implementer must find the second class; the requirement already obliges it.
+
+### Q-UR008-02 — Wording of the old/duplicate/both labels
+
+The principal asked for "another label for old duplicates, to distinguish duplicates that will be
+included from those that are old and won't be included", and did not specify wording.
+
+**Safest reversible choice taken:** the frozen text mandates the SEMANTIC — old, duplicate, and both
+must be counted distinctly so no count is ambiguous about why a row was excluded or whether it will
+be imported — and deliberately does NOT dictate label strings. Copy can be adjusted without a scope
+change; a mandated string could not.
+
+### Q-UR008-03 — Is "561 old" itself plausible?
+
+At a 10-day cutoff against a 622-row file spanning months, 561 old is arithmetically plausible
+(561 + 46 + 15 = 622, accounting for every row). The principal flagged it as confusing, not
+necessarily wrong.
+
+**Safest reversible choice taken:** treated as a LABELLING defect only, per Q-UR008-02, and NOT
+specced as a miscount. If the principal reports the figure is itself wrong, that is a separate
+finding to route then. Root did not invent a defect the evidence does not support.
+
+### Reference data handling (root decision, no ambiguity)
+
+The principal's `~/Downloads/CSVData.csv` and `~/Downloads/OFXData.ofx` are REAL personal financial
+data, 622 transactions each. They must NOT be committed as fixtures. The task requires SYNTHETIC
+fixtures reproducing the STRUCTURE only: no header row, `dd/MM/yyyy` dates, quoted fields, at least
+one leading-plus amount, at least one quoted description containing a comma. Root measured the real
+files read-only to locate the defect and committed no row of their content. This is a secret-safety
+posture, not a preference.

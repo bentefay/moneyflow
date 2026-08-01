@@ -1,6 +1,6 @@
 {
     "schemaVersion": 2,
-    "requirementCount": 26,
+    "requirementCount": 30,
     "sources": [
         {
             "id": "SRC-HUMAN-SCRATCH",
@@ -36,6 +36,21 @@
             "byteCount": 5610,
             "frozenAt": "2026-07-30",
             "admittedBy": "human principal instruction, in-session 2026-07-30, during P21 rev 06",
+            "selector": {
+                "kind": "orderedTopLevelSections",
+                "count": 4,
+                "sourceTextField": "sourceTextLines"
+            },
+            "completionMechanic": "The source is immutable and has no checkbox or source edit; completion is recorded only in the requirement/package ledgers after identical implementation and independent-review gates, exactly as FS-001."
+        },
+        {
+            "id": "SRC-USER-REPORTED-REFINEMENTS-2",
+            "path": "specs/010-user-reported-refinements-2/spec.md",
+            "sha256": "a137e38848db04c656169c97e4ff5b862feec6ca29d6e6069c81c2c279dc95c5",
+            "lineCount": 86,
+            "byteCount": 4902,
+            "frozenAt": "2026-08-01",
+            "admittedBy": "human principal instruction, in-session 2026-08-01, during P22 rev 02",
             "selector": {
                 "kind": "orderedTopLevelSections",
                 "count": 4,
@@ -662,6 +677,143 @@
             "task": "tasks/ur-004.md",
             "packages": [
                 "P25"
+            ],
+            "sourceCompletion": "immutableNoSourceMutation"
+        },
+        {
+            "id": "UR-005",
+            "sourceId": "SRC-USER-REPORTED-REFINEMENTS-2",
+            "heading": "Transaction table chrome is minimal at rest",
+            "sourceSelector": {
+                "kind": "sectionLineRange",
+                "lineRange": "11-24"
+            },
+            "sourceTextLines": [
+                "## UR-005 — Transaction table chrome is minimal at rest",
+                "",
+                "The transaction table must look clean and minimal at rest. The subtle background fill currently",
+                "carried by the row's data cells is distracting chrome and must be removed.",
+                "",
+                "Required behaviour:",
+                "",
+                "- The date, description, account, status, percentage and amount cells carry no background fill in",
+                "  their resting state.",
+                "- Hover, focus, focus-visible, selected, editing and any presence or validation states keep their",
+                "  existing visual treatment. Removing resting chrome must not remove state feedback.",
+                "- Focus indication remains clearly visible and keyboard focus remains obvious at every cell.",
+                "- Contrast for text and for every retained state remains at least WCAG AA, and the accessible",
+                "  role/name/state exposed by each cell is unchanged."
+            ],
+            "task": "tasks/ur-005.md",
+            "packages": [
+                "P26"
+            ],
+            "sourceCompletion": "immutableNoSourceMutation"
+        },
+        {
+            "id": "UR-006",
+            "sourceId": "SRC-USER-REPORTED-REFINEMENTS-2",
+            "heading": "Vault members are listed by name",
+            "sourceSelector": {
+                "kind": "sectionLineRange",
+                "lineRange": "26-38"
+            },
+            "sourceTextLines": [
+                "## UR-006 — Vault members are listed by name",
+                "",
+                "The Vault Settings members list must identify each member by their display name, not by a raw",
+                "identifier.",
+                "",
+                "Required behaviour:",
+                "",
+                "- Each member row shows the member's display name, resolved the same way the presence avatar",
+                "  resolves it.",
+                "- A raw public key hash is never the visible label for a member.",
+                "- Where no display name can be resolved, a clearly human-readable fallback is shown rather than a",
+                "  bare hash.",
+                "- Any tooltip or accessible name for the member follows the same rule as the visible label."
+            ],
+            "task": "tasks/ur-006.md",
+            "packages": [
+                "P27"
+            ],
+            "sourceCompletion": "immutableNoSourceMutation"
+        },
+        {
+            "id": "UR-007",
+            "sourceId": "SRC-USER-REPORTED-REFINEMENTS-2",
+            "heading": "Dates display in the browser's locale",
+            "sourceSelector": {
+                "kind": "sectionLineRange",
+                "lineRange": "40-54"
+            },
+            "sourceTextLines": [
+                "## UR-007 — Dates display in the browser's locale",
+                "",
+                "Dates must be presented using the viewer's locale rather than a fixed United States format.",
+                "",
+                "Required behaviour:",
+                "",
+                "- Displayed dates use the browser's resolved locale ordering and separators. For an",
+                "  Australian-English viewer, `03/08` is the third of August, not the eighth of March.",
+                "- A date in the current year displays as day and month only.",
+                "- A date in a different year, and any date shown while editing, includes the year.",
+                "- The year is rendered as two digits in the editing and different-year presentations.",
+                "- Date entry accepts what the same locale displays, so a value can be typed back in the form it was",
+                "  shown.",
+                "- Stored values remain unchanged: this is a presentation and parsing concern only. Dates are stored",
+                "  and compared as calendar dates, and no displayed value shifts because of a time zone."
+            ],
+            "task": "tasks/ur-007.md",
+            "packages": [
+                "P28"
+            ],
+            "sourceCompletion": "immutableNoSourceMutation"
+        },
+        {
+            "id": "UR-008",
+            "sourceId": "SRC-USER-REPORTED-REFINEMENTS-2",
+            "heading": "CSV import parity with OFX and honest import counts",
+            "sourceSelector": {
+                "kind": "sectionLineRange",
+                "lineRange": "56-86"
+            },
+            "sourceTextLines": [
+                "## UR-008 — CSV import parity with OFX, and honest import counts",
+                "",
+                "A CSV export and an OFX export of the same account activity must import to the same result, and the",
+                "import summary must describe its own counts truthfully.",
+                "",
+                "Required behaviour:",
+                "",
+                "- An amount carrying an explicit leading plus sign parses as a positive amount. `+69.00` is",
+                "  equivalent to `69.00`. Existing handling of minus signs, accounting parentheses, currency symbols",
+                "  and thousands separators is retained.",
+                "- A quoted field containing the delimiter is parsed as a single field, so a description such as",
+                "  `\"PAYMENT RECEIVED, THANK YOU\"` does not shift the columns of its row.",
+                "- Collapsing repeated whitespace is enabled by default for new imports, for every supported file",
+                "  type.",
+                "- Column detection runs automatically when a delimited file is loaded, without the user having to",
+                "  invoke it, and it runs on a file that has no header row.",
+                "- Column detection identifies each column from its values: a column whose values parse as dates is",
+                "  the date, a column whose values parse as amounts once currency symbols and signs are accounted for",
+                "  is the amount, and the remaining text column is the description.",
+                "- Date format detection identifies the format from the values present, including a day-first format",
+                "  such as `30/06/2026`, and it does not require a header.",
+                "- The import summary distinguishes rows excluded for being older than the cutoff from rows excluded",
+                "  as duplicates, and names separately those rows that are both old and duplicates, so no count is",
+                "  ambiguous about why a row was excluded or whether it will be imported.",
+                "- Every row the summary reports as an error is genuinely unparseable. A row rejected only because of",
+                "  a supported amount or quoting form is a defect, not an error.",
+                "",
+                "The two files the principal reported, each holding the same 622 transactions, are the reference",
+                "case: the CSV has no header row, uses `dd/MM/yyyy` dates, quotes its fields, contains 15 rows whose",
+                "amount carries a leading plus sign, and contains 10 rows whose quoted description contains a comma.",
+                "Importing either file must yield the same transactions, and the CSV must report no errors."
+            ],
+            "task": "tasks/ur-008.md",
+            "packages": [
+                "P29"
             ],
             "sourceCompletion": "immutableNoSourceMutation"
         }
