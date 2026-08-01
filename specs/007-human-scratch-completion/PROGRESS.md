@@ -17,8 +17,8 @@ review evidence.
   1/8 full-suite; the rev-02 `toBeEditable`/`toHaveValue` idiom cannot prove hydration for a
   controlled `Input`, which — unlike `Button` — has no `useIsHydrated` gate, root-confirmed by
   source; Q-P20B-19). HS-021 ROLLED BACK via §275 `RB-P21-04` (marker `:159` `[x] -> []`, rolling
-  `469e98c7… -> f46c2d35…`, 24,259 bytes, normalized 20/1). **Tally: 23 of 31 requirements `passed`** (HS-016 re-passed; UR-001..UR-004 ADMITTED 2026-07-30 and `queued`);
-  **22 of 30 feature packages `passed`** (P23 PASSED and integrated; P22 rev 03 in review; P24-P30 `queued`). C-1 upstream currency
+  `469e98c7… -> f46c2d35…`, 24,259 bytes, normalized 20/1). **Tally: 23 of 33 requirements `passed`** (HS-016 re-passed; UR-001..UR-004 ADMITTED 2026-07-30 and `queued`);
+  **22 of 32 feature packages `passed`** (P23 PASSED; P22 rev 03 awaiting review dispatch; P24-P32 `queued`). C-1 upstream currency
   drift ruled a non-blocking accepted carry-forward (Q-P21-04-01).
 - **Next action:** **P22 rev 02 in independent review** (`p22-reviewer-02`); **P23 rev 01 dispatched in parallel** (`p23-implementer-01`, disjoint file set). — reviewer PASSed rev 01 but its own MEDIUM finding is a literal non-conformance with frozen UR-001 text; root requires the one-line conformance fix before integrating. Then a DISTINCT reviewer, then P23/P24/P25 in order, then re-open P21 rev 06 from a fresh BASE. Prior: **P21 rev 06 STOPPED and VOIDED** (scope admission superseded its entry conditions; collector wrote and committed nothing). Implement **P22 (UR-001)**, **P23 (UR-002)**, **P24 (UR-003)**, **P25 (UR-004)** one package at a time, each with a DISTINCT independent reviewer, then re-open P21 rev 06 from a fresh BASE over all 25 feature packages. Historical: P21 rev 06 was — executable final audit over all 21 passed feature packages + FS-001 with a fresh DISTINCT collector + reviewer (§114). M-1 REMEDIED (P20A rev 03 truthful copy `a823457`; HS-016 re-passed). Confirm no other public surface re-asserts a zero-lost-data absolute; surface carry-forward Q-proposals (Q-P20B-00 [D-019 OUT-OF-GOAL], Q-P20B-13/14, Q-P20A-02/05, Q-P17D-02, Q-P20B-06/08, Q-P21-04-01, Q-P21-05-01/02/03). On PASS, finalize FINAL-AUDIT.md + the completion condition. [Historical:] P21 rev 05 returned FAIL on M-1 [reviewer preserved at 7cb651d]. Q-P20B-00 ruled **OUT-OF-GOAL** (D-019, `f290246`): the `pruneBuckets` engine fix is future out-of-goal work and `p20b-reviewer-01 §6.1` is upheld. In-goal step: execute **RB-P21-05** §275 rollback of the HS-016 marker (`:328` `[x] -> []`), downgrade P20A -> `changes_requested`, then dispatch the P20A/HS-016 truthful-copy re-fix + a DISTINCT reviewer. No package fix dispatch until the batch is finalized and cleared. Full detail in the dated EOF event 2026-07-30. [Historical, now moot:] open P21 revision 05 — the executable final audit over all 21 passed feature
   packages (fresh DISTINCT collector + reviewer per §114). P20B rev 06 PASSED (DISTINCT
@@ -176,6 +176,8 @@ review evidence.
 | P28     | UR-007         | [Dates display in browser locale](tasks/P28-ur-007.md)                              | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 40-54                                                                                                                                                                                                                                                       |
 | P29     | UR-008         | [CSV import parity and honest counts](tasks/P29-ur-008.md)                          | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 56-86; confirmed root cause parseAmount csv.ts:165-190 rejects leading plus, exactly 15 rows                                                                                                                                                                 |
 | P30     | UR-009         | [Automations conformance re-verification](tasks/P30-ur-009.md)                      | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01 by human principal after reporting missing rule-creation controls; frozen source specs/011-automations-conformance/spec.md lines 16-61; RE-VERIFIES HS-007 without reopening it                                                                                       |
+| P31     | UR-010         | [Shift-click extends selection and deselection](tasks/P31-ur-010.md)                | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-02 by human principal; frozen source specs/012-transaction-selection/spec.md lines 11-29; toggleRow at useTableSelection.ts:106-133 only ever adds                                                                                                                       |
+| P32     | UR-011         | [Header checkbox selects all filtered rows](tasks/P32-ur-011.md)                    | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-02; lines 31-55; efficiency at 100k transactions is part of the requirement                                                                                                                                                                                            |
 
 Every active/reviewed row must contain the exact revision, literal SHAs, evidence path, immutable
 revisioned review path and root integration-control commit; `—` is valid only before dispatch.
@@ -230,6 +232,8 @@ required marker rollbacks before the next dispatch.
 | UR-007      | frozen spec section               | P28                          | ledger-only, immutable no source mutation  | queued            | ADMITTED 2026-08-01; lines 40-54; markerless like FS-001                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | UR-008      | frozen spec section               | P29                          | ledger-only, immutable no source mutation  | queued            | ADMITTED 2026-08-01; lines 56-86; markerless like FS-001                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | UR-009      | frozen spec section               | P30                          | ledger-only, immutable no source mutation  | queued            | ADMITTED 2026-08-01; frozen source `specs/011-automations-conformance/spec.md` lines 16-61, SHA `717a99e3…`; markerless like FS-001; re-verifies HS-007 clauses at `human-scratch.md:248-295` without reopening HS-007 or P17A-D                                                                                                                                                                                                                                     |
+| UR-010      | frozen spec section               | P31                          | ledger-only, immutable no source mutation  | queued            | ADMITTED 2026-08-02; frozen source `specs/012-transaction-selection/spec.md` lines 11-29, SHA `5f8eb930…`; markerless like FS-001                                                                                                                                                                                                                                                                                                                                   |
+| UR-011      | frozen spec section               | P32                          | ledger-only, immutable no source mutation  | queued            | ADMITTED 2026-08-02; lines 31-55; markerless like FS-001                                                                                                                                                                                                                                                                                                                                                                                                           |
 
 ## Package event log
 
@@ -6762,3 +6766,62 @@ that could not fail as intended, root's post-rename grep and the reviewer's own 
 `${PIPESTATUS[0]}`, which it disclosed rather than claiming exit codes it never observed.
 
 **P23 -> `passed`; UR-002 -> `passed`. Tally: 23 of 31 requirements, 22 of 30 feature packages.**
+
+### 2026-08-02 — P23 rev 01 review amended at `12d0668`; ROOT ERROR PATTERN recorded
+
+`p23-reviewer-01` committed a tree-currency amendment as a NEW commit `12d0668` (44 lines,
+review-file-only, verified ancestor of HEAD) rather than `git commit --amend`, so root's already-quoted
+`8872f86` and the integration at `e9e3985` are unaffected. Log order: `8872f86` -> `c8be6d0` ->
+`e9e3985` -> `12d0668`. Verdict PASS is unchanged; the amendment refines the record only.
+
+It records that the P23 campaign ran against the PRE-hardening helper at BASE `908ec17`, and its
+judgement that `476f26f` is **TIMING, not behaviour**: the latch writes only a harness-namespaced
+attribute on `<html>`, performs no fill/press/click beyond the same Add button, touches no transaction
+field or alias, returns the same stable `data-transaction-id`, and sits UPSTREAM of the UR-002 step
+behind a `page.reload()` at `:301` — so the vault state reaching the step is identical and a UR-002
+regression would have to come through the search predicate or alias graph, which `476f26f` never
+reaches. No re-verification sequenced. P22 rev 03's own full-suite campaign already exercised
+`description-aliases.spec.ts` against the POST-hardening helper across 8 green runs, which is stronger
+evidence for the combined tree than a pinned-worktree re-run could give.
+
+**ROOT ERROR PATTERN, recorded as one pattern rather than three incidents.** Three of root's readings
+were corrected by workers in this package:
+1. the post-rename grep at `5027787`, which proved absence of a NEW NAME and was asserted as absence of
+   the coverage;
+2. a stale `ls -d` on `/tmp/mf-e2e-p22r3`, run before the worktree existed and quoted later as current;
+3. `grep -c 'addEmptyTransaction'` counting the IMPORT line, reported as "calls it twice" when there is
+   ONE call at `:272`.
+Common shape, in root's own words which the reviewer asked be carried in this wording: **a check that
+answered a narrower question than the one root then asserted an answer to.** This is `Q-P23-01-02`
+made concrete — verification instrumentation deserves the same scrutiny as product code — and the
+reviewer's own clobbered `${PIPESTATUS[0]}` is the same class, caught only by re-reading its own output
+before quoting it. Balancing observation, recorded because the record should be balanced: all three
+were caught, and two were caught precisely BECAUSE root dispatched independent verification rather than
+accepting its own reading.
+
+### 2026-08-02 — UR-010 and UR-011 ADMITTED (P31, P32): transaction-table selection
+
+Two further requirements admitted at the principal's explicit instruction, via a NEW frozen source
+`specs/012-transaction-selection/spec.md` (SHA `5f8eb9302db1b4f0d82f8f33ab602e9faf62abab7ee1699383df6f9363179a6b`,
+55 lines, 3,228 bytes, `SRC-TRANSACTION-SELECTION`). `requirementCount` 31 -> 33. `human-scratch.md`
+untouched, still rolling `469e98c7…`. Both markerless and immutable, the FS-001 mechanic. See D-023.
+
+**UR-010 (P31) — shift-click must deselect symmetrically.** Root confirmed the principal's report
+precisely: `toggleRow` (`hooks/useTableSelection.ts:106-133`) implements a shift range that ALWAYS
+`newIds.add(...)`, so the select direction works and the deselect direction cannot. `lastSelectedId`
+records WHICH row was last acted on but not WHAT was done to it, so the range has no direction to
+apply — that missing piece IS the requirement. Pointer entry at `CheckboxCell.tsx:48`; keyboard range
+at `hooks/useKeyboardNavigation.ts:221`/`:258` must follow the same rule.
+
+**UR-011 (P32) — header checkbox must select every filtered row, efficiently.** `TransactionTable.tsx:270`
+derives `filteredIds` from its `transactions` prop; the page computes
+`displayedTransactions = filteredTransactions.slice(0, displayCount)` with `PAGE_SIZE = 50`
+(`page.tsx:78`, `:282-284`). The implementer must FIRST establish which of those the table actually
+receives, since that determines whether select-all currently covers only the loaded page or whether the
+defect is narrower. Efficiency is part of the frozen requirement, not an aspiration: no forced render,
+no paging in rows merely to enumerate them, responsive at 100k transactions, and no scan costing
+rendered x matching. The task also directs removal of a stray `console.log` left in `selectAll`, and
+forbids copying the wall-clock RATIO style of `duplicates.test.ts:724-749` for the performance
+assertion, since that pattern is already a recorded carry-forward defect (`Q-P23-01-01`).
+
+**Tally: 23 of 33 requirements `passed`; 22 of 32 feature packages `passed`.**

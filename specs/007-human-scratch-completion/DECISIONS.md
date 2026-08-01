@@ -543,3 +543,35 @@ the independent scope adjudicator, because downgrading a `passed` requirement su
 accepted decisions. Root will not make that call unilaterally on the strength of one reported symptom.
 
 **Revised tallies: 22 of 31 requirements `passed`; 21 of 30 feature packages `passed`.**
+
+## D-023 — UR-010 and UR-011 admitted via a sixth frozen source
+
+- **Status:** accepted
+- **Date:** 2026-08-02
+- **Authority:** explicit in-session instruction from the human principal.
+
+**Decision.** Two transaction-table selection behaviours are admitted as first-class requirements:
+UR-010 (shift-click extends selection AND deselection symmetrically) and UR-011 (the header checkbox
+selects every row matching the filters, including virtualized and not-yet-paged rows, efficiently).
+Owning packages P31 and P32, each requiring full implementation and a DISTINCT independent review.
+
+**Mechanism, identical to D-020, D-021 and D-022.** `specs/human-scratch.md` is NOT edited and stays
+frozen at working-copy `b91ca932…` / rolling `469e98c7…`. A NEW frozen source
+`specs/012-transaction-selection/spec.md` (SHA `5f8eb930…`, 55 lines, 3,228 bytes) is registered as
+`SRC-TRANSACTION-SELECTION`; `requirementCount` 31 -> 33. Both requirements are markerless and
+immutable (`immutableNoSourceMutation`), so the marker and rolling-SHA machinery stays bound
+exclusively to the scratch file's 21 blocks. Frozen `sourceTextLines` verified byte-identical to the
+spec file at each section range.
+
+**No scope adjudicator required.** This is an EXPANSION directed by the principal who owns the scope,
+not a reduction and not the superseding of a prior accepted decision. Removing either requirement
+later WOULD be a reduction and would require the adjudicator per PROCESS.md:335-347.
+
+**Measured findings backing the admission.** For UR-010, root read `toggleRow` and confirmed the shift
+range only ever adds, and that `lastSelectedId` carries no record of the anchor's OUTCOME — so the
+asymmetry the principal reported is structural, not incidental. For UR-011, root established that the
+page slices `filteredTransactions` to `displayCount` at `PAGE_SIZE = 50` and directed the implementer
+to determine empirically which list the table receives before designing, rather than assuming the
+defect's shape.
+
+**Tally after admission: 23 of 33 requirements `passed`; 22 of 32 feature packages `passed`.**
