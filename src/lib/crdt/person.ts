@@ -25,6 +25,39 @@ export interface NamedPerson {
     readonly linkedUserId?: string;
 }
 
+/** Minimal shape needed to find the person linked to a vault member. */
+export interface LinkedPerson extends NamedPerson {
+    readonly deletedAt?: unknown;
+}
+
+/**
+ * A member's display name, resolved from the person linked to their pubkeyHash.
+ *
+ * The two cases are kept distinct rather than collapsed into one string because
+ * they must be PRESENTED differently: a resolved name is shown as initials, but
+ * an unresolved one has no name to take initials from, and falling back to the
+ * pubkeyHash is what UR-003 exists to stop. Surfaces destructure on `kind` and
+ * therefore cannot accidentally render hash characters as a name.
+ */
+export type MemberDisplayName =
+    | { readonly kind: "named"; readonly name: string }
+    | { readonly kind: "unnamed" };
+
+/** Shown wherever a member has no name yet and no hash may be displayed. */
+export const UNNAMED_MEMBER_LABEL = "Unnamed member";
+
+/**
+ * The person's own name, trimmed, or null when they have none.
+ *
+ * The single rung shared by {@link resolvePersonDisplayName} and
+ * {@link resolveMemberDisplayName}, so the two cannot disagree about what
+ * counts as "having a name".
+ */
+function personOwnName(person: NamedPerson): string | null {
+    const trimmed = person.name?.trim();
+    return trimmed != null && trimmed.length > 0 ? trimmed : null;
+}
+
 /** Draft shape accepted by {@link ensureMemberPerson} (loro-mirror people map). */
 export interface PeopleDraft {
     people: Record<string, PersonInput>;
@@ -40,14 +73,42 @@ export function memberFallbackName(pubkeyHash: string): string {
  * explicit name -> linked-member fallback -> generic "Unnamed".
  */
 export function resolvePersonDisplayName(person: NamedPerson): string {
-    const trimmed = person.name?.trim();
-    if (trimmed != null && trimmed.length > 0) {
-        return trimmed;
+    const ownName = personOwnName(person);
+    if (ownName != null) {
+        return ownName;
     }
     if (person.linkedUserId != null && person.linkedUserId.length > 0) {
         return memberFallbackName(person.linkedUserId);
     }
     return "Unnamed";
+}
+
+/**
+ * Resolve a vault member's display name from the people map (UR-003, UR-006).
+ *
+ * The single lookup shared by the presence avatars and the Vault Settings
+ * members list, so the two surfaces cannot drift apart.
+ *
+ * Matching is on `linkedUserId` rather than on {@link deriveMemberPersonId},
+ * because the vault OWNER adopts the seeded default person and so is keyed
+ * `person-default-me`, not `person-member-<hash>`. A lookup by derived id would
+ * silently miss the owner — the very case UR-003 was reported against.
+ *
+ * Soft-deleted people are skipped, matching {@link ensureMemberPerson}.
+ */
+export function resolveMemberDisplayName(
+    people: Readonly<Record<string, LinkedPerson | undefined>>,
+    pubkeyHash: string
+): MemberDisplayName {
+    if (pubkeyHash.length === 0) return { kind: "unnamed" };
+
+    for (const person of Object.values(people)) {
+        if (person == null || person.deletedAt != null) continue;
+        if (person.linkedUserId !== pubkeyHash) continue;
+        const ownName = personOwnName(person);
+        return ownName != null ? { kind: "named", name: ownName } : { kind: "unnamed" };
+    }
+    return { kind: "unnamed" };
 }
 
 /** Deterministic person id for a member, derived from their pubkeyHash. */

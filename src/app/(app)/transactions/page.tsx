@@ -67,7 +67,7 @@ import {
     useVaultAction
 } from "@/lib/crdt/context";
 import type { DescriptionAliasTarget } from "@/lib/crdt/description-aliases";
-import { resolvePersonDisplayName } from "@/lib/crdt/person";
+import { resolveMemberDisplayName, resolvePersonDisplayName } from "@/lib/crdt/person";
 import { compareTransactionOrder, filterTransactions } from "@/lib/crdt/queries";
 import type { Account, Person, Status, Tag, Transaction } from "@/lib/crdt/schema";
 import { getNextTagColor } from "@/lib/domain";
@@ -201,6 +201,12 @@ function TransactionsPageContent() {
     // side effect of navigating the table, never of rendering it, so presence cannot loop.
     const { snapshot: presenceSnapshot, setPresenceState, clearPresenceFocus } = useVaultPresence();
     const presenceByTransactionId = presenceSnapshot.byTransactionId;
+
+    // Row presence names members, never their pubkeyHash (UR-003).
+    const resolveMemberName = useCallback(
+        (pubkeyHash: string) => resolveMemberDisplayName(allPeople, pubkeyHash),
+        [allPeople]
+    );
 
     // Focus inside a cell counts as editing; focus on the row chrome is merely viewing. The manager
     // drops no-op updates, so landing on the same cell twice costs nothing.
@@ -1167,6 +1173,7 @@ function TransactionsPageContent() {
                     allocationColumns={allocationColumnModel.columns}
                     gridTemplateColumns={allocationColumnModel.gridTemplateColumns}
                     presenceByTransactionId={presenceByTransactionId}
+                    resolveMemberName={resolveMemberName}
                     onTransactionFieldFocus={handleTransactionFieldFocus}
                     onTransactionBlur={clearPresenceFocus}
                     selectedIds={selectedTransactionIds}

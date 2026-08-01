@@ -4,15 +4,16 @@
  * Stacked avatars showing multiple users with overflow indicator.
  */
 
+import type { MemberDisplayName } from "@/lib/crdt/person";
 import { cn } from "@/lib/utils";
 
 import { PresenceAvatar, type PresenceAvatarProps } from "./PresenceAvatar";
 
 export interface PresenceUser {
-    /** User identifier */
+    /** User identifier (pubkey_hash), used for colour only — never displayed */
     userId: string;
-    /** Display name (optional) */
-    name?: string;
+    /** The member's resolved display name (UR-003) */
+    displayName: MemberDisplayName;
     /** Whether the user is online */
     isOnline?: boolean;
 }
@@ -73,7 +74,7 @@ export function PresenceAvatarGroup({
                 >
                     <PresenceAvatar
                         userId={user.userId}
-                        name={user.name}
+                        displayName={user.displayName}
                         isOnline={user.isOnline}
                         size={size}
                         showIndicator={false}

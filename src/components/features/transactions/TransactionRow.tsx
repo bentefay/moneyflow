@@ -16,7 +16,7 @@ import { PresenceAvatar } from "@/components/features/presence/PresenceAvatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useTransientFlag } from "@/components/ui/use-transient-flag";
-import { memberFallbackName } from "@/lib/crdt/person";
+import { type MemberDisplayName, UNNAMED_MEMBER_LABEL } from "@/lib/crdt/person";
 import { deriveEffectiveAllocations } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 import { hashToColor } from "@/lib/utils/color";
@@ -92,6 +92,12 @@ export interface TransactionRowProps {
     transaction: TransactionRowData;
     /** Presence info for this row */
     presence?: TransactionRowPresence;
+    /**
+     * Resolves a member's pubkeyHash to their display name for the presence avatar and label
+     * (UR-003). Kept as a function prop so the row stays presentational and the CRDT people lookup
+     * lives in the page. Members are unnamed until resolved, never labelled with their hash.
+     */
+    resolveMemberName?: (pubkeyHash: string) => MemberDisplayName;
     /** Whether this row is selected */
     isSelected?: boolean;
     /** Whether the notes row is expanded */
@@ -157,6 +163,7 @@ export interface TransactionRowProps {
 export function TransactionRow({
     transaction,
     presence,
+    resolveMemberName,
     isSelected = false,
     isExpanded = false,
     focusDescriptionRequested = false,
@@ -214,12 +221,18 @@ export function TransactionRow({
     const editingByOthers = presence?.editingBy ?? [];
     const presenceUserId = editingByOthers[0] ?? focusedByOthers[0];
     const borderColor = presenceUserId ? hashToColor(presenceUserId) : undefined;
+    const presenceDisplayName = presenceUserId
+        ? (resolveMemberName?.(presenceUserId) ?? { kind: "unnamed" })
+        : undefined;
     const presenceLabel = presenceUserId
         ? `${editingByOthers.length > 0 ? "Editing" : "Viewing"}: ${(editingByOthers.length > 0
               ? editingByOthers
               : focusedByOthers
           )
-              .map(memberFallbackName)
+              .map((pubkeyHash) => {
+                  const resolved = resolveMemberName?.(pubkeyHash);
+                  return resolved?.kind === "named" ? resolved.name : UNNAMED_MEMBER_LABEL;
+              })
               .join(", ")}`
         : undefined;
 
@@ -530,7 +543,7 @@ export function TransactionRow({
 
                 {/* Presence avatar - shows who else is on this row. Non-interactive so keyboard
                     navigation across the table never stops on it. */}
-                {presenceUserId && (
+                {presenceUserId && presenceDisplayName && (
                     <div
                         aria-hidden="true"
                         className="pointer-events-none absolute top-1/2 -right-2 -translate-y-1/2"
@@ -538,6 +551,7 @@ export function TransactionRow({
                     >
                         <PresenceAvatar
                             userId={presenceUserId}
+                            displayName={presenceDisplayName}
                             isOnline={true}
                             size="sm"
                             showIndicator={false}

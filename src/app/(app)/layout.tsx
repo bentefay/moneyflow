@@ -48,7 +48,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useActiveVault } from "@/hooks/use-active-vault";
 import { SyncStatusProvider, usePollUnsavedChanges, useSyncStatus } from "@/hooks/use-sync-status";
 import { AuthGuard } from "@/lib/auth";
-import { useVaultPreferences } from "@/lib/crdt/context";
+import { usePeople, useVaultPreferences } from "@/lib/crdt/context";
+import { resolveMemberDisplayName } from "@/lib/crdt/person";
 import { clearSession } from "@/lib/crypto/session";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
@@ -140,6 +141,19 @@ function AppLayoutContent({
         disconnect: disconnectPresence
     } = useVaultPresenceContext();
 
+    // Presence avatars show the member's name, never their pubkeyHash (UR-003). The people map is
+    // the join: a person's linkedUserId is the member's pubkeyHash.
+    const people = usePeople();
+    const presentUsers = useMemo(
+        () =>
+            presentIdentities.map((userId) => ({
+                userId,
+                displayName: resolveMemberDisplayName(people, userId),
+                isOnline: true
+            })),
+        [people, presentIdentities]
+    );
+
     // Get sync status from context
     const { state: syncState } = useSyncStatus();
 
@@ -214,14 +228,8 @@ function AppLayoutContent({
                 {/* Right side: Presence + Menu */}
                 <div className="flex items-center gap-2">
                     <UndoControls />
-                    {isConnected && presentIdentities.length > 0 && (
-                        <PresenceAvatarGroup
-                            users={presentIdentities.map((userId) => ({
-                                userId,
-                                isOnline: true
-                            }))}
-                            size="sm"
-                        />
+                    {isConnected && presentUsers.length > 0 && (
+                        <PresenceAvatarGroup users={presentUsers} size="sm" />
                     )}
                     <Button
                         variant="ghost"
@@ -339,14 +347,8 @@ function AppLayoutContent({
                                 iconMode
                                 showLabel
                             />
-                            {isConnected && presentIdentities.length > 0 && (
-                                <PresenceAvatarGroup
-                                    users={presentIdentities.map((userId) => ({
-                                        userId,
-                                        isOnline: true
-                                    }))}
-                                    size="sm"
-                                />
+                            {isConnected && presentUsers.length > 0 && (
+                                <PresenceAvatarGroup users={presentUsers} size="sm" />
                             )}
                         </div>
                     </div>

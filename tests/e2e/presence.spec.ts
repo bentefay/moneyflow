@@ -239,3 +239,86 @@ test("a stale session expires without a clean leave", async ({ browser }) => {
         await memberContext.close();
     }
 });
+
+/**
+ * UR-003: a presence avatar shows initials of the member's NAME, never characters of their
+ * pubkeyHash. The reported defect was an avatar reading "AD" — the first two hex characters of the
+ * principal's own hash — with the full hash as its tooltip.
+ *
+ * Both linkage paths are exercised: the OWNER, who adopts the seeded "Me" person and so resolves to
+ * a real name, and the INVITED MEMBER, who starts unnamed and must fall back to a person icon with
+ * a human-readable label rather than to hash text.
+ */
+test("presence avatars are labelled by name, never by pubkey hash", async ({ browser }) => {
+    test.setTimeout(180_000);
+
+    const ownerContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+    const memberContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+    const owner = await ownerContext.newPage();
+    const member = await memberContext.newPage();
+
+    try {
+        await createNewIdentity(owner);
+        await createNewIdentity(member);
+        const fixture = await shareActiveVaultWithMember(owner, member);
+
+        await goToTransactions(owner);
+        await goToTransactions(member);
+
+        // The sidebar avatar group is the surface the defect was reported against: the member is
+        // present, so the owner's shell renders an avatar for them and vice versa.
+        const ownerAvatars = owner.locator("aside").getByRole("img");
+        await expect(ownerAvatars.first()).toBeVisible({ timeout: 60_000 });
+
+        await test.step("the OWNER resolves to their seeded name", async () => {
+            // The owner adopted the default "Me" person, so the member's shell labels them "Me"
+            // and shows "M" — not "AD"-style hash characters.
+            const ownerAsSeenByMember = member.locator("aside").getByRole("img", { name: "Me" });
+            await expect(ownerAsSeenByMember).toBeVisible({ timeout: 60_000 });
+            await expect(ownerAsSeenByMember).toHaveText("M");
+        });
+
+        await test.step("no avatar exposes any part of a pubkey hash", async () => {
+            for (const [page, hashes] of [
+                [owner, [fixture.ownerHash, fixture.memberHash]],
+                [member, [fixture.ownerHash, fixture.memberHash]]
+            ] as const) {
+                const avatars = page.locator("aside").getByRole("img");
+                const count = await avatars.count();
+                expect(count).toBeGreaterThan(0);
+
+                for (let index = 0; index < count; index += 1) {
+                    const avatar = avatars.nth(index);
+                    const text = (await avatar.textContent()) ?? "";
+                    const label = (await avatar.getAttribute("aria-label")) ?? "";
+                    const tooltip =
+                        (await avatar
+                            .locator("xpath=ancestor::*[@title][1]")
+                            .getAttribute("title")) ?? "";
+
+                    for (const hash of hashes) {
+                        // Neither the initials, the accessible name, nor the tooltip may carry
+                        // hash text — the first two characters are what produced "AD".
+                        expect(text.toLowerCase()).not.toContain(hash.slice(0, 2).toLowerCase());
+                        expect(label.toLowerCase()).not.toContain(hash.slice(0, 4).toLowerCase());
+                        expect(tooltip.toLowerCase()).not.toContain(hash.slice(0, 4).toLowerCase());
+                    }
+                    // The tooltip must agree with the accessible name rather than be a hash.
+                    expect(tooltip.startsWith(label)).toBe(true);
+                }
+            }
+        });
+
+        await test.step("an INVITED MEMBER with no name shows an icon, not hash initials", async () => {
+            // The invited member was auto-created unnamed, so the owner's shell cannot resolve a
+            // name for them. It must render the person icon and a readable label.
+            const unnamed = owner.locator("aside").getByRole("img", { name: "Unnamed member" });
+            await expect(unnamed).toBeVisible({ timeout: 60_000 });
+            await expect(unnamed).toHaveText("");
+            await expect(unnamed.locator("svg")).toBeVisible();
+        });
+    } finally {
+        await ownerContext.close();
+        await memberContext.close();
+    }
+});

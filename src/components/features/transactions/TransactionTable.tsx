@@ -10,6 +10,7 @@
 import { defaultRangeExtractor, type Range, useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import type { MemberDisplayName } from "@/lib/crdt/person";
 import { cn } from "@/lib/utils";
 
 import { AccountOption } from "../accounts";
@@ -46,6 +47,8 @@ export interface TransactionTableProps {
     transactions: TransactionRowData[];
     /** Presence data keyed by transaction ID */
     presenceByTransactionId?: Record<string, TransactionRowPresence>;
+    /** Resolves a member's pubkeyHash to their display name for row presence UI (UR-003) */
+    resolveMemberName?: (pubkeyHash: string) => MemberDisplayName;
     /** Currently selected transaction IDs */
     selectedIds?: ReadonlySet<string>;
     /** Available accounts for inline editing */
@@ -216,6 +219,7 @@ function EmptyState() {
 export function TransactionTable({
     transactions,
     presenceByTransactionId = {},
+    resolveMemberName,
     selectedIds = EMPTY_SELECTION,
     availableAccounts = [],
     availableStatuses = [],
@@ -489,6 +493,7 @@ export function TransactionTable({
                                     <TransactionRow
                                         transaction={transaction}
                                         presence={presenceByTransactionId[transaction.id]}
+                                        resolveMemberName={resolveMemberName}
                                         isSelected={isSelected}
                                         isExpanded={expandedIds.has(transaction.id)}
                                         focusDescriptionRequested={

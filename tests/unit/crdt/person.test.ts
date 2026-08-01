@@ -15,6 +15,7 @@ import {
     deriveMemberPersonId,
     ensureMemberPerson,
     memberFallbackName,
+    resolveMemberDisplayName,
     resolvePersonDisplayName
 } from "@/lib/crdt/person";
 import type { PersonInput } from "@/lib/crdt/schema";
@@ -174,5 +175,140 @@ describe("ensureMemberPerson", () => {
 
         expect(idA).not.toBe(idB);
         expect(Object.keys(draft.people)).toHaveLength(2);
+    });
+});
+
+/**
+ * UR-003 / UR-006: the shared pubkeyHash -> display name lookup behind both the presence avatars
+ * and the Vault Settings members list.
+ *
+ * The owner and invited-member paths are built with the real {@link ensureMemberPerson} rather than
+ * hand-written fixtures, so these assertions track how members are actually linked.
+ */
+describe("resolveMemberDisplayName", () => {
+    it("resolves the vault OWNER through the adopted default person", () => {
+        // Owner path: adopts the seeded "Me" person, keeping its name.
+        const draft = makeDraft({ [DEFAULT_PERSON_ID]: { ...DEFAULT_PERSON } });
+        ensureMemberPerson(draft, PUBKEY_HASH, { adoptDefaultPerson: true });
+
+        expect(resolveMemberDisplayName(draft.people, PUBKEY_HASH)).toEqual({
+            kind: "named",
+            name: "Me"
+        });
+    });
+
+    it("reports an INVITED MEMBER as unnamed until they are given a name", () => {
+        // Invited path: a fresh person with name undefined.
+        const draft = makeDraft({ [DEFAULT_PERSON_ID]: { ...DEFAULT_PERSON } });
+        ensureMemberPerson(draft, OTHER_HASH);
+
+        expect(resolveMemberDisplayName(draft.people, OTHER_HASH)).toEqual({ kind: "unnamed" });
+    });
+
+    it("resolves an invited member once they are named", () => {
+        const draft = makeDraft({});
+        const id = ensureMemberPerson(draft, OTHER_HASH);
+        const person = draft.people[id ?? ""];
+        if (person == null) throw new Error("expected a linked person");
+        person.name = "Ben Tefay";
+
+        expect(resolveMemberDisplayName(draft.people, OTHER_HASH)).toEqual({
+            kind: "named",
+            name: "Ben Tefay"
+        });
+    });
+
+    it("finds the owner even though their person id is not the derived member id", () => {
+        // Guards the lookup strategy: matching on linkedUserId rather than on
+        // deriveMemberPersonId, which would miss the owner entirely.
+        const draft = makeDraft({ [DEFAULT_PERSON_ID]: { ...DEFAULT_PERSON } });
+        ensureMemberPerson(draft, PUBKEY_HASH, { adoptDefaultPerson: true });
+
+        expect(draft.people[deriveMemberPersonId(PUBKEY_HASH)]).toBeUndefined();
+        expect(resolveMemberDisplayName(draft.people, PUBKEY_HASH).kind).toBe("named");
+    });
+
+    it("keeps owner and invited member distinct in one vault", () => {
+        const draft = makeDraft({ [DEFAULT_PERSON_ID]: { ...DEFAULT_PERSON } });
+        ensureMemberPerson(draft, PUBKEY_HASH, { adoptDefaultPerson: true });
+        ensureMemberPerson(draft, OTHER_HASH);
+
+        expect(resolveMemberDisplayName(draft.people, PUBKEY_HASH)).toEqual({
+            kind: "named",
+            name: "Me"
+        });
+        expect(resolveMemberDisplayName(draft.people, OTHER_HASH)).toEqual({ kind: "unnamed" });
+    });
+
+    it("treats a blank or whitespace-only name as unnamed", () => {
+        const draft = makeDraft({
+            "p-1": { id: "p-1", name: "   ", linkedUserId: PUBKEY_HASH, deletedAt: undefined }
+        });
+
+        expect(resolveMemberDisplayName(draft.people, PUBKEY_HASH)).toEqual({ kind: "unnamed" });
+    });
+
+    it("trims a resolved name", () => {
+        const draft = makeDraft({
+            "p-1": { id: "p-1", name: "  Alice  ", linkedUserId: PUBKEY_HASH, deletedAt: undefined }
+        });
+
+        expect(resolveMemberDisplayName(draft.people, PUBKEY_HASH)).toEqual({
+            kind: "named",
+            name: "Alice"
+        });
+    });
+
+    it("skips a soft-deleted person", () => {
+        const draft = makeDraft({
+            "p-1": {
+                id: "p-1",
+                name: "Removed",
+                linkedUserId: PUBKEY_HASH,
+                deletedAt: Temporal.Now.instant()
+            }
+        });
+
+        expect(resolveMemberDisplayName(draft.people, PUBKEY_HASH)).toEqual({ kind: "unnamed" });
+    });
+
+    it("reports unnamed for an unknown member, an empty hash and an empty map", () => {
+        const draft = makeDraft({ [DEFAULT_PERSON_ID]: { ...DEFAULT_PERSON } });
+        ensureMemberPerson(draft, PUBKEY_HASH, { adoptDefaultPerson: true });
+
+        expect(resolveMemberDisplayName(draft.people, OTHER_HASH)).toEqual({ kind: "unnamed" });
+        expect(resolveMemberDisplayName(draft.people, "")).toEqual({ kind: "unnamed" });
+        expect(resolveMemberDisplayName({}, PUBKEY_HASH)).toEqual({ kind: "unnamed" });
+    });
+
+    it("never surfaces the pubkeyHash as a name (property)", () => {
+        const hashArb = fc.string({
+            unit: fc.constantFrom(..."0123456789abcdef"),
+            minLength: 8,
+            maxLength: 64
+        });
+        const nameArb = fc.oneof(fc.constant(undefined), fc.string());
+
+        fc.assert(
+            fc.property(hashArb, nameArb, (pubkeyHash, name) => {
+                const people = {
+                    "p-1": { id: "p-1", name, linkedUserId: pubkeyHash, deletedAt: undefined }
+                };
+                const resolved = resolveMemberDisplayName(people, pubkeyHash);
+                // A resolved name is the person's own trimmed name, never the hash or a
+                // string derived from it.
+                return resolved.kind === "unnamed"
+                    ? true
+                    : resolved.name === name?.trim() && !resolved.name.includes(pubkeyHash);
+            })
+        );
+    });
+
+    it("resolves independently of the vault's own default-person seeding", () => {
+        // A vault where the default person was never adopted: nobody is linked, so no
+        // member resolves, and in particular the unlinked "Me" is not handed out.
+        const draft = makeDraft({ [DEFAULT_PERSON_ID]: { ...DEFAULT_PERSON } });
+
+        expect(resolveMemberDisplayName(draft.people, PUBKEY_HASH)).toEqual({ kind: "unnamed" });
     });
 });

@@ -4,14 +4,20 @@
  * Circular avatar with initials and colored border indicating presence.
  */
 
+import { User } from "lucide-react";
+
+import { type MemberDisplayName, UNNAMED_MEMBER_LABEL } from "@/lib/crdt/person";
 import { cn } from "@/lib/utils";
 import { getContrastColor, getInitials, hashToColor } from "@/lib/utils/color";
 
 export interface PresenceAvatarProps {
-    /** User identifier (pubkey_hash or name) */
+    /** User identifier (pubkey_hash), used for colour only — never displayed */
     userId: string;
-    /** Display name (optional, falls back to userId) */
-    name?: string;
+    /**
+     * The member's resolved display name (UR-003). Required, so a caller cannot
+     * omit it and silently fall back to rendering pubkeyHash characters.
+     */
+    displayName: MemberDisplayName;
     /** Whether the user is currently online */
     isOnline?: boolean;
     /** Size variant */
@@ -28,6 +34,12 @@ const sizeClasses = {
     lg: "h-10 w-10 text-base"
 } as const;
 
+const iconSizeClasses = {
+    sm: "h-3.5 w-3.5",
+    md: "h-4 w-4",
+    lg: "h-5 w-5"
+} as const;
+
 const indicatorSizeClasses = {
     sm: "h-2 w-2",
     md: "h-2.5 w-2.5",
@@ -39,21 +51,22 @@ const indicatorSizeClasses = {
  */
 export function PresenceAvatar({
     userId,
-    name,
+    displayName,
     isOnline = false,
     size = "md",
     className,
     showIndicator = true
 }: PresenceAvatarProps) {
-    const displayName = name || userId;
-    const initials = getInitials(displayName);
+    // Colour stays keyed on the stable userId, never the name, so it survives a
+    // rename and members sharing initials remain visually distinct.
     const backgroundColor = hashToColor(userId);
     const textColor = getContrastColor(backgroundColor);
+    const label = displayName.kind === "named" ? displayName.name : UNNAMED_MEMBER_LABEL;
 
     return (
         <div
             className={cn("relative inline-flex", className)}
-            title={`${displayName}${isOnline ? " (online)" : ""}`}
+            title={`${label}${isOnline ? " (online)" : ""}`}
         >
             {/* Avatar circle */}
             <div
@@ -66,8 +79,17 @@ export function PresenceAvatar({
                     backgroundColor,
                     color: textColor
                 }}
+                role="img"
+                aria-label={label}
             >
-                {initials}
+                {displayName.kind === "named" ? (
+                    getInitials(displayName.name)
+                ) : (
+                    // No name resolved: a person icon rather than initials, because the
+                    // only other identifier available is the pubkeyHash and UR-003
+                    // forbids showing it.
+                    <User className={iconSizeClasses[size]} aria-hidden="true" />
+                )}
             </div>
 
             {/* Online indicator dot */}
