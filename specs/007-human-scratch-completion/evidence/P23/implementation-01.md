@@ -116,11 +116,12 @@ re-exported from `src/lib/crdt/index.ts` but has no other in-repo call site.
 | One-hop symlink resolution matches the display | unit "follows a one-hop symlink to the real alias name"; page-level test 1 (`alias-trial`)                                       |
 | Case-insensitive, substring                    | unit lowercase/uppercase/mid-substring cases; page-level test 3; E2E step, "MANU" search                                         |
 
-The E2E column is **claimed coverage that has not been executed**; see the blocker section. The
-one-hop symlink case has no E2E entry: producing a symlink through the UI means driving the
-change-all modal, which the neighbouring test already covers, and the resolution itself is proven at
-the unit and page levels. I judged that not worth lengthening an already long journey for; flagging
-it so a reviewer can overrule me rather than discover it.
+The E2E column was executed: see the campaign section, including a mutation check showing the step
+fails in a real browser without the fix. The one-hop symlink case has no E2E entry: producing a
+symlink through the UI means driving the change-all modal, which the neighbouring test already
+covers, and the resolution itself is proven at the unit and page levels. I judged that not worth
+lengthening an already long journey for; flagging it so a reviewer can overrule me rather than
+discover it.
 
 ## Tests
 
@@ -191,53 +192,133 @@ confirming the rows come back.
 | `format:check` | **PASS on my 5 files** under scoped oxfmt. Repo-wide fails on exactly the 17 pre-existing frozen `specs/**` files documented as a standing condition; no `src/` or `tests/` file is in that list |
 | `test`         | **PASS** — 114 files, 2117 passed / 2 skipped, **3 consecutive clean runs**                                                                                                                      |
 | `build`        | not run (not in the six-check list)                                                                                                                                                              |
-| `test:e2e`     | **NOT RUN — BLOCKED.** See below                                                                                                                                                                 |
+| `test:e2e`     | **PASS** — 166 passed / 0 failed, **4 consecutive full-suite `--retries=0` runs**, digest stable                                                                                                 |
 
-### The E2E gate is blocked, and I am not claiming otherwise
+### E2E campaign
 
-`playwright.config.ts` hard-codes `baseURL` and `webServer.url` to `http://localhost:3000` with
-`reuseExistingServer: false`. Port 3000 is held continuously by the **concurrent P22 reviewer's**
-campaign running out of `/tmp/mf-e2e-p22`. Identified from `ss -lptn` plus process argv, not from a
-task list: first `next-server` PID 70036 under `next dev --turbopack` PID 69888, alongside their
-Playwright CLI PID 68997 (`--retries=0 --workers=4`). When that CLI exited at 17:17:01 the port did
-**not** free — a new `next-server` PID 103291 from the same worktree took it within seconds, i.e.
-their campaign simply began its next run. The port is available only in brief inter-run gaps, and
-taking it in one would void the very campaign the dispatch told me not to disturb.
-
-I did not edit `playwright.config.ts` or `next.config.ts`, did not touch `.next/dev/lock`, did not
-kill the human principal's dev server on :3001 (PID 818156, still running), and did not use
-`/tmp/mf-e2e-p22`. My own worktree `/tmp/mf-e2e-p23` is prepared at the handback commit with
-dependencies installed and `.env.local` copied, waiting on the port.
-
-One run was attempted and refused before any browser started:
+The campaign was serialized behind the concurrent P22 reviewer's campaign: `playwright.config.ts`
+pins `baseURL` and `webServer.url` to `http://localhost:3000` with `reuseExistingServer: false` and
+reads no port or base-URL environment override, so exactly one campaign can run repo-wide. A private
+worktree isolates the distDir-scoped Next dev lock but **not** the port. My first attempt was
+refused before any browser started:
 
 ```
 Error: http://localhost:3000 is already used, make sure that nothing is running on the port/url
 or set reuseExistingServer:true in config.webServer.
 ```
 
-**A note on how the campaign must be run when the port frees.** It must **not** use `CI=true`. The
-config reads `workers: process.env.CI ? 1 : 4` and `retries: process.env.CI ? 2 : 0`, so `CI=true`
-would give 1 worker and 2 retries — the opposite of the 4-worker `--retries=0` load profile the
-flake discipline requires. (`CI=true` on the worktree `pnpm install` is fine and unrelated.) The
-tree digest for the campaign is `fad5caecaf75e94e032764a8f7d46c4f` (md5 over all `src`/`tests`
-`.ts`/`.tsx`, sorted), pinned by `11a01f4`, the last commit touching code or tests. **It will be
-re-confirmed immediately before run 1** so the campaign is anchored to the tree it actually
-measures. Two earlier digests are superseded and **no run was ever executed against either**:
-`4553956ad6b988ddea2d79980fa6f1ab` at `391bee6` (before the page-level regression test) and
-`0a149986d9c74aab61c311bac7399806` at `c041795` (before the E2E test was restructured into a journey
-step). Per the tree-drift rule any further change invalidates runs so far and the campaign restarts
-from run 1.
+I waited rather than taking the port during a gap between their runs, which would have voided their
+campaign. Root released the port once the P22 campaign had genuinely finished. Before run 1 I
+confirmed independently that `:3000` was unbound by both `ss` and `curl`, and that no
+`@playwright/test` CLI existed anywhere — checked by reading `/proc/<pid>/cmdline` for every `node`
+process rather than by `pgrep -f`, whose pattern can match the watcher's own command line.
 
-### What the five passing gates do and do not cover
+Runs used `env -u CI` to guarantee the required load profile. `playwright.config.ts:56,60` set
+`retries: process.env.CI ? 2 : 0` and `workers: process.env.CI ? 1 : 4`, so `CI=true` would have
+given 1 worker and 2 **retries** — the inverse of the 4-worker retries-disabled profile the flake
+discipline requires, and it would have laundered flakes into passes. (`CI=true` on the worktree
+`pnpm install` is unrelated and fine.)
 
-Stated explicitly rather than implying near-completion. The unit suite proves the **pure predicate**
-and, via the page-level test, that the page **threads the resolver into it in jsdom**. It proves
-nothing about the real browser: not the debounced search input under real timing, not the
-virtualized table's re-render after a filter change, not alias resolution over a live CRDT document
-rather than a fixture object, and not sync or a second identity. Only the full-suite E2E run
-establishes those, and it has not been run. **UR-002 should not be treated as verified until it
-is.**
+| Run            | Result                                                        | Duration | Tree digest                        |
+| -------------- | ------------------------------------------------------------- | -------- | ---------------------------------- |
+| 1              | **166 passed, 0 failed**                                      | 4.2m     | `fad5caecaf75e94e032764a8f7d46c4f` |
+| 2              | **166 passed, 0 failed**                                      | 4.0m     | `fad5caecaf75e94e032764a8f7d46c4f` |
+| 3              | **166 passed, 0 failed**                                      | 3.9m     | `fad5caecaf75e94e032764a8f7d46c4f` |
+| mutation check | **1 failed, 4 passed** (alias spec only, product fix removed) | 26.6s    | fix deliberately removed           |
+| 4              | **166 passed, 0 failed**                                      | 3.9m     | `fad5caecaf75e94e032764a8f7d46c4f` |
+
+All runs full-suite, `--retries=0`, exit code 0, in `/tmp/mf-e2e-p23` at `22f8f59`. The digest was
+verified immediately before run 1 and again after the last run: **unchanged throughout**, so no
+tree-drift restart was required. Run 4 exists because the mutation check below temporarily modified
+the tree; it re-establishes three consecutive clean runs on the exact restored tree.
+
+Two superseded digests are recorded for completeness, and **no run was ever executed against
+either**: `4553956ad6b988ddea2d79980fa6f1ab` at `391bee6` (before the page-level regression test)
+and `0a149986d9c74aab61c311bac7399806` at `c041795` (before the E2E test was restructured into a
+journey step). The initial dispatch of the campaign named `5027787`/`0a149986…` as the target; that
+tree contains **no UR-002 E2E coverage at all**, so a green campaign there would have proven nothing
+about this requirement while the evidence described coverage absent from it. Verified before
+running:
+
+```
+$ git show 5027787:tests/e2e/description-aliases.spec.ts | grep -c "search matches the alias-resolved description on display"
+0
+$ git show 22f8f59:tests/e2e/description-aliases.spec.ts | grep -c "search matches the alias-resolved description on display"
+1
+```
+
+Root confirmed the corrected target before any run started.
+
+#### The E2E step was verified to fail on unfixed code, in a real browser
+
+Three green runs show the step passes; they do not show it would **catch** the defect. After the
+campaign — so the campaign tree was never modified — the single product line
+`resolveDescriptionAliasName: …` was removed from `page.tsx` and the alias spec re-run:
+
+```
+  1 failed
+    [chromium] › tests/e2e/description-aliases.spec.ts:188:9 › Description Aliases › transaction cell
+    pointer, keyboard, seamless commit and provenance journey
+  4 passed (26.6s)
+
+    Expected: "Manual alias only"
+    Timeout: 15000ms
+    Error: element(s) not found
+    > 324 |             await expect(descriptionInputFor(page, /Manual alias only/)).toHaveValue(
+        at /tmp/mf-e2e-p23/tests/e2e/description-aliases.spec.ts:324:74
+```
+
+It fails at line 324 — the reported-case assertion, searching "manual" for a row whose only findable
+text is its alias — and the other four alias tests still pass, so the step fails for the right
+reason rather than breaking the file. The line was restored with `git checkout --`, the digest
+re-confirmed identical, and run 4 executed clean on the restored tree.
+
+#### Failure classification
+
+**Zero test failures across all four runs**, so no load-flake versus product-defect classification
+was needed. The known incidental `passkey.spec.ts` unlock-button flake
+(`evidence/P20B/implementation-05.md:74-80`) did not appear.
+
+One honest note on how I read the logs: a first grep for `failed` matched 27-28 lines per run, which
+looked alarming. Inspecting the exact text showed all of them were `[WebServer]` application log
+noise — 19 × `Request authentication failed`, 4 × `Failed to fetch`, 2 × `Failed to push` — from
+tests that deliberately exercise offline and revoked-grant paths. The Playwright summary line is
+`166 passed` with no `failed` or `flaky` count in every run. The lesson is that a loose grep is not
+a classification; the exact text is.
+
+#### `addEmptyTransaction` / `newlyAddedRow` — independent observation, null result
+
+Root asked for an explicit report either way, because the P22 reviewer is measuring a failure rate
+in that helper (`tests/e2e/helpers/settlement.ts:212-216`) and saw `locator resolved to 0 elements`
+at `:215`.
+
+**I observed zero occurrences across all four runs.** Grepping the logs for
+`resolved to 0 elements`, `settlement.ts:21[0-9]` and `newlyAddedRow` returns 0 in each.
+
+This is a genuinely independent sample, and I stated why **before** having results rather than
+after: my tree contains `ed94edf`, the rev 01 focus change that introduced that sync point, so I
+exercise the same helper under the same mechanism; but my UR-002 journey step does not itself call
+`addEmptyTransaction`, so any hit would have come from pre-existing call sites rather than my new
+code. A null result is reported as explicitly as a positive one would have been — omitting it
+because it is unexciting would bias the P22 verdict toward "nobody else saw it". I did not touch the
+helper; it belongs to P22.
+
+**What this null result does and does not mean.** It is 4 clean runs against their reported 2
+failures in 166; at that rate a run of mine could easily have shown zero by chance, so this
+**weakens but does not refute** the case that the helper synchronises on transient state. It is one
+more sample, not a verdict — that is P22's call to make.
+
+### What the six passing gates now cover
+
+The unit suite proves the pure predicate and, via the page-level test, that the page threads the
+resolver into it under jsdom. The E2E campaign is what establishes the rest: the debounced search
+input under real timing, the virtualized table's re-render after a filter change, and alias
+resolution over a live CRDT document rather than a fixture object — including the reported case
+end-to-end, since the mutation check shows the step fails in a real browser without the fix.
+
+Still **not** covered by anything here: search behaviour across a second identity or a second tab.
+Nothing in UR-002 requires it and search is local-only state, so I did not add coverage; recorded so
+the boundary is explicit rather than assumed.
 
 ## Claim-to-evidence note
 
@@ -250,5 +331,15 @@ such:
 - That the P22 worktree's port reacquisition represents "their next run starting" is an inference
   from process timing and argv. What I observed is that PID 68997 exited and a new `next-server`
   from the same worktree path held the port ~16s later.
-- The requirement-to-test matrix asserts coverage I wrote and ran; the E2E column is **claimed
-  coverage, not yet observed**, since that suite has not executed.
+- The requirement-to-test matrix asserts coverage I wrote **and have now run**; every column is
+  observed. The E2E column additionally rests on the mutation check, which is the only thing showing
+  those assertions would fail if the fix were absent.
+- The per-run numbers, durations, digests and the zero-occurrence `addEmptyTransaction` result are
+  **observations** read from the four run logs.
+- That my null `addEmptyTransaction` result "weakens but does not refute" the P22 helper hypothesis
+  is an **inference** from their reported 2-in-166 rate against my 4 clean runs; I did not compute a
+  confidence interval, and the sample sizes are small enough that chance alone could explain it.
+- That `next-env.d.ts` showing modified in both trees is Next-generated churn rather than my edit is
+  an **observation**: it was already modified in the main checkout at session start, its diff is a
+  generated `.next` path reference, and it sits at the repository root outside the digest's
+  `src`/`tests` scope.
