@@ -327,7 +327,12 @@ function TransactionsPageContent() {
         const estimatedRowHeight = grid.scrollHeight / displayedTransactions.length;
         const precedingVisibleRowIndex = Math.max(0, transactionIndex - 1);
         scrollContainer.scrollTop = grid.offsetTop + precedingVisibleRowIndex * estimatedRowHeight;
-        setRevealIntent(retireScroll(revealIntent));
+        // Functional, because the row's focus retirement lands in the same flush as this one. A
+        // value computed from the captured `revealIntent` would be stale by the time React applied
+        // it and would resurrect the focus step, re-asserting an intent that has already landed.
+        setRevealIntent((currentIntent) =>
+            currentIntent == null ? null : retireScroll(currentIntent)
+        );
     }, [displayedTransactions, revealIntent]);
 
     const focusDescriptionTransactionId = pendingFocusDescriptionId(revealIntent);
