@@ -1,6 +1,6 @@
 {
     "schemaVersion": 2,
-    "requirementCount": 30,
+    "requirementCount": 31,
     "sources": [
         {
             "id": "SRC-HUMAN-SCRATCH",
@@ -57,6 +57,21 @@
                 "sourceTextField": "sourceTextLines"
             },
             "completionMechanic": "The source is immutable and has no checkbox or source edit; completion is recorded only in the requirement/package ledgers after identical implementation and independent-review gates, exactly as FS-001."
+        },
+        {
+            "id": "SRC-AUTOMATIONS-CONFORMANCE",
+            "path": "specs/011-automations-conformance/spec.md",
+            "sha256": "717a99e332e9fa852937bc62b106cc76660de9fe6999b5d5d95421a6fb3f14cf",
+            "lineCount": 61,
+            "byteCount": 3699,
+            "frozenAt": "2026-08-01",
+            "admittedBy": "human principal instruction, in-session 2026-08-01, after reporting missing rule-creation controls",
+            "selector": {
+                "kind": "orderedTopLevelSections",
+                "count": 1,
+                "sourceTextField": "sourceTextLines"
+            },
+            "completionMechanic": "The source is immutable and has no checkbox or source edit; completion is recorded only in the requirement/package ledgers after identical implementation and independent-review gates, exactly as FS-001. This source RE-VERIFIES HS-007 without reopening it."
         }
     ],
     "requirementLifecycle": {
@@ -815,6 +830,69 @@
             "packages": [
                 "P29"
             ],
+            "sourceCompletion": "immutableNoSourceMutation"
+        },
+        {
+            "id": "UR-009",
+            "sourceId": "SRC-AUTOMATIONS-CONFORMANCE",
+            "heading": "Automations match their frozen specification re-verified end to end",
+            "sourceSelector": {
+                "kind": "sectionLineRange",
+                "lineRange": "16-61"
+            },
+            "sourceTextLines": [
+                "## UR-009 — Automations match their frozen specification, re-verified end to end",
+                "",
+                "The automations behaviour must be re-verified, clause by clause, against `specs/human-scratch.md`",
+                "lines 248 to 295, and every divergence must be fixed.",
+                "",
+                "### The reported defect",
+                "",
+                "Changing a field on a transaction that does not yet match any rule must offer to create one. The",
+                "principal added a tag and changed a description on an imported transaction and no controls appeared,",
+                "so no rule could be created or applied to the other transactions.",
+                "",
+                "The rule-creation controls are distinct from the robot. The robot surfaces a rule that already",
+                "exists. The creation controls appear when a field is changed and no rule yet matches. Both surfaces",
+                "are required, for every rule field.",
+                "",
+                "### Required behaviour",
+                "",
+                "- Changing a field on a transaction that matches no existing rule surfaces the creation controls",
+                "  near the edited cell, without resizing the table and without occluding other content.",
+                "- The controls offer the four choices \"updating all\", \"updating new\", \"update all\" and \"update new\",",
+                "  a confirm button, an \"only if $x\" restriction and an \"only this account\" restriction, and explain",
+                "  in a tooltip that the \"Updating\" forms apply automatically when the row loses focus while the",
+                "  \"Update\" forms require the confirm button.",
+                "- The creation controls are offered for description aliases, for tags and for person percentage",
+                "  attribution alike.",
+                "- For tags, a further choice follows \"only this account\" offering \"add tags\" or \"set tags\", where",
+                "  \"set tags\" clears existing tags.",
+                "- For person percentage attribution the rule covers the whole set of percentage columns and its",
+                "  control spans those columns.",
+                "- The last used choices for the select and the restrictions are remembered in vault user",
+                "  preferences.",
+                "- Where a rule already matches, the robot appears, is red when the field has drifted from what the",
+                "  rule implies, opens the same editor the automations page uses, and offers \"apply to this",
+                "  transaction\" when drifted, plus \"apply to all\" and \"apply to new imports\".",
+                "- Changing a field that already has a matching rule offers the same choices but updates that rule",
+                "  rather than creating a second one.",
+                "- Rule precedence follows the frozen text: description text alone, superseded by description with",
+                "  amount, then description with account, then description with account and amount.",
+                "- Description alias rules do not apply to manually created transactions, which have no description",
+                "  text. Tag and person percentage rules do apply to them.",
+                "",
+                "### Required evidence",
+                "",
+                "The re-verification must state, for each clause of the frozen text, whether the shipped behaviour",
+                "conforms, and cite the code and the test that demonstrates it. A clause with no automated test",
+                "covering it is a gap to be closed, not a pass. Every fix carries a test that fails without it."
+            ],
+            "task": "tasks/ur-009.md",
+            "packages": [
+                "P30"
+            ],
+            "relatedRequirement": "HS-007",
             "sourceCompletion": "immutableNoSourceMutation"
         }
     ]

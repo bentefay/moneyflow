@@ -509,3 +509,37 @@ taken in each case, per the no-pause rule.
 
 **Revised tallies: 22 of 30 requirements `passed`; 21 of 29 feature packages `passed`.** Completion
 now additionally requires P26-P29.
+
+## D-022 — Automations re-verified via UR-009 rather than by reopening HS-007
+
+- **Status:** accepted
+- **Date:** 2026-08-01
+- **Authority:** explicit in-session instruction from the human principal.
+
+**Decision.** The principal asked for a pass reviewing the automations task "as it was written by me
+in human scratch" and double-checking it works as specced, after observing that a tag change and a
+description change produced no rule-creation controls. Root admits this as UR-009, a new markerless
+requirement owned by new package P30, sourced from a new frozen file
+`specs/011-automations-conformance/spec.md`.
+
+**Why NOT reopen HS-007.** Reopening a `passed` requirement means a §275 rollback batch: flipping the
+HS-007 marker `[x] -> []`, downgrading P17A-P17D to `changes_requested`, and re-running four packages
+through implementation and review. That machinery exists for a FAILED P21 audit invalidating prior
+work. Here the principal is requesting an ADDITIONAL verification pass, and any divergence found is a
+gap to close in one focused package. Reopening four passed packages would cost far more and would
+discard four independent reviews that remain valid for what they covered. UR-009 therefore
+re-verifies HS-007's clauses without disturbing its marker, its rolling-SHA chain, or its packages.
+`SCOPE.json#UR-009` records `relatedRequirement: HS-007` so the link is explicit and auditable.
+
+**Why this is not a scope reduction.** Requiring MORE verification and fixing divergences is
+completing committed scope, not reducing it, so PROCESS.md:335-347 does not apply and no scope
+adjudicator is required. Nothing previously accepted is withdrawn; HS-007 keeps its `passed` status
+and its evidence.
+
+**If the audit finds HS-007 materially unimplemented.** If P30's clause-by-clause table shows a
+divergence so broad that HS-007's `passed` status is itself unsupportable, that is a different
+question — it would mean a prior review passed something that did not conform. Root must then dispatch
+the independent scope adjudicator, because downgrading a `passed` requirement supersedes prior
+accepted decisions. Root will not make that call unilaterally on the strength of one reported symptom.
+
+**Revised tallies: 22 of 31 requirements `passed`; 21 of 30 feature packages `passed`.**
