@@ -6649,3 +6649,41 @@ root, exactly as the reviewer checked the implementer.
 **Carry-forward for P21 (`Q-ROOT-2026-08-01-01`):** a coordinator-asserted claim entered a worker's
 evidence unverified. Any P21 audit of evidence provenance should treat root assertions as claims to be
 checked, not as authority.
+
+### 2026-08-01 — P22 rev 03 implementation landed; 8+ run campaign running
+
+`p22-implementer-03` committed `476f26f` (test-infra) and `a8bd52b` (evidence, campaign section
+deliberately blank), both verified ancestors of HEAD. `git diff --name-only` confirms `476f26f`
+touches ONLY `tests/e2e/helpers/settlement.ts` and `tests/e2e/transactions.spec.ts` — no product code,
+exactly as scoped, so rev 01/02's reviewed product conformance is untouched.
+
+**It rejected the reviewer's suggested sized-timeout fix, correctly.** `toHaveCount` converges only if
+the predicate stays true once true; `[…]:has(…:focus)` is true only while the caret is there, so it can
+go true -> false and a poll on either side sees 0 forever. A larger deadline makes that rarer, not
+absent. The implemented fix instead arms a one-shot `focusin` latch BEFORE the click, writing the new
+row's id to an attribute on `<html>` — outside React's tree, so no re-render clears it — converting a
+transient instant into MONOTONIC state that only goes absent -> present, which an ordinary converging
+wait can handle. It ignores rows already on screen so a caret returning to a previously-edited row
+cannot be mistaken for the new one, which matters because specs call the helper three times in
+succession. The second failure (`element was detached from the DOM`) was treated as a DISTINCT
+mechanism and fixed on its own merits rather than assumed covered.
+
+UR-001 focus coverage is RETAINED at five sites with a comment explaining why focus is an expectation
+there but not the sync primitive — necessary because the unit tests cannot reach UR-001's virtualized
+clause, so dropping E2E focus assertions would have silently weakened the requirement. Class audit
+covered 17 `addEmptyTransaction` sites across 5 spec files, 1 remaining `newlyAddedRow` absence
+assertion, and 40 other `:focus`/`toBeFocused` hits deliberately left as terminal assertions.
+
+**Two self-corrections by the implementer, both unprompted:** it claimed its mutation probe breaks
+UR-001 "in the browser only", MEASURED it, found it also fails 4 of 11 focus unit tests in jsdom, and
+corrected the claim — so the E2E run CONFIRMS that regression rather than uniquely discovering it. It
+also rejected a cleaner-looking mutation because failing 6 unit tests meant it never reached the
+browser at all. First revision in this package to catch its own mechanism error before a reviewer did.
+
+**Root error corrected by the implementer:** root reported `/tmp/mf-e2e-p22r3` did not exist, from an
+`ls -d` run BEFORE the worktree was created, then repeated that stale reading as current. `git worktree
+list` shows it at `476f26f`. Same class as root's `5027787` grep error: a check true when run, quoted
+later as though still true. Recorded so the pattern is visible rather than incidental.
+
+Campaign digest `93d8e0e188d51feb7917840532782843`. Bar is **>=8 consecutive full-suite `--retries=0`
+runs**, `env -u CI`, full sequence reported including any failure.
