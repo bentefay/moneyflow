@@ -245,6 +245,120 @@ IDs are hardcoded — every one is read from the DOM at runtime, which is the po
 
 ## E2E campaign
 
-_Pending. Port 3000 is held by another package's campaign; `playwright.config.ts` pins
-`webServer.url` to `:3000` with `reuseExistingServer: false`, so exactly one campaign runs repo-wide
-at a time. This section will be completed after root hands over the port._
+Run in the isolated worktree `/tmp/mf-e2e-p22r3`, detached at `476f26f`, verified `src IDENTICAL` /
+`tests IDENTICAL` against the main checkout before starting. **8 consecutive full-suite runs, all
+green.** The bar was raised to 8 for this revision because every prior campaign ran only 3 and each
+one missed the flake.
+
+Command, identical every run:
+
+```
+env -u CI pnpm exec playwright test --retries=0 --workers=4 --reporter=line
+```
+
+`env -u CI` is load-bearing and not cosmetic. `playwright.config.ts:56,60` gives **1 worker and 2
+retries** when `CI` is set — the inverse of the required profile, and retries would launder a flake
+into a pass. `CI=true` was used for `pnpm install` only.
+
+Digest is `md5sum <the 7 load-bearing product+test files> | md5sum`, captured before run 1, at the
+top of every individual run, and after run 8:
+
+| Run    | Digest                             | Exit | Duration | Result           |
+| ------ | ---------------------------------- | ---- | -------- | ---------------- |
+| before | `93d8e0e188d51feb7917840532782843` | —    | —        | 0 modified paths |
+| 1      | `93d8e0e188d51feb7917840532782843` | 0    | 259s     | **166 passed**   |
+| 2      | `93d8e0e188d51feb7917840532782843` | 0    | 234s     | **166 passed**   |
+| 3      | `93d8e0e188d51feb7917840532782843` | 0    | 232s     | **166 passed**   |
+| 4      | `93d8e0e188d51feb7917840532782843` | 0    | 238s     | **166 passed**   |
+| 5      | `93d8e0e188d51feb7917840532782843` | 0    | 234s     | **166 passed**   |
+| 6      | `93d8e0e188d51feb7917840532782843` | 0    | 232s     | **166 passed**   |
+| 7      | `93d8e0e188d51feb7917840532782843` | 0    | 234s     | **166 passed**   |
+| 8      | `93d8e0e188d51feb7917840532782843` | 0    | 237s     | **166 passed**   |
+| after  | `93d8e0e188d51feb7917840532782843` | —    | —        | —                |
+
+The digest never drifted, so this is valid evidence for one unchanging tree. Per-run logs are on
+disk at `/tmp/p22r3-logs/run-1..8.log`, with the sequence at `/tmp/p22r3-campaign.out`. The runner
+script was deliberately kept in `/tmp` rather than inside the worktree, so no untracked file could
+appear in `git status` and undercut the unchanging-tree claim.
+
+### I did not accept my own green at face value
+
+A deliberately broad failure grep matched **all eight** logs, so I ran it to ground rather than
+reporting green over an unexamined match. It was 402 occurrences of the string `" failed"`, every
+one benign, in two classes:
+
+- `[WebServer] ⚠️ tRPC failed on realtime.revoke: Request authentication failed` and siblings —
+  server-log noise from the unauthenticated phases of onboarding tests, present in passing runs.
+- Two **test names** that contain the word: `onboarding-vault.spec.ts:63` "failed registration
+  leaves no signing session…" and `undo-redo.spec.ts:311` "a failed offline undo push retries on
+  browser reconnect…".
+
+Greps for Playwright's actual failure formats return **NONE in any of the eight logs**: no
+`N failed`, no `N flaky`, no `did not run`, no `interrupted`. Nor any rev-02 signature — no
+`Test timeout of`, no `element was detached`, no `resolved to 0 elements`. Exit codes were
+`8 × exit=0`.
+
+`next-env.d.ts` shows modified in the worktree throughout. It is a Next 16 dev artifact that
+rewrites its own import from `./.next/types/routes.d.ts` to `./.next/dev/types/routes.d.ts` on first
+dev-server boot. Generated, not source, not among the seven digest files, and recorded identically
+by rev 02's reviewer.
+
+### What 8 green runs does and does not establish
+
+**It corroborates the fix; it does not carry it.** Against the 1-in-6 per-run failure rate the
+reviewer observed, eight clean runs have roughly a **23% chance** (`0.833^8`) of showing zero
+failures by luck alone. That is much stronger than the 3-run campaigns that repeatedly missed the
+flake, but it is not proof of absence, and I decline to present it as one. Independently, P23's
+implementer ran four full-suite runs on a tree containing rev 02 and saw zero occurrences — also
+consistent with a low base rate rather than with absence.
+
+The load-bearing argument is **structural, not statistical**: the wait that failed no longer exists.
+`:has(:focus)` has been removed from the synchronisation path entirely and replaced by a latch that
+cannot un-set. A campaign cannot prove a rare flake gone; removing the non-converging wait can.
+
+### Falsifiability check — the hardened helper still fails when the behaviour breaks
+
+8/8 green proves the suite passes. It does not prove the new sync point can still **fail**, and a
+sync point that cannot fail is an unfalsifiable assertion rather than a fix. So I mutated the
+behaviour the helper guards and confirmed it fails.
+
+Run **after** the campaign, in my own worktree, never the shared main checkout. The mutation removes
+`input.focus()` from the description cell's focus-request effect
+(`InlineEditableDescriptionAlias.tsx:149`), leaving the intent still produced and still retired but
+the caret never moving — exactly one line, verified by `git diff --stat` as
+`1 insertion(+), 1 deletion(-)`.
+
+```
+$ env -u CI pnpm exec playwright test tests/e2e/transactions.spec.ts \
+    --grep "each Add click immediately creates a distinct ordinary empty row" \
+    --retries=0 --workers=1 --reporter=line
+
+    TimeoutError: page.waitForFunction: Timeout 15000ms exceeded.
+
+       at helpers/settlement.ts:270
+
+      270 |     const latched = await page.waitForFunction(
+          |                                ^
+        at addEmptyTransaction (/tmp/mf-e2e-p22r3/tests/e2e/helpers/settlement.ts:270:32)
+        at /tmp/mf-e2e-p22r3/tests/e2e/transactions.spec.ts:194:33
+
+  1 failed
+```
+
+It failed at **the latch itself**, for the right reason: no `focusin` ever reaches a new row's
+description, so the attribute is never set and `waitForFunction` exhausts its 15s ceiling. The
+helper is falsifiable.
+
+**Honest qualification, measured rather than assumed.** I initially expected this mutation to be
+caught only in the browser. I checked, and it also fails **4 of 11** tests across
+`add-transaction-focus.test.tsx` and `add-transaction-focus-once.test.tsx`, because jsdom has a real
+focus manager. So the E2E run **confirms** this regression rather than uniquely discovering it. I
+also tried the tidier-looking mutation — `revealCreatedTransaction` returning
+`focusDescriptionPending: false` — and rejected it precisely because it fails 6 unit tests and so
+never reaches the browser at all, making it useless for testing the E2E layer. The probe still
+answers the question it was chosen for: whether the hardened helper fails when the guarded behaviour
+breaks. It does.
+
+The worktree was restored with the same script's `restore` action, and the digest re-verified as
+`93d8e0e188d51feb7917840532782843` — identical to the value held throughout the campaign. Post-
+restore `git status --porcelain` shows only the generated `next-env.d.ts`.
