@@ -6687,3 +6687,37 @@ later as though still true. Recorded so the pattern is visible rather than incid
 
 Campaign digest `93d8e0e188d51feb7917840532782843`. Bar is **>=8 consecutive full-suite `--retries=0`
 runs**, `env -u CI`, full sequence reported including any failure.
+
+### 2026-08-02 — P22 rev 03 campaign 8/8 GREEN, verified by root against on-disk logs
+
+`p22-implementer-03` reported OPTION 1: campaign completed, port released. Root verified against the
+artifacts rather than the message. `/tmp/p22r3-campaign.out` and `/tmp/p22r3-logs/run-1..8.log` exist,
+timestamped 18:35-19:03, and show:
+
+- 8 consecutive full-suite runs, `env -u CI pnpm exec playwright test --retries=0 --workers=4`
+- every run `exit=0` and `166 passed` (4.3m, then 3.9m x7)
+- digest `93d8e0e188d51feb7917840532782843` captured BEFORE run 1, on EVERY individual run, and AFTER
+  run 8 — never drifted, so the campaign is evidence for one unchanging tree
+
+Root's own independent grep across all eight logs for genuine Playwright failure formats
+(`N failed`, `N flaky`, `Test timeout of`, `element was detached`, `resolved to 0 elements`) returns
+NONE. Root separately confirmed each log's tail summary reads `166 passed`.
+
+**The implementer did not trust its own green.** A broad failure-grep matched all 8 logs, and rather
+than reporting green over an unexamined match it enumerated all 402 hits: `[WebServer]` tRPC
+authentication noise, plus two TEST NAMES containing the word "failed"
+(`onboarding-vault.spec.ts:63` and `undo-redo.spec.ts:311`). This is the third time in this goal a
+loose grep produced an alarming count that dissolved on inspection; the discipline of reading exact
+text before classifying is now well established across agents.
+
+**Statistical honesty, unprompted and against its own interest:** the implementer noted that against
+the observed 1-in-6 rate, 8 clean runs has roughly a 23% chance (0.833^8) of showing zero by luck
+alone, so 8/8 is meaningfully stronger than the 3-run campaigns that kept missing the flake but is NOT
+proof of absence. It stated that the load-bearing argument is STRUCTURAL — `:has(:focus)` no longer
+exists anywhere in the synchronisation path, replaced by a latch that cannot un-set — rather than
+letting the run count imply more than it supports. Root accepts that framing: the fix is sound because
+the failing wait was removed, and the campaign corroborates rather than carries the claim.
+
+Remaining for rev 03: the falsifiability mutation check in the implementer's own worktree, digest
+re-verified after restore, then the evidence campaign section. Port released and handed to
+`p23-reviewer-01` for its 2 targeted mutation runs.
