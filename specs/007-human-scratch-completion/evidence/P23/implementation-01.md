@@ -2,7 +2,8 @@
 
 **Implementer:** `p23-implementer-01` (fresh context) · **Base HEAD at start:**
 `6e82c70067335d6f1b957ed1235fac26f1582400` (root ledger dispatch commit) · **Commits:** `391bee6`
-(product + tests), `c041795` (page-level regression test)
+(product + query tests), `c041795` (page-level regression test), `11a01f4` (E2E coverage as a
+journey step)
 
 ## Scope / charter
 
@@ -107,13 +108,19 @@ re-exported from `src/lib/crdt/index.ts` but has no other in-repo call site.
 
 ## Requirement-to-test mapping
 
-| Frozen requirement (lines 46-53)               | Covering test                                                                                           |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Matches alias-resolved text when aliased       | unit "finds an aliased row with no stored description by its alias text"; page-level test 1; E2E step 1 |
-| Raw stored description stays matchable         | unit "still finds a row by its raw stored description"; page-level test 2; E2E step 3                   |
-| Notes stay matchable                           | unit "still finds a row by its notes"; page-level test 2                                                |
-| One-hop symlink resolution matches the display | unit "follows a one-hop symlink to the real alias name"; page-level test 1 (`alias-trial`)              |
-| Case-insensitive, substring                    | unit lowercase/uppercase/mid-substring cases; page-level test 3; E2E step 2                             |
+| Frozen requirement (lines 46-53)               | Covering test                                                                                                                    |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Matches alias-resolved text when aliased       | unit "finds an aliased row with no stored description by its alias text"; page-level test 1; E2E step, "manual"/"fresh" searches |
+| Raw stored description stays matchable         | unit "still finds a row by its raw stored description"; page-level test 2; E2E step, "novel" search                              |
+| Notes stay matchable                           | unit "still finds a row by its notes"; page-level test 2                                                                         |
+| One-hop symlink resolution matches the display | unit "follows a one-hop symlink to the real alias name"; page-level test 1 (`alias-trial`)                                       |
+| Case-insensitive, substring                    | unit lowercase/uppercase/mid-substring cases; page-level test 3; E2E step, "MANU" search                                         |
+
+The E2E column is **claimed coverage that has not been executed**; see the blocker section. The
+one-hop symlink case has no E2E entry: producing a symlink through the UI means driving the
+change-all modal, which the neighbouring test already covers, and the resolution itself is proven at
+the unit and page levels. I judged that not worth lengthening an already long journey for; flagging
+it so a reviewer can overrule me rather than discover it.
 
 ## Tests
 
@@ -152,11 +159,28 @@ It carries `vi.setConfig({ testTimeout: 30_000 })` for the documented reason tha
 costs far more under a saturated suite than in isolation. This is a **ceiling, not a wait**: every
 assertion settles on its own condition via `waitFor`, with no sleep and no polling interval.
 
-**`tests/e2e/description-aliases.spec.ts`** — new test reproducing the principal's exact report:
-create a transaction, alias it to "Testing", search "test", expect the row. It also asserts a second
-aliased row is _excluded_, so the test cannot pass by simply failing to filter. Assertions are on
-row presence, never on copy. Alias-dependent assertions after a re-render use `{ timeout: 15_000 }`
-per the documented load-dependent flake discipline.
+**`tests/e2e/description-aliases.spec.ts`** — a new `test.step` on the existing "transaction cell
+pointer, keyboard, seamless commit and provenance journey" test, reproducing the principal's report:
+a row whose displayed description comes only from an alias is searched for by that alias text and
+must be found.
+
+This was **initially written as a separate test and then restructured**, which is worth recording
+because the second shape is better on two counts. `.claude/skills/e2e` directs that adding a
+`test.step()` to an existing test is strongly preferred over a new test, to keep the suite fast and
+avoid duplicating slow setup. More substantively, that journey's end state is already a _better_
+fixture set than the one I had built: it ends with "Manual alias only" — a manually added row
+carrying an alias and no stored description, i.e. exactly the reported defect — alongside "Imported
+novel", which holds raw imported text under the _different_ alias "Fresh renamed". That pair is
+discriminating: no single-field search predicate can satisfy every assertion in the step, because
+one row is findable only by its alias and the other must be findable by alias _and_ by raw text. The
+step reuses that state at no extra setup cost, and the suite still lists **5 tests in the file, not
+6** (verified with `playwright test --list`, which does not need the port).
+
+Assertions are on the row's committed value and on absence, never on copy. Post-re-render assertions
+carry `{ timeout: 15_000 }` per the documented load-dependent flake discipline, matching sibling
+assertions already in the file. The step also asserts the non-matching row is **absent** for each
+search, so it cannot pass by simply failing to filter, and finishes by clearing the search and
+confirming the rows come back.
 
 ## Check results
 
@@ -196,12 +220,14 @@ or set reuseExistingServer:true in config.webServer.
 config reads `workers: process.env.CI ? 1 : 4` and `retries: process.env.CI ? 2 : 0`, so `CI=true`
 would give 1 worker and 2 retries — the opposite of the 4-worker `--retries=0` load profile the
 flake discipline requires. (`CI=true` on the worktree `pnpm install` is fine and unrelated.) The
-tree digest for the campaign is `0a149986d9c74aab61c311bac7399806` (md5 over all `src`/`tests`
-`.ts`/`.tsx`, sorted). The digest covers code and tests only, so it is pinned by `c041795`, the last
-commit touching either — the evidence commit that follows it cannot move it. An earlier digest of
-`4553956ad6b988ddea2d79980fa6f1ab` was recorded at `391bee6`, before the page-level regression test
-was added; it is superseded and no run was executed against it. Per the tree-drift rule any further
-change invalidates runs so far and the campaign restarts from run 1.
+tree digest for the campaign is `fad5caecaf75e94e032764a8f7d46c4f` (md5 over all `src`/`tests`
+`.ts`/`.tsx`, sorted), pinned by `11a01f4`, the last commit touching code or tests. **It will be
+re-confirmed immediately before run 1** so the campaign is anchored to the tree it actually
+measures. Two earlier digests are superseded and **no run was ever executed against either**:
+`4553956ad6b988ddea2d79980fa6f1ab` at `391bee6` (before the page-level regression test) and
+`0a149986d9c74aab61c311bac7399806` at `c041795` (before the E2E test was restructured into a journey
+step). Per the tree-drift rule any further change invalidates runs so far and the campaign restarts
+from run 1.
 
 ### What the five passing gates do and do not cover
 
