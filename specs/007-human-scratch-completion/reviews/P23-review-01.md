@@ -64,6 +64,50 @@ reproduces the implementer's recorded campaign digest and matches HEAD's `src`+`
 
 ---
 
+## Which tree these numbers describe — the pre-hardening `addEmptyTransaction`
+
+Stated plainly so no future reader is misled: **this campaign ran against BASE `908ec17`, which
+predates P22 rev 03's commit `476f26f`.** That commit replaced `addEmptyTransaction`'s
+transient-focus synchronisation with a monotonic `focusin` latch.
+`tests/e2e/description-aliases.spec.ts` — the file carrying the UR-002 journey step — calls that
+helper, so the helper underneath this spec changed on `main` after I pinned.
+`git diff --name-only 908ec17 HEAD -- src/ tests/` returns exactly `tests/e2e/helpers/settlement.ts`
+and `tests/e2e/transactions.spec.ts`; no P23 product file moved.
+
+**One correction of fact.** The coordinator's dispatch stated the spec calls `addEmptyTransaction`
+twice. It calls it **once**, at `description-aliases.spec.ts:272`, with a single import at `:11`.
+The second call site existed in the standalone UR-002 test that `11a01f4` deleted when it folded the
+coverage into the journey. Recorded because the surface area is half what was assumed.
+
+**Judgement: the change affects test TIMING, not UR-002 BEHAVIOUR.** Reasoning from the diff:
+
+1. The new helper writes exactly one thing — `data-e2e-latched-description-focus` on `<html>`, via
+   `setAttribute`/`removeAttribute`. `<html>` sits outside React's tree and the attribute is
+   harness-namespaced. The helper performs no `fill`, no `press`, and no click beyond the same Add
+   button; it touches no transaction field, no description and no alias. It is observation plus a
+   wait strategy.
+2. It returns the same stable `data-transaction-id` as before. The old code read that ID off a
+   `:focus` locator; the new code latches it from a `focusin` event. Same identifier, different
+   route to learning it.
+3. The vault state reaching the UR-002 step is therefore identical either way: one manual row with
+   `description: ""` carrying an alias. UR-002's behaviour is a function of vault state and the
+   search predicate, and `476f26f` changes neither.
+4. The call site is upstream of the UR-002 step — `:272` versus `:315` — and separated from it by
+   the undo/redo and hard-refresh steps, including a `page.reload()` at `:301`. Any focus-timing
+   subtlety the latch addresses is flushed by a full page reload before the search assertions run.
+
+The one thing the change could do to this step is make it more or less stable, and it points the
+safe way: the hardening makes the precondition more reliable, not less. A UR-002 behaviour
+regression would have to arrive through the search predicate or the alias graph, and `476f26f`
+reaches neither.
+
+**No re-verification is warranted, and this PASS carries forward on UR-002's merits.** P22 rev 03's
+own campaign runs full-suite, so it exercises `description-aliases.spec.ts` against the
+post-hardening helper directly — independent evidence for the combined tree that this reviewer did
+not need to generate.
+
+---
+
 ## Findings against criteria 1-9
 
 ### 1. UR-002 met exactly — PASS
