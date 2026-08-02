@@ -9,6 +9,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 
 import { RESTING_CELL_CHROME } from "./cell-chrome";
+import { INPUT_CELL_HIT_AREA } from "./cell-hit-area";
 
 export interface DescriptionAliasOption {
     id: string;
@@ -268,6 +269,10 @@ export function InlineEditableDescriptionAlias({
             data-testid={testId}
             className={cn(
                 "h-7 text-sm",
+                // UR-012: the field accepts a click anywhere in its cell. The alias autocomplete is
+                // positioned from `containerRef`, the wrapper below, whose box this does not touch —
+                // so the dropdown still opens exactly where it did.
+                INPUT_CELL_HIT_AREA,
                 RESTING_CELL_CHROME,
                 "hover:bg-accent/30",
                 "focus:border-input focus:bg-background focus-visible:ring-2",

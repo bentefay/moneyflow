@@ -7,6 +7,7 @@ import { deriveEffectiveAllocations, type EffectiveAllocationResult } from "@/li
 import { cn } from "@/lib/utils";
 
 import { materializeAllocationRecord, parseAllocationDraft } from "../allocation-columns";
+import { TALL_CONTROL_HIT_AREA } from "./cell-hit-area";
 
 export interface PersonAllocationCellProps {
     readonly accountOwnerships?: unknown;
@@ -197,6 +198,11 @@ export function PersonAllocationCell({
             aria-label={`Edit ${personLabel} allocation`}
             className={cn(
                 "hover:bg-accent focus-visible:ring-primary flex h-8 w-full min-w-0 items-center justify-end rounded px-2 text-right text-sm tabular-nums focus-visible:ring-2 focus-visible:outline-none",
+                // UR-012: a click anywhere in the cell begins editing this percentage. Only the
+                // resting button carries the overlay, because that is the control a click has to
+                // reach; once editing, the input already holds focus and a click at the cell edge
+                // commits exactly as it did before this change.
+                TALL_CONTROL_HIT_AREA,
                 presentation.invalid ? "text-destructive font-medium" : "text-muted-foreground",
                 className
             )}

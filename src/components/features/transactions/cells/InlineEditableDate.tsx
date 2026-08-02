@@ -27,6 +27,7 @@ import {
 } from "@/lib/utils/date-format";
 
 import { RESTING_CELL_CHROME } from "./cell-chrome";
+import { INPUT_CELL_HIT_AREA } from "./cell-hit-area";
 
 export interface InlineEditableDateProps {
     /** Current value in ISO format (YYYY-MM-DD) */
@@ -198,6 +199,10 @@ export function InlineEditableDate({
                 onKeyDown={handleKeyDown}
                 className={cn(
                     "h-7 pr-7 text-sm",
+                    // UR-012: the field accepts a click anywhere in its cell. The calendar icon is
+                    // positioned against this container rather than the input, so it stays exactly
+                    // where it was; only the input's own box grows.
+                    INPUT_CELL_HIT_AREA,
                     RESTING_CELL_CHROME,
                     "hover:bg-accent/30",
                     "focus:border-input focus:bg-background",

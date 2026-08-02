@@ -23,6 +23,8 @@ import {
 import { DEFAULT_TAG_COLOR, getContrastingTextColor } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
+import { SHORT_CONTROL_HIT_AREA } from "./cell-hit-area";
+
 export interface TagOption {
     id: string;
     name: string;
@@ -79,6 +81,20 @@ function TagPill({
         <span
             className={cn(
                 "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+                // `relative` lifts the pill above the cell's full-cell activation overlay (UR-012).
+                //
+                // That overlay lives on this pill's ANCESTOR, the display area, and is positioned —
+                // so it paints above its own in-flow descendants. This pill's remove button is
+                // `position: static`, which put it underneath: measured, `elementFromPoint` at the
+                // button's centre returned the overlay's owner, the tag survived the click and the
+                // chooser opened instead.
+                //
+                // Positioning the pill is what restores it; `z-index` is deliberately not used,
+                // since the two elements are siblings in paint order rather than competing layers.
+                // Pushing the overlay behind instead was tried and rejected by measurement: a
+                // negative `z-index` drops it behind the row, and the cell-edge click that UR-012
+                // exists to deliver stops arriving.
+                "relative",
                 disabled && "opacity-50"
             )}
             style={{ backgroundColor: bgColor, color: textColor }}
@@ -288,6 +304,11 @@ export function InlineEditableTags({
                 className={cn(
                     "flex min-h-[28px] cursor-pointer flex-wrap items-center gap-1 rounded-md px-1 py-0.5",
                     "border border-transparent bg-transparent shadow-none outline-none",
+                    // UR-012: the chooser opens from a click anywhere in its cell. The overlay sits
+                    // on this display area, so a click on it still bubbles to the container's
+                    // `handleClick`; the container's own box is untouched, which matters because
+                    // `containerRef` is what positions the portaled dropdown.
+                    SHORT_CONTROL_HIT_AREA,
                     "hover:bg-accent/30",
                     "focus-visible:border-ring focus-visible:bg-background focus-visible:ring-ring/50 focus-visible:ring-[3px]",
                     disabled && "cursor-not-allowed opacity-50"

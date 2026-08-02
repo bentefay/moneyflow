@@ -23,6 +23,7 @@ import { hashToColor } from "@/lib/utils/color";
 
 import { type AllocationColumn, materializeAllocationRecord } from "./allocation-columns";
 import { RESTING_CELL_CHROME } from "./cells/cell-chrome";
+import { SHORT_CONTROL_HIT_AREA } from "./cells/cell-hit-area";
 import { CheckboxCell } from "./cells/CheckboxCell";
 import { InlineEditableAmount } from "./cells/InlineEditableAmount";
 import { InlineEditableDate } from "./cells/InlineEditableDate";
@@ -404,6 +405,7 @@ export function TransactionRow({
                         onChange={() => handleCheckboxChange()}
                         onShiftClick={handleShiftClick}
                         ariaLabel={`Select transaction ${effectiveData.description}`}
+                        rowGeometry="dataRow"
                     />
                 </div>
 
@@ -459,6 +461,11 @@ export function TransactionRow({
                         placeholder="Add account..."
                         className={cn(
                             "text-muted-foreground hover:bg-accent/30 focus:border-primary focus:bg-background focus:ring-primary h-7 px-1 focus:ring-1",
+                            // UR-012 covers EVERY editable control in the table, and the account
+                            // combobox is one of them. The hit area is applied here rather than in
+                            // `AccountCombobox`, which is shared with surfaces outside this table
+                            // whose rows are a different height.
+                            SHORT_CONTROL_HIT_AREA,
                             RESTING_CELL_CHROME
                         )}
                     />

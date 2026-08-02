@@ -13,6 +13,7 @@ import { expect, test } from "@playwright/test";
 
 import {
     createNewIdentity,
+    createTag,
     expectPresentRows,
     goToAccounts,
     goToImportNew,
@@ -2886,6 +2887,336 @@ test.describe("Transactions", () => {
             }
 
             await page.emulateMedia({ colorScheme: "light" });
+        });
+
+        /**
+         * UR-012: "clicking anywhere in the cell begins editing that field without the pointer
+         * having to find the control", while "the resting appearance is unchanged".
+         *
+         * Every assertion here clicks. A test that merely located a control, or asserted it was
+         * visible, would pass just as happily against the unfixed geometry — the control was always
+         * visible, it was the surrounding strip of the cell that was dead. So the only question this
+         * asks is the requirement's own: was the click ACCEPTED.
+         *
+         * The click lands 2px inside the row's top edge, which is 12px above where any control's
+         * box used to begin. Measured against the pre-change build, every one of these points
+         * focused the row itself and did nothing.
+         */
+        test("UR-012: a click at a cell's edge activates that cell's control", async ({ page }) => {
+            // The table is wider than the default 1280px viewport: measured, the amount column
+            // spans x=1233..1345, so its centre lies OFF-SCREEN and `mouse.click` there would land
+            // on nothing while the test read as passing. Widen first so every column is reachable.
+            await page.setViewportSize({ width: 1600, height: 900 });
+
+            await createNewIdentity(page);
+            await goToTransactions(page);
+            // TWO rows, because one cannot express the defect this fixture previously hid. The
+            // header's select-all overlay reached 9px past its own row into the first data row's
+            // checkbox cell, so clicking that cell selected EVERY transaction. With a single row,
+            // select-all and a per-row toggle set the identical `aria-checked` and no assertion can
+            // tell them apart. The second row is what makes them distinguishable.
+            await createTestTransaction(page, {
+                description: "Edge Click Diner",
+                amount: "-31.50"
+            });
+            await createTestTransaction(page, {
+                description: "Edge Click Bystander",
+                amount: "-12.00"
+            });
+
+            const rows = page.locator('[data-testid="transaction-row"]');
+            await expect(rows).toHaveCount(2);
+            // Rows are addressed by their STABLE ID, captured once, and not by text or accessible
+            // name. Two earlier attempts failed for reasons worth recording, because both produce a
+            // timeout that looks like a product defect:
+            //
+            //   `hasText`      matched 0 of 2 rows — a description lives in an `<input>`'s `value`,
+            //                  which is not text content.
+            //   `getByRole`    matched until a control opened, then stopped: an open Radix select
+            //                  rewrites the surrounding accessible tree, so the row's own name
+            //                  changes and the locator re-resolves to nothing mid-test.
+            //
+            // `data-transaction-id` is fixed for the row's lifetime, which is why the repository's
+            // own `rowById` helper uses it.
+            // The subject must be the FIRST RENDERED row, not a named one. The header's overlay
+            // could only ever reach the row directly beneath it, so a test that clicks any other
+            // row cannot express that defect — measured: with the constant reverted, clicking the
+            // second row passed cleanly. The grid sorts by date, so which description lands first
+            // is not something this test may assume; it reads the order the app produced.
+            await expect(rows.first()).toHaveAttribute("data-transaction-id", /.+/);
+            const rowId = await rows.first().getAttribute("data-transaction-id");
+            const bystanderId = await rows.nth(1).getAttribute("data-transaction-id");
+            if (rowId == null || bystanderId == null) throw new Error("rows have no stable id");
+            expect(rowId).not.toBe(bystanderId);
+            const row = page.locator(`[data-transaction-id="${rowId}"]`);
+            // The row the pointer never touches. Every assertion below that could be satisfied by a
+            // table-wide action checks this row is unmoved.
+            const bystander = page.locator(`[data-transaction-id="${bystanderId}"]`);
+            await expect(row).toHaveCount(1);
+            await expect(bystander).toHaveCount(1);
+
+            /**
+             * Click the horizontal centre of a cell, `inset` pixels below the ROW's top edge.
+             *
+             * Deliberately derived from the row box rather than the cell box: the point must fall in
+             * the strip that belongs to the cell but lay outside the control, which is exactly the
+             * region the requirement is about. Taking it from the cell would re-derive the control's
+             * own box and test nothing.
+             */
+            const clickCellEdge = async (cellName: string, edge: "top" | "bottom") => {
+                const rowBox = await row.boundingBox();
+                const cellBox = await row.locator(`[data-cell="${cellName}"]`).boundingBox();
+                if (rowBox == null || cellBox == null) {
+                    throw new Error(`${cellName} cell is not laid out`);
+                }
+                await page.mouse.click(
+                    cellBox.x + cellBox.width / 2,
+                    edge === "top" ? rowBox.y + 2 : rowBox.y + rowBox.height - 3
+                );
+            };
+
+            /** Which cell, if any, currently holds the caret. */
+            const activeCell = () =>
+                page.evaluate(() =>
+                    document.activeElement?.closest("[data-cell]")?.getAttribute("data-cell")
+                );
+
+            const settleClearOfTheGrid = async () => {
+                await page.keyboard.press("Escape");
+                await page.locator("body").click({ position: { x: 2, y: 2 } });
+                await page.mouse.move(0, 0);
+            };
+
+            for (const edge of ["top", "bottom"] as const) {
+                await test.step(`${edge} edge begins editing each text field`, async () => {
+                    for (const cell of ["date", "description", "amount"] as const) {
+                        await settleClearOfTheGrid();
+                        await clickCellEdge(cell, edge);
+                        await expect
+                            .poll(activeCell, { message: `${cell} caret from ${edge} edge` })
+                            .toBe(cell);
+                    }
+                });
+
+                await test.step(`${edge} edge opens the account chooser`, async () => {
+                    await settleClearOfTheGrid();
+                    await clickCellEdge("account", edge);
+                    await expect(
+                        row.getByRole("combobox", { name: "Select account", exact: true })
+                    ).toHaveAttribute("aria-expanded", "true");
+                });
+
+                await test.step(`${edge} edge opens the tag chooser`, async () => {
+                    await settleClearOfTheGrid();
+                    await clickCellEdge("tags", edge);
+                    // The chooser's own search box is the unambiguous evidence it opened, and it is
+                    // portaled out of the row, so it is addressed from the page.
+                    await expect(page.getByPlaceholder("Search tags...")).toBeFocused();
+                });
+
+                await test.step(`${edge} edge opens the status select`, async () => {
+                    await settleClearOfTheGrid();
+                    await clickCellEdge("status", edge);
+                    await expect(row.getByTestId("status-editable")).toHaveAttribute(
+                        "aria-expanded",
+                        "true"
+                    );
+                });
+
+                await test.step(`${edge} edge begins editing the person percentage`, async () => {
+                    await settleClearOfTheGrid();
+                    const allocationCell = row.locator('[data-cell^="allocation:"]').first();
+                    const cellName = await allocationCell.getAttribute("data-cell");
+                    if (cellName == null) throw new Error("no allocation column is rendered");
+                    await clickCellEdge(cellName, edge);
+                    // Editing replaces the button with a text input, so the input's presence in the
+                    // cell is the state change, not merely focus moving somewhere.
+                    await expect(allocationCell.getByRole("textbox")).toBeFocused();
+                });
+
+                await test.step(`${edge} edge toggles only this row's checkbox`, async () => {
+                    await settleClearOfTheGrid();
+                    const checkbox = row.getByRole("checkbox", { name: /^Select transaction/ });
+                    const otherCheckbox = bystander.getByRole("checkbox", {
+                        name: /^Select transaction/
+                    });
+                    await expect(checkbox).toHaveAttribute("aria-checked", "false");
+                    await expect(otherCheckbox).toHaveAttribute("aria-checked", "false");
+
+                    await clickCellEdge("checkbox", edge);
+
+                    await expect(checkbox).toHaveAttribute("aria-checked", "true");
+                    // The assertion the single-row fixture could not make. Select-all sets the
+                    // clicked row's state exactly as a per-row toggle does, so only an untouched
+                    // row can distinguish "this cell's control" from "the header's".
+                    await expect(otherCheckbox).toHaveAttribute("aria-checked", "false");
+                    // The header reports `mixed` here, and that is the CORRECT value: one of two
+                    // rows is selected. Asserting `false` was wrong — it would fail on a working
+                    // build. What distinguishes the defect is that the header must not be fully
+                    // checked, which is what select-all produces.
+                    await expect(
+                        page.getByTestId("header-checkbox").getByRole("checkbox")
+                    ).toHaveAttribute("aria-checked", "mixed");
+
+                    // Restore, so the following iteration starts from the same state it assumes.
+                    await clickCellEdge("checkbox", edge);
+                    await expect(checkbox).toHaveAttribute("aria-checked", "false");
+                });
+            }
+
+            await settleClearOfTheGrid();
+        });
+
+        /**
+         * UR-012: "the resting appearance is unchanged … a row at rest looks exactly as it did
+         * before", and the requirement closes by saying a change that alters resting appearance
+         * does not satisfy it.
+         *
+         * The proof is positional rather than a stored screenshot: a committed baseline image would
+         * have to be regenerated on any unrelated theme or font change, and would then assert
+         * whatever it was last regenerated from. What UR-012 actually forbids is the CONTROLS
+         * moving, so this pins the geometry that the enlargement could plausibly disturb — each
+         * control's own drawn box, in the row's coordinate space — against the values measured on
+         * the pre-change build.
+         */
+        test("UR-012: enlarging the hit areas moves nothing that was drawn", async ({ page }) => {
+            await createNewIdentity(page);
+            await goToTransactions(page);
+            await createTestTransaction(page, {
+                description: "Resting Geometry Cafe",
+                amount: "-8.00"
+            });
+
+            const row = page.locator('[data-testid="transaction-row"]').first();
+            await page.mouse.move(0, 0);
+            await page.locator("body").click({ position: { x: 2, y: 2 } });
+
+            /**
+             * Offsets and sizes measured on the pre-change build, relative to the row's top edge so
+             * the assertion does not depend on where the table happens to sit on the page.
+             *
+             * The three text inputs are absent by design: their boxes DO grow, which is the
+             * mechanism, and their drawn appearance is pinned instead by the text baseline below.
+             */
+            const RESTING_GEOMETRY = [
+                { selector: '[data-cell="checkbox"] [role="checkbox"]', top: 20, height: 16 },
+                { selector: '[data-cell="date"] button', top: 16, height: 24 },
+                { selector: '[data-cell="account"] button', top: 14, height: 28 },
+                { selector: '[data-testid="status-editable"]', top: 12, height: 32 },
+                { selector: '[data-cell^="allocation:"] button', top: 12, height: 32 }
+            ] as const;
+
+            for (const { selector, top, height } of RESTING_GEOMETRY) {
+                const measured = await row.evaluate((rowNode, target) => {
+                    const element = rowNode.querySelector(target);
+                    if (element == null) return null;
+                    const box = element.getBoundingClientRect();
+                    const rowBox = rowNode.getBoundingClientRect();
+                    return {
+                        top: Math.round(box.top - rowBox.top),
+                        height: Math.round(box.height)
+                    };
+                }, selector);
+                expect(measured, `${selector} is present`).not.toBeNull();
+                expect(measured, `${selector} rests where it always did`).toEqual({ top, height });
+            }
+
+            // The text inputs grow, so their box cannot pin them; this pins the content band the
+            // text is centred in instead.
+            //
+            // Note what this does and does not catch, since the obvious reading is wrong: an
+            // `<input>` centres its single line within its content box, so the padding's VALUE does
+            // not move the glyphs — measured, dropping it to 4px changes 0 pixels. Only an
+            // ASYMMETRIC padding moves them (30px/6px shifts the band centre 28 → 40). This
+            // assertion therefore guards the band's position and size; the symmetry itself is
+            // guarded by the arithmetic in `tests/unit/transactions/cell-hit-area.test.ts`.
+            for (const testId of ["date-editable", "description-editable", "amount-editable"]) {
+                const baseline = await row.evaluate((rowNode, id) => {
+                    const input = rowNode.querySelector(`[data-testid="${id}"]`);
+                    if (input == null) return null;
+                    const box = input.getBoundingClientRect();
+                    const rowBox = rowNode.getBoundingClientRect();
+                    const styles = getComputedStyle(input);
+                    return Math.round(box.top - rowBox.top + parseFloat(styles.paddingTop));
+                }, testId);
+                // 14px of row padding + the shared `Input` base's own 4px `py-1`.
+                expect(baseline, `${testId} text baseline`).toBe(18);
+            }
+        });
+
+        /**
+         * UR-012: "Existing per-cell behaviour is retained."
+         *
+         * Regression test for the defect this requirement's own fix introduced. The tags cell is the
+         * only cell whose activation overlay sits on an ancestor of a SECOND interactive control —
+         * the tag pill's remove button. Because the overlay is positioned and the button was not, the
+         * overlay painted above it: the "×" became unclickable, the tag survived, and the chooser
+         * opened instead.
+         *
+         * The fixture is the whole point. The committed edge-click test uses a transaction with no
+         * tags, so the pill never exists in it and three green campaign runs were entirely consistent
+         * with this defect being present. **A tag must be on the row before this can assert anything**
+         * — which is exactly the state no test in the suite had constructed.
+         */
+        test("UR-012: a tag pill's remove button still removes its tag", async ({ page }) => {
+            await createNewIdentity(page);
+            await goToTags(page);
+            await createTag(page, { name: "Groceries" });
+            await goToTransactions(page);
+            await createTestTransaction(page, {
+                description: "Pill Removal Grocer",
+                amount: "-19.99"
+            });
+
+            const row = page.locator('[data-testid="transaction-row"]').first();
+            const tagsCell = row.getByTestId("tags-editable");
+            const searchInput = page.getByPlaceholder("Search tags...");
+
+            await test.step("put a tag on the row", async () => {
+                await tagsCell.click();
+                await expect(searchInput).toBeVisible({ timeout: 15_000 });
+                await page.getByRole("option", { name: "Groceries", exact: true }).click();
+                await expect(tagsCell).toContainText("Groceries");
+                // Dismiss by clicking another cell, not Escape: the picker's Escape handler is bound
+                // to its search input and selecting an option moves focus off it, so the key never
+                // arrives. Pre-existing defect in `InlineEditableTags`, out of scope here.
+                await row.getByTestId("date-editable").click();
+                await expect(searchInput).toHaveCount(0);
+            });
+
+            await test.step("the remove button is the topmost element at its own centre", async () => {
+                // The defect was a stacking-order fault, so assert the stack directly. Without this,
+                // a future change could make the click work by accident while leaving the button
+                // buried for anyone using a different input method.
+                const topmostIsTheButton = await row.evaluate((rowNode) => {
+                    const button = rowNode.querySelector('[aria-label="Remove Groceries"]');
+                    if (button == null) return null;
+                    const box = button.getBoundingClientRect();
+                    const atCentre = document.elementFromPoint(
+                        box.x + box.width / 2,
+                        box.y + box.height / 2
+                    );
+                    return atCentre != null && button.contains(atCentre);
+                });
+                expect(topmostIsTheButton, "remove button is not covered").toBe(true);
+            });
+
+            await test.step("clicking it removes the tag and does not open the chooser", async () => {
+                // A real mouse click at the button's centre, rather than `locator.click()`, because
+                // the defect is precisely about which element receives a click at that coordinate.
+                const box = await row
+                    .getByRole("button", { name: "Remove Groceries" })
+                    .boundingBox();
+                if (box == null) throw new Error("remove button is not laid out");
+                await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+
+                await expect(tagsCell).not.toContainText("Groceries");
+                await expect(row.getByRole("button", { name: "Remove Groceries" })).toHaveCount(0);
+                // The failure mode was the click falling through to the cell, which opens the
+                // chooser. Asserting the tag is gone alone would not catch a variant that both
+                // removed the tag AND opened the picker.
+                await expect(searchInput).toHaveCount(0);
+            });
         });
     });
 });

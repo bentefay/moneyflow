@@ -23,6 +23,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { RESTING_CELL_CHROME } from "./cell-chrome";
+import { INPUT_CELL_HIT_AREA } from "./cell-hit-area";
 
 export interface InlineEditableAmountProps {
     /** Current value in minor units (e.g., cents) - integer */
@@ -270,6 +271,8 @@ export function InlineEditableAmount({
             aria-description={originalAmountDescription}
             className={cn(
                 "h-7 text-right text-sm font-medium tabular-nums",
+                // UR-012: the field accepts a click anywhere in its cell.
+                INPUT_CELL_HIT_AREA,
                 RESTING_CELL_CHROME,
                 colorClass,
                 "hover:bg-accent/30",
