@@ -2536,53 +2536,73 @@ test.describe("Transactions", () => {
                     await page.mouse.move(0, 0);
                     await page.locator("body").click({ position: { x: 2, y: 2 } });
 
+                    // A cell that was just hovered or focused fades its fill out over
+                    // `transition-colors`, so every resting reading polls to the settled paint
+                    // rather than sampling a mid-transition frame.
+                    const expectRestsClean = async (
+                        cell: import("@playwright/test").Locator,
+                        label: string
+                    ) => {
+                        await expect
+                            .poll(
+                                async () => {
+                                    const paint = await readCellPaint(cell);
+                                    return (
+                                        (await paintsNothing(page, paint.backgroundColor)) &&
+                                        (await paintsNothing(page, paint.borderColor))
+                                    );
+                                },
+                                { message: `${label} resting fill in ${theme}` }
+                            )
+                            .toBe(true);
+                    };
+
                     for (const testId of RESTING_CHROME_CELL_TEST_IDS) {
                         const cell = row.locator(`[data-testid="${testId}"]`);
-                        const paint = await readCellPaint(cell);
+                        await expectRestsClean(cell, testId);
                         expect(
-                            await paintsNothing(page, paint.backgroundColor),
-                            `${testId} resting background in ${theme}`
-                        ).toBe(true);
-                        expect(
-                            await paintsNothing(page, paint.borderColor),
-                            `${testId} resting border in ${theme}`
-                        ).toBe(true);
-                        expect(paint.boxShadow, `${testId} resting shadow in ${theme}`).not.toMatch(
-                            /rgba?\((?!0, 0, 0, 0\))/
-                        );
-                        // Removing chrome must not cost legibility.
-                        expect(
-                            await measuredTextContrast(cell),
-                            `${testId} text contrast in ${theme}`
-                        ).toBeGreaterThanOrEqual(4.5);
+                            (await readCellPaint(cell)).boxShadow,
+                            `${testId} resting shadow in ${theme}`
+                        ).not.toMatch(/rgba?\((?!0, 0, 0, 0\))/);
+                        // Removing chrome must not cost legibility. The shared `Input` base carries
+                        // `transition-[color,...]`, so straight after a theme switch the text is
+                        // still animating from the outgoing theme's colour and reads as dark-on-dark
+                        // for a few frames; poll to the settled value.
+                        await expect
+                            .poll(() => measuredTextContrast(cell), {
+                                message: `${testId} text contrast in ${theme}`
+                            })
+                            .toBeGreaterThanOrEqual(4.5);
                     }
 
-                    const accountPaint = await readCellPaint(accountCell);
-                    expect(
-                        await paintsNothing(page, accountPaint.backgroundColor),
-                        `account resting background in ${theme}`
-                    ).toBe(true);
-                    expect(
-                        await paintsNothing(page, accountPaint.borderColor),
-                        `account resting border in ${theme}`
-                    ).toBe(true);
+                    await expectRestsClean(accountCell, "account");
 
                     const percentageCell = row.getByRole("button", { name: "Edit Me allocation" });
-                    const percentagePaint = await readCellPaint(percentageCell);
-                    expect(
-                        await paintsNothing(page, percentagePaint.backgroundColor),
-                        `percentage resting background in ${theme}`
-                    ).toBe(true);
+                    await expect
+                        .poll(
+                            async () =>
+                                paintsNothing(
+                                    page,
+                                    (await readCellPaint(percentageCell)).backgroundColor
+                                ),
+                            { message: `percentage resting background in ${theme}` }
+                        )
+                        .toBe(true);
                 });
 
                 await test.step(`${theme} theme keeps hover feedback`, async () => {
                     const description = row.locator('[data-testid="description-editable"]');
                     await description.hover();
-                    const hovered = await readCellPaint(description);
-                    expect(
-                        await paintsNothing(page, hovered.backgroundColor),
-                        `description hover fill in ${theme}`
-                    ).toBe(false);
+                    await expect
+                        .poll(
+                            async () =>
+                                paintsNothing(
+                                    page,
+                                    (await readCellPaint(description)).backgroundColor
+                                ),
+                            { message: `description hover fill in ${theme}` }
+                        )
+                        .toBe(false);
                     await page.mouse.move(0, 0);
                 });
 
@@ -2592,6 +2612,18 @@ test.describe("Transactions", () => {
                         const resting = await readCellPaint(cell);
                         await cell.focus();
                         await expect(cell).toBeFocused();
+                        // Same `transition-colors` race as the selected row: poll until the focus
+                        // treatment has actually landed rather than sampling the first frame.
+                        await expect
+                            .poll(
+                                async () =>
+                                    paintsNothing(
+                                        page,
+                                        (await readCellPaint(cell)).backgroundColor
+                                    ),
+                                { message: `${testId} focused fill in ${theme}` }
+                            )
+                            .toBe(false);
                         const focused = await readCellPaint(cell);
                         expect(
                             focused.backgroundColor !== resting.backgroundColor ||
@@ -2599,14 +2631,11 @@ test.describe("Transactions", () => {
                                 focused.boxShadow !== resting.boxShadow,
                             `${testId} focus indication in ${theme}`
                         ).toBe(true);
-                        expect(
-                            await paintsNothing(page, focused.backgroundColor),
-                            `${testId} focused fill in ${theme}`
-                        ).toBe(false);
-                        expect(
-                            await measuredTextContrast(cell),
-                            `${testId} focused text contrast in ${theme}`
-                        ).toBeGreaterThanOrEqual(4.5);
+                        await expect
+                            .poll(() => measuredTextContrast(cell), {
+                                message: `${testId} focused text contrast in ${theme}`
+                            })
+                            .toBeGreaterThanOrEqual(4.5);
                         await cell.blur();
                     }
                 });
@@ -2614,11 +2643,16 @@ test.describe("Transactions", () => {
                 await test.step(`${theme} theme keeps the selected row filled`, async () => {
                     await row.getByRole("checkbox", { name: /^Select transaction/ }).click();
                     await expect(row).toHaveAttribute("aria-selected", "true");
-                    const selected = await readCellPaint(row);
-                    expect(
-                        await paintsNothing(page, selected.backgroundColor),
-                        `selected row fill in ${theme}`
-                    ).toBe(false);
+                    // The row animates its fill through `transition-colors`, so the first frame
+                    // after the attribute flips is still fully transparent. Poll the paint rather
+                    // than sampling it once, or the assertion races the transition.
+                    await expect
+                        .poll(
+                            async () =>
+                                paintsNothing(page, (await readCellPaint(row)).backgroundColor),
+                            { message: `selected row fill in ${theme}` }
+                        )
+                        .toBe(false);
                     await row.getByRole("checkbox", { name: /^Select transaction/ }).click();
                     await expect(row).toHaveAttribute("aria-selected", "false");
                 });
