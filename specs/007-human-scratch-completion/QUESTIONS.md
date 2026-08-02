@@ -2543,3 +2543,36 @@ partition Total Rows with no row counted twice and none omitted.
 **Q-UR008-03 remains OPEN and unchanged** — treated as a labelling defect only. The requested
 breakdown is expected to resolve the confusion the principal reported about `561 old`, since that
 figure will now split into Old New and Old Duplicates.
+
+## Q-P24-01 — `getByRole` name matching differs between harnesses, and the suite is already exposed
+
+Raised by `p24-implementer-01` during P24, transcribed here by root because `QUESTIONS.md` is
+root-owned. **Carry forward to P21.**
+
+**The hazard.** Testing Library's `getByRole` `name` option matches EXACTLY by default; Playwright's
+matches as a SUBSTRING. The same assertion is therefore correct in one harness and ambiguous in the
+other. P24's first E2E campaign failed on precisely this: a locator for the accessible name `"Me"`
+also matched `"Unnamed member"` — "Unna**me**d" contains "me" — producing a strict-mode violation
+with two matched elements. The package's unit tests could not have caught it, because they run under
+Testing Library where the same name matches exactly.
+
+**Measured exposure, not asserted.** The implementer counted rather than warned: **469** `getByRole`
+calls in `tests/e2e/` pass a `name`, of which only **33** pass `exact`. Pairwise containment over the
+distinct short literal names surfaces collisions ALREADY PRESENT in the suite:
+
+- `"Add"` is contained in `"Add owner"`, `"Add Person"`, `"Add Tag"`
+- `"Coffee"` is contained in `"Coffee Shop"`
+- `"Status"` is contained in `"Statuses"`
+
+Each is a latent strict-mode violation that fires whenever both labels are simultaneously visible in
+the same container — the exact condition that bit P24.
+
+**Explicitly NOT the load-dependent flake class.** A timeout increase can never fix it: the locator
+resolves to two elements deterministically whenever both are present. Cross-reference `Q-P20B-20`,
+where assuming the wrong flake class already cost time in this goal, and `Q-P22-R02-01`, where a
+transient-state synchronisation had to be replaced rather than given a longer deadline.
+
+**Scope.** The implementer fixed only its own three locators with `exact: true` and deliberately did
+NOT sweep the remaining 436, on the grounds that doing so would silently widen its package. Root
+agrees: the sweep is a separate piece of work. Recorded here so P21 can decide whether to charter it
+as its own package or accept the residual risk with reasons.
