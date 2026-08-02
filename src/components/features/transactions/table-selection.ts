@@ -132,6 +132,15 @@ export function selectOnlyRow(rowId: string): TransactionSelection {
  * exceptions: the newly-matching rows simply join the exception set. So narrowing a filter costs
  * nothing extra, and a peer's insert adds exactly one exception rather than materialising an id per
  * matching row.
+ *
+ * **Deliberately not re-exported from `index.ts`, and it should stay that way.** This is an internal
+ * primitive with a caller-side precondition: call it only when the matching set has actually
+ * changed. It carries no cheap bail-out for being handed the same set twice, because its one caller
+ * already checks that. Measured at 100,000 matching rows, a call that could have been skipped costs
+ * ~19.5ms — so a caller reaching this on a render path would breach the efficiency clause the
+ * selection model exists to satisfy (`specs/012-transaction-selection/spec.md:52-55`), with nothing
+ * in the types or tests objecting. Keeping it off the public barrel is what keeps that precondition
+ * a local invariant rather than a trap someone else can fall into.
  */
 export function reconcileToMatchingRows(
     selection: TransactionSelection,

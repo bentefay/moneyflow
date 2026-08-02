@@ -21,7 +21,6 @@ export {
     findRowRange,
     isRowSelected,
     NO_ROWS_SELECTED,
-    reconcileToMatchingRows,
     rowIdsInRange,
     type SelectionAnchor,
     type SelectionBaseline,
