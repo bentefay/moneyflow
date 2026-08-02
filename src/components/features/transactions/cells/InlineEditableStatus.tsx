@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
+import { RESTING_CELL_CHROME } from "./cell-chrome";
+
 export interface StatusOption {
     id: string;
     name: string;
@@ -98,7 +100,8 @@ export function InlineEditableStatus({
                     size="sm"
                     onKeyDown={handleTriggerKeyDown}
                     className={cn(
-                        "h-7 w-full border-transparent bg-transparent px-1 shadow-none",
+                        "h-7 w-full px-1",
+                        RESTING_CELL_CHROME,
                         "hover:bg-accent/30",
                         "focus:border-input focus:bg-background",
                         disabled && "cursor-not-allowed opacity-50"

@@ -105,6 +105,113 @@ function createFutureTransactionCSV(rowCount: number): string {
     return ["Date,Description,Amount", ...rows].join("\n");
 }
 
+/** The `data-testid` of each data cell UR-005 requires to be chrome-free at rest. */
+const RESTING_CHROME_CELL_TEST_IDS = [
+    "date-editable",
+    "description-editable",
+    "status-editable",
+    "amount-editable"
+] as const;
+
+interface CellPaint {
+    readonly backgroundColor: string;
+    readonly borderColor: string;
+    readonly boxShadow: string;
+}
+
+/**
+ * Read the painted background, border and shadow of an element.
+ *
+ * Computed style is read rather than a class list because the defect UR-005 reports is precisely
+ * that a class the cell asks for does not reach the pixels: the shared primitives carry
+ * `dark:bg-input/30` and `dark:border-input`, which survive `twMerge` against an unprefixed
+ * `bg-transparent`. Only the resolved paint can tell the two apart.
+ */
+async function readCellPaint(cell: import("@playwright/test").Locator): Promise<CellPaint> {
+    return cell.evaluate((node) => {
+        const styles = getComputedStyle(node);
+        return {
+            backgroundColor: styles.backgroundColor,
+            borderColor: styles.borderColor,
+            boxShadow: styles.boxShadow
+        };
+    });
+}
+
+/**
+ * True when a CSS colour paints nothing at all — fully transparent, whatever notation it uses.
+ *
+ * Canvas resolves every colour syntax the theme can emit, including the `oklab(... / 0.045)` a
+ * 15%-white token composites to, so the check does not depend on how the browser chose to serialise
+ * the value.
+ */
+async function paintsNothing(
+    page: import("@playwright/test").Page,
+    color: string
+): Promise<boolean> {
+    return page.evaluate((value) => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 1;
+        canvas.height = 1;
+        const context = canvas.getContext("2d");
+        if (!context) throw new Error("2d context unavailable");
+        context.clearRect(0, 0, 1, 1);
+        context.fillStyle = value;
+        context.fillRect(0, 0, 1, 1);
+        const [, , , alpha = 0] = context.getImageData(0, 0, 1, 1).data;
+        return alpha === 0;
+    }, color);
+}
+
+/** Contrast ratio of an element's text against its own composited background. */
+async function measuredTextContrast(cell: import("@playwright/test").Locator): Promise<number> {
+    return cell.evaluate((node) => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 1;
+        canvas.height = 1;
+        const context = canvas.getContext("2d");
+        if (!context) throw new Error("2d context unavailable");
+        const channels = (color: string): readonly number[] => {
+            context.clearRect(0, 0, 1, 1);
+            context.fillStyle = color;
+            context.fillRect(0, 0, 1, 1);
+            const [red = 0, green = 0, blue = 0, alpha = 0] = context.getImageData(0, 0, 1, 1).data;
+            return [red, green, blue, alpha];
+        };
+        // A transparent cell shows whatever ancestor actually paints, so the true backdrop is the
+        // nearest opaque ancestor rather than the cell's own `background-color`.
+        const opaqueBackdrop = (): readonly number[] => {
+            for (let ancestor: Element | null = node; ancestor; ancestor = ancestor.parentElement) {
+                const painted = channels(getComputedStyle(ancestor).backgroundColor);
+                if ((painted[3] ?? 0) === 255) return painted;
+            }
+            return [255, 255, 255, 255];
+        };
+        const background = opaqueBackdrop();
+        const foreground = channels(getComputedStyle(node).color);
+        const foregroundAlpha = (foreground[3] ?? 0) / 255;
+        const composited = [0, 1, 2].map(
+            (index) =>
+                (foreground[index] ?? 0) * foregroundAlpha +
+                (background[index] ?? 0) * (1 - foregroundAlpha)
+        );
+        const luminance = (values: readonly number[]) => {
+            const [red = 0, green = 0, blue = 0] = values.map((channel) => {
+                const normalized = channel / 255;
+                return normalized <= 0.04045
+                    ? normalized / 12.92
+                    : ((normalized + 0.055) / 1.055) ** 2.4;
+            });
+            return red * 0.2126 + green * 0.7152 + blue * 0.0722;
+        };
+        const foregroundLuminance = luminance(composited);
+        const backgroundLuminance = luminance(background);
+        const lighter = Math.max(foregroundLuminance, backgroundLuminance);
+        const darker = Math.min(foregroundLuminance, backgroundLuminance);
+        return (lighter + 0.05) / (darker + 0.05);
+    });
+}
+
 // ============================================================================
 // Tests
 // ============================================================================
@@ -2406,6 +2513,132 @@ test.describe("Transactions", () => {
                 // Transaction should not be visible
                 await expect(page.locator('[data-testid="transaction-row"]')).toHaveCount(0);
             });
+        });
+
+        test("UR-005: data cells rest without chrome in both themes yet keep every state", async ({
+            page
+        }) => {
+            await createNewIdentity(page);
+            await goToTransactions(page);
+            await createTestTransaction(page, {
+                description: "Minimal Chrome Store",
+                amount: "-12.34"
+            });
+
+            const row = page.locator('[data-testid="transaction-row"]').first();
+            const accountCell = row.getByRole("combobox", { name: "Select account" });
+
+            for (const theme of ["light", "dark"] as const) {
+                await test.step(`${theme} theme rests with no fill on any data cell`, async () => {
+                    await page.emulateMedia({ colorScheme: theme });
+                    // The row keeps its own resting paint only while nothing is hovered or focused,
+                    // so park the pointer and the caret clear of the grid before measuring.
+                    await page.mouse.move(0, 0);
+                    await page.locator("body").click({ position: { x: 2, y: 2 } });
+
+                    for (const testId of RESTING_CHROME_CELL_TEST_IDS) {
+                        const cell = row.locator(`[data-testid="${testId}"]`);
+                        const paint = await readCellPaint(cell);
+                        expect(
+                            await paintsNothing(page, paint.backgroundColor),
+                            `${testId} resting background in ${theme}`
+                        ).toBe(true);
+                        expect(
+                            await paintsNothing(page, paint.borderColor),
+                            `${testId} resting border in ${theme}`
+                        ).toBe(true);
+                        expect(paint.boxShadow, `${testId} resting shadow in ${theme}`).not.toMatch(
+                            /rgba?\((?!0, 0, 0, 0\))/
+                        );
+                        // Removing chrome must not cost legibility.
+                        expect(
+                            await measuredTextContrast(cell),
+                            `${testId} text contrast in ${theme}`
+                        ).toBeGreaterThanOrEqual(4.5);
+                    }
+
+                    const accountPaint = await readCellPaint(accountCell);
+                    expect(
+                        await paintsNothing(page, accountPaint.backgroundColor),
+                        `account resting background in ${theme}`
+                    ).toBe(true);
+                    expect(
+                        await paintsNothing(page, accountPaint.borderColor),
+                        `account resting border in ${theme}`
+                    ).toBe(true);
+
+                    const percentageCell = row.getByRole("button", { name: "Edit Me allocation" });
+                    const percentagePaint = await readCellPaint(percentageCell);
+                    expect(
+                        await paintsNothing(page, percentagePaint.backgroundColor),
+                        `percentage resting background in ${theme}`
+                    ).toBe(true);
+                });
+
+                await test.step(`${theme} theme keeps hover feedback`, async () => {
+                    const description = row.locator('[data-testid="description-editable"]');
+                    await description.hover();
+                    const hovered = await readCellPaint(description);
+                    expect(
+                        await paintsNothing(page, hovered.backgroundColor),
+                        `description hover fill in ${theme}`
+                    ).toBe(false);
+                    await page.mouse.move(0, 0);
+                });
+
+                await test.step(`${theme} theme keeps focus obvious on every cell`, async () => {
+                    for (const testId of RESTING_CHROME_CELL_TEST_IDS) {
+                        const cell = row.locator(`[data-testid="${testId}"]`);
+                        const resting = await readCellPaint(cell);
+                        await cell.focus();
+                        await expect(cell).toBeFocused();
+                        const focused = await readCellPaint(cell);
+                        expect(
+                            focused.backgroundColor !== resting.backgroundColor ||
+                                focused.borderColor !== resting.borderColor ||
+                                focused.boxShadow !== resting.boxShadow,
+                            `${testId} focus indication in ${theme}`
+                        ).toBe(true);
+                        expect(
+                            await paintsNothing(page, focused.backgroundColor),
+                            `${testId} focused fill in ${theme}`
+                        ).toBe(false);
+                        expect(
+                            await measuredTextContrast(cell),
+                            `${testId} focused text contrast in ${theme}`
+                        ).toBeGreaterThanOrEqual(4.5);
+                        await cell.blur();
+                    }
+                });
+
+                await test.step(`${theme} theme keeps the selected row filled`, async () => {
+                    await row.getByRole("checkbox", { name: /^Select transaction/ }).click();
+                    await expect(row).toHaveAttribute("aria-selected", "true");
+                    const selected = await readCellPaint(row);
+                    expect(
+                        await paintsNothing(page, selected.backgroundColor),
+                        `selected row fill in ${theme}`
+                    ).toBe(false);
+                    await row.getByRole("checkbox", { name: /^Select transaction/ }).click();
+                    await expect(row).toHaveAttribute("aria-selected", "false");
+                });
+
+                await test.step(`${theme} theme leaves the accessible cell contract intact`, async () => {
+                    await expect(
+                        row.getByRole("textbox", { name: "Pick a date", exact: true })
+                    ).toBeVisible();
+                    await expect(
+                        row.getByRole("textbox", { name: "Transaction description", exact: true })
+                    ).toBeVisible();
+                    await expect(accountCell).toBeVisible();
+                    await expect(
+                        row.locator('[data-testid="amount-editable"]')
+                    ).toHaveAccessibleName(/^Transaction amount in /);
+                    await expect(row).toHaveAttribute("role", "row");
+                });
+            }
+
+            await page.emulateMedia({ colorScheme: "light" });
         });
     });
 });

@@ -22,6 +22,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { formatTransactionDate } from "@/lib/utils/date-format";
 
+import { RESTING_CELL_CHROME } from "./cell-chrome";
+
 export interface InlineEditableDateProps {
     /** Current value in ISO format (YYYY-MM-DD) */
     value: string;
@@ -205,7 +207,8 @@ export function InlineEditableDate({
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 className={cn(
-                    "h-7 border-transparent bg-transparent pr-7 text-sm shadow-none",
+                    "h-7 pr-7 text-sm",
+                    RESTING_CELL_CHROME,
                     "hover:bg-accent/30",
                     "focus:border-input focus:bg-background",
                     !dateValue && !isFocused && "text-muted-foreground",

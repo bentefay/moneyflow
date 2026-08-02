@@ -22,6 +22,8 @@ import {
 } from "@/lib/domain/currency";
 import { cn } from "@/lib/utils";
 
+import { RESTING_CELL_CHROME } from "./cell-chrome";
+
 export interface InlineEditableAmountProps {
     /** Current value in minor units (e.g., cents) - integer */
     value: number;
@@ -267,7 +269,8 @@ export function InlineEditableAmount({
             aria-label={`Transaction amount in ${currency}`}
             aria-description={originalAmountDescription}
             className={cn(
-                "h-7 border-transparent bg-transparent text-right text-sm font-medium tabular-nums shadow-none",
+                "h-7 text-right text-sm font-medium tabular-nums",
+                RESTING_CELL_CHROME,
                 colorClass,
                 "hover:bg-accent/30",
                 "focus:border-input focus:bg-background",

@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { hashToColor } from "@/lib/utils/color";
 
 import { type AllocationColumn, materializeAllocationRecord } from "./allocation-columns";
+import { RESTING_CELL_CHROME } from "./cells/cell-chrome";
 import { CheckboxCell } from "./cells/CheckboxCell";
 import { InlineEditableAmount } from "./cells/InlineEditableAmount";
 import { InlineEditableDate } from "./cells/InlineEditableDate";
@@ -407,7 +408,10 @@ export function TransactionRow({
                         onChange={(accountId) => onFieldUpdate?.("accountId", accountId)}
                         accounts={availableAccounts}
                         placeholder="Add account..."
-                        className="text-muted-foreground hover:bg-accent/30 focus:border-primary focus:bg-background focus:ring-primary h-7 border-transparent bg-transparent px-1 shadow-none focus:ring-1"
+                        className={cn(
+                            "text-muted-foreground hover:bg-accent/30 focus:border-primary focus:bg-background focus:ring-primary h-7 px-1 focus:ring-1",
+                            RESTING_CELL_CHROME
+                        )}
                     />
                 </div>
 

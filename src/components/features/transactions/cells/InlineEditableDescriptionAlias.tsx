@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
+import { RESTING_CELL_CHROME } from "./cell-chrome";
+
 export interface DescriptionAliasOption {
     id: string;
     name: string;
@@ -265,7 +267,8 @@ export function InlineEditableDescriptionAlias({
             disabled={disabled}
             data-testid={testId}
             className={cn(
-                "h-7 border-transparent bg-transparent text-sm shadow-none",
+                "h-7 text-sm",
+                RESTING_CELL_CHROME,
                 "hover:bg-accent/30",
                 "focus:border-input focus:bg-background focus-visible:ring-2",
                 disabled && "cursor-not-allowed opacity-50",
