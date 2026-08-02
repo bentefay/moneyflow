@@ -244,15 +244,15 @@ of `Q-P24-01`: Playwright's `getByRole` name matching is substring-based, while 
 Run in `/tmp/mf-e2e-p27`, my own worktree, and in the main checkout for the static checks. Never in
 another agent's worktree.
 
-| Check               | Command                          | Result                                          |
-| ------------------- | -------------------------------- | ----------------------------------------------- |
-| `pnpm typecheck`    | `tsc --noEmit`                   | **PASS**, exit 0, no output                     |
-| `pnpm lint`         | `eslint`                         | **0 errors**, 1 pre-existing warning            |
-| `pnpm format:check` | `oxfmt --check`                  | 17 pre-existing frozen `specs/**` files         |
-| `pnpm test`         | `vitest run`                     | **117 files, 2195 passed, 2 skipped, 0 failed** |
-| `pnpm build`        | `next build`                     | **PASS**, all routes emitted                    |
-| `pnpm test:e2e`     | 3x `playwright test --retries=0` | **3/3 green, 170 passed each**                  |
-| Manual browser      | `playwright-cli`                 | **PASS** — see section 5                        |
+| Check               | Command                          | Result                                           |
+| ------------------- | -------------------------------- | ------------------------------------------------ |
+| `pnpm typecheck`    | `tsc --noEmit`                   | **PASS**, exit 0, no output                      |
+| `pnpm lint`         | `eslint`                         | **0 errors**, 1 pre-existing warning             |
+| `pnpm format:check` | `oxfmt --check`                  | 17 pre-existing frozen `specs/**` files          |
+| `pnpm test`         | `vitest run`                     | **117 files, 2195 passed** — 4/5 runs; see below |
+| `pnpm build`        | `next build`                     | **PASS**, all routes emitted                     |
+| `pnpm test:e2e`     | 3x `playwright test --retries=0` | **3/3 green, 170 passed each**                   |
+| Manual browser      | `playwright-cli`                 | **PASS** — see section 5                         |
 
 ### `pnpm lint`
 
@@ -282,10 +282,30 @@ rather than running bare `pnpm format`, which would reflow the frozen specs.
       Tests  2195 passed | 2 skipped (2197)
 ```
 
-No failure at all, so the load-sensitive `duplicates.test.ts:749` wall-clock ratio assertion did not
-fire on any run. `.env.local` was copied into the worktree at creation, so the two
-`realtime-*.test.ts` integration tests had their configuration and did not produce the ENOENT that
-bit P24's reviewer.
+`.env.local` was copied into the worktree at creation, so the two `realtime-*.test.ts` integration
+tests had their configuration and did not produce the ENOENT that bit P24's reviewer.
+
+**One red run I could not attribute, recorded rather than omitted.** Of five full-suite `pnpm test`
+runs at HEAD, four were green at 2195/0 and **one reported `1 failed | 2194 passed`**. I did not
+capture the failing test's name — I had piped that run's output through `grep` for the summary lines
+and the failure detail was discarded. That was my mistake and I record it rather than quietly
+reporting only the green runs.
+
+I then tried to reproduce it rather than assume the known condition explained it:
+
+- `duplicates.test.ts` alone: **43 passed**, clean.
+- Full suite with a concurrent `pnpm lint`: **2195 passed**.
+- Full suite with a concurrent `pnpm build` **and** `pnpm lint`: **2195 passed**.
+
+So it did not reproduce in three deliberate attempts, including under heavier contention than the
+run that failed. The dispatch's known condition — `tests/unit/import/duplicates.test.ts:749` asserts
+a wall-clock **ratio** and is load-sensitive — is the most probable explanation, and the failing run
+was concurrent with other work on this host. **But I want to be explicit that this is an inference,
+not an observation:** I did not see the failing test's name, so I cannot state that it was
+`duplicates.test.ts`, and a reviewer should treat the attribution as unconfirmed. What I can state
+as observed is that four subsequent full-suite runs at this exact tree are green at 2195/0, that the
+suspected test passes in isolation, and that no test in my diff's area failed on any run. A reviewer
+running their own campaign should watch for a recurrence and capture the name if it appears.
 
 ### E2E campaign — 3 consecutive full-suite runs, one tree
 
