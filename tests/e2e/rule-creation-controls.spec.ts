@@ -204,7 +204,11 @@ test.describe("Rule-creation controls on a transaction matching no rule", () => 
         const proposal = page.getByTestId("description-rule-proposal");
 
         await test.step("renaming the description surfaces the creation controls", async () => {
-            const firstRow = rowsWithDescription(page).first();
+            // Positional for the same reason as the Enter-commit journey below: this step renames
+            // the description, so a locator filtering on the old one would stop matching this row.
+            // Nothing here re-uses it after the rename, so it survives — but by accident of ordering
+            // rather than by construction, which is not a property worth relying on.
+            const firstRow = page.getByTestId("transaction-row").first();
             const description = firstRow.getByTestId("description-editable");
             await description.click();
             await description.fill("Coffee");
