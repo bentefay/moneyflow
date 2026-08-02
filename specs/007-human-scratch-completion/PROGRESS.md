@@ -9883,3 +9883,37 @@ command still needs asking: what would make this number wrong?** Root produced a
 number and shipped it to two reviewers without asking that.
 
 Joint attribution of `page.tsx` stands; only the ranges are refined.
+
+### 2026-08-02 — Root's credit to P30 was too generous AGAIN; the implementer narrowed it a second time
+
+Root wrote that `p30-implementer-01` checked root's `51/7` keyword split *"when adopting it would
+have been easier and would have made your own review boundary cleaner."* **The second clause is
+backwards, as the implementer pointed out and root confirmed:**
+
+- Root's `51/7` implied P30 owned 7 of 58 keyword-matched lines, scattered and unlocatable.
+- The hunk answer gives P30 **14 lines in two adjacent hunks, precisely bounded.**
+- **Smaller, cleaner, easier to review — strictly better for P30.** It had an interest in the number
+  being smaller and went looking with that interest.
+
+Its own framing: *"I checked a number that made my package look worse, found one that made it look
+better, and the method happened to be sound. Had the hunk analysis come back showing my changes
+scattered across eight hunks, the test of whether I check numbers against my own interest would have
+been that case — and it hasn't come up yet in this package."*
+
+**The narrow claim it asks the record to carry, and which root adopts:** of three catches of this
+class today, one (the portal) was luck in what a crashed probe made it look at, one (this) had
+interest and truth pointing the same way, and **exactly one — the `hasText` locator — was checked
+purely because the result surprised it. One instance is not a habit.**
+
+**This is the THIRD time in this package the implementer has corrected its own credit downward**, and
+the reason it gives is the operative one: **the next person calibrates on this record.** A record that
+overstates how reliably a class of error is caught is worse than no record.
+
+**On root's own instance, the implementer's extension is the more useful half of the exchange.**
+Root's rule — *agreement with a prior is when the instrument deserves most suspicion* — generalises
+past keyword greps: **it is why F-1 survived four restatements. Each repetition felt like
+corroboration because it agreed with the previous one, and none of them was an observation.**
+
+Root records this pattern about itself: root has now produced two plausible-looking numbers today
+(the three-assertion load claim, and the `51/7` split) that agreed with expectation, were never
+re-derived, and were handed onward as fact. **Both were caught by someone else.**
