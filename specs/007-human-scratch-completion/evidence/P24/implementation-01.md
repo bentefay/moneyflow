@@ -175,21 +175,51 @@ site and a prop-contract change.
 product: Playwright's `getByRole` name matching is SUBSTRING-based, and "Me" matches inside
 "Unna**me**d member", so the locator resolved to two elements and raised a strict-mode violation.
 
-That failure output is itself evidence the product is correct — it printed both matched elements,
-`aria-label="Me"` rendering text `M`, and `aria-label="Unnamed member"` rendering none. Exactly the
-designed behaviour on both paths.
+**That failure output is the strongest product evidence in this package**, because the strict-mode
+violation had to print every element it matched. Verbatim from the run log:
 
-Two things worth recording from it:
+```
+    Error: strict mode violation: locator('aside').getByRole('img', { name: 'Me' }) resolved to 2 elements:
+        1) <div role="img" aria-label="Unnamed member" class="flex items-center justify-center rounded-full font-medium h-6 w-6 text-xs ring-offset-background ring-2 ring-green-500 ring-offset-2">…</div> aka getByRole('img', { name: 'Unnamed member' })
+        2) <div role="img" aria-label="Me" class="flex items-center justify-center rounded-full font-medium h-6 w-6 text-xs ring-offset-background ring-2 ring-green-500 ring-offset-2">M</div> aka getByRole('img', { name: 'Me', exact: true })
+```
 
-- The unit tests could not have caught this. Testing Library's `getByRole` name option matches
-  **exactly** by default; Playwright's matches as a **substring**. The same assertion is correct in
-  one harness and ambiguous in the other.
-- While fixing it I disproved one of my OWN assumptions. `presentIdentities`
-  (`src/hooks/use-vault-presence.ts:129-135`) puts **self first**, so each shell renders the
-  viewer's own avatar beside their peer's. I had drafted an assertion that the member's sidebar
-  holds zero "Unnamed member" avatars; that is false, since the member sees their own. I read the
-  hook before committing and asserted `toHaveCount(1)`, which is a stronger check — it proves the
-  named and unnamed cases render distinguishably side by side in one group.
+**Observed, not inferred**, in a real browser against the real presence channel: the owner's avatar
+carries `aria-label="Me"` and renders the text `M`; the invited member's carries
+`aria-label="Unnamed member"` and renders no text at all. Neither carries hash characters. That is
+the designed behaviour on both paths, and a test that fails while proving the product correct is
+worth more than a green run that proves less.
+
+Two things worth recording from it.
+
+**1. The unit tests could not have caught this, and the reason generalises.** Testing Library's
+`getByRole` name option matches **exactly** by default; Playwright's matches as a **substring**. The
+same assertion is correct in one harness and ambiguous in the other. See the carry-forward proposal
+at the end of this document — this is a repo-wide hazard, not a P24 detail.
+
+**2. I shipped a wrong assertion into my own draft and caught it by reading the code.** This is the
+more valuable of the two, because the assertion looked entirely plausible.
+
+What I originally wrote, while fixing the locator, was that the member's sidebar contains **zero**
+"Unnamed member" avatars — reasoning that the member sees their _peer_ the owner, who is named. That
+encodes a wrong model of presence. `presentIdentities` (`src/hooks/use-vault-presence.ts:129-135`)
+is:
+
+```ts
+isConnected && pubkeyHash != null
+    ? [pubkeyHash, ...snapshot.onlineIdentities.filter((id) => id !== pubkeyHash)]
+    : snapshot.onlineIdentities;
+```
+
+Self is included **first**, so every shell renders the viewer's OWN avatar beside their peer's. The
+member therefore sees their own unnamed avatar, and the correct expectation is `toHaveCount(1)`, not
+zero. I found this by reading the hook before committing rather than by running the test.
+
+Had I not checked, I would have shipped a test asserting false behaviour that would have passed or
+failed for a plausible-looking reason — the failure mode of an assertion that looks right and
+encodes a wrong model. The corrected assertion is also **stronger** than what I first intended: it
+proves the named and unnamed cases render _distinguishably side by side in one group_, which is
+exactly the property UR-003 needs and which a zero-count assertion would never have tested.
 
 Fixed in `629352f`, test-only (`git diff 162d75a..629352f --stat` touches
 `tests/e2e/presence.spec.ts` alone). Per the tree-drift discipline the campaign **restarted from run
@@ -218,6 +248,45 @@ data and pure functions throughout: `resolveMemberDisplayName` is pure, and the 
 `layout.tsx` and `transactions/page.tsx` is memoized derivation, not mutation. Commit message
 carries no parentheses and no AI attribution. Playwright was never run with `--debug`, `--ui`,
 `--headed` or `show`.
+
+## Carry-forward proposal (beyond P24 — for root to lift into `QUESTIONS.md`)
+
+**Proposed as `Q-P24-01` — `getByRole` name matching differs between the two test harnesses, making
+short accessible names a latent strict-mode violation suite-wide.**
+
+Raised here because it is a finding beyond this package's scope; `QUESTIONS.md` is root-owned, so
+this is a proposal, not an entry I wrote.
+
+**Mechanism.** Testing Library's `getByRole` `name` option matches **exactly** by default.
+Playwright's matches as a **substring** unless `exact: true` is passed. So an accessible name that
+is a substring of another name rendered in the same container passes as a unit assertion and raises
+a strict-mode violation in E2E — or, worse, silently selects the wrong element when the locator
+happens to resolve to one.
+
+**Measured exposure, not hypothetical.** In `tests/e2e/` there are **469** `getByRole` calls passing
+a `name`, of which only **33** pass `exact`. Extracting the distinct short literal names and
+checking them pairwise for containment surfaces real collisions already present in the suite:
+
+```
+"Add"    ⊂ "Add owner", "Add Person", "Add Tag"
+"Coffee" ⊂ "Coffee Shop"
+"Status" ⊂ "Statuses"
+```
+
+Each is a strict-mode violation waiting for both labels to be visible in the same container at the
+same moment — which is exactly the condition that bit P24: "Me" inside "Unna**me**d member", where
+the two labels are two avatars in one presence group.
+
+**Why it is worth an entry.** This class is invisible until the two labels co-render, so it fails
+sporadically and looks like a timing flake. It is NOT the load-dependent
+bare-`toBeVisible`-after-re-render class already tracked in this goal, and a timeout increase will
+never fix it — matching the caution recorded for the cross-worker temp-file collision in
+`Q-P20B-20`, where assuming the wrong flake class cost real time.
+
+**Suggested disposition:** audit the 436 non-`exact` name locators for names that are substrings of
+other names rendered in the same container, and prefer `exact: true` for short labels by default. I
+have NOT done this sweep — it is outside P24, and I am flagging it rather than silently widening my
+package.
 
 ## For P27 / UR-006
 
