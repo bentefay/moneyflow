@@ -14,9 +14,11 @@ import {
     type PeopleDraft,
     deriveMemberPersonId,
     ensureMemberPerson,
+    memberDisplayLabel,
     memberFallbackName,
     resolveMemberDisplayName,
-    resolvePersonDisplayName
+    resolvePersonDisplayName,
+    UNNAMED_MEMBER_LABEL
 } from "@/lib/crdt/person";
 import type { PersonInput } from "@/lib/crdt/schema";
 
@@ -310,5 +312,36 @@ describe("resolveMemberDisplayName", () => {
         const draft = makeDraft({ [DEFAULT_PERSON_ID]: { ...DEFAULT_PERSON } });
 
         expect(resolveMemberDisplayName(draft.people, PUBKEY_HASH)).toEqual({ kind: "unnamed" });
+    });
+});
+
+describe("memberDisplayLabel", () => {
+    it("uses the resolved name when there is one", () => {
+        expect(memberDisplayLabel({ kind: "named", name: "Ben Tefay" })).toBe("Ben Tefay");
+    });
+
+    it("uses the readable fallback when there is not", () => {
+        expect(memberDisplayLabel({ kind: "unnamed" })).toBe(UNNAMED_MEMBER_LABEL);
+    });
+
+    it("never returns an empty or hash-derived label for any resolvable member (property)", () => {
+        // The invariant both UR-003 and UR-006 rest on: whatever the people map holds, the one
+        // label every surface renders is non-empty and carries no part of the pubkeyHash.
+        const hashArb = fc.string({
+            unit: fc.constantFrom(..."0123456789abcdef"),
+            minLength: 8,
+            maxLength: 64
+        });
+        const nameArb = fc.oneof(fc.constant(undefined), fc.string());
+
+        fc.assert(
+            fc.property(hashArb, nameArb, (pubkeyHash, name) => {
+                const people = {
+                    "p-1": { id: "p-1", name, linkedUserId: pubkeyHash, deletedAt: undefined }
+                };
+                const label = memberDisplayLabel(resolveMemberDisplayName(people, pubkeyHash));
+                return label.length > 0 && !label.includes(pubkeyHash.slice(0, 8));
+            })
+        );
     });
 });

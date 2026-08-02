@@ -16,7 +16,7 @@ import { PresenceAvatar } from "@/components/features/presence/PresenceAvatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useTransientFlag } from "@/components/ui/use-transient-flag";
-import { type MemberDisplayName, UNNAMED_MEMBER_LABEL } from "@/lib/crdt/person";
+import { type MemberDisplayName, memberDisplayLabel } from "@/lib/crdt/person";
 import { deriveEffectiveAllocations } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 import { hashToColor } from "@/lib/utils/color";
@@ -230,10 +230,9 @@ export function TransactionRow({
               ? editingByOthers
               : focusedByOthers
           )
-              .map((pubkeyHash) => {
-                  const resolved = resolveMemberName?.(pubkeyHash);
-                  return resolved?.kind === "named" ? resolved.name : UNNAMED_MEMBER_LABEL;
-              })
+              .map((pubkeyHash) =>
+                  memberDisplayLabel(resolveMemberName?.(pubkeyHash) ?? { kind: "unnamed" })
+              )
               .join(", ")}`
         : undefined;
 

@@ -6,7 +6,7 @@
 
 import { User } from "lucide-react";
 
-import { type MemberDisplayName, UNNAMED_MEMBER_LABEL } from "@/lib/crdt/person";
+import { type MemberDisplayName, memberDisplayLabel } from "@/lib/crdt/person";
 import { cn } from "@/lib/utils";
 import { getContrastColor, getInitials, hashToColor } from "@/lib/utils/color";
 
@@ -61,7 +61,7 @@ export function PresenceAvatar({
     // rename and members sharing initials remain visually distinct.
     const backgroundColor = hashToColor(userId);
     const textColor = getContrastColor(backgroundColor);
-    const label = displayName.kind === "named" ? displayName.name : UNNAMED_MEMBER_LABEL;
+    const label = memberDisplayLabel(displayName);
 
     return (
         <div

@@ -21,13 +21,10 @@ import { Temporal } from "temporal-polyfill";
 import { InviteLinkGenerator } from "@/components/features/people";
 import { Button } from "@/components/ui/button";
 import { useVaultAccess } from "@/hooks/use-vault-access";
+import { usePeople } from "@/lib/crdt/context";
+import { memberDisplayLabel, resolveMemberDisplayName } from "@/lib/crdt/person";
 import { getSessionPubkeyHash } from "@/lib/crypto/session";
 import { trpc } from "@/lib/trpc/client";
-
-/** Shorten a 64-char hex pubkey hash for display. */
-function shortenPubkeyHash(pubkeyHash: string): string {
-    return `${pubkeyHash.slice(0, 8)}…${pubkeyHash.slice(-4)}`;
-}
 
 /** Format an ISO instant as a human-friendly local date-time. */
 function formatInstant(iso: string): string {
@@ -48,6 +45,11 @@ export interface AccessMembersSectionProps {
 export function AccessMembersSection({ className }: AccessMembersSectionProps) {
     const { vaultId, isOwner, vaultKey, encSecretKey, isLoading } = useVaultAccess();
     const currentUserPubkeyHash = getSessionPubkeyHash();
+    // Members are identified by name, never by their pubkeyHash (UR-006). Membership is
+    // server-authorized identity and the people map is encrypted vault state, so the roster and
+    // the names come from different sources and are joined here on the member's pubkeyHash.
+    // Same helper as the presence avatars, so the two surfaces cannot drift apart.
+    const people = usePeople();
 
     const utils = trpc.useUtils();
 
@@ -120,14 +122,19 @@ export function AccessMembersSection({ className }: AccessMembersSectionProps) {
                     <ul className="space-y-2">
                         {(membersQuery.data?.members ?? []).map((member) => {
                             const isSelf = member.pubkeyHash === currentUserPubkeyHash;
+                            // One binding drives the visible label and the accessible name, so
+                            // the two cannot diverge and neither can carry hash characters.
+                            const memberLabel = memberDisplayLabel(
+                                resolveMemberDisplayName(people, member.pubkeyHash)
+                            );
                             return (
                                 <li
                                     key={member.pubkeyHash}
                                     className="bg-card flex items-center justify-between rounded-lg border p-3"
                                 >
                                     <div className="flex flex-col">
-                                        <span className="font-mono text-sm">
-                                            {shortenPubkeyHash(member.pubkeyHash)}
+                                        <span className="text-sm">
+                                            {memberLabel}
                                             {isSelf && (
                                                 <span className="text-muted-foreground ml-2">
                                                     (you)
@@ -149,7 +156,7 @@ export function AccessMembersSection({ className }: AccessMembersSectionProps) {
                                                     pubkeyHash: member.pubkeyHash
                                                 })
                                             }
-                                            aria-label={`Remove member ${shortenPubkeyHash(member.pubkeyHash)}`}
+                                            aria-label={`Remove member ${memberLabel}`}
                                         >
                                             <X className="h-4 w-4" />
                                         </Button>

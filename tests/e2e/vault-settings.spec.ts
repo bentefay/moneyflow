@@ -13,10 +13,29 @@
 
 import { expect, type Page, test } from "@playwright/test";
 
-import { createNewIdentity, enterSeedPhrase, goToSettings, goToTransactions } from "./helpers";
+import {
+    createNewIdentity,
+    enterSeedPhrase,
+    goToPeople,
+    goToSettings,
+    goToTransactions,
+    readBrowserIdentity,
+    shareActiveVaultWithMember
+} from "./helpers";
 import { observeRealtimeLifecycle } from "./helpers/realtime";
 
 test.use({ timezoneId: "America/New_York" });
+
+/**
+ * Mirrors `UNNAMED_MEMBER_LABEL` in `src/lib/crdt/person.ts`.
+ *
+ * Deliberately duplicated rather than imported: `@/lib/crdt/person` reaches `temporal-polyfill`
+ * through `defaults.ts` -> `types/index.ts`, and that package publishes only an `import` condition,
+ * so Playwright's loader fails to resolve it and the whole spec file is skipped. `presence.spec.ts`
+ * repeats the literal for the same reason. A rename therefore breaks these tests loudly, which is
+ * the acceptable failure mode.
+ */
+const UNNAMED_MEMBER_LABEL = "Unnamed member";
 
 // ============================================================================
 // Settings-Specific Helpers
@@ -271,6 +290,109 @@ test.describe("Vault Settings", () => {
             await expect(
                 page.locator("button").filter({ hasText: "Personal Finance" }).first()
             ).toBeVisible();
+        });
+    });
+
+    test.describe("Members List", () => {
+        /**
+         * UR-006: the roster identifies members by name, never by a raw pubkeyHash.
+         *
+         * The membership roster is server-authorized identity while names live in encrypted vault
+         * state, so this asserts the join works in the running application — the reported defect
+         * was a row labelled `3f2a9b1c…4d5e`.
+         */
+        test("identifies members by name and never by a pubkey hash", async ({ page }) => {
+            await createNewIdentity(page);
+
+            const identity = await readBrowserIdentity(page);
+            const membersList = page.getByRole("list").filter({ hasText: "owner" }).first();
+
+            await test.step("the owner is listed by their seeded name", async () => {
+                // The owner adopted the seeded "Me" person, so that is the name to resolve. The
+                // row reads "<name>(you) <role>", so assert on the row's leading label rather
+                // than on an exact-text element: the name shares its span with the "(you)" marker.
+                const ownerRow = membersList.getByRole("listitem").first();
+                await expect(ownerRow).toBeVisible({ timeout: 15_000 });
+                expect(((await ownerRow.textContent()) ?? "").trim()).toMatch(/^Me\b/);
+            });
+
+            await test.step("the roster carries no part of any member's pubkey hash", async () => {
+                // Structural rather than copy-dependent: whatever the label says, no rendered
+                // text and no accessible name may contain hash characters. This is the assertion
+                // that encodes UR-006 itself rather than the current wording.
+                const rosterText = (await membersList.textContent()) ?? "";
+                const accessibleNames = await membersList
+                    .locator("[aria-label]")
+                    .evaluateAll((elements) =>
+                        elements.map((element) => element.getAttribute("aria-label") ?? "")
+                    );
+
+                for (const haystack of [rosterText, ...accessibleNames]) {
+                    expect(haystack.toLowerCase()).not.toContain(
+                        identity.pubkeyHash.slice(0, 8).toLowerCase()
+                    );
+                    expect(haystack.toLowerCase()).not.toContain(identity.pubkeyHash.toLowerCase());
+                }
+                // A 64-char hex run, or any long truncation of one, must not appear at all.
+                expect(rosterText).not.toMatch(/[0-9a-f]{8}/i);
+            });
+
+            await test.step("renaming the person renames the member in the roster", async () => {
+                // Proves the label is genuinely resolved from the people map rather than being a
+                // coincidental constant: the roster must follow a rename made elsewhere.
+                await goToPeople(page);
+                await page.getByRole("button", { name: "Edit" }).first().click();
+                const nameInput = page.getByPlaceholder("Person name");
+                await nameInput.fill("Ben Tefay");
+                await page.getByRole("button", { name: "Save" }).first().click();
+
+                await goToSettings(page);
+                const ownerRow = membersList.getByRole("listitem").first();
+                await expect(ownerRow).toBeVisible({ timeout: 15_000 });
+                await expect(ownerRow).toHaveText(/^Ben Tefay\b/, { timeout: 15_000 });
+            });
+        });
+
+        test("shows a readable fallback for a member with no name, not a hash", async ({
+            browser
+        }) => {
+            // A second member who has never named themselves is the case with no name to resolve
+            // and the strongest pull towards rendering the hash.
+            const ownerContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+            const memberContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+            const owner = await ownerContext.newPage();
+            const member = await memberContext.newPage();
+
+            try {
+                await createNewIdentity(owner);
+                await createNewIdentity(member);
+                const fixture = await shareActiveVaultWithMember(owner, member);
+
+                // The member opens the vault so their unnamed person is auto-created and linked.
+                await goToTransactions(member);
+                await goToSettings(owner);
+
+                const membersList = owner.getByRole("list").filter({ hasText: "owner" }).first();
+                await expect(
+                    membersList.getByText(UNNAMED_MEMBER_LABEL, { exact: true }).first()
+                ).toBeVisible({ timeout: 60_000 });
+
+                const rosterText = (await membersList.textContent()) ?? "";
+                for (const hash of [fixture.ownerHash, fixture.memberHash]) {
+                    expect(rosterText.toLowerCase()).not.toContain(hash.slice(0, 8).toLowerCase());
+                }
+
+                // The remove control's accessible name follows the same rule as the visible label.
+                await expect(
+                    owner.getByRole("button", {
+                        name: `Remove member ${UNNAMED_MEMBER_LABEL}`,
+                        exact: true
+                    })
+                ).toBeVisible();
+            } finally {
+                await ownerContext.close();
+                await memberContext.close();
+            }
         });
     });
 

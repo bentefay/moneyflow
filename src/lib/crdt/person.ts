@@ -47,6 +47,20 @@ export type MemberDisplayName =
 export const UNNAMED_MEMBER_LABEL = "Unnamed member";
 
 /**
+ * The single label a member is identified by, on every surface that names them
+ * (UR-003 presence avatars, UR-006 Vault Settings members list).
+ *
+ * Extracted for the same reason as {@link resolveMemberDisplayName}: the two
+ * surfaces must not drift. Every visible label, tooltip and accessible name
+ * derives from one call, so none of them can disagree, and neither branch can
+ * yield hash characters — `named` carries a person's own name and `unnamed`
+ * carries no payload at all.
+ */
+export function memberDisplayLabel(displayName: MemberDisplayName): string {
+    return displayName.kind === "named" ? displayName.name : UNNAMED_MEMBER_LABEL;
+}
+
+/**
  * The person's own name, trimmed, or null when they have none.
  *
  * The single rung shared by {@link resolvePersonDisplayName} and
