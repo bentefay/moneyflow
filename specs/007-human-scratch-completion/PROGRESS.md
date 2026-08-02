@@ -9111,3 +9111,47 @@ run `git diff --quiet` before the pre-campaign digest so the digest provably cov
 tree.
 
 Expecting **177, not 182** — rev 03 touches no E2E spec — with 182 set as a stop-and-report condition.
+
+### 2026-08-02 — CORRECTION: the P30 run-1 cause was NOT the no-op guard. Root and implementer agreed wrongly
+
+**The earlier entry attributing P30's run-1 failure to the tag no-op diagnosis is WRONG and is
+retracted.** Root wrote that the failure "matches your own diagnosis" — a proposal offered for
+something that is not a change — and the implementer let it stand before checking. It then checked
+and disproved it. Root has now verified the disproof independently:
+
+```
+git show 4526f79:page.tsx | grep -c sameTagIds   ->  PRESENT
+```
+
+**The no-op guard was already in the exact tree that failed**, so it cannot explain the failure. And
+`git diff 4526f79 c8dc004 -- TransactionRuleProposal.tsx` is **one attribute plus its comment** —
+`role="presentation"` and nothing else.
+
+**The failing flow types "Fresh novel" into an empty description and commits by clicking away. That
+is a GENUINE new alias assignment: the proposal SHOULD appear there, and it still does at
+`c8dc004`.** The sole defect was that the controls announced themselves as a **modal**.
+
+**Why this correction matters more than the fact it corrects.** The implementer's framing, recorded
+verbatim: *had I "fixed" it by suppressing the proposal on that flow, I would have removed a correct
+offer to satisfy an assertion about modality* — a plausible-looking fix that silently breaks the
+feature. **The agreement between root's reading and the implementer's was itself the risk; it took a
+diff to break it.** Two parties concurring is not evidence — it is a correlated failure when both
+inherit the same wrong premise. Root supplied the premise and the implementer initially accepted it.
+
+Root's deeper point stands unchanged: a screen-reader user would have been told a dialog opened on
+every description edit.
+
+**Root's abort suggestion was sound but arrived after runs 2 and 3 had completed.** No port time was
+wasted: the implementer had already restarted from run 1 on the new tree, for the reason root later
+endorsed.
+
+**Blind-assertion pattern reported rather than quietly fixed, as instructed.** The implementer's
+description journey originally asserted only that the proposal APPEARED — which the pre-fix code
+would also have failed, but for the wrong reason. It now also asserts `getByRole("dialog")` is 0,
+which is the assertion that would have caught defect #4 inside its own suite instead of relying on
+another package's journey. **Its cross-package observation, which root adopts: the weak assertions
+are consistently the ones that check a control EXISTS rather than what it DOES or how it is
+ANNOUNCED.**
+
+Campaign, port release and `c8dc004` ancestry all previously verified by root from the logs and by
+`merge-base --is-ancestor` at dispatch time. Nothing in the campaign record changes.
