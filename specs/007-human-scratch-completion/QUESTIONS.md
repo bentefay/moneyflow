@@ -2943,3 +2943,61 @@ across filesystems with `Invalid cross-device link`, so relocation means commit,
 the branch — the implementer verified that was lossless by comparing tree digests before and after.
 Worth stating in dispatches, since nothing in the repo enforces it and the failure mode is a
 catastrophic-looking number that belongs to nobody.
+
+## Q-P29-02 — Unblocking an inert code path makes everything downstream newly reachable and never-run
+
+Generalised by `p29-implementer-01` from two defects it caught in its own package, both of which its
+own fix would otherwise have converted from harmless into destructive. **Carry forward to P21 — this
+is a review heuristic, not a one-off.**
+
+**The mechanism.** When a fix unblocks a code path that was previously inert, everything downstream of
+it becomes newly reachable and **has never actually run**. Latent defects below the blockage are
+harmless precisely BECAUSE the path above them always failed, so they are invisible in the bug report,
+invisible in the existing tests, and invisible to anyone reasoning about the reported symptom.
+
+**Two instances, same package, same shape:**
+
+| defect | at BASE | after a detection-only fix | user-visible result |
+| --- | --- | --- | --- |
+| `parseRawRows` computed `detectHeaders` and DISCARDED it, leaving `hasHeaders` true | harmless — nothing parses anyway | first data row silently dropped as a header that is not there | 621 of 622 rows import, and it **looks like success** |
+| `MappingTab`'s Auto-detect button matched header NAMES and returned `{}` on a headerless file | merely useless | `onMappingsChange` overwrites wholesale, so clicking it WIPES the mappings the load path just resolved correctly | the working preview is destroyed by the button meant to repair it |
+
+Both would have been introduced BY the fix, not found by it. Root's dispatch had independently
+cautioned about the second — that the button-driven and on-load paths could now disagree — but the
+observed behaviour was worse than disagreement: it was destruction of correct state.
+
+**Why it matters more than an ordinary regression.** In both cases the post-fix failure is
+*plausible-looking*. A silently dropped first row and a wiped mapping both present as ordinary results
+rather than as errors, so neither would necessarily be caught by a reviewer checking that the reported
+symptom is gone.
+
+**Recommended for P21, and for any package that unblocks a previously-failing path:** enumerate what
+becomes reachable for the first time, and test THOSE paths rather than only the fix. Ask "what has
+never run before this change, and what does it assume?" The existing test suite cannot help here by
+construction — it passed while the path was dead.
+
+## Q-P29-03 — A green test that cannot fail discharges the obligation to check without checking
+
+Self-caught by `p29-implementer-01` and recorded in its evidence §4.3. **Carry forward to P21.**
+
+Writing a test for the `MappingTab` parity fix, the implementer first wrote an assertion comparing
+`detectColumnMappingsFromValues(rows)` to `detectColumnMappingsFromValues(rows)` — both sides calling
+the same function. It passes for ANY implementation of the button, including the broken one. **The tell
+that caught it: it went green immediately, before the fix was applied.** It was replaced with a test
+that renders the real component and clicks the real button via `fireEvent`, which fails at BASE with
+`expected "vi.fn()" to be called with arguments: [ Array(1) ]`.
+
+The implementer's framing is the right one and worth carrying verbatim: **a green test that cannot fail
+is worse than no test, because it discharges the obligation to check without doing the checking.**
+
+**This is the third shape of the same family in this goal**, and they should be swept for together:
+- `Q-P26-01` — a test hand-copying a dependency's source into a local fixture, which can never
+  constrain that dependency.
+- `Q-P27-01` — an unresolvable import making Playwright or vitest report zero tests rather than
+  failing, so a whole spec silently contributes nothing.
+- `Q-P29-03` — a tautological assertion that passes for every implementation.
+
+All three produce a PASSING-LOOKING result that proves nothing, and none is visible in a green summary
+line. **Recommended detection for P21: run every new or changed test against the pre-fix tree and
+require it to FAIL by name.** Every one of these three shapes is caught by that single check, and
+several packages in this goal already adopted it voluntarily.
