@@ -83,14 +83,31 @@ review evidence.
       (`:166`→`:183`, `:596`→`:613`, `:145`→`:158`, `:197`→`:212`, every one an `expectObligation`
       call). **For those runs, ID-level membership lost nothing.**
     - **Unknown for every campaign whose logs are gone.** No grep recovers those; for them this is a
-      permanent caveat. **Bounds on the lossless finding, so it is not leaned on too hard:** it
-      covers 6 runs, one spec, and only 4 distinct IDs out of 19 tests. The spec makes **21
-      `expectObligation` calls across 19 tests**, so at least two tests call it more than once —
-      those are exactly where within-ID variation can hide, and `281` is plausibly one. A one-to-one
-      mapping over 4 IDs does not establish the property for the suite. Separately: a fully clean
-      19/19 run has been observed, so **a green settlement result carries no information in either
-      direction**. Future entries record both granularities — ID and call site — where the log
-      provides them, and say so where it does not.
+      permanent caveat.
+
+    **SECOND AMENDMENT (same day), from P33's retained logs — root verified from the files, not from
+    a table.** The "plausibly one" hedge above is now settled: **`281` IS the multi-call case,
+    confirmed from the log's own failure headers, which name the failing step directly.** No frame
+    extraction is needed.
+
+    ```
+    run 1  :281 … › 6. verify Bob owes Me $50 on People
+    run 2  :281 … › 11. restore paid, enter Bob -20% and verify the reversal
+    ```
+
+    Same ID, two different named steps, one unchanged digest. `:166`→`183:31` in both runs and
+    `:596`→`613:31` in all three, so those two remain stable. **The correct scope is per-test, not
+    per-record:** the ID under-discriminates for **multi-step journeys**, because a journey's ID
+    names the journey rather than the assertion that failed; a single-assertion test cannot exhibit
+    this. That is a property of how these tests are structured, not of the reporter — and it is
+    **recoverable from any retained log without extraction**, which makes it smaller than either
+    earlier version of this note implied.
+
+    **Bounds retained:** the lossless finding covers 6 runs, one spec, 4 distinct IDs of 19 tests;
+    the spec makes **21 `expectObligation` calls across 19 tests**. Separately, a fully clean 19/19
+    run has been observed, so **a green settlement result carries no information in either
+    direction**. Future entries record the failing step name, which the header supplies for free.
+
 - **Authorized checked HS IDs:** HS-001, HS-002, HS-003, HS-004, HS-005, HS-006, HS-007, HS-008,
   HS-009, HS-010, HS-011, HS-012, HS-013, HS-014, HS-015, HS-016, HS-017, HS-018, HS-019, HS-020,
   HS-021 (21 of 21 human-scratch IDs; HS-016 RE-PASSED via §275 forward marker after P20A rev 03
