@@ -238,8 +238,9 @@ other 9 of the original 18 cases are untouched and still pass.
 
 ## 5. Six checks
 
-Run against `1c4a4cc`, the final commit of revision 02. The revision 01 results are superseded and
-are not carried forward.
+Run against `1c4a4cc`, the final commit of revision 02. **Superseded by the revision 03 campaign at
+the end of this document**, since rev 03 changed `src` and `tests`. The revision 01 results are
+likewise superseded and are not carried forward.
 
 | check          | result                                                                                                                                                  |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -454,3 +455,50 @@ pre-existing.** That locale renders its compact month in **Roman numerals** (`VI
 not caused by rev 03. Its EDITING form round-trips correctly, so a value can still be typed back.
 Reported rather than fixed, because the package is under a narrow-revision instruction and this is
 neither a regression nor within F-4.
+
+### Revision 03 six checks and campaign
+
+Run against `c2cde1e`. The §5 campaign is superseded: it ran on `1c4a4cc`, and rev 03 changed `src`
+and `tests`, so it is evidence for that tree only. This is the fourth campaign of the package and
+was restarted from run 1.
+
+| check          | result                                                                           |
+| -------------- | -------------------------------------------------------------------------------- |
+| `typecheck`    | **PASS** — clean                                                                 |
+| `lint`         | **PASS for P28** — changed files exit 0                                          |
+| `format:check` | **PASS for P28** — still exactly 17 pre-existing frozen `specs/**`, none of mine |
+| `build`        | **PASS**                                                                         |
+| `test`         | **PASS** — 122 files, 2369 passed / 2 skipped                                    |
+| `test:e2e`     | **PASS** — 3 x 177, below                                                        |
+
+Test count **175 → 177**. Confirmed via `playwright test --list`, and per `Q-P27-01` I verified the
+new tests **executed by name** in each run log rather than inferring from the total, since an
+unresolvable import makes Playwright report "No tests found" and silently skip a whole spec file.
+All five `date-locale.spec.ts` tests appear individually in all three logs.
+
+| run  | digest                             | load at start  | result                |
+| ---- | ---------------------------------- | -------------- | --------------------- |
+| pre  | `f46cbb368fc6d55433473f127772e9db` | —              | —                     |
+| 1    | `f46cbb368fc6d55433473f127772e9db` | 0.63 3.72 5.59 | **177 passed** (4.5m) |
+| 2    | `f46cbb368fc6d55433473f127772e9db` | 7.07 5.98 6.09 | **177 passed** (4.1m) |
+| 3    | `f46cbb368fc6d55433473f127772e9db` | 6.35 7.19 6.72 | **177 passed** (4.1m) |
+| post | `f46cbb368fc6d55433473f127772e9db` | —              | —                     |
+
+Zero failures, zero flaky, zero retries; **observed** by grepping each log for failure markers and
+finding none. Digest is a content hash over tracked `src`, `tests`, `package.json`, `pnpm-lock.yaml`
+and `playwright.config.ts`, **excluding `next-env.d.ts`** which `next dev` rewrites on every start.
+Identical before run 1 and after run 3, so all three cover one tree.
+
+`env -u CI` on every run — `CI=true` would give 1 worker and 2 retries and invert the required
+profile. Ran from `/tmp/mf-p28r3`, a worktree **outside** the repo: one inside `.claude/worktrees/`
+is walked by ESLint and produces hundreds of phantom errors. Port 3000 was verified unbound by
+reading `/proc/<pid>/cmdline` for every candidate rather than `pgrep -f`, which matches the checking
+command itself. The worktree was removed and the port released immediately on completion.
+
+**Load, reported rather than smoothed over.** The port was handed to me at load 0.97, but other work
+started during the campaign and runs 2 and 3 executed under load 6-7. Three load-sensitive
+assertions are recorded in this goal — `duplicates.test.ts:749` (a wall-clock ratio),
+`transactions.spec.ts:804` (a 10s budget) and `vault-maintenance.test.tsx` (mocked rAF). **None
+fired.** I judge this to strengthen the result rather than weaken it: the suite stayed green under
+exactly the contention that has historically produced those flakes. Had one fired I would have named
+it and the load at the time rather than attributing it to load and moving on.
