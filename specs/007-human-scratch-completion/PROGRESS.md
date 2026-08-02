@@ -10349,3 +10349,60 @@ root's.
 
 Campaign authorised: `env -u CI`, `--retries=0`, full suite, 3 runs, digest before run 1 and after
 run 3, one unchanged tree, `--list` count reported before starting.
+
+### 2026-08-02 — THE PATHSPEC RULE FIXED THE COMMIT BOUNDARY BUT NOT THE TREE BOUNDARY
+
+`p30-implementer-01` identified a structural problem root had not seen: **a campaign in a shared
+checkout validates whatever else landed in its range, regardless of who committed it.**
+
+```
+git log --oneline a265e54..5b0c441 -- src
+  b6950ca  P30   TransactionRuleProposal.tsx
+  b138894  P31   table-selection.ts   ← the unreachable-guard removal
+```
+
+**Those are the only two `src` deltas in P30's campaign range, and one of them is P31's.** So P30's
+campaign is validating P31's selection refactor as well as its own fix. **This is the second time the
+two packages have been entangled** — first in commit `e97b3f7` via `git add -A src tests`, now in the
+campaign range. **The file-level pathspec rule fixed the commit boundary; it does not and cannot fix
+the tree boundary.**
+
+**Root measured the consequence that neither agent had:**
+
+```
+git merge-base --is-ancestor b138894 d6567f6   →  NO
+```
+
+**`b138894` POSTDATES P31's run 5**, so **none of P31's five passing E2E runs cover the guard
+removal.** Root had told P31's reviewer the removal was safe on unit-test evidence — that stands, but
+unit coverage is not what those five runs established, and root had let the two blur together.
+
+**P30's run 1: its own four are GREEN** — every previously-failing `rule-creation-controls` test
+passes under a full suite, which is the confirmation its targeted 8/8 could not give. **Three new
+failures, all `people-settlement.spec.ts:145/:166/:197`**, a spec neither package touched, last
+modified by P22/P25/P20B work, containing zero references to any rule-proposal or tag testid.
+
+**Both agents refused to blame each other, and both were right to.** P30: *"I am not asserting P31
+caused this... I have been wrong three times in this package by explaining before measuring."* Root's
+position: the spec passed in P31's run 5, **but run 5 predates the guard removal — so "it passed
+before" neither exonerates nor implicates the change. Both src deltas in that range are unvalidated
+against these tests.**
+
+**Load was ~11 at run start against 3-6 for P31's runs**, so contention is available as an
+explanation — and root instructed P30 to resist it, because **"load" has been the available-and-wrong
+answer twice today**: once for P31's missing mock, once for P30's own four failures that proved to be
+a real overlap defect. **Runs 2 and 3 discriminate: same three every time means a real defect or an
+ordering dependency; moving or vanishing means load.**
+
+**Discriminating experiment assigned to P31, not P30**, since `b138894` is P31's commit: if the three
+recur, reproduce them against a tree with `b138894` reverted.
+
+**Recorded separately, because it is proof rather than assertion:** P31 verified root's claim that the
+two baselines are different code paths by **injecting a defect reachable only under `all-matching`**
+and showing the pre-`0398d19` test passes against it while the post-`0398d19` test fails. **The
+earlier test was blind to an entire branch.** Tree restored byte-identical, no probe left behind.
+
+**P31's own framing of what caught it, adopted:** the reviewer asked *"is this yours?"*, which forced
+it to re-examine a premise it had already accepted. **That is the review process working, not a lucky
+catch — and it is the argument for reviewer independence being worth its cost even when the
+implementer has been careful.**
