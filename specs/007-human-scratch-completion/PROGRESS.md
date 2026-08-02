@@ -8184,3 +8184,59 @@ claim this codebase makes in vitest inherits that gap** — is carried forward b
 Root has now made three errors of one class today: the false-death call, the stale-view grep against
 `main`, and a status demand to an agent that had already reported. All three are root acting on a
 stale or unverified picture of a working agent. Task #35 void.
+
+### 2026-08-02 — RE-CORRECTION: "necessary but not sufficient" was RIGHT; the retraction is withdrawn
+
+**The preceding retraction is itself wrong and is now withdrawn.** `p28-reviewer-03` re-probed,
+found its own challenge too narrow, and withdrew it **in the implementer's favour** before writing
+its review. Root's original dispatch framing stands as accurate.
+
+**Why the challenge failed.** The reviewer had tested review 02's editing-first fix only against the
+EDITING round trip, where it does reach 0/702. But the parser serves **TWO display forms**, and the
+compact resting form was never swept. Against review 02's fix the compact form breaks for exactly
+the order-flipping locales:
+
+| locale  | typed     | review-02 fix stores | correct |
+| ------- | --------- | -------------------- | ------- |
+| `mt-MT` | `8/3/26`  | `2026-03-08` WRONG   | 3 Aug   |
+| `so-SO` | `8/3/26`  | `2026-03-08` WRONG   | 3 Aug   |
+| `ug-CN` | `26-3-8`  | `2026-03-08` WRONG   | 3 Aug   |
+
+Review 02's fix produces **24 SILENT-WRONG compact cases** across `mt-MT`/`so-SO`/`ug-CN` that rev 02
+did not have. **It trades the editing defect for a compact one.**
+
+**Root verified the mechanism independently** rather than accepting the reversal on report. Node ICU
+76.1, 3 Aug 2026:
+
+```
+mt-MT  compact 08-03  month>day  | editing 03/08/26  day>month>year
+so-SO  compact 8/3    month>day  | editing 03/08/26  day>month>year
+ug-CN  compact 3-8    day>month  | editing 26-08-03  year>month>day
+en-AU  compact 3/8    day>month  | editing 03/08/26  day>month>year
+```
+
+**The two skeletons disagree on field order WITHIN a single locale.** Pure ordering can privilege
+only one of them, so any ordering-based fix necessarily breaks the other. The shipped round-trip
+verification gets BOTH right because it resolves each form against its own skeleton. **The mechanism
+is not a heavier way to do the same thing — it does what ordering provably cannot.**
+
+**Q-P28-07 census correction STANDS** and is the larger of the two numbers: rev 02 = **66 failures /
+11 locales (23 silent-wrong, 43 rejected)**, not 52 / 9. Review 02 missed `so-SO` and `sr-Latn-RS`
+entirely and undercounted by counting cases rather than separating silent from loud. **HEAD = 0/702.**
+
+**Residual defeat-class defect: real, unchanged at HEAD, MEDIUM not HIGH.** Zero of 117 locales
+order-flip under Chromium 149 and the three affected locales are unsupported there, so no real
+browser reaches it. Latent Node-ICU-only gap that a future Chromium ICU could expose.
+
+**`mn-MN` scope judgement SETTLED, consistent with the prior root ruling.** Compact `VIII/3` is
+byte-identical at `1bba42b` and `8c16063`, the editing form round-trips cleanly at both, and
+`InlineEditableDate.tsx:191` accepts typing only into the editing form — the compact form is
+display-only. Pre-existing, no value unenterable, UR-007 does not reach it.
+
+**Digest cross-check.** With the stray reviewer-04 file removed, the reviewer's worktree digest is
+back to `f46cbb368fc6d55433473f127772e9db` — **independently matching the digest the implementer
+recorded for the rev 03 campaign**, confirming that campaign covers this exact tree.
+
+The reviewer deliberately withheld its unit suite and build while P29's campaign runs, on the
+grounds that competing for load is what fabricates a red run for another package. Correct, and the
+discipline is recorded.
