@@ -9408,3 +9408,56 @@ both E2E import fixtures carry a genuine `Amount` column so neither reaches the 
 Load was 13.3 with a live campaign, so everything ran at 2-4 workers. Checks: typecheck clean, lint 0
 errors, unit 2059 passed, integration 330 passed, import suite 314 passed, no `as`/`any`/`!`,
 fixtures synthetic, secret scan clean.
+
+### 2026-08-02 — P30 review addendum `9975fff`; the RENAME TRAP that probably created root's wrong premise
+
+`p30-reviewer-01` verified root's retraction rather than accepting it, and found the likely mechanism
+behind root's error. **Root reproduced it:**
+
+```
+sameTagIds    in 4526f79 (the FAILING tree):  2 occurrences
+tagSetChanged in 4526f79 (the FAILING tree):  0 occurrences
+```
+
+**`4526f79` spelled the guard `sameTagIds` inline; `c8dc004` renamed it to `tagSetChanged` and moved
+it into the pure module — same logic, inverted polarity, no behaviour change.** So grepping the
+failing tree for the CURRENT name returns nothing and makes the guard look absent. **That is almost
+certainly how root formed the premise that the no-op guard was missing.** It is the same family as
+root's `entry.rate > best.rate` error, inverted: there a surviving line looked like a surviving
+defect; here a renamed symbol looked like an absent guard. **A name is not a thing. Grep for the
+construct, not the identifier you remember.**
+
+Root's conclusion survives the wider diff: the reviewer notes `c8dc004` touches five files rather
+than one attribute, but **the only behavioural change is `role="presentation"`.**
+
+**The specific check root requested came back in the implementer's favour: `c8dc004` suppresses NO
+legitimate proposal.** Measured against the shipped decision function using the failing journey's own
+inputs — a novel alias by blur gives `kind = create`, a second rename gives `kind = update`, and the
+guard suppresses only genuine no-ops (re-commit, reorder) while passing real changes (tag added,
+first tag on an empty row). **The fix was confined to modality and removed no correct offer.**
+
+**NEW F-6, found by applying root's "exists vs does vs announces" heuristic to all 35 assertions.**
+Journeys 1-3 assert what the feature DOES, with a negative control on the non-matching row. Journey 4
+is exists-only but legitimately so, the clause being about presence and absence. **Journey 5 is weak:
+it stops at `data-kind="update"` and never presses confirm, so the update write path —
+`use-field-rule-proposal.ts:141-142` — is never executed by ANY test in the repo.** `data-kind`
+proves the component *decided* to update; nothing proves the existing rule changed rather than a
+second being created. **Clause 16's entire content is which write happens, so a duplicate-rule bug
+passes journey 5 today.** Rev 02 must press confirm and assert the robot count stays 2 rather than 4.
+
+**Clause 2: the reviewer DECLINED the implementer's rev-02 offer on the merits, explicitly so it is
+not read as courtesy.** A numeric before/after width measurement would be **weaker** than the
+argument already given — it samples two rendered states while the code establishes the property
+universally, widths coming from one template string whose only input is the person count, content
+portaled out of the grid. It measured anyway; conforms. **Nothing in rev 02 is owed to clause 2.**
+
+**Reviewer's generalisation, recorded because it names a failure mode root keeps hitting:** root
+supplied a wrong premise, the implementer accepted it, and **the agreement looked like corroboration
+while both parties held the same starting point — only a diff broke the tie.** Structurally identical
+to F-1, where "never remounts" was stated, reasoned about and repeated across three comments and an
+evidence file **but never re-measured.** Both are **a claim gaining apparent support from repetition
+rather than from a new observation.**
+
+`.p30-review-scratch/` confirmed removed; the reviewer had deleted it before writing its review, so
+the 2 lint errors were real when observed and stale when reported — the worse variant, because it
+looked reproducible. Its later probes ran from `/tmp/p30rev2`, also deleted.
