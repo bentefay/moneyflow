@@ -4,7 +4,8 @@
 - **Base:** `4c77a2dd6b61a9ab5e58c032d0b0242e579c75f7`
 - **Rev 02 BASE:** `74b37f9a4c490c4b31560a83c131b6f7e55965c7`
 - **Rev 03 BASE:** `ee3cce75ba474b226a2416a4be0be784ddf9bd7a`
-- **Rev 03 commits:** `05bada5` no-amount-column fix, plus a follow-up correcting this line
+- **Rev 03 commits:** `05bada5` no-amount-column fix, `273db5f` pinning and threshold tests,
+  `6e4bf32` pattern-site warning, plus this campaign record
 - **Rev 02 commits:** `b7cc398` amount-column fix, `43836b0` value-level tests, `ee3cce7` evidence
 - **Rev 01 commits:** `fcd736f`, `077d5dd`, `f98d3a5`, `23d0d80`, `3b76490` (rebased by root)
 - **Worktree:** `/tmp/mf-p29`, branch `worktree-p29-ur008`
@@ -737,31 +738,58 @@ process anywhere, load average 2.95. An orphaned `next-server (v16.2.6)` (PID 36
 cwd) was present; **observed** to bind no listening port and not to be mine, so it was left alone.
 The human's dev server on `:3001` was never touched.
 
-### Results — REV 02, at `43836b0`
+### Results — REV 03, at `6e4bf32`
 
 | run | result         | duration | load at start | tree digest |
 | --- | -------------- | -------- | ------------- | ----------- |
-| 1   | **177 passed** | 4.2m     | 4.07          | `0e58fc49`  |
-| 2   | **177 passed** | 4.1m     | 5.38          | `0e58fc49`  |
-| 3   | **177 passed** | 4.3m     | 5.95          | `0e58fc49`  |
+| 1   | **177 passed** | 4.4m     | 4.08          | `b7ad2af8`  |
+| 2   | **177 passed** | 4.4m     | 6.56          | `b7ad2af8`  |
+| 3   | **177 passed** | 4.1m     | **21.20**     | `b7ad2af8`  |
 
 **Zero failures across all three runs.** A scan of all three logs for `N failed`, `✘`,
 `Error: expect` and `timed out` returns nothing, and none of the three recorded load-sensitive
 assertions fired.
 
-Logs at `/tmp/p29r2-e2e-run{1,2,3}.log`, digests at `/tmp/p29r2-digest-{pre,post}.txt`.
+**Run 3 began at load average 21.20** — heavy work from another process started on the box between
+runs 2 and 3; nothing of mine was running besides the campaign. It is disclosed rather than quietly
+banked because that load is exactly the condition this goal treats as campaign-invalidating: a RED
+under it would have been unprovable in either direction and the campaign discarded. It went green,
+in the fastest of the three runs at 4.1m, so the pass is if anything stronger than a quiet-box pass
+— but the condition existed and a reviewer should read it here rather than discover it in the log.
 
-The rev 01 campaign, superseded by the above, ran 3×177 clean at digest `8443fde8`.
+**177, not 182.** `playwright test --list` reported 177 immediately before the campaign and every
+run reports `177 passed`. Rev 03 touches no E2E spec — `git diff ee3cce7 HEAD -- tests/e2e` is empty
+— so this campaign re-validates the same E2E surface against a **changed unit surface**, which is
+the expected shape. A count of 182 would have meant another package's tests had crossed into this
+tree and was pre-agreed as a stop-and-report condition.
+
+Logs at `/tmp/p29r3-e2e-run{1,2,3}.log`, digests at `/tmp/p29r3-digest-{pre,post}.txt`, unit log at
+`/tmp/p29r3-final-unit.log`.
+
+Superseded campaigns, both also clean: rev 02 ran 3×177 at digest `0e58fc49`, rev 01 at `8443fde8`.
+
+### Mutation hygiene: the tree was provably unmutated before the digest
+
+The threshold pinning tests (§1.4.5) required mutating `CLASSIFICATION_THRESHOLD` to 0.5 and 0.95 to
+prove they discriminate. A mutation test that leaves the tree dirty **contaminates the campaign it
+was meant to support**, so the restoration was verified rather than assumed:
+
+**Observed:** `git diff --quiet` PASS and `git status --porcelain` empty, checked twice — once
+before any gate ran, and again immediately before the pre-campaign digest was taken. The digest
+therefore provably covers an unmutated tree.
+
+Recording the distinction because my first instinct was weaker: I had confirmed `git diff --stat` on
+the _mutated file_ was empty, which is a claim about one file, not about the tree.
 
 ### Tree stability
 
-Digest `0e58fc4984aed2234afdb99df70705df`, over every `src/` and `tests/` `.ts`/`.tsx` file
+Digest `b7ad2af8a9765058376f02e8bbccbaaf`, over every `src/` and `tests/` `.ts`/`.tsx` file
 **excluding `next-env.d.ts`**, verified before run 1 and again after run 3. **Identical**, so this
 campaign is evidence for exactly the tree that ran.
 
 `next dev` rewrote `next-env.d.ts` during the campaign, which is why it is excluded — it is a
 regenerated artefact, and including it would show drift on every multi-run campaign. It was restored
-with `git checkout --` afterwards, leaving the tree clean at `43836b0`.
+with `git checkout --` afterwards, leaving the tree clean at `6e4bf32`.
 
 ### The new tests executed, rather than being counted
 
