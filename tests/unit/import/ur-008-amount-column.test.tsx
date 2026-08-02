@@ -22,6 +22,8 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { useImportState } from "@/hooks/use-import-state";
+import { parseCSV } from "@/lib/import/csv";
+import { detectColumnMappingsFromValues } from "@/lib/import/detection";
 
 /** The same three transactions, however the columns are arranged. */
 const EXPECTED_MINOR_UNITS = [-550, -7525, 250000];
@@ -251,5 +253,90 @@ describe("a file with no amount column imports no amounts", () => {
         expect(Object.values(mappings)).not.toContain("amount");
         // The column keeps the role its header actually names.
         expect(mappings["2"]).toBe("balance");
+    });
+});
+
+/**
+ * Synthesised placeholder headers must never act as header evidence.
+ *
+ * `parseCSV` names the columns of a headerless file "Column 1", "Column 2", …
+ * The load path therefore passes `fileHasHeaders ? headers : []`, so those
+ * placeholders never reach `detectColumnMappingsFromValues`.
+ *
+ * THIS TEST CANNOT CURRENTLY FAIL, AND THAT IS DELIBERATE — do not delete it as
+ * dead weight. The guard is inert only by coincidence of the patterns that
+ * exist today: "Column 1" matches none of `AMOUNT_HEADER_PATTERN`,
+ * `NON_AMOUNT_HEADER_PATTERN` or `SECONDARY_ROLE_PATTERNS`. That is a property
+ * of the current regexes, not of the design. Verified concretely: an
+ * unanchored `/col/i`, or a `\bcolumn\b` alias added for files headed "Col"
+ * or "Column", both match "Column 1" — at which point placeholder names would
+ * start feeding real header evidence into amount selection and a headerless
+ * file could resolve differently from the values alone.
+ *
+ * This is a regression fence. It pins the intent now and fails loudly the day
+ * someone widens a pattern.
+ */
+describe("synthesised placeholder headers are not evidence", () => {
+    it("resolves a headerless file identically with placeholders and with none", () => {
+        const parsed = parseCSV(
+            [
+                '01/07/2026,"1001","COFFEE SHOP","-45.00"',
+                '02/07/2026,"1002","PAYMENT RECEIVED","+69.00"',
+                '30/06/2026,"1003","BAKERY","-33.07"'
+            ].join("\n"),
+            { hasHeaders: false }
+        );
+
+        // What `parseCSV` synthesises for a headerless file.
+        expect(parsed.headers).toEqual(["Column 1", "Column 2", "Column 3", "Column 4"]);
+
+        const withPlaceholders = detectColumnMappingsFromValues(parsed.rows, parsed.headers);
+        const withNoHeaders = detectColumnMappingsFromValues(parsed.rows);
+
+        expect(withPlaceholders).toEqual(withNoHeaders);
+        // And the values-only answer is the correct one.
+        expect(withNoHeaders["3"]).toBe("amount");
+    });
+});
+
+/**
+ * `CLASSIFICATION_THRESHOLD` decides how much of a column must match a
+ * predicate before the column can hold that role. Every fixture elsewhere in
+ * this suite has columns that match at ~100% or ~0%, so the threshold never
+ * falls between two candidates and no other test distinguishes 0.4 from 1.0.
+ *
+ * These two pin the cliff either side of the 0.8 it is set to, on a 20-row
+ * column of deliberately mixed parseability. They are what makes the constant a
+ * decision rather than an unexamined number.
+ *
+ * Note the direction of failure: below the threshold the role is left UNMAPPED
+ * and the rows report as errors. It never degrades to binding a wrong column,
+ * which is why an imperfect threshold is tolerable here.
+ */
+describe("the classification threshold", () => {
+    /** 20 rows, `bad` of which carry an unparseable amount. */
+    function amountColumnWithBadRows(bad: number): string {
+        return [
+            "Date,Description,Amount",
+            ...Array.from({ length: 20 }, (_, index) =>
+                index < bad
+                    ? `2024-01-${String(index + 1).padStart(2, "0")},Row ${index},n/a`
+                    : `2024-01-${String(index + 1).padStart(2, "0")},Row ${index},-${index + 1}.50`
+            )
+        ].join("\n");
+    }
+
+    it("still binds the amount at 4 bad rows of 20, which is 0.80 matching", () => {
+        const parsed = parseCSV(amountColumnWithBadRows(4), { hasHeaders: true });
+
+        expect(detectColumnMappingsFromValues(parsed.rows, parsed.headers)["2"]).toBe("amount");
+    });
+
+    it("leaves the amount unmapped at 5 bad rows of 20, which is 0.75 matching", () => {
+        const parsed = parseCSV(amountColumnWithBadRows(5), { hasHeaders: true });
+        const mappings = detectColumnMappingsFromValues(parsed.rows, parsed.headers);
+
+        // Unmapped rather than bound to something else - it fails safe.
+        expect(Object.values(mappings)).not.toContain("amount");
     });
 });

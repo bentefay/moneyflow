@@ -317,6 +317,84 @@ amount is imported and `errorCount` equals the row count. **Observed at `ee3cce7
 three with `expected 2 to be +0` on the valid count, one with
 `expected [ 'date', 'description', 'amount' ] to not include 'amount'`.
 
+### 1.4.5 REV 03 — three decisions recorded rather than left implicit
+
+#### The synthesised-header guard is PINNED, not removed
+
+`use-import-state.ts:373` passes `fileHasHeaders ? headers : []`, so the `"Column 1", "Column 2", …`
+names `parseCSV` synthesises for a headerless file never reach detection. That guard is **inert
+today**, and the coordinator initially offered removing it as an equally valid option before
+correcting that. The correction is right and the reason is worth stating:
+
+**the guard is inert by coincidence of the current regexes, not by construction.** "Column 1"
+matches none of `AMOUNT_HEADER_PATTERN`, `NON_AMOUNT_HEADER_PATTERN` or `SECONDARY_ROLE_PATTERNS` as
+they stand. **Observed**, testing candidate widenings directly rather than asserting a vague risk:
+
+| hypothetical pattern | matches `"Column 1"` |
+| -------------------- | -------------------- |
+| `/col/i` unanchored  | **true**             |
+| `/\bcolumn\b/i`      | **true**             |
+| `/\bcol\b/i`         | false                |
+| `/\bno\b/i`          | false                |
+
+An unanchored `/col/i`, or a `\bcolumn\b` alias added for real files headed "Col" or "Column", both
+match the placeholder. Either would start feeding synthesised names into amount selection as if they
+were header evidence — the F-1 class arriving through a door removed because it looked idle.
+
+So it is pinned by a test asserting **placeholders produce the same answer as no headers at all**.
+That test **cannot currently fail, deliberately**, and its comment says so and says why, so a future
+reader does not delete it as dead weight for exactly the reason the removal was nearly instructed. A
+guard unreachable _by construction_ is dead code; one unreachable _by coincidence of data_ is a
+regression fence.
+
+#### The unnamed-amount nearest neighbour: a design limit, accepted deliberately
+
+The reviewer measured ten headers the denylist does not know — `Running Total`, `Closing Bal`,
+`Ledger`, `Doc No`, `Transaction ID`, `Account No`, `Units`, `Rate` — beside a genuine `Amount`
+column, signed and all-positive: **20/20 correct, 0 errors.** The structural reason is that
+`detection.ts:324-325` settles outright when `AMOUNT_HEADER_PATTERN` names exactly one column, so an
+**allowlist hit fires before the denylist matters** whenever the amount column is conventionally
+named — the common real case. My rev-02 worry that denylist incompleteness was the weakest surface
+was therefore over-stated for that class.
+
+There is a residual case: when the amount column is **also** unrecognised (`Movement`, `Posting`,
+`Txn`) **and** every value is positive, neither the header nor the values carry any signal, so
+position decides and a balance can win.
+
+**Decision, recorded as a choice rather than left as an omission: I am not fixing this, and I agree
+with the reviewer's reason for not raising it as a finding.** The distinction that governs it is
+_overriding available evidence is a defect; guessing when none exists is a design limit._ F-1 and
+F-4 were both the former — the file carried evidence and the code ignored or overrode it. Here the
+file carries none: two columns of unsigned decimals under two unrecognised headers are genuinely
+indistinguishable, and any rule would be a guess. The honest alternatives would be to leave every
+such file unmapped, which harms the many files where position happens to be right, or to widen the
+allowlist, which only moves the boundary. If this is ever reported by a real user, the fix is an
+allowlist entry for their bank's header, not a change of rule.
+
+#### The classification threshold is now pinned
+
+The reviewer swept `CLASSIFICATION_THRESHOLD` across 0.4, 0.5, 0.6, 0.75, 0.85, 0.95, 0.99 and 1.0
+and found **310 tests passing at every value** — no test distinguished 0.4 from 1.0, because every
+fixture's columns match at ~100% or ~0% and the threshold never falls between two candidates. It was
+not merely the least-forced number in the file; it was **entirely unconstrained**.
+
+Two tests now pin the cliff on a 20-row column of deliberately mixed parseability. **Observed**, by
+sweeping the bad-row count rather than assuming where the boundary sat:
+
+```
+bad= 3/20  rate=0.85  -> amount bound
+bad= 4/20  rate=0.80  -> amount bound      <- pinned
+bad= 5/20  rate=0.75  -> amount UNMAPPED   <- pinned
+bad= 6/20  rate=0.70  -> amount UNMAPPED
+```
+
+**Verified these tests actually discriminate**, by mutating the constant: at `0.5` and at `0.95` one
+of the pair fails; both pass only at `0.8`. The constant was restored and the tree re-checked clean.
+
+Note the failure direction, which is why an imperfect threshold is tolerable: below it the role is
+left **unmapped and the rows report as errors**, never degraded to a wrong column. It fails safe, in
+the same direction F-4 was fixed to fail.
+
 #### Why rev 01's suite did not catch F-1 — the assertion was BLIND, not merely unlucky
 
 My first reading was that the fixture was unlucky: `ur-008-csv-parity.test.ts` pinned
@@ -573,7 +651,7 @@ to check without doing the checking.
 | `typecheck`    | **PASS**                                                          |
 | `lint`         | **PASS**, 0 errors                                                |
 | `format:check` | **17** pre-existing frozen `specs/**` files, **none a P29 file**  |
-| `test`         | **PASS** — 2386 passed, 2 skipped, 123 files                      |
+| `test`         | **PASS** — 2389 passed, 2 skipped, 123 files                      |
 | `test:e2e`     | **PASS** — 3 consecutive full-suite runs, 177 passed each, see §6 |
 
 The `lint` figure above is the **bare `pnpm lint` from the repo root**, not a filtered run over my
