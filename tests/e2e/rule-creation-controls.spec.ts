@@ -100,6 +100,25 @@ async function addTagToRow(page: Page, row: Locator, tagName: string): Promise<v
 }
 
 /**
+ * Choose one of the four apply modes, and leave the select CLOSED.
+ *
+ * The listbox is portaled and opens directly over the row's own cells, so an option can still be
+ * covering the very control the next step wants to click. That was MEASURED, not anticipated: the
+ * Enter-commit journey failed a full campaign run with `<div role="option" …> intercepts pointer
+ * events`, then `element was detached from the DOM`, timing out on `description.click()` — before
+ * the gesture under test ever ran. The sibling journey clicking a column header sits far from the
+ * listbox and never hit it, which is exactly why this belongs in one helper rather than at the one
+ * call site that happened to fail.
+ *
+ * Waiting for the listbox to leave the DOM is the same convention `transactions.spec.ts:850` uses.
+ */
+async function chooseApplyMode(page: Page, mode: string): Promise<void> {
+    await page.getByTestId("proposal-apply-mode").click();
+    await page.getByRole("option", { name: mode, exact: true }).click();
+    await expect(page.getByRole("listbox")).toHaveCount(0);
+}
+
+/**
  * The rows carrying an exact description, in table order.
  *
  * The description is the VALUE of an input, not row text, so a `hasText` filter would match nothing.
@@ -147,8 +166,7 @@ test.describe("Rule-creation controls on a transaction matching no rule", () => 
         });
 
         await test.step("confirming with update all applies the tag to the other matching row", async () => {
-            await page.getByTestId("proposal-apply-mode").click();
-            await page.getByRole("option", { name: "Update all", exact: true }).click();
+            await chooseApplyMode(page, "Update all");
             await page.getByTestId("proposal-confirm").click();
 
             await expect(proposal).toHaveCount(0);
@@ -194,8 +212,7 @@ test.describe("Rule-creation controls on a transaction matching no rule", () => 
         });
 
         await test.step("confirming with update all repoints the other matching row", async () => {
-            await page.getByTestId("proposal-apply-mode").click();
-            await page.getByRole("option", { name: "Update all", exact: true }).click();
+            await chooseApplyMode(page, "Update all");
             await page.getByTestId("proposal-confirm").click();
 
             await expect(proposal).toHaveCount(0);
@@ -233,8 +250,7 @@ test.describe("Rule-creation controls on a transaction matching no rule", () => 
         });
 
         await test.step("confirming with update all applies the whole percentage set to the other row", async () => {
-            await page.getByTestId("proposal-apply-mode").click();
-            await page.getByRole("option", { name: "Update all", exact: true }).click();
+            await chooseApplyMode(page, "Update all");
             await page.getByTestId("proposal-confirm").click();
 
             await expect(proposal).toHaveCount(0);
@@ -374,8 +390,7 @@ test.describe("The Updating modes wait for the row to lose focus", () => {
         await expect(proposal).toBeVisible();
 
         await test.step("selecting an Updating mode does not itself apply anything", async () => {
-            await page.getByTestId("proposal-apply-mode").click();
-            await page.getByRole("option", { name: "Updating all", exact: true }).click();
+            await chooseApplyMode(page, "Updating all");
 
             // Still open, still waiting: the row has not lost focus.
             await expect(proposal).toBeVisible();
@@ -420,8 +435,7 @@ test.describe("The restrictions actually restrict", () => {
         await test.step("restrict the rule to this row's amount, then apply to all", async () => {
             await page.getByTestId("proposal-amount-toggle").click();
             await expect(page.getByTestId("proposal-amount-toggle")).toBeChecked();
-            await page.getByTestId("proposal-apply-mode").click();
-            await page.getByRole("option", { name: "Update all", exact: true }).click();
+            await chooseApplyMode(page, "Update all");
             await page.getByTestId("proposal-confirm").click();
             await expect(page.getByTestId("tags-rule-proposal")).toHaveCount(0);
         });
@@ -467,8 +481,7 @@ test.describe("Every way a row loses focus reaches the automatic modes", () => {
         await expect(proposal).toBeVisible();
 
         await test.step("choosing Updating all applies on the Enter blur itself", async () => {
-            await page.getByTestId("proposal-apply-mode").click();
-            await page.getByRole("option", { name: "Updating all", exact: true }).click();
+            await chooseApplyMode(page, "Updating all");
             // Re-commit with Enter. That blur IS the frozen gesture; nothing else is clicked.
             await description.click();
             await description.press("Enter");
@@ -495,8 +508,7 @@ test.describe("Every way a row loses focus reaches the automatic modes", () => {
 
         const proposal = page.getByTestId("tags-rule-proposal");
         await expect(proposal).toBeVisible();
-        await page.getByTestId("proposal-apply-mode").click();
-        await page.getByRole("option", { name: "Updating all", exact: true }).click();
+        await chooseApplyMode(page, "Updating all");
 
         await test.step("nothing is written while the row still holds focus", async () => {
             await expect(secondRow.getByTestId("tags-editable")).not.toContainText("Coffee");
@@ -528,8 +540,7 @@ test.describe("Updating an existing rule from the same controls", () => {
 
         await test.step("create the rule from the first tag change", async () => {
             await addTagToRow(page, rowsWithDescription(page).first(), "Coffee");
-            await page.getByTestId("proposal-apply-mode").click();
-            await page.getByRole("option", { name: "Update all", exact: true }).click();
+            await chooseApplyMode(page, "Update all");
             await page.getByTestId("proposal-confirm").click();
             await expect(page.getByTestId("tags-rule-robot")).toHaveCount(2);
         });
@@ -546,8 +557,7 @@ test.describe("Updating an existing rule from the same controls", () => {
         // about which write happens, so the outcome has to be asserted too: the other matching row
         // must gain the new tag, and no SECOND rule may appear for the same description text.
         await test.step("confirming performs the update rather than creating a duplicate", async () => {
-            await page.getByTestId("proposal-apply-mode").click();
-            await page.getByRole("option", { name: "Update all", exact: true }).click();
+            await chooseApplyMode(page, "Update all");
             await page.getByTestId("proposal-confirm").click();
             await expect(page.getByTestId("tags-rule-proposal")).toHaveCount(0);
 
