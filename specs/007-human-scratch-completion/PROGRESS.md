@@ -9630,3 +9630,56 @@ by the E2E flows"** into the evidence **and never checked it.** Same failure as 
 claim written while reasoning about the fix rather than after measuring it. **Named three times in
 this package and hit three times.** The remedy is not resolve; it is not writing the sentence until
 the measurement exists.
+
+### 2026-08-02 — P31 held two stale beliefs; root corrected both by measurement
+
+**1. `p31-implementer-01` reported "nothing is committed". Its work IS committed — inside
+`e97b3f7`.** Measured: `table-selection.ts`, `selection-invariants.test.ts` (which it described as
+newly added), `useTableSelection.ts`, `selection.test.ts` and `select-all-beyond-page.test.tsx` are
+all in P30's rev 02 commit. Both agents now told, and both forbidden from reset/revert/amend.
+
+**2. It reported `.p30-review-scratch/` still present with 2 phantom lint errors. Measured: ABSENT**,
+and absent when root checked earlier. Its owner deleted it before writing its review, **so the errors
+were real when P31 hit them and stale when it reported them** — the nastier variant, because it looks
+reproducible. P31 instructed to re-run lint before handback.
+
+**3. TREE DRIFT: BASE `054f77e` is stale and root will re-capture HEAD for the P31 review.** `main`
+has advanced through `c4f472b`, `9975fff`, `b94100b`; `use-field-rule-proposal.ts` now calls
+`useActiveDescriptionAliases`, `useVaultPreferences`, `usePubkeyHash`, `useFieldRuleActions` and
+`useApplyFieldRules`, **so any test mounting the whole transactions page must stub all five or the
+page throws on render.**
+
+**The second-order finding is the valuable one.** The breakage presented as the load-dependent flake
+class — `pnpm test` failing 1-of-3 runs, then 12 tests across three files including two pre-existing
+ones P31 never touched. **It was a genuine missing mock, and the sibling failures happened because
+Vitest shares a worker, so P31's incomplete `@/lib/crdt/context` mock leaked into their module
+registry.** P31 resisted the available explanation and found the real one — the same shape as root's
+wrong premise earlier today, where the familiar diagnosis was right there and was wrong.
+
+**4. One GENUINE load-dependent flake confirmed, and P31 correctly refused to fix it.**
+`tests/unit/import/duplicates.test.ts` "scales linearly with input size" asserts a wall-clock ratio
+`< 4`, **observed 4.58**, passes **5/5 in isolation**, fails only under a saturated full-suite run,
+and is untouched by P31's change. **It deliberately did NOT loosen the bound** — quietly widening
+someone else's perf assertion to get a green run is the wrong fix and would be invisible in a passing
+campaign. Root backs the call explicitly.
+
+**Note the connection to F-7:** this is one of the two assertions root wrongly claimed had "held
+under load 21" in the P29 campaign, which `p29-reviewer-03` proved is a Vitest test outside
+Playwright's `testDir` and had not run at all. **So it is a known-flaky assertion with a known-wrong
+record attached, and P31's observation is now the better evidence about it.** Carried to the final
+audit.
+
+**5. `selection-invariants.test.ts` is the strongest test addition in this package** — three
+fast-check properties over arbitrary gesture sequences and arbitrary matching-set changes, guarding
+that the constant-time count always equals a full enumeration, that the header tri-state always
+agrees with the rows it summarises, and that reconciliation is a true intersection. **The reasoning
+is why they are needed: the representation buys its speed by SUBTRACTING SET SIZES instead of
+counting, so a broken invariant surfaces as a silently wrong count** — exactly what table-driven
+tests miss, since they only cover the cases someone thought of.
+
+P31 also removed a `forgetRow` call on single-delete: a deleted row already leaves the matching set,
+so reconciliation drops it under either baseline, and clearing it again by id was a weaker duplicate
+of the one mechanism. Dead export removed.
+
+**Port still HELD from both agents** until root determines what a campaign over the fused tree would
+be evidence for.
