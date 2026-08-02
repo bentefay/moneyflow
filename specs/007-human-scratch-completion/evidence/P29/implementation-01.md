@@ -322,9 +322,18 @@ three with `expected 2 to be +0` on the valid count, one with
 #### The synthesised-header guard is PINNED, not removed
 
 `use-import-state.ts:373` passes `fileHasHeaders ? headers : []`, so the `"Column 1", "Column 2", …`
-names `parseCSV` synthesises for a headerless file never reach detection. That guard is **inert
-today**, and the coordinator initially offered removing it as an equally valid option before
-correcting that. The correction is right and the reason is worth stating:
+names `parseCSV` synthesises for a headerless file never reach detection.
+
+That guard is **inert today**, and the coordinator's first instruction offered **removing it with an
+explanation of why it was never needed** as an equally valid option, then retracted that after the
+rev 02 reviewer objected. I only ever received the retraction, so I acted on the corrected
+instruction — but recording the retracted one matters, because **I would probably have taken the
+removal option had it arrived alone.** It reads as the tidier choice, and nothing in it would have
+prompted me to ask the question that decides it: _is this inert by construction, or by coincidence?_
+Removing a guard because it currently does nothing is how the F-1 class returns through a door
+somebody opened for good reasons.
+
+The correction is right and the reason is worth stating:
 
 **the guard is inert by coincidence of the current regexes, not by construction.** "Column 1"
 matches none of `AMOUNT_HEADER_PATTERN`, `NON_AMOUNT_HEADER_PATTERN` or `SECONDARY_ROLE_PATTERNS` as
@@ -338,8 +347,12 @@ they stand. **Observed**, testing candidate widenings directly rather than asser
 | `/\bno\b/i`          | false                |
 
 An unanchored `/col/i`, or a `\bcolumn\b` alias added for real files headed "Col" or "Column", both
-match the placeholder. Either would start feeding synthesised names into amount selection as if they
-were header evidence — the F-1 class arriving through a door removed because it looked idle.
+match the placeholder. **Naming the two specific unsafe shapes is what makes the fence
+maintainable** — the next person can check a new pattern against a stated list rather than
+re-deriving the argument — so that list now also sits as a comment on `AMOUNT_HEADER_PATTERN`
+itself, where somebody adding a pattern will actually encounter it, with a pointer to the test.
+Either would start feeding synthesised names into amount selection as if they were header evidence —
+the F-1 class arriving through a door removed because it looked idle.
 
 So it is pinned by a test asserting **placeholders produce the same answer as no headers at all**.
 That test **cannot currently fail, deliberately**, and its comment says so and says why, so a future

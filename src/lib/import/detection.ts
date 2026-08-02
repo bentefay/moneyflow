@@ -248,7 +248,18 @@ function bestColumn(
     return scored.reduce((best, entry) => (entry.rate > best.rate ? entry : best)).index;
 }
 
-/** Header names that name the transaction amount itself. */
+/**
+ * Header names that name the transaction amount itself.
+ *
+ * WHEN ADDING A PATTERN HERE OR BELOW, check it does not match the synthesised
+ * names `parseCSV` gives a headerless file - "Column 1", "Column 2", ... The
+ * caller only passes real headers, so these never see a placeholder today, but
+ * that guard is worth keeping honest from this end too. Known-unsafe shapes:
+ * an unanchored `/col/i` and `/\bcolumn\b/i` both match "Column 1", while
+ * `/\bcol\b/i` and `/\bno\b/i` do not.
+ * Pinned by `ur-008-amount-column.test.tsx`, "synthesised placeholder headers
+ * are not evidence".
+ */
 const AMOUNT_HEADER_PATTERN = /\bamount\b|\bdebit\b|\bcredit\b|\bvalue\b/i;
 
 /**
