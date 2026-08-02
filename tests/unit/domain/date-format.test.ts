@@ -46,29 +46,34 @@ describe("formatTransactionDate", () => {
         });
     });
 
+    // UR-007 reverses the contract these cases previously encoded. The frozen
+    // text (spec.md:50) requires two digits in EVERY different-year
+    // presentation and grants no exception below the year 2000, so the old
+    // DD/MM/YYYY branch for those years is gone. The dates themselves are
+    // retained so the boundary stays covered.
     describe("year <= 2000", () => {
-        it("formats date as DD/MM/YYYY for year 2000 (with padding)", () => {
-            expect(formatTransactionDate("2000-06-15", refDate, locale)).toBe("15/06/2000");
-            expect(formatTransactionDate("2000-01-01", refDate, locale)).toBe("01/01/2000");
-            expect(formatTransactionDate("2000-12-31", refDate, locale)).toBe("31/12/2000");
+        it("formats date as D/M/YY for year 2000", () => {
+            expect(formatTransactionDate("2000-06-15", refDate, locale)).toBe("15/6/00");
+            expect(formatTransactionDate("2000-01-01", refDate, locale)).toBe("1/1/00");
+            expect(formatTransactionDate("2000-12-31", refDate, locale)).toBe("31/12/00");
         });
 
-        it("formats date as DD/MM/YYYY for years before 2000 (with padding)", () => {
-            expect(formatTransactionDate("1999-12-31", refDate, locale)).toBe("31/12/1999");
-            expect(formatTransactionDate("1990-05-15", refDate, locale)).toBe("15/05/1990");
-            expect(formatTransactionDate("1985-08-20", refDate, locale)).toBe("20/08/1985");
-            expect(formatTransactionDate("1900-01-01", refDate, locale)).toBe("01/01/1900");
+        it("formats date as D/M/YY for years before 2000", () => {
+            expect(formatTransactionDate("1999-12-31", refDate, locale)).toBe("31/12/99");
+            expect(formatTransactionDate("1990-05-15", refDate, locale)).toBe("15/5/90");
+            expect(formatTransactionDate("1985-08-20", refDate, locale)).toBe("20/8/85");
+            expect(formatTransactionDate("1900-01-01", refDate, locale)).toBe("1/1/00");
         });
 
         it("handles very old dates", () => {
-            expect(formatTransactionDate("1776-07-04", refDate, locale)).toBe("04/07/1776");
+            expect(formatTransactionDate("1776-07-04", refDate, locale)).toBe("4/7/76");
         });
     });
 
     describe("edge cases", () => {
         it("handles leap year dates", () => {
             expect(formatTransactionDate("2024-02-29", refDate, locale)).toBe("29/2/24");
-            expect(formatTransactionDate("2000-02-29", refDate, locale)).toBe("29/02/2000");
+            expect(formatTransactionDate("2000-02-29", refDate, locale)).toBe("29/2/00");
         });
 
         it("handles end of month dates", () => {
@@ -89,15 +94,15 @@ describe("formatTransactionDate", () => {
             expect(formatTransactionDate("2001-01-01", refDate, locale)).toBe("1/1/01");
         });
 
-        it("treats year 2000 as <= 2000 (full year format)", () => {
-            expect(formatTransactionDate("2000-12-31", refDate, locale)).toBe("31/12/2000");
+        it("treats year 2000 like any other different year", () => {
+            expect(formatTransactionDate("2000-12-31", refDate, locale)).toBe("31/12/00");
         });
 
         it("reference year edge cases", () => {
             // When reference is 2001
             const ref2001 = Temporal.PlainDate.from("2001-06-15");
             expect(formatTransactionDate("2001-03-20", ref2001, locale)).toBe("20/3");
-            expect(formatTransactionDate("2000-03-20", ref2001, locale)).toBe("20/03/2000");
+            expect(formatTransactionDate("2000-03-20", ref2001, locale)).toBe("20/3/00");
             expect(formatTransactionDate("2002-03-20", ref2001, locale)).toBe("20/3/02");
         });
     });
@@ -107,14 +112,14 @@ describe("formatTransactionDate", () => {
             // In en-US, month comes before day
             expect(formatTransactionDate("2026-01-15", refDate, "en-US")).toBe("1/15");
             expect(formatTransactionDate("2025-06-15", refDate, "en-US")).toBe("6/15/25");
-            expect(formatTransactionDate("1999-12-31", refDate, "en-US")).toBe("12/31/1999");
+            expect(formatTransactionDate("1999-12-31", refDate, "en-US")).toBe("12/31/99");
         });
 
         it("uses D/M order for en-GB locale", () => {
             // In en-GB, day comes before month
             expect(formatTransactionDate("2026-01-15", refDate, "en-GB")).toBe("15/1");
             expect(formatTransactionDate("2025-06-15", refDate, "en-GB")).toBe("15/6/25");
-            expect(formatTransactionDate("1999-12-31", refDate, "en-GB")).toBe("31/12/1999");
+            expect(formatTransactionDate("1999-12-31", refDate, "en-GB")).toBe("31/12/99");
         });
 
         it("uses Y/M/D order for ja-JP locale", () => {
@@ -128,7 +133,7 @@ describe("formatTransactionDate", () => {
             // German uses dots as separators
             expect(formatTransactionDate("2026-01-15", refDate, "de-DE")).toBe("15.1.");
             expect(formatTransactionDate("2025-06-15", refDate, "de-DE")).toBe("15.6.25");
-            expect(formatTransactionDate("1999-12-31", refDate, "de-DE")).toBe("31.12.1999");
+            expect(formatTransactionDate("1999-12-31", refDate, "de-DE")).toBe("31.12.99");
         });
     });
 });

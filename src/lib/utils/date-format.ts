@@ -1,4 +1,100 @@
+import * as chrono from "chrono-node";
+import { isValid, parse } from "date-fns";
 import { Temporal } from "temporal-polyfill";
+
+/**
+ * The civil-date fields a numeric locale pattern is built from, in the order
+ * the locale renders them.
+ */
+type DateFieldName = "day" | "month" | "year";
+
+/** A locale's numeric date pattern, decomposed into fields and literals. */
+interface LocaleDatePattern {
+    /** Field order as the locale renders it, e.g. day/month/year for en-AU. */
+    readonly fields: readonly DateFieldName[];
+    /** Literal separators, interleaved between and around the fields. */
+    readonly literals: readonly string[];
+}
+
+/**
+ * Render a calendar date through `Intl` without ever constructing an instant
+ * whose civil date depends on the host time zone.
+ *
+ * `Intl.DateTimeFormat` needs a `Date`, and a `Date` is an instant. Anchoring
+ * at UTC midnight and formatting in UTC keeps the civil date the caller asked
+ * for, so nothing shifts for a viewer east or west of the line.
+ */
+function formatPlainDateParts(
+    date: Temporal.PlainDate,
+    locale: string,
+    options: Intl.DateTimeFormatOptions
+): readonly Intl.DateTimeFormatPart[] {
+    const anchor = new Date(Date.UTC(2000, date.month - 1, date.day));
+    anchor.setUTCFullYear(date.year);
+    return new Intl.DateTimeFormat(locale, { ...options, timeZone: "UTC" }).formatToParts(anchor);
+}
+
+/**
+ * Resolve the locale to format and parse with.
+ *
+ * Falls back to `en-GB` rather than `en-US` so a server render, where there is
+ * no `navigator`, does not silently impose United States ordering.
+ */
+function resolveLocale(locale?: string): string {
+    if (locale != null) return locale;
+    return typeof navigator === "undefined" ? "en-GB" : navigator.language;
+}
+
+/**
+ * Read a locale's numeric date pattern from `Intl` rather than hardcoding one.
+ *
+ * The day-and-month form is asked of `Intl` in its own right rather than
+ * derived by deleting the year from the full form: some locales punctuate it
+ * differently, e.g. de-DE shows "3.8." with a trailing separator.
+ *
+ * The reference date below uses a day and month that are distinguishable, so
+ * the field a part belongs to is unambiguous.
+ */
+function localeDatePattern(locale: string, options: Intl.DateTimeFormatOptions): LocaleDatePattern {
+    const parts = new Intl.DateTimeFormat(locale, {
+        ...options,
+        timeZone: "UTC"
+    }).formatToParts(new Date(Date.UTC(2026, 7, 3)));
+
+    const fields: DateFieldName[] = [];
+    // One more literal slot than fields: the text before, between and after.
+    const literals: string[] = [""];
+
+    for (const part of parts) {
+        if (part.type === "day" || part.type === "month" || part.type === "year") {
+            fields.push(part.type);
+            literals.push("");
+            continue;
+        }
+        literals[literals.length - 1] += part.value;
+    }
+
+    return { fields, literals };
+}
+
+/** date-fns tokens for the day and month fields. */
+const FIELD_TOKENS: Record<Exclude<DateFieldName, "year">, string> = {
+    day: "d",
+    month: "M"
+};
+
+/**
+ * Build a date-fns parse format from a locale pattern, interleaving each
+ * field's token with the literal text that precedes it.
+ */
+function patternToDateFnsFormat(pattern: LocaleDatePattern, yearToken: string): string {
+    const body = pattern.fields.reduce((accumulated, field, index) => {
+        const token = field === "year" ? yearToken : FIELD_TOKENS[field];
+        return `${accumulated}${pattern.literals[index]}${token}`;
+    }, "");
+
+    return `${body}${pattern.literals[pattern.fields.length]}`;
+}
 
 /**
  * Format an ISO date string according to the user's locale.
@@ -41,12 +137,10 @@ export function formatDateCompact(isoDate: string, locale?: string): string {
 /**
  * Format an ISO date string for transaction table display.
  * Pure function that accepts referenceDate for testability.
- * Internationalized using Temporal's toLocaleString.
  *
- * Format rules:
- * - Same year as reference: D/M (e.g., "15/1" or "1/15" in en-US)
- * - Year > 2000 but different from reference: D/M/YY (e.g., "25/12/23")
- * - Year <= 2000: DD/MM/YYYY (e.g., "31/12/1999")
+ * Format rules, in the locale's own field order and separators:
+ * - Same year as reference: day and month only, unpadded (e.g. "15/1", or "1/15" in en-US)
+ * - Any other year: day, month and a TWO-digit year (e.g. "31/12/99")
  *
  * @param isoDate - ISO 8601 date string (YYYY-MM-DD)
  * @param referenceDate - Reference date for "same year" comparison (defaults to today)
@@ -60,71 +154,142 @@ export function formatTransactionDate(
 ): string {
     const date = Temporal.PlainDate.from(isoDate);
     const now = referenceDate ?? Temporal.Now.plainDateISO();
-    const resolvedLocale =
-        locale ?? (typeof navigator !== "undefined" ? navigator.language : "en-GB");
+    const sameYear = date.year === now.year;
 
-    if (date.year === now.year) {
-        // Same year: D/M (compact, no year, no padding)
-        // Use toLocaleString for order/separator, then strip leading zeros from day/month
-        const formatted = date.toLocaleString(resolvedLocale, {
-            day: "numeric",
-            month: "numeric"
-        });
-        return stripLeadingZeros(formatted);
-    }
+    const parts = formatPlainDateParts(date, resolveLocale(locale), {
+        day: "numeric",
+        month: "numeric",
+        ...(sameYear ? {} : { year: "2-digit" })
+    });
 
-    if (date.year > 2000) {
-        // Year > 2000 but different year: D/M/YY (compact with 2-digit year)
-        // Use toLocaleString for order/separator, then strip leading zeros from day/month
-        const formatted = date.toLocaleString(resolvedLocale, {
-            day: "numeric",
-            month: "numeric",
-            year: "2-digit"
-        });
-        return stripLeadingZerosExceptYear(formatted);
-    }
+    // Strip padding from the day and month by field identity rather than by
+    // position: a locale that renders the year first (ja-JP) would otherwise
+    // have a leading-zero year read as a day and corrupted.
+    return parts
+        .map((part) =>
+            part.type === "day" || part.type === "month" ? String(Number(part.value)) : part.value
+        )
+        .join("");
+}
 
-    // Year <= 2000: DD/MM/YYYY (full format with padding)
-    return date.toLocaleString(resolvedLocale, {
+/**
+ * Format an ISO date string for the editing presentation.
+ *
+ * Editing always shows the year, padded to two digits along with the day and
+ * month, so the field widths stay stable as the value changes.
+ *
+ * @param isoDate - ISO 8601 date string (YYYY-MM-DD)
+ * @param locale - BCP 47 locale string (defaults to browser locale)
+ * @returns Formatted date string respecting locale's date order and separators
+ */
+export function formatDateForEditing(isoDate: string, locale?: string): string {
+    const date = Temporal.PlainDate.from(isoDate);
+
+    return formatPlainDateParts(date, resolveLocale(locale), {
         day: "2-digit",
         month: "2-digit",
-        year: "numeric"
-    });
-}
-
-/**
- * Strip leading zeros from date parts (day and month).
- * Preserves separators and order.
- * Example: "01/05" -> "1/5", "01.05." -> "1.5."
- */
-function stripLeadingZeros(formatted: string): string {
-    // Replace patterns like "01" at word boundaries with "1"
-    // But preserve trailing dots for German format
-    return formatted.replace(/\b0(\d)/g, "$1");
-}
-
-/**
- * Strip leading zeros from day/month but preserve the year part.
- * Example: "01/05/24" -> "1/5/24", "01.05.24" -> "1.5.24"
- */
-function stripLeadingZerosExceptYear(formatted: string): string {
-    // Split by common date separators, strip zeros from first two parts, keep year
-    const parts = formatted.split(/([/.,-])/);
-    let numericCount = 0;
-    return parts
-        .map((part) => {
-            // Check if this part is numeric
-            if (/^\d+$/.test(part)) {
-                numericCount++;
-                // Only strip zeros from first two numeric parts (day and month)
-                // Keep the year (3rd numeric part) as-is
-                if (numericCount <= 2) {
-                    return part.replace(/^0+/, "") || "0";
-                }
-            }
-            return part;
-        })
+        year: "2-digit"
+    })
+        .map((part) => part.value)
         .join("");
+}
+
+/**
+ * Parse a date the user typed, in the form their own locale displays it.
+ *
+ * The locale's own field order is tried first, so whatever was rendered can be
+ * typed straight back. Only once that fails do we fall back to natural language
+ * ("tomorrow", "next tuesday"), which is US-ordered and would otherwise read a
+ * day-first `03/08` as the eighth of March.
+ *
+ * @param input - The text the user typed
+ * @param locale - BCP 47 locale string (defaults to browser locale)
+ * @param referenceDate - Reference date for year-less input (defaults to today)
+ * @returns ISO 8601 date string (YYYY-MM-DD) or null if nothing parsed
+ */
+export function parseLocaleDate(
+    input: string,
+    locale?: string,
+    referenceDate?: Temporal.PlainDate
+): string | null {
+    const trimmed = input.trim();
+    if (trimmed === "") return null;
+
+    const reference = referenceDate ?? Temporal.Now.plainDateISO();
+    const resolvedLocale = resolveLocale(locale);
+
+    const withYear = localeDatePattern(resolvedLocale, {
+        day: "numeric",
+        month: "numeric",
+        year: "2-digit"
+    });
+    const withoutYear = localeDatePattern(resolvedLocale, {
+        day: "numeric",
+        month: "numeric"
+    });
+
+    // A year-less entry means the reference year, not a forward-biased guess.
+    const referenceAnchor = new Date(Date.UTC(2000, reference.month - 1, reference.day));
+    referenceAnchor.setUTCFullYear(reference.year);
+
+    const candidateFormats = [
+        patternToDateFnsFormat(withYear, "yy"),
+        patternToDateFnsFormat(withYear, "yyyy"),
+        patternToDateFnsFormat(withoutYear, "yy"),
+        // ISO is unambiguous in every locale and is what we store.
+        "yyyy-MM-dd"
+    ];
+
+    for (const candidateFormat of candidateFormats) {
+        // date-fns throws on a malformed pattern; treat that as a failed parse.
+        const parsed = ((): Date | null => {
+            try {
+                return parse(trimmed, candidateFormat, referenceAnchor);
+            } catch {
+                return null;
+            }
+        })();
+
+        if (parsed && isValid(parsed)) {
+            return Temporal.PlainDate.from({
+                year: parsed.getFullYear(),
+                month: parsed.getMonth() + 1,
+                day: parsed.getDate()
+            }).toString();
+        }
+    }
+
+    return naturalLanguageDate(trimmed, referenceAnchor);
+}
+
+/**
+ * Numeric-only date input, i.e. digits and separators with no letters.
+ *
+ * Input of this shape is the locale's own form and must never reach the
+ * natural-language parser, which reads `3/8` as the eighth of March regardless
+ * of what the viewer's locale just displayed. If it did not parse above, it is
+ * an invalid date rather than a phrase.
+ */
+function isNumericDateInput(input: string): boolean {
+    return /^[\d\s./,-]+$/.test(input);
+}
+
+/**
+ * Parse natural language such as "tomorrow" or "next tuesday".
+ *
+ * @returns ISO 8601 date string (YYYY-MM-DD) or null if nothing parsed
+ */
+function naturalLanguageDate(input: string, reference: Date): string | null {
+    if (isNumericDateInput(input)) return null;
+
+    const parsed = chrono.en.GB.parseDate(input, reference);
+    if (!parsed) return null;
+
+    return Temporal.PlainDate.from({
+        year: parsed.getFullYear(),
+        month: parsed.getMonth() + 1,
+        day: parsed.getDate()
+    }).toString();
 }
 
 /**

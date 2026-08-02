@@ -5,12 +5,12 @@
  *
  * Spreadsheet-style date cell with text input and calendar popover.
  * - When blurred: Shows abbreviated date (e.g., "15/1" or "15/1/24")
- * - When focused: Shows full internationalized date for editing
- * - Supports natural language input via chrono-node (e.g., "tomorrow", "next tuesday")
+ * - When focused: Shows the same date with a two-digit year for editing
+ * - Both presentations, and date entry, follow the viewer's resolved locale
+ * - Supports natural language input (e.g., "tomorrow", "next tuesday")
  * - Calendar icon opens date picker popover
  */
 
-import { parseDate } from "chrono-node";
 import { format, parse } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
@@ -20,7 +20,11 @@ import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { formatTransactionDate } from "@/lib/utils/date-format";
+import {
+    formatDateForEditing,
+    formatTransactionDate,
+    parseLocaleDate
+} from "@/lib/utils/date-format";
 
 import { RESTING_CELL_CHROME } from "./cell-chrome";
 
@@ -37,19 +41,6 @@ export interface InlineEditableDateProps {
     disabled?: boolean;
     /** Test ID for testing */
     "data-testid"?: string;
-}
-
-/**
- * Format a Date to full internationalized display for editing.
- * Uses the browser's locale for date formatting with numeric format (e.g., 01/01/2026).
- */
-function formatDateFull(date: Date | undefined, locale?: string): string {
-    if (!date) return "";
-    return date.toLocaleDateString(locale ?? navigator.language, {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric"
-    });
 }
 
 /**
@@ -117,16 +108,16 @@ export function InlineEditableDate({
     // Format the display date using the transaction date formatter (abbreviated)
     const displayDate = value ? formatTransactionDate(value) : "";
 
-    // When focused, show full internationalized date for editing
+    // When focused, show the editing presentation: the locale's own field order
+    // and separators, with a two-digit year.
     const handleFocus = useCallback(() => {
         setIsFocused(true);
-        // Set input to full date format for editing
-        setInputValue(formatDateFull(dateValue));
+        setInputValue(value ? formatDateForEditing(value) : "");
         // Select all text after state update for spreadsheet-style navigation
         queueMicrotask(() => {
             inputRef.current?.select();
         });
-    }, [dateValue]);
+    }, [value]);
 
     // When blurred, parse input and save if valid
     const handleBlur = useCallback(() => {
@@ -135,13 +126,11 @@ export function InlineEditableDate({
         // If input is empty or unchanged, don't save
         if (!inputValue.trim()) return;
 
-        // Try to parse with chrono-node (handles natural language)
-        const parsed = parseDate(inputValue);
-        if (parsed) {
-            const isoDate = toIsoDate(parsed);
-            if (isoDate !== value) {
-                onSave(isoDate);
-            }
+        // Parse in the viewer's own locale, so whatever was displayed can be
+        // typed straight back rather than being read in US field order.
+        const isoDate = parseLocaleDate(inputValue);
+        if (isoDate && isoDate !== value) {
+            onSave(isoDate);
         }
         // Reset input value (will show abbreviated format)
         setInputValue("");
@@ -153,7 +142,8 @@ export function InlineEditableDate({
         setInputValue(newValue);
 
         // Try to parse and update calendar preview
-        const parsed = parseDate(newValue);
+        const parsedIso = parseLocaleDate(newValue);
+        const parsed = parsedIso ? fromIsoDate(parsedIso) : undefined;
         if (parsed) {
             setMonthOverride(parsed);
         }

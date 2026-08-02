@@ -6,6 +6,7 @@
  * Date range selector with preset options like "Last 14 days", "MTD", etc.
  */
 
+import { format } from "date-fns";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
@@ -30,10 +31,14 @@ export interface DateRangeFilterProps {
 }
 
 /**
- * Get date string in YYYY-MM-DD format
+ * Get date string in YYYY-MM-DD format.
+ *
+ * Reads the civil date from the local calendar rather than via `toISOString`,
+ * which converts to UTC first and so lands a day early for every viewer east
+ * of Greenwich. Range boundaries are calendar dates, not instants.
  */
 function formatDate(date: Date): string {
-    return date.toISOString().split("T")[0];
+    return format(date, "yyyy-MM-dd");
 }
 
 /**
