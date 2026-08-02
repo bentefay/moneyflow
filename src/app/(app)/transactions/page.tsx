@@ -43,6 +43,14 @@ import {
     type RobotCurrentValue
 } from "@/components/features/transactions/field-rule-robot-state";
 import {
+    isRowSelected,
+    NO_ROWS_SELECTED,
+    reconcileToMatchingRows,
+    selectedRowCount,
+    selectOnlyRow,
+    type TransactionSelection
+} from "@/components/features/transactions/table-selection";
+import {
     pendingFocusDescriptionId,
     retireFocusDescription,
     retireScroll,
@@ -187,8 +195,9 @@ function TransactionsPageContent() {
     const [revealIntent, setRevealIntent] = useState<TransactionRevealIntent | null>(null);
     const transactionTableContainerRef = useRef<HTMLDivElement>(null);
 
-    // Selection state - simple Set instead of custom hook
-    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    // Selection over the whole filtered result set, held as a baseline plus exceptions so that
+    // "every matching transaction" is a constant-size value rather than a list of every id.
+    const [selection, setSelection] = useState<TransactionSelection>(NO_ROWS_SELECTED);
 
     const lastManualCreationInstantRef = useRef<Temporal.Instant | null>(null);
 
@@ -201,7 +210,7 @@ function TransactionsPageContent() {
     );
 
     // Clear selection helper
-    const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+    const clearSelection = useCallback(() => setSelection(NO_ROWS_SELECTED), []);
 
     // Row-level presence from the shared Loro ephemeral session (HS-003). Publishing focus is a
     // side effect of navigating the table, never of rendering it, so presence cannot loop.
@@ -258,10 +267,36 @@ function TransactionsPageContent() {
         });
     }, [transactions, filters, aliasLookup]);
 
+    // Every transaction matching the active filters, in the order the table presents them. This is
+    // what selection is a property of: select-all and shift-click ranges act on it, not on the
+    // paginated slice below, so a row that is neither rendered nor paged in is still covered.
+    const filteredTransactionIds = useMemo(
+        () => filteredTransactions.map((transaction) => transaction.id),
+        [filteredTransactions]
+    );
+
+    // Changing the filters re-derives the set the header acts on and reports: a row that has left
+    // the result set drops out, and a row that has only just entered it stays unselected — the user
+    // never selected it, and a relaxed filter must not select rows on their behalf. Adjusting
+    // during render (React's documented pattern, as with `landedSourceId` below) keeps this off the
+    // per-toggle path: it costs anything only when the matching set itself changes, never on a
+    // click.
+    const [matchingIdsAtSelection, setMatchingIdsAtSelection] = useState(filteredTransactionIds);
+    if (matchingIdsAtSelection !== filteredTransactionIds) {
+        setSelection((currentSelection) =>
+            reconcileToMatchingRows(
+                currentSelection,
+                matchingIdsAtSelection,
+                filteredTransactionIds
+            )
+        );
+        setMatchingIdsAtSelection(filteredTransactionIds);
+    }
+
     // "View transaction" from the People page carries one stable source ID. It is a one-shot
     // navigation intent, not a standing selection override: the row is paged in, selected and
     // revealed exactly once, and the param is then dropped from the URL. Every later render — and
-    // therefore every bulk action — derives selection from `selectedIds` alone, so the landed row
+    // therefore every bulk action — derives selection from `selection` alone, so the landed row
     // can be deselected like any other row. Matching is on the stable ID, never a row index, so the
     // target survives filtering, pagination and reordering.
     //
@@ -286,7 +321,7 @@ function TransactionsPageContent() {
         setDisplayCount((currentDisplayCount) =>
             Math.max(currentDisplayCount, requiredDisplayCount)
         );
-        setSelectedIds(new Set([requestedTransactionId]));
+        setSelection(selectOnlyRow(requestedTransactionId));
         setRevealIntent(revealExistingTransaction(requestedTransactionId));
     }
 
@@ -295,18 +330,22 @@ function TransactionsPageContent() {
         () => filteredTransactions.slice(0, displayCount),
         [filteredTransactions, displayCount]
     );
-    const displayedTransactionIds = useMemo(
-        () => new Set(displayedTransactions.map((transaction) => transaction.id)),
-        [displayedTransactions]
-    );
-    const selectedTransactionIds = useMemo(
-        () => new Set([...selectedIds].filter((id) => displayedTransactionIds.has(id))),
-        [displayedTransactionIds, selectedIds]
-    );
-    const selectedCount = selectedTransactionIds.size;
+    // Constant time, whatever the size of the result set: the count is a subtraction against the
+    // baseline, never a scan of the matching rows.
+    const selectedCount = selectedRowCount(selection, filteredTransactionIds.length);
     const hasMore = displayCount < filteredTransactions.length;
 
-    // Selection-driven actions must never target a transaction outside the displayed page.
+    // Every selected transaction, rendered or not, resolved once per bulk action rather than by a
+    // linear `find` per selected id. Deliberately a callback and not a memo: enumerating is the one
+    // selection operation whose cost is the size of the result set, and a bulk action is the only
+    // moment that cost is unavoidable — rendering, toggling and the header's own state must not pay
+    // it. Filtering `filteredTransactions` directly keeps the rows in the table's own order.
+    const collectSelectedTransactions = useCallback(
+        (): readonly Transaction[] =>
+            filteredTransactions.filter((transaction) => isRowSelected(selection, transaction.id)),
+        [filteredTransactions, selection]
+    );
+
     useEffect(() => {
         if (selectedCount > LARGE_SELECTION_THRESHOLD) {
             toast({
@@ -589,21 +628,13 @@ function TransactionsPageContent() {
             anchorClassName: string | undefined,
             style: React.CSSProperties | undefined
         ): React.ReactNode => {
-            // The unwrapped form renders the SAME element the proposal's anchor does, so a cell's
-            // subtree keeps its shape whether or not the controls are showing and never remounts.
-            const wrapped = (
-                <div className={anchorClassName} style={style}>
-                    {cell}
-                </div>
-            );
             const entry = robotContextById.get(transactionId);
-            if (
-                entry == null ||
-                pendingRuleEdit == null ||
-                pendingRuleEdit.transactionId !== transactionId ||
-                pendingRuleEdit.field !== field
-            ) {
-                return wrapped;
+            if (entry == null) {
+                return (
+                    <div className={anchorClassName} style={style}>
+                        {cell}
+                    </div>
+                );
             }
 
             const current: RobotCurrentValue =
@@ -613,6 +644,15 @@ function TransactionsPageContent() {
                       ? { field: "tags", currentTagIds: entry.currentTagIds }
                       : { field: "allocation", currentAllocations: entry.currentAllocations };
 
+            // ONE element type at this position, whether or not this cell is the pending edit.
+            //
+            // React reconciles by element type per position, so returning a bare `div` in one state
+            // and a `TransactionRuleProposal` in the other would unmount and remount the entire
+            // subtree — including the cell being edited — every time `pendingRuleEdit` flips. That
+            // is exactly what closed the tag dropdown mid-edit in revision 01: the flip happens on
+            // the dropdown's own `onSave`, while it is still open. Passing `isPending` instead of
+            // branching keeps the element type stable, so the cell is never remounted and the
+            // dropdown, caret and selection all survive.
             return (
                 <TransactionRuleProposal
                     accountLabel={entry.accountLabel}
@@ -621,6 +661,11 @@ function TransactionsPageContent() {
                     anchorStyle={style}
                     current={current}
                     isEditing={context.isEditing}
+                    isPending={
+                        pendingRuleEdit != null &&
+                        pendingRuleEdit.transactionId === transactionId &&
+                        pendingRuleEdit.field === field
+                    }
                     onDismiss={clearPendingRuleEdit}
                     referenceDate={entry.referenceDate}
                     subject={entry.subject}
@@ -728,123 +773,104 @@ function TransactionsPageContent() {
 
     // Handle bulk delete - uses deleteTransaction mutation
     const handleBulkDelete = useCallback(() => {
-        // We need transaction locations for the new delete mutation
-        // For now, find each transaction and delete it
-        for (const id of selectedTransactionIds) {
-            const tx = transactions.find((t) => t.id === id);
-            if (tx) {
-                deleteTransaction({
-                    location: {
-                        accountId: tx.accountId,
-                        date: tx.date,
-                        transactionId: tx.id
-                    }
-                });
-            }
+        for (const tx of collectSelectedTransactions()) {
+            deleteTransaction({
+                location: {
+                    accountId: tx.accountId,
+                    date: tx.date,
+                    transactionId: tx.id
+                }
+            });
         }
         clearSelection();
-    }, [selectedTransactionIds, transactions, deleteTransaction, clearSelection]);
+    }, [collectSelectedTransactions, deleteTransaction, clearSelection]);
 
     // Handle bulk set tags
     const handleBulkSetTags = useCallback(
         (tagIds: string[]) => {
-            for (const id of selectedTransactionIds) {
-                const tx = transactions.find((t) => t.id === id);
-                if (tx) {
-                    updateTransaction({
-                        location: {
-                            accountId: tx.accountId,
-                            date: tx.date,
-                            transactionId: tx.id
-                        },
-                        updates: { tagIds }
-                    });
-                }
+            for (const tx of collectSelectedTransactions()) {
+                updateTransaction({
+                    location: {
+                        accountId: tx.accountId,
+                        date: tx.date,
+                        transactionId: tx.id
+                    },
+                    updates: { tagIds }
+                });
             }
         },
-        [selectedTransactionIds, transactions, updateTransaction]
+        [collectSelectedTransactions, updateTransaction]
     );
 
     // Handle bulk set status
     const handleBulkSetStatus = useCallback(
         (statusId: string) => {
-            for (const id of selectedTransactionIds) {
-                const tx = transactions.find((t) => t.id === id);
-                if (tx) {
-                    updateTransaction({
-                        location: {
-                            accountId: tx.accountId,
-                            date: tx.date,
-                            transactionId: tx.id
-                        },
-                        updates: { statusId }
-                    });
-                }
+            for (const tx of collectSelectedTransactions()) {
+                updateTransaction({
+                    location: {
+                        accountId: tx.accountId,
+                        date: tx.date,
+                        transactionId: tx.id
+                    },
+                    updates: { statusId }
+                });
             }
         },
-        [selectedTransactionIds, transactions, updateTransaction]
+        [collectSelectedTransactions, updateTransaction]
     );
 
     // Handle bulk set account - uses moveTransaction for account changes
     const handleBulkSetAccount = useCallback(
         (accountId: string) => {
-            for (const id of selectedTransactionIds) {
-                const tx = transactions.find((t) => t.id === id);
-                if (tx && tx.accountId !== accountId) {
-                    // Account change requires move since it's a different tree
-                    moveTransaction({
-                        location: {
-                            accountId: tx.accountId,
-                            date: tx.date,
-                            transactionId: tx.id
-                        },
-                        newDate: tx.date,
-                        newAccountId: accountId
-                    });
-                }
+            for (const tx of collectSelectedTransactions()) {
+                if (tx.accountId === accountId) continue;
+                // Account change requires move since it's a different tree
+                moveTransaction({
+                    location: {
+                        accountId: tx.accountId,
+                        date: tx.date,
+                        transactionId: tx.id
+                    },
+                    newDate: tx.date,
+                    newAccountId: accountId
+                });
             }
         },
-        [selectedTransactionIds, transactions, moveTransaction]
+        [collectSelectedTransactions, moveTransaction]
     );
 
     // Handle bulk set notes
     const handleBulkSetNotes = useCallback(
         (notes: string) => {
-            for (const id of selectedTransactionIds) {
-                const tx = transactions.find((t) => t.id === id);
-                if (tx) {
-                    updateTransaction({
-                        location: {
-                            accountId: tx.accountId,
-                            date: tx.date,
-                            transactionId: tx.id
-                        },
-                        updates: { notes }
-                    });
-                }
+            for (const tx of collectSelectedTransactions()) {
+                updateTransaction({
+                    location: {
+                        accountId: tx.accountId,
+                        date: tx.date,
+                        transactionId: tx.id
+                    },
+                    updates: { notes }
+                });
             }
         },
-        [selectedTransactionIds, transactions, updateTransaction]
+        [collectSelectedTransactions, updateTransaction]
     );
 
     // Handle bulk set amount
     const handleBulkSetAmount = useCallback(
         (amount: number) => {
-            for (const id of selectedTransactionIds) {
-                const tx = transactions.find((t) => t.id === id);
-                if (tx) {
-                    updateTransaction({
-                        location: {
-                            accountId: tx.accountId,
-                            date: tx.date,
-                            transactionId: tx.id
-                        },
-                        updates: { amount: asMinorUnits(amount) }
-                    });
-                }
+            for (const tx of collectSelectedTransactions()) {
+                updateTransaction({
+                    location: {
+                        accountId: tx.accountId,
+                        date: tx.date,
+                        transactionId: tx.id
+                    },
+                    updates: { amount: asMinorUnits(amount) }
+                });
             }
         },
-        [selectedTransactionIds, transactions, updateTransaction]
+        [collectSelectedTransactions, updateTransaction]
     );
 
     // Handle creating a new tag
@@ -1052,16 +1078,11 @@ function TransactionsPageContent() {
                     }
                 });
             }
-            // Clear selection if the deleted transaction was selected
-            if (selectedTransactionIds.has(id)) {
-                setSelectedIds((prev) => {
-                    const newSelection = new Set(prev);
-                    newSelection.delete(id);
-                    return newSelection;
-                });
-            }
+            // Nothing to do to the selection here: the deleted row leaves `filteredTransactions`,
+            // so the reconciliation above drops it under either baseline. Clearing it a second time
+            // by id would be a weaker duplicate of that one mechanism.
         },
-        [transactions, deleteTransaction, selectedTransactionIds]
+        [transactions, deleteTransaction]
     );
 
     // Handle resolve duplicate (unnest from parent)
@@ -1302,7 +1323,8 @@ function TransactionsPageContent() {
                     resolveMemberName={resolveMemberName}
                     onTransactionFieldFocus={handleTransactionFieldFocus}
                     onTransactionBlur={clearPresenceFocus}
-                    selectedIds={selectedTransactionIds}
+                    matchingRowIds={filteredTransactionIds}
+                    selection={selection}
                     availableAccounts={accountOptions}
                     availableStatuses={statusOptionsForInlineEdit}
                     availableTags={tagOptionsForInlineEdit}
@@ -1310,7 +1332,7 @@ function TransactionsPageContent() {
                     availableAliases={availableAliasOptions}
                     onDescriptionCommitText={handleDescriptionCommitText}
                     onDescriptionSelectAlias={handleDescriptionSelectAlias}
-                    onSelectionChange={setSelectedIds}
+                    onSelectionChange={setSelection}
                     focusDescriptionTransactionId={focusDescriptionTransactionId}
                     onFocusDescriptionApplied={handleFocusDescriptionApplied}
                     onLoadMore={handleLoadMore}

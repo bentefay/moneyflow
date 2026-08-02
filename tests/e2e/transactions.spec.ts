@@ -2082,6 +2082,221 @@ test.describe("Transactions", () => {
                 await expect(rows.nth(3)).toHaveAttribute("aria-selected", "false");
             });
         });
+
+        test("T021d: UR-010 shift-click deselects a range begun by deselecting", async ({
+            page
+        }) => {
+            await createNewIdentity(page);
+            await goToTransactions(page);
+
+            await test.step("create four transactions and select every one", async () => {
+                await createTestTransaction(page, { description: "Symmetry 1", amount: "-10.00" });
+                await createTestTransaction(page, { description: "Symmetry 2", amount: "-20.00" });
+                await createTestTransaction(page, { description: "Symmetry 3", amount: "-30.00" });
+                await createTestTransaction(page, { description: "Symmetry 4", amount: "-40.00" });
+                await expect(page.getByText("4 transactions", { exact: true })).toBeVisible();
+
+                await toggleCheckbox(
+                    page.getByRole("checkbox", { name: "Select all transactions" })
+                );
+                await expect(page.getByText(/4 selected/i).first()).toBeVisible();
+            });
+
+            const rows = page.locator('[data-testid="transaction-row"]');
+
+            await test.step("deselect the second row, making it a deselecting anchor", async () => {
+                await toggleCheckbox(rows.nth(1).locator('[data-testid="row-checkbox"] button'));
+                await expect(rows.nth(1)).toHaveAttribute("aria-selected", "false");
+                await expect(page.getByText(/3 selected/i).first()).toBeVisible();
+            });
+
+            await test.step("shift-click the third row and require the range to be DEselected", async () => {
+                // The assertion that distinguishes the fix from the defect: before UR-010 the range
+                // branch could only add rows, so this gesture left rows 2 and 3 selected.
+                await toggleCheckbox(rows.nth(2).locator('[data-testid="row-checkbox"] button'), [
+                    "Shift"
+                ]);
+
+                await expect(rows.nth(1)).toHaveAttribute("aria-selected", "false");
+                await expect(rows.nth(2)).toHaveAttribute("aria-selected", "false");
+
+                // Rows outside the range keep the state they had, which is what separates
+                // "deselected the range" from "cleared the selection".
+                await expect(rows.nth(0)).toHaveAttribute("aria-selected", "true");
+                await expect(rows.nth(3)).toHaveAttribute("aria-selected", "true");
+                await expect(page.getByText(/2 selected/i).first()).toBeVisible();
+            });
+
+            await test.step("the clicked row is the new anchor, so the next shift-click continues deselecting", async () => {
+                await toggleCheckbox(rows.nth(3).locator('[data-testid="row-checkbox"] button'), [
+                    "Shift"
+                ]);
+
+                await expect(rows.nth(3)).toHaveAttribute("aria-selected", "false");
+                await expect(rows.nth(0)).toHaveAttribute("aria-selected", "true");
+                await expect(page.getByText(/1 selected/i).first()).toBeVisible();
+            });
+        });
+
+        test("T021e: UR-010 keyboard range selection follows the same rule as the pointer", async ({
+            page
+        }) => {
+            await createNewIdentity(page);
+            await goToTransactions(page);
+
+            await test.step("create four transactions", async () => {
+                await createTestTransaction(page, { description: "Keys 1", amount: "-10.00" });
+                await createTestTransaction(page, { description: "Keys 2", amount: "-20.00" });
+                await createTestTransaction(page, { description: "Keys 3", amount: "-30.00" });
+                await createTestTransaction(page, { description: "Keys 4", amount: "-40.00" });
+                await expect(page.getByText("4 transactions", { exact: true })).toBeVisible();
+            });
+
+            const rows = page.locator('[data-testid="transaction-row"]');
+
+            await test.step("select a range from the keyboard alone", async () => {
+                await rows.nth(0).locator('[data-testid="row-checkbox"] button').focus();
+                await page.keyboard.press("Space");
+                await expect(rows.nth(0)).toHaveAttribute("aria-selected", "true");
+
+                await rows.nth(2).locator('[data-testid="row-checkbox"] button').focus();
+                await page.keyboard.press("Shift+Space");
+
+                await expect(rows.nth(0)).toHaveAttribute("aria-selected", "true");
+                await expect(rows.nth(1)).toHaveAttribute("aria-selected", "true");
+                await expect(rows.nth(2)).toHaveAttribute("aria-selected", "true");
+                await expect(rows.nth(3)).toHaveAttribute("aria-selected", "false");
+            });
+
+            await test.step("deselect a range from the keyboard, symmetrically", async () => {
+                // Same gesture, opposite direction: the keyboard path must not be a select-only
+                // shortcut while the pointer gesture deselects.
+                await rows.nth(0).locator('[data-testid="row-checkbox"] button').focus();
+                await page.keyboard.press("Space");
+                await expect(rows.nth(0)).toHaveAttribute("aria-selected", "false");
+
+                await rows.nth(1).locator('[data-testid="row-checkbox"] button').focus();
+                await page.keyboard.press("Shift+Space");
+
+                await expect(rows.nth(0)).toHaveAttribute("aria-selected", "false");
+                await expect(rows.nth(1)).toHaveAttribute("aria-selected", "false");
+                await expect(rows.nth(2)).toHaveAttribute("aria-selected", "true");
+            });
+        });
+
+        test("T021f: UR-011 header checkbox selects rows beyond the loaded page", async ({
+            page
+        }) => {
+            await createNewIdentity(page);
+
+            await test.step("import 500 transactions, far beyond one 50-row page", async () => {
+                await goToImportNew(page);
+                await page.locator('input[type="file"]').setInputFiles({
+                    name: "select-all-transactions.csv",
+                    mimeType: "text/csv",
+                    buffer: Buffer.from(createLargeTransactionCSV(500))
+                });
+
+                await expect(page.getByText("CSV • 501 rows", { exact: true })).toBeVisible({
+                    timeout: 10_000
+                });
+                await page.getByRole("tab", { name: /Columns/i }).click();
+                await page.getByRole("button", { name: /Auto-detect/i }).click();
+                await expect(page.getByText(/All required fields mapped/i)).toBeVisible();
+
+                await page.getByRole("tab", { name: /Account/i }).click();
+                await page.locator("#account-select").click();
+                await page.getByRole("option", { name: /Default/i }).click();
+
+                const importButton = page.getByRole("button", {
+                    name: /Import 500 Transactions/i
+                });
+                await expect(importButton).toBeEnabled();
+                await importButton.click();
+                await expect(page).toHaveURL(/\/transactions/);
+                await expect(page.getByText("500 transactions", { exact: true })).toBeVisible({
+                    timeout: 15_000
+                });
+            });
+
+            await test.step("the table renders only a fraction of the matching rows", async () => {
+                // The premise: virtualization means most matching rows have no element at all, so
+                // an implementation covering "what is rendered" would cover a few dozen rows.
+                expect(await page.getByTestId("transaction-row").count()).toBeLessThan(60);
+            });
+
+            await test.step("selecting all reports every matching transaction, not the page", async () => {
+                await toggleCheckbox(
+                    page.getByRole("checkbox", { name: "Select all transactions" })
+                );
+
+                // 500, not 50: the count is over the filtered result set.
+                await expect(page.getByText(/500 selected/i).first()).toBeVisible();
+                await expect(page.getByTestId("bulk-edit-toolbar")).toContainText("Edit 500");
+            });
+
+            await test.step("a bulk action reaches a row that was never rendered", async () => {
+                // Row 0499 sorts last and is neither rendered nor within the first loaded page.
+                await page.getByTestId("bulk-edit-status-button").click();
+                await page.getByRole("button", { name: /^paid$/i }).click();
+
+                // Filtering to that one far row is how its value is read without scrolling: the
+                // row had no element when the bulk action ran.
+                await page
+                    .getByPlaceholder(/search transactions/i)
+                    .fill("Virtual Transaction 0499");
+                await expect(page.getByTestId("transaction-table-toolbar")).toContainText(
+                    "1 transaction (filtered)"
+                );
+                await expect(page.getByTestId("transaction-row")).toHaveCount(1);
+
+                const farRow = page.getByTestId("transaction-row").first();
+                await expect(farRow.locator('[data-testid="status-editable"]')).toContainText(
+                    "Paid"
+                );
+            });
+        });
+
+        test("T021g: UR-011 changing the filters re-derives what the header acts on", async ({
+            page
+        }) => {
+            await createNewIdentity(page);
+            await goToTransactions(page);
+
+            await test.step("create rows that a filter can split", async () => {
+                await createTestTransaction(page, { description: "Alpha One", amount: "-10.00" });
+                await createTestTransaction(page, { description: "Alpha Two", amount: "-20.00" });
+                await createTestTransaction(page, { description: "Beta One", amount: "-30.00" });
+                await expect(page.getByText("3 transactions", { exact: true })).toBeVisible();
+            });
+
+            const toolbar = page.getByTestId("transaction-table-toolbar");
+
+            await test.step("select all within a filter and confirm it covers only matches", async () => {
+                await page.getByPlaceholder(/search transactions/i).fill("Alpha");
+                await expect(toolbar).toContainText("2 transactions (filtered)");
+
+                await toggleCheckbox(
+                    page.getByRole("checkbox", { name: "Select all transactions" })
+                );
+                await expect(toolbar).toContainText("2 selected");
+            });
+
+            await test.step("clearing the filter re-derives the header against the wider set", async () => {
+                await page.getByPlaceholder(/search transactions/i).fill("");
+                await expect(toolbar).toContainText("3 transactions");
+
+                // Two of three selected, so the header is mixed rather than fully checked. The
+                // relaxed filter must not have swept the third row in — the user never selected it,
+                // and a bulk delete that acquired it would destroy data they never pointed at.
+                await expect(toolbar).toContainText("2 selected");
+                const headerCheckbox = page.locator('[data-testid="header-checkbox"] button');
+                await expect(headerCheckbox).toHaveAttribute("aria-checked", "mixed");
+
+                const betaRow = page.getByRole("row", { name: /Beta One/ });
+                await expect(betaRow).toHaveAttribute("aria-selected", "false");
+            });
+        });
     });
 
     // ============================================================================

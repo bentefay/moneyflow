@@ -15,6 +15,28 @@ export {
     type TransactionRowPresence,
     type TransactionRowProps
 } from "./TransactionRow";
+export {
+    ALL_MATCHING_ROWS_SELECTED,
+    anchorMatchesSelection,
+    findRowRange,
+    isRowSelected,
+    NO_ROWS_SELECTED,
+    reconcileToMatchingRows,
+    rowIdsInRange,
+    type SelectionAnchor,
+    type SelectionBaseline,
+    type SelectionHeaderState,
+    type SelectionOutcome,
+    type SelectionRange,
+    selectedRowCount,
+    selectedRowIdsWithin,
+    selectionHeaderState,
+    selectOnlyRow,
+    setRowsSelected,
+    singleSelectedRowId,
+    toggleRowSelected,
+    type TransactionSelection
+} from "./table-selection";
 export { TransactionTable, type TransactionTableProps } from "./TransactionTable";
 export {
     pendingFocusDescriptionId,

@@ -1,147 +1,128 @@
 import { useCallback, useMemo, useState } from "react";
 
+import {
+    ALL_MATCHING_ROWS_SELECTED,
+    anchorMatchesSelection,
+    findRowRange,
+    isRowSelected,
+    NO_ROWS_SELECTED,
+    rowIdsInRange,
+    type SelectionAnchor,
+    type SelectionHeaderState,
+    selectedRowCount,
+    selectionHeaderState,
+    setRowsSelected,
+    type TransactionSelection
+} from "../table-selection";
+
 export interface UseTableSelectionOptions {
-    /** All transaction IDs matching current filter (not just visible/rendered rows) */
-    filteredIds: string[];
-    /** Externally controlled selected IDs (read-only; the hook never mutates it) */
-    selectedIds: ReadonlySet<string>;
-    /** Callback when selection changes */
-    onSelectionChange?: (selectedIds: Set<string>) => void;
+    /**
+     * Every row matching the active filters, in the order the table currently presents them — not
+     * only the rows that happen to be rendered or paged in. Selection is a property of this set.
+     */
+    matchingRowIds: readonly string[];
+    /** Externally controlled selection (read-only; the hook never mutates it) */
+    selection: TransactionSelection;
+    /** Callback when the selection changes */
+    onSelectionChange?: (selection: TransactionSelection) => void;
 }
 
 export interface UseTableSelectionReturn {
-    /** Last selected ID (for shift-click range selection) */
-    lastSelectedId: string | null;
-    /** Whether all filtered transactions are selected */
+    /** The row a further shift-click extends from, and what was done to it */
+    anchor: SelectionAnchor | null;
+    /** Tri-state of the header checkbox over the whole filtered result set */
+    headerState: SelectionHeaderState;
+    /** Whether every matching row is selected */
     isAllSelected: boolean;
-    /** Whether some (but not all) filtered transactions are selected */
+    /** Whether some (but not all) matching rows are selected */
     isSomeSelected: boolean;
-    /** Number of selected transactions */
+    /** Number of selected matching rows */
     selectedCount: number;
-    /** Toggle select-all (selects all filtered if not all selected, clears if all selected) */
+    /** Toggle select-all over every matching row, rendered or not */
     selectAll: () => void;
-    /** Toggle single row selection (with optional shift key for range selection) */
+    /** Toggle a single row, or extend the anchor's outcome across a range when shift is held */
     toggleRow: (id: string, shiftKey?: boolean) => void;
-    /** Clear all selection */
+    /** Clear the selection entirely */
     clearSelection: () => void;
 }
 
 /**
- * Hook for managing table selection state across virtualized rows.
- * This is a controlled hook - selection state is owned by the parent.
- * Tracks selection by ID, not by rendered row index, so selection
- * persists when scrolling through virtualized content.
+ * Hook for managing transaction-table selection across virtualized, paginated rows.
+ *
+ * This is a controlled hook — the selection is owned by the parent and expressed as a baseline plus
+ * exceptions (see `table-selection.ts`), so selecting every matching row costs the same whether the
+ * filters match five rows or a hundred thousand, and neither the selection nor the header's own
+ * state is derived by scanning what is on screen.
  *
  * Supports:
  * - Individual row selection
- * - Select-all for filtered rows (not just visible)
- * - Shift-click range selection
- * - Indeterminate state (some selected)
+ * - Select-all across the whole filtered result set, not just the rendered rows
+ * - Shift-click range selection that extends selection and deselection symmetrically
+ * - Indeterminate header state
  */
 export function useTableSelection({
-    filteredIds,
-    selectedIds,
+    matchingRowIds,
+    selection,
     onSelectionChange
 }: UseTableSelectionOptions): UseTableSelectionReturn {
-    // Track last selected ID for shift-click range selection
-    const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
+    // The anchor carries what was done to the row as well as which row it was: a range gesture has
+    // to apply the anchor's own outcome, and the row's identity alone cannot say what that was.
+    const [anchor, setAnchor] = useState<SelectionAnchor | null>(null);
 
-    // Compute derived state from controlled selectedIds
-    const { isAllSelected, isSomeSelected, selectedCount } = useMemo(() => {
-        const count = selectedIds.size;
-        const filteredCount = filteredIds.length;
-
-        // Check how many of the filtered IDs are selected
-        let selectedInFiltered = 0;
-        for (const id of filteredIds) {
-            if (selectedIds.has(id)) {
-                selectedInFiltered++;
-            }
-        }
-
+    const { headerState, selectedCount } = useMemo(() => {
+        const matchingRowCount = matchingRowIds.length;
         return {
-            isAllSelected: filteredCount > 0 && selectedInFiltered === filteredCount,
-            isSomeSelected: selectedInFiltered > 0 && selectedInFiltered < filteredCount,
-            selectedCount: count
+            headerState: selectionHeaderState(selection, matchingRowCount),
+            selectedCount: selectedRowCount(selection, matchingRowCount)
         };
-    }, [selectedIds, filteredIds]);
+    }, [selection, matchingRowIds]);
 
-    // Toggle select-all
     const selectAll = useCallback(() => {
-        console.log("[useTableSelection] selectAll called:", {
-            isAllSelected,
-            filteredIdsCount: filteredIds.length,
-            selectedIdsCount: selectedIds.size
-        });
-        if (isAllSelected) {
-            // Deselect all filtered
-            const newIds = new Set(selectedIds);
-            for (const id of filteredIds) {
-                newIds.delete(id);
-            }
-            console.log(
-                "[useTableSelection] deselecting all, calling onSelectionChange with:",
-                newIds.size,
-                "items"
-            );
-            onSelectionChange?.(newIds);
-        } else {
-            // Select all filtered
-            const newIds = new Set(selectedIds);
-            for (const id of filteredIds) {
-                newIds.add(id);
-            }
-            console.log(
-                "[useTableSelection] selecting all, calling onSelectionChange with:",
-                newIds.size,
-                "items"
-            );
-            onSelectionChange?.(newIds);
-        }
-        setLastSelectedId(null);
-    }, [isAllSelected, selectedIds, filteredIds, onSelectionChange]);
+        onSelectionChange?.(headerState === "all" ? NO_ROWS_SELECTED : ALL_MATCHING_ROWS_SELECTED);
+        setAnchor(null);
+    }, [headerState, onSelectionChange]);
 
-    // Toggle single row (with optional shift for range)
     const toggleRow = useCallback(
         (id: string, shiftKey?: boolean) => {
-            const newIds = new Set(selectedIds);
+            // A stale anchor — one whose row no longer holds the outcome it recorded, because the
+            // selection was cleared or replaced from elsewhere — describes nothing to extend, so
+            // the gesture degrades to an ordinary single toggle rather than extending a fiction.
+            const range =
+                shiftKey && anchor != null && anchorMatchesSelection(anchor, selection)
+                    ? findRowRange(matchingRowIds, anchor.rowId, id)
+                    : null;
 
-            if (shiftKey && lastSelectedId !== null) {
-                // Range selection: select all between lastSelectedId and id
-                const startIdx = filteredIds.indexOf(lastSelectedId);
-                const endIdx = filteredIds.indexOf(id);
-
-                if (startIdx !== -1 && endIdx !== -1) {
-                    const [from, to] = startIdx < endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
-                    for (let i = from; i <= to; i++) {
-                        newIds.add(filteredIds[i]);
-                    }
-                }
-            } else {
-                // Single toggle
-                if (newIds.has(id)) {
-                    newIds.delete(id);
-                } else {
-                    newIds.add(id);
-                }
+            if (range != null && anchor != null) {
+                onSelectionChange?.(
+                    setRowsSelected(
+                        selection,
+                        rowIdsInRange(matchingRowIds, range),
+                        anchor.outcome === "selected"
+                    )
+                );
+                // The clicked row becomes the new anchor, carrying the outcome the range applied,
+                // so a further shift-click extends the same direction from it.
+                setAnchor({ rowId: id, outcome: anchor.outcome });
+                return;
             }
 
-            onSelectionChange?.(newIds);
-            setLastSelectedId(id);
+            const nowSelected = !isRowSelected(selection, id);
+            onSelectionChange?.(setRowsSelected(selection, [id], nowSelected));
+            setAnchor({ rowId: id, outcome: nowSelected ? "selected" : "deselected" });
         },
-        [selectedIds, lastSelectedId, filteredIds, onSelectionChange]
+        [anchor, matchingRowIds, onSelectionChange, selection]
     );
 
-    // Clear all selection
     const clearSelection = useCallback(() => {
-        onSelectionChange?.(new Set());
-        setLastSelectedId(null);
+        onSelectionChange?.(NO_ROWS_SELECTED);
+        setAnchor(null);
     }, [onSelectionChange]);
 
     return {
-        lastSelectedId,
-        isAllSelected,
-        isSomeSelected,
+        anchor,
+        headerState,
+        isAllSelected: headerState === "all",
+        isSomeSelected: headerState === "some",
         selectedCount,
         selectAll,
         toggleRow,

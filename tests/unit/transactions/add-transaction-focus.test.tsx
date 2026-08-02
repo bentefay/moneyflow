@@ -19,6 +19,10 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+    NO_ROWS_SELECTED,
+    setRowsSelected
+} from "@/components/features/transactions/table-selection";
+import {
     pendingFocusDescriptionId,
     retireFocusDescription,
     retireScroll,
@@ -198,7 +202,11 @@ describe("transaction table description focus", () => {
         render(
             <TransactionTable
                 transactions={createTransactions(3)}
-                selectedIds={new Set(["transaction-0", "transaction-2"])}
+                selection={setRowsSelected(
+                    NO_ROWS_SELECTED,
+                    ["transaction-0", "transaction-2"],
+                    true
+                )}
                 onSelectionChange={onSelectionChange}
                 focusDescriptionTransactionId="transaction-1"
             />

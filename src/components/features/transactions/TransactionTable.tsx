@@ -21,6 +21,12 @@ import type { DescriptionAliasEditOrigin } from "./cells/InlineEditableDescripti
 import { useGridCellNavigation } from "./hooks/useGridCellNavigation";
 import { useTableSelection } from "./hooks/useTableSelection";
 import {
+    isRowSelected,
+    NO_ROWS_SELECTED,
+    singleSelectedRowId,
+    type TransactionSelection
+} from "./table-selection";
+import {
     TransactionRow,
     type TransactionRowData,
     type TransactionRowPresence
@@ -36,21 +42,28 @@ export const TRANSACTION_GRID_TEMPLATE = buildTransactionGridTemplate(0);
 /**
  * Stable empty selection.
  *
- * A `new Set()` default parameter allocates on every render, and the selection feeds the document
- * keydown effect's dependency list — a fresh identity tore the listener down and re-added it on
- * every render of the virtualized table.
+ * The selection feeds the document keydown effect's dependency list, so a default that allocated per
+ * render would tear the listener down and re-add it on every render of the virtualized table.
+ * `NO_ROWS_SELECTED` is a module constant, so an uncontrolled table keeps one identity throughout.
  */
-const EMPTY_SELECTION: ReadonlySet<string> = new Set();
+const EMPTY_SELECTION = NO_ROWS_SELECTED;
 
 export interface TransactionTableProps {
-    /** Array of transactions to display */
+    /** Rows to render: the currently loaded page of the filtered result set */
     transactions: TransactionRowData[];
+    /**
+     * Every transaction ID matching the active filters, in the order the table presents them —
+     * including rows not rendered and rows beyond the loaded page. Select-all and shift-click
+     * ranges act on this set, so it must not be narrowed to {@link TransactionTableProps.transactions}.
+     * Defaults to the rendered rows' IDs when the caller has no wider set.
+     */
+    matchingRowIds?: readonly string[];
     /** Presence data keyed by transaction ID */
     presenceByTransactionId?: Record<string, TransactionRowPresence>;
     /** Resolves a member's pubkeyHash to their display name for row presence UI (UR-003) */
     resolveMemberName?: (pubkeyHash: string) => MemberDisplayName;
-    /** Currently selected transaction IDs */
-    selectedIds?: ReadonlySet<string>;
+    /** Current selection over the whole filtered result set */
+    selection?: TransactionSelection;
     /** Available accounts for inline editing */
     availableAccounts?: AccountOption[];
     /** Available statuses for inline editing */
@@ -74,7 +87,7 @@ export interface TransactionTableProps {
         origin: DescriptionAliasEditOrigin
     ) => void;
     /** Callback when selection changes */
-    onSelectionChange?: (ids: Set<string>) => void;
+    onSelectionChange?: (selection: TransactionSelection) => void;
     /**
      * Stable ID of a transaction whose description input should take keyboard focus as soon as its
      * row mounts. The table pins that row into the virtual range so a row outside the visible
@@ -230,9 +243,10 @@ function EmptyState() {
  */
 export function TransactionTable({
     transactions,
+    matchingRowIds,
     presenceByTransactionId = {},
     resolveMemberName,
-    selectedIds = EMPTY_SELECTION,
+    selection = EMPTY_SELECTION,
     availableAccounts = [],
     availableStatuses = [],
     availableTags = [],
@@ -283,8 +297,10 @@ export function TransactionTable({
         [onTransactionBlur]
     );
 
-    // Extract transaction IDs for selection hook
-    const filteredIds = useMemo(() => transactions.map((t) => t.id), [transactions]);
+    // Selection acts on every row matching the filters. Only when the caller has no wider set does
+    // it fall back to the rendered rows, and the fallback is derived once rather than per render.
+    const renderedRowIds = useMemo(() => transactions.map((t) => t.id), [transactions]);
+    const selectableRowIds = matchingRowIds ?? renderedRowIds;
     const transactionIndexById = useMemo(
         () => new Map(transactions.map((transaction, index) => [transaction.id, index])),
         [transactions]
@@ -312,10 +328,10 @@ export function TransactionTable({
     );
 
     // Use table selection hook for managing selection actions
-    // The hook is controlled - it receives selectedIds from parent and calls onSelectionChange
+    // The hook is controlled - it receives the selection from parent and calls onSelectionChange
     const { isAllSelected, isSomeSelected, selectAll, toggleRow } = useTableSelection({
-        filteredIds,
-        selectedIds,
+        matchingRowIds: selectableRowIds,
+        selection,
         onSelectionChange
     });
 
@@ -323,8 +339,7 @@ export function TransactionTable({
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
             // Only handle if we have a focused/selected transaction
-            const targetId =
-                focusedId || (selectedIds.size === 1 ? Array.from(selectedIds)[0] : null);
+            const targetId = focusedId || singleSelectedRowId(selection, selectableRowIds);
             if (!targetId) return;
 
             // Only handle keys pressed while focus is inside the grid — a bare "d" or Backspace
@@ -376,7 +391,7 @@ export function TransactionTable({
                     // Clear selection
                     event.preventDefault();
                     setFocusedId(null);
-                    onSelectionChange?.(new Set());
+                    onSelectionChange?.(NO_ROWS_SELECTED);
                     break;
             }
         };
@@ -385,7 +400,8 @@ export function TransactionTable({
         return () => document.removeEventListener("keydown", handleKeyDown);
     }, [
         focusedId,
-        selectedIds,
+        selection,
+        selectableRowIds,
         transactions,
         onResolveDuplicate,
         onTransactionDelete,
@@ -491,7 +507,7 @@ export function TransactionTable({
                     >
                         {virtualItems.map((virtualRow) => {
                             const transaction = transactions[virtualRow.index];
-                            const isSelected = selectedIds.has(transaction.id);
+                            const isSelected = isRowSelected(selection, transaction.id);
                             return (
                                 <div
                                     key={transaction.id}

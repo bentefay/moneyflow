@@ -249,6 +249,78 @@ test.describe("Rule-creation controls on a transaction matching no rule", () => 
     });
 });
 
+test.describe("The proposal must not disturb the edit that summoned it", () => {
+    // Regression pin for P30 rev 01 F-1. The proposal used to be mounted by switching the element
+    // type at the cell's position, which remounted the cell and closed the tag picker on the very
+    // gesture that opened the proposal — so adding a second tag meant reopening the dropdown.
+    test("the tag dropdown stays open after selecting a tag while a proposal appears", async ({
+        page
+    }) => {
+        await createNewIdentity(page);
+        await createTag(page, "Coffee");
+        await createTag(page, "Dining");
+        await importRows(page, [{ date: "2026-07-01", description: MATCHING_DESCRIPTION }]);
+
+        const row = rowsWithDescription(page).first();
+        await expect(row.getByTestId("tags-editable")).toBeVisible();
+        await row.getByTestId("tags-editable").click();
+
+        const searchInput = page.getByPlaceholder("Search tags...");
+        await expect(searchInput).toBeVisible({ timeout: 15_000 });
+        await page.getByRole("option", { name: "Coffee", exact: true }).click();
+
+        // The proposal appears BECAUSE of that selection, and the picker must survive it.
+        await expect(page.getByTestId("tags-rule-proposal")).toBeVisible();
+        await expect(searchInput).toBeVisible();
+
+        // The multi-select still works without reopening: a second tag can be picked directly.
+        await page.getByRole("option", { name: "Dining", exact: true }).click();
+        await expect(row.getByTestId("tags-editable")).toContainText("Dining");
+        await expect(row.getByTestId("tags-editable")).toContainText("Coffee");
+    });
+});
+
+test.describe("The Updating modes wait for the row to lose focus", () => {
+    // Regression pin for P30 rev 01 F-2. An "Updating…" mode used to fire the moment the tag
+    // dropdown closed — writing a rule and rewriting every matching transaction before the user had
+    // seen the controls, chosen a scope, or had any chance to dismiss.
+    test("choosing Updating all writes nothing until focus leaves the row, then writes on blur", async ({
+        page
+    }) => {
+        await createNewIdentity(page);
+        await createTag(page, "Coffee");
+        await importRows(page, [
+            { date: "2026-07-01", description: MATCHING_DESCRIPTION },
+            { date: "2026-07-02", description: MATCHING_DESCRIPTION }
+        ]);
+
+        const firstRow = rowsWithDescription(page).first();
+        const secondRow = rowsWithDescription(page).nth(1);
+        const proposal = page.getByTestId("tags-rule-proposal");
+
+        await addTagToRow(page, firstRow, "Coffee");
+        await expect(proposal).toBeVisible();
+
+        await test.step("selecting an Updating mode does not itself apply anything", async () => {
+            await page.getByTestId("proposal-apply-mode").click();
+            await page.getByRole("option", { name: "Updating all", exact: true }).click();
+
+            // Still open, still waiting: the row has not lost focus.
+            await expect(proposal).toBeVisible();
+            // And crucially the OTHER matching transaction is untouched.
+            await expect(secondRow.getByTestId("tags-editable")).not.toContainText("Coffee");
+        });
+
+        await test.step("moving focus out of the row applies it", async () => {
+            // Focus something outside the table entirely — a genuine row blur.
+            await page.getByRole("textbox", { name: /search description/i }).click();
+
+            await expect(proposal).toHaveCount(0);
+            await expect(secondRow.getByTestId("tags-editable")).toContainText("Coffee");
+        });
+    });
+});
+
 test.describe("Updating an existing rule from the same controls", () => {
     // Frozen `:287-289`: when the changed field already has a matching rule, the same four choices
     // are offered but applying UPDATES that rule rather than creating a second one.

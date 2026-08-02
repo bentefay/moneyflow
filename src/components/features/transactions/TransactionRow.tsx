@@ -177,9 +177,11 @@ export interface TransactionRowProps {
  * `anchorClassName` carries the layout the wrapper must take over from the cell it replaces, and
  * `style` any inline geometry that layout needs, so wrapping is size-neutral.
  *
- * The proposal renderer emits the SAME wrapper element whether or not its popover is open, so
- * showing the controls never changes this subtree's shape. That is what keeps the edited cell from
- * remounting mid-edit — a remount would drop the caret and any open dropdown.
+ * Which of the two branches below is taken depends only on whether the caller supplies a renderer,
+ * which is fixed for the lifetime of a surface — so this branch never flips at runtime and cannot
+ * itself cause a remount. Keeping the edited cell mounted while a proposal appears is the RENDERER's
+ * responsibility, discharged in `page.tsx` by mounting one stable element type regardless of whether
+ * the cell is the pending edit.
  */
 function renderRuleProposalOrCell(
     render: TransactionRowProps["renderRuleProposal"],
