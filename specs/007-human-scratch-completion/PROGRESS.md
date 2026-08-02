@@ -9962,3 +9962,69 @@ established while never once having been observed.**
 Its own contribution to the count verified exactly: `rule-creation-controls.spec.ts` absent at BASE
 `5229cd4`, 5 tests at `c8dc004`, 7 at HEAD — the two additions being the F-1 dropdown-survival and
 F-2 Updating-on-blur journeys, both additions, neither replacing anything.
+
+### 2026-08-02 — P30 rev 02 campaign FAILED in P31's run; ROOT RULING on Escape precedence
+
+P31's campaign run 1 finished `182 passed`, **6 failures** — four P30's, two P31's. Root initially
+reported "none are yours" to P31 from a partial log and **corrected it once the run completed**.
+
+**P31's two: a DEAD LOCATOR, not product code.** `T021f` and `T021g` both time out on
+`getByPlaceholder(/search transactions/i)`; the real placeholder is `"Search description, notes..."`
+at `TransactionFilters.tsx:112`. Deterministic, so runs 2 and 3 could add nothing — root ordered the
+campaign stopped rather than completed. **`T021f` is the only end-to-end evidence UR-011 works**, so
+until it runs the requirement has none.
+
+**P30's four: ONE assertion in ONE helper.** All four are `addTagToRow` at
+`rule-creation-controls.spec.ts:88` — `Escape` then `expect(searchInput).toHaveCount(0)`. Root
+verified the five call sites are exactly the four failing tests; the three tests not calling it pass.
+
+**Two hypotheses were raised and BOTH disconfirmed before the right one landed.**
+
+- **Root's**: the `data-owned-by-row` markers might be absent in a real browser. Wrong — they are
+  static JSX, present in both environments.
+- **The implementer's**: `select.tsx:55` portals `SelectContent` outside the marked region, so
+  choosing an apply mode moves focus out of the row. **Root verified the portal and the two-marker
+  coverage are exactly as described — the gap is REAL — but the evidence disconfirms it as the
+  cause**, because all four failures are byte-identical **including `:237`, which the implementer
+  itself flagged as not fitting.** Its instinct to name the non-fitting case rather than explain it
+  away is what made this decidable; smoothing over `:237` would have led to fixing the portal and
+  watching all four fail again. **It recorded the portal gap as an unproven latent defect rather than
+  dropping it or promoting it.**
+
+**Actual cause: rev 02 mounts a Radix `Popover` on tag selection, and Radix Popover consumes Escape
+at the DOCUMENT level**, intercepting the key before it reaches the input whose handler owns it
+(`InlineEditableTags.tsx:105`). The popover closes; the picker stays open.
+
+**The implementer RETRACTED its own claim that this broke a pre-existing contract.** Root verified:
+`'Search tags'` has 5 E2E hits, three pre-existing in `transactions.spec.ts`, and **none presses
+Escape**. Its framing: it had inferred the contract from the component *having* an Escape handler,
+**which is a statement about the code, not about anything anyone relies on.**
+
+**ROOT RULING: Escape must close the tag picker; the proposal must not consume it.** Resolvable by
+citation, though not by a clause about Escape. **`human-scratch.md:253-254` requires an UNFOCUSED
+popup that does not interrupt the edit — and a surface the principal explicitly specified as
+unfocused cannot claim a keystroke ahead of the surface that actually has focus.** Radix's
+document-level default inverts that. Independent of any test, a user pressing Escape at an open
+picker finds it stays open, which is the interruption `:253-254` forbids.
+
+**Rev 03 scope:** mark the select portal (real and cheap), fix the Escape precedence, and fix the
+helper to assert **the tag landed** rather than that the picker closed — the implementer's own point,
+and it explicitly refused the alternative of flipping the assertion to `toBeVisible()` to go green.
+
+**Named follow-up, recorded not smuggled:** inverting the `data-owned-by-row` allowlist into a
+positive "is this outside the row" test. The implementer's reasoning — *the allowlist shape is
+fragile by construction; every new portaled control is a silent hole* — is right, and it is too big
+for rev 03 because it touches focus semantics for every portaled surface.
+
+**Fixture lesson recorded verbatim as the goal's best statement of it:**
+
+> A fixture I construct encodes my model; a fixture the framework constructs encodes the framework.
+> **Any test whose fixture I hand-built can only fail if my model is internally inconsistent, never
+> if my model is wrong about the world.**
+
+That accounts for why five separate defects in this package survived unit testing and died on the
+first full-suite run.
+
+**Port sequencing:** P31 stops and releases; P30 takes it to verify rev 03, which it is writing
+unverified in the meantime with every claim flagged as such; P31 regains it afterwards for a clean
+campaign against a better tree.
