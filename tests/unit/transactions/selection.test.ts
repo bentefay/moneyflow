@@ -151,12 +151,25 @@ describe("selection model", () => {
         });
 
         it("preserves identity when nothing changed, so React can skip the re-render", () => {
-            const selection = setRowsSelected(NO_ROWS_SELECTED, ["tx-2"], true);
-            expect(reconcileToMatchingRows(selection, matchingRowIds, matchingRowIds)).toBe(
-                selection
+            // Both baselines, and both the same-reference and equal-but-distinct array cases. The
+            // function carries no early return for the same-reference call — its sole caller
+            // already makes that comparison — so this is what keeps it correct and allocation-free
+            // for a caller that does not, including the public re-export from `index.ts`.
+            const someSelected = setRowsSelected(NO_ROWS_SELECTED, ["tx-2"], true);
+            expect(reconcileToMatchingRows(someSelected, matchingRowIds, matchingRowIds)).toBe(
+                someSelected
             );
-            expect(reconcileToMatchingRows(selection, matchingRowIds, [...matchingRowIds])).toBe(
-                selection
+            expect(reconcileToMatchingRows(someSelected, matchingRowIds, [...matchingRowIds])).toBe(
+                someSelected
+            );
+
+            expect(
+                reconcileToMatchingRows(ALL_MATCHING_ROWS_SELECTED, matchingRowIds, matchingRowIds)
+            ).toBe(ALL_MATCHING_ROWS_SELECTED);
+
+            const allButOne = setRowsSelected(ALL_MATCHING_ROWS_SELECTED, ["tx-2"], false);
+            expect(reconcileToMatchingRows(allButOne, matchingRowIds, [...matchingRowIds])).toBe(
+                allButOne
             );
         });
     });
