@@ -283,6 +283,14 @@ unparseable, which a row with no amount at all is.
 After the change, the same three files produce mappings, valid counts and error counts **identical
 to `4c77a2d`'s**, including `Ref` leaving column 2 entirely unmapped.
 
+**Independently corroborated by the coordinator**, who printed the post-fix values rather than
+asserting remembered ones and obtained `2:balance`, `2:checkNumber`, and nothing for `Ref` — column
+for column with the original BASE. Worth recording because their probe's _assertion_ had expected
+those keys to be absent entirely, which was never the requirement and does not match `4c77a2d`
+either: the disowned column keeps the honest secondary role its header names. **The probe was a bad
+oracle and the code was correct** — a distinction only visible because the actual value was printed
+before the expectation was trusted.
+
 Note the fix is **not** to extend the denylist. My rev 02 self-assessment called
 `NON_AMOUNT_HEADER_PATTERN` the weakest surface because a denylist is incomplete by construction —
 that was right about the class of risk and wrong about the instance. The bug was not a missing
