@@ -9002,3 +9002,57 @@ one.** This is the argument for full-suite campaigns over scoped ones.
 **Both warned guards pinned and moved into the pure module** as `tagSetChanged` and
 `allocationValueChanged`, with 15 cases: order-insensitivity, duplicate-masking, absent / null /
 legacy-string / NaN previous values, and **0 vs -0**.
+
+### 2026-08-02 — P30 rev 01 campaign CLEAN 3/3 at `c8dc004`; port released to P29 rev 03
+
+Root verified every run from the logs, not the summary:
+
+| run | result         | duration | failure markers | new spec by name |
+| --- | -------------- | -------- | --------------- | ---------------- |
+| 1   | **182 passed** | 4.4m     | 0               | 5                |
+| 2   | **182 passed** | 4.4m     | 0               | 5                |
+| 3   | **182 passed** | 4.2m     | 0               | 5                |
+
+Digest `3276de6c44ccc44bf9c0c0e3a3a0774c` identical before run 1 and after run 3. **182, not 177** —
+the five `rule-creation-controls.spec.ts` journeys, present by name in every run.
+`description-aliases.spec.ts:188`, the journey the `role="dialog"` regression broke, is green again.
+
+**Two environment traps found by P30, both broadcast to other agents.**
+
+**1. NEVER symlink the shared `node_modules` into a worktree.** `pnpm` attempted to **PURGE** the
+symlinked directory, which would have destroyed `/home/ben-agents/Code/moneyflow/node_modules` and
+broken every agent working in the shared checkout. The implementer caught it; root confirmed the
+shared tree intact — a real 1.1G directory, not a symlink. **This is a worse failure class than any
+other in this goal: not a wrong result but a dead workspace**, presenting to the next agent as an
+unrelated catastrophe. Recorded in durable memory.
+
+**2. A fresh worktree lacks gitignored `.env.local`**, so E2E fails at identity creation rather than
+in the code under test — **a failure that looks exactly like a product defect.**
+
+**Guard mutation testing is now the goal standard, arrived at independently by two packages.** P30
+neutered `tagSetChanged` and `allocationValueChanged` to return `true` unconditionally, observed
+**3 failed / 33 passed**, restored, and verified the tree byte-identical with `git diff --quiet`.
+P29 did the same to `CLASSIFICATION_THRESHOLD` at 0.5 and 0.95. **A pinning test that passes proves
+nothing on its own; only the mutation proves it discriminates** — and the tree-clean step matters,
+because a mutation that leaves the tree dirty contaminates the campaign it was meant to support. The
+implementer had already written the claim into its evidence and ran it anyway, on the grounds that
+*an unverified claim is exactly what this goal has been burned by.*
+
+**P30's blindness audit is the strongest of the four packages that have produced one.** Every
+creation assertion targets a `*-rule-proposal` testid absent from pre-fix code. The tag journey pins
+the two surfaces apart **across time within a single test** — robot count `0` before the change, `2`
+after — so a robot-only build fails the first assertion and a creation-only build that never
+persists a rule fails the last. **Every journey ends on user-visible state, the OTHER row changing,
+rather than on control presence** — control presence is a proxy and a proxy can be satisfied by a
+stub.
+
+**Q-P30-03 DECIDED and escalated rather than settled by omission.** "No proposal when a field is
+left empty", because `RuleAction` has no case that can express clearing and controls whose confirm
+button cannot produce a valid rule are worse than no controls; the alternative needs a storage change
+this package is forbidden to make. **The implementer's own reservation is preserved: "clear the tags
+on everything matching this text" is a plausible want that this choice forecloses silently.** Goes to
+the principal as a recorded open question.
+
+Port verified free and granted to `p29-implementer-01` for rev 03. **Root set the expectation that
+P29 should see 177, not 182** — its rev 03 does not touch `tests/e2e` — so a 182 would mean trees had
+crossed and must be reported immediately.
