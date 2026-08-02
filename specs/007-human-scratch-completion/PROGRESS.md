@@ -8280,3 +8280,52 @@ and post-run-3 values. **That makes the E2E outcome very likely; it does not mak
 
 Reviewer's stated direction: **PASS with one MEDIUM finding.** Outstanding for it: `pnpm test`,
 `pnpm build`, and the 3-run campaign, all deferred until root signals the port.
+
+### 2026-08-02 — P28 rev 03 independent review returns PASS with one MEDIUM; INTEGRATION DEFERRED
+
+`p28-reviewer-03` committed `reviews/P28-review-03.md` at **`3e9e354`** — verified by root as one
+file, 461 insertions, explicit pathspec, and an ancestor of HEAD by `git merge-base --is-ancestor`.
+
+**VERDICT: PASS**, one MEDIUM finding (F-5, non-blocking), **one criterion the reviewer could not
+run and declared plainly in its §3: `pnpm test`, `pnpm build` and the 3-run E2E campaign.**
+
+**Root is NOT integrating P28 on this review.** The unmet criterion is root's own bar and root's own
+instruction created the gap — root told the reviewer to hold while P29 held the port. Accepting a
+PASS with the bar unmet would be root lowering a standard to suit its own sequencing. **P28 stays
+`in_review`.** The reviewer's standing offer is taken: it runs the six checks and the campaign the
+moment :3000 frees, then appends a corroboration note. If the campaign changes the verdict, PASS
+becomes FAIL and that is the correct outcome.
+
+**Digest claim — root nearly wrote a false finding and the near-miss is worth recording.** Root tried
+to reproduce the reviewer's `f46cbb368fc6d55433473f127772e9db` and got a different value TWICE, first
+with its own formula then with its reconstruction of the reviewer's. **The discrepancy was root's**:
+a content-hash pipeline can be assembled several ways and root was guessing at ordering and
+null-separation. Instead of reporting an unattributable mismatch, root verified the underlying claim
+by a different route:
+
+```
+git diff --stat e9509e1 8c16063 -- src tests package.json pnpm-lock.yaml playwright.config.ts
+(empty)
+```
+
+**The campaign commit and the review tree are content-identical across exactly those five paths**,
+proven by git rather than by hash agreement. The reviewer's conclusion holds and is double-sourced.
+**Lesson: when a reproduction disagrees, check the CLAIM by another route before reporting the
+ARTIFACT as wrong.**
+
+**F-5 MEDIUM accepted as non-blocking.** Round-trip discrimination keys on zero-padding; when day AND
+month are both in 10..12 padding is a no-op, both interpretations re-render to the typed string, and
+the first candidate — `numeric`, wrong order — wins. 18 silent-wrong cases across
+`mt-MT`/`so-SO`/`ug-CN`, **byte-identical at `1bba42b` and HEAD so not a regression**, and
+unreachable under Chromium 149. Follow-up, not a rev 04.
+
+**`mn-MN` ruling SUPERSEDED by a better-founded one.** The reviewer found the mechanism narrower than
+previously reported: Roman numerals appear ONLY in the year-less same-year skeleton; the
+different-year and editing forms are numeric and round-trip cleanly. `InlineEditableDate.tsx:191`
+shows the editing form whenever the cell is focused, so the compact form is not an input and
+`spec.md:51-52` concerns what can be "typed back". Clause satisfied; `mn-MN` outside UR-007.
+
+**Q-P28-09 adopted as a STANDING evidence requirement beyond P28:** report population, total,
+silent/loud split AND the member list — **a bare total hides an undercount.** That is precisely how
+review 02 lost `so-SO` and `sr-Latn-RS`. Q-P28-08 also carried: a precedence fix must be re-censused
+for every form the code serves.
