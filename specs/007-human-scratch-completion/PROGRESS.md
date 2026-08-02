@@ -9504,3 +9504,63 @@ an error that looks reproducible and is not.**
 
 P30 rev 02 is under way — `page.tsx`, `TransactionRow.tsx` and `TransactionRuleProposal.tsx` all
 show edits in the shared checkout.
+
+### 2026-08-02 — **F-7: ROOT'S "all three load-sensitive assertions held" CLAIM IS WRONG.** Corrected
+
+`p29-reviewer-03`, auditing the attribution root asked it to check, found a **factual error in the
+substance** — and it lands on root, because root measured it and root's text records it.
+
+**Root claimed that all three recorded load-sensitive assertions were checked across the three P29
+E2E logs and none fired. Two of the three CANNOT appear in an E2E log at all.** Root verified:
+
+```
+playwright.config.ts:53   testDir: "./tests/e2e"
+
+tests/unit/import/duplicates.test.ts          <- Vitest, outside testDir
+tests/integration/vault-maintenance.test.tsx  <- Vitest, outside testDir
+tests/e2e/transactions.spec.ts                <- the only one Playwright runs
+
+grep in /tmp/p29r3-e2e-run{1,2,3}.log:
+  duplicates.test    0 / 0 / 0
+  vault-maintenance  0 / 0 / 0
+  transactions.spec  43 / 43 / 43
+```
+
+**Their absence from the logs is not evidence they held under load 21 — it is evidence they did not
+run.** And these are the two that historically flaked: the `ratio < 4` wall-clock bound and the
+mocked-rAF frame-timing test.
+
+**What survives, and it does survive.** `transactions.spec.ts:804` is genuinely an E2E assertion,
+inside `virtualized large list preserves position, focus, editing, filtering and navigation`
+(`:725`), appearing once per log and passing in all three including run 3, with a real wall-clock
+bound `expect(expansionDurationMs).toBeLessThan(10_000)`. **Root's "green at 21.20 beats green at
+4.08" conclusion holds — on ONE assertion, not three.** The other two are attested separately by the
+unit campaign at load ~10, not load 21.
+
+**CORRECTION OF RECORD.** This ledger repeats the three-assertion claim at lines **7961, 8353, 8472
+and 9179**, and `evidence/P29/implementation-01.md:749-750` carries it too. **Every instance is
+wrong in the same way and all are corrected by this entry**: only `transactions.spec.ts:804` is
+exercised by an E2E campaign. Root is not editing the prior entries — the ledger is append-only and a
+silently-fixed error teaches nothing — but no future reader or auditor should rely on the
+three-assertion phrasing anywhere above.
+
+**How the error persisted: it was never re-derived, only repeated.** Root wrote the trio once, then
+cited it four more times as established fact without ever asking whether a Vitest path could appear
+in a Playwright log. **That is precisely the failure `p30-reviewer-01` named an hour ago — a claim
+gaining apparent support from repetition rather than from a new observation** — committed by root in
+the same session in which root recorded that lesson. The reviewer notes the defect predates root's
+append and that the append inherited and amplified it.
+
+**F-7 is MEDIUM, non-blocking, and does NOT gate P29.** The campaign result is not in doubt: all
+three logs end `177 passed` with no failures, unit logs show 123 files / 2386-2389 passed, and the
+reviewer's own §8 reproduces green unit and integration at the reviewed tree. **P29 remains `passed`
+and integrated.** F-7 concerns an inference in the ledger, not the fix.
+
+**Attribution audit came back clean.** Both appended paragraphs open "The coordinator…" and close
+"Recorded as the coordinator's measurement, not mine." Nothing root measured is claimed by the
+implementer; nothing the implementer measured is upgraded — the pre-existing text still says only
+"another process… nothing of mine was running", which is all it could establish. No finding.
+
+Retarget verified by the reviewer at the moment of retarget: `merge-base --is-ancestor` returns 0 for
+`ee3cce7`, `6a51b53` and `c694a94`; `git diff --stat c694a94 HEAD -- src tests` empty; digest
+identical at `c694a94`, `6a51b53` and `6e4bf32`, the commit the campaign actually ran against.
