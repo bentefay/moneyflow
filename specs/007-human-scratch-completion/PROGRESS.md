@@ -9230,3 +9230,69 @@ lookup. It also removed a pre-existing O(selected x all) `transactions.find` fro
 handlers.
 
 Port granted with the tripwire set at **182 expected, 177 = stale base = stop**.
+
+### 2026-08-02 — P30 rev 01 independent review returns **FAIL**; two blocking findings; rev 02 opened
+
+`p30-reviewer-01` (DISTINCT, wrote no product code) reviewed `5229cd4..c8dc004`, correctly avoiding
+the amended-away `877d45a`, and verified `c8dc004` an ancestor of HEAD itself. Artifact `cb30faf`.
+Every statement labelled MEASURED or INFERRED.
+
+**F-1 BLOCKING — the remount fix was applied one level BELOW where the remount happens.** The
+unconditional wrapper is correct for the wrapper, but `page.tsx:594-606` returns a bare `<div>` when
+the cell is not the pending edit and a `<TransactionRuleProposal>` element when it is. **React
+reconciles by element type at each position, and those are different types**, so flipping
+`pendingRuleEdit` unmounts and remounts the whole subtree. Measured on a faithful structural
+reproduction:
+
+```
+MOUNT COUNT AFTER FLIP: 2      (1 if the claim held)
+SAME DOM NODE: false
+DROPDOWN STILL OPEN AFTER SELECTING A TAG: false
+```
+
+Control with the branch flip removed: dropdown stays open. **The tags cell is a multi-select and
+selecting one tag now dismisses the picker** — the user must reopen it per tag, contradicting
+`:252-253`. The comments at `TransactionRuleProposal.tsx:90-91` and `TransactionRow.tsx:176-178`
+**assert a property the code does not have** — the third instance of that class in this goal, and
+from the implementer who named it.
+
+**F-2 BLOCKING — the two "Updating" modes MUTATE OTHER TRANSACTIONS WITHOUT THE REQUIRED GESTURE.**
+`:263-266` requires "Updating" to apply **when the row loses focus**. The effect keyed on `isEditing`
+going false is correct in isolation; **its input is not.** Because of F-1 the cell remounts and a
+fresh `InlineEditableTags` reports `isOpen === false` on first commit, so `isEditing` goes
+`true -> false` with **no blur at all**:
+
+```
+ISEDITING SEQUENCE SEEN BY PROPOSAL: [true,false]
+REACHED isEditing=false WITHOUT ANY BLUR: true
+updatingAll -> ["RULE CREATED AND APPLIED"]   <- fires with no blur
+updateNew   -> []                             <- correctly waits
+```
+
+**Under `updatingAll` the rule is created and applied to every matching transaction the instant the
+user picks a tag** — before they see the controls, choose a scope or tick a restriction, with the
+dismiss button unreachable. `applyAll()` rewrites other rows. **Data mutation the user never
+authorised: the most serious defect class in this application.** Mitigation stated fairly by the
+reviewer: it needs a previously-chosen "Updating" mode, remembered in vault preferences and not the
+default — reachable and persistent, not hypothetical, and the same remembered choice is shared with
+the automations-page editor, so a mode chosen there arms this path.
+
+**WHY THE BLINDNESS AUDIT MISSED BOTH — the generalisation this goal now carries.** The audit asked
+*"would this pass if the creation surface were absent?"* and **both defects survive it, because they
+are defects WITHIN a present creation surface.** Every new E2E journey selects "Update all", one of
+the two MANUAL modes, before pressing the tick; **no test in the repo drives an "Updating" mode
+through the inline proposal**, and the default `updateNew` is also manual, so a fresh vault never
+hits it. **Absence-of-surface is only ONE axis. A suite can cover every surface and never exercise a
+MODE within one.** The fixtures varied over "does the feature exist" but not over "which of the four
+modes is selected" — and two of the four are the automatic ones.
+
+**F-3 resolved in the implementer's favour**: the reviewer answered root's routed question with *"yes,
+and I measured it anyway"* — the structural argument for `:252-253` is sufficient, and it measured
+regardless. F-4 and F-5 non-blocking.
+
+**Rev 02 required:** render one stable element type in both branches, mounting
+`TransactionRuleProposal` unconditionally and letting it compute `open` internally as it already does
+at `:79`; pin with a test asserting the tags dropdown stays open after selecting a tag while a
+proposal is pending; make `isEditing` mean "the row still has focus"; add a test that fails without
+the fix driving an "Updating" mode through blur; **do not regress the description path**, measured
+`[false, true, false]` with a genuine blur via `InlineEditableDescriptionAlias.tsx:213-216`.
