@@ -2843,3 +2843,59 @@ care: the Playwright CLI parent has a RELATIVE cmdline, so a `/tmp/mf-*` scan mi
 orphaned `next-server` holding :3000 is indistinguishable from the human's dev server by name — both
 print `next-server (v16.2.11)`. They can only be told apart by `readlink /proc/<pid>/cwd`. Any agent
 cleaning up a campaign must use that, or it risks killing the human's server.
+
+## Q-P28-01 — A rewritten formatter can regress an entire input class the tests never name
+
+Proposed by `p28-reviewer-01` during P28, found in static audit. Root reproduced it independently.
+**Carry forward to P21.**
+
+**The instance.** P28 correctly fixed a positional leading-zero strip that corrupted `ja-JP` dates, and
+in doing so rewrote the strip as `String(Number(part.value))`. `Intl` emits day and month in the
+LOCALE'S OWN NUMERALS, so for any locale whose resolved numbering system is not `latn` this produces the
+literal string `"NaN"`. Root verified: `fa-IR` `formatToParts` yields `month="۵" day="۱۲"`, and
+`String(Number("۱۲"))` is `NaN`. Confirmed across `fa-IR`, `bn-BD`, `my-MM`, `ne-NP`, `ar-SA`, `ar-EG`
+and `ps-AF`.
+
+**Why the package's own tests could not catch it.** All five locales the tests cover — `en-AU`,
+`en-GB`, `en-US`, `de-DE`, `ja-JP` — use Latin digits. The regression is invisible to every one of
+them, and invisible to the principal, whose browser is `en-US`. A package can therefore be
+comprehensively tested against its named cases and still regress an entire unnamed class.
+
+**How the reviewer caught it, which is the transferable part.** It imported the REAL product module
+rather than reimplementing the expression, swept inputs OFF the tested path, and diffed the behaviour
+against base `c9be708` to separate a regression from a pre-existing gap. That last step is what turned
+"this output looks wrong" into "this package introduced it": base rendered `"۵/۱۲"`, a real date, so the
+defect is unambiguously new.
+
+**Recommended for P21.** When a package REWRITES a formatter, parser or normaliser rather than
+extending one, the review should (a) import the real module, not a copy — see `Q-P26-01`, where a
+hand-copied fixture proved nothing; (b) enumerate the input classes the tests do NOT name, here
+non-Latin numbering systems and non-Gregorian calendars; and (c) diff against base to attribute any
+defect found. `Q-P28-02` records the related `th-TH` Buddhist-calendar defect, which the same sweep
+surfaced.
+
+## Q-P28-02 — Do not dispatch review while the implementer still holds the tree and the single E2E port
+
+Proposed by `p28-reviewer-01` during P28, from a root sequencing failure. **Carry forward to P21.**
+
+**What happened.** Root dispatched `p28-reviewer-01` at 15:47 against `d657717`. The implementer
+committed `d514d47` to `main` at 15:48 — one minute later — and continued running full E2E campaigns
+from `/tmp/mf-p28`, holding port 3000 and driving load from 6.15 to 9.16. Because
+`playwright.config.ts` pins `:3000` with `reuseExistingServer: false`, exactly one campaign runs
+repo-wide, so the reviewer was blocked from its own campaign for the entire review. It did the static
+half instead and found the blocking defect there, which is the only reason this cost little.
+
+**Two distinct harms.** The tree moved under the reviewer, so its BASE was stale within a minute; and
+the port was unavailable, so the authoritative campaign could not run at all. Compounding it, the
+implementer's own recorded campaign no longer covered HEAD once `d514d47` changed tests — so at the
+moment of review, NO campaign covered the tree that would ship.
+
+**The rule.** Handing a package to review must be a genuine handoff: from that moment the implementer
+stops committing to `main` for that package and releases the port, and root confirms the tree is FINAL
+before the reviewer starts. Root should verify both — HEAD unchanged and port free — as part of
+dispatch rather than assuming, exactly as it verifies the scratch SHA and FS-001 metadata.
+
+**Root's error, recorded as such.** Root dispatched without confirming the implementer had finished,
+and did not notice the port was still held. The reviewer caught it, blocked rather than reviewing a
+moving target, and asked for a ruling instead of absorbing the problem. That is the correct behaviour
+and it should not have been necessary.
