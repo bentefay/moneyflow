@@ -2902,6 +2902,11 @@ test.describe("Transactions", () => {
          * focused the row itself and did nothing.
          */
         test("UR-012: a click at a cell's edge activates that cell's control", async ({ page }) => {
+            // The table is wider than the default 1280px viewport: measured, the amount column
+            // spans x=1233..1345, so its centre lies OFF-SCREEN and `mouse.click` there would land
+            // on nothing while the test read as passing. Widen first so every column is reachable.
+            await page.setViewportSize({ width: 1600, height: 900 });
+
             await createNewIdentity(page);
             await goToTransactions(page);
             await createTestTransaction(page, {
