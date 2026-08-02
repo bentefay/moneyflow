@@ -9155,3 +9155,78 @@ ANNOUNCED.**
 
 Campaign, port release and `c8dc004` ancestry all previously verified by root from the logs and by
 `merge-base --is-ancestor` at dispatch time. Nothing in the campaign record changes.
+
+### 2026-08-02 — P29 rev 03 campaign CLEAN 3/3 at `6e4bf32`; port handed to P31
+
+Root verified from the logs, not the report:
+
+| run | result         | duration | load at start | digest     |
+| --- | -------------- | -------- | ------------- | ---------- |
+| 1   | **177 passed** | 4.4m     | 4.08          | `b7ad2af8` |
+| 2   | **177 passed** | 4.4m     | 6.56          | `b7ad2af8` |
+| 3   | **177 passed** | 4.1m     | **21.20**     | `b7ad2af8` |
+
+Failure-marker scan returns **0 in all three**. Both new tests by name in every run. Digest
+`b7ad2af8a9765058376f02e8bbccbaaf` stable pre and post. **Tripwire held: `--list` and every run
+report 177, not 182** — P30's five tests stayed in their own tree, so no cross-contamination.
+
+**Run 3's load of 21.20 was disclosed UNPROMPTED by the implementer**, on the grounds that it is
+exactly the condition this goal treats as campaign-invalidating. **Root traced the source: a node
+process at 211% CPU whose cwd is OUTSIDE this repo entirely — not P30's reviewer, not P31, not any
+agent on this goal.** Genuinely external contention; the process had exited by the time root looked.
+
+**This makes the result STRONGER, not weaker.** Root checked all three recorded load-sensitive
+assertions — `transactions.spec.ts:804`, `duplicates.test.ts:749`, `vault-maintenance.test.tsx` —
+across all three logs: **none fired in any run.** Those are precisely the assertions that break under
+contention, and run 3 put them under load 21 and they held. **Green at 21.20 is materially better
+evidence than green at 4.08.**
+
+**Why the disclosure mattered:** the load figure appears nowhere in the Playwright output, so three
+greens could have been banked without contradiction. The implementer surfaced the one condition
+usable to attack its own result. **A reviewer discovering that in a log afterwards would reasonably
+wonder what else was omitted; a reviewer told up front can weigh it.**
+
+**Mutation hygiene now provable rather than asserted:** `git diff --quiet` PASS and
+`git status --porcelain` empty, checked twice — before any check ran, and again immediately before
+the pre-campaign digest. The digest demonstrably covers an unmutated tree.
+
+Six checks green at `6e4bf32`; non-E2E checks run to completion BEFORE the campaign.
+
+### 2026-08-02 — P31/P32 handback pending; port granted; a DATA-LOSS defect caught in its own design
+
+`p31-implementer-01` reported implementation and unit work complete: typecheck clean, lint 0 errors,
+**`pnpm test` 2430 passed / 2 skipped / 124 files**, `oxfmt --check src tests` clean. `format:check`
+flags 18 pre-existing root-owned `specs/**` files, correctly untouched.
+
+**The defect it found in its own first cut is a DATA-LOSS bug, not a correctness nicety.** Under a
+baseline of "every matching row is selected", **widening a filter would silently acquire rows the
+user never selected** — and a bulk delete then destroys transactions they never pointed at. Invisible
+in the way that matters: the header still reads "all selected", the count is self-consistent.
+
+Root read `reconcileToMatchingRows` rather than accepting the description. The intersection is
+correct and both halves are load-bearing: rows that no longer match **drop out** rather than being
+carried invisibly into a later bulk action; rows that have **only just started matching stay
+unselected**. Its comment names the three ways a row can newly match — a widened filter, an import,
+**a peer's insert**. The third is the one root would have missed: in a CRDT vault another member's
+write can add a matching row under a standing "all selected", and the intersection absorbs it as one
+exception rather than materialising an id per matching row.
+
+**Its mutation discipline is the strongest recorded, because it REJECTED ITS OWN FIRST ATTEMPT:**
+*"my first mutation there was too weak and passed — I redid it to reproduce the real pre-fix
+architecture, narrowing selection to the displayed page before both the count and the bulk
+handlers."* **A mutation that fails to go red does not prove the test is weak; it can equally mean
+the mutation missed.** Knowing which, and redoing it, is the step almost everyone skips. The redone
+mutation failed all 5 page-level tests.
+
+**Two corrections accepted from it.** Root's `console.log` arithmetic was wrong — 3 in the hook, 11
+elsewhere, and it removed exactly the 3. More substantively: **UR-010's keyboard clause needs no
+separate code path**, since a real `button` receiving Shift+Space produces a click carrying
+`shiftKey` into the same handler — **but it cannot be confirmed in jsdom, and it said so rather than
+asserting it.** That makes E2E `T021e` load-bearing rather than confirmatory.
+
+Efficiency clause satisfied: select-all is a constant-size value with `exceptions.size === 0`
+asserted at 100,000 rows; header tri-state and count are integer comparisons; row state is one set
+lookup. It also removed a pre-existing O(selected x all) `transactions.find` from all six bulk
+handlers.
+
+Port granted with the tripwire set at **182 expected, 177 = stale base = stop**.
