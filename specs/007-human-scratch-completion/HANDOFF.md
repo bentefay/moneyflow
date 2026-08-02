@@ -7,8 +7,8 @@ another package's brief. Both are now preserved at stable paths and this file on
 
 | package | reviewer | subject | dispatch |
 | --- | --- | --- | --- |
-| **P21 rev 06** (control) | `p21-reviewer-06` — FINAL AUDIT REVIEW | BASE `5260c15`, HEAD `234e1e4` reconciled in the dispatch | `dispatches/P21-rev06-review.md` |
-| ~~P21 rev 06 collection~~ | ~~`p21-collector-06`~~ | complete, evidence at `evidence/P21/implementation-06.md` | closed |
+| **P21 rev 07** (E2E stability fix, routed to P20B) | `p20b-implementer-07` | BASE re-derive at dispatch | `dispatches/P21-rev07-fix.md` |
+| ~~P21 rev 06~~ | ~~collector + reviewer~~ | **FAILED** on the E2E stability clause — `reviews/P21-review-06.md` | closed |
 | ~~**P30 rev 07** (UR-009)~~ | — | **PASSED**, merged | closed |
 | ~~**P33 rev 03** (UR-012)~~ | — | **PASSED**, merged `05e16df` | closed |
 
