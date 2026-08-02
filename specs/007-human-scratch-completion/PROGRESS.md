@@ -8633,3 +8633,62 @@ Gates at `fc86d10`: typecheck PASS, bare `pnpm lint` exit 0, format:check exactl
 **Port queue set: P30 (holding) -> P29 rev 03 -> P31/P32.** P29 is placed ahead of P31 as a blocked
 revision rather than a first pass. `CLASSIFICATION_THRESHOLD = 0.8` remains an open Q, correctly
 untouched in a fix revision.
+
+### 2026-08-02 — P29 rev 02 review addendum `2539794`; ROOT CORRECTS ITS OWN GUARD INSTRUCTION
+
+`p29-reviewer-02` committed an addendum, verdict **unchanged FAIL on F-4**. Both its commits verified
+by root as single-file and ancestors of HEAD: `ac9332c` (+436) and `2539794` (+184/-4).
+
+**ROOT CORRECTION — the inert-guard instruction was wrong and is retracted.** Root told rev 03 it
+could either pin `fileHasHeaders ? headers : []` (`use-import-state.ts:373`) with a test or **remove
+it and say why it was never needed.** The second option is a trap. The guard is inert **only because
+`"Column N"` matches none of the three pattern sets TODAY**. Removing it is correct against current
+patterns and **silently becomes wrong the moment anyone adds a pattern matching `Column`, `Col`, `No`
+or similar** — at which point synthesised placeholder names feed real header evidence into amount
+selection, which is the F-1 class arriving through a door someone removed as useless.
+
+Root's aphorism *"a guard nothing tests is a comment with a runtime cost"* holds for a guard
+unreachable **by construction**, NOT for one unreachable **by coincidence of current data**. Rev 03
+is now instructed to PIN it: assert that synthesised names produce the same answer as no headers, and
+comment the test as currently non-discriminating so a future reader does not delete it for the same
+reason root nearly did.
+
+**Denylist: the implementer's judgement CORRECT, better founded than its own explanation.** The
+reviewer tested ten unknown headers — `Running Total`, `Closing Bal`, `Ledger`, `Doc No`,
+`Transaction ID`, `Account No`, `Units`, `Rate` — beside a genuine `Amount`, signed and all-positive:
+**all 20 cases correct, 0 errors.** Structural reason: `detection.ts:324-325` settles outright when
+`AMOUNT_HEADER_PATTERN` names exactly one column — an **allowlist hit firing BEFORE the denylist
+matters**. Denylist incompleteness is therefore irrelevant whenever the amount column is
+conventionally named.
+
+**Nearest-neighbour case, deliberately NOT raised as a second finding.** When the amount column is
+also unrecognised (`Movement`, `Posting`, `Txn`) AND every value is positive, position decides and
+the balance imports with 0 errors. The reviewer's distinction, which root endorses: **overriding
+available evidence is a defect; guessing with none is a design limit.** Rev 03 must state what it
+decided and why, so it is a recorded choice rather than an omission.
+
+**`CLASSIFICATION_THRESHOLD` is entirely UNPINNED, worse than "least-forced".** The reviewer mutated
+the constant and re-ran all 11 affected files at 0.4 / 0.5 / 0.6 / 0.75 / 0.85 / 0.95 / 0.99 / 1.0 —
+**310 passed at EVERY value.** No test distinguishes 0.4 from 1.0, because every fixture has columns
+~100% or ~0% matching so the threshold never sits between two candidates. Controlled 20-row files
+show a cliff at exactly 0.8: 4/20 bad resolves, 5/20 goes unmapped. **It fails SAFE** — below
+threshold the role is unmapped and rows error, never degrading to a wrong column. Non-blocking; rev
+03 asked for one test pinning the cliff either side. Mutation reverted and verified.
+
+**Header ruling independently reached by the reviewer before it knew root had ruled.** It measured
+the consequence rather than reasoning about it: a HEADERLESS all-positive file yields
+`[100000, 92475, 342475]` with the balance left and `[550, 7525, 250000]` with it right — identical
+data, opposite answers, decided by column order alone. Rejecting the ruling would trade a case the
+code gets right for one nothing can get right. **No re-rule needed.**
+
+**Reviewer's audit of the older parity assertion, as root asked:** it does reach a value-level
+comparison and would catch a CSV/OFX divergence, but uses a **headerless single-numeric-column
+fixture**, so it could not have caught F-1 and cannot catch F-4. A genuine parity test, not a
+disguised column-selection test — **the implementer's downward self-correction is accurate and if
+anything still generous to itself.**
+
+Reviewer adopted root's `spec.md:80-81` truthfulness-symmetry grounding over its own
+"silently-wrong-money" framing, on the basis that deriving the block from frozen text is stronger
+than deriving it from a judgement about which failure is worse. `/tmp/mf-p29r2b` was already removed;
+root's listing predated the prune. **The reviewer correctly declines to review rev 03**, being the
+author of the finding it would be grading.
