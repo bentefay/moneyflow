@@ -18,6 +18,7 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import {
     createNewIdentity,
+    goToAutomations,
     goToImportNew,
     goToPeople,
     goToTags,
@@ -349,6 +350,26 @@ test.describe("Updating an existing rule from the same controls", () => {
             const proposal = page.getByTestId("tags-rule-proposal");
             await expect(proposal).toBeVisible();
             await expect(proposal).toHaveAttribute("data-kind", "update");
+        });
+
+        // `data-kind` only proves the component DECIDED to update. Clause `:287-289` is entirely
+        // about which write happens, so the outcome has to be asserted too: the other matching row
+        // must gain the new tag, and no SECOND rule may appear for the same description text.
+        await test.step("confirming performs the update rather than creating a duplicate", async () => {
+            await page.getByTestId("proposal-apply-mode").click();
+            await page.getByRole("option", { name: "Update all", exact: true }).click();
+            await page.getByTestId("proposal-confirm").click();
+            await expect(page.getByTestId("tags-rule-proposal")).toHaveCount(0);
+
+            // The updated rule reached the other matching transaction.
+            const secondRow = rowsWithDescription(page).nth(1);
+            await expect(secondRow.getByTestId("tags-editable")).toContainText("Dining");
+
+            // Still exactly one robot per matching row. A duplicate rule for the same description
+            // text would not change this count, so also check the automations page directly.
+            await expect(page.getByTestId("tags-rule-robot")).toHaveCount(2);
+            await goToAutomations(page);
+            await expect(page.getByTestId("rule-list").getByRole("listitem")).toHaveCount(1);
         });
     });
 });
