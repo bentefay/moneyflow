@@ -3103,3 +3103,37 @@ RE-RENDERING reproduces exactly what was typed. Round-trip verification is decis
 ambiguous case and inert otherwise. Recommended for P21: any parser offering multiple candidate formats
 over the same input should disambiguate by round-trip rather than by candidate order, and any census of
 parse defects should separately count silent-wrong-value from loud-rejection.
+
+## Q-PROPOSAL-P30-07-01 — a unit case's grading is load-dependent
+
+**Raised by:** `p30-reviewer-04`, P30 rev 07 review. **Severity: LOW, advisory — not blocking.**
+
+`rule-proposal-auto-apply.test.tsx:140` ("applies when the edit began with focus in the row…") grades
+**10/20 red** against rev 06 when run inside its own file, but **20/20 red** in isolation. MEASURED.
+Cause: a single `advanceTimersByTimeAsync(10)` coupled to the real clock via `shouldAdvanceTime:
+true`, so whether rev 06's third deferred flush lands is load-dependent.
+
+**Rev 07 itself grades 20/20 green — there is no flake in the shipped direction**, and the E2E suite
+grades the same regression deterministically, which is why this is advisory.
+
+**Why it matters beyond this case:** a test used as a *grading instrument* — run against a reverted
+fix to prove it discriminates — needs its own timing to be load-independent, or the grade is a
+measurement of machine load. **Recommended for P21:** where a revert-check is cited as evidence,
+confirm the grading run was deterministic rather than a single sample.
+
+## Q-PROPOSAL-P30-07-02 — the manual-mode clause is not covered at the decision layer
+
+**Raised by:** `p30-reviewer-04`, P30 rev 07 review. **Severity: LOW, advisory — not blocking.**
+
+Removing `isAutomatic` from `TransactionRuleProposal.tsx:202` — which makes the manual "Update" modes
+auto-apply, a direct violation of frozen `human-scratch.md:263-266` — leaves the **entire unit and
+integration suite green**. MEASURED. Cause: the test file's mock hard-codes `updatingAll`, so no unit
+case ever exercises a manual mode through the component's decision.
+
+**The clause is covered**, at E2E (6 of 11 journeys redden) and by `applyModeIsAutomatic`'s own unit
+tests — but **not at the layer where the component decides**. A follow-up `updateAll` case in the
+component's own file would close it.
+
+**Generalises:** a mock that hard-codes one value of a discriminating input makes every case in that
+file blind to the discrimination, however many cases there are. Same shape as the F-1 and F-2 fixture
+gaps in P33: correct assertions over inputs that cannot express the failure.
