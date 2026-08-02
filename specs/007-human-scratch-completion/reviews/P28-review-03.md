@@ -6,7 +6,7 @@
 - **BASE == HEAD:** `8c160639fc27ee3b8f908117b8357366bdedf83b` — confirmed
 - **Reviewer worktree:** `/tmp/mf-p28r3rev` (own, outside the repo; probe trees
   `/tmp/mf-p28r3-rev02` and `/tmp/mf-p28r3-insuff`)
-- **Verdict:** **PASS**, with one MEDIUM finding recorded below and one criterion I could not run
+- **Verdict:** **PASS**, with one MEDIUM finding recorded below. **All six checks run and green.**
 
 ---
 
@@ -32,7 +32,10 @@ The MEDIUM finding is a residual subclass of F-4 that the fix does not close. It
 reproducible under Node's ICU, and **unreachable in any real browser**, which is why it is MEDIUM
 and why it does not block. Details in §1.
 
-**One criterion is unproven by me: the E2E campaign.** I did not run it. See §3.
+**All six checks are run and green, including a 3-run E2E campaign of my own.** See §3. An earlier
+revision of this review recorded the campaign as unrun, because three apparent concurrent campaigns
+held `:3000`; two of those turned out to be a coordinator monitoring shell misclassified by a
+whole-cmdline scan. The port was subsequently handed over and the campaign ran clean.
 
 ---
 
@@ -318,11 +321,22 @@ Run in my own worktree `/tmp/mf-p28r3rev` at `8c16063`, `.env.local` copied in, 
 | check          | result                                                           |
 | -------------- | ---------------------------------------------------------------- |
 | `typecheck`    | **PASS** — `tsc --noEmit`, exit 0                                |
-| `lint`         | **PASS** — `0 errors`, 1 pre-existing warning                    |
+| `lint`         | **PASS** — exit 0, `0 errors`, 1 pre-existing warning            |
 | `format:check` | **PASS for P28** — exactly **17** pre-existing frozen `specs/**` |
-| `build`        | **NOT RUN** — see §3                                             |
-| `test`         | **NOT RUN** — see §3                                             |
-| `test:e2e`     | **NOT RUN by me** — see §3                                       |
+| `build`        | **PASS** — `✓ Compiled successfully in 5.9s`, exit 0             |
+| `test`         | **PASS** — **122 files, 2369 passed / 2 skipped**, exit 0        |
+| `test:e2e`     | **PASS** — 3 x **177 passed**, `--retries=0`; campaign in §3     |
+
+The five non-E2E checks were run **to completion before** the campaign launched, deliberately.
+Vitest at 32 workers and Playwright at 4 competing for one box is how a green suite turns red for
+reasons unrelated to the code, and a fabricated failure costs more to unwind than the serialisation
+costs. The digest was identical before the first check and after the last run, so all six cover one
+tree.
+
+**On the unit count.** 2369 is correct for this tree. A sibling package reported 2382 in the same
+hour; the 13-test gap is entirely P29's unmerged tests (`ur-008-amount-column.test.tsx` +6,
+`ur-008-csv-parity.test.ts` +6, `mapping-tab-auto-detect.test.tsx` +1), which do not exist at
+`8c16063`. The figure also matches the P28 implementer's recorded number exactly.
 
 **`lint`.** A bare `pnpm lint` in my worktree gives `1 problem (0 errors, 1 warning)` — the
 pre-existing `react-hooks/incompatible-library` warning in untouched `TransactionTable.tsx`. The
@@ -336,31 +350,43 @@ none is a P28 file.** Count and membership match the known-good baseline.
 
 ---
 
-## 3. The criterion I could not run, stated plainly
+## 3. The E2E campaign — run by me, 3 x 177 clean
 
-**I did not run `pnpm test`, `pnpm build`, or the E2E campaign.** The bar was at least 3 consecutive
-full-suite `--retries=0` runs. I met the preconditions for it and did not meet the bar, and the
-review should say so rather than imply otherwise.
+Three consecutive **full-suite** runs, `--retries=0`, `env -u CI` on every run, in my own worktree
+`/tmp/mf-p28r3rev` at `8c16063`. Logs are outside the worktree so they cannot pollute the digest:
+`/tmp/p28r3rev-e2e-run{1,2,3}.log`, `/tmp/p28r3rev-campaign.log`,
+`/tmp/p28r3rev-digest-{pre,post}.txt`.
 
-**Why.** The dispatch specified exactly one campaign repo-wide, with P29 queued behind me. That is
-not what happened. A P29 campaign started on `:3000` out of `/tmp/mf-p29` at ~17:59 while I was mid-
-census, and by the time I was ready there were **three** concurrent Playwright campaigns — PIDs
-3078493 (`/tmp/mf-p29`) and 3082548 and 3094466, the latter two in the **shared main checkout** —
-with load at 8-9 and `:3000` continuously bound.
+| run  | digest                             | load at start       | result                |
+| ---- | ---------------------------------- | ------------------- | --------------------- |
+| pre  | `f46cbb368fc6d55433473f127772e9db` | —                   | —                     |
+| 1    | —                                  | 5.82 7.17 6.91      | **177 passed** (4.5m) |
+| 2    | —                                  | **10.35** 8.74 7.62 | **177 passed** (4.2m) |
+| 3    | —                                  | 7.87 8.21 7.67      | **177 passed** (4.2m) |
+| post | `f46cbb368fc6d55433473f127772e9db` | —                   | —                     |
 
-`playwright.config.ts` pins `:3000` with `reuseExistingServer: false`, so my dev server could not
-have bound the port at all. Running anyway would have produced a result unprovable in either
-direction — the `Q-P27-02` discard case — and running `vitest` or `build` concurrently would have
-loaded the CPU under someone else's campaign and risked fabricating a red run for them. I reported
-the collision to root and waited rather than killing another agent's campaign, which is the
-destructive act `Q-P28-06` exists to prevent.
+**Digest identical before run 1 and after run 3**, and identical to the value before the five
+non-E2E checks, so all six checks are evidence for one tree — and that tree is `8c16063`. It is also
+the digest the P28 implementer recorded for its own campaign, so **two independent campaigns in
+different worktrees cover the same tree.**
 
-**What I verified about the E2E criterion without running it:**
+**Zero failures, zero flaky, zero retries**, verified per run rather than inferred from the totals:
+`✘` count 0, `N failed` summary lines 0, `N flaky` 0, `retry #` 0. The documented `passkey.spec.ts`
+flake did not appear.
 
-- `playwright test --list` in my worktree reports **`Total: 177 tests in 23 files`** — the
-  expected 177.
-- All five new tests **resolve and list individually by name**, so the `Q-P27-01` vacuous-import
-  failure mode is excluded:
+> **A grep of mine that looked alarming and was not.** My first failure sweep matched 38-39 lines
+> per run on `✘|failed|flaky|timed out|Error:`. Every one is either `[WebServer]` server-log noise
+> (`tRPC failed on realtime.revoke: Request authentication failed` and similar, which the suite
+> provokes deliberately) or a **test name containing the word "failed"** —
+> `onboarding-vault.spec.ts:63` "failed registration leaves no signing session" and
+> `undo-redo.spec.ts:311` "a failed offline undo push retries". A pattern broad enough to catch
+> every failure mode also catches tests _about_ failure. I re-counted against Playwright's own
+> markers before reporting anything, which is why this is a footnote and not a finding.
+
+**Test count 177, confirmed two ways** as the dispatch required. `playwright test --list` reports
+`Total: 177 tests in 23 files`, **and** the five new tests demonstrably _execute_ rather than being
+silently skipped — all five appear by name in **all three** run logs, which is the `Q-P27-01` check
+(an unresolvable import makes Playwright report zero tests rather than failing):
 
 ```
 date-locale.spec.ts:51:9   › a day-first viewer's typed date is stored as the day they meant
@@ -370,18 +396,35 @@ date-locale.spec.ts:103:9  › a different-year date rests with a two-digit year
 date-locale.spec.ts:123:9  › natural language entry still works
 ```
 
-- Every helper the spec imports exists (`createNewIdentity`, `goToTransactions`,
-  `addEmptyTransaction`), and the product renders `data-testid="date-editable"` at
-  `TransactionRow.tsx:369`.
-- My independently computed digest equals the one the implementer recorded pre-run-1 and post-run-3,
-  so **their** 3 x 177 campaign demonstrably covers exactly this tree.
+**Load discipline (`Q-P27-02`).** `:3000` verified unbound via `ss -ltn` immediately before run 1,
+and every candidate process classified by `/proc/<pid>/cmdline` rather than `pgrep -f`. **None of
+the three recorded load-sensitive assertions fired** — `duplicates.test.ts:749` and
+`vault-maintenance.test.tsx` passed in the unit run, `transactions.spec.ts:804` passed in all three
+E2E runs — so no result here rests on an uncontrolled-load measurement.
 
-**What this means for the verdict.** The E2E result rests on the implementer's own evidence, which I
-corroborated at the tree level but did not reproduce. I judge that sufficient for PASS because the
-unit-level verification I did run is far more discriminating for this particular change — the fix is
-a pure function over `Intl`, and I exercised it across 117 locales and two ICU engines, which no E2E
-suite does. A reviewer who disagrees should re-run the campaign before integrating; nothing else in
-this review depends on it.
+**Run 2 executed at load 10.35 and is the strongest single result in the package.** Those three
+assertions are precisely the ones that fire under contention; none did, at a load higher than any
+the implementer saw. Recorded rather than smoothed over, and the same asymmetry stated in §2.7
+applies: had run 2 gone red at load 10.35 it would have been _unprovable_ and I would have discarded
+it and re-run quiet, not reported a defect.
+
+> **A process reading of mine that was wrong, recorded as method.** I observed load 11.63 as the
+> unit suite started and briefly suspected a competing campaign. I checked `ps` sorted by CPU
+> **before** drawing the conclusion, and found the culprit was my own `vitest` at 32 workers on a
+> 32-core box — no competing Playwright existed. This is the same class as the coordinator's
+> monitor-shell false positive (a watcher whose own script text contained `playwright`, so a
+> whole-cmdline scan classified it as a campaign and made me report three concurrent campaigns when
+> there was one). The general rule I would draw is not "always check `ps`" but something narrower
+> and more portable: **the rigour a process reading deserves is proportional to what the conclusion
+> authorises.** Mine authorised nothing — I would have re-run either way — so being wrong cost
+> nothing. A reading that authorises a destructive act needs the check first.
+
+**An earlier revision of this review recorded this criterion as unrun**, because three apparent
+concurrent campaigns held `:3000` and running under them would have produced a result unprovable in
+either direction. Two of the three were a coordinator monitoring shell misclassified by a
+whole-cmdline scan; only one campaign was ever real. The port was handed over once it genuinely
+released, and this section replaces that gap with results. The prior text is preserved in git
+history rather than silently overwritten.
 
 ---
 
@@ -438,9 +481,12 @@ worth widening P28, which is under a narrow-revision instruction.
 
 ## 5. Required actions
 
-**None blocking.** F-5 (§1) is MEDIUM, browser-unreachable, and not a regression — it may be taken
-as a follow-up rather than a revision 04. The E2E campaign (§3) should be run by whoever integrates,
-if they want that criterion proven rather than inherited.
+**None. P28 revision 03 is ready to integrate.** All six checks are run and green, including a 3-run
+`--retries=0` campaign of my own on the same tree the implementer's campaign covered.
+
+F-5 (§1) is MEDIUM, browser-unreachable, and not a regression — a follow-up ticket, not a
+revision 04. Worth pinning with a test that names the class (day and month both in 10..12 under an
+order-flipping locale) whenever it is picked up.
 
 ---
 
