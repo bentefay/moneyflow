@@ -9683,3 +9683,63 @@ of the one mechanism. Dead export removed.
 
 **Port still HELD from both agents** until root determines what a campaign over the fused tree would
 be evidence for.
+
+### 2026-08-02 — **STANDING RULE CHANGED: a commit pathspec must name FILES, never a directory**
+
+Root verified `b94100b` and `1040bba` are clean — neither contains a P31 file. **Only `e97b3f7`
+fused, because P31's work happened to be uncommitted at that moment.** So the failure was not
+repeated carelessness; it was root's instruction meeting one unlucky interleaving.
+
+**`git commit -- src tests` stages everything under those paths regardless of author.** Root
+introduced that instruction specifically to protect the shared checkout and it did the opposite the
+one time another agent had uncommitted work. **New rule, in every dispatch from now: name the FILES
+you authored.** `1040bba` — three named files — is the correct shape.
+
+### 2026-08-02 — P30 rev 02 at `1040bba`: a THIRD defect self-caught, in its own F-2 fix
+
+**The best work in this package.** The implementer's first F-2 fix attached a `focusout` listener to
+the row and tested `row.contains(relatedTarget)` — which **looks obviously correct and is not.**
+
+**The tag dropdown is portaled to `document.body`, as is the proposal popover.** By DOM containment
+they are OUTSIDE the row, so focus moving into the tag picker would have counted as "the row lost
+focus" and fired an `Updating…` apply **with the picker still open.** That is F-2 exactly, wearing a
+different hat — a fix that reproduces the original defect through a new mechanism, and one that
+**would have passed a naive test**, because a test written from the same mental model assumes
+containment holds. The reviewer's F-2 test asserts no write on a sibling-cell move; it says nothing
+about a portaled surface.
+
+**It caught this by doing the specific thing it had skipped twice before: checking where the dropdown
+actually is, rather than reasoning about where it should be.** Its own formulation — *every false
+claim I've made in this package has been about wiring I reasoned about rather than measured* — and
+**this is the first instance caught BEFORE handback rather than after. Third occurrence, first
+self-catch.**
+
+Shipped fix listens for `focusin` on the document and treats focus as still in the row if the target
+is inside the row element **or** inside a surface marked `data-owned-by-row`; both portaled surfaces
+are marked, **so the attribute describes something real rather than being another assumption written
+into a comment.**
+
+**F-6 closed with a SHARPER assertion than the reviewer proposed, and root records it as the
+implementer's.** The reviewer suggested asserting the robot count stays 2 rather than 4. The
+implementer points out **the robot count cannot catch a duplicate at all** — two rules for the same
+description text still yield one robot per row. **The rule-list count is the assertion that
+discriminates.** Journey 5 now confirms and asserts the automations page lists exactly one rule.
+
+F-1 fixed with the anchor/`PendingRuleProposal` split avoiding five CRDT subscriptions per
+rule-backed cell per row. 8 unit cases including the remount control and the portal case. Gates at
+`1040bba`: typecheck clean, lint 0 errors, format clean, `pnpm test` 126 files / 2441 passed —
+**which covers BOTH packages and must be stated as such in the evidence.**
+
+### 2026-08-02 — Port sequenced to P31 FIRST, deliberately
+
+Neither order yields a clean single-package digest, since the two packages are fused in history.
+**What decides it: P31's `T021d`-`T021g` are the ONLY evidence UR-010 and UR-011 work at all** —
+`T021e` in particular is the only evidence for the keyboard clause, jsdom being unable to synthesise
+click from keyboard. P30's rev 02 fixes are already pinned by 8 unit cases including a control.
+
+**P31 instructed to state plainly in its evidence that the campaign tree contains P30's unreviewed
+rev 02**, and not to present the digest as covering its package alone. Tripwire set at ~187 expected;
+**177 means a stale base and stop** — which matters more than usual, since P31 already found BASE
+`054f77e` had drifted. Also instructed: if the `duplicates.test.ts` ratio flake fires, **report it and
+do not re-run for a green** — a campaign with one disclosed known-flaky failure is worth more than
+three clean runs that quietly re-rolled.
