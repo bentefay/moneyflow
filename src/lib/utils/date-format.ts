@@ -31,8 +31,27 @@ function formatPlainDateParts(
 ): readonly Intl.DateTimeFormatPart[] {
     const anchor = new Date(Date.UTC(2000, date.month - 1, date.day));
     anchor.setUTCFullYear(date.year);
-    return new Intl.DateTimeFormat(locale, { ...options, timeZone: "UTC" }).formatToParts(anchor);
+    return new Intl.DateTimeFormat(locale, {
+        ...options,
+        ...GREGORIAN_IN_UTC
+    }).formatToParts(anchor);
 }
+
+/**
+ * Calendar and zone pinned for every `Intl` call in this module.
+ *
+ * The calendar is forced to Gregorian because the stored value is a Gregorian
+ * calendar date and parsing reads it back with date-fns, which knows no other.
+ * Left to its own default, `th-TH` renders the Buddhist year — 2026 shows as
+ * 69 — and parsing that back yields 2069.
+ *
+ * UTC pairs with the UTC-midnight anchor so a civil date never shifts by host
+ * zone.
+ */
+const GREGORIAN_IN_UTC = {
+    calendar: "gregory",
+    timeZone: "UTC"
+} as const satisfies Intl.DateTimeFormatOptions;
 
 /**
  * Resolve the locale to format and parse with.
@@ -58,7 +77,7 @@ function resolveLocale(locale?: string): string {
 function localeDatePattern(locale: string, options: Intl.DateTimeFormatOptions): LocaleDatePattern {
     const parts = new Intl.DateTimeFormat(locale, {
         ...options,
-        timeZone: "UTC"
+        ...GREGORIAN_IN_UTC
     }).formatToParts(new Date(Date.UTC(2026, 7, 3)));
 
     const fields: DateFieldName[] = [];
@@ -165,11 +184,54 @@ export function formatTransactionDate(
     // Strip padding from the day and month by field identity rather than by
     // position: a locale that renders the year first (ja-JP) would otherwise
     // have a leading-zero year read as a day and corrupted.
+    const zero = localeZeroDigit(resolveLocale(locale));
     return parts
         .map((part) =>
-            part.type === "day" || part.type === "month" ? String(Number(part.value)) : part.value
+            part.type === "day" || part.type === "month"
+                ? stripLeadingZeroDigit(part.value, zero)
+                : part.value
         )
         .join("");
+}
+
+/**
+ * The digit this locale writes zero with.
+ *
+ * Locales do not all number in Latin digits — `fa-IR` writes `۵`, `bn-BD` `৫`.
+ * Padding must therefore be stripped in the locale's own numeral system.
+ */
+function localeZeroDigit(locale: string): string {
+    return new Intl.NumberFormat(locale, { useGrouping: false }).format(0);
+}
+
+/**
+ * Rewrite a locale's own numerals as Latin digits, leaving everything else
+ * untouched.
+ *
+ * The parser is date-fns, which recognises Latin digits only. Without this a
+ * viewer whose locale renders `۱۵/۰۶/۲۵` could not type back the very string
+ * they were shown, breaking the round trip the requirement demands.
+ */
+function toLatinDigits(value: string, locale: string): string {
+    const numberFormat = new Intl.NumberFormat(locale, { useGrouping: false });
+    const latinByLocaleDigit = new Map(
+        Array.from({ length: 10 }, (_unused, digit) => [numberFormat.format(digit), String(digit)])
+    );
+
+    return Array.from(value)
+        .map((character) => latinByLocaleDigit.get(character) ?? character)
+        .join("");
+}
+
+/**
+ * Drop one leading zero from a formatted day or month.
+ *
+ * Operates on the locale's own zero digit rather than coercing through
+ * `Number`, which yields `NaN` for every non-Latin numeral and would render
+ * the literal string "NaN" as the date.
+ */
+function stripLeadingZeroDigit(value: string, zero: string): string {
+    return value.startsWith(zero) && value.length > zero.length ? value.slice(zero.length) : value;
 }
 
 /**
@@ -217,6 +279,9 @@ export function parseLocaleDate(
 
     const reference = referenceDate ?? Temporal.Now.plainDateISO();
     const resolvedLocale = resolveLocale(locale);
+    // date-fns reads Latin digits only, so a locale that displays its dates in
+    // another numeral system could not otherwise have its own output typed back.
+    const latinised = toLatinDigits(trimmed, resolvedLocale);
 
     const withYear = localeDatePattern(resolvedLocale, {
         day: "numeric",
@@ -244,7 +309,7 @@ export function parseLocaleDate(
         // date-fns throws on a malformed pattern; treat that as a failed parse.
         const parsed = ((): Date | null => {
             try {
-                return parse(trimmed, candidateFormat, referenceAnchor);
+                return parse(latinised, candidateFormat, referenceAnchor);
             } catch {
                 return null;
             }

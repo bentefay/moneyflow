@@ -76,10 +76,75 @@ describe("formatTransactionDate two-digit year", () => {
     });
 });
 
+describe("locales that do not number in Latin digits", () => {
+    // Regression: the first revision of the formatter stripped padding with
+    // String(Number(part.value)). Number("۵") is NaN, so every one of these
+    // locales rendered the literal string "NaN" as the date. The rewrite that
+    // correctly fixed the ja-JP positional strip introduced this, and no test
+    // named a non-Latin locale, so the whole class went unseen.
+    const testCases = [
+        { locale: "fa-IR", iso: "2026-08-03", expected: "۸/۳" },
+        { locale: "bn-BD", iso: "2026-08-03", expected: "৩/৮" },
+        { locale: "my-MM", iso: "2026-08-03", expected: "၃/၈" }
+    ] as const;
+
+    it.each(testCases)("renders $iso in $locale's own numerals", ({ locale, iso, expected }) => {
+        expect(formatTransactionDate(iso, refDate, locale)).toBe(expected);
+    });
+
+    it("never renders the string NaN in any presentation", () => {
+        for (const locale of ["fa-IR", "bn-BD", "ar-EG", "my-MM", "ne-NP", "ps-AF"]) {
+            for (const iso of ["2026-08-03", "2025-06-15", "1999-12-31"]) {
+                expect(formatTransactionDate(iso, refDate, locale)).not.toContain("NaN");
+                expect(formatDateForEditing(iso, locale)).not.toContain("NaN");
+            }
+        }
+    });
+});
+
+describe("locales whose default calendar is not Gregorian", () => {
+    // Regression: nothing pinned the calendar, so th-TH rendered the Buddhist
+    // year (2026 as 69) while the parser read it back as Gregorian, shifting
+    // the stored value by 43 years. Unlike the NaN defect this one reached
+    // storage, so it violated spec.md:51-52 rather than only the display.
+    const nonGregorianLocales = ["th-TH", "fa-IR"] as const;
+
+    it.each(nonGregorianLocales)("renders and parses %s as a Gregorian date", (locale) => {
+        const iso = "2026-08-03";
+
+        expect(formatDateForEditing(iso, locale)).not.toContain("69");
+        expect(parseLocaleDate(formatDateForEditing(iso, locale), locale, refDate)).toBe(iso);
+        expect(parseLocaleDate(formatTransactionDate(iso, refDate, locale), locale, refDate)).toBe(
+            iso
+        );
+    });
+
+    it("does not shift a th-TH year by the Buddhist era offset", () => {
+        expect(formatDateForEditing("2026-08-03", "th-TH")).toBe("03/08/26");
+        expect(parseLocaleDate("03/08/26", "th-TH", refDate)).toBe("2026-08-03");
+    });
+});
+
 describe("parseLocaleDate", () => {
     describe("accepts what the same locale displays", () => {
         // The core round-trip clause: whatever was shown must be typeable back.
-        const locales = ["en-AU", "en-GB", "en-US", "de-DE", "ja-JP"] as const;
+        // Deliberately spans three axes the first revision of this suite missed
+        // and which a Latin/Gregorian-only table cannot exercise: non-Latin
+        // numbering systems (fa-IR, bn-BD, ar-EG), a non-Gregorian default
+        // calendar (th-TH Buddhist, fa-IR Persian), and a year-first order
+        // (ja-JP). Rewriting a formatter can regress an entire input class that
+        // no test names.
+        const locales = [
+            "en-AU",
+            "en-GB",
+            "en-US",
+            "de-DE",
+            "ja-JP",
+            "th-TH",
+            "fa-IR",
+            "bn-BD",
+            "ar-EG"
+        ] as const;
         const isoDates = [
             "2026-08-03", // day and month both <= 12, where transposition hides
             "2026-01-15",
