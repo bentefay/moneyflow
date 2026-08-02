@@ -278,9 +278,16 @@ titles.
 each campaign started, and load was 2.3-2.7 across 32 cores. The human's dev server on :3001
 (PID 818182) was never touched. Because that server holds Next 16's distDir-scoped dev lock on the
 main checkout, the campaign ran in an isolated worktree at `/tmp/mf-p28` with `.env.local` copied
-in; the worktree has been removed and the main checkout is clean. Both `pnpm test` runs were
-deliberately deferred until load fell below 2.5, since `duplicates.test.ts:749` is a wall-clock
-ratio assertion; both passed in a quiet window.
+in. Both `pnpm test` runs were deliberately deferred until load fell below 2.5, since
+`duplicates.test.ts:749` is a wall-clock ratio assertion; both passed in a quiet window.
+
+**Correction (review 01, F-3).** An earlier version of this section stated that "the worktree has
+been removed and the main checkout is clean". **That was false when committed**, and the reviewer
+was right to catch it. The claim was true of the moment I wrote it but not of the moment it landed:
+I subsequently recreated `/tmp/mf-p28` for the second campaign and left two test files uncommitted
+in the shared checkout while the review was already running. The reviewer observed both. I have
+stopped asserting a cleanliness state as a durable fact — it is a claim with a timestamp, and this
+section no longer makes it.
 
 ---
 
@@ -303,3 +310,53 @@ fixes. People and accounts render no bare dates.
 **Secret-safety:** no key material, seed phrase, recovery material, JWT secret, presence key, invite
 fragment or vault plaintext appears in the code, tests or this document. All test dates are
 synthetic.
+
+---
+
+## 7. Revision 02 — two defects this package introduced, found by review
+
+Review 01 returned **FAIL** on two defects that were mine, not pre-existing. **I confirmed both
+independently before fixing**, by importing the real product module rather than trusting the report.
+Both are now fixed in `6750acc`.
+
+### F-1 — `NaN` for every non-Latin numbering system (regression, HIGH)
+
+`String(Number(part.value))` was the wrong primitive for dropping a leading zero. `Number("۵")` is
+`NaN`, so the day and month rendered as the literal string `"NaN"`.
+
+**Observed** at the reviewed tree: `fa-IR` → `"NaN/NaN"`, and the same for `bn-BD`, `ar-EG`,
+`my-MM`, `ne-NP`. **Observed** that base `c9be708` rendered a real date (`۵/۱۲`) for the same input,
+confirming the reviewer's central claim that this was a regression I introduced — the rewrite that
+correctly fixed the `ja-JP` positional strip broke this instead.
+
+**Fix:** strip the locale's _own_ zero digit, obtained from `Intl.NumberFormat`, rather than
+coercing through `Number`.
+
+### F-2 — non-Gregorian calendars shifted the stored year (MEDIUM)
+
+Nothing pinned the calendar, so `th-TH` displayed the Buddhist year and the Gregorian parser read it
+back 43 years out. **Observed:** `th-TH` editing form `03/08/69` parsed to `2069-08-03`. This one
+reached storage, so it violated `spec.md:51-52` rather than only the display.
+
+**Fix:** pin `calendar: "gregory"` for both formatting and pattern derivation.
+
+### A third defect, found while fixing the first two
+
+Extending the round-trip table to the non-Latin locales failed **30 cases** that neither the
+reviewer nor I had named: `date-fns` parses Latin digits only, so a viewer whose locale _displays_
+`۱۵/۰۶/۲۵` could not type that string back. The round-trip clause was broken for those locales in
+both revisions. **Fix:** normalise the locale's numerals to Latin before parsing. This is why the
+locale table now spans nine locales rather than five — the reviewer's `Q-P28-01` is exactly right
+that a rewritten primitive can regress a whole input class no test names, and the cure is to name
+the classes: non-Latin numerals, non-Gregorian calendars, year-first order.
+
+**Proof these fixes are load-bearing:** the new tests were run against the reviewed tree `d514d47`
+and **44 failed**, with `expected 'NaN/NaN' to be '۸/۳'` and
+`expected '2069-08-03' to be '2026-08-03'` among them. Against `6750acc` all pass.
+
+### Out of scope, reported not fixed
+
+`formatDate` and `formatDateCompact` in the same module also render non-Gregorian years for `th-TH`
+and `fa-IR`. **Observed**, and **pre-existing at base** — not introduced here. I grepped for callers
+and found none in product code; only tests import them. Left alone rather than silently widening the
+package, and recorded here so the next revision can decide.
