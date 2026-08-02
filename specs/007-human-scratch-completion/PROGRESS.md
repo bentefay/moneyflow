@@ -7,29 +7,56 @@ review evidence.
 ## Current position
 
 - **Goal status:** in progress
-- **Current package:** **P21** (control — executable final audit), **revision 05 returned FAIL (M-1); Q-P20B-00 engine ruled OUT-OF-GOAL (D-019, f290246); **RB-P21-05 COMPLETED** (HS-016 marker `[x] -> []` at `:328`, rolling `469e98c7… -> 00291e2d…`, batch cleared); **P20A rev 03 handback VERIFIED** (`a823457`): copy truthful, 3 authorized files only, fast gates green; **P20A rev 03 review PASS (`e53fa724`) -> P20A `passed`; HS-016 RE-PASSED via §275 forward marker (`:328` `[] -> [x]`, rolling `00291e2d… -> 469e98c7…`); ALL 22 requirements + 21/21 feature packages now `passed`; re-opening P21 rev 06 final audit** — see EOF events 2026-07-30**
-  (all 21 feature packages passed; HS-021 RE-PASSED after P20B rev 06 PASS). DISTINCT `p21-reviewer-04` returned the single formal
-  **FAIL** (`reviews/P21-review-04.md`, committed `60c2eca`) on E2E stability alone — every other
-  contract clause passed independently (`pnpm audit --prod` exit 0; typecheck/lint/build/unit green;
-  FS-001 16/16 gates; security probes clean). Two blockers, both owned by P20B: **F-1**
-  `import.spec.ts:1512` (a NEW eager `toBeVisible` default-timeout flake inside the test at `:1445`,
-  1/8 full-suite; Q-P20B-18) and **F-2** `identity.spec.ts:282` (a RE-FLAKE of the P20B rev-02 fix,
-  1/8 full-suite; the rev-02 `toBeEditable`/`toHaveValue` idiom cannot prove hydration for a
-  controlled `Input`, which — unlike `Button` — has no `useIsHydrated` gate, root-confirmed by
-  source; Q-P20B-19). HS-021 ROLLED BACK via §275 `RB-P21-04` (marker `:159` `[x] -> []`, rolling
-  `469e98c7… -> f46c2d35…`, 24,259 bytes, normalized 20/1). **Tally: 28 of 34 requirements `passed`** (HS-016 re-passed; UR-001..UR-004 ADMITTED 2026-07-30 and `queued`);
-  **27 of 33 feature packages `passed`** (P22-P27 PASSED; P28-P33 `queued`). C-1 upstream currency
-  drift ruled a non-blocking accepted carry-forward (Q-P21-04-01).
-- **Next action:** **P22 rev 02 in independent review** (`p22-reviewer-02`); **P23 rev 01 dispatched in parallel** (`p23-implementer-01`, disjoint file set). — reviewer PASSed rev 01 but its own MEDIUM finding is a literal non-conformance with frozen UR-001 text; root requires the one-line conformance fix before integrating. Then a DISTINCT reviewer, then P23/P24/P25 in order, then re-open P21 rev 06 from a fresh BASE. Prior: **P21 rev 06 STOPPED and VOIDED** (scope admission superseded its entry conditions; collector wrote and committed nothing). Implement **P22 (UR-001)**, **P23 (UR-002)**, **P24 (UR-003)**, **P25 (UR-004)** one package at a time, each with a DISTINCT independent reviewer, then re-open P21 rev 06 from a fresh BASE over all 25 feature packages. Historical: P21 rev 06 was — executable final audit over all 21 passed feature packages + FS-001 with a fresh DISTINCT collector + reviewer (§114). M-1 REMEDIED (P20A rev 03 truthful copy `a823457`; HS-016 re-passed). Confirm no other public surface re-asserts a zero-lost-data absolute; surface carry-forward Q-proposals (Q-P20B-00 [D-019 OUT-OF-GOAL], Q-P20B-13/14, Q-P20A-02/05, Q-P17D-02, Q-P20B-06/08, Q-P21-04-01, Q-P21-05-01/02/03). On PASS, finalize FINAL-AUDIT.md + the completion condition. [Historical:] P21 rev 05 returned FAIL on M-1 [reviewer preserved at 7cb651d]. Q-P20B-00 ruled **OUT-OF-GOAL** (D-019, `f290246`): the `pruneBuckets` engine fix is future out-of-goal work and `p20b-reviewer-01 §6.1` is upheld. In-goal step: execute **RB-P21-05** §275 rollback of the HS-016 marker (`:328` `[x] -> []`), downgrade P20A -> `changes_requested`, then dispatch the P20A/HS-016 truthful-copy re-fix + a DISTINCT reviewer. No package fix dispatch until the batch is finalized and cleared. Full detail in the dated EOF event 2026-07-30. [Historical, now moot:] open P21 revision 05 — the executable final audit over all 21 passed feature
-  packages (fresh DISTINCT collector + reviewer per §114). P20B rev 06 PASSED (DISTINCT
-  `p20b-reviewer-06`, 10/10 full-suite `--retries=0` load campaign, `reviews/P20B-review-06.md`;
-  product byte-identical to `371a88a`, secret-safe, no new `as`/`any`/`!`). HS-021 re-passed and the
-  §275 forward marker re-applied `[] -> [x]` at `:159` (rolling `f46c2d35… -> 469e98c7…`, 24,260
-  bytes, normalized 0 unchecked / 43 checked). The P21 rev-05 collector must confirm these
-  carry-forward Q-proposals are surfaced and re-run the full audit contract.
-  Carry-forward Q-proposals the next audit must confirm are surfaced: Q-P20B-00 (`pruneBuckets` CRDT
-  data loss), Q-P20B-14 (`import.spec.ts:1527` environmental), Q-P20B-13 / Q-P20A-05 (residual
-  flakes), Q-P17D-02, Q-P20A-02, Q-P20B-06/08, Q-P21-04-01 (currency carry-forward).
+- **Current package:** **P21** (control — executable final audit), **revision 05 returned FAIL
+  (M-1); Q-P20B-00 engine ruled OUT-OF-GOAL (D-019, f290246); **RB-P21-05 COMPLETED** (HS-016 marker
+  `[x] -> []` at `:328`, rolling `469e98c7… -> 00291e2d…`, batch cleared); **P20A rev 03 handback
+  VERIFIED** (`a823457`): copy truthful, 3 authorized files only, fast gates green; **P20A rev 03
+  review PASS (`e53fa724`) -> P20A `passed`; HS-016 RE-PASSED via §275 forward marker (`:328`
+  `[] -> [x]`, rolling `00291e2d… -> 469e98c7…`); ALL 22 requirements + 21/21 feature packages now
+  `passed`; re-opening P21 rev 06 final audit** — see EOF events 2026-07-30** (all 21 feature
+  packages passed; HS-021 RE-PASSED after P20B rev 06 PASS). DISTINCT `p21-reviewer-04` returned the
+  single formal **FAIL** (`reviews/P21-review-04.md`, committed `60c2eca`) on E2E stability alone —
+  every other contract clause passed independently (`pnpm audit --prod` exit 0;
+  typecheck/lint/build/unit green; FS-001 16/16 gates; security probes clean). Two blockers, both
+  owned by P20B: **F-1** `import.spec.ts:1512` (a NEW eager `toBeVisible` default-timeout flake
+  inside the test at `:1445`, 1/8 full-suite; Q-P20B-18) and **F-2** `identity.spec.ts:282` (a
+  RE-FLAKE of the P20B rev-02 fix, 1/8 full-suite; the rev-02 `toBeEditable`/`toHaveValue` idiom
+  cannot prove hydration for a controlled `Input`, which — unlike `Button` — has no `useIsHydrated`
+  gate, root-confirmed by source; Q-P20B-19). HS-021 ROLLED BACK via §275 `RB-P21-04` (marker `:159`
+  `[x] -> []`, rolling `469e98c7… -> f46c2d35…`, 24,259 bytes, normalized 20/1). **Tally: 28 of 34
+  requirements `passed`** (HS-016 re-passed; UR-001..UR-004 ADMITTED 2026-07-30 and `queued`); **27
+  of 33 feature packages `passed`** (P22-P27 PASSED; P28-P33 `queued`). C-1 upstream currency drift
+  ruled a non-blocking accepted carry-forward (Q-P21-04-01).
+- **Next action:** **P22 rev 02 in independent review** (`p22-reviewer-02`); **P23 rev 01 dispatched
+  in parallel** (`p23-implementer-01`, disjoint file set). — reviewer PASSed rev 01 but its own
+  MEDIUM finding is a literal non-conformance with frozen UR-001 text; root requires the one-line
+  conformance fix before integrating. Then a DISTINCT reviewer, then P23/P24/P25 in order, then
+  re-open P21 rev 06 from a fresh BASE. Prior: **P21 rev 06 STOPPED and VOIDED** (scope admission
+  superseded its entry conditions; collector wrote and committed nothing). Implement **P22
+  (UR-001)**, **P23 (UR-002)**, **P24 (UR-003)**, **P25 (UR-004)** one package at a time, each with
+  a DISTINCT independent reviewer, then re-open P21 rev 06 from a fresh BASE over all 25 feature
+  packages. Historical: P21 rev 06 was — executable final audit over all 21 passed feature
+  packages + FS-001 with a fresh DISTINCT collector + reviewer (§114). M-1 REMEDIED (P20A rev 03
+  truthful copy `a823457`; HS-016 re-passed). Confirm no other public surface re-asserts a
+  zero-lost-data absolute; surface carry-forward Q-proposals (Q-P20B-00 [D-019 OUT-OF-GOAL],
+  Q-P20B-13/14, Q-P20A-02/05, Q-P17D-02, Q-P20B-06/08, Q-P21-04-01, Q-P21-05-01/02/03). On PASS,
+  finalize FINAL-AUDIT.md + the completion condition. [Historical:] P21 rev 05 returned FAIL on M-1
+  [reviewer preserved at 7cb651d]. Q-P20B-00 ruled **OUT-OF-GOAL** (D-019, `f290246`): the
+  `pruneBuckets` engine fix is future out-of-goal work and `p20b-reviewer-01 §6.1` is upheld.
+  In-goal step: execute **RB-P21-05** §275 rollback of the HS-016 marker (`:328` `[x] -> []`),
+  downgrade P20A -> `changes_requested`, then dispatch the P20A/HS-016 truthful-copy re-fix + a
+  DISTINCT reviewer. No package fix dispatch until the batch is finalized and cleared. Full detail
+  in the dated EOF event 2026-07-30. [Historical, now moot:] open P21 revision 05 — the executable
+  final audit over all 21 passed feature packages (fresh DISTINCT collector + reviewer per §114).
+  P20B rev 06 PASSED (DISTINCT `p20b-reviewer-06`, 10/10 full-suite `--retries=0` load campaign,
+  `reviews/P20B-review-06.md`; product byte-identical to `371a88a`, secret-safe, no new
+  `as`/`any`/`!`). HS-021 re-passed and the §275 forward marker re-applied `[] -> [x]` at `:159`
+  (rolling `f46c2d35… -> 469e98c7…`, 24,260 bytes, normalized 0 unchecked / 43 checked). The P21
+  rev-05 collector must confirm these carry-forward Q-proposals are surfaced and re-run the full
+  audit contract. Carry-forward Q-proposals the next audit must confirm are surfaced: Q-P20B-00
+  (`pruneBuckets` CRDT data loss), Q-P20B-14 (`import.spec.ts:1527` environmental), Q-P20B-13 /
+  Q-P20A-05 (residual flakes), Q-P17D-02, Q-P20A-02, Q-P20B-06/08, Q-P21-04-01 (currency
+  carry-forward).
 - **Anomaly noted (inert):** an UNTRACKED `evidence/P08/implementation-01.md` (312 lines, references
   old BASE `97d85844`, self-labeled "Intentionally UNCOMMITTED" P08/HS-011+HS-012 artifact) is
   present in the worktree but is OUTSIDE the P20B committed range (untracked, not in
@@ -41,23 +68,41 @@ review evidence.
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
   `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines and 25,441 bytes
 - **Rolling scratch SHA-256:** `469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a`
+- **KNOWN LIMITATION of the settlement-rotation record (recorded 2026-08-03).** Every
+  `people-settlement.spec.ts` observation in this ledger records **which test IDs failed**, never
+  **at which step**. P33 measured test `281` failing at step 6 in one run and step 11 in the next,
+  on one unchanged digest — so **a repeated ID is not a repeated failure**, and two entries recorded
+  as the same membership may be different failure modes. MEASURED: 11+ campaigns of ID-level data.
+  INFERRED and now known false: that identical membership implied an identical failure. **The
+  defensible claim is therefore narrower than earlier entries imply — we know which tests failed,
+  not how many distinct failure modes were seen, and the count of distinct combinations is an
+  undercount.** A fully clean 19/19 run has also been observed, so a green settlement result carries
+  no information in either direction. Future entries record step-level detail where the log provides
+  it and say so where it does not.
 - **Authorized checked HS IDs:** HS-001, HS-002, HS-003, HS-004, HS-005, HS-006, HS-007, HS-008,
-  HS-009, HS-010, HS-011, HS-012, HS-013, HS-014, HS-015, HS-016, HS-017, HS-018, HS-019, HS-020, HS-021
-  (21 of 21 human-scratch IDs; HS-016 RE-PASSED via §275 forward marker after P20A rev 03 PASS [D-019 truthful-copy fix]; HS-021 RE-PASSED after P20B rev 06 PASS — DISTINCT `p20b-reviewer-06`
-  10/10 full-suite `--retries=0` load campaign; §275 forward marker re-applied `:159` `[] -> [x]`
-  (rolling `f46c2d35… -> 469e98c7…`); FS-001 is markerless, completed via ledger)
-- **Active completion marker event:** none pending (HS-016 §275 forward marker COMPLETED 2026-07-30: `[] -> [x]` at `:328`, rolling `00291e2d… -> 469e98c7…`, one-line diff 328c328, after-SHA == all-checked `469e98c7…`, completion_pending from `d781f48` finalized). Prior: HS-021 marker ROLLED BACK via §275 `RB-P21-04`
-  after the P21 rev-04 audit FAIL, scratch `:159` `- [x]` -> `- []`, rolling
-  `469e98c7… -> f46c2d35…` (marker-only one-line diff `159c159` verified against a mktemp snapshot;
-  file 24,259 bytes; 42 checked / 1 unchecked; normalized blocks 20/1)
-- **Active P21 rollback batch:** none (**RB-P21-05 COMPLETED + cleared** — P21 rev-05 M-1; owner `P20A`/`HS-016`; single-ID pending set `[HS-016]` fully processed; completed `[HS-016: [x]->[], 469e98c7… -> 00291e2d…]`; contiguous hash chain `469e98c7… -> 00291e2d…` ends at actual rolling SHA `00291e2d…`; FS-001 never entered the batch; see the completed-batch EOF event 2026-07-30). Prior: none (`RB-P21-04` COMPLETED + cleared — see the completed-batch
-  event at EOF). Batch summary: failed review `reviews/P21-review-04.md` (P21 rev 04 audit FAIL, F-1
+  HS-009, HS-010, HS-011, HS-012, HS-013, HS-014, HS-015, HS-016, HS-017, HS-018, HS-019, HS-020,
+  HS-021 (21 of 21 human-scratch IDs; HS-016 RE-PASSED via §275 forward marker after P20A rev 03
+  PASS [D-019 truthful-copy fix]; HS-021 RE-PASSED after P20B rev 06 PASS — DISTINCT
+  `p20b-reviewer-06` 10/10 full-suite `--retries=0` load campaign; §275 forward marker re-applied
+  `:159` `[] -> [x]` (rolling `f46c2d35… -> 469e98c7…`); FS-001 is markerless, completed via ledger)
+- **Active completion marker event:** none pending (HS-016 §275 forward marker COMPLETED 2026-07-30:
+  `[] -> [x]` at `:328`, rolling `00291e2d… -> 469e98c7…`, one-line diff 328c328, after-SHA ==
+  all-checked `469e98c7…`, completion_pending from `d781f48` finalized). Prior: HS-021 marker ROLLED
+  BACK via §275 `RB-P21-04` after the P21 rev-04 audit FAIL, scratch `:159` `- [x]` -> `- []`,
+  rolling `469e98c7… -> f46c2d35…` (marker-only one-line diff `159c159` verified against a mktemp
+  snapshot; file 24,259 bytes; 42 checked / 1 unchecked; normalized blocks 20/1)
+- **Active P21 rollback batch:** none (**RB-P21-05 COMPLETED + cleared** — P21 rev-05 M-1; owner
+  `P20A`/`HS-016`; single-ID pending set `[HS-016]` fully processed; completed
+  `[HS-016: [x]->[], 469e98c7… -> 00291e2d…]`; contiguous hash chain `469e98c7… -> 00291e2d…` ends
+  at actual rolling SHA `00291e2d…`; FS-001 never entered the batch; see the completed-batch EOF
+  event 2026-07-30). Prior: none (`RB-P21-04` COMPLETED + cleared — see the completed-batch event at
+  EOF). Batch summary: failed review `reviews/P21-review-04.md` (P21 rev 04 audit FAIL, F-1
   `import.spec.ts:1512` eager-assert cohort Q-P20B-18 + F-2 `identity.spec.ts:282` re-flake
   Q-P20B-19); owning package `P20B` (now `changes_requested`, rev 06 reopen); requirement `HS-021`
   (now `changes_requested`); one-ID pending set `[HS-021]` fully processed; completed
-  `[HS-021: [x]->[], 469e98c7… -> f46c2d35…]`; contiguous hash chain `469e98c7… -> f46c2d35…` ends at
-  actual rolling SHA `f46c2d35…`; FS-001 never entered the batch. (Prior `RB-P21-03`/`RB-P21-02`/`RB-P21-01`
-  likewise COMPLETED + cleared.)
+  `[HS-021: [x]->[], 469e98c7… -> f46c2d35…]`; contiguous hash chain `469e98c7… -> f46c2d35…` ends
+  at actual rolling SHA `f46c2d35…`; FS-001 never entered the batch. (Prior
+  `RB-P21-03`/`RB-P21-02`/`RB-P21-01` likewise COMPLETED + cleared.)
 - **Last ledger update:** 2026-07-27; **P20B / 01 clean re-handback verify-not-trust GREEN ->
   transitioned to `reviewing`; DISTINCT `p20b-reviewer-01` dispatched over `659ca20..f058a98`.**
   After the earlier hygiene bounce (uncommitted import drift + evidence/code contradiction),
@@ -133,52 +178,52 @@ review evidence.
 
 ## Package ledger
 
-| Package | Scope          | Work / task                                                                         | Depends on           | Status            | Rev | BASE..HEAD                                                                                                                                                                                                                                                                  | Implementation evidence                                                                                                | Review                                                                                                        | Integration commit                                                                                                                                                                                                                                                                      |
-| ------- | -------------- | ----------------------------------------------------------------------------------- | -------------------- | ----------------- | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P00     | control        | [Executable baseline](tasks/P00-baseline.md)                                        | —                    | passed            | 02  | `0ea864f5d0142530b2d524add228d3b51f162876..8f12d82ddb576af5cc8c6f04d32617d805e300de`                                                                                                                                                                                        | `evidence/P00/implementation-02.md`                                                                                    | `reviews/P00-review-02.md`                                                                                    | `7eb78075e0be7b6a881e59f03d2bfd2e202fc0f8`                                                                                                                                                                                                                                              |
-| P01     | HS-002         | Upgrade dependencies by compatible safe chains                                      | P00                  | passed | 03  | `f785de9..371a88a`                                                                                                                                                                                        | `evidence/P01/implementation-03.md`                                                                                    | `reviews/P01-review-03.md`                                                                                    | `371a88a`                                                                                                                                                                                                                                              |
-| P02     | HS-017         | Animate UI evaluation, ADR, and representative migration only if justified          | P01                  | passed            | 02  | `19d73035b33b639f9927d2f78a55d74c44f65544..213100fadf5acea30aad7e90998bd575cdcd508c`                                                                                                                                                                                        | `evidence/P02/implementation-02.md`                                                                                    | `reviews/P02-review-02.md`                                                                                    | `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7`                                                                                                                                                                                                                                              |
-| P03     | HS-018         | TanStack Virtual PR #1100 release gate and `useFlushSync`                           | P01                  | passed            | 01  | `c60f605bd811d8920122a66f3d6743d8a3ac044d..b8d4b448f52022970ca388654be14d24e347deb5`                                                                                                                                                                                        | `evidence/P03/implementation-01.md`                                                                                    | `reviews/P03-review-01.md`                                                                                    | `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34`                                                                                                                                                                                                                                              |
-| P04     | HS-014         | Database/table/RLS threat model, migrations, and permission remediation             | P01                  | passed            | 02  | `9de8b0e8c41087b96523ecc55faa10bf19ec0ff9..dbcf180e829c81a218e9a73791e40902c4f9eb31`                                                                                                                                                                                        | `evidence/P04/implementation-02.md`                                                                                    | `reviews/P04-review-02.md`                                                                                    | `b905ecb810334ed9697f57140047964135ade6ea`                                                                                                                                                                                                                                              |
-| P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | passed            | 13  | `92dfd4d002e8bcb2a6694c35aff8f713ba4689dc..b34dcf6ad53b6bb3fc6482180d2b0aaedd7fc1bc`                                                                                                                                                                                        | `evidence/P05/implementation-13.md`                                                                                    | `reviews/P05-review-13.md`                                                                                    | `8101bb2355a9894dd5cac9540afd38045973dd01`                                                                                                                                                                                                                                              |
-| P06     | HS-010         | Remove unused user-state storage and dead API surface                               | P04                  | passed            | 01  | `a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1..95e91dbcb17ffb9600eaa6cb795336898297ebae`                                                                                                                                                                                        | `evidence/P06/implementation-01.md`                                                                                    | `reviews/P06-review-01.md`                                                                                    | `8e269ab9a6fc15ed6d845542b879e5499828134e`                                                                                                                                                                                                                                              |
-| P07     | HS-011         | Evidence-led person/member/invite UX architecture and acceptance decision           | P04, P06             | passed            | 04  | `fe1871ce7dce1e831b57ee5656d38ce5c800aae3..dfffea3c19b110b6021b050b8d9e36b01ae75ab9`                                                                                                                                                                                        | `evidence/P07/implementation-04.md`                                                                                    | `reviews/P07-review-04.md`                                                                                    | `1f6cb96b27c8093f0ba2c319f32d3c79c8aab126`                                                                                                                                                                                                                                              |
-| P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | passed            | 02  | `d2762f9..d40b854`                                                                                                                                                                                                                                                          | `evidence/P08/implementation-02.md`                                                                                    | `reviews/P08-review-02.md`                                                                                    | PASS; A `a1e1b2d`; B markers HS-011/012                                                                                                                                                                                                                                                 |
-| P09     | HS-006         | Loro UndoManager integration, controls, shortcuts and action grouping               | P01                  | passed            | 02  | `c9146fae2c5534313d21b4f34cb2b012eaeeb4ed..418234e28ac649e03ce8ad184d08a8a2f2416149`                                                                                                                                                                                        | `evidence/P09/implementation-02.md`                                                                                    | `reviews/P09-review-02.md`                                                                                    | `59bf82e894e45e034858e25255240701a3afb0b8`                                                                                                                                                                                                                                              |
-| P10     | HS-003         | Encrypted Loro EphemeralStore presence and active transaction                       | P05, P08             | passed            | 01  | `54a88ae..71c378c`                                                                                                                                                                                                                                                          | `evidence/P10/implementation-01.md`                                                                                    | `reviews/P10-review-01.md`                                                                                    | PASS; A `31ad9b5`; B row -> passed + HS-003 marker `1b56b21c… -> 9fcdc51e…`                                                                                                                                                                                                             |
-| P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | passed            | 04  | `eb5ab2e215130c358130d5411a92b51951c3c53a..fb72abdaf531dff40c59f6b3525fb1b9ce50f805`                                                                                                                                                                                        | `evidence/P11A/implementation-04.md`                                                                                   | `reviews/P11A-review-04.md`                                                                                   | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f`                                                                                                                                                                                                                                              |
-| P11B    | HS-004         | Alias management and transaction-cell pointer/keyboard UX                           | P11A                 | passed            | 01  | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f..e35109dfe7b02bdb4058445f44d03a6dd678457b`                                                                                                                                                                                        | `evidence/P11B/implementation-01.md`                                                                                   | `reviews/P11B-review-01.md`                                                                                   | `0426866fa66cc022efca6d74cd5088d586d3d11b`                                                                                                                                                                                                                                              |
-| P11C    | HS-004         | Alias import/manual/shared flows, performance hardening and exhaustive tests        | P11B                 | passed            | 03  | `0426866fa66cc022efca6d74cd5088d586d3d11b..daab038ee741faa9f92a373b27efe0c8fe8940db`                                                                                                                                                                                        | `evidence/P11C/implementation-03.md`                                                                                   | `reviews/P11C-review-03.md`                                                                                   | `78e2f978f8d258d8c4d379f53e75089a2ce975db`                                                                                                                                                                                                                                              |
-| P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | passed            | 08  | `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e..a2a31839f6bb57855fa60b8cfcc06feed069cafa`                                                                                                                                                                                        | `evidence/P12/implementation-08.md`                                                                                    | `reviews/P12-review-08.md`                                                                                    | `f8cbb5a8caacb763c0bb77199595a5ee332ab729`                                                                                                                                                                                                                                              |
-| P13     | HS-001         | Persisted normal empty Add Transaction rows and grid navigation                     | P11C, P09            | passed            | 03  | `415ea080b3b19191fd71601742056a619b4a3080..9f307e200676711ca2a3ba81bd816314807434ad`                                                                                                                                                                                        | `evidence/P13/implementation-03.md`                                                                                    | `reviews/P13-review-03.md`                                                                                    | `7a04338fa7c3f68463d12d11082bc56e87c1872b`                                                                                                                                                                                                                                              |
-| P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | passed            | 04  | `b9105028926d24a5a0c5454777a6c33379ca606a..305d6613673cf200d456276c076463b68c075500`                                                                                                                                                                                        | `evidence/P14/implementation-04.md`                                                                                    | `reviews/P14-review-04.md`                                                                                    | `a2182116db08200b8b4df28412512b9ca3406aa2`                                                                                                                                                                                                                                              |
-| P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | passed            | 02  | `b3e96ba9e9487d13df56956d220fffca63d6482d..91931688ef9463576b757a097968af543a4b8a75`                                                                                                                                                                                        | `evidence/P15/implementation-02.md`                                                                                    | `reviews/P15-review-02.md`                                                                                    | `9c5d7be8ee4cf7c3fda5f1a7320c053362672e3a`                                                                                                                                                                                                                                              |
-| P16A    | FS-001, HS-009 | Allocation/ownership validation, remainder/effective shares and exact apportionment | P01                  | passed            | 02  | `1b42d27e11494a167a4768e0c2c308010aa51651..f84f66758708529c44342313e8632ee8b7dcead3`                                                                                                                                                                                        | `evidence/P16A/implementation-02.md`                                                                                   | `reviews/P16A-review-02.md`                                                                                   | `41f5760f77c1a93ab650a93912bfaf3c0b627ab0`                                                                                                                                                                                                                                              |
-| P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | passed            | 05  | `4c102600240e2804b801c2a320e10164defb14ea..46d8f9feb79c6dfc080c0869922fb8cd4c20ec6c`                                                                                                                                                                                        | `evidence/P16B/implementation-05.md`                                                                                   | `reviews/P16B-review-05.md`                                                                                   | `136678a0ac864cf2d120b2b5b896d4fadcabcdd1`                                                                                                                                                                                                                                              |
-| P16C    | FS-001, HS-009 | CRDT per-key/complete-set APIs and every mutation, hydration and history path       | P16A, P16B, P09, P14 | passed            | 02  | `0a7c9a49722ddc4d955f910af6dbb19cfffbd600..207e8c5758a48e66980b95eaeff51c0e5a605f7e`                                                                                                                                                                                        | `evidence/P16C/implementation-02.md`                                                                                   | `reviews/P16C-review-02.md`                                                                                   | `e0f06f7fb60ce08ef2f75b0a9ca7769630a2a55c`                                                                                                                                                                                                                                              |
-| P16D    | FS-001, HS-009 | Actual grid/add-row person columns, virtualization, history and presence UX         | P16C, P13            | passed            | 01  | `3a5081ac37e09817e0d02ae8799469d1bf09dad5..b5ebc2a8edbf5e1fc522873fb5ee7455266a3bcc`                                                                                                                                                                                        | `evidence/P16D/implementation-01.md`                                                                                   | `reviews/P16D-review-01.md`                                                                                   | `47867d506978a3f571ef0feef6185e9436d5a908`                                                                                                                                                                                                                                              |
-| P16E    | FS-001         | People obligations/issues/source UX plus full integration, E2E, manual and perf     | P16D, P08, P11C      | passed            | 02  | `191d070..bb12e0c`                                                                                                                                                                                                                                                          | `evidence/P16E/implementation-02.md`                                                                                   | `reviews/P16E-review-02.md`                                                                                   | PASS; A `b0023f6`; B control -> passed (FS-001 markerless)                                                                                                                                                                                                                              |
-| P17A    | HS-007         | Automation schema/migration, exact matcher, precedence, preferences, import engine  | P11C, P14, P16E      | passed            | 01  | `a09c4b4..ee83b1b`                                                                                                                                                                                                                                                          | `evidence/P17A/implementation-01.md`                                                                                   | `reviews/P17A-review-01.md`                                                                                   | PASS; A `81401bf`; B row -> passed (HS-007 markerless; unchecked until P17B-D)                                                                                                                                                                                                          |
-| P17B    | HS-007         | Shared rule editor and automations-page UX                                          | P17A, P02            | passed            | 01  | `5e2ddd0..f0d3a37`                                                                                                                                                                                                                                                          | `evidence/P17B/implementation-01.md`                                                                                   | `reviews/P17B-review-01.md`                                                                                   | PASS; A `cef9f2b`; B row -> passed (HS-007 markerless; unchecked until P17C-D)                                                                                                                                                                                                          |
-| P17C    | HS-007         | Description inline proposals, robot drift state and scoped application              | P17B                 | passed            | 01  | `0d3de91..ce82cb5`                                                                                                                                                                                                                                                          | `evidence/P17C/implementation-01.md`                                                                                   | `reviews/P17C-review-01.md`                                                                                   | PASS; A `ea2ad75`; B row -> passed (HS-007 markerless; unchecked until P17D)                                                                                                                                                                                                            |
-| P17D    | HS-007         | Tags/allocation parity, bulk/new application, performance and polish                | P17C                 | passed            | 01  | `27ac503..aad518e`                                                                                                                                                                                                                                                          | `evidence/P17D/implementation-01.md`                                                                                   | `reviews/P17D-review-01.md`                                                                                   | PASS; A `c434da2`; B row -> passed + HS-007 marker `df8ad9ce… -> 1b56b21c…`                                                                                                                                                                                                             |
-| P18     | HS-019         | Password-manager-compatible recovery phrase creation and unlock                     | P01                  | passed            | 01  | `493bf19d3219f44efd4d4437fd8b0e33d012fba9..4cda92d40e9cc5b6490636c25d99b655905cb40a`                                                                                                                                                                                        | `evidence/P18/implementation-01.md`                                                                                    | `reviews/P18-review-01.md`                                                                                    | `fa9ae8d0b6b7948bd2c4a508ad869d5d6955a6a1`                                                                                                                                                                                                                                              |
-| P19     | HS-020         | WebAuthn PRF passkeys sharing the vault identity secret                             | P04, P06, P18        | passed            | 02  | `e72befd9ba1b2cbbf5c189b7d855e47cc752240e..bb8a557d37190058c68b2cebfe721d3e15f18629`                                                                                                                                                                                        | `evidence/P19/implementation-02.md`                                                                                    | `reviews/P19-review-02.md`                                                                                    | `c06c851669f00093d1c78653125f784a48b1ed80`                                                                                                                                                                                                                                              |
-| P20A    | HS-016         | Truthful marketing copy and responsive feature presentation                         | P17D, P19            | passed            | 03  | `e5dc9f2..e50cbb23119d8b916d0100f36b86cce6f6a04392` (rev 02 B1 fix, verified)                                                                                                                                                                                               | `evidence/P20A/implementation-02.md`                                                                                   | `reviews/P20A-review-03.md` (rev 03 PASS, `e53fa724`); `reviews/P20A-review-02.md` (rev 02 PASS)                                                                     | PASS; A `3814bd8` persist review; B row -> passed + HS-016 marker `9fcdc51e… -> f46c2d35…`                                                                                                                                                                                              |
-| P20B    | HS-021         | Full-codebase style-guide/code-quality sweep after all feature work                 | P20A                 | passed | 06  | rev 06 PASSED via DISTINCT `p20b-reviewer-06` 10/10 full-suite --retries=0 (reviews/P20B-review-06.md); product byte-identical to 371a88a; HS-021 re-passed and forward marker re-applied. Prior: REOPENED rev 06 by P21 rev-04 audit FAIL: F-1 import:1512 eager-assert (Q-P20B-18) + F-2 identity:282 re-flake (Q-P20B-19); HS-021 rolled back via RB-P21-04; validate ONLY under full-suite load. Prior: rev 03/05 cumulative E2E-stability fix over `5576175..HEAD` (transactions rev-03 + passkey rev-05, product tip `3e0318a`) PASSED via DISTINCT `p20b-reviewer-03` (8/8 full-suite `--retries=0`, reviews/P20B-review-03.md); HS-021 re-passed and forward marker re-applied. Prior: rev 02 `4e950b7..5576175` PASS was INVALIDATED by the P21 rev 02 audit FAIL; rev 03 required from a fresh BASE to harden the flaky `transactions.spec.ts:696` count-restore assertion (Q-P20B-15) and sweep same-class eager E2E waits; rev 01 `659ca20..f058a98` (INVALID) | `evidence/P20B/implementation-01.md` … `implementation-04.md`; rev 03 evidence TBD                                     | `reviews/P20B-review-01.md` (INVALID); `reviews/P20B-review-02.md` (rev 02 PASS, INVALIDATED by P21/02)       | rev 02 PASS invalidated by P21 rev 02 audit FAIL; HS-021 marker rolled back via RB-P21-02 (`469e98c7… -> f46c2d35…`); rev 03/05 PASSED (p20b-reviewer-03, 8/8 full-suite --retries=0); integrated at product tip `3e0318a`; HS-021 re-passed and forward marker re-applied `[] -> [x]`                                                                                   |
-| P21     | control        | [Executable final audit](tasks/P21-final-audit.md)                                  | all prior            | queued            | --  | rev 05 FAIL: M-1 false durability marketing claim at FeaturesSection.tsx:65 (DISTINCT p21-reviewer-05, reviews/P21-review-05.md, 7cb651d); Q-P20B-00 engine ruled OUT-OF-GOAL (D-019, scope adjudication f290246, p20b-reviewer-01 section 6.1 upheld); ONLY in-goal fix is the P20A/HS-016 truthful-copy correction, routed via RB-P21-05; rev 06 pending after P20A re-passes. Prior rev 04 FAIL: F-1 import:1512 eager-assert (Q-P20B-18) + F-2 identity:282 RE-FLAKE (Q-P20B-19), DISTINCT `p21-reviewer-04` formal FAIL on E2E stability alone (all other clauses PASS; `pnpm audit --prod` exit 0), audit record `60c2eca`, both blockers owned by P20B (rev 06), HS-021 rolled back via RB-P21-04, rev 05 pending; C-1 currency drift accepted carry-forward (Q-P21-04-01). Prior rev 03 FAIL: F-1 next@16.2.10 HIGH advisories (Q-P21-03-01), DISTINCT `p21-reviewer-03` CONFIRMED, routed via RB-P21-03 to P01 reopen, rev 04 pending from fresh BASE. rev 02 BASE ~`453e984` (HEAD `fb97149` at audit); rev 02 FAILED (independent reviewer): blocking flake `transactions.spec.ts:696`. Requires rev 03 from a fresh BASE after P20B rev 03 passes + clean full-suite retries-disabled E2E                                       | `evidence/P21/implementation-01.md` (`d952cdc`); `evidence/P21/implementation-02.md` (rev 02 collector FAIL-candidate); `evidence/P21/implementation-04.md` (rev 04 collector, `60c2eca`) | `reviews/P21-review-01.md` (rev 01 **FAIL**); `reviews/P21-review-02.md` (rev 02 **FAIL**, DISTINCT reviewer); `reviews/P21-review-04.md` (rev 04 **FAIL**, DISTINCT reviewer) | rev 02 FAIL: reviewer OVERTURNED `identity:282` (0/5 full, 10/10 iso — rev-02 fix held) but found NEW blocking flake `transactions.spec.ts:696` (1/5 full, 10/10 iso); owner P20B (Q-P20B-15); HS-021 rollback via RB-P21-02; NO product/FS-001 defect. Prior rev 01 FAIL: identity:282 |
-| P22     | UR-001         | [Add transaction focuses description](tasks/P22-ur-001.md)                          | none                 | passed            | 03  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-07-30 by human principal instruction; frozen source specs/009-user-reported-refinements/spec.md lines 12-33                                                                                                                                                               |
-| P23     | UR-002         | [Search matches alias-resolved descriptions](tasks/P23-ur-002.md)                   | none                 | passed            | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-07-30 by human principal instruction; frozen source lines 35-53; confirmed defect queries.ts:560-567                                                                                                                                                                      |
-| P24     | UR-003         | [Presence avatars show name initials](tasks/P24-ur-003.md)                          | none                 | passed            | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-07-30 by human principal instruction; frozen source lines 55-74; confirmed defect layout.tsx:218-224 and :343                                                                                                                                                             |
-| P25     | UR-004         | [Default currency from time zone](tasks/P25-ur-004.md)                              | none                 | passed            | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-07-30 by human principal instruction; frozen source lines 76-98; supersedes the locale rationale in detect-currency.ts:4-6                                                                                                                                                |
-| P26     | UR-005         | [Minimal table chrome at rest](tasks/P26-ur-005.md)                                 | none                 | passed            | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01 by human principal; frozen source specs/010-user-reported-refinements-2/spec.md lines 11-24                                                                                                                                                                         |
-| P27     | UR-006         | [Vault members listed by name](tasks/P27-ur-006.md)                                 | none                 | passed            | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 26-38; shares name resolution with UR-003/P24                                                                                                                                                                                                               |
-| P28     | UR-007         | [Dates display in browser locale](tasks/P28-ur-007.md)                              | none                 | passed            | 03  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 40-54                                                                                                                                                                                                                                                       |
-| P29     | UR-008         | [CSV import parity and honest counts](tasks/P29-ur-008.md)                          | none                 | passed            | 03  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 56-86; confirmed root cause parseAmount csv.ts:165-190 rejects leading plus, exactly 15 rows                                                                                                                                                                 |
-| P30     | UR-009         | [Automations conformance re-verification](tasks/P30-ur-009.md)                      | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01 by human principal after reporting missing rule-creation controls; frozen source specs/011-automations-conformance/spec.md lines 16-61; RE-VERIFIES HS-007 without reopening it                                                                                       |
-| P31     | UR-010         | [Shift-click extends selection and deselection](tasks/P31-ur-010.md)                | none                 | passed            | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-02 by human principal; frozen source specs/012-transaction-selection/spec.md lines 11-29; toggleRow at useTableSelection.ts:106-133 only ever adds                                                                                                                       |
-| P32     | UR-011         | [Header checkbox selects all filtered rows](tasks/P32-ur-011.md)                    | none                 | passed            | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-02; lines 31-55; efficiency at 100k transactions is part of the requirement                                                                                                                                                                                            |
-| P33     | UR-012         | [Transaction cell controls fill their cell](tasks/P33-ur-012.md)                    | none                 | reviewing         | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-02 by human principal; frozen source specs/013-transaction-cell-hit-area/spec.md lines 11-41; row click verified a NO-OP so nothing is lost                                                                                                                             |
+| Package | Scope          | Work / task                                                                         | Depends on           | Status    | Rev | BASE..HEAD                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Implementation evidence                                                                                                                                                                   | Review                                                                                                                                                                         | Integration commit                                                                                                                                                                                                                                                                      |
+| ------- | -------------- | ----------------------------------------------------------------------------------- | -------------------- | --------- | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P00     | control        | [Executable baseline](tasks/P00-baseline.md)                                        | —                    | passed    | 02  | `0ea864f5d0142530b2d524add228d3b51f162876..8f12d82ddb576af5cc8c6f04d32617d805e300de`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `evidence/P00/implementation-02.md`                                                                                                                                                       | `reviews/P00-review-02.md`                                                                                                                                                     | `7eb78075e0be7b6a881e59f03d2bfd2e202fc0f8`                                                                                                                                                                                                                                              |
+| P01     | HS-002         | Upgrade dependencies by compatible safe chains                                      | P00                  | passed    | 03  | `f785de9..371a88a`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | `evidence/P01/implementation-03.md`                                                                                                                                                       | `reviews/P01-review-03.md`                                                                                                                                                     | `371a88a`                                                                                                                                                                                                                                                                               |
+| P02     | HS-017         | Animate UI evaluation, ADR, and representative migration only if justified          | P01                  | passed    | 02  | `19d73035b33b639f9927d2f78a55d74c44f65544..213100fadf5acea30aad7e90998bd575cdcd508c`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `evidence/P02/implementation-02.md`                                                                                                                                                       | `reviews/P02-review-02.md`                                                                                                                                                     | `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7`                                                                                                                                                                                                                                              |
+| P03     | HS-018         | TanStack Virtual PR #1100 release gate and `useFlushSync`                           | P01                  | passed    | 01  | `c60f605bd811d8920122a66f3d6743d8a3ac044d..b8d4b448f52022970ca388654be14d24e347deb5`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `evidence/P03/implementation-01.md`                                                                                                                                                       | `reviews/P03-review-01.md`                                                                                                                                                     | `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34`                                                                                                                                                                                                                                              |
+| P04     | HS-014         | Database/table/RLS threat model, migrations, and permission remediation             | P01                  | passed    | 02  | `9de8b0e8c41087b96523ecc55faa10bf19ec0ff9..dbcf180e829c81a218e9a73791e40902c4f9eb31`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `evidence/P04/implementation-02.md`                                                                                                                                                       | `reviews/P04-review-02.md`                                                                                                                                                     | `b905ecb810334ed9697f57140047964135ade6ea`                                                                                                                                                                                                                                              |
+| P05     | HS-015         | Secure Supabase realtime authorization and correct live-op subscription             | P04                  | passed    | 13  | `92dfd4d002e8bcb2a6694c35aff8f713ba4689dc..b34dcf6ad53b6bb3fc6482180d2b0aaedd7fc1bc`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `evidence/P05/implementation-13.md`                                                                                                                                                       | `reviews/P05-review-13.md`                                                                                                                                                     | `8101bb2355a9894dd5cac9540afd38045973dd01`                                                                                                                                                                                                                                              |
+| P06     | HS-010         | Remove unused user-state storage and dead API surface                               | P04                  | passed    | 01  | `a7c0cb9a3ba0e4c66f25b53b1fa0883aeee968a1..95e91dbcb17ffb9600eaa6cb795336898297ebae`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `evidence/P06/implementation-01.md`                                                                                                                                                       | `reviews/P06-review-01.md`                                                                                                                                                     | `8e269ab9a6fc15ed6d845542b879e5499828134e`                                                                                                                                                                                                                                              |
+| P07     | HS-011         | Evidence-led person/member/invite UX architecture and acceptance decision           | P04, P06             | passed    | 04  | `fe1871ce7dce1e831b57ee5656d38ce5c800aae3..dfffea3c19b110b6021b050b8d9e36b01ae75ab9`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `evidence/P07/implementation-04.md`                                                                                                                                                       | `reviews/P07-review-04.md`                                                                                                                                                     | `1f6cb96b27c8093f0ba2c319f32d3c79c8aab126`                                                                                                                                                                                                                                              |
+| P08     | HS-012, HS-011 | Auto-person linkage and complete secure invite/member-management flow               | P05, P07             | passed    | 02  | `d2762f9..d40b854`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | `evidence/P08/implementation-02.md`                                                                                                                                                       | `reviews/P08-review-02.md`                                                                                                                                                     | PASS; A `a1e1b2d`; B markers HS-011/012                                                                                                                                                                                                                                                 |
+| P09     | HS-006         | Loro UndoManager integration, controls, shortcuts and action grouping               | P01                  | passed    | 02  | `c9146fae2c5534313d21b4f34cb2b012eaeeb4ed..418234e28ac649e03ce8ad184d08a8a2f2416149`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `evidence/P09/implementation-02.md`                                                                                                                                                       | `reviews/P09-review-02.md`                                                                                                                                                     | `59bf82e894e45e034858e25255240701a3afb0b8`                                                                                                                                                                                                                                              |
+| P10     | HS-003         | Encrypted Loro EphemeralStore presence and active transaction                       | P05, P08             | passed    | 01  | `54a88ae..71c378c`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | `evidence/P10/implementation-01.md`                                                                                                                                                       | `reviews/P10-review-01.md`                                                                                                                                                     | PASS; A `31ad9b5`; B row -> passed + HS-003 marker `1b56b21c… -> 9fcdc51e…`                                                                                                                                                                                                             |
+| P11A    | HS-004         | Alias schema, resolution, mutation invariants, migration and atomic bookkeeping     | P09                  | passed    | 04  | `eb5ab2e215130c358130d5411a92b51951c3c53a..fb72abdaf531dff40c59f6b3525fb1b9ce50f805`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `evidence/P11A/implementation-04.md`                                                                                                                                                      | `reviews/P11A-review-04.md`                                                                                                                                                    | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f`                                                                                                                                                                                                                                              |
+| P11B    | HS-004         | Alias management and transaction-cell pointer/keyboard UX                           | P11A                 | passed    | 01  | `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f..e35109dfe7b02bdb4058445f44d03a6dd678457b`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `evidence/P11B/implementation-01.md`                                                                                                                                                      | `reviews/P11B-review-01.md`                                                                                                                                                    | `0426866fa66cc022efca6d74cd5088d586d3d11b`                                                                                                                                                                                                                                              |
+| P11C    | HS-004         | Alias import/manual/shared flows, performance hardening and exhaustive tests        | P11B                 | passed    | 03  | `0426866fa66cc022efca6d74cd5088d586d3d11b..daab038ee741faa9f92a373b27efe0c8fe8940db`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `evidence/P11C/implementation-03.md`                                                                                                                                                      | `reviews/P11C-review-03.md`                                                                                                                                                    | `78e2f978f8d258d8c4d379f53e75089a2ce975db`                                                                                                                                                                                                                                              |
+| P12     | HS-005         | Bounded requestAnimationFrame GC for buckets and alias symlinks                     | P11C, P09            | passed    | 08  | `0a9b8827debdfa96e6b87c3b9ccf95411bd5862e..a2a31839f6bb57855fa60b8cfcc06feed069cafa`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `evidence/P12/implementation-08.md`                                                                                                                                                       | `reviews/P12-review-08.md`                                                                                                                                                     | `f8cbb5a8caacb763c0bb77199595a5ee332ab729`                                                                                                                                                                                                                                              |
+| P13     | HS-001         | Persisted normal empty Add Transaction rows and grid navigation                     | P11C, P09            | passed    | 03  | `415ea080b3b19191fd71601742056a619b4a3080..9f307e200676711ca2a3ba81bd816314807434ad`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `evidence/P13/implementation-03.md`                                                                                                                                                       | `reviews/P13-review-03.md`                                                                                                                                                     | `7a04338fa7c3f68463d12d11082bc56e87c1872b`                                                                                                                                                                                                                                              |
+| P14     | HS-008         | Import lineage, immutable original amount, tooltip and delete-import behavior       | P09                  | passed    | 04  | `b9105028926d24a5a0c5454777a6c33379ca606a..305d6613673cf200d456276c076463b68c075500`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `evidence/P14/implementation-04.md`                                                                                                                                                       | `reviews/P14-review-04.md`                                                                                                                                                     | `a2182116db08200b8b4df28412512b9ca3406aa2`                                                                                                                                                                                                                                              |
+| P15     | HS-013         | Whole transaction/import-list file drop targets                                     | P14                  | passed    | 02  | `b3e96ba9e9487d13df56956d220fffca63d6482d..91931688ef9463576b757a097968af543a4b8a75`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `evidence/P15/implementation-02.md`                                                                                                                                                       | `reviews/P15-review-02.md`                                                                                                                                                     | `9c5d7be8ee4cf7c3fda5f1a7320c053362672e3a`                                                                                                                                                                                                                                              |
+| P16A    | FS-001, HS-009 | Allocation/ownership validation, remainder/effective shares and exact apportionment | P01                  | passed    | 02  | `1b42d27e11494a167a4768e0c2c308010aa51651..f84f66758708529c44342313e8632ee8b7dcead3`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `evidence/P16A/implementation-02.md`                                                                                                                                                      | `reviews/P16A-review-02.md`                                                                                                                                                    | `41f5760f77c1a93ab650a93912bfaf3c0b627ab0`                                                                                                                                                                                                                                              |
+| P16B    | FS-001         | Sole canonical settlement engine, eligibility, currencies, netting and traceability | P16A                 | passed    | 05  | `4c102600240e2804b801c2a320e10164defb14ea..46d8f9feb79c6dfc080c0869922fb8cd4c20ec6c`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `evidence/P16B/implementation-05.md`                                                                                                                                                      | `reviews/P16B-review-05.md`                                                                                                                                                    | `136678a0ac864cf2d120b2b5b896d4fadcabcdd1`                                                                                                                                                                                                                                              |
+| P16C    | FS-001, HS-009 | CRDT per-key/complete-set APIs and every mutation, hydration and history path       | P16A, P16B, P09, P14 | passed    | 02  | `0a7c9a49722ddc4d955f910af6dbb19cfffbd600..207e8c5758a48e66980b95eaeff51c0e5a605f7e`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `evidence/P16C/implementation-02.md`                                                                                                                                                      | `reviews/P16C-review-02.md`                                                                                                                                                    | `e0f06f7fb60ce08ef2f75b0a9ca7769630a2a55c`                                                                                                                                                                                                                                              |
+| P16D    | FS-001, HS-009 | Actual grid/add-row person columns, virtualization, history and presence UX         | P16C, P13            | passed    | 01  | `3a5081ac37e09817e0d02ae8799469d1bf09dad5..b5ebc2a8edbf5e1fc522873fb5ee7455266a3bcc`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `evidence/P16D/implementation-01.md`                                                                                                                                                      | `reviews/P16D-review-01.md`                                                                                                                                                    | `47867d506978a3f571ef0feef6185e9436d5a908`                                                                                                                                                                                                                                              |
+| P16E    | FS-001         | People obligations/issues/source UX plus full integration, E2E, manual and perf     | P16D, P08, P11C      | passed    | 02  | `191d070..bb12e0c`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | `evidence/P16E/implementation-02.md`                                                                                                                                                      | `reviews/P16E-review-02.md`                                                                                                                                                    | PASS; A `b0023f6`; B control -> passed (FS-001 markerless)                                                                                                                                                                                                                              |
+| P17A    | HS-007         | Automation schema/migration, exact matcher, precedence, preferences, import engine  | P11C, P14, P16E      | passed    | 01  | `a09c4b4..ee83b1b`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | `evidence/P17A/implementation-01.md`                                                                                                                                                      | `reviews/P17A-review-01.md`                                                                                                                                                    | PASS; A `81401bf`; B row -> passed (HS-007 markerless; unchecked until P17B-D)                                                                                                                                                                                                          |
+| P17B    | HS-007         | Shared rule editor and automations-page UX                                          | P17A, P02            | passed    | 01  | `5e2ddd0..f0d3a37`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | `evidence/P17B/implementation-01.md`                                                                                                                                                      | `reviews/P17B-review-01.md`                                                                                                                                                    | PASS; A `cef9f2b`; B row -> passed (HS-007 markerless; unchecked until P17C-D)                                                                                                                                                                                                          |
+| P17C    | HS-007         | Description inline proposals, robot drift state and scoped application              | P17B                 | passed    | 01  | `0d3de91..ce82cb5`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | `evidence/P17C/implementation-01.md`                                                                                                                                                      | `reviews/P17C-review-01.md`                                                                                                                                                    | PASS; A `ea2ad75`; B row -> passed (HS-007 markerless; unchecked until P17D)                                                                                                                                                                                                            |
+| P17D    | HS-007         | Tags/allocation parity, bulk/new application, performance and polish                | P17C                 | passed    | 01  | `27ac503..aad518e`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | `evidence/P17D/implementation-01.md`                                                                                                                                                      | `reviews/P17D-review-01.md`                                                                                                                                                    | PASS; A `c434da2`; B row -> passed + HS-007 marker `df8ad9ce… -> 1b56b21c…`                                                                                                                                                                                                             |
+| P18     | HS-019         | Password-manager-compatible recovery phrase creation and unlock                     | P01                  | passed    | 01  | `493bf19d3219f44efd4d4437fd8b0e33d012fba9..4cda92d40e9cc5b6490636c25d99b655905cb40a`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `evidence/P18/implementation-01.md`                                                                                                                                                       | `reviews/P18-review-01.md`                                                                                                                                                     | `fa9ae8d0b6b7948bd2c4a508ad869d5d6955a6a1`                                                                                                                                                                                                                                              |
+| P19     | HS-020         | WebAuthn PRF passkeys sharing the vault identity secret                             | P04, P06, P18        | passed    | 02  | `e72befd9ba1b2cbbf5c189b7d855e47cc752240e..bb8a557d37190058c68b2cebfe721d3e15f18629`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `evidence/P19/implementation-02.md`                                                                                                                                                       | `reviews/P19-review-02.md`                                                                                                                                                     | `c06c851669f00093d1c78653125f784a48b1ed80`                                                                                                                                                                                                                                              |
+| P20A    | HS-016         | Truthful marketing copy and responsive feature presentation                         | P17D, P19            | passed    | 03  | `e5dc9f2..e50cbb23119d8b916d0100f36b86cce6f6a04392` (rev 02 B1 fix, verified)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | `evidence/P20A/implementation-02.md`                                                                                                                                                      | `reviews/P20A-review-03.md` (rev 03 PASS, `e53fa724`); `reviews/P20A-review-02.md` (rev 02 PASS)                                                                               | PASS; A `3814bd8` persist review; B row -> passed + HS-016 marker `9fcdc51e… -> f46c2d35…`                                                                                                                                                                                              |
+| P20B    | HS-021         | Full-codebase style-guide/code-quality sweep after all feature work                 | P20A                 | passed    | 06  | rev 06 PASSED via DISTINCT `p20b-reviewer-06` 10/10 full-suite --retries=0 (reviews/P20B-review-06.md); product byte-identical to 371a88a; HS-021 re-passed and forward marker re-applied. Prior: REOPENED rev 06 by P21 rev-04 audit FAIL: F-1 import:1512 eager-assert (Q-P20B-18) + F-2 identity:282 re-flake (Q-P20B-19); HS-021 rolled back via RB-P21-04; validate ONLY under full-suite load. Prior: rev 03/05 cumulative E2E-stability fix over `5576175..HEAD` (transactions rev-03 + passkey rev-05, product tip `3e0318a`) PASSED via DISTINCT `p20b-reviewer-03` (8/8 full-suite `--retries=0`, reviews/P20B-review-03.md); HS-021 re-passed and forward marker re-applied. Prior: rev 02 `4e950b7..5576175` PASS was INVALIDATED by the P21 rev 02 audit FAIL; rev 03 required from a fresh BASE to harden the flaky `transactions.spec.ts:696` count-restore assertion (Q-P20B-15) and sweep same-class eager E2E waits; rev 01 `659ca20..f058a98` (INVALID)                                                                                                                                                                                                                            | `evidence/P20B/implementation-01.md` … `implementation-04.md`; rev 03 evidence TBD                                                                                                        | `reviews/P20B-review-01.md` (INVALID); `reviews/P20B-review-02.md` (rev 02 PASS, INVALIDATED by P21/02)                                                                        | rev 02 PASS invalidated by P21 rev 02 audit FAIL; HS-021 marker rolled back via RB-P21-02 (`469e98c7… -> f46c2d35…`); rev 03/05 PASSED (p20b-reviewer-03, 8/8 full-suite --retries=0); integrated at product tip `3e0318a`; HS-021 re-passed and forward marker re-applied `[] -> [x]`  |
+| P21     | control        | [Executable final audit](tasks/P21-final-audit.md)                                  | all prior            | queued    | --  | rev 05 FAIL: M-1 false durability marketing claim at FeaturesSection.tsx:65 (DISTINCT p21-reviewer-05, reviews/P21-review-05.md, 7cb651d); Q-P20B-00 engine ruled OUT-OF-GOAL (D-019, scope adjudication f290246, p20b-reviewer-01 section 6.1 upheld); ONLY in-goal fix is the P20A/HS-016 truthful-copy correction, routed via RB-P21-05; rev 06 pending after P20A re-passes. Prior rev 04 FAIL: F-1 import:1512 eager-assert (Q-P20B-18) + F-2 identity:282 RE-FLAKE (Q-P20B-19), DISTINCT `p21-reviewer-04` formal FAIL on E2E stability alone (all other clauses PASS; `pnpm audit --prod` exit 0), audit record `60c2eca`, both blockers owned by P20B (rev 06), HS-021 rolled back via RB-P21-04, rev 05 pending; C-1 currency drift accepted carry-forward (Q-P21-04-01). Prior rev 03 FAIL: F-1 next@16.2.10 HIGH advisories (Q-P21-03-01), DISTINCT `p21-reviewer-03` CONFIRMED, routed via RB-P21-03 to P01 reopen, rev 04 pending from fresh BASE. rev 02 BASE ~`453e984` (HEAD `fb97149` at audit); rev 02 FAILED (independent reviewer): blocking flake `transactions.spec.ts:696`. Requires rev 03 from a fresh BASE after P20B rev 03 passes + clean full-suite retries-disabled E2E | `evidence/P21/implementation-01.md` (`d952cdc`); `evidence/P21/implementation-02.md` (rev 02 collector FAIL-candidate); `evidence/P21/implementation-04.md` (rev 04 collector, `60c2eca`) | `reviews/P21-review-01.md` (rev 01 **FAIL**); `reviews/P21-review-02.md` (rev 02 **FAIL**, DISTINCT reviewer); `reviews/P21-review-04.md` (rev 04 **FAIL**, DISTINCT reviewer) | rev 02 FAIL: reviewer OVERTURNED `identity:282` (0/5 full, 10/10 iso — rev-02 fix held) but found NEW blocking flake `transactions.spec.ts:696` (1/5 full, 10/10 iso); owner P20B (Q-P20B-15); HS-021 rollback via RB-P21-02; NO product/FS-001 defect. Prior rev 01 FAIL: identity:282 |
+| P22     | UR-001         | [Add transaction focuses description](tasks/P22-ur-001.md)                          | none                 | passed    | 03  |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |                                                                                                                                                                                           |                                                                                                                                                                                | ADMITTED 2026-07-30 by human principal instruction; frozen source specs/009-user-reported-refinements/spec.md lines 12-33                                                                                                                                                               |
+| P23     | UR-002         | [Search matches alias-resolved descriptions](tasks/P23-ur-002.md)                   | none                 | passed    | 01  |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |                                                                                                                                                                                           |                                                                                                                                                                                | ADMITTED 2026-07-30 by human principal instruction; frozen source lines 35-53; confirmed defect queries.ts:560-567                                                                                                                                                                      |
+| P24     | UR-003         | [Presence avatars show name initials](tasks/P24-ur-003.md)                          | none                 | passed    | 01  |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |                                                                                                                                                                                           |                                                                                                                                                                                | ADMITTED 2026-07-30 by human principal instruction; frozen source lines 55-74; confirmed defect layout.tsx:218-224 and :343                                                                                                                                                             |
+| P25     | UR-004         | [Default currency from time zone](tasks/P25-ur-004.md)                              | none                 | passed    | 01  |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |                                                                                                                                                                                           |                                                                                                                                                                                | ADMITTED 2026-07-30 by human principal instruction; frozen source lines 76-98; supersedes the locale rationale in detect-currency.ts:4-6                                                                                                                                                |
+| P26     | UR-005         | [Minimal table chrome at rest](tasks/P26-ur-005.md)                                 | none                 | passed    | 01  |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |                                                                                                                                                                                           |                                                                                                                                                                                | ADMITTED 2026-08-01 by human principal; frozen source specs/010-user-reported-refinements-2/spec.md lines 11-24                                                                                                                                                                         |
+| P27     | UR-006         | [Vault members listed by name](tasks/P27-ur-006.md)                                 | none                 | passed    | 01  |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |                                                                                                                                                                                           |                                                                                                                                                                                | ADMITTED 2026-08-01; lines 26-38; shares name resolution with UR-003/P24                                                                                                                                                                                                                |
+| P28     | UR-007         | [Dates display in browser locale](tasks/P28-ur-007.md)                              | none                 | passed    | 03  |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |                                                                                                                                                                                           |                                                                                                                                                                                | ADMITTED 2026-08-01; lines 40-54                                                                                                                                                                                                                                                        |
+| P29     | UR-008         | [CSV import parity and honest counts](tasks/P29-ur-008.md)                          | none                 | passed    | 03  |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |                                                                                                                                                                                           |                                                                                                                                                                                | ADMITTED 2026-08-01; lines 56-86; confirmed root cause parseAmount csv.ts:165-190 rejects leading plus, exactly 15 rows                                                                                                                                                                 |
+| P30     | UR-009         | [Automations conformance re-verification](tasks/P30-ur-009.md)                      | none                 | queued    | --  |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |                                                                                                                                                                                           |                                                                                                                                                                                | ADMITTED 2026-08-01 by human principal after reporting missing rule-creation controls; frozen source specs/011-automations-conformance/spec.md lines 16-61; RE-VERIFIES HS-007 without reopening it                                                                                     |
+| P31     | UR-010         | [Shift-click extends selection and deselection](tasks/P31-ur-010.md)                | none                 | passed    | 01  |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |                                                                                                                                                                                           |                                                                                                                                                                                | ADMITTED 2026-08-02 by human principal; frozen source specs/012-transaction-selection/spec.md lines 11-29; toggleRow at useTableSelection.ts:106-133 only ever adds                                                                                                                     |
+| P32     | UR-011         | [Header checkbox selects all filtered rows](tasks/P32-ur-011.md)                    | none                 | passed    | 01  |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |                                                                                                                                                                                           |                                                                                                                                                                                | ADMITTED 2026-08-02; lines 31-55; efficiency at 100k transactions is part of the requirement                                                                                                                                                                                            |
+| P33     | UR-012         | [Transaction cell controls fill their cell](tasks/P33-ur-012.md)                    | none                 | reviewing | 01  |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |                                                                                                                                                                                           |                                                                                                                                                                                | ADMITTED 2026-08-02 by human principal; frozen source specs/013-transaction-cell-hit-area/spec.md lines 11-41; row click verified a NO-OP so nothing is lost                                                                                                                            |
 
 Every active/reviewed row must contain the exact revision, literal SHAs, evidence path, immutable
 revisioned review path and root integration-control commit; `—` is valid only before dispatch.
@@ -200,42 +245,42 @@ only here after P16A–E pass. A failed P21 may move already-passed package rows
 requirement row to `changes_requested`; root records the complete impact set and finishes all
 required marker rollbacks before the next dispatch.
 
-| Requirement | Frozen source                     | Packages                     | Completion recording                       | Status            | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| ----------- | --------------------------------- | ---------------------------- | ------------------------------------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| HS-001      | human scratch block               | P13                          | authorized marker after package PASS       | passed            | P13 integration `7a04338fa7c3f68463d12d11082bc56e87c1872b`; `reviews/P13-review-03.md`; marker `aa8a1f56… -> b09454de…`                                                                                                                                                                                                                                                                                                                                                             |
-| HS-002      | human scratch block               | P01                          | authorized marker after package PASS       | passed            | RE-PASSED via §275 forward marker after P01 rev 03 landed next@16.2.11 + sharp@0.35.3 override; `pnpm audit --prod` exit 0; DISTINCT `p01-reviewer-03` PASS `reviews/P01-review-03.md`; marker `[] -> [x]` at `:157` (rolling `c10dc0b5… -> 469e98c7…`, restored byte-identically to all-checked 24,260 bytes). Prior: rolled back via `RB-P21-03` after P21 rev 03 FAIL F-1; original pass `reviews/P01-review-02.md` |
-| HS-003      | human scratch block               | P10                          | authorized marker after package PASS       | passed            | P10 integration (Commit B); `reviews/P10-review-01.md`; `evidence/P10/implementation-01.md`; marker `1b56b21c… -> 9fcdc51e…`                                                                                                                                                                                                                                                                                                                                                        |
-| HS-004      | human scratch block               | P11A, P11B, P11C             | authorized marker after all package PASSes | passed            | P11A integration `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f`, P11B `0426866fa66cc022efca6d74cd5088d586d3d11b`, P11C `78e2f978f8d258d8c4d379f53e75089a2ce975db`; reviews `P11A-review-04.md`/`P11B-review-01.md`/`P11C-review-03.md`; marker `c2b986fd... -> 2c52bd78...`                                                                                                                                                                                                             |
-| HS-005      | human scratch block               | P12                          | authorized marker after package PASS       | passed            | P12 integration `f8cbb5a8caacb763c0bb77199595a5ee332ab729`; `reviews/P12-review-08.md`; marker `2c52bd78… -> aa8a1f56…`                                                                                                                                                                                                                                                                                                                                                             |
-| HS-006      | human scratch block               | P09                          | authorized marker after package PASS       | passed            | P09 integration `59bf82e894e45e034858e25255240701a3afb0b8`; `reviews/P09-review-02.md`; marker `753be6b7… -> c2b986fd…`                                                                                                                                                                                                                                                                                                                                                             |
-| HS-007      | human scratch block               | P17A, P17B, P17C, P17D       | authorized marker after all package PASSes | passed            | P17A `81401bf`/P17B `cef9f2b`/P17C `ea2ad75`/P17D integration (Commit B); `reviews/P17D-review-01.md`; marker `df8ad9ce… -> 1b56b21c…`                                                                                                                                                                                                                                                                                                                                              |
-| HS-008      | human scratch block               | P14                          | authorized marker after package PASS       | passed            | P14 integration `a2182116db08200b8b4df28412512b9ca3406aa2`; `reviews/P14-review-04.md`; marker `b09454de… -> f0adfef6…`                                                                                                                                                                                                                                                                                                                                                             |
-| HS-009      | human scratch block               | P16A, P16C, P16D             | authorized marker after all package PASSes | passed            | P16A integration `41f5760f77c1a93ab650a93912bfaf3c0b627ab0`, P16C `e0f06f7fb60ce08ef2f75b0a9ca7769630a2a55c`, P16D `47867d506978a3f571ef0feef6185e9436d5a908`; reviews `P16A-review-02.md`/`P16C-review-02.md`/`P16D-review-01.md`; marker `ce52d7df… -> 9a0f6633…`                                                                                                                                                                                                                 |
-| HS-010      | human scratch block               | P06                          | authorized marker after package PASS       | passed            | P06 integration `8e269ab9a6fc15ed6d845542b879e5499828134e`; `reviews/P06-review-01.md`; marker `c74a2a78… -> 753be6b7…`                                                                                                                                                                                                                                                                                                                                                             |
-| HS-011      | human scratch block               | P07, P08                     | authorized marker after all package PASSes | passed            | P07 PASS `1f6cb96b...` + P08 PASS integration A `a1e1b2d`; marker `:307` applied; rolling `df8ad9ce...`                                                                                                                                                                                                                                                                                                                                                                             |
-| HS-012      | human scratch block               | P08                          | authorized marker after package PASS       | passed            | P08 PASS integration A `a1e1b2d`; marker `:313` applied; rolling `df8ad9ce...`                                                                                                                                                                                                                                                                                                                                                                                                      |
-| HS-013      | human scratch block               | P15                          | authorized marker after package PASS       | passed            | P15 integration `9c5d7be8ee4cf7c3fda5f1a7320c053362672e3a`; `reviews/P15-review-02.md`; marker `f0adfef6… -> ce52d7df…`                                                                                                                                                                                                                                                                                                                                                             |
-| HS-014      | human scratch block               | P04                          | authorized marker after package PASS       | passed            | P04 integration `b905ecb810334ed9697f57140047964135ade6ea`; `reviews/P04-review-02.md`; marker `db97178a… -> c74a2a78…`                                                                                                                                                                                                                                                                                                                                                             |
-| HS-015      | human scratch block               | P05                          | authorized marker after package PASS       | passed            | marker `specs/human-scratch.md:325` `[x]`; review `reviews/P05-review-13.md` PASS 0 blocking; integration `8101bb2`                                                                                                                                                                                                                                                                                                                                                                 |
-| HS-016      | human scratch block               | P20A                         | authorized marker after package PASS       | passed            | **RE-PASSED via §275 forward marker after P20A rev 03 PASS (`e53fa724`, `reviews/P20A-review-03.md`): marker `[] -> [x]` at scratch `:328`, rolling `00291e2d… -> 469e98c7…` (byte-identical all-checked restoration, 24,260 bytes, one-line diff 328c328, block matches SCOPE HS-016). Prior: ROLLED BACK via RB-P21-05 after P21 rev-05 audit FAIL M-1 (D-019): marker `[x] -> []` at scratch `:328`, rolling `469e98c7… -> 00291e2d…`, 24,259 bytes, one-line diff 328c328, block byte-matches SCOPE HS-016. Re-passes when P20A re-passes the truthful copy and the §275 forward marker is re-applied.** Prior pass: P20A integration (Commit B); `reviews/P20A-review-02.md`; `evidence/P20A/implementation-02.md`; marker `9fcdc51e… -> f46c2d35…`                                                                                                                                                                                                                                                                                                                                                     |
-| HS-017      | human scratch block               | P02                          | authorized marker after package PASS       | passed            | P02 integration `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7`; `reviews/P02-review-02.md`; marker `dcd03b23… -> 5d283ab1…`                                                                                                                                                                                                                                                                                                                                                             |
-| HS-018      | human scratch block               | P03                          | authorized marker after package PASS       | passed            | P03 integration `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34`; `reviews/P03-review-01.md`; marker `5d283ab1… -> db97178a…`                                                                                                                                                                                                                                                                                                                                                             |
-| HS-019      | human scratch block               | P18                          | authorized marker after package PASS       | passed            | P18 integration `fa9ae8d0b6b7948bd2c4a508ad869d5d6955a6a1`; `reviews/P18-review-01.md`; marker `9a0f6633… -> c4121a48…`                                                                                                                                                                                                                                                                                                                                                             |
-| HS-020      | human scratch block               | P19                          | authorized marker after package PASS       | passed            | P19 integration `c06c851669f00093d1c78653125f784a48b1ed80`; `reviews/P19-review-02.md`; marker `c4121a48… -> ddd53142…`                                                                                                                                                                                                                                                                                                                                                             |
-| HS-021      | human scratch block               | P20B                         | authorized marker after package PASS       | passed | RE-PASSED after P20B rev 06 PASS (DISTINCT p20b-reviewer-06, 10/10 full-suite --retries=0); forward marker re-applied :159 [] -> [x] (rolling f46c2d35… -> 469e98c7…, 24,260 bytes, normalized 0/43). Prior: ROLLED BACK via RB-P21-04 after the P21 rev-04 audit FAIL (F-1 import:1512 Q-P20B-18 + F-2 identity:282 re-flake Q-P20B-19, both owned by P20B); marker `:159` `[x] -> []` (rolling `469e98c7… -> f46c2d35…`, 24,259 bytes, normalized 20/1). Re-passes when P20B rev 06 passes and the forward marker is re-applied. Prior: RE-PASSED after P20B rev 03/05 PASS (DISTINCT `p20b-reviewer-03`, 8/8 full-suite `--retries=0`); forward marker re-applied `:159` `[] -> [x]` (rolling `f46c2d35… -> 469e98c7…`, 24,260 bytes). Prior: ROLLED BACK via `RB-P21-02` after the P21 rev 02 audit FAIL (blocking `transactions.spec.ts:696` flake owned by P20B); marker reverted `[x] -> []` at scratch `:159` (rolling SHA `469e98c7… -> f46c2d35…`, marker-only diff, normalized 21/0). Re-passes when P20B rev 03 passes and the forward marker is re-applied. Prior: RE-PASSED after P20B rev 02; before that rolled back via `RB-P21-01`                                                                                 |
-| FS-001      | immutable whole-file feature spec | P16A, P16B, P16C, P16D, P16E | ledger completion; source never edited     | passed            | P16A `41f5760f77c1a93ab650a93912bfaf3c0b627ab0`, P16B `136678a0ac864cf2d120b2b5b896d4fadcabcdd1`, P16C `e0f06f7fb60ce08ef2f75b0a9ca7769630a2a55c`, P16D `47867d506978a3f571ef0feef6185e9436d5a908`, P16E A `b0023f6`; reviews `P16A-review-02.md`/`P16B-review-05.md`/`P16C-review-02.md`/`P16D-review-01.md`/`P16E-review-02.md`; canonical `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c` 715 lines/25,441 bytes verified byte-identical, source never edited |
-| UR-001      | frozen spec section               | P22                          | ledger-only, immutable no source mutation  | passed            | ADMITTED 2026-07-30 by human principal instruction during P21 rev 06; frozen source `specs/009-user-reported-refinements/spec.md` lines 12-33, SHA `6d163635…`; markerless like FS-001                                                                                                                                                                                                                                                                                              |
-| UR-002      | frozen spec section               | P23                          | ledger-only, immutable no source mutation  | passed            | ADMITTED 2026-07-30 by human principal instruction during P21 rev 06; frozen source lines 35-53; markerless like FS-001                                                                                                                                                                                                                                                                                                                                                            |
-| UR-003      | frozen spec section               | P24                          | ledger-only, immutable no source mutation  | passed            | ADMITTED 2026-07-30 by human principal instruction during P21 rev 06; frozen source lines 55-74; markerless like FS-001                                                                                                                                                                                                                                                                                                                                                            |
-| UR-004      | frozen spec section               | P25                          | ledger-only, immutable no source mutation  | passed            | ADMITTED 2026-07-30 by human principal instruction during P21 rev 06; frozen source lines 76-98; markerless like FS-001                                                                                                                                                                                                                                                                                                                                                            |
-| UR-005      | frozen spec section               | P26                          | ledger-only, immutable no source mutation  | passed            | ADMITTED 2026-08-01 by human principal; frozen source `specs/010-user-reported-refinements-2/spec.md` lines 11-24, SHA `a137e388…`; markerless like FS-001                                                                                                                                                                                                                                                                                                                          |
-| UR-006      | frozen spec section               | P27                          | ledger-only, immutable no source mutation  | passed            | ADMITTED 2026-08-01; lines 26-38; markerless like FS-001                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| UR-007      | frozen spec section               | P28                          | ledger-only, immutable no source mutation  | passed            | ADMITTED 2026-08-01; lines 40-54; markerless like FS-001                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| UR-008      | frozen spec section               | P29                          | ledger-only, immutable no source mutation  | passed            | ADMITTED 2026-08-01; lines 56-86; markerless like FS-001                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| UR-009      | frozen spec section               | P30                          | ledger-only, immutable no source mutation  | queued            | ADMITTED 2026-08-01; frozen source `specs/011-automations-conformance/spec.md` lines 16-61, SHA `717a99e3…`; markerless like FS-001; re-verifies HS-007 clauses at `human-scratch.md:248-295` without reopening HS-007 or P17A-D                                                                                                                                                                                                                                     |
-| UR-010      | frozen spec section               | P31                          | ledger-only, immutable no source mutation  | passed            | ADMITTED 2026-08-02; frozen source `specs/012-transaction-selection/spec.md` lines 11-29, SHA `5f8eb930…`; markerless like FS-001                                                                                                                                                                                                                                                                                                                                   |
-| UR-011      | frozen spec section               | P32                          | ledger-only, immutable no source mutation  | passed            | ADMITTED 2026-08-02; lines 31-55; markerless like FS-001                                                                                                                                                                                                                                                                                                                                                                                                           |
-| UR-012      | frozen spec section               | P33                          | ledger-only, immutable no source mutation  | queued            | ADMITTED 2026-08-02; frozen source `specs/013-transaction-cell-hit-area/spec.md` lines 11-41, SHA `8a16fe8d…`; markerless like FS-001                                                                                                                                                                                                                                                                                               |
+| Requirement | Frozen source                     | Packages                     | Completion recording                       | Status | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ----------- | --------------------------------- | ---------------------------- | ------------------------------------------ | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HS-001      | human scratch block               | P13                          | authorized marker after package PASS       | passed | P13 integration `7a04338fa7c3f68463d12d11082bc56e87c1872b`; `reviews/P13-review-03.md`; marker `aa8a1f56… -> b09454de…`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| HS-002      | human scratch block               | P01                          | authorized marker after package PASS       | passed | RE-PASSED via §275 forward marker after P01 rev 03 landed next@16.2.11 + sharp@0.35.3 override; `pnpm audit --prod` exit 0; DISTINCT `p01-reviewer-03` PASS `reviews/P01-review-03.md`; marker `[] -> [x]` at `:157` (rolling `c10dc0b5… -> 469e98c7…`, restored byte-identically to all-checked 24,260 bytes). Prior: rolled back via `RB-P21-03` after P21 rev 03 FAIL F-1; original pass `reviews/P01-review-02.md`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| HS-003      | human scratch block               | P10                          | authorized marker after package PASS       | passed | P10 integration (Commit B); `reviews/P10-review-01.md`; `evidence/P10/implementation-01.md`; marker `1b56b21c… -> 9fcdc51e…`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| HS-004      | human scratch block               | P11A, P11B, P11C             | authorized marker after all package PASSes | passed | P11A integration `959833af4fe01c1e13ab2b4ca6adfe2f76fcfc1f`, P11B `0426866fa66cc022efca6d74cd5088d586d3d11b`, P11C `78e2f978f8d258d8c4d379f53e75089a2ce975db`; reviews `P11A-review-04.md`/`P11B-review-01.md`/`P11C-review-03.md`; marker `c2b986fd... -> 2c52bd78...`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| HS-005      | human scratch block               | P12                          | authorized marker after package PASS       | passed | P12 integration `f8cbb5a8caacb763c0bb77199595a5ee332ab729`; `reviews/P12-review-08.md`; marker `2c52bd78… -> aa8a1f56…`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| HS-006      | human scratch block               | P09                          | authorized marker after package PASS       | passed | P09 integration `59bf82e894e45e034858e25255240701a3afb0b8`; `reviews/P09-review-02.md`; marker `753be6b7… -> c2b986fd…`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| HS-007      | human scratch block               | P17A, P17B, P17C, P17D       | authorized marker after all package PASSes | passed | P17A `81401bf`/P17B `cef9f2b`/P17C `ea2ad75`/P17D integration (Commit B); `reviews/P17D-review-01.md`; marker `df8ad9ce… -> 1b56b21c…`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| HS-008      | human scratch block               | P14                          | authorized marker after package PASS       | passed | P14 integration `a2182116db08200b8b4df28412512b9ca3406aa2`; `reviews/P14-review-04.md`; marker `b09454de… -> f0adfef6…`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| HS-009      | human scratch block               | P16A, P16C, P16D             | authorized marker after all package PASSes | passed | P16A integration `41f5760f77c1a93ab650a93912bfaf3c0b627ab0`, P16C `e0f06f7fb60ce08ef2f75b0a9ca7769630a2a55c`, P16D `47867d506978a3f571ef0feef6185e9436d5a908`; reviews `P16A-review-02.md`/`P16C-review-02.md`/`P16D-review-01.md`; marker `ce52d7df… -> 9a0f6633…`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| HS-010      | human scratch block               | P06                          | authorized marker after package PASS       | passed | P06 integration `8e269ab9a6fc15ed6d845542b879e5499828134e`; `reviews/P06-review-01.md`; marker `c74a2a78… -> 753be6b7…`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| HS-011      | human scratch block               | P07, P08                     | authorized marker after all package PASSes | passed | P07 PASS `1f6cb96b...` + P08 PASS integration A `a1e1b2d`; marker `:307` applied; rolling `df8ad9ce...`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| HS-012      | human scratch block               | P08                          | authorized marker after package PASS       | passed | P08 PASS integration A `a1e1b2d`; marker `:313` applied; rolling `df8ad9ce...`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| HS-013      | human scratch block               | P15                          | authorized marker after package PASS       | passed | P15 integration `9c5d7be8ee4cf7c3fda5f1a7320c053362672e3a`; `reviews/P15-review-02.md`; marker `f0adfef6… -> ce52d7df…`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| HS-014      | human scratch block               | P04                          | authorized marker after package PASS       | passed | P04 integration `b905ecb810334ed9697f57140047964135ade6ea`; `reviews/P04-review-02.md`; marker `db97178a… -> c74a2a78…`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| HS-015      | human scratch block               | P05                          | authorized marker after package PASS       | passed | marker `specs/human-scratch.md:325` `[x]`; review `reviews/P05-review-13.md` PASS 0 blocking; integration `8101bb2`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| HS-016      | human scratch block               | P20A                         | authorized marker after package PASS       | passed | **RE-PASSED via §275 forward marker after P20A rev 03 PASS (`e53fa724`, `reviews/P20A-review-03.md`): marker `[] -> [x]` at scratch `:328`, rolling `00291e2d… -> 469e98c7…` (byte-identical all-checked restoration, 24,260 bytes, one-line diff 328c328, block matches SCOPE HS-016). Prior: ROLLED BACK via RB-P21-05 after P21 rev-05 audit FAIL M-1 (D-019): marker `[x] -> []` at scratch `:328`, rolling `469e98c7… -> 00291e2d…`, 24,259 bytes, one-line diff 328c328, block byte-matches SCOPE HS-016. Re-passes when P20A re-passes the truthful copy and the §275 forward marker is re-applied.** Prior pass: P20A integration (Commit B); `reviews/P20A-review-02.md`; `evidence/P20A/implementation-02.md`; marker `9fcdc51e… -> f46c2d35…`                                                                                                                                                                                                                                                                                                                                                                                             |
+| HS-017      | human scratch block               | P02                          | authorized marker after package PASS       | passed | P02 integration `d2dcf142a32f5d1f8e04a19a972a8e5bbf5989c7`; `reviews/P02-review-02.md`; marker `dcd03b23… -> 5d283ab1…`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| HS-018      | human scratch block               | P03                          | authorized marker after package PASS       | passed | P03 integration `ca0c42f8e5fcfe02f0deb0e3df8b39b21faa0e34`; `reviews/P03-review-01.md`; marker `5d283ab1… -> db97178a…`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| HS-019      | human scratch block               | P18                          | authorized marker after package PASS       | passed | P18 integration `fa9ae8d0b6b7948bd2c4a508ad869d5d6955a6a1`; `reviews/P18-review-01.md`; marker `9a0f6633… -> c4121a48…`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| HS-020      | human scratch block               | P19                          | authorized marker after package PASS       | passed | P19 integration `c06c851669f00093d1c78653125f784a48b1ed80`; `reviews/P19-review-02.md`; marker `c4121a48… -> ddd53142…`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| HS-021      | human scratch block               | P20B                         | authorized marker after package PASS       | passed | RE-PASSED after P20B rev 06 PASS (DISTINCT p20b-reviewer-06, 10/10 full-suite --retries=0); forward marker re-applied :159 [] -> [x] (rolling f46c2d35… -> 469e98c7…, 24,260 bytes, normalized 0/43). Prior: ROLLED BACK via RB-P21-04 after the P21 rev-04 audit FAIL (F-1 import:1512 Q-P20B-18 + F-2 identity:282 re-flake Q-P20B-19, both owned by P20B); marker `:159` `[x] -> []` (rolling `469e98c7… -> f46c2d35…`, 24,259 bytes, normalized 20/1). Re-passes when P20B rev 06 passes and the forward marker is re-applied. Prior: RE-PASSED after P20B rev 03/05 PASS (DISTINCT `p20b-reviewer-03`, 8/8 full-suite `--retries=0`); forward marker re-applied `:159` `[] -> [x]` (rolling `f46c2d35… -> 469e98c7…`, 24,260 bytes). Prior: ROLLED BACK via `RB-P21-02` after the P21 rev 02 audit FAIL (blocking `transactions.spec.ts:696` flake owned by P20B); marker reverted `[x] -> []` at scratch `:159` (rolling SHA `469e98c7… -> f46c2d35…`, marker-only diff, normalized 21/0). Re-passes when P20B rev 03 passes and the forward marker is re-applied. Prior: RE-PASSED after P20B rev 02; before that rolled back via `RB-P21-01` |
+| FS-001      | immutable whole-file feature spec | P16A, P16B, P16C, P16D, P16E | ledger completion; source never edited     | passed | P16A `41f5760f77c1a93ab650a93912bfaf3c0b627ab0`, P16B `136678a0ac864cf2d120b2b5b896d4fadcabcdd1`, P16C `e0f06f7fb60ce08ef2f75b0a9ca7769630a2a55c`, P16D `47867d506978a3f571ef0feef6185e9436d5a908`, P16E A `b0023f6`; reviews `P16A-review-02.md`/`P16B-review-05.md`/`P16C-review-02.md`/`P16D-review-01.md`/`P16E-review-02.md`; canonical `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c` 715 lines/25,441 bytes verified byte-identical, source never edited                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| UR-001      | frozen spec section               | P22                          | ledger-only, immutable no source mutation  | passed | ADMITTED 2026-07-30 by human principal instruction during P21 rev 06; frozen source `specs/009-user-reported-refinements/spec.md` lines 12-33, SHA `6d163635…`; markerless like FS-001                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| UR-002      | frozen spec section               | P23                          | ledger-only, immutable no source mutation  | passed | ADMITTED 2026-07-30 by human principal instruction during P21 rev 06; frozen source lines 35-53; markerless like FS-001                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| UR-003      | frozen spec section               | P24                          | ledger-only, immutable no source mutation  | passed | ADMITTED 2026-07-30 by human principal instruction during P21 rev 06; frozen source lines 55-74; markerless like FS-001                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| UR-004      | frozen spec section               | P25                          | ledger-only, immutable no source mutation  | passed | ADMITTED 2026-07-30 by human principal instruction during P21 rev 06; frozen source lines 76-98; markerless like FS-001                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| UR-005      | frozen spec section               | P26                          | ledger-only, immutable no source mutation  | passed | ADMITTED 2026-08-01 by human principal; frozen source `specs/010-user-reported-refinements-2/spec.md` lines 11-24, SHA `a137e388…`; markerless like FS-001                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| UR-006      | frozen spec section               | P27                          | ledger-only, immutable no source mutation  | passed | ADMITTED 2026-08-01; lines 26-38; markerless like FS-001                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| UR-007      | frozen spec section               | P28                          | ledger-only, immutable no source mutation  | passed | ADMITTED 2026-08-01; lines 40-54; markerless like FS-001                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| UR-008      | frozen spec section               | P29                          | ledger-only, immutable no source mutation  | passed | ADMITTED 2026-08-01; lines 56-86; markerless like FS-001                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| UR-009      | frozen spec section               | P30                          | ledger-only, immutable no source mutation  | queued | ADMITTED 2026-08-01; frozen source `specs/011-automations-conformance/spec.md` lines 16-61, SHA `717a99e3…`; markerless like FS-001; re-verifies HS-007 clauses at `human-scratch.md:248-295` without reopening HS-007 or P17A-D                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| UR-010      | frozen spec section               | P31                          | ledger-only, immutable no source mutation  | passed | ADMITTED 2026-08-02; frozen source `specs/012-transaction-selection/spec.md` lines 11-29, SHA `5f8eb930…`; markerless like FS-001                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| UR-011      | frozen spec section               | P32                          | ledger-only, immutable no source mutation  | passed | ADMITTED 2026-08-02; lines 31-55; markerless like FS-001                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| UR-012      | frozen spec section               | P33                          | ledger-only, immutable no source mutation  | queued | ADMITTED 2026-08-02; frozen source `specs/013-transaction-cell-hit-area/spec.md` lines 11-41, SHA `8a16fe8d…`; markerless like FS-001                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
 ## Package event log
 
@@ -5673,10 +5718,10 @@ prepared (`90011e4`), then executed:
 - **Activate:** HS-021 req -> `rollback_pending`; owning `P20B` -> `changes_requested` (rev 03);
   downstream `P21` -> `changes_requested` (rev 02 FAIL). FS-001 markerless, not in batch.
 - **Process `HS-021`** (the single ordered ID): verified pre-state `[x]` at scratch `:159`,
-  authorized, current SHA == starting `469e98c7…`. `sed`-flipped `[x] -> []` (marker-only; `git diff`
-  shows ONLY line 159). Post-file: `sha256sum` = `f46c2d35…` (byte-identical to the RB-P21-01
-  rolled-back state), 24,259 bytes, `norm_check.py` 21 blocks / 0 mismatches (exit 0). Advanced
-  rolling SHA `469e98c7… -> f46c2d35…`. Removed HS-021 from the authorized set (21 -> 20).
+  authorized, current SHA == starting `469e98c7…`. `sed`-flipped `[x] -> []` (marker-only;
+  `git diff` shows ONLY line 159). Post-file: `sha256sum` = `f46c2d35…` (byte-identical to the
+  RB-P21-01 rolled-back state), 24,259 bytes, `norm_check.py` 21 blocks / 0 mismatches (exit 0).
+  Advanced rolling SHA `469e98c7… -> f46c2d35…`. Removed HS-021 from the authorized set (21 -> 20).
 - **Close:** contiguous hash chain `469e98c7… -> f46c2d35…` ends at the ACTUAL rolling SHA
   `f46c2d35…` == header. §287 checked⟺passed invariant restored (HS-021 now `[]` and non-passed).
   Canonical `Active P21 rollback batch` field reset to `none`. **Dispatch is legal again.**
@@ -5691,24 +5736,25 @@ marker; then start P21 rev 03 from a new BASE.
 Rollback batch `RB-P21-02` is CLOSED and `Active P21 rollback batch` == `none`, so dispatch is
 legal. HANDOFF rewritten for `p20b-implementer-03` (test-only). Charter: harden the flaky
 `transactions.spec.ts:696` "500 transactions" count-restore assertion (size the wait to the
-virtualized re-expansion under load, mirroring the sibling `:578` `{ timeout: 15_000 }` — NOT a blind
-mask) and sweep `tests/e2e/**` for same-class bare-eager assertions after async re-renders; do NOT
-touch `identity.spec.ts:282` (rev-02 fix held) or any `src/**`. BASE SHA-stable (`7e9cdb5` or later
-root-ledger-only; product/test tip `5576175`; commits must touch only `tests/e2e/**`). Validation
-MUST be many full-suite `--retries=0` runs (isolation is useless for this load-dependent flake).
-Evidence -> `evidence/P20B/implementation-05.md`. P20B stays `changes_requested` (rev 03) until a
-clean handback is verify-not-trusted and a DISTINCT reviewer PASSES.
+virtualized re-expansion under load, mirroring the sibling `:578` `{ timeout: 15_000 }` — NOT a
+blind mask) and sweep `tests/e2e/**` for same-class bare-eager assertions after async re-renders; do
+NOT touch `identity.spec.ts:282` (rev-02 fix held) or any `src/**`. BASE SHA-stable (`7e9cdb5` or
+later root-ledger-only; product/test tip `5576175`; commits must touch only `tests/e2e/**`).
+Validation MUST be many full-suite `--retries=0` runs (isolation is useless for this load-dependent
+flake). Evidence -> `evidence/P20B/implementation-05.md`. P20B stays `changes_requested` (rev 03)
+until a clean handback is verify-not-trusted and a DISTINCT reviewer PASSES.
 
 ### 2026-07-27 — P20B rev 03 handback verify-not-trust GREEN; reviewer HELD; rev 04 sweep for two new flakes
 
 `p20b-implementer-03` handed back. Root verify-not-trust GREEN: commits `63787ec` (test) + `ac29202`
 (evidence); `git diff --stat 5576175..HEAD -- . ':(exclude)specs'` == ONLY
 `tests/e2e/transactions.spec.ts` (12 ins / 6 del); no `src/**`, `identity.spec.ts` untouched. The
-diff is exactly four `{ timeout: 15_000 }` additions on the 500-count re-render assertions (chartered
-`:696` post-"Clear search" + the 3 structural siblings: post-nav, post-reload, duplicate-tab), all
-mirroring the existing sibling `:578`; no `--retries`/`waitForTimeout`/try-catch. Validation: 8
-sequential full-suite `--retries=0` runs → `transactions:523` **8/8 PASS**, `identity:282` **8/8
-PASS** (no regression). The chartered `transactions:696` defect (Q-P20B-15) is FIXED.
+diff is exactly four `{ timeout: 15_000 }` additions on the 500-count re-render assertions
+(chartered `:696` post-"Clear search" + the 3 structural siblings: post-nav, post-reload,
+duplicate-tab), all mirroring the existing sibling `:578`; no
+`--retries`/`waitForTimeout`/try-catch. Validation: 8 sequential full-suite `--retries=0` runs →
+`transactions:523` **8/8 PASS**, `identity:282` **8/8 PASS** (no regression). The chartered
+`transactions:696` defect (Q-P20B-15) is FIXED.
 
 **Two NEW untracked flakes surfaced during that validation (implementer correctly flagged, did NOT
 scope-creep):** `passkey.spec.ts:387` (run #5; 30s unlock-click timeout amid tRPC "Failed to fetch")
@@ -5716,14 +5762,14 @@ and `import.spec.ts:1573` (run #8; import-preview "4 rows" not found within its 
 Each 1/8. Neither is in the accepted set ⇒ each is an "unexplained flake" that WOULD FAIL a P21 rev
 03 audit. Surfaced as **Q-P20B-16** and **Q-P20B-17**.
 
-**Coordinator decision:** re-passing HS-021 into a suite that still flakes ~2/8 would guarantee a P21
-rollback (churn). Per the GOAL DoD ("clean full-suite E2E, no unexplained flake") this is more work
-to complete committed scope — NOT a scope reduction, no adjudicator required. So: (1) HOLD the
-distinct P20B reviewer until the E2E-stability sweep is complete, so ONE review covers the cumulative
-hardening (`5576175..HEAD`); (2) dispatch **P20B rev 04** to DIAGNOSE `passkey:387` + `import:1573`
-and classify each into fix-the-timing / accept-environmental / escalate-real-defect, then fix the
-fixable ones and validate the whole suite clean-or-explained across many full runs. P20B stays
-`changes_requested`; HS-021 stays rolled back (`[]`, rolling `f46c2d35…`).
+**Coordinator decision:** re-passing HS-021 into a suite that still flakes ~2/8 would guarantee a
+P21 rollback (churn). Per the GOAL DoD ("clean full-suite E2E, no unexplained flake") this is more
+work to complete committed scope — NOT a scope reduction, no adjudicator required. So: (1) HOLD the
+distinct P20B reviewer until the E2E-stability sweep is complete, so ONE review covers the
+cumulative hardening (`5576175..HEAD`); (2) dispatch **P20B rev 04** to DIAGNOSE `passkey:387` +
+`import:1573` and classify each into fix-the-timing / accept-environmental / escalate-real-defect,
+then fix the fixable ones and validate the whole suite clean-or-explained across many full runs.
+P20B stays `changes_requested`; HS-021 stays rolled back (`[]`, rolling `f46c2d35…`).
 
 ### 2026-07-27 — P20B rev 04 in-flight: import:1573 SUBSUMED by Q-P20B-14; passkey:387 is class-A hydration race
 
@@ -5733,93 +5779,95 @@ poll-returning without a synchronous finish; runs still in progress under PID 41
 
 - **`import.spec.ts:1573` (Q-P20B-17) → RESOLVED, subsumed by Q-P20B-14.** Line 1573 is an assertion
   inside the test declared at `import.spec.ts:1527`; the Playwright reporter names it
-  `import.spec.ts:1527:9 › Import Panel › selecting template and importing auto-updates template
-  config` — exactly the already-accepted environmental flake Q-P20B-14 (20/20 isolation). Not a new
-  flake. Passed 8.0s in rev-04 runs 1 and 2. No new fix needed; audit reruns-in-isolation-and-
-  classifies against Q-P20B-14. Q-P20B-17 downgraded to a cross-reference.
+  `import.spec.ts:1527:9 › Import Panel › selecting template and importing auto-updates template config`
+  — exactly the already-accepted environmental flake Q-P20B-14 (20/20 isolation). Not a new flake.
+  Passed 8.0s in rev-04 runs 1 and 2. No new fix needed; audit reruns-in-isolation-and- classifies
+  against Q-P20B-14. Q-P20B-17 downgraded to a cross-reference.
 
 - **`passkey.spec.ts:387` (Q-P20B-16) → class A (test-timing), NOT a product defect; but the
   implementer's committed comment mis-states the mechanism.** The rev-04 change (uncommitted) swaps
   the `:400` unlock input from `.fill()` on the single `recovery-phrase-credential` field to the
-  per-word grid via `enterSeedPhrase(words, true)`. Adjudication (root, independent): (1) coverage of
-  the single-field path is retained — `.fill()` on `recovery-phrase-credential` is still exercised at
-  `passkey:72/171/232/431/441`, `identity:458/530/606/618`, `onboarding-vault:104…`; (2) the change
-  is class A not class C (product-defect) because a deterministic product space-stripping bug would
-  fail 100%, not 1/8, and the IDENTICAL `.fill(seedWords.join(" "))` at `passkey:72/171/232` do NOT
-  flake — so the committed comment's "the field strips spaces from a programmatic .fill() under load"
-  is a MIS-DIAGNOSIS; (3) true mechanism is a post-`goto("/unlock")` hydration/controlled-input race
-  specific to the `:387` test's `sessionStorage.clear()`→`goto`→immediate-`.fill()` sequence — the
-  SAME load-dependent hydration-race class as identity:282; the grid switch fixes it incidentally by
-  adding `enterSeedPhrase(expectValid=true)`'s "Valid recovery phrase" settle-wait. passkey:387
-  passed in rev-04 runs 1 and 2 (4.8s / 5.3s). **Required before accept:** correct the comment to the
-  real mechanism; author evidence-06; commit test-only. Root will require this on the agent's fast
-  finish once the run loop completes.
+  per-word grid via `enterSeedPhrase(words, true)`. Adjudication (root, independent): (1) coverage
+  of the single-field path is retained — `.fill()` on `recovery-phrase-credential` is still
+  exercised at `passkey:72/171/232/431/441`, `identity:458/530/606/618`, `onboarding-vault:104…`;
+  (2) the change is class A not class C (product-defect) because a deterministic product
+  space-stripping bug would fail 100%, not 1/8, and the IDENTICAL `.fill(seedWords.join(" "))` at
+  `passkey:72/171/232` do NOT flake — so the committed comment's "the field strips spaces from a
+  programmatic .fill() under load" is a MIS-DIAGNOSIS; (3) true mechanism is a
+  post-`goto("/unlock")` hydration/controlled-input race specific to the `:387` test's
+  `sessionStorage.clear()`→`goto`→immediate-`.fill()` sequence — the SAME load-dependent
+  hydration-race class as identity:282; the grid switch fixes it incidentally by adding
+  `enterSeedPhrase(expectValid=true)`'s "Valid recovery phrase" settle-wait. passkey:387 passed in
+  rev-04 runs 1 and 2 (4.8s / 5.3s). **Required before accept:** correct the comment to the real
+  mechanism; author evidence-06; commit test-only. Root will require this on the agent's fast finish
+  once the run loop completes.
 
 ### 2026-07-27 — P20B rev 04 ABORTED unreliable; passkey:387 fix salvaged; dispatch rev 05 to finalize
 
 `p20b-implementer-04` proved unreliable: it returned idle 3× without finishing (its ~32-min
-background 8-run validation loop outlived each turn), and it injected diagnostic scaffolding
-("DIAG canonical field via keyboard.type", `passkey.spec.ts:416`) into the spec file MID-LOOP,
-contaminating runs 3-4 (runs 1-2 were clean: 163 passed, passkey:387 + import:1527 + tx523 + id282 all
-green). Root stopped the agent (TaskStop) and force-killed the orphaned loop/CLI/worker/chromium
+background 8-run validation loop outlived each turn), and it injected diagnostic scaffolding ("DIAG
+canonical field via keyboard.type", `passkey.spec.ts:416`) into the spec file MID-LOOP,
+contaminating runs 3-4 (runs 1-2 were clean: 163 passed, passkey:387 + import:1527 + tx523 + id282
+all green). Root stopped the agent (TaskStop) and force-killed the orphaned loop/CLI/worker/chromium
 process tree; the environment is clean (next-dev webServer PID 972 left running). The working tree
 retains ONLY the legitimate `:400` change (grid-switch via `enterSeedPhrase(words, true)`; no DIAG
 scaffolding; 12 tests) — the fix is SOUND per root's class-A adjudication — but (a) its committed
-comment over-claims a "space-stripping" mechanism root rejects, and (b) it has no clean uncontaminated
-validation and no evidence file, and it is uncommitted.
+comment over-claims a "space-stripping" mechanism root rejects, and (b) it has no clean
+uncontaminated validation and no evidence file, and it is uncommitted.
 
-**Dispatched P20B rev 05** (`p20b-implementer-05`, fresh) to finalize: correct the passkey comment to
-an honest mechanism (load-dependent timing flake, NOT a product defect, NOT proven space-stripping —
-identical single-field `.fill()` passes at siblings `:72/:171/:232` and a deterministic product bug
-would fail 100% not ~1/8; single-field path stays covered at those sites); ensure NO DIAG scaffolding
-in any committed file; run a CLEAN 8-run full-suite validation FOREGROUND one-run-per-call (no
-background/monitor, no spec mutation during the loop); write `evidence/P20B/implementation-06.md`; run
-unit gates; commit test-only. import:1573 needs no work (Q-P20B-14 duplicate). P20B stays
-`changes_requested`; HS-021 stays rolled back.
+**Dispatched P20B rev 05** (`p20b-implementer-05`, fresh) to finalize: correct the passkey comment
+to an honest mechanism (load-dependent timing flake, NOT a product defect, NOT proven
+space-stripping — identical single-field `.fill()` passes at siblings `:72/:171/:232` and a
+deterministic product bug would fail 100% not ~1/8; single-field path stays covered at those sites);
+ensure NO DIAG scaffolding in any committed file; run a CLEAN 8-run full-suite validation FOREGROUND
+one-run-per-call (no background/monitor, no spec mutation during the loop); write
+`evidence/P20B/implementation-06.md`; run unit gates; commit test-only. import:1573 needs no work
+(Q-P20B-14 duplicate). P20B stays `changes_requested`; HS-021 stays rolled back.
 
 ### 2026-07-28 — P20B rev 05 handback root-VERIFIED clean; DISTINCT reviewer dispatched over 5576175..HEAD
 
 `p20b-implementer-05` handed back commit `3e0318a` ("test: settle passkey unlock flake via validated
-seed entry"). Root ran verify-not-trust independently (did NOT trust the handback): HEAD == `3e0318a`,
-test-only, `passkey.spec.ts` 11 insertions/2 deletions; the diff is EXACTLY the `enterSeedPhrase`
-import + the `:400` unlock-step swap `.fill(words.join(" ")) -> enterSeedPhrase(page, words, true)` +
-an HONEST comment (load-dependent test-timing flake, single-field path still covered at
-`:72/:171/:232`, references Q-P20B-16) — the prior "strips spaces" mis-diagnosis wording is GONE; 12
-`test(...)` blocks unchanged; no DIAG/console.log/keyboard.type residue. `git diff --stat
-5576175..HEAD -- . ':(exclude)specs'` == exactly `transactions.spec.ts` (rev-03) + `passkey.spec.ts`
-(rev-05), both test-only. `evidence/P20B/implementation-06.md` present and secret-clean (no real
-recovery material; explicit secret-safety attestation; no 12-word phrase). Working tree carries only
-inert strays (`next-env.d.ts` M, untracked `evidence/P08/implementation-01.md`). Canary invariant
-== 1.
+seed entry"). Root ran verify-not-trust independently (did NOT trust the handback): HEAD ==
+`3e0318a`, test-only, `passkey.spec.ts` 11 insertions/2 deletions; the diff is EXACTLY the
+`enterSeedPhrase` import + the `:400` unlock-step swap
+`.fill(words.join(" ")) -> enterSeedPhrase(page, words, true)` + an HONEST comment (load-dependent
+test-timing flake, single-field path still covered at `:72/:171/:232`, references Q-P20B-16) — the
+prior "strips spaces" mis-diagnosis wording is GONE; 12 `test(...)` blocks unchanged; no
+DIAG/console.log/keyboard.type residue. `git diff --stat 5576175..HEAD -- . ':(exclude)specs'` ==
+exactly `transactions.spec.ts` (rev-03) + `passkey.spec.ts` (rev-05), both test-only.
+`evidence/P20B/implementation-06.md` present and secret-clean (no real recovery material; explicit
+secret-safety attestation; no 12-word phrase). Working tree carries only inert strays
+(`next-env.d.ts` M, untracked `evidence/P08/implementation-01.md`). Canary invariant == 1.
 
-**Dispatched DISTINCT `p20b-reviewer-03`** (fresh context, never a P20B implementer) to independently
-re-validate the CUMULATIVE P20B E2E-stability fix over `5576175..HEAD` (transactions rev-03 + passkey
-rev-05) under MANY foreground full-suite `--retries=0` runs (isolation is useless for this
-load-dependent class) plus unit gates; adjudicate principled-vs-mask + product-clean + secret-clean;
-write `reviews/P20B-review-03.md` and report PASS/FAIL. HS-021 stays rolled back (marker `[]` at
-`:159`, rolling `f46c2d35…`, authorized IDs 20) until the reviewer independently confirms — no
-re-pass until then, to avoid rollback churn. On PASS root re-applies HS-021 forward via §275
-(`f46c2d35… -> 469e98c7…`, authorized 20 -> 21, restore P20B/HS-021/P21 rows) then starts P21 rev 03.
+**Dispatched DISTINCT `p20b-reviewer-03`** (fresh context, never a P20B implementer) to
+independently re-validate the CUMULATIVE P20B E2E-stability fix over `5576175..HEAD` (transactions
+rev-03 + passkey rev-05) under MANY foreground full-suite `--retries=0` runs (isolation is useless
+for this load-dependent class) plus unit gates; adjudicate principled-vs-mask + product-clean +
+secret-clean; write `reviews/P20B-review-03.md` and report PASS/FAIL. HS-021 stays rolled back
+(marker `[]` at `:159`, rolling `f46c2d35…`, authorized IDs 20) until the reviewer independently
+confirms — no re-pass until then, to avoid rollback churn. On PASS root re-applies HS-021 forward
+via §275 (`f46c2d35… -> 469e98c7…`, authorized 20 -> 21, restore P20B/HS-021/P21 rows) then starts
+P21 rev 03.
 
 ### 2026-07-28 — completion_pending: HS-021 forward marker re-apply (P20B rev 03/05 PASS)
 
 **completion_pending** (root-only; no package dispatch allowed while pending). HS ID: **HS-021**.
-Pre-change actual SHA: `f46c2d3559c3110013330c9ff6a56650b72ad56e10c84349b9e2171ab5bfef28` (== rolling).
-Mapped package: **P20B** — now `passed` on the cumulative E2E-stability fix over `5576175..HEAD`
-(transactions rev-03 four 15s re-render timeouts + passkey rev-05 `enterSeedPhrase` settle swap),
-independently confirmed by DISTINCT `p20b-reviewer-03` (8/8 clean full-suite `--retries=0` runs,
-principled/product-clean/secret-clean; `reviews/P20B-review-03.md`). Integration/product tip:
-`3e0318a`. Intended marker change: scratch `:159` `- []` -> `- [x]`; expected after SHA
-`469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a` (24,260 bytes, byte-identical to
-the original authorized all-checked state); authorized checked IDs 20 -> 21. Scratch snapshotted to a
-private mktemp for one-line-diff verification.
+Pre-change actual SHA: `f46c2d3559c3110013330c9ff6a56650b72ad56e10c84349b9e2171ab5bfef28` (==
+rolling). Mapped package: **P20B** — now `passed` on the cumulative E2E-stability fix over
+`5576175..HEAD` (transactions rev-03 four 15s re-render timeouts + passkey rev-05 `enterSeedPhrase`
+settle swap), independently confirmed by DISTINCT `p20b-reviewer-03` (8/8 clean full-suite
+`--retries=0` runs, principled/product-clean/secret-clean; `reviews/P20B-review-03.md`).
+Integration/product tip: `3e0318a`. Intended marker change: scratch `:159` `- []` -> `- [x]`;
+expected after SHA `469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a` (24,260 bytes,
+byte-identical to the original authorized all-checked state); authorized checked IDs 20 -> 21.
+Scratch snapshotted to a private mktemp for one-line-diff verification.
 
 ### 2026-07-28 — completion_finalized: HS-021 forward marker RE-APPLIED; P20B + HS-021 re-passed
 
-**completion_finalized** (root control commit). HS ID **HS-021**. Marker `- []` -> `- [x]` at scratch
-`:159`. Before SHA `f46c2d3559c3110013330c9ff6a56650b72ad56e10c84349b9e2171ab5bfef28`; after SHA
-`469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a` (24,260 bytes; byte-identical to
-the original authorized all-checked state; 43 checked / 0 unchecked). One-line marker-only diff
+**completion_finalized** (root control commit). HS ID **HS-021**. Marker `- []` -> `- [x]` at
+scratch `:159`. Before SHA `f46c2d3559c3110013330c9ff6a56650b72ad56e10c84349b9e2171ab5bfef28`; after
+SHA `469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a` (24,260 bytes; byte-identical
+to the original authorized all-checked state; 43 checked / 0 unchecked). One-line marker-only diff
 verified against a private mktemp snapshot, then snapshot deleted. Mapped package **P20B** `passed`;
 review `reviews/P20B-review-03.md` (DISTINCT `p20b-reviewer-03`, 8/8 clean full-suite `--retries=0`
 runs, principled/product-clean/secret-clean); integration/product tip `3e0318a` (cumulative
@@ -5829,52 +5877,52 @@ checked IDs 20 -> 21 (HS-021 restored). **Tally: ALL 22 requirements `passed`; a
 packages P00–P20B `passed`.** Only control package **P21** remains (`changes_requested`, rev 03
 pending) — its sole blocker (P20B flake ownership) is now cleared.
 
-**Next:** dispatch **P21 revision 03** from BASE `3e0318a` — fresh collector runs the full executable
-final audit (`tasks/P21-final-audit.md`); DISTINCT reviewer gives the single formal PASS/FAIL; on
-PASS transcribe `FINAL-AUDIT.md` and set P21 `passed` (goal completion gate). Full-suite flakes are
-classified against tracked Qs (Q-P20B-13/14, Q-P20A-05, and now the settled Q-P20B-15/16); only an
-_unexplained_ flake FAILs (tasks/P21-final-audit.md line 71).
+**Next:** dispatch **P21 revision 03** from BASE `3e0318a` — fresh collector runs the full
+executable final audit (`tasks/P21-final-audit.md`); DISTINCT reviewer gives the single formal
+PASS/FAIL; on PASS transcribe `FINAL-AUDIT.md` and set P21 `passed` (goal completion gate).
+Full-suite flakes are classified against tracked Qs (Q-P20B-13/14, Q-P20A-05, and now the settled
+Q-P20B-15/16); only an _unexplained_ flake FAILs (tasks/P21-final-audit.md line 71).
 
 ### 2026-07-28 — P21 rev 03 FINAL-AUDIT: collector FAIL-candidate F-1; dispatch DISTINCT reviewer
 
 Fresh collector `p21-collector-03` (`evidence/P21/implementation-03.md`; wrote only that file,
-committed nothing, tree clean, HEAD `28858e2` unchanged) returned a **FAIL-candidate** on one blocking
-finding **F-1** (dependency-security): `pnpm audit --prod` = 10 advisories (5 HIGH / 5 MODERATE);
-`next@16.2.10` is vulnerable `>=16.0.0 <16.2.11` (HIGH: App Router auth bypass + SSRF), patched
-`>=16.2.11`; fixes 16.2.11 (2026-07-21) / 16.2.12 (2026-07-25) predate this audit; plus transitive
-`sharp` HIGH fixed `>=0.35.0`. Root INDEPENDENTLY reproduced `pnpm audit --prod` (10 vulns, 5 high /
-5 moderate; installed `next` `16.2.10`) — printed in-transcript. Collector reports ALL OTHER gates
-GREEN (21 packages + 22 requirements reconcile; unit gates clean bar the known TransactionTable lint
-warning; E2E 163 x2 full `--retries=0` = 326/326 with the rev-02 flake class GREEN; FS-001 intact;
-secret-scan clean).
+committed nothing, tree clean, HEAD `28858e2` unchanged) returned a **FAIL-candidate** on one
+blocking finding **F-1** (dependency-security): `pnpm audit --prod` = 10 advisories (5 HIGH / 5
+MODERATE); `next@16.2.10` is vulnerable `>=16.0.0 <16.2.11` (HIGH: App Router auth bypass + SSRF),
+patched `>=16.2.11`; fixes 16.2.11 (2026-07-21) / 16.2.12 (2026-07-25) predate this audit; plus
+transitive `sharp` HIGH fixed `>=0.35.0`. Root INDEPENDENTLY reproduced `pnpm audit --prod` (10
+vulns, 5 high / 5 moderate; installed `next` `16.2.10`) — printed in-transcript. Collector reports
+ALL OTHER gates GREEN (21 packages + 22 requirements reconcile; unit gates clean bar the known
+TransactionTable lint warning; E2E 163 x2 full `--retries=0` = 326/326 with the rev-02 flake class
+GREEN; FS-001 intact; secret-scan clean).
 
 **Process correction (this session).** A collector verdict is a CANDIDATE only. §275's rollback
 machinery requires an IMMUTABLE FAILED REVIEW, and per §114 the FORMAL P21 verdict comes from a
 DISTINCT reviewer (rev 01/02 precedent; rev 02's reviewer even overturned a collector finding). Root
 does NOT self-authorize skipping that step, even for a deterministic security-gate finding; root's
 independent audit reproduction is corroboration, not the formal verdict. Therefore NO rollback yet.
-Dispatching a DISTINCT fresh-context reviewer (`p21-reviewer-03`, NOT the collector) to independently
-reproduce F-1 and issue the formal PASS/FAIL into `reviews/P21-review-03.md`. Only on a formal FAIL
-does root persist that review and execute §275 `RB-P21-03` (HS-002) then reopen P01. Clean audited
-state preserved for the reviewer: scratch `469e98c7...`, 24,260 bytes, 43 checked / 0 unchecked,
-HS-002 marker `[x]` at `:157`. See **Q-P21-03-01** for the F-1 disposition.
+Dispatching a DISTINCT fresh-context reviewer (`p21-reviewer-03`, NOT the collector) to
+independently reproduce F-1 and issue the formal PASS/FAIL into `reviews/P21-review-03.md`. Only on
+a formal FAIL does root persist that review and execute §275 `RB-P21-03` (HS-002) then reopen P01.
+Clean audited state preserved for the reviewer: scratch `469e98c7...`, 24,260 bytes, 43 checked / 0
+unchecked, HS-002 marker `[x]` at `:157`. See **Q-P21-03-01** for the F-1 disposition.
 
 ### 2026-07-28 — P21 rev 03 FORMAL VERDICT: FAIL; DISTINCT reviewer p21-reviewer-03; F-1 CONFIRMED
 
 DISTINCT reviewer `p21-reviewer-03` (fresh context, NOT the collector) issued the FORMAL verdict
 **FAIL** into `reviews/P21-review-03.md` (wrote only that file, committed nothing; HEAD unchanged
-`b39764d`; product tree byte-identical to `127990a`; start-check scratch `469e98c7...` 24,260B, 43/0,
-HS-002 `[x]` at `:157`). Verify-not-trust GREEN: only the one allowed review file added, nothing
-committed, secret-scan clean (the only pattern hits are the reviewer's own negative attestations and
-public SHAs).
+`b39764d`; product tree byte-identical to `127990a`; start-check scratch `469e98c7...` 24,260B,
+43/0, HS-002 `[x]` at `:157`). Verify-not-trust GREEN: only the one allowed review file added,
+nothing committed, secret-scan clean (the only pattern hits are the reviewer's own negative
+attestations and public SHAs).
 
 **F-1 (production dependency-security): CONFIRMED.** Independent `pnpm audit --prod` -> exit 1, 10
 advisories (5 HIGH / 5 MODERATE): 4 HIGH + 5 MODERATE against `next@16.2.10` (App Router middleware
 bypass, Server-Actions DoS, 2x SSRF; all `>=16.0.0 <16.2.11`, patched `>=16.2.11`) plus 1 HIGH
 transitive `sharp@0.34.5` (libvips; patched `>=0.35.0`). Safe-chain upgrade EXISTS: `next` dist
 `latest` 16.2.12 (16.2.11 / 16.2.12 both predate the audit) clears all 9 next advisories via a
-same-minor patch bump. HS-002 ("very latest safe-chain ... all dependencies") is 2 patches behind, so
-its completion claim is materially false at the gate.
+same-minor patch bump. HS-002 ("very latest safe-chain ... all dependencies") is 2 patches behind,
+so its completion claim is materially false at the gate.
 
 **Reviewer refinement folded into the P01 fix charter:** bumping `next` alone does NOT clear the
 `sharp` HIGH — `next@16.2.12` still declares `optionalDependencies.sharp ^0.34.5` (<0.35.0); a
@@ -5883,22 +5931,25 @@ blocking finding; Q-P20B-00 (pruneBuckets) confirmed a transparently-deferred ou
 carry-forward, not a P21 blocker.
 
 This is the §275 immutable-failed-review precondition. Root persists the review + collector evidence
-in this commit, THEN executes §275 `RB-P21-03` next. P21 -> `changes_requested`, rev 04 pending from a
-fresh BASE after P01 clears `pnpm audit --prod`.
+in this commit, THEN executes §275 `RB-P21-03` next. P21 -> `changes_requested`, rev 04 pending from
+a fresh BASE after P01 clears `pnpm audit --prod`.
 
 ### 2026-07-28 — §275 rollback_batch_prepared: RB-P21-03 (HS-002) grounded in the formal FAIL
 
 **rollback_batch_prepared** (root-only; NO dispatch allowed while a batch is prepared/active).
+
 - **Batch ID:** `RB-P21-03`
 - **Immutable failed review (precondition MET):** `reviews/P21-review-03.md` — DISTINCT
   `p21-reviewer-03` FORMAL verdict FAIL, F-1 dependency-security CONFIRMED (persisted commit
-  `fb723d0`). Corroborated by root's independent `pnpm audit --prod` + `evidence/P21/implementation-03.md`.
+  `fb723d0`). Corroborated by root's independent `pnpm audit --prod` +
+  `evidence/P21/implementation-03.md`.
 - **Actual owning/affected packages:** **P01** (owns HS-002 dependency-upgrade). No other package
   impacted (E2E / FS-001 / all other gates GREEN per collector + reviewer sanity-check).
 - **Impacted requirements:** **HS-002**.
 - **Impacted checked HS IDs (SCOPE order):** `[HS-002]`.
 - **FS-001:** NOT impacted; never enters the marker batch; no source/scratch edit.
-- **Starting == current rolling SHA:** `469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a`.
+- **Starting == current rolling SHA:**
+  `469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a`.
 - Integrity precondition verified: actual scratch SHA == rolling SHA; HS-002 marker `[x]` at `:157`,
   authorized; normalized blocks byte-match SCOPE (21/0); FS-001 `0d0e2a14…` unchanged.
 
@@ -5909,21 +5960,23 @@ impacted (no source/scratch edit).
 
 **Processed HS-002** (order 1, the sole batched ID). Precondition met: `[x]`, `rollback_pending`,
 authorized, actual SHA == batch current rolling SHA `469e98c7…`. Snapshotted scratch to a private
-mktemp; applied marker `[x]` -> `[]` at scratch `:157` via `sed`; verified a ONE-LINE marker-only diff
-`157c157` against the snapshot; deleted the snapshot; normalized blocks byte-compared to SCOPE (still
-match). Completed record: `[HS-002: order 1, [x] -> [], before 469e98c7… / after c10dc0b5…, P21 rev
-03 FAIL F-1]`. Batch + global rolling SHA updated `469e98c7… -> c10dc0b5…`; HS-002 removed from
-pending and from authorized checked IDs; HS-002 set `changes_requested`. File now 24,259 bytes, 42
-checked / 1 unchecked.
+mktemp; applied marker `[x]` -> `[]` at scratch `:157` via `sed`; verified a ONE-LINE marker-only
+diff `157c157` against the snapshot; deleted the snapshot; normalized blocks byte-compared to SCOPE
+(still match). Completed record:
+`[HS-002: order 1, [x] -> [], before 469e98c7… / after c10dc0b5…, P21 rev 03 FAIL F-1]`. Batch +
+global rolling SHA updated `469e98c7… -> c10dc0b5…`; HS-002 removed from pending and from authorized
+checked IDs; HS-002 set `changes_requested`. File now 24,259 bytes, 42 checked / 1 unchecked.
 
 **Batch COMPLETED + cleared.** Pending empty; batched HS-002 is `[]`, unauthorized,
-`changes_requested`; all normalized text matches SCOPE; package downgrade (P01 -> `changes_requested`,
-rev 03 reopen) recorded; FS-001 untouched; contiguous hash chain `469e98c7… -> c10dc0b5…` ends at
-actual rolling SHA `c10dc0b5…`. Active P21 rollback batch -> **none**. Fix dispatch to P01 is now
-permitted.
+`changes_requested`; all normalized text matches SCOPE; package downgrade (P01 ->
+`changes_requested`, rev 03 reopen) recorded; FS-001 untouched; contiguous hash chain
+`469e98c7… -> c10dc0b5…` ends at actual rolling SHA `c10dc0b5…`. Active P21 rollback batch ->
+**none**. Fix dispatch to P01 is now permitted.
 
-- **Rolling scratch SHA-256 (post-RB-P21-03):** `c10dc0b5963105d72d8e4afc43223102b96b3ab7cb0acd3954cfc491866831bd`
-- **Authorized checked HS IDs (post-RB-P21-03):** 20 of 21 (HS-002 rolled back; HS-001, HS-003..HS-021 remain).
+- **Rolling scratch SHA-256 (post-RB-P21-03):**
+  `c10dc0b5963105d72d8e4afc43223102b96b3ab7cb0acd3954cfc491866831bd`
+- **Authorized checked HS IDs (post-RB-P21-03):** 20 of 21 (HS-002 rolled back; HS-001,
+  HS-003..HS-021 remain).
 
 ### 2026-07-28 — P01 rev 03 charter correction (root, verified) — two factual fixes, NOT a scope reduction
 
@@ -5931,13 +5984,14 @@ permitted.
 factual errors in root's original P01 rev-03 dispatch charter. Root independently verified both and
 AUTHORIZED (SendMessage), then corrected HANDOFF.md to match:
 
-1. **Target `next@16.2.11`, NOT 16.2.12.** The environment ships the real `safe-chain`
-   supply-chain tool (on PATH: `/nix/store/…-safe-chain/bin`) which enforces a minimum-package-age
-   policy; the 3-day-old `next@16.2.12` is age-suppressed and therefore NOT safe-chain-supported.
-   `16.2.11` is the latest safe-chain-supported release and clears all 9 `next` advisories (all
-   patched `>=16.2.11`). The frozen HS-002 text (SCOPE.json heading "Safe-chain dependency upgrades")
-   literally reads "the very latest **safe-chain supported** version" — so 16.2.11 is what the frozen
-   requirement DEMANDS. Bypassing the age policy to grab 16.2.12 would VIOLATE the requirement.
+1. **Target `next@16.2.11`, NOT 16.2.12.** The environment ships the real `safe-chain` supply-chain
+   tool (on PATH: `/nix/store/…-safe-chain/bin`) which enforces a minimum-package-age policy; the
+   3-day-old `next@16.2.12` is age-suppressed and therefore NOT safe-chain-supported. `16.2.11` is
+   the latest safe-chain-supported release and clears all 9 `next` advisories (all patched
+   `>=16.2.11`). The frozen HS-002 text (SCOPE.json heading "Safe-chain dependency upgrades")
+   literally reads "the very latest **safe-chain supported** version" — so 16.2.11 is what the
+   frozen requirement DEMANDS. Bypassing the age policy to grab 16.2.12 would VIOLATE the
+   requirement.
 
 2. **Sharp override mechanism = `pnpm-workspace.yaml`, not `package.json`.** pnpm 11.13.1 ignores
    `package.json` `pnpm.overrides` (warns the field is no longer read); the live mechanism is the
@@ -5949,12 +6003,13 @@ AUTHORIZED (SendMessage), then corrected HANDOFF.md to match:
 **Adjudicator NOT required.** Neither change reduces committed scope nor supersedes a frozen
 committed decision — both make the fix meet the frozen HS-002 text exactly (correcting root's own
 erroneous dispatch prose, not a prior committed decision). Per the standing rule, requiring the fix
-to correctly satisfy committed scope is not a reduction. Convergence gate unchanged: `pnpm audit
---prod` exit 0 / 0 advisories, full no-regression gates + full E2E `--retries=0`.
+to correctly satisfy committed scope is not a reduction. Convergence gate unchanged:
+`pnpm audit --prod` exit 0 / 0 advisories, full no-regression gates + full E2E `--retries=0`.
 
-- **State unchanged by this event:** rolling scratch SHA `c10dc0b5…` (HS-002 still rolled back,
-  `[]` at `:157`, unauthorized, `changes_requested`); authorized checked HS IDs 20 of 21; P01 row
-  `changes_requested | rev 03`. No marker/ledger-SHA mutation — this is a dispatch-charter correction.
+- **State unchanged by this event:** rolling scratch SHA `c10dc0b5…` (HS-002 still rolled back, `[]`
+  at `:157`, unauthorized, `changes_requested`); authorized checked HS IDs 20 of 21; P01 row
+  `changes_requested | rev 03`. No marker/ledger-SHA mutation — this is a dispatch-charter
+  correction.
 
 ### 2026-07-28 — §275 forward marker completion_pending: HS-002 (P01 rev 03 PASS)
 
@@ -5964,56 +6019,94 @@ HEAD `371a88a`; config-only delta on the 4 allowed paths; frozen sources intact;
 image-opt clean (sharp 0.35.3 prebuilt @img binary loads, allowBuilds.sharp:false irrelevant); full
 E2E 163/0/0 x2; no bump regression; no secret leak. Preconditions for the HS-002 forward marker MET:
 P01 now passes; actual scratch SHA == rolling `c10dc0b5…`; HS-002 marker `- []` at `:157`
-(unauthorized, rolled back). Proceeding to snapshot the scratch, apply the exact `- []` -> `- [x]` at
-`:157`, verify a one-line `157c157` diff, and confirm byte-identical restore to all-checked
+(unauthorized, rolled back). Proceeding to snapshot the scratch, apply the exact `- []` -> `- [x]`
+at `:157`, verify a one-line `157c157` diff, and confirm byte-identical restore to all-checked
 `469e98c7…` before finalizing.
 
 ### 2026-07-28 — §275 forward marker FINALIZED: HS-002 re-passed rolling c10dc0b5 to 469e98c7
 
 **Marker applied.** Snapshotted scratch to a private mktemp; applied `- []` -> `- [x]` at scratch
 `:157` via `sed`; verified a marker-only ONE-LINE diff `157c157` against the snapshot; deleted the
-snapshot; re-checked identity — file restored byte-identically to the pre-rollback all-checked state:
-`sha256sum specs/human-scratch.md` == `469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a`,
-24,260 bytes, 43 checked / 0 unchecked, normalized blocks 21/0 byte-match SCOPE. FS-001 canonical
-`0d0e2a14…` untouched.
+snapshot; re-checked identity — file restored byte-identically to the pre-rollback all-checked
+state: `sha256sum specs/human-scratch.md` ==
+`469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a`, 24,260 bytes, 43 checked / 0
+unchecked, normalized blocks 21/0 byte-match SCOPE. FS-001 canonical `0d0e2a14…` untouched.
 
 **Finalized in this control commit.** HS-002 requirement -> `passed`; P01 package -> `passed` (rev
-03, product `371a88a`, evidence `evidence/P01/implementation-03.md`, review `reviews/P01-review-03.md`).
-Rolling scratch SHA updated `c10dc0b5… -> 469e98c7…`; authorized checked HS IDs += HS-002 = 21 of 21;
-active completion marker event -> none pending. Tally: 22 of 22 requirements `passed`; 21 of 21
-feature packages `passed`. Control package P21 remains `changes_requested`, rev 04 pending. No product
-code touched by root; the marker flip is the only frozen-source change and it restores the immutable
-all-checked identity `469e98c7…`.
-
+03, product `371a88a`, evidence `evidence/P01/implementation-03.md`, review
+`reviews/P01-review-03.md`). Rolling scratch SHA updated `c10dc0b5… -> 469e98c7…`; authorized
+checked HS IDs += HS-002 = 21 of 21; active completion marker event -> none pending. Tally: 22 of 22
+requirements `passed`; 21 of 21 feature packages `passed`. Control package P21 remains
+`changes_requested`, rev 04 pending. No product code touched by root; the marker flip is the only
+frozen-source change and it restores the immutable all-checked identity `469e98c7…`.
 
 ## Event — P21 revision 04 EXECUTABLE FINAL AUDIT: FAIL (DISTINCT reviewer)
 
-**Date:** 2026-07-28. **BASE product identity** `371a88a` (empty `git diff 371a88a HEAD -- . ':(exclude)specs'`). **Audit record committed** `60c2eca` (`evidence/P21/implementation-04.md` collector + `reviews/P21-review-04.md` DISTINCT reviewer).
+**Date:** 2026-07-28. **BASE product identity** `371a88a` (empty
+`git diff 371a88a HEAD -- . ':(exclude)specs'`). **Audit record committed** `60c2eca`
+(`evidence/P21/implementation-04.md` collector + `reviews/P21-review-04.md` DISTINCT reviewer).
 
-Collector `p21-collector-04` returned a FAIL-candidate (F-1 only). DISTINCT reviewer `p21-reviewer-04` (never the collector, no package authorship) returned the single formal **FAIL** on E2E stability alone; every other contract clause passed independently:
-- `pnpm audit --prod` exit 0 / 0 advisories (`next@16.2.11` safe-chain latest — 16.2.12 age-suppressed; `sharp@0.35.3` via `pnpm-workspace.yaml` override; prebuilt @img binary loads AND encodes). Rev-03 F-1 fully cleared.
-- typecheck 0; lint 0 errors (only the known `TransactionTable:401` warning); format:check flags only frozen `specs/**` md; build 17 routes; unit 2091 passed / 2 env-gated skips (both run with flags: 188 passed).
-- Fresh `pnpm db:reset` 6 migrations clean from empty; security probes (synthetic Ed25519) all denied, RLS on 11 tables, 0 plaintext hits; FS-001 16/16 named gates (A-H unit + E2E), sole engine one production call site (`BalanceSummary.tsx`), reject-never-clamp + largest-remainder conservation verified; performance allocation ~2ms, settlement near-linear.
+Collector `p21-collector-04` returned a FAIL-candidate (F-1 only). DISTINCT reviewer
+`p21-reviewer-04` (never the collector, no package authorship) returned the single formal **FAIL**
+on E2E stability alone; every other contract clause passed independently:
+
+- `pnpm audit --prod` exit 0 / 0 advisories (`next@16.2.11` safe-chain latest — 16.2.12
+  age-suppressed; `sharp@0.35.3` via `pnpm-workspace.yaml` override; prebuilt @img binary loads AND
+  encodes). Rev-03 F-1 fully cleared.
+- typecheck 0; lint 0 errors (only the known `TransactionTable:401` warning); format:check flags
+  only frozen `specs/**` md; build 17 routes; unit 2091 passed / 2 env-gated skips (both run with
+  flags: 188 passed).
+- Fresh `pnpm db:reset` 6 migrations clean from empty; security probes (synthetic Ed25519) all
+  denied, RLS on 11 tables, 0 plaintext hits; FS-001 16/16 named gates (A-H unit + E2E), sole engine
+  one production call site (`BalanceSummary.tsx`), reject-never-clamp + largest-remainder
+  conservation verified; performance allocation ~2ms, settlement near-linear.
 
 **Blockers (both owned by P20B / HS-021):**
-- **F-1 (Q-P20B-18)** — `import.spec.ts:1512` (test declared at `:1445`), eager `toBeVisible({ timeout: 5000 })` = Playwright's DEFAULT timeout, races async CSV parse+render under 4-worker load. NEW (0 prior hits in QUESTIONS/evidence/reviews), NOT absorbable into Q-P20B-14 (`:1527` is a different declaration). Cohort: 13 default-timeout `toBeVisible` in import(8)+transactions(5); `import.spec.ts` never touched by any prior P20B revision.
-- **F-2 (Q-P20B-19)** — `identity.spec.ts:282` RE-FLAKE (reviewer 1/8 full-suite). The P20B rev-02 fix (`toBeEditable`/`fill`/`toHaveValue`) cannot prove hydration for a controlled `Input`: `button.tsx:50` gates on `useIsHydrated`, `input.tsx` does not (root-confirmed by `grep useIsHydrated`). Pre-hydration `fill` sets the DOM value (so `toHaveValue` passes) but React clobbers it back to `""` on the next commit. Slipped past `P20B-review-02` because that review validated with ISOLATION ONLY (`:39-45`, "9/9").
 
-Reviewer E2E campaign: 8 full-suite `--retries=0`, 1304 executions, run 3 held the lone `identity:282` failure; `import:1512` 0/8 in the reviewer env (non-reproduction is NOT exoneration for a load-dependent class — the class is environment-dependent). Collector saw `identity:282` 8/8 and `import:1512` 1/8 — honest inverse sample.
+- **F-1 (Q-P20B-18)** — `import.spec.ts:1512` (test declared at `:1445`), eager
+  `toBeVisible({ timeout: 5000 })` = Playwright's DEFAULT timeout, races async CSV parse+render
+  under 4-worker load. NEW (0 prior hits in QUESTIONS/evidence/reviews), NOT absorbable into
+  Q-P20B-14 (`:1527` is a different declaration). Cohort: 13 default-timeout `toBeVisible` in
+  import(8)+transactions(5); `import.spec.ts` never touched by any prior P20B revision.
+- **F-2 (Q-P20B-19)** — `identity.spec.ts:282` RE-FLAKE (reviewer 1/8 full-suite). The P20B rev-02
+  fix (`toBeEditable`/`fill`/`toHaveValue`) cannot prove hydration for a controlled `Input`:
+  `button.tsx:50` gates on `useIsHydrated`, `input.tsx` does not (root-confirmed by
+  `grep useIsHydrated`). Pre-hydration `fill` sets the DOM value (so `toHaveValue` passes) but React
+  clobbers it back to `""` on the next commit. Slipped past `P20B-review-02` because that review
+  validated with ISOLATION ONLY (`:39-45`, "9/9").
 
-**C-1 (non-blocking):** upstream registry currency drift (patch bumps + one icon-set minor published 2026-07-20..24, after the P01 rev-03 selection); `pnpm audit --prod` clean → currency, not security. Ruled an accepted human-visible carry-forward (Q-P21-04-01); does NOT reopen P01/HS-002 (HS-002's "latest safe-chain supported" is satisfied at the audit instant, the same principle `next` 16.2.11-vs-age-suppressed-16.2.12 already proves; no terminating condition to chase every publish). Reversible via a future trivial P01 bump.
+Reviewer E2E campaign: 8 full-suite `--retries=0`, 1304 executions, run 3 held the lone
+`identity:282` failure; `import:1512` 0/8 in the reviewer env (non-reproduction is NOT exoneration
+for a load-dependent class — the class is environment-dependent). Collector saw `identity:282` 8/8
+and `import:1512` 1/8 — honest inverse sample.
 
-**Routing:** §275 `RB-P21-04` rolls back HS-021; P20B reopens at rev 06 to fix F-1+F-2 under full-suite load; re-pass HS-021 via a DISTINCT reviewer; then P21 rev 05.
+**C-1 (non-blocking):** upstream registry currency drift (patch bumps + one icon-set minor published
+2026-07-20..24, after the P01 rev-03 selection); `pnpm audit --prod` clean → currency, not security.
+Ruled an accepted human-visible carry-forward (Q-P21-04-01); does NOT reopen P01/HS-002 (HS-002's
+"latest safe-chain supported" is satisfied at the audit instant, the same principle `next`
+16.2.11-vs-age-suppressed-16.2.12 already proves; no terminating condition to chase every publish).
+Reversible via a future trivial P01 bump.
+
+**Routing:** §275 `RB-P21-04` rolls back HS-021; P20B reopens at rev 06 to fix F-1+F-2 under
+full-suite load; re-pass HS-021 via a DISTINCT reviewer; then P21 rev 05.
 
 ## Event — §275 rollback batch `RB-P21-04` (COMPLETED + cleared)
 
-**Precondition:** immutable DISTINCT-reviewer failed review `reviews/P21-review-04.md` committed `60c2eca`. **Owning package:** P20B (HS-021). **Requirement:** HS-021 -> `changes_requested`. **Pending set:** `[HS-021]` fully processed.
+**Precondition:** immutable DISTINCT-reviewer failed review `reviews/P21-review-04.md` committed
+`60c2eca`. **Owning package:** P20B (HS-021). **Requirement:** HS-021 -> `changes_requested`.
+**Pending set:** `[HS-021]` fully processed.
 
-Marker flip (sed-only, abort-safe): scratch `:159` `- [x]` -> `- []`, one-line diff `159c159` verified against a mktemp snapshot; 42 checked / 1 unchecked; file 24,259 bytes; normalized blocks 20/1. Rolling scratch SHA `469e98c7… -> f46c2d35…` (completed pair `[HS-021: [x]->[], 469e98c7… -> f46c2d35…]`); contiguous hash chain ends at actual `sha256sum specs/human-scratch.md` == `f46c2d35…`. FS-001 (markerless) never entered the batch. Authorized checked HS IDs 21 -> 20 (HS-021 dropped). Batch CLOSED; no active rollback batch remains.
+Marker flip (sed-only, abort-safe): scratch `:159` `- [x]` -> `- []`, one-line diff `159c159`
+verified against a mktemp snapshot; 42 checked / 1 unchecked; file 24,259 bytes; normalized blocks
+20/1. Rolling scratch SHA `469e98c7… -> f46c2d35…` (completed pair
+`[HS-021: [x]->[], 469e98c7… -> f46c2d35…]`); contiguous hash chain ends at actual
+`sha256sum specs/human-scratch.md` == `f46c2d35…`. FS-001 (markerless) never entered the batch.
+Authorized checked HS IDs 21 -> 20 (HS-021 dropped). Batch CLOSED; no active rollback batch remains.
 
 ### Event — P20B rev 06 handback verified read-only; DISTINCT reviewer dispatched
 
-- **Handback commit:** `ea8f927` (recorded earlier as orphan `3f8e2f2`; corrected — amended twice, evidence-header-only delta) ("test(P20B): close eager-assertion flake class under full-suite
+- **Handback commit:** `ea8f927` (recorded earlier as orphan `3f8e2f2`; corrected — amended twice,
+  evidence-header-only delta) ("test(P20B): close eager-assertion flake class under full-suite
   load"). Verify-not-trust (root, read-only) CLEAN: touches only the 8 allowed E2E paths +
   `evidence/P20B/implementation-07.md`; no product code changed; frozen `human-scratch.md`
   (`f46c2d35…`) and `src/lib/domain/settlement.ts` (`010f3c93…`) byte-identical; no new
@@ -6022,9 +6115,9 @@ Marker flip (sed-only, abort-safe): scratch `:159` `- [x]` -> `- []`, one-line d
   parallel-safety fix for Q-P20B-20) plus a `helpers/index.ts` re-export (the 8th file in the tree
   digest `e5e1eb18`).
 - **Implementer campaign:** 10/10 full-suite `--retries=0` runs green, 163 tests each, constant tree
-  digest `e5e1eb18`. Static gates green (2091 passed / 2 skipped). Implementer honestly flags a green
-  campaign as necessary-but-weak evidence (load-dependent; F-1 did not reproduce for the rev-04
-  reviewer either), so the DISTINCT reviewer must run its own independent load campaign.
+  digest `e5e1eb18`. Static gates green (2091 passed / 2 skipped). Implementer honestly flags a
+  green campaign as necessary-but-weak evidence (load-dependent; F-1 did not reproduce for the
+  rev-04 reviewer either), so the DISTINCT reviewer must run its own independent load campaign.
 - **Next:** DISTINCT `p20b-reviewer-06` (fresh context, not the implementer) dispatched per
   `HANDOFF.md` to confirm PASS/FAIL under repeated full-suite load → on PASS integrate + re-pass
   HS-021 + §275 forward marker at scratch `:159` (`f46c2d35… → 469e98c7…`) → open P21 rev 05.
@@ -6034,8 +6127,8 @@ Marker flip (sed-only, abort-safe): scratch `:159` `- [x]` -> `- []`, one-line d
 - **Verdict:** DISTINCT fresh-context `p21-reviewer-05` returned formal **FAIL** in
   `reviews/P21-review-05.md`. The reviewer wrote the full 420-line verdict but its process died on a
   provider **429** before its own commit landed; root preserved the artifact **verbatim** at
-  `7cb651d` (no content modified by root). Reviewer confirmed distinct: not the rev-05 collector, not
-  any prior P21 evidence/review author, not the P20B rev-06 implementer/reviewer.
+  `7cb651d` (no content modified by root). Reviewer confirmed distinct: not the rev-05 collector,
+  not any prior P21 evidence/review author, not the P20B rev-06 implementer/reviewer.
 - **Blocking finding M-1 (`Q-P21-05-01`):** `src/components/features/landing/FeaturesSection.tsx:65`
   ships an unqualified data-durability promise — "Two people editing at the same time will not
   overwrite each other" — that the shipped engine violates in ordinary, UI-reachable use. The
@@ -6057,9 +6150,9 @@ Marker flip (sed-only, abort-safe): scratch `:159` `- [x]` -> `- []`, one-line d
   `--retries=0` runs green; `identity.spec.ts:288` measured 5.4–6.1s, already over the old 5000ms
   cap — the rev-06 fix is principled, not retry-papering).
 - **Routing — M-1 copy → P20A / HS-016 (no adjudicator).** HS-016 is "Truthful marketing copy and
-  responsive feature presentation". Softening the absolute claim to a truthful qualified statement is
-  **more work to complete HS-016's committed scope, not a scope reduction**, so per PROCESS it needs
-  no adjudicator.
+  responsive feature presentation". Softening the absolute claim to a truthful qualified statement
+  is **more work to complete HS-016's committed scope, not a scope reduction**, so per PROCESS it
+  needs no adjudicator.
 - **Routing — engine defect `Q-P20B-00` in/out-of-goal → DISTINCT scope adjudicator.** Whether the
   goal's committed scope requires the `pruneBuckets` merge-safety fix is a scope call that would
   **supersede the prior accepted `p20b-reviewer-01 §6.1` deferral** and/or reduce the FINAL-AUDIT
@@ -6068,8 +6161,8 @@ Marker flip (sed-only, abort-safe): scratch `:159` `- [x]` -> `- []`, one-line d
   **opus-tier scope adjudicator** (never the P21/P20A/P20B implementer or reviewer) is dispatched to
   rule from the frozen `sourceTextLines`, the binding task, and the decision being superseded,
   **defaulting to the block standing** unless the frozen text plainly does not require the engine
-  fix. Its written ruling is the authority; root transcribes it and proceeds on the safest reversible
-  path.
+  fix. Its written ruling is the authority; root transcribes it and proceeds on the safest
+  reversible path.
 - **Lifecycle:** P21 stays `changes_requested` (rev 05). **RB-P21-05 is NOT yet prepared or
   activated** — deferred until the adjudicator rules so the batch enumerates the complete
   owning/affected set (P20A/HS-016 certain; a CRDT-engine owner conditional on the ruling). HS-016
@@ -6091,8 +6184,8 @@ committed HS-016 scope, so its marker is rolled back via §275.
 
 **Prepared (step 1).** Verified actual scratch SHA == rolling SHA
 `469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a`; all normalized blocks byte-match
-SCOPE; every impacted HS ID checked and authorized; FS-001 unchanged (`0d0e2a14…`, 715 lines,
-25,441 bytes). Durable batch **RB-P21-05**: failed review `reviews/P21-review-05.md` (P21 rev 05);
+SCOPE; every impacted HS ID checked and authorized; FS-001 unchanged (`0d0e2a14…`, 715 lines, 25,441
+bytes). Durable batch **RB-P21-05**: failed review `reviews/P21-review-05.md` (P21 rev 05);
 owning/affected package `P20A`; impacted requirement `HS-016`; ordered pending set `[HS-016]`
 (single ID); empty completed list; starting == current rolling SHA `469e98c7…`.
 
@@ -6106,24 +6199,26 @@ follows in the next control commit.
 **Process (step 3).** HS-016 verified `[x]`, `rollback_pending`, authorized-ID member, actual SHA ==
 batch current rolling SHA `469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a`.
 Snapshotted scratch to a private `mktemp`; `sed`-flipped scratch `:328` `- [x]` -> `- []`
-(marker-only; `diff` shows exactly one hunk `328c328`); deleted the snapshot; normalized/byte-compared
-every block to SCOPE — HS-016 block (scratch 328-331) now byte-matches SCOPE `sourceTextLines`
-exactly (SCOPE stores the frozen unchecked state), all other blocks unchanged; file 24,259 bytes,
-42 checked / 1 unchecked, normalized blocks 42/1 vs SCOPE.
+(marker-only; `diff` shows exactly one hunk `328c328`); deleted the snapshot;
+normalized/byte-compared every block to SCOPE — HS-016 block (scratch 328-331) now byte-matches
+SCOPE `sourceTextLines` exactly (SCOPE stores the frozen unchecked state), all other blocks
+unchanged; file 24,259 bytes, 42 checked / 1 unchecked, normalized blocks 42/1 vs SCOPE.
 
-**Finalize (steps 4-5).** After-SHA `00291e2d94a5691cd666a6cabf679de1115eef38e22bbc5e072e072024beaaca`.
-Completed record: `[HS-016: order 1, [x] -> [], before 469e98c7… / after 00291e2d…, P21 rev 05 FAIL
-M-1]`. Batch + global rolling SHA advanced `469e98c7… -> 00291e2d…`; HS-016 removed from the
-authorized checked set (21 -> 20); requirement `HS-016` `rollback_pending -> changes_requested`;
-package `P20A` `changes_requested` (rev 03 reopen) recorded at activation. FS-001 never entered the
-batch and received no source or scratch edit. Pending set now empty; all batched IDs `[]`,
-unauthorized, `changes_requested`. Contiguous hash chain `469e98c7… -> 00291e2d…` ends at the ACTUAL
+**Finalize (steps 4-5).** After-SHA
+`00291e2d94a5691cd666a6cabf679de1115eef38e22bbc5e072e072024beaaca`. Completed record:
+`[HS-016: order 1, [x] -> [], before 469e98c7… / after 00291e2d…, P21 rev 05 FAIL M-1]`. Batch +
+global rolling SHA advanced `469e98c7… -> 00291e2d…`; HS-016 removed from the authorized checked set
+(21 -> 20); requirement `HS-016` `rollback_pending -> changes_requested`; package `P20A`
+`changes_requested` (rev 03 reopen) recorded at activation. FS-001 never entered the batch and
+received no source or scratch edit. Pending set now empty; all batched IDs `[]`, unauthorized,
+`changes_requested`. Contiguous hash chain `469e98c7… -> 00291e2d…` ends at the ACTUAL
 `sha256sum specs/human-scratch.md` == `00291e2d…`. Batch **RB-P21-05 CLOSED**; active rollback batch
 reset to `none`. Immutable frozen identity `b91ca932…` and FS-001 `0d0e2a14…` (715 lines / 25,441
-bytes) unchanged; settlement blob `010f3c93…`; product identity pinned (`git diff 371a88a HEAD -- src/`
-== 0). **Next (fix dispatch now permitted):** dispatch the P20A/HS-016 implementer to soften the
-`FeaturesSection.tsx:65` durability claim to a truthful statement, plus a DISTINCT reviewer; integrate;
-re-pass HS-016 via the §275 forward marker; re-open P21 rev 06.
+bytes) unchanged; settlement blob `010f3c93…`; product identity pinned
+(`git diff 371a88a HEAD -- src/` == 0). **Next (fix dispatch now permitted):** dispatch the
+P20A/HS-016 implementer to soften the `FeaturesSection.tsx:65` durability claim to a truthful
+statement, plus a DISTINCT reviewer; integrate; re-pass HS-016 via the §275 forward marker; re-open
+P21 rev 06.
 
 ### 2026-07-30 — P20A rev 03 DISPATCHED (HS-016 truthful-copy fix)
 
@@ -6133,41 +6228,44 @@ RB-P21-05 cleared, so fix dispatch is permitted. Rewrote `HANDOFF.md` (`f7db5cc`
 overwrite each other") to a truthful statement — keep the delivered real-time-collaboration / CRDT
 merge claim, drop the zero-lost-data absolute — plus a landing test guard, all six checks green
 under full-suite `--retries=0` E2E, evidence `evidence/P20A/implementation-03.md`. Engine fix stays
-OUT-OF-GOAL (D-019); implementer must not touch `pruneBuckets`/engine/sync or any ledger/marker.
-On handback root will verify-not-trust, dispatch a DISTINCT reviewer (`reviews/P20A-review-03.md`),
+OUT-OF-GOAL (D-019); implementer must not touch `pruneBuckets`/engine/sync or any ledger/marker. On
+handback root will verify-not-trust, dispatch a DISTINCT reviewer (`reviews/P20A-review-03.md`),
 integrate, re-pass HS-016 via the §275 forward marker (`00291e2d… -> ` all-checked), restore the
 authorized set 20 -> 21, set P20A/HS-016 `passed`, and re-open P21 rev 06.
 
 ### 2026-07-30 — P20A rev 03 handback VERIFIED; DISTINCT reviewer dispatched
 
 `p20a-implementer-03` handed back commit `a823457` (parent `88a6abf`, clean linear history). Root
-verify-not-trust: touched EXACTLY three authorized files — `src/components/features/landing/FeaturesSection.tsx`
-(1 line), `tests/e2e/landing.spec.ts` (+10, new guard "makes no data-durability absolute about
-concurrent edits"), `evidence/P20A/implementation-03.md` (+71) — no ledger/marker/scratch/SCOPE/
-reviews/engine edits; no `as`/`any`/`!` in the product diff. New copy at `FeaturesSection.tsx:65`:
-"Two people can edit at the same time, and their changes are merged with conflict-free replicated
-data types rather than last-write-wins." — the false absolute "will not overwrite each other" is
-removed; the delivered real-time-collaboration + CRDT-merge mechanism claim is kept (truthful).
-Root independently re-ran the fast gates GREEN: typecheck clean; lint 0 errors (only the pre-existing
-unrelated TanStack Virtual warning); `oxfmt --check` on both changed files correct; unit 2091 passed
-/ 2 skipped. E2E full-suite `--retries=0` left to the DISTINCT reviewer (implementer reported 164
-passed over 3 consecutive runs). Product identity now legitimately diverges from the P20B rev-06
-baseline `371a88a` by exactly this one truthful copy line (superseded baseline; not drift).
-**Dispatched `p20a-reviewer-03`** (DISTINCT, fresh context, never a P20A implementer) to independently
-review and run all six checks, writing `reviews/P20A-review-03.md`.
+verify-not-trust: touched EXACTLY three authorized files —
+`src/components/features/landing/FeaturesSection.tsx` (1 line), `tests/e2e/landing.spec.ts` (+10,
+new guard "makes no data-durability absolute about concurrent edits"),
+`evidence/P20A/implementation-03.md` (+71) — no ledger/marker/scratch/SCOPE/ reviews/engine edits;
+no `as`/`any`/`!` in the product diff. New copy at `FeaturesSection.tsx:65`: "Two people can edit at
+the same time, and their changes are merged with conflict-free replicated data types rather than
+last-write-wins." — the false absolute "will not overwrite each other" is removed; the delivered
+real-time-collaboration + CRDT-merge mechanism claim is kept (truthful). Root independently re-ran
+the fast gates GREEN: typecheck clean; lint 0 errors (only the pre-existing unrelated TanStack
+Virtual warning); `oxfmt --check` on both changed files correct; unit 2091 passed / 2 skipped. E2E
+full-suite `--retries=0` left to the DISTINCT reviewer (implementer reported 164 passed over 3
+consecutive runs). Product identity now legitimately diverges from the P20B rev-06 baseline
+`371a88a` by exactly this one truthful copy line (superseded baseline; not drift). **Dispatched
+`p20a-reviewer-03`** (DISTINCT, fresh context, never a P20A implementer) to independently review and
+run all six checks, writing `reviews/P20A-review-03.md`.
 
 ### 2026-07-30 — P20A rev 03 review integrated (PASS); HS-016 forward-marker completion_pending
 
-DISTINCT reviewer `p20a-reviewer-03` returned **PASS** at commit `e53fa724b2270303057138ab421453e1a4ab3f55`
-(`reviews/P20A-review-03.md`, 152 lines, review-file-only). Root verify-not-trust confirmed:
-`e53fa724` and the reviewed `a823457` are both ancestors of HEAD; the review touches only the review
-file; verdict `## VERDICT: PASS`. The sole non-green check is the **standing frozen-specs
-`format:check`** condition — independently reproduced as exactly 15 pre-existing frozen `specs/**`
-files (DECISIONS/DEPENDENCIES/PROGRESS/QUESTIONS/RISKS/`human-scratch.md` + older P12/P14/P16D/P19
+DISTINCT reviewer `p20a-reviewer-03` returned **PASS** at commit
+`e53fa724b2270303057138ab421453e1a4ab3f55` (`reviews/P20A-review-03.md`, 152 lines,
+review-file-only). Root verify-not-trust confirmed: `e53fa724` and the reviewed `a823457` are both
+ancestors of HEAD; the review touches only the review file; verdict `## VERDICT: PASS`. The sole
+non-green check is the **standing frozen-specs `format:check`** condition — independently reproduced
+as exactly 15 pre-existing frozen `specs/**` files
+(DECISIONS/DEPENDENCIES/PROGRESS/QUESTIONS/RISKS/`human-scratch.md` + older P12/P14/P16D/P19
 evidence & reviews), NONE of them the files under review; the three reviewed files
-(`FeaturesSection.tsx`, `landing.spec.ts`, `evidence/P20A/implementation-03.md`) pass `oxfmt --check`.
-Reviewer ran unit 2091 passed/2 skipped and TWO consecutive full-suite `--retries=0` E2E runs both
-164 passed / 0 failed / 0 flaky. No `as`/`any`/`!`; minimal 3-file diff; secret-safe.
+(`FeaturesSection.tsx`, `landing.spec.ts`, `evidence/P20A/implementation-03.md`) pass
+`oxfmt --check`. Reviewer ran unit 2091 passed/2 skipped and TWO consecutive full-suite
+`--retries=0` E2E runs both 164 passed / 0 failed / 0 flaky. No `as`/`any`/`!`; minimal 3-file diff;
+secret-safe.
 
 **P20A package -> `passed` (rev 03).** Mapped-package gate for HS-016 now satisfied.
 
@@ -6175,54 +6273,60 @@ Reviewer ran unit 2091 passed/2 skipped and TWO consecutive full-suite `--retrie
 Pre-change actual SHA == rolling `00291e2d94a5691cd666a6cabf679de1115eef38e22bbc5e072e072024beaaca`
 (gate met). Mapped package `P20A` passed; review `reviews/P20A-review-03.md` (`e53fa724`). Predicted
 after-SHA `469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a` (the pre-RB-P21-05
-all-checked state — the forward flip is the exact inverse of RB-P21-05's `[x]->[]`, so it must restore
-byte-identity to 24,260 bytes, 0 unchecked / 43 checked). No package dispatch is allowed while this
-completion_pending is open; it is finalized in the next control commit after the verified flip.
+all-checked state — the forward flip is the exact inverse of RB-P21-05's `[x]->[]`, so it must
+restore byte-identity to 24,260 bytes, 0 unchecked / 43 checked). No package dispatch is allowed
+while this completion_pending is open; it is finalized in the next control commit after the verified
+flip.
 
 ### 2026-07-30 — HS-016 §275/§261 forward marker FINALIZED; P20A passed; ALL 22 requirements passed
 
 Completion_pending from `d781f48` finalized. §261 forward marker executed with full rigor:
-- Pre-change gate: actual scratch SHA == rolling `00291e2d94a5691cd666a6cabf679de1115eef38e22bbc5e072e072024beaaca` (met).
-- mktemp snapshot; **sed-only** flip of scratch `:328` `- [] ` -> `- [x] ` (formatter hazard: never Edit/Write).
+
+- Pre-change gate: actual scratch SHA == rolling
+  `00291e2d94a5691cd666a6cabf679de1115eef38e22bbc5e072e072024beaaca` (met).
+- mktemp snapshot; **sed-only** flip of scratch `:328` `- [] ` -> `- [x] ` (formatter hazard: never
+  Edit/Write).
 - Snapshot diff = exactly `328c328`, one marker-only line; snapshot deleted.
 - After-SHA `469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a` == the pre-RB-P21-05
   all-checked state — **byte-identical restoration** (24,260 bytes, 0 unchecked / 43 checked); the
   forward flip is the exact inverse of RB-P21-05's `[x]->[]`. HS-016 block normalized-matches SCOPE.
 - Rolling SHA updated `00291e2d… -> 469e98c7…`; HS-016 added back to authorized checked IDs (21/21).
 
-Ledger state: **HS-016 requirement row -> `passed`** (this control commit); **P20A package -> `passed`**
-(rev 03, `d781f48`); mapped-package + review provenance `reviews/P20A-review-03.md` (`e53fa724`).
-**Authoritative tally: 22 of 22 requirements `passed`; 21 of 21 feature packages `passed`.** Only the
-P21 control audit remains open. FS-001 untouched (markerless): canonical `0d0e2a14…`, 715 lines,
-25,441 bytes. Next: re-open **P21 rev 06** (fresh DISTINCT collector + reviewer).
+Ledger state: **HS-016 requirement row -> `passed`** (this control commit); **P20A package ->
+`passed`** (rev 03, `d781f48`); mapped-package + review provenance `reviews/P20A-review-03.md`
+(`e53fa724`). **Authoritative tally: 22 of 22 requirements `passed`; 21 of 21 feature packages
+`passed`.** Only the P21 control audit remains open. FS-001 untouched (markerless): canonical
+`0d0e2a14…`, 715 lines, 25,441 bytes. Next: re-open **P21 rev 06** (fresh DISTINCT collector +
+reviewer).
 
 ### 2026-07-30 — P21 rev 06 DISPATCHED (executable final audit collector)
 
 Entry conditions re-verified by root at dispatch: HEAD `87fc0d68a72477e7ac68313293ef75efaa611546`
-(BASE == HEAD); scratch actual SHA `469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a`
-**equals** the rolling checksum (24,260 bytes, 43 checked / 0 unchecked, normalized blocks byte-match
-SCOPE); FS-001 canonical `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715
-lines, 25,441 bytes; **all 22 requirement-ledger rows `passed`**; P21 the only non-passed package row;
-no prepared/active rollback batch and no open `completion_pending`; canary 1.
+(BASE == HEAD); scratch actual SHA
+`469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a` **equals** the rolling checksum
+(24,260 bytes, 43 checked / 0 unchecked, normalized blocks byte-match SCOPE); FS-001 canonical
+`0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines, 25,441 bytes; **all
+22 requirement-ledger rows `passed`**; P21 the only non-passed package row; no prepared/active
+rollback batch and no open `completion_pending`; canary 1.
 
 Dispatched `p21-collector-06` (fresh DISTINCT context, read-only evidence collector per §121) to
 `evidence/P21/implementation-06.md` (uncommitted by the collector; root commits). Future review path
 reserved: `reviews/P21-review-06.md`. Brief covers all 12 audit-contract clauses and every
-FINAL-AUDIT checklist item, plus the rev-05 M-1 carry-forward (confirm NO public surface re-asserts a
-zero-lost-data/never-overwrite absolute) and the full carry-forward Q set.
+FINAL-AUDIT checklist item, plus the rev-05 M-1 carry-forward (confirm NO public surface re-asserts
+a zero-lost-data/never-overwrite absolute) and the full carry-forward Q set.
 
-**Environment precondition recorded (local dev config, NOT a product change):** `SUPABASE_JWT_SECRET`
-was absent from the gitignored `.env.local`, so `src/server/routers/realtime.ts:25-34` threw
-"Realtime authorization is unavailable" and the vault failed to load immediately after passkey
-signup. Root appended the local Realtime tenant's symmetric key (container
-`supabase_realtime_moneyflow` env `API_JWT_SECRET`, 55 bytes >= the 32-byte minimum) to `.env.local`
-— gitignored, backed up, value never printed, NO tracked file changed. Verified from real dev-server
-traffic: `realtime.authorize` 200, `vault.list` 200, `sync.getUpdates` 200. `.env.local.example:26-30`
-already documents this variable as REQUIRED; the local file predated it.
+**Environment precondition recorded (local dev config, NOT a product change):**
+`SUPABASE_JWT_SECRET` was absent from the gitignored `.env.local`, so
+`src/server/routers/realtime.ts:25-34` threw "Realtime authorization is unavailable" and the vault
+failed to load immediately after passkey signup. Root appended the local Realtime tenant's symmetric
+key (container `supabase_realtime_moneyflow` env `API_JWT_SECRET`, 55 bytes >= the 32-byte minimum)
+to `.env.local` — gitignored, backed up, value never printed, NO tracked file changed. Verified from
+real dev-server traffic: `realtime.authorize` 200, `vault.list` 200, `sync.getUpdates` 200.
+`.env.local.example:26-30` already documents this variable as REQUIRED; the local file predated it.
 
 Known dirty/untracked at dispatch, to be reconciled (not "fixed") by the audit: `next-env.d.ts`
-(dev-server-generated `.next/types` -> `.next/dev/types`), untracked `.claude/agent-memory/`, and the
-untracked pre-existing inert `evidence/P08/implementation-01.md` (already recorded).
+(dev-server-generated `.next/types` -> `.next/dev/types`), untracked `.claude/agent-memory/`, and
+the untracked pre-existing inert `evidence/P08/implementation-01.md` (already recorded).
 
 ### 2026-07-30 — SCOPE ADMISSION: UR-001..UR-004 admitted to committed scope; P21 rev 06 voided
 
@@ -6242,8 +6346,8 @@ requirements were admitted via a NEW frozen source instead:
   frozen 2026-07-30, registered in `SCOPE.json#sources` as `SRC-USER-REPORTED-REFINEMENTS`.
 - **Four requirements** UR-001..UR-004 appended to `SCOPE.json#requirements` with verified
   byte-identical `sourceTextLines` at section ranges 12-33, 35-53, 55-74, 76-98. `requirementCount`
-  22 -> **26**. All four are **markerless and immutable** (`immutableNoSourceMutation`), completed in
-  the ledgers only — exactly the FS-001 mechanic. There is no checkbox and no source edit.
+  22 -> **26**. All four are **markerless and immutable** (`immutableNoSourceMutation`), completed
+  in the ledgers only — exactly the FS-001 mechanic. There is no checkbox and no source edit.
 - **Four owning packages** P22 (UR-001), P23 (UR-002), P24 (UR-003), P25 (UR-004), each with a
   requirement task and a package task under `tasks/`, each requiring full implementation plus a
   DISTINCT independent reviewer.
@@ -6260,8 +6364,8 @@ mutating the selection set; UR-002 search matches alias-resolved description tex
 description and notes; UR-003 presence avatars show name-derived initials and a name tooltip instead
 of pubkey-hash characters; UR-004 default currency infers from time zone primarily with locale as
 fallback, using an established time-zone-to-country library. Full diagnosis, file/line evidence and
-the settled designs are recorded in QUESTIONS.md under `Q-USER-2026-07-30` (U-1..U-4 plus the U-3 and
-U-4 amendments).
+the settled designs are recorded in QUESTIONS.md under `Q-USER-2026-07-30` (U-1..U-4 plus the U-3
+and U-4 amendments).
 
 **Revised tallies: 22 of 26 requirements `passed`; 21 of 25 feature packages `passed`.** The goal's
 completion condition now requires all 26 requirement rows and all packages P00-P25 plus P21 passed.
@@ -6280,15 +6384,15 @@ does not edit product code; the implementer commits its own product/test/evidenc
 ### 2026-08-01 — P22 rev 01 handback reconciled onto main; DISTINCT reviewer dispatched
 
 `p22-implementer-01` delivered UR-001 across four commits. Two were made in an isolated git worktree
-(`/tmp/mf-e2e-p22`) because Next 16's dev lock is **distDir-scoped**, so E2E could not run in the main
-checkout while the human's dev server held the lock; root created the worktree rather than killing
-that server or editing `playwright.config.ts` / `next.config.ts`.
+(`/tmp/mf-e2e-p22`) because Next 16's dev lock is **distDir-scoped**, so E2E could not run in the
+main checkout while the human's dev server held the lock; root created the worktree rather than
+killing that server or editing `playwright.config.ts` / `next.config.ts`.
 
-Root reconciled the two worktree-only commits onto `main` by cherry-pick, in order:
-`e04afe0` (was `20ee61d`, E2E create-helper fix) then `b40052d` (was `2276b90`, the presence fix).
-This mattered: before reconciliation `main` carried the UR-001 implementation WITHOUT the presence
-fix, i.e. main still shipped the false `editing: true` signal while the evidence described the fixed
-behaviour. The implementer flagged that divergence itself, which was the correct call.
+Root reconciled the two worktree-only commits onto `main` by cherry-pick, in order: `e04afe0` (was
+`20ee61d`, E2E create-helper fix) then `b40052d` (was `2276b90`, the presence fix). This mattered:
+before reconciliation `main` carried the UR-001 implementation WITHOUT the presence fix, i.e. main
+still shipped the false `editing: true` signal while the evidence described the fixed behaviour. The
+implementer flagged that divergence itself, which was the correct call.
 
 **Tree-equivalence proven, not asserted:** `git diff b40052d 2276b90 -- src tests` is EMPTY, and all
 seven load-bearing files md5-match the validated worktree tree. So `main`'s product/test tree is
@@ -6297,20 +6401,21 @@ byte-identical to the tree the six-run campaign validated.
 **Campaign (digest `caf65ec5a9c37dc0bce9328dd57797c5`, verified identical before all six runs and
 re-verified after run 6):** run 1 `1 failed / 165 passed`; runs 2-6 `166 passed` each. The single
 run-1 failure is `passkey.spec.ts:148`, the documented pre-existing WebAuthn unlock-button flake —
-root independently corroborated the identical signature at `evidence/P20B/implementation-05.md:74-80`,
-classified there as a different subsystem and failure mode. `presence.spec.ts` passed 6/6 UNMODIFIED.
+root independently corroborated the identical signature at
+`evidence/P20B/implementation-05.md:74-80`, classified there as a different subsystem and failure
+mode. `presence.spec.ts` passed 6/6 UNMODIFIED.
 
-**Root verify-not-trust on reconciled `main`:** typecheck clean; lint 0 errors (only the pre-existing
-`react-hooks/incompatible-library` warning at `TransactionTable.tsx:422`); unit 112 files, 2100 passed
-/ 2 skipped.
+**Root verify-not-trust on reconciled `main`:** typecheck clean; lint 0 errors (only the
+pre-existing `react-hooks/incompatible-library` warning at `TransactionTable.tsx:422`); unit 112
+files, 2100 passed / 2 skipped.
 
 **Two defects the campaign caught that all five non-E2E gates missed**, both recorded in
 `evidence/P22/implementation-01.md`: (1) UR-001's programmatic focus advertised `editing: true` to
-peers for a row the user had merely created — a FALSE presence signal, same truthfulness class as the
-P21 rev-05 M-1 defect, fixed by `b40052d`; (2) a latent presence drop under rapid same-row
+peers for a row the user had merely created — a FALSE presence signal, same truthfulness class as
+the P21 rev-05 M-1 defect, fixed by `b40052d`; (2) a latent presence drop under rapid same-row
 `editing:true -> editing:false` transitions, which did NOT reproduce once the spurious publish was
-removed — logged as an UNPROVEN Q-proposal for P21 to route as a P05/HS-003 finding, deliberately not
-fixed inside UR-001.
+removed — logged as an UNPROVEN Q-proposal for P21 to route as a P05/HS-003 finding, deliberately
+not fixed inside UR-001.
 
 Dispatched `p22-reviewer-01` (DISTINCT, fresh context, never the implementer) to review at
 `reviews/P22-review-01.md`.
@@ -6318,47 +6423,47 @@ Dispatched `p22-reviewer-01` (DISTINCT, fresh context, never the implementer) to
 ### 2026-08-01 — P22 rev 01 review PASS RECORDED, but root opens rev 02 for frozen-text conformance
 
 DISTINCT reviewer `p22-reviewer-01` returned **PASS** at `c11e2f2` (`reviews/P22-review-01.md`,
-review-file-only, verified). Its work was thorough and is accepted on every criterion: six checks run
-independently (typecheck clean; lint 0 errors; unit 2100 passed / 2 skipped; **full-suite E2E
+review-file-only, verified). Its work was thorough and is accepted on every criterion: six checks
+run independently (typecheck clean; lint 0 errors; unit 2100 passed / 2 skipped; **full-suite E2E
 `--retries=0` 3/3 at 166 passed**), the presence guard verified by MUTATION rather than inspection
-(removing the guard makes the regression test fail), the deep-link retention confirmed empirically via
-the unmodified `aria-selected` assertions, all 7 migrated spec files audited against the real diff
-with nothing weakened, zero `as`/`any`/`!`, secret-safety cleared, and evidence honesty confirmed
-including both implementer retractions being labelled as retractions. It also disproved the standing
-`format:check` condition by extracting the BASE version of `PROGRESS.md` and showing it already
-failed — that is verification, not assertion.
+(removing the guard makes the regression test fail), the deep-link retention confirmed empirically
+via the unmodified `aria-selected` assertions, all 7 migrated spec files audited against the real
+diff with nothing weakened, zero `as`/`any`/`!`, secret-safety cleared, and evidence honesty
+confirmed including both implementer retractions being labelled as retractions. It also disproved
+the standing `format:check` condition by extracting the BASE version of `PROGRESS.md` and showing it
+already failed — that is verification, not assertion.
 
-**Root nevertheless does NOT integrate rev 01.** The reviewer's own MEDIUM finding
-(`Q-P22-R01-01`) is a literal violation of frozen UR-001 text, and root judges conformance
-independently of harm. Frozen `specs/009-user-reported-refinements/spec.md:27-28` states: *"The focus
-intent is consumed exactly once and then cleared, so it cannot re-assert on a later render."* The
-reviewer OBSERVED, by instrumentation, that it is consumed TWICE: `page.tsx:330` retires the scroll
-with a non-functional `setRevealIntent(retireScroll(revealIntent))` closing over a stale
-`revealIntent`, while the focus retirement at `:334-338` correctly uses the functional form. Both run
-in the same flush; the child's focus retirement lands first, then the parent's stale-closure update
-overwrites `focusDescriptionPending` back to `true`, the row re-renders with the request still set,
-and `input.focus()` fires a second time. The intent demonstrably DOES re-assert on a later render,
-which is exactly what the frozen sentence forbids.
+**Root nevertheless does NOT integrate rev 01.** The reviewer's own MEDIUM finding (`Q-P22-R01-01`)
+is a literal violation of frozen UR-001 text, and root judges conformance independently of harm.
+Frozen `specs/009-user-reported-refinements/spec.md:27-28` states: _"The focus intent is consumed
+exactly once and then cleared, so it cannot re-assert on a later render."_ The reviewer OBSERVED, by
+instrumentation, that it is consumed TWICE: `page.tsx:330` retires the scroll with a non-functional
+`setRevealIntent(retireScroll(revealIntent))` closing over a stale `revealIntent`, while the focus
+retirement at `:334-338` correctly uses the functional form. Both run in the same flush; the child's
+focus retirement lands first, then the parent's stale-closure update overwrites
+`focusDescriptionPending` back to `true`, the row re-renders with the request still set, and
+`input.focus()` fires a second time. The intent demonstrably DOES re-assert on a later render, which
+is exactly what the frozen sentence forbids.
 
-The reviewer's harm analysis is sound — it probed four harm paths and found none, because `focus()` on
-an already-focused input is inert today — and that is precisely why it recorded a Q-proposal rather
-than a FAIL. Root's ruling differs on scope, not on facts: **the frozen text states an invariant, not
-a harm threshold.** Integrating a package that observably violates its own frozen requirement would
-hand P21 a legitimate FAIL later, and this goal has already burned a P21 revision on shipping
-something that did not match its stated claim (M-1). Requiring this fix is completing committed scope,
-NOT reducing it, so no scope adjudicator is required.
+The reviewer's harm analysis is sound — it probed four harm paths and found none, because `focus()`
+on an already-focused input is inert today — and that is precisely why it recorded a Q-proposal
+rather than a FAIL. Root's ruling differs on scope, not on facts: **the frozen text states an
+invariant, not a harm threshold.** Integrating a package that observably violates its own frozen
+requirement would hand P21 a legitimate FAIL later, and this goal has already burned a P21 revision
+on shipping something that did not match its stated claim (M-1). Requiring this fix is completing
+committed scope, NOT reducing it, so no scope adjudicator is required.
 
 **P22 -> `changes_requested`, rev 02 opened** for the one-line conformance fix the reviewer already
 validated compiles and stays green:
 `setRevealIntent((currentIntent) => (currentIntent == null ? null : retireScroll(currentIntent)));`
-plus a regression test asserting the focus request is applied exactly once. Rev 01's PASS artifact is
-preserved immutably and is NOT overwritten.
+plus a regression test asserting the focus request is applied exactly once. Rev 01's PASS artifact
+is preserved immutably and is NOT overwritten.
 
 **Housekeeping accepted from the reviewer:** the evidence file's provenance section names the
-pre-reconciliation worktree hashes `20ee61d` / `2276b90`, which are NOT ancestors of `main` HEAD — they
-landed as `e04afe0` / `b40052d` via root's cherry-pick. The evidence does say reconciliation was
-pending, so it is not a false claim, but a future reader diffing those hashes hits dangling commits.
-Root will add the mapping addendum at rev 02 integration.
+pre-reconciliation worktree hashes `20ee61d` / `2276b90`, which are NOT ancestors of `main` HEAD —
+they landed as `e04afe0` / `b40052d` via root's cherry-pick. The evidence does say reconciliation
+was pending, so it is not a false claim, but a future reader diffing those hashes hits dangling
+commits. Root will add the mapping addendum at rev 02 integration.
 
 ### 2026-08-01 — P22 rev 02 DISPATCHED (frozen-text conformance fix)
 
@@ -6368,10 +6473,10 @@ Recovery scan: HEAD clean; scratch actual SHA `469e98c7…` **equals** rolling; 
 
 Dispatched `p22-implementer-02` for the single conformance defect: `page.tsx:330` retires the scroll
 with a non-functional `setRevealIntent(retireScroll(revealIntent))` closing over a stale
-`revealIntent`, so the focus request is re-asserted and `input.focus()` fires TWICE, violating frozen
-UR-001 (`specs/009-user-reported-refinements/spec.md:27-28`, "consumed exactly once and then cleared,
-so it cannot re-assert on a later render"). Evidence `evidence/P22/implementation-02.md`; future
-review path reserved `reviews/P22-review-02.md`.
+`revealIntent`, so the focus request is re-asserted and `input.focus()` fires TWICE, violating
+frozen UR-001 (`specs/009-user-reported-refinements/spec.md:27-28`, "consumed exactly once and then
+cleared, so it cannot re-assert on a later render"). Evidence `evidence/P22/implementation-02.md`;
+future review path reserved `reviews/P22-review-02.md`.
 
 Also recorded this session, without any scope change: the principal CLOSED Q-UR008-01 (the error
 count is 15, matching root's measurement of 15 leading-plus rows, no second class) and Q-UR008-02
@@ -6391,13 +6496,14 @@ Root's preliminary read, recorded for the implementer to verify rather than trus
 is gated by `computeFieldRuleRobotState` returning `none` when `selectWinningRule` finds no existing
 rule, and `page.tsx:486-505` renders the robot only when that state is not `none` — correct for the
 robot, which the frozen text says surfaces an EXISTING rule. But `human-scratch.md:249-252` also
-requires a SECOND surface when the field "doesn't already match a rule", and `:289-292` extends it to
-tags and person percentage with an extra add/set select for tags. A repo-wide search found no
-component implementing those creation controls, and `InlineEditableTags.tsx` has no proposal or robot
-wiring at all. So the drift surface appears to have shipped while the creation surface did not.
+requires a SECOND surface when the field "doesn't already match a rule", and `:289-292` extends it
+to tags and person percentage with an extra add/set select for tags. A repo-wide search found no
+component implementing those creation controls, and `InlineEditableTags.tsx` has no proposal or
+robot wiring at all. So the drift surface appears to have shipped while the creation surface did
+not.
 
-Admitted via a NEW frozen source `specs/011-automations-conformance/spec.md`
-(SHA `717a99e332e9fa852937bc62b106cc76660de9fe6999b5d5d95421a6fb3f14cf`, 61 lines, 3,699 bytes,
+Admitted via a NEW frozen source `specs/011-automations-conformance/spec.md` (SHA
+`717a99e332e9fa852937bc62b106cc76660de9fe6999b5d5d95421a6fb3f14cf`, 61 lines, 3,699 bytes,
 `SRC-AUTOMATIONS-CONFORMANCE`), one markerless requirement UR-009 owned by new package P30.
 `requirementCount` 30 -> 31. `specs/human-scratch.md` untouched, still rolling `469e98c7…`.
 
@@ -6408,12 +6514,12 @@ without it. See D-022.
 ### 2026-08-01 — P22 rev 02 handback VERIFIED; DISTINCT reviewer dispatched
 
 `p22-implementer-02` delivered `ed94edf` (product + regression test) and `9b13f36` (evidence), both
-verified ancestors of HEAD. The fix makes the scroll retirement at `page.tsx:330` functional, exactly
-the shape the rev-01 reviewer validated. Diff is 7 lines of product, 4 of them explanatory comment.
-The implementer enumerated all four `setRevealIntent` sites and confirmed `:275` and `:600` construct
-fresh intents from an argument and `:339` was already functional, so `:330` was the only defect; it
-also justified leaving the dependency array unchanged, since the effect still READS `revealIntent`
-and dropping it would be a stale-read bug of the same family.
+verified ancestors of HEAD. The fix makes the scroll retirement at `page.tsx:330` functional,
+exactly the shape the rev-01 reviewer validated. Diff is 7 lines of product, 4 of them explanatory
+comment. The implementer enumerated all four `setRevealIntent` sites and confirmed `:275` and `:600`
+construct fresh intents from an argument and `:339` was already functional, so `:330` was the only
+defect; it also justified leaving the dependency array unchanged, since the effect still READS
+`revealIntent` and dropping it would be a stale-read bug of the same family.
 
 **Root independently verified the regression test genuinely regresses.** Root reverted the fix in a
 scratch copy, ran `tests/unit/transactions/add-transaction-focus-once.test.tsx`, and observed **2
@@ -6422,25 +6528,25 @@ distinguishes a real guard from a test that merely passes.
 
 **Implementer CORRECTION accepted, and it strengthens the case for rev 02.** Both `Q-P22-R01-01` and
 root's dispatch predicted the focus-call count would go 2 -> 1. In jsdom the count was 1 both before
-and after; what actually changed is the intent LIFECYCLE — before the fix the intent never cleared at
-all (`requestRenders [null, id, id]`), after it settles to `null`. That is a STRONGER violation of the
-frozen sentence than the one recorded: it fails "and then cleared", not merely "exactly once". The
-implementer did not contradict the rev-01 reviewer, whose duplicate `focus()` was observed in a real
-browser under the full E2E stack, and correctly labelled its explanation of the renderer difference an
-INFERENCE rather than a finding. Root accepts that framing; it is the evidence standard rev 01 was
-bounced toward.
+and after; what actually changed is the intent LIFECYCLE — before the fix the intent never cleared
+at all (`requestRenders [null, id, id]`), after it settles to `null`. That is a STRONGER violation
+of the frozen sentence than the one recorded: it fails "and then cleared", not merely "exactly
+once". The implementer did not contradict the rev-01 reviewer, whose duplicate `focus()` was
+observed in a real browser under the full E2E stack, and correctly labelled its explanation of the
+renderer difference an INFERENCE rather than a finding. Root accepts that framing; it is the
+evidence standard rev 01 was bounced toward.
 
 **Root verify-not-trust fast gates on `main`:** typecheck clean; lint 0 errors (only the standing
 `useVirtualizer` warning); unit **113 files, 2102 passed / 2 skipped**, up 2 from the new regression
-tests. No `as`/`any`/`!` in the product diff. Implementer reported full-suite E2E `--retries=0` 3/3 at
-166 passed, digest `3941ada0c2557b3eb15c93a8026d7cc9` stable before AND after — the reviewer re-runs
-E2E independently.
+tests. No `as`/`any`/`!` in the product diff. Implementer reported full-suite E2E `--retries=0` 3/3
+at 166 passed, digest `3941ada0c2557b3eb15c93a8026d7cc9` stable before AND after — the reviewer
+re-runs E2E independently.
 
-**Disclosed test-side issue, accepted:** the new test passed alone but timed out under full-suite load
-(~2.3s alone vs ~5.8s loaded against Vitest's 5s default). Fixed with an explicit
+**Disclosed test-side issue, accepted:** the new test passed alone but timed out under full-suite
+load (~2.3s alone vs ~5.8s loaded against Vitest's 5s default). Fixed with an explicit
 `vi.setConfig({ testTimeout: 30_000 })` CEILING, not a wait — every assertion still settles via
-`waitFor`, no sleeps or polling, so it does not join the P21 load-dependent flake class. The reviewer
-must confirm that characterisation.
+`waitFor`, no sleeps or polling, so it does not join the P21 load-dependent flake class. The
+reviewer must confirm that characterisation.
 
 Dispatched `p22-reviewer-02` (DISTINCT, fresh context, never any P22 implementer, never
 `p22-reviewer-01`) to `reviews/P22-review-02.md`.
@@ -6450,37 +6556,38 @@ Dispatched `p22-reviewer-02` (DISTINCT, fresh context, never any P22 implementer
 Dispatched `p23-implementer-01` in PARALLEL with P22 rev 02's independent review. Root's normal
 discipline is one package at a time; the exception is justified and bounded: P22 rev 02 touches
 `src/app/(app)/transactions/page.tsx` and a unit test, while UR-002's defect is in
-`src/lib/crdt/queries.ts`, a disjoint file set. Each runs its E2E campaign in its OWN git worktree, so
-neither can void the other's digest. The principal has now reported this defect twice, which is the
-reason for not idling behind the review. If either handback touches the other's files, root voids the
-overlap and re-serialises.
+`src/lib/crdt/queries.ts`, a disjoint file set. Each runs its E2E campaign in its OWN git worktree,
+so neither can void the other's digest. The principal has now reported this defect twice, which is
+the reason for not idling behind the review. If either handback touches the other's files, root
+voids the overlap and re-serialises.
 
 BASE at dispatch `f97721a`. Evidence `evidence/P23/implementation-01.md`; review path reserved
 `reviews/P23-review-01.md`.
 
 Root's read for the implementer to VERIFY, not trust: `filterTransactions`
 (`src/lib/crdt/queries.ts:560-567`) matches only `tx.description` and `tx.notes`. Case handling is
-already correct — both sides are lowercased, so this is NOT a case-sensitivity bug. Displayed text is
-resolved through `descriptionAliasId` via `aliasLookup.resolve(...)` (`page.tsx:337-338`, `:398-399`),
-and aliases form a one-hop symlink graph (`schema.ts:87-94`). Manual rows are created with
-`description: ""` (`page.tsx:557`), which is why an aliased manual row is unfindable today.
+already correct — both sides are lowercased, so this is NOT a case-sensitivity bug. Displayed text
+is resolved through `descriptionAliasId` via `aliasLookup.resolve(...)` (`page.tsx:337-338`,
+`:398-399`), and aliases form a one-hop symlink graph (`schema.ts:87-94`). Manual rows are created
+with `description: ""` (`page.tsx:557`), which is why an aliased manual row is unfindable today.
 
 Root ALSO resolved the open design question the task recorded: `createDescriptionAliasLookup` in
 `src/lib/domain/description-aliases` is a PURE factory, wrapped for React by
 `useDescriptionAliasLookup` (a `useMemo` only). So the resolver can be threaded into the pure
-`filterTransactions` query without importing React or breaking purity, and without lifting the search
-predicate into the component. That is the preferred shape.
+`filterTransactions` query without importing React or breaking purity, and without lifting the
+search predicate into the component. That is the preferred shape.
 
 ### 2026-08-01 — P23 rev 01 handback VERIFIED except E2E, which is queued behind P22's campaign
 
 `p23-implementer-01` handed back `391bee6` (product), `c041795` (page-level test) and `5027787`
-(evidence), all verified ancestors of HEAD. It explicitly did NOT claim `test:e2e`, which it could not
-run — the correct call, and it said so plainly rather than reporting five green checks as near-done.
+(evidence), all verified ancestors of HEAD. It explicitly did NOT claim `test:e2e`, which it could
+not run — the correct call, and it said so plainly rather than reporting five green checks as
+near-done.
 
-Design: an optional `resolveDescriptionAliasName` on `TransactionQueryOptions`; the predicate ORs the
-resolved alias name ALONGSIDE the existing raw description and notes matches, never in place of them,
-so an absent option leaves the old behaviour byte-equivalent and no existing caller changes. Case
-handling untouched, since it was already correct — this was never a case-sensitivity bug.
+Design: an optional `resolveDescriptionAliasName` on `TransactionQueryOptions`; the predicate ORs
+the resolved alias name ALONGSIDE the existing raw description and notes matches, never in place of
+them, so an absent option leaves the old behaviour byte-equivalent and no existing caller changes.
+Case handling untouched, since it was already correct — this was never a case-sensitivity bug.
 
 **Root verified the `page.tsx` overlap directly:** the diff is exactly 3 lines inside the
 `filteredTransactions` useMemo — the resolver, `aliasLookup` added to the dep array, and a comment.
@@ -6488,20 +6595,20 @@ P22 rev 02's `ed94edf` is in the reveal-intent retirement effect. No line overla
 identifier redefined, so P22's in-flight review is NOT voided.
 
 **Root independently verified the page-level regression test regresses:** removed only the resolver
-line, ran `tests/unit/transactions/search-alias-resolved-description.test.tsx`, observed **3 failed /
-3 tests**, restored, confirmed a clean tree. That test is the one that matters — the query-level
-tests supply the resolver themselves and would stay green even if the page never passed one, which is
-precisely the reported bug.
+line, ran `tests/unit/transactions/search-alias-resolved-description.test.tsx`, observed **3 failed
+/ 3 tests**, restored, confirmed a clean tree. That test is the one that matters — the query-level
+tests supply the resolver themselves and would stay green even if the page never passed one, which
+is precisely the reported bug.
 
 **Root fast gates:** typecheck clean; unit **114 files, 2117 passed / 2 skipped**.
 
 **E2E QUEUED, not skipped.** `playwright.config.ts` pins `webServer.url` to `:3000` with
 `reuseExistingServer: false` and reads NO port/baseURL env override, so exactly one campaign can run
-repo-wide at a time. A git worktree isolates the distDir-scoped Next dev LOCK but NOT the port — root's
-earlier "run them in parallel in separate worktrees" instruction was only half a solution, and root
-owns that error. P22's reviewer campaign holds the port; the P23 implementer watched a gap open at
-17:17:01 and correctly declined to take it, since seizing the port between runs would void the P22
-campaign. P23 waits.
+repo-wide at a time. A git worktree isolates the distDir-scoped Next dev LOCK but NOT the port —
+root's earlier "run them in parallel in separate worktrees" instruction was only half a solution,
+and root owns that error. P22's reviewer campaign holds the port; the P23 implementer watched a gap
+open at 17:17:01 and correctly declined to take it, since seizing the port between runs would void
+the P22 campaign. P23 waits.
 
 Both agents independently identified the same trap and root confirms it: `CI=true` must NOT be used
 for the Playwright runs. `playwright.config.ts:56,60` sets `retries: CI ? 2 : 0` and
@@ -6509,9 +6616,9 @@ for the Playwright runs. `playwright.config.ts:56,60` sets `retries: CI ? 2 : 0`
 retries-disabled profile the flake discipline requires, and it would launder flakes into passes.
 `CI=true` for `pnpm install` only.
 
-P23 stays `implementing` until its campaign runs. UR-002 is NOT verified on five gates: they prove the
-pure predicate and the jsdom page wiring, and nothing about the debounced input under real timing, the
-virtualized re-render after a filter change, resolution over a live CRDT doc, or sync.
+P23 stays `implementing` until its campaign runs. UR-002 is NOT verified on five gates: they prove
+the pure predicate and the jsdom page wiring, and nothing about the debounced input under real
+timing, the virtualized re-render after a filter change, resolution over a live CRDT doc, or sync.
 
 ### 2026-08-01 — P22 rev 02 independent review FAIL; rev 03 opened for the E2E sync-point class
 
@@ -6522,54 +6629,54 @@ and 9 PASS; the failure is criterion 7 alone.
 **The conformance fix itself is GOOD and is NOT the defect.** The reviewer independently reproduced
 the regression test failing on reverted code (2 failed at `:337`/`:369`), confirmed the
 `setRevealIntent` enumeration is complete, confirmed the dependency array is correctly unchanged
-because the effect genuinely reads `revealIntent` at `:314`/`:317`, confirmed scope is clean with zero
-presence files touched, and confirmed `testTimeout: 30_000` is a CEILING and not P21-class.
+because the effect genuinely reads `revealIntent` at `:314`/`:317`, confirmed scope is clean with
+zero presence files touched, and confirmed `testTimeout: 30_000` is a CEILING and not P21-class.
 
 **Why it fails: `Q-P22-R02-01` (HIGH, blocking).** Six full-suite runs at a stable digest
 `3a3c610723e1d415c516a15930512d7c`: runs 1,2,4,5,6 = 166 passed; **run 3 = 164 passed, 2 FAILED**.
 Both failures enter through THIS package's own sync primitive `addEmptyTransaction`/`newlyAddedRow`
 (`tests/e2e/helpers/settlement.ts:212-216`, authored by rev 01's `e53a7a4`):
-`transactions.spec.ts:347` `toHaveCount` Expected 1 Received 0 with `14 x locator resolved to 0
-elements` at `:215`, and `transactions.spec.ts:2126` a 30s timeout with `element was detached from the
-DOM, retrying`. Because the helper is SHARED, every Add-based test inherits the instability. Nothing in
-`ed94edf`'s six lines causes it — it is inherited from rev 01 and was missed because every prior
-campaign ran only 3 runs, and a 3-run campaign misses a 1-in-6 flake about half the time. The
-implementer's and rev-01 reviewer's green campaigns are therefore NOT in conflict with this one and no
-bad faith is alleged. Root flagged this exact hazard to the reviewer before the verdict: focus is
-TRANSIENT state, so a focus predicate can settle and then un-settle, whereas a row count is monotonic.
-Root's own earlier sign-off on "focus is a strictly better synchronisation point" was correct about
-ordering and wrong about stability.
+`transactions.spec.ts:347` `toHaveCount` Expected 1 Received 0 with
+`14 x locator resolved to 0 elements` at `:215`, and `transactions.spec.ts:2126` a 30s timeout with
+`element was detached from the DOM, retrying`. Because the helper is SHARED, every Add-based test
+inherits the instability. Nothing in `ed94edf`'s six lines causes it — it is inherited from rev 01
+and was missed because every prior campaign ran only 3 runs, and a 3-run campaign misses a 1-in-6
+flake about half the time. The implementer's and rev-01 reviewer's green campaigns are therefore NOT
+in conflict with this one and no bad faith is alleged. Root flagged this exact hazard to the
+reviewer before the verdict: focus is TRANSIENT state, so a focus predicate can settle and then
+un-settle, whereas a row count is monotonic. Root's own earlier sign-off on "focus is a strictly
+better synchronisation point" was correct about ordering and wrong about stability.
 
 **`Q-P22-R02-02` (MEDIUM, docs) — criterion 4 SETTLED, correcting BOTH prior revisions.** A/B on one
 renderer, three Adds each way: WITH_FIX count 2,2,2 and NO_FIX count 2,2,2 — IDENTICAL. So the
 duplicate `focus()` cannot be caused by the lost retirement that `Q-P22-R01-01` blamed. Corroborated
-by same DOM node via WeakMap, `descMounts: 1`, `frameSpan: 0`, a `react.strict_mode` fiber ancestor and
-a React dev build: this is StrictMode dev-only double-invoke, not an intent re-assertion. UR-001 holds
-behaviourally in both environments — 25 characters typed after Add with no re-assertion, and a genuine
-2-row selection byte-identical after Add with focus in the new row. **`Q-P22-R01-01` is hereby closed
-as RESOLVED-WITH-CORRECTION: its defect was real and is fixed, its stated mechanism is disproved.** The
-rev-02 implementer's competing explanation was also wrong but was LABELLED an inference, so no false
-claim entered the record — the labelling discipline worked exactly as intended. The reviewer honestly
-declined to claim a production-build count it could not obtain.
+by same DOM node via WeakMap, `descMounts: 1`, `frameSpan: 0`, a `react.strict_mode` fiber ancestor
+and a React dev build: this is StrictMode dev-only double-invoke, not an intent re-assertion. UR-001
+holds behaviourally in both environments — 25 characters typed after Add with no re-assertion, and a
+genuine 2-row selection byte-identical after Add with focus in the new row. **`Q-P22-R01-01` is
+hereby closed as RESOLVED-WITH-CORRECTION: its defect was real and is fixed, its stated mechanism is
+disproved.** The rev-02 implementer's competing explanation was also wrong but was LABELLED an
+inference, so no false claim entered the record — the labelling discipline worked exactly as
+intended. The reviewer honestly declined to claim a production-build count it could not obtain.
 
-**Hazard recorded:** a concurrent P23 agent left a temporary `MUTATION-CHECK-TEMPORARY` mutation in the
-SHARED main checkout while verifying its own regression test, briefly removing the
+**Hazard recorded:** a concurrent P23 agent left a temporary `MUTATION-CHECK-TEMPORARY` mutation in
+the SHARED main checkout while verifying its own regression test, briefly removing the
 `resolveDescriptionAliasName` wiring from `page.tsx`. It committed the mutation away afterwards, and
-root verified at this commit that no such marker remains, the tracked tree is clean, and the resolver
-wiring is intact. It did NOT contaminate the review, which ran in a pinned worktree. But a temporary
-mutation in the shared checkout is a real hazard to any agent running checks concurrently: future
-mutation checks MUST be done in a throwaway tree or worktree, never in the main checkout.
+root verified at this commit that no such marker remains, the tracked tree is clean, and the
+resolver wiring is intact. It did NOT contaminate the review, which ran in a pinned worktree. But a
+temporary mutation in the shared checkout is a real hazard to any agent running checks concurrently:
+future mutation checks MUST be done in a throwaway tree or worktree, never in the main checkout.
 
-**P22 -> `changes_requested`, rev 03 opened** to harden the whole focus-sync class, not the two failing
-sites. Rev 02's FAIL artifact is preserved immutably.
+**P22 -> `changes_requested`, rev 03 opened** to harden the whole focus-sync class, not the two
+failing sites. Rev 02's FAIL artifact is preserved immutably.
 
 ### 2026-08-01 — P22 rev 03 DISPATCHED (harden the focus-sync class)
 
-Dispatched `p22-implementer-03` (DISTINCT from rev 01/02 implementers) to remediate
-`Q-P22-R02-01` inside P22 rather than chartering it forward to P21. Rationale for keeping it here:
-the defect is in a helper THIS package authored (`e53a7a4`), it is a HIGH blocking finding, and P21 is
-an audit gate that must not inherit a known-unstable shared primitive. Fixing it forward would mean
-every remaining package's E2E campaign runs against a helper we already know flakes about 1 in 6
+Dispatched `p22-implementer-03` (DISTINCT from rev 01/02 implementers) to remediate `Q-P22-R02-01`
+inside P22 rather than chartering it forward to P21. Rationale for keeping it here: the defect is in
+a helper THIS package authored (`e53a7a4`), it is a HIGH blocking finding, and P21 is an audit gate
+that must not inherit a known-unstable shared primitive. Fixing it forward would mean every
+remaining package's E2E campaign runs against a helper we already know flakes about 1 in 6
 full-suite runs, contaminating their evidence too.
 
 Evidence `evidence/P22/implementation-03.md`; review path reserved `reviews/P22-review-03.md`. The
@@ -6589,31 +6696,31 @@ evidence only for the tree it ran on: any mid-campaign tree change voids it and 
 `p23-implementer-01` completed its E2E campaign at `22f8f59` in `/tmp/mf-e2e-p23`, full-suite
 `--retries=0`, `env -u CI`: runs 1-3 and run 4 each **166 passed / 0 failed** (4.2m, 4.0m, 3.9m,
 3.9m), digest `fad5caecaf75e94e032764a8f7d46c4f` verified before run 1 and after the last and
-UNCHANGED throughout. Run 4 exists because the mutation check touched the tree, re-establishing three
-consecutive clean runs on the exact restored tree. Handback `715ad06`, verified an ancestor of HEAD
-and touching only the evidence file. Root re-verified the main tree is clean with no mutation
+UNCHANGED throughout. Run 4 exists because the mutation check touched the tree, re-establishing
+three consecutive clean runs on the exact restored tree. Handback `715ad06`, verified an ancestor of
+HEAD and touching only the evidence file. Root re-verified the main tree is clean with no mutation
 artifact and the resolver wiring intact.
 
 **The mutation check is what makes the green runs meaningful.** Three passing runs show the step
 passes, not that it would CATCH the defect. After the campaign — so the campaign tree was never
 modified — the implementer removed only the `resolveDescriptionAliasName` line and re-ran the alias
-spec: 1 failed / 4 passed, failing at `description-aliases.spec.ts:324`, the reported-case assertion,
-while the other four alias tests still passed. It fails for the RIGHT reason rather than breaking the
-file. Restored, digest re-confirmed, run 4 clean. **UR-002 is verified end-to-end in a real browser**,
-not merely in jsdom.
+spec: 1 failed / 4 passed, failing at `description-aliases.spec.ts:324`, the reported-case
+assertion, while the other four alias tests still passed. It fails for the RIGHT reason rather than
+breaking the file. Restored, digest re-confirmed, run 4 clean. **UR-002 is verified end-to-end in a
+real browser**, not merely in jsdom.
 
-**Independent second sample on `Q-P22-R02-01`: NULL RESULT, reported explicitly.** Zero occurrences of
-the `addEmptyTransaction`/`newlyAddedRow` failure across all four runs. The implementer had
-pre-committed to reporting either outcome and read it conservatively AGAINST its own convenience: four
-clean runs against a 2-in-166 rate could easily show zero by chance, so this WEAKENS but does not
-refute the transient-state hypothesis, and it explicitly asked that P22 rev 03 NOT be descoped on the
-strength of it. Root agrees: a failure that reproduces is stronger evidence than an absence. **Rev 03
-proceeds unchanged.**
+**Independent second sample on `Q-P22-R02-01`: NULL RESULT, reported explicitly.** Zero occurrences
+of the `addEmptyTransaction`/`newlyAddedRow` failure across all four runs. The implementer had
+pre-committed to reporting either outcome and read it conservatively AGAINST its own convenience:
+four clean runs against a 2-in-166 rate could easily show zero by chance, so this WEAKENS but does
+not refute the transient-state hypothesis, and it explicitly asked that P22 rev 03 NOT be descoped
+on the strength of it. Root agrees: a failure that reproduces is stronger evidence than an absence.
+**Rev 03 proceeds unchanged.**
 
 **Log-reading correction, disclosed rather than buried:** a loose grep for `failed` matched 27-28
 lines per run, all `[WebServer]` application noise from tests deliberately exercising offline and
-revoked-grant paths. Every run's Playwright summary is `166 passed` with no failed or flaky count. The
-known `passkey.spec.ts` flake did not appear.
+revoked-grant paths. Every run's Playwright summary is `166 passed` with no failed or flaky count.
+The known `passkey.spec.ts` flake did not appear.
 
 **Coverage gap recorded rather than assumed:** search across a second identity or second tab is not
 covered anywhere. Nothing in UR-002 requires it and search is local-only state.
@@ -6622,23 +6729,23 @@ Dispatched `p23-reviewer-01` (DISTINCT, fresh context, never the P23 implementer
 
 ### 2026-08-01 — ROOT ERROR recorded: the "no UR-002 coverage at 5027787" claim is FALSE
 
-`p23-reviewer-01` raised an evidence-honesty finding against `evidence/P23/implementation-01.md:236-248`,
-which states that the `5027787` tree "contains no UR-002 E2E coverage at all". **That claim is false,
-and root introduced it.**
+`p23-reviewer-01` raised an evidence-honesty finding against
+`evidence/P23/implementation-01.md:236-248`, which states that the `5027787` tree "contains no
+UR-002 E2E coverage at all". **That claim is false, and root introduced it.**
 
-Verified: `git show 5027787:tests/e2e/description-aliases.spec.ts` carries, at line 540, a standalone
-`test("search finds transactions by the alias-resolved description they display", ...)` added by
-`391bee6`, whose body creates a manual row, fills "Testing", and imports a second fixture so each
-search discriminates. So `5027787` DID exercise UR-002 end to end.
+Verified: `git show 5027787:tests/e2e/description-aliases.spec.ts` carries, at line 540, a
+standalone `test("search finds transactions by the alias-resolved description they display", ...)`
+added by `391bee6`, whose body creates a manual row, fills "Testing", and imports a second fixture
+so each search discriminates. So `5027787` DID exercise UR-002 end to end.
 
-**Provenance, stated plainly: this is root's error, not the implementer's.** The implementer correctly
-told root its campaign target was stale. Root then grepped `5027787` for the string
+**Provenance, stated plainly: this is root's error, not the implementer's.** The implementer
+correctly told root its campaign target was stale. Root then grepped `5027787` for the string
 `"search matches the alias-resolved description on display"` — the title of the RESTRUCTURED
-`test.step` introduced LATER by `11a01f4` — got 0, and concluded the tree had no UR-002 coverage. Root
-asserted that conclusion back to the implementer in writing, and the implementer recorded root's
-conclusion in its evidence. A grep for a string that only exists after a rename cannot establish
-absence of the renamed thing; it establishes absence of the new NAME. That is precisely the category
-of mechanism error root has been requiring workers to avoid, committed by root.
+`test.step` introduced LATER by `11a01f4` — got 0, and concluded the tree had no UR-002 coverage.
+Root asserted that conclusion back to the implementer in writing, and the implementer recorded
+root's conclusion in its evidence. A grep for a string that only exists after a rename cannot
+establish absence of the renamed thing; it establishes absence of the new NAME. That is precisely
+the category of mechanism error root has been requiring workers to avoid, committed by root.
 
 **What survives and what does not.** The DECISION was right: re-targeting the campaign to `22f8f59`
 was correct, because the journey-step form is what `.claude/skills/e2e/SKILL.md:11` requires and is
@@ -6647,63 +6754,66 @@ matching HEAD's `src`+`tests`. The stated JUSTIFICATION does not survive. The re
 sentence in the evidence, not a re-run — the campaign at `22f8f59` genuinely exercises UR-002.
 
 Root has told the reviewer the finding is real, must not be softened, and that severity is the
-reviewer's call — while noting for its judgement that a false mechanism supporting a CORRECT decision
-is a documentation defect rather than a wrong decision, and that the implementer was repeating a claim
-its coordinator asserted to it. Verify-not-trust cuts both ways: the implementer should have checked
-root, exactly as the reviewer checked the implementer.
+reviewer's call — while noting for its judgement that a false mechanism supporting a CORRECT
+decision is a documentation defect rather than a wrong decision, and that the implementer was
+repeating a claim its coordinator asserted to it. Verify-not-trust cuts both ways: the implementer
+should have checked root, exactly as the reviewer checked the implementer.
 
 **Carry-forward for P21 (`Q-ROOT-2026-08-01-01`):** a coordinator-asserted claim entered a worker's
-evidence unverified. Any P21 audit of evidence provenance should treat root assertions as claims to be
-checked, not as authority.
+evidence unverified. Any P21 audit of evidence provenance should treat root assertions as claims to
+be checked, not as authority.
 
 ### 2026-08-01 — P22 rev 03 implementation landed; 8+ run campaign running
 
 `p22-implementer-03` committed `476f26f` (test-infra) and `a8bd52b` (evidence, campaign section
 deliberately blank), both verified ancestors of HEAD. `git diff --name-only` confirms `476f26f`
-touches ONLY `tests/e2e/helpers/settlement.ts` and `tests/e2e/transactions.spec.ts` — no product code,
-exactly as scoped, so rev 01/02's reviewed product conformance is untouched.
+touches ONLY `tests/e2e/helpers/settlement.ts` and `tests/e2e/transactions.spec.ts` — no product
+code, exactly as scoped, so rev 01/02's reviewed product conformance is untouched.
 
-**It rejected the reviewer's suggested sized-timeout fix, correctly.** `toHaveCount` converges only if
-the predicate stays true once true; `[…]:has(…:focus)` is true only while the caret is there, so it can
-go true -> false and a poll on either side sees 0 forever. A larger deadline makes that rarer, not
-absent. The implemented fix instead arms a one-shot `focusin` latch BEFORE the click, writing the new
-row's id to an attribute on `<html>` — outside React's tree, so no re-render clears it — converting a
-transient instant into MONOTONIC state that only goes absent -> present, which an ordinary converging
-wait can handle. It ignores rows already on screen so a caret returning to a previously-edited row
-cannot be mistaken for the new one, which matters because specs call the helper three times in
-succession. The second failure (`element was detached from the DOM`) was treated as a DISTINCT
-mechanism and fixed on its own merits rather than assumed covered.
+**It rejected the reviewer's suggested sized-timeout fix, correctly.** `toHaveCount` converges only
+if the predicate stays true once true; `[…]:has(…:focus)` is true only while the caret is there, so
+it can go true -> false and a poll on either side sees 0 forever. A larger deadline makes that
+rarer, not absent. The implemented fix instead arms a one-shot `focusin` latch BEFORE the click,
+writing the new row's id to an attribute on `<html>` — outside React's tree, so no re-render clears
+it — converting a transient instant into MONOTONIC state that only goes absent -> present, which an
+ordinary converging wait can handle. It ignores rows already on screen so a caret returning to a
+previously-edited row cannot be mistaken for the new one, which matters because specs call the
+helper three times in succession. The second failure (`element was detached from the DOM`) was
+treated as a DISTINCT mechanism and fixed on its own merits rather than assumed covered.
 
-UR-001 focus coverage is RETAINED at five sites with a comment explaining why focus is an expectation
-there but not the sync primitive — necessary because the unit tests cannot reach UR-001's virtualized
-clause, so dropping E2E focus assertions would have silently weakened the requirement. Class audit
-covered 17 `addEmptyTransaction` sites across 5 spec files, 1 remaining `newlyAddedRow` absence
-assertion, and 40 other `:focus`/`toBeFocused` hits deliberately left as terminal assertions.
+UR-001 focus coverage is RETAINED at five sites with a comment explaining why focus is an
+expectation there but not the sync primitive — necessary because the unit tests cannot reach
+UR-001's virtualized clause, so dropping E2E focus assertions would have silently weakened the
+requirement. Class audit covered 17 `addEmptyTransaction` sites across 5 spec files, 1 remaining
+`newlyAddedRow` absence assertion, and 40 other `:focus`/`toBeFocused` hits deliberately left as
+terminal assertions.
 
 **Two self-corrections by the implementer, both unprompted:** it claimed its mutation probe breaks
-UR-001 "in the browser only", MEASURED it, found it also fails 4 of 11 focus unit tests in jsdom, and
-corrected the claim — so the E2E run CONFIRMS that regression rather than uniquely discovering it. It
-also rejected a cleaner-looking mutation because failing 6 unit tests meant it never reached the
-browser at all. First revision in this package to catch its own mechanism error before a reviewer did.
+UR-001 "in the browser only", MEASURED it, found it also fails 4 of 11 focus unit tests in jsdom,
+and corrected the claim — so the E2E run CONFIRMS that regression rather than uniquely discovering
+it. It also rejected a cleaner-looking mutation because failing 6 unit tests meant it never reached
+the browser at all. First revision in this package to catch its own mechanism error before a
+reviewer did.
 
-**Root error corrected by the implementer:** root reported `/tmp/mf-e2e-p22r3` did not exist, from an
-`ls -d` run BEFORE the worktree was created, then repeated that stale reading as current. `git worktree
-list` shows it at `476f26f`. Same class as root's `5027787` grep error: a check true when run, quoted
-later as though still true. Recorded so the pattern is visible rather than incidental.
+**Root error corrected by the implementer:** root reported `/tmp/mf-e2e-p22r3` did not exist, from
+an `ls -d` run BEFORE the worktree was created, then repeated that stale reading as current.
+`git worktree list` shows it at `476f26f`. Same class as root's `5027787` grep error: a check true
+when run, quoted later as though still true. Recorded so the pattern is visible rather than
+incidental.
 
-Campaign digest `93d8e0e188d51feb7917840532782843`. Bar is **>=8 consecutive full-suite `--retries=0`
-runs**, `env -u CI`, full sequence reported including any failure.
+Campaign digest `93d8e0e188d51feb7917840532782843`. Bar is **>=8 consecutive full-suite
+`--retries=0` runs**, `env -u CI`, full sequence reported including any failure.
 
 ### 2026-08-02 — P22 rev 03 campaign 8/8 GREEN, verified by root against on-disk logs
 
 `p22-implementer-03` reported OPTION 1: campaign completed, port released. Root verified against the
-artifacts rather than the message. `/tmp/p22r3-campaign.out` and `/tmp/p22r3-logs/run-1..8.log` exist,
-timestamped 18:35-19:03, and show:
+artifacts rather than the message. `/tmp/p22r3-campaign.out` and `/tmp/p22r3-logs/run-1..8.log`
+exist, timestamped 18:35-19:03, and show:
 
 - 8 consecutive full-suite runs, `env -u CI pnpm exec playwright test --retries=0 --workers=4`
 - every run `exit=0` and `166 passed` (4.3m, then 3.9m x7)
-- digest `93d8e0e188d51feb7917840532782843` captured BEFORE run 1, on EVERY individual run, and AFTER
-  run 8 — never drifted, so the campaign is evidence for one unchanging tree
+- digest `93d8e0e188d51feb7917840532782843` captured BEFORE run 1, on EVERY individual run, and
+  AFTER run 8 — never drifted, so the campaign is evidence for one unchanging tree
 
 Root's own independent grep across all eight logs for genuine Playwright failure formats
 (`N failed`, `N flaky`, `Test timeout of`, `element was detached`, `resolved to 0 elements`) returns
@@ -6718,11 +6828,11 @@ text before classifying is now well established across agents.
 
 **Statistical honesty, unprompted and against its own interest:** the implementer noted that against
 the observed 1-in-6 rate, 8 clean runs has roughly a 23% chance (0.833^8) of showing zero by luck
-alone, so 8/8 is meaningfully stronger than the 3-run campaigns that kept missing the flake but is NOT
-proof of absence. It stated that the load-bearing argument is STRUCTURAL — `:has(:focus)` no longer
-exists anywhere in the synchronisation path, replaced by a latch that cannot un-set — rather than
-letting the run count imply more than it supports. Root accepts that framing: the fix is sound because
-the failing wait was removed, and the campaign corroborates rather than carries the claim.
+alone, so 8/8 is meaningfully stronger than the 3-run campaigns that kept missing the flake but is
+NOT proof of absence. It stated that the load-bearing argument is STRUCTURAL — `:has(:focus)` no
+longer exists anywhere in the synchronisation path, replaced by a latch that cannot un-set — rather
+than letting the run count imply more than it supports. Root accepts that framing: the fix is sound
+because the failing wait was removed, and the campaign corroborates rather than carries the claim.
 
 Remaining for rev 03: the falsifiability mutation check in the implementer's own worktree, digest
 re-verified after restore, then the evidence campaign section. Port released and handed to
@@ -6731,15 +6841,15 @@ re-verified after restore, then the evidence campaign section. Port released and
 ### 2026-08-02 — P23 rev 01 PASSED and INTEGRATED; UR-002 complete
 
 DISTINCT reviewer `p23-reviewer-01` returned **PASS** at `8872f86` (`reviews/P23-review-01.md`, 318
-lines, review-file-only — root confirmed via `git show --stat` that nothing rode along). Per-criterion
-1-5 PASS, 6 UPHELD, 7-9 PASS with one MEDIUM finding.
+lines, review-file-only — root confirmed via `git show --stat` that nothing rode along).
+Per-criterion 1-5 PASS, 6 UPHELD, 7-9 PASS with one MEDIUM finding.
 
 Verification the reviewer performed independently, all in private worktrees with the shared checkout
 never modified: typecheck 0; lint 0 errors; format:check clean of P23 files; **five** consecutive
 clean `pnpm test` runs at 2117 passed; **three** consecutive full-suite `--retries=0` E2E runs at
 **166 passed** each with digest `fad5caecaf75e94e032764a8f7d46c4f` stable across all six captures —
-root independently recomputed that digest at the reviewer's BASE and matched it exactly; and **five**
-mutation checks, two at E2E level.
+root independently recomputed that digest at the reviewer's BASE and matched it exactly; and
+**five** mutation checks, two at E2E level.
 
 **Mutation B was the reviewer's own initiative and is the strongest evidence in the package.**
 Confirming the implementer's Mutation A was required; devising a second one that instead drops the
@@ -6751,8 +6861,8 @@ step fails for the right reason rather than breaking the file.
 **Criterion 6, symlink E2E gap: UPHELD on the reviewer's own reasoning, not deference to root.** Its
 decisive argument is one root did not make: because the search resolver at `page.tsx:240` makes the
 IDENTICAL `aliasLookup.resolve(...)` call as the table's render path at `:362-363`, broken symlink
-resolution over a live document would make the TABLE render wrong text and fail existing coverage. So
-the marginal E2E coverage does not justify driving a modal a neighbouring test already covers.
+resolution over a live document would make the TABLE render wrong text and fail existing coverage.
+So the marginal E2E coverage does not justify driving a modal a neighbouring test already covers.
 
 **Finding M-1 (MEDIUM, non-blocking, root-owned):** the `5027787` "no UR-002 E2E coverage at all"
 claim is false; remedy is a corrected sentence in the evidence, NOT a re-run. The reviewer recorded
@@ -6760,71 +6870,76 @@ provenance accurately — root introduced the defective justification and has co
 `ece36a8`, AND that does not fully discharge the implementer, which verified four of the dispatch's
 claims but not this one. Verify-not-trust cuts both ways.
 
-**Two Q-proposals carried to P21:** `Q-P23-01-01` — `duplicates.test.ts:724-749` asserts a wall-clock
-RATIO, so `pnpm test` is not deterministic on a busy machine; this affects how EVERY package's unit
-gate should be read, including gates already accepted green in this goal. `Q-P23-01-02` — verification
-instrumentation deserves the same scrutiny as product code; two defects in this package were checks
-that could not fail as intended, root's post-rename grep and the reviewer's own clobbered
-`${PIPESTATUS[0]}`, which it disclosed rather than claiming exit codes it never observed.
+**Two Q-proposals carried to P21:** `Q-P23-01-01` — `duplicates.test.ts:724-749` asserts a
+wall-clock RATIO, so `pnpm test` is not deterministic on a busy machine; this affects how EVERY
+package's unit gate should be read, including gates already accepted green in this goal.
+`Q-P23-01-02` — verification instrumentation deserves the same scrutiny as product code; two defects
+in this package were checks that could not fail as intended, root's post-rename grep and the
+reviewer's own clobbered `${PIPESTATUS[0]}`, which it disclosed rather than claiming exit codes it
+never observed.
 
 **P23 -> `passed`; UR-002 -> `passed`. Tally: 23 of 31 requirements, 22 of 30 feature packages.**
 
 ### 2026-08-02 — P23 rev 01 review amended at `12d0668`; ROOT ERROR PATTERN recorded
 
 `p23-reviewer-01` committed a tree-currency amendment as a NEW commit `12d0668` (44 lines,
-review-file-only, verified ancestor of HEAD) rather than `git commit --amend`, so root's already-quoted
-`8872f86` and the integration at `e9e3985` are unaffected. Log order: `8872f86` -> `c8be6d0` ->
-`e9e3985` -> `12d0668`. Verdict PASS is unchanged; the amendment refines the record only.
+review-file-only, verified ancestor of HEAD) rather than `git commit --amend`, so root's
+already-quoted `8872f86` and the integration at `e9e3985` are unaffected. Log order: `8872f86` ->
+`c8be6d0` -> `e9e3985` -> `12d0668`. Verdict PASS is unchanged; the amendment refines the record
+only.
 
 It records that the P23 campaign ran against the PRE-hardening helper at BASE `908ec17`, and its
 judgement that `476f26f` is **TIMING, not behaviour**: the latch writes only a harness-namespaced
-attribute on `<html>`, performs no fill/press/click beyond the same Add button, touches no transaction
-field or alias, returns the same stable `data-transaction-id`, and sits UPSTREAM of the UR-002 step
-behind a `page.reload()` at `:301` — so the vault state reaching the step is identical and a UR-002
-regression would have to come through the search predicate or alias graph, which `476f26f` never
-reaches. No re-verification sequenced. P22 rev 03's own full-suite campaign already exercised
-`description-aliases.spec.ts` against the POST-hardening helper across 8 green runs, which is stronger
-evidence for the combined tree than a pinned-worktree re-run could give.
+attribute on `<html>`, performs no fill/press/click beyond the same Add button, touches no
+transaction field or alias, returns the same stable `data-transaction-id`, and sits UPSTREAM of the
+UR-002 step behind a `page.reload()` at `:301` — so the vault state reaching the step is identical
+and a UR-002 regression would have to come through the search predicate or alias graph, which
+`476f26f` never reaches. No re-verification sequenced. P22 rev 03's own full-suite campaign already
+exercised `description-aliases.spec.ts` against the POST-hardening helper across 8 green runs, which
+is stronger evidence for the combined tree than a pinned-worktree re-run could give.
 
-**ROOT ERROR PATTERN, recorded as one pattern rather than three incidents.** Three of root's readings
-were corrected by workers in this package:
-1. the post-rename grep at `5027787`, which proved absence of a NEW NAME and was asserted as absence of
-   the coverage;
-2. a stale `ls -d` on `/tmp/mf-e2e-p22r3`, run before the worktree existed and quoted later as current;
-3. `grep -c 'addEmptyTransaction'` counting the IMPORT line, reported as "calls it twice" when there is
-   ONE call at `:272`.
-Common shape, in root's own words which the reviewer asked be carried in this wording: **a check that
-answered a narrower question than the one root then asserted an answer to.** This is `Q-P23-01-02`
-made concrete — verification instrumentation deserves the same scrutiny as product code — and the
-reviewer's own clobbered `${PIPESTATUS[0]}` is the same class, caught only by re-reading its own output
-before quoting it. Balancing observation, recorded because the record should be balanced: all three
-were caught, and two were caught precisely BECAUSE root dispatched independent verification rather than
-accepting its own reading.
+**ROOT ERROR PATTERN, recorded as one pattern rather than three incidents.** Three of root's
+readings were corrected by workers in this package:
+
+1. the post-rename grep at `5027787`, which proved absence of a NEW NAME and was asserted as absence
+   of the coverage;
+2. a stale `ls -d` on `/tmp/mf-e2e-p22r3`, run before the worktree existed and quoted later as
+   current;
+3. `grep -c 'addEmptyTransaction'` counting the IMPORT line, reported as "calls it twice" when there
+   is ONE call at `:272`. Common shape, in root's own words which the reviewer asked be carried in
+   this wording: **a check that answered a narrower question than the one root then asserted an
+   answer to.** This is `Q-P23-01-02` made concrete — verification instrumentation deserves the same
+   scrutiny as product code — and the reviewer's own clobbered `${PIPESTATUS[0]}` is the same class,
+   caught only by re-reading its own output before quoting it. Balancing observation, recorded
+   because the record should be balanced: all three were caught, and two were caught precisely
+   BECAUSE root dispatched independent verification rather than accepting its own reading.
 
 ### 2026-08-02 — UR-010 and UR-011 ADMITTED (P31, P32): transaction-table selection
 
 Two further requirements admitted at the principal's explicit instruction, via a NEW frozen source
-`specs/012-transaction-selection/spec.md` (SHA `5f8eb9302db1b4f0d82f8f33ab602e9faf62abab7ee1699383df6f9363179a6b`,
-55 lines, 3,228 bytes, `SRC-TRANSACTION-SELECTION`). `requirementCount` 31 -> 33. `human-scratch.md`
-untouched, still rolling `469e98c7…`. Both markerless and immutable, the FS-001 mechanic. See D-023.
+`specs/012-transaction-selection/spec.md` (SHA
+`5f8eb9302db1b4f0d82f8f33ab602e9faf62abab7ee1699383df6f9363179a6b`, 55 lines, 3,228 bytes,
+`SRC-TRANSACTION-SELECTION`). `requirementCount` 31 -> 33. `human-scratch.md` untouched, still
+rolling `469e98c7…`. Both markerless and immutable, the FS-001 mechanic. See D-023.
 
 **UR-010 (P31) — shift-click must deselect symmetrically.** Root confirmed the principal's report
 precisely: `toggleRow` (`hooks/useTableSelection.ts:106-133`) implements a shift range that ALWAYS
 `newIds.add(...)`, so the select direction works and the deselect direction cannot. `lastSelectedId`
 records WHICH row was last acted on but not WHAT was done to it, so the range has no direction to
-apply — that missing piece IS the requirement. Pointer entry at `CheckboxCell.tsx:48`; keyboard range
-at `hooks/useKeyboardNavigation.ts:221`/`:258` must follow the same rule.
+apply — that missing piece IS the requirement. Pointer entry at `CheckboxCell.tsx:48`; keyboard
+range at `hooks/useKeyboardNavigation.ts:221`/`:258` must follow the same rule.
 
-**UR-011 (P32) — header checkbox must select every filtered row, efficiently.** `TransactionTable.tsx:270`
-derives `filteredIds` from its `transactions` prop; the page computes
+**UR-011 (P32) — header checkbox must select every filtered row, efficiently.**
+`TransactionTable.tsx:270` derives `filteredIds` from its `transactions` prop; the page computes
 `displayedTransactions = filteredTransactions.slice(0, displayCount)` with `PAGE_SIZE = 50`
 (`page.tsx:78`, `:282-284`). The implementer must FIRST establish which of those the table actually
-receives, since that determines whether select-all currently covers only the loaded page or whether the
-defect is narrower. Efficiency is part of the frozen requirement, not an aspiration: no forced render,
-no paging in rows merely to enumerate them, responsive at 100k transactions, and no scan costing
-rendered x matching. The task also directs removal of a stray `console.log` left in `selectAll`, and
-forbids copying the wall-clock RATIO style of `duplicates.test.ts:724-749` for the performance
-assertion, since that pattern is already a recorded carry-forward defect (`Q-P23-01-01`).
+receives, since that determines whether select-all currently covers only the loaded page or whether
+the defect is narrower. Efficiency is part of the frozen requirement, not an aspiration: no forced
+render, no paging in rows merely to enumerate them, responsive at 100k transactions, and no scan
+costing rendered x matching. The task also directs removal of a stray `console.log` left in
+`selectAll`, and forbids copying the wall-clock RATIO style of `duplicates.test.ts:724-749` for the
+performance assertion, since that pattern is already a recorded carry-forward defect
+(`Q-P23-01-01`).
 
 **Tally: 23 of 33 requirements `passed`; 22 of 32 feature packages `passed`.**
 
@@ -6838,30 +6953,30 @@ Dispatched `p22-reviewer-03` (DISTINCT, fresh context, never any P22 implementer
 `p22-reviewer-01` or `-02`) to `reviews/P22-review-03.md`. Under review: `476f26f` (test-infra fix),
 `a8bd52b` and `c8be6d0` (evidence). Root has already verified independently: commit scopes exact
 (`476f26f` touches only `tests/e2e/helpers/settlement.ts` and `tests/e2e/transactions.spec.ts`), the
-8-run campaign logs on disk at `/tmp/p22r3-logs/run-1..8.log` all read `exit=0` and `166 passed` with
-digest `93d8e0e188d51feb7917840532782843` stable across ten captures, and root's own independent grep
-for genuine Playwright failure formats returns NONE in any log.
+8-run campaign logs on disk at `/tmp/p22r3-logs/run-1..8.log` all read `exit=0` and `166 passed`
+with digest `93d8e0e188d51feb7917840532782843` stable across ten captures, and root's own
+independent grep for genuine Playwright failure formats returns NONE in any log.
 
 ### 2026-08-02 — P24 rev 01 DISPATCHED (UR-003 presence avatars show name initials)
 
 Dispatched `p24-implementer-01` in parallel with P22 rev 03's independent review. The file sets are
 disjoint: P22 rev 03 is test-infrastructure only (`tests/e2e/helpers/settlement.ts`,
 `tests/e2e/transactions.spec.ts`), while UR-003 concerns `PresenceAvatar`, `layout.tsx` presence
-render sites and the person name resolution in `src/lib/crdt/person.ts`. E2E is SERIALISED: exactly one
-campaign runs repo-wide because `playwright.config.ts` pins :3000 with no env override, and
+render sites and the person name resolution in `src/lib/crdt/person.ts`. E2E is SERIALISED: exactly
+one campaign runs repo-wide because `playwright.config.ts` pins :3000 with no env override, and
 `p22-reviewer-03` currently holds it for its falsifiability mutation run in `/tmp/mf-p22rev3-mut`.
 
-**Root resolved UR-003's decisive empirical question before dispatch, and it splits into two paths:**
-`DEFAULT_PERSON` (`src/lib/crdt/defaults.ts:52,61-62`) is seeded with `name: "Me"` — a REAL name.
-`ensureMemberPerson` (`src/lib/crdt/person.ts:76-100`) resolves in three steps: return an
-already-linked person idempotently; else with `adoptDefaultPerson` ADOPT the seeded default person by
-setting `linkedUserId = pubkeyHash`, KEEPING its name "Me"; else create a new person with
-`name: undefined`. So the VAULT OWNER — the principal's own case — adopts a named person and the join
-alone yields initials "M", genuinely fixing the reported "AD". But INVITED MEMBERS take the third path
-and start unnamed, falling through `resolvePersonDisplayName` to `memberFallbackName` ->
+**Root resolved UR-003's decisive empirical question before dispatch, and it splits into two
+paths:** `DEFAULT_PERSON` (`src/lib/crdt/defaults.ts:52,61-62`) is seeded with `name: "Me"` — a REAL
+name. `ensureMemberPerson` (`src/lib/crdt/person.ts:76-100`) resolves in three steps: return an
+already-linked person idempotently; else with `adoptDefaultPerson` ADOPT the seeded default person
+by setting `linkedUserId = pubkeyHash`, KEEPING its name "Me"; else create a new person with
+`name: undefined`. So the VAULT OWNER — the principal's own case — adopts a named person and the
+join alone yields initials "M", genuinely fixing the reported "AD". But INVITED MEMBERS take the
+third path and start unnamed, falling through `resolvePersonDisplayName` to `memberFallbackName` ->
 "Member 3f2a9b1c" -> initials "M3". A fix validated only against the owner would look correct while
-leaving collaborators showing hash-derived initials, so the package must handle both and say which path
-each test exercises.
+leaving collaborators showing hash-derived initials, so the package must handle both and say which
+path each test exercises.
 
 Also recorded for the implementer: `memberFallbackName` has a SECOND caller at
 `TransactionRow.tsx:222`, where it builds presence row labels, so changing the shared fallback would
@@ -6872,43 +6987,44 @@ Evidence `evidence/P24/implementation-01.md`; review path reserved `reviews/P24-
 ### 2026-08-02 — P22 rev 03 PASSED and INTEGRATED; UR-001 complete after three revisions
 
 DISTINCT reviewer `p22-reviewer-03` returned **PASS** at `c6641ab` (`reviews/P22-review-03.md`, 418
-lines, review-file-only, verified ancestor of HEAD). All 9 P22 commits confirmed reachable, no orphans.
-Criteria 1-8 all pass.
+lines, review-file-only, verified ancestor of HEAD). All 9 P22 commits confirmed reachable, no
+orphans. Criteria 1-8 all pass.
 
 **Its own six checks:** typecheck 0; lint 0 errors; format:check fails only on the 17 documented
 `specs/**` files with both changed files clean; unit 114 files / 2117 passed / 2 skipped; **E2E 6/6
 full-suite `--retries=0` at 166 passed every run**, digest `88ff29ae54945ac0cbcf9e3bde63eff6` stable
-before, during and after, CI confirmed unset, zero failure signatures across all six logs — and **run
-3, the exact index that failed in rev 02's campaign, is green**. Combined with the implementer's
-independent 8/8, that is 14 consecutive full-suite green runs across two agents and two worktrees.
+before, during and after, CI confirmed unset, zero failure signatures across all six logs — and
+**run 3, the exact index that failed in rev 02's campaign, is green**. Combined with the
+implementer's independent 8/8, that is 14 consecutive full-suite green runs across two agents and
+two worktrees.
 
-**Verified rather than accepted:** the latch is genuinely monotonic (armed pre-click, event-delivered
-rather than sampled, attribute on `<html>` only goes absent -> present); ALL 62 focus occurrences in
-`tests/e2e/` classified with **0 remaining synchronisation primitives**; the class audit numbers
-confirmed; all five UR-001 focus assertions present and asserting the right clauses, with `:520`
-covering the virtualized clause that jsdom provably cannot reach because both unit files mock
-`useVirtualizer`; the falsifiability mutation reproduced independently in its own `git archive` tree,
-failing at the latch (`settlement.ts:270` `waitForFunction` timeout) and producing the same 4-of-11
-jsdom failures the implementer disclosed. It also ran a manual browser check: two rows selected, Add
-preserved the selection verbatim, focused the new row, left it unselected, typed straight in with no
-intervening click, persisted across reload, 0 console errors, vault created without ever revealing the
-recovery phrase.
+**Verified rather than accepted:** the latch is genuinely monotonic (armed pre-click,
+event-delivered rather than sampled, attribute on `<html>` only goes absent -> present); ALL 62
+focus occurrences in `tests/e2e/` classified with **0 remaining synchronisation primitives**; the
+class audit numbers confirmed; all five UR-001 focus assertions present and asserting the right
+clauses, with `:520` covering the virtualized clause that jsdom provably cannot reach because both
+unit files mock `useVirtualizer`; the falsifiability mutation reproduced independently in its own
+`git archive` tree, failing at the latch (`settlement.ts:270` `waitForFunction` timeout) and
+producing the same 4-of-11 jsdom failures the implementer disclosed. It also ran a manual browser
+check: two rows selected, Add preserved the selection verbatim, focused the new row, left it
+unselected, typed straight in with no intervening click, persisted across reload, 0 console errors,
+vault created without ever revealing the recovery phrase.
 
 **FOURTH ROOT ERROR, caught by the reviewer.** Root's dispatch instructed it to confirm the evidence
 discloses "a self-caught transposition of run 6/7 durations". No such transposition exists: the
 committed table reads 232s/234s, `/tmp/p22r3-campaign.out` reads 232s/234s in the same order, and
-`grep -ciE 'transpos|self-caught|swapped'` over the evidence returns 0 — root verified all three. Root
-had taken the implementer's message at face value and written a verification requirement around a
-detail the artifact does not contain. The reviewer flagged it explicitly rather than reporting "the
-disclosure is missing", which would have MANUFACTURED A FINDING AGAINST CORRECT EVIDENCE. This is the
-fourth instance of root's recorded pattern — a check or claim that answered a narrower question than
-the assertion built on it — and the first where the error would have damaged an innocent party rather
-than merely misinforming root.
+`grep -ciE 'transpos|self-caught|swapped'` over the evidence returns 0 — root verified all three.
+Root had taken the implementer's message at face value and written a verification requirement around
+a detail the artifact does not contain. The reviewer flagged it explicitly rather than reporting
+"the disclosure is missing", which would have MANUFACTURED A FINDING AGAINST CORRECT EVIDENCE. This
+is the fourth instance of root's recorded pattern — a check or claim that answered a narrower
+question than the assertion built on it — and the first where the error would have damaged an
+innocent party rather than merely misinforming root.
 
-**Two non-blocking Q-proposals**, both counts rather than substantive claims, both with the underlying
-conclusion independently verified correct: `Q-P22-R03-01` (evidence says the focus grep returns 40
-hits; the reviewer counts 62 and root's own narrower grep gives 59 — no variant yields 40) and
-`Q-P22-R03-02` ("four sites" over a five-assertion table).
+**Two non-blocking Q-proposals**, both counts rather than substantive claims, both with the
+underlying conclusion independently verified correct: `Q-P22-R03-01` (evidence says the focus grep
+returns 40 hits; the reviewer counts 62 and root's own narrower grep gives 59 — no variant
+yields 40) and `Q-P22-R03-02` ("four sites" over a five-assertion table).
 
 **P22 -> `passed`; UR-001 -> `passed`. Tally: 24 of 33 requirements, 23 of 32 feature packages.**
 UR-001 took three revisions: rev 01 shipped the product behaviour plus a focus-based E2E sync point;
@@ -6918,8 +7034,8 @@ replaced it with a monotonic latch. The product conformance work from revs 01-02
 ### 2026-08-02 — P24 scope ruling: THREE presence avatar render sites, not two
 
 `p24-implementer-01` verified all four of root's orientation findings as true, then raised a scope
-question root's dispatch had missed and corrected root twice on substance. Root ruled after verifying
-independently.
+question root's dispatch had missed and corrected root twice on substance. Root ruled after
+verifying independently.
 
 **RULING: all three render sites are in scope.** `grep -rn '<PresenceAvatar' --include='*.tsx' src`
 returns exactly three paths — `PresenceAvatarGroup.tsx:74` (fed by `layout.tsx:218` and `:343`) and
@@ -6927,81 +7043,84 @@ returns exactly three paths — `PresenceAvatarGroup.tsx:74` (fed by `layout.tsx
 `specs/009-user-reported-refinements/spec.md:66-67` requires the name be supplied "to every presence
 avatar, at every place presence avatars are rendered", and `:539` is such a place: its wrapper
 `title={presenceLabel}` at `:537` means that surface renders BOTH hash-derived initials AND an
-"Editing: Member 3f2a9b1c" tooltip. This is NOT scope expansion — the frozen text already required it
-and root's dispatch omitted a site, so requiring it completes committed scope. No adjudicator involved;
-P24 stays one package and the row site is NOT split out.
+"Editing: Member 3f2a9b1c" tooltip. This is NOT scope expansion — the frozen text already required
+it and root's dispatch omitted a site, so requiring it completes committed scope. No adjudicator
+involved; P24 stays one package and the row site is NOT split out.
 
 **Correction 1, and the sharpest illustration of verify-not-trust in this package.** Root suggested
 checking whether `deriveMemberPersonId` allowed a direct person lookup instead of scanning. The
-implementer checked and found it WRONG: the owner adopts `DEFAULT_PERSON_ID` = `"person-default-me"`,
-so their person key is not `person-member-<hash>` and a derived-id lookup finds only INVITED MEMBERS.
-Had root's suggestion been taken at face value, the fix would have passed its invited-member tests and
-still shown the principal "AD" — the reported defect's own case. Scanning `linkedUserId`, exactly as
-`ensureMemberPerson` does at `:84-88`, is correct.
+implementer checked and found it WRONG: the owner adopts `DEFAULT_PERSON_ID` =
+`"person-default-me"`, so their person key is not `person-member-<hash>` and a derived-id lookup
+finds only INVITED MEMBERS. Had root's suggestion been taken at face value, the fix would have
+passed its invited-member tests and still shown the principal "AD" — the reported defect's own case.
+Scanning `linkedUserId`, exactly as `ensureMemberPerson` does at `:84-88`, is correct.
 
 **Correction 2, accepted as better than what root asked for.** Making `displayName` a REQUIRED prop
 carrying a discriminated union turns "avatar rendered without a resolved name" into a COMPILE ERROR
 rather than a silent fall-through to `name || userId` at `PresenceAvatar.tsx:48`. That satisfies the
-repo's make-illegal-states-unrepresentable rule and answers the question root could not: what prevents
-a fourth render site regressing this later.
+repo's make-illegal-states-unrepresentable rule and answers the question root could not: what
+prevents a fourth render site regressing this later.
 
 **Unnamed invited member: person icon, tooltip and accessible name "Unnamed member", zero hash
-characters, colour still from `hashToColor(userId)`.** Root accepted the implementer's reasoning that
-"Member 3f2a9b1c" embeds a key hash and so fails the frozen tooltip clause, and that keeping colour
-keyed on the identifier is the frozen text's own stated rationale. `memberFallbackName` is deliberately
-NOT changed, so `TransactionRow.tsx:222`'s presence label is unaltered.
+characters, colour still from `hashToColor(userId)`.** Root accepted the implementer's reasoning
+that "Member 3f2a9b1c" embeds a key hash and so fails the frozen tooltip clause, and that keeping
+colour keyed on the identifier is the frozen text's own stated rationale. `memberFallbackName` is
+deliberately NOT changed, so `TransactionRow.tsx:222`'s presence label is unaltered.
 
-**Shared helper for P27/UR-006:** `resolveMemberDisplayName(people, pubkeyHash) -> MemberDisplayName`
-in `src/lib/crdt/person.ts`, built by extracting `personOwnName(person)` and rebuilding the existing
-`resolvePersonDisplayName` on top of it, behaviour-preserving with all 10 callers untouched. P27 must
-REUSE it rather than add a second resolution path.
+**Shared helper for P27/UR-006:**
+`resolveMemberDisplayName(people, pubkeyHash) -> MemberDisplayName` in `src/lib/crdt/person.ts`,
+built by extracting `personOwnName(person)` and rebuilding the existing `resolvePersonDisplayName`
+on top of it, behaviour-preserving with all 10 callers untouched. P27 must REUSE it rather than add
+a second resolution path.
 
-E2E bar RAISED to at least 5 consecutive full-suite `--retries=0` runs, because scope grew by a render
-site and a prop-contract change. Port :3000 is free and assigned to P24.
+E2E bar RAISED to at least 5 consecutive full-suite `--retries=0` runs, because scope grew by a
+render site and a prop-contract change. Port :3000 is free and assigned to P24.
 
 ### 2026-08-02 — P24 rev 01 handback VERIFIED; DISTINCT reviewer dispatched
 
 `p24-implementer-01` handed back `a318b40` (evidence-only final commit). Lineage `c7547fb` ->
 `befe694` -> `162d75a` -> `629352f` -> `a318b40`, all verified ancestors of HEAD, no amends.
 
-**E2E campaign: 5 consecutive full-suite `--retries=0` runs, 167 passed each** (167 not 166 — the new
-presence test), `env -u CI`, own worktree, digest `65cd3673…` verified before run 1 and after run 5,
-unchanged throughout. Port released before the evidence was written, as instructed.
+**E2E campaign: 5 consecutive full-suite `--retries=0` runs, 167 passed each** (167 not 166 — the
+new presence test), `env -u CI`, own worktree, digest `65cd3673…` verified before run 1 and after
+run 5, unchanged throughout. Port released before the evidence was written, as instructed.
 
 **A DISCARDED campaign is reported, not buried.** An earlier run on `162d75a` gave 166 passed / 1
 FAILED on the implementer's own test locator, and the campaign was restarted from run 1 per the
 tree-drift discipline rather than counted. Root verified the fix `629352f` is test-file-only
-(`tests/e2e/presence.spec.ts`, 16 insertions / 2 deletions, no product code), so the restart is sound.
+(`tests/e2e/presence.spec.ts`, 16 insertions / 2 deletions, no product code), so the restart is
+sound.
 
 **The run-1 failure is the strongest product evidence in this package.** Playwright's strict-mode
 violation printed both matched elements — `<div role="img" aria-label="Unnamed member">` and
 `<div role="img" aria-label="Me">M</div>` — which is the designed behaviour OBSERVED in a real
 browser: the owner's avatar labelled "Me" rendering the initial `M`, the unnamed invited member
-labelled "Unnamed member" rendering no text, and NO hash characters on either path. The reported "AD"
-is gone on both paths.
+labelled "Unnamed member" rendering no text, and NO hash characters on either path. The reported
+"AD" is gone on both paths.
 
-**Second self-correction, recorded because it disproved the implementer's own model.** It had written
-an assertion that the member's sidebar contains ZERO "Unnamed member" avatars, then read
+**Second self-correction, recorded because it disproved the implementer's own model.** It had
+written an assertion that the member's sidebar contains ZERO "Unnamed member" avatars, then read
 `use-vault-presence.ts:129-135` and found `presentIdentities` puts SELF FIRST
 (`[pubkeyHash, ...filter(id => id !== pubkeyHash)]`), so each shell renders the viewer's own avatar
-alongside their peer's and the correct expectation is `toHaveCount(1)`. Root verified that hook code.
-Without the check it would have shipped a test encoding a false model that failed for a
+alongside their peer's and the correct expectation is `toHaveCount(1)`. Root verified that hook
+code. Without the check it would have shipped a test encoding a false model that failed for a
 plausible-looking reason.
 
 **Q-P24-01-01 (repo-wide, carry to P21):** Testing Library's `getByRole` name option matches EXACTLY
-by default while Playwright's matches as a SUBSTRING, so the same assertion is correct in one harness
-and ambiguous in the other. "Me" matched "Unnamed member". Any accessible name that is a substring of
-another is a latent strict-mode violation across the whole E2E suite — a finding beyond this package.
+by default while Playwright's matches as a SUBSTRING, so the same assertion is correct in one
+harness and ambiguous in the other. "Me" matched "Unnamed member". Any accessible name that is a
+substring of another is a latent strict-mode violation across the whole E2E suite — a finding beyond
+this package.
 
-**Root verify-not-trust gates on the handback tree:** typecheck clean; unit **115 files, 2140 passed /
-2 skipped**; frozen-spec `format:check` count still exactly **17**, so no frozen file was reflowed by
-the evidence hook.
+**Root verify-not-trust gates on the handback tree:** typecheck clean; unit **115 files, 2140 passed
+/ 2 skipped**; frozen-spec `format:check` count still exactly **17**, so no frozen file was reflowed
+by the evidence hook.
 
 Two claims in root's dispatch did NOT survive the implementer's checking and it reported both rather
-than working around them: the two-site render enumeration (three exist) and the `deriveMemberPersonId`
-lookup suggestion (would have missed the owner). Everything else in the brief held, and it said so
-rather than manufacturing findings — the standard root asked for after the fabricated-requirement
-incident in P22 rev 03.
+than working around them: the two-site render enumeration (three exist) and the
+`deriveMemberPersonId` lookup suggestion (would have missed the owner). Everything else in the brief
+held, and it said so rather than manufacturing findings — the standard root asked for after the
+fabricated-requirement incident in P22 rev 03.
 
 Dispatched `p24-reviewer-01` (DISTINCT, fresh context, never the P24 implementer).
 
@@ -7012,29 +7131,29 @@ canary 1; port :3000 free after `p24-reviewer-01` released it.
 
 Dispatched `p25-implementer-01`. Runs in PARALLEL with P24's review, which is writing its verdict
 after an independently reproduced 5/5 campaign; the file sets are disjoint — UR-004 concerns
-`src/lib/domain/detect-currency.ts` and `src/lib/vault/ensure-default.ts`, while P24 touched presence
-avatars and `src/lib/crdt/person.ts`. E2E remains SERIALISED on the single :3000 port.
+`src/lib/domain/detect-currency.ts` and `src/lib/vault/ensure-default.ts`, while P24 touched
+presence avatars and `src/lib/crdt/person.ts`. E2E remains SERIALISED on the single :3000 port.
 
 **This is the first package in the goal to add a RUNTIME DEPENDENCY**, which is a supply-chain
 decision and is scoped accordingly. Root pre-vetted candidates so the implementer verifies rather
 than rediscovers, and confirmed a library is genuinely required rather than assumed:
 `new Intl.Locale('en', {timeZone: 'Australia/Brisbane'}).region` returns `none`, so `Intl` offers no
 native timezone -> country path. Leading candidate `countries-and-timezones` 3.9.0, MIT, NO runtime
-dependencies, last modified 2026-04-12, plain data rather than a date/time framework.
-`tz-lookup` was checked and solves a DIFFERENT problem (lat/long -> timezone). The implementer owns
-the final choice and must record the candidates considered.
+dependencies, last modified 2026-04-12, plain data rather than a date/time framework. `tz-lookup`
+was checked and solves a DIFFERENT problem (lat/long -> timezone). The implementer owns the final
+choice and must record the candidates considered.
 
-Four things the task requires it to establish itself rather than inherit: that `Australia/Brisbane` ->
-`AU` -> `AUD` works as a TEST since that is the principal's own reported case; that the data is
+Four things the task requires it to establish itself rather than inherit: that `Australia/Brisbane`
+-> `AU` -> `AUD` works as a TEST since that is the principal's own reported case; that the data is
 IANA-derived and carries deprecated-zone aliases so legacy names like `Australia/Queensland` or
-`Asia/Calcutta` still resolve; the real transitive dependency count from the LOCKFILE rather than the
-registry page; and that the `UTC` fallback works, since containers report `UTC` which maps to no
+`Asia/Calcutta` still resolve; the real transitive dependency count from the LOCKFILE rather than
+the registry page; and that the `UTC` fallback works, since containers report `UTC` which maps to no
 country — the reason the frozen text keeps locale as the fallback rung.
 
 Also recorded: dependency overrides live in `pnpm-workspace.yaml`, NOT `package.json`;
-`detectDefaultCurrency` has exactly one production caller (`src/lib/vault/ensure-default.ts:23`) plus
-a stale doc-comment at `src/lib/crdt/defaults.ts:132` saying "infer from browser locale" which must be
-corrected so it does not contradict shipped behaviour.
+`detectDefaultCurrency` has exactly one production caller (`src/lib/vault/ensure-default.ts:23`)
+plus a stale doc-comment at `src/lib/crdt/defaults.ts:132` saying "infer from browser locale" which
+must be corrected so it does not contradict shipped behaviour.
 
 Evidence `evidence/P25/implementation-01.md`; review path reserved `reviews/P25-review-01.md`.
 
@@ -7042,30 +7161,32 @@ Evidence `evidence/P25/implementation-01.md`; review path reserved `reviews/P25-
 
 DISTINCT reviewer `p24-reviewer-01` returned **PASS** at `e3882eb` (`reviews/P24-review-01.md`, 513
 lines, review-file-only, verified ancestor of HEAD). All 13 dispatch criteria confirmed. It verified
-every commit with `git merge-base --is-ancestor` rather than `git show`, so none is a dangling amend.
+every commit with `git merge-base --is-ancestor` rather than `git show`, so none is a dangling
+amend.
 
 **Its own campaign: 5/5 consecutive full-suite `--retries=0` runs at 167 passed**, digest
 `65cd3673…` verified before run 1 and after run 5, own worktree — independently REPRODUCING the
 implementer's campaign and its digest rather than accepting them. Plus typecheck PASS, lint exit 0,
-`format:check` failing on exactly the 17 pre-existing frozen `specs/**` files with zero P24 files, and
-`pnpm test` 2140 passed / 2 skipped.
+`format:check` failing on exactly the 17 pre-existing frozen `specs/**` files with zero P24 files,
+and `pnpm test` 2140 passed / 2 skipped.
 
-**Manual browser verification in the RUNNING app**, against the human's :3001 server after confirming
-it serves a tree with `9e81a8d` as an ancestor: the avatar the principal reported as "AD" with a
-raw-hash tooltip now reads `label "Me" | text "M" | tooltip "Me (online)"` on both the mobile and
-sidebar groups, stable across reload. Renamed to "Ben Tefay" it became `"BT"` with the tooltip
-following, and the background stayed `rgb(14,165,233)` — proving colour survives a rename IN PRODUCT,
-not merely in tests. Zero console errors, no failed requests, session closed and data deleted.
+**Manual browser verification in the RUNNING app**, against the human's :3001 server after
+confirming it serves a tree with `9e81a8d` as an ancestor: the avatar the principal reported as "AD"
+with a raw-hash tooltip now reads `label "Me" | text "M" | tooltip "Me (online)"` on both the mobile
+and sidebar groups, stable across reload. Renamed to "Ben Tefay" it became `"BT"` with the tooltip
+following, and the background stayed `rgb(14,165,233)` — proving colour survives a rename IN
+PRODUCT, not merely in tests. Zero console errors, no failed requests, session closed and data
+deleted.
 
-**Two line numbers in root's dispatch were stale** and the reviewer corrected them: the group render is
-`PresenceAvatarGroup.tsx:75` not `:74`, and the row's is `:552` not `:539`. Root verified both.
+**Two line numbers in root's dispatch were stale** and the reviewer corrected them: the group render
+is `PresenceAvatarGroup.tsx:75` not `:74`, and the row's is `:552` not `:539`. Root verified both.
 Substance unaffected, but it is the same root pattern already recorded — a reading quoted after the
 tree moved.
 
 **A-1 (ADVISORY, non-blocking) qualifies a claim root endorsed.** Root accepted that making
 `displayName` a REQUIRED prop on `PresenceAvatar` makes "avatar rendered without a resolved name"
-unrepresentable. The reviewer proved that is only true at the leaf: `resolveMemberName?` is OPTIONAL on
-both `TransactionTable.tsx:51` and `TransactionRow.tsx:100`, with `?? { kind: "unnamed" }` at
+unrepresentable. The reviewer proved that is only true at the leaf: `resolveMemberName?` is OPTIONAL
+on both `TransactionTable.tsx:51` and `TransactionRow.tsx:100`, with `?? { kind: "unnamed" }` at
 `TransactionRow.tsx:225`, so the row avatar's guarantee rests on ONE unguarded call site. It
 demonstrated this empirically in a throwaway `git archive` tree — deleting the single plumbing line
 `TransactionTable.tsx:496` yields **tsc exit 0 and 1810 unit tests passing**. Root verified the
@@ -7078,16 +7199,16 @@ scopes every locator to `page.locator("aside")`. It is the site with the worst b
 the thinnest coverage; its wrapper is `aria-hidden`, so a unit test on `TransactionRow` is the
 practical route.
 
-**Label robustness, judged as asked:** the `exact: true` locators are sound for the collision that bit,
-and the reviewer checked the rest of the `aside` for further substring collisions and found none. The
-hash-absence loop and `tooltip.startsWith(label)` are structural and survive any copy change; the three
-name locators would break on a rename, but LOUDLY, which is acceptable for a requirement about what
-label a user sees.
+**Label robustness, judged as asked:** the `exact: true` locators are sound for the collision that
+bit, and the reviewer checked the rest of the `aside` for further substring collisions and found
+none. The hash-absence loop and `tooltip.startsWith(label)` are structural and survive any copy
+change; the three name locators would break on a rename, but LOUDLY, which is acceptable for a
+requirement about what label a user sees.
 
 **Q-P24-02 proposed by the reviewer and generalised from A-1:** a required prop on a leaf component
-does NOT make a state unrepresentable if an upstream prop is optional with a `?? default`. Demonstrated
-empirically rather than asserted. It also independently re-measured `Q-P24-01`'s exposure and got the
-same figures: 469 name-carrying `getByRole` calls, 33 with `exact`.
+does NOT make a state unrepresentable if an upstream prop is optional with a `?? default`.
+Demonstrated empirically rather than asserted. It also independently re-measured `Q-P24-01`'s
+exposure and got the same figures: 469 name-carrying `getByRole` calls, 33 with `exact`.
 
 **P24 -> `passed`; UR-003 -> `passed`. Tally: 25 of 33 requirements, 24 of 32 feature packages.**
 
@@ -7097,87 +7218,91 @@ same figures: 469 name-carrying `getByRole` calls, 33 with `exact`.
 fast-forwarded main: `b41e715` (product/test) and `6ad7ebe` (evidence), 11 files, no ledger, marker,
 scratch, SCOPE, spec, FINAL-AUDIT or reviews file touched.
 
-**FIFTH ROOT ERROR, and the most consequential: root cited the WRONG FROZEN SOURCE in the dispatch.**
-Root wrote `specs/010-user-reported-refinements-2/spec.md` lines 40-54 for UR-004. Verified: that file
-contains no UR-004 at all — its headings are UR-005/006/007/008 — and lines 40-54 are **UR-007, locale
-date formatting**. The correct source is `specs/009-user-reported-refinements/spec.md` lines 76-98, per
-SCOPE. **Following root's citation literally would have built the wrong feature.** The implementer
-caught it, ruled from the task files and SCOPE instead, and reported it rather than working around it.
+**FIFTH ROOT ERROR, and the most consequential: root cited the WRONG FROZEN SOURCE in the
+dispatch.** Root wrote `specs/010-user-reported-refinements-2/spec.md` lines 40-54 for UR-004.
+Verified: that file contains no UR-004 at all — its headings are UR-005/006/007/008 — and lines
+40-54 are **UR-007, locale date formatting**. The correct source is
+`specs/009-user-reported-refinements/spec.md` lines 76-98, per SCOPE. **Following root's citation
+literally would have built the wrong feature.** The implementer caught it, ruled from the task files
+and SCOPE instead, and reported it rather than working around it.
 
 Root immediately audited every queued UR task file against SCOPE: **all eight match exactly**
 (UR-004 009/76-98, UR-005 010/11-24, UR-006 010/26-38, UR-007 010/40-54, UR-008 010/56-86, UR-009
-011/16-61, UR-010 012/11-29, UR-011 012/31-55). The skew was confined to root's dispatch prose, not to
-any committed artifact, so no other package is contaminated. This is the same recorded root pattern —
-asserting from memory what an authoritative file already states — and the mitigation is now explicit:
-**dispatches must quote the citation from the task file, never from root's recollection.**
+011/16-61, UR-010 012/11-29, UR-011 012/31-55). The skew was confined to root's dispatch prose, not
+to any committed artifact, so no other package is contaminated. This is the same recorded root
+pattern — asserting from memory what an authoritative file already states — and the mitigation is
+now explicit: **dispatches must quote the citation from the task file, never from root's
+recollection.**
 
-Second, immaterial correction accepted: `new Intl.Locale('en',{timeZone:'Australia/Brisbane'}).region`
-returns `undefined`, not `'none'`. Conclusion unchanged.
+Second, immaterial correction accepted:
+`new Intl.Locale('en',{timeZone:'Australia/Brisbane'}).region` returns `undefined`, not `'none'`.
+Conclusion unchanged.
 
-**Dependency:** `countries-and-timezones@3.9.0`, MIT, added via `pnpm add`. Root verified the lockfile
-entry reads `countries-and-timezones@3.9.0: {}` — **zero transitive dependencies** — and installed it
-in the main checkout. Candidates considered and rejected in evidence §2: `tz-lookup` (confirmed by the
-implementer to solve the inverse problem, `tzlookup(lat,lon) -> zone`), `moment-timezone`, native
-`Intl`.
+**Dependency:** `countries-and-timezones@3.9.0`, MIT, added via `pnpm add`. Root verified the
+lockfile entry reads `countries-and-timezones@3.9.0: {}` — **zero transitive dependencies** — and
+installed it in the main checkout. Candidates considered and rejected in evidence §2: `tz-lookup`
+(confirmed by the implementer to solve the inverse problem, `tzlookup(lat,lon) -> zone`),
+`moment-timezone`, native `Intl`.
 
 **Root verified the principal's own case directly, not from evidence:** `Australia/Brisbane -> AU`,
-`Australia/Queensland -> AU` (deprecated alias resolves), `Asia/Calcutta -> IN`, `UTC -> (none)` so it
-falls through to locale exactly as the frozen text requires. Root gates: typecheck clean; unit **115
-files, 2182 passed / 2 skipped** (up from 2140); no forbidden casts in the product diff.
+`Australia/Queensland -> AU` (deprecated alias resolves), `Asia/Calcutta -> IN`, `UTC -> (none)` so
+it falls through to locale exactly as the frozen text requires. Root gates: typecheck clean; unit
+**115 files, 2182 passed / 2 skipped** (up from 2140); no forbidden casts in the product diff.
 
-**Mutation check ruling out a false pass:** the implementer's host TZ *is* `Australia/Brisbane`, so a
-Brisbane-expects-AUD test could pass for the wrong reason. It ruled that out two ways — the file passes
-120/120 under `TZ=America/New_York`, and stubbing `getBrowserTimeZone()` to `undefined` failed exactly
-one test, the timezone-preference one.
+**Mutation check ruling out a false pass:** the implementer's host TZ _is_ `Australia/Brisbane`, so
+a Brisbane-expects-AUD test could pass for the wrong reason. It ruled that out two ways — the file
+passes 120/120 under `TZ=America/New_York`, and stubbing `getBrowserTimeZone()` to `undefined`
+failed exactly one test, the timezone-preference one.
 
 **Out-of-plan finding, disclosed:** making TZ primary means every test vault's default currency now
 depends on the HOST time zone, where Playwright's default `en-US` locale previously forced USD
 deterministically. Three specs asserted USD only incidentally, so the implementer added
-`test.use({ timezoneId: "America/New_York" })` to `people-settlement.spec.ts`, `accounts.spec.ts` and
-`vault-settings.spec.ts` with an explanatory comment. No assertion weakened; they are now MORE
+`test.use({ timezoneId: "America/New_York" })` to `people-settlement.spec.ts`, `accounts.spec.ts`
+and `vault-settings.spec.ts` with an explanatory comment. No assertion weakened; they are now MORE
 deterministic. It flagged this as touching specs outside the enumerated scope rather than doing it
 silently.
 
 **E2E campaign restarted once, disclosed:** the first two runs both passed but the whole-diff digest
 changed between them, because `next dev` rewrites `next-env.d.ts` on every start. The implementer
 restored it, scoped the digest to source excluding that path, and restarted from run 1 rather than
-reporting a mixed campaign. Clean campaign: **3 consecutive full-suite `--retries=0` runs, 167 passed
-each**, source digest `b1086650…` stable. **Recommendation adopted for future dispatches: exclude
-`next-env.d.ts` from campaign digests, since it flips by construction.**
+reporting a mixed campaign. Clean campaign: **3 consecutive full-suite `--retries=0` runs, 167
+passed each**, source digest `b1086650…` stable. **Recommendation adopted for future dispatches:
+exclude `next-env.d.ts` from campaign digests, since it flips by construction.**
 
 Dispatched `p25-reviewer-01` (DISTINCT, fresh context, never the P25 implementer).
 
 ### 2026-08-02 — P26 rev 01 DISPATCHED (UR-005 minimal table chrome at rest)
 
 Recovery scan: HEAD `8d2b1e5`, tree clean, scratch gate MET, canary 1, port :3000 free after
-`p25-reviewer-01` released it following an independently reproduced 3/3 campaign at 167 passed.
-Runs in PARALLEL with P25's review, which is doing manual checks and writing its verdict; file sets
-are disjoint (P25 is currency/vault-defaults, P26 is transaction-table styling).
+`p25-reviewer-01` released it following an independently reproduced 3/3 campaign at 167 passed. Runs
+in PARALLEL with P25's review, which is doing manual checks and writing its verdict; file sets are
+disjoint (P25 is currency/vault-defaults, P26 is transaction-table styling).
 
-**Root PROVED the mechanism before dispatch rather than leaving the implementer to guess**, because a
-wrong guess here would send it editing a shared primitive used product-wide. The chain, all verified:
+**Root PROVED the mechanism before dispatch rather than leaving the implementer to guess**, because
+a wrong guess here would send it editing a shared primitive used product-wide. The chain, all
+verified:
 
 - The inline cells DO render the shared shadcn `Input` (`InlineEditableAmount.tsx:16` imports it,
   renders at `:255`).
 - `cn` is `twMerge(clsx(...))` (`src/lib/utils.ts:5`), and **`twMerge` does NOT treat a bare
-  `bg-transparent` as conflicting with a variant-prefixed `dark:bg-input/30`** — different states, so
-  both survive. Root ran it directly:
+  `bg-transparent` as conflicting with a variant-prefixed `dark:bg-input/30`** — different states,
+  so both survive. Root ran it directly:
   `twMerge('dark:bg-input/30 border bg-transparent', 'h-7 border-transparent bg-transparent shadow-none')`
   returns a string still containing `dark:bg-input/30`.
 - `--input` in dark mode is `oklch(1 0 0 / 15%)` (`src/app/globals.css:118`), i.e. 15% white.
 
-So in dark mode every inline cell renders a resting fill its own `bg-transparent` CANNOT remove, plus
-an inherited `border` and `shadow-xs`. That is the principal's reported chrome, and it explains why the
-cells look styled when their own classes are clean: the cells' `bg-accent/30` is `hover:`-scoped
-(`InlineEditableAmount.tsx:270` etc.), and the row's `bg-accent/50` is `hover:`/`focus:`-scoped
-(`TransactionRow.tsx:314-324`), with no zebra striping anywhere.
+So in dark mode every inline cell renders a resting fill its own `bg-transparent` CANNOT remove,
+plus an inherited `border` and `shadow-xs`. That is the principal's reported chrome, and it explains
+why the cells look styled when their own classes are clean: the cells' `bg-accent/30` is
+`hover:`-scoped (`InlineEditableAmount.tsx:270` etc.), and the row's `bg-accent/50` is
+`hover:`/`focus:`-scoped (`TransactionRow.tsx:314-324`), with no zebra striping anywhere.
 
-**Constraint written into the task: do NOT edit `src/components/ui/input.tsx`.** It backs every input
-in the product — settings, dialogs, filters — while UR-005 is scoped to the transaction table.
-Override at the cell layer and VERIFY the override actually wins under `twMerge` rather than assuming
-it does, since the entire reason this defect exists is that an obvious-looking override silently did
-not. If the fill proves dark-mode-only, that must be stated explicitly: the frozen text is not
-theme-scoped, so a fix working in one theme is incomplete.
+**Constraint written into the task: do NOT edit `src/components/ui/input.tsx`.** It backs every
+input in the product — settings, dialogs, filters — while UR-005 is scoped to the transaction table.
+Override at the cell layer and VERIFY the override actually wins under `twMerge` rather than
+assuming it does, since the entire reason this defect exists is that an obvious-looking override
+silently did not. If the fill proves dark-mode-only, that must be stated explicitly: the frozen text
+is not theme-scoped, so a fix working in one theme is incomplete.
 
 Evidence `evidence/P26/implementation-01.md`; review path reserved `reviews/P26-review-01.md`.
 
@@ -7187,31 +7312,31 @@ DISTINCT reviewer `p25-reviewer-01` returned **PASS** at `79dba2b` (`reviews/P25
 lines, review-file-only, verified ancestor of HEAD). Both product commits verified with
 `git merge-base --is-ancestor` rather than `git show`, so neither is a dangling amend.
 
-**Its own six checks:** typecheck PASS; lint 0 errors; `format:check` the known 17 pre-existing frozen
-`specs/**` files with `evidence/P25` NOT among them; unit 2182 passed / 2 skipped; **E2E 3/3
+**Its own six checks:** typecheck PASS; lint 0 errors; `format:check` the known 17 pre-existing
+frozen `specs/**` files with `evidence/P25` NOT among them; unit 2182 passed / 2 skipped; **E2E 3/3
 full-suite `--retries=0` at 167 passed**, digest `e93aaf62…` byte-identical across all three runs,
 excluding `next-env.d.ts` per the P25 lesson.
 
-**Manual browser check on the PRINCIPAL'S EXACT CONFIGURATION** — session tz `Australia/Brisbane` with
-langs `["en-US","en"]`, the precise combination that produced the reported USD. A new vault landed
-showing **AUD**; changed to JPY, reloaded, still JPY; 0 console errors. It first PROVED the :3001 dev
-server served the reviewed code — main had advanced to `8d2b1e5`, but
-`git diff 54a8136 8d2b1e5 -- src/ tests/ package.json pnpm-lock.yaml` is EMPTY — rather than assuming.
-It left the recovery phrase concealed so no secret material entered any log.
+**Manual browser check on the PRINCIPAL'S EXACT CONFIGURATION** — session tz `Australia/Brisbane`
+with langs `["en-US","en"]`, the precise combination that produced the reported USD. A new vault
+landed showing **AUD**; changed to JPY, reloaded, still JPY; 0 console errors. It first PROVED the
+:3001 dev server served the reviewed code — main had advanced to `8d2b1e5`, but
+`git diff 54a8136 8d2b1e5 -- src/ tests/ package.json pnpm-lock.yaml` is EMPTY — rather than
+assuming. It left the recovery phrase concealed so no secret material entered any log.
 
 **The false-pass check reproduced, with a nuance the reviewer disclosed against itself.** Its first
 mutation stubbed the BODY of `getBrowserTimeZone` and produced TWO failures, not the claimed one.
-Re-reading the evidence it found the claim was about a CALL-SITE mutation, reproduced that exact one,
-and got **1 failed / 119 passed** — the evidence is accurate as written and the reviewer's first probe
-had mutated a different thing. It recorded both rather than quietly dropping its own error. It also
-confirmed host-TZ independence more strongly than claimed: 120/120 under `America/New_York`, `UTC` AND
-`Australia/Brisbane`.
+Re-reading the evidence it found the claim was about a CALL-SITE mutation, reproduced that exact
+one, and got **1 failed / 119 passed** — the evidence is accurate as written and the reviewer's
+first probe had mutated a different thing. It recorded both rather than quietly dropping its own
+error. It also confirmed host-TZ independence more strongly than claimed: 120/120 under
+`America/New_York`, `UTC` AND `Australia/Brisbane`.
 
 **All nine dispatch claims survived**, including the citation root got wrong for the implementer:
 SCOPE's `lineRange "76-98"` and its `sourceTextLines` are byte-identical to `spec.md` 76-98. The
 library results matched independently across 16 probed zones. The out-of-scope spec edits are 19
-insertions and **ZERO deletions** — no assertion weakened, and those specs are now more deterministic
-than before, since they previously inherited the host zone implicitly.
+insertions and **ZERO deletions** — no assertion weakened, and those specs are now more
+deterministic than before, since they previously inherited the host zone implicitly.
 
 **Root's open question answered YES, traced not inferred.** The inferred value is genuinely only a
 default: `detectDefaultCurrency` has exactly one production caller (`ensure-default.ts:143`), placed
@@ -7219,16 +7344,17 @@ AFTER the existing-vault guard at `:113-123`, so a returning user's unlock never
 reviewer also traced a subtlety root had not asked about — `vault-provider.tsx:384` calls
 `getDefaultVaultState()` on every open with no argument, yielding "USD", but loro-mirror treats
 `initialState` as a non-overriding shape hint (`if (!(k in base))`) and never calls setState, so an
-existing vault's currency cannot be reset by a later time-zone change. Confirmed empirically by reload.
+existing vault's currency cannot be reset by a later time-zone change. Confirmed empirically by
+reload.
 
-**ADVISORY P25-01 (non-blocking), root verified:** `src/lib/domain/detect-currency.ts:24-25` says the
-user can change the currency "before and after creation". Root confirmed
-`grep -rniE 'currenc' 'src/app/(onboarding)/'` returns NOTHING — there is no pre-creation prompt; the
-vault is created headlessly and the currency is first presented on /settings immediately after. The
-reviewer correctly did NOT fail on it: the clause is lifted near-verbatim from frozen `spec.md:97-98`,
-so the implementer was tracking the requirement's own wording, and the substantive requirement is met.
-The gap is between the frozen text's description of a flow and the flow that exists. Root will route
-the reword rather than have a worker edit wording derived from frozen text.
+**ADVISORY P25-01 (non-blocking), root verified:** `src/lib/domain/detect-currency.ts:24-25` says
+the user can change the currency "before and after creation". Root confirmed
+`grep -rniE 'currenc' 'src/app/(onboarding)/'` returns NOTHING — there is no pre-creation prompt;
+the vault is created headlessly and the currency is first presented on /settings immediately after.
+The reviewer correctly did NOT fail on it: the clause is lifted near-verbatim from frozen
+`spec.md:97-98`, so the implementer was tracking the requirement's own wording, and the substantive
+requirement is met. The gap is between the frozen text's description of a flow and the flow that
+exists. Root will route the reword rather than have a worker edit wording derived from frozen text.
 
 **P25 -> `passed`; UR-004 -> `passed`. Tally: 26 of 33 requirements, 25 of 32 feature packages.**
 
@@ -7243,47 +7369,47 @@ constraint held.
 forbidden casts in the product diff.
 
 **ROOT'S DIAGNOSIS WAS CORRECT BUT INCOMPLETE, and the implementer found the gap.** Root proved the
-resting fill came from `input.tsx`'s `dark:bg-input/30` surviving `twMerge`. The implementer verified
-all eight of root's claims — citation, SCOPE, twMerge behaviour, `--input` value, hover-scoping, row
-container, the 167 baseline — and ALL SURVIVED, but it also found the fill is NOT confined to
-`input.tsx`. Root independently confirmed: `select.tsx:34` (status cell) and the outline Button
-variant `button.tsx:17` (account cell) carry the SAME `dark:bg-input/30`, and the Button additionally
-carries `dark:border-input`, the only source of a resting BORDER. **A fix touching only Input-backed
-cells would have left the status and account cells visibly filled** — root's dispatch would have
-produced a partial fix.
+resting fill came from `input.tsx`'s `dark:bg-input/30` surviving `twMerge`. The implementer
+verified all eight of root's claims — citation, SCOPE, twMerge behaviour, `--input` value,
+hover-scoping, row container, the 167 baseline — and ALL SURVIVED, but it also found the fill is NOT
+confined to `input.tsx`. Root independently confirmed: `select.tsx:34` (status cell) and the outline
+Button variant `button.tsx:17` (account cell) carry the SAME `dark:bg-input/30`, and the Button
+additionally carries `dark:border-input`, the only source of a resting BORDER. **A fix touching only
+Input-backed cells would have left the status and account cells visibly filled** — root's dispatch
+would have produced a partial fix.
 
-**Theme answer: the resting fill is DARK-MODE ONLY**, with light mode measured clean at rest before any
-change, and the percentage and tags cells already clean in both themes because they render a plain
-button/div rather than a shared primitive. The fix is nonetheless written theme-agnostically so a
-future light `--input` value cannot reintroduce it: `RESTING_CELL_CHROME` pairs every utility with its
-`dark:` variant, which is exactly the asymmetry that caused the defect.
+**Theme answer: the resting fill is DARK-MODE ONLY**, with light mode measured clean at rest before
+any change, and the percentage and tags cells already clean in both themes because they render a
+plain button/div rather than a shared primitive. The fix is nonetheless written theme-agnostically
+so a future light `--input` value cannot reintroduce it: `RESTING_CELL_CHROME` pairs every utility
+with its `dark:` variant, which is exactly the asymmetry that caused the defect.
 
-**A repo-wide measurement trap, surfaced and root-verified:** in dark mode `--muted` and `--accent` are
-the SAME token — both `oklch(0.279 0.041 260.031)` at `globals.css:113,115`. So a `hover:bg-accent/30`
-paint reading is byte-identical to `bg-muted/30`, and any measurement taken with the pointer parked
-cannot distinguish RETAINED HOVER FEEDBACK from RESTING CHROME. The implementer's own first readings
-were wrong for this reason and it said so.
+**A repo-wide measurement trap, surfaced and root-verified:** in dark mode `--muted` and `--accent`
+are the SAME token — both `oklch(0.279 0.041 260.031)` at `globals.css:113,115`. So a
+`hover:bg-accent/30` paint reading is byte-identical to `bg-muted/30`, and any measurement taken
+with the pointer parked cannot distinguish RETAINED HOVER FEEDBACK from RESTING CHROME. The
+implementer's own first readings were wrong for this reason and it said so.
 
 **Falsifiability proven, not claimed:** weakening the constant to the obvious-looking
-`"border-transparent bg-transparent shadow-none"` fails the new E2E and one unit case; restoring makes
-both green. A unit case also asserts an Input OUTSIDE the table still merges to `dark:bg-input/30`, so
-the blast radius is PROVEN bounded rather than assumed. The new E2E runs its whole battery twice, once
-per theme via `emulateMedia`, so a one-theme fix cannot pass.
+`"border-transparent bg-transparent shadow-none"` fails the new E2E and one unit case; restoring
+makes both green. A unit case also asserts an Input OUTSIDE the table still merges to
+`dark:bg-input/30`, so the blast radius is PROVEN bounded rather than assumed. The new E2E runs its
+whole battery twice, once per theme via `emulateMedia`, so a one-theme fix cannot pass.
 
-**Campaign discipline, disclosed:** a first 3/3 clean campaign was DISCARDED by the implementer's own
-choice. While it ran, root published `Q-P25-01` (comments must not restate frozen text as fact); on
-re-reading, its constant's doc comment both restated UR-005's guarantee as if describing the code AND
-claimed state utilities win by "higher specificity" — wrong, Tailwind variants win by emission order.
-It rewrote the comment, which changed the tree, and restarted from run 1. Final campaign: **3
+**Campaign discipline, disclosed:** a first 3/3 clean campaign was DISCARDED by the implementer's
+own choice. While it ran, root published `Q-P25-01` (comments must not restate frozen text as fact);
+on re-reading, its constant's doc comment both restated UR-005's guarantee as if describing the code
+AND claimed state utilities win by "higher specificity" — wrong, Tailwind variants win by emission
+order. It rewrote the comment, which changed the tree, and restarted from run 1. Final campaign: **3
 consecutive full-suite `--retries=0` runs at 168/168** (167 baseline + 1 new test), digest
 `abbc1917…` identical before and after, `next-env.d.ts` excluded per the P25 lesson.
 
-**Open scope question surfaced rather than silently decided:** `TransactionRow.tsx:566`'s `bg-muted/30`
-was left unchanged and justified, but the expanded notes TEXTAREA carries the same dark-mode resting
-fill via `textarea.tsx:10` — measured at `oklab(... / 0.045)`. The implementer left it because it is
-not one of the six cells the frozen text names and the expanded row is not present at rest, and flagged
-it as a one-line follow-up with the same constant if root reads UR-005 as covering it. Routed to the
-reviewer for a judgement.
+**Open scope question surfaced rather than silently decided:** `TransactionRow.tsx:566`'s
+`bg-muted/30` was left unchanged and justified, but the expanded notes TEXTAREA carries the same
+dark-mode resting fill via `textarea.tsx:10` — measured at `oklab(... / 0.045)`. The implementer
+left it because it is not one of the six cells the frozen text names and the expanded row is not
+present at rest, and flagged it as a one-line follow-up with the same constant if root reads UR-005
+as covering it. Routed to the reviewer for a judgement.
 
 Dispatched `p26-reviewer-01` (DISTINCT, fresh context, never the P26 implementer).
 
@@ -7297,46 +7423,48 @@ matches the frozen `a137e388…`.
 
 **Root's corrected diagnosis proven BY MUTATION, not by reading.** Reverting the account call site
 alone fails with `account resting fill in dark`; reverting the status site alone fails with
-`status-editable resting fill in dark`. So a fix following root's ORIGINAL `input.tsx`-only diagnosis
-would have left both cells visibly filled — the implementer's correction was load-bearing.
+`status-editable resting fill in dark`. So a fix following root's ORIGINAL `input.tsx`-only
+diagnosis would have left both cells visibly filled — the implementer's correction was load-bearing.
 
-**Its own verification:** typecheck clean; lint 0 errors; format:check exactly 17 pre-existing frozen
-files, none P26's; unit 2186 passed / 2 skipped with no ratio flake; **E2E 3/3 at 168**, digest
-`a28311d0…` stable pre-run-1 through post-run-3, with 168 verified as 167+1 by COUNTING `test(`
-declarations at base versus HEAD rather than assuming.
+**Its own verification:** typecheck clean; lint 0 errors; format:check exactly 17 pre-existing
+frozen files, none P26's; unit 2186 passed / 2 skipped with no ratio flake; **E2E 3/3 at 168**,
+digest `a28311d0…` stable pre-run-1 through post-run-3, with 168 verified as 167+1 by COUNTING
+`test(` declarations at base versus HEAD rather than assuming.
 
 **It designed AROUND the measurement trap rather than through it:** every resting reading taken with
-the pointer at `(0,0)` and focus blurred, every state reading as a same-cell before/after DELTA — which
-two tokens sharing a value cannot confound. All six cells paint `rgba(0,0,0,0)` at rest in BOTH themes.
-Contrast independently re-measured at settle: minimum **4.76:1**, all passing AA, corroborating that the
-implementer's 1.37 reading was a transition artifact. It also falsified the hover assertion by deleting
-`hover:bg-accent/30` and confirming failure, so state feedback is genuinely guarded.
+the pointer at `(0,0)` and focus blurred, every state reading as a same-cell before/after DELTA —
+which two tokens sharing a value cannot confound. All six cells paint `rgba(0,0,0,0)` at rest in
+BOTH themes. Contrast independently re-measured at settle: minimum **4.76:1**, all passing AA,
+corroborating that the implementer's 1.37 reading was a transition artifact. It also falsified the
+hover assertion by deleting `hover:bg-accent/30` and confirming failure, so state feedback is
+genuinely guarded.
 
 **SCOPE RULING (routed to the reviewer, now decided not overlooked): UR-005 does NOT cover the
-expanded-row surfaces.** Reasoning from the frozen text: it names six cells as a CLOSED list and states
-its subject as the RESTING state twice, and the expanded row is not present at rest. The reviewer
-confirmed both measurements itself first.
+expanded-row surfaces.** Reasoning from the frozen text: it names six cells as a CLOSED list and
+states its subject as the RESTING state twice, and the expanded row is not present at rest. The
+reviewer confirmed both measurements itself first.
 
 **ADVISORY F-1 (Medium, test gap) — root verified, and it lands on a check ROOT asked for.** Root's
 dispatch criterion 5 required the blast radius be "PROVEN bounded, not assumed". The test at
-`tests/unit/transactions/cell-resting-chrome.test.ts:82-87` asserts against a hand-copied string literal
-`SHARED_PRIMITIVE_BASES.input` declared in the SAME FILE and never imports `Input` — root confirmed
-there is no `@/components/ui/input` import anywhere in it. The reviewer leaked the fix's chrome into the
-real `src/components/ui/input.tsx` product-wide and **both full suites stayed green: 2186 unit and 168
-E2E.** The blast radius genuinely IS bounded — `git diff -- src/components/ui/` is empty and the constant
-is imported only by the five cell sites — so shipped behaviour is correct. What fails is the ASSURANCE
-the test advertises, and its own comment reads "Blast radius, asserted rather than assumed", which is
-the one claim in the evidence that does not survive. The reviewer validated a one-file fix in both
-directions before proposing it.
+`tests/unit/transactions/cell-resting-chrome.test.ts:82-87` asserts against a hand-copied string
+literal `SHARED_PRIMITIVE_BASES.input` declared in the SAME FILE and never imports `Input` — root
+confirmed there is no `@/components/ui/input` import anywhere in it. The reviewer leaked the fix's
+chrome into the real `src/components/ui/input.tsx` product-wide and **both full suites stayed green:
+2186 unit and 168 E2E.** The blast radius genuinely IS bounded — `git diff -- src/components/ui/` is
+empty and the constant is imported only by the five cell sites — so shipped behaviour is correct.
+What fails is the ASSURANCE the test advertises, and its own comment reads "Blast radius, asserted
+rather than assumed", which is the one claim in the evidence that does not survive. The reviewer
+validated a one-file fix in both directions before proposing it.
 
 **ADVISORY F-2 (Medium, pattern):** `TransactionRow.tsx:583`, the notes Textarea, is now the ONLY
 remaining instance of the pattern this package exists to eliminate, one line from five fixed sites.
 Ruled out of UR-005 scope, so it needs its own charter.
 
 **Q-P26-01 and Q-P26-02 carried to P21:** a test hand-copying a dependency's source cannot constrain
-that dependency — sweep for fixtures and for test names containing "blast radius"/"outside"/"unchanged"/
-"does not disturb"; and any hand-written `bg-transparent` WITHOUT a `dark:` counterpart on a
-shadcn-primitive-backed element is a latent instance of this defect, invisible in source review.
+that dependency — sweep for fixtures and for test names containing "blast
+radius"/"outside"/"unchanged"/ "does not disturb"; and any hand-written `bg-transparent` WITHOUT a
+`dark:` counterpart on a shadcn-primitive-backed element is a latent instance of this defect,
+invisible in source review.
 
 **P26 -> `passed`; UR-005 -> `passed`. Tally: 27 of 33 requirements, 26 of 32 feature packages.**
 
@@ -7348,19 +7476,19 @@ Admitted at the principal's explicit instruction via a NEW frozen source
 `SRC-TRANSACTION-CELL-HIT-AREA`). `requirementCount` 33 -> 34; `human-scratch.md` untouched, still
 rolling `469e98c7…`. Markerless and immutable, the FS-001 mechanic. See D-024.
 
-**The principal's framing, preserved in the frozen text:** keep the exact same resting appearance and
-visual positions; only the hit area changes, so clicking anywhere in a cell begins editing without
-having to aim at the control. Every cell has a logical equivalent — the checkbox keeps its drawn size
-while its hit area spans the cell, the date keeps its text and icon in place, likewise the status
-select, tag chooser, amount and percentage fields.
+**The principal's framing, preserved in the frozen text:** keep the exact same resting appearance
+and visual positions; only the hit area changes, so clicking anywhere in a cell begins editing
+without having to aim at the control. Every cell has a logical equivalent — the checkbox keeps its
+drawn size while its hit area spans the cell, the date keeps its text and icon in place, likewise
+the status select, tag chooser, amount and percentage fields.
 
 **Root raised four objections before admitting it; the principal answered all four and root verified
 the load-bearing one.** Root asked whether row click currently does something that would be lost.
-`TransactionRow.tsx:310` fires `onClick` through `TransactionTable.tsx:536` to `onTransactionClick` —
-but `grep -n 'onTransactionClick' 'src/app/(app)/transactions/page.tsx'` returns NOTHING, so no caller
-supplies it and **row click is a genuine no-op**. The principal reported the same independently. So
-nothing is lost. The per-cell question the principal answered directly, and the frozen text records
-those answers rather than leaving them to an implementer.
+`TransactionRow.tsx:310` fires `onClick` through `TransactionTable.tsx:536` to `onTransactionClick`
+— but `grep -n 'onTransactionClick' 'src/app/(app)/transactions/page.tsx'` returns NOTHING, so no
+caller supplies it and **row click is a genuine no-op**. The principal reported the same
+independently. So nothing is lost. The per-cell question the principal answered directly, and the
+frozen text records those answers rather than leaving them to an implementer.
 
 **Regression constraints written into the task**, because this change sits on top of two just-passed
 packages: it must not reintroduce a resting fill or border (P26/UR-005 — resting cells still paint
@@ -7381,9 +7509,9 @@ Recovery scan: HEAD `1206513`, tree clean; scratch actual SHA `469e98c7…` EQUA
 
 Dispatched `p27-implementer-01`. **This package reuses P24's shared helper rather than writing a
 second lookup** — `resolveMemberDisplayName(people, pubkeyHash) -> MemberDisplayName` at
-`src/lib/crdt/person.ts:99`, returning the discriminated union at `:42`. P24 extracted it precisely so
-the members list and the presence avatar cannot drift apart; adding a second resolution path would
-defeat that.
+`src/lib/crdt/person.ts:99`, returning the discriminated union at `:42`. P24 extracted it precisely
+so the members list and the presence avatar cannot drift apart; adding a second resolution path
+would defeat that.
 
 Root pre-resolved the data-access question so it is not discovered mid-implementation:
 `AccessMembersSection` takes NO props (`:40`) and is rendered bare from
@@ -7391,10 +7519,10 @@ Root pre-resolved the data-access question so it is not discovered mid-implement
 (`src/lib/crdt/context.tsx:701`) is directly available because the settings page renders inside
 `VaultProvider` (`src/app/(app)/layout.tsx:96-101`). No prop threading is required.
 
-Target: `shortenPubkeyHash` (`AccessMembersSection.tsx:28-29`) renders `3f2a9b1c…4d5e` and has exactly
-TWO call sites — the visible label at `:130` and the `aria-label` at `:152`. The frozen text requires
-the accessible name to follow the same rule as the visible label, so BOTH must change, after which the
-helper is dead and should be deleted rather than left unused.
+Target: `shortenPubkeyHash` (`AccessMembersSection.tsx:28-29`) renders `3f2a9b1c…4d5e` and has
+exactly TWO call sites — the visible label at `:130` and the `aria-label` at `:152`. The frozen text
+requires the accessible name to follow the same rule as the visible label, so BOTH must change,
+after which the helper is dead and should be deleted rather than left unused.
 
 Evidence `evidence/P27/implementation-01.md`; review path reserved `reviews/P27-review-01.md`.
 
@@ -7403,55 +7531,57 @@ Evidence `evidence/P27/implementation-01.md`; review path reserved `reviews/P27-
 `p27-implementer-01` delivered `8c5cda6` (fix), `98858b4` and `ab80bbc` (evidence), all verified
 ancestors of HEAD. 7 files; no ledger, marker, scratch, SCOPE, spec, FINAL-AUDIT or reviews file
 touched. Root gates: typecheck clean; unit **117 files, 2195 passed / 2 skipped** (up from 2186);
-`shortenPubkeyHash` confirmed DELETED with no remaining callers; the `aria-label` at `:159` now carries
-the resolved name; no forbidden casts.
+`shortenPubkeyHash` confirmed DELETED with no remaining callers; the `aria-label` at `:159` now
+carries the resolved name; no forbidden casts.
 
 **IT DISPROVED AN ADVISORY FROM THE P24 REVIEW, and the failure mode it found is dangerous.** P24
-review-01 §4 suggested importing `UNNAMED_MEMBER_LABEL` from `@/lib/crdt/person` into an E2E spec so a
-label rename would break at compile time. The implementer TRIED it and found the chain
+review-01 §4 suggested importing `UNNAMED_MEMBER_LABEL` from `@/lib/crdt/person` into an E2E spec so
+a label rename would break at compile time. The implementer TRIED it and found the chain
 `person.ts:19 -> defaults.ts:12 -> @/types -> temporal-polyfill` breaks Playwright's resolver. Root
-verified `temporal-polyfill`'s package exports publish ONLY an `import` condition, exactly as reported.
-**Playwright then reports "No tests found" and SILENTLY SKIPS THE ENTIRE SPEC FILE rather than failing**
-— on a campaign that reads as a reduced test count, not a red run. The cited precedents work only
-because `@/lib/crypto/*` never reaches `@/types`. Recorded as `Q-P27-01`.
+verified `temporal-polyfill`'s package exports publish ONLY an `import` condition, exactly as
+reported. **Playwright then reports "No tests found" and SILENTLY SKIPS THE ENTIRE SPEC FILE rather
+than failing** — on a campaign that reads as a reduced test count, not a red run. The cited
+precedents work only because `@/lib/crypto/*` never reaches `@/types`. Recorded as `Q-P27-01`.
 
-**Campaign: 3/3 full-suite `--retries=0` at 170 passed**, digest `f73143fa` before run 1 and after run
-3, no restart and no drift. 168 at BASE and 170 at HEAD confirmed with `playwright test --list` rather
-than assumed — which is exactly the discipline that would catch a silently-skipped spec file.
+**Campaign: 3/3 full-suite `--retries=0` at 170 passed**, digest `f73143fa` before run 1 and after
+run 3, no restart and no drift. 168 at BASE and 170 at HEAD confirmed with `playwright test --list`
+rather than assumed — which is exactly the discipline that would catch a silently-skipped spec file.
 
-**Honest caveat flagged rather than buried:** of five full-suite `pnpm test` runs, four were green at
-2195 and ONE reported `1 failed | 2194 passed`. The implementer had piped that run through grep and
-lost the failing test's NAME. It could not reproduce it in three attempts including under deliberate
-heavy load, and `duplicates.test.ts` passes in isolation. The known wall-clock-ratio condition is the
-probable explanation, but it did NOT observe the name, so its evidence labels the attribution an
-UNCONFIRMED INFERENCE. The reviewer's campaign should watch for it.
+**Honest caveat flagged rather than buried:** of five full-suite `pnpm test` runs, four were green
+at 2195 and ONE reported `1 failed | 2194 passed`. The implementer had piped that run through grep
+and lost the failing test's NAME. It could not reproduce it in three attempts including under
+deliberate heavy load, and `duplicates.test.ts` passes in isolation. The known wall-clock-ratio
+condition is the probable explanation, but it did NOT observe the name, so its evidence labels the
+attribution an UNCONFIRMED INFERENCE. The reviewer's campaign should watch for it.
 
-**Two corrections to root's dispatch:** `AccessMembersSection` does take an optional `className` prop
-(`:40-43`) — it takes no `people`, which is what root's claim rested on, so substance is unaffected.
-And the P24 advisory above.
+**Two corrections to root's dispatch:** `AccessMembersSection` does take an optional `className`
+prop (`:40-43`) — it takes no `people`, which is what root's claim rested on, so substance is
+unaffected. And the P24 advisory above.
 
 **Scope flag, surfaced not buried:** the diff touches `PresenceAvatar.tsx` and `TransactionRow.tsx`,
 which are UR-003 surfaces, but only to route an open-coded
 `kind === "named" ? ... : UNNAMED_MEMBER_LABEL` ternary through a new shared `memberDisplayLabel`
 helper. Behaviour-identical and pinned by P24's existing 41 tests. The implementer did it because
-leaving three open-coded copies of the same rule would defeat the anti-drift purpose P24 established,
-and noted that reverting those hunks would not affect UR-006's observable behaviour.
+leaving three open-coded copies of the same rule would defeat the anti-drift purpose P24
+established, and noted that reverting those hunks would not affect UR-006's observable behaviour.
 
-**P24's A-1 lesson applied, with a different outcome, proven empirically.** A-1 warned that a leaf-level
-guarantee can be defeated by an optional prop upstream. This design has NO silent-degradation path:
-there is no prop to omit, because `usePeople -> useVaultSelector -> useLoroContext` THROWS without a
-provider. The implementer proved it with a disposable probe rather than by inspection —
+**P24's A-1 lesson applied, with a different outcome, proven empirically.** A-1 warned that a
+leaf-level guarantee can be defeated by an optional prop upstream. This design has NO
+silent-degradation path: there is no prop to omit, because
+`usePeople -> useVaultSelector -> useLoroContext` THROWS without a provider. The implementer proved
+it with a disposable probe rather than by inspection —
 `Error: useLoroContext must be used within a LoroProvider` — then deleted the probe and returned the
 worktree digest to baseline.
 
-**Tests proven to catch the defect:** all 6 new unit tests and both new E2E tests were run against the
-unmodified BASE component and FAIL, with output showing the hash roster verbatim. The E2E includes a
-rename step — renaming the person on the People page must change the roster — which is the assertion a
-future agent cannot satisfy by hardcoding a string.
+**Tests proven to catch the defect:** all 6 new unit tests and both new E2E tests were run against
+the unmodified BASE component and FAIL, with output showing the hash roster verbatim. The E2E
+includes a rename step — renaming the person on the People page must change the roster — which is
+the assertion a future agent cannot satisfy by hardcoding a string.
 
-**Manual browser check on the running app** (read-only, :3001): roster rendered `Me(you) owner`, then
-followed a rename to `Ben Tefay(you)`; the sidebar avatar showed `img "Me": M` on the same tree, so the
-two surfaces AGREE. 0 console errors, no failed requests, recovery phrase never revealed.
+**Manual browser check on the running app** (read-only, :3001): roster rendered `Me(you) owner`,
+then followed a rename to `Ben Tefay(you)`; the sidebar avatar showed `img "Me": M` on the same
+tree, so the two surfaces AGREE. 0 console errors, no failed requests, recovery phrase never
+revealed.
 
 Dispatched `p27-reviewer-01` (DISTINCT, fresh context, never the P27 implementer).
 
@@ -7467,44 +7597,45 @@ PASS, lint 0 errors, format:check still exactly 17 frozen files with zero P27 fi
 **Count verified TWO ways, which is the discipline `Q-P27-01` exists to enforce:** by
 `playwright test --list`, AND by finding both new tests actually EXECUTED at `[167/170]` and
 `[168/170]` in the run log rather than inferring their presence from the total. It independently
-re-confirmed the `Q-P27-01` mechanism — `temporal-polyfill` publishes only an `import` condition — so
-the silent-skip hazard is documented from two independent observations.
+re-confirmed the `Q-P27-01` mechanism — `temporal-polyfill` publishes only an `import` condition —
+so the silent-skip hazard is documented from two independent observations.
 
-**Root verified the single-resolution-path claim:** no second `linkedUserId` comparison exists outside
-`person.ts` for display purposes; the remaining matches in `PersonRow.tsx:51`, `PeopleTable.tsx:124`
-and `migration.ts:220` are self-identification and migration, not name resolution. The visible label
-and the `aria-label` both derive from ONE `memberLabel` binding at `AccessMembersSection.tsx:127`,
-used at `:137` and `:159`, so they cannot diverge by construction rather than by convention.
+**Root verified the single-resolution-path claim:** no second `linkedUserId` comparison exists
+outside `person.ts` for display purposes; the remaining matches in `PersonRow.tsx:51`,
+`PeopleTable.tsx:124` and `migration.ts:220` are self-identification and migration, not name
+resolution. The visible label and the `aria-label` both derive from ONE `memberLabel` binding at
+`AccessMembersSection.tsx:127`, used at `:137` and `:159`, so they cannot diverge by construction
+rather than by convention.
 
 **Scope question RULED IN SCOPE.** The `PresenceAvatar`/`TransactionRow` hunks are legitimate
 consolidation, on three grounds: `.claude/rules/coding-style.md` requires it, `tasks/ur-006.md`
-explicitly directs reuse of P24's helper, and UR-003's behaviour is identical — verified exhaustively
-rather than asserted, both sites being total two-branch matches over a two-case union where
-`?? {kind:"unnamed"}` reproduces BASE's optional-chaining fallback on all three cases. +6/-7 lines,
-no existing test weakened, P24's 41 tests green unchanged.
+explicitly directs reuse of P24's helper, and UR-003's behaviour is identical — verified
+exhaustively rather than asserted, both sites being total two-branch matches over a two-case union
+where `?? {kind:"unnamed"}` reproduces BASE's optional-chaining fallback on all three cases. +6/-7
+lines, no existing test weakened, P24's 41 tests green unchanged.
 
-**Defect-catching reproduced in the reviewer's own trees, never the shared checkout:** all 6 unit tests
-and both E2E tests go red against the BASE component with the hash roster verbatim. The E2E rename step
-holds — a future agent cannot satisfy it by hardcoding, because the expected value comes from a
-mutation the test itself makes on the People page.
+**Defect-catching reproduced in the reviewer's own trees, never the shared checkout:** all 6 unit
+tests and both E2E tests go red against the BASE component with the hash roster verbatim. The E2E
+rename step holds — a future agent cannot satisfy it by hardcoding, because the expected value comes
+from a mutation the test itself makes on the People page.
 
 **The unattributed red run is now NAMED**, closing the loop the implementer left open honestly:
-`tests/unit/import/duplicates.test.ts > detectDuplicates performance > scales linearly with input
-size`, at `1 failed | 2194 passed` matching the implementer's count exactly. The implementer's
-inference was right AND labelling it unconfirmed was still correct on the evidence it had.
+`tests/unit/import/duplicates.test.ts > detectDuplicates performance > scales linearly with input size`,
+at `1 failed | 2194 passed` matching the implementer's count exactly. The implementer's inference
+was right AND labelling it unconfirmed was still correct on the evidence it had.
 
 **Manual browser PASS** on the human's `:3001` after the campaign released `:3000`: roster read
 `Me(you) owner`, a rename followed to `Ben Tefay(you) owner` and persisted across reload, and the
-presence avatar showed `Me (online)` on the same tree — both surfaces agree. 0 console errors, recovery
-phrase never revealed.
+presence avatar showed `Me (online)` on the same tree — both surfaces agree. 0 console errors,
+recovery phrase never revealed.
 
-**ROOT NOTE — a write-boundary deviation, non-blocking.** `f1c7b77` touched 11 files, not the one its
-message implies: the review plus TEN `.claude/agent-memory/reviewer/*` notes. Those are the reviewer's
-own memory files, outside the "reviews/P27-review-01.md only" boundary root set. No product, test,
-ledger, marker, scratch, SCOPE, spec or FINAL-AUDIT file was touched, so nothing under review is
-contaminated and the verdict stands. Recorded because a write boundary should be observed or
-renegotiated, not quietly exceeded — and because agent-memory files persist across sessions and now
-form part of the committed record.
+**ROOT NOTE — a write-boundary deviation, non-blocking.** `f1c7b77` touched 11 files, not the one
+its message implies: the review plus TEN `.claude/agent-memory/reviewer/*` notes. Those are the
+reviewer's own memory files, outside the "reviews/P27-review-01.md only" boundary root set. No
+product, test, ledger, marker, scratch, SCOPE, spec or FINAL-AUDIT file was touched, so nothing
+under review is contaminated and the verdict stands. Recorded because a write boundary should be
+observed or renegotiated, not quietly exceeded — and because agent-memory files persist across
+sessions and now form part of the committed record.
 
 **P27 -> `passed`; UR-006 -> `passed`. Tally: 28 of 34 requirements, 27 of 33 feature packages.**
 
@@ -7512,31 +7643,33 @@ form part of the committed record.
 
 Recovery scan: HEAD `665cb90`, tree clean; scratch gate MET; canary 1; port :3000 free.
 
-**This dispatch is framed as an INVESTIGATION, not a fix spec, because root's reading suggests most of
-UR-007 may already be implemented.** `formatTransactionDate` (`src/lib/utils/date-format.ts`) already
-resolves `locale ?? navigator.language` (falling back to `en-GB`, not `en-US`), renders same-year dates
-as day/month with leading zeros stripped, adds a 2-digit year for other years above 2000, and uses
-`toLocaleString` for ORDER and SEPARATOR rather than a hardcoded pattern. 18 existing cases cover it at
-`tests/unit/domain/date-format.test.ts`.
+**This dispatch is framed as an INVESTIGATION, not a fix spec, because root's reading suggests most
+of UR-007 may already be implemented.** `formatTransactionDate` (`src/lib/utils/date-format.ts`)
+already resolves `locale ?? navigator.language` (falling back to `en-GB`, not `en-US`), renders
+same-year dates as day/month with leading zeros stripped, adds a 2-digit year for other years above
+2000, and uses `toLocaleString` for ORDER and SEPARATOR rather than a hardcoded pattern. 18 existing
+cases cover it at `tests/unit/domain/date-format.test.ts`.
 
-So the likely real defects are narrower than "dates are US format", and the implementer must establish
-which actually reproduce before writing anything:
+So the likely real defects are narrower than "dates are US format", and the implementer must
+establish which actually reproduce before writing anything:
+
 1. **Editing shows a FOUR-digit year** — `formatDateFull` (`InlineEditableDate.tsx:46-53`) passes
    `year: "numeric"` where frozen `spec.md:50` requires two digits. Visible in the code.
 2. **Date ENTRY parsing** — `spec.md:51-52` requires a value be typeable back in the form it was
-   displayed. If the input parses ISO or a fixed pattern rather than the locale form it just rendered,
-   that is a real defect and probably the one the principal hit.
-3. **WHICH SIGNAL is used.** UR-004 established that this machine runs `LANG=en_US.UTF-8` while sitting
-   in `Australia/Brisbane`, so `navigator.language` is `en-US`. If date display keys off
+   displayed. If the input parses ISO or a fixed pattern rather than the locale form it just
+   rendered, that is a real defect and probably the one the principal hit.
+3. **WHICH SIGNAL is used.** UR-004 established that this machine runs `LANG=en_US.UTF-8` while
+   sitting in `Australia/Brisbane`, so `navigator.language` is `en-US`. If date display keys off
    `navigator.language`, an `en-US` browser will CORRECTLY render US-ordered dates for an Australian
-   user — meaning the display code works exactly as written and the requirement is really about signal
-   choice, exactly the distinction UR-004 drew for currency. This must be established empirically.
+   user — meaning the display code works exactly as written and the requirement is really about
+   signal choice, exactly the distinction UR-004 drew for currency. This must be established
+   empirically.
 
 Root wrote an explicit instruction into the task: **if the display code already satisfies the frozen
 text and only the editing year and entry parsing need changing, say so plainly and scope the package
 accordingly — do NOT manufacture a larger change to match the report's framing.** A package that
-"fixes" already-correct code would churn files, risk regressions, and produce evidence that looks like
-progress while proving nothing.
+"fixes" already-correct code would churn files, risk regressions, and produce evidence that looks
+like progress while proving nothing.
 
 Evidence `evidence/P28/implementation-01.md`; review path reserved `reviews/P28-review-01.md`.
 
@@ -7550,50 +7683,51 @@ typecheck clean; unit **120 files, 2291 passed / 2 skipped** (up from 2195); no 
 and the fix directly. `InlineEditableDate.tsx:13` imported chrono's DEFAULT US-ordered parser, so a
 day-first viewer typing back the `03/08` the cell had just rendered saved **8 March**:
 `chrono.parseDate('03/08/2026')` -> `Sun Mar 08 2026` against `chrono.en.GB.parseDate` ->
-`Mon Aug 03 2026`. That writes a wrong date into the vault and is invisible whenever the day is <= 12.
-Root confirmed the fix: chrono no longer appears in the date cell's parse path, and
-`parse('03/08/2026','d/M/yyyy')` now yields `Mon Aug 03 2026`. The implementer proved it end to end by
-reverting only the product code: `Expected "03/08/26" / Received "08/03/2026"`.
+`Mon Aug 03 2026`. That writes a wrong date into the vault and is invisible whenever the day is
+<= 12. Root confirmed the fix: chrono no longer appears in the date cell's parse path, and
+`parse('03/08/2026','d/M/yyyy')` now yields `Mon Aug 03 2026`. The implementer proved it end to end
+by reverting only the product code: `Expected "03/08/26" / Received "08/03/2026"`.
 
 **Three further defects fixed, all empirically reproduced first:** the four-digit editing year where
-`spec.md:50` requires two; chrono's forward-date bias, which made `15/1` parse to January **2027** so
-the same-year form never round-tripped; and a positional leading-zero strip that corrupted
+`spec.md:50` requires two; chrono's forward-date bias, which made `15/1` parse to January **2027**
+so the same-year form never round-tripped; and a positional leading-zero strip that corrupted
 `ja-JP 2001-01-05` to `1/1/5`, which the existing loose-regex test at `date-format.test.ts:120-125`
 could not catch.
 
 **A fourth, outside root's scoped surfaces, correctly flagged rather than silently included:**
-`DateRangeFilter.tsx:35` used `date.toISOString()` on a local `Date`, emitting `2026-08-01` for a range
-ending today at 09:00 Brisbane — a day early for every UTC+ user. Root ruled it IN scope on the frozen
-text, `spec.md:53-54` "no displayed value shifts because of a time zone", so it is in scope by the
-requirement rather than by anyone's discretion. Root verified `toISOString` now survives only in a
-comment explaining its removal.
+`DateRangeFilter.tsx:35` used `date.toISOString()` on a local `Date`, emitting `2026-08-01` for a
+range ending today at 09:00 Brisbane — a day early for every UTC+ user. Root ruled it IN scope on
+the frozen text, `spec.md:53-54` "no displayed value shifts because of a time zone", so it is in
+scope by the requirement rather than by anyone's discretion. Root verified `toISOString` now
+survives only in a comment explaining its removal.
 
-**Nine existing assertions changed, all justified:** every one is the single `year <= 2000 ->
-DD/MM/YYYY` branch that `spec.md:50` reverses with no exception below 2000, documented in the file and
-the evidence exactly as P25 did. The other nine original cases are untouched.
+**Nine existing assertions changed, all justified:** every one is the single
+`year <= 2000 -> DD/MM/YYYY` branch that `spec.md:50` reverses with no exception below 2000,
+documented in the file and the evidence exactly as P25 did. The other nine original cases are
+untouched.
 
-**Campaign: 3/3 full-suite `--retries=0` at 175 passed** (170 at base + 5 new), digest
-`0a3f572c…` identical before run 1 and after run 3, `next-env.d.ts` excluded, zero flaky. All 5 new E2E
-tests confirmed to EXECUTE rather than be silently skipped, per `Q-P27-01`. The final `pnpm test` was
+**Campaign: 3/3 full-suite `--retries=0` at 175 passed** (170 at base + 5 new), digest `0a3f572c…`
+identical before run 1 and after run 3, `next-env.d.ts` excluded, zero flaky. All 5 new E2E tests
+confirmed to EXECUTE rather than be silently skipped, per `Q-P27-01`. The final `pnpm test` was
 deliberately deferred until machine load fell below 2.5 because of the `duplicates.test.ts:749`
 wall-clock ratio — `Q-P27-02` applied without being told.
 
 **MESSAGE CROSSING, recorded for the pattern.** The implementer reports it never received root's
-ruling and, rather than stall, took the reading the frozen text most plainly supports — locale as the
-signal. That is EXACTLY the ruling root sent, arrived at independently from the same evidence, so
-nothing is lost. Root's reasoning, now corroborated: UR-004 `spec.md:78-79` says currency follows time
-zone "rather than from the browser or system locale", while UR-007 `spec.md:46-47` says "the browser's
-**resolved locale**" and mentions time zone only at `:53-54` to FORBID date shifts. The two
-requirements answer different questions — currency follows LOCATION, date order follows LANGUAGE
+ruling and, rather than stall, took the reading the frozen text most plainly supports — locale as
+the signal. That is EXACTLY the ruling root sent, arrived at independently from the same evidence,
+so nothing is lost. Root's reasoning, now corroborated: UR-004 `spec.md:78-79` says currency follows
+time zone "rather than from the browser or system locale", while UR-007 `spec.md:46-47` says "the
+browser's **resolved locale**" and mentions time zone only at `:53-54` to FORBID date shifts. The
+two requirements answer different questions — currency follows LOCATION, date order follows LANGUAGE
 convention — so UR-004's precedent does not generalise here.
 
 **The consequence must not be softened, and both root and the implementer state it plainly:**
-implementing UR-007 exactly as frozen will NOT change what the principal sees on their current machine,
-because their Chrome genuinely resolves `navigator.language` to `en-US` — observed directly via
-Playwright, corroborated by `LANG=en_US.UTF-8` and Chrome's own `intl.selected_languages`. Their remedy
-for field order is to set their browser language to `en-AU`, at which point the shipped code is already
-correct. The four defects above are genuinely fixed regardless, including the corruption, which would
-have been worth the package on its own.
+implementing UR-007 exactly as frozen will NOT change what the principal sees on their current
+machine, because their Chrome genuinely resolves `navigator.language` to `en-US` — observed directly
+via Playwright, corroborated by `LANG=en_US.UTF-8` and Chrome's own `intl.selected_languages`. Their
+remedy for field order is to set their browser language to `en-AU`, at which point the shipped code
+is already correct. The four defects above are genuinely fixed regardless, including the corruption,
+which would have been worth the package on its own.
 
 Dispatched `p28-reviewer-01` (DISTINCT, fresh context, never the P28 implementer).
 
@@ -7605,13 +7739,13 @@ Root reproduced both defects independently against the real product module.
 
 **HIGH, regression introduced by this package — `src/lib/utils/date-format.ts:168-172`.** The new
 padding strip is
-`part.type === "day" || part.type === "month" ? String(Number(part.value)) : part.value`. `Intl` emits
-day and month in the LOCALE'S OWN NUMERALS, so for any locale whose resolved numbering system is not
-`latn` this yields the literal string `"NaN"`. Root verified: `fa-IR` `formatToParts` for 2026-08-03
-gives `month="۵" literal="/" day="۱۲"`, and `String(Number("۱۲"))` is `NaN`. The reviewer observed
-`fa-IR` compact rendering as `"NaN/NaN"` against the real module and confirmed the same for `bn-BD`,
-`my-MM`, `ne-NP`, `ar-SA`, `ar-EG` and `ps-AF`. It affects the transaction table date cell AND
-`ImportTable.tsx:339`, which shares the helper.
+`part.type === "day" || part.type === "month" ? String(Number(part.value)) : part.value`. `Intl`
+emits day and month in the LOCALE'S OWN NUMERALS, so for any locale whose resolved numbering system
+is not `latn` this yields the literal string `"NaN"`. Root verified: `fa-IR` `formatToParts` for
+2026-08-03 gives `month="۵" literal="/" day="۱۲"`, and `String(Number("۱۲"))` is `NaN`. The reviewer
+observed `fa-IR` compact rendering as `"NaN/NaN"` against the real module and confirmed the same for
+`bn-BD`, `my-MM`, `ne-NP`, `ar-SA`, `ar-EG` and `ps-AF`. It affects the transaction table date cell
+AND `ImportTable.tsx:339`, which shares the helper.
 
 **It is a REGRESSION, not pre-existing.** The reviewer ran base `c9be708` side by side: the old
 `toLocaleString`-plus-regex strip left non-Latin digits untouched and rendered `fa-IR` as `"۵/۱۲"` —
@@ -7622,74 +7756,73 @@ leading zero".
 **MEDIUM, and this one WRITES TO THE VAULT — `th-TH` Buddhist calendar.** Root verified
 `new Intl.DateTimeFormat('th-TH').resolvedOptions().calendar` is **`buddhist`**, and that 2026-08-03
 renders as `03/08/69` (BE 2569). The parser builds a date-fns GREGORIAN format string from an `Intl`
-pattern that may be non-Gregorian, and nothing pins `calendar: "gregory"`, so the editing form parses
-back as `2069-08-03` — a silent 43-year shift through the date cell. Forcing the calendar makes `th-TH`
-render `3/8/26` and round-trip cleanly.
+pattern that may be non-Gregorian, and nothing pins `calendar: "gregory"`, so the editing form
+parses back as `2069-08-03` — a silent 43-year shift through the date cell. Forcing the calendar
+makes `th-TH` render `3/8/26` and round-trip cleanly.
 
 **Severity judgement accepted as the reviewer stated it:** the NaN defect is a DISPLAY break, not
-corruption — `parseLocaleDate` returns `null` for those locales, so nothing wrong is written — and it
-is invisible to the principal (`en-US`) and to all five locales the tests cover. It is still HIGH
+corruption — `parseLocaleDate` returns `null` for those locales, so nothing wrong is written — and
+it is invisible to the principal (`en-US`) and to all five locales the tests cover. It is still HIGH
 because it is a visible regression to gibberish in exactly the area the requirement governs, and
 `spec.md:46` says "the browser's resolved locale" with no restriction to Latin script.
 
 **Everything else the reviewer could check statically PASSES**, including the two items root flagged
-hardest: the nine changed assertions are all legitimately the `year <= 2000` branch that `spec.md:50`
-reverses, `it()` count unchanged 18->18 and `expect()` net +2 additive with the other nine cases
-untouched; and the chrono fallback is confirmed UNREACHABLE for any string the locale parser accepts,
-gated on shape by `isNumericDateInput` rather than on parse failure, verified by real-module probes
-where `("15/6/25","en-US")`, `("31/12/99","en-US")`, `("13/1/26","en-US")` and `("15/1","en-US")` all
-return `null` and are never rescued day-first, while natural language still works. Round-trip is clean
-across ten locales including trailing-separator forms, forward bias is fixed (`15/1` -> 2026), and
-`32/1/26`, `15/13/25` and non-leap `29/2/25` are all rejected.
+hardest: the nine changed assertions are all legitimately the `year <= 2000` branch that
+`spec.md:50` reverses, `it()` count unchanged 18->18 and `expect()` net +2 additive with the other
+nine cases untouched; and the chrono fallback is confirmed UNREACHABLE for any string the locale
+parser accepts, gated on shape by `isNumericDateInput` rather than on parse failure, verified by
+real-module probes where `("15/6/25","en-US")`, `("31/12/99","en-US")`, `("13/1/26","en-US")` and
+`("15/1","en-US")` all return `null` and are never rescued day-first, while natural language still
+works. Round-trip is clean across ten locales including trailing-separator forms, forward bias is
+fixed (`15/1` -> 2026), and `32/1/26`, `15/13/25` and non-leap `29/2/25` are all rejected.
 
-**The reviewer independently AGREED with root's locale-signal ruling and did not overturn it**, on its
-own reading: `spec.md:46` says "resolved locale", `:47`'s example names an "Australian-English viewer",
-and time zone appears only at `:53-54` to FORBID shifts and is never made the source for ordering. Its
-formulation: currency is a property of where you transact, date field order is a property of the
-language you read.
+**The reviewer independently AGREED with root's locale-signal ruling and did not overturn it**, on
+its own reading: `spec.md:46` says "resolved locale", `:47`'s example names an "Australian-English
+viewer", and time zone appears only at `:53-54` to FORBID shifts and is never made the source for
+ordering. Its formulation: currency is a property of where you transact, date field order is a
+property of the language you read.
 
-**Root ruled `d514d47` IN the package** — verified test-only, `git diff --name-only d657717 d514d47 --
-src` empty, genuine ancestor — and told the reviewer to audit it as rigorously as anything else rather
-than accept it as good-faith hardening, since a test commit landing mid-review is where a weakened
-assertion would hide.
+**Root ruled `d514d47` IN the package** — verified test-only,
+`git diff --name-only d657717 d514d47 -- src` empty, genuine ancestor — and told the reviewer to
+audit it as rigorously as anything else rather than accept it as good-faith hardening, since a test
+commit landing mid-review is where a weakened assertion would hide.
 
-**P28 -> `changes_requested`, rev 02 opened.** Root accepted the reviewer's recommendation not to burn
-a ~13-minute campaign on a tree that needs another fix. Rev 01's FAIL is preserved; the reviewer will
-verify the fixed tree in one clean pass.
+**P28 -> `changes_requested`, rev 02 opened.** Root accepted the reviewer's recommendation not to
+burn a ~13-minute campaign on a tree that needs another fix. Rev 01's FAIL is preserved; the
+reviewer will verify the fixed tree in one clean pass.
 
 ### 2026-08-02 — P29 rev 01 DISPATCHED (UR-008 CSV import parity and honest counts)
 
-Recovery scan: HEAD `00a0683`, scratch gate MET, canary 1, port :3000 free, load 1.92.
-`00a0683` is the P28 implementer correcting its evidence — docs-only, `git diff --name-only d67ddc0
-00a0683 -- src tests` EMPTY, so the code tree is unchanged and P28's F-1/F-2 remain unfixed as
-expected.
+Recovery scan: HEAD `00a0683`, scratch gate MET, canary 1, port :3000 free, load 1.92. `00a0683` is
+the P28 implementer correcting its evidence — docs-only,
+`git diff --name-only d67ddc0 00a0683 -- src tests` EMPTY, so the code tree is unchanged and P28's
+F-1/F-2 remain unfixed as expected.
 
 **Dispatched in PARALLEL with P28 rev 02 because the file sets are disjoint**, verified rather than
 assumed: P28 touches `src/lib/utils/date-format.ts`, `cells/InlineEditableDate.tsx` and
-`filters/DateRangeFilter.tsx`; P29 touches `src/lib/import/*` and `src/components/features/import/*`.
-The one contact point is `ImportTable.tsx:21`, which IMPORTS `formatTransactionDate` but does not
-modify it — a consumer, not a co-editor. E2E remains serialised on the single :3000 port, and root
-sequences it.
+`filters/DateRangeFilter.tsx`; P29 touches `src/lib/import/*` and
+`src/components/features/import/*`. The one contact point is `ImportTable.tsx:21`, which IMPORTS
+`formatTransactionDate` but does not modify it — a consumer, not a co-editor. E2E remains serialised
+on the single :3000 port, and root sequences it.
 
-**Root traced all four reported problems to their causes before dispatch**, so the implementer starts
-from a diagnosis rather than a symptom list:
-1 and 2. **Auto-detect could not have worked.** `autoDetectMappings` (`tabs/MappingTab.tsx:63`) and
-   `autoDetectColumnMappings` (`ColumnMappingStep.tsx:248`) both take `headers: string[]` and match
-   substrings like `"date"`, `"amount"`, `"debit"`. The principal's file has NO header row, so there is
-   nothing to match. Both are invoked only from a click (`:155`, `:224`), so nothing runs on load
-   either. The frozen requirement that detection be VALUE-DRIVEN is therefore a different approach, not
-   a refinement.
-3. **Date-format detection is a single-sample heuristic.** `FormattingStep.tsx:90-99` reads ONE sample
-   and, for `dd/MM/yyyy` versus `MM/dd/yyyy`, guesses by whether the first part exceeds 12. Root
-   measured the principal's file: **240 of 622 rows have a first field <= 12**, so a sample drawn from
-   those is genuinely ambiguous. But the file's FIRST row is `30/06/2026`, which that heuristic WOULD
-   resolve — consistent with the detector never having run rather than running and guessing wrong.
-4. **The 15 errors are a one-branch omission.** `parseAmount` (`src/lib/import/csv.ts:165-200`) handles
-   currency symbols, accounting parentheses at `:177-180` and a leading `-` at `:182-186`, but has NO
-   branch for a leading `+`, so `+69.00` fails `isWellFormedMagnitude`. The principal's file contains
-   exactly 15 such rows, matching the 15 errors reported. OFX was unaffected because `<TRNAMT>` carries
-   no plus sign. `collapseWhitespace` is `false` at `src/lib/import/types.ts:154`, confirming the
-   default must change.
+**Root traced all four reported problems to their causes before dispatch**, so the implementer
+starts from a diagnosis rather than a symptom list: 1 and 2. **Auto-detect could not have worked.**
+`autoDetectMappings` (`tabs/MappingTab.tsx:63`) and `autoDetectColumnMappings`
+(`ColumnMappingStep.tsx:248`) both take `headers: string[]` and match substrings like `"date"`,
+`"amount"`, `"debit"`. The principal's file has NO header row, so there is nothing to match. Both
+are invoked only from a click (`:155`, `:224`), so nothing runs on load either. The frozen
+requirement that detection be VALUE-DRIVEN is therefore a different approach, not a refinement. 3.
+**Date-format detection is a single-sample heuristic.** `FormattingStep.tsx:90-99` reads ONE sample
+and, for `dd/MM/yyyy` versus `MM/dd/yyyy`, guesses by whether the first part exceeds 12. Root
+measured the principal's file: **240 of 622 rows have a first field <= 12**, so a sample drawn from
+those is genuinely ambiguous. But the file's FIRST row is `30/06/2026`, which that heuristic WOULD
+resolve — consistent with the detector never having run rather than running and guessing wrong. 4.
+**The 15 errors are a one-branch omission.** `parseAmount` (`src/lib/import/csv.ts:165-200`) handles
+currency symbols, accounting parentheses at `:177-180` and a leading `-` at `:182-186`, but has NO
+branch for a leading `+`, so `+69.00` fails `isWellFormedMagnitude`. The principal's file contains
+exactly 15 such rows, matching the 15 errors reported. OFX was unaffected because `<TRNAMT>` carries
+no plus sign. `collapseWhitespace` is `false` at `src/lib/import/types.ts:154`, confirming the
+default must change.
 
 The principal also specified the exact summary breakdown (Q-UR008-02, closed): Total Rows, Valid,
 Errors, Duplicates will be marked, Old New excluded, Old Duplicates excluded — with the five outcome
@@ -7699,33 +7832,34 @@ Evidence `evidence/P29/implementation-01.md`; review path reserved `reviews/P29-
 
 ### 2026-08-02 — P28 rev 02 VERIFIED; reviewer RE-DISPATCHED with tree confirmed final
 
-`p28-implementer-01` delivered `6750acc` (fixes) plus `1c4a4cc` and `b6866e5` (evidence), all verified
-ancestors of HEAD. Root confirmed both defects fixed: `grep -c 'String(Number(part.value))'` is **0**
-and `grep -c 'calendar: "gregory"'` is **1**. Gates: typecheck clean; unit **120 files, 2341 passed / 2
-skipped**, up from 2291; no forbidden casts (the one `as const satisfies Intl.DateTimeFormatOptions` is
-a literal assertion, permitted).
+`p28-implementer-01` delivered `6750acc` (fixes) plus `1c4a4cc` and `b6866e5` (evidence), all
+verified ancestors of HEAD. Root confirmed both defects fixed:
+`grep -c 'String(Number(part.value))'` is **0** and `grep -c 'calendar: "gregory"'` is **1**. Gates:
+typecheck clean; unit **120 files, 2341 passed / 2 skipped**, up from 2291; no forbidden casts (the
+one `as const satisfies Intl.DateTimeFormatOptions` is a literal assertion, permitted).
 
 **A THIRD defect the fixes exposed, which neither root nor the reviewer had named.** Extending the
-round-trip table to non-Latin locales failed **30 further cases**: `date-fns` parses Latin digits ONLY,
-so a viewer whose locale DISPLAYS `۱۵/۰۶/۲۵` could never type that string back. `spec.md:51-52` was
-broken for those locales in BOTH revisions, and fixing only F-1 and F-2 as written would have left it
-broken. Fixed by normalising numerals before parsing. The locale table went 5 -> 9, adding `th-TH`,
-`fa-IR`, `bn-BD`, `ar-EG`. **44 new tests fail against the reviewed tree `d514d47`**, including
-`expected 'NaN/NaN' to be '۸/۳'` and `expected '2069-08-03' to be '2026-08-03'`.
+round-trip table to non-Latin locales failed **30 further cases**: `date-fns` parses Latin digits
+ONLY, so a viewer whose locale DISPLAYS `۱۵/۰۶/۲۵` could never type that string back.
+`spec.md:51-52` was broken for those locales in BOTH revisions, and fixing only F-1 and F-2 as
+written would have left it broken. Fixed by normalising numerals before parsing. The locale table
+went 5 -> 9, adding `th-TH`, `fa-IR`, `bn-BD`, `ar-EG`. **44 new tests fail against the reviewed
+tree `d514d47`**, including `expected 'NaN/NaN' to be '۸/۳'` and
+`expected '2069-08-03' to be '2026-08-03'`.
 
 **The implementer strengthened `Q-P28-01` from its own experience, and the strengthening is right:**
 the cure is not only "sweep off the tested path in review" but "NAME THE INPUT CLASSES IN THE TEST
-TABLE" — non-Latin numerals, non-Gregorian calendars, year-first order. Its original five locales were
-all Latin and Gregorian, which is why 2291 unit tests, typecheck, lint and three green 175-test
+TABLE" — non-Latin numerals, non-Gregorian calendars, year-first order. Its original five locales
+were all Latin and Gregorian, which is why 2291 unit tests, typecheck, lint and three green 175-test
 campaigns all passed over a function broken for a large class of users.
 
-**Sequencing, accepted rather than disputed.** The implementer ran a 3-run campaign against `1c4a4cc`
-before root's "do not run a campaign" instruction arrived — messages crossed — then released the port.
-It did not defend the timing, and it stated the rule it took away: once a package is handed to review
-the tree is frozen from the implementer's side, because even a strict improvement is a moving target
-the reviewer pays for in campaign minutes. Its campaign is recorded as CORROBORATION ONLY; the
-reviewer's is authoritative. It verified `git diff 1c4a4cc HEAD -- src tests` is empty, so its runs do
-cover the shipping tree.
+**Sequencing, accepted rather than disputed.** The implementer ran a 3-run campaign against
+`1c4a4cc` before root's "do not run a campaign" instruction arrived — messages crossed — then
+released the port. It did not defend the timing, and it stated the rule it took away: once a package
+is handed to review the tree is frozen from the implementer's side, because even a strict
+improvement is a moving target the reviewer pays for in campaign minutes. Its campaign is recorded
+as CORROBORATION ONLY; the reviewer's is authoritative. It verified
+`git diff 1c4a4cc HEAD -- src tests` is empty, so its runs do cover the shipping tree.
 
 **Root confirmed the handoff preconditions BEFORE re-dispatching, per `Q-P28-02`** — which is root's
 job at dispatch rather than something the reviewer should have to establish: `:3000` unbound, no
@@ -7733,52 +7867,56 @@ campaign process anywhere, `/tmp/mf-p28` gone, HEAD final at `b6866e5`.
 
 **A repo-wide hazard the implementer diagnosed and correctly attributed elsewhere.** A bare
 `pnpm lint` now reports **591 errors and ~18,700 warnings**, every one under
-`.claude/worktrees/p29-ur008` — the P29 agent placed its worktree INSIDE the repo directory, and ESLint
-walks it even though `.git/info/exclude` hides it from git. Root verified the path and that nothing
-excludes it from the lint config. It will block P29's own handback and would cost any reviewer real
-time. The implementer deliberately did NOT "fix" those files, correctly recognising them as another
-package's in-flight work. Root has warned `p29-implementer-01` to move the worktree outside the repo.
+`.claude/worktrees/p29-ur008` — the P29 agent placed its worktree INSIDE the repo directory, and
+ESLint walks it even though `.git/info/exclude` hides it from git. Root verified the path and that
+nothing excludes it from the lint config. It will block P29's own handback and would cost any
+reviewer real time. The implementer deliberately did NOT "fix" those files, correctly recognising
+them as another package's in-flight work. Root has warned `p29-implementer-01` to move the worktree
+outside the repo.
 
 **Reported and deliberately NOT fixed:** `formatDate` and `formatDateCompact` render non-Gregorian
 years for `th-TH`/`fa-IR`. Pre-existing at base, and the implementer grepped for callers — none in
-product code, tests only. Left alone rather than silently widening scope, recorded in evidence §7 for
-root to charter or accept.
+product code, tests only. Left alone rather than silently widening scope, recorded in evidence §7
+for root to charter or accept.
 
 ### 2026-08-02 — P28 rev 02 FAILED on a NEW defect F-4; rev 03 opened. Root verified the mechanism
 
-`p28-reviewer-02` returned **FAIL** on one new defect that neither revision named — not a regression,
-but a NEW CAPABILITY SHIPPED INCOMPLETE. Root verified the mechanism independently.
+`p28-reviewer-02` returned **FAIL** on one new defect that neither revision named — not a
+regression, but a NEW CAPABILITY SHIPPED INCOMPLETE. Root verified the mechanism independently.
 
 **F-4 (HIGH).** `parseLocaleDate` derives its candidate parse formats only from the **numeric**
 skeleton (`day:"numeric", month:"numeric"`), while `formatDateForEditing` renders the **2-digit**
 skeleton. For 9 of 114 locales `Intl` gives those two skeletons a DIFFERENT field order or different
-separators, so the editing form cannot be typed back — violating `spec.md:51-52`, the exact clause rev
-02 set out to fix.
+separators, so the editing form cannot be typed back — violating `spec.md:51-52`, the exact clause
+rev 02 set out to fix.
 
 Root confirmed the divergence directly:
+
 ```
 mt-MT  numeric: month/day/year   2-digit: day/month/year   <-- DIFFERS
 ug-CN  numeric: year/day/month   2-digit: year/month/day   <-- DIFFERS
 ```
+
 **52 failing cases. 14 of them SILENTLY STORE A WRONG DATE** — `mt-MT` shows `03/08/26` and stores
-`2026-03-08`; `ug-CN` shows `26-08-03` and stores `2026-03-08`; `te-IN` and `ckb-IQ` store year `0003`
-and `0026`. The other 38 are rejected as null (`it-CH`, `lv-LV`, `sr-RS`, `tg-TJ`, `yo-NG`). The
-reviewer verified base `c9be708` has NEITHER function, so this is not a regression — it is new
+`2026-03-08`; `ug-CN` shows `26-08-03` and stores `2026-03-08`; `te-IN` and `ckb-IQ` store year
+`0003` and `0026`. The other 38 are rejected as null (`it-CH`, `lv-LV`, `sr-RS`, `tg-TJ`, `yo-NG`).
+The reviewer verified base `c9be708` has NEITHER function, so this is not a regression — it is new
 capability that never covered its own output.
 
 **This is the same class as the corruption P28 exists to fix**, arriving through the door the fix
 opened. It is also a third instance of `Q-P29-02`'s heuristic: unblocking an inert path makes
-downstream behaviour newly reachable and never-run. `formatDateForEditing` had no parser covering its
-own skeleton because, before this package, nothing parsed locale forms at all.
+downstream behaviour newly reachable and never-run. `formatDateForEditing` had no parser covering
+its own skeleton because, before this package, nothing parsed locale forms at all.
 
 **The reviewer verified the FIX as well as the defect:** adding the 2-digit editing skeleton to
-`candidateFormats` takes it from 52 failures to **0** across all 114 locales, with ZERO regression to
-the rev-01-passed properties — en-US day-first still null, forward bias fixed, rejections intact,
+`candidateFormats` takes it from 52 failures to **0** across all 114 locales, with ZERO regression
+to the rev-01-passed properties — en-US day-first still null, forward bias fixed, rejections intact,
 `th-TH` clean. Roughly 6 lines.
 
 **Its campaign was clean and is not the reason for the FAIL:** 3 runs at **175 passed** each, digest
-`709f713d…` identical pre-run-1 and post-run-3, 0 flaky, all 5 `date-locale.spec.ts` tests individually
-numbered in every run log so they demonstrably executed. Six checks all pass, unit 2341.
+`709f713d…` identical pre-run-1 and post-run-3, 0 flaky, all 5 `date-locale.spec.ts` tests
+individually numbered in every run log so they demonstrably executed. Six checks all pass,
+unit 2341.
 
 **It independently reproduced the 44-test base failure as exactly `44 failed | 87 passed (131)`** —
 genuinely ran against old code rather than the vacuous zero-test case `Q-P27-01` warns about — and
@@ -7789,11 +7927,11 @@ case weakened.
 worktree gives 0 errors and 1 pre-existing warning, so the ~591 errors existed only under
 `.claude/worktrees/p29-ur008` and were never a repo defect.
 
-**Root's item-10 judgement, DECIDED not overlooked: `formatDate`/`formatDateCompact` are OUT of scope.**
-The reviewer confirmed both are byte-identical to base and that the module's only two product
-importers — `InlineEditableDate.tsx` and `ImportTable.tsx` — import NEITHER. No product caller means
-nothing is "presented" to a viewer, so UR-007 does not reach them. The implementer was right to leave
-them and right to record it. Not part of the FAIL.
+**Root's item-10 judgement, DECIDED not overlooked: `formatDate`/`formatDateCompact` are OUT of
+scope.** The reviewer confirmed both are byte-identical to base and that the module's only two
+product importers — `InlineEditableDate.tsx` and `ImportTable.tsx` — import NEITHER. No product
+caller means nothing is "presented" to a viewer, so UR-007 does not reach them. The implementer was
+right to leave them and right to record it. Not part of the FAIL.
 
 **P28 -> `changes_requested`, rev 03 opened.** Rev 02's FAIL artifact is preserved.
 
@@ -7805,17 +7943,18 @@ commits while the package worked; root verified **ZERO file overlap** between th
 rebasing, so the divergence was purely ledger-versus-package and the rebase was clean.
 
 **14 files, +1765/-229.** Product: `csv.ts`, new `detection.ts`, `types.ts`, `schema.ts`,
-`use-import-state.ts`, `ImportSummary`/`ImportTable`/`ImportPanel`/`DuplicatesTab`/`MappingTab`. Tests:
-`ur-008-csv-parity.test.ts` (20 cases), `mapping-tab-auto-detect.test.tsx` (2), 2 new E2E. No ledger,
-marker, scratch, SCOPE, spec, FINAL-AUDIT or reviews file touched.
+`use-import-state.ts`, `ImportSummary`/`ImportTable`/`ImportPanel`/`DuplicatesTab`/`MappingTab`.
+Tests: `ur-008-csv-parity.test.ts` (20 cases), `mapping-tab-auto-detect.test.tsx` (2), 2 new E2E. No
+ledger, marker, scratch, SCOPE, spec, FINAL-AUDIT or reviews file touched.
 
 **Root gates on the merged tree:** typecheck clean; unit **122 files, 2363 passed / 2 skipped**, up
 from 2341. The leading-plus branch is present at `csv.ts:186` and `collapseWhitespace` now defaults
 **true** at `types.ts:154`.
 
 **Campaign VERIFIED AGAINST THE ARTIFACTS, not the report.** Root initially could not find the logs
-and asked for a status; the implementer replied that root's HEAD reading was stale and gave the paths,
-which were under `/tmp/` rather than the worktree. Root then read them directly:
+and asked for a status; the implementer replied that root's HEAD reading was stale and gave the
+paths, which were under `/tmp/` rather than the worktree. Root then read them directly:
+
 - `p29-e2e-run{1,2,3}.log` tails: **177 passed** at 4.6m, 4.4m, 4.1m.
 - `p29-digest-pre.txt` and `p29-digest-post.txt` both `8443fde82c70fce74e90ef1ccce91d2d`, written 14
   minutes apart spanning the campaign — **no drift**.
@@ -7823,36 +7962,39 @@ which were under `/tmp/` rather than the worktree. Root then read them directly:
   `import.spec.ts:1721` and `:1800` EXECUTED by name rather than being inferred from the 177 total.
 - Failure-signature scan across all three logs: **NONE**.
 
-**The implementer disproved root's contamination worry with positive evidence rather than reasoning.**
-Root asked whether P28's uncommitted `date-format.ts` in the shared checkout could have leaked into the
-campaign. It answered that `date-locale.spec.ts` ran as tests [11/177] to [15/177] and PASSED in all
-three runs — including "a day-first viewer's typed date is stored as the day they meant", which is
-precisely where a leak would surface — and that the digest did not move. No re-run needed.
+**The implementer disproved root's contamination worry with positive evidence rather than
+reasoning.** Root asked whether P28's uncommitted `date-format.ts` in the shared checkout could have
+leaked into the campaign. It answered that `date-locale.spec.ts` ran as tests [11/177] to [15/177]
+and PASSED in all three runs — including "a day-first viewer's typed date is stored as the day they
+meant", which is precisely where a leak would surface — and that the digest did not move. No re-run
+needed.
 
 **Five defects fixed, two of them regressions the fix itself would have introduced** — the discarded
-`hasHeaders` and the Auto-detect button wiping correct mappings — both framed in evidence §1.4.2 with
-what the user would have seen. Everything the implementer found against itself is in the evidence: the
-shared-checkout edit incident, the pnpm store perturbation, the tautology test that could not fail, the
-silent-skip that made a naive BASE proof worthless, the worktree lint problem and its digest-verified
-relocation, and all three load-sensitive assertions with the loads at which they failed.
+`hasHeaders` and the Auto-detect button wiping correct mappings — both framed in evidence §1.4.2
+with what the user would have seen. Everything the implementer found against itself is in the
+evidence: the shared-checkout edit incident, the pnpm store perturbation, the tautology test that
+could not fail, the silent-skip that made a naive BASE proof worthless, the worktree lint problem
+and its digest-verified relocation, and all three load-sensitive assertions with the loads at which
+they failed.
 
-**ROOT INTERVENED on the shared checkout.** P28's implementer had 145 lines of uncommitted F-4 work in
-`/home/ben-agents/Code/moneyflow` across three requests, and `src/lib/utils/date-format.ts` is imported
-by `ImportTable.tsx` inside P29's file set — so P29's reviewer could not have distinguished the tree
-under review from another package's work in progress. Root preserved the work TWO ways
-(`/tmp/p28-f4-wip.patch`, 217 lines, and `git stash@{0}`) before running `git checkout -- src tests`,
-and told the implementer where to recover it and to work in `/tmp/mf-p28r3` outside the repo.
+**ROOT INTERVENED on the shared checkout.** P28's implementer had 145 lines of uncommitted F-4 work
+in `/home/ben-agents/Code/moneyflow` across three requests, and `src/lib/utils/date-format.ts` is
+imported by `ImportTable.tsx` inside P29's file set — so P29's reviewer could not have distinguished
+the tree under review from another package's work in progress. Root preserved the work TWO ways
+(`/tmp/p28-f4-wip.patch`, 217 lines, and `git stash@{0}`) before running
+`git checkout -- src tests`, and told the implementer where to recover it and to work in
+`/tmp/mf-p28r3` outside the repo.
 
 Dispatched `p29-reviewer-01` (DISTINCT, fresh context, never the P29 implementer).
 
 ### 2026-08-02 — P29 rev 01 FAILED in static audit on a silently-wrong-data REGRESSION; rev 02 opened
 
-`p29-reviewer-01` found a BLOCKING regression before spending any campaign time, A/B-proved it through
-the real `useImportState.loadFile` on two trees, and reported it rather than completing a review of a
-tree that must change. Root verified the mechanism independently.
+`p29-reviewer-01` found a BLOCKING regression before spending any campaign time, A/B-proved it
+through the real `useImportState.loadFile` on two trees, and reported it rather than completing a
+review of a tree that must change. Root verified the mechanism independently.
 
-**F-1 (HIGH) — `detectColumnMappingsFromValues` binds the AMOUNT role to the leftmost numeric column,
-so a check-number or running-balance column is imported as the transaction amount.**
+**F-1 (HIGH) — `detectColumnMappingsFromValues` binds the AMOUNT role to the leftmost numeric
+column, so a check-number or running-balance column is imported as the transaction amount.**
 
 ```
 Date,Check No,Description,Amount
@@ -7865,20 +8007,21 @@ Date,Description,Balance,Amount
 ```
 
 **Root confirmed this is DETERMINISTIC, not a tie-break accident.** `bestColumn` ends with
-`scored.reduce((best, entry) => (entry.rate > best.rate ? entry : best))` — strictly greater, so on a
-tie the FIRST entry survives and the leftmost wins. A check-number column and a real amount column both
-score 1.0 against `looksLikeAmount`, so the wrong column wins every time.
+`scored.reduce((best, entry) => (entry.rate > best.rate ? entry : best))` — strictly greater, so on
+a tie the FIRST entry survives and the leftmost wins. A check-number column and a real amount column
+both score 1.0 against `looksLikeAmount`, so the wrong column wins every time.
 
-**A comment describes a protection the code does not provide.** `detection.ts:243-245` reads "columns
-that read as amounts are set aside first, so a trailing balance column does not win the role" — but the
-`remaining` array it refers to only feeds the DESCRIPTION selection. Nothing protects the AMOUNT role
-from another numeric column. A reader of that comment would reasonably conclude the case was handled.
+**A comment describes a protection the code does not provide.** `detection.ts:243-245` reads
+"columns that read as amounts are set aside first, so a trailing balance column does not win the
+role" — but the `remaining` array it refers to only feeds the DESCRIPTION selection. Nothing
+protects the AMOUNT role from another numeric column. A reader of that comment would reasonably
+conclude the case was handled.
 
 **This is the most serious defect found in this goal.** Every other has either failed loudly or
-displayed something wrong. This one imports a check number as a monetary amount and LOOKS LIKE SUCCESS
-— the exact failure mode the package's own evidence §1.4.2 names as worse than a visible break. And it
-is a REGRESSION: BASE handled both files correctly. A package created to fix import correctness would
-have shipped a new way to import wrong numbers.
+displayed something wrong. This one imports a check number as a monetary amount and LOOKS LIKE
+SUCCESS — the exact failure mode the package's own evidence §1.4.2 names as worse than a visible
+break. And it is a REGRESSION: BASE handled both files correctly. A package created to fix import
+correctness would have shipped a new way to import wrong numbers.
 
 **The suite is green by FIXTURE ACCIDENT.** `ur-008-csv-parity.test.ts:251` pins
 `Date,Description,Amount,Balance`, where the correct column happens to be leftmost among the numeric
@@ -7887,50 +8030,51 @@ code branches over. Rev 02 must add a fixture where the correct amount column is
 numeric one.
 
 **Evidence-accuracy finding, separate from the code defect:** §1.4.1 tabulates the headered case as
-`{…,3:balance}` for the BUTTON only, and does not record that the LOAD path drops `balance`/`checkNumber`
-and can bind `amount` to the wrong column.
+`{…,3:balance}` for the BUTTON only, and does not record that the LOAD path drops
+`balance`/`checkNumber` and can bind `amount` to the wrong column.
 
-**Root ruled (b): FAIL immediately WITHOUT the campaign**, explicitly overriding the dispatch's "RUN ALL
-SIX CHECKS". The fix touches `src/lib/import/detection.ts`, so three runs would be ~13 minutes of
-evidence for a tree nobody will ship — the same call root made for `p28-reviewer-01`. The reviewer had
-independently reached the same recommendation; the messages crossed. E2E is recorded as NOT RUN BY THE
-REVIEWER with the reason, so the record shows a decision rather than an omission.
+**Root ruled (b): FAIL immediately WITHOUT the campaign**, explicitly overriding the dispatch's "RUN
+ALL SIX CHECKS". The fix touches `src/lib/import/detection.ts`, so three runs would be ~13 minutes
+of evidence for a tree nobody will ship — the same call root made for `p28-reviewer-01`. The
+reviewer had independently reached the same recommendation; the messages crossed. E2E is recorded as
+NOT RUN BY THE REVIEWER with the reason, so the record shows a decision rather than an omission.
 
 **Verified by the reviewer before the finding:** typecheck PASS; lint 0 errors with 1 pre-existing
-warning; format:check exactly 17 pre-existing frozen `specs/**`, none a P29 file; unit **2363 passed /
-2 skipped**; the 13-of-20 BASE proofs reproduced in its own tree; the MappingTab test confirmed failing
-at BASE; and the DuplicatesTab pure-move claim independently verified byte-identical under `sort`.
-`playwright test --list` reports 177 in 23 files with both new tests present by name.
+warning; format:check exactly 17 pre-existing frozen `specs/**`, none a P29 file; unit **2363 passed
+/ 2 skipped**; the 13-of-20 BASE proofs reproduced in its own tree; the MappingTab test confirmed
+failing at BASE; and the DuplicatesTab pure-move claim independently verified byte-identical under
+`sort`. `playwright test --list` reports 177 in 23 files with both new tests present by name.
 
 **P29 -> `changes_requested`, rev 02 opened.** Rev 01's FAIL artifact is preserved.
 
 ### 2026-08-02 — P29 rev 01 review committed at `43c026f`; rev 02 DISPATCHED
 
 `p29-reviewer-01` committed its FAIL as `43c026f`, one file only, verified with
-`git diff --cached --name-only` before committing — the boundary lapse from an earlier package was not
-repeated. Root confirmed the commit touches only `reviews/P29-review-01.md`.
+`git diff --cached --name-only` before committing — the boundary lapse from an earlier package was
+not repeated. Root confirmed the commit touches only `reviews/P29-review-01.md`.
 
 **F-2 (MEDIUM), root-verified:** BASE's header-name detector references `merchant`/`memo`/
-`checkNumber`/`balance` **18 times**; the new value-driven `detection.ts` references them **once**. So
-those mappings are silently dropped on headered files. The reviewer checked the blast radius and found
-only date/amount/description are consumed for parsing, so no imported VALUE changes — a UX regression,
-not corruption. It also warns: do NOT delete `autoDetectColumnMappings` until F-2 is settled, since it
-is the only remaining implementation that produces those roles.
+`checkNumber`/`balance` **18 times**; the new value-driven `detection.ts` references them **once**.
+So those mappings are silently dropped on headered files. The reviewer checked the blast radius and
+found only date/amount/description are consumed for parsing, so no imported VALUE changes — a UX
+regression, not corruption. It also warns: do NOT delete `autoDetectColumnMappings` until F-2 is
+settled, since it is the only remaining implementation that produces those roles.
 
-**F-3 (MEDIUM):** evidence §1.4.1's headered row records the BUTTON's answer but not that the LOAD path
-had stopped producing `3:balance` relative to BASE. Not false — silent at exactly the point the
+**F-3 (MEDIUM):** evidence §1.4.1's headered row records the BUTTON's answer but not that the LOAD
+path had stopped producing `3:balance` relative to BASE. Not false — silent at exactly the point the
 regression lives.
 
-**Everything else the reviewer REPRODUCED rather than accepted, and found correct:** all five defects
-genuinely fixed; both averted regressions real, with BASE headerless load giving `rowcount=2 of 3` so
-the first data row IS lost; the six labels exact with qualifiers; **the partition proved STRUCTURAL by
-mutation** — adding a sixth status without a count yields TS2740/TS2345/TS2366; status is UI-only and
-never persisted, so the widening is safe; an empty column cannot win the description role; whole-column
-date inference correct, with a 5-row sample returning `MM/dd/yyyy` at BASE; the DuplicatesTab move
-byte-identical under `sort`; 13/20 failing at BASE plus the MappingTab test, reproduced in its own tree;
-no new `as`/`any`/`!`; and the secret-safety argument accepted after independently diffing all 622 real
-rows. It judged all three items the implementer flagged for scrutiny — the 0.8 threshold, the fixed
-month-first tie-break, and the status widening — to be sound.
+**Everything else the reviewer REPRODUCED rather than accepted, and found correct:** all five
+defects genuinely fixed; both averted regressions real, with BASE headerless load giving
+`rowcount=2 of 3` so the first data row IS lost; the six labels exact with qualifiers; **the
+partition proved STRUCTURAL by mutation** — adding a sixth status without a count yields
+TS2740/TS2345/TS2366; status is UI-only and never persisted, so the widening is safe; an empty
+column cannot win the description role; whole-column date inference correct, with a 5-row sample
+returning `MM/dd/yyyy` at BASE; the DuplicatesTab move byte-identical under `sort`; 13/20 failing at
+BASE plus the MappingTab test, reproduced in its own tree; no new `as`/`any`/`!`; and the
+secret-safety argument accepted after independently diffing all 622 real rows. It judged all three
+items the implementer flagged for scrutiny — the 0.8 threshold, the fixed month-first tie-break, and
+the status widening — to be sound.
 
 **A discrepancy it chased to ground rather than reporting as a defect:** the evidence says 2316 unit
 tests, it measured 2363. BASE runs 2294 plus P29's 22 is exactly 2316; the extra 47 come from P28's
@@ -7939,9 +8083,9 @@ later `42f20be` landing on main in between. The implementer's figure is right fo
 **It also corrected root's own wording:** root's dispatch said "column 4 is empty on every row"; the
 task file says index 3. Both describe the same column, root's being the 1-based restatement.
 
-Two carry-forwards proposed: **Q-P29-04** — a replacement heuristic must be A/B'd over the input class
-the OLD one handled, which is exactly what found F-1 and what a green E2E campaign would not have; and
-**Q-P29-05** — a "set X aside" guard usually protects one role only.
+Two carry-forwards proposed: **Q-P29-04** — a replacement heuristic must be A/B'd over the input
+class the OLD one handled, which is exactly what found F-1 and what a green E2E campaign would not
+have; and **Q-P29-05** — a "set X aside" guard usually protects one role only.
 
 ### 2026-08-02 — P28 rev 03 campaign CLEAN; reviewer RE-DISPATCHED
 
@@ -7960,39 +8104,40 @@ under load **6-7**. It wrote the per-run loads into the evidence rather than quo
 figure it was given. None of the three recorded load-sensitive assertions fired —
 `duplicates.test.ts:749`, `transactions.spec.ts:804`, `vault-maintenance.test.tsx` — so the suite
 stayed green under exactly the contention that has historically produced those flakes. Root agrees
-that makes the result stronger, and has left the judgement to the reviewer with the actual numbers in
-front of it.
+that makes the result stronger, and has left the judgement to the reviewer with the actual numbers
+in front of it.
 
-It also marked §5's rev 02 campaign table explicitly **superseded** rather than deleting it, since rev
-03 changed `src` and `tests`, so all four campaigns of this package are now recorded with which tree
-each covers.
+It also marked §5's rev 02 campaign table explicitly **superseded** rather than deleting it, since
+rev 03 changed `src` and `tests`, so all four campaigns of this package are now recorded with which
+tree each covers.
 
-**A ROOT PROBE ERROR, corrected before it could become a finding.** Root probed `parseLocaleDate` for
-`te-IN` and `it-CH` and got `null`, which looked like an unfixed defect. Root then checked the
+**A ROOT PROBE ERROR, corrected before it could become a finding.** Root probed `parseLocaleDate`
+for `te-IN` and `it-CH` and got `null`, which looked like an unfixed defect. Root then checked the
 package's own tests rather than reporting it: `tests/unit/domain/date-locale.test.ts:26` passes
 `Temporal.PlainDate.from("2026-08-02")` as the reference, while root's probe passed a plain
 `{year,month,day}` object. All 137 tests in that file pass, and all four locales root probed —
-`te-IN`, `it-CH`, `mt-MT`, `ug-CN` — are covered there. **The `null` was root's malformed probe, not a
-product defect.** This is `Q-P28-05` in root's own hands: a probe can manufacture a defect, and the
-remedy is to re-run against the package's own harness before reporting.
+`te-IN`, `it-CH`, `mt-MT`, `ug-CN` — are covered there. **The `null` was root's malformed probe, not
+a product defect.** This is `Q-P28-05` in root's own hands: a probe can manufacture a defect, and
+the remedy is to re-run against the package's own harness before reporting.
 
 **The package's through-line, in the implementer's words and worth carrying to P21:** the reported
 defect was "dates display in US format", but the display code was already locale-aware and needed no
 fix for its own sake. What was broken was the WRITE path — four defects that silently stored a
 different date from the one displayed: chrono's US-ordered parse, the non-Latin `NaN` regression
-introduced by the first fix, the Buddhist-calendar 43-year shift, and F-4's editing-skeleton mismatch.
-**Three of those four were invisible to a green test suite until someone named the input class.**
+introduced by the first fix, the Buddhist-calendar 43-year shift, and F-4's editing-skeleton
+mismatch. **Three of those four were invisible to a green test suite until someone named the input
+class.**
 
-Dispatched `p28-reviewer-03` (DISTINCT, fresh context, never the implementer, never `p28-reviewer-01`
-or `-02`).
+Dispatched `p28-reviewer-03` (DISTINCT, fresh context, never the implementer, never
+`p28-reviewer-01` or `-02`).
 
 ### 2026-08-02 — P28 rev 03 reviewer DIED without a verdict; DISTINCT reviewer 04 re-dispatched
 
 `p28-reviewer-03` exited without writing `reviews/P28-review-03.md`. Root verified the absence
 directly: `ls specs/007-human-scratch-completion/reviews/` lists only `P28-review-01.md` and
-`P28-review-02.md`. Its process (pid 3022168) is confirmed gone via `readlink /proc/3022168/cwd`.
-It left one untracked scratch file, `tests/unit/domain/zz-census.test.ts`, in `/tmp/mf-p28r3rev`
-— a locale round-trip census harness, mid-construction. Root removed it; the worktree is clean at
+`P28-review-02.md`. Its process (pid 3022168) is confirmed gone via `readlink /proc/3022168/cwd`. It
+left one untracked scratch file, `tests/unit/domain/zz-census.test.ts`, in `/tmp/mf-p28r3rev` — a
+locale round-trip census harness, mid-construction. Root removed it; the worktree is clean at
 `8c16063`. **No conclusion of reviewer 03 is available and none was reconstructed or assumed.**
 
 Root re-dispatched `p28-reviewer-04` (DISTINCT, fresh context, never the P28 implementer) against
@@ -8047,9 +8192,10 @@ the **robot** surfaces a rule that ALREADY EXISTS, while the **creation controls
 field changes and NO rule yet matches. Both surfaces are required, for every rule field. The
 principal added a tag and changed a description and saw neither.
 
-Method mandated: clause by clause, citing code AND the test demonstrating each clause. Per the frozen
-source, **a clause with no automated test covering it is a gap to be closed, not a pass.** Every fix
-carries a test verified to fail against the pre-fix tree by running it, not by assuming it.
+Method mandated: clause by clause, citing code AND the test demonstrating each clause. Per the
+frozen source, **a clause with no automated test covering it is a gap to be closed, not a pass.**
+Every fix carries a test verified to fail against the pre-fix tree by running it, not by assuming
+it.
 
 Barred from :3000 while P29 campaigns; instructed to do all implementation and unit work first and
 request the port explicitly. Worktree reserved `/tmp/mf-p30`, OUTSIDE the repo.
@@ -8100,11 +8246,11 @@ Task #35 is void.
 verification is defeatable: when day AND month are both in 10..12, zero-padding no longer
 distinguishes the numeric skeleton from the 2-digit one, so for a locale where the two ALSO differ
 in field ORDER both interpretations re-render to exactly the typed string, the round-trip check
-cannot discriminate, and `find` returns the first candidate — the numeric one, wrong order.
-`mt-MT`, `so-SO`, `ug-CN` each silently store a transposed date for 6 of 6 such dates. An `mt-MT`
-viewer shown `11/10/25` who types it back verbatim stores `2025-11-10`. Byte-identical at rev 02 and
-at HEAD, so **F-4 is fixed only for the padding-distinguishable subclass.** This is silent
-corruption of the principal's own financial records — materially worse than a rejected input.
+cannot discriminate, and `find` returns the first candidate — the numeric one, wrong order. `mt-MT`,
+`so-SO`, `ug-CN` each silently store a transposed date for 6 of 6 such dates. An `mt-MT` viewer
+shown `11/10/25` who types it back verbatim stores `2025-11-10`. Byte-identical at rev 02 and at
+HEAD, so **F-4 is fixed only for the padding-distinguishable subclass.** This is silent corruption
+of the principal's own financial records — materially worse than a rejected input.
 
 Port: reviewer instructed to HOLD. :3000 is granted to P29 and unbound only because P29 has not yet
 started; an ungranted free port is not an open one. Root will signal the reviewer on release.
@@ -8120,12 +8266,12 @@ addendum. Root verified in `/tmp/mf-p29` directly, not from the report:
 
 **Observed at BASE `74b37f9` — wrong money, not absent keys.** 4 of 6 fail at BASE:
 
-| fixture                                        | BASE imported            | expected              |
-| ---------------------------------------------- | ------------------------ | --------------------- |
-| check number left of amount                    | `100100, 100200, 100300` | `-550, -7525, 250000` |
-| balance left of amount                         | `100000, 92475, 342475`  | `-550, -7525, 250000` |
-| all-positive, header the only discriminator    | `100000, 92475, 342475`  | `550, 7525, 250000`   |
-| headerless, check number left of amount        | `100100, 100200, 100300` | `-550, -7525, 250000` |
+| fixture                                     | BASE imported            | expected              |
+| ------------------------------------------- | ------------------------ | --------------------- |
+| check number left of amount                 | `100100, 100200, 100300` | `-550, -7525, 250000` |
+| balance left of amount                      | `100000, 92475, 342475`  | `-550, -7525, 250000` |
+| all-positive, header the only discriminator | `100000, 92475, 342475`  | `550, 7525, 250000`   |
+| headerless, check number left of amount     | `100100, 100200, 100300` | `-550, -7525, 250000` |
 
 Check numbers and running balances imported as money. **The error-count assertion passes at BASE
 precisely because a wrong-column import reports ZERO errors** — a defect that validates cleanly is
@@ -8143,8 +8289,8 @@ Root also sent a status-required demand to an agent that had ALREADY reported; t
 Combined with the `p28-reviewer-03` false-death call, root has twice today acted on a stale picture
 of a working agent. Both recorded.
 
-Gates at handback: typecheck PASS, bare `pnpm lint` exit 0, format:check exactly 17 frozen `specs/**`
-none owned, `pnpm test` **2382 passed / 2 skipped / 123 files / 0 failed** at load 8.13.
+Gates at handback: typecheck PASS, bare `pnpm lint` exit 0, format:check exactly 17 frozen
+`specs/**` none owned, `pnpm test` **2382 passed / 2 skipped / 123 files / 0 failed** at load 8.13.
 
 Port :3000 granted and **campaign confirmed RUNNING** (`ss -ltn` shows :3000 bound). Terms:
 `env -u CI`, `--retries=0`, 3 full-suite runs, digest before run 1 and after run 3, announce BEFORE
@@ -8196,14 +8342,14 @@ EDITING round trip, where it does reach 0/702. But the parser serves **TWO displ
 compact resting form was never swept. Against review 02's fix the compact form breaks for exactly
 the order-flipping locales:
 
-| locale  | typed     | review-02 fix stores | correct |
-| ------- | --------- | -------------------- | ------- |
-| `mt-MT` | `8/3/26`  | `2026-03-08` WRONG   | 3 Aug   |
-| `so-SO` | `8/3/26`  | `2026-03-08` WRONG   | 3 Aug   |
-| `ug-CN` | `26-3-8`  | `2026-03-08` WRONG   | 3 Aug   |
+| locale  | typed    | review-02 fix stores | correct |
+| ------- | -------- | -------------------- | ------- |
+| `mt-MT` | `8/3/26` | `2026-03-08` WRONG   | 3 Aug   |
+| `so-SO` | `8/3/26` | `2026-03-08` WRONG   | 3 Aug   |
+| `ug-CN` | `26-3-8` | `2026-03-08` WRONG   | 3 Aug   |
 
-Review 02's fix produces **24 SILENT-WRONG compact cases** across `mt-MT`/`so-SO`/`ug-CN` that rev 02
-did not have. **It trades the editing defect for a compact one.**
+Review 02's fix produces **24 SILENT-WRONG compact cases** across `mt-MT`/`so-SO`/`ug-CN` that rev
+02 did not have. **It trades the editing defect for a compact one.**
 
 **Root verified the mechanism independently** rather than accepting the reversal on report. Node ICU
 76.1, 3 Aug 2026:
@@ -8222,7 +8368,8 @@ is not a heavier way to do the same thing — it does what ordering provably can
 
 **Q-P28-07 census correction STANDS** and is the larger of the two numbers: rev 02 = **66 failures /
 11 locales (23 silent-wrong, 43 rejected)**, not 52 / 9. Review 02 missed `so-SO` and `sr-Latn-RS`
-entirely and undercounted by counting cases rather than separating silent from loud. **HEAD = 0/702.**
+entirely and undercounted by counting cases rather than separating silent from loud. **HEAD =
+0/702.**
 
 **Residual defeat-class defect: real, unchanged at HEAD, MEDIUM not HIGH.** Zero of 117 locales
 order-flip under Chromium 149 and the three affected locales are unsupported there, so no real
@@ -8252,8 +8399,8 @@ for :3000 to free; its own script text contains the string `playwright`, so any 
 whole cmdline classifies it as a Playwright process. It was `sleep 20` in a loop. PID 3089579 was
 already gone — same false-positive class.
 
-**This is the `pgrep -f` self-match trap, already recorded in this goal, walked into again by root.**
-The monitor polluted the exact process table it existed to observe. Root killed it.
+**This is the `pgrep -f` self-match trap, already recorded in this goal, walked into again by
+root.** The monitor polluted the exact process table it existed to observe. Root killed it.
 
 Verified by matching on `argv[1]` rather than the whole command line:
 
@@ -8264,10 +8411,10 @@ PLAYWRIGHT 3078493 cwd=/tmp/mf-p29
 **Exactly one real Playwright CLI on the machine. The one-campaign rule was never violated.** Load
 8.84 is P29's four workers plus normal background, not three campaigns.
 
-**The reviewer's conduct was correct on every axis that mattered.** It recognised the shared-checkout
-danger pattern, **did NOT kill the processes**, and escalated for a decision instead of acting
-unilaterally on a destructive call. Had they been real campaigns, restraint was right; had it killed
-them, it would only have destroyed a root monitor, but the reflex is the dangerous one.
+**The reviewer's conduct was correct on every axis that mattered.** It recognised the
+shared-checkout danger pattern, **did NOT kill the processes**, and escalated for a decision instead
+of acting unilaterally on a destructive call. Had they been real campaigns, restraint was right; had
+it killed them, it would only have destroyed a root monitor, but the reflex is the dangerous one.
 
 **Root ruled (c) HOLD, and explicitly REJECTED option (b)** — writing the review with the E2E
 criterion unproven, resting on the implementer's recorded campaign. The 3-run `--retries=0` bar is
@@ -8275,8 +8422,9 @@ root's and the reviewer should MEET it, not infer it, when the port is minutes a
 own corroboration was assessed as strong-but-insufficient: `playwright test --list` reports **177
 tests in 23 files**, all five date-locale tests resolve individually by name so the `Q-P27-01`
 vacuous-import failure mode is excluded, every imported helper exists, `data-testid="date-editable"`
-renders at `TransactionRow.tsx:369`, and the tree digest matches the implementer's recorded pre-run-1
-and post-run-3 values. **That makes the E2E outcome very likely; it does not make it verified.**
+renders at `TransactionRow.tsx:369`, and the tree digest matches the implementer's recorded
+pre-run-1 and post-run-3 values. **That makes the E2E outcome very likely; it does not make it
+verified.**
 
 Reviewer's stated direction: **PASS with one MEDIUM finding.** Outstanding for it: `pnpm test`,
 `pnpm build`, and the 3-run campaign, all deferred until root signals the port.
@@ -8296,12 +8444,12 @@ PASS with the bar unmet would be root lowering a standard to suit its own sequen
 moment :3000 frees, then appends a corroboration note. If the campaign changes the verdict, PASS
 becomes FAIL and that is the correct outcome.
 
-**Digest claim — root nearly wrote a false finding and the near-miss is worth recording.** Root tried
-to reproduce the reviewer's `f46cbb368fc6d55433473f127772e9db` and got a different value TWICE, first
-with its own formula then with its reconstruction of the reviewer's. **The discrepancy was root's**:
-a content-hash pipeline can be assembled several ways and root was guessing at ordering and
-null-separation. Instead of reporting an unattributable mismatch, root verified the underlying claim
-by a different route:
+**Digest claim — root nearly wrote a false finding and the near-miss is worth recording.** Root
+tried to reproduce the reviewer's `f46cbb368fc6d55433473f127772e9db` and got a different value
+TWICE, first with its own formula then with its reconstruction of the reviewer's. **The discrepancy
+was root's**: a content-hash pipeline can be assembled several ways and root was guessing at
+ordering and null-separation. Instead of reporting an unattributable mismatch, root verified the
+underlying claim by a different route:
 
 ```
 git diff --stat e9509e1 8c16063 -- src tests package.json pnpm-lock.yaml playwright.config.ts
@@ -8313,14 +8461,14 @@ proven by git rather than by hash agreement. The reviewer's conclusion holds and
 **Lesson: when a reproduction disagrees, check the CLAIM by another route before reporting the
 ARTIFACT as wrong.**
 
-**F-5 MEDIUM accepted as non-blocking.** Round-trip discrimination keys on zero-padding; when day AND
-month are both in 10..12 padding is a no-op, both interpretations re-render to the typed string, and
-the first candidate — `numeric`, wrong order — wins. 18 silent-wrong cases across
+**F-5 MEDIUM accepted as non-blocking.** Round-trip discrimination keys on zero-padding; when day
+AND month are both in 10..12 padding is a no-op, both interpretations re-render to the typed string,
+and the first candidate — `numeric`, wrong order — wins. 18 silent-wrong cases across
 `mt-MT`/`so-SO`/`ug-CN`, **byte-identical at `1bba42b` and HEAD so not a regression**, and
 unreachable under Chromium 149. Follow-up, not a rev 04.
 
-**`mn-MN` ruling SUPERSEDED by a better-founded one.** The reviewer found the mechanism narrower than
-previously reported: Roman numerals appear ONLY in the year-less same-year skeleton; the
+**`mn-MN` ruling SUPERSEDED by a better-founded one.** The reviewer found the mechanism narrower
+than previously reported: Roman numerals appear ONLY in the year-less same-year skeleton; the
 different-year and editing forms are numeric and round-trip cleanly. `InlineEditableDate.tsx:191`
 shows the editing form whenever the cell is focused, so the compact form is not an input and
 `spec.md:51-52` concerns what can be "typed back". Clause satisfied; `mn-MN` outside UR-007.
@@ -8333,8 +8481,8 @@ for every form the code serves.
 ### 2026-08-02 — P29 rev 02 campaign CLEAN 3/3; port released and handed to `p28-reviewer-03`
 
 `p29-implementer-01` announced BEFORE releasing, as instructed. **Root verified from the logs, not
-from the report** — the implementer flagged its paths up front precisely because root searched inside
-the worktree last campaign and found nothing.
+from the report** — the implementer flagged its paths up front precisely because root searched
+inside the worktree last campaign and found nothing.
 
 | run | result         | duration | load at start | digest     |
 | --- | -------------- | -------- | ------------- | ---------- |
@@ -8343,11 +8491,11 @@ the worktree last campaign and found nothing.
 | 3   | **177 passed** | 4.3m     | 5.95          | `0e58fc49` |
 
 Root's independent check of `/tmp/p29r2-e2e-run{1,2,3}.log`: `177 passed` in each, **failure-marker
-scan (`N failed`, `✘`, `Error: expect`, `timed out`) returns 0 in all three**, and both new E2E tests
-execute BY NAME twice per log (`import.spec.ts:1721` and `:1800`). Digest `0e58fc4984aed2234afdb99df70705df`
-identical in `/tmp/p29r2-digest-pre.txt` and `-post.txt`, excluding `next-env.d.ts` — so the campaign
-is evidence for exactly the tree that ran. The only log noise is benign `[WebServer]` tRPC auth
-warnings on `vault.list`/`realtime.revoke`.
+scan (`N failed`, `✘`, `Error: expect`, `timed out`) returns 0 in all three**, and both new E2E
+tests execute BY NAME twice per log (`import.spec.ts:1721` and `:1800`). Digest
+`0e58fc4984aed2234afdb99df70705df` identical in `/tmp/p29r2-digest-pre.txt` and `-post.txt`,
+excluding `next-env.d.ts` — so the campaign is evidence for exactly the tree that ran. The only log
+noise is benign `[WebServer]` tRPC auth warnings on `vault.list`/`realtime.revoke`.
 
 **None of the three recorded load-sensitive assertions fired** at load 4-6:
 `duplicates.test.ts:749`, `transactions.spec.ts:804`, `vault-maintenance.test.tsx`.
@@ -8356,9 +8504,9 @@ Six checks green at `43836b0`: typecheck PASS, bare `pnpm lint` exit 0, format:c
 frozen `specs/**` none owned, `pnpm test` **2382 passed / 2 skipped / 123 files**, E2E 3x177.
 
 **Implementer correction that root is recording because it cuts AGAINST the implementer.** Root
-credited it with deliberately satisfying the value-assertion property. It refused the credit: its own
-NEW fixtures carried `expect(mappings["3"]).toBe("amount")` and **would have been blind exactly as
-the addendum warned**; the property was satisfied incidentally by one OLDER test. That is why it
+credited it with deliberately satisfying the value-assertion property. It refused the credit: its
+own NEW fixtures carried `expect(mappings["3"]).toBe("amount")` and **would have been blind exactly
+as the addendum warned**; the property was satisfied incidentally by one OLDER test. That is why it
 added `ur-008-amount-column.test.tsx` driving `loadFile` and asserting money. **Root's suspicion was
 right about the new tests; an old test is what saved them.**
 
@@ -8372,25 +8520,25 @@ Port released and granted to `p28-reviewer-03` after root verified no process un
 
 ### 2026-08-02 — P29 rev 02 HANDBACK at `ee3cce7`; distinct reviewer dispatched and re-targeted
 
-`p29-implementer-01` handed back and stood down. **Handback `ee3cce7`**, branch
-`worktree-p29-ur008` at `/tmp/mf-p29`, tree clean, no amend to follow.
+`p29-implementer-01` handed back and stood down. **Handback `ee3cce7`**, branch `worktree-p29-ur008`
+at `/tmp/mf-p29`, tree clean, no amend to follow.
 
-Root verified rather than accepted: `git merge-base --is-ancestor 74b37f9 HEAD` OK and
-`43836b0` also an ancestor — nothing dangling, per the `handback-hash-amend-orphan` precedent.
-**`ee3cce7` touches exactly ONE file**, `evidence/P29/implementation-01.md` (+27/-11). No product,
-test, ledger, marker, SCOPE, spec, FINAL-AUDIT or reviews file. Product and test code is therefore
-byte-identical to `43836b0`.
+Root verified rather than accepted: `git merge-base --is-ancestor 74b37f9 HEAD` OK and `43836b0`
+also an ancestor — nothing dangling, per the `handback-hash-amend-orphan` precedent. **`ee3cce7`
+touches exactly ONE file**, `evidence/P29/implementation-01.md` (+27/-11). No product, test, ledger,
+marker, SCOPE, spec, FINAL-AUDIT or reviews file. Product and test code is therefore byte-identical
+to `43836b0`.
 
 Root dispatched `p29-reviewer-02` (DISTINCT, fresh context, never the implementer, not
-`p29-reviewer-01`) against `43836b0`, then **re-targeted it to `ee3cce7`** when the handback landed —
-code unchanged, evidence newer, so the honesty assessment must read the current version.
+`p29-reviewer-01`) against `43836b0`, then **re-targeted it to `ee3cce7`** when the handback landed
+— code unchanged, evidence newer, so the honesty assessment must read the current version.
 
 **Rev 02 diff vs `74b37f9`:** `detection.ts` (+196), `use-import-state.ts`, `MappingTab.tsx`,
-`ImportPanel.tsx`, `ur-008-csv-parity.test.ts` (+6 tests), `mapping-tab-auto-detect.test.tsx`
-(+1 test), **new `ur-008-amount-column.test.tsx`** (6 value-level tests), evidence.
+`ImportPanel.tsx`, `ur-008-csv-parity.test.ts` (+6 tests), `mapping-tab-auto-detect.test.tsx` (+1
+test), **new `ur-008-amount-column.test.tsx`** (6 value-level tests), evidence.
 
-**Implementer's own weakest-surface assessment, passed to the reviewer as press-hardest items.** Root
-judges the self-assessment accurate:
+**Implementer's own weakest-surface assessment, passed to the reviewer as press-hardest items.**
+Root judges the self-assessment accurate:
 
 1. **`NON_AMOUNT_HEADER_PATTERN` is a hand-written DENYLIST** (`balance`, `check/cheque no`, `ref`),
    incomplete by construction. An unanticipated header falls through to signs/minor-units ranking.
@@ -8426,21 +8574,21 @@ reviewer still gates each package** — the merge is of implementation, not of t
   The frozen text requires the range to apply "the same outcome to the whole range as was applied to
   the anchor row".
 - **UR-011.** `TransactionTable.tsx:274` sets `filteredIds = transactions.map((t) => t.id)` where
-  `transactions` is `tableData` = `displayedTransactions` = `filteredTransactions.slice(0,
-  displayCount)` with `PAGE_SIZE = 50`. **Select-all therefore covers only the loaded page.**
-  `isAllSelected` at `:52-67` additionally loops `filteredIds`, which the efficiency clause at
-  `spec.md:52-55` forbids scaling as rendered x matching.
+  `transactions` is `tableData` = `displayedTransactions` =
+  `filteredTransactions.slice(0, displayCount)` with `PAGE_SIZE = 50`. **Select-all therefore covers
+  only the loaded page.** `isAllSelected` at `:52-67` additionally loops `filteredIds`, which the
+  efficiency clause at `spec.md:52-55` forbids scaling as rendered x matching.
 
 **Incidental defect found by root and folded into the dispatch: three `console.log` calls in shipped
 product code** at `useTableSelection.ts:71`, `:82`, `:94` — debug leftovers inside the very function
 UR-011 requires rewriting. Repo-wide there are 14 `console.log` in `src`, but the remainder are
-deliberate `SyncManager` logging or docstring examples, so the implementer is scoped to **these three
-only**.
+deliberate `SyncManager` logging or docstring examples, so the implementer is scoped to **these
+three only**.
 
 The dispatch carries the blindness test in requirement-specific form, since generic phrasing has not
-been enough: *a test asserting "the range is selected" passes whether or not deselection works, and
+been enough: _a test asserting "the range is selected" passes whether or not deselection works, and
 a test asserting "select-all selects the rendered rows" passes whether or not unrendered rows are
-covered.* Required instead: assert that **never-rendered rows are in the selection**, and that **a
+covered._ Required instead: assert that **never-rendered rows are in the selection**, and that **a
 range begun by deselecting ends deselected**.
 
 Barred from :3000 while `p28-reviewer-03` campaigns; worktree reserved `/tmp/mf-p31`, outside the
@@ -8468,8 +8616,8 @@ before the five non-E2E checks. The five checks and all three runs therefore cov
 tree. This is the same digest the P28 implementer recorded for its own rev 03 campaign, so **two
 independent campaigns, run by different agents in different worktrees, cover the same tree.**
 
-**Run 2 at load 10.35 is the strongest single piece of evidence in this package.** The three recorded
-load-sensitive assertions — `duplicates.test.ts:749`, `transactions.spec.ts:804`,
+**Run 2 at load 10.35 is the strongest single piece of evidence in this package.** The three
+recorded load-sensitive assertions — `duplicates.test.ts:749`, `transactions.spec.ts:804`,
 `vault-maintenance.test.tsx` — are precisely the ones that fire under contention, and none fired.
 
 Five non-E2E checks, run to completion BEFORE the campaign so vitest never competed with Playwright:
@@ -8483,8 +8631,8 @@ its 13 new unit tests do not exist at `8c16063` — `ur-008-amount-column.test.t
 `ur-008-csv-parity.test.ts` (22 -> 28), `mapping-tab-auto-detect.test.tsx` (2 -> 3). **Both figures
 are correct for their own trees.**
 
-Port observed FREE. Root is NOT reassigning it until the reviewer announces release, per the standing
-rule that an observed free port is not a released one.
+Port observed FREE. Root is NOT reassigning it until the reviewer announces release, per the
+standing rule that an observed free port is not a released one.
 
 ### 2026-08-02 — P29 rev 02 independent review returns **FAIL** on F-4; rev 03 opened
 
@@ -8503,7 +8651,7 @@ const preferred = evidence.filter((entry) => entry.headerSays !== "not-amount");
 const ranked = preferred.length > 0 ? preferred : evidence;
 ```
 
-`NON_AMOUNT_HEADER_PATTERN` exists to say *this column is not the money*. When every numeric
+`NON_AMOUNT_HEADER_PATTERN` exists to say _this column is not the money_. When every numeric
 candidate is disowned, `preferred` is empty and `ranked` falls back to `evidence` — **the disowned
 columns are used anyway**, precisely where the header is unambiguous.
 
@@ -8517,29 +8665,29 @@ implementer's own tree, then deleted the probe:
 
 **Measured by the reviewer through the real `useImportState.loadFile`, three trees:**
 
-| file                        | at `4c77a2d`                   | at HEAD `43836b0`                    |
-| --------------------------- | ------------------------------ | ------------------------------------ |
-| `Date,Description,Balance`  | `2:balance`, 0 valid, 2 errors | `2:amount`, `100000, 92475`, 0 errors |
-| `Date,Description,Check No` | `2:checkNumber`, 2 errors      | `2:amount`, `100100, 100200`, 0 errors |
+| file                        | at `4c77a2d`                       | at HEAD `43836b0`                      |
+| --------------------------- | ---------------------------------- | -------------------------------------- |
+| `Date,Description,Balance`  | `2:balance`, 0 valid, 2 errors     | `2:amount`, `100000, 92475`, 0 errors  |
+| `Date,Description,Check No` | `2:checkNumber`, 2 errors          | `2:amount`, `100100, 100200`, 0 errors |
 | `Date,Description,Ref`      | `{0:date,1:description}`, 2 errors | `2:amount`, `100100, 100200`, 0 errors |
 
 **This is a REGRESSION against `4c77a2d`**, which produced a visible error where HEAD imports silent
 wrong money — the exact shape the implementer's own evidence §1.4.2 names as the worse failure mode,
 for the second time in this package.
 
-**Required fix:** when every qualifying column is `headerSays === "not-amount"`, return `null` rather
-than falling back, leaving the amount unmapped so rows report as errors. Early
-`if (preferred.length === 0) return null;` at `:329`. **The fix is NOT to extend the denylist — it is
-to stop overriding the denylist when it fires.** Tests must assert through `loadFile` that no amount
-is imported and `errorCount` equals the row count.
+**Required fix:** when every qualifying column is `headerSays === "not-amount"`, return `null`
+rather than falling back, leaving the amount unmapped so rows report as errors. Early
+`if (preferred.length === 0) return null;` at `:329`. **The fix is NOT to extend the denylist — it
+is to stop overriding the denylist when it fires.** Tests must assert through `loadFile` that no
+amount is imported and `errorCount` equals the row count.
 
 **The blindness result, and it is the sharpest instance yet.** The reviewer took each of the SIX
 assertions in `ur-008-amount-column.test.tsx` — the file written specifically to cure blind
-assertions — and asked whether it would still pass with F-4 present. **All six would.** Every fixture
-carries a genuine `Amount`/`Debit` column, so `preferred` is never empty and the fallback branch is
-never exercised. **The `Q-P28-03` shape recurred one level down, inside the helper written to fix
-it.** Generalised lesson recorded: *a fixture set must vary along the axis the code branches on, and
-a newly added branch is itself a new axis.*
+assertions — and asked whether it would still pass with F-4 present. **All six would.** Every
+fixture carries a genuine `Amount`/`Debit` column, so `preferred` is never empty and the fallback
+branch is never exercised. **The `Q-P28-03` shape recurred one level down, inside the helper written
+to fix it.** Generalised lesson recorded: _a fixture set must vary along the axis the code branches
+on, and a newly added branch is itself a new axis._
 
 **Reviewer caught a root dispatch error and checked before reporting it:** root assigned `43836b0`
 but `/tmp/mf-p29` HEAD is `ee3cce7`. It measured `git diff 43836b0 ee3cce7 -- src tests` as empty,
@@ -8550,10 +8698,10 @@ confirmed the difference is evidence-only, and recorded it as benign rather than
 ### 2026-08-02 — ROOT RULING: F-4 is IN SCOPE for UR-008; reviewer's block UPHELD
 
 `p29-reviewer-02` asked for an explicit scope ruling rather than letting the question ship by
-omission, noting the F-4 input class is narrow. **Root rules F-4 IN SCOPE.** Reasoning recorded so it
-is auditable, not deferential:
+omission, noting the F-4 input class is narrow. **Root rules F-4 IN SCOPE.** Reasoning recorded so
+it is auditable, not deferential:
 
-- `spec.md:80-81` requires *"Every row the summary reports as an error is genuinely unparseable."*
+- `spec.md:80-81` requires _"Every row the summary reports as an error is genuinely unparseable."_
   That clause governs **false errors**. F-4 is its mirror — **rows wrongly reported VALID.** The
   requirement that the summary "describe its own counts truthfully" (`:57`) is not met by a summary
   reporting `0 errors` over rows whose amount column is a running balance. **Truthfulness is
@@ -8614,13 +8762,13 @@ byte-identical output, `2:balance` / `2:checkNumber` / unmapped `Ref`, column fo
 regression is closed, not papered over.** 4 new tests, all failing at `ee3cce7`, asserted through
 `loadFile`.
 
-**Implementer's correction to root's generalisation ADOPTED as the goal-wide form.** Root wrote *"a
-fixture set must vary along the axis the code branches on."* The implementer's is sharper: **a branch
-you ADD is a new axis no existing fixture covers**, with the operational rule *after writing any `if`
-or fallback, immediately ask which input takes the other path and write that fixture THEN, not
-later.* It confirmed independently that all six rev-02 value-level assertions would still pass with
-F-4 present, because every fixture header contains a real `Amount` so the branch is unreachable from
-the entire suite.
+**Implementer's correction to root's generalisation ADOPTED as the goal-wide form.** Root wrote _"a
+fixture set must vary along the axis the code branches on."_ The implementer's is sharper: **a
+branch you ADD is a new axis no existing fixture covers**, with the operational rule _after writing
+any `if` or fallback, immediately ask which input takes the other path and write that fixture THEN,
+not later._ It confirmed independently that all six rev-02 value-level assertions would still pass
+with F-4 present, because every fixture header contains a real `Amount` so the branch is unreachable
+from the entire suite.
 
 **Denylist correction, which root would have got wrong.** Root carried the implementer's own
 "`NON_AMOUNT_HEADER_PATTERN` is incomplete by construction" forward as the weak surface. **The bug
@@ -8636,30 +8784,30 @@ untouched in a fix revision.
 
 ### 2026-08-02 — P29 rev 02 review addendum `2539794`; ROOT CORRECTS ITS OWN GUARD INSTRUCTION
 
-`p29-reviewer-02` committed an addendum, verdict **unchanged FAIL on F-4**. Both its commits verified
-by root as single-file and ancestors of HEAD: `ac9332c` (+436) and `2539794` (+184/-4).
+`p29-reviewer-02` committed an addendum, verdict **unchanged FAIL on F-4**. Both its commits
+verified by root as single-file and ancestors of HEAD: `ac9332c` (+436) and `2539794` (+184/-4).
 
 **ROOT CORRECTION — the inert-guard instruction was wrong and is retracted.** Root told rev 03 it
 could either pin `fileHasHeaders ? headers : []` (`use-import-state.ts:373`) with a test or **remove
 it and say why it was never needed.** The second option is a trap. The guard is inert **only because
 `"Column N"` matches none of the three pattern sets TODAY**. Removing it is correct against current
-patterns and **silently becomes wrong the moment anyone adds a pattern matching `Column`, `Col`, `No`
-or similar** — at which point synthesised placeholder names feed real header evidence into amount
-selection, which is the F-1 class arriving through a door someone removed as useless.
+patterns and **silently becomes wrong the moment anyone adds a pattern matching `Column`, `Col`,
+`No` or similar** — at which point synthesised placeholder names feed real header evidence into
+amount selection, which is the F-1 class arriving through a door someone removed as useless.
 
-Root's aphorism *"a guard nothing tests is a comment with a runtime cost"* holds for a guard
+Root's aphorism _"a guard nothing tests is a comment with a runtime cost"_ holds for a guard
 unreachable **by construction**, NOT for one unreachable **by coincidence of current data**. Rev 03
-is now instructed to PIN it: assert that synthesised names produce the same answer as no headers, and
-comment the test as currently non-discriminating so a future reader does not delete it for the same
-reason root nearly did.
+is now instructed to PIN it: assert that synthesised names produce the same answer as no headers,
+and comment the test as currently non-discriminating so a future reader does not delete it for the
+same reason root nearly did.
 
 **Denylist: the implementer's judgement CORRECT, better founded than its own explanation.** The
 reviewer tested ten unknown headers — `Running Total`, `Closing Bal`, `Ledger`, `Doc No`,
-`Transaction ID`, `Account No`, `Units`, `Rate` — beside a genuine `Amount`, signed and all-positive:
-**all 20 cases correct, 0 errors.** Structural reason: `detection.ts:324-325` settles outright when
-`AMOUNT_HEADER_PATTERN` names exactly one column — an **allowlist hit firing BEFORE the denylist
-matters**. Denylist incompleteness is therefore irrelevant whenever the amount column is
-conventionally named.
+`Transaction ID`, `Account No`, `Units`, `Rate` — beside a genuine `Amount`, signed and
+all-positive: **all 20 cases correct, 0 errors.** Structural reason: `detection.ts:324-325` settles
+outright when `AMOUNT_HEADER_PATTERN` names exactly one column — an **allowlist hit firing BEFORE
+the denylist matters**. Denylist incompleteness is therefore irrelevant whenever the amount column
+is conventionally named.
 
 **Nearest-neighbour case, deliberately NOT raised as a second finding.** When the amount column is
 also unrecognised (`Movement`, `Posting`, `Txn`) AND every value is positive, position decides and
@@ -8689,9 +8837,9 @@ anything still generous to itself.**
 
 Reviewer adopted root's `spec.md:80-81` truthfulness-symmetry grounding over its own
 "silently-wrong-money" framing, on the basis that deriving the block from frozen text is stronger
-than deriving it from a judgement about which failure is worse. `/tmp/mf-p29r2b` was already removed;
-root's listing predated the prune. **The reviewer correctly declines to review rev 03**, being the
-author of the finding it would be grading.
+than deriving it from a judgement about which failure is worse. `/tmp/mf-p29r2b` was already
+removed; root's listing predated the prune. **The reviewer correctly declines to review rev 03**,
+being the author of the finding it would be grading.
 
 ### 2026-08-02 — P30 rev 01 committed at `877d45a`; port granted; UR-009 is a BUILD-IT package
 
@@ -8710,9 +8858,9 @@ not exist for ANY field.** `use-transaction-rule-workflow.save()` is keyed to an
 and its `:212` comment says so; `InlineEditableTags.tsx` had zero rule wiring.
 
 **This explains the principal's report exactly: they added a tag and changed a description and
-correctly saw nothing, because nothing was there.** 20-clause conformance table — 8 already conformed
-with tests, **12 gaps all closed**. Root accepts the enlarged scope as the correct outcome rather
-than scope creep.
+correctly saw nothing, because nothing was there.** 20-clause conformance table — 8 already
+conformed with tests, **12 gaps all closed**. Root accepts the enlarged scope as the correct outcome
+rather than scope creep.
 
 Built additively, without redesigning the engine or changing rule storage:
 `field-rule-proposal-state.ts` (pure create-vs-update decision reusing `selectWinningRule` so both
@@ -8727,10 +8875,10 @@ provably render ONE string.
 proposal was open, so **the cell's DOM shape differed between states** — React would have remounted
 it mid-edit and dropped the open dropdown and the caret. **No unit test would catch that**, and an
 E2E test only would if it happened to type, open a proposal and keep typing; a real user hits it
-first attempt. It also found the anchor dropping the inline `style`, which would have silently broken
-the allocation column span. Both fixed before committing, with the implementer's own framing: *"I
-said so in the comment only after making it true"* — the direct answer to the sibling package that
-shipped a comment asserting a protection the code did not provide.
+first attempt. It also found the anchor dropping the inline `style`, which would have silently
+broken the allocation column span. Both fixed before committing, with the implementer's own framing:
+_"I said so in the comment only after making it true"_ — the direct answer to the sibling package
+that shipped a comment asserting a protection the code did not provide.
 
 Fail-without-fix proven in a throwaway worktree at BASE `5229cd4`: **4 failed / 6 passed**, with
 `draftFromProposal is not a function` and the proposal module unresolvable — a real absence, not a
@@ -8740,8 +8888,8 @@ Gates: typecheck clean, lint 0 errors (1 warning pre-existing at BASE in untouch
 code), `oxfmt --check src tests` clean, `pnpm test` **123 files / 2394 passed**.
 
 Disclosed unprompted: a `git stash push` swallowed its tracked edits earlier; caught immediately,
-restored via `git stash pop`, verified intact. **Root used the disclosure to warn `p31-implementer-01`,
-which shares the same checkout**, rather than merely noting it.
+restored via `git stash pop`, verified intact. **Root used the disclosure to warn
+`p31-implementer-01`, which shares the same checkout**, rather than merely noting it.
 
 Three Q-proposals carried: clearing a field offers no rule; restrictions pre-filled but not
 pre-enabled; one pending proposal at a time. Root requires a recorded DECISION on each at handback,
@@ -8759,22 +8907,24 @@ amended it away to add an E2E dropdown-wait helper, and the two messages crossed
 4526f79   git show resolves   merge-base --is-ancestor HEAD: YES   (real)
 ```
 
-`4526f79` is 15 files, +1692/-44, `src` and `tests` only; `git diff 4526f79 HEAD -- src tests` empty;
-scratch still `469e98c7…`.
+`4526f79` is 15 files, +1692/-44, `src` and `tests` only; `git diff 4526f79 HEAD -- src tests`
+empty; scratch still `469e98c7…`.
 
 **New failure mode, and the `handback-hash-amend-orphan` memory did NOT cover it.** Root DID run
 `merge-base --is-ancestor` on `877d45a` and it PASSED — the check was correct when it ran. **The
 implementer amended afterwards and root's verification silently expired.** Memory amended with the
-missing clause: **an ancestry check is only valid for the instant it ran. A stale green check is more
-dangerous than no check, because it sits in the coordinator's own transcript looking authoritative.
-Re-verify immediately before dispatching a reviewer, not once when the handback arrives.**
+missing clause: **an ancestry check is only valid for the instant it ran. A stale green check is
+more dangerous than no check, because it sits in the coordinator's own transcript looking
+authoritative. Re-verify immediately before dispatching a reviewer, not once when the handback
+arrives.**
 
 The implementer had a coordinator on record confirming its commit and corrected it anyway, against
 its own interest. Third such correction today.
 
 ### 2026-08-02 — P29 rev 03 addendum items all VERIFIED at `273db5f`
 
-Tree clean, `ee3cce7` an ancestor, `CLASSIFICATION_THRESHOLD` restored to `0.8` at `detection.ts:65`.
+Tree clean, `ee3cce7` an ancestor, `CLASSIFICATION_THRESHOLD` restored to `0.8` at
+`detection.ts:65`.
 
 **1. Guard PINNED, with the coincidence verified concretely rather than argued.** Root reasoned that
 the guard was inert-by-coincidence; the implementer produced the table — `/col/i` unanchored matches
@@ -8786,8 +8936,8 @@ currently fail and why.
 **2. Threshold pinned AND PROVEN TO DISCRIMINATE.** The implementer could have written tests around
 the 4/20 - 5/20 cliff, watched them pass, and called it pinned — which would have been the exact
 defect under repair. Instead it **mutated the constant to 0.5 and 0.95 and confirmed one of the pair
-fails at each, both passing only at 0.8.** Root adopts this as the standard whenever a package pins a
-magic number: **prove the test discriminates, do not assert it.**
+fails at each, both passing only at 0.8.** Root adopts this as the standard whenever a package pins
+a magic number: **prove the test discriminates, do not assert it.**
 
 **3. Nearest-neighbour case recorded as a DECISION not to fix**, with the reviewer's distinction
 quoted and the note that the correct future fix is an allowlist entry for the specific bank rather
@@ -8796,10 +8946,11 @@ common case, attributing the 20/20 measurement to the reviewer.
 
 **Root's fifth near-miss, same practice, caught again.** Root grepped `tests/unit/import/*.ts` for
 the pinning test and found nothing — **the test is in `ur-008-amount-column.test.tsx`** and the glob
-missed the extension. Found by reading what the commit actually touched rather than trusting absence.
+missed the extension. Found by reading what the commit actually touched rather than trusting
+absence.
 
-**Implementer's fourth self-catch, and the best evidence the practice works:** three new tests failed
-on first run; rather than assume the code was wrong it printed the sweep and found
+**Implementer's fourth self-catch, and the best evidence the practice works:** three new tests
+failed on first run; rather than assume the code was wrong it printed the sweep and found
 `ReferenceError: parseCSV is not defined` — two missing imports in its own test file. **Its oracle,
 not the code, caught on itself with nobody watching.**
 
@@ -8810,9 +8961,9 @@ record. Gates at `273db5f`: typecheck PASS, bare lint exit 0, 17 frozen `specs/*
 
 ### 2026-08-02 — **P28 PASSED and INTEGRATED; UR-007 `passed`.** Deferred criterion met, not waived
 
-`p28-reviewer-03` amended `P28-review-03.md` at **`85d794f`** — one file, +92/-46, verified by root as
-an ancestor of HEAD. **§3 no longer declares any criterion unrun; the file now reads "All six checks
-run and green" and §5 reads "None. P28 revision 03 is ready to integrate."**
+`p28-reviewer-03` amended `P28-review-03.md` at **`85d794f`** — one file, +92/-46, verified by root
+as an ancestor of HEAD. **§3 no longer declares any criterion unrun; the file now reads "All six
+checks run and green" and §5 reads "None. P28 revision 03 is ready to integrate."**
 
 **Root integrates on a bar that was MET, not lowered.** Root deferred this PASS earlier precisely
 because root's own sequencing had denied the reviewer the port. The reviewer ran all six checks
@@ -8824,17 +8975,18 @@ different worktrees cover one tree.
 **Ledger updated: P28 `in_review` -> `passed`; UR-007 `queued` -> `passed`.** Scratch unchanged at
 `469e98c7…`, canary 1. **29 of 34 requirements passed; 28 of 33 feature packages passed.**
 
-**F-5 stands as a MEDIUM follow-up, not a rev 04** — the padding-collision defeat class is real under
-Node ICU and **unreachable in Chromium 149**, which supports none of `mt-MT`/`so-SO`/`ug-CN` and has
-zero order-flipping locales of 117.
+**F-5 stands as a MEDIUM follow-up, not a rev 04** — the padding-collision defeat class is real
+under Node ICU and **unreachable in Chromium 149**, which supports none of `mt-MT`/`so-SO`/`ug-CN`
+and has zero order-flipping locales of 117.
 
 **A false-alarm class every future monitor here should know about.** The reviewer's first failure
-sweep matched 38-39 lines per run. Every one was `[WebServer]` noise the suite provokes deliberately,
-or **a test NAME containing the word "failed"** — `onboarding-vault.spec.ts:63` *"failed registration
-leaves no signing session"* and `undo-redo.spec.ts:311` *"a failed offline undo push retries"*. **A
-pattern broad enough to catch every failure mode also catches tests ABOUT failure.** It re-counted
-against Playwright's own markers (`✘`, `N failed`, `N flaky`, `retry #`, all 0) before reporting, so
-it stayed a footnote rather than becoming a finding. Root's own monitors use exactly this grep shape.
+sweep matched 38-39 lines per run. Every one was `[WebServer]` noise the suite provokes
+deliberately, or **a test NAME containing the word "failed"** — `onboarding-vault.spec.ts:63`
+_"failed registration leaves no signing session"_ and `undo-redo.spec.ts:311` _"a failed offline
+undo push retries"_. **A pattern broad enough to catch every failure mode also catches tests ABOUT
+failure.** It re-counted against Playwright's own markers (`✘`, `N failed`, `N flaky`, `retry #`,
+all 0) before reporting, so it stayed a footnote rather than becoming a finding. Root's own monitors
+use exactly this grep shape.
 
 **The reviewer's rule for its load-11.63 self-correction is better than root's and is adopted
 goal-wide: _the rigour a process reading deserves is proportional to what the conclusion
@@ -8851,8 +9003,8 @@ discrepancy and the member list resolved it.
 
 Root's dispatches said "do not take :3000" and stopped there. **That is only the visible half of the
 constraint.** `p29-implementer-01` ran `pnpm test` in its own worktree while `p30-implementer-01`
-was launching its campaign — no rule broken, vitest is not Playwright and it never touched the port —
-and drove load to **10.19**. Vitest at 32 workers beside Playwright at 4 is exactly the contention
+was launching its campaign — no rule broken, vitest is not Playwright and it never touched the port
+— and drove load to **10.19**. Vitest at 32 workers beside Playwright at 4 is exactly the contention
 that reddens another package's suite.
 
 **The asymmetry is what makes this binding rather than courteous.** A unit run costs its owner ~74
@@ -8861,8 +9013,8 @@ either direction** — it can be neither trusted as a failure nor dismissed as a
 separately identified load-sensitive assertions in this repo, that is not hypothetical. **Cheap for
 the runner, expensive for the victim, and the cost lands on whoever did nothing wrong.**
 
-**Rule, now in every dispatch:** before ANY heavy run, check whether another agent holds a campaign —
-not just whether the port is free. And when your own turn comes, **run all non-E2E checks to
+**Rule, now in every dispatch:** before ANY heavy run, check whether another agent holds a campaign
+— not just whether the port is free. And when your own turn comes, **run all non-E2E checks to
 completion FIRST, then launch the campaign**, so your own vitest never competes with your own
 Playwright. `p28-reviewer-03` derived this unprompted and sequenced its work that way; it is the
 standard.
@@ -8876,17 +9028,17 @@ are registering, so the E2E surface grew with the package as expected.
 ### 2026-08-02 — Root's FIFTH near-miss shape: a correct search over a wrong assumption
 
 Root grepped `tests/unit/import/*.ts` for P29's pinning test, found nothing, and nearly reported it
-missing. **The file is `.tsx`.** Distinct from the previous four and worse in one respect: **the glob
-was well-formed and did exactly what was asked** — no wrong tree, no remembered line, no bad oracle,
-**no tell at all**. Quantified before recording:
+missing. **The file is `.tsx`.** Distinct from the previous four and worse in one respect: **the
+glob was well-formed and did exactly what was asked** — no wrong tree, no remembered line, no bad
+oracle, **no tell at all**. Quantified before recording:
 
 ```
 tests/unit/**/*.ts    73 files
 tests/unit/**/*.tsx   24 files
 ```
 
-**A quarter of this repo's unit tests are invisible to a `*.ts` glob.** Recorded as: *absence of a
-match is evidence about your search, not about the repo.*
+**A quarter of this repo's unit tests are invisible to a `*.ts` glob.** Recorded as: _absence of a
+match is evidence about your search, not about the repo._
 
 **Implementer's maintainability correction, applied.** Root said naming the two unsafe regex shapes
 made the fence maintainable. The implementer found the flaw in that reasoning: **the test comment
@@ -8919,26 +9071,27 @@ failure grep also matches **test names containing the word "failed"**.
 **This is the highest-signal location the failure could have landed.** P30 wired rule-creation
 controls into the description cell, `TransactionRow.tsx` and `InlineEditableTags.tsx`; this spec
 walks the full pointer/keyboard/commit journey rather than asserting a static state — the shape of
-test that catches a remount or a lost caret, which is exactly the defect class P30 self-caught in its
-tags cell before committing.
+test that catches a remount or a lost caret, which is exactly the defect class P30 self-caught in
+its tags cell before committing.
 
 **"Load caused it" is NOT available as an explanation.** Load was 7.81 during run 1, ordinary for a
 4-worker campaign here; the box was quiet, since the sibling vitest completed before run 1 started;
-and `description-aliases.spec.ts:188` is **not** one of the three recorded load-sensitive assertions.
+and `description-aliases.spec.ts:188` is **not** one of the three recorded load-sensitive
+assertions.
 
-**Root instructed P30: do NOT re-run for a green.** If runs 2 and 3 pass, that is a result to report,
-not noise to discard — intermittency is itself the finding. Report all three runs as they happened.
-**Diagnose by comparing against BASE** in a throwaway worktree: passes at BASE and fails at P30's
-tree means it is P30's; fails at both means pre-existing and a separate finding. Asserting either
-without that comparison would be a guess.
+**Root instructed P30: do NOT re-run for a green.** If runs 2 and 3 pass, that is a result to
+report, not noise to discard — intermittency is itself the finding. Report all three runs as they
+happened. **Diagnose by comparing against BASE** in a throwaway worktree: passes at BASE and fails
+at P30's tree means it is P30's; fails at both means pre-existing and a separate finding. Asserting
+either without that comparison would be a guess.
 
 **P33 (UR-012 cell hit areas) dispatch HELD, deliberately.** UR-012 requires every editable control
 to fill its cell, so it touches **all 7 cell components plus `TransactionRow.tsx`** — and P30 has
 already modified `TransactionRow.tsx`, `InlineEditableTags.tsx` and `PersonAllocationCell.tsx`, with
 its live failure sitting in that exact interaction surface. Dispatching a third agent to restructure
 those cells now would (a) collide with P30's likely rev 02 and (b) make it impossible to attribute
-any subsequent cell-interaction failure to one package. **P33 goes out once P30 resolves.** This is a
-sequencing decision, not a scope reduction: UR-012 remains fully in committed scope.
+any subsequent cell-interaction failure to one package. **P33 goes out once P30 resolves.** This is
+a sequencing decision, not a scope reduction: UR-012 remains fully in committed scope.
 
 Root also tested its own `/proc` scan against `p29-implementer-01`'s self-match finding: **immune**,
 because it reads only `argv[1]` and a `zsh -c` shell carries `-c` there with the script body at
@@ -8946,8 +9099,8 @@ because it reads only `argv[1]` and a `zsh -c` shell carries `-c` there with the
 reason. The implementer's scan read the whole cmdline, so its own script body was in scope — **same
 family, one field apart.**
 
-**Adopted from the implementer, superseding root's narrower phrasing:** *a warning has to live where
-the ACTION happens, not where the KNOWLEDGE was gained.* Evidence files, review artifacts and test
+**Adopted from the implementer, superseding root's narrower phrasing:** _a warning has to live where
+the ACTION happens, not where the KNOWLEDGE was gained._ Evidence files, review artifacts and test
 comments are where knowledge accumulates; none is where somebody stands when they widen a regex.
 
 ### 2026-08-02 — P30 run 1 red was a REAL ACCESSIBILITY REGRESSION; fixed at `c8dc004`, campaign restarted
@@ -8963,10 +9116,11 @@ description-aliases.spec.ts:248
 
 **Root established three things before P30 reported.** (1) The assertion is **pre-existing** — its
 last change was P23's `11a01f4` and `4526f79` does not touch that spec, so this is an existing
-contract broken by the change, not a new test disagreeing with new code. (2) `14 x locator resolved
-to 1 element` means **deterministic, not a race** — the dialog was present for the whole 5s window,
-so runs 2 and 3 were not needed to establish reproducibility. (3) "Load caused it" was unavailable:
-load 7.81, box quiet, and this spec is not one of the three recorded load-sensitive assertions.
+contract broken by the change, not a new test disagreeing with new code. (2)
+`14 x locator resolved to 1 element` means **deterministic, not a race** — the dialog was present
+for the whole 5s window, so runs 2 and 3 were not needed to establish reproducibility. (3) "Load
+caused it" was unavailable: load 7.81, box quiet, and this spec is not one of the three recorded
+load-sensitive assertions.
 
 **The defect: Radix `PopoverContent` defaults to `role="dialog"`, so the inline rule-creation
 controls announced themselves as a MODAL.** A screen-reader user would have been told a dialog had
@@ -8990,8 +9144,8 @@ Campaign tree-drift discipline applied unprompted.
 
 **`82ed8e1` is the day's fourth bad-oracle catch and the first from the TEST side.** The implementer
 filtered rows by `hasText` on a description that lives in an **input's value**, so every journey
-failed before reaching the code under test. Found by printing the actual DOM rather than trusting the
-assertion. Unchecked, it would have produced a wall of red across its own new spec pointing at
+failed before reaching the code under test. Found by printing the actual DOM rather than trusting
+the assertion. Unchecked, it would have produced a wall of red across its own new spec pointing at
 product code that was fine.
 
 **Three defects of the same family in one package, ALL invisible to unit tests** — anchor-shape
@@ -9030,13 +9184,13 @@ unrelated catastrophe. Recorded in durable memory.
 in the code under test — **a failure that looks exactly like a product defect.**
 
 **Guard mutation testing is now the goal standard, arrived at independently by two packages.** P30
-neutered `tagSetChanged` and `allocationValueChanged` to return `true` unconditionally, observed
-**3 failed / 33 passed**, restored, and verified the tree byte-identical with `git diff --quiet`.
-P29 did the same to `CLASSIFICATION_THRESHOLD` at 0.5 and 0.95. **A pinning test that passes proves
+neutered `tagSetChanged` and `allocationValueChanged` to return `true` unconditionally, observed **3
+failed / 33 passed**, restored, and verified the tree byte-identical with `git diff --quiet`. P29
+did the same to `CLASSIFICATION_THRESHOLD` at 0.5 and 0.95. **A pinning test that passes proves
 nothing on its own; only the mutation proves it discriminates** — and the tree-clean step matters,
 because a mutation that leaves the tree dirty contaminates the campaign it was meant to support. The
 implementer had already written the claim into its evidence and ran it anyway, on the grounds that
-*an unverified claim is exactly what this goal has been burned by.*
+_an unverified claim is exactly what this goal has been burned by._
 
 **P30's blindness audit is the strongest of the four packages that have produced one.** Every
 creation assertion targets a `*-rule-proposal` testid absent from pre-fix code. The tag journey pins
@@ -9048,45 +9202,47 @@ stub.
 
 **Q-P30-03 DECIDED and escalated rather than settled by omission.** "No proposal when a field is
 left empty", because `RuleAction` has no case that can express clearing and controls whose confirm
-button cannot produce a valid rule are worse than no controls; the alternative needs a storage change
-this package is forbidden to make. **The implementer's own reservation is preserved: "clear the tags
-on everything matching this text" is a plausible want that this choice forecloses silently.** Goes to
-the principal as a recorded open question.
+button cannot produce a valid rule are worse than no controls; the alternative needs a storage
+change this package is forbidden to make. **The implementer's own reservation is preserved: "clear
+the tags on everything matching this text" is a plausible want that this choice forecloses
+silently.** Goes to the principal as a recorded open question.
 
 Port verified free and granted to `p29-implementer-01` for rev 03. **Root set the expectation that
-P29 should see 177, not 182** — its rev 03 does not touch `tests/e2e` — so a 182 would mean trees had
-crossed and must be reported immediately.
+P29 should see 177, not 182** — its rev 03 does not touch `tests/e2e` — so a 182 would mean trees
+had crossed and must be reported immediately.
 
 ### 2026-08-02 — P30 rev 01 HANDBACK at `c8dc004`; distinct reviewer dispatched; P31 CONFIRMED ALIVE
 
 `p30-implementer-01` handed back and released the port. Root re-verified `c8dc004` as an ancestor of
-HEAD **at the moment of dispatch**, per the staleness clause added earlier today. Chain
-`4526f79` -> `82ed8e1` -> `c8dc004`. The implementer independently warned not to dispatch onto
-`877d45a`, the amended-away commit.
+HEAD **at the moment of dispatch**, per the staleness clause added earlier today. Chain `4526f79` ->
+`82ed8e1` -> `c8dc004`. The implementer independently warned not to dispatch onto `877d45a`, the
+amended-away commit.
 
 Gates: typecheck clean, lint 0 errors with one pre-existing BASE warning in untouched virtualizer
 code, `oxfmt --check src tests` clean, `pnpm test` **123 files / 2409 passed**, E2E 3x182.
 
 **The implementer's own handback disclosure, which root records verbatim because it is the most
-useful part:** *"My own work introduced four defects, all invisible to unit tests"* — anchor-shape
+useful part:** _"My own work introduced four defects, all invisible to unit tests"_ — anchor-shape
 remount, dropped inline `style`, a bad test oracle, and the `role="dialog"` regression. **The last
 was reachable only through a FULL-SUITE run: a campaign scoped to its own spec would have been green
 and shipped a regression in another package's journey.** All four documented with how each was
 caught.
 
 **One thing the implementer could NOT prove, flagged by itself and routed to the reviewer as an open
-judgement:** clause 2's *"must not resize the table"* is argued **structurally** — a portaled element
-contributes no grid track — rather than **measured**. No before/after column-width measurement was
-taken. The implementer offered that a numeric measurement would be a fair finding and it would take
-the revision. Root passed the judgement to the reviewer rather than pre-deciding it.
+judgement:** clause 2's _"must not resize the table"_ is argued **structurally** — a portaled
+element contributes no grid track — rather than **measured**. No before/after column-width
+measurement was taken. The implementer offered that a numeric measurement would be a fair finding
+and it would take the revision. Root passed the judgement to the reviewer rather than pre-deciding
+it.
 
-**`p31-implementer-01` is CONFIRMED ALIVE** — root had two unanswered status requests outstanding and
-was deliberately not inferring. P30's handback reports, and root verified, uncommitted P31 work in
-the shared checkout touching `TransactionTable.tsx`, `useTableSelection.ts`, `index.ts` and a new
+**`p31-implementer-01` is CONFIRMED ALIVE** — root had two unanswered status requests outstanding
+and was deliberately not inferring. P30's handback reports, and root verified, uncommitted P31 work
+in the shared checkout touching `TransactionTable.tsx`, `useTableSelection.ts`, `index.ts` and a new
 `src/components/features/transactions/table-selection.ts`. **Root independently confirmed zero
-overlap with P30's proposal wiring** — `grep -cE 'renderRuleProposal|pendingRuleEdit|
-TransactionRuleProposal'` over P31's diff returns 0. P30 left all of it alone and ran its campaign
-from a fixed commit in an isolated worktree, so contamination was structurally impossible.
+overlap with P30's proposal wiring** —
+`grep -cE 'renderRuleProposal|pendingRuleEdit| TransactionRuleProposal'` over P31's diff returns 0.
+P30 left all of it alone and ran its campaign from a fixed commit in an isolated worktree, so
+contamination was structurally impossible.
 
 **Root's status requests were answered by a third party rather than by silence resolving.** The
 lesson stands: absence of output was never evidence of absence of work.
@@ -9105,12 +9261,13 @@ direction it was owed.
 
 **It also corrected the record on its own mutation test, unprompted and against itself.** It had
 restored `CLASSIFICATION_THRESHOLD` and confirmed `git diff --stat` empty **on that file** — not
-`git diff --quiet` on the whole tree. Its own framing: *"'that file was clean' is a weaker claim than
-'the tree was clean', and the difference is exactly the contamination risk you describe."* It will
-run `git diff --quiet` before the pre-campaign digest so the digest provably covers an unmutated
-tree.
+`git diff --quiet` on the whole tree. Its own framing: _"'that file was clean' is a weaker claim
+than 'the tree was clean', and the difference is exactly the contamination risk you describe."_ It
+will run `git diff --quiet` before the pre-campaign digest so the digest provably covers an
+unmutated tree.
 
-Expecting **177, not 182** — rev 03 touches no E2E spec — with 182 set as a stop-and-report condition.
+Expecting **177, not 182** — rev 03 touches no E2E spec — with 182 set as a stop-and-report
+condition.
 
 ### 2026-08-02 — CORRECTION: the P30 run-1 cause was NOT the no-op guard. Root and implementer agreed wrongly
 
@@ -9132,8 +9289,8 @@ is a GENUINE new alias assignment: the proposal SHOULD appear there, and it stil
 `c8dc004`.** The sole defect was that the controls announced themselves as a **modal**.
 
 **Why this correction matters more than the fact it corrects.** The implementer's framing, recorded
-verbatim: *had I "fixed" it by suppressing the proposal on that flow, I would have removed a correct
-offer to satisfy an assertion about modality* — a plausible-looking fix that silently breaks the
+verbatim: _had I "fixed" it by suppressing the proposal on that flow, I would have removed a correct
+offer to satisfy an assertion about modality_ — a plausible-looking fix that silently breaks the
 feature. **The agreement between root's reading and the implementer's was itself the risk; it took a
 diff to break it.** Two parties concurring is not evidence — it is a correlated failure when both
 inherit the same wrong premise. Root supplied the premise and the implementer initially accepted it.
@@ -9177,9 +9334,9 @@ agent on this goal.** Genuinely external contention; the process had exited by t
 
 **This makes the result STRONGER, not weaker.** Root checked all three recorded load-sensitive
 assertions — `transactions.spec.ts:804`, `duplicates.test.ts:749`, `vault-maintenance.test.tsx` —
-across all three logs: **none fired in any run.** Those are precisely the assertions that break under
-contention, and run 3 put them under load 21 and they held. **Green at 21.20 is materially better
-evidence than green at 4.08.**
+across all three logs: **none fired in any run.** Those are precisely the assertions that break
+under contention, and run 3 put them under load 21 and they held. **Green at 21.20 is materially
+better evidence than green at 4.08.**
 
 **Why the disclosure mattered:** the load figure appears nowhere in the Playwright output, so three
 greens could have been banked without contradiction. The implementer surfaced the one condition
@@ -9200,8 +9357,9 @@ flags 18 pre-existing root-owned `specs/**` files, correctly untouched.
 
 **The defect it found in its own first cut is a DATA-LOSS bug, not a correctness nicety.** Under a
 baseline of "every matching row is selected", **widening a filter would silently acquire rows the
-user never selected** — and a bulk delete then destroys transactions they never pointed at. Invisible
-in the way that matters: the header still reads "all selected", the count is self-consistent.
+user never selected** — and a bulk delete then destroys transactions they never pointed at.
+Invisible in the way that matters: the header still reads "all selected", the count is
+self-consistent.
 
 Root read `reconcileToMatchingRows` rather than accepting the description. The intersection is
 correct and both halves are load-bearing: rows that no longer match **drop out** rather than being
@@ -9212,9 +9370,9 @@ write can add a matching row under a standing "all selected", and the intersecti
 exception rather than materialising an id per matching row.
 
 **Its mutation discipline is the strongest recorded, because it REJECTED ITS OWN FIRST ATTEMPT:**
-*"my first mutation there was too weak and passed — I redid it to reproduce the real pre-fix
+_"my first mutation there was too weak and passed — I redid it to reproduce the real pre-fix
 architecture, narrowing selection to the displayed page before both the count and the bulk
-handlers."* **A mutation that fails to go red does not prove the test is weak; it can equally mean
+handlers."_ **A mutation that fails to go red does not prove the test is weak; it can equally mean
 the mutation missed.** Knowing which, and redoing it, is the step almost everyone skips. The redone
 mutation failed all 5 page-level tests.
 
@@ -9257,10 +9415,10 @@ selecting one tag now dismisses the picker** — the user must reopen it per tag
 from the implementer who named it.
 
 **F-2 BLOCKING — the two "Updating" modes MUTATE OTHER TRANSACTIONS WITHOUT THE REQUIRED GESTURE.**
-`:263-266` requires "Updating" to apply **when the row loses focus**. The effect keyed on `isEditing`
-going false is correct in isolation; **its input is not.** Because of F-1 the cell remounts and a
-fresh `InlineEditableTags` reports `isOpen === false` on first commit, so `isEditing` goes
-`true -> false` with **no blur at all**:
+`:263-266` requires "Updating" to apply **when the row loses focus**. The effect keyed on
+`isEditing` going false is correct in isolation; **its input is not.** Because of F-1 the cell
+remounts and a fresh `InlineEditableTags` reports `isOpen === false` on first commit, so `isEditing`
+goes `true -> false` with **no blur at all**:
 
 ```
 ISEDITING SEQUENCE SEEN BY PROPOSAL: [true,false]
@@ -9278,7 +9436,7 @@ default — reachable and persistent, not hypothetical, and the same remembered 
 the automations-page editor, so a mode chosen there arms this path.
 
 **WHY THE BLINDNESS AUDIT MISSED BOTH — the generalisation this goal now carries.** The audit asked
-*"would this pass if the creation surface were absent?"* and **both defects survive it, because they
+_"would this pass if the creation surface were absent?"_ and **both defects survive it, because they
 are defects WITHIN a present creation surface.** Every new E2E journey selects "Update all", one of
 the two MANUAL modes, before pressing the tick; **no test in the repo drives an "Updating" mode
 through the inline proposal**, and the default `updateNew` is also manual, so a fresh vault never
@@ -9286,27 +9444,27 @@ hits it. **Absence-of-surface is only ONE axis. A suite can cover every surface 
 MODE within one.** The fixtures varied over "does the feature exist" but not over "which of the four
 modes is selected" — and two of the four are the automatic ones.
 
-**F-3 resolved in the implementer's favour**: the reviewer answered root's routed question with *"yes,
-and I measured it anyway"* — the structural argument for `:252-253` is sufficient, and it measured
-regardless. F-4 and F-5 non-blocking.
+**F-3 resolved in the implementer's favour**: the reviewer answered root's routed question with
+_"yes, and I measured it anyway"_ — the structural argument for `:252-253` is sufficient, and it
+measured regardless. F-4 and F-5 non-blocking.
 
 **Rev 02 required:** render one stable element type in both branches, mounting
-`TransactionRuleProposal` unconditionally and letting it compute `open` internally as it already does
-at `:79`; pin with a test asserting the tags dropdown stays open after selecting a tag while a
+`TransactionRuleProposal` unconditionally and letting it compute `open` internally as it already
+does at `:79`; pin with a test asserting the tags dropdown stays open after selecting a tag while a
 proposal is pending; make `isEditing` mean "the row still has focus"; add a test that fails without
 the fix driving an "Updating" mode through blur; **do not regress the description path**, measured
 `[false, true, false]` with a genuine blur via `InlineEditableDescriptionAlias.tsx:213-216`.
 
 ### 2026-08-02 — ROOT RULING: "Updating" auto-creates AND auto-applies as ONE action, on blur
 
-`p30-reviewer-01` raised whether an "Updating" mode should auto-**create** as well as auto-**apply**,
-recommending the frozen text as written plus a referral to the principal. **Root RULES, and does not
-refer it.**
+`p30-reviewer-01` raised whether an "Updating" mode should auto-**create** as well as
+auto-**apply**, recommending the frozen text as written plus a referral to the principal. **Root
+RULES, and does not refer it.**
 
-`human-scratch.md:263-266`: *"The prefix 'Updating' implies the change will apply automatically when
-the row loses focus, or if you click the tick button."* **"The change" is the rule taking effect.
-There is no reading in which a rule is created but withheld** — a created-but-unapplied rule is not a
-state the text ever describes, and the tick button is offered as an **alternative trigger for the
+`human-scratch.md:263-266`: _"The prefix 'Updating' implies the change will apply automatically when
+the row loses focus, or if you click the tick button."_ **"The change" is the rule taking effect.
+There is no reading in which a rule is created but withheld** — a created-but-unapplied rule is not
+a state the text ever describes, and the tick button is offered as an **alternative trigger for the
 same thing**, not a second confirmation. Splitting them invents a state the principal never asked
 for. **Auto-create and auto-apply are one action, fired on the row losing focus.**
 
@@ -9317,10 +9475,10 @@ Root refers to the principal only the item the text genuinely does not settle �
 
 - **Clause 2 answered with the right principle:** it ruled the structural argument sufficient —
   widths come from one `gridTemplateColumns` string over fixed constants, content is portaled and is
-  not a grid item — **and measured anyway**, getting a byte-identical in-flow geometry signature open
-  versus closed. Its formulation: *"a numeric measurement would sample a property the code
-  establishes universally."* **A measurement of one instance is weaker evidence than a proof over all
-  instances.**
+  not a grid item — **and measured anyway**, getting a byte-identical in-flow geometry signature
+  open versus closed. Its formulation: _"a numeric measurement would sample a property the code
+  establishes universally."_ **A measurement of one instance is weaker evidence than a proof over
+  all instances.**
 - **Fifth bad-oracle catch of the day, and it would have INVERTED a finding.** Its first pre-fix
   simulation passed `role={undefined}` explicitly, which still overrides Radix's default and wrongly
   showed **0 dialogs pre-fix** — making the `role="dialog"` regression look non-existent and turning
@@ -9329,10 +9487,10 @@ Root refers to the principal only the item the text genuinely does not settle �
 - **CPU discipline applied unasked:** nothing above 2 workers at load 12.5 with the P29 campaign
   live, no port, no E2E. This is why P29's campaign result is trustworthy.
 - **It re-ran the implementer's mutation independently in an isolated copy** (36/36 baseline, both
-  guards neutered -> 3 failed / 33 passed, restored -> 36/36) **and ran a STRONGER one of its own** —
-  collapsing the create branch back to `none`, failing 10 of 36. That is what makes "the surfaces are
-  pinned apart" credible rather than asserted. `git diff --quiet -- src tests` afterwards showed only
-  P31's work.
+  guards neutered -> 3 failed / 33 passed, restored -> 36/36) **and ran a STRONGER one of its own**
+  — collapsing the create branch back to `none`, failing 10 of 36. That is what makes "the surfaces
+  are pinned apart" credible rather than asserted. `git diff --quiet -- src tests` afterwards showed
+  only P31's work.
 - Verified the `role="dialog"` fix is **not over-aggressive**: 0 dialogs shipped, 1 pre-fix, group
   label intact, all four controls reachable by accessible name. One cosmetic non-blocking note:
   `role="presentation"` sits on a node that still carries `tabindex="-1"`.
@@ -9341,10 +9499,10 @@ Root refers to the principal only the item the text genuinely does not settle �
 product diff. Scratch SHA byte-equal to frozen. No secret leak.
 
 **Outstanding hygiene: `.p30-review-scratch/` is 3.2M at the repo root, NOT gitignored**, and makes
-`pnpm lint` report 2 errors in vendored `animate-ui` files because the ESLint ignore glob is anchored
-at the real `src/`. `p31-implementer-01` diagnosed it, verified by moving it aside (lint -> 0 errors,
-1 warning) and **put it back untouched because it was not its to delete.** Root asked the owner to
-move it rather than deleting it — same courtesy, same reason.
+`pnpm lint` report 2 errors in vendored `animate-ui` files because the ESLint ignore glob is
+anchored at the real `src/`. `p31-implementer-01` diagnosed it, verified by moving it aside (lint ->
+0 errors, 1 warning) and **put it back untouched because it was not its to delete.** Root asked the
+owner to move it rather than deleting it — same courtesy, same reason.
 
 ### 2026-08-02 — **P29 rev 03 PASSED and INTEGRATED; UR-008 `passed`.** Root corrected on the fence
 
@@ -9355,64 +9513,66 @@ Artifact `3613263`.
 **Ledger updated: P29 `implementing` rev 02 -> `passed` rev 03; UR-008 -> `passed`.** Scratch
 unchanged at `469e98c7…`, canary 1. **30 of 34 requirements passed; 29 of 33 feature packages.**
 
-**ROOT WAS WRONG ABOUT THE PLACEHOLDER FENCE, and root verified the correction by its own mutation.**
-Root ruled the fence should be pinned rather than removed on the grounds that it was *"inert by
-coincidence of current data"* and **"cannot currently fail"** — wording root also asked to be put in
-the test comment. The reviewer disagreed and mutated `NON_AMOUNT_HEADER_PATTERN` to include
-`\bcolumn\b`. Root reproduced it independently:
+**ROOT WAS WRONG ABOUT THE PLACEHOLDER FENCE, and root verified the correction by its own
+mutation.** Root ruled the fence should be pinned rather than removed on the grounds that it was
+_"inert by coincidence of current data"_ and **"cannot currently fail"** — wording root also asked
+to be put in the test comment. The reviewer disagreed and mutated `NON_AMOUNT_HEADER_PATTERN` to
+include `\bcolumn\b`. Root reproduced it independently:
 
 ```
 × resolves a headerless file identically with placeholders and with none
   Tests  1 failed | 12 passed (13)
 ```
 
-**The fence FIRES. It is a live regression fence on exactly the widening it warns about, not inert.**
-Root's ruling was right for a weaker reason than the truth. Tree restored and verified clean.
-Non-blocking **F-5** stands: the shouted "THIS TEST CANNOT CURRENTLY FAIL" comment — root's phrasing —
-hands a future reader the argument for deleting it, and should be corrected.
+**The fence FIRES. It is a live regression fence on exactly the widening it warns about, not
+inert.** Root's ruling was right for a weaker reason than the truth. Tree restored and verified
+clean. Non-blocking **F-5** stands: the shouted "THIS TEST CANNOT CURRENTLY FAIL" comment — root's
+phrasing — hands a future reader the argument for deleting it, and should be corrected.
 
-**PROCESS CONFLICT, flagged by the reviewer and real.** `PROCESS.md:63` states *"The reviewer never
-commits. Root verifies `git rev-parse HEAD` still equals assigned HEAD…"* — and root's dispatches
+**PROCESS CONFLICT, flagged by the reviewer and real.** `PROCESS.md:63` states _"The reviewer never
+commits. Root verifies `git rev-parse HEAD` still equals assigned HEAD…"_ — and root's dispatches
 have been instructing reviewers to commit their artifacts. The reviewer followed the dispatch and
 recorded the conflict as Q-P29-03-01. **Its observation is exactly right: a reviewer commit changes
-HEAD, which collides with the very step root uses to detect tampering.** Root has been resolving this
-ad hoc by re-verifying ancestry at dispatch; it needs a single ruling rather than per-package
-handling. **Carried to the P21 final audit as a process defect of root's making, not the reviewers'.**
+HEAD, which collides with the very step root uses to detect tampering.** Root has been resolving
+this ad hoc by re-verifying ancestry at dispatch; it needs a single ruling rather than per-package
+handling. **Carried to the P21 final audit as a process defect of root's making, not the
+reviewers'.**
 
-**HEAD of record for P29: `c694a94`** — the reviewer measured `git diff --stat 6a51b53 c694a94 --
-src/ tests/` empty with identical src+tests digests, so product content is common to both.
+**HEAD of record for P29: `c694a94`** — the reviewer measured
+`git diff --stat 6a51b53 c694a94 -- src/ tests/` empty with identical src+tests digests, so product
+content is common to both.
 
 **What the reviewer measured rather than read:**
 
 - **F-4 fix correctly scoped, and it probed for OVER-firing which nobody asked about:**
   `Date,Description,Balance,Amount` still binds `3:amount`; an unnamed amount beside a disowned
-  balance still binds `3:amount`; the headerless file still maps `2:amount` from values. **`spec.md:70-74`
-  not regressed.** Root's warning about the expected shape saved it a false FAIL — the correct answer
-  is `2:balance`/`2:checkNumber`, not an absent key.
-- **Parity with original base `4c77a2d` confirmed the hard way.** `detection.ts` did not exist there;
-  detection lived in `MappingTab.tsx:63-149`. The reviewer **transcribed that function and ran it
-  side by side with HEAD: all 5 files in the class identical.**
-- 4 new tests fail at BASE for the right reason — wrongly-bound `amount` and rows counted valid where
-  errors belong, never an unresolved import. Exactly 4 failed, 9 passed.
+  balance still binds `3:amount`; the headerless file still maps `2:amount` from values.
+  **`spec.md:70-74` not regressed.** Root's warning about the expected shape saved it a false FAIL —
+  the correct answer is `2:balance`/`2:checkNumber`, not an absent key.
+- **Parity with original base `4c77a2d` confirmed the hard way.** `detection.ts` did not exist
+  there; detection lived in `MappingTab.tsx:63-149`. The reviewer **transcribed that function and
+  ran it side by side with HEAD: all 5 files in the class identical.**
+- 4 new tests fail at BASE for the right reason — wrongly-bound `amount` and rows counted valid
+  where errors belong, never an unresolved import. Exactly 4 failed, 9 passed.
 - Threshold mutation re-run at 0.5 and 0.95, each failing the correct one of the two tests; restored
   with `git diff --quiet` on the **whole** tree.
 
 **Design limit UPHELD as a non-fix, with the measurement that settles it.** `Reference`, `Serial No`
-and `Closing Bal` do import as money with 0 errors — **but MEASURED identically at BASE `ee3cce7` and
-HEAD, so pre-existing and untouched**, while `Ref` goes from silent wrong money at BASE to an honest
-error at HEAD. **Rev 03 fixes cases and regresses none; blocking would have manufactured a finding.**
-Recorded F-6 non-blocking so the class is not lost.
+and `Closing Bal` do import as money with 0 errors — **but MEASURED identically at BASE `ee3cce7`
+and HEAD, so pre-existing and untouched**, while `Ref` goes from silent wrong money at BASE to an
+honest error at HEAD. **Rev 03 fixes cases and regresses none; blocking would have manufactured a
+finding.** Recorded F-6 non-blocking so the class is not lost.
 
 E2E deliberately not run and justified: the diff is one guard in a pure helper plus unit tests, and
 both E2E import fixtures carry a genuine `Amount` column so neither reaches the branch either way.
-Load was 13.3 with a live campaign, so everything ran at 2-4 workers. Checks: typecheck clean, lint 0
-errors, unit 2059 passed, integration 330 passed, import suite 314 passed, no `as`/`any`/`!`,
+Load was 13.3 with a live campaign, so everything ran at 2-4 workers. Checks: typecheck clean, lint
+0 errors, unit 2059 passed, integration 330 passed, import suite 314 passed, no `as`/`any`/`!`,
 fixtures synthetic, secret scan clean.
 
 ### 2026-08-02 — P30 review addendum `9975fff`; the RENAME TRAP that probably created root's wrong premise
 
-`p30-reviewer-01` verified root's retraction rather than accepting it, and found the likely mechanism
-behind root's error. **Root reproduced it:**
+`p30-reviewer-01` verified root's retraction rather than accepting it, and found the likely
+mechanism behind root's error. **Root reproduced it:**
 
 ```
 sameTagIds    in 4526f79 (the FAILING tree):  2 occurrences
@@ -9431,19 +9591,20 @@ Root's conclusion survives the wider diff: the reviewer notes `c8dc004` touches 
 than one attribute, but **the only behavioural change is `role="presentation"`.**
 
 **The specific check root requested came back in the implementer's favour: `c8dc004` suppresses NO
-legitimate proposal.** Measured against the shipped decision function using the failing journey's own
-inputs — a novel alias by blur gives `kind = create`, a second rename gives `kind = update`, and the
-guard suppresses only genuine no-ops (re-commit, reorder) while passing real changes (tag added,
+legitimate proposal.** Measured against the shipped decision function using the failing journey's
+own inputs — a novel alias by blur gives `kind = create`, a second rename gives `kind = update`, and
+the guard suppresses only genuine no-ops (re-commit, reorder) while passing real changes (tag added,
 first tag on an empty row). **The fix was confined to modality and removed no correct offer.**
 
 **NEW F-6, found by applying root's "exists vs does vs announces" heuristic to all 35 assertions.**
-Journeys 1-3 assert what the feature DOES, with a negative control on the non-matching row. Journey 4
-is exists-only but legitimately so, the clause being about presence and absence. **Journey 5 is weak:
-it stops at `data-kind="update"` and never presses confirm, so the update write path —
+Journeys 1-3 assert what the feature DOES, with a negative control on the non-matching row. Journey
+4 is exists-only but legitimately so, the clause being about presence and absence. **Journey 5 is
+weak: it stops at `data-kind="update"` and never presses confirm, so the update write path —
 `use-field-rule-proposal.ts:141-142` — is never executed by ANY test in the repo.** `data-kind`
-proves the component *decided* to update; nothing proves the existing rule changed rather than a
+proves the component _decided_ to update; nothing proves the existing rule changed rather than a
 second being created. **Clause 16's entire content is which write happens, so a duplicate-rule bug
-passes journey 5 today.** Rev 02 must press confirm and assert the robot count stays 2 rather than 4.
+passes journey 5 today.** Rev 02 must press confirm and assert the robot count stays 2 rather
+than 4.
 
 **Clause 2: the reviewer DECLINED the implementer's rev-02 offer on the merits, explicitly so it is
 not read as courtesy.** A numeric before/after width measurement would be **weaker** than the
@@ -9453,10 +9614,10 @@ portaled out of the grid. It measured anyway; conforms. **Nothing in rev 02 is o
 
 **Reviewer's generalisation, recorded because it names a failure mode root keeps hitting:** root
 supplied a wrong premise, the implementer accepted it, and **the agreement looked like corroboration
-while both parties held the same starting point — only a diff broke the tie.** Structurally identical
-to F-1, where "never remounts" was stated, reasoned about and repeated across three comments and an
-evidence file **but never re-measured.** Both are **a claim gaining apparent support from repetition
-rather than from a new observation.**
+while both parties held the same starting point — only a diff broke the tie.** Structurally
+identical to F-1, where "never remounts" was stated, reasoned about and repeated across three
+comments and an evidence file **but never re-measured.** Both are **a claim gaining apparent support
+from repetition rather than from a new observation.**
 
 `.p30-review-scratch/` confirmed removed; the reviewer had deleted it before writing its review, so
 the 2 lint errors were real when observed and stale when reported — the worse variant, because it
@@ -9464,15 +9625,16 @@ looked reproducible. Its later probes ran from `/tmp/p30rev2`, also deleted.
 
 ### 2026-08-02 — P30 rev 02 reviewer will be DISTINCT; the reviewer argued against its own continuity
 
-`p30-reviewer-01` offered to re-review rev 02 for continuity on F-1/F-2/F-6 **and recommended against
-itself**: *"I'd be checking my own diagnosis rather than the fix."* **Root takes the recommendation.**
+`p30-reviewer-01` offered to re-review rev 02 for continuity on F-1/F-2/F-6 **and recommended
+against itself**: _"I'd be checking my own diagnosis rather than the fix."_ **Root takes the
+recommendation.**
 
 F-2's causal chain is the reviewer's own construction — remount produces a spurious `isEditing`
 transition produces an unauthorised write. **A reviewer who built that chain reads a fix as
-confirming or refuting their model, when the question is whether the fix satisfies the frozen text.**
-Not the same question, and the difference is invisible from inside. `p29-reviewer-02` made the
-identical call declining to grade the fix to its own F-4. **Two reviewers reaching it independently
-makes it the default rather than a per-package judgement.**
+confirming or refuting their model, when the question is whether the fix satisfies the frozen
+text.** Not the same question, and the difference is invisible from inside. `p29-reviewer-02` made
+the identical call declining to grade the fix to its own F-4. **Two reviewers reaching it
+independently makes it the default rather than a per-package judgement.**
 
 **SEQUENCING REQUIREMENT for rev 02, from the reviewer and adopted:** root's ruling that "Updating"
 auto-creates and auto-applies as one action **makes F-2's fix load-bearing rather than cosmetic** —
@@ -9540,8 +9702,8 @@ unit campaign at load ~10, not load 21.
 **CORRECTION OF RECORD.** This ledger repeats the three-assertion claim at lines **7961, 8353, 8472
 and 9179**, and `evidence/P29/implementation-01.md:749-750` carries it too. **Every instance is
 wrong in the same way and all are corrected by this entry**: only `transactions.spec.ts:804` is
-exercised by an E2E campaign. Root is not editing the prior entries — the ledger is append-only and a
-silently-fixed error teaches nothing — but no future reader or auditor should rely on the
+exercised by an E2E campaign. Root is not editing the prior entries — the ledger is append-only and
+a silently-fixed error teaches nothing — but no future reader or auditor should rely on the
 three-assertion phrasing anywhere above.
 
 **How the error persisted: it was never re-derived, only repeated.** Root wrote the trio once, then
@@ -9561,8 +9723,8 @@ and integrated.** F-7 concerns an inference in the ledger, not the fix.
 implementer; nothing the implementer measured is upgraded — the pre-existing text still says only
 "another process… nothing of mine was running", which is all it could establish. No finding.
 
-Retarget verified by the reviewer at the moment of retarget: `merge-base --is-ancestor` returns 0 for
-`ee3cce7`, `6a51b53` and `c694a94`; `git diff --stat c694a94 HEAD -- src tests` empty; digest
+Retarget verified by the reviewer at the moment of retarget: `merge-base --is-ancestor` returns 0
+for `ee3cce7`, `6a51b53` and `c694a94`; `git diff --stat c694a94 HEAD -- src tests` empty; digest
 identical at `c694a94`, `6a51b53` and `6e4bf32`, the commit the campaign actually ran against.
 
 ### 2026-08-02 — **COMMIT FUSION: `e97b3f7` contains BOTH P30 rev 02 and the whole P31 package.** Root's instruction is the likely cause
@@ -9598,19 +9760,19 @@ Ambiguous:  3 files,  +272/-19     TransactionTable.tsx, index.ts, transactions.
 rewriting history. Attribution of the three ambiguous files is outstanding — `transactions.spec.ts`
 at +215 looks like P31's `T021d`-`T021g` journeys but root will not guess.
 
-**Consequence for campaigns:** P30's `pnpm test` 126 files / 2440 passed **covers both packages**, so
-it is not a clean signal for either. **A campaign digest over this commit is evidence for two
+**Consequence for campaigns:** P30's `pnpm test` 126 files / 2440 passed **covers both packages**,
+so it is not a clean signal for either. **A campaign digest over this commit is evidence for two
 packages at once, which is evidence for neither.** Both agents are held off the port until the
 coverage question is settled.
 
 ### 2026-08-02 — P30 rev 02 substance: both findings fixed, plus a scale regression self-caught
 
-**F-1 fixed at the right level.** `page.tsx` now mounts `TransactionRuleProposal` unconditionally and
-passes `isPending` rather than branching on element type. **The implementer also caught a scale
+**F-1 fixed at the right level.** `page.tsx` now mounts `TransactionRuleProposal` unconditionally
+and passes `isPending` rather than branching on element type. **The implementer also caught a scale
 regression it would have introduced doing so** — mounting it for every cell would have run **five
-CRDT subscriptions per row**. The CRDT work now lives in an inner `PendingRuleProposal` mounting only
-for the pending cell, **a SIBLING of the anchor rather than an ancestor of the edited cell**, so its
-lifecycle cannot touch the cell's DOM. That is the property F-1 required and that rev 01 only
+CRDT subscriptions per row**. The CRDT work now lives in an inner `PendingRuleProposal` mounting
+only for the pending cell, **a SIBLING of the anchor rather than an ancestor of the edited cell**,
+so its lifecycle cannot touch the cell's DOM. That is the property F-1 required and that rev 01 only
 claimed.
 
 **The control test makes the suite load-bearing:** it reproduces the rev 01 two-element-type shape
@@ -9619,17 +9781,17 @@ structure. **That is `p30-reviewer-01`'s "the pre-fix arm must be proven to fail
 unasked.**
 
 **F-2 fixed to the frozen gesture.** Auto-apply now requires **both** the cell finishing editing
-**and** a real `focusout` whose `relatedTarget` lands outside the row. Focus moving to a sibling cell
-in the same row does not count — the frozen text says *the row loses focus*, and a cell-to-cell move
-is not that.
+**and** a real `focusout` whose `relatedTarget` lands outside the row. Focus moving to a sibling
+cell in the same row does not count — the frozen text says _the row loses focus_, and a cell-to-cell
+move is not that.
 
 **Implementer's own diagnosis of why its blindness audit missed both, recorded as the sharpest
-formulation yet:** *"My audit tested the axis I had just built, which is the axis I was least likely
-to be wrong about."* Underneath it, the specific admission: it had written **"the wiring is exercised
-by the E2E flows"** into the evidence **and never checked it.** Same failure as the comments — a
-claim written while reasoning about the fix rather than after measuring it. **Named three times in
-this package and hit three times.** The remedy is not resolve; it is not writing the sentence until
-the measurement exists.
+formulation yet:** _"My audit tested the axis I had just built, which is the axis I was least likely
+to be wrong about."_ Underneath it, the specific admission: it had written **"the wiring is
+exercised by the E2E flows"** into the evidence **and never checked it.** Same failure as the
+comments — a claim written while reasoning about the fix rather than after measuring it. **Named
+three times in this package and hit three times.** The remedy is not resolve; it is not writing the
+sentence until the measurement exists.
 
 ### 2026-08-02 — P31 held two stale beliefs; root corrected both by measurement
 
@@ -9638,10 +9800,10 @@ the measurement exists.
 newly added), `useTableSelection.ts`, `selection.test.ts` and `select-all-beyond-page.test.tsx` are
 all in P30's rev 02 commit. Both agents now told, and both forbidden from reset/revert/amend.
 
-**2. It reported `.p30-review-scratch/` still present with 2 phantom lint errors. Measured: ABSENT**,
-and absent when root checked earlier. Its owner deleted it before writing its review, **so the errors
-were real when P31 hit them and stale when it reported them** — the nastier variant, because it looks
-reproducible. P31 instructed to re-run lint before handback.
+**2. It reported `.p30-review-scratch/` still present with 2 phantom lint errors. Measured:
+ABSENT**, and absent when root checked earlier. Its owner deleted it before writing its review, **so
+the errors were real when P31 hit them and stale when it reported them** — the nastier variant,
+because it looks reproducible. P31 instructed to re-run lint before handback.
 
 **3. TREE DRIFT: BASE `054f77e` is stale and root will re-capture HEAD for the P31 review.** `main`
 has advanced through `c4f472b`, `9975fff`, `b94100b`; `use-field-rule-proposal.ts` now calls
@@ -9660,8 +9822,8 @@ wrong premise earlier today, where the familiar diagnosis was right there and wa
 `tests/unit/import/duplicates.test.ts` "scales linearly with input size" asserts a wall-clock ratio
 `< 4`, **observed 4.58**, passes **5/5 in isolation**, fails only under a saturated full-suite run,
 and is untouched by P31's change. **It deliberately did NOT loosen the bound** — quietly widening
-someone else's perf assertion to get a green run is the wrong fix and would be invisible in a passing
-campaign. Root backs the call explicitly.
+someone else's perf assertion to get a green run is the wrong fix and would be invisible in a
+passing campaign. Root backs the call explicitly.
 
 **Note the connection to F-7:** this is one of the two assertions root wrongly claimed had "held
 under load 21" in the P29 campaign, which `p29-reviewer-03` proved is a Vitest test outside
@@ -9708,10 +9870,10 @@ different hat — a fix that reproduces the original defect through a new mechan
 containment holds. The reviewer's F-2 test asserts no write on a sibling-cell move; it says nothing
 about a portaled surface.
 
-**It caught this by doing the specific thing it had skipped twice before: checking where the dropdown
-actually is, rather than reasoning about where it should be.** Its own formulation — *every false
-claim I've made in this package has been about wiring I reasoned about rather than measured* — and
-**this is the first instance caught BEFORE handback rather than after. Third occurrence, first
+**It caught this by doing the specific thing it had skipped twice before: checking where the
+dropdown actually is, rather than reasoning about where it should be.** Its own formulation — _every
+false claim I've made in this package has been about wiring I reasoned about rather than measured_ —
+and **this is the first instance caught BEFORE handback rather than after. Third occurrence, first
 self-catch.**
 
 Shipped fix listens for `focusin` on the document and treats focus as still in the row if the target
@@ -9738,11 +9900,11 @@ Neither order yields a clean single-package digest, since the two packages are f
 click from keyboard. P30's rev 02 fixes are already pinned by 8 unit cases including a control.
 
 **P31 instructed to state plainly in its evidence that the campaign tree contains P30's unreviewed
-rev 02**, and not to present the digest as covering its package alone. Tripwire set at ~187 expected;
-**177 means a stale base and stop** — which matters more than usual, since P31 already found BASE
-`054f77e` had drifted. Also instructed: if the `duplicates.test.ts` ratio flake fires, **report it and
-do not re-run for a green** — a campaign with one disclosed known-flaky failure is worth more than
-three clean runs that quietly re-rolled.
+rev 02**, and not to present the digest as covering its package alone. Tripwire set at ~187
+expected; **177 means a stale base and stop** — which matters more than usual, since P31 already
+found BASE `054f77e` had drifted. Also instructed: if the `duplicates.test.ts` ratio flake fires,
+**report it and do not re-run for a green** — a campaign with one disclosed known-flaky failure is
+worth more than three clean runs that quietly re-rolled.
 
 ### 2026-08-02 — Fusion root cause CONFIRMED by the implementer; root's instruction was defective
 
@@ -9775,12 +9937,13 @@ rule-related** — it is mostly P31's, with a three-line P30 proposal change ins
   `ALL_MATCHING_ROWS_SELECTED` / `reconcileToMatchingRows` / `SelectionAnchor`
 - **Shared:** `page.tsx` — a scoped diff still shows a reviewer both packages
 
-**This makes the review harder rather than easier, and the implementer volunteered it knowing that.**
+**This makes the review harder rather than easier, and the implementer volunteered it knowing
+that.**
 
-`8f492d8` is P31's alone — one file, `useTableSelection.ts`, explicit pathspec, a readability refactor
-binding the shift-range's rows and outcome into one value. P31 verified the fused content survived
-rather than assuming: `table-selection.ts` has all 20 exports, the committed page carries the
-reconciliation, the constant-time count and the full matching-id list.
+`8f492d8` is P31's alone — one file, `useTableSelection.ts`, explicit pathspec, a readability
+refactor binding the shift-range's rows and outcome into one value. P31 verified the fused content
+survived rather than assuming: `table-selection.ts` has all 20 exports, the committed page carries
+the reconciliation, the constant-time count and the full matching-id list.
 
 **ROOT PROCESS FAILURE: the port grant did not reach P31 and it asked a THIRD time.** Root sent a
 grant, P31's message crossed it, and P31 continued holding correctly rather than taking an observed
@@ -9790,8 +9953,8 @@ root declined, because the port was in fact available and `T021e` is the only ve
 UR-010's keyboard clause anywhere.
 
 **Implementer's closing formulation on the repetition failure, recorded as the operational form:**
-*"I will not describe any property in a comment or in evidence that I have not run something to
-observe — and where I cannot observe it, I will say it is an argument rather than a measurement."*
+_"I will not describe any property in a comment or in evidence that I have not run something to
+observe — and where I cannot observe it, I will say it is an argument rather than a measurement."_
 **That is a mechanism rather than a resolution**, which is the difference that matters.
 
 ### 2026-08-02 — P30 produced a CLEAN per-package test signal; root verified it
@@ -9807,12 +9970,12 @@ Test Files  11 passed (11)
 ```
 
 **Root verified the claim rather than accepting it:** of those 11 suites, only
-`rule-proposal-stability.test.tsx` appears in the fused commit at all, and it is P30's. **So 181 is a
-genuine P30-only signal where 2441 is not.** Both numbers with their scopes are in the evidence.
+`rule-proposal-stability.test.tsx` appears in the fused commit at all, and it is P30's. **So 181 is
+a genuine P30-only signal where 2441 is not.** Both numbers with their scopes are in the evidence.
 
 **Why this is the right move rather than merely tidy:** disclosing that 2441 spans both packages is
-honest but leaves a reviewer with LESS than before — *"this number isn't trustworthy"* and nothing in
-its place. **A limitation stated alongside a remedy is worth far more than a limitation stated
+honest but leaves a reviewer with LESS than before — _"this number isn't trustworthy"_ and nothing
+in its place. **A limitation stated alongside a remedy is worth far more than a limitation stated
 alone**, and most agents stop at the first.
 
 **The implementer identified a consequence of the fusion root had not worked through, and it is
@@ -9820,25 +9983,25 @@ unavoidable.** Even after P31 campaigns, a digest over P30's tree still includes
 wiring inside `page.tsx`, because that file carries both packages' changes in `e97b3f7`. **No
 sequencing produces a clean separation for that one file.** Position recorded for both reviews:
 **`page.tsx` is jointly attributed and each reviewer is told which lines are whose** — 51
-selection-related added lines against 7 rule-related, measured. Neither reviewer pretends the file is
-solely theirs; neither reviews the other's work.
+selection-related added lines against 7 rule-related, measured. Neither reviewer pretends the file
+is solely theirs; neither reviews the other's work.
 
 ### 2026-08-02 — Root's account of the portal catch was TOO GENEROUS; the implementer corrected it down
 
-Root recorded that the implementer *"went and read"* where the tag dropdown lives, catching the
+Root recorded that the implementer _"went and read"_ where the tag dropdown lives, catching the
 portal defect by deliberate verification. **The implementer corrected this against its own credit:**
-it tried to write a probe test, the probe **died on a missing `ResizeObserver` in jsdom**, and *that
-crash* sent it to read the component. **The instinct to verify was real; which artifact it looked at
+it tried to write a probe test, the probe **died on a missing `ResizeObserver` in jsdom**, and _that
+crash_ sent it to read the component. **The instinct to verify was real; which artifact it looked at
 was partly luck.**
 
 Its reasoning for insisting on the weaker version, which root accepts: **"a habit I can only rely on
 when a test happens to crash is not yet a habit."** Recording the stronger version would have made
-the goal's record overstate how reliably this class is caught, and the next reader would calibrate on
-a capability that does not exist.
+the goal's record overstate how reliably this class is caught, and the next reader would calibrate
+on a capability that does not exist.
 
 **This is the second time in this package the implementer has corrected its own credit downward.**
-The durable practice it commits to — *don't write the sentence until the measurement exists, and
-where you can't measure, say "this is an argument, not a measurement"* — has now been applied to
+The durable practice it commits to — _don't write the sentence until the measurement exists, and
+where you can't measure, say "this is an argument, not a measurement"_ — has now been applied to
 clause 2 and to the no-resize property, **which makes it a practice rather than an intention.**
 
 Port sequencing: P31 has created `/tmp/mf-p31` and is setting up; its campaign has not started. P30
@@ -9866,28 +10029,28 @@ different word lists, not because either measured anything.**
 **HUNK-LEVEL ATTRIBUTION IS UNAMBIGUOUS AND REPLACES IT.** 13 hunks; exactly two are P30's, and root
 verified by printing their contents:
 
-| hunk                  | added | owner                                        |
-| --------------------- | ----- | -------------------------------------------- |
+| hunk                   | added | owner                                         |
+| ---------------------- | ----- | --------------------------------------------- |
 | `@@ -613,6 +644,15 @@` | 9     | **P30** — the one-stable-element-type comment |
 | `@@ -621,6 +661,11 @@` | 5     | **P30** — the `isPending` prop                |
-| the other 11          | 129   | P31 — selection                              |
+| the other 11           | 129   | P31 — selection                               |
 
 **P30's entire footprint in `page.tsx` is 14 added lines in two adjacent hunks, both inside
 `renderRuleProposal`.** Reviewers get **"lines 644-671 are P30, everything else is P31"** — a range
 they can scope to. A 51/7 ratio locates nothing.
 
-**The implementer's reason for checking rather than adopting is the lesson:** *a keyword grep is a
-measurement of my word list, not of the code* — the same shape as `grep sameTagIds` returning nothing
-on the old tree and reading as an absent guard. **A number that comes out of a plausible-looking
-command still needs asking: what would make this number wrong?** Root produced a plausible-looking
-number and shipped it to two reviewers without asking that.
+**The implementer's reason for checking rather than adopting is the lesson:** _a keyword grep is a
+measurement of my word list, not of the code_ — the same shape as `grep sameTagIds` returning
+nothing on the old tree and reading as an absent guard. **A number that comes out of a
+plausible-looking command still needs asking: what would make this number wrong?** Root produced a
+plausible-looking number and shipped it to two reviewers without asking that.
 
 Joint attribution of `page.tsx` stands; only the ranges are refined.
 
 ### 2026-08-02 — Root's credit to P30 was too generous AGAIN; the implementer narrowed it a second time
 
-Root wrote that `p30-implementer-01` checked root's `51/7` keyword split *"when adopting it would
-have been easier and would have made your own review boundary cleaner."* **The second clause is
+Root wrote that `p30-implementer-01` checked root's `51/7` keyword split _"when adopting it would
+have been easier and would have made your own review boundary cleaner."_ **The second clause is
 backwards, as the implementer pointed out and root confirmed:**
 
 - Root's `51/7` implied P30 owned 7 of 58 keyword-matched lines, scattered and unlocatable.
@@ -9895,22 +10058,22 @@ backwards, as the implementer pointed out and root confirmed:**
 - **Smaller, cleaner, easier to review — strictly better for P30.** It had an interest in the number
   being smaller and went looking with that interest.
 
-Its own framing: *"I checked a number that made my package look worse, found one that made it look
+Its own framing: _"I checked a number that made my package look worse, found one that made it look
 better, and the method happened to be sound. Had the hunk analysis come back showing my changes
 scattered across eight hunks, the test of whether I check numbers against my own interest would have
-been that case — and it hasn't come up yet in this package."*
+been that case — and it hasn't come up yet in this package."_
 
 **The narrow claim it asks the record to carry, and which root adopts:** of three catches of this
 class today, one (the portal) was luck in what a crashed probe made it look at, one (this) had
 interest and truth pointing the same way, and **exactly one — the `hasText` locator — was checked
 purely because the result surprised it. One instance is not a habit.**
 
-**This is the THIRD time in this package the implementer has corrected its own credit downward**, and
-the reason it gives is the operative one: **the next person calibrates on this record.** A record that
-overstates how reliably a class of error is caught is worse than no record.
+**This is the THIRD time in this package the implementer has corrected its own credit downward**,
+and the reason it gives is the operative one: **the next person calibrates on this record.** A
+record that overstates how reliably a class of error is caught is worse than no record.
 
 **On root's own instance, the implementer's extension is the more useful half of the exchange.**
-Root's rule — *agreement with a prior is when the instrument deserves most suspicion* — generalises
+Root's rule — _agreement with a prior is when the instrument deserves most suspicion_ — generalises
 past keyword greps: **it is why F-1 survived four restatements. Each repetition felt like
 corroboration because it agreed with the previous one, and none of them was an observation.**
 
@@ -9948,12 +10111,12 @@ against a number already in hand, **never as the source**. It would also miss `t
 `describe.parallel` expansions, over-count a `test(` in a string literal, and — as demonstrated —
 miss whatever the regex's incidental assumptions exclude.
 
-**Its structural point about the asymmetry between our errors is the more consequential half and root
-records it verbatim:**
+**Its structural point about the asymmetry between our errors is the more consequential half and
+root records it verbatim:**
 
-> My false claims mislead a reviewer who is looking directly at the code and can catch them, and did.
-> Yours redirect where other agents look, which is much harder to notice from inside, **because an
-> agent sent to the wrong place reports finding nothing and that reads as a clean result.**
+> My false claims mislead a reviewer who is looking directly at the code and can catch them, and
+> did. Yours redirect where other agents look, which is much harder to notice from inside, **because
+> an agent sent to the wrong place reports finding nothing and that reads as a clean result.**
 
 Combined with the F-1 mechanism — repetition and corroboration being indistinguishable from inside —
 **a dispatch number that passes unchallenged through three agents looks progressively more
@@ -9976,7 +10139,8 @@ until it runs the requirement has none.
 
 **P30's four: ONE assertion in ONE helper.** All four are `addTagToRow` at
 `rule-creation-controls.spec.ts:88` — `Escape` then `expect(searchInput).toHaveCount(0)`. Root
-verified the five call sites are exactly the four failing tests; the three tests not calling it pass.
+verified the five call sites are exactly the four failing tests; the three tests not calling it
+pass.
 
 **Two hypotheses were raised and BOTH disconfirmed before the right one landed.**
 
@@ -9988,8 +10152,8 @@ verified the five call sites are exactly the four failing tests; the three tests
   cause**, because all four failures are byte-identical **including `:237`, which the implementer
   itself flagged as not fitting.** Its instinct to name the non-fitting case rather than explain it
   away is what made this decidable; smoothing over `:237` would have led to fixing the portal and
-  watching all four fail again. **It recorded the portal gap as an unproven latent defect rather than
-  dropping it or promoting it.**
+  watching all four fail again. **It recorded the portal gap as an unproven latent defect rather
+  than dropping it or promoting it.**
 
 **Actual cause: rev 02 mounts a Radix `Popover` on tag selection, and Radix Popover consumes Escape
 at the DOCUMENT level**, intercepting the key before it reaches the input whose handler owns it
@@ -9997,7 +10161,7 @@ at the DOCUMENT level**, intercepting the key before it reaches the input whose 
 
 **The implementer RETRACTED its own claim that this broke a pre-existing contract.** Root verified:
 `'Search tags'` has 5 E2E hits, three pre-existing in `transactions.spec.ts`, and **none presses
-Escape**. Its framing: it had inferred the contract from the component *having* an Escape handler,
+Escape**. Its framing: it had inferred the contract from the component _having_ an Escape handler,
 **which is a statement about the code, not about anything anyone relies on.**
 
 **ROOT RULING: Escape must close the tag picker; the proposal must not consume it.** Resolvable by
@@ -10008,12 +10172,13 @@ document-level default inverts that. Independent of any test, a user pressing Es
 picker finds it stays open, which is the interruption `:253-254` forbids.
 
 **Rev 03 scope:** mark the select portal (real and cheap), fix the Escape precedence, and fix the
-helper to assert **the tag landed** rather than that the picker closed — the implementer's own point,
-and it explicitly refused the alternative of flipping the assertion to `toBeVisible()` to go green.
+helper to assert **the tag landed** rather than that the picker closed — the implementer's own
+point, and it explicitly refused the alternative of flipping the assertion to `toBeVisible()` to go
+green.
 
 **Named follow-up, recorded not smuggled:** inverting the `data-owned-by-row` allowlist into a
-positive "is this outside the row" test. The implementer's reasoning — *the allowlist shape is
-fragile by construction; every new portaled control is a silent hole* — is right, and it is too big
+positive "is this outside the row" test. The implementer's reasoning — _the allowlist shape is
+fragile by construction; every new portaled control is a silent hole_ — is right, and it is too big
 for rev 03 because it touches focus semantics for every portaled surface.
 
 **Fixture lesson recorded verbatim as the goal's best statement of it:**
@@ -10046,8 +10211,8 @@ continue after being told to stop. **Root retracted and apologised.**
 **This is the fourth confident claim root has produced today from a plausible observation without
 checking the mechanism behind it** — after the three-assertion load claim, the `51/7` keyword split,
 and the invented parameterised-expansion explanation. **This one landed as an accusation about
-conduct rather than a wrong number, which makes it the worst of the four.** The pattern is identical:
-observe, reach for the reading that fits, act before verifying.
+conduct rather than a wrong number, which makes it the worst of the four.** The pattern is
+identical: observe, reach for the reading that fits, act before verifying.
 
 P31's conduct in fact: asked for the port three times rather than take a free-looking one, held
 through two false-positive windows, found the BASE tree drift, refused to loosen another package's
@@ -10055,10 +10220,10 @@ flaky assertion, flagged `.p30-review-scratch/` instead of deleting it, and fixe
 `data-testid` rather than the placeholder root would have accepted.
 
 **Campaign status unchanged and void:** run 1 against the dead-locator tree, runs 2-4 against
-`07bc3d4`, digest covering run 1 only. **Salvaged and recorded as evidence in its own right:
-`T021f` and `T021g` PASSED in runs 2 and 3 — two observed passes, explicitly NOT a campaign result.
-UR-011 now has its first end-to-end confirmation**: select-all reaching a never-rendered row, and
-filter re-derivation.
+`07bc3d4`, digest covering run 1 only. **Salvaged and recorded as evidence in its own right: `T021f`
+and `T021g` PASSED in runs 2 and 3 — two observed passes, explicitly NOT a campaign result. UR-011
+now has its first end-to-end confirmation**: select-all reaching a never-rendered row, and filter
+re-derivation.
 
 The four remaining failures are deterministic across all three completed runs and are P30's
 `addTagToRow` helper.
@@ -10081,8 +10246,8 @@ itself, making the guard a no-op that happens to sit next to the real fix.**
 ONLY, while the Enter branch calls `preventDefault()` AND `stopPropagation()` with the comment
 "Prevent double-firing".** The author stopped propagation deliberately where they wanted it stopped
 and did not on Escape, so the event keeps propagating and Radix's dismissable-layer listener acts
-regardless of `defaultPrevented`. **Evidence FOR the diagnosis; it does not establish ordering**, and
-the implementer explicitly refused to treat "consistent with" as "confirmed".
+regardless of `defaultPrevented`. **Evidence FOR the diagnosis; it does not establish ordering**,
+and the implementer explicitly refused to treat "consistent with" as "confirmed".
 
 **Root named a third possibility — both handlers run and both surfaces close — and the implementer's
 own test already discriminates it**, asserting after the first Escape that the picker is closed AND
@@ -10093,12 +10258,12 @@ root named case 3.
 **ROOT RULING, made in advance so it is not decided under pressure: if the discriminating experiment
 shows the guard is inert, REMOVE it and re-diagnose. Do not keep it because it is harmless.** The
 implementer's reasoning, adopted: **an inert guard with a confident comment is worse than no guard,
-because it SUPPRESSES THE QUESTION for the next reader** — the same mechanism as the "never remounts"
-comment, reintroduced in the package where it was found.
+because it SUPPRESSES THE QUESTION for the next reader** — the same mechanism as the "never
+remounts" comment, reintroduced in the package where it was found.
 
 Acceptable outcomes: (1) test passes, reverting the guard breaks it — confirmed, proceed; (2) test
-passes, reverting changes nothing — **remove, re-diagnose, rev 04**; (3) test fails — diagnosis wrong,
-start again. **All three are fine; reporting (1) when the truth is (2) is not.**
+passes, reverting changes nothing — **remove, re-diagnose, rev 04**; (3) test fails — diagnosis
+wrong, start again. **All three are fine; reporting (1) when the truth is (2) is not.**
 
 ### 2026-08-02 — ROOT GRANTED AN OCCUPIED PORT; the implementer REFUSED the grant and was right
 
@@ -10138,17 +10303,17 @@ Cost of taking it: two campaigns contending for a hardcoded port, both results v
 
 **Root has now made five confident claims today from plausible observations without checking the
 mechanism**: the three-assertion load claim, the `51/7` keyword split, the invented
-parameterised-expansion explanation, the escalation against P31's shell loop, and this grant. **Every
-one was caught by another agent.**
+parameterised-expansion explanation, the escalation against P31's shell loop, and this grant.
+**Every one was caught by another agent.**
 
 **Unplanned benefit: P31's campaign is now the INDEPENDENT test of P30's Escape fix.** Its four
 `addTagToRow` failures were deterministic across all three completed runs on the old tree; its tree
-now contains `a265e54`. **Four gone = confirmation from an instrument P30 does not own, stronger than
-its own targeted run. Four persisting = the guard is inert and P30 removes it per the standing
+now contains `a265e54`. **Four gone = confirmation from an instrument P30 does not own, stronger
+than its own targeted run. Four persisting = the guard is inert and P30 removes it per the standing
 ruling** — its discriminating experiment answered without it spending the port.
 
-P31 asked to report those four specifically alongside `T021d`-`T021g`. Root will not signal P30 until
-P31 announces release in its own words rather than root inferring it from the port.
+P31 asked to report those four specifically alongside `T021d`-`T021g`. Root will not signal P30
+until P31 announces release in its own words rather than root inferring it from the port.
 
 ### 2026-08-02 — P30's four failures MEASURED at last: overlap, not Escape. Rev 04 opened
 
@@ -10164,7 +10329,7 @@ without guard:  4 failed, 4 passed     identical, same four tests
 
 Per the standing ruling it comes out. **The implementer also retracted its own "actively the bug"
 claim**, made one message earlier: removing it changes nothing, so it never blocked anything. It had
-over-corrected from *inert* to *harmful* **on reasoning**, one message after being told that
+over-corrected from _inert_ to _harmful_ **on reasoning**, one message after being told that
 distinction matters.
 
 **2. The real defect, measured rather than inferred:**
@@ -10176,8 +10341,8 @@ proposal      t=257 l=613 ...
 ```
 
 **The tag picker and the proposal occupy the same space**, so the four-mode select and the tick are
-unclickable while the picker is open. **A `:255-257` failure — those controls must be operable, and a
-control the user cannot click is not.**
+unclickable while the picker is open. **A `:255-257` failure — those controls must be operable, and
+a control the user cannot click is not.**
 
 **3. Escape not closing the picker was NEVER P30's regression.** With the guard removed the picker
 still fails to close. The probe shows why: **after selecting a tag `document.activeElement` is a
@@ -10190,9 +10355,9 @@ package merely made it visible by putting a second surface in front of it.**
 near-hit is `:253`'s "unfocused popup". The picker's dismissal is **not governed by UR-009**, so
 fixing it would widen the package into a component the requirement does not reach. It becomes a
 **recorded finding against the transactions cell**, with the `activeElement`-is-a-`DIV` measurement
-attached, since that tells a future fixer the handler is on the wrong element rather than that Escape
-is mishandled. **If P30's fix turns out to REQUIRE the Escape fix, that is a signal the fix is wrong
-and root will re-rule.**
+attached, since that tells a future fixer the handler is on the wrong element rather than that
+Escape is mishandled. **If P30's fix turns out to REQUIRE the Escape fix, that is a signal the fix
+is wrong and root will re-rule.**
 
 P30's own `:300` test is to be re-scoped: it currently asserts the picker closes on Escape, which is
 not P30's to guarantee. It should assert what UR-009 requires — that the proposal controls are
@@ -10200,17 +10365,17 @@ reachable and operable.
 
 **Root corrected two of the implementer's cited facts before endorsing the diagnosis.** The log
 contains **no `INTERCEPTS POINTER EVENTS` string** and none of the `z-[9999]` markup it quoted —
-Playwright names the obstructing element instead. And its self-criticism that *"the timeouts were in
-run 1's log too and I read past them"* is **wrong in its own favour**: run 1's four timeouts are all
+Playwright names the obstructing element instead. And its self-criticism that _"the timeouts were in
+run 1's log too and I read past them"_ is **wrong in its own favour**: run 1's four timeouts are all
 P31's dead-locator failures; P30's four failed fast on the assertion. **The timeouts are new in run
-5, a genuine consequence of rev 03.** Root told it not to record a self-criticism the record does not
-support.
+5, a genuine consequence of rev 03.** Root told it not to record a self-criticism the record does
+not support.
 
-**Pattern named by the implementer, adopted:** *the correct order is measure, then explain — and I
-have inverted it three times in one package.* **Root records the mitigating half honestly: P30 did
-not have the port for most of that time, and root instructed it to write rev 03 unverified.** Part of
-the inversion was structural. **The part that is P30's is reporting unmeasured explanations with more
-confidence than they deserved.**
+**Pattern named by the implementer, adopted:** _the correct order is measure, then explain — and I
+have inverted it three times in one package._ **Root records the mitigating half honestly: P30 did
+not have the port for most of that time, and root instructed it to write rev 03 unverified.** Part
+of the inversion was structural. **The part that is P30's is reporting unmeasured explanations with
+more confidence than they deserved.**
 
 ### 2026-08-02 — ROOT'S "correction 1" WAS THE ERROR: a truncated grep reported as a property of the file
 
@@ -10229,16 +10394,16 @@ line 254 length: 611 characters
 **Root's earlier command piped through `cut -c1-105`.** The markup dump runs to 611 characters, so
 `subtree intercepts pointer events` sits far past the truncation point. **Root did not grep the log
 and find nothing — root grepped a 105-column window and reported the absence as a property of the
-file.** The implementer's guess at the mechanism was exactly right, and it had nearly missed the same
-text itself for the same reason.
+file.** The implementer's guess at the mechanism was exactly right, and it had nearly missed the
+same text itself for the same reason.
 
 **This is the same error in a fifth costume: an instrument that answers a NARROWER question than the
 one asked, whose answer is then reported as the broad one.** The keyword split measured root's word
 list. The test-count grep measured indented declarations. The port monitor measured two of three
 necessary facts. This one measured the first 105 columns.
 
-**Root also retracted a second substantive claim.** Root wrote that the guard "removes the accidental
-mechanism that was papering over the real defect." **The implementer measured identical
+**Root also retracted a second substantive claim.** Root wrote that the guard "removes the
+accidental mechanism that was papering over the real defect." **The implementer measured identical
 `4 failed, 4 passed` with and without it — the guard is INERT, full stop.** Root had constructed a
 story explaining why an inert-looking thing might not be inert, **one message after praising the
 implementer for retracting the mirror-image claim.**
@@ -10254,8 +10419,8 @@ implementer look scrupulous.
 **Scope ruling UNCHANGED:** the picker's unreachable Escape handler stays out of UR-009 and is a
 recorded finding against the transactions cell, with the `activeElement`-is-a-`DIV` measurement
 attached. Rev 04 must re-scope the `:300` test to assert **the proposal controls are reachable and
-operable** rather than that the picker closes on Escape. **Safeguard stands: if deferring the proposal
-requires the Escape fix, the boundary is drawn wrong and root re-rules.**
+operable** rather than that the picker closes on Escape. **Safeguard stands: if deferring the
+proposal requires the Escape fix, the boundary is drawn wrong and root re-rules.**
 
 **Process note: four corrections were traded in this exchange and all four were right** — the
 implementer caught two of root's, root caught one of the implementer's, and the implementer caught
@@ -10264,30 +10429,30 @@ as something to check rather than adopt.**
 
 ### 2026-08-02 — P31 downgrades its own campaign claim; removes an unreachable guard at `b138894`
 
-**P31 corrected its own handback, unprompted and against its interest.** It had written "184 passed /
-4 failed, identical across 3 consecutive runs" as though it were a campaign digest. **It is not** —
-runs 1-4 spanned two trees and run 5 was a single run on the corrected tree. Both evidence files
-rewritten to say plainly *5 runs, 2 trees, not a valid single-tree campaign*, with the fused-tree
+**P31 corrected its own handback, unprompted and against its interest.** It had written "184 passed
+/ 4 failed, identical across 3 consecutive runs" as though it were a campaign digest. **It is not**
+— runs 1-4 spanned two trees and run 5 was a single run on the corrected tree. Both evidence files
+rewritten to say plainly _5 runs, 2 trees, not a valid single-tree campaign_, with the fused-tree
 limitation at the top rather than buried. **Second time today it has downgraded its own result.**
 
 **It applied the mutation-testing instruction to its own code and found dead weight.**
-`reconcileToMatchingRows` opened with `if (previousMatchingRowIds === nextMatchingRowIds) return
-selection;` — **root verified the sole caller at `page.tsx:284-286` performs the identical reference
-comparison before calling**, so the guard could never fire and no test covered it. Removed in
-`b138894`, one file, ancestor of HEAD.
+`reconcileToMatchingRows` opened with
+`if (previousMatchingRowIds === nextMatchingRowIds) return selection;` — **root verified the sole
+caller at `page.tsx:284-286` performs the identical reference comparison before calling**, so the
+guard could never fire and no test covered it. Removed in `b138894`, one file, ancestor of HEAD.
 
 **The distinction it drew is the valuable part:** the **trailing** identity-preservation block —
-returning the same selection object when membership is unchanged so React can skip a re-render — **IS
-load-bearing and reddens a test when deleted.** Only the leading reference check was dead. **Those
-two are easy to conflate and conflating them would have been a real defect.** The reviewer is
-retargeted to `b138894` and asked to check the sole-caller premise against every path including
+returning the same selection object when membership is unchanged so React can skip a re-render —
+**IS load-bearing and reddens a test when deleted.** Only the leading reference check was dead.
+**Those two are easy to conflate and conflating them would have been a real defect.** The reviewer
+is retargeted to `b138894` and asked to check the sole-caller premise against every path including
 exports through `index.ts`, since a sole-caller claim is exactly the kind that quietly stops being
 true.
 
-**Flake disclosed rather than hidden:** `duplicates.test.ts`'s ratio assertion fired once in its final
-unit run and passed on the next; it reported both. That file is not its and it did not loosen the
-bound. **This is the same assertion root wrongly claimed had "held under load 21" — P31's observation
-is now better evidence about that test than anything in root's ledger.**
+**Flake disclosed rather than hidden:** `duplicates.test.ts`'s ratio assertion fired once in its
+final unit run and passed on the next; it reported both. That file is not its and it did not loosen
+the bound. **This is the same assertion root wrongly claimed had "held under load 21" — P31's
+observation is now better evidence about that test than anything in root's ledger.**
 
 **Root declined P31's offer of a clean single-tree campaign, with reasoning recorded:** its four
 journeys passed on **five consecutive runs across three trees**, which is arguably stronger than
@@ -10307,7 +10472,7 @@ and the keyword split.
 
 **The fix is the smallest one that could work: the proposal now waits for the cell's edit surface to
 close before appearing.** Deferring avoids the collision; z-index or keyboard precedence would
-*arbitrate* it — and **the collision IS the defect**, so arbitration would have been a third
+_arbitrate_ it — and **the collision IS the defect**, so arbitration would have been a third
 accidental mechanism in this package.
 
 **Verified by root on main:** `5b0c441` is an ancestor of HEAD, `onEscapeKeyDown` returns **0
@@ -10327,25 +10492,25 @@ sharpest lesson of the whole defect: **the regression left the controls rendered
 visibility assertion passed while the user could not reach them. Visible is not reachable, and only
 the click distinguishes them.**
 
-It also corrected three of its own tests that its fix falsified, naming the belief each encoded — the
-F-1 test asserted the proposal visible *while* the picker is open, which was never what F-1
+It also corrected three of its own tests that its fix falsified, naming the belief each encoded —
+the F-1 test asserted the proposal visible _while_ the picker is open, which was never what F-1
 protects; and `addTagToRow` now ends the edit, because a caller left mid-edit finds no controls.
 
 **ROOT RULING REAFFIRMED — the Escape handler stays OUT of scope, and the safeguard has now resolved
-in favour of exclusion.** Root had said that if P30's fix *required* the Escape fix, the boundary was
-drawn wrong. **It did not: deferral gives 8/8 green with the Escape defect still present. That is
-proof the boundary is correct rather than a judgement about it.** The implementer offered to fold it
-in — *"I have the port and it would be quick"* — which root explicitly refused: **scope creep at the
-end of a package is cheapest exactly when it is least examined**, and this one has already run four
-revisions. Disposal is a comment in the helper, which puts the finding where someone will be
+in favour of exclusion.** Root had said that if P30's fix _required_ the Escape fix, the boundary
+was drawn wrong. **It did not: deferral gives 8/8 green with the Escape defect still present. That
+is proof the boundary is correct rather than a judgement about it.** The implementer offered to fold
+it in — _"I have the port and it would be quick"_ — which root explicitly refused: **scope creep at
+the end of a package is cheapest exactly when it is least examined**, and this one has already run
+four revisions. Disposal is a comment in the helper, which puts the finding where someone will be
 standing.
 
-**Root's log-truncation error confirmed as root's, unambiguously.** Re-run without truncation gives 6
-hits each for `intercepts pointer events` and `data-owned-by-row`, md5 `d48dae29…`, **line 254 is 611
-characters and root's command piped through `cut -c1-105`.** The verdict sits near column 590. **Root
-did not grep the log and find nothing — root grepped a 105-column window and reported the absence as
-a property of the file.** The implementer asked which of the two had the lying tool; the answer is
-root's.
+**Root's log-truncation error confirmed as root's, unambiguously.** Re-run without truncation gives
+6 hits each for `intercepts pointer events` and `data-owned-by-row`, md5 `d48dae29…`, **line 254 is
+611 characters and root's command piped through `cut -c1-105`.** The verdict sits near column 590.
+**Root did not grep the log and find nothing — root grepped a 105-column window and reported the
+absence as a property of the file.** The implementer asked which of the two had the lying tool; the
+answer is root's.
 
 Campaign authorised: `env -u CI`, `--retries=0`, full suite, 3 runs, digest before run 1 and after
 run 3, one unchanged tree, `--list` count reported before starting.
@@ -10362,10 +10527,10 @@ git log --oneline a265e54..5b0c441 -- src
 ```
 
 **Those are the only two `src` deltas in P30's campaign range, and one of them is P31's.** So P30's
-campaign is validating P31's selection refactor as well as its own fix. **This is the second time the
-two packages have been entangled** — first in commit `e97b3f7` via `git add -A src tests`, now in the
-campaign range. **The file-level pathspec rule fixed the commit boundary; it does not and cannot fix
-the tree boundary.**
+campaign is validating P31's selection refactor as well as its own fix. **This is the second time
+the two packages have been entangled** — first in commit `e97b3f7` via `git add -A src tests`, now
+in the campaign range. **The file-level pathspec rule fixed the commit boundary; it does not and
+cannot fix the tree boundary.**
 
 **Root measured the consequence that neither agent had:**
 
@@ -10374,37 +10539,38 @@ git merge-base --is-ancestor b138894 d6567f6   →  NO
 ```
 
 **`b138894` POSTDATES P31's run 5**, so **none of P31's five passing E2E runs cover the guard
-removal.** Root had told P31's reviewer the removal was safe on unit-test evidence — that stands, but
-unit coverage is not what those five runs established, and root had let the two blur together.
+removal.** Root had told P31's reviewer the removal was safe on unit-test evidence — that stands,
+but unit coverage is not what those five runs established, and root had let the two blur together.
 
 **P30's run 1: its own four are GREEN** — every previously-failing `rule-creation-controls` test
 passes under a full suite, which is the confirmation its targeted 8/8 could not give. **Three new
 failures, all `people-settlement.spec.ts:145/:166/:197`**, a spec neither package touched, last
 modified by P22/P25/P20B work, containing zero references to any rule-proposal or tag testid.
 
-**Both agents refused to blame each other, and both were right to.** P30: *"I am not asserting P31
-caused this... I have been wrong three times in this package by explaining before measuring."* Root's
-position: the spec passed in P31's run 5, **but run 5 predates the guard removal — so "it passed
-before" neither exonerates nor implicates the change. Both src deltas in that range are unvalidated
-against these tests.**
+**Both agents refused to blame each other, and both were right to.** P30: _"I am not asserting P31
+caused this... I have been wrong three times in this package by explaining before measuring."_
+Root's position: the spec passed in P31's run 5, **but run 5 predates the guard removal — so "it
+passed before" neither exonerates nor implicates the change. Both src deltas in that range are
+unvalidated against these tests.**
 
 **Load was ~11 at run start against 3-6 for P31's runs**, so contention is available as an
-explanation — and root instructed P30 to resist it, because **"load" has been the available-and-wrong
-answer twice today**: once for P31's missing mock, once for P30's own four failures that proved to be
-a real overlap defect. **Runs 2 and 3 discriminate: same three every time means a real defect or an
-ordering dependency; moving or vanishing means load.**
+explanation — and root instructed P30 to resist it, because **"load" has been the
+available-and-wrong answer twice today**: once for P31's missing mock, once for P30's own four
+failures that proved to be a real overlap defect. **Runs 2 and 3 discriminate: same three every time
+means a real defect or an ordering dependency; moving or vanishing means load.**
 
-**Discriminating experiment assigned to P31, not P30**, since `b138894` is P31's commit: if the three
-recur, reproduce them against a tree with `b138894` reverted.
+**Discriminating experiment assigned to P31, not P30**, since `b138894` is P31's commit: if the
+three recur, reproduce them against a tree with `b138894` reverted.
 
-**Recorded separately, because it is proof rather than assertion:** P31 verified root's claim that the
-two baselines are different code paths by **injecting a defect reachable only under `all-matching`**
-and showing the pre-`0398d19` test passes against it while the post-`0398d19` test fails. **The
-earlier test was blind to an entire branch.** Tree restored byte-identical, no probe left behind.
+**Recorded separately, because it is proof rather than assertion:** P31 verified root's claim that
+the two baselines are different code paths by **injecting a defect reachable only under
+`all-matching`** and showing the pre-`0398d19` test passes against it while the post-`0398d19` test
+fails. **The earlier test was blind to an entire branch.** Tree restored byte-identical, no probe
+left behind.
 
-**P31's own framing of what caught it, adopted:** the reviewer asked *"is this yours?"*, which forced
-it to re-examine a premise it had already accepted. **That is the review process working, not a lucky
-catch — and it is the argument for reviewer independence being worth its cost even when the
+**P31's own framing of what caught it, adopted:** the reviewer asked _"is this yours?"_, which
+forced it to re-examine a premise it had already accepted. **That is the review process working, not
+a lucky catch — and it is the argument for reviewer independence being worth its cost even when the
 implementer has been careful.**
 
 ### 2026-08-02 — **P31 and P32 PASSED and INTEGRATED; UR-010 and UR-011 `passed`**
@@ -10417,35 +10583,35 @@ risk). Every statement labelled MEASURED or INFERRED.
 unchanged at `469e98c7…`, canary 1. **32 of 34 requirements passed; 31 of 33 feature packages.**
 
 **The reviewer verified the digest claim rather than accepting it**, and the table is the useful
-artifact: `transactions.spec.ts`, `table-selection.ts` and `useTableSelection.ts` are **byte-identical
-across `07bc3d4`, `d6567f6` and `362287c`** — runs 2-5 are four runs on one unchanged selection
-surface, all five journeys passing, **zero failures in `transactions.spec.ts`.** Run 1 is correctly
-excluded: different tree, and its two failures were the implementer's own bad locator, self-reported
-and fixed.
+artifact: `transactions.spec.ts`, `table-selection.ts` and `useTableSelection.ts` are
+**byte-identical across `07bc3d4`, `d6567f6` and `362287c`** — runs 2-5 are four runs on one
+unchanged selection surface, all five journeys passing, **zero failures in `transactions.spec.ts`.**
+Run 1 is correctly excluded: different tree, and its two failures were the implementer's own bad
+locator, self-reported and fixed.
 
 **F-3 is the finding worth carrying.** `TransactionTableProps.matchingRowIds` is **optional**
 (`TransactionTable.tsx:60`) and `selectableRowIds = matchingRowIds ?? renderedRowIds` (`:303`), so
-**a caller that omits it gets page-scoped selection — the exact UR-011 defect — with no type error.**
-The only product render site (`page.tsx:1318`) passes it, so the product is correct today. Not
-failed on because the optionality keeps narrower existing call sites valid and the fallback is
+**a caller that omits it gets page-scoped selection — the exact UR-011 defect — with no type
+error.** The only product render site (`page.tsx:1318`) passes it, so the product is correct today.
+Not failed on because the optionality keeps narrower existing call sites valid and the fallback is
 conservative, but **recorded so a future caller is not surprised.**
 
 **The reviewer declined a dispatch expectation, deliberately and correctly.** Root asked it to
 confirm `T021e`. It confirmed the test's **construction** is sound and discriminating in both
-directions but **could not execute it**, and said so: *"Saying 'verified' would have been the blind
-assertion this goal keeps warning about."* **That refusal is worth more than the confirmation would
+directions but **could not execute it**, and said so: _"Saying 'verified' would have been the blind
+assertion this goal keeps warning about."_ **That refusal is worth more than the confirmation would
 have been.**
 
 **It also recorded root's dispatch as a worked example of root's own rule:** the pinned HEAD
-`362287c` was stale within minutes and the file that moved was P31's core model. *"The ancestry check
-the dispatch rightly demanded is only valid for the instant it ran."* **Any handback quotes
+`362287c` was stale within minutes and the file that moved was P31's core model. _"The ancestry
+check the dispatch rightly demanded is only valid for the instant it ran."_ **Any handback quotes
 `0e27694`.**
 
 ### 2026-08-02 — The five `people-settlement` failures: UR-004 currency vs a hardcoded USD locator
 
 **Solved, and it is neither package under review.** All five failures share one locator and all are
-**assertion failures, not timeouts** — `5 × expect(locator).toBeVisible() failed`, `grep -c "Test
-timeout of"` returns **0**, so contention is excluded:
+**assertion failures, not timeouts** — `5 × expect(locator).toBeVisible() failed`,
+`grep -c "Test timeout of"` returns **0**, so contention is excluded:
 
 ```
 playwright.config.ts   no timezoneId pinned  ->  tests inherit the host TZ
@@ -10462,19 +10628,20 @@ guessed at: why this surfaced now rather than when UR-004 integrated hours ago.*
 tested.**
 
 **P30's** was that P31's `b138894` selection refactor caused it. **Root measured: its "28
-selection-related references" is 27 loose keyword matches and exactly ONE real selection testid; four
-of the five failing tests never touch the transactions page; and the people page does not import the
-selection model at all.** Same instrument failure as root's `51/7` split — **a keyword count over a
-file measures the word list, not the code paths.**
+selection-related references" is 27 loose keyword matches and exactly ONE real selection testid;
+four of the five failing tests never touch the transactions page; and the people page does not
+import the selection model at all.** Same instrument failure as root's `51/7` split — **a keyword
+count over a file measures the word list, not the code paths.**
 
 **Root's** was load. Assertion failures at 5s rather than 120s timeouts killed it.
 
 **P30 also corrected root's load premise, and the correction retires a thread root had left open.**
 Root asked what was driving load 11 and suggested an external workload. **P30 measured: four
 `chrome-headless` workers above 90% plus a `next-server`, all parented to its own campaign shell,
-all rooted in its worktree. Nothing external.** Its framing: *"P31's figures were probably sampled
+all rooted in its worktree. Nothing external.** Its framing: _"P31's figures were probably sampled
 between runs rather than mid-execution — the comparison was measuring two different moments, not two
-different conditions."* **That is the same shape as root's port monitor reading quiet between runs.**
+different conditions."_ **That is the same shape as root's port monitor reading quiet between
+runs.**
 
 ### 2026-08-02 — The `people-settlement` failures are a LOAD-SENSITIVE FLAKE CLASS, not a defect
 
@@ -10486,14 +10653,14 @@ run 2:        :166  :197        :559      3 failures
 recovered: :145, :281, :525     new: :559     timeouts: 0 in both
 ```
 
-**A real regression in a two-commit range does not spare `:145` on the second attempt and take `:559`
-instead.** Root cancelled the bisect: P30's own stated limitation was that a revert-comparison
-discriminates **only if the failures are deterministic**, and they are not.
+**A real regression in a two-commit range does not spare `:145` on the second attempt and take
+`:559` instead.** Root cancelled the bisect: P30's own stated limitation was that a
+revert-comparison discriminates **only if the failures are deterministic**, and they are not.
 
-**Both candidate mechanisms retired.** Root's USD/AUD reading was already falsified on timing by P30;
-it is now falsified twice, since a static currency mismatch cannot spare a test on the second run.
-**`b138894` and `b6950ca` are both cleared** — neither can produce a moving failure set in a spec
-that does not reach them.
+**Both candidate mechanisms retired.** Root's USD/AUD reading was already falsified on timing by
+P30; it is now falsified twice, since a static currency mismatch cannot spare a test on the second
+run. **`b138894` and `b6950ca` are both cleared** — neither can produce a moving failure set in a
+spec that does not reach them.
 
 **What it is: a load-sensitive assertion class across `people-settlement.spec.ts`** — the longest
 journeys in the suite, `expect(...).toBeVisible()` against a **5-second** budget, at load 11 with
@@ -10518,29 +10685,29 @@ Cost:        19.52 ms per call                — where the removed guard was O(
 ```
 
 **Root WITHDRAWS its "performance concern rather than correctness one" framing.** The reviewer is
-right that at that scale performance **is** the frozen requirement: `spec.md:52-55` states efficiency
-"is a requirement, not an aspiration" and names a hundred-thousand-transaction vault. **A future
-caller reaching this through the barrel on a render path violates that clause, and nothing in the
-types or tests would say so.**
+right that at that scale performance **is** the frozen requirement: `spec.md:52-55` states
+efficiency "is a requirement, not an aspiration" and names a hundred-thousand-transaction vault. **A
+future caller reaching this through the barrel on a render path violates that clause, and nothing in
+the types or tests would say so.**
 
-**Ruling: the guard removal stands, AND `reconcileToMatchingRows` comes out of the `index.ts` barrel.**
-The reviewer's framing: *the barrel export is what turns a private invariant into a public trap.*
-**Root verified deletion is safe** — `page.tsx:48` imports it directly from `table-selection`, not
-from the barrel; the only barrel imports anywhere are for other symbols and one type-only test
-import.
+**Ruling: the guard removal stands, AND `reconcileToMatchingRows` comes out of the `index.ts`
+barrel.** The reviewer's framing: _the barrel export is what turns a private invariant into a public
+trap._ **Root verified deletion is safe** — `page.tsx:48` imports it directly from
+`table-selection`, not from the barrel; the only barrel imports anywhere are for other symbols and
+one type-only test import.
 
 **F-5 — one stale sentence survived the evidence rewrite.**
-`evidence/P31/implementation-01.md:179-182` still concludes the digests mean *"this result describes
-current HEAD rather than a superseded tree"*. **`b138894` falsified it**: `table-selection.ts` went
+`evidence/P31/implementation-01.md:179-182` still concludes the digests mean _"this result describes
+current HEAD rather than a superseded tree"_. **`b138894` falsified it**: `table-selection.ts` went
 `8602eb31a503` -> `d80f67784a3e`. The file states the correct limitation in three other places and
 the opposite of the truth in this one. Correction ordered; **neither item is a re-review trigger and
 the PASS stands.**
 
 **The reviewer had already retargeted on its own initiative** — `b138894` and `0398d19` are both
 ancestors of `0e27694`, so its nine-mutation battery and full suite already covered them. **Root's
-instruction and the reviewer's own F-1 converged on the same tree from opposite directions.** It also
-caught root describing "one product change" when there were two, and cleared the `duplicates.test.ts`
-flake as not P31's — `git log 054f77e..HEAD` on that file is empty.
+instruction and the reviewer's own F-1 converged on the same tree from opposite directions.** It
+also caught root describing "one product change" when there were two, and cleared the
+`duplicates.test.ts` flake as not P31's — `git log 054f77e..HEAD` on that file is empty.
 
 ### 2026-08-02 — The settlement failures: BISECT to `b6950ca`, mechanism still unknown
 
@@ -10554,49 +10721,49 @@ b6950ca  (P30's rev 04)          17, 18, 17             0/3 CLEAN
 ```
 
 **`b138894` is EXONERATED by direct measurement**, and separately by `p31-reviewer-01`'s
-import-graph argument: `BalanceSummary.tsx` imports nothing from the transactions feature, so **there
-is no path at all** from the changed function to the failing component. **Two independent
+import-graph argument: `BalanceSummary.tsx` imports nothing from the transactions feature, so
+**there is no path at all** from the changed function to the failing component. **Two independent
 exonerations, neither relying on timing**, plus P31's own differential test over 1000 cases.
 
-**P30's rate-versus-set correction, which root accepts and which retires root's pure-flake reading:**
-*"The failure RATE is deterministic even though the failure SET is not — 0/5 versus 5/5 is not a
-marginal difference that ten runs could produce by chance."* **Root had collapsed "the set moves"
-into "flake, therefore not attributable"; a commit can introduce a race whose membership is random
-and whose presence is not.** The two findings compose rather than compete.
+**P30's rate-versus-set correction, which root accepts and which retires root's pure-flake
+reading:** _"The failure RATE is deterministic even though the failure SET is not — 0/5 versus 5/5
+is not a marginal difference that ten runs could produce by chance."_ **Root had collapsed "the set
+moves" into "flake, therefore not attributable"; a commit can introduce a race whose membership is
+random and whose presence is not.** The two findings compose rather than compete.
 
 **THREE MECHANISMS FALSIFIED, INCLUDING BOTH OF ROOT'S.**
 
-**P30's mount-cost hypothesis — dead, and backwards.** Root measured that
-`TransactionRuleProposal` was **already mounted unconditionally before `b6950ca`** — that was
-`e97b3f7`'s F-1 fix. Rev 04 changed only what the mounted component shows, and
-`shouldShow = isPending && !isEditing` is **strictly narrower**, so it mounts LESS. **A change that
-can only reduce mounts cannot have added mount cost.** P30's own diagnosis of its error: *"I reasoned
-about my diff in isolation rather than against its parent"* — the same shape as the `sameTagIds`
-rename, a property attributed to a change that predated it.
+**P30's mount-cost hypothesis — dead, and backwards.** Root measured that `TransactionRuleProposal`
+was **already mounted unconditionally before `b6950ca`** — that was `e97b3f7`'s F-1 fix. Rev 04
+changed only what the mounted component shows, and `shouldShow = isPending && !isEditing` is
+**strictly narrower**, so it mounts LESS. **A change that can only reduce mounts cannot have added
+mount cost.** P30's own diagnosis of its error: _"I reasoned about my diff in isolation rather than
+against its parent"_ — the same shape as the `sameTagIds` rename, a property attributed to a change
+that predated it.
 
 **Root's reachability argument — WRONG, and P30 flagged it rather than exploiting it.** Root
 established the people PAGE imports no transaction components and generalised that to the TESTS.
-**Measured: `people-settlement.spec.ts` references `goToTransactions|createTransaction|addTransaction`
-33 times** — those journeys create transactions on `/transactions`, then navigate to `/people` to
-assert. **Root measured what the page imports and generalised it to what the tests exercise; those
-are different questions.** Seventh instance of the same instrument failure. **P30 had been handed a
-falsification with a hole in it and killed its own hypothesis on the stronger argument instead of
-using the hole.**
+**Measured: `people-settlement.spec.ts` references
+`goToTransactions|createTransaction|addTransaction` 33 times** — those journeys create transactions
+on `/transactions`, then navigate to `/people` to assert. **Root measured what the page imports and
+generalised it to what the tests exercise; those are different questions.** Seventh instance of the
+same instrument failure. **P30 had been handed a falsification with a hole in it and killed its own
+hypothesis on the stronger argument instead of using the hole.**
 
 **Root's UR-004 currency reading — retired too early by BOTH root and P30.** `p31-reviewer-01`
 measured that every structural premise holds: no `timezoneId` and no locale pinned in
 `playwright.config.ts`, `helpers/settlement.ts:53` has the account **inherit the vault currency**,
 and `BalanceSummary.tsx:257` derives the testid from whatever the account resolved to. **The
-inference is RUNTIME, not static — which is exactly the class that fails intermittently.** *"It
-passed before on this host"* shows only that the inference was stable across two runs. Back on the
+inference is RUNTIME, not static — which is exactly the class that fails intermittently.** _"It
+passed before on this host"_ shows only that the inference was stable across two runs. Back on the
 table as the third ordered experiment.
 
 **Leading candidate, explicitly unmeasured: scheduling.** `b6950ca` rewrote
 `rule-creation-controls.spec.ts` (+83/-54), and four Playwright workers mean a spec's duration
 determines what runs beside it. **This predicts the observed shape — a sharp commit boundary with no
 import edge — but root constructed it and neither party has tested it.** Root instructed P30 to hold
-it as leading candidate rather than answer: **five mechanisms have been falsified in this package and
-the sixth being root's does not make it better founded.**
+it as leading candidate rather than answer: **five mechanisms have been falsified in this package
+and the sixth being root's does not make it better founded.**
 
 **Ordered experiments after the campaign completes:** `--workers=1` on the spec alone (tests
 scheduling directly); then re-run the bisect's weak `b138894` point to 5 samples, since **2 clean at
@@ -10606,12 +10773,12 @@ an 89% per-run pass rate is weak**; then the `timezoneId` probe.
 zero `rule-creation-controls` failures.** `:145` has now failed twice and passed once across
 attempts, which is a moving set within a single test.
 
-**Root cancelled the previous campaign mid-flight and then forgot it had.** P30 stopped run 2 on that
-instruction; root then read the truncated log as final and retracted a conclusion on partial data.
-**P30's correction: the three "recovered" tests DID execute and pass before it stopped — so the
-recovery was real and root's caveat was wrong.** Those logs are now deleted, so **the claim is
-unfalsifiable from outside and is recorded in the evidence as an observation rather than evidence** —
-revision 01's F-5 standard applied by the implementer to itself.
+**Root cancelled the previous campaign mid-flight and then forgot it had.** P30 stopped run 2 on
+that instruction; root then read the truncated log as final and retracted a conclusion on partial
+data. **P30's correction: the three "recovered" tests DID execute and pass before it stopped — so
+the recovery was real and root's caveat was wrong.** Those logs are now deleted, so **the claim is
+unfalsifiable from outside and is recorded in the evidence as an observation rather than evidence**
+— revision 01's F-5 standard applied by the implementer to itself.
 
 **P30's generalisation of the instrument-failure class, adopted as the best statement of it:**
 
@@ -10620,9 +10787,9 @@ revision 01's F-5 standard applied by the implementer to itself.
 > separate question from **"what does it say?"**
 
 **And its qualification of its own refusal, which root records rather than the compliment root
-offered:** *"A version of me that refuses whenever it disagrees is worse than one that complies. The
+offered:** _"A version of me that refuses whenever it disagrees is worse than one that complies. The
 thing that made it defensible was that I put the table in front of you and asked, rather than acting
-on my own reading."*
+on my own reading."_
 
 ### 2026-08-02 — P31/P32 follow-ups CLOSED at `256e533`; root's scheduling theory REFUTED
 
@@ -10631,7 +10798,7 @@ on my own reading."*
 passed / 2 skipped. Earlier `a67c3f9` carried the evidence corrections.
 
 **Root's ruling to remove the WHOLE block rather than the one function is recorded with the
-implementer's own assessment of why it had missed it:** it had measured that the whole block *could*
+implementer's own assessment of why it had missed it:** it had measured that the whole block _could_
 go and treated that as a fact to route rather than a reason to widen — procedurally right — but did
 not make the generalising argument. **The reviewer's reasoning did not distinguish
 `reconcileToMatchingRows` from its thirteen neighbours; every symbol in that module is an internal
@@ -10639,12 +10806,12 @@ primitive of the same model with the same shape of precondition. Removing one li
 instance; removing the block fixes the class.**
 
 It also moved the rationale to the **module** docstring, since a note attached to one of fourteen
-symbols does not explain why the other thirteen are absent — and corrected a fourth stale sentence of
-its own describing the one-line removal as the fix.
+symbols does not explain why the other thirteen are absent — and corrected a fourth stale sentence
+of its own describing the one-line removal as the fix.
 
 **Recorded against the implementer, by the implementer:** it told root that
-`people-settlement.spec.ts` has *"one selection locator, used only by the deep-link and bulk-delete
-tests"*. `p31-reviewer-01` measured that `:780-880` is an entire deep-link describe block exercising
+`people-settlement.spec.ts` has _"one selection locator, used only by the deep-link and bulk-delete
+tests"_. `p31-reviewer-01` measured that `:780-880` is an entire deep-link describe block exercising
 `rowCheckbox`, `selectedCountLabel`, `aria-selected` and a bulk delete. **Its conclusion survived
 because C/D/E sit at `:145-220`, nowhere near it — but it was arguing its own commit innocent and
 understated the coupling. That is the specific direction of error to guard against**, and it put it
@@ -10662,8 +10829,8 @@ entirely should have made the difference vanish; it did not. **Eighth instrument
 variety: the previous seven were narrow instruments returning well-formed answers; this was a theory
 root never ran against data root had already read.**
 
-**P30's upgrade of root's own stated gap, adopted:** a scheduling effect perturbs *whatever happens to
-be scheduled beside it*, which varies run to run — **so it should smear across unlucky specs, not
+**P30's upgrade of root's own stated gap, adopted:** a scheduling effect perturbs _whatever happens
+to be scheduled beside it_, which varies run to run — **so it should smear across unlucky specs, not
 select the same file every time. Concentration is evidence AGAINST concurrency, not merely
 unexplained by it.**
 
@@ -10678,8 +10845,8 @@ this attempt,   run 1:  1 failure      same tree, same commit, same digest
 partial-log comparison it supersedes. Run 1 of the restarted campaign: **188 passed, 1 failed, zero
 `rule-creation-controls` failures.** Run 2 in progress at 74/189, zero failures.
 
-**State: a sharp reproducible commit boundary, FOUR falsified mechanisms, and a failure count varying
-5 -> 1 on identical trees.** The last two are in tension and root declined to resolve it by
+**State: a sharp reproducible commit boundary, FOUR falsified mechanisms, and a failure count
+varying 5 -> 1 on identical trees.** The last two are in tension and root declined to resolve it by
 constructing a fifth theory. **The `timezoneId` probe is the only untested candidate and has the
 property the others lack — a runtime inference with nothing pinning its input is exactly the shape
 that produces varying counts on an identical tree.** Disposal pre-committed either way: **not P30's
@@ -10704,9 +10871,9 @@ directly. `index.ts` is a pure 21-line deletion. Full suite at `256e533`: **2443
 conclusion by accident.** Root's first reproduction returned `d41d8cd98f00` at all three commits and
 root nearly took that as agreement. **`d41d8cd9` is the md5 of the EMPTY STRING** — the filter had
 stripped every line and the path was wrong. **Three commits agreeing on the empty-string hash looks
-exactly like three commits agreeing on real content.** The other eight produced wrong conclusions and
-were caught downstream; **this one would have produced the right conclusion for no reason, which is
-the version nothing ever catches.**
+exactly like three commits agreeing on real content.** The other eight produced wrong conclusions
+and were caught downstream; **this one would have produced the right conclusion for no reason, which
+is the version nothing ever catches.**
 
 **Reviewer's own assessment of its one-line suggestion, recorded because it volunteered it:** it had
 **measured** the whole block was unused and still framed the fix as one line. Root's widening was
@@ -10722,17 +10889,17 @@ enough to be falsified is more useful than one that is safely vague** — a bett
 "be accurate", which root has not managed reliably today.
 
 **Implementer's closing finding, recorded because the pattern matters more than either error:** it
-reported two overstatements in one argument — *"never reach transaction code"* and *"one selection
-locator"* — and named the point itself: **not that it was wrong once, but that both errors leaned the
-same way**, in the direction favouring its own commit. **A single overstatement is noise; two with a
-direction is a bias, and direction is what makes it defensible against.**
+reported two overstatements in one argument — _"never reach transaction code"_ and _"one selection
+locator"_ — and named the point itself: **not that it was wrong once, but that both errors leaned
+the same way**, in the direction favouring its own commit. **A single overstatement is noise; two
+with a direction is a bias, and direction is what makes it defensible against.**
 
-And: *"Three arguments I constructed, none decisive; two someone else constructed, both decisive."*
+And: _"Three arguments I constructed, none decisive; two someone else constructed, both decisive."_
 Its differential test covered inputs it chose, its timing argument dies to an intermittent, its
 reachability claim was overstated. **What cleared it was a bisect and an absent import edge — both
 structural, neither requiring anyone to trust its reasoning. Reach for the structural answer before
-the clever one.** Root's mirror: the scheduling theory was clever and died to a bisect table root had
-already read.
+the clever one.** Root's mirror: the scheduling theory was clever and died to a bisect table root
+had already read.
 
 **P30 campaign, in progress:** run 1 **188 passed / 1 failed**, run 2 clean so far with **zero**
 failures — **including `:145`, which failed run 1.** Zero `rule-creation-controls` failures in both.
@@ -10741,10 +10908,10 @@ failures — **including `:145`, which failed run 1.** Zero `rule-creation-contr
 
 **Root verified all three from the logs, same commit `5b0c441`, digest `d31581fd`:**
 
-| run | result         | rule-creation fails | settlement fails |
-| --- | -------------- | ------------------- | ---------------- |
-| 1   | **188 passed** | **0**               | 1 (`:145`)       |
-| 2   | **189 passed** | **0**               | 0                |
+| run | result         | rule-creation fails | settlement fails         |
+| --- | -------------- | ------------------- | ------------------------ |
+| 1   | **188 passed** | **0**               | 1 (`:145`)               |
+| 2   | **189 passed** | **0**               | 0                        |
 | 3   | **186 passed** | **0**               | 3 (`:166` `:281` `:596`) |
 
 **P30's package is established: zero `rule-creation-controls` failures across three complete
@@ -10765,41 +10932,43 @@ tree:**
 **Four distinct tests fail at least once; NO test fails consistently.** Every failing test passes in
 at least two runs of the same tree. All three logs are on disk and checkable.
 
-**THE COMMIT-LINKED BOUNDARY IS DEAD, retracted by the implementer before root asked**, on a run that
-was still executing. Its own words: the bisect *"measured something real about isolated single-spec
-runs; it did not measure a property of the commit."* Corrected arithmetic: `5b0c441` is **1 clean of
-4**, not 0 of 2 — **a difference in RATE, not a categorical split.** It also named the asymmetry
-itself: it had applied small-sample scepticism to root's side of the table and not its own.
+**THE COMMIT-LINKED BOUNDARY IS DEAD, retracted by the implementer before root asked**, on a run
+that was still executing. Its own words: the bisect _"measured something real about isolated
+single-spec runs; it did not measure a property of the commit."_ Corrected arithmetic: `5b0c441` is
+**1 clean of 4**, not 0 of 2 — **a difference in RATE, not a categorical split.** It also named the
+asymmetry itself: it had applied small-sample scepticism to root's side of the table and not its
+own.
 
 **ROOT'S DECIDING TEST WAS THE WRONG TEST — ninth instrument failure, and the first where the
-instrument was a decision rule root wrote.** Root framed run 3 as *clean -> environmental, failures
--> boundary stands*. **Failures with rotating membership fits neither branch**, because root
+instrument was a decision rule root wrote.** Root framed run 3 as _clean -> environmental, failures
+-> boundary stands_. **Failures with rotating membership fits neither branch**, because root
 collapsed "does it fail again" with "does the SAME thing fail again". **Recurrence supports a
 boundary only if membership is stable** — precisely the rate-versus-set distinction the implementer
 had drawn hours earlier and root then failed to build into the test root designed. **A bad grep
 returns a wrong answer; a bad dichotomy returns NO answer while looking like it returned one.**
 
-**Root also read one worker's progress as the suite's.** Root reported run 3 "past `people-settlement`
-with zero failures at 84/189". The positions are `84 86 85 88 89 87 90 91 94 93 95 92 96 98 99 100 97
-101 102` — **out of order, because four workers interleave.** In a parallel run no worker's position
-tells you what the others have done. **Tenth instance, and the tell — non-monotonic positions — was in
-root's own output.** The implementer made the mirror error on the truncated run-2 log: **both correct
-readings of incomplete artefacts, in the same investigation.**
+**Root also read one worker's progress as the suite's.** Root reported run 3 "past
+`people-settlement` with zero failures at 84/189". The positions are
+`84 86 85 88 89 87 90 91 94 93 95 92 96 98 99 100 97 101 102` — **out of order, because four workers
+interleave.** In a parallel run no worker's position tells you what the others have done. **Tenth
+instance, and the tell — non-monotonic positions — was in root's own output.** The implementer made
+the mirror error on the truncated run-2 log: **both correct readings of incomplete artefacts, in the
+same investigation.**
 
 **Root REJECTED a flattering retraction and the implementer adopted the correction.** It had written
-that the evidence was *"closer to your original flake reading than to my defect reading"*. **Root's
+that the evidence was _"closer to your original flake reading than to my defect reading"_. **Root's
 flake reading came from comparing a complete run against a truncated one and was retracted as
 invalid; that it now points the right way does not make it well-founded when made.** The accurate
-version, which the implementer recorded: **neither early reading was supported; the implementer's was
-better-founded — a ten-run bisect against a truncated-log comparison — and is the one that failed.
-Being wrong from better evidence is a different failure from being wrong from worse.**
+version, which the implementer recorded: **neither early reading was supported; the implementer's
+was better-founded — a ten-run bisect against a truncated-log comparison — and is the one that
+failed. Being wrong from better evidence is a different failure from being wrong from worse.**
 
-**Final disposal, four-part:** variance **established**; boundary **not established**; four mechanisms
-**falsified** (mount cost, reachability, selection refactor, scheduling — two of them root's); UR-004
-runtime currency inference **untested** and the only surviving candidate that predicts variance.
-**Why isolated single-spec runs behave differently from full-suite runs remains genuinely open, and
-is the most valuable thing the bisect produced** — though it does not mean what either party first
-read it as.
+**Final disposal, four-part:** variance **established**; boundary **not established**; four
+mechanisms **falsified** (mount cost, reachability, selection refactor, scheduling — two of them
+root's); UR-004 runtime currency inference **untested** and the only surviving candidate that
+predicts variance. **Why isolated single-spec runs behave differently from full-suite runs remains
+genuinely open, and is the most valuable thing the bisect produced** — though it does not mean what
+either party first read it as.
 
 ### 2026-08-02 — TZ PROBE FALSIFIES UR-004; five mechanisms dead, none surviving
 
@@ -10811,18 +10980,18 @@ attempt 1:  19 passed
 attempt 2:  17 passed
 ```
 
-**The failures persist AND still vary with the timezone pinned.** So whatever quantity varies between
-runs, **it is not the timezone-derived currency.** The reviewer's reasoning was sound — a runtime
-inference is exactly the class that fails intermittently — which is why it was worth five minutes. It
-simply is not this one.
+**The failures persist AND still vary with the timezone pinned.** So whatever quantity varies
+between runs, **it is not the timezone-derived currency.** The reviewer's reasoning was sound — a
+runtime inference is exactly the class that fails intermittently — which is why it was worth five
+minutes. It simply is not this one.
 
 **FIVE MECHANISMS FALSIFIED, NONE SURVIVING:** mount cost, reachability, selection refactor,
 scheduling, UR-004 currency. **Two were root's, three were the implementer's or its reviewer's, and
 every one died to a measurement rather than to an argument.**
 
 **The single open question is the residue of the bisect: why isolated single-spec runs behave
-differently from full-suite runs.** The implementer's own disposal: the bisect *"measured something
-real about isolated single-spec runs; it did not measure a property of the commit."*
+differently from full-suite runs.** The implementer's own disposal: the bisect _"measured something
+real about isolated single-spec runs; it did not measure a property of the commit."_
 
 ### 2026-08-02 — P30 rev 04 HANDBACK at `5b0c441`; distinct reviewer dispatched
 
@@ -10830,10 +10999,11 @@ Root verified at dispatch time: `5b0c441` an ancestor of HEAD, port genuinely fr
 under `/tmp/mf-p30`, **the human's :3001 dev server alive**, and all four evidence files present.
 Campaign digest `d31581fd` identical before run 1 and after run 3.
 
-`p30-reviewer-02` dispatched — DISTINCT, and specifically **not `p30-reviewer-01`, which authored the
-F-1/F-2/F-6 findings this revision answers and declined to grade its own findings.**
+`p30-reviewer-02` dispatched — DISTINCT, and specifically **not `p30-reviewer-01`, which authored
+the F-1/F-2/F-6 findings this revision answers and declined to grade its own findings.**
 
-**Implementer's refusal of root's closing credit, recorded because it is the more accurate account:**
+**Implementer's refusal of root's closing credit, recorded because it is the more accurate
+account:**
 
 > The retractions were cheap for me because the evidence was unambiguous both times. The harder case
 > would have been ambiguous evidence where holding the line was still defensible, and that didn't
@@ -10842,16 +11012,16 @@ F-1/F-2/F-6 findings this revision answers and declined to grade its own finding
 > not one was caught by the person who made it reasoning harder about their own claim.**
 
 **That last sentence is the finding of the day.** Every instrument failure in this session — root's
-truncated grep, keyword split, invented expansion, stale port grant, unrun theory, empty-string hash,
-partial-log read, single-worker progress read, and wrong deciding rule; the implementer's mount
-hypothesis, portal theory, Escape contract, and overstated coupling — **was caught by the other
-party, or by a measurement, never by the author reasoning harder about their own claim.**
+truncated grep, keyword split, invented expansion, stale port grant, unrun theory, empty-string
+hash, partial-log read, single-worker progress read, and wrong deciding rule; the implementer's
+mount hypothesis, portal theory, Escape contract, and overstated coupling — **was caught by the
+other party, or by a measurement, never by the author reasoning harder about their own claim.**
 
 ### 2026-08-02 — P33 DISPATCHED (UR-012, transaction cell hit areas)
 
-Root verified the cell surface is settled before dispatching: **P30 rev 04 touched no
-`cells/` file**, and the shared tree is clean of in-flight edits. `p33-implementer-01` dispatched
-against `main`.
+Root verified the cell surface is settled before dispatching: **P30 rev 04 touched no `cells/`
+file**, and the shared tree is clean of in-flight edits. `p33-implementer-01` dispatched against
+`main`.
 
 The dispatch carries the hazards learned in these exact files across the last four packages:
 `InlineEditableTags` portals its dropdown to `document.body` with `position: fixed`; the rule
@@ -10859,28 +11029,28 @@ proposal anchors into the space directly below a cell and defers opening until t
 closes; the unreachable Escape handler is a recorded pre-existing defect to recognise and not chase;
 and `people-settlement.spec.ts`'s rotating failures are not P33's.
 
-**The binding constraint, restated from the principal's own words:** *"the exact same unhovered
+**The binding constraint, restated from the principal's own words:** _"the exact same unhovered
 appearance, with the exact same visual positions, it's just that when you mouse over, each input is
-actually filling the full grid cell."* **A change that alters resting appearance, position or
+actually filling the full grid cell."_ **A change that alters resting appearance, position or
 spacing does not satisfy UR-012** — the frozen text says so at its close.
 
-Method requirements carried: write the other-path fixture in the same edit as the branch; **assert by
-CLICKING rather than by visibility, since the requirement is precisely about where a click is
-accepted**; mutation-test guards and verify the tree clean afterwards; and **a fixture you hand-build
-encodes your model, not the world.**
+Method requirements carried: write the other-path fixture in the same edit as the branch; **assert
+by CLICKING rather than by visibility, since the requirement is precisely about where a click is
+accepted**; mutation-test guards and verify the tree clean afterwards; and **a fixture you
+hand-build encodes your model, not the world.**
 
 ### 2026-08-02 — PRE-AUDIT GATE CHECK: all five completion gates verify
 
 Root verified the goal's completion conditions while P30's review and P33's implementation run, so
 the final audit inherits a checked baseline rather than deriving it under time pressure.
 
-| gate | check | result |
-| ---- | ----- | ------ |
-| 1 | scratch SHA == rolling checksum | **`469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a`** both sides |
-| 2 | scratch markers | **43 checked, 0 unchecked** |
-| 3 | FS-001 canonical present | `009-user-reported-refinements/spec.md` at `6d163635a8f3…` |
-| 4 | canary phrase count in PROGRESS | **1** |
-| 5 | `SCOPE.json` requirementCount | **34** |
+| gate | check                           | result                                                                            |
+| ---- | ------------------------------- | --------------------------------------------------------------------------------- |
+| 1    | scratch SHA == rolling checksum | **`469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a`** both sides |
+| 2    | scratch markers                 | **43 checked, 0 unchecked**                                                       |
+| 3    | FS-001 canonical present        | `009-user-reported-refinements/spec.md` at `6d163635a8f3…`                        |
+| 4    | canary phrase count in PROGRESS | **1**                                                                             |
+| 5    | `SCOPE.json` requirementCount   | **34**                                                                            |
 
 **Requirement rows not yet `passed`: exactly two — UR-009 and UR-012** — matching the two live
 packages and nothing else. **32 of 34 requirements passed; 31 of 33 feature packages.**
@@ -10930,22 +11100,22 @@ exercise.
 **Root endorses the implementer's approach: enlarge the account cell from the row via `className`,
 do NOT edit `AccountCombobox`.** It is shared with the accounts feature, and changing a shared
 component to satisfy a table-layout requirement would export this package's constraint into
-unrelated code. **Note the class string already carries `RESTING_CELL_CHROME`** — the UR-005 constant
-defining the resting appearance UR-012 must not disturb — so whatever composes with it must be
-checked at the resting result rather than assumed through `cn`.
+unrelated code. **Note the class string already carries `RESTING_CELL_CHROME`** — the UR-005
+constant defining the resting appearance UR-012 must not disturb — so whatever composes with it must
+be checked at the resting result rather than assumed through `cn`.
 
 **Independently confirmed by the implementer: `onTransactionClick` is declared and threaded through
-`TransactionTable.tsx` (100, 260, 412-418, 578) but has NO caller** — `grep -rn onTransactionClick
-src/app/` returns nothing. **The row click is a genuine no-op today**, which is why a click landing on
-the row rather than the control is a dead click rather than a wrong action. **That means enlarged hit
-areas cannot steal a behaviour from the row — there is none to steal**, and it belongs in the
-evidence because a reviewer will otherwise ask.
+`TransactionTable.tsx` (100, 260, 412-418, 578) but has NO caller** —
+`grep -rn onTransactionClick src/app/` returns nothing. **The row click is a genuine no-op today**,
+which is why a click landing on the row rather than the control is a dead click rather than a wrong
+action. **That means enlarged hit areas cannot steal a behaviour from the row — there is none to
+steal**, and it belongs in the evidence because a reviewer will otherwise ask.
 
 **Port sequenced to P33 but NOT granted** — `p30-reviewer-02` is mid-review and may need it. Root
 will signal explicitly; the implementer is instructed not to infer a grant from an observed free
-port. **Its own `next dev` on :3010 for geometry measurement is approved** — it touches neither :3000
-nor `playwright.config.ts`, and **measuring geometry is the only way to discharge the
-"resting appearance unchanged" constraint**, which is a claim that cannot be argued.
+port. **Its own `next dev` on :3010 for geometry measurement is approved** — it touches neither
+:3000 nor `playwright.config.ts`, and **measuring geometry is the only way to discharge the "resting
+appearance unchanged" constraint**, which is a claim that cannot be argued.
 
 Carried with it: the human's dev server is on :3001 and **`pkill -f "next-server"` matches it** — an
 agent nearly killed a 3-day-old server with the unfiltered form tonight and it survived by race, not
@@ -11007,9 +11177,9 @@ must be checked against the F-1 collision, which is exactly the interaction that
 twice.** The occlusion fix must not regress.
 
 Three non-blocking: **F-8** `data-owned-by-row` carries no row identity; **F-9** the unit
-reproduction diverges from the shipped wiring **in the way that hides F-7**; **F-10** the restriction
-checkboxes are asserted to exist and never operated. **F-9 is the one that explains why the
-implementer's own suite could not see this.**
+reproduction diverges from the shipped wiring **in the way that hides F-7**; **F-10** the
+restriction checkboxes are asserted to exist and never operated. **F-9 is the one that explains why
+the implementer's own suite could not see this.**
 
 ### 2026-08-02 — P30 review-02 detail: the fix shape, the gesture enumeration, and a self-disproof
 
@@ -11032,9 +11202,9 @@ Tab off the end of the document             focusin: NO    auto-apply: NO
 trusted click on non-focusable chrome       focusin: NO    auto-apply: NO
 ```
 
-**One gesture in four reaches the frozen `:264` trigger — and it is exactly the one rev 04's new test
-drives.** Root verified: `rule-creation-controls.spec.ts:388` clicks `getByRole("textbox", …)`, a
-focusable element.
+**One gesture in four reaches the frozen `:264` trigger — and it is exactly the one rev 04's new
+test drives.** Root verified: `rule-creation-controls.spec.ts:388` clicks `getByRole("textbox", …)`,
+a focusable element.
 
 **FIX SHAPE, the reviewer's and better than root's, adopted wholesale:**
 
@@ -11052,32 +11222,33 @@ detail that nothing pins.** The real constraint: **the component cannot recover 
 its own mount** — measured, focus already outside before the picker closes gives `applied: 0`. **Fix
 the recovery, not the timing.**
 
-**BLINDNESS RULE REFINED — third new axis this package has produced, adopted goal-wide.** Root's rule
-was *absence-of-surface is only one axis; a suite can cover every surface and never exercise a mode
-within one.* The reviewer's correction: **rev 04 DID test the automatic modes**, and both of its
-incidental choices — the tags field, and a focusable blur target — **landed on the working side.**
+**BLINDNESS RULE REFINED — third new axis this package has produced, adopted goal-wide.** Root's
+rule was _absence-of-surface is only one axis; a suite can cover every surface and never exercise a
+mode within one._ The reviewer's correction: **rev 04 DID test the automatic modes**, and both of
+its incidental choices — the tags field, and a focusable blur target — **landed on the working
+side.**
 
 > **The axis below "is the mode driven" is "WHICH INSTANCE of the gesture drives it".**
 
-**On the campaign, the reviewer's framing which root has passed to the implementer:** the three clean
-runs were honest and **greenness cannot discharge F-7, because no assertion in the suite looks at the
-failing gestures.** No number of runs would have surfaced it. It also endorsed the evidence's
-handling of the settlement rotation — retracting its own commit-boundary claim, declining to invent a
-seventh mechanism — as the right handling.
+**On the campaign, the reviewer's framing which root has passed to the implementer:** the three
+clean runs were honest and **greenness cannot discharge F-7, because no assertion in the suite looks
+at the failing gestures.** No number of runs would have surfaced it. It also endorsed the evidence's
+handling of the settlement rotation — retracting its own commit-boundary claim, declining to invent
+a seventh mechanism — as the right handling.
 
 **Non-blocking:** F-8 `data-owned-by-row` carries no row identity, so another row's picker reads as
-"still in this row" (safe direction, hard to reach today). **F-9 the F-2 unit reproduction hard-codes
-BOTH favourable conditions and can no longer exhibit this class — it must be REPLACED, not
-extended**; a test that cannot fail for the right reason reads as coverage while providing none.
-**F-10 neither restriction checkbox is clicked by any test in the repo, so a rule ignoring `:258-260`
-entirely would pass the suite.**
+"still in this row" (safe direction, hard to reach today). **F-9 the F-2 unit reproduction
+hard-codes BOTH favourable conditions and can no longer exhibit this class — it must be REPLACED,
+not extended**; a test that cannot fail for the right reason reads as coverage while providing none.
+**F-10 neither restriction checkbox is clicked by any test in the repo, so a rule ignoring
+`:258-260` entirely would pass the suite.**
 
 ### 2026-08-02 — Collision risk flagged before it became a fusion
 
 `cells/InlineEditableTags.tsx` went dirty while **P30 rev 05 edits the proposal components and P33
 owns all seven `cells/*.tsx` plus `TransactionRow.tsx`.** Root asked both agents which owns the edit
-rather than assuming, and told P33 explicitly **not to revert it if it is not theirs** — `git
-checkout --` on another agent's work destroyed live edits once today.
+rather than assuming, and told P33 explicitly **not to revert it if it is not theirs** —
+`git checkout --` on another agent's work destroyed live edits once today.
 
 Root also warned P30 that **nothing in the reviewer's fix shape requires touching a cell file**, and
 that if rev 05 has grown into the cell components **the recovery problem is not local to the
@@ -11099,16 +11270,16 @@ post-digest  37f30301a35b4f0245ede04d919ffe68  IDENTICAL
 **Zero `rule-creation-controls` failures across three complete runs**, including the new F-10
 restriction journey and the four blur gestures the F-7 fix targets. **That is P30's result.**
 
-**`--list` count reconciled rather than accepted: 190 = 189 + 1**, the +1 being the F-10 journey. The
-implementer noted that the F-9 replacement was **vitest, not Playwright**, so it does not move a
+**`--list` count reconciled rather than accepted: 190 = 189 + 1**, the +1 being the F-10 journey.
+The implementer noted that the F-9 replacement was **vitest, not Playwright**, so it does not move a
 Playwright count — **the exact distinction that would have made 190 look wrong had it not been
 drawn.** Root verified: 8 tests at `5b0c441`, 9 at `d7fe06a`.
 
 **ROOT CAUGHT AN EMPTY POST-DIGEST BEFORE HANDBACK.** `digest-after.txt` existed with no content —
 the implementer's command computed the digest **to stdout**, so the value appeared in a chat
 notification and never landed on disk. Recomputed while the worktree still existed, not
-reconstructed. **Its framing, recorded: *a digest that exists only in a chat notification is not a
-durable artefact*** — the same class as the deleted run-2 log, true when observed and unverifiable
+reconstructed. **Its framing, recorded: _a digest that exists only in a chat notification is not a
+durable artefact_** — the same class as the deleted run-2 log, true when observed and unverifiable
 later.
 
 **Settlement rotation, membership per run — a FIFTH distinct combination:**
@@ -11128,10 +11299,10 @@ reviewer than a green summary that omits it.
 computation and a vitest run **that never needed it**, delaying P33 by roughly ten minutes.
 **Releasing promptly is part of campaign discipline, not an afterthought to reporting.**
 
-**Port released with an explicit announce and verified free by root** — no listener, no process under
-`/tmp/mf-p30`, human's :3001 alive. **Granted to `p33-implementer-01`**, which has waited through two
-P30 revisions, with instructions to rebase onto current HEAD first since `d67e717` and `d7fe06a`
-touch two of its files.
+**Port released with an explicit announce and verified free by root** — no listener, no process
+under `/tmp/mf-p30`, human's :3001 alive. **Granted to `p33-implementer-01`**, which has waited
+through two P30 revisions, with instructions to rebase onto current HEAD first since `d67e717` and
+`d7fe06a` touch two of its files.
 
 Vitest repetitions continue in the background to give the unreproduced unit failure more chances;
 **one attempt already clean at 2448.** The count of attempts is itself the evidence.
@@ -11159,9 +11330,9 @@ the `handback-hash-amend-orphan` rule applied at dispatch time rather than at ha
 
 **Negative control, run before P33 asked for anything else.** It neutralised the four hit-area
 constants to `""` — **restoring pre-change behaviour without touching any of the 8 call sites**, so
-nothing at a call site could accidentally compensate. **All 8 cells landed on the row DIV and nothing
-activated.** Restored, verified byte-identical, matrix passes again. **That is what makes the passing
-runs mean anything.**
+nothing at a call site could accidentally compensate. **All 8 cells landed on the row DIV and
+nothing activated.** Restored, verified byte-identical, matrix passes again. **That is what makes
+the passing runs mean anything.**
 
 **Resting appearance discharged by measurement, not argument:**
 
@@ -11178,23 +11349,25 @@ have silently regressed an integrated requirement.
 
 **1. There is no horizontal dead space.** Root's dispatch and the requirement task both described
 `gap-4` as space inside the cells. **Measured: `gap-4` is on the grid CONTAINER
-(`TransactionRow.tsx:361`), so it is spacing BETWEEN tracks and belongs to no cell.** Closing it would
-make each control overhang its neighbour. Root inherited the framing without checking where the class
-sat. Vertical expansion only, plus 8px horizontally on the checkbox, the one genuinely inset control.
+(`TransactionRow.tsx:361`), so it is spacing BETWEEN tracks and belongs to no cell.** Closing it
+would make each control overhang its neighbour. Root inherited the framing without checking where
+the class sat. Vertical expansion only, plus 8px horizontally on the checkbox, the one genuinely
+inset control.
 
 **2. A `::before` overlay cannot work on text inputs** — a replaced element renders no
 pseudo-element, so the overlay never painted and the edge click still missed. **Found by trying it
 and watching it fail.** Hence the split: date/description/amount grow their own box and return the
 space as padding (+28 height, −14 margin, +14 padding, cancelling exactly); the other five use the
 overlay **because the tag chooser positions its portaled dropdown from a container rect, and growing
-that box moved the dropdown 14px.** That is the portal hazard arriving from an unpredicted direction.
+that box moved the dropdown 14px.** That is the portal hazard arriving from an unpredicted
+direction.
 
-**NEW FAILURE SHAPE — a false negative that looks exactly like a product defect.** The table is wider
-than Playwright's default 1280px viewport; the amount column spans x=1233..1345, so its centre is
-off-screen and `page.mouse.click` lands outside the page. **Seven cells passed and the amount cell
-reported "not activating" on both edges — a convincing bug report.** The tell: **`document.
-elementFromPoint` returned NO element at all, where a genuinely dead cell still has the row
-underneath it.** A dead cell hits something; an off-viewport coordinate hits nothing. Fixed by
+**NEW FAILURE SHAPE — a false negative that looks exactly like a product defect.** The table is
+wider than Playwright's default 1280px viewport; the amount column spans x=1233..1345, so its centre
+is off-screen and `page.mouse.click` lands outside the page. **Seven cells passed and the amount
+cell reported "not activating" on both edges — a convincing bug report.** The tell:
+**`document. elementFromPoint` returned NO element at all, where a genuinely dead cell still has the
+row underneath it.** A dead cell hits something; an off-viewport coordinate hits nothing. Fixed by
 `setViewportSize({ width: 1600, height: 900 })` with the measurement in a comment.
 
 **SIXTH INSTANCE OF THE FIXTURE TRAP, and the first caught by measuring a claim already written as
@@ -11203,8 +11376,8 @@ control's". **Conclusion right, reason wrong:** `pointer-events` stays `auto` on
 and the overlay still hit-tests; what makes it inert is that a disabled `<button>` does not dispatch
 a click. **Two probes misled it and both are recorded so nobody repeats them: a synthetic
 `dispatchEvent` fires the handler regardless of `disabled` and reports the EXACT OPPOSITE; a
-hand-built probe element returned its parent in both cases and discriminated nothing.** Only the real
-control under a real mouse settled it.
+hand-built probe element returned its parent in both cases and discriminated nothing.** Only the
+real control under a real mouse settled it.
 
 **Pre-existing flake correctly attributed by method rather than assertion:**
 `duplicates.test.ts:748` failed once on P33's tree, **so it checked at clean BASE in a throwaway
@@ -11263,21 +11436,22 @@ choose a mode or dismiss.** Recommended fix, smaller than clearing the flag: **r
 predicate at apply time** — `isFocusStillInRow` is already pure and reads live state, so calling it
 at application removes the class rather than patching the latch.
 
-**Why nothing caught it: the E2E helper closes the picker by clicking another cell IN THE SAME ROW**,
-which the reviewer measured as correctly not latching. **Third revision running where the one
+**Why nothing caught it: the E2E helper closes the picker by clicking another cell IN THE SAME
+ROW**, which the reviewer measured as correctly not latching. **Third revision running where the one
 automatic-mode journey sits on the safe side of the axis that matters.**
 
 **F-12 NON-BLOCKING and it is why this shipped — the seventh instance of the fixture trap and the
 sharpest form yet.** Root verified: `rule-proposal-stability.test.tsx:225-229` define **local
 `watches`/`paints` functions importing nothing from the component.** The reviewer reverted the
 shipped `d7fe06a` change and the suite **stayed 13 passed**. **The fix this revision exists to ship
-can be removed with the tests green.** Not a fixture encoding the author's model — **a test restating
-the author's intention in a language the product does not speak.** Its own probe caught the revert
-immediately, so it IS observable at the unit layer; those cases simply do not look at it.
+can be removed with the tests green.** Not a fixture encoding the author's model — **a test
+restating the author's intention in a language the product does not speak.** Its own probe caught
+the revert immediately, so it IS observable at the unit layer; those cases simply do not look at it.
 
-**F-13:** the two E2E pins rev 02 explicitly required — description field with Enter, tag change with
-a click on non-focusable chrome — were not added. Answering at the unit layer is a real improvement
-and **not equivalent**, precisely because F-12 shows unit tests can drift from the product.
+**F-13:** the two E2E pins rev 02 explicitly required — description field with Enter, tag change
+with a click on non-focusable chrome — were not added. Answering at the unit layer is a real
+improvement and **not equivalent**, precisely because F-12 shows unit tests can drift from the
+product.
 
 **BOTH SELF-FLAGGED ITEMS JUDGED AND CLEARED.** The `setTimeout` deferral: **no finding, and the
 reviewer TESTED the first falsification condition rather than reasoning about it** — at `focusout`
@@ -11285,8 +11459,8 @@ dispatch `activeElement` is already `BODY` even when focus heads to a focusable 
 deferral is not merely defensible, it is REQUIRED**; an undeferred read would report "left the row"
 on every focus move. The second condition it declined to manufacture, noting `playwright.config.ts`
 declares chromium only, **and recorded that scope so adding a browser project reopens it.** The
-unreproduced unit failure: **disposal adequate**, it ran the suite itself at 2448 passed / 2 skipped,
-matching the evidence exactly.
+unreproduced unit failure: **disposal adequate**, it ran the suite itself at 2448 passed / 2
+skipped, matching the evidence exactly.
 
 **Correction in the package's favour:** the `5b0c441..d7fe06a` range diff shows `table-selection.ts`
 and `index.ts`, but **neither P30 commit touches them** — they arrive from another package in the
