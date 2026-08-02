@@ -136,6 +136,39 @@ describe("parseLocaleDate", () => {
     it.each(invalidCases)("returns null for invalid input '%s'", (input) => {
         expect(parseLocaleDate(input, "en-AU", refDate)).toBeNull();
     });
+
+    describe("the natural-language fallback is unreachable for numeric input", () => {
+        // The fallback parser has a fixed field order of its own. If a numeric
+        // string could reach it after the locale parser declined, a date that
+        // is INVALID in the viewer's own order would be silently rescued in a
+        // different order — reintroducing exactly the ambiguity this change
+        // removes.
+        //
+        // These cases are the ones that distinguish the gate from its absence.
+        // Numeric input the locale parser ACCEPTS never reaches the fallback
+        // either way, so asserting those would prove nothing.
+
+        it("does not rescue a numeric date that is invalid in the viewer's own order", () => {
+            // Under en-US the order is month-first, so a leading 15 or 31 is
+            // not a month and the input is not a date this viewer could have
+            // been shown. The day-first fallback would happily read all three.
+            expect(parseLocaleDate("15/6/25", "en-US", refDate)).toBeNull();
+            expect(parseLocaleDate("31/12/99", "en-US", refDate)).toBeNull();
+            expect(parseLocaleDate("13/1/26", "en-US", refDate)).toBeNull();
+        });
+
+        it("rejects an impossible numeric date rather than letting it be rescued", () => {
+            expect(parseLocaleDate("32/1/26", "en-AU", refDate)).toBeNull();
+            expect(parseLocaleDate("29/2/25", "en-AU", refDate)).toBeNull(); // 2025 is not a leap year
+        });
+
+        it("keeps the fallback for input that is genuinely not numeric", () => {
+            // The gate keys on shape, not on the locale parser having failed,
+            // so month names and relative phrases still resolve.
+            expect(parseLocaleDate("25 December 2023", "en-AU", refDate)).toBe("2023-12-25");
+            expect(parseLocaleDate("tomorrow", "en-AU", refDate)).toBe("2026-08-03");
+        });
+    });
 });
 
 describe("no displayed value shifts because of a time zone", () => {

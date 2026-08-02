@@ -123,10 +123,14 @@ describe("formatTransactionDate", () => {
         });
 
         it("uses Y/M/D order for ja-JP locale", () => {
-            // In ja-JP, order is typically year/month/day
-            const result = formatTransactionDate("2025-06-15", refDate, "ja-JP");
-            // Japanese format uses different separators and order
-            expect(result).toMatch(/25\/6\/15|6\/15\/25/);
+            // Asserted exactly rather than by an alternation regex. The loose
+            // form this replaces accepted either field order, so it passed
+            // while the year-first case was silently corrupted: a leading-zero
+            // year was read as a day and stripped, rendering 2001-01-05 as
+            // "1/1/5". The exact expectations below fail if that returns.
+            expect(formatTransactionDate("2025-06-15", refDate, "ja-JP")).toBe("25/6/15");
+            expect(formatTransactionDate("2001-01-05", refDate, "ja-JP")).toBe("01/1/5");
+            expect(formatTransactionDate("2026-01-15", refDate, "ja-JP")).toBe("1/15");
         });
 
         it("uses D.M. format for de-DE locale", () => {
