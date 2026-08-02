@@ -84,25 +84,30 @@ export function useTableSelection({
 
     const toggleRow = useCallback(
         (id: string, shiftKey?: boolean) => {
-            // A stale anchor — one whose row no longer holds the outcome it recorded, because the
-            // selection was cleared or replaced from elsewhere — describes nothing to extend, so
-            // the gesture degrades to an ordinary single toggle rather than extending a fiction.
-            const range =
-                shiftKey && anchor != null && anchorMatchesSelection(anchor, selection)
-                    ? findRowRange(matchingRowIds, anchor.rowId, id)
-                    : null;
+            // The rows this gesture spans and the outcome to apply to them, or `null` when there is
+            // no range to extend. A stale anchor — one whose row no longer holds the outcome it
+            // recorded, because the selection was cleared or replaced from elsewhere — counts as no
+            // anchor, so the gesture degrades to an ordinary toggle rather than extending a fiction.
+            // Carrying the outcome alongside the rows is what keeps the two inseparable.
+            const rangeGesture = (() => {
+                if (!shiftKey || anchor == null) return null;
+                if (!anchorMatchesSelection(anchor, selection)) return null;
+                const range = findRowRange(matchingRowIds, anchor.rowId, id);
+                if (range == null) return null;
+                return { rowIds: rowIdsInRange(matchingRowIds, range), outcome: anchor.outcome };
+            })();
 
-            if (range != null && anchor != null) {
+            if (rangeGesture != null) {
                 onSelectionChange?.(
                     setRowsSelected(
                         selection,
-                        rowIdsInRange(matchingRowIds, range),
-                        anchor.outcome === "selected"
+                        rangeGesture.rowIds,
+                        rangeGesture.outcome === "selected"
                     )
                 );
                 // The clicked row becomes the new anchor, carrying the outcome the range applied,
                 // so a further shift-click extends the same direction from it.
-                setAnchor({ rowId: id, outcome: anchor.outcome });
+                setAnchor({ rowId: id, outcome: rangeGesture.outcome });
                 return;
             }
 
