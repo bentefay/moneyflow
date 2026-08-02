@@ -11219,3 +11219,75 @@ campaign is the first full-suite run on a tree containing both P30's and P33's c
 **Port granted FIVE times, every grant crossing a message.** Campaign still outstanding; root
 declined to run it in P33's place, since a campaign run by another party is weaker evidence for the
 same reason P33's own negative control is strong.
+
+### 2026-08-02 — P30 rev 05 review returns **FAIL** on F-11; the fix widened a latch into a write
+
+`p30-reviewer-03` (DISTINCT — not the implementer, not `p30-reviewer-01` which authored F-1/F-2/F-6,
+not `p30-reviewer-02` which authored F-7/F-8/F-9/F-10) returns **FAIL**, artifact `aa3b0a2`. **Port
+never taken** — verdict reached with jsdom against the real component plus portless trusted-input
+Chromium, and it held its full unit run until load fell from 20.8 to 0.32.
+
+**F-7 GENUINELY FIXED, enumeration re-derived rather than trusted:**
+
+```
+G1 Enter -> blur() -> <body>            painted 1  applied 1
+G2 focusable control outside the row    painted 1  applied 1
+G3 blur BEFORE the edit surface closes  painted 1  applied 1
+G4 focus already outside at mount       painted 1  applied 1
+```
+
+**Four of four, against rev 04's one of four.** Guard still holds: still-editing with focus in the
+row gives `applied: 0`. Occlusion fix survives, `shouldShow` unchanged, only the observer moved.
+**F-8 and F-10 closed and each verified to DISCRIMINATE by reverting it individually.**
+
+**F-11 BLOCKING — `rowLostFocus` is a latch with NO reset path.** Root verified:
+
+```
+TransactionRuleProposal.tsx:157  const [rowLostFocus, setRowLostFocus] = useState(false);
+:230  if (!open || props.isEditing || !isAutomatic || !rowLostFocus) return;
+```
+
+**Set once, read forever, never cleared.** Nearly harmless while the observer existed only after the
+edit closed — **`d7fe06a` correctly moved the mount to `isPending`, and that widened the window so
+the latch can be set DURING the edit.** The apply then fires on the `isEditing` false transition
+**while the row still holds focus**, at the instant the controls first paint:
+
+```
+step 3  focus leaves the row, picker still open   applied 0
+step 5  edit surface closes, rowHasFocus TRUE     applied 1   APPLIED WHILE THE ROW HELD FOCUS
+```
+
+Step 3 is reachable — trusted `Tab` leaves the still-open picker, which closes only on
+mousedown-outside. **This is rev 01's F-2 shape reached by a new route: a write with no window to
+choose a mode or dismiss.** Recommended fix, smaller than clearing the flag: **re-evaluate the
+predicate at apply time** — `isFocusStillInRow` is already pure and reads live state, so calling it
+at application removes the class rather than patching the latch.
+
+**Why nothing caught it: the E2E helper closes the picker by clicking another cell IN THE SAME ROW**,
+which the reviewer measured as correctly not latching. **Third revision running where the one
+automatic-mode journey sits on the safe side of the axis that matters.**
+
+**F-12 NON-BLOCKING and it is why this shipped — the seventh instance of the fixture trap and the
+sharpest form yet.** Root verified: `rule-proposal-stability.test.tsx:225-229` define **local
+`watches`/`paints` functions importing nothing from the component.** The reviewer reverted the
+shipped `d7fe06a` change and the suite **stayed 13 passed**. **The fix this revision exists to ship
+can be removed with the tests green.** Not a fixture encoding the author's model — **a test restating
+the author's intention in a language the product does not speak.** Its own probe caught the revert
+immediately, so it IS observable at the unit layer; those cases simply do not look at it.
+
+**F-13:** the two E2E pins rev 02 explicitly required — description field with Enter, tag change with
+a click on non-focusable chrome — were not added. Answering at the unit layer is a real improvement
+and **not equivalent**, precisely because F-12 shows unit tests can drift from the product.
+
+**BOTH SELF-FLAGGED ITEMS JUDGED AND CLEARED.** The `setTimeout` deferral: **no finding, and the
+reviewer TESTED the first falsification condition rather than reasoning about it** — at `focusout`
+dispatch `activeElement` is already `BODY` even when focus heads to a focusable target, **so the
+deferral is not merely defensible, it is REQUIRED**; an undeferred read would report "left the row"
+on every focus move. The second condition it declined to manufacture, noting `playwright.config.ts`
+declares chromium only, **and recorded that scope so adding a browser project reopens it.** The
+unreproduced unit failure: **disposal adequate**, it ran the suite itself at 2448 passed / 2 skipped,
+matching the evidence exactly.
+
+**Correction in the package's favour:** the `5b0c441..d7fe06a` range diff shows `table-selection.ts`
+and `index.ts`, but **neither P30 commit touches them** — they arrive from another package in the
+range. **Commit hygiene clean.**
