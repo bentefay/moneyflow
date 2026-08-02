@@ -454,7 +454,26 @@ runs**. That is the signature of a shared load-dependent helper, not of one defe
 is consistent with the rotation PROGRESS.md records. It is also why a single green settlement run
 carries no information.
 
-The rev-04 blockers (`import.spec.ts:1512`, `identity.spec.ts:282`) did **not** recur in any run.
+**The prior-revision blockers did not recur — and I had to correct how I state this.** My first
+instinct was to check the recorded line numbers (`import.spec.ts:1512`, `identity.spec.ts:282` from
+rev 04; `transactions.spec.ts:696` from rev 02). **Grepping for those line numbers returns nothing,
+which looks like "did not recur" but is uninterpretable** — the specs have shifted since those
+revisions, and reading the lines at BASE confirms none of them is a test declaration any more
+(`:1512` is `}) => {`, `:282` is `.catch(() => {});`, `:696` is `await context.setOffline(true)`).
+**An empty grep result there proves nothing.**
+
+**Restated so it is verifiable — MEASURED by file, not by line:**
+
+| Spec file              | Tests per run | Failures across all 7 runs                                        |
+| ---------------------- | ------------- | ----------------------------------------------------------------- |
+| `import.spec.ts`       | 18            | **0**                                                             |
+| `identity.spec.ts`     | 9             | **0**                                                             |
+| `transactions.spec.ts` | 49–50         | **2** — `:572` (run 5) and `:726` (run 7), both new and both §5.4 |
+
+So the rev-04 blockers' **files** were fully green in all seven runs, and the two
+`transactions.spec.ts` failures are **not** the rev-02 offline/count-restore blocker — they are the
+grid-paging cohort in §5.4. The pass counts confirm the files actually ran rather than being
+skipped.
 
 ### 5.3 The settlement failures are one class, with a measured mechanism
 
@@ -1394,14 +1413,31 @@ repeatedly.** They need isolated reproduction before anyone concludes they are h
 bootstrap (needs a reset window), the manual product journey (needs the port), and the strict
 `format:check` reading (needs a ruling, not a measurement).
 
-**Failed instruments I found in my own work and reported:** a bare-postgres migration probe that
-could never have succeeded (§10.1), a question-status grep matching the wrong convention (§13.0),
-and a carry-forward search scoped to the wrong files that nearly produced a false "missing evidence"
-blocker (§13.1). Each returned a conclusion-shaped answer without erroring.
+**Failed instruments I found in my own work and reported — five of them:**
 
-**Write boundary — MEASURED:** `git status` over `specs/ src/ tests/ supabase/ package.json` shows
-exactly one entry, untracked: `evidence/P21/implementation-06.md`. Nothing staged, nothing committed
-by me, `FINAL-AUDIT.md` and every ledger untouched.
+1. A bare-postgres migration probe that could never have succeeded, because the platform provisions
+   `extensions`/`realtime` before user migrations (§10.1).
+2. A question-status grep matching a `**Status:**` convention that only 4 of 66 entries use (§13.0).
+3. A carry-forward search scoped to `QUESTIONS.md`/`DECISIONS.md` only, which returned 0 hits for
+   `Q-PROPOSAL-P32-01-01` and **would have produced a false "missing evidence" FAIL trigger** — the
+   proposal lives in package evidence and a review (§13.1).
+4. A `pnpm test` run beside my own 4-worker campaign, which reddened a wall-clock ratio assertion
+   (§4.0a).
+5. **A prior-blocker recurrence check keyed on line numbers** (§5.2). Grepping for
+   `import.spec.ts:1512` etc. returned nothing, which _looks_ like "did not recur" — but those lines
+   are no longer test declarations at BASE, so an empty result was uninterpretable. Restated by file
+   with pass counts, which is verifiable.
+
+**Every one returned a conclusion-shaped answer without erroring, and four of the five pointed the
+convenient way** — toward "no problem here". Number 3 pointed the other way and would have blocked
+the audit on a defect that does not exist. That symmetry is the reason to check the instrument
+rather than the direction of its answer.
+
+**Write boundary — MEASURED:** throughout collection, `git status` over
+`specs/ src/ tests/ supabase/ package.json` showed exactly one entry — this evidence file,
+untracked. Nothing staged, nothing committed by me; `FINAL-AUDIT.md` and every ledger untouched.
+**Root has since persisted this file at `597a9e7`**, which is the correct division: the collector
+writes, root commits.
 
 **Session hygiene:** the isolated worktree `/tmp/mf-p21c06` (detached at BASE) and the throwaway
 database were used for testing only; the throwaway DB was dropped. The human's `:3001` dev server
