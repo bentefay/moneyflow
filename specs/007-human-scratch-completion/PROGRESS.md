@@ -10868,3 +10868,44 @@ Method requirements carried: write the other-path fixture in the same edit as th
 CLICKING rather than by visibility, since the requirement is precisely about where a click is
 accepted**; mutation-test guards and verify the tree clean afterwards; and **a fixture you hand-build
 encodes your model, not the world.**
+
+### 2026-08-02 — PRE-AUDIT GATE CHECK: all five completion gates verify
+
+Root verified the goal's completion conditions while P30's review and P33's implementation run, so
+the final audit inherits a checked baseline rather than deriving it under time pressure.
+
+| gate | check | result |
+| ---- | ----- | ------ |
+| 1 | scratch SHA == rolling checksum | **`469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a`** both sides |
+| 2 | scratch markers | **43 checked, 0 unchecked** |
+| 3 | FS-001 canonical present | `009-user-reported-refinements/spec.md` at `6d163635a8f3…` |
+| 4 | canary `grep -c "per purpose"` | **1** |
+| 5 | `SCOPE.json` requirementCount | **34** |
+
+**Requirement rows not yet `passed`: exactly two — UR-009 and UR-012** — matching the two live
+packages and nothing else. **32 of 34 requirements passed; 31 of 33 feature packages.**
+
+`FINAL-AUDIT.md` exists with verdict `not run`, as it should until both remaining packages clear.
+
+**Outstanding work, complete list:**
+
+1. **P30 rev 04 review** — `p30-reviewer-02` dispatched against `5b0c441`, DISTINCT from
+   `p30-reviewer-01` which authored the findings this revision answers.
+2. **P33 / UR-012** — `p33-implementer-01` building; will need the port for its campaign.
+3. **P33 independent review** by a distinct reviewer.
+4. **P21 rev 06 final audit** across all 33 feature packages, then the `FINAL-AUDIT.md` verdict.
+
+**Carried into the final audit as open items, none blocking a package:**
+
+- **`people-settlement.spec.ts` rotating failures** — four tests failing at least once across three
+  complete runs of an identical tree, none consistently; **five mechanisms falsified**; the residual
+  question is why isolated single-spec runs differ from full-suite runs.
+- **`InlineEditableTags` unreachable Escape handler** — bound to a search input that has lost focus
+  by the time Escape arrives; pre-existing, ruled out of UR-009's scope.
+- **`Q-PROPOSAL-P32-01-01`** — `LARGE_SELECTION_THRESHOLD` toast stacking, measured at 4 stacked
+  toasts, with the honest fix identified as a once-per-transition latch rather than a threshold
+  change.
+- **The PROCESS.md reviewer-commit contradiction** — `PROCESS.md:63` says the reviewer never commits
+  while root's dispatches instruct reviewers to commit their artifact, and a reviewer commit changes
+  the HEAD root uses to detect tampering. **A process defect of root's making, needing one ruling
+  rather than per-package handling.**
