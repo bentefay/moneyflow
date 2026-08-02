@@ -168,12 +168,24 @@ displaces an earlier one: **the leftmost qualifying column always won.** A check
 amount column both score 1.0 against `looksLikeAmount`, so the wrong column won every time, on every
 run.
 
-**A comment of mine described a protection the code did not provide.** At `detection.ts:243-245` I
-wrote that "columns that read as amounts are set aside first, so a trailing balance column does not
-win the role". That set-aside fed only the DESCRIPTION selection; **nothing whatsoever protected the
-amount role.** The comment would have led a reader — and did lead me — to believe the case was
-handled. Prose asserting a property the code does not enforce is worse than no comment, because it
-suppresses the question. The comment is now rewritten to say what the code actually does.
+**TWO comments of mine were actively misleading, and both are fixed.**
+
+_The first, at `detection.ts:243-245`_, claimed a protection the code did not provide: "columns that
+read as amounts are set aside first, so a trailing balance column does not win the role". That
+set-aside fed only the DESCRIPTION selection; **nothing whatsoever protected the amount role.**
+
+_The second, at `bestColumn`'s docstring `:201-202`_, was found by the reviewer and is **the more
+consequential of the two**: "Ties fall to the leftmost column, which matches the order a bank export
+conventionally puts its columns in." That is **the assumption F-1 falsifies, written as a
+justification**. It reads as a considered decision rather than an oversight, so it is the more
+likely of the two to have stopped a reader — or a reviewer — from looking further. It is also
+factually wrong for exactly the cases that matter: a check number and a running balance are
+_conventionally_ placed left of or adjacent to the amount, which is precisely why they won.
+
+Both are now rewritten to describe what the code does and to name the case it cannot handle.
+`bestColumn`'s docstring states outright that leftmost-ties are inadequate for the amount role and
+points to `bestAmountColumn`. Prose asserting a property the code does not enforce is worse than no
+comment, because it suppresses the question — it suppressed mine.
 
 #### The fix, and why it is not just a better tie-break
 
@@ -221,13 +233,47 @@ never reassigned, and a headerless file gains none. **Observed:**
 `Date,Check No,Merchant,Memo,Amount,Balance` →
 `{0:date, 1:checkNumber, 2:description, 3:memo, 4:amount, 5:balance}`.
 
-#### Why rev 01's suite did not catch F-1
+#### Why rev 01's suite did not catch F-1 — the assertion was BLIND, not merely unlucky
 
-`ur-008-csv-parity.test.ts` pinned `Date,Description,Amount,Balance` — **the one arrangement where
-the correct column is leftmost among the numeric ones**, so the buggy rule and the correct rule
-agree. The fixture was well-shaped but did not vary along the axis the code branches over, which is
-the `Q-P28-03` lesson. Rev 02 adds fixtures where the amount column is NOT leftmost, in both the
-check-number and balance shapes, with and without headers.
+My first reading was that the fixture was unlucky: `ur-008-csv-parity.test.ts` pinned
+`Date,Description,Amount,Balance`, the one arrangement where the correct column is already leftmost
+among the numeric ones, so the buggy rule and the correct rule agree.
+
+**The reviewer's addendum showed that understates it, and it is right.** The assertion compares
+COLUMN MAPPINGS, and at BASE the same three rows in two arrangements produce the _same mapping_:
+
+```
+Date,Description,Amount,Balance  ->  {"0":"date","1":"description","2":"amount"}
+Date,Description,Balance,Amount  ->  {"0":"date","1":"description","2":"amount"}
+```
+
+Index 2 is the **Amount** in the first file and the **Balance** in the second. A mapping-shaped
+assertion **cannot distinguish the correct answer from the defective one at all** — so a new fixture
+carrying the same assertion shape would have been blind in exactly the same way, and I would have
+shipped a second green suite over the same defect.
+
+**Rev 02's tests therefore assert the IMPORTED AMOUNTS, driven through the real
+`useImportState.loadFile`, not the mapping.** Only the values separate `-550, -7525, 250000` from
+`100100, 100200, 100300`. `tests/unit/import/ur-008-amount-column.test.tsx` holds them.
+
+**Observed at BASE `74b37f9`**, which is the proof that the tests bite:
+
+| fixture                                     | BASE imported            | expected              |
+| ------------------------------------------- | ------------------------ | --------------------- |
+| check number left of amount                 | `100100, 100200, 100300` | `-550, -7525, 250000` |
+| running balance left of amount              | `100000, 92475, 342475`  | `-550, -7525, 250000` |
+| all-positive, header the only discriminator | `100000, 92475, 342475`  | `550, 7525, 250000`   |
+| headerless, check number left of amount     | `100100, 100200, 100300` | `-550, -7525, 250000` |
+
+Four of the six fail at BASE with **wrong money**, not with an absent key. The two that pass are the
+arrangement where the naive rule happens to agree, kept deliberately so both orders are pinned, and
+the error-count assertion — which passes at BASE precisely because **a wrong-column import also
+reports zero errors**, which is what makes the defect dangerous rather than visible.
+
+The general lesson, and the one I would apply again: **when code selects among candidates, assert
+the OUTCOME the selection feeds, not the selection itself** — and build the fixture so the correct
+candidate sits in a losing position. An assertion over the selection can be invariant across exactly
+the arrangements the defect distinguishes. This is the `Q-P28-03` family.
 
 ### 1.4.2 Two places where fixing the reported bug would have made things WORSE
 
