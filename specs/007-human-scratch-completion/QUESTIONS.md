@@ -2647,3 +2647,33 @@ P24's own three name locators all pass `exact: true`, and it checked every other
 `aside` they are scoped to — only "Open menu" and "Expand/Collapse sidebar", neither colliding. P24's
 exposure is closed; the rest of the suite was equally open before this package and is not worsened by
 it.
+
+## Q-P25-01 — A comment that paraphrases frozen text can assert a flow the code does not implement
+
+Proposed by `p25-reviewer-01` during P25, generalised from its advisory finding P25-01. Transcribed
+by root because `QUESTIONS.md` is root-owned. **Carry forward to P21.**
+
+**The instance.** `src/lib/domain/detect-currency.ts:24-25` states the inferred currency "is presented
+in the vault creation flow and the user can change it before and after creation." Root verified that
+`grep -rniE 'currenc' 'src/app/(onboarding)/'` returns NOTHING: there is no pre-creation currency
+prompt. The vault is created headlessly and the currency is first presented on `/settings`
+immediately afterwards, so the "before creation" clause describes a flow that does not exist.
+
+**Why it is advisory and not a defect.** The clause is lifted near-verbatim from frozen
+`specs/009-user-reported-refinements/spec.md:97-98`, so the implementer was faithfully tracking the
+requirement's own wording, and the SUBSTANTIVE requirement is fully met — the reviewer proved the
+inferred value is only a default, that a returning user's unlock never re-runs detection
+(`ensure-default.ts:143` sits after the existing-vault guard at `:113-123`), and that an existing
+vault's currency cannot be reset by a later time-zone change. The implementer's own comment at
+`ensure-default.ts:141-142` is precisely accurate about what the code does.
+
+**The general failure mode.** Where a code comment paraphrases frozen requirement text, and the frozen
+text describes a flow more loosely than the implementation realises it, the comment reads as VERIFIED
+FACT while actually being an unverified restatement of a requirement. A later reader cannot tell the
+difference. The rule this suggests: **a comment should describe what the code does and CITE the
+requirement, rather than restating the requirement as though it were a description of the code.**
+
+**Root's disposition.** Root will route the reword rather than have a worker edit wording derived from
+frozen text — the frozen source itself is immutable, so only the COMMENT can change, and it should
+move to the `ensure-default.ts:141-142` style. Recorded here so P21 can decide whether to charter the
+reword, sweep for the same pattern elsewhere, or accept it with reasons.
