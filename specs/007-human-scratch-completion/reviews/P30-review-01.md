@@ -8,7 +8,7 @@
 - **Reviewer:** `p30-reviewer-01` (distinct from `p30-implementer-01`; wrote no product code)
 - **Reviewed tree:** `c8dc004`
 - **Blocking findings:** F-1, F-2
-- **Non-blocking findings:** F-3 (judgement requested by root), F-4, F-5
+- **Non-blocking findings:** F-3 (judgement requested by root), F-4, F-5, F-6
 
 Two blocking defects, both in the new inline-proposal seam and both invisible to the evidence's own
 blindness audit. Everything else the evidence claims is confirmed by direct measurement, including
@@ -187,6 +187,15 @@ The row's in-flow geometry — tags, classes, inline styles — is byte-identica
 compatible with F-1, which is about React _reconciliation_ — same rendered shape, different element
 type at the branch point.)
 
+**On the implementer's standing offer.** It has twice, unprompted, named this the weakest part of
+its evidence and offered to take a rev 02 over it. I am declining that offer on the merits, not out
+of leniency, and I want the reasoning on record so it is not read as a courtesy: a numeric
+before/after column-width measurement would be _weaker_ evidence than the argument already given,
+because it would sample two rendered states while the code establishes the property for all of them.
+Volunteering the weakness was the right instinct and is the reason I checked it hard; the check came
+back in the implementer's favour. **A rev 02 is required for F-1, F-2 and F-6 — but nothing in it is
+owed to clause 2.**
+
 ---
 
 ## F-4 — Non-blocking. The `role="dialog"` fix is correct and complete, with one caveat worth recording
@@ -304,6 +313,38 @@ The other 17 clause verdicts I checked match the evidence.
 
 ---
 
+## F-6 — Non-blocking but should be closed in rev 02. Journey 5 never executes the update WRITE
+
+Added after root supplied the implementer's cross-package heuristic — _the weak assertions are the
+ones that check a control EXISTS rather than what it DOES or how it is ANNOUNCED_ — and asked me to
+apply it to all five new journeys. It is a good lens and it found something my first pass
+under-reported. Classifying every assertion in `rule-creation-controls.spec.ts`:
+
+| Journey                       | Strongest assertion                                                         | Class                                                                     |
+| ----------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| 1 tag create (`:103`)         | the OTHER row gains the tag, the non-matching row does NOT (`:145`, `:148`) | **DOES** ✔                                                                |
+| 2 description create (`:156`) | the other row's alias is repointed (`:191`), plus `dialog` count 0 (`:181`) | **DOES + ANNOUNCES** ✔                                                    |
+| 3 allocation create (`:195`)  | the other row shows `60%` (`:230-232`)                                      | **DOES** ✔                                                                |
+| 4 manual row (`:236`)         | tag proposal visible, description proposal absent (`:247-248`)              | **EXISTS only** — acceptable, the clause is itself about presence/absence |
+| 5 tag update (`:255`)         | `data-kind="update"` (`:279`) — then the test ends                          | **EXISTS/ANNOUNCES only** ✘                                               |
+
+Journey 5 is the weak one. It never presses `proposal-confirm` in its second step, so the update
+write path — `use-field-rule-proposal.ts:141-142`, the `update({id: proposal.rule.id, …})` branch —
+is **never executed by any test**. `data-kind` proves the component _decided_ to update; nothing
+proves it _did_, that the existing rule changed rather than a second being created, or that the
+"Dining" tag reached the other matching row. Confirmed by grep: no test file references
+`use-field-rule-proposal` at all, and the spec contains no assertion about rule counts.
+
+This matters because clause 16 (`:287-289`, "we update the rule rather than create one") is the one
+clause whose whole content is about which write happens. A duplicate-rule bug would pass journey 5
+today. It is non-blocking only because F-1 and F-2 already force a rev 02 in this code.
+
+**What must change:** journey 5 should press confirm and then assert the outcome — the other
+matching row carries "Dining", and the robot count is still `2` rather than `4`, i.e. no second rule
+was created for the same description text.
+
+---
+
 ## Required for revision 02
 
 1. Fix F-1: one stable element type across both branches of `renderRuleProposal`; correct the two
@@ -312,9 +353,48 @@ The other 17 clause verdicts I checked match the evidence.
 2. Fix F-2: `isEditing` must reflect real row focus. Test: an "Updating…" mode writes nothing until
    focus leaves the row, and does write on blur. Do not regress the description path, which is
    currently correct.
-3. Re-run the full six checks and restart the E2E campaign from run 1 against the new tree, with a
+3. Close F-6: journey 5 presses confirm and asserts the update's OUTCOME — the other row changes and
+   no second rule appears.
+4. Re-run the full six checks and restart the E2E campaign from run 1 against the new tree, with a
    per-run digest — the current 3-run campaign is evidence only for `c8dc004`.
-4. No change required for F-3, F-4 or the other 17 clauses.
+5. No change required for F-3, F-4 or the other 17 clauses.
+
+## Addendum — the run-1 causal story, verified rather than inherited
+
+Root initially told me P30's run-1 failure matched the implementer's no-op-tag diagnosis, then
+retracted it unprompted and asked me to verify the corrected story myself rather than accept the
+correction. **Root's retraction is right, and I confirmed it independently:**
+
+- `git show 4526f79:page.tsx | grep sameTagIds` → **present at lines 95 and 1153**. The no-op guard
+  existed in the exact tree that failed, so it cannot explain the failure. (`4526f79` spelled it
+  `sameTagIds` inline; `c8dc004` renames it to `tagSetChanged` and moves it into the pure module —
+  same logic, inverted polarity. That rename is why a naive grep for `tagSetChanged` on the failing
+  tree misleadingly returns nothing.)
+- `git diff 4526f79 c8dc004` touches five files, not one. But the only _behavioural_ product change
+  is `role="presentation"`; everything else is the guard extraction (page-local → pure module,
+  logically identical) plus tests. So the causal claim "the sole defect was modality" survives the
+  wider diff.
+
+**Root also asked me to check specifically whether `c8dc004` suppresses a legitimate proposal
+anywhere in order to keep a dialog assertion happy. It does not** (MEASURED, against the shipped
+pure decision function, using the failing journey's own inputs):
+
+```
+NOVEL ALIAS BY BLUR -> proposal.kind = create      (a genuine new assignment still offers)
+SECOND RENAME       -> proposal.kind = update      (and still offers on re-edit)
+GUARD BEHAVIOUR: no-op re-commit false, reorder false, tag added true, first tag true
+```
+
+The guard suppresses only genuine no-ops and never a real change. The fix was confined to modality
+and removed no correct offer. The implementer's instinct here was sound: suppressing the proposal on
+that flow would have satisfied the assertion by deleting the feature.
+
+I am recording this because the process point generalises. Root supplied a wrong premise, the
+implementer initially accepted it, and the agreement between them looked like corroboration while
+both parties held the same wrong starting point. Only a diff broke the tie. **Two agents concurring
+is not independent evidence when one inherited the premise from the other** — which is the same
+failure mode as the evidence's remount claim in F-1, where a stated property was reasoned about
+repeatedly and never re-measured.
 
 ## Proposed questions
 
