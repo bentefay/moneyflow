@@ -3,7 +3,7 @@
 - **Requirement:** UR-008, frozen at `specs/010-user-reported-refinements-2/spec.md` lines 56-86
 - **Base:** `4c77a2dd6b61a9ab5e58c032d0b0242e579c75f7`
 - **Commits:** `fcd736f` product + unit tests + E2E spec, `077d5dd` MappingTab auto-detect parity,
-  plus this evidence
+  `f98d3a5`/`23d0d80` evidence, plus this campaign record
 - **Worktree:** `/tmp/mf-p29`, branch `worktree-p29-ur008`
 
 Statements below are labelled: **Observed** means I ran it and read the output; **Inferred** means I
@@ -337,13 +337,13 @@ to check without doing the checking.
 
 ## 5. Gate results
 
-| gate           | result                                                           |
-| -------------- | ---------------------------------------------------------------- |
-| `typecheck`    | **PASS**                                                         |
-| `lint`         | **PASS**, 0 errors                                               |
-| `format:check` | **17** pre-existing frozen `specs/**` files, **none a P29 file** |
-| `test`         | **PASS** — 2316 passed, 2 skipped, 122 files                     |
-| `test:e2e`     | see §6                                                           |
+| gate           | result                                                            |
+| -------------- | ----------------------------------------------------------------- |
+| `typecheck`    | **PASS**                                                          |
+| `lint`         | **PASS**, 0 errors                                                |
+| `format:check` | **17** pre-existing frozen `specs/**` files, **none a P29 file**  |
+| `test`         | **PASS** — 2316 passed, 2 skipped, 122 files                      |
+| `test:e2e`     | **PASS** — 3 consecutive full-suite runs, 177 passed each, see §6 |
 
 The `lint` figure above is the **bare `pnpm lint` from the repo root**, not a filtered run over my
 own files. **Observed:** `pnpm lint; echo $?` prints `EXIT CODE: 0`, with one pre-existing warning,
@@ -404,7 +404,51 @@ rather than assumed.
 
 ## 6. E2E campaign
 
-_Filled in below after the port was granted._
+Three consecutive FULL-SUITE runs, `--retries=0`, launched with `env -u CI`. `CI=true` is never used
+for a campaign: `playwright.config.ts:56,60` gives 1 worker and 2 retries under CI, which inverts
+the profile the campaign is meant to exercise.
+
+**Port discipline.** The single `:3000` is sequenced by the coordinator. I confirmed it free
+immediately before starting by reading `/proc/<pid>/cmdline` for every candidate rather than
+`pgrep -f`, which matches the checking command itself. **Observed:** `:3000` unbound, no Playwright
+process anywhere, load average 2.95. An orphaned `next-server (v16.2.6)` (PID 3622053, unreadable
+cwd) was present; **observed** to bind no listening port and not to be mine, so it was left alone.
+The human's dev server on `:3001` was never touched.
+
+### Results
+
+| run | result         | duration | load at start | tree digest |
+| --- | -------------- | -------- | ------------- | ----------- |
+| 1   | **177 passed** | 4.6m     | 2.08          | `8443fde8`  |
+| 2   | **177 passed** | 4.4m     | 6.94          | `8443fde8`  |
+| 3   | **177 passed** | 4.1m     | 7.20          | `8443fde8`  |
+
+**Zero failures across all three runs.** None of the three recorded load-sensitive assertions fired.
+Runs 2 and 3 began at load average ~7, so these passes are not an artefact of a quiet machine.
+
+### Tree stability
+
+Digest `8443fde82c70fce74e90ef1ccce91d2d`, over every `src/` and `tests/` `.ts`/`.tsx` file
+**excluding `next-env.d.ts`**, verified before run 1 and again after run 3. **Identical**, so this
+campaign is evidence for exactly the tree that ran.
+
+`next dev` rewrote `next-env.d.ts` during the campaign, which is why it is excluded — it is a
+regenerated artefact, and including it would show drift on every multi-run campaign. It was restored
+with `git checkout --` afterwards, leaving the tree clean at `23d0d80`.
+
+### The new tests executed, rather than being counted
+
+`Q-P27-01`: an unresolvable import makes Playwright report "No tests found" and **silently skip a
+whole spec file**, so a green total can conceal a missing spec. Presence was therefore verified by
+name in the run log, not inferred from the total:
+
+```
+[52/177] import.spec.ts:1721 › headerless CSV auto-detects columns and dates and imports with no errors
+[53/177] import.spec.ts:1800 › re-import names old-new and old-duplicate separately and still partitions
+```
+
+**Observed** in all three logs, with `import.spec.ts` contributing **18** executed tests per run.
+`playwright test --list` reported 177 immediately before the campaign, matching what executed.
 
 ---
 
