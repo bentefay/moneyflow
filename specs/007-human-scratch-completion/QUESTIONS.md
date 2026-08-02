@@ -2576,3 +2576,33 @@ transient-state synchronisation had to be replaced rather than given a longer de
 NOT sweep the remaining 436, on the grounds that doing so would silently widen its package. Root
 agrees: the sweep is a separate piece of work. Recorded here so P21 can decide whether to charter it
 as its own package or accept the residual risk with reasons.
+
+## Q-P24-02 — A required leaf prop does not make a state unrepresentable if an upstream prop is optional
+
+Proposed by `p24-reviewer-01` during P24, generalised from its advisory finding A-1 and demonstrated
+empirically rather than asserted. Transcribed by root because `QUESTIONS.md` is root-owned.
+**Carry forward to P21.**
+
+**The pattern.** P24 made `displayName` a REQUIRED prop on `PresenceAvatar` carrying a discriminated
+union, so the component cannot be handed a raw pubkey hash. Root endorsed that as making the illegal
+state unrepresentable, per `.claude/rules/typescript-style.md`. The guarantee is real AT THE LEAF and
+does not hold along the whole path: `resolveMemberName?` is OPTIONAL on both
+`TransactionTable.tsx:51` and `TransactionRow.tsx:100`, and `TransactionRow.tsx:225` supplies
+`?? { kind: "unnamed" }`. So the row avatar's correctness rests on ONE unguarded call site,
+`TransactionTable.tsx:496`, and the type system will not defend it.
+
+**Demonstrated, not inferred.** In a throwaway `git archive` tree the reviewer deleted that single
+plumbing line and observed **tsc exit 0 and 1810 unit tests passing** — a silent regression that both
+the compiler and the unit suite accept. Root independently verified the optional props and the `??`
+default. The probe tree was deleted and the shared checkout verified untouched.
+
+**Why it is advisory and not blocking for P24.** The worst case is silent degradation to
+"Unnamed member", never a pubkey hash, so shipped behaviour on the reviewed tree is correct and UR-003
+is satisfied. The finding is about the DURABILITY of the guarantee, not its present truth.
+
+**The general lesson for P21 and future packages.** "Made illegal states unrepresentable" is a claim
+about a PATH, not a component. A required prop at the leaf combined with an optional prop plus a
+default upstream reintroduces exactly the state the leaf forbids, and does so invisibly. When a
+package claims this rule, the audit should check every hop between the data source and the leaf, or
+require the intermediate props be non-optional too. Related: A-2, that the row presence surface has no
+direct test coverage at all, so nothing would catch such a regression at runtime either.
