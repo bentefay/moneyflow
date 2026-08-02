@@ -2,7 +2,8 @@
 
 - **Requirement:** UR-007, frozen at `specs/010-user-reported-refinements-2/spec.md` lines 40-54
 - **Base:** `c9be708e9b48c3bf06eae61bfda5067f2819e536`
-- **Commits:** `9aaba60` (product + unit tests), `a24bcf0` (E2E spec)
+- **Commits:** `9aaba60` product + unit tests, `a24bcf0` E2E spec, `d514d47` fallback-gate and ja-JP
+  test hardening, plus this evidence
 
 Statements below are labelled: **Observed** means I ran it and read the output; **Inferred** means I
 reasoned to it and did not confirm it directly.
@@ -116,13 +117,25 @@ UR-007's frozen text at `spec.md:46` says "the browser's **resolved locale**", a
 example is "for an **Australian-English viewer**" — a statement about `en-AU`, a locale, not about a
 viewer sitting in Australia.
 
-**This package implements the frozen text literally: locale is the signal.** That is a deliberate,
-reported choice, and it carries a consequence root should carry forward — **on the principal's
-current machine, with Chrome set to `en-US`, the compact date will still render month-first.** The
-frozen text is satisfied; the principal's reported symptom may not be, unless they set their browser
-language to `en-AU`. UR-004 resolved the same environmental conflict the other way for currency, and
-I flagged the divergence rather than resolving it unilaterally, since reversing an explicit frozen
-clause is a scope decision above the implementer.
+**This package implements the frozen text literally: locale is the signal.** I raised the question
+with root before writing product code rather than choosing a signal myself, and **root ruled (A),
+literal frozen text, locale only.** Root's reasoning, recorded here because it is the load-bearing
+justification for this package's shape: UR-004 `spec.md:78-79` makes currency follow the **time
+zone** because money is about _where you are_, while UR-007 `spec.md:46-47` makes date order follow
+the **resolved locale** because `03/08` is a _writing convention_, not a geographic fact. The two
+requirements are not in conflict — they answer different questions, so UR-004's precedent does not
+generalise to this one. UR-007 mentions time zone exactly once, at `:53-54`, and only to forbid
+displayed values shifting because of one.
+
+**The consequence, stated plainly and without softening, at root's explicit instruction:**
+implementing UR-007 exactly as frozen **will not change what the principal sees on their current
+machine.** Their browser genuinely resolves to `en-US`, so the compact date will still render
+month-first for them. This is not a partial fix or a deferred one — the display code is behaving
+correctly under the requirement as written. **Their remedy is to set their browser language to
+`en-AU`, at which point the code already works.** Root is reporting that to the principal directly.
+
+What this package _does_ change for them regardless of browser language is the data-corruption bug
+in §1.1: dates they type are no longer silently transposed before being written to the vault.
 
 **Inferred, not observed:** that the principal would still describe the display as wrong after this
 change. I cannot observe their browser configuration, only this host's default.
@@ -161,7 +174,7 @@ and `pnpm typecheck`, both clean.
 
 The dispatch required that a new test be proved to fail against unmodified code.
 
-**New:** `tests/unit/domain/date-locale.test.ts` (81 cases),
+**New:** `tests/unit/domain/date-locale.test.ts` (84 cases),
 `tests/unit/transactions/date-cell-locale-entry.test.tsx` (11),
 `tests/unit/transactions/date-range-timezone.test.tsx` (4), `tests/e2e/date-locale.spec.ts` (5).
 
@@ -178,6 +191,36 @@ Time-zone coverage drives month and year boundaries under five zones spanning UT
 | `date-range-timezone`       | 4 failed, all `expected '2026-08-01' to be '2026-08-02'`       |
 | `date-locale.spec.ts` (E2E) | 4 failed, incl. `Expected "03/08/26" / Received "08/03/2026"`  |
 
+### The fallback gate, and a first attempt that proved nothing
+
+Root required that the natural-language fallback be unreachable for any string the locale parser
+accepts, or the removed ambiguity returns. My first test for this asserted that `3/8` under `en-AU`
+yields 3 August and that `32/1/26` is rejected.
+
+**Observed: those assertions passed with the gate deleted.** They were worthless. Numeric input the
+locale parser _accepts_ never reaches the fallback either way, and `32/1/26` is rejected by chrono
+too, so neither case distinguishes the gate from its absence.
+
+Probing the real module for the case that does, I found the actual hole. It is not the one I had
+guessed:
+
+| input      | locale  | with gate | gate removed     |
+| ---------- | ------- | --------- | ---------------- |
+| `15/6/25`  | `en-US` | `null`    | **`2025-06-15`** |
+| `31/12/99` | `en-US` | `null`    | **`1999-12-31`** |
+
+Under `en-US` the order is month-first, so a leading `15` or `31` is not a month and the string is
+not a date that viewer could have been shown. Without the gate the day-first fallback silently
+rescues it in a _different field order_ — the precise ambiguity root warned about, reintroduced
+through the back door. The rewritten test asserts these cases and **fails with the gate removed**
+(`expected '2025-06-15' to be null`), which the first version did not.
+
+The `ja-JP` assertion at `date-format.test.ts` was likewise tightened from a two-way alternation
+regex to exact expectations, and **verified to fail against the true pre-fix helper** at `c9be708`
+with `expected '1/1/5' to be '01/1/5'`. An earlier attempt to verify this via `git stash` was a
+no-op, because the helper was already committed and so nothing was stashed; checking out the base
+revision explicitly was required to get a real result.
+
 ### Existing tests changed, and why
 
 Nine assertions in `tests/unit/domain/date-format.test.ts` changed. **Every one is the same thing:**
@@ -191,7 +234,7 @@ other 9 of the original 18 cases are untouched and still pass.
 
 ## 5. Six checks
 
-Run against `a24bcf0`.
+Run against `d514d47`, the final commit.
 
 | check          | result                                                                                                                                                  |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -199,7 +242,7 @@ Run against `a24bcf0`.
 | `lint`         | **PASS** — 0 errors, 1 pre-existing warning in untouched `TransactionTable.tsx`                                                                         |
 | `format:check` | **PASS for P28** — fails on exactly **17** pre-existing frozen `specs/**` files; **observed** zero `src/` or `tests/` offenders, and none is a P28 file |
 | `build`        | **PASS** — compiled successfully                                                                                                                        |
-| `test`         | **PASS** — 120 files, 2291 passed / 2 skipped                                                                                                           |
+| `test`         | **PASS** — 120 files, 2294 passed / 2 skipped                                                                                                           |
 | `test:e2e`     | **PASS** — see campaign below                                                                                                                           |
 
 ### E2E campaign
@@ -209,15 +252,18 @@ discovered. Per `Q-P27-01`, I checked that the new spec **executes** rather than
 skipped: all five appear individually numbered in each run log (`[1/175]`-style), and the total
 moved from 170 to 175.
 
-Three consecutive **full-suite** runs, `--retries=0`, **never** `CI=true`:
+The tree changed after the fallback-gate hardening, so the earlier campaign was discarded rather
+than carried forward — a repeated-run campaign is evidence only for the tree it ran on. The campaign
+below was restarted from run 1 against `d514d47`. Three consecutive **full-suite** runs,
+`--retries=0`, **never** `CI=true`:
 
 | run  | digest                             | result                |
 | ---- | ---------------------------------- | --------------------- |
-| pre  | `0a3f572cbb9a93f96d95a7bb96144a97` | —                     |
-| 1    | `0a3f572cbb9a93f96d95a7bb96144a97` | **175 passed** (4.2m) |
-| 2    | `0a3f572cbb9a93f96d95a7bb96144a97` | **175 passed** (4.1m) |
-| 3    | `0a3f572cbb9a93f96d95a7bb96144a97` | **175 passed** (4.1m) |
-| post | `0a3f572cbb9a93f96d95a7bb96144a97` | —                     |
+| pre  | `637849fd1d3509b36c5d7afd1a65cf36` | —                     |
+| 1    | `637849fd1d3509b36c5d7afd1a65cf36` | **175 passed** (4.4m) |
+| 2    | `637849fd1d3509b36c5d7afd1a65cf36` | **175 passed** (4.1m) |
+| 3    | `637849fd1d3509b36c5d7afd1a65cf36` | **175 passed** (4.2m) |
+| post | `637849fd1d3509b36c5d7afd1a65cf36` | —                     |
 
 Digest is a content hash over tracked `src`, `tests`, `package.json`, `pnpm-lock.yaml` and
 `playwright.config.ts`, **excluding `next-env.d.ts`** which `next dev` rewrites on every start.
@@ -225,13 +271,16 @@ Identical before run 1 and after run 3, so all three runs are evidence for one t
 zero retries; **observed** by grepping each log for failure markers and finding none outside test
 titles.
 
+(The superseded campaign against `a24bcf0`, digest `0a3f572cbb9a93f96d95a7bb96144a97`, was also 3 x
+175 passed. It is recorded here for completeness but is **not** the evidence for this handback.)
+
 **Load discipline** (`Q-P27-02`): port 3000 was **observed** free via `ss -ltnp` immediately before
-starting, and load was 2.73 across 32 cores (0.08/core). The human's dev server on :3001
+each campaign started, and load was 2.3-2.7 across 32 cores. The human's dev server on :3001
 (PID 818182) was never touched. Because that server holds Next 16's distDir-scoped dev lock on the
 main checkout, the campaign ran in an isolated worktree at `/tmp/mf-p28` with `.env.local` copied
-in; the worktree has been removed and the main checkout is clean. The final `pnpm test` was
+in; the worktree has been removed and the main checkout is clean. Both `pnpm test` runs were
 deliberately deferred until load fell below 2.5, since `duplicates.test.ts:749` is a wall-clock
-ratio assertion; it passed in a quiet window.
+ratio assertion; both passed in a quiet window.
 
 ---
 
