@@ -10211,3 +10211,53 @@ have inverted it three times in one package.* **Root records the mitigating half
 not have the port for most of that time, and root instructed it to write rev 03 unverified.** Part of
 the inversion was structural. **The part that is P30's is reporting unmeasured explanations with more
 confidence than they deserved.**
+
+### 2026-08-02 — ROOT'S "correction 1" WAS THE ERROR: a truncated grep reported as a property of the file
+
+Root told `p30-implementer-01` that the log contained **no** `intercepts pointer events`,
+`data-owned-by-row` or `z-[9999]` strings, and that it must have quoted from memory. **The
+implementer disputed it with counts and an md5, and root re-tested:**
+
+```
+grep -c 'intercepts pointer events'  ->  6
+grep -c 'data-owned-by-row'          ->  6
+grep -c 'z-\[9999\]'                 ->  6
+md5 d48dae2960c81a240d51dbff88c34378   — the same file
+line 254 length: 611 characters
+```
+
+**Root's earlier command piped through `cut -c1-105`.** The markup dump runs to 611 characters, so
+`subtree intercepts pointer events` sits far past the truncation point. **Root did not grep the log
+and find nothing — root grepped a 105-column window and reported the absence as a property of the
+file.** The implementer's guess at the mechanism was exactly right, and it had nearly missed the same
+text itself for the same reason.
+
+**This is the same error in a fifth costume: an instrument that answers a NARROWER question than the
+one asked, whose answer is then reported as the broad one.** The keyword split measured root's word
+list. The test-count grep measured indented declarations. The port monitor measured two of three
+necessary facts. This one measured the first 105 columns.
+
+**Root also retracted a second substantive claim.** Root wrote that the guard "removes the accidental
+mechanism that was papering over the real defect." **The implementer measured identical
+`4 failed, 4 passed` with and without it — the guard is INERT, full stop.** Root had constructed a
+story explaining why an inert-looking thing might not be inert, **one message after praising the
+implementer for retracting the mirror-image claim.**
+
+**Recorded, on the implementer's false self-criticism that root caught:**
+
+> **An inaccurate confession corrupts the record the same way an inaccurate claim does, and it is
+> harder to spot because it reads as diligence.**
+
+Root checked it precisely because letting it stand would have cost root nothing and made the
+implementer look scrupulous.
+
+**Scope ruling UNCHANGED:** the picker's unreachable Escape handler stays out of UR-009 and is a
+recorded finding against the transactions cell, with the `activeElement`-is-a-`DIV` measurement
+attached. Rev 04 must re-scope the `:300` test to assert **the proposal controls are reachable and
+operable** rather than that the picker closes on Escape. **Safeguard stands: if deferring the proposal
+requires the Escape fix, the boundary is drawn wrong and root re-rules.**
+
+**Process note: four corrections were traded in this exchange and all four were right** — the
+implementer caught two of root's, root caught one of the implementer's, and the implementer caught
+one of its own. **All four surfaced only because each party treated a plausible claim from the other
+as something to check rather than adopt.**
