@@ -171,7 +171,7 @@ review evidence.
 | P23     | UR-002         | [Search matches alias-resolved descriptions](tasks/P23-ur-002.md)                   | none                 | passed            | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-07-30 by human principal instruction; frozen source lines 35-53; confirmed defect queries.ts:560-567                                                                                                                                                                      |
 | P24     | UR-003         | [Presence avatars show name initials](tasks/P24-ur-003.md)                          | none                 | passed            | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-07-30 by human principal instruction; frozen source lines 55-74; confirmed defect layout.tsx:218-224 and :343                                                                                                                                                             |
 | P25     | UR-004         | [Default currency from time zone](tasks/P25-ur-004.md)                              | none                 | passed            | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-07-30 by human principal instruction; frozen source lines 76-98; supersedes the locale rationale in detect-currency.ts:4-6                                                                                                                                                |
-| P26     | UR-005         | [Minimal table chrome at rest](tasks/P26-ur-005.md)                                 | none                 | implementing      | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01 by human principal; frozen source specs/010-user-reported-refinements-2/spec.md lines 11-24                                                                                                                                                                         |
+| P26     | UR-005         | [Minimal table chrome at rest](tasks/P26-ur-005.md)                                 | none                 | in_review         | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01 by human principal; frozen source specs/010-user-reported-refinements-2/spec.md lines 11-24                                                                                                                                                                         |
 | P27     | UR-006         | [Vault members listed by name](tasks/P27-ur-006.md)                                 | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 26-38; shares name resolution with UR-003/P24                                                                                                                                                                                                               |
 | P28     | UR-007         | [Dates display in browser locale](tasks/P28-ur-007.md)                              | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 40-54                                                                                                                                                                                                                                                       |
 | P29     | UR-008         | [CSV import parity and honest counts](tasks/P29-ur-008.md)                          | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 56-86; confirmed root cause parseAmount csv.ts:165-190 rejects leading plus, exactly 15 rows                                                                                                                                                                 |
@@ -7229,3 +7229,58 @@ The gap is between the frozen text's description of a flow and the flow that exi
 the reword rather than have a worker edit wording derived from frozen text.
 
 **P25 -> `passed`; UR-004 -> `passed`. Tally: 26 of 33 requirements, 25 of 32 feature packages.**
+
+### 2026-08-02 — P26 rev 01 handback VERIFIED and merged; DISTINCT reviewer dispatched
+
+`p26-implementer-01` delivered on branch `p26-ur-005`, rebased onto `e6f7e17`. Root fast-forwarded
+main to `dc89335`. Four commits; 9 files; **no shared UI primitive edited** — root verified
+`git diff --name-only` lists none of `components/ui/{input,select,button,textarea}.tsx`, so the hard
+constraint held.
+
+**Root gates:** typecheck clean; unit **116 files, 2186 passed / 2 skipped** (up from 2182); no
+forbidden casts in the product diff.
+
+**ROOT'S DIAGNOSIS WAS CORRECT BUT INCOMPLETE, and the implementer found the gap.** Root proved the
+resting fill came from `input.tsx`'s `dark:bg-input/30` surviving `twMerge`. The implementer verified
+all eight of root's claims — citation, SCOPE, twMerge behaviour, `--input` value, hover-scoping, row
+container, the 167 baseline — and ALL SURVIVED, but it also found the fill is NOT confined to
+`input.tsx`. Root independently confirmed: `select.tsx:34` (status cell) and the outline Button
+variant `button.tsx:17` (account cell) carry the SAME `dark:bg-input/30`, and the Button additionally
+carries `dark:border-input`, the only source of a resting BORDER. **A fix touching only Input-backed
+cells would have left the status and account cells visibly filled** — root's dispatch would have
+produced a partial fix.
+
+**Theme answer: the resting fill is DARK-MODE ONLY**, with light mode measured clean at rest before any
+change, and the percentage and tags cells already clean in both themes because they render a plain
+button/div rather than a shared primitive. The fix is nonetheless written theme-agnostically so a
+future light `--input` value cannot reintroduce it: `RESTING_CELL_CHROME` pairs every utility with its
+`dark:` variant, which is exactly the asymmetry that caused the defect.
+
+**A repo-wide measurement trap, surfaced and root-verified:** in dark mode `--muted` and `--accent` are
+the SAME token — both `oklch(0.279 0.041 260.031)` at `globals.css:113,115`. So a `hover:bg-accent/30`
+paint reading is byte-identical to `bg-muted/30`, and any measurement taken with the pointer parked
+cannot distinguish RETAINED HOVER FEEDBACK from RESTING CHROME. The implementer's own first readings
+were wrong for this reason and it said so.
+
+**Falsifiability proven, not claimed:** weakening the constant to the obvious-looking
+`"border-transparent bg-transparent shadow-none"` fails the new E2E and one unit case; restoring makes
+both green. A unit case also asserts an Input OUTSIDE the table still merges to `dark:bg-input/30`, so
+the blast radius is PROVEN bounded rather than assumed. The new E2E runs its whole battery twice, once
+per theme via `emulateMedia`, so a one-theme fix cannot pass.
+
+**Campaign discipline, disclosed:** a first 3/3 clean campaign was DISCARDED by the implementer's own
+choice. While it ran, root published `Q-P25-01` (comments must not restate frozen text as fact); on
+re-reading, its constant's doc comment both restated UR-005's guarantee as if describing the code AND
+claimed state utilities win by "higher specificity" — wrong, Tailwind variants win by emission order.
+It rewrote the comment, which changed the tree, and restarted from run 1. Final campaign: **3
+consecutive full-suite `--retries=0` runs at 168/168** (167 baseline + 1 new test), digest
+`abbc1917…` identical before and after, `next-env.d.ts` excluded per the P25 lesson.
+
+**Open scope question surfaced rather than silently decided:** `TransactionRow.tsx:566`'s `bg-muted/30`
+was left unchanged and justified, but the expanded notes TEXTAREA carries the same dark-mode resting
+fill via `textarea.tsx:10` — measured at `oklab(... / 0.045)`. The implementer left it because it is
+not one of the six cells the frozen text names and the expanded row is not present at rest, and flagged
+it as a one-line follow-up with the same constant if root reads UR-005 as covering it. Routed to the
+reviewer for a judgement.
+
+Dispatched `p26-reviewer-01` (DISTINCT, fresh context, never the P26 implementer).
