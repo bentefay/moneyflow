@@ -8329,3 +8329,43 @@ shows the editing form whenever the cell is focused, so the compact form is not 
 silent/loud split AND the member list — **a bare total hides an undercount.** That is precisely how
 review 02 lost `so-SO` and `sr-Latn-RS`. Q-P28-08 also carried: a precedence fix must be re-censused
 for every form the code serves.
+
+### 2026-08-02 — P29 rev 02 campaign CLEAN 3/3; port released and handed to `p28-reviewer-03`
+
+`p29-implementer-01` announced BEFORE releasing, as instructed. **Root verified from the logs, not
+from the report** — the implementer flagged its paths up front precisely because root searched inside
+the worktree last campaign and found nothing.
+
+| run | result         | duration | load at start | digest     |
+| --- | -------------- | -------- | ------------- | ---------- |
+| 1   | **177 passed** | 4.2m     | 4.07          | `0e58fc49` |
+| 2   | **177 passed** | 4.1m     | 5.38          | `0e58fc49` |
+| 3   | **177 passed** | 4.3m     | 5.95          | `0e58fc49` |
+
+Root's independent check of `/tmp/p29r2-e2e-run{1,2,3}.log`: `177 passed` in each, **failure-marker
+scan (`N failed`, `✘`, `Error: expect`, `timed out`) returns 0 in all three**, and both new E2E tests
+execute BY NAME twice per log (`import.spec.ts:1721` and `:1800`). Digest `0e58fc4984aed2234afdb99df70705df`
+identical in `/tmp/p29r2-digest-pre.txt` and `-post.txt`, excluding `next-env.d.ts` — so the campaign
+is evidence for exactly the tree that ran. The only log noise is benign `[WebServer]` tRPC auth
+warnings on `vault.list`/`realtime.revoke`.
+
+**None of the three recorded load-sensitive assertions fired** at load 4-6:
+`duplicates.test.ts:749`, `transactions.spec.ts:804`, `vault-maintenance.test.tsx`.
+
+Six checks green at `43836b0`: typecheck PASS, bare `pnpm lint` exit 0, format:check exactly 17
+frozen `specs/**` none owned, `pnpm test` **2382 passed / 2 skipped / 123 files**, E2E 3x177.
+
+**Implementer correction that root is recording because it cuts AGAINST the implementer.** Root
+credited it with deliberately satisfying the value-assertion property. It refused the credit: its own
+NEW fixtures carried `expect(mappings["3"]).toBe("amount")` and **would have been blind exactly as
+the addendum warned**; the property was satisfied incidentally by one OLDER test. That is why it
+added `ur-008-amount-column.test.tsx` driving `loadFile` and asserting money. **Root's suspicion was
+right about the new tests; an old test is what saved them.**
+
+Its sharpest formulation, adopted goal-wide: **a surviving line is not a surviving defect.**
+`entry.rate > best.rate` is still present and still correct for what it now governs; only the
+decision it makes changed.
+
+Port released and granted to `p28-reviewer-03` after root verified no process under `/tmp/mf-p29`,
+:3000 unbound across three consecutive checks, load 4.0-4.7. It will run the six checks and the
+3-run campaign, then AMEND `P28-review-03.md` §3 with real results.
