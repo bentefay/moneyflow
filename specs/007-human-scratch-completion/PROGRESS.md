@@ -173,7 +173,7 @@ review evidence.
 | P25     | UR-004         | [Default currency from time zone](tasks/P25-ur-004.md)                              | none                 | passed            | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-07-30 by human principal instruction; frozen source lines 76-98; supersedes the locale rationale in detect-currency.ts:4-6                                                                                                                                                |
 | P26     | UR-005         | [Minimal table chrome at rest](tasks/P26-ur-005.md)                                 | none                 | passed            | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01 by human principal; frozen source specs/010-user-reported-refinements-2/spec.md lines 11-24                                                                                                                                                                         |
 | P27     | UR-006         | [Vault members listed by name](tasks/P27-ur-006.md)                                 | none                 | passed            | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 26-38; shares name resolution with UR-003/P24                                                                                                                                                                                                               |
-| P28     | UR-007         | [Dates display in browser locale](tasks/P28-ur-007.md)                              | none                 | changes_requested | 03  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 40-54                                                                                                                                                                                                                                                       |
+| P28     | UR-007         | [Dates display in browser locale](tasks/P28-ur-007.md)                              | none                 | in_review         | 03  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 40-54                                                                                                                                                                                                                                                       |
 | P29     | UR-008         | [CSV import parity and honest counts](tasks/P29-ur-008.md)                          | none                 | implementing      | 02  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 56-86; confirmed root cause parseAmount csv.ts:165-190 rejects leading plus, exactly 15 rows                                                                                                                                                                 |
 | P30     | UR-009         | [Automations conformance re-verification](tasks/P30-ur-009.md)                      | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01 by human principal after reporting missing rule-creation controls; frozen source specs/011-automations-conformance/spec.md lines 16-61; RE-VERIFIES HS-007 without reopening it                                                                                       |
 | P31     | UR-010         | [Shift-click extends selection and deselection](tasks/P31-ur-010.md)                | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-02 by human principal; frozen source specs/012-transaction-selection/spec.md lines 11-29; toggleRow at useTableSelection.ts:106-133 only ever adds                                                                                                                       |
@@ -7942,3 +7942,46 @@ task file says index 3. Both describe the same column, root's being the 1-based 
 Two carry-forwards proposed: **Q-P29-04** — a replacement heuristic must be A/B'd over the input class
 the OLD one handled, which is exactly what found F-1 and what a green E2E campaign would not have; and
 **Q-P29-05** — a "set X aside" guard usually protects one role only.
+
+### 2026-08-02 — P28 rev 03 campaign CLEAN; reviewer RE-DISPATCHED
+
+`p28-implementer-01` completed rev 03: `42f20be` (F-4 fix + 5 tests), `11ccbdf` (evidence §8),
+`e9509e1` (campaign evidence), all verified ancestors of HEAD. Root gates: typecheck clean, unit
+**2369 passed / 2 skipped**.
+
+**Campaign: 3 consecutive full-suite `--retries=0` runs at 177 passed**, digest
+`f46cbb368fc6d55433473f127772e9db` identical pre-run-1 and post-run-3, `env -u CI`, run from
+`/tmp/mf-p28r3` OUTSIDE the repo. All 5 `date-locale.spec.ts` tests confirmed to EXECUTE by name in
+each log rather than inferred from the 175 -> 177 total, per `Q-P27-01`.
+
+**The implementer recorded a fact that weakened its own convenience and strengthened the result.**
+Root handed it the port at load 0.97, but other work started mid-campaign and runs 2 and 3 executed
+under load **6-7**. It wrote the per-run loads into the evidence rather than quoting only the quiet
+figure it was given. None of the three recorded load-sensitive assertions fired —
+`duplicates.test.ts:749`, `transactions.spec.ts:804`, `vault-maintenance.test.tsx` — so the suite
+stayed green under exactly the contention that has historically produced those flakes. Root agrees
+that makes the result stronger, and has left the judgement to the reviewer with the actual numbers in
+front of it.
+
+It also marked §5's rev 02 campaign table explicitly **superseded** rather than deleting it, since rev
+03 changed `src` and `tests`, so all four campaigns of this package are now recorded with which tree
+each covers.
+
+**A ROOT PROBE ERROR, corrected before it could become a finding.** Root probed `parseLocaleDate` for
+`te-IN` and `it-CH` and got `null`, which looked like an unfixed defect. Root then checked the
+package's own tests rather than reporting it: `tests/unit/domain/date-locale.test.ts:26` passes
+`Temporal.PlainDate.from("2026-08-02")` as the reference, while root's probe passed a plain
+`{year,month,day}` object. All 137 tests in that file pass, and all four locales root probed —
+`te-IN`, `it-CH`, `mt-MT`, `ug-CN` — are covered there. **The `null` was root's malformed probe, not a
+product defect.** This is `Q-P28-05` in root's own hands: a probe can manufacture a defect, and the
+remedy is to re-run against the package's own harness before reporting.
+
+**The package's through-line, in the implementer's words and worth carrying to P21:** the reported
+defect was "dates display in US format", but the display code was already locale-aware and needed no
+fix for its own sake. What was broken was the WRITE path — four defects that silently stored a
+different date from the one displayed: chrono's US-ordered parse, the non-Latin `NaN` regression
+introduced by the first fix, the Buddhist-calendar 43-year shift, and F-4's editing-skeleton mismatch.
+**Three of those four were invisible to a green test suite until someone named the input class.**
+
+Dispatched `p28-reviewer-03` (DISTINCT, fresh context, never the implementer, never `p28-reviewer-01`
+or `-02`).
