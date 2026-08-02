@@ -478,6 +478,7 @@ export function TransactionRow({
                             onSave={(tagIds) => onFieldUpdate?.("tags", tagIds)}
                             onCreateTag={onCreateTag}
                             onEditingChange={setIsEditingTags}
+                            ownerRowId={effectiveData.id}
                             data-testid="tags-editable"
                         />
                     )}

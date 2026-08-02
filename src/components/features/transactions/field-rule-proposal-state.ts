@@ -76,6 +76,40 @@ export type FieldRuleProposalState =
       };
 
 /**
+ * Whether the currently-focused element still counts as being "in" a transaction row.
+ *
+ * Frozen `:263-266` triggers the automatic apply modes when THE ROW loses focus, so this is the
+ * predicate that decides the gesture. It is a question about focus STATE, not about focus events —
+ * which is the distinction that matters, because the two are not interchangeable:
+ *
+ * - A blur that lands on `<body>` (pressing Enter in a cell, tabbing off the document, clicking
+ *   non-focusable page chrome) fires `focusout` and **no `focusin` at all**. A listener watching
+ *   only `focusin` is deaf to three of the four ways a row actually loses focus.
+ * - The proposal mounts only once the cell's edit surface has closed, so it can arm a listener
+ *   AFTER the very transition it is waiting for. Reading the state answers correctly whenever it is
+ *   asked, and so does not depend on having existed when the event fired.
+ *
+ * `active` is `document.activeElement`, which is `null` before first paint and `<body>` when nothing
+ * is focused; both mean no row holds focus. Portaled surfaces a row owns — its tag picker, its own
+ * popover — count as inside that row, and `ownerRowId` compares identity so another row's picker
+ * does not read as this one.
+ */
+export function isFocusStillInRow(input: {
+    readonly active: Element | null;
+    readonly row: Element | null;
+    readonly rowId: string | null;
+    /** Resolves the row id an element's owning portal declares, or `null` if it declares none. */
+    readonly ownerRowId: (element: Element) => string | null;
+}): boolean {
+    const { active, row, rowId, ownerRowId } = input;
+    if (row == null) return false;
+    if (active == null) return false;
+    if (row.contains(active)) return true;
+    const owner = ownerRowId(active);
+    return owner != null && owner === rowId;
+}
+
+/**
  * Whether a tag edit actually changed the set, ignoring order.
  *
  * A proposal is offered for a CHANGE. Re-committing the same tags — which the inline cell does on

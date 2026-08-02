@@ -69,6 +69,8 @@ export interface FieldRuleProposalProps {
     /** Formatted amount for the "only if $x" label, so x is the row's real amount. */
     readonly amountLabel: string;
     readonly accountLabel: string;
+    /** Row identity stamped on this control's portaled select lists; see TransactionRuleProposal. */
+    readonly rowId: string;
     readonly onConfirm: () => void;
     readonly onDismiss: () => void;
     readonly idPrefix: string;
@@ -111,7 +113,7 @@ export function FieldRuleProposal(props: FieldRuleProposalProps): React.JSX.Elem
                     >
                         <SelectValue />
                     </SelectTrigger>
-                    <SelectContent data-owned-by-row="true">
+                    <SelectContent data-owned-by-row={props.rowId}>
                         {APPLY_MODES.map((applyMode) => (
                             <SelectItem key={applyMode} value={applyMode}>
                                 {applyModeLabel(applyMode)}
@@ -193,7 +195,7 @@ export function FieldRuleProposal(props: FieldRuleProposalProps): React.JSX.Elem
                         >
                             <SelectValue />
                         </SelectTrigger>
-                        <SelectContent data-owned-by-row="true">
+                        <SelectContent data-owned-by-row={props.rowId}>
                             <SelectItem value="add">Add tags</SelectItem>
                             <SelectItem value="set">Set tags (clear existing)</SelectItem>
                         </SelectContent>

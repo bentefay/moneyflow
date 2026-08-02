@@ -19,10 +19,10 @@
  */
 
 import { fireEvent, render, screen } from "@testing-library/react";
-import { useEffect, useRef, useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { useEffect } from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { applyModeIsAutomatic } from "@/lib/domain/automation/apply-mode";
+import { isFocusStillInRow } from "@/components/features/transactions/field-rule-proposal-state";
 
 /** Counts its own mounts, standing in for a cell holding un-committed edit state. */
 function MountCountingCell({ onMount }: { readonly onMount: () => void }): React.JSX.Element {
@@ -125,144 +125,92 @@ describe("F-1 — flipping the pending edit must not remount the cell", () => {
 });
 
 /**
- * The shipped auto-apply rule, reproduced exactly: an "Updating…" mode applies only once the cell
- * has finished editing AND focus has genuinely left the row.
+ * Focus fixtures for the row-blur predicate.
+ *
+ * Revision 04's harness reimplemented the auto-apply RULE and was always mounted, so it could not
+ * exhibit either defect that actually shipped: the listener being armed after the transition it
+ * waited for, and the blur-to-`<body>` case that fires no `focusin` at all. A reproduction is
+ * evidence only for the structure it reproduces (review F-9).
+ *
+ * These cases exercise the SHIPPED predicate `isFocusStillInRow` directly, against real DOM nodes,
+ * so they answer the question the component actually asks rather than a restatement of it.
  */
-function AutoApplyHost({
-    applyMode,
-    onApply
-}: {
-    readonly applyMode: "updatingAll" | "updateNew";
-    readonly onApply: () => void;
-}): React.JSX.Element {
-    const [isEditing, setIsEditing] = useState(true);
-    const [rowLostFocus, setRowLostFocus] = useState(false);
-    const anchorRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const handleFocusIn = (event: Event): void => {
-            const row = anchorRef.current?.closest('[data-testid="transaction-row"]');
-            if (row == null) return;
-            const target = event.target;
-            if (!(target instanceof Node)) return;
-            if (row.contains(target)) return;
-            if (target instanceof Element && target.closest("[data-owned-by-row]") != null) return;
-            setRowLostFocus(true);
-        };
-        document.addEventListener("focusin", handleFocusIn);
-        return () => document.removeEventListener("focusin", handleFocusIn);
-    }, []);
-
-    useEffect(() => {
-        if (isEditing || !applyModeIsAutomatic(applyMode) || !rowLostFocus) return;
-        onApply();
-    }, [applyMode, isEditing, onApply, rowLostFocus]);
-
-    return (
-        <div data-testid="transaction-row">
-            <div ref={anchorRef}>
-                <button
-                    data-testid="stop-editing"
-                    onClick={() => setIsEditing(false)}
-                    type="button"
-                >
-                    finish edit
-                </button>
-                <button data-testid="sibling" type="button">
-                    other cell
-                </button>
-            </div>
-        </div>
-    );
+function buildRow(rowId: string): { readonly row: Element; readonly inner: HTMLElement } {
+    const row = document.createElement("div");
+    row.setAttribute("data-testid", "transaction-row");
+    row.setAttribute("data-transaction-id", rowId);
+    const inner = document.createElement("input");
+    row.appendChild(inner);
+    document.body.appendChild(row);
+    return { row, inner };
 }
 
-/**
- * A surface this row owns but which is PORTALED outside it — the tag dropdown and the proposal
- * popover both are. Focus landing here means the user is still editing this row.
- */
-function PortaledRowSurface(): React.JSX.Element {
-    return (
-        <div data-owned-by-row="true">
-            <input data-testid="portaled-input" />
-        </div>
-    );
+/** A surface this row owns but which the DOM places outside it, e.g. the portaled tag picker. */
+function buildPortaledSurface(ownerRowId: string): HTMLElement {
+    const portal = document.createElement("div");
+    portal.setAttribute("data-owned-by-row", ownerRowId);
+    const control = document.createElement("input");
+    portal.appendChild(control);
+    document.body.appendChild(portal);
+    return control;
 }
 
-/** Somewhere genuinely outside the row, e.g. the page search box. */
-function OutsideTarget(): React.JSX.Element {
-    return <input data-testid="outside-input" />;
+function focusStillInRow(active: Element | null, row: Element, rowId: string): boolean {
+    return isFocusStillInRow({
+        active,
+        row,
+        rowId,
+        ownerRowId: (element) =>
+            element.closest("[data-owned-by-row]")?.getAttribute("data-owned-by-row") ?? null
+    });
 }
 
-describe("F-2 — an Updating mode must not apply without the row losing focus", () => {
-    it("does NOT write when the cell merely stops editing", () => {
-        const onApply = vi.fn();
-        render(<AutoApplyHost applyMode="updatingAll" onApply={onApply} />);
-
-        // This is exactly the revision 01 sequence: isEditing true -> false, no blur. It wrote a
-        // rule and rewrote every matching transaction.
-        fireEvent.click(screen.getByTestId("stop-editing"));
-
-        expect(onApply).not.toHaveBeenCalled();
+describe("the row-blur predicate reads focus STATE, not focus events", () => {
+    afterEach(() => {
+        document.body.innerHTML = "";
     });
 
-    it("does NOT write when focus moves to another cell in the SAME row", () => {
-        const onApply = vi.fn();
-        render(<AutoApplyHost applyMode="updatingAll" onApply={onApply} />);
-        fireEvent.click(screen.getByTestId("stop-editing"));
-
-        fireEvent.focusIn(screen.getByTestId("sibling"));
-
-        // The user is still working in this row, so the frozen gesture has not happened.
-        expect(onApply).not.toHaveBeenCalled();
+    it("counts focus inside the row as still in the row", () => {
+        const { row, inner } = buildRow("tx-1");
+        expect(focusStillInRow(inner, row, "tx-1")).toBe(true);
     });
 
-    // The case a row-scoped focus listener gets WRONG. This row's tag dropdown is portaled to
-    // document.body, so by DOM containment it is "outside the row" — but the user is plainly still
-    // editing. Treating it as a row blur would fire an Updating apply with the picker still open,
-    // which is the original defect wearing a different hat.
-    it("does NOT write when focus moves into a PORTALED surface this row owns", () => {
-        const onApply = vi.fn();
-        render(
-            <>
-                <AutoApplyHost applyMode="updatingAll" onApply={onApply} />
-                <PortaledRowSurface />
-            </>
-        );
-        fireEvent.click(screen.getByTestId("stop-editing"));
-
-        fireEvent.focusIn(screen.getByTestId("portaled-input"));
-
-        expect(onApply).not.toHaveBeenCalled();
+    // The case revision 04 missed entirely. Pressing Enter in a cell calls blur(), tabbing off the
+    // document and clicking non-focusable chrome all land here: focus goes to <body>, which fires
+    // `focusout` and NO `focusin`. A listener watching only `focusin` never learns the row is gone.
+    it("treats a blur to body as having LEFT the row", () => {
+        const { row } = buildRow("tx-1");
+        expect(focusStillInRow(document.body, row, "tx-1")).toBe(false);
     });
 
-    it("DOES write once focus genuinely leaves the row", () => {
-        const onApply = vi.fn();
-        render(
-            <>
-                <AutoApplyHost applyMode="updatingAll" onApply={onApply} />
-                <OutsideTarget />
-            </>
-        );
-        fireEvent.click(screen.getByTestId("stop-editing"));
-
-        fireEvent.focusIn(screen.getByTestId("outside-input"));
-
-        expect(onApply).toHaveBeenCalledTimes(1);
+    // `document.activeElement` is null before first paint; nothing is focused, so no row holds it.
+    it("treats a null activeElement as having left the row", () => {
+        const { row } = buildRow("tx-1");
+        expect(focusStillInRow(null, row, "tx-1")).toBe(false);
     });
 
-    it("never auto-writes under a manual Update mode, even on a real blur", () => {
-        const onApply = vi.fn();
-        render(
-            <>
-                <AutoApplyHost applyMode="updateNew" onApply={onApply} />
-                <OutsideTarget />
-            </>
-        );
-        fireEvent.click(screen.getByTestId("stop-editing"));
+    it("counts THIS row's portaled surface as still in the row", () => {
+        const { row } = buildRow("tx-1");
+        const picker = buildPortaledSurface("tx-1");
+        expect(focusStillInRow(picker, row, "tx-1")).toBe(true);
+    });
 
-        fireEvent.focusIn(screen.getByTestId("outside-input"));
+    // Review F-8: the marker used to be a bare boolean naming no row, so ANOTHER row's picker read
+    // as "never left this one" and suppressed the apply.
+    it("does NOT count another row's portaled surface as still in the row", () => {
+        const { row } = buildRow("tx-1");
+        const otherPicker = buildPortaledSurface("tx-2");
+        expect(focusStillInRow(otherPicker, row, "tx-1")).toBe(false);
+    });
 
-        // "Update…" requires the tick; blur alone must never write.
-        expect(onApply).not.toHaveBeenCalled();
+    it("treats a missing row element as having left", () => {
+        expect(
+            isFocusStillInRow({
+                active: document.body,
+                row: null,
+                rowId: null,
+                ownerRowId: () => null
+            })
+        ).toBe(false);
     });
 });

@@ -26,6 +26,7 @@ import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
 import { applyModeIsAutomatic } from "@/lib/domain/automation/apply-mode";
 import { type RuleMatchSubject } from "@/lib/domain/automation/rules";
 
+import { isFocusStillInRow } from "./field-rule-proposal-state";
 import { type RobotCurrentValue } from "./field-rule-robot-state";
 import { FieldRuleProposal } from "./FieldRuleProposal";
 import { useFieldRuleProposal } from "./use-field-rule-proposal";
@@ -53,6 +54,14 @@ export interface TransactionRuleProposalProps {
      * because branching would remount the cell and destroy the edit in progress.
      */
     readonly isPending: boolean;
+    /**
+     * The transaction id of the row this proposal belongs to.
+     *
+     * Stamped onto every portaled surface this row owns, so focus moving into ANOTHER row's picker
+     * is not mistaken for focus that never left this one. A bare boolean marker named no row, so any
+     * portaled surface read as "still here".
+     */
+    readonly rowId: string;
     /** Retract the proposal: the change was applied, dismissed, or superseded. */
     readonly onDismiss: () => void;
     /**
@@ -148,26 +157,50 @@ function PendingRuleProposal(
     const { proposal, draft } = workflow;
     const open = proposal.kind !== "none" && draft != null;
 
-    // Watch for focus genuinely leaving the row.
+    // Watch for focus genuinely leaving the row, by reading focus STATE rather than tracking events.
     //
-    // The listener is on the DOCUMENT, not the row, because several of this row's own controls are
-    // PORTALED to `document.body` — the tag dropdown (`InlineEditableTags`) and this very popover
-    // both are. A row-scoped listener would see focus entering the tag dropdown as "left the row"
-    // and fire an "Updating…" apply while the picker is still open, which is the defect this fix
-    // exists to prevent. So "still in the row" means: inside the row element, OR inside any portaled
-    // surface this row owns.
+    // Revision 04 listened for `focusin` alone and missed three of the four ways a row loses focus:
+    // pressing Enter in a cell, tabbing off the document, and clicking non-focusable page chrome all
+    // blur to `<body>`, which fires `focusout` and NO `focusin`. The frozen text's own worked example
+    // (`:249-251`, applying a description alias) is one of the missed cases — the alias input calls
+    // `blur()` on Enter, so the commit and the blur are the same event.
+    //
+    // Reading `document.activeElement` also removes a mount-ordering hazard the deferral introduced:
+    // this component mounts only once the cell's edit surface has closed, so an event listener can be
+    // armed AFTER the transition it is waiting for. A state read answers correctly whenever it runs,
+    // including immediately on mount.
+    //
+    // `focusout` is the event that always accompanies a blur, but at its dispatch the next focus has
+    // not landed yet, so the check is deferred a task. `focusin` is kept for the case where focus
+    // moves straight into another control without an intervening idle state.
     useEffect(() => {
-        const handleFocusIn = (event: Event): void => {
+        const evaluate = (): void => {
             const row = anchorRef.current?.closest('[data-testid="transaction-row"]');
-            if (row == null) return;
-            const target = event.target;
-            if (!(target instanceof Node)) return;
-            if (row.contains(target)) return;
-            if (target instanceof Element && target.closest("[data-owned-by-row]") != null) return;
-            setRowLostFocus(true);
+            if (
+                !isFocusStillInRow({
+                    active: document.activeElement,
+                    row: row ?? null,
+                    rowId: row?.getAttribute("data-transaction-id") ?? null,
+                    ownerRowId: (element: Element) =>
+                        element.closest("[data-owned-by-row]")?.getAttribute("data-owned-by-row") ??
+                        null
+                })
+            ) {
+                setRowLostFocus(true);
+            }
         };
-        document.addEventListener("focusin", handleFocusIn);
-        return () => document.removeEventListener("focusin", handleFocusIn);
+        // A blur is only settled once the browser has moved focus on, so re-read on the next task.
+        const evaluateSoon = (): void => {
+            window.setTimeout(evaluate, 0);
+        };
+        document.addEventListener("focusin", evaluateSoon);
+        document.addEventListener("focusout", evaluateSoon);
+        // And answer once on mount, for the blur that happened before this component existed.
+        evaluateSoon();
+        return () => {
+            document.removeEventListener("focusin", evaluateSoon);
+            document.removeEventListener("focusout", evaluateSoon);
+        };
     }, [anchorRef]);
 
     // Frozen `:263-266`: the "Updating…" modes apply automatically once the row loses focus; the
@@ -190,7 +223,7 @@ function PendingRuleProposal(
         <PopoverContent
             align="start"
             className="w-auto max-w-[90vw] p-3"
-            data-owned-by-row="true"
+            data-owned-by-row={props.rowId}
             data-testid="transaction-rule-proposal-popover"
             onOpenAutoFocus={(event) => event.preventDefault()}
             // Radix gives popover content `role="dialog"`, which would announce this as a modal the
@@ -204,6 +237,7 @@ function PendingRuleProposal(
         >
             <FieldRuleProposal
                 accountLabel={props.accountLabel}
+                rowId={props.rowId}
                 amountLabel={props.amountLabel}
                 draft={draft}
                 errors={workflow.errors}

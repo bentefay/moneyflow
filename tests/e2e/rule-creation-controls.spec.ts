@@ -393,6 +393,51 @@ test.describe("The Updating modes wait for the row to lose focus", () => {
     });
 });
 
+test.describe("The restrictions actually restrict", () => {
+    // Frozen `:258-260` gives each checkbox a specific behaviour — restrict to that exact amount,
+    // restrict to that account. Before this test both were asserted to EXIST and never operated, so
+    // a rule that ignored them entirely would have passed the whole suite (review F-10).
+    //
+    // The import gives each row a different amount (-1.00, -2.00), so ticking "only if $x" on the
+    // first row must scope the rule to that amount alone and leave the second row untouched — even
+    // though its description matches exactly.
+    test("ticking only-if-amount scopes the rule to that amount and spares the other row", async ({
+        page
+    }) => {
+        await createNewIdentity(page);
+        await createTag(page, "Coffee");
+        await importRows(page, [
+            { date: "2026-07-01", description: MATCHING_DESCRIPTION },
+            { date: "2026-07-02", description: MATCHING_DESCRIPTION }
+        ]);
+
+        const firstRow = rowsWithDescription(page).first();
+        const secondRow = rowsWithDescription(page).nth(1);
+
+        await addTagToRow(page, firstRow, "Coffee");
+        await expect(page.getByTestId("tags-rule-proposal")).toBeVisible();
+
+        await test.step("restrict the rule to this row's amount, then apply to all", async () => {
+            await page.getByTestId("proposal-amount-toggle").click();
+            await expect(page.getByTestId("proposal-amount-toggle")).toBeChecked();
+            await page.getByTestId("proposal-apply-mode").click();
+            await page.getByRole("option", { name: "Update all", exact: true }).click();
+            await page.getByTestId("proposal-confirm").click();
+            await expect(page.getByTestId("tags-rule-proposal")).toHaveCount(0);
+        });
+
+        await test.step("the amount-scoped rule reaches only the matching amount", async () => {
+            // The edited row keeps its tag.
+            await expect(firstRow.getByTestId("tags-editable")).toContainText("Coffee");
+            // The other row has the same description but a different amount, so the restriction
+            // must exclude it. Without the restriction being honoured it would have been tagged.
+            await expect(secondRow.getByTestId("tags-editable")).not.toContainText("Coffee");
+            // Exactly one row matches, so exactly one robot.
+            await expect(page.getByTestId("tags-rule-robot")).toHaveCount(1);
+        });
+    });
+});
+
 test.describe("Updating an existing rule from the same controls", () => {
     // Frozen `:287-289`: when the changed field already has a matching rule, the same four choices
     // are offered but applying UPDATES that rule rather than creating a second one.

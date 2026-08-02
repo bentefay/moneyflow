@@ -668,6 +668,7 @@ function TransactionsPageContent() {
                     }
                     onDismiss={clearPendingRuleEdit}
                     referenceDate={entry.referenceDate}
+                    rowId={transactionId}
                     subject={entry.subject}
                 >
                     {cell}

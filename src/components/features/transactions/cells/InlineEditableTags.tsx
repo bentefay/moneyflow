@@ -45,6 +45,11 @@ export interface InlineEditableTagsProps {
      * cell. Callers use it to decide when an edit has finished; the tag VALUES are never reported.
      */
     onEditingChange?: (isEditing: boolean) => void;
+    /**
+     * Transaction id of the row owning this cell. Stamped on the PORTALED dropdown so focus-tracking
+     * elsewhere can tell this row's own picker from another row's.
+     */
+    ownerRowId?: string;
     /** Maximum number of tags to display before showing "+N" */
     maxDisplay?: number;
     /** Additional class names for the container */
@@ -111,6 +116,7 @@ export function InlineEditableTags({
     onSave,
     onCreateTag,
     onEditingChange,
+    ownerRowId,
     className,
     disabled = false,
     "data-testid": testId
@@ -310,7 +316,7 @@ export function InlineEditableTags({
                         // Portaled to document.body, so it is outside the row in the DOM while still
                         // being part of editing that row. Marked so focus-tracking elsewhere can
                         // tell "the user moved into this row's own dropdown" from "the user left".
-                        data-owned-by-row="true"
+                        data-owned-by-row={ownerRowId}
                         className="bg-popover fixed z-[9999] w-56 rounded-md border shadow-lg"
                         style={{
                             top: dropdownPosition.top,
