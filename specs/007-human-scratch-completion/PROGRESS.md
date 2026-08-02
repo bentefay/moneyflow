@@ -10689,3 +10689,50 @@ package to fix.**
 that every "as of" claim decays the same way and nothing ever contradicts it — **a wrong claim gets
 challenged, a stale one just sits.** The per-file digest table works because **the table IS the
 delta, not a conclusion drawn from one**, so there is nothing to go stale.
+
+### 2026-08-02 — P31/P32 FULLY CLOSED at `256e533`; reviewer carried its PASS forward
+
+`p31-reviewer-01` verified `256e533` itself, since it touched a reviewed product file after the
+PASS. **Root reproduced its figure independently: executable content of `table-selection.ts` is
+`ab1c88d3585d` at `0e27694`, `256e533` and HEAD.** The only change to that file is documentation —
+the barrel rationale moved from one function's docstring to the module docstring. **Not one
+executable line changed**, so all nine mutation results and the clause-by-clause verdict transfer
+directly. `index.ts` is a pure 21-line deletion. Full suite at `256e533`: **2443 passed, 2 skipped,
+126 files.**
+
+**ROOT'S NINTH INSTRUMENT FAILURE, and the most dangerous variety — it would have confirmed a TRUE
+conclusion by accident.** Root's first reproduction returned `d41d8cd98f00` at all three commits and
+root nearly took that as agreement. **`d41d8cd9` is the md5 of the EMPTY STRING** — the filter had
+stripped every line and the path was wrong. **Three commits agreeing on the empty-string hash looks
+exactly like three commits agreeing on real content.** The other eight produced wrong conclusions and
+were caught downstream; **this one would have produced the right conclusion for no reason, which is
+the version nothing ever catches.**
+
+**Reviewer's own assessment of its one-line suggestion, recorded because it volunteered it:** it had
+**measured** the whole block was unused and still framed the fix as one line. Root's widening was
+better than what it proposed, and it said so plainly rather than letting the wider fix read as its
+idea — **the same discipline as declining to claim `T021e` verified.** The module-docstring detail
+was the implementer's, not root's. **The fix improved at each of the three steps, which is the
+argument for review doing more than gating.**
+
+**Reviewer's closing principle, adopted:** the parts of root's dispatch that were wrong — a stale
+HEAD, "one product change" when there were two — **were wrong in ways a reviewer could detect and
+correct**, while the parts that helped were specific about where to look. **A dispatch specific
+enough to be falsified is more useful than one that is safely vague** — a better operating rule than
+"be accurate", which root has not managed reliably today.
+
+**Implementer's closing finding, recorded because the pattern matters more than either error:** it
+reported two overstatements in one argument — *"never reach transaction code"* and *"one selection
+locator"* — and named the point itself: **not that it was wrong once, but that both errors leaned the
+same way**, in the direction favouring its own commit. **A single overstatement is noise; two with a
+direction is a bias, and direction is what makes it defensible against.**
+
+And: *"Three arguments I constructed, none decisive; two someone else constructed, both decisive."*
+Its differential test covered inputs it chose, its timing argument dies to an intermittent, its
+reachability claim was overstated. **What cleared it was a bisect and an absent import edge — both
+structural, neither requiring anyone to trust its reasoning. Reach for the structural answer before
+the clever one.** Root's mirror: the scheduling theory was clever and died to a bisect table root had
+already read.
+
+**P30 campaign, in progress:** run 1 **188 passed / 1 failed**, run 2 clean so far with **zero**
+failures — **including `:145`, which failed run 1.** Zero `rule-creation-controls` failures in both.
