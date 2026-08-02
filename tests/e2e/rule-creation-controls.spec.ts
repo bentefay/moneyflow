@@ -127,6 +127,11 @@ async function chooseApplyMode(page: Page, mode: string): Promise<void> {
  *
  * The description is the VALUE of an input, not row text, so a `hasText` filter would match nothing.
  * Filtering on the input's value via `has` is what actually selects these rows.
+ *
+ * HAZARD: only for journeys that do NOT change the description. Locators re-resolve on every use,
+ * and React writes an edited value to the input's `value` attribute, so a locator built from the old
+ * description stops matching the row it was created for and silently re-points at another matching
+ * row. Journeys that rename a description index positionally instead.
  */
 function rowsWithDescription(page: Page, description: string = MATCHING_DESCRIPTION) {
     return page
@@ -473,8 +478,16 @@ test.describe("Every way a row loses focus reaches the automatic modes", () => {
             { date: "2026-07-02", description: MATCHING_DESCRIPTION }
         ]);
 
-        const firstRow = rowsWithDescription(page).first();
-        const secondRow = rowsWithDescription(page).nth(1);
+        // Positional rows, NOT `rowsWithDescription`, because this journey CHANGES the description
+        // those locators filter on. A Playwright locator re-resolves on every use, and React writes
+        // the new text to the input's `value` ATTRIBUTE as well as its property — verified in jsdom:
+        // after the edit, `input[value="COFFEE SHOP 123"]` no longer matches row one and
+        // `input[value="Coffee"]` does. So a locator built from the old description silently
+        // re-pointed at the OTHER matching row, which the rule was concurrently rewriting, and the
+        // click landed on an element that detached underneath it. That reads exactly like a product
+        // defect and is not one. The sibling alias journey escaped it only by indexing positionally.
+        const firstRow = page.getByTestId("transaction-row").first();
+        const secondRow = page.getByTestId("transaction-row").nth(1);
         const description = firstRow.getByTestId("description-editable");
 
         await description.click();
