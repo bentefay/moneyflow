@@ -10028,3 +10028,74 @@ first full-suite run.
 **Port sequencing:** P31 stops and releases; P30 takes it to verify rev 03, which it is writing
 unverified in the meantime with every claim flagged as such; P31 regains it afterwards for a clean
 campaign against a better tree.
+
+### 2026-08-02 — ROOT ESCALATED WRONGLY AGAINST P31; retracted after checking the process
+
+Root observed a fourth full-suite run starting after three stop requests and sent an escalating
+message framing it as a third refusal. **Root then verified the parent shell:**
+
+```
+for i in 3 4
+writes: e2e-run$i.log
+```
+
+**One loop over runs 3 and 4, launched as a single command before root's stop messages arrived. A
+loop does not check for new instructions between iterations.** Not four separate decisions to
+continue after being told to stop. **Root retracted and apologised.**
+
+**This is the fourth confident claim root has produced today from a plausible observation without
+checking the mechanism behind it** — after the three-assertion load claim, the `51/7` keyword split,
+and the invented parameterised-expansion explanation. **This one landed as an accusation about
+conduct rather than a wrong number, which makes it the worst of the four.** The pattern is identical:
+observe, reach for the reading that fits, act before verifying.
+
+P31's conduct in fact: asked for the port three times rather than take a free-looking one, held
+through two false-positive windows, found the BASE tree drift, refused to loosen another package's
+flaky assertion, flagged `.p30-review-scratch/` instead of deleting it, and fixed its locator to a
+`data-testid` rather than the placeholder root would have accepted.
+
+**Campaign status unchanged and void:** run 1 against the dead-locator tree, runs 2-4 against
+`07bc3d4`, digest covering run 1 only. **Salvaged and recorded as evidence in its own right:
+`T021f` and `T021g` PASSED in runs 2 and 3 — two observed passes, explicitly NOT a campaign result.
+UR-011 now has its first end-to-end confirmation**: select-all reaching a never-rendered row, and
+filter re-derivation.
+
+The four remaining failures are deterministic across all three completed runs and are P30's
+`addTagToRow` helper.
+
+### 2026-08-02 — P30 rev 03 at `a265e54`: implemented, MECHANISM UNCONFIRMED
+
+Four files, all P30's, committed by explicit path under the new rule — **no P31 content swept in.**
+Changes: `onEscapeKeyDown` preventDefault while editing; the helper corrected to assert the tag
+LANDED rather than that the picker closed, with the reasoning recorded in the code; a dedicated
+Escape test; and the two `SelectContent` instances marked in P30's own component **rather than the
+shared `select.tsx` primitive, since marking the primitive would apply row-ownership semantics to
+every select in the app, which is false.**
+
+**The implementer raised a real uncertainty about its own fix rather than shipping it as settled.**
+Its guard keys on `isEditing`; the ruling is about focus. `InlineEditableTags.tsx:234-240` shows the
+picker's own Escape handler already calls `preventDefault()` — **so the picker may have been closing
+itself, making the guard a no-op that happens to sit next to the real fix.**
+
+**Root supplied evidence the implementer had not weighed: the Escape branch calls `preventDefault()`
+ONLY, while the Enter branch calls `preventDefault()` AND `stopPropagation()` with the comment
+"Prevent double-firing".** The author stopped propagation deliberately where they wanted it stopped
+and did not on Escape, so the event keeps propagating and Radix's dismissable-layer listener acts
+regardless of `defaultPrevented`. **Evidence FOR the diagnosis; it does not establish ordering**, and
+the implementer explicitly refused to treat "consistent with" as "confirmed".
+
+**Root named a third possibility — both handlers run and both surfaces close — and the implementer's
+own test already discriminates it**, asserting after the first Escape that the picker is closed AND
+`proposal` is still visible. It stated plainly that this **was not foresight**: it wrote the second
+assertion to pin the ordering requirement from the ruling and only learned it separates case 3 when
+root named case 3.
+
+**ROOT RULING, made in advance so it is not decided under pressure: if the discriminating experiment
+shows the guard is inert, REMOVE it and re-diagnose. Do not keep it because it is harmless.** The
+implementer's reasoning, adopted: **an inert guard with a confident comment is worse than no guard,
+because it SUPPRESSES THE QUESTION for the next reader** — the same mechanism as the "never remounts"
+comment, reintroduced in the package where it was found.
+
+Acceptable outcomes: (1) test passes, reverting the guard breaks it — confirmed, proceed; (2) test
+passes, reverting changes nothing — **remove, re-diagnose, rev 04**; (3) test fails — diagnosis wrong,
+start again. **All three are fine; reporting (1) when the truth is (2) is not.**
