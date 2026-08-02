@@ -9296,3 +9296,52 @@ at `:79`; pin with a test asserting the tags dropdown stays open after selecting
 proposal is pending; make `isEditing` mean "the row still has focus"; add a test that fails without
 the fix driving an "Updating" mode through blur; **do not regress the description path**, measured
 `[false, true, false]` with a genuine blur via `InlineEditableDescriptionAlias.tsx:213-216`.
+
+### 2026-08-02 — ROOT RULING: "Updating" auto-creates AND auto-applies as ONE action, on blur
+
+`p30-reviewer-01` raised whether an "Updating" mode should auto-**create** as well as auto-**apply**,
+recommending the frozen text as written plus a referral to the principal. **Root RULES, and does not
+refer it.**
+
+`human-scratch.md:263-266`: *"The prefix 'Updating' implies the change will apply automatically when
+the row loses focus, or if you click the tick button."* **"The change" is the rule taking effect.
+There is no reading in which a rule is created but withheld** — a created-but-unapplied rule is not a
+state the text ever describes, and the tick button is offered as an **alternative trigger for the
+same thing**, not a second confirmation. Splitting them invents a state the principal never asked
+for. **Auto-create and auto-apply are one action, fired on the row losing focus.**
+
+Root refers to the principal only the item the text genuinely does not settle — P30's Q on whether
+**clearing** a field should offer a rule. This one the text answers.
+
+**Reviewer conduct recorded.**
+
+- **Clause 2 answered with the right principle:** it ruled the structural argument sufficient —
+  widths come from one `gridTemplateColumns` string over fixed constants, content is portaled and is
+  not a grid item — **and measured anyway**, getting a byte-identical in-flow geometry signature open
+  versus closed. Its formulation: *"a numeric measurement would sample a property the code
+  establishes universally."* **A measurement of one instance is weaker evidence than a proof over all
+  instances.**
+- **Fifth bad-oracle catch of the day, and it would have INVERTED a finding.** Its first pre-fix
+  simulation passed `role={undefined}` explicitly, which still overrides Radix's default and wrongly
+  showed **0 dialogs pre-fix** — making the `role="dialog"` regression look non-existent and turning
+  a confirmed defect into "the implementer fixed something that was never broken." Omitting the prop
+  is the faithful simulation. **Caught on itself, unprompted.**
+- **CPU discipline applied unasked:** nothing above 2 workers at load 12.5 with the P29 campaign
+  live, no port, no E2E. This is why P29's campaign result is trustworthy.
+- **It re-ran the implementer's mutation independently in an isolated copy** (36/36 baseline, both
+  guards neutered -> 3 failed / 33 passed, restored -> 36/36) **and ran a STRONGER one of its own** —
+  collapsing the create branch back to `none`, failing 10 of 36. That is what makes "the surfaces are
+  pinned apart" credible rather than asserted. `git diff --quiet -- src tests` afterwards showed only
+  P31's work.
+- Verified the `role="dialog"` fix is **not over-aggressive**: 0 dialogs shipped, 1 pre-fix, group
+  label intact, all four controls reachable by accessible name. One cosmetic non-blocking note:
+  `role="presentation"` sits on a node that still carries `tabindex="-1"`.
+
+17 of 20 clause verdicts match the evidence. Targeted units 46 passed. Zero `as`/`any`/`!` in the
+product diff. Scratch SHA byte-equal to frozen. No secret leak.
+
+**Outstanding hygiene: `.p30-review-scratch/` is 3.2M at the repo root, NOT gitignored**, and makes
+`pnpm lint` report 2 errors in vendored `animate-ui` files because the ESLint ignore glob is anchored
+at the real `src/`. `p31-implementer-01` diagnosed it, verified by moving it aside (lint -> 0 errors,
+1 warning) and **put it back untouched because it was not its to delete.** Root asked the owner to
+move it rather than deleting it — same courtesy, same reason.
