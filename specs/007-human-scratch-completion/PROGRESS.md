@@ -9056,3 +9056,58 @@ the principal as a recorded open question.
 Port verified free and granted to `p29-implementer-01` for rev 03. **Root set the expectation that
 P29 should see 177, not 182** — its rev 03 does not touch `tests/e2e` — so a 182 would mean trees had
 crossed and must be reported immediately.
+
+### 2026-08-02 — P30 rev 01 HANDBACK at `c8dc004`; distinct reviewer dispatched; P31 CONFIRMED ALIVE
+
+`p30-implementer-01` handed back and released the port. Root re-verified `c8dc004` as an ancestor of
+HEAD **at the moment of dispatch**, per the staleness clause added earlier today. Chain
+`4526f79` -> `82ed8e1` -> `c8dc004`. The implementer independently warned not to dispatch onto
+`877d45a`, the amended-away commit.
+
+Gates: typecheck clean, lint 0 errors with one pre-existing BASE warning in untouched virtualizer
+code, `oxfmt --check src tests` clean, `pnpm test` **123 files / 2409 passed**, E2E 3x182.
+
+**The implementer's own handback disclosure, which root records verbatim because it is the most
+useful part:** *"My own work introduced four defects, all invisible to unit tests"* — anchor-shape
+remount, dropped inline `style`, a bad test oracle, and the `role="dialog"` regression. **The last
+was reachable only through a FULL-SUITE run: a campaign scoped to its own spec would have been green
+and shipped a regression in another package's journey.** All four documented with how each was
+caught.
+
+**One thing the implementer could NOT prove, flagged by itself and routed to the reviewer as an open
+judgement:** clause 2's *"must not resize the table"* is argued **structurally** — a portaled element
+contributes no grid track — rather than **measured**. No before/after column-width measurement was
+taken. The implementer offered that a numeric measurement would be a fair finding and it would take
+the revision. Root passed the judgement to the reviewer rather than pre-deciding it.
+
+**`p31-implementer-01` is CONFIRMED ALIVE** — root had two unanswered status requests outstanding and
+was deliberately not inferring. P30's handback reports, and root verified, uncommitted P31 work in
+the shared checkout touching `TransactionTable.tsx`, `useTableSelection.ts`, `index.ts` and a new
+`src/components/features/transactions/table-selection.ts`. **Root independently confirmed zero
+overlap with P30's proposal wiring** — `grep -cE 'renderRuleProposal|pendingRuleEdit|
+TransactionRuleProposal'` over P31's diff returns 0. P30 left all of it alone and ran its campaign
+from a fixed commit in an isolated worktree, so contamination was structurally impossible.
+
+**Root's status requests were answered by a third party rather than by silence resolving.** The
+lesson stands: absence of output was never evidence of absence of work.
+
+`p30-reviewer-01` dispatched (DISTINCT, fresh context) against `c8dc004`, barred from :3000.
+
+### 2026-08-02 — P29 rev 03 took the port, correctly and with both traps checked
+
+`p29-implementer-01` announced BEFORE taking :3000, verified it free using **root's `argv[1] = "-c"`
+self-exclusion** so its scan could not self-match, and **waited for P30's teardown** — load fallen
+from ~7 to 3.11 — rather than launching into it. That is the CPU-discipline rule applied in the
+direction it was owed.
+
+**It checked both environment traps against its own tree rather than assuming they did not apply:**
+`.env.local` present, `node_modules` a real directory confirmed by `readlink`.
+
+**It also corrected the record on its own mutation test, unprompted and against itself.** It had
+restored `CLASSIFICATION_THRESHOLD` and confirmed `git diff --stat` empty **on that file** — not
+`git diff --quiet` on the whole tree. Its own framing: *"'that file was clean' is a weaker claim than
+'the tree was clean', and the difference is exactly the contamination risk you describe."* It will
+run `git diff --quiet` before the pre-campaign digest so the digest provably covers an unmutated
+tree.
+
+Expecting **177, not 182** — rev 03 touches no E2E spec — with 182 set as a stop-and-report condition.
