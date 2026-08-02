@@ -3065,8 +3065,15 @@ test.describe("Transactions", () => {
                 expect(measured, `${selector} rests where it always did`).toEqual({ top, height });
             }
 
-            // The text inputs grow, so their box cannot pin them. Their TEXT must not move, and the
-            // text sits at `padding-top` inside the box — so the two must move together and cancel.
+            // The text inputs grow, so their box cannot pin them; this pins the content band the
+            // text is centred in instead.
+            //
+            // Note what this does and does not catch, since the obvious reading is wrong: an
+            // `<input>` centres its single line within its content box, so the padding's VALUE does
+            // not move the glyphs — measured, dropping it to 4px changes 0 pixels. Only an
+            // ASYMMETRIC padding moves them (30px/6px shifts the band centre 28 → 40). This
+            // assertion therefore guards the band's position and size; the symmetry itself is
+            // guarded by the arithmetic in `tests/unit/transactions/cell-hit-area.test.ts`.
             for (const testId of ["date-editable", "description-editable", "amount-editable"]) {
                 const baseline = await row.evaluate((rowNode, id) => {
                     const input = rowNode.querySelector(`[data-testid="${id}"]`);

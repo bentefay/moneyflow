@@ -34,9 +34,23 @@
  *
  * The three text inputs therefore grow their own border box and give the space straight back as
  * padding. The added height and the negative vertical margin cancel exactly, so the row's layout is
- * untouched, and the added vertical padding holds the text on the baseline it already had. Both
- * facts are measured: with these constants applied, every anchor rect in the row is byte-identical
- * and a screenshot of a resting row differs by 0 pixels out of 73,758.
+ * untouched: measured, every anchor rect in the row is byte-identical and a screenshot of a resting
+ * row differs by 0 pixels out of 73,758.
+ *
+ * The padding is worth being precise about, because the obvious explanation is wrong. It does NOT
+ * hold the text in place. An `<input>` centres its single line of text within its content box, so
+ * what fixes the text's position is the padding being SYMMETRIC, not its value. Measured, with the
+ * content-band centre read relative to the row:
+ *
+ * | padding        | content-band centre | text moves? |
+ * | -------------- | ------------------- | ----------- |
+ * | 18px / 18px    | 28                  | shipped     |
+ * | 4px / 4px      | 28                  | no          |
+ * | 30px / 6px     | 40                  | yes         |
+ *
+ * So dropping the compensation entirely changes 0 pixels, and only an asymmetric change moves the
+ * glyphs. That is why the guard against it lives in `cell-hit-area.test.ts`'s arithmetic rather than
+ * in any screenshot: on this particular mutation the unit test is the only instrument that fails.
  *
  * ## Consequences worth knowing
  *
