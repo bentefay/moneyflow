@@ -8949,3 +8949,56 @@ family, one field apart.**
 **Adopted from the implementer, superseding root's narrower phrasing:** *a warning has to live where
 the ACTION happens, not where the KNOWLEDGE was gained.* Evidence files, review artifacts and test
 comments are where knowledge accumulates; none is where somebody stands when they widen a regex.
+
+### 2026-08-02 — P30 run 1 red was a REAL ACCESSIBILITY REGRESSION; fixed at `c8dc004`, campaign restarted
+
+**The failure, extracted by root from the log rather than from the report:**
+
+```
+description-aliases.spec.ts:248
+  expect(getByRole('dialog')).toHaveCount(0)
+  Expected: 0   Received: 1
+  14 x locator resolved to 1 element
+```
+
+**Root established three things before P30 reported.** (1) The assertion is **pre-existing** — its
+last change was P23's `11a01f4` and `4526f79` does not touch that spec, so this is an existing
+contract broken by the change, not a new test disagreeing with new code. (2) `14 x locator resolved
+to 1 element` means **deterministic, not a race** — the dialog was present for the whole 5s window,
+so runs 2 and 3 were not needed to establish reproducibility. (3) "Load caused it" was unavailable:
+load 7.81, box quiet, and this spec is not one of the three recorded load-sensitive assertions.
+
+**The defect: Radix `PopoverContent` defaults to `role="dialog"`, so the inline rule-creation
+controls announced themselves as a MODAL.** A screen-reader user would have been told a dialog had
+opened every time they edited a description.
+
+**The implementer argued the fix from the FROZEN TEXT, not from the assertion.**
+`human-scratch.md:252-254` asks for an **unfocused popup that does not interrupt the edit** — the
+opposite of a modal. So the failing assertion was not an obstacle to route around; **it was correct,
+and it was reporting that the controls had the wrong semantics for what the principal asked for.**
+
+Fix at `c8dc004`: `role="presentation"` on the popover wrapper, accessible group and label retained
+on the inner controls. Root verified `role="group"` remains at `FieldRuleProposal.tsx:96` and **no
+`role="dialog"` survives in either proposal component**. An explicit
+`expect(getByRole("dialog")).toHaveCount(0)` added to its own alias journey so it cannot recur
+silently.
+
+**Campaign RESTARTED from run 1, not continued** — the tree changed, so run 1's result was evidence
+for a tree that no longer exists. The old log was **deleted so it cannot be mistaken for current
+evidence**. All three runs execute against `c8dc004`, digest `3276de6c44ccc44bf9c0c0e3a3a0774c`.
+Campaign tree-drift discipline applied unprompted.
+
+**`82ed8e1` is the day's fourth bad-oracle catch and the first from the TEST side.** The implementer
+filtered rows by `hasText` on a description that lives in an **input's value**, so every journey
+failed before reaching the code under test. Found by printing the actual DOM rather than trusting the
+assertion. Unchecked, it would have produced a wall of red across its own new spec pointing at
+product code that was fine.
+
+**Three defects of the same family in one package, ALL invisible to unit tests** — anchor-shape
+remount, dropped inline `style`, unintended ARIA role. **The defects that survive unit testing are
+the ones about how a component behaves in a real tree, and only an integration-level run puts it in
+one.** This is the argument for full-suite campaigns over scoped ones.
+
+**Both warned guards pinned and moved into the pure module** as `tagSetChanged` and
+`allocationValueChanged`, with 15 cases: order-insensitivity, duplicate-masking, absent / null /
+legacy-string / NaN previous values, and **0 vs -0**.
