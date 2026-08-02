@@ -8585,3 +8585,51 @@ tests is a comment with a runtime cost.**
 Verified: `ac9332c` is one file and an ancestor of HEAD; the reviewer's three worktrees are removed
 and pruned; `/tmp/mf-p29` untouched. One unattributed tree remains at `/tmp/mf-p29r2b` — root asked
 its owner rather than deleting it, per the `Q-P28-08` precedent.
+
+### 2026-08-02 — P29 rev 03 F-4 fix VERIFIED at `fc86d10`; root's own probe was the faulty part
+
+`p29-implementer-01` fixed F-4 on BASE `ee3cce7` with `if (preferred.length === 0) return null;` at
+`detection.ts:337`, **removing the fallback rather than leaving it unreachable**. Ancestry confirmed
+by `merge-base --is-ancestor`; tree clean.
+
+**Root near-miss, the fourth of this class today and the most instructive.** Root reran the probe
+that had reproduced F-4 and it STAYED RED. Rather than report "still broken", root **printed the
+actual value instead of asserting a remembered one**:
+
+```
+Balance  => {"0":"date","1":"description","2":"balance"}
+Check No => {"0":"date","1":"description","2":"checkNumber"}
+Ref      => {"0":"date","1":"description"}
+```
+
+**The fix is correct and root's probe was a bad oracle.** Column 2 is no longer `amount`; it maps to
+its honest secondary role, and `Ref` is unmapped entirely. Root's probe asserted those keys should
+not exist AT ALL, which was never the requirement and does not match `4c77a2d` either. Reporting it
+would have forced the implementer to defend working code against a malformed test. **Standing rule
+reinforced: print the value before asserting what it should be.**
+
+Root's printed values independently corroborate the implementer's restoration check — it ran the
+three files through the ORIGINAL BASE `4c77a2d`'s `loadFile` and showed the fixed tree produces
+byte-identical output, `2:balance` / `2:checkNumber` / unmapped `Ref`, column for column. **The
+regression is closed, not papered over.** 4 new tests, all failing at `ee3cce7`, asserted through
+`loadFile`.
+
+**Implementer's correction to root's generalisation ADOPTED as the goal-wide form.** Root wrote *"a
+fixture set must vary along the axis the code branches on."* The implementer's is sharper: **a branch
+you ADD is a new axis no existing fixture covers**, with the operational rule *after writing any `if`
+or fallback, immediately ask which input takes the other path and write that fixture THEN, not
+later.* It confirmed independently that all six rev-02 value-level assertions would still pass with
+F-4 present, because every fixture header contains a real `Amount` so the branch is unreachable from
+the entire suite.
+
+**Denylist correction, which root would have got wrong.** Root carried the implementer's own
+"`NON_AMOUNT_HEADER_PATTERN` is incomplete by construction" forward as the weak surface. **The bug
+was OVERRIDING the denylist when it fired, not a missing entry** — extending the list would not have
+touched it. "The denylist is weak" would have sent a fixer to precisely the wrong place.
+
+Gates at `fc86d10`: typecheck PASS, bare `pnpm lint` exit 0, format:check exactly 17 frozen
+`specs/**` none owned, `pnpm test` **2386 passed / 2 skipped / 123 files** at load 12.03.
+
+**Port queue set: P30 (holding) -> P29 rev 03 -> P31/P32.** P29 is placed ahead of P31 as a blocked
+revision rather than a first pass. `CLASSIFICATION_THRESHOLD = 0.8` remains an open Q, correctly
+untouched in a fix revision.
