@@ -81,6 +81,20 @@ function TagPill({
         <span
             className={cn(
                 "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+                // `relative` lifts the pill above the cell's full-cell activation overlay (UR-012).
+                //
+                // That overlay lives on this pill's ANCESTOR, the display area, and is positioned —
+                // so it paints above its own in-flow descendants. This pill's remove button is
+                // `position: static`, which put it underneath: measured, `elementFromPoint` at the
+                // button's centre returned the overlay's owner, the tag survived the click and the
+                // chooser opened instead.
+                //
+                // Positioning the pill is what restores it; `z-index` is deliberately not used,
+                // since the two elements are siblings in paint order rather than competing layers.
+                // Pushing the overlay behind instead was tried and rejected by measurement: a
+                // negative `z-index` drops it behind the row, and the cell-edge click that UR-012
+                // exists to deliver stops arriving.
+                "relative",
                 disabled && "opacity-50"
             )}
             style={{ backgroundColor: bgColor, color: textColor }}

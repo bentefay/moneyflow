@@ -13,6 +13,7 @@ import { expect, test } from "@playwright/test";
 
 import {
     createNewIdentity,
+    createTag,
     expectPresentRows,
     goToAccounts,
     goToImportNew,
@@ -3078,6 +3079,81 @@ test.describe("Transactions", () => {
                 // 14px of row padding + the shared `Input` base's own 4px `py-1`.
                 expect(baseline, `${testId} text baseline`).toBe(18);
             }
+        });
+
+        /**
+         * UR-012: "Existing per-cell behaviour is retained."
+         *
+         * Regression test for the defect this requirement's own fix introduced. The tags cell is the
+         * only cell whose activation overlay sits on an ancestor of a SECOND interactive control —
+         * the tag pill's remove button. Because the overlay is positioned and the button was not, the
+         * overlay painted above it: the "×" became unclickable, the tag survived, and the chooser
+         * opened instead.
+         *
+         * The fixture is the whole point. The committed edge-click test uses a transaction with no
+         * tags, so the pill never exists in it and three green campaign runs were entirely consistent
+         * with this defect being present. **A tag must be on the row before this can assert anything**
+         * — which is exactly the state no test in the suite had constructed.
+         */
+        test("UR-012: a tag pill's remove button still removes its tag", async ({ page }) => {
+            await createNewIdentity(page);
+            await goToTags(page);
+            await createTag(page, { name: "Groceries" });
+            await goToTransactions(page);
+            await createTestTransaction(page, {
+                description: "Pill Removal Grocer",
+                amount: "-19.99"
+            });
+
+            const row = page.locator('[data-testid="transaction-row"]').first();
+            const tagsCell = row.getByTestId("tags-editable");
+            const searchInput = page.getByPlaceholder("Search tags...");
+
+            await test.step("put a tag on the row", async () => {
+                await tagsCell.click();
+                await expect(searchInput).toBeVisible({ timeout: 15_000 });
+                await page.getByRole("option", { name: "Groceries", exact: true }).click();
+                await expect(tagsCell).toContainText("Groceries");
+                // Dismiss by clicking another cell, not Escape: the picker's Escape handler is bound
+                // to its search input and selecting an option moves focus off it, so the key never
+                // arrives. Pre-existing defect in `InlineEditableTags`, out of scope here.
+                await row.getByTestId("date-editable").click();
+                await expect(searchInput).toHaveCount(0);
+            });
+
+            await test.step("the remove button is the topmost element at its own centre", async () => {
+                // The defect was a stacking-order fault, so assert the stack directly. Without this,
+                // a future change could make the click work by accident while leaving the button
+                // buried for anyone using a different input method.
+                const topmostIsTheButton = await row.evaluate((rowNode) => {
+                    const button = rowNode.querySelector('[aria-label="Remove Groceries"]');
+                    if (button == null) return null;
+                    const box = button.getBoundingClientRect();
+                    const atCentre = document.elementFromPoint(
+                        box.x + box.width / 2,
+                        box.y + box.height / 2
+                    );
+                    return atCentre != null && button.contains(atCentre);
+                });
+                expect(topmostIsTheButton, "remove button is not covered").toBe(true);
+            });
+
+            await test.step("clicking it removes the tag and does not open the chooser", async () => {
+                // A real mouse click at the button's centre, rather than `locator.click()`, because
+                // the defect is precisely about which element receives a click at that coordinate.
+                const box = await row
+                    .getByRole("button", { name: "Remove Groceries" })
+                    .boundingBox();
+                if (box == null) throw new Error("remove button is not laid out");
+                await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+
+                await expect(tagsCell).not.toContainText("Groceries");
+                await expect(row.getByRole("button", { name: "Remove Groceries" })).toHaveCount(0);
+                // The failure mode was the click falling through to the cell, which opens the
+                // chooser. Asserting the tag is gone alone would not catch a variant that both
+                // removed the tag AND opened the picker.
+                await expect(searchInput).toHaveCount(0);
+            });
         });
     });
 });

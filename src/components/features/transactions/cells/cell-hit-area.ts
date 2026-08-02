@@ -44,6 +44,20 @@
  * "hover and focus feedback follow the enlarged control, so the whole cell reflects the state". A
  * row at REST is unchanged; a row under the pointer deliberately is not.
  *
+ * ## The overlay stacks above its own descendants — a hazard for any future call site
+ *
+ * The overlay is positioned, so it paints above the in-flow content of the element carrying it. If
+ * that element contains a SECOND interactive control, the overlay buries it: measured, the tag
+ * pill's remove button became unclickable, the tag survived the click and the chooser opened
+ * instead. The fix is to position the inner control too — see `TagPill` — never a `z-index` on the
+ * overlay, since a negative one drops it behind the row and the cell-edge click stops arriving.
+ *
+ * Today exactly one of the five overlay sites contains a second interactive control (the tag
+ * chooser's pills). The other four wrap only their own text and icons, and the three `<input>` cells
+ * use the growth mechanism instead and so cannot have this defect at all. **Any new overlay call
+ * site must check this**, and a test that clicks the inner control is the only thing that catches
+ * it: the outer control keeps working, so the cell looks entirely healthy.
+ *
  * A disabled control's enlarged area is inert, which was verified with a real mouse rather than
  * reasoned about: clicking the overlay strip toggles the checkbox while it is enabled and does
  * nothing once it is disabled. Note the mechanism is NOT `pointer-events`, which stays `auto` on a
