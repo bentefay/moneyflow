@@ -10261,3 +10261,44 @@ requires the Escape fix, the boundary is drawn wrong and root re-rules.**
 implementer caught two of root's, root caught one of the implementer's, and the implementer caught
 one of its own. **All four surfaced only because each party treated a plausible claim from the other
 as something to check rather than adopt.**
+
+### 2026-08-02 — P31 downgrades its own campaign claim; removes an unreachable guard at `b138894`
+
+**P31 corrected its own handback, unprompted and against its interest.** It had written "184 passed /
+4 failed, identical across 3 consecutive runs" as though it were a campaign digest. **It is not** —
+runs 1-4 spanned two trees and run 5 was a single run on the corrected tree. Both evidence files
+rewritten to say plainly *5 runs, 2 trees, not a valid single-tree campaign*, with the fused-tree
+limitation at the top rather than buried. **Second time today it has downgraded its own result.**
+
+**It applied the mutation-testing instruction to its own code and found dead weight.**
+`reconcileToMatchingRows` opened with `if (previousMatchingRowIds === nextMatchingRowIds) return
+selection;` — **root verified the sole caller at `page.tsx:284-286` performs the identical reference
+comparison before calling**, so the guard could never fire and no test covered it. Removed in
+`b138894`, one file, ancestor of HEAD.
+
+**The distinction it drew is the valuable part:** the **trailing** identity-preservation block —
+returning the same selection object when membership is unchanged so React can skip a re-render — **IS
+load-bearing and reddens a test when deleted.** Only the leading reference check was dead. **Those
+two are easy to conflate and conflating them would have been a real defect.** The reviewer is
+retargeted to `b138894` and asked to check the sole-caller premise against every path including
+exports through `index.ts`, since a sole-caller claim is exactly the kind that quietly stops being
+true.
+
+**Flake disclosed rather than hidden:** `duplicates.test.ts`'s ratio assertion fired once in its final
+unit run and passed on the next; it reported both. That file is not its and it did not loosen the
+bound. **This is the same assertion root wrongly claimed had "held under load 21" — P31's observation
+is now better evidence about that test than anything in root's ledger.**
+
+**Root declined P31's offer of a clean single-tree campaign, with reasoning recorded:** its four
+journeys passed on **five consecutive runs across three trees**, which is arguably stronger than
+three runs on one tree, because a flake sensitive to environment had five chances to show itself.
+What a single-tree campaign would add is **digest-verifiable provenance, not more confidence in the
+behaviour** — so the port goes to P30, which has none. **If the reviewer judges the evidence
+insufficient for a PASS, P31 runs a clean campaign and root sequences it immediately. That is the
+reviewer's call, not root's to pre-empt.**
+
+**Root refused a generous framing of its own escalation error.** P31 offered that root was reading a
+shared tree with several agents in it. Root's accurate version: **the parent shell's `for i in 3 4`
+was available the whole time and root did not look until after sending the accusation. The tool for
+checking was there; root reached for the conclusion first** — the same pattern as the truncated grep
+and the keyword split.
