@@ -107,16 +107,28 @@ All 18 are **silent** — a wrong value stored with no rejection and no signal t
 Chromium's own ICU rather than reasoning from Node's, and the result is decisive:
 
 ```
-CHROMIUM: Chrome/149.0.7827.55
-ORDER-FLIPPING locales (this defect's precondition): 0 of 117
-
-mt-MT   supported=false    so-SO   supported=false    ug-CN   supported=false
+Chrome/149.0.7827.55
+locales probed: 117   supported: 86   unsupported: 31
+ORDER-FLIPPING between numeric and 2-digit skeletons: 0
+unsupported includes: ckb-IQ, mn-MN, mt-MT, so-SO, tg-TJ, ug-CN, yo-NG, ...
 ```
 
-Chromium 149 supports **none** of the three affected locales — it falls back to `en-US` for each —
-and **zero** of the 117 locales I swept order-flip between the two skeletons there. The defect
-exists only under Node's ICU 76.1, i.e. in `vitest`. It is a latent gap that a future ICU could
-expose, not a live corruption path.
+Two independent reasons the defect cannot be reached in the product:
+
+1. **Zero of the 86 locales Chromium supports order-flip** between the `numeric` and `2-digit`
+   skeletons, and order divergence is this defect's precondition.
+2. **All three affected locales are among the 31 Chromium does not support at all** — `mt-MT`,
+   `so-SO` and `ug-CN` fall back to `en-US`, which does not order-flip either.
+
+The defect exists only under Node's ICU 76.1, i.e. in `vitest`. It is a latent gap that a future ICU
+could expose, not a live corruption path.
+
+**The general hazard, which outlives this package: Node's ICU is not the browser's ICU.** Every
+locale claim this codebase makes in a unit test inherits that gap, and it cuts both ways — here it
+made a defect look live that no user can reach, and in review 02 it made three locales (`it-CH`,
+`lv-LV`, `sr-RS`) look broken when the browser handled them correctly. A `vitest`-only census
+establishes a Node-side fact, not a product-side one. Where behaviour is governed by `Intl`, census
+both engines and treat the **delta** as the finding.
 
 **Fix, if it is ever taken up:** prefer the interpretation whose skeleton matches the form the input
 came from, or on an exact-match tie prefer the `EDITING_SKELETON` candidate, since the editing form
