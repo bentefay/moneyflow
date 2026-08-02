@@ -11082,3 +11082,56 @@ checkout --` on another agent's work destroyed live edits once today.
 Root also warned P30 that **nothing in the reviewer's fix shape requires touching a cell file**, and
 that if rev 05 has grown into the cell components **the recovery problem is not local to the
 proposal**, which would change the shape of the finding.
+
+### 2026-08-02 — P30 rev 05 campaign: package CLEAN in all three runs; port released to P33
+
+**Root verified from the logs and the digest files, not the report:**
+
+```
+run 1   188 passed, 2 failed    rule-creation-controls: 0 failures
+run 2   188 passed, 2 failed    rule-creation-controls: 0 failures
+run 3   188 passed, 2 failed    rule-creation-controls: 0 failures
+
+pre-digest   37f30301a35b4f0245ede04d919ffe68  at d7fe06a
+post-digest  37f30301a35b4f0245ede04d919ffe68  IDENTICAL
+```
+
+**Zero `rule-creation-controls` failures across three complete runs**, including the new F-10
+restriction journey and the four blur gestures the F-7 fix targets. **That is P30's result.**
+
+**`--list` count reconciled rather than accepted: 190 = 189 + 1**, the +1 being the F-10 journey. The
+implementer noted that the F-9 replacement was **vitest, not Playwright**, so it does not move a
+Playwright count — **the exact distinction that would have made 190 look wrong had it not been
+drawn.** Root verified: 8 tests at `5b0c441`, 9 at `d7fe06a`.
+
+**ROOT CAUGHT AN EMPTY POST-DIGEST BEFORE HANDBACK.** `digest-after.txt` existed with no content —
+the implementer's command computed the digest **to stdout**, so the value appeared in a chat
+notification and never landed on disk. Recomputed while the worktree still existed, not
+reconstructed. **Its framing, recorded: *a digest that exists only in a chat notification is not a
+durable artefact*** — the same class as the deleted run-2 log, true when observed and unverifiable
+later.
+
+**Settlement rotation, membership per run — a FIFTH distinct combination:**
+
+```
+run1  :166 :596        run2  :281 :596        run3  :166 :596
+```
+
+`:281` appears in run 2 only. Consistent with the open finding; reported, not chased.
+
+**The campaign is written up as NOT clean, at root's instruction and the implementer's agreement:**
+three runs, package clean in all three, **two rotating non-attributable failures per run in a spec
+this package never touched.** A campaign carrying a known documented rotation is more useful to a
+reviewer than a green summary that omits it.
+
+**Implementer's unprompted self-criticism, recorded:** it held the port through its digest
+computation and a vitest run **that never needed it**, delaying P33 by roughly ten minutes.
+**Releasing promptly is part of campaign discipline, not an afterthought to reporting.**
+
+**Port released with an explicit announce and verified free by root** — no listener, no process under
+`/tmp/mf-p30`, human's :3001 alive. **Granted to `p33-implementer-01`**, which has waited through two
+P30 revisions, with instructions to rebase onto current HEAD first since `d67e717` and `d7fe06a`
+touch two of its files.
+
+Vitest repetitions continue in the background to give the unreproduced unit failure more chances;
+**one attempt already clean at 2448.** The count of attempts is itself the evidence.
