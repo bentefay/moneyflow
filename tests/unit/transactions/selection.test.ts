@@ -370,6 +370,39 @@ describe("useTableSelection (controlled)", () => {
             const reported = onSelectionChange.mock.lastCall?.[0] ?? NO_ROWS_SELECTED;
             expect(selectedIds(reported)).toEqual(["tx-3", "tx-5"]);
         });
+
+        it("spans a range whose interior rows were never rendered", () => {
+            // Where UR-010 and UR-011 meet. `:24-25` says the range covers every row between the two
+            // ends "in the order the table currently presents them" — which is the filtered result
+            // set, not the handful with a rendered element. A user shift-clicking across a scroll
+            // gets the rows in between whether or not they were ever painted.
+            const manyRowIds = Array.from({ length: 5_000 }, (_, index) => `tx-${index}`);
+            const table = renderControlledSelection({ rowIds: manyRowIds });
+
+            table.click("tx-10");
+            const selection = table.click("tx-4000", true);
+
+            expect(table.result.current.selectedCount).toBe(3_991);
+            expect(isRowSelected(selection, "tx-2000")).toBe(true);
+            expect(isRowSelected(selection, "tx-9")).toBe(false);
+            expect(isRowSelected(selection, "tx-4001")).toBe(false);
+        });
+
+        it("deselects across an unrendered interior just as symmetrically", () => {
+            const manyRowIds = Array.from({ length: 5_000 }, (_, index) => `tx-${index}`);
+            const table = renderControlledSelection({
+                rowIds: manyRowIds,
+                initialSelection: ALL_MATCHING_ROWS_SELECTED
+            });
+
+            table.click("tx-10");
+            const selection = table.click("tx-4000", true);
+
+            expect(table.result.current.selectedCount).toBe(5_000 - 3_991);
+            expect(isRowSelected(selection, "tx-2000")).toBe(false);
+            expect(isRowSelected(selection, "tx-9")).toBe(true);
+            expect(isRowSelected(selection, "tx-4001")).toBe(true);
+        });
     });
 
     describe("UR-011: the header checkbox acts on every matching row", () => {
