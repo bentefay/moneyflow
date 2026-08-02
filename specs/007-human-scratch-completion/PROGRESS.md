@@ -9917,3 +9917,48 @@ corroboration because it agreed with the previous one, and none of them was an o
 Root records this pattern about itself: root has now produced two plausible-looking numbers today
 (the three-assertion load claim, and the `51/7` split) that agreed with expectation, were never
 re-derived, and were handed onward as fact. **Both were caught by someone else.**
+
+### 2026-08-02 — Root's 188 tripwire "reconciliation" was ITSELF unverified; the gap had a different cause
+
+`p30-implementer-01` cautioned that counting `test(` occurrences is the same class of instrument as
+a keyword grep — **it measures a string, not the suite.** Root tested the caveat instead of
+accepting it, and **root's own reconciliation turns out to have been wrong.**
+
+Root had reported "173 declared plus parameterised expansions gives 188" and presented that as a
+completed reconciliation. **There are no parameterised expansions.** Measured:
+
+```
+grep '^\s+test('                 173
+grep any 'test('                 188
+including .only/.skip/.fixme     197
+
+tests declared at COLUMN 0: realtime-recovery 3, presence 4, realtime-security 1,
+                            invite-redemption 2, undo-redo 4, tab-duplication 1  = 15
+```
+
+**Root's regex required leading whitespace and silently dropped the 15 tests declared at column 0.**
+`173 + 15 = 188` exactly. **The number was right; root's explanation of it was invented** — root saw
+a plausible gap, reached for a plausible cause, and never checked. That is the third unverified
+number root has produced today, and the second in the very message where root was recording the
+lesson about the first two.
+
+**The implementer's rule stands and is adopted: `playwright test --list` is the only sound source of
+truth**, because it enumerates what will actually run. A `test(` grep is acceptable as a cross-check
+against a number already in hand, **never as the source**. It would also miss `test.each` and
+`describe.parallel` expansions, over-count a `test(` in a string literal, and — as demonstrated —
+miss whatever the regex's incidental assumptions exclude.
+
+**Its structural point about the asymmetry between our errors is the more consequential half and root
+records it verbatim:**
+
+> My false claims mislead a reviewer who is looking directly at the code and can catch them, and did.
+> Yours redirect where other agents look, which is much harder to notice from inside, **because an
+> agent sent to the wrong place reports finding nothing and that reads as a clean result.**
+
+Combined with the F-1 mechanism — repetition and corroboration being indistinguishable from inside —
+**a dispatch number that passes unchallenged through three agents looks progressively more
+established while never once having been observed.**
+
+Its own contribution to the count verified exactly: `rule-creation-controls.spec.ts` absent at BASE
+`5229cd4`, 5 tests at `c8dc004`, 7 at HEAD — the two additions being the F-1 dropdown-survival and
+F-2 Updating-on-blur journeys, both additions, neither replacing anything.
