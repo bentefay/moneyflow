@@ -10879,7 +10879,7 @@ the final audit inherits a checked baseline rather than deriving it under time p
 | 1 | scratch SHA == rolling checksum | **`469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a`** both sides |
 | 2 | scratch markers | **43 checked, 0 unchecked** |
 | 3 | FS-001 canonical present | `009-user-reported-refinements/spec.md` at `6d163635a8f3…` |
-| 4 | canary `grep -c "per purpose"` | **1** |
+| 4 | canary phrase count in PROGRESS | **1** |
 | 5 | `SCOPE.json` requirementCount | **34** |
 
 **Requirement rows not yet `passed`: exactly two — UR-009 and UR-012** — matching the two live
