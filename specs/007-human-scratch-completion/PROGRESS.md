@@ -9743,3 +9743,53 @@ rev 02**, and not to present the digest as covering its package alone. Tripwire 
 `054f77e` had drifted. Also instructed: if the `duplicates.test.ts` ratio flake fires, **report it and
 do not re-run for a green** — a campaign with one disclosed known-flaky failure is worth more than
 three clean runs that quietly re-rolled.
+
+### 2026-08-02 — Fusion root cause CONFIRMED by the implementer; root's instruction was defective
+
+`p30-implementer-01` supplied the exact command for `e97b3f7`:
+
+```
+git add -A src tests && git commit -q -F /tmp/p30-rev02.txt -- src tests
+```
+
+**Both halves are defective and `git add -A src tests` is the worse one** — it stages every modified
+file under those trees regardless of author, and the commit pathspec then does the same again. Its
+formulation, which root adopts: **a pathspec scopes by PATH, and two agents editing the same
+directories are not separated by path. The only thing that separates them is WHICH FILES, and
+neither half of that command knows.**
+
+It also noted its two later commits used the same `git add -A src tests` and happened to be clean
+only because P31 had nothing uncommitted at those moments — **luck, not method**, so the pattern
+would have recurred. **Standing rule confirmed: stage explicit file paths you authored, never `-A`,
+never a directory.**
+
+**ROOT'S SPLIT WAS WRONG about `page.tsx`, corrected by the implementer and re-measured by root.**
+Root assigned it to P30. Measured in `e97b3f7`: **51 selection-related added lines against 7
+rule-related** — it is mostly P31's, with a three-line P30 proposal change inside. So:
+
+- **Purely P30:** `TransactionRow.tsx`, `TransactionRuleProposal.tsx`, `InlineEditableTags.tsx`,
+  `rule-creation-controls.spec.ts`, `rule-proposal-stability.test.tsx`
+- **Purely P31:** `table-selection.ts`, `useTableSelection.ts`, `TransactionTable.tsx`, `index.ts`,
+  and its four test files — the three previously-ambiguous files are **all P31's, measured not
+  guessed**: `transactions.spec.ts` carries 4 `T021[d-g]` journeys, `index.ts` exports
+  `ALL_MATCHING_ROWS_SELECTED` / `reconcileToMatchingRows` / `SelectionAnchor`
+- **Shared:** `page.tsx` — a scoped diff still shows a reviewer both packages
+
+**This makes the review harder rather than easier, and the implementer volunteered it knowing that.**
+
+`8f492d8` is P31's alone — one file, `useTableSelection.ts`, explicit pathspec, a readability refactor
+binding the shift-range's rows and outcome into one value. P31 verified the fused content survived
+rather than assuming: `table-selection.ts` has all 20 exports, the committed page carries the
+reconciliation, the constant-time count and the full matching-id list.
+
+**ROOT PROCESS FAILURE: the port grant did not reach P31 and it asked a THIRD time.** Root sent a
+grant, P31's message crossed it, and P31 continued holding correctly rather than taking an observed
+gap. **Root treated a sent message as a delivered one.** Confirmed unambiguously and re-verified the
+port free. P31 offered to hand back with E2E explicitly unrun rather than sit idle — a sound offer
+root declined, because the port was in fact available and `T021e` is the only verification of
+UR-010's keyboard clause anywhere.
+
+**Implementer's closing formulation on the repetition failure, recorded as the operational form:**
+*"I will not describe any property in a comment or in evidence that I have not run something to
+observe — and where I cannot observe it, I will say it is an argument rather than a measurement."*
+**That is a mechanism rather than a resolution**, which is the difference that matters.
