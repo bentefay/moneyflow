@@ -99,6 +99,12 @@ export function TransactionRuleProposal(props: TransactionRuleProposalProps): Re
     //
     // Deferring is the fix rather than a z-index or keyboard-precedence contest, because those
     // arbitrate a collision instead of avoiding it — and the collision is the defect.
+    //
+    // DEFER WHAT IS PAINTED; DO NOT DEFER WHAT IS OBSERVED. Revision 04 gated both on `shouldShow`,
+    // and only the painting needed it. Tying the observer to the same condition meant the component
+    // could not exist during the very blur it was waiting for — so the frozen `:263-266` trigger was
+    // missed on three of the four ways a row loses focus. The two concerns are separated here:
+    // `shouldShow` decides visibility, `isPending` decides whether we are watching.
     const shouldShow = props.isPending && !props.isEditing;
 
     return (
@@ -108,7 +114,9 @@ export function TransactionRuleProposal(props: TransactionRuleProposalProps): Re
                     {props.children}
                 </div>
             </PopoverAnchor>
-            {shouldShow ? <PendingRuleProposal {...props} anchorRef={anchorRef} /> : null}
+            {props.isPending ? (
+                <PendingRuleProposal {...props} anchorRef={anchorRef} showControls={shouldShow} />
+            ) : null}
         </Popover>
     );
 }
@@ -122,6 +130,13 @@ export function TransactionRuleProposal(props: TransactionRuleProposalProps): Re
 function PendingRuleProposal(
     props: TransactionRuleProposalProps & {
         readonly anchorRef: React.RefObject<HTMLDivElement | null>;
+        /**
+         * Whether the controls should be PAINTED. This component mounts as soon as the cell has a
+         * pending edit, so it is watching for the row blur from the moment the edit begins; the
+         * popover itself still waits for the cell's edit surface to close, which is what keeps the
+         * two surfaces from overlapping.
+         */
+        readonly showControls: boolean;
     }
 ): React.JSX.Element | null {
     const { subject, current, referenceDate, onDismiss, anchorRef } = props;
@@ -206,18 +221,17 @@ function PendingRuleProposal(
     // Frozen `:263-266`: the "Updating…" modes apply automatically once the row loses focus; the
     // "Update…" modes wait for the tick.
     //
-    // The caller only mounts this component once the cell has finished editing, so "editing has
-    // finished" is established by mounting and is deliberately NOT re-tested here — a condition that
-    // is always true at its only call site reads as a guard while guarding nothing. What remains is
-    // the frozen gesture itself: focus must have genuinely left the row, which a cell's edit surface
-    // merely closing does not satisfy.
+    // Both conditions are required and they are genuinely independent. This component now mounts as
+    // soon as the cell has a pending edit — deliberately, so it is watching before the blur it needs
+    // to observe — which means `isEditing` can still be true here. A cell's edit surface merely
+    // closing is not the frozen gesture, and neither is a blur while the user is still typing.
     const isAutomatic = draft != null && applyModeIsAutomatic(draft.applyMode);
     useEffect(() => {
-        if (!open || !isAutomatic || !rowLostFocus) return;
+        if (!open || props.isEditing || !isAutomatic || !rowLostFocus) return;
         confirm();
-    }, [confirm, isAutomatic, open, rowLostFocus]);
+    }, [confirm, isAutomatic, open, props.isEditing, rowLostFocus]);
 
-    if (!open || draft == null) return null;
+    if (!open || draft == null || !props.showControls) return null;
 
     return (
         <PopoverContent

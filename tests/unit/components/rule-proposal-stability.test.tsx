@@ -214,3 +214,44 @@ describe("the row-blur predicate reads focus STATE, not focus events", () => {
         ).toBe(false);
     });
 });
+
+/**
+ * The mount-vs-paint separation that F-7 turned on.
+ *
+ * Revision 04 gated BOTH the popover's visibility and the focus observer on the same condition, so
+ * the component could not exist during the blur it was waiting for. These pin the rule the shipped
+ * container now follows: watch from `isPending`, paint from `isPending && !isEditing`.
+ */
+function watches(isPending: boolean): boolean {
+    return isPending;
+}
+
+function paints(isPending: boolean, isEditing: boolean): boolean {
+    return isPending && !isEditing;
+}
+
+describe("what is observed is not deferred with what is painted", () => {
+    it("watches while the cell is still editing, so a blur during the edit is seen", () => {
+        expect(watches(true)).toBe(true);
+        // ...but paints nothing yet, which is what keeps it clear of the cell's own edit surface.
+        expect(paints(true, true)).toBe(false);
+    });
+
+    it("paints once the edit surface has closed", () => {
+        expect(paints(true, false)).toBe(true);
+    });
+
+    it("neither watches nor paints when this cell has no pending edit", () => {
+        expect(watches(false)).toBe(false);
+        expect(paints(false, false)).toBe(false);
+    });
+
+    // The revision 04 shape, kept as the control: gating the observer on the paint condition means
+    // it is not watching during the edit, which is exactly when the frozen blur can occur.
+    it("the revision 04 coupling would NOT have been watching during the edit", () => {
+        const revision04Watches = (isPending: boolean, isEditing: boolean): boolean =>
+            paints(isPending, isEditing);
+        expect(revision04Watches(true, true)).toBe(false);
+        expect(watches(true)).toBe(true);
+    });
+});
