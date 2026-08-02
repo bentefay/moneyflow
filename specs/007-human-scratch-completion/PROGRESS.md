@@ -7985,3 +7985,54 @@ introduced by the first fix, the Buddhist-calendar 43-year shift, and F-4's edit
 
 Dispatched `p28-reviewer-03` (DISTINCT, fresh context, never the implementer, never `p28-reviewer-01`
 or `-02`).
+
+### 2026-08-02 — P28 rev 03 reviewer DIED without a verdict; DISTINCT reviewer 04 re-dispatched
+
+`p28-reviewer-03` exited without writing `reviews/P28-review-03.md`. Root verified the absence
+directly: `ls specs/007-human-scratch-completion/reviews/` lists only `P28-review-01.md` and
+`P28-review-02.md`. Its process (pid 3022168) is confirmed gone via `readlink /proc/3022168/cwd`.
+It left one untracked scratch file, `tests/unit/domain/zz-census.test.ts`, in `/tmp/mf-p28r3rev`
+— a locale round-trip census harness, mid-construction. Root removed it; the worktree is clean at
+`8c16063`. **No conclusion of reviewer 03 is available and none was reconstructed or assumed.**
+
+Root re-dispatched `p28-reviewer-04` (DISTINCT, fresh context, never the P28 implementer) against
+BASE `8c16063`. It is instructed to re-derive the locale failure census ITSELF and to treat neither
+prior "52 failures -> 0" figure as given. It is barred from port :3000, which P29 holds.
+
+Rev 03 commits re-verified as ancestors of HEAD by `git merge-base --is-ancestor`, not `git show`:
+`42f20be`, `11ccbdf`, `e9509e1` — all OK.
+
+### 2026-08-02 — P29 rev 02 handback VERIFIED at `b7cc398`; port :3000 granted
+
+`p29-implementer-01` reported F-1, F-2 and F-3 fixed on BASE `74b37f9`. Root verification:
+
+- **Root error caught before it became a false FAIL.** Root grepped for `entry.rate > best.rate`,
+  found it at `detection.ts:248`, and nearly reported the F-1 fix as not landed. Reading the
+  construct showed the line survived serving a DIFFERENT role: `bestColumn` now handles roles where
+  any qualifying column is equally good, and the new `bestAmountColumn` handles the amount role.
+  Verifying by remembered string rather than by reading the construct is now a standing root rule.
+- **Second root error, same class.** Root checked for `loadFile`, found none, saw
+  `expect(mappings["3"]).toBe("amount")` and concluded the tests were the structurally-blind
+  mapping-shaped assertions the rev 01 addendum warned against. The parity test at
+  `ur-008-csv-parity.test.ts:436-474` derives `amountIndex` FROM detection, parses the real values
+  at that index and compares the amounts against `processOFXImport` output. A wrongly bound column
+  changes the values and fails the test. The property was satisfied by a different mechanism than
+  root specified.
+- **Coordinator ruling on header evidence.** The implementer argued `spec.md:70-74` requires
+  detection to work on a headerless file but nowhere requires headers to be ignored when present.
+  Root ENDORSES this reading. Header evidence is gated on genuine headers; synthesised `"Column N"`
+  names are never fed in. The all-positive-balance case is decidable by no values-only rule, so the
+  header is the only available evidence there.
+
+Root granted :3000 after verifying it free by `ss -ltnp`. Campaign terms: `env -u CI`,
+`--retries=0`, 3 full-suite runs, digest before run 1 and after run 3, announce before release.
+
+### 2026-08-02 — Worktree accumulation swept; 7.4G reclaimed
+
+Twelve worktrees totalling 11G had accumulated on a 31G tmpfs. Root removed seven belonging to
+PASSED packages (P22-P26 and a stale P28 rev-01 reviewer tree) after checking `/proc/<pid>/cwd` for
+every node and playwright process to confirm none was in use. `/tmp` went 39% -> 16%;
+`p28-implementer-01` then removed the superseded `/tmp/mf-p28r2` (2.4G) taking it to 11%.
+`/tmp/mf-p28r2-base` at `d514d47` is KEPT deliberately as a before/after tree for the P28 reviewer.
+Root had not been sweeping worktrees since P22 — had `/tmp` filled, a campaign would have failed in
+a way that mimics a product defect. Recorded as a coordinator duty, not housekeeping trivia.
