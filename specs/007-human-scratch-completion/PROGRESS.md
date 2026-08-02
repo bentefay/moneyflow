@@ -68,17 +68,29 @@ review evidence.
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
   `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines and 25,441 bytes
 - **Rolling scratch SHA-256:** `469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a`
-- **KNOWN LIMITATION of the settlement-rotation record (recorded 2026-08-03).** Every
+- **KNOWN LIMITATION of the settlement-rotation record (recorded 2026-08-03, AMENDED same day — the
+  first version of this note over-generalised and is corrected below).** Every
   `people-settlement.spec.ts` observation in this ledger records **which test IDs failed**, never
-  **at which step**. P33 measured test `281` failing at step 6 in one run and step 11 in the next,
-  on one unchanged digest — so **a repeated ID is not a repeated failure**, and two entries recorded
-  as the same membership may be different failure modes. MEASURED: 11+ campaigns of ID-level data.
-  INFERRED and now known false: that identical membership implied an identical failure. **The
-  defensible claim is therefore narrower than earlier entries imply — we know which tests failed,
-  not how many distinct failure modes were seen, and the count of distinct combinations is an
-  undercount.** A fully clean 19/19 run has also been observed, so a green settlement result carries
-  no information in either direction. Future entries record step-level detail where the log provides
-  it and say so where it does not.
+  **at which step**. The record has **three** states, not one:
+    - **Demonstrably lossy for at least one test.** P33 measured test `281` failing at step 6 in one
+      run and step 11 in the next, on one unchanged digest. For that test a repeated ID is **not** a
+      repeated failure.
+    - **Demonstrably lossless for the six runs whose logs were retained and checked.** Playwright's
+      list reporter emits a spec-level call-site frame beneath each failure, finer than the test ID.
+      Root re-ran the extraction over P30's logs at `/tmp/p30-camp07` and `/tmp/p30-camp08` rather
+      than accepting a transcription: camp07 runs 1-3 gave `:613` / `:183 :613` / `:183 :613`;
+      camp08 runs 1-3 gave none / `:158` / `:212`. Each call site pairs one-to-one with its test
+      (`:166`→`:183`, `:596`→`:613`, `:145`→`:158`, `:197`→`:212`, every one an `expectObligation`
+      call). **For those runs, ID-level membership lost nothing.**
+    - **Unknown for every campaign whose logs are gone.** No grep recovers those; for them this is a
+      permanent caveat. **Bounds on the lossless finding, so it is not leaned on too hard:** it
+      covers 6 runs, one spec, and only 4 distinct IDs out of 19 tests. The spec makes **21
+      `expectObligation` calls across 19 tests**, so at least two tests call it more than once —
+      those are exactly where within-ID variation can hide, and `281` is plausibly one. A one-to-one
+      mapping over 4 IDs does not establish the property for the suite. Separately: a fully clean
+      19/19 run has been observed, so **a green settlement result carries no information in either
+      direction**. Future entries record both granularities — ID and call site — where the log
+      provides them, and say so where it does not.
 - **Authorized checked HS IDs:** HS-001, HS-002, HS-003, HS-004, HS-005, HS-006, HS-007, HS-008,
   HS-009, HS-010, HS-011, HS-012, HS-013, HS-014, HS-015, HS-016, HS-017, HS-018, HS-019, HS-020,
   HS-021 (21 of 21 human-scratch IDs; HS-016 RE-PASSED via §275 forward marker after P20A rev 03
