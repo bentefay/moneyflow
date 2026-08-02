@@ -41,6 +41,11 @@ export async function goToAccounts(page: Page): Promise<void> {
 export async function goToPeople(page: Page): Promise<void> {
     await page.goto("/people");
     await page.getByRole("heading", { name: "People", level: 1 }).waitFor({ timeout: 15000 });
+    // The people table and its settlement card only render once a vault is selected. The card is
+    // the right thing to wait for because it is the one element present in *every* settlement
+    // state — obligations, settled, no-qualifying and incomplete all render it — so this converges
+    // for every caller rather than only the ones expecting obligations.
+    await page.getByTestId("settlement-summary").waitFor({ timeout: 15000 });
 }
 
 export async function goToAutomations(page: Page): Promise<void> {

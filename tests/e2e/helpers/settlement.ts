@@ -174,7 +174,21 @@ export function rowById(page: Page, transactionId: string): Locator {
     return page.locator(`[data-transaction-id="${transactionId}"]`);
 }
 
-/** Sets one allocation through a real grid cell and waits for the committed display value. */
+/**
+ * Sets one allocation through a real grid cell and waits for the *stored* value to commit.
+ *
+ * The barrier asserts the cell's `Explicit:` clause rather than a substring of the whole cell,
+ * because the cell renders a screen-reader description as a child of the same button:
+ * `Explicit: X%. Effective: Y%. Owner remainder: Z%.` A substring match on `${value}%` is therefore
+ * satisfied by the *derived* `Effective:` or `Owner remainder:` figures — which, for an even
+ * ownership split, already read the target value before anything is stored at all. Such a barrier
+ * can return without the write having landed, and the failure then surfaces at whatever settlement
+ * assertion runs next, far from its cause.
+ *
+ * The `Explicit:` clause is the only part of the cell that reflects stored state, and it is exact
+ * for every value the callers use: `0` renders `Explicit: 0%.` while its display shows an em dash,
+ * and negatives render `Explicit: -20%.` verbatim.
+ */
 export async function setAllocation(
     row: Locator,
     personName: string,
@@ -185,7 +199,7 @@ export async function setAllocation(
     const input = row.getByRole("textbox", { name: `${personName} allocation percentage` });
     await input.fill(value);
     await input.press("Enter");
-    await expect(cell).toContainText(`${value}%`);
+    await expect(cell).toContainText(`Explicit: ${value}%.`);
 }
 
 /** Sets a transaction's status by name through the real inline status control. */

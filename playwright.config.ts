@@ -60,6 +60,11 @@ export default defineConfig({
     workers: process.env.CI ? 1 : 4,
     reporter: "html",
     timeout: 30000,
+    // `timeout` above bounds the whole test; it does not reach `expect()`, which has its own 5s
+    // default. Under full-suite parallel load a navigation plus CRDT hydration routinely exceeds
+    // 5s, so every assertion written without an explicit timeout was racing hydration. 15s matches
+    // the value the suite's own waits already converged on independently in 206 places.
+    expect: { timeout: 15_000 },
     use: {
         baseURL: "http://localhost:3000",
         trace: "on-first-retry"
