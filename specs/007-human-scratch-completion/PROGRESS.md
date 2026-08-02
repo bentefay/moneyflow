@@ -10149,3 +10149,65 @@ ruling** — its discriminating experiment answered without it spending the port
 
 P31 asked to report those four specifically alongside `T021d`-`T021g`. Root will not signal P30 until
 P31 announces release in its own words rather than root inferring it from the port.
+
+### 2026-08-02 — P30's four failures MEASURED at last: overlap, not Escape. Rev 04 opened
+
+After three constructed diagnoses, `p30-implementer-01` got the port and **measured**. Eight minutes
+settled what reasoning could not.
+
+**1. The `onEscapeKeyDown` guard is INERT — the experiment root mandated in advance:**
+
+```
+with guard:     4 failed, 4 passed
+without guard:  4 failed, 4 passed     identical, same four tests
+```
+
+Per the standing ruling it comes out. **The implementer also retracted its own "actively the bug"
+claim**, made one message earlier: removing it changes nothing, so it never blocked anything. It had
+over-corrected from *inert* to *harmful* **on reasoning**, one message after being told that
+distinction matters.
+
+**2. The real defect, measured rather than inferred:**
+
+```
+overlap: TRUE
+tag dropdown  t=265 l=613 b=343 r=837
+proposal      t=257 l=613 ...
+```
+
+**The tag picker and the proposal occupy the same space**, so the four-mode select and the tick are
+unclickable while the picker is open. **A `:255-257` failure — those controls must be operable, and a
+control the user cannot click is not.**
+
+**3. Escape not closing the picker was NEVER P30's regression.** With the guard removed the picker
+still fails to close. The probe shows why: **after selecting a tag `document.activeElement` is a
+`DIV`, not the search input**, and the Escape handler is bound at `CommandInput onKeyDown`
+(`InlineEditableTags.tsx:325`). **The handler is on the wrong element — pre-existing, and P30's
+package merely made it visible by putting a second surface in front of it.**
+
+**ROOT RULING on scope: fix the overlap; do NOT fix the picker's Escape handler.**
+`human-scratch.md:248-295` contains **no language about Escape, dismissal or closing** — the only
+near-hit is `:253`'s "unfocused popup". The picker's dismissal is **not governed by UR-009**, so
+fixing it would widen the package into a component the requirement does not reach. It becomes a
+**recorded finding against the transactions cell**, with the `activeElement`-is-a-`DIV` measurement
+attached, since that tells a future fixer the handler is on the wrong element rather than that Escape
+is mishandled. **If P30's fix turns out to REQUIRE the Escape fix, that is a signal the fix is wrong
+and root will re-rule.**
+
+P30's own `:300` test is to be re-scoped: it currently asserts the picker closes on Escape, which is
+not P30's to guarantee. It should assert what UR-009 requires — that the proposal controls are
+reachable and operable.
+
+**Root corrected two of the implementer's cited facts before endorsing the diagnosis.** The log
+contains **no `INTERCEPTS POINTER EVENTS` string** and none of the `z-[9999]` markup it quoted —
+Playwright names the obstructing element instead. And its self-criticism that *"the timeouts were in
+run 1's log too and I read past them"* is **wrong in its own favour**: run 1's four timeouts are all
+P31's dead-locator failures; P30's four failed fast on the assertion. **The timeouts are new in run
+5, a genuine consequence of rev 03.** Root told it not to record a self-criticism the record does not
+support.
+
+**Pattern named by the implementer, adopted:** *the correct order is measure, then explain — and I
+have inverted it three times in one package.* **Root records the mitigating half honestly: P30 did
+not have the port for most of that time, and root instructed it to write rev 03 unverified.** Part of
+the inversion was structural. **The part that is P30's is reporting unmeasured explanations with more
+confidence than they deserved.**
