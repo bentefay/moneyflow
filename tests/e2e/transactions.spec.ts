@@ -2926,10 +2926,34 @@ test.describe("Transactions", () => {
 
             const rows = page.locator('[data-testid="transaction-row"]');
             await expect(rows).toHaveCount(2);
-            const row = rows.filter({ hasText: "Edge Click Diner" }).first();
+            // Rows are addressed by their STABLE ID, captured once, and not by text or accessible
+            // name. Two earlier attempts failed for reasons worth recording, because both produce a
+            // timeout that looks like a product defect:
+            //
+            //   `hasText`      matched 0 of 2 rows — a description lives in an `<input>`'s `value`,
+            //                  which is not text content.
+            //   `getByRole`    matched until a control opened, then stopped: an open Radix select
+            //                  rewrites the surrounding accessible tree, so the row's own name
+            //                  changes and the locator re-resolves to nothing mid-test.
+            //
+            // `data-transaction-id` is fixed for the row's lifetime, which is why the repository's
+            // own `rowById` helper uses it.
+            // The subject must be the FIRST RENDERED row, not a named one. The header's overlay
+            // could only ever reach the row directly beneath it, so a test that clicks any other
+            // row cannot express that defect — measured: with the constant reverted, clicking the
+            // second row passed cleanly. The grid sorts by date, so which description lands first
+            // is not something this test may assume; it reads the order the app produced.
+            await expect(rows.first()).toHaveAttribute("data-transaction-id", /.+/);
+            const rowId = await rows.first().getAttribute("data-transaction-id");
+            const bystanderId = await rows.nth(1).getAttribute("data-transaction-id");
+            if (rowId == null || bystanderId == null) throw new Error("rows have no stable id");
+            expect(rowId).not.toBe(bystanderId);
+            const row = page.locator(`[data-transaction-id="${rowId}"]`);
             // The row the pointer never touches. Every assertion below that could be satisfied by a
             // table-wide action checks this row is unmoved.
-            const bystander = rows.filter({ hasText: "Edge Click Bystander" }).first();
+            const bystander = page.locator(`[data-transaction-id="${bystanderId}"]`);
+            await expect(row).toHaveCount(1);
+            await expect(bystander).toHaveCount(1);
 
             /**
              * Click the horizontal centre of a cell, `inset` pixels below the ROW's top edge.
@@ -3026,9 +3050,13 @@ test.describe("Transactions", () => {
                     // clicked row's state exactly as a per-row toggle does, so only an untouched
                     // row can distinguish "this cell's control" from "the header's".
                     await expect(otherCheckbox).toHaveAttribute("aria-checked", "false");
+                    // The header reports `mixed` here, and that is the CORRECT value: one of two
+                    // rows is selected. Asserting `false` was wrong — it would fail on a working
+                    // build. What distinguishes the defect is that the header must not be fully
+                    // checked, which is what select-all produces.
                     await expect(
                         page.getByTestId("header-checkbox").getByRole("checkbox")
-                    ).toHaveAttribute("aria-checked", "false");
+                    ).toHaveAttribute("aria-checked", "mixed");
 
                     // Restore, so the following iteration starts from the same state it assumes.
                     await clickCellEdge("checkbox", edge);
