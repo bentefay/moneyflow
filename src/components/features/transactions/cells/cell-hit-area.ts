@@ -44,10 +44,15 @@
  * "hover and focus feedback follow the enlarged control, so the whole cell reflects the state". A
  * row at REST is unchanged; a row under the pointer deliberately is not.
  *
- * The overlay is a bare pseudo-element with no `pointer-events` of its own, so it inherits the
- * control's — a disabled control's overlay is inert exactly as the control is. It paints no
- * background, so it cannot disturb {@link RESTING_CELL_CHROME}'s guarantee that a resting cell
- * paints `rgba(0, 0, 0, 0)` in both themes.
+ * A disabled control's enlarged area is inert, which was verified with a real mouse rather than
+ * reasoned about: clicking the overlay strip toggles the checkbox while it is enabled and does
+ * nothing once it is disabled. Note the mechanism is NOT `pointer-events`, which stays `auto` on a
+ * disabled control here — the overlay still hit-tests, and a disabled `<button>` simply does not
+ * dispatch the click. Worth knowing, because a synthetic `dispatchEvent` bypasses that and will
+ * happily report the opposite.
+ *
+ * The overlay paints no background, so it cannot disturb {@link RESTING_CELL_CHROME}'s guarantee
+ * that a resting cell paints `rgba(0, 0, 0, 0)` in both themes.
  *
  * Each constant enlarges the SAME element that already carried the role, name and state, so no cell
  * gains a second interactive node and assistive technology still sees exactly one control per cell.
