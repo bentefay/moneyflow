@@ -10623,3 +10623,69 @@ revision 01's F-5 standard applied by the implementer to itself.
 offered:** *"A version of me that refuses whenever it disagrees is worse than one that complies. The
 thing that made it defensible was that I put the table in front of you and asked, rather than acting
 on my own reading."*
+
+### 2026-08-02 — P31/P32 follow-ups CLOSED at `256e533`; root's scheduling theory REFUTED
+
+**`256e533` verified by root:** `index.ts` and `table-selection.ts`, ancestor of HEAD, **zero
+`table-selection` references remaining in the barrel.** Typecheck clean, lint 0 errors, unit 2443
+passed / 2 skipped. Earlier `a67c3f9` carried the evidence corrections.
+
+**Root's ruling to remove the WHOLE block rather than the one function is recorded with the
+implementer's own assessment of why it had missed it:** it had measured that the whole block *could*
+go and treated that as a fact to route rather than a reason to widen — procedurally right — but did
+not make the generalising argument. **The reviewer's reasoning did not distinguish
+`reconcileToMatchingRows` from its thirteen neighbours; every symbol in that module is an internal
+primitive of the same model with the same shape of precondition. Removing one line fixes the
+instance; removing the block fixes the class.**
+
+It also moved the rationale to the **module** docstring, since a note attached to one of fourteen
+symbols does not explain why the other thirteen are absent — and corrected a fourth stale sentence of
+its own describing the one-line removal as the fix.
+
+**Recorded against the implementer, by the implementer:** it told root that
+`people-settlement.spec.ts` has *"one selection locator, used only by the deep-link and bulk-delete
+tests"*. `p31-reviewer-01` measured that `:780-880` is an entire deep-link describe block exercising
+`rowCheckbox`, `selectedCountLabel`, `aria-selected` and a bulk delete. **Its conclusion survived
+because C/D/E sit at `:145-220`, nowhere near it — but it was arguing its own commit innocent and
+understated the coupling. That is the specific direction of error to guard against**, and it put it
+on the record rather than letting it pass because the conclusion held.
+
+**ROOT'S SCHEDULING THEORY IS REFUTED, by evidence root had already read.**
+
+```
+bisect scope:  people-settlement ALONE — rule-creation-controls never ran
+result:        b6950ca 0/3 clean, parent 5/5 clean
+```
+
+**Root's theory required a spec that was not present.** Removing the supposed perturbing agent
+entirely should have made the difference vanish; it did not. **Eighth instrument failure and a new
+variety: the previous seven were narrow instruments returning well-formed answers; this was a theory
+root never ran against data root had already read.**
+
+**P30's upgrade of root's own stated gap, adopted:** a scheduling effect perturbs *whatever happens to
+be scheduled beside it*, which varies run to run — **so it should smear across unlucky specs, not
+select the same file every time. Concentration is evidence AGAINST concurrency, not merely
+unexplained by it.**
+
+**New verifiable finding that replaces the deleted-log comparison:**
+
+```
+earlier attempt, run 1:  5 failures
+this attempt,   run 1:  1 failure      same tree, same commit, same digest
+```
+
+**The failure COUNT moves between complete runs of an identical tree** — fully checkable, unlike the
+partial-log comparison it supersedes. Run 1 of the restarted campaign: **188 passed, 1 failed, zero
+`rule-creation-controls` failures.** Run 2 in progress at 74/189, zero failures.
+
+**State: a sharp reproducible commit boundary, FOUR falsified mechanisms, and a failure count varying
+5 -> 1 on identical trees.** The last two are in tension and root declined to resolve it by
+constructing a fifth theory. **The `timezoneId` probe is the only untested candidate and has the
+property the others lack — a runtime inference with nothing pinning its input is exactly the shape
+that produces varying counts on an identical tree.** Disposal pre-committed either way: **not P30's
+package to fix.**
+
+**Implementer's extension of the decay class, which root adopts for its own ledger:** root noticed
+that every "as of" claim decays the same way and nothing ever contradicts it — **a wrong claim gets
+challenged, a stale one just sits.** The per-file digest table works because **the table IS the
+delta, not a conclusion drawn from one**, so there is nothing to go stale.
