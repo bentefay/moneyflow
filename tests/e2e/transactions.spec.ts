@@ -2910,12 +2910,26 @@ test.describe("Transactions", () => {
 
             await createNewIdentity(page);
             await goToTransactions(page);
+            // TWO rows, because one cannot express the defect this fixture previously hid. The
+            // header's select-all overlay reached 9px past its own row into the first data row's
+            // checkbox cell, so clicking that cell selected EVERY transaction. With a single row,
+            // select-all and a per-row toggle set the identical `aria-checked` and no assertion can
+            // tell them apart. The second row is what makes them distinguishable.
             await createTestTransaction(page, {
                 description: "Edge Click Diner",
                 amount: "-31.50"
             });
+            await createTestTransaction(page, {
+                description: "Edge Click Bystander",
+                amount: "-12.00"
+            });
 
-            const row = page.locator('[data-testid="transaction-row"]').first();
+            const rows = page.locator('[data-testid="transaction-row"]');
+            await expect(rows).toHaveCount(2);
+            const row = rows.filter({ hasText: "Edge Click Diner" }).first();
+            // The row the pointer never touches. Every assertion below that could be satisfied by a
+            // table-wide action checks this row is unmoved.
+            const bystander = rows.filter({ hasText: "Edge Click Bystander" }).first();
 
             /**
              * Click the horizontal centre of a cell, `inset` pixels below the ROW's top edge.
@@ -2996,12 +3010,26 @@ test.describe("Transactions", () => {
                     await expect(allocationCell.getByRole("textbox")).toBeFocused();
                 });
 
-                await test.step(`${edge} edge toggles the checkbox`, async () => {
+                await test.step(`${edge} edge toggles only this row's checkbox`, async () => {
                     await settleClearOfTheGrid();
                     const checkbox = row.getByRole("checkbox", { name: /^Select transaction/ });
+                    const otherCheckbox = bystander.getByRole("checkbox", {
+                        name: /^Select transaction/
+                    });
                     await expect(checkbox).toHaveAttribute("aria-checked", "false");
+                    await expect(otherCheckbox).toHaveAttribute("aria-checked", "false");
+
                     await clickCellEdge("checkbox", edge);
+
                     await expect(checkbox).toHaveAttribute("aria-checked", "true");
+                    // The assertion the single-row fixture could not make. Select-all sets the
+                    // clicked row's state exactly as a per-row toggle does, so only an untouched
+                    // row can distinguish "this cell's control" from "the header's".
+                    await expect(otherCheckbox).toHaveAttribute("aria-checked", "false");
+                    await expect(
+                        page.getByTestId("header-checkbox").getByRole("checkbox")
+                    ).toHaveAttribute("aria-checked", "false");
+
                     // Restore, so the following iteration starts from the same state it assumes.
                     await clickCellEdge("checkbox", edge);
                     await expect(checkbox).toHaveAttribute("aria-checked", "false");

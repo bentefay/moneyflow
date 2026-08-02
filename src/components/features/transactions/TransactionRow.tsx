@@ -405,6 +405,7 @@ export function TransactionRow({
                         onChange={() => handleCheckboxChange()}
                         onShiftClick={handleShiftClick}
                         ariaLabel={`Select transaction ${effectiveData.description}`}
+                        rowGeometry="dataRow"
                     />
                 </div>
 

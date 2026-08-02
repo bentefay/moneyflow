@@ -49,6 +49,23 @@ const ROW = {
     verticalPadding: 12
 } as const;
 
+/**
+ * Every row geometry a hit area is mounted in, measured in the running app.
+ *
+ * The header exists in this table because F-2 was caused by its absence: `CHECKBOX_HIT_AREA` was a
+ * single constant sized for the 57px data row, and `CheckboxCell` is also mounted in the 37px
+ * `py-2` sticky header. Because the overlay is a NEGATIVE inset, the 9px of excess did not clip —
+ * it landed on the first data row's checkbox cell, so clicking one transaction's checkbox selected
+ * every transaction.
+ *
+ * The assertions below are the cheap guard against that recurring: a reach may never exceed the gap
+ * available in the row it is mounted in.
+ */
+const MOUNTS = {
+    dataRow: { height: 57, gapAbove: 20, gapBelow: 21 },
+    header: { height: 37, gapAbove: 10, gapBelow: 11 }
+} as const;
+
 describe("cell hit area", () => {
     describe("the enlargement reaches the DOM", () => {
         it("survives the cell's own height and padding in the same merge", () => {
@@ -71,7 +88,8 @@ describe("cell hit area", () => {
             for (const [label, hitArea] of Object.entries({
                 short: SHORT_CONTROL_HIT_AREA,
                 tall: TALL_CONTROL_HIT_AREA,
-                checkbox: CHECKBOX_HIT_AREA
+                "checkbox (data row)": CHECKBOX_HIT_AREA.dataRow,
+                "checkbox (header)": CHECKBOX_HIT_AREA.header
             })) {
                 const merged = utilities(cn("h-7 w-full px-1", hitArea, RESTING_CELL_CHROME));
                 // `relative` is what the absolutely positioned overlay is measured against, so
@@ -88,7 +106,8 @@ describe("cell hit area", () => {
             for (const hitArea of [
                 SHORT_CONTROL_HIT_AREA,
                 TALL_CONTROL_HIT_AREA,
-                CHECKBOX_HIT_AREA,
+                CHECKBOX_HIT_AREA.dataRow,
+                CHECKBOX_HIT_AREA.header,
                 INPUT_CELL_HIT_AREA
             ]) {
                 expect(utilities(hitArea).filter((u) => /(^|:)bg-/.test(u))).toEqual([]);
@@ -114,8 +133,11 @@ describe("cell hit area", () => {
             // The margin is negative and equal to the growth per side, so the row's layout is
             // unchanged: the input occupies the same space it always did.
             expect(margin).toBe((height - drawnHeight) / 2);
-            // The added padding equals the growth plus the shared `Input` base's own 4px `py-1`,
-            // which is what holds the text on its original baseline.
+            // The added padding equals the growth plus the shared `Input` base's own 4px `py-1`.
+            // It is NOT what holds the text in place — an `<input>` centres its single line in its
+            // content box, so the padding's value moves nothing and only its asymmetry does. What
+            // this pins is the content band's size; the assertion is the only instrument that
+            // catches a change here, since the mutation costs zero pixels.
             expect(padding).toBe(margin + 4);
         });
 
@@ -129,17 +151,49 @@ describe("cell hit area", () => {
             expect(reachOf(SHORT_CONTROL_HIT_AREA)).toBe(ROW.verticalPadding + 2);
             // `h-8` controls fill the band exactly.
             expect(reachOf(TALL_CONTROL_HIT_AREA)).toBe(ROW.verticalPadding);
-            // The checkbox draws at 16px inside the same 32px band.
-            expect(reachOf(CHECKBOX_HIT_AREA)).toBe(ROW.verticalPadding + (32 - 16) / 2);
+            // The checkbox draws at 16px inside the same 32px band, in the data row.
+            expect(reachOf(CHECKBOX_HIT_AREA.dataRow)).toBe(ROW.verticalPadding + (32 - 16) / 2);
         });
 
         it("keeps the checkbox's drawn size while widening only its activation area", () => {
-            const merged = utilities(CHECKBOX_HIT_AREA);
+            const merged = utilities(CHECKBOX_HIT_AREA.dataRow);
             // Nothing here may set a size: the frozen text requires the box keep its drawn size.
             expect(merged.filter((u) => /^(h-|w-|size-)/.test(u))).toEqual([]);
             // 8px per side is the measured gap between the 16px box and its 32px cell.
             expect(pixels(merged.filter((u) => u.startsWith("before:-left-"))[0] ?? "")).toBe(8);
             expect(pixels(merged.filter((u) => u.startsWith("before:-right-"))[0] ?? "")).toBe(8);
+        });
+
+        it("never reaches beyond the row each variant is mounted in", () => {
+            // The guard F-2 needed and did not have. A negative-inset overlay does not clip at its
+            // row's edge — excess reach lands on the NEXT row and steals its clicks. So each
+            // variant's reach must fit inside the gap measured for ITS OWN mount, and a new mount
+            // added without its own measurements fails here rather than in the browser.
+            const reachAbove = (hitArea: string) =>
+                pixels(utilities(hitArea).filter((u) => u.startsWith("before:-top-"))[0] ?? "");
+            const reachBelow = (hitArea: string) =>
+                pixels(utilities(hitArea).filter((u) => u.startsWith("before:-bottom-"))[0] ?? "");
+
+            for (const [mount, geometry] of Object.entries(MOUNTS)) {
+                const hitArea = CHECKBOX_HIT_AREA[mount as keyof typeof CHECKBOX_HIT_AREA];
+                expect(reachAbove(hitArea), `${mount} reaches above its row`).toBeLessThanOrEqual(
+                    geometry.gapAbove
+                );
+                expect(reachBelow(hitArea), `${mount} reaches below its row`).toBeLessThanOrEqual(
+                    geometry.gapBelow
+                );
+                // And it must actually reach the edge, or the dead strip UR-012 removes comes back.
+                expect(reachAbove(hitArea), `${mount} falls short above`).toBe(geometry.gapAbove);
+                expect(reachBelow(hitArea), `${mount} falls short below`).toBe(geometry.gapBelow);
+            }
+        });
+
+        it("covers every mount of the component, so a new one cannot inherit a wrong reach", () => {
+            // `CHECKBOX_HIT_AREA` is keyed by row geometry and `CheckboxCell` requires the key as a
+            // prop with no default. This asserts the two stay in step: every declared variant has
+            // measured geometry, and every measured geometry has a variant. Adding a third mount
+            // without measuring it fails here.
+            expect(Object.keys(CHECKBOX_HIT_AREA).sort()).toEqual(Object.keys(MOUNTS).sort());
         });
 
         it("stretches the overlay across the full cell width for the others", () => {

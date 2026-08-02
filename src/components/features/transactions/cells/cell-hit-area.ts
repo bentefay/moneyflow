@@ -72,6 +72,22 @@
  * site must check this**, and a test that clicks the inner control is the only thing that catches
  * it: the outer control keeps working, so the cell looks entirely healthy.
  *
+ * ## And the mirror hazard: the same overlay in a different-sized row
+ *
+ * The question above is about an overlay's DESCENDANTS. There is a second question, about its
+ * ANCESTOR, and asking only the first is what let a defect through: **does this reach exceed the row
+ * it is mounted in, and is that row the same size everywhere the component is used?**
+ *
+ * Two components here have more than one mount. `AccountCombobox` is also used by the import
+ * flow's `AccountTab`, and is safe for a structural reason worth stating: its hit area is applied by
+ * `TransactionRow` at the call site, so the other mount never receives one. `CheckboxCell` applies
+ * its own, so both of its mounts got it — including the 37px header, from a constant measured in the
+ * 57px row.
+ *
+ * That is the rule the variants above encode: **a hit area applied INSIDE a component travels to
+ * every mount of it; one applied at the call site does not.** Prefer the call site. Where the
+ * component must own it, key it by geometry and make the key required, as here.
+ *
  * A disabled control's enlarged area is inert, which was verified with a real mouse rather than
  * reasoned about: clicking the overlay strip toggles the checkbox while it is enabled and does
  * nothing once it is disabled. Note the mechanism is NOT `pointer-events`, which stays `auto` on a
@@ -107,11 +123,35 @@ export const TALL_CONTROL_HIT_AREA =
     "relative before:absolute before:content-[''] before:inset-x-0 before:-top-[12px] before:-bottom-[12px]";
 
 /**
- * The checkbox, which keeps its 16px drawn size while its activation area covers its 32px cell.
+ * The checkbox keeps its 16px drawn size while its activation area covers its cell — but it is the
+ * one control mounted in TWO row geometries, so its reach cannot be a single constant.
  *
- * 8px horizontally per side is the exact measured gap between the drawn box and the cell edge; 20px
- * vertically reaches the row edge. This replaces an earlier `before:inset-[-4px]`, which enlarged
- * the target but stopped well short of the cell.
+ * `CheckboxCell` renders in the 57px data row and in the 37px `py-2` sticky header. A reach derived
+ * from the data row overshoots the header by 9px, and because the overlay is a negative inset it
+ * lands OUTSIDE the header — on the first data row's checkbox cell. Measured: the first 8 pixels of
+ * that cell reported `aria-label="Select all transactions"`, so clicking the first transaction's own
+ * checkbox selected every transaction in the table. That is worse than the dead strip UR-012 exists
+ * to remove: the dead strip did nothing, this did something wrong.
+ *
+ * The variants below therefore make the geometry an explicit choice at the mount, not a default a
+ * new call site inherits silently. Adding a third mount forces the author to say which row it is in.
+ *
+ * | mount                    | row height | gap above / below the drawn box |
+ * | ------------------------ | ---------- | ------------------------------- |
+ * | data row (`py-3`)        | 57         | 20 / 21                         |
+ * | header (`py-2`, sticky)  | 37         | 10 / 11                         |
+ *
+ * Each reach is that mount's own measured gap. The `bottom` values deliberately differ from the
+ * `top` ones by a pixel: the rows carry a `border-b` that belongs to the row's own box, so the gap
+ * below the drawn box is one pixel larger than the gap above it.
  */
-export const CHECKBOX_HIT_AREA =
-    "relative before:absolute before:content-[''] before:-top-[20px] before:-bottom-[20px] before:-left-[8px] before:-right-[8px]";
+export const CHECKBOX_HIT_AREA = {
+    /** Checkbox in a transaction row. */
+    dataRow:
+        "relative before:absolute before:content-[''] before:-top-[20px] before:-bottom-[21px] before:-left-[8px] before:-right-[8px]",
+    /** Select-all checkbox in the sticky column header, which is 20px shorter than a data row. */
+    header: "relative before:absolute before:content-[''] before:-top-[10px] before:-bottom-[11px] before:-left-[8px] before:-right-[8px]"
+} as const;
+
+/** Which row geometry a {@link CHECKBOX_HIT_AREA} mount sits in. */
+export type CheckboxRowGeometry = keyof typeof CHECKBOX_HIT_AREA;

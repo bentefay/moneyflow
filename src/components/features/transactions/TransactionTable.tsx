@@ -182,6 +182,10 @@ function TransactionTableHeader({
                     ariaLabel={
                         isAllSelected ? "Deselect all transactions" : "Select all transactions"
                     }
+                    // The header is `py-2` against the data row's `py-3`, so it is 20px shorter.
+                    // Its activation area must be sized for its own row or it reaches past the
+                    // header's bottom edge and into the first transaction's checkbox cell.
+                    rowGeometry="header"
                 />
             </div>
             <div role="columnheader">Date</div>
