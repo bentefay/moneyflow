@@ -170,7 +170,7 @@ review evidence.
 | P22     | UR-001         | [Add transaction focuses description](tasks/P22-ur-001.md)                          | none                 | passed            | 03  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-07-30 by human principal instruction; frozen source specs/009-user-reported-refinements/spec.md lines 12-33                                                                                                                                                               |
 | P23     | UR-002         | [Search matches alias-resolved descriptions](tasks/P23-ur-002.md)                   | none                 | passed            | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-07-30 by human principal instruction; frozen source lines 35-53; confirmed defect queries.ts:560-567                                                                                                                                                                      |
 | P24     | UR-003         | [Presence avatars show name initials](tasks/P24-ur-003.md)                          | none                 | passed            | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-07-30 by human principal instruction; frozen source lines 55-74; confirmed defect layout.tsx:218-224 and :343                                                                                                                                                             |
-| P25     | UR-004         | [Default currency from time zone](tasks/P25-ur-004.md)                              | none                 | implementing      | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-07-30 by human principal instruction; frozen source lines 76-98; supersedes the locale rationale in detect-currency.ts:4-6                                                                                                                                                |
+| P25     | UR-004         | [Default currency from time zone](tasks/P25-ur-004.md)                              | none                 | in_review         | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-07-30 by human principal instruction; frozen source lines 76-98; supersedes the locale rationale in detect-currency.ts:4-6                                                                                                                                                |
 | P26     | UR-005         | [Minimal table chrome at rest](tasks/P26-ur-005.md)                                 | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01 by human principal; frozen source specs/010-user-reported-refinements-2/spec.md lines 11-24                                                                                                                                                                         |
 | P27     | UR-006         | [Vault members listed by name](tasks/P27-ur-006.md)                                 | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 26-38; shares name resolution with UR-003/P24                                                                                                                                                                                                               |
 | P28     | UR-007         | [Dates display in browser locale](tasks/P28-ur-007.md)                              | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 40-54                                                                                                                                                                                                                                                       |
@@ -7088,3 +7088,59 @@ empirically rather than asserted. It also independently re-measured `Q-P24-01`'s
 same figures: 469 name-carrying `getByRole` calls, 33 with `exact`.
 
 **P24 -> `passed`; UR-003 -> `passed`. Tally: 25 of 33 requirements, 24 of 32 feature packages.**
+
+### 2026-08-02 — P25 rev 01 handback VERIFIED and merged; DISTINCT reviewer dispatched
+
+`p25-implementer-01` delivered on branch `p25-ur-004`, correctly rebased onto `5650003`. Root
+fast-forwarded main: `b41e715` (product/test) and `6ad7ebe` (evidence), 11 files, no ledger, marker,
+scratch, SCOPE, spec, FINAL-AUDIT or reviews file touched.
+
+**FIFTH ROOT ERROR, and the most consequential: root cited the WRONG FROZEN SOURCE in the dispatch.**
+Root wrote `specs/010-user-reported-refinements-2/spec.md` lines 40-54 for UR-004. Verified: that file
+contains no UR-004 at all — its headings are UR-005/006/007/008 — and lines 40-54 are **UR-007, locale
+date formatting**. The correct source is `specs/009-user-reported-refinements/spec.md` lines 76-98, per
+SCOPE. **Following root's citation literally would have built the wrong feature.** The implementer
+caught it, ruled from the task files and SCOPE instead, and reported it rather than working around it.
+
+Root immediately audited every queued UR task file against SCOPE: **all eight match exactly**
+(UR-004 009/76-98, UR-005 010/11-24, UR-006 010/26-38, UR-007 010/40-54, UR-008 010/56-86, UR-009
+011/16-61, UR-010 012/11-29, UR-011 012/31-55). The skew was confined to root's dispatch prose, not to
+any committed artifact, so no other package is contaminated. This is the same recorded root pattern —
+asserting from memory what an authoritative file already states — and the mitigation is now explicit:
+**dispatches must quote the citation from the task file, never from root's recollection.**
+
+Second, immaterial correction accepted: `new Intl.Locale('en',{timeZone:'Australia/Brisbane'}).region`
+returns `undefined`, not `'none'`. Conclusion unchanged.
+
+**Dependency:** `countries-and-timezones@3.9.0`, MIT, added via `pnpm add`. Root verified the lockfile
+entry reads `countries-and-timezones@3.9.0: {}` — **zero transitive dependencies** — and installed it
+in the main checkout. Candidates considered and rejected in evidence §2: `tz-lookup` (confirmed by the
+implementer to solve the inverse problem, `tzlookup(lat,lon) -> zone`), `moment-timezone`, native
+`Intl`.
+
+**Root verified the principal's own case directly, not from evidence:** `Australia/Brisbane -> AU`,
+`Australia/Queensland -> AU` (deprecated alias resolves), `Asia/Calcutta -> IN`, `UTC -> (none)` so it
+falls through to locale exactly as the frozen text requires. Root gates: typecheck clean; unit **115
+files, 2182 passed / 2 skipped** (up from 2140); no forbidden casts in the product diff.
+
+**Mutation check ruling out a false pass:** the implementer's host TZ *is* `Australia/Brisbane`, so a
+Brisbane-expects-AUD test could pass for the wrong reason. It ruled that out two ways — the file passes
+120/120 under `TZ=America/New_York`, and stubbing `getBrowserTimeZone()` to `undefined` failed exactly
+one test, the timezone-preference one.
+
+**Out-of-plan finding, disclosed:** making TZ primary means every test vault's default currency now
+depends on the HOST time zone, where Playwright's default `en-US` locale previously forced USD
+deterministically. Three specs asserted USD only incidentally, so the implementer added
+`test.use({ timezoneId: "America/New_York" })` to `people-settlement.spec.ts`, `accounts.spec.ts` and
+`vault-settings.spec.ts` with an explanatory comment. No assertion weakened; they are now MORE
+deterministic. It flagged this as touching specs outside the enumerated scope rather than doing it
+silently.
+
+**E2E campaign restarted once, disclosed:** the first two runs both passed but the whole-diff digest
+changed between them, because `next dev` rewrites `next-env.d.ts` on every start. The implementer
+restored it, scoped the digest to source excluding that path, and restarted from run 1 rather than
+reporting a mixed campaign. Clean campaign: **3 consecutive full-suite `--retries=0` runs, 167 passed
+each**, source digest `b1086650…` stable. **Recommendation adopted for future dispatches: exclude
+`next-env.d.ts` from campaign digests, since it flips by construction.**
+
+Dispatched `p25-reviewer-01` (DISTINCT, fresh context, never the P25 implementer).
