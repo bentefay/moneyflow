@@ -8546,3 +8546,42 @@ but `/tmp/mf-p29` HEAD is `ee3cce7`. It measured `git diff 43836b0 ee3cce7 -- sr
 confirmed the difference is evidence-only, and recorded it as benign rather than as a finding.
 
 `CLASSIFICATION_THRESHOLD = 0.8` remains untested and carries forward as a Q.
+
+### 2026-08-02 — ROOT RULING: F-4 is IN SCOPE for UR-008; reviewer's block UPHELD
+
+`p29-reviewer-02` asked for an explicit scope ruling rather than letting the question ship by
+omission, noting the F-4 input class is narrow. **Root rules F-4 IN SCOPE.** Reasoning recorded so it
+is auditable, not deferential:
+
+- `spec.md:80-81` requires *"Every row the summary reports as an error is genuinely unparseable."*
+  That clause governs **false errors**. F-4 is its mirror — **rows wrongly reported VALID.** The
+  requirement that the summary "describe its own counts truthfully" (`:57`) is not met by a summary
+  reporting `0 errors` over rows whose amount column is a running balance. **Truthfulness is
+  symmetric: under-reporting errors is as untruthful as over-reporting them.**
+- Narrowness does not save it. UR-008's own reference case is a HEADERLESS file; F-4 concerns files
+  that DO have headers, whose headers are then overridden. Inside that class the behaviour is
+  deterministic, not occasional. Ruling it out would ship "check number imported as money, reported
+  valid" as accepted behaviour — the sentence rev 01 blocked on.
+
+Root REPRODUCED the defect before ruling rather than accepting the reviewer's measurement.
+
+**Reviewer conduct recorded:**
+
+- It caught root's dispatch error (`43836b0` assigned, `/tmp/mf-p29` at `ee3cce7`), **measured the
+  diff as empty before reporting**, and recorded it as benign rather than inflating it to a finding.
+- It declined to run E2E and stated why: a FAIL on a `detection.ts` defect means a campaign now is
+  evidence for a tree about to change. Root agrees; rev 03's campaign runs against the corrected
+  tree.
+- It stated its own limits explicitly — targeted test files rather than the full suite, no
+  `format:check`. An unstated limit is what costs a later revision.
+
+**Q-P29-04 carried to rev 03 as a requirement: the inert guard.** The reviewer removed
+`fileHasHeaders ? headers : []` entirely and **all 310 tests stayed green**, because `"Column N"`
+matches none of the pattern sets. It is a guard with NO test holding it in place — correct today,
+and nothing would notice if a future change made synthesised names match. Rev 03 must either pin it
+with a test that fails without it, or remove it and state why it was never needed. **A guard nothing
+tests is a comment with a runtime cost.**
+
+Verified: `ac9332c` is one file and an ancestor of HEAD; the reviewer's three worktrees are removed
+and pruned; `/tmp/mf-p29` untouched. One unattributed tree remains at `/tmp/mf-p29r2b` — root asked
+its owner rather than deleting it, per the `Q-P28-08` precedent.
