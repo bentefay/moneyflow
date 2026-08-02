@@ -2677,3 +2677,69 @@ requirement, rather than restating the requirement as though it were a descripti
 frozen text — the frozen source itself is immutable, so only the COMMENT can change, and it should
 move to the `ensure-default.ts:141-142` style. Recorded here so P21 can decide whether to charter the
 reword, sweep for the same pattern elsewhere, or accept it with reasons.
+
+## Q-P26-01 — A test that hand-copies a dependency's source cannot constrain that dependency
+
+Proposed by `p26-reviewer-01` during P26 as advisory finding F-1, demonstrated empirically. Root
+verified it independently. Transcribed here because `QUESTIONS.md` is root-owned. **Carry forward to
+P21.**
+
+**The instance, and note it lands on a check ROOT asked for.** Root's P26 dispatch required the fix's
+blast radius be "PROVEN bounded, not assumed" — the concern being that a transaction-table styling fix
+must not leak into the shared shadcn primitives that back every input in the product. The implementer
+wrote `tests/unit/transactions/cell-resting-chrome.test.ts:82-87`, whose comment reads "Blast radius,
+asserted rather than assumed". Root confirmed the test asserts against `SHARED_PRIMITIVE_BASES.input`,
+a string literal declared in the SAME test file, and that the file contains no import of
+`@/components/ui/input` at all.
+
+**Demonstrated, not argued.** The reviewer leaked the fix's chrome into the real
+`src/components/ui/input.tsx` product-wide and **both full suites stayed green: 2186 unit tests and
+168 E2E.** A regression the test exists to catch would have shipped.
+
+**Why it was advisory rather than blocking.** The blast radius genuinely IS bounded on the reviewed
+tree — `git diff -- src/components/ui/` is empty and `RESTING_CELL_CHROME` is imported only by the five
+cell sites — so shipped behaviour is correct and UR-005 is satisfied. What fails is the ASSURANCE the
+test advertises. The reviewer validated a one-file fix in both directions, using the existing
+`@testing-library/react` and `tests/unit/components/*.tsx` precedent, before proposing it.
+
+**The general failure mode.** A test that hand-copies a dependency's source into a local fixture is
+testing its own copy, not the dependency. It will pass forever regardless of what the dependency does,
+while reading like a guarantee about it. **Recommended sweep for P21:** look for local fixtures that
+duplicate production constants, and for test names containing "blast radius", "outside", "unchanged"
+or "does not disturb" — those phrases advertise a claim about code the test may never touch.
+
+## Q-P26-02 — A `bg-transparent` without a `dark:` counterpart is a latent instance of the UR-005 defect
+
+Proposed by `p26-reviewer-01` during P26. **Carry forward to P21.**
+
+The UR-005 defect existed because `twMerge` does not treat a bare utility as conflicting with a
+variant-prefixed one: `bg-transparent` and `dark:bg-input/30` target different states, so BOTH survive
+the merge and the dark-mode fill remains. This is invisible in source review — the cell's own classes
+read as clean.
+
+So any hand-written `bg-transparent` WITHOUT a `dark:bg-transparent` counterpart, on an element backed
+by a shadcn primitive that carries `dark:bg-input/30`, is a latent instance of the same defect. Root
+confirmed at least three primitives carry it: `input.tsx:11`, `select.tsx:34` and the outline Button
+variant `button.tsx:17`, the last also carrying `dark:border-input`, the only source of a resting
+border. `textarea.tsx:10` carries it too and is the subject of P26's advisory F-2.
+
+**Recommended for P21:** sweep for the asymmetric pattern rather than for visible symptoms, since the
+symptom only appears in one theme and only where the primitive is used. P26's fix pairs every utility
+with its `dark:` variant in `RESTING_CELL_CHROME` precisely to remove the asymmetry rather than mask
+the symptom.
+
+## Q-P26-F2 — The notes Textarea is the last unfixed instance of the UR-005 pattern
+
+Advisory F-2 from `p26-reviewer-01`, ruled OUT of UR-005 scope by that reviewer and recorded here so it
+is not lost. **Carry forward to P21.**
+
+`TransactionRow.tsx:583`, the expanded-row notes Textarea, carries the same dark-mode resting fill via
+`textarea.tsx:10`, measured at `oklab(0.999998 … / 0.045)`. It is now the ONLY remaining instance of
+the pattern P26 exists to eliminate, sitting one line from five fixed sites.
+
+The reviewer ruled it outside UR-005 on the frozen text: `spec.md:11-24` names six cells as a CLOSED
+list and states its subject as the RESTING state twice, and the expanded row is not present at rest. It
+confirmed both measurements itself before ruling. That is a decision, not an oversight.
+
+Fixing it is a one-line follow-up using the existing `RESTING_CELL_CHROME` constant. P21 should decide
+whether to charter it, fold it into another package, or accept it with reasons.
