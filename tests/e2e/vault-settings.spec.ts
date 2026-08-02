@@ -5,12 +5,18 @@
  * - New users land on settings page after vault creation
  * - Currency selection persists across page refreshes
  * - Existing users (unlock) land on transactions page
+ *
+ * The vault's default currency is inferred from the browser's time zone, so the time zone is pinned
+ * to a US one to keep the inferred-default assertion deterministic on any host. Currency inference
+ * itself is covered in `onboarding-vault.spec.ts`.
  */
 
 import { expect, type Page, test } from "@playwright/test";
 
 import { createNewIdentity, enterSeedPhrase, goToSettings, goToTransactions } from "./helpers";
 import { observeRealtimeLifecycle } from "./helpers/realtime";
+
+test.use({ timezoneId: "America/New_York" });
 
 // ============================================================================
 // Settings-Specific Helpers

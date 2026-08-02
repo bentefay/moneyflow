@@ -3,11 +3,17 @@
  *
  * Journey-style tests that validate complete user flows for account
  * management, including currency inheritance and inline editing.
+ *
+ * The vault's default currency is inferred from the browser's time zone, so the time zone is pinned
+ * to a US one to keep the inherited USD assertions deterministic on any host. Currency inference
+ * itself is covered in `onboarding-vault.spec.ts`.
  */
 
 import { expect, type Page, test } from "@playwright/test";
 
 import { createNewIdentity, goToAccounts } from "./helpers";
+
+test.use({ timezoneId: "America/New_York" });
 
 // ============================================================================
 // Account-Specific Helpers

@@ -1,61 +1,107 @@
 /**
- * Detect Default Currency from Browser Locale
+ * Detect Default Currency from Time Zone, falling back to Browser Locale
  *
- * Uses the browser's Intl API to infer the user's preferred currency
- * based on their locale settings. This is more reliable than timezone
- * because locale directly encodes cultural/regional preferences.
+ * The user's time zone is the primary signal. A locale's region subtag encodes
+ * LANGUAGE preference, not location: `en-US` is the default locale on most Linux
+ * installations, container images and development environments, so locale-derived
+ * region silently collapses to the United States for users who are not there. A
+ * user in `Australia/Brisbane` with an `en-US` locale is defaulted to USD when AUD
+ * is correct. Time zone does not share this failure mode, because an incorrect time
+ * zone visibly breaks clocks and calendars and is therefore usually correct.
  *
- * Detection order:
- * 1. navigator.languages[0] (user's preferred language list)
- * 2. navigator.language (browser's language)
- * 3. Falls back to "USD" if detection fails
+ * Resolution order:
+ * 1. Time zone (Intl.DateTimeFormat().resolvedOptions().timeZone) -> ISO 3166 country -> currency
+ * 2. Locale (navigator.languages[0], then navigator.language) -> region subtag -> currency
+ * 3. FALLBACK_CURRENCY
  *
- * @see https://stackoverflow.com/questions/25606730/get-current-locale-of-chrome#answer-42070353
+ * The locale rung exists for time zones that yield no country, such as the `UTC`
+ * zone commonly configured in containers and virtual machines.
+ *
+ * The IANA-zone -> country mapping comes from `countries-and-timezones`, which is
+ * generated from the IANA time zone database and resolves deprecated zone aliases
+ * (e.g. `Australia/Queensland` -> `AU`, `Asia/Calcutta` -> `IN`).
+ *
+ * The result is only a default. It is presented in the vault creation flow and the
+ * user can change it before and after creation.
  */
+
+import { getCountryForTimezone } from "countries-and-timezones";
 
 import { Currencies } from "./currencies";
 
 /**
- * Detects the user's preferred currency based on browser locale.
+ * Currency used when neither the time zone nor the locale yields a supported currency.
+ */
+export const FALLBACK_CURRENCY = "USD";
+
+/**
+ * Detects the user's default currency, preferring the time zone over the locale.
  *
- * Uses Intl.NumberFormat to resolve the locale's default currency.
- * This works because each locale has an associated currency
- * (e.g., "en-US" → USD, "en-GB" → GBP, "de-DE" → EUR, "ja-JP" → JPY).
- *
- * @returns ISO 4217 currency code (e.g., "USD", "EUR", "GBP")
+ * @returns ISO 4217 currency code (e.g., "AUD", "USD", "EUR")
  *
  * @example
  * ```ts
- * // User with en-GB locale
+ * // User in Australia/Brisbane with an en-US locale
+ * detectDefaultCurrency(); // "AUD"
+ *
+ * // Container reporting UTC with an en-GB locale
  * detectDefaultCurrency(); // "GBP"
- *
- * // User with ja-JP locale
- * detectDefaultCurrency(); // "JPY"
- *
- * // User with de-DE locale
- * detectDefaultCurrency(); // "EUR"
  * ```
  */
 export function detectDefaultCurrency(): string {
-    // Server-side or no window - return fallback
+    // Server-side or no window - the server's time zone is not the user's, so
+    // inferring from it would be misleading.
     if (typeof window === "undefined" || typeof navigator === "undefined") {
-        return "USD";
+        return FALLBACK_CURRENCY;
     }
 
     try {
-        const locale = getBrowserLocale();
-
-        const currency = getCurrencyFromLocale(locale);
-
-        // Verify we support this currency
-        if (currency && currency in Currencies) {
-            return currency;
-        }
-
-        return "USD";
+        return resolveDefaultCurrency(getBrowserTimeZone(), getBrowserLocale());
     } catch {
         // Any error in detection - use fallback
-        return "USD";
+        return FALLBACK_CURRENCY;
+    }
+}
+
+/**
+ * Resolves a default currency from a time zone and a locale.
+ *
+ * This is the pure core of the detection: the time zone is tried first, the locale
+ * second, and `FALLBACK_CURRENCY` last. A signal that resolves to a currency this
+ * app does not support is treated the same as a signal that resolves to nothing.
+ *
+ * @param timeZone - IANA time zone name, or undefined when unavailable
+ * @param locale - BCP 47 locale string, or undefined when unavailable
+ * @returns ISO 4217 currency code
+ */
+export function resolveDefaultCurrency(
+    timeZone: string | undefined,
+    locale: string | undefined
+): string {
+    const fromTimeZone = timeZone === undefined ? undefined : getCurrencyFromTimeZone(timeZone);
+    if (fromTimeZone !== undefined) {
+        return fromTimeZone;
+    }
+
+    const fromLocale = locale === undefined ? undefined : getCurrencyFromLocale(locale);
+    if (fromLocale !== undefined) {
+        return fromLocale;
+    }
+
+    return FALLBACK_CURRENCY;
+}
+
+/**
+ * Gets the browser's resolved IANA time zone.
+ *
+ * @returns IANA time zone name (e.g., "Australia/Brisbane"), or undefined if unavailable
+ */
+export function getBrowserTimeZone(): string | undefined {
+    try {
+        const { timeZone } = Intl.DateTimeFormat().resolvedOptions();
+        return timeZone ? timeZone : undefined;
+    } catch {
+        return undefined;
     }
 }
 
@@ -78,60 +124,75 @@ export function getBrowserLocale(): string {
 }
 
 /**
- * Extracts currency code from a locale using Intl.NumberFormat.
+ * Maps an IANA time zone to a supported currency via its ISO 3166-1 country.
  *
- * The Intl API knows the default currency for each locale.
- * We create a NumberFormat with style: "currency" and let the browser
- * resolve the default currency for that locale.
+ * Zones that belong to no country (`UTC`, `Etc/GMT`), unknown zones, and countries
+ * whose currency this app does not support all yield undefined so the caller can
+ * fall back to the locale.
  *
- * @param locale - BCP 47 locale string (e.g., "en-US", "de-DE")
- * @returns ISO 4217 currency code or undefined if detection fails
+ * @param timeZone - IANA time zone name (e.g., "Australia/Brisbane")
+ * @returns ISO 4217 currency code or undefined
  */
-export function getCurrencyFromLocale(locale: string): string | undefined {
+export function getCurrencyFromTimeZone(timeZone: string): string | undefined {
     try {
-        // Create a NumberFormat for currency - the browser will resolve the locale's default currency
-        // We need to provide *some* currency to create the formatter, but resolvedOptions()
-        // will tell us what the locale's default would be... except that's not how it works.
-        //
-        // Alternative approach: Use a locale-to-currency mapping based on the region subtag
-        const regionCurrency = getRegionCurrency(locale);
-        if (regionCurrency) {
-            return regionCurrency;
+        const country = getCountryForTimezone(timeZone);
+        if (!country) {
+            return undefined;
         }
 
-        return undefined;
+        return supportedCurrencyForRegion(country.id);
     } catch {
         return undefined;
     }
 }
 
 /**
- * Maps locale region subtag to currency.
+ * Extracts a supported currency from a locale's region subtag.
  *
- * The region part of a locale (e.g., "US" in "en-US") typically maps
- * to a country, which has an official currency.
+ * The region part of a locale (e.g., "US" in "en-US") names a country, which has an
+ * official currency. This is the FALLBACK signal: a region subtag reflects language
+ * preference rather than location, so it is only consulted when the time zone yields
+ * nothing.
  *
- * @param locale - BCP 47 locale string
- * @returns ISO 4217 currency code or undefined
+ * @param locale - BCP 47 locale string (e.g., "en-US", "de-DE")
+ * @returns ISO 4217 currency code or undefined if detection fails
  */
-function getRegionCurrency(locale: string): string | undefined {
-    // Extract region from locale (e.g., "en-US" → "US", "de-DE" → "DE")
-    const region = extractRegion(locale);
-    if (!region) {
+export function getCurrencyFromLocale(locale: string): string | undefined {
+    try {
+        const region = extractRegion(locale);
+        if (!region) {
+            return undefined;
+        }
+
+        return supportedCurrencyForRegion(region);
+    } catch {
         return undefined;
     }
+}
 
-    return REGION_TO_CURRENCY[region.toUpperCase()];
+/**
+ * Maps an ISO 3166-1 alpha-2 country code to a currency this app supports.
+ *
+ * @param region - ISO 3166-1 alpha-2 country code, in any case
+ * @returns ISO 4217 currency code or undefined
+ */
+function supportedCurrencyForRegion(region: string): string | undefined {
+    const currency = REGION_TO_CURRENCY[region.toUpperCase()];
+    if (currency && currency in Currencies) {
+        return currency;
+    }
+
+    return undefined;
 }
 
 /**
  * Extracts the region subtag from a BCP 47 locale.
  *
  * Handles formats like:
- * - "en-US" → "US"
- * - "de-DE" → "DE"
- * - "zh-Hans-CN" → "CN"
- * - "en" → undefined (no region)
+ * - "en-US" -> "US"
+ * - "de-DE" -> "DE"
+ * - "zh-Hans-CN" -> "CN"
+ * - "en" -> undefined (no region)
  *
  * @param locale - BCP 47 locale string
  * @returns Region code or undefined
@@ -161,8 +222,8 @@ function extractRegion(locale: string): string | undefined {
 /**
  * Mapping of ISO 3166-1 alpha-2 country codes to ISO 4217 currency codes.
  *
- * This covers the most common countries. Countries not in this list
- * will fall back to USD.
+ * This covers the most common countries. Countries not in this list yield no
+ * currency, so detection falls through to the next signal.
  *
  * Note: Some countries use USD directly (e.g., Ecuador, El Salvador).
  * Eurozone countries all map to EUR.

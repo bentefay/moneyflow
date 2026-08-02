@@ -49,6 +49,7 @@
         "class-variance-authority": "0.7.1",
         "clsx": "2.1.1",
         "cmdk": "1.1.1",
+        "countries-and-timezones": "^3.9.0",
         "currency.js": "2.0.4",
         "date-fns": "4.4.0",
         "decimal.js": "10.6.0",

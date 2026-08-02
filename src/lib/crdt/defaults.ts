@@ -129,7 +129,8 @@ export interface DefaultVaultStateOptions {
     /**
      * Default currency for the vault.
      * If not provided, defaults to "USD".
-     * Use detectDefaultCurrency() to infer from browser locale.
+     * Use detectDefaultCurrency() to infer from the user's time zone, falling
+     * back to their browser locale.
      */
     defaultCurrency?: string;
 }

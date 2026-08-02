@@ -11,6 +11,10 @@
  *
  * Every amount asserted here is produced by `calculateSettlementBalances` through the real UI. No
  * test computes a settlement value itself.
+ *
+ * The vault's default currency is inferred from the browser's time zone, so the time zone is pinned
+ * to a US one to keep the USD amounts asserted below deterministic on any host. Currency inference
+ * itself is covered in `onboarding-vault.spec.ts`.
  */
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
@@ -53,6 +57,9 @@ import {
     statusRow,
     TREAT_AS_PAID_LABEL
 } from "./helpers/statuses";
+
+// Keeps the inferred vault default currency at USD regardless of the host's time zone.
+test.use({ timezoneId: "America/New_York" });
 
 /**
  * Pre-existing local-stack transport noise, not attributable to the settlement surface.

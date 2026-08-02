@@ -2,7 +2,7 @@
  * E2E Test: Onboarding Creates + Selects Vault
  */
 
-import { expect, test } from "@playwright/test";
+import { type Browser, type Page, expect, test } from "@playwright/test";
 
 import { createNewIdentity, goToAccounts, goToSettings, goToTags } from "./helpers";
 
@@ -163,80 +163,99 @@ test.describe("Onboarding", () => {
 });
 
 test.describe("Currency Detection", () => {
-    test("new vault uses USD for en-US locale (default)", async ({ page }) => {
-        await test.step("create identity with automatic vault creation", async () => {
+    /**
+     * Reads the currency code shown in the vault settings currency selector.
+     * The button renders the code and the name; the code is the font-mono span.
+     */
+    async function readDefaultCurrency(page: Page): Promise<string> {
+        const currencySelector = page.getByRole("combobox", { name: "Default currency" });
+        await expect(currencySelector).toBeVisible();
+        return (await currencySelector.locator(".font-mono").textContent())?.trim() ?? "";
+    }
+
+    /**
+     * Creates an identity in a context with the given time zone and locale, then
+     * returns the default currency the new vault was created with.
+     */
+    async function detectedCurrencyFor(
+        browser: Browser,
+        options: { timezoneId: string; locale: string }
+    ): Promise<string> {
+        const context = await browser.newContext(options);
+        const page = await context.newPage();
+        try {
             await createNewIdentity(page);
-        });
-
-        await test.step("verify vault has USD as default currency", async () => {
             await goToSettings(page);
+            return await readDefaultCurrency(page);
+        } finally {
+            await context.close();
+        }
+    }
 
-            // The currency selector button shows the selected currency
-            const currencySelector = page.getByRole("combobox", { name: /default currency/i });
-            await expect(currencySelector).toContainText("USD");
+    test("time zone decides the default currency, overriding a conflicting locale", async ({
+        browser
+    }) => {
+        // The reported defect: LANG=en_US.UTF-8 is the default on most Linux
+        // installs and container images, so a user in Brisbane was defaulted to USD.
+        const detected = await detectedCurrencyFor(browser, {
+            timezoneId: "Australia/Brisbane",
+            locale: "en-US"
         });
+
+        expect(detected).toBe("AUD");
     });
 
-    test("new vault detects GBP for en-GB locale", async ({ browser }) => {
-        // Create a new context with en-GB locale
-        const context = await browser.newContext({ locale: "en-GB" });
+    test("a country-less time zone falls back to the locale", async ({ browser }) => {
+        // Containers and VMs commonly report UTC, which belongs to no country.
+        const detected = await detectedCurrencyFor(browser, {
+            timezoneId: "UTC",
+            locale: "en-GB"
+        });
+
+        expect(detected).toBe("GBP");
+    });
+
+    test("neither signal resolving falls back to the default currency", async ({ browser }) => {
+        // UTC yields no country and a region-less locale yields no region.
+        const detected = await detectedCurrencyFor(browser, {
+            timezoneId: "UTC",
+            locale: "en"
+        });
+
+        expect(detected).toBe("USD");
+    });
+
+    test("the inferred currency is a default the user can change, and the change persists", async ({
+        browser
+    }) => {
+        const context = await browser.newContext({
+            timezoneId: "Australia/Brisbane",
+            locale: "en-US"
+        });
         const page = await context.newPage();
 
         try {
-            await test.step("create identity with automatic vault creation", async () => {
+            await test.step("the inferred default is presented after vault creation", async () => {
                 await createNewIdentity(page);
-            });
-
-            await test.step("verify vault has GBP as default currency", async () => {
                 await goToSettings(page);
-
-                // The currency selector button shows the selected currency
-                const currencySelector = page.getByRole("combobox", { name: /default currency/i });
-                await expect(currencySelector).toContainText("GBP");
-            });
-        } finally {
-            await context.close();
-        }
-    });
-
-    test("new vault detects EUR for de-DE locale", async ({ browser }) => {
-        // Create a new context with de-DE locale
-        const context = await browser.newContext({ locale: "de-DE" });
-        const page = await context.newPage();
-
-        try {
-            await test.step("create identity with automatic vault creation", async () => {
-                await createNewIdentity(page);
+                expect(await readDefaultCurrency(page)).toBe("AUD");
             });
 
-            await test.step("verify vault has EUR as default currency", async () => {
-                await goToSettings(page);
+            await test.step("the user can change it to something else", async () => {
+                await page.getByRole("combobox", { name: "Default currency" }).click();
 
-                // The currency selector button shows the selected currency
-                const currencySelector = page.getByRole("combobox", { name: /default currency/i });
-                await expect(currencySelector).toContainText("EUR");
-            });
-        } finally {
-            await context.close();
-        }
-    });
+                const search = page.getByPlaceholder(/search currencies/i);
+                await search.waitFor({ state: "visible" });
+                await search.fill("JPY");
+                await page.getByRole("option", { name: /JPY/ }).first().click();
+                await expect(search).not.toBeVisible();
 
-    test("new vault detects JPY for ja-JP locale", async ({ browser }) => {
-        // Create a new context with ja-JP locale
-        const context = await browser.newContext({ locale: "ja-JP" });
-        const page = await context.newPage();
-
-        try {
-            await test.step("create identity with automatic vault creation", async () => {
-                await createNewIdentity(page);
+                expect(await readDefaultCurrency(page)).toBe("JPY");
             });
 
-            await test.step("verify vault has JPY as default currency", async () => {
-                await goToSettings(page);
-
-                // The currency selector button shows the selected currency
-                const currencySelector = page.getByRole("combobox", { name: /default currency/i });
-                await expect(currencySelector).toContainText("JPY");
+            await test.step("the change survives a reload, so it is not silently relocked", async () => {
+                await page.reload();
+                expect(await readDefaultCurrency(page)).toBe("JPY");
             });
         } finally {
             await context.close();

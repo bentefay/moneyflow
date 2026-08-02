@@ -138,7 +138,8 @@ export async function ensureDefaultVault(
     });
 
     // 4. Initialize LoroDoc with default state
-    // Detect user's preferred currency from browser locale
+    // Detect user's preferred currency from their time zone, falling back to locale.
+    // This is only a default - it is shown in vault settings and can be changed there.
     const detectedCurrency = detectDefaultCurrency();
 
     const doc = new LoroDoc();
