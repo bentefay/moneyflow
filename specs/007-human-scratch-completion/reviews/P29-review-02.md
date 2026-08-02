@@ -6,16 +6,23 @@
 - **Reviewer:** `p29-reviewer-02`, distinct from `p29-implementer-01` and from `p29-reviewer-01`. I
   authored none of this code and edited no product file.
 - **Requirement:** UR-008, frozen at `specs/010-user-reported-refinements-2/spec.md` lines 56-86.
-- **Reviewed:** BASE `74b37f9` .. HEAD `43836b0`, with a third reference point at the package's
-  original BASE `4c77a2d`.
-- **My worktrees:** `/tmp/mf-p29r2-base` (74b37f9), `/tmp/mf-p29r2-head` (43836b0) and
-  `/tmp/mf-p29r2-orig` (4c77a2d), all outside the repo.
+- **Reviewed:** BASE `74b37f9` .. HEAD **`ee3cce7`**, with a third reference point at the package's
+  original BASE `4c77a2d`. Sections 0-8 were written against `43836b0`; the coordinator subsequently
+  retargeted the review to the handback tree `ee3cce7`. **Measured:** the two are byte-identical in
+  `src/` and `tests/` — same digest `0e58fc4984aed2234afdb99df70705df` — so every measurement below
+  holds unchanged. See the **Addendum** for the retarget and two further lines of testing.
+- **My worktrees:** `/tmp/mf-p29r2-base` (74b37f9), `/tmp/mf-p29r2-head` (43836b0),
+  `/tmp/mf-p29r2-orig` (4c77a2d), `/tmp/mf-p29r2b` (ee3cce7) and `/tmp/mf-p29r2b-orig` (4c77a2d),
+  all outside the repo.
 
 Statements are labelled **Measured** (I ran it and read the output) or **Inferred**.
 
 ---
 
 ## 0. Preconditions, and one correction to the dispatch
+
+> **Resolved.** The coordinator confirmed this and retargeted the review to `ee3cce7`. This section
+> is left as originally written; see the Addendum.
 
 **The dispatch says the worktree `/tmp/mf-p29` is "clean, at that commit" `43836b0`. It is not at
 that commit. Measured:** `/tmp/mf-p29` HEAD is `ee3cce7`, one commit ahead —
@@ -434,3 +441,176 @@ No product, test, ledger, marker, scratch, SCOPE, spec or FINAL-AUDIT file was m
 one product-file mutation was applied in my own worktree, reverted, and the tree verified clean by
 `git status --porcelain`. All scratch probe files were deleted. My worktrees `/tmp/mf-p29r2-base`,
 `/tmp/mf-p29r2-head` and `/tmp/mf-p29r2-orig` are clean and can be removed.
+
+---
+
+# Addendum — retarget to `ee3cce7`, and two lines of testing the coordinator added
+
+**Verdict unchanged: FAIL, on F-4.** Nothing below changes it, and nothing below adds a second
+blocking finding.
+
+## A.0 The retarget is sound
+
+**Measured**, independently of the coordinator's own check: `git diff 43836b0 ee3cce7 -- src tests`
+is empty; the sole changed path is `evidence/P29/implementation-01.md`, +27/-11. The md5 digest over
+every tracked `src/`+`tests/` `.ts`/`.tsx` file excluding `next-env.d.ts` is
+`0e58fc4984aed2234afdb99df70705df` at `ee3cce7` — identical to `43836b0` and to both campaign
+digests. `git merge-base --is-ancestor ee3cce7 HEAD` succeeds.
+
+**So sections 0-8 stand verbatim as measurements of `ee3cce7`.** F-4 reproduces there; I re-ran the
+probes in a fresh `/tmp/mf-p29r2b` worktree at `ee3cce7`.
+
+**On the evidence I assessed:** I read the evidence from the main checkout, which was already at
+`ee3cce7`. So §2's assessment of the credit correction was made against the newer text, not the
+older one. I re-read the delta to confirm: it adds the credit correction, corrects the rev 01/rev 02
+commit and BASE list, updates the test count `2316 -> 2382`, and replaces the rev 01 campaign table
+with the rev 02 one while explicitly retaining the superseded rev 01 result. **All of it is accurate
+against my own measurements**, including the `0e58fc49` digest and the three run durations.
+
+## A.1 The denylist — the implementer's judgement is CORRECT, with one boundary it did not name
+
+The coordinator asked me to test the claim that falling through `NON_AMOUNT_HEADER_PATTERN` to the
+signs/minor-units ranking is sound. **I tested it and the claim holds in the case the implementer
+was defending, and fails in an adjacent one it did not identify.**
+
+**Measured**, ten headers the denylist does not contain — `Running Total`, `Closing Bal`, `Ledger`,
+`Statement Balance`, `Cheque Number`, `Doc No`, `Transaction ID`, `Account No`, `Units`, `Rate` —
+each placed on a numeric column beside a genuine `Amount` column, driven through the real
+`loadFile`:
+
+- with **signed** amounts: **all 10 correct**, `[-550, -7525, 250000]`, 0 errors;
+- with **all-positive** amounts: **all 10 correct**, `[550, 7525, 250000]`, 0 errors.
+
+The reason is structural rather than lucky, and it is worth stating because it is the real strength
+of the design: `bestAmountColumn` at `detection.ts:324-325` settles outright when
+`AMOUNT_HEADER_PATTERN` names **exactly one** column. That is an **allowlist** hit, and it fires
+before the denylist matters at all. **So the denylist's incompleteness is irrelevant whenever the
+amount column is itself conventionally named** — which is the overwhelmingly common real case. The
+implementer's judgement that the fallback is acceptable is **correct, and better founded than its
+own explanation suggests.**
+
+**The boundary it did not name. Measured**, when the amount column is _also_ unrecognised — headers
+like `Movement`, `Posting`, `Txn`, `Withdrawal`, `Deposit` — so neither pattern fires:
+
+| arrangement                                 | result                                                               |
+| ------------------------------------------- | -------------------------------------------------------------------- |
+| `Running Total` + `Txn`, **signed** amounts | correct, `[-550, -7525, 250000]`, 0 errors                           |
+| `Running Total` + `Txn`, **all positive**   | **WRONG — imports `[100000, 92475, 342475]`, the balance, 0 errors** |
+| `Txn` + `Running Total`, **all positive**   | correct, `[550, 7525, 250000]` — leftmost happens to be right        |
+
+Same for `Closing Bal`, `Ledger`, `Account No`, `Doc No`. Signs rescue the signed case; when every
+value is positive, signs and minor units are equal and **position decides**, so the answer is right
+or wrong purely by column order.
+
+**I am NOT raising this as a separate finding, and I want to be precise about why.** This is not a
+regression introduced by the fallback — it is the residue of the case the coordinator's own ruling
+identifies as having _no correct answer available_. Two all-positive numeric columns, neither named,
+are identical by value **and** by header. No rule can separate them. `4c77a2d` "handled" it only by
+mapping no amount at all and reporting every row as an error, which is a different behaviour, not a
+better detection.
+
+**It is materially different from F-4 in exactly one respect, and that respect is the whole point:**
+in F-4 the header _does_ carry the answer — it says `Balance`, `Check No`, `Ref` — and the code
+overrides it. Here the header carries nothing. Overriding available evidence is a defect; guessing
+when there is no evidence is a design limit. **F-4 stands as the only block.**
+
+Worth recording for the fix, though: **if F-4 is fixed as I recommend (`return null` when every
+candidate is disowned), the all-positive-unknown-header case above is the nearest neighbour that
+will still guess.** Whoever implements it should decide deliberately whether that is acceptable, and
+say so, rather than discovering it later.
+
+## A.2 `CLASSIFICATION_THRESHOLD` — no test notices ANY value across its meaningful range
+
+The coordinator asked what breaks at 0.75 or 0.85 and whether any test would notice. **Measured**,
+by editing the constant in my own worktree and re-running every affected test file — all 11 files,
+310 tests:
+
+| threshold | result     |
+| --------- | ---------- |
+| 0.40      | 310 passed |
+| 0.50      | 310 passed |
+| 0.60      | 310 passed |
+| 0.75      | 310 passed |
+| 0.85      | 310 passed |
+| 0.95      | 310 passed |
+| 0.99      | 310 passed |
+| 1.00      | 310 passed |
+
+**No test distinguishes 0.4 from 1.0.** The constant is entirely unpinned. Every fixture in the
+suite has columns that are either ~100% clean or ~0% matching, so the threshold never sits between
+two candidates and the value is invisible to the suite. Rev 01's reviewer accepted 0.8 on a sweep of
+`inferDateFormat` and was right that the decision is not close to the boundary for realistic input —
+but "not close to the boundary" is exactly why no test can see it.
+
+**What actually breaks, measured** on 20-row files with a controlled proportion of unparseable
+values, which is the evidence the constant deserves:
+
+| bad rows | match rate | amount column      | date column        | `inferDateFormat` |
+| -------- | ---------- | ------------------ | ------------------ | ----------------- |
+| 0-4 / 20 | 1.00-0.80  | resolved correctly | resolved correctly | `yyyy-MM-dd`      |
+| 5 / 20   | 0.75       | **unmapped**       | **unmapped**       | **`null`**        |
+| 6 / 20   | 0.70       | unmapped           | unmapped           | `null`            |
+
+**The degradation is a cliff at exactly 0.8, and it fails SAFE in both directions.** Below the
+threshold the role is left unmapped and the rows report as errors — it never degrades to _a wrong
+column_. That is the property that matters for money, and it is why I am not raising the threshold
+as a finding: the constant is under-tested, not wrong, and a mis-set threshold costs the user a
+manual mapping rather than corrupting a ledger.
+
+Raising it to 0.85 would reject a file with 3 bad rows in 20; lowering it to 0.75 would accept one
+with 4. Neither is obviously better, which is what makes 0.8 defensible as the implementer said.
+
+**Recommendation, non-blocking:** add one test pinning the cliff — a fixture just above and just
+below the threshold, asserting the role resolves in one and is absent in the other. That converts an
+unpinned constant into a documented contract and would fail loudly if someone later "tunes" it. I
+did not treat its absence as blocking because the failure mode is safe.
+
+## A.3 On the header-evidence ruling — I agree with it, on the frozen text
+
+The coordinator offered to re-rule. **I do not think it needs re-ruling, and I reached that reading
+independently before being told it was a ruling.**
+
+The frozen text at `spec.md:70-74` requires that detection "runs on a file that has no header row"
+and that it "identifies each column from its values". **Measured**, the implementation satisfies
+both literally: with no headers passed, the headerless reference shape resolves
+`{0:date, 1:amount, 2:description}` from values alone, and the real 622-row file imports 622/622
+with zero errors. The text constrains what detection must _achieve without_ a header; it does not
+say a header must be discarded when present. Reading a prohibition into it would require the
+sentence to say something it does not.
+
+The consequence the implementer identified is real, and I measured it rather than reasoning about
+it. **Measured**, a _headerless_ file with an all-positive amount column beside a running balance:
+
+```
+balance LEFT of amount  -> imports 100000, 92475, 342475   (the BALANCE)
+balance RIGHT of amount -> imports 550, 7525, 250000       (correct)
+```
+
+Identical data, opposite answers, decided by column order alone — because with no signs, no minor-
+unit difference and no header, **there is genuinely nothing to choose on.** A reviewer rejecting the
+ruling would have to accept this outcome for headered files too, and would be trading a case the
+implementation gets right for one nothing can get right. The ruling is correct.
+
+## A.4 On the implementer's self-assessment
+
+The coordinator noted the implementer volunteered that its five fixtures would have been blind and
+corrected praise downward. **I audited the older parity assertion on its own merits rather than
+assuming it was designed for this**, as instructed. `ur-008-csv-parity.test.ts:436-474` derives
+`amountIndex` from detection at `:442-444`, parses the values at that index, and compares the result
+against `processOFXImport`. **Measured:** it does reach a value-level comparison, and it would catch
+a CSV/OFX divergence. But it uses `parseSyntheticCSV()`, a **headerless** fixture with one numeric
+column — so it could not have caught F-1 either, and it cannot catch F-4. It is a genuine parity
+test, not a disguised column-selection test. **The implementer's downward correction is accurate and
+if anything still slightly generous to itself.**
+
+That candour is the reason I have been able to review this package quickly and confidently, and it
+should be weighed in the package's favour even though the verdict is FAIL.
+
+## A.5 Scope discipline
+
+I did not run E2E and did not take `:3000`. I did not re-run the full unit suite; the 310 figure is
+the 11 affected files. All addendum work ran in `/tmp/mf-p29r2b` and `/tmp/mf-p29r2b-orig`, both
+outside the repo. The one product-file mutation — the threshold constant — was reverted with
+`git checkout --`, and I verified the tree afterwards: `git status --porcelain` empty, constant back
+to `0.8`, digest back to `0e58fc4984aed2234afdb99df70705df`. All scratch files deleted; all five of
+my worktrees removed.
