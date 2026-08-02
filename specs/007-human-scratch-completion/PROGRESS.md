@@ -8409,3 +8409,40 @@ Six checks at handback: typecheck PASS, bare `pnpm lint` exit 0 with one pre-exi
 correction (all five fixtures it wrote for this defect would have been blind; an older test carried
 the property), and §1.4.3 stating it shipped an instance of the failure mode its own §1.4.2 names as
 the worst kind.
+
+### 2026-08-02 — P31 + P32 DISPATCHED AS ONE PACKAGE (UR-010 + UR-011 selection)
+
+Root merged the two dispatches into a single implementer, `p31-implementer-01`, against `main`.
+**Rationale: they are one change.** Both requirements live in
+`src/components/features/transactions/hooks/useTableSelection.ts` and both hinge on the same
+`filteredIds` input. Two agents editing one hook would guarantee a merge conflict. **A DISTINCT
+reviewer still gates each package** — the merge is of implementation, not of the independent gate.
+
+**Diagnoses handed over, each traced by root and each flagged as verify-not-trust:**
+
+- **UR-010.** The shift branch at `:106-133` only ever calls `newIds.add(filteredIds[i])`, so it
+  cannot deselect a range. Deeper cause: **`lastSelectedId` records WHICH row was last acted on but
+  never WHAT was done to it**, so the code cannot know whether a range should select or deselect.
+  The frozen text requires the range to apply "the same outcome to the whole range as was applied to
+  the anchor row".
+- **UR-011.** `TransactionTable.tsx:274` sets `filteredIds = transactions.map((t) => t.id)` where
+  `transactions` is `tableData` = `displayedTransactions` = `filteredTransactions.slice(0,
+  displayCount)` with `PAGE_SIZE = 50`. **Select-all therefore covers only the loaded page.**
+  `isAllSelected` at `:52-67` additionally loops `filteredIds`, which the efficiency clause at
+  `spec.md:52-55` forbids scaling as rendered x matching.
+
+**Incidental defect found by root and folded into the dispatch: three `console.log` calls in shipped
+product code** at `useTableSelection.ts:71`, `:82`, `:94` — debug leftovers inside the very function
+UR-011 requires rewriting. Repo-wide there are 14 `console.log` in `src`, but the remainder are
+deliberate `SyncManager` logging or docstring examples, so the implementer is scoped to **these three
+only**.
+
+The dispatch carries the blindness test in requirement-specific form, since generic phrasing has not
+been enough: *a test asserting "the range is selected" passes whether or not deselection works, and
+a test asserting "select-all selects the rendered rows" passes whether or not unrendered rows are
+covered.* Required instead: assert that **never-rendered rows are in the selection**, and that **a
+range begun by deselecting ends deselected**.
+
+Barred from :3000 while `p28-reviewer-03` campaigns; worktree reserved `/tmp/mf-p31`, outside the
+repo. **Four agents now in flight, one port, no contention:** P28 reviewer campaigning, P29 reviewer
+static, P30 implementer port-free, P31/P32 implementer port-free.
