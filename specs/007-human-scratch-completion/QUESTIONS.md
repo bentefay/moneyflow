@@ -2774,3 +2774,37 @@ The precedent is real but does not generalise, and nothing in the file signals w
 exactly this and confirmed 168 at BASE and 170 at HEAD. Treat any unexplained drop in collected tests
 as a failure. And note that the underlying advisory's GOAL — making a label rename break loudly rather
 than silently — remains unmet; a different mechanism would be needed.
+
+## Q-P23-01 EXTENSION — a SECOND wall-clock assertion exists, in the E2E suite
+
+`Q-P23-01` recorded that `tests/unit/import/duplicates.test.ts:749` asserts a wall-clock RATIO and is
+therefore load-sensitive by construction. `p27-reviewer-01` surfaced a second instance, in a different
+suite, and root verified both. **Carry forward to P21 as an extension of `Q-P23-01`, not a duplicate.**
+
+**Instance 1, already recorded — unit.** `duplicates.test.ts:724` "scales linearly with input size
+(O(n+m) complexity)", asserting `expect(ratio1).toBeLessThan(4)` at `:749-750` on ratios of
+`performance.now()` deltas whose baseline is a sub-millisecond batch.
+
+**Instance 2, NEW — E2E.** `tests/e2e/transactions.spec.ts:725`, the virtualization test, measures
+`Date.now()` around an expansion and asserts `expect(expansionDurationMs).toBeLessThan(10_000)` at
+`:804`. Root verified the assertion exists. A 10-second budget is generous, but it is still an
+absolute wall-clock bound and it WILL fail under enough concurrent load.
+
+**Both were observed failing under load in this goal, by different agents.** `p27-implementer-01` hit
+instance 1 once in five runs and honestly reported it as an unattributed red run, having lost the test
+name to a grep. `p27-reviewer-01` then NAMED it on its third run — confirming the implementer's
+labelled-as-unconfirmed inference was correct. The same reviewer hit instance 2 by running unit suites
+concurrently with an E2E campaign, and correctly killed and restarted the campaign rather than
+reasoning about whether the failure was real.
+
+**The rule this establishes, and it is the important part.** Once a campaign's load is uncontrolled,
+a wall-clock failure is UNPROVABLE in either direction — it cannot be shown to be a real defect, and it
+cannot be shown not to be. The only sound response is to discard the campaign and re-run in a quiet
+window, which is what the reviewer did. Do NOT reason from "it is probably the known flake" to a green
+verdict.
+
+**Recommended for P21:** replace both assertions with load-independent measures — an operation count,
+a complexity assertion over instrumented call counts, or a comparison against a same-run baseline
+rather than absolute time. Until then, every campaign in this goal must be run with nothing else heavy
+on the machine, and any agent running unit suites alongside an E2E campaign is contaminating its own
+evidence.
