@@ -757,6 +757,17 @@ under it would have been unprovable in either direction and the campaign discard
 in the fastest of the three runs at 4.1m, so the pass is if anything stronger than a quiet-box pass
 — but the condition existed and a reviewer should read it here rather than discover it in the log.
 
+**The coordinator traced the source and it was EXTERNAL to this repo** — a node workload at 211% CPU
+whose cwd lies outside `/home/ben-agents/Code/moneyflow`, already exited by the time it was chased.
+Not P30, not P31, not any agent on this goal, so no CPU-discipline rule was broken by anyone.
+
+**The coordinator also checked all three recorded load-sensitive assertions across all three logs —
+`transactions.spec.ts:804`, `duplicates.test.ts:749` and `vault-maintenance.test.tsx` — and none
+fired in any run.** Those are precisely the assertions that break under contention, and run 3 put
+them under load 21 and they held. That is the concrete reason this campaign is stronger evidence
+than a quiet-box one: it demonstrates the suite is not merely passing because the machine was idle.
+Recorded as the coordinator's measurement, not mine.
+
 **177, not 182.** `playwright test --list` reported 177 immediately before the campaign and every
 run reports `177 passed`. Rev 03 touches no E2E spec — `git diff ee3cce7 HEAD -- tests/e2e` is empty
 — so this campaign re-validates the same E2E surface against a **changed unit surface**, which is
