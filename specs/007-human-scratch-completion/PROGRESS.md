@@ -9844,3 +9844,42 @@ clause 2 and to the no-resize property, **which makes it a practice rather than 
 Port sequencing: P31 has created `/tmp/mf-p31` and is setting up; its campaign has not started. P30
 holds, is next, and is instructed not to take the port on an observed gap — root has seen :3000 read
 free three times mid-campaign today, and has once failed to confirm a grant actually landed.
+
+### 2026-08-02 — CORRECTION: root's `page.tsx` 51/7 split was a KEYWORD ARTIFACT; use hunk ranges
+
+Root attributed `page.tsx` in `e97b3f7` as **51 selection-related added lines against 7
+rule-related**, and handed that to two reviewers as a measurement. **`p30-implementer-01` checked it
+rather than adopting it, and the method does not work.** Root re-measured and confirms:
+
+```
+total added lines in page.tsx:  143
+matching selection keywords:     51
+matching rule keywords:           7
+matching NEITHER:                85   <- 59% of the file's added lines
+```
+
+**A ratio built from the matching fraction is an artifact of the word list, not a property of the
+code.** The unmatched majority are renamed callbacks, dependency-array entries, JSX props, blank
+lines and comment prose. Root's numbers and the implementer's disagreed **because the two chose
+different word lists, not because either measured anything.**
+
+**HUNK-LEVEL ATTRIBUTION IS UNAMBIGUOUS AND REPLACES IT.** 13 hunks; exactly two are P30's, and root
+verified by printing their contents:
+
+| hunk                  | added | owner                                        |
+| --------------------- | ----- | -------------------------------------------- |
+| `@@ -613,6 +644,15 @@` | 9     | **P30** — the one-stable-element-type comment |
+| `@@ -621,6 +661,11 @@` | 5     | **P30** — the `isPending` prop                |
+| the other 11          | 129   | P31 — selection                              |
+
+**P30's entire footprint in `page.tsx` is 14 added lines in two adjacent hunks, both inside
+`renderRuleProposal`.** Reviewers get **"lines 644-671 are P30, everything else is P31"** — a range
+they can scope to. A 51/7 ratio locates nothing.
+
+**The implementer's reason for checking rather than adopting is the lesson:** *a keyword grep is a
+measurement of my word list, not of the code* — the same shape as `grep sameTagIds` returning nothing
+on the old tree and reading as an absent guard. **A number that comes out of a plausible-looking
+command still needs asking: what would make this number wrong?** Root produced a plausible-looking
+number and shipped it to two reviewers without asking that.
+
+Joint attribution of `page.tsx` stands; only the ranges are refined.
