@@ -9,8 +9,12 @@
   files transiently for measurement and restored them; the tree is verified clean below.
 - **Requirement:** UR-008, frozen at `specs/010-user-reported-refinements-2/spec.md` lines 56-86.
   Not read for edit, not marked.
-- **Reviewed:** BASE `ee3cce7` .. HEAD `6a51b53`, with a third reference point at the package's
-  original BASE `4c77a2d`.
+- **Reviewed:** BASE `ee3cce7` .. HEAD **`c694a94`**, with a third reference point at the package's
+  original BASE `4c77a2d`. Sections 0-10 were written against `6a51b53`; root subsequently
+  retargeted the review to `c694a94`. **MEASURED:** the two are byte-identical in `src/` and
+  `tests/` — same digest `8da3122b2626fca290e04a080b3b26de` — so every measurement below holds
+  unchanged. See the **Addendum** for the retarget and an audit of the 11 appended evidence lines,
+  which raises **F-7**.
 
 Every statement below is labelled **MEASURED** (I ran it and read the output) or **INFERRED**.
 
@@ -405,4 +409,109 @@ neither originates in this diff.
 - **Q-P29-03-02:** should the reviewed HEAD of record be `6a51b53` or `c694a94`? Product and test
   content are byte-identical (`8da3122b2626fca290e04a080b3b26de`); only evidence prose differs.
   _Safest reversible reading taken:_ reported both, stated my measurements cover the content common
-  to them, and left the choice to root.
+  to them, and left the choice to root. **Resolved by root: the target is `c694a94`.** See the
+  Addendum.
+
+---
+
+## Addendum — retarget to `c694a94`, and an audit of the 11 appended evidence lines
+
+Root retargeted this review from `6a51b53` to `c694a94` and asked me to audit the honesty of the
+labelling in the appended lines. **The verdict is unchanged: PASS.** The audit produced one finding,
+**F-7**, which is **non-blocking for the code** but is a **factual error in the evidence** that root
+should correct before integration, because root is the party the error is attributed to.
+
+### A.1 Ancestry re-verified against the corrected target — MEASURED
+
+Re-run at the moment of retarget, not relied upon from earlier: `git merge-base --is-ancestor`
+returns 0 for **all three** of `ee3cce7`, `6a51b53` and `c694a94` against current HEAD. Current HEAD
+is `3613263`, which is my own review-artifact commit. `git diff --stat c694a94 HEAD -- src tests` is
+**empty**, and the recursive `src/`+`tests/` digest at `c694a94` is
+`8da3122b2626fca290e04a080b3b26de` — identical to the value I measured at `6a51b53`, and identical
+at `6e4bf32`, the commit the E2E campaign actually ran against.
+
+**Every measurement in sections 1-10 therefore applies to `c694a94` unchanged.** The reviewed target
+of record is **`c694a94`**.
+
+### A.2 The labelling is honest — MEASURED
+
+The appended block is at `implementation-01.md:760-770`. Checked against the question root asked:
+
+- **Attribution is explicit and correct.** Both paragraphs open "**The coordinator traced…**" and
+  "**The coordinator also checked…**", and the block closes "Recorded as the coordinator's
+  measurement, not mine." Nothing root measured is claimed by the implementer.
+- **Nothing the implementer measured is upgraded.** The pre-existing text at `:751-757` still says
+  only that load 21.20 came from "another process… nothing of mine was running" — which is what the
+  implementer could establish — and the external-source attribution is confined to the new
+  root-attributed paragraph. The pre-existing "if anything stronger" assertion at `:756-757` now has
+  a stated reason after it rather than standing alone, which was the implementer's stated purpose.
+- **The file's own convention is `**Observed**`/`**Inferred**`; the appended block uses neither.**
+  **INFERRED:** attributing to a named third party is a stronger and clearer provenance marker than
+  `**Observed**` would be here, since `**Observed**` throughout this file means "observed by the
+  implementer". This is a defensible choice, not a lapse. No finding.
+
+**On the honesty bar root set:** I agree it is high and I agree it is met on attribution. The
+implementer disclosed a campaign-invalidating load condition unprompted and against its own
+interest. That is not in question.
+
+### F-7 — MEDIUM — Evidence factual error — two of the three named "load-sensitive assertions" cannot appear in an E2E campaign log, so the strongest new claim is unsupported as written
+
+**File:** `specs/007-human-scratch-completion/evidence/P29/implementation-01.md:764-770`, and the
+pre-existing clause at `:749-750`.
+
+The appended claim is that all three recorded load-sensitive assertions were checked "across all
+three logs" and none fired, and it draws the conclusion that "run 3 put them under load 21 and they
+held."
+
+**MEASURED — two of the three are Vitest tests and the campaign was Playwright-only:**
+
+- `playwright.config.ts:53` sets `testDir: "./tests/e2e"`.
+- `duplicates.test.ts` lives at `tests/unit/import/duplicates.test.ts`; `vault-maintenance.test.tsx`
+  lives at `tests/integration/`. Neither is under `tests/e2e/`, and neither exists as an E2E spec.
+- Grepping the three campaign logs `/tmp/p29r3-e2e-run{1,2,3}.log`: `duplicates.test.ts` appears **0
+  times** in each; `vault-maintenance` appears **0 times** in each.
+
+So the two assertions that historically _did_ flake — the `ratio < 4` bound at
+`duplicates.test.ts:749-750` and the frame-timing test in `vault-maintenance.test.tsx`, both
+disclosed at `implementation-01.md:702-709` — **were never executed during the three E2E runs at
+all.** Their absence from the logs is not evidence that they held under load 21; it is evidence that
+they were not run.
+
+**The third one does check out. MEASURED:** `transactions.spec.ts:804` falls inside the test
+`virtualized large list preserves position, focus, editing, filtering and navigation`
+(`tests/e2e/transactions.spec.ts:725`), and that test appears exactly once in each of the three logs
+and passed in all three, including run 3 at load 21.20. Its assertion at `:804` is a genuine
+wall-clock bound, `expect(expansionDurationMs).toBeLessThan(10_000)`. **That one claim is sound and
+is real evidence of load resilience.**
+
+**Why this matters, stated proportionately.** The campaign result itself is not in doubt:
+**MEASURED**, all three logs end `177 passed` and contain no `failed`. The unit campaign logs
+`/tmp/p29r3{,b,-final}-unit.log` independently show `123 files, 2386-2389 passed, 2 skipped`, and my
+own runs at §8 reproduce a green unit and integration suite at the reviewed tree. **Nothing here
+suggests the code is wrong, and F-7 does not touch the F-4 fix.** What is wrong is the _inference_
+the appended paragraph draws — it presents the strongest available argument for why this campaign
+beats a quiet-box campaign, and two-thirds of that argument rests on files that did not run.
+
+**Note also the pre-existing clause at `:749-750`** — "none of the three recorded load-sensitive
+assertions fired" — carries the same defect and predates the append; it is not something root
+introduced.
+
+**What must change.** Root owns this text, since it is recorded as root's measurement. Narrow the
+claim to what the logs support: `transactions.spec.ts:804` ran under load 21.20 and its 10-second
+wall-clock bound held. State that `duplicates.test.ts:749` and `vault-maintenance.test.tsx` are
+Vitest tests outside `testDir` and so were not exercised by the E2E campaign — their resilience is
+attested separately by the unit campaign at `:711-712`, at load ~10, not load 21. The conclusion
+"stronger than a quiet-box pass" survives on the E2E assertion alone; it just cannot lean on all
+three.
+
+**This does not gate the code.** If root prefers to integrate and correct the evidence in the same
+control commit, that is a reasonable call — my PASS on the product is not contingent on it. I am
+raising it because root asked me to audit exactly this passage, and because an inference attributed
+to root should not go into the ledger with two of its three supports absent.
+
+### A.3 The lint note — MEASURED, no action taken
+
+Root warned that `.p30-review-scratch/` causes `pnpm lint` to report 2 errors in vendored
+`animate-ui` files. **MEASURED:** that directory does **not** exist in `/tmp/mf-p29`, so my §8 lint
+run was unaffected and stands as reported — 0 errors, 1 pre-existing React Compiler warning at
+`TransactionTable.tsx:426`. I did not chase or touch the two errors.
