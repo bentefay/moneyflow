@@ -87,9 +87,16 @@ async function addTagToRow(page: Page, row: Locator, tagName: string): Promise<v
     await expect(searchInput).toHaveCount(0);
 }
 
-/** The rows carrying an exact description, in table order. */
-function rowsWithDescription(page: Page) {
-    return page.getByTestId("transaction-row").filter({ hasText: MATCHING_DESCRIPTION });
+/**
+ * The rows carrying an exact description, in table order.
+ *
+ * The description is the VALUE of an input, not row text, so a `hasText` filter would match nothing.
+ * Filtering on the input's value via `has` is what actually selects these rows.
+ */
+function rowsWithDescription(page: Page, description: string = MATCHING_DESCRIPTION) {
+    return page
+        .getByTestId("transaction-row")
+        .filter({ has: page.locator(`input[value="${description}"]`) });
 }
 
 test.describe("Rule-creation controls on a transaction matching no rule", () => {
@@ -137,9 +144,7 @@ test.describe("Rule-creation controls on a transaction matching no rule", () => 
             const secondRow = rowsWithDescription(page).nth(1);
             await expect(secondRow.getByTestId("tags-editable")).toContainText("Coffee");
             // The non-matching row is untouched: the rule keys on the exact description text.
-            const unrelated = page
-                .getByTestId("transaction-row")
-                .filter({ hasText: "UNRELATED MERCHANT" });
+            const unrelated = rowsWithDescription(page, "UNRELATED MERCHANT");
             await expect(unrelated.getByTestId("tags-editable")).not.toContainText("Coffee");
         });
 
@@ -232,7 +237,7 @@ test.describe("Rule-creation controls on a transaction matching no rule", () => 
         await goToTransactions(page);
         await addTransaction(page, { description: "MANUAL COFFEE", amount: "-4.50" });
 
-        const row = page.getByTestId("transaction-row").filter({ hasText: "MANUAL COFFEE" });
+        const row = rowsWithDescription(page, "MANUAL COFFEE");
         await addTagToRow(page, row, "Coffee");
 
         await expect(page.getByTestId("tags-rule-proposal")).toBeVisible();
