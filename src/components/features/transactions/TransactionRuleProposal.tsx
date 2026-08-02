@@ -77,14 +77,29 @@ export interface TransactionRuleProposalProps {
  */
 export function TransactionRuleProposal(props: TransactionRuleProposalProps): React.JSX.Element {
     const anchorRef = useRef<HTMLDivElement>(null);
+
+    // The proposal waits for the cell's own edit surface to close before appearing.
+    //
+    // Several cells edit through a surface that is portaled and positioned directly BELOW the cell —
+    // the tag picker is `fixed`, `z-[9999]`, opened at the cell's bottom edge. That is the same space
+    // this popover anchors into, so opening while the picker is up puts two overlapping layers over
+    // the row: MEASURED as `overlap: true`, with the picker's search input sitting on the click point
+    // of `proposal-apply-mode`, which made the four-mode select and the tick unreachable. Frozen
+    // `:255-257` requires those controls to be operable, and `:252-253` forbids occlusion; a control
+    // the user cannot click fails both.
+    //
+    // Deferring is the fix rather than a z-index or keyboard-precedence contest, because those
+    // arbitrate a collision instead of avoiding it — and the collision is the defect.
+    const shouldShow = props.isPending && !props.isEditing;
+
     return (
-        <Popover open={props.isPending}>
+        <Popover open={shouldShow}>
             <PopoverAnchor asChild>
                 <div className={props.anchorClassName} ref={anchorRef} style={props.anchorStyle}>
                     {props.children}
                 </div>
             </PopoverAnchor>
-            {props.isPending ? <PendingRuleProposal {...props} anchorRef={anchorRef} /> : null}
+            {shouldShow ? <PendingRuleProposal {...props} anchorRef={anchorRef} /> : null}
         </Popover>
     );
 }
@@ -100,7 +115,7 @@ function PendingRuleProposal(
         readonly anchorRef: React.RefObject<HTMLDivElement | null>;
     }
 ): React.JSX.Element | null {
-    const { subject, current, referenceDate, isEditing, onDismiss, anchorRef } = props;
+    const { subject, current, referenceDate, onDismiss, anchorRef } = props;
     const workflow = useFieldRuleProposal({ subject, current, referenceDate });
     const idPrefix = useId();
 
@@ -156,13 +171,18 @@ function PendingRuleProposal(
     }, [anchorRef]);
 
     // Frozen `:263-266`: the "Updating…" modes apply automatically once the row loses focus; the
-    // "Update…" modes wait for the tick. Both conditions are required — the cell must have finished
-    // editing AND focus must have left the row — so a dropdown merely closing can never write a rule.
+    // "Update…" modes wait for the tick.
+    //
+    // The caller only mounts this component once the cell has finished editing, so "editing has
+    // finished" is established by mounting and is deliberately NOT re-tested here — a condition that
+    // is always true at its only call site reads as a guard while guarding nothing. What remains is
+    // the frozen gesture itself: focus must have genuinely left the row, which a cell's edit surface
+    // merely closing does not satisfy.
     const isAutomatic = draft != null && applyModeIsAutomatic(draft.applyMode);
     useEffect(() => {
-        if (!open || isEditing || !isAutomatic || !rowLostFocus) return;
+        if (!open || !isAutomatic || !rowLostFocus) return;
         confirm();
-    }, [confirm, isAutomatic, isEditing, open, rowLostFocus]);
+    }, [confirm, isAutomatic, open, rowLostFocus]);
 
     if (!open || draft == null) return null;
 
@@ -172,20 +192,6 @@ function PendingRuleProposal(
             className="w-auto max-w-[90vw] p-3"
             data-owned-by-row="true"
             data-testid="transaction-rule-proposal-popover"
-            // Escape belongs to the surface the user is actually looking at.
-            //
-            // Radix closes a popover on Escape at the DOCUMENT level, so without this the proposal
-            // swallowed the key before it reached the still-open tag picker, whose own handler owns
-            // it. A user pressing Escape to dismiss the tag list instead dismissed a proposal they
-            // may not have noticed, and the list stayed put.
-            //
-            // While the anchored cell is still editing, the cell's own surface is the focused one
-            // covering content — the frozen text (`:253-254`) makes this popup the UNFOCUSED one —
-            // so the key is left to propagate. Once the cell has finished editing, Escape dismisses
-            // the proposal normally.
-            onEscapeKeyDown={(event) => {
-                if (isEditing) event.preventDefault();
-            }}
             onOpenAutoFocus={(event) => event.preventDefault()}
             // Radix gives popover content `role="dialog"`, which would announce this as a modal the
             // user must deal with. The frozen text (`:252-254`) asks for the opposite: an UNFOCUSED

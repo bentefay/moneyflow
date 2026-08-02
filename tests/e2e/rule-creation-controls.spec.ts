@@ -77,13 +77,14 @@ async function importRows(
  * The dropdown is portaled and its search input is the signal that it is actually open, so this
  * waits for that input rather than clicking blind into a cell that may still be re-rendering.
  *
- * This helper asserts only that the tag LANDED. It deliberately does not assert anything about
- * whether the picker closed: an earlier version pressed Escape and required the dropdown to be gone,
- * which encoded the pre-fix behaviour where opening a proposal remounted the cell and closed the
- * picker as a side-effect. Once that remount was fixed the picker legitimately survives, and the
- * assertion started failing for the right reason. What Escape should do while both surfaces are open
- * is a real question with its own dedicated test below, rather than an incidental requirement of
- * every journey that happens to add a tag.
+ * Finishes with the tag committed and the picker CLOSED, which is the state a caller needs before
+ * it can interact with the proposal — the proposal deliberately waits for the cell's edit surface to
+ * close, so a caller left mid-edit would find no controls to click.
+ *
+ * The picker is dismissed by clicking another cell rather than by pressing Escape. Escape does not
+ * work here: the picker's Escape handler is bound to its search input, and selecting an option moves
+ * focus off that input, so the key never reaches the handler. That is a pre-existing defect in
+ * `InlineEditableTags`, outside UR-009's scope, recorded rather than worked around silently.
  */
 async function addTagToRow(page: Page, row: Locator, tagName: string): Promise<void> {
     await expect(row.getByTestId("tags-editable")).toBeVisible();
@@ -93,6 +94,9 @@ async function addTagToRow(page: Page, row: Locator, tagName: string): Promise<v
     await page.getByRole("option", { name: tagName, exact: true }).click();
     // The selection saves immediately, so the tag appearing on the row is the real signal.
     await expect(row.getByTestId("tags-editable")).toContainText(tagName);
+    // End the edit so the proposal can appear clear of the picker.
+    await row.getByTestId("date-editable").click();
+    await expect(searchInput).toHaveCount(0);
 }
 
 /**
@@ -277,27 +281,34 @@ test.describe("The proposal must not disturb the edit that summoned it", () => {
         await expect(searchInput).toBeVisible({ timeout: 15_000 });
         await page.getByRole("option", { name: "Coffee", exact: true }).click();
 
-        // The proposal appears BECAUSE of that selection, and the picker must survive it.
-        await expect(page.getByTestId("tags-rule-proposal")).toBeVisible();
+        // F-1's actual property: the cell is not remounted, so the picker survives its own
+        // selection. The proposal deliberately stays away until the picker closes (see the
+        // occlusion suite below), so this asserts the PICKER, not the proposal.
         await expect(searchInput).toBeVisible();
 
         // The multi-select still works without reopening: a second tag can be picked directly.
+        // Before F-1 this was impossible — the first selection remounted the cell and closed the
+        // picker, forcing the user to reopen it for every additional tag.
         await page.getByRole("option", { name: "Dining", exact: true }).click();
         await expect(row.getByTestId("tags-editable")).toContainText("Dining");
         await expect(row.getByTestId("tags-editable")).toContainText("Coffee");
+
+        // And once the edit is finished the proposal does arrive, carrying both tags.
+        await row.getByTestId("date-editable").click();
+        await expect(searchInput).toHaveCount(0);
+        await expect(page.getByTestId("tags-rule-proposal")).toBeVisible();
     });
 });
 
-test.describe("Escape belongs to the surface the user is looking at", () => {
-    // The proposal is a Radix popover, and Radix closes popovers on Escape at the DOCUMENT level.
-    // That made it swallow the key before it reached the tag picker's own handler, so a user
-    // pressing Escape to dismiss the open tag list instead dismissed a proposal they may not have
-    // noticed — and the list stayed put.
+test.describe("The proposal never covers the cell's own edit surface", () => {
+    // The tag picker is portaled, `fixed`, `z-[9999]`, and opens directly below the cell — the same
+    // space this popover anchors into. Showing both at once put two layers over the row and left the
+    // four-mode select and the tick physically unclickable, which fails frozen `:255-257` (those
+    // controls must be operable) and `:252-253` (nothing occluded).
     //
-    // The frozen text does not mention Escape. It does say (`:253-254`) the controls should be an
-    // UNFOCUSED popup that does not interrupt the edit, so the focused picker covering content is
-    // the surface the key belongs to while it is open.
-    test("Escape closes the tag picker first, leaving the proposal, then closes the proposal", async ({
+    // The proposal therefore waits for the cell's edit surface to close. This test pins that: while
+    // the picker is open the proposal stays away, and it appears once the picker is dismissed.
+    test("the proposal waits for the tag picker to close, then its controls are clickable", async ({
         page
     }) => {
         await createNewIdentity(page);
@@ -305,32 +316,38 @@ test.describe("Escape belongs to the surface the user is looking at", () => {
         await importRows(page, [{ date: "2026-07-01", description: MATCHING_DESCRIPTION }]);
 
         const row = rowsWithDescription(page).first();
+        const proposal = page.getByTestId("tags-rule-proposal");
+        const searchInput = page.getByPlaceholder("Search tags...");
+
         await expect(row.getByTestId("tags-editable")).toBeVisible();
         await row.getByTestId("tags-editable").click();
-
-        const searchInput = page.getByPlaceholder("Search tags...");
         await expect(searchInput).toBeVisible({ timeout: 15_000 });
         await page.getByRole("option", { name: "Coffee", exact: true }).click();
 
-        // Both surfaces are now open: the picker still has focus, the proposal has appeared.
-        const proposal = page.getByTestId("tags-rule-proposal");
-        await expect(proposal).toBeVisible();
-        await expect(searchInput).toBeVisible();
+        await test.step("while the picker is still open the proposal stays out of its way", async () => {
+            await expect(searchInput).toBeVisible();
+            await expect(proposal).toHaveCount(0);
+        });
 
-        await test.step("the first Escape closes the picker and leaves the proposal", async () => {
-            await page.keyboard.press("Escape");
+        await test.step("closing the picker surfaces the proposal", async () => {
+            // Click elsewhere in the row rather than pressing Escape: the picker's Escape handler is
+            // bound to its search input, and focus has already left that input by this point, so
+            // Escape does not reach it. That is a pre-existing defect in the cell, outside UR-009.
+            await row.getByTestId("date-editable").click();
             await expect(searchInput).toHaveCount(0);
             await expect(proposal).toBeVisible();
         });
 
-        await test.step("a second Escape then dismisses the proposal", async () => {
+        await test.step("and every frozen control is genuinely clickable", async () => {
+            // The regression this replaces did not hide the controls — it left them rendered but
+            // covered, so a visibility assertion passed while the user could not reach them. Clicking
+            // is the assertion that discriminates.
+            await page.getByTestId("proposal-apply-mode").click();
+            await expect(
+                page.getByRole("option", { name: "Update all", exact: true })
+            ).toBeVisible();
             await page.keyboard.press("Escape");
-            await expect(proposal).toHaveCount(0);
-        });
-
-        await test.step("dismissing this way creates no rule", async () => {
-            // Escape is a dismissal, not a confirmation: nothing may be written.
-            await expect(page.getByTestId("tags-rule-robot")).toHaveCount(0);
+            await expect(page.getByTestId("proposal-confirm")).toBeEnabled();
         });
     });
 });
