@@ -8149,3 +8149,38 @@ none owned, `pnpm test` **2382 passed / 2 skipped / 123 files / 0 failed** at lo
 Port :3000 granted and **campaign confirmed RUNNING** (`ss -ltn` shows :3000 bound). Terms:
 `env -u CI`, `--retries=0`, 3 full-suite runs, digest before run 1 and after run 3, announce BEFORE
 release. `p28-reviewer-03` is queued behind it and holds.
+
+### 2026-08-02 — Worktree collision from root's false-death call RESOLVED; Chromium mitigation lands
+
+Root's erroneous `p28-reviewer-04` dispatch wrote one file into the LIVE reviewer's tree before root
+killed it: `tests/unit/domain/zzz-census-p28r4.test.ts` in `/tmp/mf-p28r3rev`. Two reviewers briefly
+shared one tree, which would have voided any digest either claimed.
+
+`p28-reviewer-03` handled it better than root did: it did NOT delete the intruding file, it
+PRESERVED it to `/tmp/p28r4-census-preserved.test.ts` explicitly citing `Q-P28-06` as the precedent
+not to repeat, and it refused to start its own campaign rather than corrupt two result sets.
+
+Root removed the orphan only after verifying `md5sum` equality between the preserved copy and the
+in-tree file — both `27e738b53140b9953f594b025ff8ac3f`, so nothing was destroyed. Root swept every
+pid in `/proc` for a cwd under `mf-p28r3rev`: no process remains, the tree can claim a clean digest.
+The reviewer's own untracked `tests/unit/domain/zz-regress.test.ts` was left untouched.
+
+**Root sequencing error, stated plainly.** Root's dispatch told the reviewer that P29 was queued
+BEHIND it. Root then granted :3000 to P29 first and informed the reviewer afterwards, so the
+reviewer discovered a running campaign that contradicted its own dispatch. The decision was
+defensible; announcing it only after the fact was not. One-campaign-repo-wide is unchanged.
+
+**Q-P28-04 ANSWERED, and it lowers the severity of the reviewer's own finding.** In Chromium 149,
+**zero of 117 locales order-flip between the two skeletons**, and `mt-MT`, `so-SO` and `ug-CN` are
+not supported locales at all — Chromium falls back to en-US. The round-trip defeat class is
+therefore **reachable only under Node's ICU 76.1, i.e. inside vitest, NOT in the product.** Root
+ENDORSES the reviewer's own downgrade to MEDIUM: a defect no real user can reach is a
+test-environment artifact, and calling it HIGH would misrepresent the risk to the principal.
+
+**The reviewer found the mitigation against its own finding and reported it.** Recorded as the
+behaviour this goal wants. The general hazard — **Node ICU is not browser ICU, and every locale
+claim this codebase makes in vitest inherits that gap** — is carried forward beyond P28.
+
+Root has now made three errors of one class today: the false-death call, the stale-view grep against
+`main`, and a status demand to an agent that had already reported. All three are root acting on a
+stale or unverified picture of a working agent. Task #35 void.
