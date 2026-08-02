@@ -138,6 +138,26 @@ back door.
 real button. **Observed at BASE:** `expected "vi.fn()" to be called with arguments: [ Array(1) ]` —
 BASE calls back with `{}`.
 
+### 1.4.2 Two places where fixing the reported bug would have made things WORSE
+
+This deserves stating as a finding rather than being buried among the changes, because a reviewer
+reading "detection now works" cannot see what was avoided.
+
+**Both defects are latent at BASE and only become harmful once detection starts succeeding.** Each
+one converts a visible, obvious failure into a plausible-looking wrong result, which is the worse
+failure mode: "nothing imports" gets reported, "everything imports, slightly wrong" does not.
+
+|                                   | at BASE                                     | after a detection-only fix          | what the user would see                                                    |
+| --------------------------------- | ------------------------------------------- | ----------------------------------- | -------------------------------------------------------------------------- |
+| **`hasHeaders` discarded** (§1.6) | harmless — nothing parses anyway            | **first data row silently dropped** | 621 of 622 rows import, looks like success                                 |
+| **Auto-detect button** (§1.4.1)   | useless — returns `{}` on a headerless file | **wipes correct mappings on click** | a working preview destroyed by clicking the button that is meant to fix it |
+
+Neither is a defect I introduced, and neither is visible in the principal's report. Both would have
+been **introduced into user-visible behaviour by my own fix** had I stopped at the reported symptom.
+The general lesson, which I would apply again: when a fix unblocks a code path that was previously
+inert, everything downstream of that path is newly reachable and must be re-examined, because it has
+never actually run.
+
 ### 1.5 The date detector never received a sample — settling "establish which occurred"
 
 The dispatch asked me to establish whether date detection ran and guessed wrong, or never ran.
@@ -286,6 +306,33 @@ assertion ran against **old code**. **Observed: 13 of 20 fail at BASE.**
 The bolded row is the principal's exact reported date defect, reproduced as a failing assertion. The
 7 that pass at BASE are regression guards for behaviour that was already correct.
 
+The `MappingTab` component test was proved separately, since it needs the BASE component's
+`sampleRows` prop shape: **observed at BASE**,
+`expected "vi.fn()" to be called with arguments: [ Array(1) ]` — BASE calls back with `{}`.
+
+### 4.3 A test I wrote that proved nothing, and how it was caught
+
+My first attempt at pinning the button-versus-load agreement asserted:
+
+```ts
+const onLoad = detectColumnMappingsFromValues(rows);
+const onButtonClick = detectColumnMappingsFromValues(rows);
+expect(onButtonClick).toEqual(onLoad);
+```
+
+Both sides call the same function. It passes for any implementation of the button, including one
+that returns `{}`, because **the button is never invoked** — it tests my assumption about the wiring
+rather than the wiring. It went green immediately, which is what prompted me to re-read it.
+
+The replacement renders the real `MappingTab` and clicks the real Auto-detect button through
+`fireEvent`, so it fails if the button is ever pointed back at a header-name implementation. It uses
+`fireEvent` rather than `@testing-library/user-event`, which is not a dependency of this repo and
+which I did not add merely to make a test more convenient; `fireEvent` is the idiom already used in
+`tests/unit/components/balance-summary.test.tsx`.
+
+Recorded because a green test that cannot fail is worse than no test: it discharges the obligation
+to check without doing the checking.
+
 ---
 
 ## 5. Gate results
@@ -341,8 +388,17 @@ both subsequent full-suite runs. Neither file is in this package's file set.
 **Final state, observed:** two consecutive full-suite runs at **2316 passed, 2 skipped, 122 files, 0
 failed**, both at load average ~10 — so the passes are not a quiet-window artefact.
 
-`playwright test --list` reports **177** tests in 23 files: the expected 175 at BASE plus my 2, both
-listed under `import.spec.ts`.
+`playwright test --list` reports **177** tests in 23 files: the expected 175 at BASE plus my 2.
+**Re-verified after the `MappingTab` change**, since that landed after the first count — still 177,
+and both new tests appear by name:
+
+```
+import.spec.ts:1721 › Import Panel › headerless CSV auto-detects columns and dates and imports with no errors
+import.spec.ts:1800 › Import Panel › re-import names old-new and old-duplicate separately and still partitions
+```
+
+The count was unchanged because the `MappingTab` fix is covered by a unit test, not an E2E — checked
+rather than assumed.
 
 ---
 
