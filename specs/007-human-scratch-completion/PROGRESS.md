@@ -10800,3 +10800,71 @@ runtime currency inference **untested** and the only surviving candidate that pr
 **Why isolated single-spec runs behave differently from full-suite runs remains genuinely open, and
 is the most valuable thing the bisect produced** — though it does not mean what either party first
 read it as.
+
+### 2026-08-02 — TZ PROBE FALSIFIES UR-004; five mechanisms dead, none surviving
+
+`p30-implementer-01` ran the timezone discriminator `p31-reviewer-01` routed to root. **`TZ=UTC`,
+removing Brisbane from the equation entirely:**
+
+```
+attempt 1:  19 passed
+attempt 2:  17 passed
+```
+
+**The failures persist AND still vary with the timezone pinned.** So whatever quantity varies between
+runs, **it is not the timezone-derived currency.** The reviewer's reasoning was sound — a runtime
+inference is exactly the class that fails intermittently — which is why it was worth five minutes. It
+simply is not this one.
+
+**FIVE MECHANISMS FALSIFIED, NONE SURVIVING:** mount cost, reachability, selection refactor,
+scheduling, UR-004 currency. **Two were root's, three were the implementer's or its reviewer's, and
+every one died to a measurement rather than to an argument.**
+
+**The single open question is the residue of the bisect: why isolated single-spec runs behave
+differently from full-suite runs.** The implementer's own disposal: the bisect *"measured something
+real about isolated single-spec runs; it did not measure a property of the commit."*
+
+### 2026-08-02 — P30 rev 04 HANDBACK at `5b0c441`; distinct reviewer dispatched
+
+Root verified at dispatch time: `5b0c441` an ancestor of HEAD, port genuinely free with no process
+under `/tmp/mf-p30`, **the human's :3001 dev server alive**, and all four evidence files present.
+Campaign digest `d31581fd` identical before run 1 and after run 3.
+
+`p30-reviewer-02` dispatched — DISTINCT, and specifically **not `p30-reviewer-01`, which authored the
+F-1/F-2/F-6 findings this revision answers and declined to grade its own findings.**
+
+**Implementer's refusal of root's closing credit, recorded because it is the more accurate account:**
+
+> The retractions were cheap for me because the evidence was unambiguous both times. The harder case
+> would have been ambiguous evidence where holding the line was still defensible, and that didn't
+> arise. What I'd claim is narrower: **I put measurements in front of you rather than conclusions,
+> and that's what let either of us catch the other. Nine instrument failures between us tonight, and
+> not one was caught by the person who made it reasoning harder about their own claim.**
+
+**That last sentence is the finding of the day.** Every instrument failure in this session — root's
+truncated grep, keyword split, invented expansion, stale port grant, unrun theory, empty-string hash,
+partial-log read, single-worker progress read, and wrong deciding rule; the implementer's mount
+hypothesis, portal theory, Escape contract, and overstated coupling — **was caught by the other
+party, or by a measurement, never by the author reasoning harder about their own claim.**
+
+### 2026-08-02 — P33 DISPATCHED (UR-012, transaction cell hit areas)
+
+Root verified the cell surface is settled before dispatching: **P30 rev 04 touched no
+`cells/` file**, and the shared tree is clean of in-flight edits. `p33-implementer-01` dispatched
+against `main`.
+
+The dispatch carries the hazards learned in these exact files across the last four packages:
+`InlineEditableTags` portals its dropdown to `document.body` with `position: fixed`; the rule
+proposal anchors into the space directly below a cell and defers opening until the edit surface
+closes; the unreachable Escape handler is a recorded pre-existing defect to recognise and not chase;
+and `people-settlement.spec.ts`'s rotating failures are not P33's.
+
+**The binding constraint, restated from the principal's own words:** *"the exact same unhovered
+appearance, with the exact same visual positions, it's just that when you mouse over, each input is
+actually filling the full grid cell."* **A change that alters resting appearance, position or
+spacing does not satisfy UR-012** — the frozen text says so at its close.
+
+Method requirements carried: write the other-path fixture in the same edit as the branch; **assert by
+CLICKING rather than by visibility, since the requirement is precisely about where a click is
+accepted**; mutation-test guards and verify the tree clean afterwards; and **a fixture you hand-build
+encodes your model, not the world.**
