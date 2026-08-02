@@ -2,8 +2,9 @@
 
 - **Requirement:** UR-008, frozen at `specs/010-user-reported-refinements-2/spec.md` lines 56-86
 - **Base:** `4c77a2dd6b61a9ab5e58c032d0b0242e579c75f7`
-- **Commits:** `fcd736f` product + unit tests + E2E spec, plus this evidence
-- **Worktree:** `.claude/worktrees/p29-ur008`, branch `worktree-p29-ur008`
+- **Commits:** `fcd736f` product + unit tests + E2E spec, `077d5dd` MappingTab auto-detect parity,
+  plus this evidence
+- **Worktree:** `/tmp/mf-p29`, branch `worktree-p29-ur008`
 
 Statements below are labelled: **Observed** means I ran it and read the output; **Inferred** means I
 reasoned to it and did not confirm it directly.
@@ -99,9 +100,43 @@ There are **three** header/sample implementations, not two:
 | `autoDetect` (date)        | `FormattingStep.tsx:90`     | **dead** — component never mount |
 
 **Answering the dispatch's "establish which is live before changing either":** the live pair is
-`autoDetectColumnMappings` plus `detectDateFormat`/`detectNumberFormat`. I changed the hook to stop
-calling the first two and left all four functions in place, since removing dead exports is outside
-this package's scope.
+`autoDetectColumnMappings` plus `detectDateFormat`/`detectNumberFormat`.
+
+**I did not delete the dead implementations.** `ColumnMappingStep.tsx` and `FormattingStep.tsx` are
+unmounted, but their helper exports and types are consumed by `processor.ts` and by existing tests,
+so removal has its own blast radius and is a separable concern. **Recommendation for the coordinator
+to charter, not a change I made:** the dead `FormattingStep` date heuristic and the now-unused
+`autoDetectColumnMappings` are removable once a package owns the consequent churn. Leaving them is
+deliberate — the risk the dispatch warned about is fixing a dead copy and leaving the live one
+broken, and the live path is what I changed.
+
+### 1.4.1 The button-driven path DID diverge, and it was a live defect
+
+The dispatch cautioned that once the load path became value-driven, the third implementation —
+`MappingTab.autoDetectMappings`, behind the Auto-detect button — might disagree with it, and that
+two routines answering differently for the same file would be a new defect.
+
+**Observed.** They diverged, and in the harmful direction:
+
+| file         | on load (value-driven)            | Auto-detect button (header names) |
+| ------------ | --------------------------------- | --------------------------------- |
+| headerless   | `{0:date,1:amount,2:description}` | **`{}`**                          |
+| with headers | `{0:date,1:description,2:amount}` | `{…,3:balance}`                   |
+
+On a headerless file the button returned `{}` and `onMappingsChange` overwrites wholesale, so
+**clicking Auto-detect would have WIPED the mappings the load had just got right.** That is worse
+than the original bug: before, the button was useless; after my load-path fix and without this, it
+would have been destructive. It also matches the principal's complaint that clicking Auto-detect did
+not work.
+
+`MappingTab` now calls `detectColumnMappingsFromValues` over the same data rows as the load path, so
+the two cannot disagree. Its `sampleRows` prop became `dataRows` — the button needs the whole column
+for the same reason the load does, and a 5-row sample would have reintroduced sampling through the
+back door.
+
+`tests/unit/components/mapping-tab-auto-detect.test.tsx` renders the real component and clicks the
+real button. **Observed at BASE:** `expected "vi.fn()" to be called with arguments: [ Array(1) ]` —
+BASE calls back with `{}`.
 
 ### 1.5 The date detector never received a sample — settling "establish which occurred"
 
@@ -177,6 +212,7 @@ The 15 matches the principal's reported error count exactly, and detection indep
 | `import/ImportTable.tsx`        | follows the 5-case status                                           |
 | `import/ImportPanel.tsx`        | passes the combined old count through                               |
 | `import/tabs/DuplicatesTab.tsx` | cutoff block moved below the radio group                            |
+| `import/tabs/MappingTab.tsx`    | Auto-detect button runs the same value-driven detection             |
 
 ### 3.1 The partition is structural, not arithmetic
 
@@ -259,16 +295,51 @@ The bolded row is the principal's exact reported date defect, reproduced as a fa
 | `typecheck`    | **PASS**                                                         |
 | `lint`         | **PASS**, 0 errors                                               |
 | `format:check` | **17** pre-existing frozen `specs/**` files, **none a P29 file** |
-| `test`         | **PASS** — 2314 passed, 2 skipped, 121 files                     |
+| `test`         | **PASS** — 2316 passed, 2 skipped, 122 files                     |
 | `test:e2e`     | see §6                                                           |
 
-`lint` reports one pre-existing warning, `react-hooks/incompatible-library` in
-`TransactionTable.tsx:426`, a file this package does not touch.
+The `lint` figure above is the **bare `pnpm lint` from the repo root**, not a filtered run over my
+own files. **Observed:** `pnpm lint; echo $?` prints `EXIT CODE: 0`, with one pre-existing warning,
+`react-hooks/incompatible-library` at `TransactionTable.tsx:426`, in a file this package does not
+touch.
 
-**A load-dependent result, disclosed.** My first `pnpm test` failed `duplicates.test.ts:749` with
-ratio `4.098` against a `< 4` bound, at load average **9.27**. Re-run in a quiet window it passes.
-That is the known wall-clock flake, not a defect — recorded because a result obtained under
-uncontrolled load is unprovable either way.
+That required relocating my worktree, see §5.1.
+
+### 5.1 The worktree had to move out of the repo
+
+I originally placed the worktree at `.claude/worktrees/p29-ur008`, inside the repository. ESLint
+walks that path — `.git/info/exclude` hides it from git, but not from ESLint — so it linted every
+working copy twice.
+
+**Observed** with the worktree in place: `pnpm lint` reported **591 errors and 18,773 warnings**
+across 219 files. Attributing them by path: **217 files were the worktree**, and the remaining 2
+entries were both the single pre-existing `TransactionTable.tsx` warning. So every error belonged to
+ESLint re-linting my own working copy, none to a defect in anyone's code.
+
+`git worktree move` failed with `Invalid cross-device link`, since `/tmp` is a separate filesystem.
+I committed the work first, removed the worktree, and re-created it at `/tmp/mf-p29` from the same
+branch — which is where every other package in this goal keeps its worktree.
+
+**Verified the move was lossless:** the tree digest is `d038f2a2f38295c7f4234185a8cbb04d` both
+before and after, computed over all `src/` and `tests/` `.ts`/`.tsx` files excluding
+`next-env.d.ts`. Identical, so nothing changed in transit.
+
+I did **not** edit the shared lint config to suppress this. The tooling choice was mine and the fix
+belongs in my tooling.
+
+**Two load-dependent results, disclosed rather than re-rolled silently.**
+
+`duplicates.test.ts:749` compares wall-clock ratios against a `< 4` bound. **Observed:** ratio
+`4.098` at load average 9.27; ratio `4.671` while another package's E2E campaign held the machine;
+PASS in quiet windows and PASS in isolation.
+
+`vault-maintenance.test.tsx` "sanitizes generic action and edit callbacks" failed once with
+`expected undefined to be 'before'`. It drives a mocked `requestAnimationFrame` through a frame
+host, so it is frame-timing dependent under contention. **Observed:** PASS in isolation and PASS in
+both subsequent full-suite runs. Neither file is in this package's file set.
+
+**Final state, observed:** two consecutive full-suite runs at **2316 passed, 2 skipped, 122 files, 0
+failed**, both at load average ~10 — so the passes are not a quiet-window artefact.
 
 `playwright test --list` reports **177** tests in 23 files: the expected 175 at BASE plus my 2, both
 listed under `import.spec.ts`.
