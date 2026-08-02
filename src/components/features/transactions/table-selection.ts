@@ -10,6 +10,16 @@
  * value rather than a hundred thousand ids, the header's tri-state is a size comparison, and one
  * row's own state is a single set lookup. Nothing here grows with how much of the table happens to
  * be rendered.
+ *
+ * **Deliberately absent from the feature's `index.ts` barrel — import from this module directly.**
+ * These are internal primitives with caller-side preconditions rather than a public API: several
+ * are cheap only when called the way the table calls them, and they omit defensive bail-outs
+ * precisely because their one caller already establishes the condition. `reconcileToMatchingRows`
+ * is the measured case — a redundant call costs ~19.5ms at 100,000 matching rows — but the point
+ * generalises to the whole module. Publishing them on the barrel would invite a caller that
+ * breaches the efficiency clause these primitives exist to satisfy
+ * (`specs/012-transaction-selection/spec.md:52-55`) with nothing in the types or tests objecting.
+ * Keeping the module's surface local is what keeps those preconditions checkable.
  */
 
 /** What every row matching the active filters is, unless it appears in `exceptions`. */
@@ -133,14 +143,10 @@ export function selectOnlyRow(rowId: string): TransactionSelection {
  * nothing extra, and a peer's insert adds exactly one exception rather than materialising an id per
  * matching row.
  *
- * **Deliberately not re-exported from `index.ts`, and it should stay that way.** This is an internal
- * primitive with a caller-side precondition: call it only when the matching set has actually
- * changed. It carries no cheap bail-out for being handed the same set twice, because its one caller
- * already checks that. Measured at 100,000 matching rows, a call that could have been skipped costs
- * ~19.5ms — so a caller reaching this on a render path would breach the efficiency clause the
- * selection model exists to satisfy (`specs/012-transaction-selection/spec.md:52-55`), with nothing
- * in the types or tests objecting. Keeping it off the public barrel is what keeps that precondition
- * a local invariant rather than a trap someone else can fall into.
+ * **Precondition: call this only when the matching set has actually changed.** It carries no cheap
+ * bail-out for being handed the same set twice, because its one caller checks first. Measured at
+ * 100,000 matching rows, a call that could have been skipped costs ~19.5ms. See the module
+ * docstring for why these primitives are not on the feature barrel.
  */
 export function reconcileToMatchingRows(
     selection: TransactionSelection,
