@@ -2606,3 +2606,44 @@ default upstream reintroduces exactly the state the leaf forbids, and does so in
 package claims this rule, the audit should check every hop between the data source and the leaf, or
 require the intermediate props be non-optional too. Related: A-2, that the row presence surface has no
 direct test coverage at all, so nothing would catch such a regression at runtime either.
+
+### Q-P24-01 CORRECTION — the three named collisions do NOT hold; the mechanism does
+
+`p24-reviewer-01` refuted the worked examples in `Q-P24-01` above, and root verified all three
+independently rather than accepting the refutation. **The entry's totals and mechanism stand; its
+three named collisions are withdrawn.**
+
+**What survives.** The totals reproduce exactly: 469 name-carrying `getByRole` calls in `tests/e2e/`,
+33 with `exact`, 436 residual. The MECHANISM is real and P24 holds a live demonstration of it — the
+run-1 strict-mode violation where a locator for `"Me"` also matched `"Unnamed member"`.
+
+**What is withdrawn — none of the three is a live collision, each for a different reason:**
+
+- **`"Add"`** — already guarded before P24 began. Both occurrences pass `exact: true`:
+  `tests/e2e/helpers/settlement.ts:38` and `tests/e2e/transactions.spec.ts:125`.
+- **`"Coffee"` / `"Coffee Shop"`** — different ROLES and different FILES. `"Coffee"` appears only as a
+  `button` (`field-rule-parity.spec.ts:116,138,204`); `"Coffee Shop"` appears once as an `option`
+  (`description-aliases.spec.ts:233`), in a file carrying no `"Coffee"` locator. Playwright scopes name
+  matching within a role.
+- **`"Status"` / `"Statuses"`** — different ROLES. `"Status"` is a `button` (`transactions.spec.ts:433`);
+  `"Statuses"` is a `heading` with `level: 1` (`helpers/nav.ts:31`).
+
+**Root's error in transcribing this.** Root lifted the implementer's measured examples into
+`QUESTIONS.md` as established fact because they were presented as measurements rather than assertions.
+They WERE measurements — of a text comparison that did not filter by role, container or file, and did
+not exclude names already carrying `exact`. A measurement of the wrong thing is not more reliable than
+an assertion, and root did not ask what was measured. This is the same recorded root pattern in a new
+form: accepting a narrower check as an answer to a broader question.
+
+**Actionable correction for whoever picks up the sweep:** filter on ROLE and CONTAINER and exclude
+locators already passing `exact`, or the comparison will mostly yield false positives. An unfiltered
+substring sweep would have added `exact: true` to locators that did not need it, in files the package
+had no business touching, chasing three hazards that do not exist.
+
+**This strengthens rather than weakens the decision to flag rather than sweep.** That the implementer's
+own measurement does not fully survive scrutiny is the best argument that declining to act on it was
+correct. The reviewer reached the same scope conclusion independently and for a different reason:
+P24's own three name locators all pass `exact: true`, and it checked every other `aria-label` in the
+`aside` they are scoped to — only "Open menu" and "Expand/Collapse sidebar", neither colliding. P24's
+exposure is closed; the rest of the suite was equally open before this package and is not worsened by
+it.
