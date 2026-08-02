@@ -10909,3 +10909,44 @@ packages and nothing else. **32 of 34 requirements passed; 31 of 33 feature pack
   while root's dispatches instruct reviewers to commit their artifact, and a reviewer commit changes
   the HEAD root uses to detect tampering. **A process defect of root's making, needing one ruling
   rather than per-package handling.**
+
+### 2026-08-02 — P33 finds an EIGHTH editable cell root's dispatch missed
+
+`p33-implementer-01` flagged early, per instruction, that root's file list was incomplete. **Root
+verified and it is right:**
+
+```
+TransactionRow.tsx:14   imports AccountCombobox from @/components/features/accounts
+TransactionRow.tsx:455  renders it
+TransactionRow.tsx:460  className={cn("text-muted-foreground hover:bg-accent/30 …", RESTING_CELL_CHROME)}
+```
+
+**The account column is an eighth editable cell, and UR-012 says "EVERY editable control in the
+transaction table", so it is in scope.** Root's dispatch listed the seven components in `cells/` and
+missed the one composed from a different feature module — **root enumerated the DIRECTORY, not the
+ROW.** Same class as measuring what the people page imports and generalising to what the tests
+exercise.
+
+**Root endorses the implementer's approach: enlarge the account cell from the row via `className`,
+do NOT edit `AccountCombobox`.** It is shared with the accounts feature, and changing a shared
+component to satisfy a table-layout requirement would export this package's constraint into
+unrelated code. **Note the class string already carries `RESTING_CELL_CHROME`** — the UR-005 constant
+defining the resting appearance UR-012 must not disturb — so whatever composes with it must be
+checked at the resting result rather than assumed through `cn`.
+
+**Independently confirmed by the implementer: `onTransactionClick` is declared and threaded through
+`TransactionTable.tsx` (100, 260, 412-418, 578) but has NO caller** — `grep -rn onTransactionClick
+src/app/` returns nothing. **The row click is a genuine no-op today**, which is why a click landing on
+the row rather than the control is a dead click rather than a wrong action. **That means enlarged hit
+areas cannot steal a behaviour from the row — there is none to steal**, and it belongs in the
+evidence because a reviewer will otherwise ask.
+
+**Port sequenced to P33 but NOT granted** — `p30-reviewer-02` is mid-review and may need it. Root
+will signal explicitly; the implementer is instructed not to infer a grant from an observed free
+port. **Its own `next dev` on :3010 for geometry measurement is approved** — it touches neither :3000
+nor `playwright.config.ts`, and **measuring geometry is the only way to discharge the
+"resting appearance unchanged" constraint**, which is a claim that cannot be argued.
+
+Carried with it: the human's dev server is on :3001 and **`pkill -f "next-server"` matches it** — an
+agent nearly killed a 3-day-old server with the unfiltered form tonight and it survived by race, not
+by care. Kill by cwd filter only.
