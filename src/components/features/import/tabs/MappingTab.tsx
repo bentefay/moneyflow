@@ -20,6 +20,7 @@ import {
     SelectTrigger,
     SelectValue
 } from "@/components/ui/select";
+import { detectColumnMappingsFromValues } from "@/lib/import/detection";
 import { cn } from "@/lib/utils";
 
 // ============================================================================
@@ -43,112 +44,20 @@ export type TargetFieldId = (typeof TARGET_FIELDS)[number]["id"];
 export interface MappingTabProps {
     /** Column headers from the raw file */
     availableHeaders: string[];
-    /** Sample rows for preview (first 3-5 rows of data) */
-    sampleRows: string[][];
+    /**
+     * Every data row, with any header row already removed.
+     *
+     * The whole set rather than a sample: auto-detection reads the full column
+     * to tell a day-first date column from a month-first one, and a sample of
+     * the opening rows can be uniformly ambiguous while the column is not.
+     */
+    dataRows: string[][];
     /** Current column mappings (columnIndex as string -> field name) */
     columnMappings: Record<string, string>;
     /** Callback when mappings change */
     onMappingsChange: (mappings: Record<string, string>) => void;
     /** Additional CSS classes */
     className?: string;
-}
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Auto-detect column mappings based on header names.
- */
-function autoDetectMappings(headers: string[]): Record<string, string> {
-    const mappings: Record<string, string> = {};
-
-    headers.forEach((header, idx) => {
-        const headerLower = header.toLowerCase().trim();
-        const key = idx.toString();
-
-        // Date patterns
-        if (
-            headerLower.includes("date") ||
-            headerLower === "posted" ||
-            headerLower === "post date" ||
-            headerLower === "transaction date"
-        ) {
-            if (!Object.values(mappings).includes("date")) {
-                mappings[key] = "date";
-            }
-            return;
-        }
-
-        // Amount patterns
-        if (
-            headerLower.includes("amount") ||
-            headerLower === "debit" ||
-            headerLower === "credit" ||
-            headerLower === "value"
-        ) {
-            if (!Object.values(mappings).includes("amount")) {
-                mappings[key] = "amount";
-            }
-            return;
-        }
-
-        // Description patterns
-        if (
-            headerLower.includes("description") ||
-            headerLower.includes("desc") ||
-            headerLower === "details" ||
-            headerLower === "transaction"
-        ) {
-            if (!Object.values(mappings).includes("description")) {
-                mappings[key] = "description";
-            }
-            return;
-        }
-
-        // Merchant patterns
-        if (
-            headerLower.includes("merchant") ||
-            headerLower.includes("payee") ||
-            headerLower === "name"
-        ) {
-            if (!Object.values(mappings).includes("merchant")) {
-                mappings[key] = "merchant";
-            }
-            return;
-        }
-
-        // Memo patterns
-        if (headerLower.includes("memo") || headerLower.includes("note")) {
-            if (!Object.values(mappings).includes("memo")) {
-                mappings[key] = "memo";
-            }
-            return;
-        }
-
-        // Check number patterns
-        if (
-            headerLower.includes("check") ||
-            headerLower.includes("cheque") ||
-            headerLower === "check no" ||
-            headerLower === "check #"
-        ) {
-            if (!Object.values(mappings).includes("checkNumber")) {
-                mappings[key] = "checkNumber";
-            }
-            return;
-        }
-
-        // Balance patterns
-        if (headerLower.includes("balance")) {
-            if (!Object.values(mappings).includes("balance")) {
-                mappings[key] = "balance";
-            }
-            return;
-        }
-    });
-
-    return mappings;
 }
 
 // ============================================================================
@@ -160,7 +69,7 @@ function autoDetectMappings(headers: string[]): Record<string, string> {
  */
 export function MappingTab({
     availableHeaders,
-    sampleRows,
+    dataRows,
     columnMappings,
     onMappingsChange,
     className
@@ -194,21 +103,25 @@ export function MappingTab({
         [columnMappings, onMappingsChange]
     );
 
-    // Auto-detect all mappings
+    // Auto-detect all mappings.
+    //
+    // Runs the SAME value-driven detection the file load runs. Matching on
+    // header names here instead would make the button disagree with the load:
+    // on a headerless file the names are synthesised, so a click would return
+    // nothing and WIPE the mappings detection had already got right.
     const handleAutoDetect = useCallback(() => {
-        const detected = autoDetectMappings(availableHeaders);
-        onMappingsChange(detected);
-    }, [availableHeaders, onMappingsChange]);
+        onMappingsChange(detectColumnMappingsFromValues(dataRows));
+    }, [dataRows, onMappingsChange]);
 
-    // Get sample values for a column
+    // Get sample values for a column, for the preview line under its name.
     const getSampleValues = useCallback(
         (columnIndex: number): string[] => {
-            return sampleRows
+            return dataRows
                 .slice(0, 3)
                 .map((row) => row[columnIndex] ?? "")
                 .filter((v) => v.trim());
         },
-        [sampleRows]
+        [dataRows]
     );
 
     return (

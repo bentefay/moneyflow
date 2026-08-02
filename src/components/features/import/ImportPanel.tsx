@@ -410,9 +410,8 @@ export function ImportPanel({
                     <TabsContent value="mapping">
                         <MappingTab
                             availableHeaders={session.headers}
-                            sampleRows={session.rawRows.slice(
-                                session.config.formatting.hasHeaders ? 1 : 0,
-                                5
+                            dataRows={session.rawRows.slice(
+                                session.config.formatting.hasHeaders ? 1 : 0
                             )}
                             columnMappings={session.config.columnMappings}
                             onMappingsChange={(mappings) => setConfig({ columnMappings: mappings })}
