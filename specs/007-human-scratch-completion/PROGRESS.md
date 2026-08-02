@@ -8748,3 +8748,62 @@ pre-enabled; one pending proposal at a time. Root requires a recorded DECISION o
 not just the question — `clearing a field` is genuinely ambiguous against the frozen text.
 
 **Port queue now: P30 (RUNNING) -> P29 rev 03 (`77b321d`, ready) -> P31/P32.**
+
+### 2026-08-02 — P30 handback hash CORRECTED to `4526f79`; root's ancestry check had silently expired
+
+`p30-implementer-01` volunteered that the commit root verified, **`877d45a`, is ORPHANED** — it
+amended it away to add an E2E dropdown-wait helper, and the two messages crossed. Root re-verified:
+
+```
+877d45a   git show resolves   merge-base --is-ancestor HEAD: NO    (dangling)
+4526f79   git show resolves   merge-base --is-ancestor HEAD: YES   (real)
+```
+
+`4526f79` is 15 files, +1692/-44, `src` and `tests` only; `git diff 4526f79 HEAD -- src tests` empty;
+scratch still `469e98c7…`.
+
+**New failure mode, and the `handback-hash-amend-orphan` memory did NOT cover it.** Root DID run
+`merge-base --is-ancestor` on `877d45a` and it PASSED — the check was correct when it ran. **The
+implementer amended afterwards and root's verification silently expired.** Memory amended with the
+missing clause: **an ancestry check is only valid for the instant it ran. A stale green check is more
+dangerous than no check, because it sits in the coordinator's own transcript looking authoritative.
+Re-verify immediately before dispatching a reviewer, not once when the handback arrives.**
+
+The implementer had a coordinator on record confirming its commit and corrected it anyway, against
+its own interest. Third such correction today.
+
+### 2026-08-02 — P29 rev 03 addendum items all VERIFIED at `273db5f`
+
+Tree clean, `ee3cce7` an ancestor, `CLASSIFICATION_THRESHOLD` restored to `0.8` at `detection.ts:65`.
+
+**1. Guard PINNED, with the coincidence verified concretely rather than argued.** Root reasoned that
+the guard was inert-by-coincidence; the implementer produced the table — `/col/i` unanchored matches
+`"Column 1"` TRUE, `/\bcolumn\b/i` TRUE, `/\bcol\b/i` false, `/\bno\b/i` false. **Naming the two
+specific patterns that would open the door is what makes the fence maintainable.** The test asserts
+placeholders produce the same answer as no headers and its comment states outright that it cannot
+currently fail and why.
+
+**2. Threshold pinned AND PROVEN TO DISCRIMINATE.** The implementer could have written tests around
+the 4/20 - 5/20 cliff, watched them pass, and called it pinned — which would have been the exact
+defect under repair. Instead it **mutated the constant to 0.5 and 0.95 and confirmed one of the pair
+fails at each, both passing only at 0.8.** Root adopts this as the standard whenever a package pins a
+magic number: **prove the test discriminates, do not assert it.**
+
+**3. Nearest-neighbour case recorded as a DECISION not to fix**, with the reviewer's distinction
+quoted and the note that the correct future fix is an allowlist entry for the specific bank rather
+than a change of rule. Also recorded that its own rev-02 denylist worry was over-stated for the
+common case, attributing the 20/20 measurement to the reviewer.
+
+**Root's fifth near-miss, same practice, caught again.** Root grepped `tests/unit/import/*.ts` for
+the pinning test and found nothing — **the test is in `ur-008-amount-column.test.tsx`** and the glob
+missed the extension. Found by reading what the commit actually touched rather than trusting absence.
+
+**Implementer's fourth self-catch, and the best evidence the practice works:** three new tests failed
+on first run; rather than assume the code was wrong it printed the sweep and found
+`ReferenceError: parseCSV is not defined` — two missing imports in its own test file. **Its oracle,
+not the code, caught on itself with nobody watching.**
+
+A root message offering the guard-removal option **never reached the implementer**; only the
+correction did. Root sent the missing substance so the implementer is not working from a partial
+record. Gates at `273db5f`: typecheck PASS, bare lint exit 0, 17 frozen `specs/**` none owned,
+`pnpm test` **2389 passed / 2 skipped / 123 files**.
