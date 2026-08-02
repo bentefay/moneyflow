@@ -7,8 +7,9 @@ another package's brief. Both are now preserved at stable paths and this file on
 
 | package | reviewer | subject | dispatch |
 | --- | --- | --- | --- |
-| **P33 rev 03** (UR-012) | `p33-reviewer-03` — REVIEW | `4a6e23f` on `p33-ur-012`, BASE `f397da1` | `dispatches/P33-rev03-review.md` |
-| ~~**P30 rev 07** (UR-009)~~ | ~~`p30-reviewer-04`~~ | **PASSED** — `reviews/P30-review-04.md` | closed |
+| **P21 rev 06** (control) | `p21-collector-06` — FINAL AUDIT | BASE re-derive at dispatch | `dispatches/P21-rev06-collect.md` |
+| ~~**P30 rev 07** (UR-009)~~ | — | **PASSED**, merged | closed |
+| ~~**P33 rev 03** (UR-012)~~ | — | **PASSED**, merged `05e16df` | closed |
 
 **Read your own package's dispatch file, not this table.** Each carries its own BASE, scope,
 press-hardest list, expected-not-findings and method note. The originals remain reachable at
