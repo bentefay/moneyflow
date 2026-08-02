@@ -173,7 +173,7 @@ review evidence.
 | P25     | UR-004         | [Default currency from time zone](tasks/P25-ur-004.md)                              | none                 | passed            | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-07-30 by human principal instruction; frozen source lines 76-98; supersedes the locale rationale in detect-currency.ts:4-6                                                                                                                                                |
 | P26     | UR-005         | [Minimal table chrome at rest](tasks/P26-ur-005.md)                                 | none                 | passed            | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01 by human principal; frozen source specs/010-user-reported-refinements-2/spec.md lines 11-24                                                                                                                                                                         |
 | P27     | UR-006         | [Vault members listed by name](tasks/P27-ur-006.md)                                 | none                 | passed            | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 26-38; shares name resolution with UR-003/P24                                                                                                                                                                                                               |
-| P28     | UR-007         | [Dates display in browser locale](tasks/P28-ur-007.md)                              | none                 | in_review         | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 40-54                                                                                                                                                                                                                                                       |
+| P28     | UR-007         | [Dates display in browser locale](tasks/P28-ur-007.md)                              | none                 | changes_requested | 02  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 40-54                                                                                                                                                                                                                                                       |
 | P29     | UR-008         | [CSV import parity and honest counts](tasks/P29-ur-008.md)                          | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 56-86; confirmed root cause parseAmount csv.ts:165-190 rejects leading plus, exactly 15 rows                                                                                                                                                                 |
 | P30     | UR-009         | [Automations conformance re-verification](tasks/P30-ur-009.md)                      | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01 by human principal after reporting missing rule-creation controls; frozen source specs/011-automations-conformance/spec.md lines 16-61; RE-VERIFIES HS-007 without reopening it                                                                                       |
 | P31     | UR-010         | [Shift-click extends selection and deselection](tasks/P31-ur-010.md)                | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-02 by human principal; frozen source specs/012-transaction-selection/spec.md lines 11-29; toggleRow at useTableSelection.ts:106-133 only ever adds                                                                                                                       |
@@ -7596,3 +7596,63 @@ correct. The four defects above are genuinely fixed regardless, including the co
 have been worth the package on its own.
 
 Dispatched `p28-reviewer-01` (DISTINCT, fresh context, never the P28 implementer).
+
+### 2026-08-02 — P28 rev 01 FAILED in static audit; rev 02 opened. Root VERIFIED both defects
+
+`p28-reviewer-01` found a BLOCKING regression during the static half, before spending any campaign
+time — and reported it immediately rather than completing a review of a tree that needs another fix.
+Root reproduced both defects independently against the real product module.
+
+**HIGH, regression introduced by this package — `src/lib/utils/date-format.ts:168-172`.** The new
+padding strip is
+`part.type === "day" || part.type === "month" ? String(Number(part.value)) : part.value`. `Intl` emits
+day and month in the LOCALE'S OWN NUMERALS, so for any locale whose resolved numbering system is not
+`latn` this yields the literal string `"NaN"`. Root verified: `fa-IR` `formatToParts` for 2026-08-03
+gives `month="۵" literal="/" day="۱۲"`, and `String(Number("۱۲"))` is `NaN`. The reviewer observed
+`fa-IR` compact rendering as `"NaN/NaN"` against the real module and confirmed the same for `bn-BD`,
+`my-MM`, `ne-NP`, `ar-SA`, `ar-EG` and `ps-AF`. It affects the transaction table date cell AND
+`ImportTable.tsx:339`, which shares the helper.
+
+**It is a REGRESSION, not pre-existing.** The reviewer ran base `c9be708` side by side: the old
+`toLocaleString`-plus-regex strip left non-Latin digits untouched and rendered `fa-IR` as `"۵/۱۲"` —
+imperfect but a real date. HEAD renders gibberish. The fix for the ja-JP positional strip introduced
+this while correctly fixing that one; `String(Number(x))` is simply the wrong primitive for "drop a
+leading zero".
+
+**MEDIUM, and this one WRITES TO THE VAULT — `th-TH` Buddhist calendar.** Root verified
+`new Intl.DateTimeFormat('th-TH').resolvedOptions().calendar` is **`buddhist`**, and that 2026-08-03
+renders as `03/08/69` (BE 2569). The parser builds a date-fns GREGORIAN format string from an `Intl`
+pattern that may be non-Gregorian, and nothing pins `calendar: "gregory"`, so the editing form parses
+back as `2069-08-03` — a silent 43-year shift through the date cell. Forcing the calendar makes `th-TH`
+render `3/8/26` and round-trip cleanly.
+
+**Severity judgement accepted as the reviewer stated it:** the NaN defect is a DISPLAY break, not
+corruption — `parseLocaleDate` returns `null` for those locales, so nothing wrong is written — and it
+is invisible to the principal (`en-US`) and to all five locales the tests cover. It is still HIGH
+because it is a visible regression to gibberish in exactly the area the requirement governs, and
+`spec.md:46` says "the browser's resolved locale" with no restriction to Latin script.
+
+**Everything else the reviewer could check statically PASSES**, including the two items root flagged
+hardest: the nine changed assertions are all legitimately the `year <= 2000` branch that `spec.md:50`
+reverses, `it()` count unchanged 18->18 and `expect()` net +2 additive with the other nine cases
+untouched; and the chrono fallback is confirmed UNREACHABLE for any string the locale parser accepts,
+gated on shape by `isNumericDateInput` rather than on parse failure, verified by real-module probes
+where `("15/6/25","en-US")`, `("31/12/99","en-US")`, `("13/1/26","en-US")` and `("15/1","en-US")` all
+return `null` and are never rescued day-first, while natural language still works. Round-trip is clean
+across ten locales including trailing-separator forms, forward bias is fixed (`15/1` -> 2026), and
+`32/1/26`, `15/13/25` and non-leap `29/2/25` are all rejected.
+
+**The reviewer independently AGREED with root's locale-signal ruling and did not overturn it**, on its
+own reading: `spec.md:46` says "resolved locale", `:47`'s example names an "Australian-English viewer",
+and time zone appears only at `:53-54` to FORBID shifts and is never made the source for ordering. Its
+formulation: currency is a property of where you transact, date field order is a property of the
+language you read.
+
+**Root ruled `d514d47` IN the package** — verified test-only, `git diff --name-only d657717 d514d47 --
+src` empty, genuine ancestor — and told the reviewer to audit it as rigorously as anything else rather
+than accept it as good-faith hardening, since a test commit landing mid-review is where a weakened
+assertion would hide.
+
+**P28 -> `changes_requested`, rev 02 opened.** Root accepted the reviewer's recommendation not to burn
+a ~13-minute campaign on a tree that needs another fix. Rev 01's FAIL is preserved; the reviewer will
+verify the fixed tree in one clean pass.
