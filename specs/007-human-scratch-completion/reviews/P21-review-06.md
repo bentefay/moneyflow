@@ -329,7 +329,20 @@ Playwright accessibility snapshot captured at failure shows the toolbar reading:
 ```
 
 **A stable `499` where `500` is asserted, held for the full 15s window.** This is not a timeout on a
-correct value. Three facts make it worth taking seriously:
+correct value.
+
+> **EVIDENCE-DURABILITY WARNING, added on review of my own artifact.** The snapshot block quoted
+> above was read from `test-results/…/error-context.md` **at the time of the failure**. Playwright
+> **overwrites `test-results/` on the next run**, and my subsequent runs destroyed it. The surviving
+> log `/tmp/p21r06/tx-load-1.log` preserves the failing locator, the 15s timeout and the
+> `transactions.spec.ts:899` site — but **NOT the `499` string itself.** So the single most
+> load-bearing observation in this finding is now **attested only by this artifact**, and a future
+> reader cannot re-derive it from preserved evidence. I stand by the reading — I quoted it while it
+> was on screen — but a claim no one else can check is weaker than one they can, and it should not
+> be relied on as though it were reproducible. **Anyone re-investigating must copy
+> `error-context.md` out of `test-results/` before the next run starts.**
+
+Three facts make it worth taking seriously:
 
 - `totalCount` is `filteredTransactions.length` (`transactions/page.tsx:1314`) — **live derived
   state**, recomputed from the vault each render, with no cache to go stale.
