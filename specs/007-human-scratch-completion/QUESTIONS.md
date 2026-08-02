@@ -3001,3 +3001,38 @@ All three produce a PASSING-LOOKING result that proves nothing, and none is visi
 line. **Recommended detection for P21: run every new or changed test against the pre-fix tree and
 require it to FAIL by name.** Every one of these three shapes is caught by that single check, and
 several packages in this goal already adopted it voluntarily.
+
+## Q-P28-03/04/05 — Three review-method findings from the P28 rev 02 re-review
+
+Proposed by `p28-reviewer-02`. Root verified the mechanism behind Q-P28-03 directly. **Carry forward
+to P21.**
+
+**Q-P28-03 — a correctly-shaped round-trip table can still miss a defect if no member of it exercises
+the axis.** P28's locale table was extended from 5 to 9 with coverage strictly up, deliberately naming
+input CLASSES rather than adding arbitrary locales — non-Latin numerals, non-Gregorian calendar,
+year-first order. It was a good table and it still missed F-4, because **all nine locales happen to
+agree between the `numeric` and `2-digit` skeletons.** The axis that mattered — *the editing skeleton
+is not the parsing skeleton* — was not represented by any member. Root confirmed the divergence
+exists: `mt-MT` is `month/day/year` numeric but `day/month/year` 2-digit; `ug-CN` is `year/day/month`
+against `year/month/day`. So "name the input classes" (`Q-P28-01`) is necessary and not sufficient: a
+class is only covered if some member actually differs along it. Recommended check: for any table-driven
+locale or format test, verify that at least one row DISAGREES on each axis the code branches over,
+rather than assuming diversity of names implies diversity of behaviour.
+
+**Q-P28-04 — Node ICU and browser ICU disagree, so census both.** The same F-4 census gave **9 of 114
+locales, 52 cases** under Node ICU 76.1 and **4 of 112 locales** in Chromium. Neither number is wrong;
+they are different ICU builds with different locale data. A defect censused only in Node may
+under- or over-state what ships to a browser, and a fix verified only in Node is not verified for
+users. The reviewer confirmed F-4 end to end in a real browser (`te-IN` displayed `15-06-25`, retyped
+verbatim, stored `25-06-15`) rather than resting on the Node census — which is what made the finding
+unarguable.
+
+**Q-P28-05 — a reviewer's own probe can manufacture a defect, so re-run before reporting.** The
+reviewer's first manual probe showed `th-TH` rendering `03/08/69` and it initially read this as F-2
+unfixed. It did not survive scrutiny: the cause was its own scratch spec leaving the cell in a stale
+state, and 12 of 12 clean re-runs were correct, with an in-page probe confirming Chromium honours the
+Gregorian pin. **F-2 is genuinely fixed.** It recorded the false alarm in the review rather than
+dropping it silently. That is the right disposition — an abandoned reviewer result should be visible,
+because a reader who later finds the same artefact needs to know it was investigated and rejected
+rather than never seen. Compare `Q-P24-01`, where an implementer's measured collisions did not survive
+review and the totals stood while the named examples were withdrawn.
