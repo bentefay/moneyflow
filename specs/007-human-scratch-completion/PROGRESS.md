@@ -9461,3 +9461,46 @@ rather than from a new observation.**
 `.p30-review-scratch/` confirmed removed; the reviewer had deleted it before writing its review, so
 the 2 lint errors were real when observed and stale when reported — the worse variant, because it
 looked reproducible. Its later probes ran from `/tmp/p30rev2`, also deleted.
+
+### 2026-08-02 — P30 rev 02 reviewer will be DISTINCT; the reviewer argued against its own continuity
+
+`p30-reviewer-01` offered to re-review rev 02 for continuity on F-1/F-2/F-6 **and recommended against
+itself**: *"I'd be checking my own diagnosis rather than the fix."* **Root takes the recommendation.**
+
+F-2's causal chain is the reviewer's own construction — remount produces a spurious `isEditing`
+transition produces an unauthorised write. **A reviewer who built that chain reads a fix as
+confirming or refuting their model, when the question is whether the fix satisfies the frozen text.**
+Not the same question, and the difference is invisible from inside. `p29-reviewer-02` made the
+identical call declining to grade the fix to its own F-4. **Two reviewers reaching it independently
+makes it the default rather than a per-package judgement.**
+
+**SEQUENCING REQUIREMENT for rev 02, from the reviewer and adopted:** root's ruling that "Updating"
+auto-creates and auto-applies as one action **makes F-2's fix load-bearing rather than cosmetic** —
+`isEditing` becomes the ONLY thing standing between a blur and a write that rewrites every matching
+row. **F-1 must therefore be fixed FIRST.** Fixing F-2's effect in isolation would paper over the
+remount rather than remove it, and the papering would look like a fix while leaving the spurious
+transition reachable by any other path that remounts the cell.
+
+**Q-proposal withdrawn on the merits by the reviewer** after root's ruling: its intuition that
+auto-CREATION feels heavier than auto-APPLICATION is a real observation about the design but is not
+grounded in the frozen text. **An ambiguity raised and withdrawn costs one exchange; an ambiguity
+noticed and swallowed costs a revision.**
+
+**Bad-oracle rule recorded, attributed to `p30-reviewer-01`:**
+
+> **A probe's pre-fix arm must be PROVEN TO FAIL before its post-fix cleanliness means anything.**
+
+And its honest account of the catch, which matters more than the rule: **the tell was an external
+fact disagreeing with a clean-looking result, not discipline.** It had formed the view before
+measuring, the first measurement agreed, and what saved it was 0-dialogs-pre-fix contradicting a
+known campaign failure. **Agreement with a prior is exactly when an instrument deserves most
+suspicion and gets least** — the same shape as root supplying a wrong premise the implementer
+accepted, where two parties agreeing looked like corroboration.
+
+`.p30-review-scratch/` confirmed gone; lint back to 0 errors, 1 pre-existing warning. The reviewer
+recorded the ESLint-anchored-glob mechanism in its own memory, noting the part it had not
+internalised: **a DELETED scratch dir is still costly, because the agent who hit it is left chasing
+an error that looks reproducible and is not.**
+
+P30 rev 02 is under way — `page.tsx`, `TransactionRow.tsx` and `TransactionRuleProposal.tsx` all
+show edits in the shared checkout.
