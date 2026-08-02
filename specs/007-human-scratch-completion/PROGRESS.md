@@ -11135,3 +11135,87 @@ touch two of its files.
 
 Vitest repetitions continue in the background to give the unreproduced unit failure more chances;
 **one attempt already clean at 2448.** The count of attempts is itself the evidence.
+
+### 2026-08-02 — P33 reported an ORPHANED hash; root caught it before dispatch
+
+`p33-implementer-01` reported final HEAD `4abc72d`. **Root verified and it is orphaned:**
+
+```
+reported:    4abc72d   docs: correct why a disabled control's enlarged area is inert
+branch tip:  2d1fbb1   docs: correct why a disabled control's enlarged area is inert   ← REAL
+git diff 4abc72d 2d1fbb1  →  10 files changed, 882 insertions, 148 deletions
+```
+
+**Same commit message, different hash, and the trees differ by TEN FILES.** `4abc72d` still resolves
+via `git show`, **which is exactly what makes it dangerous** — it looks verifiable and is not on the
+branch. The worktree and `git branch --contains` both point at `2d1fbb1`.
+
+**This goal dispatched a reviewer onto an amended-away commit once before.** Had `4abc72d` gone into
+a dispatch, the reviewer would have audited a tree nobody points at, **with an 882-line delta from
+the real one.** Root caught it by checking the branch tip rather than accepting the reported hash —
+the `handback-hash-amend-orphan` rule applied at dispatch time rather than at handback.
+
+### 2026-08-02 — P33 rev 01 measurements: the negative control, the viewport trap, the fixture trap
+
+**Negative control, run before P33 asked for anything else.** It neutralised the four hit-area
+constants to `""` — **restoring pre-change behaviour without touching any of the 8 call sites**, so
+nothing at a call site could accidentally compensate. **All 8 cells landed on the row DIV and nothing
+activated.** Restored, verified byte-identical, matrix passes again. **That is what makes the passing
+runs mean anything.**
+
+**Resting appearance discharged by measurement, not argument:**
+
+```
+0 of 73,758 pixels changed, maxChannelDelta 0
+every portal anchor rect byte-identical
+UR-005 resting paint bgAlpha 0 in BOTH themes, overlay contributing rgba(0,0,0,0)
+```
+
+**The UR-005 check was unprompted** — a package satisfying UR-012 by reintroducing cell chrome would
+have silently regressed an integrated requirement.
+
+**TWO CORRECTIONS TO ROOT'S DISPATCH, both verified and both load-bearing.**
+
+**1. There is no horizontal dead space.** Root's dispatch and the requirement task both described
+`gap-4` as space inside the cells. **Measured: `gap-4` is on the grid CONTAINER
+(`TransactionRow.tsx:361`), so it is spacing BETWEEN tracks and belongs to no cell.** Closing it would
+make each control overhang its neighbour. Root inherited the framing without checking where the class
+sat. Vertical expansion only, plus 8px horizontally on the checkbox, the one genuinely inset control.
+
+**2. A `::before` overlay cannot work on text inputs** — a replaced element renders no
+pseudo-element, so the overlay never painted and the edge click still missed. **Found by trying it
+and watching it fail.** Hence the split: date/description/amount grow their own box and return the
+space as padding (+28 height, −14 margin, +14 padding, cancelling exactly); the other five use the
+overlay **because the tag chooser positions its portaled dropdown from a container rect, and growing
+that box moved the dropdown 14px.** That is the portal hazard arriving from an unpredicted direction.
+
+**NEW FAILURE SHAPE — a false negative that looks exactly like a product defect.** The table is wider
+than Playwright's default 1280px viewport; the amount column spans x=1233..1345, so its centre is
+off-screen and `page.mouse.click` lands outside the page. **Seven cells passed and the amount cell
+reported "not activating" on both edges — a convincing bug report.** The tell: **`document.
+elementFromPoint` returned NO element at all, where a genuinely dead cell still has the row
+underneath it.** A dead cell hits something; an off-viewport coordinate hits nothing. Fixed by
+`setViewportSize({ width: 1600, height: 900 })` with the measurement in a comment.
+
+**SIXTH INSTANCE OF THE FIXTURE TRAP, and the first caught by measuring a claim already written as
+fact.** P33's module doc asserted the overlay "has no pointer-events of its own, so it inherits the
+control's". **Conclusion right, reason wrong:** `pointer-events` stays `auto` on a disabled control
+and the overlay still hit-tests; what makes it inert is that a disabled `<button>` does not dispatch
+a click. **Two probes misled it and both are recorded so nobody repeats them: a synthetic
+`dispatchEvent` fires the handler regardless of `disabled` and reports the EXACT OPPOSITE; a
+hand-built probe element returned its parent in both cases and discriminated nothing.** Only the real
+control under a real mouse settled it.
+
+**Pre-existing flake correctly attributed by method rather than assertion:**
+`duplicates.test.ts:748` failed once on P33's tree, **so it checked at clean BASE in a throwaway
+worktree and reproduced it 1 in 7 runs with its changes absent.** Known load-sensitive wall-clock
+assertion; not touched.
+
+**Disclosed limit:** it could not exercise the rule-proposal popover by hand — its synthetic
+single-row fixture had no pre-existing rule to propose against — and **said so rather than implying
+coverage.** `rule-creation-controls.spec.ts` owns that behaviour and runs in the campaign. **P33's
+campaign is the first full-suite run on a tree containing both P30's and P33's changes.**
+
+**Port granted FIVE times, every grant crossing a message.** Campaign still outstanding; root
+declined to run it in P33's place, since a campaign run by another party is weaker evidence for the
+same reason P33's own negative control is strong.
