@@ -8446,3 +8446,42 @@ range begun by deselecting ends deselected**.
 Barred from :3000 while `p28-reviewer-03` campaigns; worktree reserved `/tmp/mf-p31`, outside the
 repo. **Four agents now in flight, one port, no contention:** P28 reviewer campaigning, P29 reviewer
 static, P30 implementer port-free, P31/P32 implementer port-free.
+
+### 2026-08-02 — P28 rev 03 REVIEWER campaign CLEAN 3/3; the deferred criterion is now MET
+
+`p28-reviewer-03` ran the six checks and the 3-run campaign itself, closing the gap root's own
+sequencing had created. **Root verified every run from the logs, not from the summary** — the
+reviewer announced its artifact paths up front so this was possible.
+
+| run | result         | duration | load at start | exit |
+| --- | -------------- | -------- | ------------- | ---- |
+| 1   | **177 passed** | 4.5m     | 5.82          | 0    |
+| 2   | **177 passed** | 4.2m     | **10.35**     | 0    |
+| 3   | **177 passed** | 4.2m     | 7.87          | 0    |
+
+Failure-marker scan (`✘`, `Error: expect`, `timed out`, `N failed`) returns **0 in all three logs**.
+All **five** `date-locale.spec.ts` tests execute BY NAME in every run — 5/5/5 — so the `Q-P27-01`
+vacuous-import failure mode is excluded independently in each.
+
+**Digest `f46cbb368fc6d55433473f127772e9db` identical pre-run-1 and post-run-3**, and unchanged from
+before the five non-E2E checks. The five checks and all three runs therefore cover ONE identical
+tree. This is the same digest the P28 implementer recorded for its own rev 03 campaign, so **two
+independent campaigns, run by different agents in different worktrees, cover the same tree.**
+
+**Run 2 at load 10.35 is the strongest single piece of evidence in this package.** The three recorded
+load-sensitive assertions — `duplicates.test.ts:749`, `transactions.spec.ts:804`,
+`vault-maintenance.test.tsx` — are precisely the ones that fire under contention, and none fired.
+
+Five non-E2E checks, run to completion BEFORE the campaign so vitest never competed with Playwright:
+typecheck PASS, lint exit 0 with only the pre-existing `TransactionTable.tsx` hooks warning,
+format:check exactly 17 frozen `specs/**` with ZERO `src`/`tests` offenders, `pnpm test` **122 files
+/ 2369 passed / 2 skipped**, build `✓ Compiled successfully`.
+
+**Root reconciled an apparent 13-test discrepancy before it could become a finding.** The reviewer
+reports 2369 where `p29-implementer-01` reported 2382 in the same hour. Cause: P29 is unmerged, and
+its 13 new unit tests do not exist at `8c16063` — `ur-008-amount-column.test.tsx` (6 new),
+`ur-008-csv-parity.test.ts` (22 -> 28), `mapping-tab-auto-detect.test.tsx` (2 -> 3). **Both figures
+are correct for their own trees.**
+
+Port observed FREE. Root is NOT reassigning it until the reviewer announces release, per the standing
+rule that an observed free port is not a released one.
