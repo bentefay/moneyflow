@@ -2743,3 +2743,34 @@ confirmed both measurements itself before ruling. That is a decision, not an ove
 
 Fixing it is a one-line follow-up using the existing `RESTING_CELL_CHROME` constant. P21 should decide
 whether to charter it, fold it into another package, or accept it with reasons.
+
+## Q-P27-01 — An unresolvable import makes Playwright SKIP a spec file silently, not fail it
+
+Found by `p27-implementer-01` during P27 while attempting an advisory suggested by the P24 review.
+Root verified it independently. **Carry forward to P21 — this is a campaign-integrity hazard, not a
+style point.**
+
+**The instance.** `reviews/P24-review-01.md` §4 advised importing `UNNAMED_MEMBER_LABEL` from
+`@/lib/crdt/person` into an E2E spec, so that renaming the label would break at compile time rather
+than silently un-matching a hardcoded string. Sound reasoning; it does not work here. The import chain
+is `person.ts:19 -> defaults.ts:12 -> @/types -> temporal-polyfill`, and root confirmed
+`temporal-polyfill`'s package exports publish ONLY an `import` condition:
+`{".": {"import": {"types": "./index.d.ts", "default": "./index.js"}}}`. Playwright's resolver fails
+with `No "exports" main defined`.
+
+**Why it is dangerous rather than merely inconvenient.** Playwright does not report a failure. It
+reports **"No tests found"** and SKIPS THE ENTIRE SPEC FILE. On a campaign that surfaces as a reduced
+test count, not a red run — and a reviewer comparing "3/3 green" across runs would see three green
+campaigns while an entire spec silently contributed nothing. Every prior campaign in this goal that
+asserted a count did so precisely because of a related hazard; this is the mechanism that makes that
+discipline load-bearing rather than ceremonial.
+
+**Why the cited precedents mislead.** The P24 advisory pointed at `helpers/settlement.ts:14` as
+precedent for importing from `@/`. That works only because `@/lib/crypto/*` never reaches `@/types`.
+The precedent is real but does not generalise, and nothing in the file signals which imports are safe.
+
+**Mitigations for P21 to consider.** Always verify the expected test COUNT with
+`playwright test --list` before and after a change, rather than trusting a green campaign — P27 did
+exactly this and confirmed 168 at BASE and 170 at HEAD. Treat any unexplained drop in collected tests
+as a failure. And note that the underlying advisory's GOAL — making a label rename break loudly rather
+than silently — remains unmet; a different mechanism would be needed.
