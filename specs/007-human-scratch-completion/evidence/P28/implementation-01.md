@@ -2,8 +2,11 @@
 
 - **Requirement:** UR-007, frozen at `specs/010-user-reported-refinements-2/spec.md` lines 40-54
 - **Base:** `c9be708e9b48c3bf06eae61bfda5067f2819e536`
-- **Commits:** `9aaba60` product + unit tests, `a24bcf0` E2E spec, `d514d47` fallback-gate and ja-JP
-  test hardening, plus this evidence
+- **Commits (rev 01):** `9aaba60` product + unit tests, `a24bcf0` E2E spec, `d514d47` fallback-gate
+  and ja-JP test hardening
+- **Commits (rev 02):** `6750acc` non-Latin numerals and Gregorian calendar, `1c4a4cc` this evidence
+- **Review 01 verdict:** FAIL on F-1 and F-2; both confirmed independently and fixed in rev 02 — see
+  §7
 
 Statements below are labelled: **Observed** means I ran it and read the output; **Inferred** means I
 reasoned to it and did not confirm it directly.
@@ -234,16 +237,25 @@ other 9 of the original 18 cases are untouched and still pass.
 
 ## 5. Six checks
 
-Run against `d514d47`, the final commit.
+Run against `1c4a4cc`, the final commit of revision 02. The revision 01 results are superseded and
+are not carried forward.
 
 | check          | result                                                                                                                                                  |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `typecheck`    | **PASS** — clean                                                                                                                                        |
-| `lint`         | **PASS** — 0 errors, 1 pre-existing warning in untouched `TransactionTable.tsx`                                                                         |
+| `lint`         | **PASS for P28** — all eight changed files lint clean with exit 0; see the note below on `.claude/worktrees/`                                           |
 | `format:check` | **PASS for P28** — fails on exactly **17** pre-existing frozen `specs/**` files; **observed** zero `src/` or `tests/` offenders, and none is a P28 file |
 | `build`        | **PASS** — compiled successfully                                                                                                                        |
-| `test`         | **PASS** — 120 files, 2294 passed / 2 skipped                                                                                                           |
+| `test`         | **PASS** — 120 files, 2341 passed / 2 skipped                                                                                                           |
 | `test:e2e`     | **PASS** — see campaign below                                                                                                                           |
+
+**Note on the bare `pnpm lint` count.** At the time of the final run, `pnpm lint` reported 591
+errors and ~18,700 warnings. **Observed:** every one of them is under `.claude/worktrees/p29-ur008`,
+a concurrent package's git worktree that lives inside the repo directory and that ESLint walks. It
+is listed in `.git/info/exclude`, so it is untracked and transient. Linting the eight P28 files
+explicitly exits 0. The only pre-existing finding outside that directory is the single
+`react-hooks/incompatible-library` warning in untouched `TransactionTable.tsx`. This is reported
+rather than "fixed", because the files are not mine and will disappear with that worktree.
 
 ### E2E campaign
 
@@ -252,27 +264,27 @@ discovered. Per `Q-P27-01`, I checked that the new spec **executes** rather than
 skipped: all five appear individually numbered in each run log (`[1/175]`-style), and the total
 moved from 170 to 175.
 
-The tree changed after the fallback-gate hardening, so the earlier campaign was discarded rather
-than carried forward — a repeated-run campaign is evidence only for the tree it ran on. The campaign
-below was restarted from run 1 against `d514d47`. Three consecutive **full-suite** runs,
-`--retries=0`, **never** `CI=true`:
+The tree changed twice during this package, and **a campaign is evidence only for the tree it ran
+on**, so each earlier campaign was discarded rather than carried forward. The campaign below is the
+third, restarted from run 1 against `1c4a4cc` after the F-1 and F-2 fixes. Three consecutive
+**full-suite** runs, `--retries=0`, **never** `CI=true`:
 
 | run  | digest                             | result                |
 | ---- | ---------------------------------- | --------------------- |
-| pre  | `637849fd1d3509b36c5d7afd1a65cf36` | —                     |
-| 1    | `637849fd1d3509b36c5d7afd1a65cf36` | **175 passed** (4.4m) |
-| 2    | `637849fd1d3509b36c5d7afd1a65cf36` | **175 passed** (4.1m) |
-| 3    | `637849fd1d3509b36c5d7afd1a65cf36` | **175 passed** (4.2m) |
-| post | `637849fd1d3509b36c5d7afd1a65cf36` | —                     |
+| pre  | `0a882e6e5f940b2934bc65a9b5cea623` | —                     |
+| 1    | `0a882e6e5f940b2934bc65a9b5cea623` | **175 passed** (4.4m) |
+| 2    | `0a882e6e5f940b2934bc65a9b5cea623` | **175 passed** (4.2m) |
+| 3    | `0a882e6e5f940b2934bc65a9b5cea623` | **175 passed** (4.0m) |
+| post | `0a882e6e5f940b2934bc65a9b5cea623` | —                     |
 
 Digest is a content hash over tracked `src`, `tests`, `package.json`, `pnpm-lock.yaml` and
 `playwright.config.ts`, **excluding `next-env.d.ts`** which `next dev` rewrites on every start.
 Identical before run 1 and after run 3, so all three runs are evidence for one tree. Zero flaky,
 zero retries; **observed** by grepping each log for failure markers and finding none outside test
-titles.
+titles, and by confirming all 5 `date-locale.spec.ts` tests appear in each run log.
 
-(The superseded campaign against `a24bcf0`, digest `0a3f572cbb9a93f96d95a7bb96144a97`, was also 3 x
-175 passed. It is recorded here for completeness but is **not** the evidence for this handback.)
+(Two superseded campaigns, against `a24bcf0` and `d514d47`, were also 3 x 175 passed. Recorded for
+completeness; **neither is the evidence for this handback**, because the tree has since changed.)
 
 **Load discipline** (`Q-P27-02`): port 3000 was **observed** free via `ss -ltnp` immediately before
 each campaign started, and load was 2.3-2.7 across 32 cores. The human's dev server on :3001
