@@ -23,10 +23,17 @@ review evidence.
   RE-FLAKE of the P20B rev-02 fix, 1/8 full-suite; the rev-02 `toBeEditable`/`toHaveValue` idiom
   cannot prove hydration for a controlled `Input`, which — unlike `Button` — has no `useIsHydrated`
   gate, root-confirmed by source; Q-P20B-19). HS-021 ROLLED BACK via §275 `RB-P21-04` (marker `:159`
-  `[x] -> []`, rolling `469e98c7… -> f46c2d35…`, 24,259 bytes, normalized 20/1). **Tally: 28 of 34
-  requirements `passed`** (HS-016 re-passed; UR-001..UR-004 ADMITTED 2026-07-30 and `queued`); **27
-  of 33 feature packages `passed`** (P22-P27 PASSED; P28-P33 `queued`). C-1 upstream currency drift
-  ruled a non-blocking accepted carry-forward (Q-P21-04-01).
+  `[x] -> []`, rolling `469e98c7… -> f46c2d35…`, 24,259 bytes, normalized 20/1). C-1 upstream currency
+  drift ruled a non-blocking accepted carry-forward (Q-P21-04-01).
+
+  **[SUPERSEDED 2026-08-03 — the tally that stood here was stale and is corrected below.]** It read
+  "28 of 34 requirements passed" and "27 of 33 feature packages passed (P22-P27 PASSED; P28-P33
+  queued)". **MEASURED at `5260c15`: all 34 requirement-ledger rows show `passed`, and every feature
+  package P00-P20B and P22-P33 shows `passed`; P21 alone is not passed.** Flagged by
+  `p21-collector-06` during its entry-condition re-derivation. **The ROW TABLES are authoritative;
+  this prose is a summary and had decayed behind them** — a conclusion true when written and
+  falsified by later work, which is the failure mode this ledger records elsewhere against its own
+  authors.
 - **Next action:** **P22 rev 02 in independent review** (`p22-reviewer-02`); **P23 rev 01 dispatched
   in parallel** (`p23-implementer-01`, disjoint file set). — reviewer PASSed rev 01 but its own
   MEDIUM finding is a literal non-conformance with frozen UR-001 text; root requires the one-line
