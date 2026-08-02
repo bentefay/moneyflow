@@ -8108,3 +8108,44 @@ corruption of the principal's own financial records — materially worse than a 
 
 Port: reviewer instructed to HOLD. :3000 is granted to P29 and unbound only because P29 has not yet
 started; an ungranted free port is not an open one. Root will signal the reviewer on release.
+
+### 2026-08-02 — P29 rev 02 VERIFIED at `43836b0`; port granted; campaign RUNNING
+
+`p29-implementer-01` went beyond the fix and replaced the ASSERTION SHAPE after the rev 01 reviewer
+addendum. Root verified in `/tmp/mf-p29` directly, not from the report:
+
+- HEAD `43836b0`, tree clean. `bestAmountColumn` at `detection.ts:298`, called at `:370` for the
+  amount role. `tests/unit/import/ur-008-amount-column.test.tsx:44` drives the real
+  `useImportState.loadFile`; `:121` asserts `toEqual([550, 7525, 250000])` — imported AMOUNTS.
+
+**Observed at BASE `74b37f9` — wrong money, not absent keys.** 4 of 6 fail at BASE:
+
+| fixture                                        | BASE imported            | expected              |
+| ---------------------------------------------- | ------------------------ | --------------------- |
+| check number left of amount                    | `100100, 100200, 100300` | `-550, -7525, 250000` |
+| balance left of amount                         | `100000, 92475, 342475`  | `-550, -7525, 250000` |
+| all-positive, header the only discriminator    | `100000, 92475, 342475`  | `550, 7525, 250000`   |
+| headerless, check number left of amount        | `100100, 100200, 100300` | `-550, -7525, 250000` |
+
+Check numbers and running balances imported as money. **The error-count assertion passes at BASE
+precisely because a wrong-column import reports ZERO errors** — a defect that validates cleanly is
+worse than one that throws, because nothing prompts the user to look. The 2 non-failing fixtures are
+deliberate: the arrangement where the naive rule happens to agree, kept so both orders stay pinned.
+
+**Root error, third of the same class today.** Root's `grep -n 'entry.rate > best.rate'` hit
+**`main`'s** copy, not the worktree, and root treated a line's continued EXISTENCE as proof the
+defect survived. The implementer's framing is the correct rule: **grepping for the old expression is
+not a test of whether the defect is fixed — grep for what now makes the decision.** Root had already
+self-caught the role change by reading the construct; the diagnosis of why the check was invalid is
+the implementer's.
+
+Root also sent a status-required demand to an agent that had ALREADY reported; the messages crossed.
+Combined with the `p28-reviewer-03` false-death call, root has twice today acted on a stale picture
+of a working agent. Both recorded.
+
+Gates at handback: typecheck PASS, bare `pnpm lint` exit 0, format:check exactly 17 frozen `specs/**`
+none owned, `pnpm test` **2382 passed / 2 skipped / 123 files / 0 failed** at load 8.13.
+
+Port :3000 granted and **campaign confirmed RUNNING** (`ss -ltn` shows :3000 bound). Terms:
+`env -u CI`, `--retries=0`, 3 full-suite runs, digest before run 1 and after run 3, announce BEFORE
+release. `p28-reviewer-03` is queued behind it and holds.
