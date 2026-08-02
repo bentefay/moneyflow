@@ -10,7 +10,10 @@
   See F-1: the tree moved under this review and every measurement below was re-taken at `0e27694`.
 - **Evidence read:** `evidence/P31/implementation-01.md`, `evidence/P32/implementation-01.md`
 - **Non-blocking findings:** F-1 (tree drift, handled), F-2 (toast stacking, advisory), F-3
-  (`matchingRowIds` optional prop, carried risk). **No blocking finding.**
+  (`matchingRowIds` optional prop, carried risk), F-4 and F-5 (added in the addendum). **No blocking
+  finding.**
+- **Addendum appended** after three follow-up messages from root and the implementer, answering the
+  guard-removal design question and re-reading the rewritten evidence. **The verdict is unchanged.**
 
 Every statement below is labelled **MEASURED** (I ran it and read the output) or **INFERRED** (read
 from source without executing that specific path).
@@ -443,3 +446,168 @@ that are unflattering to the implementer, which is worth saying.
    no E2E has run on the exact reviewed tree, and `T021e` is the sole evidence for `spec.md:29`.
 3. **Keep `Q-PROPOSAL-P32-01-01` open** for the principal with the F-2 measurement attached: toasts
    stack four-deep during ordinary selection refinement.
+
+---
+
+# Addendum — answers to three follow-up messages
+
+Root asked me to retarget to `b138894`, to rule on whether a publicly re-exported function with a
+caller-side precondition is an acceptable shape, and to verify independently that the implementer's
+mutation testing left no residue. The implementer separately disclosed a rewritten campaign section
+and a unit-test flake. **The verdict is unchanged: PASS for UR-010 and UR-011.** Two new
+non-blocking findings, F-4 and F-5.
+
+## The retarget is already satisfied — `b138894` and `0398d19` are ancestors of the tree I reviewed
+
+**MEASURED.** Root asked me to review `b138894` rather than `362287c`. That is already done:
+
+```
+git merge-base --is-ancestor b138894 0e27694  → true
+git merge-base --is-ancestor 0398d19 0e27694  → true
+```
+
+Both commits are **ancestors of `0e27694`**, the HEAD I retargeted to on my own initiative during the
+first pass (F-1). So the review already covers them, including the nine-mutation battery and the full
+unit suite. **No re-measurement was required for the retarget** — root's instruction and my F-1 had
+converged on the same tree from opposite directions.
+
+HEAD has since advanced to `d766d75` (`00d22fc` PROGRESS, then my own review commit). **MEASURED:**
+`git diff 0e27694..HEAD` over all ten P31/P32 paths is empty. The verdict still describes HEAD.
+
+A small correction to root's framing, which does not change anything: root wrote that `b138894` is
+"one product change since I dispatched you". There were **two** commits touching P31/P32 files —
+`b138894` (product) and `0398d19` (test). Root's later message covers `0398d19` separately, so this
+is a sequencing artifact of three messages arriving together, not an error of fact.
+
+## F-4 — the guard removal is safe, but "safe" understates what changed. MEASURED.
+
+Root asked me to confirm the removal against **every** call path, not just `page.tsx:285`, and to
+rule on whether a public export with a caller-side precondition is an acceptable shape. I did both,
+and the answer to the second is more interesting than the first.
+
+**Every reference in the repository — MEASURED**, `grep -rn` over `src` and `tests`:
+
+| Site | Kind |
+| --- | --- |
+| `page.tsx:48`, `:287` | the one product caller, with the pre-comparison at `:285` |
+| `index.ts:24` | **public re-export via the barrel** |
+| `table-selection.ts:24`, `:136` | the definition and a docstring |
+| `selection.test.ts` — 6 call sites; `selection-invariants.test.ts` — 2 | tests |
+
+The sole-caller premise **holds today**, and both root and the implementer are right that it is
+publicly re-exported and could stop holding.
+
+**I did not settle the design question by argument. I wrote a throwaway test that plays the future
+caller** — reaching the public export with no caller-side pre-comparison, calling repeatedly on a
+100,000-row set, under four different selection shapes. Two results:
+
+**Correctness: fine.** Identity is preserved in **all four** cases — `no-rows` empty, `all-matching`,
+`all-matching` with exceptions, `no-rows` with exceptions — across repeated same-reference calls. The
+trailing identity-preservation block covers the same-reference case entirely on its own. **This
+confirms root's measurement and the implementer's distinction between the two identity checks. They
+are genuinely different things, and only the leading one was dead.**
+
+**Cost: not free.** The same call at 100,000 rows takes **19.52 ms**, measured, where the removed
+guard returned in O(1). The removed check was a *fast path*, and for a caller that does not
+pre-compare, its absence is ~20 ms of allocation and set-building per call at that scale — on a
+render path that would be a visible stall.
+
+**My ruling.** The removal is **correct and I do not ask for it to be reverted.** It is dead code in
+the product, it could not be pinned by a test that calls the function the way the product does, and
+the standing rule is pin-or-remove. Reverting would restore an unreachable branch to insure against
+a caller that does not exist.
+
+**But I do not accept "the trailing block makes it a performance concern rather than a correctness
+one" as fully disposing of the question**, because the performance concern is exactly what the frozen
+text makes a hard requirement: `spec.md:52-55` says efficiency "is a requirement, not an aspiration"
+and must hold "on a vault with a hundred thousand transactions". A future caller reaching this
+through `index.ts` on a render path would violate that clause, and nothing in the type system or the
+tests would say so.
+
+**What I would have preferred, recorded as a suggestion and not a required change:** the cheapest
+durable fix is not to restore the guard but to **stop exporting `reconcileToMatchingRows` from
+`index.ts`.** It is an internal reconciliation primitive with a caller-side precondition; the barrel
+export is what turns a private invariant into a public trap. That is a one-line deletion, it cannot
+break the product (the sole consumer imports from the barrel but the function is reachable directly),
+and it removes the premise-that-can-stop-being-true rather than insuring against it.
+
+I am **not** raising this as a required change because it is outside the frozen text, the product is
+correct today, and the implementer's test at `selection.test.ts:153-174` now pins the behaviour under
+both baselines. **Root's call whether to act on it.** To the implementer's direct question — "if you
+think so, say so and I will restore it" — **no, do not restore the guard.** If you want to spend a
+line on this, spend it on the barrel export instead.
+
+## F-5 — one stale sentence survived the evidence rewrite. MEASURED.
+
+The rewritten campaign sections are **materially more honest** and I credit the correction: both
+files now lead with "**5 runs, 2 trees**", "**not a valid single-tree campaign**", and the disclosure
+that every run's tree carried P30's unreviewed work. That matches what I independently concluded in
+"Campaign assessment" before the rewrite existed, so the rewritten evidence supports the claims it
+now makes.
+
+**One sentence did not survive the rewrite intact.** `evidence/P31/implementation-01.md:179-182`
+still reads:
+
+> My three files are byte-identical across runs 2-5 — `transactions.spec.ts` `ae01e23a7b6d`,
+> `table-selection.ts` `8602eb31a503`, `useTableSelection.ts` `1ac828cc7b54` — **so this result
+> describes current HEAD rather than a superseded tree.**
+
+The digests are accurate *for runs 2-5*. **The conclusion is now false**, and `b138894` is what
+falsified it:
+
+```
+table-selection.ts   campaign: 8602eb31a503   at HEAD: d80f67784a3e   ← CHANGED
+selection.test.ts    campaign: d344b80-era    at HEAD: 464bf6bb54c7   ← CHANGED
+transactions.spec.ts campaign: ae01e23a7b6d   at HEAD: ae01e23a7b6d   ← unchanged
+```
+
+**The campaign does not describe current HEAD.** This is the same gap I raised unprompted in
+"Campaign assessment" — no E2E has run on the reviewed tree — so it changes nothing about my verdict
+or my risk assessment. But the evidence file now asserts the opposite of the truth in one sentence
+while stating the correct limitation in three other places, and a later reader could quote the wrong
+one. **Root should have that sentence corrected or struck before integration.** Non-blocking,
+factual, one line.
+
+## Mutation residue: independently confirmed clean. MEASURED.
+
+Both root and the implementer asked me to verify this myself rather than take either account. I
+compared the **working tree against HEAD by md5 for all ten P31/P32 paths**:
+
+```
+MATCH d80f67784a3e  table-selection.ts        MATCH 464bf6bb54c7  selection.test.ts
+MATCH 1ac828cc7b54  useTableSelection.ts      MATCH 15aca4939d9c  selection-invariants.test.ts
+MATCH 099cd74cc1ad  TransactionTable.tsx      MATCH ad311f088769  select-all-beyond-page.test.tsx
+MATCH d3f1ed3a6fb7  index.ts                  MATCH d14dc2577e9d  add-transaction-focus.test.tsx
+MATCH ccfdc42d4566  page.tsx                  MATCH ae01e23a7b6d  transactions.spec.ts
+```
+
+**Ten of ten identical. No mutation residue from the implementer's work, and none from mine.** The
+full unit suite at HEAD: **2443 passed, 2 skipped, 126 files.** My own scratch (`.p31rev3/` and a
+config) was deleted; `git status --porcelain -- src tests` is empty.
+
+## The disclosed flake is not P31/P32's, and disclosing it was right
+
+**MEASURED.** `tests/unit/import/duplicates.test.ts:724-750` asserts a **wall-clock ratio**
+(`expect(ratio1).toBeLessThan(4)`) over `performance.now()` timings at sizes 100/200/400. It is
+load-dependent by construction — the comment itself concedes "allowing margin for JIT warmup, GC".
+`git log 054f77e..HEAD -- <that file>` returns **empty**: P31/P32 never touched it.
+
+I did not see it fail in either of my two full-suite runs (2445 and 2443 passed, zero failures). The
+implementer reporting a red run rather than re-rolling for a green, and declining to loosen a bound
+in a file it does not own, is the correct handling of both.
+
+## Standing items, restated
+
+The three items at the end of the main review stand, with item 1 now sharpened: **record the reviewed
+HEAD as `0e27694`** — which subsumes `b138894` and `0398d19` — and note that all P31/P32 paths are
+unchanged through current HEAD `d766d75`. Item 2 (no E2E on the reviewed tree) is reinforced by F-5:
+the campaign predates `b138894`, so **if root wants that closed, one full-suite run at current HEAD
+is the action.** I still could not run it — the port rule stands and `p30-implementer-01` is running
+its own campaign.
+
+To the implementer's offer of a clean single-tree campaign: **I do not require one for this PASS.**
+The product delta since the last E2E run is the removal of a provably unreachable branch plus a
+strengthened test, the full unit suite is green at HEAD, and all nine mutations were re-killed there.
+A fresh campaign would be reassuring rather than decisive. **That is root's cost/benefit call, not a
+reviewer's gate** — but if a campaign is run anyway for P30's sake, it costs nothing to read the
+selection journeys out of it.
