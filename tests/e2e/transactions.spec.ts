@@ -2887,5 +2887,192 @@ test.describe("Transactions", () => {
 
             await page.emulateMedia({ colorScheme: "light" });
         });
+
+        /**
+         * UR-012: "clicking anywhere in the cell begins editing that field without the pointer
+         * having to find the control", while "the resting appearance is unchanged".
+         *
+         * Every assertion here clicks. A test that merely located a control, or asserted it was
+         * visible, would pass just as happily against the unfixed geometry — the control was always
+         * visible, it was the surrounding strip of the cell that was dead. So the only question this
+         * asks is the requirement's own: was the click ACCEPTED.
+         *
+         * The click lands 2px inside the row's top edge, which is 12px above where any control's
+         * box used to begin. Measured against the pre-change build, every one of these points
+         * focused the row itself and did nothing.
+         */
+        test("UR-012: a click at a cell's edge activates that cell's control", async ({ page }) => {
+            await createNewIdentity(page);
+            await goToTransactions(page);
+            await createTestTransaction(page, {
+                description: "Edge Click Diner",
+                amount: "-31.50"
+            });
+
+            const row = page.locator('[data-testid="transaction-row"]').first();
+
+            /**
+             * Click the horizontal centre of a cell, `inset` pixels below the ROW's top edge.
+             *
+             * Deliberately derived from the row box rather than the cell box: the point must fall in
+             * the strip that belongs to the cell but lay outside the control, which is exactly the
+             * region the requirement is about. Taking it from the cell would re-derive the control's
+             * own box and test nothing.
+             */
+            const clickCellEdge = async (cellName: string, edge: "top" | "bottom") => {
+                const rowBox = await row.boundingBox();
+                const cellBox = await row.locator(`[data-cell="${cellName}"]`).boundingBox();
+                if (rowBox == null || cellBox == null) {
+                    throw new Error(`${cellName} cell is not laid out`);
+                }
+                await page.mouse.click(
+                    cellBox.x + cellBox.width / 2,
+                    edge === "top" ? rowBox.y + 2 : rowBox.y + rowBox.height - 3
+                );
+            };
+
+            /** Which cell, if any, currently holds the caret. */
+            const activeCell = () =>
+                page.evaluate(() =>
+                    document.activeElement?.closest("[data-cell]")?.getAttribute("data-cell")
+                );
+
+            const settleClearOfTheGrid = async () => {
+                await page.keyboard.press("Escape");
+                await page.locator("body").click({ position: { x: 2, y: 2 } });
+                await page.mouse.move(0, 0);
+            };
+
+            for (const edge of ["top", "bottom"] as const) {
+                await test.step(`${edge} edge begins editing each text field`, async () => {
+                    for (const cell of ["date", "description", "amount"] as const) {
+                        await settleClearOfTheGrid();
+                        await clickCellEdge(cell, edge);
+                        await expect
+                            .poll(activeCell, { message: `${cell} caret from ${edge} edge` })
+                            .toBe(cell);
+                    }
+                });
+
+                await test.step(`${edge} edge opens the account chooser`, async () => {
+                    await settleClearOfTheGrid();
+                    await clickCellEdge("account", edge);
+                    await expect(
+                        row.getByRole("combobox", { name: "Select account", exact: true })
+                    ).toHaveAttribute("aria-expanded", "true");
+                });
+
+                await test.step(`${edge} edge opens the tag chooser`, async () => {
+                    await settleClearOfTheGrid();
+                    await clickCellEdge("tags", edge);
+                    // The chooser's own search box is the unambiguous evidence it opened, and it is
+                    // portaled out of the row, so it is addressed from the page.
+                    await expect(page.getByPlaceholder("Search tags...")).toBeFocused();
+                });
+
+                await test.step(`${edge} edge opens the status select`, async () => {
+                    await settleClearOfTheGrid();
+                    await clickCellEdge("status", edge);
+                    await expect(row.getByTestId("status-editable")).toHaveAttribute(
+                        "aria-expanded",
+                        "true"
+                    );
+                });
+
+                await test.step(`${edge} edge begins editing the person percentage`, async () => {
+                    await settleClearOfTheGrid();
+                    const allocationCell = row.locator('[data-cell^="allocation:"]').first();
+                    const cellName = await allocationCell.getAttribute("data-cell");
+                    if (cellName == null) throw new Error("no allocation column is rendered");
+                    await clickCellEdge(cellName, edge);
+                    // Editing replaces the button with a text input, so the input's presence in the
+                    // cell is the state change, not merely focus moving somewhere.
+                    await expect(allocationCell.getByRole("textbox")).toBeFocused();
+                });
+
+                await test.step(`${edge} edge toggles the checkbox`, async () => {
+                    await settleClearOfTheGrid();
+                    const checkbox = row.getByRole("checkbox", { name: /^Select transaction/ });
+                    await expect(checkbox).toHaveAttribute("aria-checked", "false");
+                    await clickCellEdge("checkbox", edge);
+                    await expect(checkbox).toHaveAttribute("aria-checked", "true");
+                    // Restore, so the following iteration starts from the same state it assumes.
+                    await clickCellEdge("checkbox", edge);
+                    await expect(checkbox).toHaveAttribute("aria-checked", "false");
+                });
+            }
+
+            await settleClearOfTheGrid();
+        });
+
+        /**
+         * UR-012: "the resting appearance is unchanged … a row at rest looks exactly as it did
+         * before", and the requirement closes by saying a change that alters resting appearance
+         * does not satisfy it.
+         *
+         * The proof is positional rather than a stored screenshot: a committed baseline image would
+         * have to be regenerated on any unrelated theme or font change, and would then assert
+         * whatever it was last regenerated from. What UR-012 actually forbids is the CONTROLS
+         * moving, so this pins the geometry that the enlargement could plausibly disturb — each
+         * control's own drawn box, in the row's coordinate space — against the values measured on
+         * the pre-change build.
+         */
+        test("UR-012: enlarging the hit areas moves nothing that was drawn", async ({ page }) => {
+            await createNewIdentity(page);
+            await goToTransactions(page);
+            await createTestTransaction(page, {
+                description: "Resting Geometry Cafe",
+                amount: "-8.00"
+            });
+
+            const row = page.locator('[data-testid="transaction-row"]').first();
+            await page.mouse.move(0, 0);
+            await page.locator("body").click({ position: { x: 2, y: 2 } });
+
+            /**
+             * Offsets and sizes measured on the pre-change build, relative to the row's top edge so
+             * the assertion does not depend on where the table happens to sit on the page.
+             *
+             * The three text inputs are absent by design: their boxes DO grow, which is the
+             * mechanism, and their drawn appearance is pinned instead by the text baseline below.
+             */
+            const RESTING_GEOMETRY = [
+                { selector: '[data-cell="checkbox"] [role="checkbox"]', top: 20, height: 16 },
+                { selector: '[data-cell="date"] button', top: 16, height: 24 },
+                { selector: '[data-cell="account"] button', top: 14, height: 28 },
+                { selector: '[data-testid="status-editable"]', top: 12, height: 32 },
+                { selector: '[data-cell^="allocation:"] button', top: 12, height: 32 }
+            ] as const;
+
+            for (const { selector, top, height } of RESTING_GEOMETRY) {
+                const measured = await row.evaluate((rowNode, target) => {
+                    const element = rowNode.querySelector(target);
+                    if (element == null) return null;
+                    const box = element.getBoundingClientRect();
+                    const rowBox = rowNode.getBoundingClientRect();
+                    return {
+                        top: Math.round(box.top - rowBox.top),
+                        height: Math.round(box.height)
+                    };
+                }, selector);
+                expect(measured, `${selector} is present`).not.toBeNull();
+                expect(measured, `${selector} rests where it always did`).toEqual({ top, height });
+            }
+
+            // The text inputs grow, so their box cannot pin them. Their TEXT must not move, and the
+            // text sits at `padding-top` inside the box — so the two must move together and cancel.
+            for (const testId of ["date-editable", "description-editable", "amount-editable"]) {
+                const baseline = await row.evaluate((rowNode, id) => {
+                    const input = rowNode.querySelector(`[data-testid="${id}"]`);
+                    if (input == null) return null;
+                    const box = input.getBoundingClientRect();
+                    const rowBox = rowNode.getBoundingClientRect();
+                    const styles = getComputedStyle(input);
+                    return Math.round(box.top - rowBox.top + parseFloat(styles.paddingTop));
+                }, testId);
+                // 14px of row padding + the shared `Input` base's own 4px `py-1`.
+                expect(baseline, `${testId} text baseline`).toBe(18);
+            }
+        });
     });
 });

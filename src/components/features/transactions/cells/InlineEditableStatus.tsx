@@ -19,6 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { RESTING_CELL_CHROME } from "./cell-chrome";
+import { TALL_CONTROL_HIT_AREA } from "./cell-hit-area";
 
 export interface StatusOption {
     id: string;
@@ -101,6 +102,10 @@ export function InlineEditableStatus({
                     onKeyDown={handleTriggerKeyDown}
                     className={cn(
                         "h-7 w-full px-1",
+                        // UR-012: the select opens from a click anywhere in its cell. An overlay
+                        // rather than a taller trigger, so Radix still measures and anchors the
+                        // dropdown against the trigger's original box.
+                        TALL_CONTROL_HIT_AREA,
                         RESTING_CELL_CHROME,
                         "hover:bg-accent/30",
                         "focus:border-input focus:bg-background",

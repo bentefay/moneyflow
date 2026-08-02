@@ -23,6 +23,8 @@ import {
 import { DEFAULT_TAG_COLOR, getContrastingTextColor } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
+import { SHORT_CONTROL_HIT_AREA } from "./cell-hit-area";
+
 export interface TagOption {
     id: string;
     name: string;
@@ -288,6 +290,11 @@ export function InlineEditableTags({
                 className={cn(
                     "flex min-h-[28px] cursor-pointer flex-wrap items-center gap-1 rounded-md px-1 py-0.5",
                     "border border-transparent bg-transparent shadow-none outline-none",
+                    // UR-012: the chooser opens from a click anywhere in its cell. The overlay sits
+                    // on this display area, so a click on it still bubbles to the container's
+                    // `handleClick`; the container's own box is untouched, which matters because
+                    // `containerRef` is what positions the portaled dropdown.
+                    SHORT_CONTROL_HIT_AREA,
                     "hover:bg-accent/30",
                     "focus-visible:border-ring focus-visible:bg-background focus-visible:ring-ring/50 focus-visible:ring-[3px]",
                     disabled && "cursor-not-allowed opacity-50"

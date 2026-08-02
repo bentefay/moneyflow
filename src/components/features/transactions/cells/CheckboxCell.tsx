@@ -5,6 +5,8 @@ import { useCallback } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
+import { CHECKBOX_HIT_AREA } from "./cell-hit-area";
+
 export interface CheckboxCellProps {
     /** Whether the checkbox is checked */
     checked: boolean;
@@ -74,7 +76,10 @@ export function CheckboxCell({
                 aria-label={ariaLabel}
                 className={cn(
                     disabled && "opacity-50",
-                    "before:absolute before:inset-[-4px] before:content-['']"
+                    // UR-012: the box keeps its drawn 16px size while a click anywhere in the 32px
+                    // cell toggles it. This supersedes an earlier `before:inset-[-4px]`, which
+                    // enlarged the target but still left the cell's outer ring dead.
+                    CHECKBOX_HIT_AREA
                 )}
             />
         </div>
