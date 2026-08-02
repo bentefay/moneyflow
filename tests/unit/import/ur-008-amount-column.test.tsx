@@ -47,6 +47,23 @@ async function importedAmounts(content: string): Promise<number[]> {
     return result.current.previewTransactions.map((preview) => preview.amount);
 }
 
+/** Load a CSV through the real hook and return the whole hook state. */
+async function loadState(content: string) {
+    const { result } = renderHook(() =>
+        useImportState({
+            existingTransactions: [],
+            accounts: [],
+            templates: [],
+            defaultCurrency: "USD"
+        })
+    );
+
+    await result.current.loadFile(csvFile(content));
+    await waitFor(() => expect(result.current.session).not.toBeNull());
+
+    return result.current;
+}
+
 /** Rows shared by every arrangement below, so only column ORDER varies. */
 const ROWS = [
     {
@@ -154,5 +171,85 @@ describe("the amount column holds the amount", () => {
         // dangerous - so this pins the count without being relied on alone.
         expect(result.current.summaryStats.errorCount).toBe(0);
         expect(result.current.summaryStats.totalRows).toBe(ROWS.length);
+    });
+});
+
+/**
+ * A file with NO amount column at all.
+ *
+ * Every fixture above contains a genuine `Amount`, so the ranking always had at
+ * least one candidate its header did not disown. That left one branch of
+ * `bestAmountColumn` unexercised — the one taken when EVERY qualifying numeric
+ * column is disowned — and a defect lived there: the code fell back to the
+ * disowned columns and imported a running balance or a check number as money,
+ * with every row reported valid.
+ *
+ * All six assertions above would still pass with that defect present, because
+ * none of their fixtures can reach the branch. The fixture set has to vary
+ * along the axis the code branches on, and a newly added branch is itself a new
+ * axis.
+ *
+ * There is no correct amount in these files. The only honest outcomes are to
+ * leave the amount unmapped and report the rows as errors — which is what the
+ * package's original BASE `4c77a2d` did — or to import wrong money silently.
+ * `spec.md:80-81` requires that every row reported as an error is genuinely
+ * unparseable; a row with no amount at all qualifies.
+ */
+describe("a file with no amount column imports no amounts", () => {
+    const NO_AMOUNT_ROWS = [
+        { date: "2024-01-15", description: "Coffee Shop", numeric: "1000.00", check: "1001" },
+        { date: "2024-01-16", description: "Grocery Store", numeric: "924.75", check: "1002" }
+    ] as const;
+
+    it("does not import a running balance as the amount", async () => {
+        // Observed before the fix: 100000, 92475 imported, errorCount 0.
+        const csv = [
+            "Date,Description,Balance",
+            ...NO_AMOUNT_ROWS.map((row) => `${row.date},${row.description},${row.numeric}`)
+        ].join("\n");
+
+        const state = await loadState(csv);
+
+        expect(state.summaryStats.validCount).toBe(0);
+        expect(state.summaryStats.errorCount).toBe(NO_AMOUNT_ROWS.length);
+    });
+
+    it("does not import a check number as the amount", async () => {
+        // Observed before the fix: 100100, 100200 imported, errorCount 0.
+        const csv = [
+            "Date,Description,Check No",
+            ...NO_AMOUNT_ROWS.map((row) => `${row.date},${row.description},${row.check}`)
+        ].join("\n");
+
+        const state = await loadState(csv);
+
+        expect(state.summaryStats.validCount).toBe(0);
+        expect(state.summaryStats.errorCount).toBe(NO_AMOUNT_ROWS.length);
+    });
+
+    it("does not import a reference number as the amount", async () => {
+        const csv = [
+            "Date,Description,Ref",
+            ...NO_AMOUNT_ROWS.map((row) => `${row.date},${row.description},${row.check}`)
+        ].join("\n");
+
+        const state = await loadState(csv);
+
+        expect(state.summaryStats.validCount).toBe(0);
+        expect(state.summaryStats.errorCount).toBe(NO_AMOUNT_ROWS.length);
+    });
+
+    it("leaves the amount unmapped rather than binding a disowned column", async () => {
+        const csv = [
+            "Date,Description,Balance",
+            ...NO_AMOUNT_ROWS.map((row) => `${row.date},${row.description},${row.numeric}`)
+        ].join("\n");
+
+        const state = await loadState(csv);
+        const mappings = state.session?.config.columnMappings ?? {};
+
+        expect(Object.values(mappings)).not.toContain("amount");
+        // The column keeps the role its header actually names.
+        expect(mappings["2"]).toBe("balance");
     });
 });

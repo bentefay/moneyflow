@@ -3,7 +3,9 @@
 - **Requirement:** UR-008, frozen at `specs/010-user-reported-refinements-2/spec.md` lines 56-86
 - **Base:** `4c77a2dd6b61a9ab5e58c032d0b0242e579c75f7`
 - **Rev 02 BASE:** `74b37f9a4c490c4b31560a83c131b6f7e55965c7`
-- **Rev 02 commits:** `b7cc398` amount-column fix, `43836b0` value-level tests, plus this evidence
+- **Rev 03 BASE:** `ee3cce75ba474b226a2416a4be0be784ddf9bd7a`
+- **Rev 03 commits:** `68a25df` no-amount-column fix, tests and evidence
+- **Rev 02 commits:** `b7cc398` amount-column fix, `43836b0` value-level tests, `ee3cce7` evidence
 - **Rev 01 commits:** `fcd736f`, `077d5dd`, `f98d3a5`, `23d0d80`, `3b76490` (rebased by root)
 - **Worktree:** `/tmp/mf-p29`, branch `worktree-p29-ur008`
 
@@ -233,6 +235,79 @@ recovered from headers or not at all. They are additive: a column already holdin
 never reassigned, and a headerless file gains none. **Observed:**
 `Date,Check No,Merchant,Memo,Amount,Balance` →
 `{0:date, 1:checkNumber, 2:description, 3:memo, 4:amount, 5:balance}`.
+
+### 1.4.4 REV 03 — the fix for F-1 overrode the header exactly where it was unambiguous
+
+Review finding F-4, upheld. **This is the third time in this package that §1.4.2's failure mode has
+described something the package then shipped, and the second time my own fix introduced it.**
+
+`bestAmountColumn` ranked candidates preferring those a header does not disown, then fell back:
+
+```ts
+const preferred = evidence.filter((entry) => entry.headerSays !== "not-amount");
+const ranked = preferred.length > 0 ? preferred : evidence; // <- the defect
+```
+
+`NON_AMOUNT_HEADER_PATTERN` exists to say _this column is not the money_. When **every** qualifying
+column is disowned, `preferred` is empty and the fallback used the disowned columns anyway — the
+code overrode the header precisely where the header was unambiguous.
+
+**Reproduced through the real `loadFile` before fixing. Observed at `ee3cce7`:**
+
+| file                        | mappings                              | imported         | errors |
+| --------------------------- | ------------------------------------- | ---------------- | ------ |
+| `Date,Description,Balance`  | `{0:date,1:description,2:**amount**}` | `100000, 92475`  | **0**  |
+| `Date,Description,Check No` | `{0:date,1:description,2:**amount**}` | `100100, 100200` | **0**  |
+| `Date,Description,Ref`      | `{0:date,1:description,2:**amount**}` | `100100, 100200` | **0**  |
+
+Running balances and check numbers imported as transaction amounts, every row valid.
+
+**A REGRESSION against this package's original BASE `4c77a2d`, which I verified directly** rather
+than inferring from the review. Running the same three files through `4c77a2d`'s `loadFile`:
+
+```
+Balance only   map={0:date, 1:description, 2:balance}      valid=0  errors=2
+Check No only  map={0:date, 1:description, 2:checkNumber}  valid=0  errors=2
+Ref only       map={0:date, 1:description}                 valid=0  errors=2
+```
+
+The original produced **visible errors**; rev 02 produced silent wrong money.
+
+**The fix**, as specified by the review and endorsed by the coordinator: when every qualifying
+column is disowned, **return `null`**. There is no correct amount in such a file, so the only
+defensible outcomes are "leave it unmapped and let the rows surface as errors" or "import wrong
+money silently" — and `spec.md:80-81` requires that every row reported as an error be genuinely
+unparseable, which a row with no amount at all is.
+
+**Verified the fix restores the original behaviour rather than merely satisfying the new test.**
+After the change, the same three files produce mappings, valid counts and error counts **identical
+to `4c77a2d`'s**, including `Ref` leaving column 2 entirely unmapped.
+
+Note the fix is **not** to extend the denylist. My rev 02 self-assessment called
+`NON_AMOUNT_HEADER_PATTERN` the weakest surface because a denylist is incomplete by construction —
+that was right about the class of risk and wrong about the instance. The bug was not a missing
+entry; it was **overriding the denylist when it fired**. Extending the list would not have touched
+it.
+
+#### The blindness recurred one level down, inside the helper written to fix it
+
+All **six** assertions in `ur-008-amount-column.test.tsx` — the value-level tests I added in rev 02
+precisely to escape mapping-shaped blindness — **would still pass with F-4 present.** Every fixture
+contains a genuine `Amount` column, so `preferred` is never empty and the fallback branch is never
+reached. Confirmed by inspection: the only headers those fixtures use are
+`Date,Check No,Description,Amount`, `Date,Description,Balance,Amount` and
+`Date,Description,Amount,Balance`.
+
+I diagnosed the mapping-shaped version of this as the `Q-P28-03` family and then reproduced it one
+level down. The generalisation I had been carrying — "assert values, not the selection" — was too
+narrow. The correct form is: **a fixture set must vary along every axis the code branches on, and a
+branch you ADD is a new axis that no existing fixture covers.** Adding the `preferred.length > 0`
+fallback created an axis, and I added no fixture that reached it.
+
+Rev 03 adds four fixtures with **no amount column at all**, asserting through `loadFile` that no
+amount is imported and `errorCount` equals the row count. **Observed at `ee3cce7`:** all four fail —
+three with `expected 2 to be +0` on the valid count, one with
+`expected [ 'date', 'description', 'amount' ] to not include 'amount'`.
 
 #### Why rev 01's suite did not catch F-1 — the assertion was BLIND, not merely unlucky
 
@@ -490,7 +565,7 @@ to check without doing the checking.
 | `typecheck`    | **PASS**                                                          |
 | `lint`         | **PASS**, 0 errors                                                |
 | `format:check` | **17** pre-existing frozen `specs/**` files, **none a P29 file**  |
-| `test`         | **PASS** — 2382 passed, 2 skipped, 123 files                      |
+| `test`         | **PASS** — 2386 passed, 2 skipped, 123 files                      |
 | `test:e2e`     | **PASS** — 3 consecutive full-suite runs, 177 passed each, see §6 |
 
 The `lint` figure above is the **bare `pnpm lint` from the repo root**, not a filtered run over my

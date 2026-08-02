@@ -326,9 +326,17 @@ function bestAmountColumn(
 
     // Otherwise rank, preferring columns their header does not disown.
     const preferred = evidence.filter((entry) => entry.headerSays !== "not-amount");
-    const ranked = preferred.length > 0 ? preferred : evidence;
 
-    return ranked.reduce((best, entry) => {
+    // When EVERY qualifying column is disowned by its header, the file has no
+    // amount column. Falling back to the disowned set here - which this once
+    // did - overrides the header exactly where it is unambiguous, and imports a
+    // running balance or a check number as the transaction amount with every
+    // row reported valid. There is no correct amount to choose in such a file,
+    // so the honest answer is to map none: the rows then surface as errors,
+    // which is what the user needs to see.
+    if (preferred.length === 0) return null;
+
+    return preferred.reduce((best, entry) => {
         if (entry.signedRate !== best.signedRate) {
             return entry.signedRate > best.signedRate ? entry : best;
         }
