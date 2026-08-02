@@ -10302,3 +10302,50 @@ shared tree with several agents in it. Root's accurate version: **the parent she
 was available the whole time and root did not look until after sending the accusation. The tool for
 checking was there; root reached for the conclusion first** — the same pattern as the truncated grep
 and the keyword split.
+
+### 2026-08-02 — P30 rev 04 at `5b0c441`: VERIFIED 8/8, the first green run this suite has had
+
+**The fix is the smallest one that could work: the proposal now waits for the cell's edit surface to
+close before appearing.** Deferring avoids the collision; z-index or keyboard precedence would
+*arbitrate* it — and **the collision IS the defect**, so arbitration would have been a third
+accidental mechanism in this package.
+
+**Verified by root on main:** `5b0c441` is an ancestor of HEAD, `onEscapeKeyDown` returns **0
+occurrences** in the working copy, tree clean, **no P31 file swept into any rev 04 commit.**
+`rule-creation-controls`: **8 passed, 0 failed**, run twice — the first green this suite has ever
+had. Gates: typecheck clean, lint back to the single pre-existing warning, format clean, `pnpm test`
+2443 passed.
+
+**Two disposals most agents would have skipped.**
+
+**It removed the two unit cases that pinned the deleted predicate.** They restated a decision rule
+the product no longer contains, so **they pinned nothing while reading as coverage — the same
+artefact in test form.** Leaving them would have been an inert guard wearing a test's clothes.
+
+**Its occlusion suite now CLICKS the controls rather than asserting they are visible.** This is the
+sharpest lesson of the whole defect: **the regression left the controls rendered but covered, so a
+visibility assertion passed while the user could not reach them. Visible is not reachable, and only
+the click distinguishes them.**
+
+It also corrected three of its own tests that its fix falsified, naming the belief each encoded — the
+F-1 test asserted the proposal visible *while* the picker is open, which was never what F-1
+protects; and `addTagToRow` now ends the edit, because a caller left mid-edit finds no controls.
+
+**ROOT RULING REAFFIRMED — the Escape handler stays OUT of scope, and the safeguard has now resolved
+in favour of exclusion.** Root had said that if P30's fix *required* the Escape fix, the boundary was
+drawn wrong. **It did not: deferral gives 8/8 green with the Escape defect still present. That is
+proof the boundary is correct rather than a judgement about it.** The implementer offered to fold it
+in — *"I have the port and it would be quick"* — which root explicitly refused: **scope creep at the
+end of a package is cheapest exactly when it is least examined**, and this one has already run four
+revisions. Disposal is a comment in the helper, which puts the finding where someone will be
+standing.
+
+**Root's log-truncation error confirmed as root's, unambiguously.** Re-run without truncation gives 6
+hits each for `intercepts pointer events` and `data-owned-by-row`, md5 `d48dae29…`, **line 254 is 611
+characters and root's command piped through `cut -c1-105`.** The verdict sits near column 590. **Root
+did not grep the log and find nothing — root grepped a 105-column window and reported the absence as
+a property of the file.** The implementer asked which of the two had the lying tool; the answer is
+root's.
+
+Campaign authorised: `env -u CI`, `--retries=0`, full suite, 3 runs, digest before run 1 and after
+run 3, one unchanged tree, `--list` count reported before starting.
