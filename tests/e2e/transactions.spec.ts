@@ -2242,9 +2242,7 @@ test.describe("Transactions", () => {
 
                 // Filtering to that one far row is how its value is read without scrolling: the
                 // row had no element when the bulk action ran.
-                await page
-                    .getByPlaceholder(/search transactions/i)
-                    .fill("Virtual Transaction 0499");
+                await page.getByTestId("search-filter").fill("Virtual Transaction 0499");
                 await expect(page.getByTestId("transaction-table-toolbar")).toContainText(
                     "1 transaction (filtered)"
                 );
@@ -2273,7 +2271,7 @@ test.describe("Transactions", () => {
             const toolbar = page.getByTestId("transaction-table-toolbar");
 
             await test.step("select all within a filter and confirm it covers only matches", async () => {
-                await page.getByPlaceholder(/search transactions/i).fill("Alpha");
+                await page.getByTestId("search-filter").fill("Alpha");
                 await expect(toolbar).toContainText("2 transactions (filtered)");
 
                 await toggleCheckbox(
@@ -2283,7 +2281,7 @@ test.describe("Transactions", () => {
             });
 
             await test.step("clearing the filter re-derives the header against the wider set", async () => {
-                await page.getByPlaceholder(/search transactions/i).fill("");
+                await page.getByTestId("search-filter").fill("");
                 await expect(toolbar).toContainText("3 transactions");
 
                 // Two of three selected, so the header is mixed rather than fully checked. The

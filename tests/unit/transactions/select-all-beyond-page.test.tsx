@@ -335,7 +335,7 @@ describe("UR-011: the header checkbox covers rows beyond the rendered page", () 
         );
 
         // Half the vault carries "Groceries"; the search filter is the page's own real filter.
-        fireEvent.change(screen.getByPlaceholderText(/search/i), {
+        fireEvent.change(screen.getByTestId("search-filter"), {
             target: { value: "Groceries" }
         });
 
@@ -370,7 +370,7 @@ describe("UR-011: the header checkbox covers rows beyond the rendered page", () 
             expect(screen.getAllByTestId("transaction-row").length).toBeGreaterThan(0)
         );
 
-        const search = screen.getByPlaceholderText(/search/i);
+        const search = screen.getByTestId("search-filter");
         fireEvent.change(search, { target: { value: "Groceries" } });
 
         const matchingCount = TOTAL_TRANSACTIONS / 2;
