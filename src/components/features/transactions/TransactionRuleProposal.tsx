@@ -19,7 +19,7 @@
  * "Updating…" modes key on.
  */
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef } from "react";
 import { type Temporal } from "temporal-polyfill";
 
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
@@ -147,19 +147,6 @@ function PendingRuleProposal(
     // re-runs from its own re-render, and it is the sole writer of that flag.
     const appliedRef = useRef(false);
 
-    // Whether focus has been observed outside the row. This is a WAKE-UP, not a decision.
-    //
-    // Revision 05 treated it as a latch and read it directly as the frozen condition: set once, never
-    // cleared. That was nearly harmless while the observer only existed after the edit surface closed.
-    // Moving the mount to `isPending` — correctly, so the blur could be seen at all — widened the
-    // window enough for the flag to be set DURING the edit (tabbing out of a still-open tag picker
-    // does it), after which the apply fired on the `isEditing` transition while the row again held
-    // focus. That is an unauthorised write, reached by a new route.
-    //
-    // The flag now only prompts a re-check; {@link isRowFocusLost} below is what decides, by reading
-    // live state at the moment of application.
-    const [focusSeenOutside, setFocusSeenOutside] = useState(false);
-
     const { apply } = workflow;
     const confirm = useCallback(() => {
         if (appliedRef.current) return;
@@ -175,6 +162,7 @@ function PendingRuleProposal(
 
     const { proposal, draft } = workflow;
     const open = proposal.kind !== "none" && draft != null;
+    const isAutomatic = draft != null && applyModeIsAutomatic(draft.applyMode);
 
     // Watch for focus genuinely leaving the row, by reading focus STATE rather than tracking events.
     //
@@ -205,49 +193,47 @@ function PendingRuleProposal(
         });
     }, [anchorRef]);
 
-    // Watch for focus leaving the row by reading focus STATE rather than tracking transitions.
+    // Decide the frozen `:263-266` gesture at ONE instant.
     //
-    // Revision 04 listened for `focusin` alone and missed three of the four ways a row loses focus:
-    // pressing Enter in a cell, tabbing off the document, and clicking non-focusable page chrome all
-    // blur to `<body>`, which fires `focusout` and NO `focusin`. The frozen text's own worked example
-    // (`:249-251`, applying a description alias) is one of the missed cases — the alias input calls
-    // `blur()` on Enter, so the commit and the blur are the same event.
+    // Revision 06 split this into a flag set by the listener and a re-read at apply time, and MEASURED
+    // they are never true together: at the first evaluation focus is genuinely outside but the flag
+    // has not been set yet (it is set inside the deferred callback), and by the time the flag lands
+    // focus has moved on and the live read says "still in the row". Two conditions that are satisfied
+    // at different moments cannot gate one action. The result was silent inaction on every gesture —
+    // the same direction as F-7, reintroduced by the fix for F-11.
     //
-    // `focusout` is the event that always accompanies a blur, but at its dispatch `activeElement` is
-    // already `BODY` even when focus is heading somewhere focusable, so the read is deferred a task
-    // to observe where focus actually landed. `focusin` is kept for moves with no idle state between.
+    // So the whole decision happens inside the deferred read, where focus state and edit state are
+    // both current. There is no remembered value to go stale and no second gate to miss.
+    //
+    // The read must be deferred: at `focusout` dispatch `document.activeElement` is already `<body>`
+    // even when focus is heading to a focusable target, so an immediate read reports "left the row"
+    // on every focus move. `focusin` is kept for moves with no idle state between, and one evaluation
+    // runs on mount to catch a blur that happened before this component existed — revision 04 missed
+    // three of the four blur gestures precisely because it could be armed after the event it awaited.
+    const shouldAutoApply = props.isEditing !== true && isAutomatic && open;
+    const shouldAutoApplyRef = useRef(shouldAutoApply);
+    // A ref, not a dependency: the deferred callback must read the CURRENT value when it fires, not
+    // the one captured when the listener was registered.
+    useEffect(() => {
+        shouldAutoApplyRef.current = shouldAutoApply;
+    }, [shouldAutoApply]);
+
     useEffect(() => {
         const evaluateSoon = (): void => {
             window.setTimeout(() => {
-                if (isRowFocusLost()) setFocusSeenOutside(true);
+                if (!shouldAutoApplyRef.current) return;
+                if (!isRowFocusLost()) return;
+                confirm();
             }, 0);
         };
         document.addEventListener("focusin", evaluateSoon);
         document.addEventListener("focusout", evaluateSoon);
-        // And answer once on mount, for a blur that happened before this component existed.
         evaluateSoon();
         return () => {
             document.removeEventListener("focusin", evaluateSoon);
             document.removeEventListener("focusout", evaluateSoon);
         };
-    }, [isRowFocusLost]);
-
-    // Frozen `:263-266`: the "Updating…" modes apply automatically once the row loses focus; the
-    // "Update…" modes wait for the tick.
-    //
-    // The observation is re-checked HERE against live state rather than trusted from the flag. The
-    // flag records that focus was outside at some earlier moment; by the time this effect runs the
-    // user may be back in the row — which is exactly what happened when a blur during the edit made
-    // the apply fire the instant the edit surface closed, with the row focused.
-    //
-    // `isEditing` is a genuine second condition now, not a formality: this component mounts while the
-    // edit is still in progress, so a blur mid-edit must not write.
-    const isAutomatic = draft != null && applyModeIsAutomatic(draft.applyMode);
-    useEffect(() => {
-        if (!open || props.isEditing || !isAutomatic || !focusSeenOutside) return;
-        if (!isRowFocusLost()) return;
-        confirm();
-    }, [confirm, focusSeenOutside, isAutomatic, isRowFocusLost, open, props.isEditing]);
+    }, [confirm, isRowFocusLost]);
 
     if (!open || draft == null || !props.showControls) return null;
 
