@@ -8036,3 +8036,24 @@ every node and playwright process to confirm none was in use. `/tmp` went 39% ->
 `/tmp/mf-p28r2-base` at `d514d47` is KEPT deliberately as a before/after tree for the P28 reviewer.
 Root had not been sweeping worktrees since P22 — had `/tmp` filled, a campaign would have failed in
 a way that mimics a product defect. Recorded as a coordinator duty, not housekeeping trivia.
+
+### 2026-08-02 — P30 rev 01 DISPATCHED (UR-009 automations conformance re-verification)
+
+Dispatched `p30-implementer-01` against `main`. P30 is an INDEPENDENT conformance pass over
+`specs/human-scratch.md:248-295`; `HS-007` and `P17A`-`P17D` remain `passed` and are NOT reopened.
+
+The dispatch carries the distinction the frozen text draws and that the principal's report turns on:
+the **robot** surfaces a rule that ALREADY EXISTS, while the **creation controls** appear when a
+field changes and NO rule yet matches. Both surfaces are required, for every rule field. The
+principal added a tag and changed a description and saw neither.
+
+Method mandated: clause by clause, citing code AND the test demonstrating each clause. Per the frozen
+source, **a clause with no automated test covering it is a gap to be closed, not a pass.** Every fix
+carries a test verified to fail against the pre-fix tree by running it, not by assuming it.
+
+Barred from :3000 while P29 campaigns; instructed to do all implementation and unit work first and
+request the port explicitly. Worktree reserved `/tmp/mf-p30`, OUTSIDE the repo.
+
+**Three packages now run concurrently without contending for the port:** P28 rev 03 review (static
+plus unit only), P29 rev 02 campaign (holds :3000), P30 rev 01 implementation (unit only, port
+deferred). Root sequences the port; no agent takes it on its own initiative.
