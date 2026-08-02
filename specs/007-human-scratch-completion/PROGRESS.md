@@ -8369,3 +8369,43 @@ decision it makes changed.
 Port released and granted to `p28-reviewer-03` after root verified no process under `/tmp/mf-p29`,
 :3000 unbound across three consecutive checks, load 4.0-4.7. It will run the six checks and the
 3-run campaign, then AMEND `P28-review-03.md` §3 with real results.
+
+### 2026-08-02 — P29 rev 02 HANDBACK at `ee3cce7`; distinct reviewer dispatched and re-targeted
+
+`p29-implementer-01` handed back and stood down. **Handback `ee3cce7`**, branch
+`worktree-p29-ur008` at `/tmp/mf-p29`, tree clean, no amend to follow.
+
+Root verified rather than accepted: `git merge-base --is-ancestor 74b37f9 HEAD` OK and
+`43836b0` also an ancestor — nothing dangling, per the `handback-hash-amend-orphan` precedent.
+**`ee3cce7` touches exactly ONE file**, `evidence/P29/implementation-01.md` (+27/-11). No product,
+test, ledger, marker, SCOPE, spec, FINAL-AUDIT or reviews file. Product and test code is therefore
+byte-identical to `43836b0`.
+
+Root dispatched `p29-reviewer-02` (DISTINCT, fresh context, never the implementer, not
+`p29-reviewer-01`) against `43836b0`, then **re-targeted it to `ee3cce7`** when the handback landed —
+code unchanged, evidence newer, so the honesty assessment must read the current version.
+
+**Rev 02 diff vs `74b37f9`:** `detection.ts` (+196), `use-import-state.ts`, `MappingTab.tsx`,
+`ImportPanel.tsx`, `ur-008-csv-parity.test.ts` (+6 tests), `mapping-tab-auto-detect.test.tsx`
+(+1 test), **new `ur-008-amount-column.test.tsx`** (6 value-level tests), evidence.
+
+**Implementer's own weakest-surface assessment, passed to the reviewer as press-hardest items.** Root
+judges the self-assessment accurate:
+
+1. **`NON_AMOUNT_HEADER_PATTERN` is a hand-written DENYLIST** (`balance`, `check/cheque no`, `ref`),
+   incomplete by construction. An unanticipated header falls through to signs/minor-units ranking.
+   The implementer judged the fallback sound; the reviewer is instructed to TEST that claim rather
+   than accept it.
+2. **`CLASSIFICATION_THRESHOLD = 0.8`** unchanged from rev 01, the least-forced number in the file.
+3. The header-evidence ruling is load-bearing. The reviewer is explicitly permitted to DISAGREE with
+   root's ruling and have it re-ruled — but must then say what should happen in the all-positive
+   case, which no values-only rule can decide.
+
+Six checks at handback: typecheck PASS, bare `pnpm lint` exit 0 with one pre-existing
+`TransactionTable.tsx:426` warning, format:check exactly 17 frozen `specs/**` none owned,
+`pnpm test` 2382 passed / 2 skipped / 123 files, E2E 3x177 with digest `0e58fc49` stable.
+
+**Two implementer corrections AGAINST ITSELF, both unprompted and both recorded:** the credit
+correction (all five fixtures it wrote for this defect would have been blind; an older test carried
+the property), and §1.4.3 stating it shipped an instance of the failure mode its own §1.4.2 names as
+the worst kind.
