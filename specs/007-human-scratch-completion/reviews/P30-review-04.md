@@ -44,6 +44,38 @@ Product diff in scope is `36/61` on `TransactionRuleProposal.tsx` — matches th
 The range also carries P29's import work (`detection.ts`, `MappingTab.tsx`, `use-import-state.ts`,
 `ImportPanel.tsx`), which is a separate merged package and out of P30's scope.
 
+### Which tree my runs are evidence for
+
+**Every run reported here is evidence for `63c7007` specifically**, not for a nearby tree. All runs
+were performed in a dedicated worktree checked out at `63c7007`, and the three subject digests in
+the table above were re-verified **before and after** every experiment — including after each mutant
+was reverted. No run in this review was performed on `main`, on `f397da1`, or on any integrated
+tree.
+
+Commits between the subject and HEAD, re-checked at 2026-08-02 16:04:21 UTC (MEASURED):
+
+```
+$ git merge-base --is-ancestor 63c7007 HEAD   -> exit 0  (HEAD now 6613725)
+$ git log --oneline 63c7007..HEAD
+6613725 docs: record the E2E worktree .env.local hazard
+d798332 docs: dispatch P33 rev 03 fix for F-2 with the corrected base
+0a2294b docs: record P33 rev 02 review FAIL on F-2 header select-all overlay
+6ed99ff docs: split HANDOFF into per-package dispatch files after an overwrite
+f3d895d docs: persist P08 P31 and P32 evidence that PASS never committed
+068d1d7 docs: dispatch P30 rev 07 independent review at 63c7007
+$ git diff --stat 63c7007 HEAD -- src tests
+(empty)
+```
+
+All six are `specs/**` control artifacts; **no `src/` or `tests/` file changed**, so nothing in the
+interval can affect the runs above. This check is valid only for the instant it ran.
+
+**What this campaign does NOT certify**, restating the limit the implementer stated and which I did
+not attempt to lift: this is not the final integrated tree. P33 was mid-revision throughout my
+review — it took a rev 02 FAIL and a rev 03 dispatch while I was running — so the behaviour verified
+here is the behaviour of `63c7007` in isolation, not of `63c7007` plus P33's eventual merge. That
+integration remains unverified by me and by anyone else at the time of writing.
+
 ## Correction to the brief: the frozen clause citation
 
 The dispatch cites the binding clause as `specs/011-automations-conformance/spec.md:263-266`. That
@@ -258,10 +290,21 @@ package. Neither is a defect in the reviewed code.
 
 ## Expected, not findings
 
-- **`people-settlement.spec.ts` rotation.** One member failed in my full-suite run
-  (`canonical example D`). Run in isolation immediately afterwards the same spec was **19/19 clean**
-  (MEASURED), which is consistent with the recorded load-dependent rotation and carries no
-  information either way. Not P30's, and not counted against this verdict.
+- **`people-settlement.spec.ts` rotation.** One member failed in my full-suite run:
+  `people-settlement.spec.ts:166:9 › People page canonical settlement examples › canonical example D: joint owners split the third person's share $18 and $12`
+  (10.7s). Run in isolation immediately afterwards the same spec was **19/19 clean** (MEASURED),
+  which is consistent with the recorded load-dependent rotation and carries no information either
+  way. Not P30's, and not counted against this verdict.
+
+    **Gap I must declare:** I captured this failure by **test ID only, not by step name.** The
+    guidance that the step name is the identifying datum — because for 5 of 19 tests the ID does not
+    identify the failing assertion — reached me after the run, and I removed the worktree that held
+    `test-results/` before re-reading the failure header. So for this particular failure I cannot
+    say which assertion inside `canonical example D` failed, and the record should not be read as if
+    I could. What I can state is narrower and still sound: the failure was a settlement-spec member,
+    it was not in the P30 scope, and the same spec passed 19/19 in isolation seconds later. Anyone
+    needing the step name must re-run; do not infer it from the ID I recorded.
+
 - **`6ece9b1` (`chooseApplyMode`) and `adf6b5e` (`aria-expanded`).** Read as retained hygiene on
   their own merits, **not** as the cure for the Enter-commit journey. I did not credit either with
   fixing that journey. `chooseApplyMode` is applied at nine call sites and its `aria-expanded` wait
@@ -283,6 +326,34 @@ package. Neither is a defect in the reviewed code.
   diff itself rather than re-running the visual matrix, which earlier revisions covered.
 - The **campaign digest `4b3b9ee6…` and the 191/191/190 totals** at `f397da1`. I did not reproduce
   the implementer's campaign; I ran my own at the reviewed commit and report only my own numbers.
+
+## Did I find anything the dispatch had not already named?
+
+Stated plainly, because the distinction matters more than the verdict.
+
+**Beyond the dispatch — two things, both from measurement:**
+
+1. **F-2 (manual-mode gate unpinned at the component layer).** The dispatch's seven press-hardest
+   items did not name it. It surfaced from systematically mutating each of the five decision gates
+   rather than from following the brief's list.
+2. **The rev 06 mechanism is misdescribed in the record** (F-1). The dispatch asserted the rev 06
+   conditions are "never true at the same instant" as a MEASURED fact. My probe shows rev 06 writes
+   two deferred ticks late. This one matters because the _same_ fact explains the 10/20 grading
+   sensitivity — a defect that is late rather than absent is exactly the kind a single fixed timer
+   flush catches only half the time.
+
+**Confirmations of what the dispatch already named — no new information, but independently
+re-derived rather than accepted:** `appliedRef` load-bearing (3 and 8, reproduced exactly); the
+locator sweep (19/17/2, reproduced exactly); both renaming journeys positional; the two retained
+commits not credited as the cure; the settlement rotation not P30's.
+
+**Where the dispatch pointed and I found nothing wrong:** the `confirm` dependency's re-registration
+— real, but `appliedRef` neutralises it, and the unit file pins that; and the carried
+`InlineEditableTags` Escape item, which I confirmed is out of UR-009 scope and did not re-litigate.
+
+So: the package is sound, and the two findings are about test sensitivity rather than shipped
+behaviour. Had I only worked the brief's list, I would have found F-1's symptom but not its cause,
+and would have missed F-2 entirely.
 
 ## Verdict
 
