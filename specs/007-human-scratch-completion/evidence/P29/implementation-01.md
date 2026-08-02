@@ -4,7 +4,7 @@
 - **Base:** `4c77a2dd6b61a9ab5e58c032d0b0242e579c75f7`
 - **Rev 02 BASE:** `74b37f9a4c490c4b31560a83c131b6f7e55965c7`
 - **Rev 03 BASE:** `ee3cce75ba474b226a2416a4be0be784ddf9bd7a`
-- **Rev 03 commits:** `68a25df` no-amount-column fix, tests and evidence
+- **Rev 03 commits:** `05bada5` no-amount-column fix, plus a follow-up correcting this line
 - **Rev 02 commits:** `b7cc398` amount-column fix, `43836b0` value-level tests, `ee3cce7` evidence
 - **Rev 01 commits:** `fcd736f`, `077d5dd`, `f98d3a5`, `23d0d80`, `3b76490` (rebased by root)
 - **Worktree:** `/tmp/mf-p29`, branch `worktree-p29-ur008`
