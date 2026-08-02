@@ -8902,3 +8902,50 @@ the agent never faced the choice, because the correction arrived first.
 
 P29 rev 03 complete at `6e4bf32`, tree clean, `ee3cce7` an ancestor, gates green. Holding for the
 port behind P30.
+
+### 2026-08-02 — P30 campaign run 1 has a GENUINE FAILURE; P33 dispatch deliberately HELD
+
+**Run 1 failure, verified as a real Playwright marker and not the test-name false-alarm class:**
+
+```
+✘  18  description-aliases.spec.ts:188:9
+       Description Aliases › transaction cell pointer, keyboard, seamless commit
+       and provenance journey (10.7s)
+```
+
+Root checked the `✘` marker specifically, because `p28-reviewer-03` established today that a broad
+failure grep also matches **test names containing the word "failed"**.
+
+**This is the highest-signal location the failure could have landed.** P30 wired rule-creation
+controls into the description cell, `TransactionRow.tsx` and `InlineEditableTags.tsx`; this spec
+walks the full pointer/keyboard/commit journey rather than asserting a static state — the shape of
+test that catches a remount or a lost caret, which is exactly the defect class P30 self-caught in its
+tags cell before committing.
+
+**"Load caused it" is NOT available as an explanation.** Load was 7.81 during run 1, ordinary for a
+4-worker campaign here; the box was quiet, since the sibling vitest completed before run 1 started;
+and `description-aliases.spec.ts:188` is **not** one of the three recorded load-sensitive assertions.
+
+**Root instructed P30: do NOT re-run for a green.** If runs 2 and 3 pass, that is a result to report,
+not noise to discard — intermittency is itself the finding. Report all three runs as they happened.
+**Diagnose by comparing against BASE** in a throwaway worktree: passes at BASE and fails at P30's
+tree means it is P30's; fails at both means pre-existing and a separate finding. Asserting either
+without that comparison would be a guess.
+
+**P33 (UR-012 cell hit areas) dispatch HELD, deliberately.** UR-012 requires every editable control
+to fill its cell, so it touches **all 7 cell components plus `TransactionRow.tsx`** — and P30 has
+already modified `TransactionRow.tsx`, `InlineEditableTags.tsx` and `PersonAllocationCell.tsx`, with
+its live failure sitting in that exact interaction surface. Dispatching a third agent to restructure
+those cells now would (a) collide with P30's likely rev 02 and (b) make it impossible to attribute
+any subsequent cell-interaction failure to one package. **P33 goes out once P30 resolves.** This is a
+sequencing decision, not a scope reduction: UR-012 remains fully in committed scope.
+
+Root also tested its own `/proc` scan against `p29-implementer-01`'s self-match finding: **immune**,
+because it reads only `argv[1]` and a `zsh -c` shell carries `-c` there with the script body at
+`argv[2]`. That is the mechanism behind root's earlier fix, which had been recorded without the
+reason. The implementer's scan read the whole cmdline, so its own script body was in scope — **same
+family, one field apart.**
+
+**Adopted from the implementer, superseding root's narrower phrasing:** *a warning has to live where
+the ACTION happens, not where the KNOWLEDGE was gained.* Evidence files, review artifacts and test
+comments are where knowledge accumulates; none is where somebody stands when they widen a regex.
