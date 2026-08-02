@@ -4,7 +4,8 @@
 - **Base:** `c9be708e9b48c3bf06eae61bfda5067f2819e536`
 - **Commits (rev 01):** `9aaba60` product + unit tests, `a24bcf0` E2E spec, `d514d47` fallback-gate
   and ja-JP test hardening
-- **Commits (rev 02):** `6750acc` non-Latin numerals and Gregorian calendar, `1c4a4cc` this evidence
+- **Commits (rev 02):** `6750acc` non-Latin numerals and Gregorian calendar, `1c4a4cc` evidence
+- **Commits (rev 03):** `42f20be` editing-skeleton parse fix — see §8
 - **Review 01 verdict:** FAIL on F-1 and F-2; both confirmed independently and fixed in rev 02 — see
   §7
 
@@ -372,3 +373,84 @@ and **44 failed**, with `expected 'NaN/NaN' to be '۸/۳'` and
 and `fa-IR`. **Observed**, and **pre-existing at base** — not introduced here. I grepped for callers
 and found none in product code; only tests import them. Left alone rather than silently widening the
 package, and recorded here so the next revision can decide.
+
+---
+
+## 8. Revision 03 — F-4, the editing skeleton the parser could not read
+
+Review 02 returned **FAIL** on one new defect. **I verified the mechanism independently before
+fixing it**, and in doing so found the reported fix was necessary but not sufficient.
+
+**Commit:** `42f20be`.
+
+### The mechanism, confirmed
+
+`parseLocaleDate` derived its candidate formats only from the **numeric** skeleton, while
+`formatDateForEditing` renders the **2-digit** skeleton. **Observed** via `formatToParts`, those two
+skeletons disagree for some locales:
+
+| locale  | numeric skeleton | 2-digit skeleton | disagreement |
+| ------- | ---------------- | ---------------- | ------------ |
+| `mt-MT` | `month/day/year` | `day/month/year` | field ORDER  |
+| `ug-CN` | `year/day/month` | `year/month/day` | field ORDER  |
+| `it-CH` | `/` separators   | `.` separators   | SEPARATOR    |
+| `lv-LV` | `.`,`.`,`.`      | `.`,`.`          | SEPARATOR    |
+| `te-IN` | `/` separators   | `-` separators   | SEPARATOR    |
+
+**Observed** against the reviewed tree, the harm split in two:
+
+```
+mt-MT  editing "03/08/26" -> 2026-03-08   <- SILENTLY STORED TRANSPOSED
+ug-CN  editing "26-08-03" -> 2026-03-08   <- SILENTLY STORED TRANSPOSED
+te-IN  editing "03-08-26" -> 0003-08-26   <- year corrupted
+it-CH  editing "03.08.26" -> null         <- rejected
+lv-LV  editing "03.08.26" -> null         <- rejected
+```
+
+This is the same class as the chrono defect the package exists to fix: a date displayed one way,
+typed back, stored as another. My rev 01 fix closed that door for the default parser and left it
+open through the editing skeleton.
+
+### The reported fix was not sufficient, and why
+
+The instruction was to add the editing skeleton to `candidateFormats`. **Observed: that alone fixed
+only four of the six.** `mt-MT` and `ug-CN` — the two that SILENTLY STORE — still stored
+`2026-03-08`.
+
+The reason is that where two skeletons differ only in field **order**, both produce a valid parse of
+the same digits. `03/08/26` parses as `M/d/yy` and as `d/M/yy`; the first candidate listed simply
+wins. Reordering the list cannot fix it either, because that would just move the failure to
+whichever form is now second.
+
+So the fix resolves the ambiguity by **round-trip verification**: of the interpretations that parse,
+prefer the one whose own re-rendering reproduces exactly what was typed. That is decisive precisely
+in the ambiguous case, and inert otherwise. The editing skeleton is now a shared constant
+(`EDITING_SKELETON`) used by both the formatter and the parser, so the two cannot drift apart again
+— which is the structural cause of this defect rather than a symptom of it.
+
+### Why the nine-locale table missed it, which is the lesson
+
+All nine locales in the round-trip table agree between their numeric and 2-digit skeletons, so the
+table could not have caught this no matter how carefully it was read. **Adding more locales was not
+the fix; naming the CLASS was.** This is the third instance in this package of the same failure mode
+and it is worth stating plainly: `Q-P28-01` was about non-Latin numerals and non-Gregorian
+calendars; this is about skeleton divergence. In each case a green suite proved only that the inputs
+I had thought to name behaved correctly.
+
+The new tests are therefore chosen by mechanism, not by adding names: two order-flipping locales
+(one of each harm) and three separator-changing ones.
+
+### Proof the tests are load-bearing
+
+Run against the reviewed tree, **5 failed**, with `expected '2026-03-08' to be '2026-08-03'`,
+`expected null to be '2026-08-03'` and `expected '0003-08-26' to be '2026-08-03'`. Against `42f20be`
+all pass, with no case in the existing suite weakened.
+
+### A sweep, and one pre-existing limit reported not fixed
+
+I swept the round trip across ~90 locales. After the fix, **2 cases fail, both `mn-MN`, both
+pre-existing.** That locale renders its compact month in **Roman numerals** (`VIII/3`), which
+`date-fns` cannot parse. **Observed** to behave identically before and after this change, so it is
+not caused by rev 03. Its EDITING form round-trips correctly, so a value can still be typed back.
+Reported rather than fixed, because the package is under a narrow-revision instruction and this is
+neither a regression nor within F-4.
