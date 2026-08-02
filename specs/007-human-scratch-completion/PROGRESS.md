@@ -68,45 +68,37 @@ review evidence.
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
   `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines and 25,441 bytes
 - **Rolling scratch SHA-256:** `469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a`
-- **KNOWN LIMITATION of the settlement-rotation record (recorded 2026-08-03, AMENDED same day — the
-  first version of this note over-generalised and is corrected below).** Every
+- **KNOWN LIMITATION of the settlement-rotation record (2026-08-03).** Every
   `people-settlement.spec.ts` observation in this ledger records **which test IDs failed**, never
-  **at which step**. The record has **three** states, not one:
-    - **Demonstrably lossy for at least one test.** P33 measured test `281` failing at step 6 in one
-      run and step 11 in the next, on one unchanged digest. For that test a repeated ID is **not** a
-      repeated failure.
-    - **Demonstrably lossless for the six runs whose logs were retained and checked.** Playwright's
-      list reporter emits a spec-level call-site frame beneath each failure, finer than the test ID.
-      Root re-ran the extraction over P30's logs at `/tmp/p30-camp07` and `/tmp/p30-camp08` rather
-      than accepting a transcription: camp07 runs 1-3 gave `:613` / `:183 :613` / `:183 :613`;
-      camp08 runs 1-3 gave none / `:158` / `:212`. Each call site pairs one-to-one with its test
-      (`:166`→`:183`, `:596`→`:613`, `:145`→`:158`, `:197`→`:212`, every one an `expectObligation`
-      call). **For those runs, ID-level membership lost nothing.**
-    - **Unknown for every campaign whose logs are gone.** No grep recovers those; for them this is a
-      permanent caveat.
+  **at which step**. This note was rewritten three times; only the final statement below is
+  authoritative, and the history is kept in the commits (`bae5ea4`, `aed692f`, `9a17c55`) because
+  each version failed in a different direction.
 
-    **SECOND AMENDMENT (same day), from P33's retained logs — root verified from the files, not from
-    a table.** The "plausibly one" hedge above is now settled: **`281` IS the multi-call case,
-    confirmed from the log's own failure headers, which name the failing step directly.** No frame
-    extraction is needed.
+    **What is established, by capacity of each test to vary within its ID.** MEASURED from the spec:
+    **20 `expectObligation` calls across 19 tests**, of which five tests call it more than once —
+    `:166` (2), `:281` (3), `:452` (2), `:525` (2), `:596` (2).
+    - **2 of 19 tests cannot lose information at ID level** — `:145` and `:197` make one call each,
+      so the ID names the only assertion that can fail.
+    - **5 of 19 can**, and for `:281` it **demonstrably did**: P33's logs show it failing at
+      `6. verify Bob owes Me $50 on People` in one run and
+      `11. restore paid, enter Bob -20% and verify the reversal` in the next, on one unchanged
+      digest. Root verified this from the log files, not from a summary.
+    - **The remaining 12 are unchecked.**
+    - Where logs survive the finer granularity is recoverable — **the failing step name is printed
+      in Playwright's own failure header, so no extraction is needed.** Where logs are gone it is
+      unrecoverable.
 
-    ```
-    run 1  :281 … › 6. verify Bob owes Me $50 on People
-    run 2  :281 … › 11. restore paid, enter Bob -20% and verify the reversal
-    ```
+    **Explicitly NOT established: that ID-level membership was lossless for any campaign.** An
+    earlier version of this note claimed that from six retained runs where each call site mapped
+    one-to-one to its test. P30 retracted it against its own interest: of its four sampled IDs,
+    **two (`:145`, `:197`) were structurally incapable of varying**, and the other two only ever
+    failed at their _first_ call — equally consistent with a page failing to load as with a stable
+    mapping. **A measurement that cannot come out the other way is not evidence, and it looks
+    identical to one that can.** For `:166` and `:596` losslessness was not demonstrated, merely not
+    contradicted.
 
-    Same ID, two different named steps, one unchanged digest. `:166`→`183:31` in both runs and
-    `:596`→`613:31` in all three, so those two remain stable. **The correct scope is per-test, not
-    per-record:** the ID under-discriminates for **multi-step journeys**, because a journey's ID
-    names the journey rather than the assertion that failed; a single-assertion test cannot exhibit
-    this. That is a property of how these tests are structured, not of the reporter — and it is
-    **recoverable from any retained log without extraction**, which makes it smaller than either
-    earlier version of this note implied.
-
-    **Bounds retained:** the lossless finding covers 6 runs, one spec, 4 distinct IDs of 19 tests;
-    the spec makes **21 `expectObligation` calls across 19 tests**. Separately, a fully clean 19/19
-    run has been observed, so **a green settlement result carries no information in either
-    direction**. Future entries record the failing step name, which the header supplies for free.
+    Separately: a fully clean 19/19 run has been observed, so **a green settlement result carries no
+    information in either direction.** Future entries record the failing step name.
 
 - **Authorized checked HS IDs:** HS-001, HS-002, HS-003, HS-004, HS-005, HS-006, HS-007, HS-008,
   HS-009, HS-010, HS-011, HS-012, HS-013, HS-014, HS-015, HS-016, HS-017, HS-018, HS-019, HS-020,
