@@ -235,6 +235,70 @@ function stripLeadingZeroDigit(value: string, zero: string): string {
 }
 
 /**
+ * The skeleton the editing presentation is rendered from.
+ *
+ * Shared with `parseLocaleDate` rather than written out at each site: `Intl`
+ * may order or punctuate this skeleton differently from the numeric one, so a
+ * parser that does not derive a format from this exact skeleton cannot accept
+ * what the editing field displays.
+ */
+const EDITING_SKELETON = {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit"
+} as const satisfies Intl.DateTimeFormatOptions;
+
+/** The skeleton a different-year date rests in: unpadded day and month. */
+const COMPACT_YEAR_SKELETON = {
+    day: "numeric",
+    month: "numeric",
+    year: "2-digit"
+} as const satisfies Intl.DateTimeFormatOptions;
+
+/** The skeleton a current-year date rests in: day and month only. */
+const COMPACT_SKELETON = {
+    day: "numeric",
+    month: "numeric"
+} as const satisfies Intl.DateTimeFormatOptions;
+
+/**
+ * A parse format paired with the skeleton it was derived from.
+ *
+ * The skeleton is retained so a successful parse can be re-rendered and
+ * checked against the input. `null` marks ISO, which no skeleton produces.
+ */
+interface ParseCandidate {
+    readonly format: string;
+    readonly skeleton: Intl.DateTimeFormatOptions | null;
+}
+
+/**
+ * Parse with one format, treating a malformed pattern as a failed parse rather
+ * than a crash.
+ */
+function parseWithFormat(
+    value: string,
+    format: string,
+    reference: Date
+): Temporal.PlainDate | null {
+    const parsed = ((): Date | null => {
+        try {
+            return parse(value, format, reference);
+        } catch {
+            return null;
+        }
+    })();
+
+    if (!parsed || !isValid(parsed)) return null;
+
+    return Temporal.PlainDate.from({
+        year: parsed.getFullYear(),
+        month: parsed.getMonth() + 1,
+        day: parsed.getDate()
+    });
+}
+
+/**
  * Format an ISO date string for the editing presentation.
  *
  * Editing always shows the year, padded to two digits along with the day and
@@ -247,11 +311,7 @@ function stripLeadingZeroDigit(value: string, zero: string): string {
 export function formatDateForEditing(isoDate: string, locale?: string): string {
     const date = Temporal.PlainDate.from(isoDate);
 
-    return formatPlainDateParts(date, resolveLocale(locale), {
-        day: "2-digit",
-        month: "2-digit",
-        year: "2-digit"
-    })
+    return formatPlainDateParts(date, resolveLocale(locale), EDITING_SKELETON)
         .map((part) => part.value)
         .join("");
 }
@@ -292,37 +352,50 @@ export function parseLocaleDate(
         day: "numeric",
         month: "numeric"
     });
+    // The editing presentation is rendered from the 2-digit skeleton, and for
+    // some locales `Intl` orders or punctuates that differently from the numeric
+    // one — mt-MT flips to day-first, it-CH switches to dots. Deriving the parse
+    // formats from the numeric skeleton alone therefore fails to accept the very
+    // string the editing field just displayed.
+    const editing = localeDatePattern(resolvedLocale, EDITING_SKELETON);
 
     // A year-less entry means the reference year, not a forward-biased guess.
     const referenceAnchor = new Date(Date.UTC(2000, reference.month - 1, reference.day));
     referenceAnchor.setUTCFullYear(reference.year);
 
-    const candidateFormats = [
-        patternToDateFnsFormat(withYear, "yy"),
-        patternToDateFnsFormat(withYear, "yyyy"),
-        patternToDateFnsFormat(withoutYear, "yy"),
+    const candidates: readonly ParseCandidate[] = [
+        { format: patternToDateFnsFormat(withYear, "yy"), skeleton: COMPACT_YEAR_SKELETON },
+        { format: patternToDateFnsFormat(withYear, "yyyy"), skeleton: COMPACT_YEAR_SKELETON },
+        { format: patternToDateFnsFormat(editing, "yy"), skeleton: EDITING_SKELETON },
+        { format: patternToDateFnsFormat(editing, "yyyy"), skeleton: EDITING_SKELETON },
+        { format: patternToDateFnsFormat(withoutYear, "yy"), skeleton: COMPACT_SKELETON },
         // ISO is unambiguous in every locale and is what we store.
-        "yyyy-MM-dd"
+        { format: "yyyy-MM-dd", skeleton: null }
     ];
 
-    for (const candidateFormat of candidateFormats) {
-        // date-fns throws on a malformed pattern; treat that as a failed parse.
-        const parsed = ((): Date | null => {
-            try {
-                return parse(latinised, candidateFormat, referenceAnchor);
-            } catch {
-                return null;
-            }
-        })();
+    const interpretations = candidates.flatMap((candidate) => {
+        const parsed = parseWithFormat(latinised, candidate.format, referenceAnchor);
+        return parsed ? [{ date: parsed, skeleton: candidate.skeleton }] : [];
+    });
 
-        if (parsed && isValid(parsed)) {
-            return Temporal.PlainDate.from({
-                year: parsed.getFullYear(),
-                month: parsed.getMonth() + 1,
-                day: parsed.getDate()
-            }).toString();
-        }
-    }
+    // Where two skeletons differ only in field ORDER, both parse the same digits
+    // and the first would silently win: mt-MT renders editing as day-first while
+    // its numeric skeleton is month-first, so `03/08/26` shown as 3 August was
+    // read back as 8 March. Prefer the reading whose own rendering reproduces
+    // exactly what was typed, which is decisive precisely when it matters.
+    const exact = interpretations.find(
+        (interpretation) =>
+            interpretation.skeleton != null &&
+            toLatinDigits(
+                formatPlainDateParts(interpretation.date, resolvedLocale, interpretation.skeleton)
+                    .map((part) => part.value)
+                    .join(""),
+                resolvedLocale
+            ) === latinised
+    );
+
+    const chosen = exact ?? interpretations[0];
+    if (chosen) return chosen.date.toString();
 
     return naturalLanguageDate(trimmed, referenceAnchor);
 }

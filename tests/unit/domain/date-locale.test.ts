@@ -125,6 +125,50 @@ describe("locales whose default calendar is not Gregorian", () => {
     });
 });
 
+describe("locales whose editing skeleton differs from their numeric one", () => {
+    // Regression (review 02, F-4). `Intl` may order or punctuate the 2-digit
+    // skeleton differently from the numeric one. The parser derived its formats
+    // from the numeric skeleton alone, so it could not accept the very string
+    // the editing field had just displayed.
+    //
+    // The nine-locale table below cannot catch this: every one of those locales
+    // happens to agree between the two skeletons. Naming MORE locales was not
+    // the fix — naming the CLASS was. These are chosen because they diverge.
+    const orderFlipping = [
+        // Rendered day-first while the numeric skeleton is month-first, so the
+        // displayed date was silently STORED transposed rather than rejected.
+        { locale: "mt-MT", iso: "2026-08-03", editing: "03/08/26" },
+        { locale: "ug-CN", iso: "2026-08-03", editing: "26-08-03" }
+    ] as const;
+
+    it.each(orderFlipping)(
+        "stores the date $locale displayed, not its transposition",
+        ({ locale, iso, editing }) => {
+            expect(formatDateForEditing(iso, locale)).toBe(editing);
+            expect(parseLocaleDate(editing, locale, refDate)).toBe(iso);
+        }
+    );
+
+    const separatorChanging = ["it-CH", "lv-LV", "te-IN"] as const;
+
+    it.each(separatorChanging)("accepts the form %s displays while editing", (locale) => {
+        const iso = "2026-08-03";
+        // These were rejected outright rather than mis-stored: the editing form
+        // uses a separator the numeric skeleton never produces.
+        expect(parseLocaleDate(formatDateForEditing(iso, locale), locale, refDate)).toBe(iso);
+    });
+
+    it("keeps a divergent locale's compact form parsing correctly too", () => {
+        // Fixing the editing skeleton must not cost the compact one.
+        for (const locale of ["mt-MT", "ug-CN", "it-CH", "lv-LV"]) {
+            const iso = "2025-06-15";
+            expect(
+                parseLocaleDate(formatTransactionDate(iso, refDate, locale), locale, refDate)
+            ).toBe(iso);
+        }
+    });
+});
+
 describe("parseLocaleDate", () => {
     describe("accepts what the same locale displays", () => {
         // The core round-trip clause: whatever was shown must be typeable back.
