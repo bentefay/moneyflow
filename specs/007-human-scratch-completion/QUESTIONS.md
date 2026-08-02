@@ -2808,3 +2808,38 @@ a complexity assertion over instrumented call counts, or a comparison against a 
 rather than absolute time. Until then, every campaign in this goal must be run with nothing else heavy
 on the machine, and any agent running unit suites alongside an E2E campaign is contaminating its own
 evidence.
+
+## Q-P27-02 — A campaign is evidence only for the LOAD it ran under, not only for the tree
+
+Proposed by `p27-reviewer-01` during P27, from an error it made and disclosed itself. **Carry forward
+to P21.**
+
+**The established rule this extends.** This goal already enforces that a campaign is evidence only for
+the TREE it ran on: any mid-campaign tree change voids it and the campaign restarts from run 1. That
+rule has been applied repeatedly — P22 rev 03, P25 and P26 all restarted campaigns rather than report a
+mixed one.
+
+**The new axis.** `p27-reviewer-01` ran full `pnpm test` passes CONCURRENTLY with E2E run 1 of its own
+campaign. That run came back `1 failed | 169 passed` on `transactions.spec.ts:725`, the virtualization
+test that asserts a 10-second expansion budget (see the `Q-P23-01` extension). Under 117 concurrent
+vitest files that is almost certainly self-inflicted load rather than a tree defect — **but once the
+load is uncontrolled the failure is UNPROVABLE IN EITHER DIRECTION.** It cannot be shown to be a real
+defect and it cannot be shown not to be. The reviewer killed the campaign and restarted with nothing
+else running; its clean run 1 then passed the very test that had gone red, settling it as an artifact.
+
+**Why this is easy to violate by accident, and worth a rule.** Running unit suites "while waiting" for
+an E2E campaign feels productive and costs nothing visible. The contamination is invisible until a
+wall-clock assertion trips, and by then the campaign's evidentiary value is already gone. Two agents in
+this goal have now hit load-sensitive assertions, in two different suites.
+
+**Recommended rule for P21:** a campaign must run with nothing else heavy on the machine, and the
+evidence should state that explicitly rather than leave it assumed. If a wall-clock assertion fails and
+the load was uncontrolled, the only sound response is to discard the campaign and re-run in a quiet
+window — never to reason from "it is probably the known flake" to a green verdict. Root applied exactly
+this reasoning when accepting the reviewer's restart.
+
+**Operational note also from this reviewer, worth keeping.** Killing a contaminated campaign needs
+care: the Playwright CLI parent has a RELATIVE cmdline, so a `/tmp/mf-*` scan misses it, and an
+orphaned `next-server` holding :3000 is indistinguishable from the human's dev server by name — both
+print `next-server (v16.2.11)`. They can only be told apart by `readlink /proc/<pid>/cwd`. Any agent
+cleaning up a campaign must use that, or it risks killing the human's server.
