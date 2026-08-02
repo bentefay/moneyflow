@@ -172,6 +172,20 @@ function PendingRuleProposal(
             className="w-auto max-w-[90vw] p-3"
             data-owned-by-row="true"
             data-testid="transaction-rule-proposal-popover"
+            // Escape belongs to the surface the user is actually looking at.
+            //
+            // Radix closes a popover on Escape at the DOCUMENT level, so without this the proposal
+            // swallowed the key before it reached the still-open tag picker, whose own handler owns
+            // it. A user pressing Escape to dismiss the tag list instead dismissed a proposal they
+            // may not have noticed, and the list stayed put.
+            //
+            // While the anchored cell is still editing, the cell's own surface is the focused one
+            // covering content — the frozen text (`:253-254`) makes this popup the UNFOCUSED one —
+            // so the key is left to propagate. Once the cell has finished editing, Escape dismisses
+            // the proposal normally.
+            onEscapeKeyDown={(event) => {
+                if (isEditing) event.preventDefault();
+            }}
             onOpenAutoFocus={(event) => event.preventDefault()}
             // Radix gives popover content `role="dialog"`, which would announce this as a modal the
             // user must deal with. The frozen text (`:252-254`) asks for the opposite: an UNFOCUSED

@@ -111,7 +111,7 @@ export function FieldRuleProposal(props: FieldRuleProposalProps): React.JSX.Elem
                     >
                         <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent data-owned-by-row="true">
                         {APPLY_MODES.map((applyMode) => (
                             <SelectItem key={applyMode} value={applyMode}>
                                 {applyModeLabel(applyMode)}
@@ -193,7 +193,7 @@ export function FieldRuleProposal(props: FieldRuleProposalProps): React.JSX.Elem
                         >
                             <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent data-owned-by-row="true">
                             <SelectItem value="add">Add tags</SelectItem>
                             <SelectItem value="set">Set tags (clear existing)</SelectItem>
                         </SelectContent>

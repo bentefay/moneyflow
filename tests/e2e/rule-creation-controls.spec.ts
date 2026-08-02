@@ -76,6 +76,14 @@ async function importRows(
  *
  * The dropdown is portaled and its search input is the signal that it is actually open, so this
  * waits for that input rather than clicking blind into a cell that may still be re-rendering.
+ *
+ * This helper asserts only that the tag LANDED. It deliberately does not assert anything about
+ * whether the picker closed: an earlier version pressed Escape and required the dropdown to be gone,
+ * which encoded the pre-fix behaviour where opening a proposal remounted the cell and closed the
+ * picker as a side-effect. Once that remount was fixed the picker legitimately survives, and the
+ * assertion started failing for the right reason. What Escape should do while both surfaces are open
+ * is a real question with its own dedicated test below, rather than an incidental requirement of
+ * every journey that happens to add a tag.
  */
 async function addTagToRow(page: Page, row: Locator, tagName: string): Promise<void> {
     await expect(row.getByTestId("tags-editable")).toBeVisible();
@@ -83,9 +91,8 @@ async function addTagToRow(page: Page, row: Locator, tagName: string): Promise<v
     const searchInput = page.getByPlaceholder("Search tags...");
     await expect(searchInput).toBeVisible({ timeout: 15_000 });
     await page.getByRole("option", { name: tagName, exact: true }).click();
-    // Selection saves immediately; closing the dropdown is what ends the edit.
-    await page.keyboard.press("Escape");
-    await expect(searchInput).toHaveCount(0);
+    // The selection saves immediately, so the tag appearing on the row is the real signal.
+    await expect(row.getByTestId("tags-editable")).toContainText(tagName);
 }
 
 /**
@@ -278,6 +285,53 @@ test.describe("The proposal must not disturb the edit that summoned it", () => {
         await page.getByRole("option", { name: "Dining", exact: true }).click();
         await expect(row.getByTestId("tags-editable")).toContainText("Dining");
         await expect(row.getByTestId("tags-editable")).toContainText("Coffee");
+    });
+});
+
+test.describe("Escape belongs to the surface the user is looking at", () => {
+    // The proposal is a Radix popover, and Radix closes popovers on Escape at the DOCUMENT level.
+    // That made it swallow the key before it reached the tag picker's own handler, so a user
+    // pressing Escape to dismiss the open tag list instead dismissed a proposal they may not have
+    // noticed — and the list stayed put.
+    //
+    // The frozen text does not mention Escape. It does say (`:253-254`) the controls should be an
+    // UNFOCUSED popup that does not interrupt the edit, so the focused picker covering content is
+    // the surface the key belongs to while it is open.
+    test("Escape closes the tag picker first, leaving the proposal, then closes the proposal", async ({
+        page
+    }) => {
+        await createNewIdentity(page);
+        await createTag(page, "Coffee");
+        await importRows(page, [{ date: "2026-07-01", description: MATCHING_DESCRIPTION }]);
+
+        const row = rowsWithDescription(page).first();
+        await expect(row.getByTestId("tags-editable")).toBeVisible();
+        await row.getByTestId("tags-editable").click();
+
+        const searchInput = page.getByPlaceholder("Search tags...");
+        await expect(searchInput).toBeVisible({ timeout: 15_000 });
+        await page.getByRole("option", { name: "Coffee", exact: true }).click();
+
+        // Both surfaces are now open: the picker still has focus, the proposal has appeared.
+        const proposal = page.getByTestId("tags-rule-proposal");
+        await expect(proposal).toBeVisible();
+        await expect(searchInput).toBeVisible();
+
+        await test.step("the first Escape closes the picker and leaves the proposal", async () => {
+            await page.keyboard.press("Escape");
+            await expect(searchInput).toHaveCount(0);
+            await expect(proposal).toBeVisible();
+        });
+
+        await test.step("a second Escape then dismisses the proposal", async () => {
+            await page.keyboard.press("Escape");
+            await expect(proposal).toHaveCount(0);
+        });
+
+        await test.step("dismissing this way creates no rule", async () => {
+            // Escape is a dismissal, not a confirmation: nothing may be written.
+            await expect(page.getByTestId("tags-rule-robot")).toHaveCount(0);
+        });
     });
 });
 
