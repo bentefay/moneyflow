@@ -2,8 +2,9 @@
 
 - **Requirement:** UR-008, frozen at `specs/010-user-reported-refinements-2/spec.md` lines 56-86
 - **Base:** `4c77a2dd6b61a9ab5e58c032d0b0242e579c75f7`
-- **Commits:** `fcd736f` product + unit tests + E2E spec, `077d5dd` MappingTab auto-detect parity,
-  `f98d3a5`/`23d0d80` evidence, plus this campaign record
+- **Rev 02 BASE:** `74b37f9a4c490c4b31560a83c131b6f7e55965c7`
+- **Rev 02 commits:** `b7cc398` amount-column fix, `43836b0` value-level tests, plus this evidence
+- **Rev 01 commits:** `fcd736f`, `077d5dd`, `f98d3a5`, `23d0d80`, `3b76490` (rebased by root)
 - **Worktree:** `/tmp/mf-p29`, branch `worktree-p29-ur008`
 
 Statements below are labelled: **Observed** means I ran it and read the output; **Inferred** means I
@@ -275,6 +276,16 @@ the OUTCOME the selection feeds, not the selection itself** — and build the fi
 candidate sits in a losing position. An assertion over the selection can be invariant across exactly
 the arrangements the defect distinguishes. This is the `Q-P28-03` family.
 
+**A credit correction I want on the record.** The parity test at `:436-474` does reach a value-level
+assertion by a different route — it derives `amountIndex` from detection, parses the values there,
+and compares against `processOFXImport` — and it would have caught a divergence. **I did not write
+it that way deliberately for this defect, and it is not what protected the tests I wrote for it.**
+The five fixtures I authored in the first pass at rev 02 all asserted `expect(mappings["N"])`, and
+every one of them would have been blind exactly as the addendum warned. The property was satisfied
+incidentally by an older test; my new tests satisfied nothing until I replaced their assertion
+shape. Recording this because "the property was already satisfied" would be a true sentence that
+gives a false impression of the care taken.
+
 ### 1.4.2 Two places where fixing the reported bug would have made things WORSE
 
 This deserves stating as a finding rather than being buried among the changes, because a reviewer
@@ -479,7 +490,7 @@ to check without doing the checking.
 | `typecheck`    | **PASS**                                                          |
 | `lint`         | **PASS**, 0 errors                                                |
 | `format:check` | **17** pre-existing frozen `specs/**` files, **none a P29 file**  |
-| `test`         | **PASS** — 2316 passed, 2 skipped, 122 files                      |
+| `test`         | **PASS** — 2382 passed, 2 skipped, 123 files                      |
 | `test:e2e`     | **PASS** — 3 consecutive full-suite runs, 177 passed each, see §6 |
 
 The `lint` figure above is the **bare `pnpm lint` from the repo root**, not a filtered run over my
@@ -552,26 +563,31 @@ process anywhere, load average 2.95. An orphaned `next-server (v16.2.6)` (PID 36
 cwd) was present; **observed** to bind no listening port and not to be mine, so it was left alone.
 The human's dev server on `:3001` was never touched.
 
-### Results
+### Results — REV 02, at `43836b0`
 
 | run | result         | duration | load at start | tree digest |
 | --- | -------------- | -------- | ------------- | ----------- |
-| 1   | **177 passed** | 4.6m     | 2.08          | `8443fde8`  |
-| 2   | **177 passed** | 4.4m     | 6.94          | `8443fde8`  |
-| 3   | **177 passed** | 4.1m     | 7.20          | `8443fde8`  |
+| 1   | **177 passed** | 4.2m     | 4.07          | `0e58fc49`  |
+| 2   | **177 passed** | 4.1m     | 5.38          | `0e58fc49`  |
+| 3   | **177 passed** | 4.3m     | 5.95          | `0e58fc49`  |
 
-**Zero failures across all three runs.** None of the three recorded load-sensitive assertions fired.
-Runs 2 and 3 began at load average ~7, so these passes are not an artefact of a quiet machine.
+**Zero failures across all three runs.** A scan of all three logs for `N failed`, `✘`,
+`Error: expect` and `timed out` returns nothing, and none of the three recorded load-sensitive
+assertions fired.
+
+Logs at `/tmp/p29r2-e2e-run{1,2,3}.log`, digests at `/tmp/p29r2-digest-{pre,post}.txt`.
+
+The rev 01 campaign, superseded by the above, ran 3×177 clean at digest `8443fde8`.
 
 ### Tree stability
 
-Digest `8443fde82c70fce74e90ef1ccce91d2d`, over every `src/` and `tests/` `.ts`/`.tsx` file
+Digest `0e58fc4984aed2234afdb99df70705df`, over every `src/` and `tests/` `.ts`/`.tsx` file
 **excluding `next-env.d.ts`**, verified before run 1 and again after run 3. **Identical**, so this
 campaign is evidence for exactly the tree that ran.
 
 `next dev` rewrote `next-env.d.ts` during the campaign, which is why it is excluded — it is a
 regenerated artefact, and including it would show drift on every multi-run campaign. It was restored
-with `git checkout --` afterwards, leaving the tree clean at `23d0d80`.
+with `git checkout --` afterwards, leaving the tree clean at `43836b0`.
 
 ### The new tests executed, rather than being counted
 
