@@ -95,10 +95,40 @@ Every row still reads `status: "valid"`, `errorCount: 0`. **This is silently-wro
 presented as success** — precisely the failure mode evidence §1.4.2 correctly identifies as the
 worse one. It is a regression: BASE's header-name matching handled both files correctly.
 
-**Why the suite is green.** The only headered fixture, `ur-008-csv-parity.test.ts:251`, is
-`Date,Description,Amount,Balance` — the one arrangement where the correct column is already
-leftmost. **Observed:** reorder it to `Date,Description,Balance,Amount` and detection returns
-`{0:date,1:description,2:amount}`, silently meaning the balance.
+**Why the suite is green — and it is worse than "the fixture happens to pass".** The only headered
+fixture, `ur-008-csv-parity.test.ts:251`, is `Date,Description,Amount,Balance` — the one arrangement
+where the correct column is already leftmost among the numeric ones. **Observed**, running the same
+three rows in both arrangements:
+
+```
+Amount leftmost  (the shipped fixture): {"0":"date","1":"description","2":"amount"}
+Balance leftmost (same data reordered): {"0":"date","1":"description","2":"amount"}
+```
+
+**The two arrangements return the IDENTICAL mapping.** In the shipped fixture index 2 is the Amount;
+in the reordered one index 2 is the Balance. The assertion at `:262` compares mappings, so it cannot
+distinguish the correct answer from the defective one — the fixture does not vary along the axis the
+code branches over. This is the `Q-P28-03` shape in a new domain: a well-formed table that is
+constant where the code is conditional. **A fixture whose correct amount column is NOT the leftmost
+numeric one is mandatory in the fix, and it must assert the imported AMOUNTS, not the mapping.**
+
+**The selection is deterministic, not an occasional tie-break accident. Observed:** 200 repetitions
+of `detectColumnMappingsFromValues` on the check-number rows produced **1 distinct result**. The
+reducer at `:215` uses `entry.rate > best.rate` — strictly greater — so on a tie the first entry
+survives and the leftmost wins every time. A check-number column and a real amount column both score
+1.0 against `looksLikeAmount`, so the wrong column wins on every import of such a file, not
+sporadically.
+
+**Two comments assert a protection the code does not provide**, which is why this survived review by
+reading:
+
+- `:243-245` — "Columns that read as amounts are set aside first, so a trailing balance column does
+  not win the role". True of the DESCRIPTION role only: `remaining` feeds nothing else. Nothing
+  guards the amount role against a second numeric column.
+- `:201-202` — `bestColumn`'s own docstring: "Ties fall to the leftmost column, which matches the
+  order a bank export conventionally puts its columns in". This is precisely the assumption F-1
+  falsifies — a check number and a running balance are both conventionally placed left of, or
+  adjacent to, the amount.
 
 This also means the frozen requirement is not met as written for these files. The frozen text says
 "a column whose values parse as amounts once currency symbols and signs are accounted for is the
@@ -327,6 +357,13 @@ reported cause. The implementer got this right.
 ## 6. E2E — NOT RUN BY ME, and why
 
 I did not run the campaign. Stating that plainly rather than reporting a partial result as a pass.
+
+**This was a sanctioned decision, not an omission.** I raised the question to root before taking the
+port, and root ruled **(b): FAIL now, without the campaign**, explicitly overriding its own
+dispatch's "RUN ALL SIX CHECKS" — the same call it made for `p28-reviewer-01`, on the reasoning that
+three runs is ~13 minutes of evidence for a tree nobody will ship once a product fix is known to be
+required. Our messages crossed: I had independently reached the same recommendation and sent it
+before the ruling arrived. The rev 02 campaign runs against the corrected tree.
 
 **Observed.** At 17:24 `:3000` was free. At **17:33:03** a P28 rev 03 campaign took it — PID 2948622
 `timeout 3000 pnpm exec playwright test --retries=0 --reporter=line`, cwd `/tmp/mf-p28r3`, with its
