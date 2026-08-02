@@ -174,7 +174,7 @@ review evidence.
 | P26     | UR-005         | [Minimal table chrome at rest](tasks/P26-ur-005.md)                                 | none                 | passed            | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01 by human principal; frozen source specs/010-user-reported-refinements-2/spec.md lines 11-24                                                                                                                                                                         |
 | P27     | UR-006         | [Vault members listed by name](tasks/P27-ur-006.md)                                 | none                 | passed            | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 26-38; shares name resolution with UR-003/P24                                                                                                                                                                                                               |
 | P28     | UR-007         | [Dates display in browser locale](tasks/P28-ur-007.md)                              | none                 | changes_requested | 03  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 40-54                                                                                                                                                                                                                                                       |
-| P29     | UR-008         | [CSV import parity and honest counts](tasks/P29-ur-008.md)                          | none                 | in_review         | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 56-86; confirmed root cause parseAmount csv.ts:165-190 rejects leading plus, exactly 15 rows                                                                                                                                                                 |
+| P29     | UR-008         | [CSV import parity and honest counts](tasks/P29-ur-008.md)                          | none                 | changes_requested | 02  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 56-86; confirmed root cause parseAmount csv.ts:165-190 rejects leading plus, exactly 15 rows                                                                                                                                                                 |
 | P30     | UR-009         | [Automations conformance re-verification](tasks/P30-ur-009.md)                      | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01 by human principal after reporting missing rule-creation controls; frozen source specs/011-automations-conformance/spec.md lines 16-61; RE-VERIFIES HS-007 without reopening it                                                                                       |
 | P31     | UR-010         | [Shift-click extends selection and deselection](tasks/P31-ur-010.md)                | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-02 by human principal; frozen source specs/012-transaction-selection/spec.md lines 11-29; toggleRow at useTableSelection.ts:106-133 only ever adds                                                                                                                       |
 | P32     | UR-011         | [Header checkbox selects all filtered rows](tasks/P32-ur-011.md)                    | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-02; lines 31-55; efficiency at 100k transactions is part of the requirement                                                                                                                                                                                            |
@@ -7844,3 +7844,62 @@ under review from another package's work in progress. Root preserved the work TW
 and told the implementer where to recover it and to work in `/tmp/mf-p28r3` outside the repo.
 
 Dispatched `p29-reviewer-01` (DISTINCT, fresh context, never the P29 implementer).
+
+### 2026-08-02 — P29 rev 01 FAILED in static audit on a silently-wrong-data REGRESSION; rev 02 opened
+
+`p29-reviewer-01` found a BLOCKING regression before spending any campaign time, A/B-proved it through
+the real `useImportState.loadFile` on two trees, and reported it rather than completing a review of a
+tree that must change. Root verified the mechanism independently.
+
+**F-1 (HIGH) — `detectColumnMappingsFromValues` binds the AMOUNT role to the leftmost numeric column,
+so a check-number or running-balance column is imported as the transaction amount.**
+
+```
+Date,Check No,Description,Amount
+  BASE  {0:date,1:checkNumber,2:description,3:amount}   amounts  -550, -7525, 250000   CORRECT
+  HEAD  {0:date,1:amount,2:description}                 amounts  100100, 100200, 100300  WRONG
+
+Date,Description,Balance,Amount
+  BASE  amounts  -550, -7525, 250000                    CORRECT
+  HEAD  amounts  100000, 92475, 342475                  WRONG - the running balance
+```
+
+**Root confirmed this is DETERMINISTIC, not a tie-break accident.** `bestColumn` ends with
+`scored.reduce((best, entry) => (entry.rate > best.rate ? entry : best))` — strictly greater, so on a
+tie the FIRST entry survives and the leftmost wins. A check-number column and a real amount column both
+score 1.0 against `looksLikeAmount`, so the wrong column wins every time.
+
+**A comment describes a protection the code does not provide.** `detection.ts:243-245` reads "columns
+that read as amounts are set aside first, so a trailing balance column does not win the role" — but the
+`remaining` array it refers to only feeds the DESCRIPTION selection. Nothing protects the AMOUNT role
+from another numeric column. A reader of that comment would reasonably conclude the case was handled.
+
+**This is the most serious defect found in this goal.** Every other has either failed loudly or
+displayed something wrong. This one imports a check number as a monetary amount and LOOKS LIKE SUCCESS
+— the exact failure mode the package's own evidence §1.4.2 names as worse than a visible break. And it
+is a REGRESSION: BASE handled both files correctly. A package created to fix import correctness would
+have shipped a new way to import wrong numbers.
+
+**The suite is green by FIXTURE ACCIDENT.** `ur-008-csv-parity.test.ts:251` pins
+`Date,Description,Amount,Balance`, where the correct column happens to be leftmost among the numeric
+ones. That is `Q-P28-03` in a new domain — a well-shaped table that does not vary along the axis the
+code branches over. Rev 02 must add a fixture where the correct amount column is NOT the leftmost
+numeric one.
+
+**Evidence-accuracy finding, separate from the code defect:** §1.4.1 tabulates the headered case as
+`{…,3:balance}` for the BUTTON only, and does not record that the LOAD path drops `balance`/`checkNumber`
+and can bind `amount` to the wrong column.
+
+**Root ruled (b): FAIL immediately WITHOUT the campaign**, explicitly overriding the dispatch's "RUN ALL
+SIX CHECKS". The fix touches `src/lib/import/detection.ts`, so three runs would be ~13 minutes of
+evidence for a tree nobody will ship — the same call root made for `p28-reviewer-01`. The reviewer had
+independently reached the same recommendation; the messages crossed. E2E is recorded as NOT RUN BY THE
+REVIEWER with the reason, so the record shows a decision rather than an omission.
+
+**Verified by the reviewer before the finding:** typecheck PASS; lint 0 errors with 1 pre-existing
+warning; format:check exactly 17 pre-existing frozen `specs/**`, none a P29 file; unit **2363 passed /
+2 skipped**; the 13-of-20 BASE proofs reproduced in its own tree; the MappingTab test confirmed failing
+at BASE; and the DuplicatesTab pure-move claim independently verified byte-identical under `sort`.
+`playwright test --list` reports 177 in 23 files with both new tests present by name.
+
+**P29 -> `changes_requested`, rev 02 opened.** Rev 01's FAIL artifact is preserved.
