@@ -176,8 +176,8 @@ review evidence.
 | P28     | UR-007         | [Dates display in browser locale](tasks/P28-ur-007.md)                              | none                 | passed            | 03  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 40-54                                                                                                                                                                                                                                                       |
 | P29     | UR-008         | [CSV import parity and honest counts](tasks/P29-ur-008.md)                          | none                 | passed            | 03  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 56-86; confirmed root cause parseAmount csv.ts:165-190 rejects leading plus, exactly 15 rows                                                                                                                                                                 |
 | P30     | UR-009         | [Automations conformance re-verification](tasks/P30-ur-009.md)                      | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01 by human principal after reporting missing rule-creation controls; frozen source specs/011-automations-conformance/spec.md lines 16-61; RE-VERIFIES HS-007 without reopening it                                                                                       |
-| P31     | UR-010         | [Shift-click extends selection and deselection](tasks/P31-ur-010.md)                | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-02 by human principal; frozen source specs/012-transaction-selection/spec.md lines 11-29; toggleRow at useTableSelection.ts:106-133 only ever adds                                                                                                                       |
-| P32     | UR-011         | [Header checkbox selects all filtered rows](tasks/P32-ur-011.md)                    | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-02; lines 31-55; efficiency at 100k transactions is part of the requirement                                                                                                                                                                                            |
+| P31     | UR-010         | [Shift-click extends selection and deselection](tasks/P31-ur-010.md)                | none                 | passed            | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-02 by human principal; frozen source specs/012-transaction-selection/spec.md lines 11-29; toggleRow at useTableSelection.ts:106-133 only ever adds                                                                                                                       |
+| P32     | UR-011         | [Header checkbox selects all filtered rows](tasks/P32-ur-011.md)                    | none                 | passed            | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-02; lines 31-55; efficiency at 100k transactions is part of the requirement                                                                                                                                                                                            |
 | P33     | UR-012         | [Transaction cell controls fill their cell](tasks/P33-ur-012.md)                    | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-02 by human principal; frozen source specs/013-transaction-cell-hit-area/spec.md lines 11-41; row click verified a NO-OP so nothing is lost                                                                                                                             |
 
 Every active/reviewed row must contain the exact revision, literal SHAs, evidence path, immutable
@@ -233,8 +233,8 @@ required marker rollbacks before the next dispatch.
 | UR-007      | frozen spec section               | P28                          | ledger-only, immutable no source mutation  | passed            | ADMITTED 2026-08-01; lines 40-54; markerless like FS-001                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | UR-008      | frozen spec section               | P29                          | ledger-only, immutable no source mutation  | passed            | ADMITTED 2026-08-01; lines 56-86; markerless like FS-001                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | UR-009      | frozen spec section               | P30                          | ledger-only, immutable no source mutation  | queued            | ADMITTED 2026-08-01; frozen source `specs/011-automations-conformance/spec.md` lines 16-61, SHA `717a99e3…`; markerless like FS-001; re-verifies HS-007 clauses at `human-scratch.md:248-295` without reopening HS-007 or P17A-D                                                                                                                                                                                                                                     |
-| UR-010      | frozen spec section               | P31                          | ledger-only, immutable no source mutation  | queued            | ADMITTED 2026-08-02; frozen source `specs/012-transaction-selection/spec.md` lines 11-29, SHA `5f8eb930…`; markerless like FS-001                                                                                                                                                                                                                                                                                                                                   |
-| UR-011      | frozen spec section               | P32                          | ledger-only, immutable no source mutation  | queued            | ADMITTED 2026-08-02; lines 31-55; markerless like FS-001                                                                                                                                                                                                                                                                                                                                                                                                           |
+| UR-010      | frozen spec section               | P31                          | ledger-only, immutable no source mutation  | passed            | ADMITTED 2026-08-02; frozen source `specs/012-transaction-selection/spec.md` lines 11-29, SHA `5f8eb930…`; markerless like FS-001                                                                                                                                                                                                                                                                                                                                   |
+| UR-011      | frozen spec section               | P32                          | ledger-only, immutable no source mutation  | passed            | ADMITTED 2026-08-02; lines 31-55; markerless like FS-001                                                                                                                                                                                                                                                                                                                                                                                                           |
 | UR-012      | frozen spec section               | P33                          | ledger-only, immutable no source mutation  | queued            | ADMITTED 2026-08-02; frozen source `specs/013-transaction-cell-hit-area/spec.md` lines 11-41, SHA `8a16fe8d…`; markerless like FS-001                                                                                                                                                                                                                                                                                               |
 
 ## Package event log
@@ -10406,3 +10406,72 @@ earlier test was blind to an entire branch.** Tree restored byte-identical, no p
 it to re-examine a premise it had already accepted. **That is the review process working, not a lucky
 catch — and it is the argument for reviewer independence being worth its cost even when the
 implementer has been careful.**
+
+### 2026-08-02 — **P31 and P32 PASSED and INTEGRATED; UR-010 and UR-011 `passed`**
+
+`p31-reviewer-01` returns **PASS for both**, artifact `d766d75`. **No blocking findings.** Three
+non-blocking: F-1 tree drift (handled), F-2 toast threshold (advisory), F-3 optional prop (carried
+risk). Every statement labelled MEASURED or INFERRED.
+
+**Ledger updated: P31 and P32 `queued` -> `passed` rev 01; UR-010 and UR-011 -> `passed`.** Scratch
+unchanged at `469e98c7…`, canary 1. **32 of 34 requirements passed; 31 of 33 feature packages.**
+
+**The reviewer verified the digest claim rather than accepting it**, and the table is the useful
+artifact: `transactions.spec.ts`, `table-selection.ts` and `useTableSelection.ts` are **byte-identical
+across `07bc3d4`, `d6567f6` and `362287c`** — runs 2-5 are four runs on one unchanged selection
+surface, all five journeys passing, **zero failures in `transactions.spec.ts`.** Run 1 is correctly
+excluded: different tree, and its two failures were the implementer's own bad locator, self-reported
+and fixed.
+
+**F-3 is the finding worth carrying.** `TransactionTableProps.matchingRowIds` is **optional**
+(`TransactionTable.tsx:60`) and `selectableRowIds = matchingRowIds ?? renderedRowIds` (`:303`), so
+**a caller that omits it gets page-scoped selection — the exact UR-011 defect — with no type error.**
+The only product render site (`page.tsx:1318`) passes it, so the product is correct today. Not
+failed on because the optionality keeps narrower existing call sites valid and the fallback is
+conservative, but **recorded so a future caller is not surprised.**
+
+**The reviewer declined a dispatch expectation, deliberately and correctly.** Root asked it to
+confirm `T021e`. It confirmed the test's **construction** is sound and discriminating in both
+directions but **could not execute it**, and said so: *"Saying 'verified' would have been the blind
+assertion this goal keeps warning about."* **That refusal is worth more than the confirmation would
+have been.**
+
+**It also recorded root's dispatch as a worked example of root's own rule:** the pinned HEAD
+`362287c` was stale within minutes and the file that moved was P31's core model. *"The ancestry check
+the dispatch rightly demanded is only valid for the instant it ran."* **Any handback quotes
+`0e27694`.**
+
+### 2026-08-02 — The five `people-settlement` failures: UR-004 currency vs a hardcoded USD locator
+
+**Solved, and it is neither package under review.** All five failures share one locator and all are
+**assertion failures, not timeouts** — `5 × expect(locator).toBeVisible() failed`, `grep -c "Test
+timeout of"` returns **0**, so contention is excluded:
+
+```
+playwright.config.ts   no timezoneId pinned  ->  tests inherit the host TZ
+host TZ                Australia/Brisbane
+UR-004 (P25, passed)   infers default currency from time zone  ->  AUD
+people-settlement      hardcodes  settlement-currency-section-USD
+```
+
+**The vault these tests create now defaults to AUD, so a USD section never renders.** UR-004 is
+working as specified; the tests assert a currency the product no longer chooses. **Open and not
+guessed at: why this surfaced now rather than when UR-004 integrated hours ago.**
+
+**Two theories were falsified along the way, both flagged as unproven by their authors before being
+tested.**
+
+**P30's** was that P31's `b138894` selection refactor caused it. **Root measured: its "28
+selection-related references" is 27 loose keyword matches and exactly ONE real selection testid; four
+of the five failing tests never touch the transactions page; and the people page does not import the
+selection model at all.** Same instrument failure as root's `51/7` split — **a keyword count over a
+file measures the word list, not the code paths.**
+
+**Root's** was load. Assertion failures at 5s rather than 120s timeouts killed it.
+
+**P30 also corrected root's load premise, and the correction retires a thread root had left open.**
+Root asked what was driving load 11 and suggested an external workload. **P30 measured: four
+`chrome-headless` workers above 90% plus a `next-server`, all parented to its own campaign shell,
+all rooted in its worktree. Nothing external.** Its framing: *"P31's figures were probably sampled
+between runs rather than mid-execution — the comparison was measuring two different moments, not two
+different conditions."* **That is the same shape as root's port monitor reading quiet between runs.**
