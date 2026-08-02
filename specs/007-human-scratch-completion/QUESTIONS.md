@@ -3036,3 +3036,70 @@ dropping it silently. That is the right disposition — an abandoned reviewer re
 because a reader who later finds the same artefact needs to know it was investigated and rejected
 rather than never seen. Compare `Q-P24-01`, where an implementer's measured collisions did not survive
 review and the totals stood while the named examples were withdrawn.
+
+## Q-P28-06 — A coordinator's cleanup of a shared checkout can destroy an agent's uncommitted work
+
+**Root's own error, recorded as such. Carry forward to P21.**
+
+**What happened.** `p28-implementer-01` had ~145 uncommitted lines of F-4 work in the shared checkout
+`/home/ben-agents/Code/moneyflow`. That blocked `p29-reviewer-01`, because `src/lib/utils/date-format.ts`
+is imported by `ImportTable.tsx` inside P29's file set, so the reviewer could not distinguish the tree
+under review from another package's work in progress. After asking three times for the work to be
+moved, **root ran `git checkout -- src tests`** in the shared checkout.
+
+Root saved a patch (`/tmp/p28-f4-wip.patch`) and a `git stash` first, and told the implementer where
+they were. **But root did not announce the discard before doing it, and did not confirm recovery before
+letting a dependent review proceed.** The implementer experienced its work vanishing mid-session,
+recovered from its own copy, rewrote its tests, and — reasonably — attributed the reversion to a
+concurrent P29 operation, because nothing told it otherwise. Root later verified the stash and the
+committed work were the same change, so nothing substantive was lost, but that was luck rather than
+design.
+
+**The general failure.** The shared-checkout hazard runs in BOTH directions. `Q-P29-01` and the P29
+incident record one agent's edits landing in the shared tree and endangering others. This records the
+converse: **a coordinator's cleanup destroying an agent's uncommitted work.** The second is worse in one
+respect — the agent has no way to attribute it, so it will look like corruption or another agent's
+fault, which is exactly what happened.
+
+**The rules this implies:**
+1. Never discard a shared working tree without first telling the owner explicitly that a discard is
+   about to happen, and confirming they have recovered.
+2. A blocked dependent package is a reason to sequence, not a licence to destroy. Root should have
+   held the reviewer's dispatch rather than clearing the tree under an active implementer.
+3. **Worktree location outside the repository must be a dispatch requirement from the first package,
+   not a lesson discovered per-package.** Three packages hit shared-checkout or in-repo-worktree
+   problems before root made it standing guidance.
+4. Committing early on a branch is the only defence available to a worker, and the implementer
+   identified that itself. Dispatches should say so.
+
+## Q-P28-07 — Adding a parse format cannot disambiguate two orders of the same digits
+
+Found by `p28-implementer-01` while implementing the fix its own reviewer proposed. Root verified.
+**Carry forward to P21 — it overturns a verified review finding.**
+
+`p28-reviewer-02` diagnosed F-4 correctly: `parseLocaleDate` derived candidates from the `numeric`
+skeleton while `formatDateForEditing` renders the `2-digit` one, and for 9 of 114 locales those
+disagree. It proposed adding the editing skeleton to `candidateFormats` and reported the census going
+**52 failures → 0**.
+
+**That fix is necessary but NOT sufficient, and the shortfall is in the worst cases.** Root verified
+the mechanism:
+```
+parse('03/08/26', 'M/d/yy') -> Sun Mar 08 2026
+parse('03/08/26', 'd/M/yy') -> Mon Aug 03 2026
+```
+Where two skeletons differ only in field ORDER, both parse the same digits SUCCESSFULLY, so the first
+candidate in the list wins and the added format changes nothing. Reordering only moves the failure.
+The implementer observed `mt-MT` and `ug-CN` still storing `2026-03-08` for a displayed 3 August after
+applying the reviewed fix — **precisely the two locales that store silently rather than rejecting.**
+
+**Why the review's figure did not catch it:** a wrong parse that FAILS is visible in a census; a wrong
+parse that SUCCEEDS is not. The reviewer's harness most plausibly counted null-rejections and missed
+transpositions. So a verified "N → 0" figure can be sound in method and still blind to the worse half
+of a defect class.
+
+**The resolution, which generalises:** where several interpretations parse, prefer the one whose own
+RE-RENDERING reproduces exactly what was typed. Round-trip verification is decisive precisely in the
+ambiguous case and inert otherwise. Recommended for P21: any parser offering multiple candidate formats
+over the same input should disambiguate by round-trip rather than by candidate order, and any census of
+parse defects should separately count silent-wrong-value from loud-rejection.
