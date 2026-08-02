@@ -11,9 +11,12 @@
  * `dark:bg-input/30` survives the merge untouched. Cancelling a `dark:`-prefixed utility therefore
  * requires a `dark:`-prefixed override, which is what this constant supplies.
  *
- * Only the *resting* appearance is neutralised. Hover, focus, focus-visible, selected, editing,
- * presence and validation utilities all carry their own variant prefixes and higher specificity, so
- * they continue to paint over this baseline and state feedback is unchanged.
+ * Every utility here is unprefixed or `dark:`-prefixed, so it only sets the baseline paint. The
+ * state utilities each cell adds — `hover:`, `focus:`, `focus-visible:`, `aria-invalid:` — are
+ * emitted after the base utilities in Tailwind's layer and so still win when their condition holds.
+ * UR-005 requires that removing resting chrome not remove state feedback; that outcome is asserted
+ * against the rendered paint in `tests/e2e/transactions.spec.ts` and against the merge in
+ * `tests/unit/transactions/cell-resting-chrome.test.ts` rather than assumed here.
  */
 export const RESTING_CELL_CHROME =
     "border-transparent bg-transparent shadow-none dark:border-transparent dark:bg-transparent";
