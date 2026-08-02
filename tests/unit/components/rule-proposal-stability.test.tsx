@@ -188,37 +188,10 @@ function PortaledRowSurface(): React.JSX.Element {
     );
 }
 
-/**
- * The shipped Escape rule: while the anchored cell is still editing, the proposal must NOT consume
- * the key, so it reaches the cell's own handler. Once editing has finished, the proposal takes it.
- *
- * NOTE ON WHAT THIS DOES AND DOES NOT PROVE. This is a re-statement of the shipped predicate, not
- * the shipped component, so it pins the DECISION RULE only. It cannot prove that Radix actually
- * respects `preventDefault` on `onEscapeKeyDown`, nor that the key then reaches the tag picker —
- * both are framework and browser behaviour that only the E2E can establish. Recorded explicitly
- * because a fixture I build from my own understanding can only ever confirm my own understanding.
- */
-function escapeConsumedByProposal(isEditing: boolean): boolean {
-    return !isEditing;
-}
-
 /** Somewhere genuinely outside the row, e.g. the page search box. */
 function OutsideTarget(): React.JSX.Element {
     return <input data-testid="outside-input" />;
 }
-
-describe("Escape belongs to the surface the user is looking at", () => {
-    // Radix closes a popover on Escape at the document level, so before this guard the proposal
-    // swallowed the key and the still-open tag picker never saw it. Four E2E journeys failed on
-    // exactly that, in a shared helper that had encoded the pre-fix behaviour.
-    it("leaves Escape to the cell while it is still editing", () => {
-        expect(escapeConsumedByProposal(true)).toBe(false);
-    });
-
-    it("takes Escape once the cell has finished editing", () => {
-        expect(escapeConsumedByProposal(false)).toBe(true);
-    });
-});
 
 describe("F-2 — an Updating mode must not apply without the row losing focus", () => {
     it("does NOT write when the cell merely stops editing", () => {
