@@ -575,3 +575,35 @@ to determine empirically which list the table receives before designing, rather 
 defect's shape.
 
 **Tally after admission: 23 of 33 requirements `passed`; 22 of 32 feature packages `passed`.**
+
+## D-024 — UR-012 admitted via a seventh frozen source
+
+- **Status:** accepted
+- **Date:** 2026-08-02
+- **Authority:** explicit in-session instruction from the human principal.
+
+**Decision.** The transaction table's editable controls must fill their grid cells, so a click
+anywhere in a cell begins editing that field. Admitted as UR-012, owned by new package P33.
+
+**Mechanism, identical to D-020 through D-023.** `specs/human-scratch.md` is NOT edited and stays
+frozen at working-copy `b91ca932…` / rolling `469e98c7…`. A NEW frozen source
+`specs/013-transaction-cell-hit-area/spec.md` (SHA `8a16fe8d…`, 41 lines, 2,549 bytes) is registered
+as `SRC-TRANSACTION-CELL-HIT-AREA`; `requirementCount` 33 -> 34. Markerless and immutable, so the
+marker and rolling-SHA machinery stays bound exclusively to the scratch file's 21 blocks. Frozen
+`sourceTextLines` verified byte-identical to the spec file at lines 11-41.
+
+**No scope adjudicator required.** An EXPANSION directed by the principal who owns the scope, not a
+reduction and not the superseding of a prior accepted decision.
+
+**Why this was admitted as a new requirement rather than folded into P26.** P26/UR-005 was in
+independent review when the principal raised this. Folding an interaction change into a styling
+package would have voided a completed campaign and mixed two concerns in one review. UR-012 also
+changes interaction SEMANTICS, where UR-005 changed only resting paint, so they are genuinely
+different requirements even though they touch the same components.
+
+**Load-bearing verification before admission.** Root established that row click is a no-op —
+`onTransactionClick` has no caller in `transactions/page.tsx` — so enlarging cell hit areas at the
+row's expense sacrifices nothing. Had a caller existed, the trade-off would have needed the
+principal's ruling before admission.
+
+**Tally after admission: 27 of 34 requirements `passed`; 26 of 33 feature packages `passed`.**

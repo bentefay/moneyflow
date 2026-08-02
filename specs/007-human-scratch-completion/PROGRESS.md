@@ -17,8 +17,8 @@ review evidence.
   1/8 full-suite; the rev-02 `toBeEditable`/`toHaveValue` idiom cannot prove hydration for a
   controlled `Input`, which — unlike `Button` — has no `useIsHydrated` gate, root-confirmed by
   source; Q-P20B-19). HS-021 ROLLED BACK via §275 `RB-P21-04` (marker `:159` `[x] -> []`, rolling
-  `469e98c7… -> f46c2d35…`, 24,259 bytes, normalized 20/1). **Tally: 27 of 33 requirements `passed`** (HS-016 re-passed; UR-001..UR-004 ADMITTED 2026-07-30 and `queued`);
-  **26 of 32 feature packages `passed`** (P22-P26 PASSED; P27-P32 `queued`). C-1 upstream currency
+  `469e98c7… -> f46c2d35…`, 24,259 bytes, normalized 20/1). **Tally: 27 of 34 requirements `passed`** (HS-016 re-passed; UR-001..UR-004 ADMITTED 2026-07-30 and `queued`);
+  **26 of 33 feature packages `passed`** (P22-P26 PASSED; P27-P33 `queued`). C-1 upstream currency
   drift ruled a non-blocking accepted carry-forward (Q-P21-04-01).
 - **Next action:** **P22 rev 02 in independent review** (`p22-reviewer-02`); **P23 rev 01 dispatched in parallel** (`p23-implementer-01`, disjoint file set). — reviewer PASSed rev 01 but its own MEDIUM finding is a literal non-conformance with frozen UR-001 text; root requires the one-line conformance fix before integrating. Then a DISTINCT reviewer, then P23/P24/P25 in order, then re-open P21 rev 06 from a fresh BASE. Prior: **P21 rev 06 STOPPED and VOIDED** (scope admission superseded its entry conditions; collector wrote and committed nothing). Implement **P22 (UR-001)**, **P23 (UR-002)**, **P24 (UR-003)**, **P25 (UR-004)** one package at a time, each with a DISTINCT independent reviewer, then re-open P21 rev 06 from a fresh BASE over all 25 feature packages. Historical: P21 rev 06 was — executable final audit over all 21 passed feature packages + FS-001 with a fresh DISTINCT collector + reviewer (§114). M-1 REMEDIED (P20A rev 03 truthful copy `a823457`; HS-016 re-passed). Confirm no other public surface re-asserts a zero-lost-data absolute; surface carry-forward Q-proposals (Q-P20B-00 [D-019 OUT-OF-GOAL], Q-P20B-13/14, Q-P20A-02/05, Q-P17D-02, Q-P20B-06/08, Q-P21-04-01, Q-P21-05-01/02/03). On PASS, finalize FINAL-AUDIT.md + the completion condition. [Historical:] P21 rev 05 returned FAIL on M-1 [reviewer preserved at 7cb651d]. Q-P20B-00 ruled **OUT-OF-GOAL** (D-019, `f290246`): the `pruneBuckets` engine fix is future out-of-goal work and `p20b-reviewer-01 §6.1` is upheld. In-goal step: execute **RB-P21-05** §275 rollback of the HS-016 marker (`:328` `[x] -> []`), downgrade P20A -> `changes_requested`, then dispatch the P20A/HS-016 truthful-copy re-fix + a DISTINCT reviewer. No package fix dispatch until the batch is finalized and cleared. Full detail in the dated EOF event 2026-07-30. [Historical, now moot:] open P21 revision 05 — the executable final audit over all 21 passed feature
   packages (fresh DISTINCT collector + reviewer per §114). P20B rev 06 PASSED (DISTINCT
@@ -178,6 +178,7 @@ review evidence.
 | P30     | UR-009         | [Automations conformance re-verification](tasks/P30-ur-009.md)                      | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01 by human principal after reporting missing rule-creation controls; frozen source specs/011-automations-conformance/spec.md lines 16-61; RE-VERIFIES HS-007 without reopening it                                                                                       |
 | P31     | UR-010         | [Shift-click extends selection and deselection](tasks/P31-ur-010.md)                | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-02 by human principal; frozen source specs/012-transaction-selection/spec.md lines 11-29; toggleRow at useTableSelection.ts:106-133 only ever adds                                                                                                                       |
 | P32     | UR-011         | [Header checkbox selects all filtered rows](tasks/P32-ur-011.md)                    | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-02; lines 31-55; efficiency at 100k transactions is part of the requirement                                                                                                                                                                                            |
+| P33     | UR-012         | [Transaction cell controls fill their cell](tasks/P33-ur-012.md)                    | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-02 by human principal; frozen source specs/013-transaction-cell-hit-area/spec.md lines 11-41; row click verified a NO-OP so nothing is lost                                                                                                                             |
 
 Every active/reviewed row must contain the exact revision, literal SHAs, evidence path, immutable
 revisioned review path and root integration-control commit; `—` is valid only before dispatch.
@@ -234,6 +235,7 @@ required marker rollbacks before the next dispatch.
 | UR-009      | frozen spec section               | P30                          | ledger-only, immutable no source mutation  | queued            | ADMITTED 2026-08-01; frozen source `specs/011-automations-conformance/spec.md` lines 16-61, SHA `717a99e3…`; markerless like FS-001; re-verifies HS-007 clauses at `human-scratch.md:248-295` without reopening HS-007 or P17A-D                                                                                                                                                                                                                                     |
 | UR-010      | frozen spec section               | P31                          | ledger-only, immutable no source mutation  | queued            | ADMITTED 2026-08-02; frozen source `specs/012-transaction-selection/spec.md` lines 11-29, SHA `5f8eb930…`; markerless like FS-001                                                                                                                                                                                                                                                                                                                                   |
 | UR-011      | frozen spec section               | P32                          | ledger-only, immutable no source mutation  | queued            | ADMITTED 2026-08-02; lines 31-55; markerless like FS-001                                                                                                                                                                                                                                                                                                                                                                                                           |
+| UR-012      | frozen spec section               | P33                          | ledger-only, immutable no source mutation  | queued            | ADMITTED 2026-08-02; frozen source `specs/013-transaction-cell-hit-area/spec.md` lines 11-41, SHA `8a16fe8d…`; markerless like FS-001                                                                                                                                                                                                                                                                                               |
 
 ## Package event log
 
@@ -7337,3 +7339,37 @@ that dependency — sweep for fixtures and for test names containing "blast radi
 shadcn-primitive-backed element is a latent instance of this defect, invisible in source review.
 
 **P26 -> `passed`; UR-005 -> `passed`. Tally: 27 of 33 requirements, 26 of 32 feature packages.**
+
+### 2026-08-02 — UR-012 ADMITTED (P33): transaction cell controls fill their cell
+
+Admitted at the principal's explicit instruction via a NEW frozen source
+`specs/013-transaction-cell-hit-area/spec.md` (SHA
+`8a16fe8d33dda9974b6a56ec5b66f8b5a94a0e3621658bc9f6cbe243927f24a1`, 41 lines, 2,549 bytes,
+`SRC-TRANSACTION-CELL-HIT-AREA`). `requirementCount` 33 -> 34; `human-scratch.md` untouched, still
+rolling `469e98c7…`. Markerless and immutable, the FS-001 mechanic. See D-024.
+
+**The principal's framing, preserved in the frozen text:** keep the exact same resting appearance and
+visual positions; only the hit area changes, so clicking anywhere in a cell begins editing without
+having to aim at the control. Every cell has a logical equivalent — the checkbox keeps its drawn size
+while its hit area spans the cell, the date keeps its text and icon in place, likewise the status
+select, tag chooser, amount and percentage fields.
+
+**Root raised four objections before admitting it; the principal answered all four and root verified
+the load-bearing one.** Root asked whether row click currently does something that would be lost.
+`TransactionRow.tsx:310` fires `onClick` through `TransactionTable.tsx:536` to `onTransactionClick` —
+but `grep -n 'onTransactionClick' 'src/app/(app)/transactions/page.tsx'` returns NOTHING, so no caller
+supplies it and **row click is a genuine no-op**. The principal reported the same independently. So
+nothing is lost. The per-cell question the principal answered directly, and the frozen text records
+those answers rather than leaving them to an implementer.
+
+**Regression constraints written into the task**, because this change sits on top of two just-passed
+packages: it must not reintroduce a resting fill or border (P26/UR-005 — resting cells still paint
+`rgba(0,0,0,0)` in both themes, `RESTING_CELL_CHROME` applied at five sites), and it must not let a
+larger hit area steal the add-transaction focus (P22/UR-001 — the monotonic `focusin` latch, and
+`addEmptyTransaction` must keep working). Hover feedback WILL change, since the hover region follows
+the enlarged control; that is required by the frozen text, not a regression, and must be stated in
+evidence.
+
+**Test requirement that decides the package:** the E2E must click at a cell's EDGE, not its centre.
+A centre click already works and would pass against the unfixed code, so a centre-click test proves
+nothing. The tests must be shown to fail against the pre-change geometry.
