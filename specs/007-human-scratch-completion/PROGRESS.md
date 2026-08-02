@@ -8846,3 +8846,59 @@ different costs without reducing it to diligence**, and it is more portable than
 The 2369/2382 reconciliation is recorded in the artifact's §3 with the three-file breakdown, so a
 future reader does not re-derive it — `Q-P28-09` applied one level up: a bare total looked like a
 discrepancy and the member list resolved it.
+
+### 2026-08-02 — STANDING RULE ADDED: **port discipline is CPU discipline**
+
+Root's dispatches said "do not take :3000" and stopped there. **That is only the visible half of the
+constraint.** `p29-implementer-01` ran `pnpm test` in its own worktree while `p30-implementer-01`
+was launching its campaign — no rule broken, vitest is not Playwright and it never touched the port —
+and drove load to **10.19**. Vitest at 32 workers beside Playwright at 4 is exactly the contention
+that reddens another package's suite.
+
+**The asymmetry is what makes this binding rather than courteous.** A unit run costs its owner ~74
+seconds. A reddened campaign costs someone else three runs plus a discard, and is **unprovable in
+either direction** — it can be neither trusted as a failure nor dismissed as a flake. With three
+separately identified load-sensitive assertions in this repo, that is not hypothetical. **Cheap for
+the runner, expensive for the victim, and the cost lands on whoever did nothing wrong.**
+
+**Rule, now in every dispatch:** before ANY heavy run, check whether another agent holds a campaign —
+not just whether the port is free. And when your own turn comes, **run all non-E2E checks to
+completion FIRST, then launch the campaign**, so your own vitest never competes with your own
+Playwright. `p28-reviewer-03` derived this unprompted and sequenced its work that way; it is the
+standard.
+
+Resolved without intervention: the vitest completed rather than being killed, so P30 caught only its
+tail. Root confirmed P30's run 1 began after, and load fell 10.19 -> 3.87.
+
+**P30 campaign is running 182 tests, not 177** — its five new `rule-creation-controls.spec.ts` tests
+are registering, so the E2E surface grew with the package as expected.
+
+### 2026-08-02 — Root's FIFTH near-miss shape: a correct search over a wrong assumption
+
+Root grepped `tests/unit/import/*.ts` for P29's pinning test, found nothing, and nearly reported it
+missing. **The file is `.tsx`.** Distinct from the previous four and worse in one respect: **the glob
+was well-formed and did exactly what was asked** — no wrong tree, no remembered line, no bad oracle,
+**no tell at all**. Quantified before recording:
+
+```
+tests/unit/**/*.ts    73 files
+tests/unit/**/*.tsx   24 files
+```
+
+**A quarter of this repo's unit tests are invisible to a `*.ts` glob.** Recorded as: *absence of a
+match is evidence about your search, not about the repo.*
+
+**Implementer's maintainability correction, applied.** Root said naming the two unsafe regex shapes
+made the fence maintainable. The implementer found the flaw in that reasoning: **the test comment
+lives in the test file, but whoever adds a bank header alias is in `detection.ts`.** The warning now
+also sits on `AMOUNT_HEADER_PATTERN` at `detection.ts:255-260` — known-unsafe `/col/i` and
+`/\bcolumn\b/i`, safe `/\bcol\b/i` and `/\bno\b/i`, naming the pinning test. **A fence you have to
+already know about is not a fence.**
+
+It further recorded, unprompted, that **it would probably have TAKEN the removal option** had root's
+retracted instruction arrived alone — it reads as the tidier choice and nothing in it prompts the
+question that decides it. Root notes this is the accurate account rather than the flattering one:
+the agent never faced the choice, because the correction arrived first.
+
+P29 rev 03 complete at `6e4bf32`, tree clean, `ee3cce7` an ancestor, gates green. Holding for the
+port behind P30.
