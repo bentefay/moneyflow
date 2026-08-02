@@ -11010,3 +11010,75 @@ Three non-blocking: **F-8** `data-owned-by-row` carries no row identity; **F-9**
 reproduction diverges from the shipped wiring **in the way that hides F-7**; **F-10** the restriction
 checkboxes are asserted to exist and never operated. **F-9 is the one that explains why the
 implementer's own suite could not see this.**
+
+### 2026-08-02 — P30 review-02 detail: the fix shape, the gesture enumeration, and a self-disproof
+
+Artifact `3c47be4`, single file, ancestor of HEAD. **The reviewer took NO port and needed none** —
+every measurement came from `page.setContent` in real Chromium and jsdom against the real component.
+`p33-implementer-01`'s campaign slot was left intact by that restraint.
+
+**F-1 and F-6 confirmed fixed against the REAL component**, only the CRDT hook and presentational
+child mocked: `cellMountCount: 1`, same DOM node across both flips, `valuePreserved: "half-typed"`.
+**The control test at `rule-proposal-stability.test.tsx:110-119` is load-bearing** — run against the
+rev 01 broken shape it gives `mountCalls: 2, sameNode: false`, so both assertions fail without the
+fix. The occlusion suite genuinely **clicks** at `:341-351` rather than asserting visibility.
+
+**THE GESTURE ENUMERATION — the finding, measured in real Chromium:**
+
+```
+click a focusable control outside the row   focusin: YES   auto-apply: YES
+Enter in the cell -> input.blur() -> body   focusin: NO    auto-apply: NO
+Tab off the end of the document             focusin: NO    auto-apply: NO
+trusted click on non-focusable chrome       focusin: NO    auto-apply: NO
+```
+
+**One gesture in four reaches the frozen `:264` trigger — and it is exactly the one rev 04's new test
+drives.** Root verified: `rule-creation-controls.spec.ts:388` clicks `getByRole("textbox", …)`, a
+focusable element.
+
+**FIX SHAPE, the reviewer's and better than root's, adopted wholesale:**
+
+> **Keep deferring what is PAINTED. Stop deferring what is OBSERVED.** Add `focusout`, and mount the
+> tracking on **`isPending`** rather than `shouldShow`.
+
+Root had said "read `activeElement` on mount, or observe `focusout`" — **two mechanisms. The
+reviewer's names the design error**: rev 04 fused visibility with observation and only the first
+needed deferring. **The occlusion fix survives untouched.**
+
+**THE SELF-DISPROOF, and the part that converts a diagnosis into a constraint.** The reviewer went
+looking to show the listener is armed too late in the TAG path and **found the opposite** — React's
+microtask flush wins the race, `applied: 1`. **So the tag path works today by an event-loop ordering
+detail that nothing pins.** The real constraint: **the component cannot recover a blur that predates
+its own mount** — measured, focus already outside before the picker closes gives `applied: 0`. **Fix
+the recovery, not the timing.**
+
+**BLINDNESS RULE REFINED — third new axis this package has produced, adopted goal-wide.** Root's rule
+was *absence-of-surface is only one axis; a suite can cover every surface and never exercise a mode
+within one.* The reviewer's correction: **rev 04 DID test the automatic modes**, and both of its
+incidental choices — the tags field, and a focusable blur target — **landed on the working side.**
+
+> **The axis below "is the mode driven" is "WHICH INSTANCE of the gesture drives it".**
+
+**On the campaign, the reviewer's framing which root has passed to the implementer:** the three clean
+runs were honest and **greenness cannot discharge F-7, because no assertion in the suite looks at the
+failing gestures.** No number of runs would have surfaced it. It also endorsed the evidence's
+handling of the settlement rotation — retracting its own commit-boundary claim, declining to invent a
+seventh mechanism — as the right handling.
+
+**Non-blocking:** F-8 `data-owned-by-row` carries no row identity, so another row's picker reads as
+"still in this row" (safe direction, hard to reach today). **F-9 the F-2 unit reproduction hard-codes
+BOTH favourable conditions and can no longer exhibit this class — it must be REPLACED, not
+extended**; a test that cannot fail for the right reason reads as coverage while providing none.
+**F-10 neither restriction checkbox is clicked by any test in the repo, so a rule ignoring `:258-260`
+entirely would pass the suite.**
+
+### 2026-08-02 — Collision risk flagged before it became a fusion
+
+`cells/InlineEditableTags.tsx` went dirty while **P30 rev 05 edits the proposal components and P33
+owns all seven `cells/*.tsx` plus `TransactionRow.tsx`.** Root asked both agents which owns the edit
+rather than assuming, and told P33 explicitly **not to revert it if it is not theirs** — `git
+checkout --` on another agent's work destroyed live edits once today.
+
+Root also warned P30 that **nothing in the reviewer's fix shape requires touching a cell file**, and
+that if rev 05 has grown into the cell components **the recovery problem is not local to the
+proposal**, which would change the shape of the finding.
