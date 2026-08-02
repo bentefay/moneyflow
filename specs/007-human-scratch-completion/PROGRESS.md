@@ -10736,3 +10736,67 @@ already read.
 
 **P30 campaign, in progress:** run 1 **188 passed / 1 failed**, run 2 clean so far with **zero**
 failures — **including `:145`, which failed run 1.** Zero `rule-creation-controls` failures in both.
+
+### 2026-08-02 — P30 rev 04 campaign COMPLETE: 3 runs, package clean in all three
+
+**Root verified all three from the logs, same commit `5b0c441`, digest `d31581fd`:**
+
+| run | result         | rule-creation fails | settlement fails |
+| --- | -------------- | ------------------- | ---------------- |
+| 1   | **188 passed** | **0**               | 1 (`:145`)       |
+| 2   | **189 passed** | **0**               | 0                |
+| 3   | **186 passed** | **0**               | 3 (`:166` `:281` `:596`) |
+
+**P30's package is established: zero `rule-creation-controls` failures across three complete
+full-suite runs**, with the four originally-failing tests green in all three. That is stronger than
+the bar requires and is independent of the settlement question entirely.
+
+**THE SETTLEMENT FINDING — rotating membership, measured across three complete runs of an identical
+tree:**
+
+```
+        run1  run2  run3
+:145     ✘     ✓     ✓
+:166     ✓     ✓     ✘
+:281     ✓     ✓     ✘
+:596     ✓     ✓     ✘
+```
+
+**Four distinct tests fail at least once; NO test fails consistently.** Every failing test passes in
+at least two runs of the same tree. All three logs are on disk and checkable.
+
+**THE COMMIT-LINKED BOUNDARY IS DEAD, retracted by the implementer before root asked**, on a run that
+was still executing. Its own words: the bisect *"measured something real about isolated single-spec
+runs; it did not measure a property of the commit."* Corrected arithmetic: `5b0c441` is **1 clean of
+4**, not 0 of 2 — **a difference in RATE, not a categorical split.** It also named the asymmetry
+itself: it had applied small-sample scepticism to root's side of the table and not its own.
+
+**ROOT'S DECIDING TEST WAS THE WRONG TEST — ninth instrument failure, and the first where the
+instrument was a decision rule root wrote.** Root framed run 3 as *clean -> environmental, failures
+-> boundary stands*. **Failures with rotating membership fits neither branch**, because root
+collapsed "does it fail again" with "does the SAME thing fail again". **Recurrence supports a
+boundary only if membership is stable** — precisely the rate-versus-set distinction the implementer
+had drawn hours earlier and root then failed to build into the test root designed. **A bad grep
+returns a wrong answer; a bad dichotomy returns NO answer while looking like it returned one.**
+
+**Root also read one worker's progress as the suite's.** Root reported run 3 "past `people-settlement`
+with zero failures at 84/189". The positions are `84 86 85 88 89 87 90 91 94 93 95 92 96 98 99 100 97
+101 102` — **out of order, because four workers interleave.** In a parallel run no worker's position
+tells you what the others have done. **Tenth instance, and the tell — non-monotonic positions — was in
+root's own output.** The implementer made the mirror error on the truncated run-2 log: **both correct
+readings of incomplete artefacts, in the same investigation.**
+
+**Root REJECTED a flattering retraction and the implementer adopted the correction.** It had written
+that the evidence was *"closer to your original flake reading than to my defect reading"*. **Root's
+flake reading came from comparing a complete run against a truncated one and was retracted as
+invalid; that it now points the right way does not make it well-founded when made.** The accurate
+version, which the implementer recorded: **neither early reading was supported; the implementer's was
+better-founded — a ten-run bisect against a truncated-log comparison — and is the one that failed.
+Being wrong from better evidence is a different failure from being wrong from worse.**
+
+**Final disposal, four-part:** variance **established**; boundary **not established**; four mechanisms
+**falsified** (mount cost, reachability, selection refactor, scheduling — two of them root's); UR-004
+runtime currency inference **untested** and the only surviving candidate that predicts variance.
+**Why isolated single-spec runs behave differently from full-suite runs remains genuinely open, and
+is the most valuable thing the bisect produced** — though it does not mean what either party first
+read it as.
