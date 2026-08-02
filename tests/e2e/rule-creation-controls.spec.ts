@@ -110,12 +110,16 @@ async function addTagToRow(page: Page, row: Locator, tagName: string): Promise<v
  * listbox and never hit it, which is exactly why this belongs in one helper rather than at the one
  * call site that happened to fail.
  *
- * Waiting for the listbox to leave the DOM is the same convention `transactions.spec.ts:850` uses.
+ * The wait reads the TRIGGER's own `aria-expanded` rather than counting listboxes globally. Radix
+ * sets it from this select's open state, so it cannot be satisfied by some other popup closing —
+ * and the description input in the same row carries `aria-haspopup="listbox"` for its alias
+ * dropdown, so a global listbox count is genuinely ambiguous here, not merely less precise.
  */
 async function chooseApplyMode(page: Page, mode: string): Promise<void> {
-    await page.getByTestId("proposal-apply-mode").click();
+    const trigger = page.getByTestId("proposal-apply-mode");
+    await trigger.click();
     await page.getByRole("option", { name: mode, exact: true }).click();
-    await expect(page.getByRole("listbox")).toHaveCount(0);
+    await expect(trigger).toHaveAttribute("aria-expanded", "false");
 }
 
 /**
