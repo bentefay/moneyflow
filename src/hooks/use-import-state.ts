@@ -14,15 +14,12 @@ import Papa from "papaparse";
 import { useCallback, useMemo, useState } from "react";
 import { Temporal } from "temporal-polyfill";
 
-import { autoDetectColumnMappings } from "@/components/features/import/ColumnMappingStep";
-import {
-    detectDateFormat,
-    detectNumberFormat
-} from "@/components/features/import/tabs/FormattingTab";
+import { detectNumberFormat } from "@/components/features/import/tabs/FormattingTab";
 import type { Account, ImportTemplate, Transaction } from "@/lib/crdt/schema";
 import type { MoneyMinorUnits } from "@/lib/domain/currency";
 import { asMinorUnits, toMinorUnitsForCurrency } from "@/lib/domain/currency";
 import { detectHeaders, detectSeparator, parseDate, parseNumber } from "@/lib/import/csv";
+import { detectColumnMappingsFromValues, inferDateFormat } from "@/lib/import/detection";
 import type { DuplicateCheckTransaction, DuplicateMatch } from "@/lib/import/duplicates";
 import { DEFAULT_DUPLICATE_CONFIG, detectDuplicates } from "@/lib/import/duplicates";
 import { filterOldTransactions } from "@/lib/import/filter";
@@ -35,6 +32,7 @@ import {
     type ImportFileType,
     type ImportSession,
     type ImportSummaryStats,
+    summarizePreview,
     type PreviewTransaction,
     type ValidationError
 } from "@/lib/import/types";
@@ -98,22 +96,25 @@ const OFX_COLUMN_MAPPINGS: Readonly<Record<string, string>> = {
     "2": "amount"
 };
 
-/** Read the sample values of the column mapped to `field`, ignoring blanks. */
-function sampleColumn(
+/** Read the values of the column mapped to `field`, ignoring blanks. */
+function valuesOfColumn(
     columnMappings: Readonly<Record<string, string>>,
-    sampleRows: readonly string[][],
+    rows: readonly string[][],
     field: string
 ): string[] {
     const columnIndex = Object.entries(columnMappings).find(([, mapped]) => mapped === field)?.[0];
     if (columnIndex === undefined) return [];
 
-    return sampleRows
-        .map((row) => row[parseInt(columnIndex, 10)] ?? "")
-        .filter((value) => value.trim());
+    return rows.map((row) => row[parseInt(columnIndex, 10)] ?? "").filter((value) => value.trim());
 }
 
 /**
- * Derive formatting settings from the first few data rows.
+ * Derive formatting settings from the data rows.
+ *
+ * The date format is inferred from the WHOLE date column, not a sample: in a
+ * day-first column any single value whose leading field is 12 or less reads
+ * equally well as month-first, so a sample of the first few rows can be
+ * uniformly ambiguous while the column as a whole is not.
  *
  * Returns a new object; detection never writes back into the settings it was
  * given, which is what previously let it corrupt the module-level defaults.
@@ -123,9 +124,10 @@ function detectFormatting(
     columnMappings: Readonly<Record<string, string>>,
     dataRows: readonly string[][]
 ): FormattingSettings {
-    const sampleRows = dataRows.slice(0, 5);
-    const dateFormat = detectDateFormat(sampleColumn(columnMappings, sampleRows, "date"));
-    const numberFormat = detectNumberFormat(sampleColumn(columnMappings, sampleRows, "amount"));
+    const dateFormat = inferDateFormat(valuesOfColumn(columnMappings, dataRows, "date"));
+    const numberFormat = detectNumberFormat(
+        valuesOfColumn(columnMappings, dataRows.slice(0, 5), "amount")
+    );
 
     return {
         ...formatting,
@@ -157,7 +159,12 @@ function detectFileType(content: string): ImportFileType {
  * Parse raw CSV content into rows using Papa.parse for proper handling
  * of quoted fields that may contain delimiters.
  */
-function parseRawRows(content: string): { rows: string[][]; headers: string[]; separator: string } {
+function parseRawRows(content: string): {
+    rows: string[][];
+    headers: string[];
+    separator: string;
+    hasHeaders: boolean;
+} {
     const separator = detectSeparator(content);
 
     // Use Papa.parse for proper CSV parsing (handles quoted fields with embedded delimiters)
@@ -172,7 +179,10 @@ function parseRawRows(content: string): { rows: string[][]; headers: string[]; s
     const headers = hasHeaders
         ? (rows[0]?.map((h, i) => h?.trim() || `Column ${i + 1}`) ?? [])
         : (rows[0]?.map((_, i) => `Column ${i + 1}`) ?? []);
-    return { rows, headers, separator };
+    // `hasHeaders` is returned rather than consumed here: the session's
+    // formatting must agree with it, or a headerless file silently loses its
+    // first row to a header that is not there.
+    return { rows, headers, separator, hasHeaders };
 }
 
 /**
@@ -253,6 +263,9 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
                 let rawRows: string[][] = [];
                 let headers: string[] = [];
                 let detectedAccountNumber: string | null = null;
+                // OFX rows are built here with a synthetic header row, so an
+                // OFX file always has one.
+                let fileHasHeaders = true;
 
                 if (fileType === "ofx") {
                     const ofxResult = parseOFX(content);
@@ -279,6 +292,7 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
                     const parsed = parseRawRows(content);
                     rawRows = parsed.rows;
                     headers = parsed.headers;
+                    fileHasHeaders = parsed.hasHeaders;
                 }
 
                 // Find most recently used template
@@ -343,15 +357,19 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
                     // OFX structure is known: headers are ["Date", "Description", "Amount"]
                     config = { ...config, columnMappings: OFX_COLUMN_MAPPINGS };
                 } else if (!recentTemplate) {
-                    // For CSV files without a template, auto-detect columns from headers
-                    const columnMappings = autoDetectColumnMappings(headers);
+                    // For CSV files without a template, identify the columns from
+                    // their VALUES. Header names are not evidence a headerless
+                    // file can offer, and such a file is exactly the case where
+                    // the user would otherwise have to map every column by hand.
+                    const dataRows = fileHasHeaders ? rawRows.slice(1) : rawRows;
+                    const columnMappings = detectColumnMappingsFromValues(dataRows);
                     config = {
                         ...config,
                         columnMappings,
                         formatting: detectFormatting(
-                            config.formatting,
+                            { ...config.formatting, hasHeaders: fileHasHeaders },
                             columnMappings,
-                            config.formatting.hasHeaders ? rawRows.slice(1) : rawRows
+                            dataRows
                         )
                     };
                 }
@@ -786,11 +804,14 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
             oldTransactionFilter
         );
 
-        // Mark filtered transactions
+        // Mark excluded rows, keeping WHY they were excluded. A row excluded as
+        // old is recorded as old-and-duplicate or old-and-new, never as a bare
+        // "old": a single bucket cannot tell the user whether the row was
+        // dropped for its age or for being one they already have.
         const excludedRowIndices = new Set(filterResult.excluded.map((t) => t.rowIndex));
         for (const p of previews) {
             if (excludedRowIndices.has(p.rowIndex) && p.status !== "invalid") {
-                p.status = "filtered";
+                p.status = p.status === "duplicate" ? "old-duplicate" : "old-new";
             }
         }
 
@@ -825,16 +846,10 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
     // Summary Stats
     // ========================================================================
 
-    const summaryStats = useMemo<ImportSummaryStats>(() => {
-        const { previewTransactions } = computedPreview;
-        return {
-            totalRows: previewTransactions.length,
-            validCount: previewTransactions.filter((p) => p.status === "valid").length,
-            errorCount: previewTransactions.filter((p) => p.status === "invalid").length,
-            duplicateCount: previewTransactions.filter((p) => p.status === "duplicate").length,
-            filteredCount: previewTransactions.filter((p) => p.status === "filtered").length
-        };
-    }, [computedPreview]);
+    const summaryStats = useMemo<ImportSummaryStats>(
+        () => summarizePreview(computedPreview.previewTransactions),
+        [computedPreview]
+    );
 
     // ========================================================================
     // Return

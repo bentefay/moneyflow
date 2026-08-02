@@ -64,6 +64,69 @@ const XML_OFX_CONTENT = `<?xml version="1.0" encoding="UTF-8"?>
 </BANKMSGSRSV1>
 </OFX>`;
 
+/**
+ * A SYNTHETIC headerless CSV with the reported file's structure: no header row,
+ * `dd/MM/yyyy` dates, every field after the date quoted, two amounts carrying an
+ * explicit leading plus, and a quoted description containing a comma.
+ *
+ * Only the LAST date has a leading field above 12, so the column is day-first
+ * but every value before it is ambiguous in isolation.
+ */
+const HEADERLESS_CSV_CONTENT = [
+    '01/07/2026,"-45.00","COFFEE SHOP   MAIN ST",""',
+    '02/07/2026,"+69.00","PAYMENT RECEIVED, THANK YOU",""',
+    '03/07/2026,"-12.34","GROCERY MART",""',
+    '04/07/2026,"-8.20","BUS FARE",""',
+    '05/07/2026,"+1250.00","SALARY   JULY",""',
+    '06/07/2026,"-99.99","PHONE BILL",""',
+    '07/07/2026,"-23.45","PHARMACY LATE NIGHT",""',
+    '08/07/2026,"-6.13","PARKING",""',
+    '09/07/2026,"-15.75","REFUND DESK",""',
+    '10/07/2026,"-64.10","HARDWARE STORE",""',
+    '11/07/2026,"-19.41","TAXI   AIRPORT",""',
+    '30/06/2026,"-33.07","BAKERY",""'
+].join("\n");
+
+/** The six summary counts, read from the labelled stat cards. */
+interface SummaryCounts {
+    totalRows: number;
+    valid: number;
+    errors: number;
+    duplicates: number;
+    oldNew: number;
+    oldDuplicates: number;
+}
+
+/**
+ * Read a stat card's value by its label.
+ *
+ * The label and value live in sibling spans of one card, so the value is read
+ * from the label's parent rather than by position - the cards reflow across
+ * breakpoints and a positional locator would be reading the layout, not the
+ * count. `exact` matters: "Duplicates (will be marked)" would otherwise also
+ * match "Old Duplicates (excluded)".
+ */
+async function readStatCard(page: Page, label: string): Promise<number> {
+    const card = page.getByText(label, { exact: true }).locator("xpath=..");
+    await expect(card).toBeVisible({ timeout: 15_000 });
+    const text = await card.innerText();
+    const value = /(-?\d+)/.exec(text)?.[1];
+    expect(value).toBeTruthy();
+    return Number(value);
+}
+
+/** Read all six summary counts, asserting each label is present. */
+async function readSummaryCounts(page: Page): Promise<SummaryCounts> {
+    return {
+        totalRows: await readStatCard(page, "Total Rows"),
+        valid: await readStatCard(page, "Valid"),
+        errors: await readStatCard(page, "Errors"),
+        duplicates: await readStatCard(page, "Duplicates (will be marked)"),
+        oldNew: await readStatCard(page, "Old New (excluded)"),
+        oldDuplicates: await readStatCard(page, "Old Duplicates (excluded)")
+    };
+}
+
 const DROP_COLLISION_MARGIN_PX = 8;
 
 // ============================================================================
@@ -1638,6 +1701,153 @@ NEWFILEUID:NONE
         await test.step("cleanup", async () => {
             fs.unlinkSync(csvPath);
             fs.unlinkSync(csvPath2);
+        });
+    });
+
+    /**
+     * UR-008 — a headerless CSV must import without the user configuring
+     * anything, and the summary must name its exclusion reasons distinctly.
+     *
+     * The fixture is SYNTHETIC but reproduces the reported file's STRUCTURE:
+     * no header row, `dd/MM/yyyy` dates, quoted fields, an amount with an
+     * explicit leading plus, and a quoted description containing a comma.
+     *
+     * The date column is sized deliberately. Every value but the last has a
+     * leading field of 12 or less, so it reads equally well as MM/dd/yyyy; only
+     * the final `30/06/2026` settles the column. A detector that samples the
+     * opening rows resolves it wrongly, so this is the shape that distinguishes
+     * whole-column inference from sampling - without needing 622 rows to do it.
+     */
+    test("headerless CSV auto-detects columns and dates and imports with no errors", async ({
+        page
+    }) => {
+        await createNewIdentity(page);
+
+        let csvPath: string;
+
+        await test.step("upload a headerless CSV", async () => {
+            await goToImportNew(page);
+            csvPath = createTestFile(HEADERLESS_CSV_CONTENT, "csv");
+
+            const fileInput = page.locator('input[type="file"]');
+            await fileInput.setInputFiles(csvPath);
+
+            await expect(page.getByText(/12 rows/i)).toBeVisible({ timeout: 15_000 });
+        });
+
+        await test.step("columns are mapped without the user invoking detection", async () => {
+            await page.getByRole("tab", { name: /Columns/i }).click();
+            // Never clicks Auto-detect: detection must already have run on load.
+            await expect(page.getByText(/All required fields mapped/i)).toBeVisible({
+                timeout: 15_000
+            });
+        });
+
+        await test.step("the date format is detected as day-first from the column", async () => {
+            await page.getByRole("tab", { name: /Format/i }).click();
+            await expect(page.getByRole("combobox", { name: /Date Format/i })).toContainText(
+                "15/01/2024"
+            );
+        });
+
+        await test.step("no row is reported as an error", async () => {
+            const summary = page.getByText("Errors", { exact: true }).locator("xpath=..");
+            await expect(summary).toContainText("0", { timeout: 15_000 });
+        });
+
+        await test.step("the six summary categories are present and partition the total", async () => {
+            const counts = await readSummaryCounts(page);
+
+            expect(counts.totalRows).toBe(12);
+            expect(counts.errors).toBe(0);
+            expect(
+                counts.valid +
+                    counts.errors +
+                    counts.duplicates +
+                    counts.oldNew +
+                    counts.oldDuplicates
+            ).toBe(counts.totalRows);
+        });
+
+        await test.step("all twelve rows import, including the leading-plus amounts", async () => {
+            await page.getByRole("tab", { name: /Account/i }).click();
+            const accountSelect = page.locator("#account-select");
+            await accountSelect.click();
+            await page.getByRole("option", { name: /Default/i }).click();
+
+            const importButton = page.getByRole("button", { name: /Import 12 Transactions/i });
+            await expect(importButton).toBeEnabled({ timeout: 15_000 });
+            await importButton.click();
+
+            await expect(page).toHaveURL(/\/transactions/);
+            await expect(page.getByText("12 transactions")).toBeVisible({ timeout: 15_000 });
+            // The row whose quoted description carries a comma kept its columns.
+            await expect(
+                page.getByRole("row", { name: /PAYMENT RECEIVED, THANK YOU/i })
+            ).toBeVisible();
+        });
+
+        await test.step("cleanup", async () => {
+            fs.unlinkSync(csvPath);
+        });
+    });
+
+    /**
+     * UR-008 — re-importing the same activity must name WHY each row is
+     * excluded. A single "old" bucket cannot say whether a row was skipped for
+     * its age or for being one the user already has.
+     */
+    test("re-import names old-new and old-duplicate separately and still partitions", async ({
+        page
+    }) => {
+        await createNewIdentity(page);
+
+        let firstPath: string;
+        let secondPath: string;
+
+        await test.step("import the activity once", async () => {
+            await goToImportNew(page);
+            firstPath = createTestFile(HEADERLESS_CSV_CONTENT, "csv");
+
+            await page.locator('input[type="file"]').setInputFiles(firstPath);
+            await expect(page.getByText(/12 rows/i)).toBeVisible({ timeout: 15_000 });
+
+            await page.getByRole("tab", { name: /Account/i }).click();
+            await page.locator("#account-select").click();
+            await page.getByRole("option", { name: /Default/i }).click();
+
+            const importButton = page.getByRole("button", { name: /Import 12 Transactions/i });
+            await expect(importButton).toBeEnabled({ timeout: 15_000 });
+            await importButton.click();
+            await expect(page).toHaveURL(/\/transactions/);
+            await expect(page.getByText("12 transactions")).toBeVisible({ timeout: 15_000 });
+        });
+
+        await test.step("re-import the same file and read the six counts", async () => {
+            await goToImportNew(page);
+            secondPath = createTestFile(HEADERLESS_CSV_CONTENT, "csv");
+
+            await page.locator('input[type="file"]').setInputFiles(secondPath);
+            await expect(page.getByText(/12 rows/i)).toBeVisible({ timeout: 15_000 });
+
+            const counts = await readSummaryCounts(page);
+
+            expect(counts.totalRows).toBe(12);
+            expect(counts.errors).toBe(0);
+            // Every row is now known, so none is merely "valid".
+            expect(counts.valid).toBe(0);
+            expect(
+                counts.valid +
+                    counts.errors +
+                    counts.duplicates +
+                    counts.oldNew +
+                    counts.oldDuplicates
+            ).toBe(counts.totalRows);
+        });
+
+        await test.step("cleanup", async () => {
+            fs.unlinkSync(firstPath);
+            fs.unlinkSync(secondPath);
         });
     });
 });

@@ -80,18 +80,19 @@ export function ImportSummary({
     selectedAccountName,
     className
 }: ImportSummaryProps) {
-    const { totalRows, validCount, errorCount, duplicateCount, filteredCount } = stats;
+    const { totalRows, validCount, errorCount, duplicateCount, oldNewCount, oldDuplicateCount } =
+        stats;
 
     // Calculate what will actually be imported:
     // Valid + Duplicates are imported (duplicates get duplicateOf set)
-    // Filtered are skipped (old transactions based on mode)
-    // Errors are always skipped
+    // Both old categories are skipped, errors are always skipped
     const willImportCount = validCount + duplicateCount;
+    const excludedAsOldCount = oldNewCount + oldDuplicateCount;
 
     return (
         <div className={cn("space-y-4", className)}>
             {/* Primary stats */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
                 <StatCard
                     label="Total Rows"
                     value={totalRows}
@@ -111,19 +112,25 @@ export function ImportSummary({
                     iconColor="text-destructive"
                     bgColor={errorCount > 0 ? "bg-destructive/5 border-destructive/20" : undefined}
                 />
+                {/* The parenthetical qualifiers are load-bearing: they are what
+                    tell the user whether a category is imported or excluded. */}
                 <StatCard
-                    label="Duplicates"
+                    label="Duplicates (will be marked)"
                     value={duplicateCount}
                     icon={Copy}
                     iconColor="text-amber-600 dark:text-amber-400"
-                    detail={duplicateCount > 0 ? "Will be marked" : undefined}
                 />
                 <StatCard
-                    label="Old"
-                    value={filteredCount}
+                    label="Old New (excluded)"
+                    value={oldNewCount}
                     icon={Clock}
                     iconColor="text-muted-foreground"
-                    detail={filteredCount > 0 ? "Outside date range" : undefined}
+                />
+                <StatCard
+                    label="Old Duplicates (excluded)"
+                    value={oldDuplicateCount}
+                    icon={Clock}
+                    iconColor="text-muted-foreground"
                 />
             </div>
 
@@ -153,11 +160,11 @@ export function ImportSummary({
                                 {duplicateCount !== 1 ? "s" : ""})
                             </span>
                         )}
-                        {filteredCount > 0 && (
+                        {excludedAsOldCount > 0 && (
                             <span className="text-green-700 dark:text-green-300">
                                 {" "}
-                                ({filteredCount} old transaction{filteredCount !== 1 ? "s" : ""}{" "}
-                                filtered)
+                                ({excludedAsOldCount} old transaction
+                                {excludedAsOldCount !== 1 ? "s" : ""} excluded)
                             </span>
                         )}
                     </p>
@@ -173,11 +180,11 @@ export function ImportSummary({
                         ) : willImportCount === 0 ? (
                             <>
                                 No transactions to import.
-                                {filteredCount > 0 && (
+                                {excludedAsOldCount > 0 && (
                                     <>
                                         {" "}
-                                        All {filteredCount} transaction
-                                        {filteredCount !== 1 ? "s are" : " is"} older than the
+                                        All {excludedAsOldCount} transaction
+                                        {excludedAsOldCount !== 1 ? "s are" : " is"} older than the
                                         cutoff date.
                                     </>
                                 )}

@@ -309,54 +309,6 @@ export function DuplicatesTab({
                     )}
                 </div>
 
-                {/* Cutoff type selector */}
-                <div className="space-y-3 rounded-lg border p-4">
-                    <Label>Define &ldquo;old&rdquo; as:</Label>
-                    <Select
-                        value={oldTransactionFilter.cutoffType}
-                        onValueChange={handleCutoffTypeChange}
-                    >
-                        <SelectTrigger className="w-full">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="date">
-                                Transactions older than a specific date
-                            </SelectItem>
-                            <SelectItem value="days">
-                                Transactions older than last import
-                            </SelectItem>
-                        </SelectContent>
-                    </Select>
-
-                    {/* Cutoff value input */}
-                    {oldTransactionFilter.cutoffType === "days" ? (
-                        <div className="flex items-center gap-3">
-                            <Input
-                                type="number"
-                                min={0}
-                                max={365}
-                                value={oldTransactionFilter.cutoffDays}
-                                onChange={handleCutoffDaysChange}
-                                className="w-24"
-                            />
-                            <span className="text-muted-foreground text-sm">
-                                days before newest existing transaction
-                            </span>
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-3">
-                            <Input
-                                type="date"
-                                value={oldTransactionFilter.cutoffDate ?? defaultCutoffDate}
-                                onChange={handleCutoffDateChange}
-                                className="w-44"
-                            />
-                            <span className="text-muted-foreground text-sm">cutoff date</span>
-                        </div>
-                    )}
-                </div>
-
                 {/* Filter mode radio group */}
                 <RadioGroup
                     value={oldTransactionFilter.mode}
@@ -406,6 +358,54 @@ export function DuplicatesTab({
                         </div>
                     </label>
                 </RadioGroup>
+
+                {/* Cutoff type selector */}
+                <div className="space-y-3 rounded-lg border p-4">
+                    <Label>Define &ldquo;old&rdquo; as:</Label>
+                    <Select
+                        value={oldTransactionFilter.cutoffType}
+                        onValueChange={handleCutoffTypeChange}
+                    >
+                        <SelectTrigger className="w-full">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="date">
+                                Transactions older than a specific date
+                            </SelectItem>
+                            <SelectItem value="days">
+                                Transactions older than last import
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    {/* Cutoff value input */}
+                    {oldTransactionFilter.cutoffType === "days" ? (
+                        <div className="flex items-center gap-3">
+                            <Input
+                                type="number"
+                                min={0}
+                                max={365}
+                                value={oldTransactionFilter.cutoffDays}
+                                onChange={handleCutoffDaysChange}
+                                className="w-24"
+                            />
+                            <span className="text-muted-foreground text-sm">
+                                days before newest existing transaction
+                            </span>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-3">
+                            <Input
+                                type="date"
+                                value={oldTransactionFilter.cutoffDate ?? defaultCutoffDate}
+                                onChange={handleCutoffDateChange}
+                                className="w-44"
+                            />
+                            <span className="text-muted-foreground text-sm">cutoff date</span>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );

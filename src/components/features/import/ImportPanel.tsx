@@ -457,7 +457,9 @@ export function ImportPanel({
                             }
                             existingTransactions={existingTransactions}
                             duplicateCount={summaryStats.duplicateCount}
-                            filteredCount={summaryStats.filteredCount}
+                            filteredCount={
+                                summaryStats.oldNewCount + summaryStats.oldDuplicateCount
+                            }
                         />
                     </TabsContent>
 

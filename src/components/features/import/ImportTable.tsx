@@ -50,7 +50,7 @@ export interface ImportTableProps {
 }
 
 /** Status badge variants */
-type RowStatus = "valid" | "invalid" | "duplicate" | "filtered";
+type RowStatus = PreviewTransaction["status"];
 
 // ============================================================================
 // Helper Functions
@@ -90,13 +90,24 @@ function getStatusDisplay(status: RowStatus): {
                 color: "text-amber-600 dark:text-amber-400",
                 label: "Duplicate"
             };
-        case "filtered":
+        case "old-new":
             return {
                 icon: Clock,
                 color: "text-muted-foreground",
-                label: "Old"
+                label: "Old New"
+            };
+        case "old-duplicate":
+            return {
+                icon: Clock,
+                color: "text-muted-foreground",
+                label: "Old Duplicate"
             };
     }
+}
+
+/** Whether a row was excluded for being older than the cutoff. */
+function isExcludedAsOld(status: RowStatus): boolean {
+    return status === "old-new" || status === "old-duplicate";
 }
 
 // ============================================================================
@@ -143,8 +154,8 @@ export function ImportTable({
             // So we need to offset: dataRows[i] corresponds to rawRows[i + 1] when hasHeaders
             const originalRowIndex = hasHeaders ? i + 1 : i;
             const preview = previewTransactions.find((tx) => tx.rowIndex === originalRowIndex);
-            // Skip filtered transactions if showFiltered is false
-            if (!showFiltered && preview?.status === "filtered") {
+            // Skip rows excluded as old if showFiltered is false
+            if (!showFiltered && preview != null && isExcludedAsOld(preview.status)) {
                 continue;
             }
             result.push({
@@ -159,6 +170,10 @@ export function ImportTable({
 
     const truncated = rawRows.length > maxDisplayRows;
 
+    // Both old categories are excluded for age, so the visibility toggle covers
+    // them together even though the summary counts them separately.
+    const excludedAsOldCount = stats.oldNewCount + stats.oldDuplicateCount;
+
     // Calculate number of columns for each section
     const rawColCount = rawHeaders.length;
     const previewColCount = 4; // Status, Date, Description, Amount
@@ -166,7 +181,7 @@ export function ImportTable({
     return (
         <div className={cn("flex flex-col", className)}>
             {/* Filtered toggle */}
-            {stats.filteredCount > 0 && onToggleFiltered && (
+            {excludedAsOldCount > 0 && onToggleFiltered && (
                 <div className="text-muted-foreground mb-2 flex items-center justify-end gap-2 text-xs">
                     <button
                         type="button"
@@ -176,12 +191,12 @@ export function ImportTable({
                         {showFiltered ? (
                             <>
                                 <Eye className="h-3.5 w-3.5" />
-                                Showing {stats.filteredCount} old transactions
+                                Showing {excludedAsOldCount} old transactions
                             </>
                         ) : (
                             <>
                                 <EyeOff className="h-3.5 w-3.5" />
-                                Hiding {stats.filteredCount} old transactions
+                                Hiding {excludedAsOldCount} old transactions
                             </>
                         )}
                     </button>
@@ -255,7 +270,9 @@ export function ImportTable({
                         {displayData.map(({ rowIndex, rawRow, preview }) => {
                             const status = preview ? getRowStatus(preview) : null;
                             const statusDisplay = status ? getStatusDisplay(status) : null;
-                            const isExcluded = status === "filtered" || status === "duplicate";
+                            const isExcluded =
+                                status != null &&
+                                (isExcludedAsOld(status) || status === "duplicate");
 
                             return (
                                 <tr

@@ -151,7 +151,7 @@ export const DEFAULT_FORMATTING_SETTINGS: FormattingSettings = {
     thousandSeparator: ",",
     decimalSeparator: ".",
     dateFormat: "yyyy-MM-dd",
-    collapseWhitespace: false
+    collapseWhitespace: true
 };
 
 // ============================================================================
@@ -207,9 +207,28 @@ export const DEFAULT_IMPORT_CONFIG: ImportConfig = {
 // ============================================================================
 
 /**
- * Status of a transaction in the preview.
+ * Outcome of a row in the preview.
+ *
+ * These five cases are exhaustive and mutually exclusive, so every row carries
+ * exactly one of them. That is what makes the summary counts a true partition
+ * of the total: they are counts of a single field, not independently
+ * accumulated tallies that could double-count a row or miss one.
+ *
+ * - "valid": parses, not a duplicate, will be imported
+ * - "invalid": does not parse, will not be imported
+ * - "duplicate": parses, matches an existing transaction, imported and marked
+ * - "old-new": older than the cutoff and not a duplicate, excluded
+ * - "old-duplicate": older than the cutoff and a duplicate, excluded
+ *
+ * The two "old" cases are distinct because a single "old" bucket cannot say
+ * why a row was excluded, which is the ambiguity the user reported.
  */
-export type PreviewTransactionStatus = "valid" | "invalid" | "duplicate" | "filtered";
+export type PreviewTransactionStatus =
+    | "valid"
+    | "invalid"
+    | "duplicate"
+    | "old-new"
+    | "old-duplicate";
 
 /**
  * A transaction as displayed in the import preview.
@@ -320,16 +339,60 @@ export interface ImportSession {
 
 /**
  * Summary statistics for the import preview.
+ *
+ * The four outcome counts plus `errorCount` partition `totalRows`: each row is
+ * counted under exactly one, so they always sum to the total. Anything that
+ * adds a count here must come with a matching `PreviewTransactionStatus`, or
+ * the partition stops holding.
  */
 export interface ImportSummaryStats {
     /** Total rows in the file */
     totalRows: number;
-    /** Rows that will be imported */
+    /** Rows that parse, are not duplicates, and will be imported */
     validCount: number;
-    /** Rows with validation errors */
+    /** Rows with validation errors, not imported */
     errorCount: number;
-    /** Rows flagged as duplicates */
+    /** Rows that duplicate an existing transaction, imported and marked */
     duplicateCount: number;
-    /** Rows filtered out by old transaction filter */
-    filteredCount: number;
+    /** Rows older than the cutoff that are NOT duplicates, excluded */
+    oldNewCount: number;
+    /** Rows older than the cutoff that are ALSO duplicates, excluded */
+    oldDuplicateCount: number;
+}
+
+/**
+ * Count preview rows into the summary categories.
+ *
+ * Written as one pass over a single `status` field, with an exhaustive switch,
+ * so the counts cannot drift out of partition: adding a status without a
+ * matching count is a compile error, and no row can be counted twice because
+ * each contributes to exactly one branch.
+ */
+export function summarizePreview(
+    previewTransactions: readonly PreviewTransaction[]
+): ImportSummaryStats {
+    return previewTransactions.reduce<ImportSummaryStats>(
+        (counts, preview) => {
+            switch (preview.status) {
+                case "valid":
+                    return { ...counts, validCount: counts.validCount + 1 };
+                case "invalid":
+                    return { ...counts, errorCount: counts.errorCount + 1 };
+                case "duplicate":
+                    return { ...counts, duplicateCount: counts.duplicateCount + 1 };
+                case "old-new":
+                    return { ...counts, oldNewCount: counts.oldNewCount + 1 };
+                case "old-duplicate":
+                    return { ...counts, oldDuplicateCount: counts.oldDuplicateCount + 1 };
+            }
+        },
+        {
+            totalRows: previewTransactions.length,
+            validCount: 0,
+            errorCount: 0,
+            duplicateCount: 0,
+            oldNewCount: 0,
+            oldDuplicateCount: 0
+        }
+    );
 }

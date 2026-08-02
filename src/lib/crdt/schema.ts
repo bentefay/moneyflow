@@ -23,7 +23,11 @@
 
 import { schema } from "loro-mirror";
 
-import { DEFAULT_DUPLICATE_DETECTION_SETTINGS, DEFAULT_FILTER_SETTINGS } from "@/lib/import/types";
+import {
+    DEFAULT_DUPLICATE_DETECTION_SETTINGS,
+    DEFAULT_FILTER_SETTINGS,
+    DEFAULT_FORMATTING_SETTINGS
+} from "@/lib/import/types";
 
 import {
     DEFAULT_ACCOUNT_TYPE,
@@ -239,7 +243,9 @@ export const importTemplateSchema = schema.LoroMap({
         thousandSeparator: schema.String({ defaultValue: "," }),
         decimalSeparator: schema.String({ defaultValue: "." }),
         dateFormat: schema.String({ defaultValue: "yyyy-MM-dd" }),
-        collapseWhitespace: schema.Boolean({ defaultValue: false })
+        collapseWhitespace: schema.Boolean({
+            defaultValue: DEFAULT_FORMATTING_SETTINGS.collapseWhitespace
+        })
     }),
     duplicateDetection: schema.LoroMap({
         dateMatchMode: richSchema.StringEnum(["exact", "within"], {

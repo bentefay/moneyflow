@@ -179,9 +179,11 @@ export function parseNumber(
         cleaned = cleaned.slice(1, -1);
     }
 
-    // Handle minus sign
+    // Handle an explicit sign. A leading "+" is redundant but banks emit it to
+    // mark credits, and without this branch it survives into the magnitude
+    // check, which rejects it - turning every credit row into a parse error.
     const hasMinusPrefix = cleaned.startsWith("-");
-    if (hasMinusPrefix) {
+    if (hasMinusPrefix || cleaned.startsWith("+")) {
         cleaned = cleaned.slice(1);
     }
 
