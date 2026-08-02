@@ -413,6 +413,7 @@ export function ImportPanel({
                             dataRows={session.rawRows.slice(
                                 session.config.formatting.hasHeaders ? 1 : 0
                             )}
+                            hasRealHeaders={session.config.formatting.hasHeaders}
                             columnMappings={session.config.columnMappings}
                             onMappingsChange={(mappings) => setConfig({ columnMappings: mappings })}
                         />

@@ -2,8 +2,12 @@
 
 - **Requirement:** UR-008, frozen at `specs/010-user-reported-refinements-2/spec.md` lines 56-86
 - **Base:** `4c77a2dd6b61a9ab5e58c032d0b0242e579c75f7`
-- **Commits:** `fcd736f` product + unit tests + E2E spec, `077d5dd` MappingTab auto-detect parity,
-  `f98d3a5`/`23d0d80` evidence, plus this campaign record
+- **Rev 02 BASE:** `74b37f9a4c490c4b31560a83c131b6f7e55965c7`
+- **Rev 03 BASE:** `ee3cce75ba474b226a2416a4be0be784ddf9bd7a`
+- **Rev 03 commits:** `05bada5` no-amount-column fix, `273db5f` pinning and threshold tests,
+  `6e4bf32` pattern-site warning, plus this campaign record
+- **Rev 02 commits:** `b7cc398` amount-column fix, `43836b0` value-level tests, `ee3cce7` evidence
+- **Rev 01 commits:** `fcd736f`, `077d5dd`, `f98d3a5`, `23d0d80`, `3b76490` (rebased by root)
 - **Worktree:** `/tmp/mf-p29`, branch `worktree-p29-ur008`
 
 Statements below are labelled: **Observed** means I ran it and read the output; **Inferred** means I
@@ -118,10 +122,18 @@ two routines answering differently for the same file would be a new defect.
 
 **Observed.** They diverged, and in the harmful direction:
 
-| file         | on load (value-driven)            | Auto-detect button (header names) |
-| ------------ | --------------------------------- | --------------------------------- |
-| headerless   | `{0:date,1:amount,2:description}` | **`{}`**                          |
-| with headers | `{0:date,1:description,2:amount}` | `{…,3:balance}`                   |
+| file         | on load, rev 01 as written        | Auto-detect button, rev 01 as written       |
+| ------------ | --------------------------------- | ------------------------------------------- |
+| headerless   | `{0:date,1:amount,2:description}` | **`{}`**                                    |
+| with headers | `{0:date,1:description,2:amount}` | `{0:date,1:description,2:amount,3:balance}` |
+
+**Corrected in rev 02 (review finding F-3).** The headered row as first written recorded the
+button's `3:balance` but said nothing about the fact that **the LOAD path had stopped producing it
+too**, relative to BASE. That was silent exactly where a regression lived: rev 01's value-driven
+detector emitted only date/amount/description, so `balance`, `merchant`, `memo` and `checkNumber`
+were dropped for every headered file. The row above is not false, but reading it as a
+button-versus-load comparison obscured a loss both paths shared. That regression is F-2, fixed in
+rev 02 and described in §1.4.3.
 
 On a headerless file the button returned `{}` and `onMappingsChange` overwrites wholesale, so
 **clicking Auto-detect would have WIPED the mappings the load had just got right.** That is worse
@@ -137,6 +149,317 @@ back door.
 `tests/unit/components/mapping-tab-auto-detect.test.tsx` renders the real component and clicks the
 real button. **Observed at BASE:** `expected "vi.fn()" to be called with arguments: [ Array(1) ]` —
 BASE calls back with `{}`.
+
+### 1.4.3 REV 02 — my detector bound the AMOUNT role by POSITION, and imported the wrong column as money
+
+Review finding F-1, upheld. **This is the defect §1.4.2 below warns about, committed by the very
+code that section describes** — I wrote the general lesson and then shipped an instance of it.
+
+**Reproduced independently before fixing.** Running rev 01's detector at the rev 02 BASE `74b37f9`,
+**observed**:
+
+| file                               | column bound to `amount` | values imported as money       |
+| ---------------------------------- | ------------------------ | ------------------------------ |
+| `Date,Check No,Description,Amount` | col 1, **"Check No"**    | `1001`, `1002`, `1003`         |
+| `Date,Description,Balance,Amount`  | col 2, **"Balance"**     | `1000.00`, `924.75`, `3424.75` |
+
+Every row reports `status: valid` and `errorCount: 0`. **Silently wrong money, presented as
+success** — and a REGRESSION, since the header-name detector rev 01 replaced handled both correctly.
+
+**Mechanism, confirmed and deterministic — not a tie-break accident.** `bestColumn` ranked with
+`entry.rate > best.rate`, which is strictly greater, so an equal-scoring later column never
+displaces an earlier one: **the leftmost qualifying column always won.** A check number and a real
+amount column both score 1.0 against `looksLikeAmount`, so the wrong column won every time, on every
+run.
+
+**TWO comments of mine were actively misleading, and both are fixed.**
+
+_The first, at `detection.ts:243-245`_, claimed a protection the code did not provide: "columns that
+read as amounts are set aside first, so a trailing balance column does not win the role". That
+set-aside fed only the DESCRIPTION selection; **nothing whatsoever protected the amount role.**
+
+_The second, at `bestColumn`'s docstring `:201-202`_, was found by the reviewer and is **the more
+consequential of the two**: "Ties fall to the leftmost column, which matches the order a bank export
+conventionally puts its columns in." That is **the assumption F-1 falsifies, written as a
+justification**. It reads as a considered decision rather than an oversight, so it is the more
+likely of the two to have stopped a reader — or a reviewer — from looking further. It is also
+factually wrong for exactly the cases that matter: a check number and a running balance are
+_conventionally_ placed left of or adjacent to the amount, which is precisely why they won.
+
+Both are now rewritten to describe what the code does and to name the case it cannot handle.
+`bestColumn`'s docstring states outright that leftmost-ties are inadequate for the amount role and
+points to `bestAmountColumn`. Prose asserting a property the code does not enforce is worse than no
+comment, because it suppresses the question — it suppressed mine.
+
+#### The fix, and why it is not just a better tie-break
+
+The amount column is now chosen on **evidence that distinguishes money from a number that merely
+looks like one**, ranked in this order:
+
+1. **A header naming or disowning the column** (`Amount`/`Debit`/`Credit` versus
+   `Balance`/`Check No`/`Ref`). Strongest when present.
+2. **Signs** — `-5.50` or `(5.50)` is money; a check number is never signed.
+3. **Minor units** — `-5.50` is money; `1001` is an identifier.
+
+Position now breaks only a tie where columns are equal on all three, i.e. where there is genuinely
+nothing else to go on.
+
+**Why headers are consulted at all, given the requirement says "identifies each column from its
+values".** Two columns of the shape `Balance` and an all-positive `Amount` are **identical by
+value** — same sign profile, same minor units, same magnitude class. No values-only rule can
+separate them, so a values-only detector must get one of them wrong. Re-reading the frozen text at
+`spec.md:70-74`: it requires detection to run automatically, to identify columns from values, and to
+work **on a file that has no header row**. It nowhere requires that a header be _ignored when the
+file has one_. Rev 01 discarded that evidence, which was my error. Headers are therefore used only
+to break ties the values cannot, and are passed **only when the file genuinely has them** — the
+parser synthesises `"Column 1", "Column 2", …` for a headerless file, and feeding those in would be
+noise.
+
+**The headerless case still works from values alone. Observed:** a headerless file whose second
+column is check numbers and whose fourth is amounts resolves to `{0:date, 2:description, 3:amount}`
+— correct, with no header evidence available, because the amount carries signs and minor units and
+the check number carries neither.
+
+#### F-2 — the secondary roles, restored
+
+Rev 01's detector emitted only `date`, `amount` and `description`, silently dropping `merchant`,
+`memo`, `checkNumber` and `balance` for headered files. **Verified the reviewer's blast-radius
+finding rather than accepting it:** the live preview path reads only `date`, `amount` and
+`description` (`use-import-state.ts:686,701,725`), and `processCSVImport` — which does read the
+others — is **called from no product code**, only from tests that pass mappings explicitly. So no
+imported value changed. It was a UX regression, not corruption.
+
+Fixed rather than argued away, because the roles are visible and settable in the mapping UI and
+losing them silently degrades it. These roles have **no distinguishing value shape** — a memo is
+just text, a check number just digits — so a header name is the only possible evidence, and they are
+recovered from headers or not at all. They are additive: a column already holding a core role is
+never reassigned, and a headerless file gains none. **Observed:**
+`Date,Check No,Merchant,Memo,Amount,Balance` →
+`{0:date, 1:checkNumber, 2:description, 3:memo, 4:amount, 5:balance}`.
+
+### 1.4.4 REV 03 — the fix for F-1 overrode the header exactly where it was unambiguous
+
+Review finding F-4, upheld. **This is the third time in this package that §1.4.2's failure mode has
+described something the package then shipped, and the second time my own fix introduced it.**
+
+`bestAmountColumn` ranked candidates preferring those a header does not disown, then fell back:
+
+```ts
+const preferred = evidence.filter((entry) => entry.headerSays !== "not-amount");
+const ranked = preferred.length > 0 ? preferred : evidence; // <- the defect
+```
+
+`NON_AMOUNT_HEADER_PATTERN` exists to say _this column is not the money_. When **every** qualifying
+column is disowned, `preferred` is empty and the fallback used the disowned columns anyway — the
+code overrode the header precisely where the header was unambiguous.
+
+**Reproduced through the real `loadFile` before fixing. Observed at `ee3cce7`:**
+
+| file                        | mappings                              | imported         | errors |
+| --------------------------- | ------------------------------------- | ---------------- | ------ |
+| `Date,Description,Balance`  | `{0:date,1:description,2:**amount**}` | `100000, 92475`  | **0**  |
+| `Date,Description,Check No` | `{0:date,1:description,2:**amount**}` | `100100, 100200` | **0**  |
+| `Date,Description,Ref`      | `{0:date,1:description,2:**amount**}` | `100100, 100200` | **0**  |
+
+Running balances and check numbers imported as transaction amounts, every row valid.
+
+**A REGRESSION against this package's original BASE `4c77a2d`, which I verified directly** rather
+than inferring from the review. Running the same three files through `4c77a2d`'s `loadFile`:
+
+```
+Balance only   map={0:date, 1:description, 2:balance}      valid=0  errors=2
+Check No only  map={0:date, 1:description, 2:checkNumber}  valid=0  errors=2
+Ref only       map={0:date, 1:description}                 valid=0  errors=2
+```
+
+The original produced **visible errors**; rev 02 produced silent wrong money.
+
+**The fix**, as specified by the review and endorsed by the coordinator: when every qualifying
+column is disowned, **return `null`**. There is no correct amount in such a file, so the only
+defensible outcomes are "leave it unmapped and let the rows surface as errors" or "import wrong
+money silently" — and `spec.md:80-81` requires that every row reported as an error be genuinely
+unparseable, which a row with no amount at all is.
+
+**Verified the fix restores the original behaviour rather than merely satisfying the new test.**
+After the change, the same three files produce mappings, valid counts and error counts **identical
+to `4c77a2d`'s**, including `Ref` leaving column 2 entirely unmapped.
+
+**Independently corroborated by the coordinator**, who printed the post-fix values rather than
+asserting remembered ones and obtained `2:balance`, `2:checkNumber`, and nothing for `Ref` — column
+for column with the original BASE. Worth recording because their probe's _assertion_ had expected
+those keys to be absent entirely, which was never the requirement and does not match `4c77a2d`
+either: the disowned column keeps the honest secondary role its header names. **The probe was a bad
+oracle and the code was correct** — a distinction only visible because the actual value was printed
+before the expectation was trusted.
+
+Note the fix is **not** to extend the denylist. My rev 02 self-assessment called
+`NON_AMOUNT_HEADER_PATTERN` the weakest surface because a denylist is incomplete by construction —
+that was right about the class of risk and wrong about the instance. The bug was not a missing
+entry; it was **overriding the denylist when it fired**. Extending the list would not have touched
+it.
+
+#### The blindness recurred one level down, inside the helper written to fix it
+
+All **six** assertions in `ur-008-amount-column.test.tsx` — the value-level tests I added in rev 02
+precisely to escape mapping-shaped blindness — **would still pass with F-4 present.** Every fixture
+contains a genuine `Amount` column, so `preferred` is never empty and the fallback branch is never
+reached. Confirmed by inspection: the only headers those fixtures use are
+`Date,Check No,Description,Amount`, `Date,Description,Balance,Amount` and
+`Date,Description,Amount,Balance`.
+
+I diagnosed the mapping-shaped version of this as the `Q-P28-03` family and then reproduced it one
+level down. The generalisation I had been carrying — "assert values, not the selection" — was too
+narrow. The correct form is: **a fixture set must vary along every axis the code branches on, and a
+branch you ADD is a new axis that no existing fixture covers.** Adding the `preferred.length > 0`
+fallback created an axis, and I added no fixture that reached it.
+
+Rev 03 adds four fixtures with **no amount column at all**, asserting through `loadFile` that no
+amount is imported and `errorCount` equals the row count. **Observed at `ee3cce7`:** all four fail —
+three with `expected 2 to be +0` on the valid count, one with
+`expected [ 'date', 'description', 'amount' ] to not include 'amount'`.
+
+### 1.4.5 REV 03 — three decisions recorded rather than left implicit
+
+#### The synthesised-header guard is PINNED, not removed
+
+`use-import-state.ts:373` passes `fileHasHeaders ? headers : []`, so the `"Column 1", "Column 2", …`
+names `parseCSV` synthesises for a headerless file never reach detection.
+
+That guard is **inert today**, and the coordinator's first instruction offered **removing it with an
+explanation of why it was never needed** as an equally valid option, then retracted that after the
+rev 02 reviewer objected. I only ever received the retraction, so I acted on the corrected
+instruction — but recording the retracted one matters, because **I would probably have taken the
+removal option had it arrived alone.** It reads as the tidier choice, and nothing in it would have
+prompted me to ask the question that decides it: _is this inert by construction, or by coincidence?_
+Removing a guard because it currently does nothing is how the F-1 class returns through a door
+somebody opened for good reasons.
+
+The correction is right and the reason is worth stating:
+
+**the guard is inert by coincidence of the current regexes, not by construction.** "Column 1"
+matches none of `AMOUNT_HEADER_PATTERN`, `NON_AMOUNT_HEADER_PATTERN` or `SECONDARY_ROLE_PATTERNS` as
+they stand. **Observed**, testing candidate widenings directly rather than asserting a vague risk:
+
+| hypothetical pattern | matches `"Column 1"` |
+| -------------------- | -------------------- |
+| `/col/i` unanchored  | **true**             |
+| `/\bcolumn\b/i`      | **true**             |
+| `/\bcol\b/i`         | false                |
+| `/\bno\b/i`          | false                |
+
+An unanchored `/col/i`, or a `\bcolumn\b` alias added for real files headed "Col" or "Column", both
+match the placeholder. **Naming the two specific unsafe shapes is what makes the fence
+maintainable** — the next person can check a new pattern against a stated list rather than
+re-deriving the argument — so that list now also sits as a comment on `AMOUNT_HEADER_PATTERN`
+itself, where somebody adding a pattern will actually encounter it, with a pointer to the test.
+Either would start feeding synthesised names into amount selection as if they were header evidence —
+the F-1 class arriving through a door removed because it looked idle.
+
+So it is pinned by a test asserting **placeholders produce the same answer as no headers at all**.
+That test **cannot currently fail, deliberately**, and its comment says so and says why, so a future
+reader does not delete it as dead weight for exactly the reason the removal was nearly instructed. A
+guard unreachable _by construction_ is dead code; one unreachable _by coincidence of data_ is a
+regression fence.
+
+#### The unnamed-amount nearest neighbour: a design limit, accepted deliberately
+
+The reviewer measured ten headers the denylist does not know — `Running Total`, `Closing Bal`,
+`Ledger`, `Doc No`, `Transaction ID`, `Account No`, `Units`, `Rate` — beside a genuine `Amount`
+column, signed and all-positive: **20/20 correct, 0 errors.** The structural reason is that
+`detection.ts:324-325` settles outright when `AMOUNT_HEADER_PATTERN` names exactly one column, so an
+**allowlist hit fires before the denylist matters** whenever the amount column is conventionally
+named — the common real case. My rev-02 worry that denylist incompleteness was the weakest surface
+was therefore over-stated for that class.
+
+There is a residual case: when the amount column is **also** unrecognised (`Movement`, `Posting`,
+`Txn`) **and** every value is positive, neither the header nor the values carry any signal, so
+position decides and a balance can win.
+
+**Decision, recorded as a choice rather than left as an omission: I am not fixing this, and I agree
+with the reviewer's reason for not raising it as a finding.** The distinction that governs it is
+_overriding available evidence is a defect; guessing when none exists is a design limit._ F-1 and
+F-4 were both the former — the file carried evidence and the code ignored or overrode it. Here the
+file carries none: two columns of unsigned decimals under two unrecognised headers are genuinely
+indistinguishable, and any rule would be a guess. The honest alternatives would be to leave every
+such file unmapped, which harms the many files where position happens to be right, or to widen the
+allowlist, which only moves the boundary. If this is ever reported by a real user, the fix is an
+allowlist entry for their bank's header, not a change of rule.
+
+#### The classification threshold is now pinned
+
+The reviewer swept `CLASSIFICATION_THRESHOLD` across 0.4, 0.5, 0.6, 0.75, 0.85, 0.95, 0.99 and 1.0
+and found **310 tests passing at every value** — no test distinguished 0.4 from 1.0, because every
+fixture's columns match at ~100% or ~0% and the threshold never falls between two candidates. It was
+not merely the least-forced number in the file; it was **entirely unconstrained**.
+
+Two tests now pin the cliff on a 20-row column of deliberately mixed parseability. **Observed**, by
+sweeping the bad-row count rather than assuming where the boundary sat:
+
+```
+bad= 3/20  rate=0.85  -> amount bound
+bad= 4/20  rate=0.80  -> amount bound      <- pinned
+bad= 5/20  rate=0.75  -> amount UNMAPPED   <- pinned
+bad= 6/20  rate=0.70  -> amount UNMAPPED
+```
+
+**Verified these tests actually discriminate**, by mutating the constant: at `0.5` and at `0.95` one
+of the pair fails; both pass only at `0.8`. The constant was restored and the tree re-checked clean.
+
+Note the failure direction, which is why an imperfect threshold is tolerable: below it the role is
+left **unmapped and the rows report as errors**, never degraded to a wrong column. It fails safe, in
+the same direction F-4 was fixed to fail.
+
+#### Why rev 01's suite did not catch F-1 — the assertion was BLIND, not merely unlucky
+
+My first reading was that the fixture was unlucky: `ur-008-csv-parity.test.ts` pinned
+`Date,Description,Amount,Balance`, the one arrangement where the correct column is already leftmost
+among the numeric ones, so the buggy rule and the correct rule agree.
+
+**The reviewer's addendum showed that understates it, and it is right.** The assertion compares
+COLUMN MAPPINGS, and at BASE the same three rows in two arrangements produce the _same mapping_:
+
+```
+Date,Description,Amount,Balance  ->  {"0":"date","1":"description","2":"amount"}
+Date,Description,Balance,Amount  ->  {"0":"date","1":"description","2":"amount"}
+```
+
+Index 2 is the **Amount** in the first file and the **Balance** in the second. A mapping-shaped
+assertion **cannot distinguish the correct answer from the defective one at all** — so a new fixture
+carrying the same assertion shape would have been blind in exactly the same way, and I would have
+shipped a second green suite over the same defect.
+
+**Rev 02's tests therefore assert the IMPORTED AMOUNTS, driven through the real
+`useImportState.loadFile`, not the mapping.** Only the values separate `-550, -7525, 250000` from
+`100100, 100200, 100300`. `tests/unit/import/ur-008-amount-column.test.tsx` holds them.
+
+**Observed at BASE `74b37f9`**, which is the proof that the tests bite:
+
+| fixture                                     | BASE imported            | expected              |
+| ------------------------------------------- | ------------------------ | --------------------- |
+| check number left of amount                 | `100100, 100200, 100300` | `-550, -7525, 250000` |
+| running balance left of amount              | `100000, 92475, 342475`  | `-550, -7525, 250000` |
+| all-positive, header the only discriminator | `100000, 92475, 342475`  | `550, 7525, 250000`   |
+| headerless, check number left of amount     | `100100, 100200, 100300` | `-550, -7525, 250000` |
+
+Four of the six fail at BASE with **wrong money**, not with an absent key. The two that pass are the
+arrangement where the naive rule happens to agree, kept deliberately so both orders are pinned, and
+the error-count assertion — which passes at BASE precisely because **a wrong-column import also
+reports zero errors**, which is what makes the defect dangerous rather than visible.
+
+The general lesson, and the one I would apply again: **when code selects among candidates, assert
+the OUTCOME the selection feeds, not the selection itself** — and build the fixture so the correct
+candidate sits in a losing position. An assertion over the selection can be invariant across exactly
+the arrangements the defect distinguishes. This is the `Q-P28-03` family.
+
+**A credit correction I want on the record.** The parity test at `:436-474` does reach a value-level
+assertion by a different route — it derives `amountIndex` from detection, parses the values there,
+and compares against `processOFXImport` — and it would have caught a divergence. **I did not write
+it that way deliberately for this defect, and it is not what protected the tests I wrote for it.**
+The five fixtures I authored in the first pass at rev 02 all asserted `expect(mappings["N"])`, and
+every one of them would have been blind exactly as the addendum warned. The property was satisfied
+incidentally by an older test; my new tests satisfied nothing until I replaced their assertion
+shape. Recording this because "the property was already satisfied" would be a true sentence that
+gives a false impression of the care taken.
 
 ### 1.4.2 Two places where fixing the reported bug would have made things WORSE
 
@@ -342,7 +665,7 @@ to check without doing the checking.
 | `typecheck`    | **PASS**                                                          |
 | `lint`         | **PASS**, 0 errors                                                |
 | `format:check` | **17** pre-existing frozen `specs/**` files, **none a P29 file**  |
-| `test`         | **PASS** — 2316 passed, 2 skipped, 122 files                      |
+| `test`         | **PASS** — 2389 passed, 2 skipped, 123 files                      |
 | `test:e2e`     | **PASS** — 3 consecutive full-suite runs, 177 passed each, see §6 |
 
 The `lint` figure above is the **bare `pnpm lint` from the repo root**, not a filtered run over my
@@ -415,26 +738,69 @@ process anywhere, load average 2.95. An orphaned `next-server (v16.2.6)` (PID 36
 cwd) was present; **observed** to bind no listening port and not to be mine, so it was left alone.
 The human's dev server on `:3001` was never touched.
 
-### Results
+### Results — REV 03, at `6e4bf32`
 
 | run | result         | duration | load at start | tree digest |
 | --- | -------------- | -------- | ------------- | ----------- |
-| 1   | **177 passed** | 4.6m     | 2.08          | `8443fde8`  |
-| 2   | **177 passed** | 4.4m     | 6.94          | `8443fde8`  |
-| 3   | **177 passed** | 4.1m     | 7.20          | `8443fde8`  |
+| 1   | **177 passed** | 4.4m     | 4.08          | `b7ad2af8`  |
+| 2   | **177 passed** | 4.4m     | 6.56          | `b7ad2af8`  |
+| 3   | **177 passed** | 4.1m     | **21.20**     | `b7ad2af8`  |
 
-**Zero failures across all three runs.** None of the three recorded load-sensitive assertions fired.
-Runs 2 and 3 began at load average ~7, so these passes are not an artefact of a quiet machine.
+**Zero failures across all three runs.** A scan of all three logs for `N failed`, `✘`,
+`Error: expect` and `timed out` returns nothing, and none of the three recorded load-sensitive
+assertions fired.
+
+**Run 3 began at load average 21.20** — heavy work from another process started on the box between
+runs 2 and 3; nothing of mine was running besides the campaign. It is disclosed rather than quietly
+banked because that load is exactly the condition this goal treats as campaign-invalidating: a RED
+under it would have been unprovable in either direction and the campaign discarded. It went green,
+in the fastest of the three runs at 4.1m, so the pass is if anything stronger than a quiet-box pass
+— but the condition existed and a reviewer should read it here rather than discover it in the log.
+
+**The coordinator traced the source and it was EXTERNAL to this repo** — a node workload at 211% CPU
+whose cwd lies outside `/home/ben-agents/Code/moneyflow`, already exited by the time it was chased.
+Not P30, not P31, not any agent on this goal, so no CPU-discipline rule was broken by anyone.
+
+**The coordinator also checked all three recorded load-sensitive assertions across all three logs —
+`transactions.spec.ts:804`, `duplicates.test.ts:749` and `vault-maintenance.test.tsx` — and none
+fired in any run.** Those are precisely the assertions that break under contention, and run 3 put
+them under load 21 and they held. That is the concrete reason this campaign is stronger evidence
+than a quiet-box one: it demonstrates the suite is not merely passing because the machine was idle.
+Recorded as the coordinator's measurement, not mine.
+
+**177, not 182.** `playwright test --list` reported 177 immediately before the campaign and every
+run reports `177 passed`. Rev 03 touches no E2E spec — `git diff ee3cce7 HEAD -- tests/e2e` is empty
+— so this campaign re-validates the same E2E surface against a **changed unit surface**, which is
+the expected shape. A count of 182 would have meant another package's tests had crossed into this
+tree and was pre-agreed as a stop-and-report condition.
+
+Logs at `/tmp/p29r3-e2e-run{1,2,3}.log`, digests at `/tmp/p29r3-digest-{pre,post}.txt`, unit log at
+`/tmp/p29r3-final-unit.log`.
+
+Superseded campaigns, both also clean: rev 02 ran 3×177 at digest `0e58fc49`, rev 01 at `8443fde8`.
+
+### Mutation hygiene: the tree was provably unmutated before the digest
+
+The threshold pinning tests (§1.4.5) required mutating `CLASSIFICATION_THRESHOLD` to 0.5 and 0.95 to
+prove they discriminate. A mutation test that leaves the tree dirty **contaminates the campaign it
+was meant to support**, so the restoration was verified rather than assumed:
+
+**Observed:** `git diff --quiet` PASS and `git status --porcelain` empty, checked twice — once
+before any gate ran, and again immediately before the pre-campaign digest was taken. The digest
+therefore provably covers an unmutated tree.
+
+Recording the distinction because my first instinct was weaker: I had confirmed `git diff --stat` on
+the _mutated file_ was empty, which is a claim about one file, not about the tree.
 
 ### Tree stability
 
-Digest `8443fde82c70fce74e90ef1ccce91d2d`, over every `src/` and `tests/` `.ts`/`.tsx` file
+Digest `b7ad2af8a9765058376f02e8bbccbaaf`, over every `src/` and `tests/` `.ts`/`.tsx` file
 **excluding `next-env.d.ts`**, verified before run 1 and again after run 3. **Identical**, so this
 campaign is evidence for exactly the tree that ran.
 
 `next dev` rewrote `next-env.d.ts` during the campaign, which is why it is excluded — it is a
 regenerated artefact, and including it would show drift on every multi-run campaign. It was restored
-with `git checkout --` afterwards, leaving the tree clean at `23d0d80`.
+with `git checkout --` afterwards, leaving the tree clean at `6e4bf32`.
 
 ### The new tests executed, rather than being counted
 

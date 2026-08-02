@@ -358,11 +358,20 @@ export function useImportState(options: UseImportStateOptions): UseImportStateRe
                     config = { ...config, columnMappings: OFX_COLUMN_MAPPINGS };
                 } else if (!recentTemplate) {
                     // For CSV files without a template, identify the columns from
-                    // their VALUES. Header names are not evidence a headerless
-                    // file can offer, and such a file is exactly the case where
-                    // the user would otherwise have to map every column by hand.
+                    // their VALUES, which is the only evidence a headerless file
+                    // offers and exactly the case where the user would otherwise
+                    // have to map every column by hand.
+                    //
+                    // Real header names are passed only when the file HAS them:
+                    // `headers` is synthesised as "Column 1", "Column 2", ... for
+                    // a headerless file, and feeding those in would be noise.
+                    // They break ties the values cannot - a running balance and
+                    // an all-positive amount column look identical by value.
                     const dataRows = fileHasHeaders ? rawRows.slice(1) : rawRows;
-                    const columnMappings = detectColumnMappingsFromValues(dataRows);
+                    const columnMappings = detectColumnMappingsFromValues(
+                        dataRows,
+                        fileHasHeaders ? headers : []
+                    );
                     config = {
                         ...config,
                         columnMappings,

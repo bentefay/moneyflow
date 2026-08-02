@@ -148,6 +148,37 @@ export function inferDateFormat(values: readonly string[]): string | null {
 }
 
 /**
+ * Whether a value carries a sign, written either way round.
+ *
+ * A signed value is strong evidence of money: a check number, a reference and
+ * an account number are never written `-5.50` or `(5.50)`.
+ */
+function carriesSign(value: string): boolean {
+    const trimmed = value.trim().replace(/[$€£¥₹]/g, "");
+    return (
+        trimmed.startsWith("-") ||
+        trimmed.startsWith("+") ||
+        (trimmed.startsWith("(") && trimmed.endsWith(")"))
+    );
+}
+
+/**
+ * Whether a value has a minor-unit fraction, e.g. `-5.50` or `1.234,56`.
+ *
+ * This is what separates money from an identifier that merely happens to be
+ * numeric: a check number is a whole number, an amount is written to its
+ * currency's decimal places.
+ */
+function carriesMinorUnits(value: string): boolean {
+    return /[.,]\d{1,2}$/.test(
+        value
+            .trim()
+            .replace(/[$€£¥₹\s]/g, "")
+            .replace(/\)$/, "")
+    );
+}
+
+/**
  * Whether a value reads as a monetary amount.
  *
  * Deliberately accepts both separator conventions. Column classification runs
@@ -198,8 +229,10 @@ function column(rows: readonly (readonly string[])[], index: number): string[] {
 /**
  * Pick the column with the highest rate, requiring the threshold to be met.
  *
- * Ties fall to the leftmost column, which matches the order a bank export
- * conventionally puts its columns in.
+ * Ties fall to the leftmost column. That is adequate for roles where every
+ * qualifying column is equally good, but NOT for the amount role, where two
+ * columns routinely both qualify and only one holds money - see
+ * `bestAmountColumn`.
  */
 function bestColumn(
     candidateIndices: readonly number[],
@@ -216,18 +249,134 @@ function bestColumn(
 }
 
 /**
- * Identify the date, amount and description columns from their values.
+ * Header names that name the transaction amount itself.
+ *
+ * WHEN ADDING A PATTERN HERE OR BELOW, check it does not match the synthesised
+ * names `parseCSV` gives a headerless file - "Column 1", "Column 2", ... The
+ * caller only passes real headers, so these never see a placeholder today, but
+ * that guard is worth keeping honest from this end too. Known-unsafe shapes:
+ * an unanchored `/col/i` and `/\bcolumn\b/i` both match "Column 1", while
+ * `/\bcol\b/i` and `/\bno\b/i` do not.
+ * Pinned by `ur-008-amount-column.test.tsx`, "synthesised placeholder headers
+ * are not evidence".
+ */
+const AMOUNT_HEADER_PATTERN = /\bamount\b|\bdebit\b|\bcredit\b|\bvalue\b/i;
+
+/**
+ * Header names that read as numeric but are NOT the transaction amount.
+ *
+ * A running balance and a check number are the two that occur in real bank
+ * exports and both parse as amounts, so a values-only rule cannot separate a
+ * balance from an all-positive amount column at all.
+ */
+const NON_AMOUNT_HEADER_PATTERN =
+    /\bbalance\b|\bcheque?\s*(no|num|#)|\bcheck\s*(no|num|#)|\bref\b/i;
+
+/** How strongly a column's values look like money rather than an identifier. */
+interface AmountEvidence {
+    readonly index: number;
+    /** Values carry a sign - a check number never does. */
+    readonly signedRate: number;
+    /** Values are written to minor units - an identifier is a whole number. */
+    readonly minorUnitRate: number;
+    /** The column's own header names it, or disowns it. */
+    readonly headerSays: "amount" | "not-amount" | "nothing";
+}
+
+/**
+ * Choose the amount column from among the numeric ones.
+ *
+ * The naive rule - highest match rate, ties to the leftmost - is WRONG here and
+ * silently so. In `Date,Check No,Description,Amount` the check numbers and the
+ * amounts both score 1.0 against `looksLikeAmount`, so position decides, and
+ * the check number is imported as money with every row marked valid. Wrong
+ * money reported as success is worse than a visible failure.
+ *
+ * Columns are therefore ranked on evidence that distinguishes money from a
+ * number that merely looks like one:
+ *
+ * 1. **A header that names or disowns the column.** Strongest when present. The
+ *    frozen requirement is that detection works on a file with NO header, not
+ *    that a header must be ignored when the file has one - discarding it throws
+ *    away the only signal that can separate a running balance from an
+ *    all-positive amount column, which no values-only rule can do.
+ * 2. **Signs.** `-5.50` or `(5.50)` is money; a check number is never signed.
+ * 3. **Minor units.** `-5.50` is money; `1001` is an identifier.
+ *
+ * Position is used only to break a tie between columns that are equal on all
+ * three, where there is genuinely nothing else to go on.
+ */
+function bestAmountColumn(
+    candidateIndices: readonly number[],
+    rows: readonly (readonly string[])[],
+    headers: readonly string[]
+): number | null {
+    const qualifying = candidateIndices.filter(
+        (index) => matchRate(column(rows, index), looksLikeAmount) >= CLASSIFICATION_THRESHOLD
+    );
+    if (qualifying.length === 0) return null;
+
+    const evidence: AmountEvidence[] = qualifying.map((index) => {
+        const values = column(rows, index);
+        const header = headers[index] ?? "";
+        return {
+            index,
+            signedRate: matchRate(values, carriesSign),
+            minorUnitRate: matchRate(values, carriesMinorUnits),
+            headerSays: AMOUNT_HEADER_PATTERN.test(header)
+                ? "amount"
+                : NON_AMOUNT_HEADER_PATTERN.test(header)
+                  ? "not-amount"
+                  : "nothing"
+        };
+    });
+
+    // A header naming exactly one column as the amount settles it outright.
+    const named = evidence.filter((entry) => entry.headerSays === "amount");
+    if (named.length === 1) return named[0].index;
+
+    // Otherwise rank, preferring columns their header does not disown.
+    const preferred = evidence.filter((entry) => entry.headerSays !== "not-amount");
+
+    // When EVERY qualifying column is disowned by its header, the file has no
+    // amount column. Falling back to the disowned set here - which this once
+    // did - overrides the header exactly where it is unambiguous, and imports a
+    // running balance or a check number as the transaction amount with every
+    // row reported valid. There is no correct amount to choose in such a file,
+    // so the honest answer is to map none: the rows then surface as errors,
+    // which is what the user needs to see.
+    if (preferred.length === 0) return null;
+
+    return preferred.reduce((best, entry) => {
+        if (entry.signedRate !== best.signedRate) {
+            return entry.signedRate > best.signedRate ? entry : best;
+        }
+        if (entry.minorUnitRate !== best.minorUnitRate) {
+            return entry.minorUnitRate > best.minorUnitRate ? entry : best;
+        }
+        return best;
+    }).index;
+}
+
+/**
+ * Identify the date, amount and description columns.
  *
  * Assignment runs most-constrained first. A date shape is the narrowest, so it
  * is claimed before amounts; a description is whatever text is left, so it is
  * claimed last and only from columns that are not already spoken for.
  *
  * @param dataRows - Data rows only, with any header row already removed
+ * @param headers - Header names when the file has a header row, positionally
+ *   aligned with the columns. Omit, or pass synthesised names, for a headerless
+ *   file: every role is still decided from the values, and headers only break
+ *   ties the values cannot - notably a running balance versus an all-positive
+ *   amount column, which are indistinguishable by value alone.
  * @returns Column index as a string mapped to target field, in the shape
  *   `ImportConfig.columnMappings` uses. Empty when nothing can be identified.
  */
 export function detectColumnMappingsFromValues(
-    dataRows: readonly (readonly string[])[]
+    dataRows: readonly (readonly string[])[],
+    headers: readonly string[] = []
 ): Record<string, string> {
     if (dataRows.length === 0) return {};
 
@@ -237,12 +386,14 @@ export function detectColumnMappingsFromValues(
     const dateIndex = bestColumn(allIndices, dataRows, looksLikeDate);
     const afterDate = allIndices.filter((index) => index !== dateIndex);
 
-    const amountIndex = bestColumn(afterDate, dataRows, looksLikeAmount);
+    const amountIndex = bestAmountColumn(afterDate, dataRows, headers);
     const remaining = afterDate.filter((index) => index !== amountIndex);
 
-    // The description is the remaining column carrying the most text. Columns
-    // that read as amounts are set aside first, so a trailing balance column
-    // does not win the role, and wholly empty columns score zero and cannot.
+    // The description is the remaining column carrying the most text. Every
+    // column that reads as an amount is excluded here - including a balance or
+    // check-number column that lost the amount role - so a numeric column
+    // cannot become the description. Wholly empty columns score zero and cannot
+    // win either.
     const textual = remaining.filter(
         (index) => matchRate(column(dataRows, index), looksLikeAmount) < CLASSIFICATION_THRESHOLD
     );
@@ -253,9 +404,55 @@ export function detectColumnMappingsFromValues(
         (value) => value.trim() !== ""
     );
 
-    return {
+    const core = {
         ...(dateIndex !== null ? { [String(dateIndex)]: "date" } : {}),
         ...(amountIndex !== null ? { [String(amountIndex)]: "amount" } : {}),
         ...(descriptionIndex !== null ? { [String(descriptionIndex)]: "description" } : {})
     };
+
+    return { ...core, ...secondaryRolesFromHeaders(headers, core) };
+}
+
+/**
+ * Header patterns for the roles that carry no distinguishing value shape.
+ *
+ * A merchant, a memo and a description are all just text, and a check number
+ * and a balance are both plain numbers, so nothing in the VALUES tells these
+ * roles apart. A header name is the only evidence available, which is why these
+ * are recovered from headers or not at all.
+ */
+const SECONDARY_ROLE_PATTERNS: readonly (readonly [RegExp, string])[] = [
+    [/\bmerchant\b|\bpayee\b/i, "merchant"],
+    [/\bmemo\b|\bnote/i, "memo"],
+    [/\bcheque?\s*(no|num|#)|\bcheck\s*(no|num|#)/i, "checkNumber"],
+    [/\bbalance\b/i, "balance"]
+];
+
+/**
+ * Recover the optional roles a header names, for columns still unclaimed.
+ *
+ * Value-driven detection identifies the three roles the import pipeline parses
+ * - date, amount, description - and those are decided from values alone so a
+ * headerless file works. It cannot identify these secondary roles at all, and
+ * dropping them would silently lose mappings the user could previously see and
+ * rely on in the mapping UI. They are additive: a column already holding a core
+ * role is never reassigned, and each role is claimed once.
+ */
+function secondaryRolesFromHeaders(
+    headers: readonly string[],
+    claimed: Readonly<Record<string, string>>
+): Record<string, string> {
+    const takenRoles = new Set(Object.values(claimed));
+
+    return headers.reduce<Record<string, string>>((mappings, header, index) => {
+        if (claimed[String(index)] !== undefined) return mappings;
+
+        const matched = SECONDARY_ROLE_PATTERNS.find(
+            ([pattern, role]) => !takenRoles.has(role) && pattern.test(header)
+        );
+        if (!matched) return mappings;
+
+        takenRoles.add(matched[1]);
+        return { ...mappings, [String(index)]: matched[1] };
+    }, {});
 }
