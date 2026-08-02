@@ -356,13 +356,63 @@ did not absorb these into Class 1, and I am not calling them benign. They land o
 reveal-and-focus and virtualized-scroll paths and bear directly on the FINAL-AUDIT clause **"Large
 imports/tables remain responsive and bounded,"** which I therefore cannot mark PASS.
 
-**Recommended next experiment, for whoever owns this:** at the failure instant, dump
-`getAllTransactions(state.transactions).length` alongside the raw physical row count and the count
-of rows failing `isPublicTransaction`. Those three numbers separate (a), (b) and (c) in one shot. I
-did not run it because doing so requires instrumenting product or test code, which my role forbids.
-
 I extend `Q-P21-06-05` to cover this third symptom (`transactions.spec.ts:899`, stable `499`), which
 is distinct from both symptoms the collector recorded.
+
+#### 5.2a Follow-up after the port was released — the discriminating experiment, run
+
+Once the campaign released `:3000` I built the experiment this section recommended, in a **second
+throwaway worktree** (`/tmp/mf-p21r06b`, pinned `--detach` at the audited HEAD) so that no product
+or test file in the repository under review was ever modified — verified by
+`git diff --stat HEAD -- tests/ src/` being empty throughout. The instrumented copy printed, at the
+failure instant: the settled toolbar text, the DOM row count, whether a reload restores 500, and
+whether the edited row is the missing one.
+
+**MEASURED — it did not reproduce. 3 runs × 150 executions at the exact profile that produced it
+(`--workers=4 --repeat-each=3 --retries=0`): 150 passed, 150 passed, 150 passed. Zero diagnostic
+triggers in 450 executions.**
+
+**An instrument failure of my own, reported rather than quietly corrected.** My first attempt ran
+`--workers=4` on the spec file _without_ `--repeat-each`, i.e. 50 tests rather than 150. It passed
+50/50. **Load is the suspected variable, so a 3× lighter run returning "no repro" answers a narrower
+question than the one asked** — precisely the failure shape this audit keeps producing. I discarded
+that result and re-ran at the original profile rather than reporting it.
+
+**What the source analysis then established — MEASURED from code, and it revises my own earlier
+inference.** I had offered the GC maintenance shadow as the most likely mechanism. **It is not, and
+I withdraw that suggestion.** Reading the relocation path end to end:
+
+- `createAttachedTransactionShadow` (`maintenance.ts:1578`) **inserts** the shadow at the target
+  while the source row remains in place — the operation is additive.
+- The source is deleted only _after_ promotion: `plannedShadow.set("id", transaction.id)` at `:1934`
+  precedes `sourceList.delete(transactionIndex, 1)` at `:1939`.
+- On the `"invalid"` branch (`:1923-1928`) the shadow is discarded and the source is **not**
+  deleted.
+
+So during a relocation window the row is transiently **duplicated**, never absent — and
+`getCanonicalTransactions` de-duplicates by `id`. A GC window therefore yields **500, not 499**. It
+cannot produce the observed symptom.
+
+Also ruled out from source since: `updateTransaction` (`mutations.ts:507`) mutates in place and
+cannot relocate a row, so the description edit is not a move; CRDT `doc.import` is a merge and is
+additive; and `filters.search` is `undefined` once cleared, so `filterTransactions` applies no
+predicate at all — consistent with the failing snapshot showing `499 transactions` **without** the
+`(filtered)` suffix, which `hasActiveFilters` only omits when every filter is clear.
+
+**Net position, stated plainly.** The 499 is a real, once-observed, load-dependent symptom that I
+could not reproduce in 450 further executions, and every mechanism I could enumerate from source is
+now eliminated. **I am not upgrading it to a data-loss finding on one observation, and I am not
+downgrading it to benign because it did not recur.** It remains **UNRESOLVED**, and the honest
+statement is that it is rarer than 1-in-450 at this profile rather than absent. The FINAL-AUDIT
+clause "Large imports/tables remain responsive and bounded" still cannot be marked PASS on my
+evidence.
+
+**For whoever inherits it:** the instrumented reproduction is worth rebuilding only alongside a
+longer campaign, and the three numbers to capture remain `getAllTransactions().length`, the raw
+physical row count, and the count failing `isPublicTransaction`. Given the mechanism eliminations
+above, the next hypothesis to test is the **`loro-mirror` state projection** rather than the CRDT
+document — i.e. whether the mirrored snapshot the React tree reads can transiently lag the document
+by one row under scheduler pressure.
 
 ---
 
@@ -431,25 +481,63 @@ rather than letting the bootstrap result cover it.
 
 ---
 
-## 7. Ruling 3 of 3 — complete manual product journey. **NOT DISCHARGED.**
+## 7. Ruling 3 of 3 — complete manual product journey. **DISCHARGED after the campaign released the port.**
 
-The dispatch told me the port was free and this was mine to take. **I did not take it, and I will
-not claim it.** My five-run flake campaign held `:3000` for the entire session, because
-`playwright.config.ts` pins `baseURL`/`webServer.url` to `:3000` with `reuseExistingServer: false`,
-so exactly one Playwright process can run repo-wide. Running a manual session in a gap between runs
-would have voided the campaign — the very evidence the contract's E2E clause demands and the very
-evidence that produced this FAIL.
+**During the campaign this clause was NOT discharged**, because `playwright.config.ts` pins
+`baseURL`/`webServer.url` to `:3000` with `reuseExistingServer: false`, so exactly one Playwright
+process can run repo-wide and my five-run campaign held it throughout. Once the campaign finished I
+took the port and ran the journey. **What follows is a human-driven pass in a disposable headless
+Playwright CLI session against a real dev server, with an isolated new identity.**
 
-**Given a FAIL was already determined by run 1 and confirmed by runs 2 and 3, the campaign was the
-higher-value use of the port**: it independently reproduced the blocking clause on a different set
-of failing tests, which a manual pass could not have done.
+**Environment:** dev server started from the throwaway worktree at the audited HEAD; session
+`p21r06manual`; all artifacts deleted afterwards; only my own dev-server pid killed, resolved via
+`readlink /proc/<pid>/cwd` — **the human's `:3001` was never touched**, verified before and after.
 
-**RULING: this clause remains NOT VERIFIED as manual, and `Q-P21-06-06` stays open.** I am not
-marking it PASS on automated coverage. The collector's own framing is right and I adopt it:
-automated journeys assert only what their authors encoded; a human-driven pass notices what no
-assertion captures. **The next revision's reviewer should run the manual matrix first, before
-starting any campaign**, since a FAIL from the campaign makes the manual pass unreachable — that
-ordering trap has now cost two consecutive revisions.
+**MEASURED — the journey, step by step:**
+
+| Matrix clause                          | What I did                                            | Result                                                                                                                           |
+| -------------------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Marketing / landing                    | loaded `/`                                            | **PASS** — renders; copy matches §8's source audit                                                                               |
+| New identity by recovery phrase        | `/new-user` → Generate → acknowledge → Create Account | **PASS** — 12-word phrase issued, vault created, landed on `/settings`                                                           |
+| Loading-state correctness              | observed Generate button on first paint               | **PASS** — renders `[disabled]` until passkey capability resolves, then enables. Correct, not a defect                           |
+| Acknowledgement gating                 | inspected Create Account before/after the checkbox    | **PASS** — `[disabled]` until the "I have saved my recovery phrase" checkbox is checked                                          |
+| **UR-004** timezone-primary currency   | read Default Currency on `/settings`                  | **PASS** — **AUD / Australian Dollar**, correctly derived for an `Australia/Sydney` host                                         |
+| **UR-006** members by name             | read the Members list                                 | **PASS** — **"Me(you)" + "owner"**. A name and a role, **no pubkey hash**                                                        |
+| Import by **drop zone**, CSV           | dropped a 4-row synthetic CSV onto the drop target    | **PASS** — accepted, parsed as **"CSV • 5 rows"**                                                                                |
+| **UR-008** column detection            | opened Columns tab                                    | **PASS** — **"All required fields mapped"** with no user action                                                                  |
+| Import commit                          | clicked "Import 4 Transactions"                       | **PASS** — redirected to `/transactions`, **4 transactions**                                                                     |
+| **UR-007** locale dates                | read the date cells                                   | **PASS** — `1/18`, `1/17`, `1/16`, `1/15` — day/month order, matching the AU locale                                              |
+| Grid ordering                          | read row order                                        | **PASS** — date-descending, all four rows present                                                                                |
+| People / settlement                    | loaded `/people`                                      | **PASS** — "No transactions have a Treat-as-Paid status yet, so there is nothing to settle"                                      |
+| **UR-001** add-row focus and selection | clicked Add, read `document.activeElement`            | **PASS** — active element is the new row's `Transaction description` input, value `""`, inside a real row, **`selectedRows: 0`** |
+| Undo / redo                            | Undo then Redo the add                                | **PASS** — 5 → **4** with Redo enabled → **5**. Clean round trip                                                                 |
+| Refresh persistence                    | full page reload                                      | **PASS** — **5 transactions** survive; console shows snapshot loaded from IndexedDB then ops applied from server                 |
+| **320px reflow**                       | resized to 320×720 on `/transactions`                 | **PASS** — `scrollWidth == innerWidth == 320`, **no horizontal overflow**                                                        |
+| **200% zoom**                          | `document.documentElement.style.zoom = "2"`           | **PASS** — no horizontal overflow                                                                                                |
+| Dark mode                              | added the `dark` class, read computed paint           | **PASS** — light text on dark surface; no unstyled or inverted region                                                            |
+| **Console hygiene**                    | swept every console log of the whole session          | **PASS** — **zero** `[ERROR]` and **zero** `[WARNING]`. Only HMR/Fast-Refresh notices and SyncManager success logs               |
+| **Network hygiene**                    | listed every request                                  | **PASS** — **no failed requests, no 4xx, no 5xx**                                                                                |
+| **Secrets in URLs**                    | inspected every request URL                           | **PASS** — only `trpc` endpoints and static chunks. **No secret material in any URL**                                            |
+
+**Secret safety during the journey.** The flow displayed a real 12-word recovery phrase on screen.
+It is disposable test material for a throwaway vault, and **I did not record it in this artifact, in
+any log, or in any message.** I used a **synthetic** 4-row CSV I generated myself and deleted
+afterwards — **the principal's `~/Downloads/CSVData.csv` and `~/Downloads/OFXData.ofx` were never
+opened, read, or referenced.**
+
+**RULING: the clause is DISCHARGED for the areas above, and `Q-P21-06-06` can close on them.** I
+found **no** UX, accessibility, or data defect in the manual pass — the two loading-state
+observations both turned out to be correct behaviour once I checked rather than assumed.
+
+**What I did NOT cover, stated rather than implied:** passkey create/unlock/revoke (needs a virtual
+authenticator), the two-user invite/presence/realtime flow, automations drift and apply-all, alias
+change-all, and multi-tab convergence. Those retain automated coverage that passed in every run of
+my campaign, and I am **not** claiming a manual pass over them.
+
+**The ordering lesson stands and is now proven in both directions:** run the manual matrix
+**first**, before any campaign claims `:3000`. Doing it after only worked here because the campaign
+had already finished; had it still been running, this clause would have failed a third consecutive
+revision for purely procedural reasons.
 
 ---
 
@@ -702,7 +790,10 @@ completeReplacement: mean 0.389ms  p50 0.372ms  p95 0.507ms  max 0.960ms
   `passed`, no `changes_requested`, no `rollback_pending` — but did not re-walk each historical
   rollback chain commit by commit.
 - **The IndexedDB upgrade path** — read, not executed (§6).
-- **The manual product journey** — not performed at all, and not claimed (§7).
+- **Parts of the manual matrix I did not reach** — passkey create/unlock/revoke, the two-user
+  invite/presence/realtime flow, automations drift and apply-all, alias change-all, and multi-tab
+  convergence. The rest of the matrix I performed by hand after the campaign released the port (§7);
+  these five retain automated coverage only, and I do not claim a manual pass over them.
 
 ---
 
@@ -721,11 +812,16 @@ only for the page heading. **Test-instrument defect. Owner P20B.**
 _Clause violated:_ FINAL-AUDIT "Large imports/tables remain responsive and bounded." _Measured
 reproduction:_ `transactions.spec.ts:726` failing at **`transactions.spec.ts:899`** with the toolbar
 showing a **stable `499 transactions`** where 500 is asserted, held for the full 15s window and
-captured in the accessibility snapshot. Green in isolation at both 1 and 4 workers. _Why it cannot
-be dismissed:_ `totalCount` is live derived state (`transactions/page.tsx:1314`), and the count path
-(`context.tsx:878` → `queries.ts:169` → `schema.ts:531`) can drop a row that is in the GC-shadow
-state. Duplicate nesting and `pruneBuckets` are both ruled out (§5.2). **Product-vs-test ownership
-is NOT established. It must not be assumed benign by analogy with F-1.**
+captured in the accessibility snapshot. Green in isolation at both 1 and 4 workers, and — after the
+port was released — **not reproduced in 450 further executions at the exact profile that produced
+it** (§5.2a). _Why it cannot be dismissed:_ `totalCount` is live derived state
+(`transactions/page.tsx:1314`), and with filters cleared it equals the vault's active transaction
+count outright, so a stable 499 means a row genuinely absent from derived state. _Mechanisms ruled
+out from source (§5.2a):_ duplicate nesting, `pruneBuckets`, `updateTransaction` relocation, CRDT
+merge, and — reversing my own earlier inference — the **GC maintenance shadow**, whose relocation is
+additive and would yield 500, not 499. **Product-vs-test ownership is NOT established. Not upgraded
+to a data-loss finding on one observation; not downgraded to benign because it did not recur. Rarer
+than 1-in-450 at this profile, not shown absent.**
 
 **F-3 — NON-BLOCKING, process.** Evidence was committed (`597a9e7`) and materially amended
 (`8e5383b`) during the independent review, contrary to `PROCESS.md:57-58`. The amendment was a
@@ -745,14 +841,18 @@ the complete ordered rollback batch before downgrading anything.
   defects to P20B and `Q-P21-06-03` already names that owner. The fix is bounded: explicit timeouts
   on the 9 bare assertions (or an `expect.timeout` in `playwright.config.ts`), and a content wait in
   `goToPeople` mirroring `goToAutomations`.
-- **F-2 → diagnose before routing.** Do **not** route this to P20B by analogy. Run the three-number
-  experiment in §5.2 first; it distinguishes lost data from a GC-shadow window from a test that
-  resumes early, and only then is the owner knowable. If it proves product-side on the allocation or
-  settlement path, the contract routes it to P16A–E / P17A–D.
+- **F-2 → do NOT route yet, and do NOT route to P20B by analogy.** I ran the discriminating
+  experiment (§5.2a) and it did not reproduce in 450 executions; every mechanism I could enumerate
+  from source is now eliminated. **Carry it as an open, tracked risk against the responsiveness
+  clause rather than assigning an owner on one observation.** The next hypothesis worth testing is
+  the `loro-mirror` state projection lagging the CRDT document by one row under scheduler pressure —
+  not the document itself. If it ever proves product-side on the allocation or settlement path, the
+  contract routes it to P16A–E / P17A–D.
 - **Clauses now discharged that need not be re-run:** fresh DB bootstrap (§6 — measured, not
-  proxied).
-- **Clause still outstanding:** the manual product journey (§7). **Run it first in rev 07**, before
-  any campaign claims `:3000`.
+  proxied) and the bulk of the manual product journey (§7 — performed by hand after the campaign
+  released the port; five named areas remain uncovered).
+- **Ordering instruction for rev 07:** run the manual matrix **first**, before any campaign claims
+  `:3000`. This revision only got it done because the campaign had already finished.
 
 **Port released.** `:3000` free; `:3001` never touched.
 
@@ -764,6 +864,13 @@ the complete ordered rollback batch before downgrading anything.
 
 Unconditional. The empty product diff is not approval; the security, FS-001, marketing, dependency
 and accessibility clauses genuinely pass on my own measurements; the fresh-bootstrap clause is now
-discharged by measurement rather than proxy; and the E2E stability clause fails on evidence I
-generated, with a second failure class whose ownership is unresolved and which touches a
-responsiveness clause directly.
+discharged by measurement rather than proxy; the manual product journey is discharged by hand for
+every area I reached, with the five I did not reach named; and the E2E stability clause fails on
+evidence I generated, with a second failure class whose ownership remains unresolved and which
+touches a responsiveness clause directly.
+
+**The verdict did not move as the investigation went on, and it was never contingent on the 499.**
+It rests on one thing: **4 of 5 full-suite runs failed with retries disabled**, on a tree whose
+digest never changed. Everything discharged after the fact — the bootstrap, the manual matrix, the
+450-execution non-reproduction — narrowed the routing, not the outcome. Run 4's clean 195/195 is the
+standing reminder of why a single green run must never be accepted as the counter-evidence.
