@@ -7,8 +7,8 @@ another package's brief. Both are now preserved at stable paths and this file on
 
 | package | reviewer | subject | dispatch |
 | --- | --- | --- | --- |
-| **P33 rev 03** (UR-012) | `p33-implementer-01` — FIX, rev 02 FAILED on F-2 | BASE `f397da1` on `p33-ur-012` | `dispatches/P33-rev03-implement.md` |
-| **P30 rev 07** (UR-009) | `p30-reviewer-04` | `63c7007` on `main` | `dispatches/P30-rev07-review.md` |
+| **P33 rev 03** (UR-012) | `p33-reviewer-03` — REVIEW | `4a6e23f` on `p33-ur-012`, BASE `f397da1` | `dispatches/P33-rev03-review.md` |
+| ~~**P30 rev 07** (UR-009)~~ | ~~`p30-reviewer-04`~~ | **PASSED** — `reviews/P30-review-04.md` | closed |
 
 **Read your own package's dispatch file, not this table.** Each carries its own BASE, scope,
 press-hardest list, expected-not-findings and method note. The originals remain reachable at
