@@ -169,4 +169,29 @@ describe("the automatic modes decide from LIVE focus, not a remembered observati
 
         expect(apply).not.toHaveBeenCalled();
     });
+
+    // `confirm` is a dependency of the listener effect, so the listeners tear down and re-register
+    // whenever it changes — and each registration runs its own mount-time evaluation. Every one of
+    // those sees a row that has genuinely lost focus, so `appliedRef` is the ONLY thing standing
+    // between one gesture and a burst of writes.
+    //
+    // That is worth a test rather than a sentence in evidence. Deleting the guard and re-running this
+    // case MEASURES 3 applies at the blur and 8 after five further renders, so a rule the user asked
+    // for once would be created eight times.
+    it("writes exactly once no matter how often the listeners re-register", async () => {
+        const { rerender } = renderInRow({ isEditing: true });
+        focusOn("in-row");
+        await vi.advanceTimersByTimeAsync(10);
+
+        focusOn("outside");
+        rerender(tree(false));
+        await vi.advanceTimersByTimeAsync(10);
+
+        for (let index = 0; index < 5; index += 1) {
+            rerender(tree(false));
+            await vi.advanceTimersByTimeAsync(10);
+        }
+
+        expect(apply).toHaveBeenCalledTimes(1);
+    });
 });
