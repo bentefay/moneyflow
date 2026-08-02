@@ -52,6 +52,14 @@ export interface MappingTabProps {
      * the opening rows can be uniformly ambiguous while the column is not.
      */
     dataRows: string[][];
+    /**
+     * Whether `availableHeaders` are the file's own names rather than
+     * synthesised "Column N" placeholders.
+     *
+     * Auto-detection consults header names to break ties its values cannot, so
+     * it must be able to tell a real header from a placeholder.
+     */
+    hasRealHeaders: boolean;
     /** Current column mappings (columnIndex as string -> field name) */
     columnMappings: Record<string, string>;
     /** Callback when mappings change */
@@ -70,6 +78,7 @@ export interface MappingTabProps {
 export function MappingTab({
     availableHeaders,
     dataRows,
+    hasRealHeaders,
     columnMappings,
     onMappingsChange,
     className
@@ -105,13 +114,16 @@ export function MappingTab({
 
     // Auto-detect all mappings.
     //
-    // Runs the SAME value-driven detection the file load runs. Matching on
-    // header names here instead would make the button disagree with the load:
-    // on a headerless file the names are synthesised, so a click would return
-    // nothing and WIPE the mappings detection had already got right.
+    // Runs the SAME detection the file load runs, on the same rows and with the
+    // same header evidence, so the two cannot answer differently. Matching on
+    // header names alone here - as this once did - made the button disagree
+    // with the load: on a headerless file the names are synthesised, so a click
+    // returned nothing and WIPED the mappings detection had already got right.
     const handleAutoDetect = useCallback(() => {
-        onMappingsChange(detectColumnMappingsFromValues(dataRows));
-    }, [dataRows, onMappingsChange]);
+        onMappingsChange(
+            detectColumnMappingsFromValues(dataRows, hasRealHeaders ? availableHeaders : [])
+        );
+    }, [dataRows, hasRealHeaders, availableHeaders, onMappingsChange]);
 
     // Get sample values for a column, for the preview line under its name.
     const getSampleValues = useCallback(

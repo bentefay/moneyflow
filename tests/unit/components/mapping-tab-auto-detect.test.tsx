@@ -34,6 +34,7 @@ describe("MappingTab Auto-detect", () => {
             <MappingTab
                 availableHeaders={headers}
                 dataRows={rows}
+                hasRealHeaders={false}
                 columnMappings={{}}
                 onMappingsChange={onMappingsChange}
             />
@@ -58,6 +59,7 @@ describe("MappingTab Auto-detect", () => {
             <MappingTab
                 availableHeaders={headers}
                 dataRows={rows}
+                hasRealHeaders={false}
                 columnMappings={{}}
                 onMappingsChange={onMappingsChange}
             />
@@ -67,5 +69,38 @@ describe("MappingTab Auto-detect", () => {
 
         // The load path's answer, computed independently of the component.
         expect(onMappingsChange).toHaveBeenCalledWith(detectColumnMappingsFromValues(rows));
+    });
+
+    it("passes real header names through, so the button resolves a balance column too", () => {
+        // The button must reach the SAME answer as the load path on a headered
+        // file, which needs the header names: a running balance and an
+        // all-positive amount column are identical by value.
+        const onMappingsChange = vi.fn();
+        const { headers, rows } = parseCSV(
+            [
+                "Date,Description,Balance,Amount",
+                "2024-01-15,Coffee Shop,1000.00,5.50",
+                "2024-01-16,Grocery Store,924.75,75.25",
+                "2024-01-17,Direct Deposit,3424.75,2500.00"
+            ].join("\n"),
+            { hasHeaders: true }
+        );
+
+        render(
+            <MappingTab
+                availableHeaders={headers}
+                dataRows={rows}
+                hasRealHeaders={true}
+                columnMappings={{}}
+                onMappingsChange={onMappingsChange}
+            />
+        );
+
+        fireEvent.click(screen.getByRole("button", { name: /Auto-detect/i }));
+
+        expect(onMappingsChange).toHaveBeenCalledWith(
+            detectColumnMappingsFromValues(rows, headers)
+        );
+        expect(onMappingsChange.mock.calls[0][0]["3"]).toBe("amount");
     });
 });

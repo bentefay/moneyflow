@@ -248,6 +248,111 @@ describe("value-driven column detection", () => {
         expect(mappings["3"]).toBeUndefined();
     });
 
+    it("does not let a check-number column take the amount role", () => {
+        // REGRESSION. A check number parses as an amount, so a rule that picks
+        // the leftmost qualifying numeric column imports check numbers AS MONEY
+        // and marks every row valid - wrong money presented as success. The
+        // amount column is chosen on evidence a check number lacks: signs,
+        // minor units, and a header that names or disowns the column.
+        const parsed = parseCSV(
+            [
+                "Date,Check No,Description,Amount",
+                "2024-01-15,1001,Coffee Shop,-5.50",
+                "2024-01-16,1002,Grocery Store,-75.25",
+                "2024-01-17,1003,Direct Deposit,2500.00"
+            ].join("\n"),
+            { hasHeaders: true }
+        );
+
+        const mappings = detectColumnMappingsFromValues(parsed.rows, parsed.headers);
+
+        expect(mappings["3"]).toBe("amount");
+        expect(mappings["1"]).not.toBe("amount");
+    });
+
+    it("does not let a running-balance column take the amount role", () => {
+        // REGRESSION. A balance is signed like money and carries minor units
+        // like money, so no values-only rule separates it from an all-positive
+        // amount column. The header is the evidence that does.
+        const parsed = parseCSV(
+            [
+                "Date,Description,Balance,Amount",
+                "2024-01-15,Coffee Shop,1000.00,-5.50",
+                "2024-01-16,Grocery Store,924.75,-75.25",
+                "2024-01-17,Direct Deposit,3424.75,2500.00"
+            ].join("\n"),
+            { hasHeaders: true }
+        );
+
+        const mappings = detectColumnMappingsFromValues(parsed.rows, parsed.headers);
+
+        expect(mappings["3"]).toBe("amount");
+        expect(mappings["2"]).not.toBe("amount");
+    });
+
+    it("picks the amount over a balance even when every amount is positive", () => {
+        // The hardest case: with no negatives, the two columns are identical in
+        // shape. Only the header can decide, which is why detection reads one
+        // when the file has one.
+        const parsed = parseCSV(
+            [
+                "Date,Description,Balance,Amount",
+                "2024-01-15,Coffee Shop,1000.00,5.50",
+                "2024-01-16,Grocery Store,924.75,75.25",
+                "2024-01-17,Direct Deposit,3424.75,2500.00"
+            ].join("\n"),
+            { hasHeaders: true }
+        );
+
+        expect(detectColumnMappingsFromValues(parsed.rows, parsed.headers)["3"]).toBe("amount");
+    });
+
+    it("resolves a check-number column with NO header, from values alone", () => {
+        // The headerless case still has to work: a check number carries neither
+        // a sign nor minor units, and the amount carries both.
+        const parsed = parseCSV(
+            [
+                '01/07/2026,"1001","COFFEE SHOP","-45.00"',
+                '02/07/2026,"1002","PAYMENT RECEIVED","+69.00"',
+                '30/06/2026,"1003","BAKERY","-33.07"'
+            ].join("\n"),
+            { hasHeaders: false }
+        );
+
+        const mappings = detectColumnMappingsFromValues(parsed.rows);
+
+        expect(mappings["3"]).toBe("amount");
+        expect(mappings["1"]).not.toBe("amount");
+    });
+
+    it("keeps the merchant, memo, check-number and balance roles a header names", () => {
+        // These roles have no distinguishing value shape - a memo is just text,
+        // a check number just digits - so a header is the only evidence for
+        // them. Dropping them silently loses mappings the user can see and set.
+        const parsed = parseCSV(
+            [
+                "Date,Check No,Merchant,Memo,Amount,Balance",
+                "2024-01-15,1001,Acme Co,lunch,-5.50,1000.00",
+                "2024-01-16,1002,Beta Ltd,fuel,-75.25,924.75",
+                "2024-01-17,1003,Gamma,pay,2500.00,3424.75"
+            ].join("\n"),
+            { hasHeaders: true }
+        );
+
+        const mappings = detectColumnMappingsFromValues(parsed.rows, parsed.headers);
+
+        expect(mappings["4"]).toBe("amount");
+        expect(mappings["1"]).toBe("checkNumber");
+        expect(mappings["3"]).toBe("memo");
+        expect(mappings["5"]).toBe("balance");
+    });
+
+    it("invents no secondary role for a file with no header", () => {
+        const mappings = detectColumnMappingsFromValues(parseSyntheticCSV());
+
+        expect(Object.values(mappings).sort()).toEqual(["amount", "date", "description"]);
+    });
+
     it("still detects a file that does have headers", () => {
         const headed = parseCSV(
             [

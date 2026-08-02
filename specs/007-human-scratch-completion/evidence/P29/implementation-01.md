@@ -118,10 +118,18 @@ two routines answering differently for the same file would be a new defect.
 
 **Observed.** They diverged, and in the harmful direction:
 
-| file         | on load (value-driven)            | Auto-detect button (header names) |
-| ------------ | --------------------------------- | --------------------------------- |
-| headerless   | `{0:date,1:amount,2:description}` | **`{}`**                          |
-| with headers | `{0:date,1:description,2:amount}` | `{…,3:balance}`                   |
+| file         | on load, rev 01 as written        | Auto-detect button, rev 01 as written       |
+| ------------ | --------------------------------- | ------------------------------------------- |
+| headerless   | `{0:date,1:amount,2:description}` | **`{}`**                                    |
+| with headers | `{0:date,1:description,2:amount}` | `{0:date,1:description,2:amount,3:balance}` |
+
+**Corrected in rev 02 (review finding F-3).** The headered row as first written recorded the
+button's `3:balance` but said nothing about the fact that **the LOAD path had stopped producing it
+too**, relative to BASE. That was silent exactly where a regression lived: rev 01's value-driven
+detector emitted only date/amount/description, so `balance`, `merchant`, `memo` and `checkNumber`
+were dropped for every headered file. The row above is not false, but reading it as a
+button-versus-load comparison obscured a loss both paths shared. That regression is F-2, fixed in
+rev 02 and described in §1.4.3.
 
 On a headerless file the button returned `{}` and `onMappingsChange` overwrites wholesale, so
 **clicking Auto-detect would have WIPED the mappings the load had just got right.** That is worse
@@ -137,6 +145,89 @@ back door.
 `tests/unit/components/mapping-tab-auto-detect.test.tsx` renders the real component and clicks the
 real button. **Observed at BASE:** `expected "vi.fn()" to be called with arguments: [ Array(1) ]` —
 BASE calls back with `{}`.
+
+### 1.4.3 REV 02 — my detector bound the AMOUNT role by POSITION, and imported the wrong column as money
+
+Review finding F-1, upheld. **This is the defect §1.4.2 below warns about, committed by the very
+code that section describes** — I wrote the general lesson and then shipped an instance of it.
+
+**Reproduced independently before fixing.** Running rev 01's detector at the rev 02 BASE `74b37f9`,
+**observed**:
+
+| file                               | column bound to `amount` | values imported as money       |
+| ---------------------------------- | ------------------------ | ------------------------------ |
+| `Date,Check No,Description,Amount` | col 1, **"Check No"**    | `1001`, `1002`, `1003`         |
+| `Date,Description,Balance,Amount`  | col 2, **"Balance"**     | `1000.00`, `924.75`, `3424.75` |
+
+Every row reports `status: valid` and `errorCount: 0`. **Silently wrong money, presented as
+success** — and a REGRESSION, since the header-name detector rev 01 replaced handled both correctly.
+
+**Mechanism, confirmed and deterministic — not a tie-break accident.** `bestColumn` ranked with
+`entry.rate > best.rate`, which is strictly greater, so an equal-scoring later column never
+displaces an earlier one: **the leftmost qualifying column always won.** A check number and a real
+amount column both score 1.0 against `looksLikeAmount`, so the wrong column won every time, on every
+run.
+
+**A comment of mine described a protection the code did not provide.** At `detection.ts:243-245` I
+wrote that "columns that read as amounts are set aside first, so a trailing balance column does not
+win the role". That set-aside fed only the DESCRIPTION selection; **nothing whatsoever protected the
+amount role.** The comment would have led a reader — and did lead me — to believe the case was
+handled. Prose asserting a property the code does not enforce is worse than no comment, because it
+suppresses the question. The comment is now rewritten to say what the code actually does.
+
+#### The fix, and why it is not just a better tie-break
+
+The amount column is now chosen on **evidence that distinguishes money from a number that merely
+looks like one**, ranked in this order:
+
+1. **A header naming or disowning the column** (`Amount`/`Debit`/`Credit` versus
+   `Balance`/`Check No`/`Ref`). Strongest when present.
+2. **Signs** — `-5.50` or `(5.50)` is money; a check number is never signed.
+3. **Minor units** — `-5.50` is money; `1001` is an identifier.
+
+Position now breaks only a tie where columns are equal on all three, i.e. where there is genuinely
+nothing else to go on.
+
+**Why headers are consulted at all, given the requirement says "identifies each column from its
+values".** Two columns of the shape `Balance` and an all-positive `Amount` are **identical by
+value** — same sign profile, same minor units, same magnitude class. No values-only rule can
+separate them, so a values-only detector must get one of them wrong. Re-reading the frozen text at
+`spec.md:70-74`: it requires detection to run automatically, to identify columns from values, and to
+work **on a file that has no header row**. It nowhere requires that a header be _ignored when the
+file has one_. Rev 01 discarded that evidence, which was my error. Headers are therefore used only
+to break ties the values cannot, and are passed **only when the file genuinely has them** — the
+parser synthesises `"Column 1", "Column 2", …` for a headerless file, and feeding those in would be
+noise.
+
+**The headerless case still works from values alone. Observed:** a headerless file whose second
+column is check numbers and whose fourth is amounts resolves to `{0:date, 2:description, 3:amount}`
+— correct, with no header evidence available, because the amount carries signs and minor units and
+the check number carries neither.
+
+#### F-2 — the secondary roles, restored
+
+Rev 01's detector emitted only `date`, `amount` and `description`, silently dropping `merchant`,
+`memo`, `checkNumber` and `balance` for headered files. **Verified the reviewer's blast-radius
+finding rather than accepting it:** the live preview path reads only `date`, `amount` and
+`description` (`use-import-state.ts:686,701,725`), and `processCSVImport` — which does read the
+others — is **called from no product code**, only from tests that pass mappings explicitly. So no
+imported value changed. It was a UX regression, not corruption.
+
+Fixed rather than argued away, because the roles are visible and settable in the mapping UI and
+losing them silently degrades it. These roles have **no distinguishing value shape** — a memo is
+just text, a check number just digits — so a header name is the only possible evidence, and they are
+recovered from headers or not at all. They are additive: a column already holding a core role is
+never reassigned, and a headerless file gains none. **Observed:**
+`Date,Check No,Merchant,Memo,Amount,Balance` →
+`{0:date, 1:checkNumber, 2:description, 3:memo, 4:amount, 5:balance}`.
+
+#### Why rev 01's suite did not catch F-1
+
+`ur-008-csv-parity.test.ts` pinned `Date,Description,Amount,Balance` — **the one arrangement where
+the correct column is leftmost among the numeric ones**, so the buggy rule and the correct rule
+agree. The fixture was well-shaped but did not vary along the axis the code branches over, which is
+the `Q-P28-03` lesson. Rev 02 adds fixtures where the amount column is NOT leftmost, in both the
+check-number and balance shapes, with and without headers.
 
 ### 1.4.2 Two places where fixing the reported bug would have made things WORSE
 
