@@ -76,6 +76,30 @@ export type FieldRuleProposalState =
       };
 
 /**
+ * Whether a tag edit actually changed the set, ignoring order.
+ *
+ * A proposal is offered for a CHANGE. Re-committing the same tags — which the inline cell does on
+ * every dropdown interaction, including toggling a tag off and back on — is not a change, and
+ * offering a rule for it would put controls in front of a user who did nothing.
+ */
+export function tagSetChanged(next: readonly string[], previous: readonly string[]): boolean {
+    if (next.length !== previous.length) return true;
+    const remaining = new Set(previous);
+    return !next.every((id) => remaining.delete(id));
+}
+
+/**
+ * Whether an allocation edit actually changed that person's stored percentage.
+ *
+ * The stored value is `unknown` because legacy vault state may hold a malformed entry; anything that
+ * is not a number is treated as "no comparable previous value", so committing a real number over it
+ * counts as a change.
+ */
+export function allocationValueChanged(previous: unknown, next: number): boolean {
+    return !(typeof previous === "number" && Object.is(previous, next));
+}
+
+/**
  * Whether the transaction's current value for a field carries something a rule could set.
  *
  * A rule's action must encode a concrete value, so a change that leaves the field empty produces no

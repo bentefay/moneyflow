@@ -102,6 +102,13 @@ export function TransactionRuleProposal(props: TransactionRuleProposalProps): Re
                     className="w-auto max-w-[90vw] p-3"
                     data-testid="transaction-rule-proposal-popover"
                     onOpenAutoFocus={(event) => event.preventDefault()}
+                    // Radix gives popover content `role="dialog"`, which would announce this as a
+                    // modal the user must deal with. The frozen text (`:252-254`) asks for the
+                    // opposite: an UNFOCUSED popup beside the cell that never interrupts the edit.
+                    // The accessible grouping and label live on the inner FieldRuleProposal, so
+                    // this wrapper takes `presentation` rather than adding a second nested group —
+                    // and "is a dialog open" stays meaningful for the rest of the app.
+                    role="presentation"
                     side="bottom"
                 >
                     <FieldRuleProposal

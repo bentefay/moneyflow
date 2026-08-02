@@ -12,9 +12,11 @@ import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
 import {
+    allocationValueChanged,
     computeFieldRuleProposal,
     formatAmountForRuleLabel,
-    hasProposableValue
+    hasProposableValue,
+    tagSetChanged
 } from "@/components/features/transactions/field-rule-proposal-state";
 import {
     computeFieldRuleRobotState,
@@ -187,6 +189,59 @@ describe("computeFieldRuleProposal — nothing to propose", () => {
             expect(computeFieldRuleProposal([], IMPORTED, current).kind).toBe("none");
         }
     );
+});
+
+describe("tagSetChanged", () => {
+    // Pins the guard that decides whether a tag commit counts as an edit at all. Without it, the
+    // inline cell's re-commits would put creation controls in front of a user who changed nothing.
+    it("reports no change when the same tags are re-committed", () => {
+        expect(tagSetChanged(["a", "b"], ["a", "b"])).toBe(false);
+    });
+
+    it("ignores order, since the cell does not preserve it", () => {
+        expect(tagSetChanged(["b", "a"], ["a", "b"])).toBe(false);
+    });
+
+    it.each([
+        { label: "a tag added", next: ["a", "b"], previous: ["a"] },
+        { label: "a tag removed", next: ["a"], previous: ["a", "b"] },
+        { label: "a tag swapped", next: ["a", "c"], previous: ["a", "b"] },
+        { label: "the first tag on an untagged row", next: ["a"], previous: [] },
+        { label: "the last tag removed", next: [], previous: ["a"] }
+    ])("reports a change for $label", ({ next, previous }) => {
+        expect(tagSetChanged(next, previous)).toBe(true);
+    });
+
+    // Same length and same members, but a duplicate on one side: the sets genuinely differ.
+    it("reports a change when a duplicate masks a differing member", () => {
+        expect(tagSetChanged(["a", "a"], ["a", "b"])).toBe(true);
+    });
+});
+
+describe("allocationValueChanged", () => {
+    it("reports no change when the same number is re-committed", () => {
+        expect(allocationValueChanged(60, 60)).toBe(false);
+    });
+
+    it("reports a change for a different number", () => {
+        expect(allocationValueChanged(60, 40)).toBe(true);
+    });
+
+    // A row that has never stored a percentage for this person has no comparable previous value, so
+    // entering one is a change. Malformed legacy values behave the same way rather than throwing.
+    it.each([
+        { label: "absent", previous: undefined },
+        { label: "null", previous: null },
+        { label: "a legacy string", previous: "60" },
+        { label: "NaN", previous: Number.NaN }
+    ])("reports a change when the previous value is $label", ({ previous }) => {
+        expect(allocationValueChanged(previous, 60)).toBe(true);
+    });
+
+    // 0 and -0 are different allocations to the domain, and Object.is keeps them distinct.
+    it("distinguishes zero from negative zero", () => {
+        expect(allocationValueChanged(0, -0)).toBe(true);
+    });
 });
 
 describe("formatAmountForRuleLabel", () => {

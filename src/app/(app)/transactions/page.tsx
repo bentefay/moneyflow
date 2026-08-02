@@ -33,7 +33,11 @@ import {
 } from "@/components/features/transactions";
 import { materializeAllocationRecord } from "@/components/features/transactions/allocation-columns";
 import type { DescriptionAliasEditOrigin } from "@/components/features/transactions/cells/InlineEditableDescriptionAlias";
-import { formatAmountForRuleLabel } from "@/components/features/transactions/field-rule-proposal-state";
+import {
+    allocationValueChanged,
+    formatAmountForRuleLabel,
+    tagSetChanged
+} from "@/components/features/transactions/field-rule-proposal-state";
 import {
     computeFieldRuleRobotState,
     type RobotCurrentValue
@@ -89,13 +93,6 @@ export const SOURCE_TRANSACTION_PARAM = "transaction";
 /** Generate unique ID */
 function generateId(): string {
     return crypto.randomUUID();
-}
-
-/** Order-insensitive tag-set equality, so re-committing the same tags is not treated as a change. */
-function sameTagIds(left: readonly string[], right: readonly string[]): boolean {
-    if (left.length !== right.length) return false;
-    const remaining = new Set(right);
-    return left.every((id) => remaining.delete(id));
 }
 
 function materializeAliasTarget(target: DescriptionAliasTargetIntent): DescriptionAliasTarget {
@@ -1150,7 +1147,7 @@ function TransactionsPageContent() {
                 // A tag change is exactly the gesture the frozen text offers a rule for. Note it
                 // only when the set really changed, so re-committing an identical set is not
                 // treated as an edit.
-                if (!sameTagIds(tagIds, tx.tagIds ?? [])) {
+                if (tagSetChanged(tagIds, tx.tagIds ?? [])) {
                     notePendingRuleEdit(tx.id, "tags");
                 }
             }
@@ -1189,7 +1186,7 @@ function TransactionsPageContent() {
             // Frozen `:292-293`: an allocation rule covers the WHOLE percentage set, so changing any
             // one person's column proposes a rule for the row's complete set.
             const previous = materializeAllocationRecord(transaction.allocations)[personId];
-            if (!(typeof previous === "number" && Object.is(previous, value))) {
+            if (allocationValueChanged(previous, value)) {
                 notePendingRuleEdit(transaction.id, "allocation");
             }
         },

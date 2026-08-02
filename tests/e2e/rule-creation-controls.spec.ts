@@ -175,6 +175,10 @@ test.describe("Rule-creation controls on a transaction matching no rule", () => 
             await expect(proposal).toHaveAttribute("data-kind", "create");
             // Description rules carry no add/set select: that is a tags-only control.
             await expect(page.getByTestId("proposal-tag-mode")).toHaveCount(0);
+            // The controls are an inline affordance, NOT a modal. Radix popover content defaults to
+            // role="dialog", which made the alias journey's "no dialog is open" assertion fail; the
+            // frozen text asks for an unfocused popup that never interrupts the edit.
+            await expect(page.getByRole("dialog")).toHaveCount(0);
         });
 
         await test.step("confirming with update all repoints the other matching row", async () => {
