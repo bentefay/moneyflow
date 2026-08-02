@@ -10541,3 +10541,85 @@ ancestors of `0e27694`, so its nine-mutation battery and full suite already cove
 instruction and the reviewer's own F-1 converged on the same tree from opposite directions.** It also
 caught root describing "one product change" when there were two, and cleared the `duplicates.test.ts`
 flake as not P31's — `git log 054f77e..HEAD` on that file is empty.
+
+### 2026-08-02 — The settlement failures: BISECT to `b6950ca`, mechanism still unknown
+
+**P30 bisected `people-settlement` alone, 10 runs, one spec, no competing suite:**
+
+```
+d6567f6  (before both commits)   19/19, 19/19, 19/19    3/3 CLEAN
+b138894  (P31's selection)       19/19, 19/19           2/2 CLEAN
+b6950ca  (P30's rev 04)          17, 18, 17             0/3 CLEAN
+5b0c441  (campaign tree)         18, 15                 0/2 CLEAN
+```
+
+**`b138894` is EXONERATED by direct measurement**, and separately by `p31-reviewer-01`'s
+import-graph argument: `BalanceSummary.tsx` imports nothing from the transactions feature, so **there
+is no path at all** from the changed function to the failing component. **Two independent
+exonerations, neither relying on timing**, plus P31's own differential test over 1000 cases.
+
+**P30's rate-versus-set correction, which root accepts and which retires root's pure-flake reading:**
+*"The failure RATE is deterministic even though the failure SET is not — 0/5 versus 5/5 is not a
+marginal difference that ten runs could produce by chance."* **Root had collapsed "the set moves"
+into "flake, therefore not attributable"; a commit can introduce a race whose membership is random
+and whose presence is not.** The two findings compose rather than compete.
+
+**THREE MECHANISMS FALSIFIED, INCLUDING BOTH OF ROOT'S.**
+
+**P30's mount-cost hypothesis — dead, and backwards.** Root measured that
+`TransactionRuleProposal` was **already mounted unconditionally before `b6950ca`** — that was
+`e97b3f7`'s F-1 fix. Rev 04 changed only what the mounted component shows, and
+`shouldShow = isPending && !isEditing` is **strictly narrower**, so it mounts LESS. **A change that
+can only reduce mounts cannot have added mount cost.** P30's own diagnosis of its error: *"I reasoned
+about my diff in isolation rather than against its parent"* — the same shape as the `sameTagIds`
+rename, a property attributed to a change that predated it.
+
+**Root's reachability argument — WRONG, and P30 flagged it rather than exploiting it.** Root
+established the people PAGE imports no transaction components and generalised that to the TESTS.
+**Measured: `people-settlement.spec.ts` references `goToTransactions|createTransaction|addTransaction`
+33 times** — those journeys create transactions on `/transactions`, then navigate to `/people` to
+assert. **Root measured what the page imports and generalised it to what the tests exercise; those
+are different questions.** Seventh instance of the same instrument failure. **P30 had been handed a
+falsification with a hole in it and killed its own hypothesis on the stronger argument instead of
+using the hole.**
+
+**Root's UR-004 currency reading — retired too early by BOTH root and P30.** `p31-reviewer-01`
+measured that every structural premise holds: no `timezoneId` and no locale pinned in
+`playwright.config.ts`, `helpers/settlement.ts:53` has the account **inherit the vault currency**,
+and `BalanceSummary.tsx:257` derives the testid from whatever the account resolved to. **The
+inference is RUNTIME, not static — which is exactly the class that fails intermittently.** *"It
+passed before on this host"* shows only that the inference was stable across two runs. Back on the
+table as the third ordered experiment.
+
+**Leading candidate, explicitly unmeasured: scheduling.** `b6950ca` rewrote
+`rule-creation-controls.spec.ts` (+83/-54), and four Playwright workers mean a spec's duration
+determines what runs beside it. **This predicts the observed shape — a sharp commit boundary with no
+import edge — but root constructed it and neither party has tested it.** Root instructed P30 to hold
+it as leading candidate rather than answer: **five mechanisms have been falsified in this package and
+the sixth being root's does not make it better founded.**
+
+**Ordered experiments after the campaign completes:** `--workers=1` on the spec alone (tests
+scheduling directly); then re-run the bisect's weak `b138894` point to 5 samples, since **2 clean at
+an 89% per-run pass rate is weak**; then the `timezoneId` probe.
+
+**Campaign restarted and running: run 1 at 109/189, ONE failure — `people-settlement.spec.ts:145`,
+zero `rule-creation-controls` failures.** `:145` has now failed twice and passed once across
+attempts, which is a moving set within a single test.
+
+**Root cancelled the previous campaign mid-flight and then forgot it had.** P30 stopped run 2 on that
+instruction; root then read the truncated log as final and retracted a conclusion on partial data.
+**P30's correction: the three "recovered" tests DID execute and pass before it stopped — so the
+recovery was real and root's caveat was wrong.** Those logs are now deleted, so **the claim is
+unfalsifiable from outside and is recorded in the evidence as an observation rather than evidence** —
+revision 01's F-5 standard applied by the implementer to itself.
+
+**P30's generalisation of the instrument-failure class, adopted as the best statement of it:**
+
+> **The evidence of incompleteness sits inside the artefact you already have open.** None of these
+> have a signal that announces itself; they all require asking **"is this artefact complete?"** as a
+> separate question from **"what does it say?"**
+
+**And its qualification of its own refusal, which root records rather than the compliment root
+offered:** *"A version of me that refuses whenever it disagrees is worse than one that complies. The
+thing that made it defensible was that I put the table in front of you and asked, rather than acting
+on my own reading."*
