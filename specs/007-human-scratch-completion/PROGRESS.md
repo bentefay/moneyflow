@@ -9564,3 +9564,69 @@ implementer; nothing the implementer measured is upgraded — the pre-existing t
 Retarget verified by the reviewer at the moment of retarget: `merge-base --is-ancestor` returns 0 for
 `ee3cce7`, `6a51b53` and `c694a94`; `git diff --stat c694a94 HEAD -- src tests` empty; digest
 identical at `c694a94`, `6a51b53` and `6e4bf32`, the commit the campaign actually ran against.
+
+### 2026-08-02 — **COMMIT FUSION: `e97b3f7` contains BOTH P30 rev 02 and the whole P31 package.** Root's instruction is the likely cause
+
+`p30-implementer-01` committed its rev 02 fix and the commit swept up **all of
+`p31-implementer-01`'s uncommitted work**. `git log --diff-filter=A -- table-selection.ts` confirms
+**P30's commit introduced P31's new file.** 14 files, +2120/-512, spanning two requirements, where
+P30's rev 02 scope was three fixes in three files.
+
+**Nothing is lost.** Root verified every file individually rather than inferring from `git status`;
+the tree is clean and all work is present. This is a bookkeeping failure, not data loss.
+
+**ROOT'S INSTRUCTION IS THE LIKELY CAUSE, and root is fixing it rather than correcting the agent.**
+Root's dispatches have required committing with an explicit `-- src tests` pathspec — introduced
+specifically to protect the shared checkout. **But `-- src tests` stages everything under those
+directories regardless of author.** In a shared checkout with concurrent agents that instruction
+produces exactly this outcome. Root has asked for the exact command before concluding; if confirmed,
+**the instruction is defective and gets rewritten for every dispatch: a pathspec must name FILES the
+agent authored, never a directory.**
+
+**RESOLVED WITHOUT HISTORY SURGERY.** Root explicitly forbade both agents from amending, resetting,
+reverting or checking out — an amend would orphan the hash and a reset could destroy P31's work for
+real. Instead the packages separate cleanly by pathspec:
+
+```
+P30:        5 files,  +554/-172    page.tsx, TransactionRow, TransactionRuleProposal,
+                                   rule-creation-controls.spec, rule-proposal-stability.test
+P31:        6 files, +1294/-321    table-selection, useTableSelection, selection tests
+Ambiguous:  3 files,  +272/-19     TransactionTable.tsx, index.ts, transactions.spec.ts
+```
+
+**Each reviewer gets a pathspec-scoped diff so it sees only its own package.** Strictly better than
+rewriting history. Attribution of the three ambiguous files is outstanding — `transactions.spec.ts`
+at +215 looks like P31's `T021d`-`T021g` journeys but root will not guess.
+
+**Consequence for campaigns:** P30's `pnpm test` 126 files / 2440 passed **covers both packages**, so
+it is not a clean signal for either. **A campaign digest over this commit is evidence for two
+packages at once, which is evidence for neither.** Both agents are held off the port until the
+coverage question is settled.
+
+### 2026-08-02 — P30 rev 02 substance: both findings fixed, plus a scale regression self-caught
+
+**F-1 fixed at the right level.** `page.tsx` now mounts `TransactionRuleProposal` unconditionally and
+passes `isPending` rather than branching on element type. **The implementer also caught a scale
+regression it would have introduced doing so** — mounting it for every cell would have run **five
+CRDT subscriptions per row**. The CRDT work now lives in an inner `PendingRuleProposal` mounting only
+for the pending cell, **a SIBLING of the anchor rather than an ancestor of the edited cell**, so its
+lifecycle cannot touch the cell's DOM. That is the property F-1 required and that rev 01 only
+claimed.
+
+**The control test makes the suite load-bearing:** it reproduces the rev 01 two-element-type shape
+and asserts it remounts with count 2, so the passing assertions are not vacuously true of any
+structure. **That is `p30-reviewer-01`'s "the pre-fix arm must be proven to fail" rule, applied
+unasked.**
+
+**F-2 fixed to the frozen gesture.** Auto-apply now requires **both** the cell finishing editing
+**and** a real `focusout` whose `relatedTarget` lands outside the row. Focus moving to a sibling cell
+in the same row does not count — the frozen text says *the row loses focus*, and a cell-to-cell move
+is not that.
+
+**Implementer's own diagnosis of why its blindness audit missed both, recorded as the sharpest
+formulation yet:** *"My audit tested the axis I had just built, which is the axis I was least likely
+to be wrong about."* Underneath it, the specific admission: it had written **"the wiring is exercised
+by the E2E flows"** into the evidence **and never checked it.** Same failure as the comments — a
+claim written while reasoning about the fix rather than after measuring it. **Named three times in
+this package and hit three times.** The remedy is not resolve; it is not writing the sentence until
+the measurement exists.
