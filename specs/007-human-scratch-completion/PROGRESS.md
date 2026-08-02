@@ -8485,3 +8485,64 @@ are correct for their own trees.**
 
 Port observed FREE. Root is NOT reassigning it until the reviewer announces release, per the standing
 rule that an observed free port is not a released one.
+
+### 2026-08-02 — P29 rev 02 independent review returns **FAIL** on F-4; rev 03 opened
+
+`p29-reviewer-02` (DISTINCT, never the implementer, not `p29-reviewer-01`) reviewed
+`74b37f9..43836b0` in three of its own worktrees, with a third reference point at the package's
+ORIGINAL BASE `4c77a2d`. Every statement labelled **Measured** or **Inferred**.
+
+**F-1, F-2 and F-3 — everything rev 02 was dispatched to fix — verified GENUINELY FIXED by
+measurement.** The FAIL is a NEW finding.
+
+**F-4 — HIGH — `src/lib/import/detection.ts:328-329`.** When a header disowns EVERY numeric column,
+the detector overrides the header and imports a balance or check number AS MONEY with zero errors.
+
+```ts
+const preferred = evidence.filter((entry) => entry.headerSays !== "not-amount");
+const ranked = preferred.length > 0 ? preferred : evidence;
+```
+
+`NON_AMOUNT_HEADER_PATTERN` exists to say *this column is not the money*. When every numeric
+candidate is disowned, `preferred` is empty and `ranked` falls back to `evidence` — **the disowned
+columns are used anyway**, precisely where the header is unambiguous.
+
+**Root REPRODUCED it independently before dispatching rev 03**, via a throwaway vitest probe in the
+implementer's own tree, then deleted the probe:
+
+```
+["Date","Description","Balance"]   -> {0:date, 1:description, 2:amount}   FAILS
+["Date","Description","Check No"]  -> {0:date, 1:description, 2:amount}   FAILS
+```
+
+**Measured by the reviewer through the real `useImportState.loadFile`, three trees:**
+
+| file                        | at `4c77a2d`                   | at HEAD `43836b0`                    |
+| --------------------------- | ------------------------------ | ------------------------------------ |
+| `Date,Description,Balance`  | `2:balance`, 0 valid, 2 errors | `2:amount`, `100000, 92475`, 0 errors |
+| `Date,Description,Check No` | `2:checkNumber`, 2 errors      | `2:amount`, `100100, 100200`, 0 errors |
+| `Date,Description,Ref`      | `{0:date,1:description}`, 2 errors | `2:amount`, `100100, 100200`, 0 errors |
+
+**This is a REGRESSION against `4c77a2d`**, which produced a visible error where HEAD imports silent
+wrong money — the exact shape the implementer's own evidence §1.4.2 names as the worse failure mode,
+for the second time in this package.
+
+**Required fix:** when every qualifying column is `headerSays === "not-amount"`, return `null` rather
+than falling back, leaving the amount unmapped so rows report as errors. Early
+`if (preferred.length === 0) return null;` at `:329`. **The fix is NOT to extend the denylist — it is
+to stop overriding the denylist when it fires.** Tests must assert through `loadFile` that no amount
+is imported and `errorCount` equals the row count.
+
+**The blindness result, and it is the sharpest instance yet.** The reviewer took each of the SIX
+assertions in `ur-008-amount-column.test.tsx` — the file written specifically to cure blind
+assertions — and asked whether it would still pass with F-4 present. **All six would.** Every fixture
+carries a genuine `Amount`/`Debit` column, so `preferred` is never empty and the fallback branch is
+never exercised. **The `Q-P28-03` shape recurred one level down, inside the helper written to fix
+it.** Generalised lesson recorded: *a fixture set must vary along the axis the code branches on, and
+a newly added branch is itself a new axis.*
+
+**Reviewer caught a root dispatch error and checked before reporting it:** root assigned `43836b0`
+but `/tmp/mf-p29` HEAD is `ee3cce7`. It measured `git diff 43836b0 ee3cce7 -- src tests` as empty,
+confirmed the difference is evidence-only, and recorded it as benign rather than as a finding.
+
+`CLASSIFICATION_THRESHOLD = 0.8` remains untested and carries forward as a Q.
