@@ -8692,3 +8692,59 @@ Reviewer adopted root's `spec.md:80-81` truthfulness-symmetry grounding over its
 than deriving it from a judgement about which failure is worse. `/tmp/mf-p29r2b` was already removed;
 root's listing predated the prune. **The reviewer correctly declines to review rev 03**, being the
 author of the finding it would be grading.
+
+### 2026-08-02 — P30 rev 01 committed at `877d45a`; port granted; UR-009 is a BUILD-IT package
+
+`p30-implementer-01` committed before creating its worktree, as root required, so its campaign runs
+against a tree no concurrent agent can disturb. **Root verified rather than accepted:** `877d45a` is
+an ancestor of HEAD, 15 files, +1686/-44, **`src` and `tests` only** — the concurrent
+`.claude/agent-memory` edit by another agent untouched, which is why the explicit pathspec was
+required. **Scratch integrity independently confirmed:** `sha256sum specs/human-scratch.md` =
+`469e98c7…d2f6a`, byte-equal to frozen.
+
+**AUDIT RESULT — P30 is a BUILD-IT package, not a gap-closing one.** The DRIFT half of the frozen
+text (`human-scratch.md:248-295`) is shipped and sound: `TransactionRuleRobot`,
+`TransactionRulePopup`, `field-rule-robot-state.ts`, `use-transaction-rule-workflow.ts`, the
+precedence engine, tag add/set, manual-row gating and remembered apply-mode. **The CREATION half did
+not exist for ANY field.** `use-transaction-rule-workflow.save()` is keyed to an existing `ruleId`
+and its `:212` comment says so; `InlineEditableTags.tsx` had zero rule wiring.
+
+**This explains the principal's report exactly: they added a tag and changed a description and
+correctly saw nothing, because nothing was there.** 20-clause conformance table — 8 already conformed
+with tests, **12 gaps all closed**. Root accepts the enlarged scope as the correct outcome rather
+than scope creep.
+
+Built additively, without redesigning the engine or changing rule storage:
+`field-rule-proposal-state.ts` (pure create-vs-update decision reusing `selectWinningRule` so both
+surfaces agree on "already matches"), `draftFromProposal` in shared `rule-editor-data.ts`,
+`use-field-rule-proposal.ts` routing writes through the same P17B mutations and P17A hooks,
+`FieldRuleProposal.tsx` / `TransactionRuleProposal.tsx` in a portaled anchored popover so the table
+cannot resize. Wired for description, tags AND allocation, the allocation proposal spanning all
+person columns via subgrid. Apply-mode tooltip copy moved into the shared model so both surfaces
+provably render ONE string.
+
+**Self-caught defect worth recording as method.** Its first cut wrapped the tags cell only when the
+proposal was open, so **the cell's DOM shape differed between states** — React would have remounted
+it mid-edit and dropped the open dropdown and the caret. **No unit test would catch that**, and an
+E2E test only would if it happened to type, open a proposal and keep typing; a real user hits it
+first attempt. It also found the anchor dropping the inline `style`, which would have silently broken
+the allocation column span. Both fixed before committing, with the implementer's own framing: *"I
+said so in the comment only after making it true"* — the direct answer to the sibling package that
+shipped a comment asserting a protection the code did not provide.
+
+Fail-without-fix proven in a throwaway worktree at BASE `5229cd4`: **4 failed / 6 passed**, with
+`draftFromProposal is not a function` and the proposal module unresolvable — a real absence, not a
+vacuous import failure.
+
+Gates: typecheck clean, lint 0 errors (1 warning pre-existing at BASE in untouched `useVirtualizer`
+code), `oxfmt --check src tests` clean, `pnpm test` **123 files / 2394 passed**.
+
+Disclosed unprompted: a `git stash push` swallowed its tracked edits earlier; caught immediately,
+restored via `git stash pop`, verified intact. **Root used the disclosure to warn `p31-implementer-01`,
+which shares the same checkout**, rather than merely noting it.
+
+Three Q-proposals carried: clearing a field offers no rule; restrictions pre-filled but not
+pre-enabled; one pending proposal at a time. Root requires a recorded DECISION on each at handback,
+not just the question — `clearing a field` is genuinely ambiguous against the frozen text.
+
+**Port queue now: P30 (RUNNING) -> P29 rev 03 (`77b321d`, ready) -> P31/P32.**
