@@ -164,24 +164,9 @@ function PendingRuleProposal(
     const open = proposal.kind !== "none" && draft != null;
     const isAutomatic = draft != null && applyModeIsAutomatic(draft.applyMode);
 
-    // Watch for focus genuinely leaving the row, by reading focus STATE rather than tracking events.
-    //
-    // Revision 04 listened for `focusin` alone and missed three of the four ways a row loses focus:
-    // pressing Enter in a cell, tabbing off the document, and clicking non-focusable page chrome all
-    // blur to `<body>`, which fires `focusout` and NO `focusin`. The frozen text's own worked example
-    // (`:249-251`, applying a description alias) is one of the missed cases — the alias input calls
-    // `blur()` on Enter, so the commit and the blur are the same event.
-    //
-    // Reading `document.activeElement` also removes a mount-ordering hazard the deferral introduced:
-    // this component mounts only once the cell's edit surface has closed, so an event listener can be
-    // armed AFTER the transition it is waiting for. A state read answers correctly whenever it runs,
-    // including immediately on mount.
-    //
-    // `focusout` is the event that always accompanies a blur, but at its dispatch the next focus has
-    // not landed yet, so the check is deferred a task. `focusin` is kept for the case where focus
-    // moves straight into another control without an intervening idle state.
-    // Read live focus state. Called both from the listeners and again at apply time, so the decision
-    // is never made from a remembered value.
+    // Has focus genuinely left the row, right now? Reads focus STATE rather than tracking the
+    // transitions that produced it, so the answer is correct whenever it is asked — including on the
+    // very first call, before any event has been seen.
     const isRowFocusLost = useCallback((): boolean => {
         const row = anchorRef.current?.closest('[data-testid="transaction-row"]');
         return !isFocusStillInRow({
@@ -193,23 +178,27 @@ function PendingRuleProposal(
         });
     }, [anchorRef]);
 
-    // Decide the frozen `:263-266` gesture at ONE instant.
+    // Frozen `:263-266`: the "Updating…" modes apply automatically once the row loses focus; the
+    // "Update…" modes wait for the tick. The whole decision is made at ONE instant, inside the
+    // deferred read below, where focus state and edit state are both current.
     //
-    // Revision 06 split this into a flag set by the listener and a re-read at apply time, and MEASURED
-    // they are never true together: at the first evaluation focus is genuinely outside but the flag
-    // has not been set yet (it is set inside the deferred callback), and by the time the flag lands
-    // focus has moved on and the live read says "still in the row". Two conditions that are satisfied
-    // at different moments cannot gate one action. The result was silent inaction on every gesture —
-    // the same direction as F-7, reintroduced by the fix for F-11.
+    // Revision 06 split it across two gates — a flag set by the listener and a re-read at apply time
+    // — and a probe MEASURED that they are never true together: at the first evaluation focus is
+    // genuinely outside but the flag is unset, because it is set inside the deferred callback; by the
+    // time the flag lands, focus has moved on and the live read says "still in the row". Two
+    // conditions satisfied at different moments cannot gate one action, so nothing was ever written.
     //
-    // So the whole decision happens inside the deferred read, where focus state and edit state are
-    // both current. There is no remembered value to go stale and no second gate to miss.
+    // Deferral is required, not stylistic: at `focusout` dispatch `document.activeElement` is already
+    // `<body>` even when focus is heading somewhere focusable, so an immediate read reports "left the
+    // row" on every focus move within it.
     //
-    // The read must be deferred: at `focusout` dispatch `document.activeElement` is already `<body>`
-    // even when focus is heading to a focusable target, so an immediate read reports "left the row"
-    // on every focus move. `focusin` is kept for moves with no idle state between, and one evaluation
-    // runs on mount to catch a blur that happened before this component existed — revision 04 missed
-    // three of the four blur gestures precisely because it could be armed after the event it awaited.
+    // Both listeners are needed, and one evaluation runs on mount. `focusout` accompanies every blur;
+    // `focusin` covers moves with no idle state between; the mount call catches a blur that happened
+    // before this component existed. Revision 04 listened for `focusin` alone and missed three of the
+    // four ways a row loses focus — Enter in a cell, tabbing off the document, and clicking
+    // non-focusable page chrome all blur to `<body>`, firing `focusout` and no `focusin`. The frozen
+    // text's own worked example at `:249-251` is one of those: the alias input calls `blur()` on
+    // Enter, so the commit and the blur are the same event.
     const shouldAutoApply = props.isEditing !== true && isAutomatic && open;
     const shouldAutoApplyRef = useRef(shouldAutoApply);
     // A ref, not a dependency: the deferred callback must read the CURRENT value when it fires, not
