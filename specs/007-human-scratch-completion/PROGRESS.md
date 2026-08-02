@@ -172,7 +172,7 @@ review evidence.
 | P24     | UR-003         | [Presence avatars show name initials](tasks/P24-ur-003.md)                          | none                 | passed            | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-07-30 by human principal instruction; frozen source lines 55-74; confirmed defect layout.tsx:218-224 and :343                                                                                                                                                             |
 | P25     | UR-004         | [Default currency from time zone](tasks/P25-ur-004.md)                              | none                 | passed            | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-07-30 by human principal instruction; frozen source lines 76-98; supersedes the locale rationale in detect-currency.ts:4-6                                                                                                                                                |
 | P26     | UR-005         | [Minimal table chrome at rest](tasks/P26-ur-005.md)                                 | none                 | passed            | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01 by human principal; frozen source specs/010-user-reported-refinements-2/spec.md lines 11-24                                                                                                                                                                         |
-| P27     | UR-006         | [Vault members listed by name](tasks/P27-ur-006.md)                                 | none                 | implementing      | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 26-38; shares name resolution with UR-003/P24                                                                                                                                                                                                               |
+| P27     | UR-006         | [Vault members listed by name](tasks/P27-ur-006.md)                                 | none                 | in_review         | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 26-38; shares name resolution with UR-003/P24                                                                                                                                                                                                               |
 | P28     | UR-007         | [Dates display in browser locale](tasks/P28-ur-007.md)                              | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 40-54                                                                                                                                                                                                                                                       |
 | P29     | UR-008         | [CSV import parity and honest counts](tasks/P29-ur-008.md)                          | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 56-86; confirmed root cause parseAmount csv.ts:165-190 rejects leading plus, exactly 15 rows                                                                                                                                                                 |
 | P30     | UR-009         | [Automations conformance re-verification](tasks/P30-ur-009.md)                      | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01 by human principal after reporting missing rule-creation controls; frozen source specs/011-automations-conformance/spec.md lines 16-61; RE-VERIFIES HS-007 without reopening it                                                                                       |
@@ -7397,3 +7397,60 @@ the accessible name to follow the same rule as the visible label, so BOTH must c
 helper is dead and should be deleted rather than left unused.
 
 Evidence `evidence/P27/implementation-01.md`; review path reserved `reviews/P27-review-01.md`.
+
+### 2026-08-02 — P27 rev 01 handback VERIFIED; DISTINCT reviewer dispatched
+
+`p27-implementer-01` delivered `8c5cda6` (fix), `98858b4` and `ab80bbc` (evidence), all verified
+ancestors of HEAD. 7 files; no ledger, marker, scratch, SCOPE, spec, FINAL-AUDIT or reviews file
+touched. Root gates: typecheck clean; unit **117 files, 2195 passed / 2 skipped** (up from 2186);
+`shortenPubkeyHash` confirmed DELETED with no remaining callers; the `aria-label` at `:159` now carries
+the resolved name; no forbidden casts.
+
+**IT DISPROVED AN ADVISORY FROM THE P24 REVIEW, and the failure mode it found is dangerous.** P24
+review-01 §4 suggested importing `UNNAMED_MEMBER_LABEL` from `@/lib/crdt/person` into an E2E spec so a
+label rename would break at compile time. The implementer TRIED it and found the chain
+`person.ts:19 -> defaults.ts:12 -> @/types -> temporal-polyfill` breaks Playwright's resolver. Root
+verified `temporal-polyfill`'s package exports publish ONLY an `import` condition, exactly as reported.
+**Playwright then reports "No tests found" and SILENTLY SKIPS THE ENTIRE SPEC FILE rather than failing**
+— on a campaign that reads as a reduced test count, not a red run. The cited precedents work only
+because `@/lib/crypto/*` never reaches `@/types`. Recorded as `Q-P27-01`.
+
+**Campaign: 3/3 full-suite `--retries=0` at 170 passed**, digest `f73143fa` before run 1 and after run
+3, no restart and no drift. 168 at BASE and 170 at HEAD confirmed with `playwright test --list` rather
+than assumed — which is exactly the discipline that would catch a silently-skipped spec file.
+
+**Honest caveat flagged rather than buried:** of five full-suite `pnpm test` runs, four were green at
+2195 and ONE reported `1 failed | 2194 passed`. The implementer had piped that run through grep and
+lost the failing test's NAME. It could not reproduce it in three attempts including under deliberate
+heavy load, and `duplicates.test.ts` passes in isolation. The known wall-clock-ratio condition is the
+probable explanation, but it did NOT observe the name, so its evidence labels the attribution an
+UNCONFIRMED INFERENCE. The reviewer's campaign should watch for it.
+
+**Two corrections to root's dispatch:** `AccessMembersSection` does take an optional `className` prop
+(`:40-43`) — it takes no `people`, which is what root's claim rested on, so substance is unaffected.
+And the P24 advisory above.
+
+**Scope flag, surfaced not buried:** the diff touches `PresenceAvatar.tsx` and `TransactionRow.tsx`,
+which are UR-003 surfaces, but only to route an open-coded
+`kind === "named" ? ... : UNNAMED_MEMBER_LABEL` ternary through a new shared `memberDisplayLabel`
+helper. Behaviour-identical and pinned by P24's existing 41 tests. The implementer did it because
+leaving three open-coded copies of the same rule would defeat the anti-drift purpose P24 established,
+and noted that reverting those hunks would not affect UR-006's observable behaviour.
+
+**P24's A-1 lesson applied, with a different outcome, proven empirically.** A-1 warned that a leaf-level
+guarantee can be defeated by an optional prop upstream. This design has NO silent-degradation path:
+there is no prop to omit, because `usePeople -> useVaultSelector -> useLoroContext` THROWS without a
+provider. The implementer proved it with a disposable probe rather than by inspection —
+`Error: useLoroContext must be used within a LoroProvider` — then deleted the probe and returned the
+worktree digest to baseline.
+
+**Tests proven to catch the defect:** all 6 new unit tests and both new E2E tests were run against the
+unmodified BASE component and FAIL, with output showing the hash roster verbatim. The E2E includes a
+rename step — renaming the person on the People page must change the roster — which is the assertion a
+future agent cannot satisfy by hardcoding a string.
+
+**Manual browser check on the running app** (read-only, :3001): roster rendered `Me(you) owner`, then
+followed a rename to `Ben Tefay(you)`; the sidebar avatar showed `img "Me": M` on the same tree, so the
+two surfaces AGREE. 0 console errors, no failed requests, recovery phrase never revealed.
+
+Dispatched `p27-reviewer-01` (DISTINCT, fresh context, never the P27 implementer).
