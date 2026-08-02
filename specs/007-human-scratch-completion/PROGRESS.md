@@ -8240,3 +8240,43 @@ recorded for the rev 03 campaign**, confirming that campaign covers this exact t
 The reviewer deliberately withheld its unit suite and build while P29's campaign runs, on the
 grounds that competing for load is what fabricates a red run for another package. Correct, and the
 discipline is recorded.
+
+### 2026-08-02 — "Three concurrent campaigns" was a ROOT-CAUSED false alarm; one-campaign rule intact
+
+`p28-reviewer-03` reported three Playwright campaigns running against the one-campaign-repo-wide
+rule, two of them in the SHARED main checkout — the `Q-P28-06` danger pattern. Root investigated
+before acting on it.
+
+**Both extra "campaigns" were root's own monitoring shell.** PID 3082548 was a root watcher polling
+for :3000 to free; its own script text contains the string `playwright`, so any scan matching the
+whole cmdline classifies it as a Playwright process. It was `sleep 20` in a loop. PID 3089579 was
+already gone — same false-positive class.
+
+**This is the `pgrep -f` self-match trap, already recorded in this goal, walked into again by root.**
+The monitor polluted the exact process table it existed to observe. Root killed it.
+
+Verified by matching on `argv[1]` rather than the whole command line:
+
+```
+PLAYWRIGHT 3078493 cwd=/tmp/mf-p29
+```
+
+**Exactly one real Playwright CLI on the machine. The one-campaign rule was never violated.** Load
+8.84 is P29's four workers plus normal background, not three campaigns.
+
+**The reviewer's conduct was correct on every axis that mattered.** It recognised the shared-checkout
+danger pattern, **did NOT kill the processes**, and escalated for a decision instead of acting
+unilaterally on a destructive call. Had they been real campaigns, restraint was right; had it killed
+them, it would only have destroyed a root monitor, but the reflex is the dangerous one.
+
+**Root ruled (c) HOLD, and explicitly REJECTED option (b)** — writing the review with the E2E
+criterion unproven, resting on the implementer's recorded campaign. The 3-run `--retries=0` bar is
+root's and the reviewer should MEET it, not infer it, when the port is minutes away. The reviewer's
+own corroboration was assessed as strong-but-insufficient: `playwright test --list` reports **177
+tests in 23 files**, all five date-locale tests resolve individually by name so the `Q-P27-01`
+vacuous-import failure mode is excluded, every imported helper exists, `data-testid="date-editable"`
+renders at `TransactionRow.tsx:369`, and the tree digest matches the implementer's recorded pre-run-1
+and post-run-3 values. **That makes the E2E outcome very likely; it does not make it verified.**
+
+Reviewer's stated direction: **PASS with one MEDIUM finding.** Outstanding for it: `pnpm test`,
+`pnpm build`, and the 3-run campaign, all deferred until root signals the port.
