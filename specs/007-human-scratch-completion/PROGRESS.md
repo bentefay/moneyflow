@@ -10475,3 +10475,69 @@ Root asked what was driving load 11 and suggested an external workload. **P30 me
 all rooted in its worktree. Nothing external.** Its framing: *"P31's figures were probably sampled
 between runs rather than mid-execution — the comparison was measuring two different moments, not two
 different conditions."* **That is the same shape as root's port monitor reading quiet between runs.**
+
+### 2026-08-02 — The `people-settlement` failures are a LOAD-SENSITIVE FLAKE CLASS, not a defect
+
+**Run 2 answered the determinism question and the failure set MOVED:**
+
+```
+run 1:  :145  :166  :197  :281  :525      5 failures
+run 2:        :166  :197        :559      3 failures
+recovered: :145, :281, :525     new: :559     timeouts: 0 in both
+```
+
+**A real regression in a two-commit range does not spare `:145` on the second attempt and take `:559`
+instead.** Root cancelled the bisect: P30's own stated limitation was that a revert-comparison
+discriminates **only if the failures are deterministic**, and they are not.
+
+**Both candidate mechanisms retired.** Root's USD/AUD reading was already falsified on timing by P30;
+it is now falsified twice, since a static currency mismatch cannot spare a test on the second run.
+**`b138894` and `b6950ca` are both cleared** — neither can produce a moving failure set in a spec
+that does not reach them.
+
+**What it is: a load-sensitive assertion class across `people-settlement.spec.ts`** — the longest
+journeys in the suite, `expect(...).toBeVisible()` against a **5-second** budget, at load 11 with
+four Chrome workers. **This is a FOURTH entry in this repo's load-sensitive register**, alongside
+`transactions.spec.ts:804`, `duplicates.test.ts:749` and `vault-maintenance.test.tsx`, and the
+largest — a whole spec rather than a single assertion.
+
+**P30's correction of root's framing is the durable lesson.** Root had said assertion-failure means
+defect and timeout means contention. P30 pointed out a missing element under a 5s cap can be a slow
+first render: **`toBeVisible` with a short budget is a timeout wearing an assertion's clothes**, and
+the moving failure set is what proves it.
+
+### 2026-08-02 — P31 review addendum `9853314`: F-4 barrel export and F-5 a stale evidence sentence
+
+**F-4 — the reviewer did not settle root's design question by argument. It wrote a throwaway test
+PLAYING THE FUTURE CALLER**, hitting the public export with no pre-comparison at 100,000 rows across
+four selection shapes:
+
+```
+Correctness: identity preserved in all four   — the trailing block covers it alone
+Cost:        19.52 ms per call                — where the removed guard was O(1)
+```
+
+**Root WITHDRAWS its "performance concern rather than correctness one" framing.** The reviewer is
+right that at that scale performance **is** the frozen requirement: `spec.md:52-55` states efficiency
+"is a requirement, not an aspiration" and names a hundred-thousand-transaction vault. **A future
+caller reaching this through the barrel on a render path violates that clause, and nothing in the
+types or tests would say so.**
+
+**Ruling: the guard removal stands, AND `reconcileToMatchingRows` comes out of the `index.ts` barrel.**
+The reviewer's framing: *the barrel export is what turns a private invariant into a public trap.*
+**Root verified deletion is safe** — `page.tsx:48` imports it directly from `table-selection`, not
+from the barrel; the only barrel imports anywhere are for other symbols and one type-only test
+import.
+
+**F-5 — one stale sentence survived the evidence rewrite.**
+`evidence/P31/implementation-01.md:179-182` still concludes the digests mean *"this result describes
+current HEAD rather than a superseded tree"*. **`b138894` falsified it**: `table-selection.ts` went
+`8602eb31a503` -> `d80f67784a3e`. The file states the correct limitation in three other places and
+the opposite of the truth in this one. Correction ordered; **neither item is a re-review trigger and
+the PASS stands.**
+
+**The reviewer had already retargeted on its own initiative** — `b138894` and `0398d19` are both
+ancestors of `0e27694`, so its nine-mutation battery and full suite already covered them. **Root's
+instruction and the reviewer's own F-1 converged on the same tree from opposite directions.** It also
+caught root describing "one product change" when there were two, and cleared the `duplicates.test.ts`
+flake as not P31's — `git log 054f77e..HEAD` on that file is empty.
