@@ -138,8 +138,6 @@ export function reconcileToMatchingRows(
     previousMatchingRowIds: readonly string[],
     nextMatchingRowIds: readonly string[]
 ): TransactionSelection {
-    if (previousMatchingRowIds === nextMatchingRowIds) return selection;
-
     const nextMatchingRowIdSet = new Set(nextMatchingRowIds);
     const exceptions = new Set<string>();
     for (const rowId of selection.exceptions) {
