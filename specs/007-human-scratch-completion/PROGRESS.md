@@ -9793,3 +9793,54 @@ UR-010's keyboard clause anywhere.
 *"I will not describe any property in a comment or in evidence that I have not run something to
 observe — and where I cannot observe it, I will say it is an argument rather than a measurement."*
 **That is a mechanism rather than a resolution**, which is the difference that matters.
+
+### 2026-08-02 — P30 produced a CLEAN per-package test signal; root verified it
+
+Root's instruction was to disclose that `pnpm test` at 126 files / 2441 passed spans both packages.
+**The implementer did that AND produced the replacement**, running only the suites P30 owns — rule
+proposal stability, proposal state, both editor model/data suites, both robot-state suites, and all
+of `tests/unit/domain/automation`:
+
+```
+Test Files  11 passed (11)
+     Tests  181 passed (181)
+```
+
+**Root verified the claim rather than accepting it:** of those 11 suites, only
+`rule-proposal-stability.test.tsx` appears in the fused commit at all, and it is P30's. **So 181 is a
+genuine P30-only signal where 2441 is not.** Both numbers with their scopes are in the evidence.
+
+**Why this is the right move rather than merely tidy:** disclosing that 2441 spans both packages is
+honest but leaves a reviewer with LESS than before — *"this number isn't trustworthy"* and nothing in
+its place. **A limitation stated alongside a remedy is worth far more than a limitation stated
+alone**, and most agents stop at the first.
+
+**The implementer identified a consequence of the fusion root had not worked through, and it is
+unavoidable.** Even after P31 campaigns, a digest over P30's tree still includes P31's selection
+wiring inside `page.tsx`, because that file carries both packages' changes in `e97b3f7`. **No
+sequencing produces a clean separation for that one file.** Position recorded for both reviews:
+**`page.tsx` is jointly attributed and each reviewer is told which lines are whose** — 51
+selection-related added lines against 7 rule-related, measured. Neither reviewer pretends the file is
+solely theirs; neither reviews the other's work.
+
+### 2026-08-02 — Root's account of the portal catch was TOO GENEROUS; the implementer corrected it down
+
+Root recorded that the implementer *"went and read"* where the tag dropdown lives, catching the
+portal defect by deliberate verification. **The implementer corrected this against its own credit:**
+it tried to write a probe test, the probe **died on a missing `ResizeObserver` in jsdom**, and *that
+crash* sent it to read the component. **The instinct to verify was real; which artifact it looked at
+was partly luck.**
+
+Its reasoning for insisting on the weaker version, which root accepts: **"a habit I can only rely on
+when a test happens to crash is not yet a habit."** Recording the stronger version would have made
+the goal's record overstate how reliably this class is caught, and the next reader would calibrate on
+a capability that does not exist.
+
+**This is the second time in this package the implementer has corrected its own credit downward.**
+The durable practice it commits to — *don't write the sentence until the measurement exists, and
+where you can't measure, say "this is an argument, not a measurement"* — has now been applied to
+clause 2 and to the no-resize property, **which makes it a practice rather than an intention.**
+
+Port sequencing: P31 has created `/tmp/mf-p31` and is setting up; its campaign has not started. P30
+holds, is next, and is instructed not to take the port on an observed gap — root has seen :3000 read
+free three times mid-campaign today, and has once failed to confirm a grant actually landed.
