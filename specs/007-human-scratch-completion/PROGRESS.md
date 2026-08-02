@@ -174,7 +174,7 @@ review evidence.
 | P26     | UR-005         | [Minimal table chrome at rest](tasks/P26-ur-005.md)                                 | none                 | passed            | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01 by human principal; frozen source specs/010-user-reported-refinements-2/spec.md lines 11-24                                                                                                                                                                         |
 | P27     | UR-006         | [Vault members listed by name](tasks/P27-ur-006.md)                                 | none                 | passed            | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 26-38; shares name resolution with UR-003/P24                                                                                                                                                                                                               |
 | P28     | UR-007         | [Dates display in browser locale](tasks/P28-ur-007.md)                              | none                 | changes_requested | 03  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 40-54                                                                                                                                                                                                                                                       |
-| P29     | UR-008         | [CSV import parity and honest counts](tasks/P29-ur-008.md)                          | none                 | implementing      | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 56-86; confirmed root cause parseAmount csv.ts:165-190 rejects leading plus, exactly 15 rows                                                                                                                                                                 |
+| P29     | UR-008         | [CSV import parity and honest counts](tasks/P29-ur-008.md)                          | none                 | in_review         | 01  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01; lines 56-86; confirmed root cause parseAmount csv.ts:165-190 rejects leading plus, exactly 15 rows                                                                                                                                                                 |
 | P30     | UR-009         | [Automations conformance re-verification](tasks/P30-ur-009.md)                      | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-01 by human principal after reporting missing rule-creation controls; frozen source specs/011-automations-conformance/spec.md lines 16-61; RE-VERIFIES HS-007 without reopening it                                                                                       |
 | P31     | UR-010         | [Shift-click extends selection and deselection](tasks/P31-ur-010.md)                | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-02 by human principal; frozen source specs/012-transaction-selection/spec.md lines 11-29; toggleRow at useTableSelection.ts:106-133 only ever adds                                                                                                                       |
 | P32     | UR-011         | [Header checkbox selects all filtered rows](tasks/P32-ur-011.md)                    | none                 | queued            | --  |                                                                                                                                                                                                                                                                             |                                                                                                                        |                                                                                                               | ADMITTED 2026-08-02; lines 31-55; efficiency at 100k transactions is part of the requirement                                                                                                                                                                                            |
@@ -7796,3 +7796,51 @@ nothing is "presented" to a viewer, so UR-007 does not reach them. The implement
 them and right to record it. Not part of the FAIL.
 
 **P28 -> `changes_requested`, rev 03 opened.** Rev 02's FAIL artifact is preserved.
+
+### 2026-08-02 — P29 rev 01 handback VERIFIED and merged; DISTINCT reviewer dispatched
+
+`p29-implementer-01` handed back at `3b76490`, rebased by root onto current main as `4d2b409` and
+fast-forwarded. The original `--ff-only` failed because main had advanced with root's own ledger
+commits while the package worked; root verified **ZERO file overlap** between the two sides before
+rebasing, so the divergence was purely ledger-versus-package and the rebase was clean.
+
+**14 files, +1765/-229.** Product: `csv.ts`, new `detection.ts`, `types.ts`, `schema.ts`,
+`use-import-state.ts`, `ImportSummary`/`ImportTable`/`ImportPanel`/`DuplicatesTab`/`MappingTab`. Tests:
+`ur-008-csv-parity.test.ts` (20 cases), `mapping-tab-auto-detect.test.tsx` (2), 2 new E2E. No ledger,
+marker, scratch, SCOPE, spec, FINAL-AUDIT or reviews file touched.
+
+**Root gates on the merged tree:** typecheck clean; unit **122 files, 2363 passed / 2 skipped**, up
+from 2341. The leading-plus branch is present at `csv.ts:186` and `collapseWhitespace` now defaults
+**true** at `types.ts:154`.
+
+**Campaign VERIFIED AGAINST THE ARTIFACTS, not the report.** Root initially could not find the logs
+and asked for a status; the implementer replied that root's HEAD reading was stale and gave the paths,
+which were under `/tmp/` rather than the worktree. Root then read them directly:
+- `p29-e2e-run{1,2,3}.log` tails: **177 passed** at 4.6m, 4.4m, 4.1m.
+- `p29-digest-pre.txt` and `p29-digest-post.txt` both `8443fde82c70fce74e90ef1ccce91d2d`, written 14
+  minutes apart spanning the campaign — **no drift**.
+- Both new tests grepped by line number: exactly **2 hits in each of the three logs**, so
+  `import.spec.ts:1721` and `:1800` EXECUTED by name rather than being inferred from the 177 total.
+- Failure-signature scan across all three logs: **NONE**.
+
+**The implementer disproved root's contamination worry with positive evidence rather than reasoning.**
+Root asked whether P28's uncommitted `date-format.ts` in the shared checkout could have leaked into the
+campaign. It answered that `date-locale.spec.ts` ran as tests [11/177] to [15/177] and PASSED in all
+three runs — including "a day-first viewer's typed date is stored as the day they meant", which is
+precisely where a leak would surface — and that the digest did not move. No re-run needed.
+
+**Five defects fixed, two of them regressions the fix itself would have introduced** — the discarded
+`hasHeaders` and the Auto-detect button wiping correct mappings — both framed in evidence §1.4.2 with
+what the user would have seen. Everything the implementer found against itself is in the evidence: the
+shared-checkout edit incident, the pnpm store perturbation, the tautology test that could not fail, the
+silent-skip that made a naive BASE proof worthless, the worktree lint problem and its digest-verified
+relocation, and all three load-sensitive assertions with the loads at which they failed.
+
+**ROOT INTERVENED on the shared checkout.** P28's implementer had 145 lines of uncommitted F-4 work in
+`/home/ben-agents/Code/moneyflow` across three requests, and `src/lib/utils/date-format.ts` is imported
+by `ImportTable.tsx` inside P29's file set — so P29's reviewer could not have distinguished the tree
+under review from another package's work in progress. Root preserved the work TWO ways
+(`/tmp/p28-f4-wip.patch`, 217 lines, and `git stash@{0}`) before running `git checkout -- src tests`,
+and told the implementer where to recover it and to work in `/tmp/mf-p28r3` outside the repo.
+
+Dispatched `p29-reviewer-01` (DISTINCT, fresh context, never the P29 implementer).
