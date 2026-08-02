@@ -2899,3 +2899,47 @@ dispatch rather than assuming, exactly as it verifies the scratch SHA and FS-001
 and did not notice the port was still held. The reviewer caught it, blocked rather than reviewing a
 moving target, and asked for a ruling instead of absorbing the problem. That is the correct behaviour
 and it should not have been necessary.
+
+## Q-P29-01 — A THIRD load-sensitive test, and an ESLint hazard from worktree placement
+
+Two findings from P29, both verified by root. **Carry forward to P21.**
+
+**(a) A third load-sensitive test, extending `Q-P23-01`.** `tests/integration/vault-maintenance.test.tsx`
+("sanitizes generic action and edit callbacks") failed once under load with
+`expected undefined to be 'before'`. It drives a MOCKED `requestAnimationFrame` — root confirmed the
+`vi.spyOn(window, "requestAnimationFrame")` calls at `:447` and `:501` — so it is frame-timing
+dependent rather than wall-clock dependent, a different mechanism from the two already recorded. It
+passed in isolation and in both subsequent full runs.
+
+The register of load-sensitive assertions in this goal is now:
+1. `tests/unit/import/duplicates.test.ts:749` — a wall-clock RATIO. Observed failing at 4.098 and
+   4.671 against a bound of 4, always under load, always passing on a quiet machine.
+2. `tests/e2e/transactions.spec.ts:804` — an absolute 10-second expansion budget.
+3. `tests/integration/vault-maintenance.test.tsx` — mocked-rAF frame timing.
+
+Three tests, three different mechanisms, three different suites. That is enough to treat load
+sensitivity as a property of the suite rather than a quirk of one assertion, and it is why
+`Q-P27-02`'s rule — a campaign is evidence only for the load it ran under — is load-bearing rather
+than pedantic. P21 should either make these load-independent or state explicitly that every campaign
+must run on a quiet machine and that any wall-clock or frame-timing failure under uncontrolled load is
+unprovable in both directions.
+
+**(b) A worktree inside the repo silently breaks `pnpm lint` for EVERY package.** `p29-implementer-01`
+placed its worktree at `.claude/worktrees/p29-ur008`. `.git/info/exclude` hides it from git, but ESLint
+does not read that file and walked it, so a bare `pnpm lint` reported **591 errors and 18,773 warnings
+across 219 files**. Attribution by path gave **217 worktree files** plus **2 entries that were the same
+single pre-existing `TransactionTable.tsx:426` warning**. Every error was ESLint re-linting one
+package's working copy through a second path.
+
+It was diagnosed by `p28-implementer-01`, which correctly attributed it to another package rather than
+to a repo defect and deliberately did NOT "fix" the offending files — which would have edited another
+package's in-flight work. `p29-implementer-01` then verified the diagnosis independently before acting
+on it, and relocated to `/tmp/mf-p29`. Root confirmed the worktree is gone from the repo and that a
+bare `pnpm lint` now exits **0** with one pre-existing warning.
+
+**Rule for P21 and for every future dispatch:** worktrees must live OUTSIDE the repository directory.
+`/tmp/mf-<package>` is the convention every other package here followed. Note `git worktree move` fails
+across filesystems with `Invalid cross-device link`, so relocation means commit, remove, re-create from
+the branch — the implementer verified that was lossless by comparing tree digests before and after.
+Worth stating in dispatches, since nothing in the repo enforces it and the failure mode is a
+catastrophic-looking number that belongs to nobody.
