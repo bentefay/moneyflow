@@ -511,3 +511,80 @@ I wrote exactly one file, this review. I edited no product, test, ledger, marker
 spec or FINAL-AUDIT file. The mutation experiment in A-1 ran in a disposable `git archive` tree that
 has been deleted; the shared main checkout was never mutated and was verified clean afterwards. The
 manual browser session was closed, its data deleted and its artifacts removed.
+
+---
+
+## 8. Addendum — `b70280c`, and the three named `Q-P24-01` collisions
+
+Added after root corrected its own dispatch, which listed four commits and omitted `b70280c`. The
+verdict is unchanged: **PASS**.
+
+### The correction did not affect this review
+
+Root's correction is factually right, and I verified it rather than accepting it:
+`git log --oneline a318b40..9e81a8d` returns exactly `b70280c` then `9e81a8d`, and
+`git show --name-only b70280c` touches only `evidence/P24/implementation-01.md` — no product or test
+file, so the campaign target is unaffected.
+
+The hazard root flagged did not materialise: **I assessed the evidence at HEAD throughout**, which
+is why section 2 criterion 13 confirms the verbatim strict-mode block, the `presentIdentities`
+self-correction and the `Q-P24-01` draft as present, and why section 1 of this document already
+names `b70280c` as in scope. Confirming the difference is real: `grep -c 'strict mode violation'` on
+the evidence returns 0 at `a318b40` and 1 at HEAD; `Q-P24-01` likewise 0 then 1;
+`'Observed, not inferred'` 1 then 2. Had I reviewed the `a318b40` version I would indeed have raised
+three findings that are false at HEAD.
+
+### Judgement 1: are the measured numbers accurate? **The two totals yes; the three named collisions, no.**
+
+The headline figures reproduce exactly — 469 name-carrying `getByRole` calls in `tests/e2e/`, 33
+with `exact`, 436 residual. Those are sound and I confirmed all three independently.
+
+The three named collisions do **not** hold up. I checked each against the suite rather than
+accepting the list, and all three fail to be live hazards, each for a different reason:
+
+- **`"Add"` ⊂ `"Add owner"`/`"Add Person"`/`"Add Tag"` — already guarded.** Both `"Add"` locators in
+  the suite (`helpers/settlement.ts:38`, `transactions.spec.ts:125`) already pass `exact: true`.
+  This collision was closed before P24 began, so it cannot fire.
+- **`"Coffee"` ⊂ `"Coffee Shop"` — different roles, different files.** `"Coffee"` is only ever a
+  `getByRole("button")` and only in `field-rule-parity.spec.ts`, `automations.spec.ts` and
+  `transaction-rules.spec.ts`. `"Coffee Shop"` appears as a `getByRole` name exactly once, as an
+  `option`, in `description-aliases.spec.ts:233` — a file containing no `"Coffee"` locator at all.
+  Playwright scopes name matching within a role, so a `button` locator cannot match an `option`. The
+  `"Coffee"` locators are additionally scoped to `getByRole("group", {name: /tags to apply/i})`.
+- **`"Status"` ⊂ `"Statuses"` — different roles.** `"Status"` is a `button`
+  (`transactions.spec.ts:433`); `"Statuses"` is a `heading` with `level: 1` (`helpers/nav.ts:31`).
+  Again unreachable across roles.
+
+This does not damage `Q-P24-01`. The mechanism is real and P24 has a live demonstration of it — the
+run-1 strict-mode violation, where two avatars shared the `img` role in one container. What is
+overstated is the claim that these three are "real collisions already present in the suite ... each
+a strict-mode violation waiting for both labels to be visible in the same container". They are
+substring pairs found by text comparison, not collisions: the sweep that produced them compared name
+strings without filtering by role, container, or file, and did not exclude names already carrying
+`exact`. **A future sweep must filter on role and container, or it will generate mostly false
+positives** — which is the more useful finding for whoever picks the sweep up, and I suggest root
+attach it to `Q-P24-01` rather than open a new entry.
+
+### Judgement 2: was declining the sweep the right scope call? **Yes — and my correction above strengthens that, rather than weakening it.**
+
+I reached this independently and agree with root, for reasons root did not give.
+
+The sweep belongs elsewhere. It spans 436 locators across the whole E2E suite, touches specs owned
+by no package in this goal, and has nothing to do with presence avatars or UR-003. Doing it inside
+P24 would have made the package's diff mostly unrelated test churn and buried the eight-file fix
+under it. The repo rule "don't add features beyond what's needed for the current task"
+(`.claude/rules/coding-style.md`) points the same way.
+
+**It does not leave P24 under-covered.** Under-coverage would mean a collision the package's own
+tests could still hit. P24's three name-carrying locators all pass `exact: true`, and I separately
+checked every other `aria-label` in the `aside` container they are scoped to — only "Open menu" and
+"Expand/Collapse sidebar", neither containing nor contained in the avatar labels. P24's own exposure
+is closed. What remains open is the rest of the suite, which was equally open before this package
+and which P24 did not worsen.
+
+My correction sharpens this. Had the implementer swept on the basis of that unfiltered text
+comparison, it would have added `exact: true` to locators that did not need it, in files it had no
+business touching, on the strength of three findings that turn out not to be live — churn in the
+name of a hazard that was not there. Declining the sweep avoided that. Flagging with measured
+exposure and leaving disposition to root was the right call, and the fact that its own measurement
+does not fully survive scrutiny is the strongest argument that it was.
