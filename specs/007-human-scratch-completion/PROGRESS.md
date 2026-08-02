@@ -10950,3 +10950,63 @@ nor `playwright.config.ts`, and **measuring geometry is the only way to discharg
 Carried with it: the human's dev server is on :3001 and **`pkill -f "next-server"` matches it** — an
 agent nearly killed a 3-day-old server with the unfiltered form tonight and it survived by race, not
 by care. Kill by cwd filter only.
+
+### 2026-08-02 — P30 rev 04 review returns **FAIL** on F-7; the rev 04 fix narrowed F-2
+
+`p30-reviewer-02` (DISTINCT — not the implementer, not `p30-reviewer-01` which authored the findings
+rev 04 answers) returns **FAIL**, one blocking finding.
+
+**F-1 and F-6 CONFIRMED genuinely fixed by direct measurement against the shipped component**, not
+against evidence prose. The occlusion diagnosis and fix are real and correctly shaped.
+
+**F-7 BLOCKING — the "Updating" modes do not fire on the frozen gesture, and rev 04 is what broke
+them.** Root verified the mechanism in the shipped code before dispatching rev 05:
+
+```
+TransactionRuleProposal.tsx:91   const shouldShow = props.isPending && !props.isEditing;
+TransactionRuleProposal.tsx:169  document.addEventListener("focusin", handleFocusIn);
+                                 — focusin ONLY, no read of document.activeElement
+```
+
+**Two conditions, coupled by rev 04:** the proposal must have mounted, which now requires the edit
+surface to have **closed**; and a `focusin` must fire **after** that mount, landing outside the row.
+`PendingRuleProposal` owns the listener and mounts only when `shouldShow` is true, **so it arms its
+listener after the blur it is waiting for has already happened.**
+
+**Measured on the frozen text's own worked example** — `:249-251` names the description-alias flow:
+
+```
+InlineEditableDescriptionAlias.tsx:213-217   Enter commits and calls input.blur()
+:259-265                                     onBlur calls onEditingChange?.(false)
+
+gesture: press Enter, which calls input.blur()
+  events:           ["focusout:rowinput"]
+  focusinObserved:  FALSE
+  activeElement:    BODY
+```
+
+**The blur and the edit-surface close are the SAME event.** Focus lands on `<body>`, which fires
+`focusout` and **no `focusin` at all** — so the row has genuinely lost focus, `:263-266` is
+satisfied, and the listener is deaf to it because **it observes the wrong half of the pair.**
+
+**Not a data-safety defect** — nothing is written without authority, which was rev 01's F-2. **It is
+silent inaction on the same clause, failing in the opposite direction**, on the path the principal
+described first.
+
+**ROOT'S SHARE OF THIS, recorded plainly: root endorsed the deferral fix and did not ask what else
+depended on the mount timing.** Deferring was the correct answer to the overlap collision and it
+**silently moved the listener's arming point past the event it needed to observe.** A fix in one
+clause broke another through a coupling neither party saw. **That is the second time in this package
+a correct fix produced a new defect in an adjacent clause**, and both times the coupling ran through
+component lifecycle rather than through logic.
+
+**Rev 05 requirement:** the proposal must observe the row losing focus **regardless of when it
+mounts**. `focusin` alone cannot do that, since a blur to `<body>` produces none. Reading
+`document.activeElement` on mount, or observing `focusout` as well, are the two routes — **and both
+must be checked against the F-1 collision, which is exactly the interaction that has now bitten
+twice.** The occlusion fix must not regress.
+
+Three non-blocking: **F-8** `data-owned-by-row` carries no row identity; **F-9** the unit
+reproduction diverges from the shipped wiring **in the way that hides F-7**; **F-10** the restriction
+checkboxes are asserted to exist and never operated. **F-9 is the one that explains why the
+implementer's own suite could not see this.**
