@@ -10099,3 +10099,53 @@ comment, reintroduced in the package where it was found.
 Acceptable outcomes: (1) test passes, reverting the guard breaks it — confirmed, proceed; (2) test
 passes, reverting changes nothing — **remove, re-diagnose, rev 04**; (3) test fails — diagnosis wrong,
 start again. **All three are fine; reporting (1) when the truth is (2) is not.**
+
+### 2026-08-02 — ROOT GRANTED AN OCCUPIED PORT; the implementer REFUSED the grant and was right
+
+Root's monitor watched for :3000 to go quiet, caught the gap between P31's run 4 finishing and its
+deliberate restart beginning, and reported the port free. **Root granted it to
+`p30-implementer-01`.**
+
+**It refused the grant** — it could see a `next-server` and a Playwright process rooted in P31's
+worktree with **new** pids, and it asked rather than acted. Root verified and it was correct:
+
+```
+:3000       next-server pid 381553
+campaign    pid 381465, cwd=/tmp/mf-p31, started 20:33:35
+P31 HEAD    d6567f6  —  merge-base --is-ancestor a265e54 HEAD  PASSES
+```
+
+**P31 had rebased onto P30's rev 03 and restarted cleanly on the corrected tree — exactly what root
+asked it to do.** Grant withdrawn.
+
+**This is root making the precise error it has enforced against three agents all day: inferring a
+release from an observed gap.** Root's three consecutive quiet checks did not save it, because they
+were **three samples of the same blind spot** — a campaign between runs is indistinguishable from no
+campaign unless you also ask **whose worktree is about to claim the port.**
+
+**STANDING RULE, from the implementer, adopted verbatim:**
+
+> **A grant is a statement about intent; the listener is a statement about fact; and when they
+> disagree the listener wins.**
+
+Operational half: **the port's true state is `ss` PLUS `pgrep` PLUS the owning cwd, read together.**
+No two of the three suffice.
+
+**The refusal is the notable conduct.** The implementer had asked for that port three times and
+waited a long time for it, was in the weaker epistemic position — able to see pids but not intent —
+and still declined rather than take something that might not be its. Cost of asking: one message.
+Cost of taking it: two campaigns contending for a hardcoded port, both results void.
+
+**Root has now made five confident claims today from plausible observations without checking the
+mechanism**: the three-assertion load claim, the `51/7` keyword split, the invented
+parameterised-expansion explanation, the escalation against P31's shell loop, and this grant. **Every
+one was caught by another agent.**
+
+**Unplanned benefit: P31's campaign is now the INDEPENDENT test of P30's Escape fix.** Its four
+`addTagToRow` failures were deterministic across all three completed runs on the old tree; its tree
+now contains `a265e54`. **Four gone = confirmation from an instrument P30 does not own, stronger than
+its own targeted run. Four persisting = the guard is inert and P30 removes it per the standing
+ruling** — its discriminating experiment answered without it spending the port.
+
+P31 asked to report those four specifically alongside `T021d`-`T021g`. Root will not signal P30 until
+P31 announces release in its own words rather than root inferring it from the port.
