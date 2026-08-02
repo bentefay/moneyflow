@@ -147,14 +147,18 @@ function PendingRuleProposal(
     // re-runs from its own re-render, and it is the sole writer of that flag.
     const appliedRef = useRef(false);
 
-    // Whether focus has genuinely left the row since this proposal opened.
+    // Whether focus has been observed outside the row. This is a WAKE-UP, not a decision.
     //
-    // This is the frozen `:263-266` gesture — "when the row loses focus" — and it is deliberately
-    // NOT derived from `isEditing`. A cell can stop reporting itself as edited while the caret is
-    // still in the row (a tag dropdown closing is exactly that), and in revision 01 that alone
-    // triggered an "Updating…" apply, writing a rule and rewriting other transactions before the
-    // user had even seen the controls. Only a real `focusout` that lands outside the row counts.
-    const [rowLostFocus, setRowLostFocus] = useState(false);
+    // Revision 05 treated it as a latch and read it directly as the frozen condition: set once, never
+    // cleared. That was nearly harmless while the observer only existed after the edit surface closed.
+    // Moving the mount to `isPending` — correctly, so the blur could be seen at all — widened the
+    // window enough for the flag to be set DURING the edit (tabbing out of a still-open tag picker
+    // does it), after which the apply fired on the `isEditing` transition while the row again held
+    // focus. That is an unauthorised write, reached by a new route.
+    //
+    // The flag now only prompts a re-check; {@link isRowFocusLost} below is what decides, by reading
+    // live state at the moment of application.
+    const [focusSeenOutside, setFocusSeenOutside] = useState(false);
 
     const { apply } = workflow;
     const confirm = useCallback(() => {
@@ -188,48 +192,62 @@ function PendingRuleProposal(
     // `focusout` is the event that always accompanies a blur, but at its dispatch the next focus has
     // not landed yet, so the check is deferred a task. `focusin` is kept for the case where focus
     // moves straight into another control without an intervening idle state.
+    // Read live focus state. Called both from the listeners and again at apply time, so the decision
+    // is never made from a remembered value.
+    const isRowFocusLost = useCallback((): boolean => {
+        const row = anchorRef.current?.closest('[data-testid="transaction-row"]');
+        return !isFocusStillInRow({
+            active: document.activeElement,
+            row: row ?? null,
+            rowId: row?.getAttribute("data-transaction-id") ?? null,
+            ownerRowId: (element: Element) =>
+                element.closest("[data-owned-by-row]")?.getAttribute("data-owned-by-row") ?? null
+        });
+    }, [anchorRef]);
+
+    // Watch for focus leaving the row by reading focus STATE rather than tracking transitions.
+    //
+    // Revision 04 listened for `focusin` alone and missed three of the four ways a row loses focus:
+    // pressing Enter in a cell, tabbing off the document, and clicking non-focusable page chrome all
+    // blur to `<body>`, which fires `focusout` and NO `focusin`. The frozen text's own worked example
+    // (`:249-251`, applying a description alias) is one of the missed cases — the alias input calls
+    // `blur()` on Enter, so the commit and the blur are the same event.
+    //
+    // `focusout` is the event that always accompanies a blur, but at its dispatch `activeElement` is
+    // already `BODY` even when focus is heading somewhere focusable, so the read is deferred a task
+    // to observe where focus actually landed. `focusin` is kept for moves with no idle state between.
     useEffect(() => {
-        const evaluate = (): void => {
-            const row = anchorRef.current?.closest('[data-testid="transaction-row"]');
-            if (
-                !isFocusStillInRow({
-                    active: document.activeElement,
-                    row: row ?? null,
-                    rowId: row?.getAttribute("data-transaction-id") ?? null,
-                    ownerRowId: (element: Element) =>
-                        element.closest("[data-owned-by-row]")?.getAttribute("data-owned-by-row") ??
-                        null
-                })
-            ) {
-                setRowLostFocus(true);
-            }
-        };
-        // A blur is only settled once the browser has moved focus on, so re-read on the next task.
         const evaluateSoon = (): void => {
-            window.setTimeout(evaluate, 0);
+            window.setTimeout(() => {
+                if (isRowFocusLost()) setFocusSeenOutside(true);
+            }, 0);
         };
         document.addEventListener("focusin", evaluateSoon);
         document.addEventListener("focusout", evaluateSoon);
-        // And answer once on mount, for the blur that happened before this component existed.
+        // And answer once on mount, for a blur that happened before this component existed.
         evaluateSoon();
         return () => {
             document.removeEventListener("focusin", evaluateSoon);
             document.removeEventListener("focusout", evaluateSoon);
         };
-    }, [anchorRef]);
+    }, [isRowFocusLost]);
 
     // Frozen `:263-266`: the "Updating…" modes apply automatically once the row loses focus; the
     // "Update…" modes wait for the tick.
     //
-    // Both conditions are required and they are genuinely independent. This component now mounts as
-    // soon as the cell has a pending edit — deliberately, so it is watching before the blur it needs
-    // to observe — which means `isEditing` can still be true here. A cell's edit surface merely
-    // closing is not the frozen gesture, and neither is a blur while the user is still typing.
+    // The observation is re-checked HERE against live state rather than trusted from the flag. The
+    // flag records that focus was outside at some earlier moment; by the time this effect runs the
+    // user may be back in the row — which is exactly what happened when a blur during the edit made
+    // the apply fire the instant the edit surface closed, with the row focused.
+    //
+    // `isEditing` is a genuine second condition now, not a formality: this component mounts while the
+    // edit is still in progress, so a blur mid-edit must not write.
     const isAutomatic = draft != null && applyModeIsAutomatic(draft.applyMode);
     useEffect(() => {
-        if (!open || props.isEditing || !isAutomatic || !rowLostFocus) return;
+        if (!open || props.isEditing || !isAutomatic || !focusSeenOutside) return;
+        if (!isRowFocusLost()) return;
         confirm();
-    }, [confirm, isAutomatic, open, props.isEditing, rowLostFocus]);
+    }, [confirm, focusSeenOutside, isAutomatic, isRowFocusLost, open, props.isEditing]);
 
     if (!open || draft == null || !props.showControls) return null;
 

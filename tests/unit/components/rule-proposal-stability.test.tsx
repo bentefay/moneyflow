@@ -216,42 +216,43 @@ describe("the row-blur predicate reads focus STATE, not focus events", () => {
 });
 
 /**
- * The mount-vs-paint separation that F-7 turned on.
+ * F-11: the decision must be made from LIVE focus state, not a remembered flag.
  *
- * Revision 04 gated BOTH the popover's visibility and the focus observer on the same condition, so
- * the component could not exist during the blur it was waiting for. These pin the rule the shipped
- * container now follows: watch from `isPending`, paint from `isPending && !isEditing`.
+ * Revision 05 latched "focus was seen outside" and read that latch as the frozen condition. Moving
+ * the observer to mount-on-`isPending` — necessary, so the blur could be seen at all — widened the
+ * window enough for the latch to be set DURING the edit. The apply then fired on the `isEditing`
+ * transition, with the row focused again, writing a rule the user never authorised.
+ *
+ * These drive the SHIPPED predicate rather than a restatement of it. Revision 05's unit cases
+ * defined their own local `watches`/`paints` and imported nothing from the component, so the fix
+ * they existed to pin could be reverted with the suite green (review F-12). A test that cannot fail
+ * when the product changes is not coverage.
  */
-function watches(isPending: boolean): boolean {
-    return isPending;
-}
-
-function paints(isPending: boolean, isEditing: boolean): boolean {
-    return isPending && !isEditing;
-}
-
-describe("what is observed is not deferred with what is painted", () => {
-    it("watches while the cell is still editing, so a blur during the edit is seen", () => {
-        expect(watches(true)).toBe(true);
-        // ...but paints nothing yet, which is what keeps it clear of the cell's own edit surface.
-        expect(paints(true, true)).toBe(false);
+describe("F-11 — a remembered observation is not the frozen condition", () => {
+    afterEach(() => {
+        document.body.innerHTML = "";
     });
 
-    it("paints once the edit surface has closed", () => {
-        expect(paints(true, false)).toBe(true);
+    // The exact sequence the reviewer measured: focus leaves while the picker is still open, then
+    // the user returns to the row and the edit surface closes.
+    it("focus returning to the row makes the live read say 'still here' again", () => {
+        const { row, inner } = buildRow("tx-1");
+
+        // Step 3: focus leaves the row while the edit is still in progress.
+        expect(focusStillInRow(document.body, row, "tx-1")).toBe(false);
+
+        // Step 5: the user is back in the row when the edit surface closes. A latch set at step 3
+        // still reads "left"; the live read does not, and the live read is what now decides.
+        expect(focusStillInRow(inner, row, "tx-1")).toBe(true);
     });
 
-    it("neither watches nor paints when this cell has no pending edit", () => {
-        expect(watches(false)).toBe(false);
-        expect(paints(false, false)).toBe(false);
-    });
+    // The write direction that matters: a stale "outside" observation must never be sufficient.
+    it("distinguishes a past observation from the present state", () => {
+        const { row, inner } = buildRow("tx-1");
+        const observedOutsideEarlier = !focusStillInRow(document.body, row, "tx-1");
+        expect(observedOutsideEarlier).toBe(true);
 
-    // The revision 04 shape, kept as the control: gating the observer on the paint condition means
-    // it is not watching during the edit, which is exactly when the frozen blur can occur.
-    it("the revision 04 coupling would NOT have been watching during the edit", () => {
-        const revision04Watches = (isPending: boolean, isEditing: boolean): boolean =>
-            paints(isPending, isEditing);
-        expect(revision04Watches(true, true)).toBe(false);
-        expect(watches(true)).toBe(true);
+        // Same flag, different present. Applying on the flag alone would write here.
+        expect(focusStillInRow(inner, row, "tx-1")).toBe(true);
     });
 });

@@ -438,6 +438,80 @@ test.describe("The restrictions actually restrict", () => {
     });
 });
 
+test.describe("Every way a row loses focus reaches the automatic modes", () => {
+    // Review F-13 required these two explicitly, and F-7 is why: revision 04 passed its one
+    // automatic-mode journey while three of the four blur gestures never fired at all. The journey
+    // blurred by clicking a focusable textbox — the single gesture that produces a `focusin`.
+    //
+    // These drive the other two shapes. Both blur to `<body>`, which fires `focusout` and NO
+    // `focusin`, so a transition-listening implementation is deaf to them.
+
+    // The frozen text's own worked example at `:249-251`. The alias input calls blur() on Enter, so
+    // the commit and the row blur are the same event.
+    test("a description alias committed with Enter applies an Updating rule", async ({ page }) => {
+        await createNewIdentity(page);
+        await importRows(page, [
+            { date: "2026-07-01", description: MATCHING_DESCRIPTION },
+            { date: "2026-07-02", description: MATCHING_DESCRIPTION }
+        ]);
+
+        const firstRow = rowsWithDescription(page).first();
+        const secondRow = rowsWithDescription(page).nth(1);
+        const description = firstRow.getByTestId("description-editable");
+
+        await description.click();
+        await description.fill("Coffee");
+        await description.press("Enter");
+
+        const proposal = page.getByTestId("description-rule-proposal");
+        await expect(proposal).toBeVisible();
+
+        await test.step("choosing Updating all applies on the Enter blur itself", async () => {
+            await page.getByTestId("proposal-apply-mode").click();
+            await page.getByRole("option", { name: "Updating all", exact: true }).click();
+            // Re-commit with Enter. That blur IS the frozen gesture; nothing else is clicked.
+            await description.click();
+            await description.press("Enter");
+
+            await expect(proposal).toHaveCount(0);
+            await expect(secondRow.getByTestId("description-editable")).toHaveValue("Coffee");
+        });
+    });
+
+    // Clicking empty page chrome is the ordinary way a user dismisses attention from a row, and it
+    // is not focusable, so focus lands on <body>.
+    test("a tag change applies when the user clicks non-focusable page chrome", async ({
+        page
+    }) => {
+        await createNewIdentity(page);
+        await createTag(page, "Coffee");
+        await importRows(page, [
+            { date: "2026-07-01", description: MATCHING_DESCRIPTION },
+            { date: "2026-07-02", description: MATCHING_DESCRIPTION }
+        ]);
+
+        const secondRow = rowsWithDescription(page).nth(1);
+        await addTagToRow(page, rowsWithDescription(page).first(), "Coffee");
+
+        const proposal = page.getByTestId("tags-rule-proposal");
+        await expect(proposal).toBeVisible();
+        await page.getByTestId("proposal-apply-mode").click();
+        await page.getByRole("option", { name: "Updating all", exact: true }).click();
+
+        await test.step("nothing is written while the row still holds focus", async () => {
+            await expect(secondRow.getByTestId("tags-editable")).not.toContainText("Coffee");
+        });
+
+        await test.step("clicking a column header, which takes no focus, applies it", async () => {
+            // A non-focusable target: focus goes to <body>, firing focusout and no focusin. The
+            // "Date" column header is a plain div with role=columnheader and no tabindex.
+            await page.getByRole("columnheader", { name: "Date", exact: true }).click();
+            await expect(proposal).toHaveCount(0);
+            await expect(secondRow.getByTestId("tags-editable")).toContainText("Coffee");
+        });
+    });
+});
+
 test.describe("Updating an existing rule from the same controls", () => {
     // Frozen `:287-289`: when the changed field already has a matching rule, the same four choices
     // are offered but applying UPDATES that rule rather than creating a second one.
