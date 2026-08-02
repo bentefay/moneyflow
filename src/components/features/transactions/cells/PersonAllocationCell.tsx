@@ -15,6 +15,11 @@ export interface PersonAllocationCellProps {
     readonly explicitValue?: unknown;
     readonly effectiveDerivation?: EffectiveAllocationResult;
     readonly onCommit?: (personId: string, value: number) => void;
+    /**
+     * Reports whether this cell is in its editing state. Callers use it to tell when an allocation
+     * edit has finished; the percentage VALUE is never reported.
+     */
+    readonly onEditingChange?: (isEditing: boolean) => void;
     readonly personId: string;
     readonly personLabel: string;
 }
@@ -82,6 +87,7 @@ export function PersonAllocationCell({
     explicitValue,
     effectiveDerivation,
     onCommit,
+    onEditingChange,
     personId,
     personLabel
 }: PersonAllocationCellProps) {
@@ -105,6 +111,11 @@ export function PersonAllocationCell({
             inputRef.current?.select();
         }
     }, [editing]);
+
+    // Derived from the single `editing` state so the report can never disagree with the rendering.
+    useEffect(() => {
+        onEditingChange?.(editing);
+    }, [editing, onEditingChange]);
 
     const beginEditing = () => {
         setDraft(initialDraft(explicitValue));

@@ -142,6 +142,18 @@ export interface TransactionRowProps {
      * stays presentational and the CRDT wiring lives in the page.
      */
     renderDescriptionRobot?: (context: { readonly isEditing: boolean }) => React.ReactNode;
+    /**
+     * Wrap a rule-backed cell so a just-made change to it can offer to become an automation rule
+     * (UR-009). Kept as a render prop for the same reason as the robot: the row stays presentational
+     * and every CRDT seam lives in the page. When absent, the cell renders unchanged.
+     */
+    renderRuleProposal?: (
+        field: "descriptionAlias" | "tags" | "allocation",
+        context: { readonly isEditing: boolean },
+        cell: React.ReactNode,
+        anchorClassName: string | undefined,
+        style: React.CSSProperties | undefined
+    ) => React.ReactNode;
     /** Ordered person-specific columns shared with the table header */
     allocationColumns?: readonly AllocationColumn[];
     /** Shared dynamic grid template */
@@ -156,6 +168,35 @@ export interface TransactionRowProps {
     onToggleExpand?: () => void;
     /** Additional CSS classes */
     className?: string;
+}
+
+/**
+ * Wrap a rule-backed cell in its proposal surface, or render it untouched when the page supplies no
+ * proposal renderer (every non-transactions surface, and tests that mount the row directly).
+ *
+ * `anchorClassName` carries the layout the wrapper must take over from the cell it replaces, and
+ * `style` any inline geometry that layout needs, so wrapping is size-neutral.
+ *
+ * The proposal renderer emits the SAME wrapper element whether or not its popover is open, so
+ * showing the controls never changes this subtree's shape. That is what keeps the edited cell from
+ * remounting mid-edit — a remount would drop the caret and any open dropdown.
+ */
+function renderRuleProposalOrCell(
+    render: TransactionRowProps["renderRuleProposal"],
+    field: "descriptionAlias" | "tags" | "allocation",
+    context: { readonly isEditing: boolean },
+    anchorClassName: string | undefined,
+    cell: React.ReactNode,
+    style?: React.CSSProperties
+): React.ReactNode {
+    if (render == null) {
+        return (
+            <div className={anchorClassName} style={style}>
+                {cell}
+            </div>
+        );
+    }
+    return render(field, context, cell, anchorClassName, style);
 }
 
 /**
@@ -183,6 +224,7 @@ export function TransactionRow({
     onDelete,
     onFieldUpdate,
     renderDescriptionRobot,
+    renderRuleProposal,
     allocationColumns = [],
     gridTemplateColumns = TRANSACTION_GRID_TEMPLATE,
     onAllocationUpdate,
@@ -199,6 +241,8 @@ export function TransactionRow({
         reset: clearDeleteConfirm
     } = useTransientFlag(DELETE_CONFIRM_MS);
     const [isEditingDescription, setIsEditingDescription] = useState(false);
+    const [isEditingTags, setIsEditingTags] = useState(false);
+    const [isEditingAllocation, setIsEditingAllocation] = useState(false);
 
     const effectiveData = transaction;
     const effectiveExpanded = isExpanded;
@@ -376,7 +420,11 @@ export function TransactionRow({
                     className="flex min-w-0 items-center gap-1"
                     role="gridcell"
                 >
-                    <div className="min-w-0 flex-1">
+                    {renderRuleProposalOrCell(
+                        renderRuleProposal,
+                        "descriptionAlias",
+                        { isEditing: isEditingDescription },
+                        "min-w-0 flex-1",
                         <InlineEditableDescriptionAlias
                             value={effectiveData.descriptionAliasName ?? effectiveData.description}
                             descriptionAliasId={effectiveData.descriptionAliasId}
@@ -396,7 +444,7 @@ export function TransactionRow({
                             placeholder="No description"
                             data-testid="description-editable"
                         />
-                    </div>
+                    )}
                     {renderDescriptionRobot?.({ isEditing: isEditingDescription })}
                 </div>
 
@@ -416,14 +464,21 @@ export function TransactionRow({
 
                 {/* Tags */}
                 <div data-cell="tags" role="gridcell">
-                    <InlineEditableTags
-                        value={effectiveData.tags?.map((t) => t.id) ?? []}
-                        tags={effectiveData.tags ?? []}
-                        availableTags={availableTags}
-                        onSave={(tagIds) => onFieldUpdate?.("tags", tagIds)}
-                        onCreateTag={onCreateTag}
-                        data-testid="tags-editable"
-                    />
+                    {renderRuleProposalOrCell(
+                        renderRuleProposal,
+                        "tags",
+                        { isEditing: isEditingTags },
+                        undefined,
+                        <InlineEditableTags
+                            value={effectiveData.tags?.map((t) => t.id) ?? []}
+                            tags={effectiveData.tags ?? []}
+                            availableTags={availableTags}
+                            onSave={(tagIds) => onFieldUpdate?.("tags", tagIds)}
+                            onCreateTag={onCreateTag}
+                            onEditingChange={setIsEditingTags}
+                            data-testid="tags-editable"
+                        />
+                    )}
                 </div>
 
                 {/* Status */}
@@ -437,27 +492,40 @@ export function TransactionRow({
                     />
                 </div>
 
-                {allocationColumns.map((column) => {
-                    const explicitValue = allocations[column.personId];
-                    return (
-                        <div
-                            key={column.personId}
-                            data-cell={column.field}
-                            className="min-w-0"
-                            role="gridcell"
-                        >
-                            <PersonAllocationCell
-                                personId={column.personId}
-                                personLabel={column.label}
-                                explicitValue={explicitValue}
-                                allocations={allocations}
-                                accountOwnerships={accountOwnerships}
-                                effectiveDerivation={effectiveDerivation}
-                                onCommit={onAllocationUpdate}
-                            />
-                        </div>
-                    );
-                })}
+                {/* Frozen `:292-293`: a person-percentage rule covers the WHOLE set of percentage
+                    columns, and "it should span all the columns". So the proposal wraps the entire
+                    run of allocation cells as one anchored group rather than appearing per column,
+                    and each cell keeps its own grid position inside that span. */}
+                {allocationColumns.length > 0
+                    ? renderRuleProposalOrCell(
+                          renderRuleProposal,
+                          "allocation",
+                          { isEditing: isEditingAllocation },
+                          "grid grid-cols-subgrid",
+                          <>
+                              {allocationColumns.map((column) => (
+                                  <div
+                                      key={column.personId}
+                                      data-cell={column.field}
+                                      className="min-w-0"
+                                      role="gridcell"
+                                  >
+                                      <PersonAllocationCell
+                                          personId={column.personId}
+                                          personLabel={column.label}
+                                          explicitValue={allocations[column.personId]}
+                                          allocations={allocations}
+                                          accountOwnerships={accountOwnerships}
+                                          effectiveDerivation={effectiveDerivation}
+                                          onCommit={onAllocationUpdate}
+                                          onEditingChange={setIsEditingAllocation}
+                                      />
+                                  </div>
+                              ))}
+                          </>,
+                          { gridColumn: `span ${String(allocationColumns.length)}` }
+                      )
+                    : null}
 
                 {/* Amount */}
                 <div data-cell="amount" className="text-right" role="gridcell">

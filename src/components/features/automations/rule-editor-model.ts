@@ -34,6 +34,19 @@ export {
     DEFAULT_APPLY_MODE
 };
 
+/**
+ * The frozen explanation of the four modes (`specs/human-scratch.md:261-266`).
+ *
+ * It lives here, beside the mode type, because BOTH rule surfaces must explain the modes identically:
+ * the automations-page editor and the inline proposal controls each render this exact string, so the
+ * "Updating applies on blur / Update needs the tick" distinction can never say two different things
+ * in two places.
+ */
+export const APPLY_MODE_TOOLTIP =
+    "Update all applies to every existing and new transaction with this exact description. " +
+    'Update new applies only to newer transactions. "Updating" applies automatically when the ' +
+    'edited row loses focus; "Update" applies only when you click the tick or an Apply button.';
+
 /** Human label for an apply mode (frozen numbering: 1 updating all … 4 update new). */
 export function applyModeLabel(mode: ApplyMode): string {
     switch (mode) {

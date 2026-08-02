@@ -33,6 +33,7 @@ import { type RuleField, type TagRuleMode } from "@/lib/domain/automation/rules"
 import { cn } from "@/lib/utils";
 
 import {
+    APPLY_MODE_TOOLTIP,
     APPLY_MODES,
     applyModeLabel,
     applyModeTargetsNewOnly,
@@ -80,11 +81,6 @@ const RULE_FIELD_SET: ReadonlySet<string> = new Set(FIELD_OPTIONS);
 function isRuleField(value: string): value is RuleField {
     return RULE_FIELD_SET.has(value);
 }
-
-const APPLY_MODE_TOOLTIP =
-    "Update all applies to every existing and new transaction with this exact description. " +
-    'Update new applies only to newer transactions. "Updating" applies automatically when the ' +
-    'edited row loses focus; "Update" applies only when you click the tick or an Apply button.';
 
 export function FieldRuleEditor(props: FieldRuleEditorProps): React.JSX.Element {
     const {

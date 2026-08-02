@@ -97,6 +97,18 @@ export interface TransactionTableProps {
      * Render the inline description-rule robot for a given transaction. The table forwards each
      * row's live editing state so the affordance can hide while the description is being edited.
      */
+    /**
+     * Wrap a rule-backed cell of a given transaction so a change to it can offer to become an
+     * automation rule (UR-009). Forwarded per row exactly like {@link renderDescriptionRobot}.
+     */
+    renderRuleProposal?: (
+        transactionId: string,
+        field: "descriptionAlias" | "tags" | "allocation",
+        context: { readonly isEditing: boolean },
+        cell: React.ReactNode,
+        anchorClassName: string | undefined,
+        style: React.CSSProperties | undefined
+    ) => React.ReactNode;
     renderDescriptionRobot?: (
         transactionId: string,
         context: { readonly isEditing: boolean }
@@ -245,6 +257,7 @@ export function TransactionTable({
     onTransactionDelete,
     onResolveDuplicate,
     renderDescriptionRobot,
+    renderRuleProposal,
     className
 }: TransactionTableProps) {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -531,6 +544,19 @@ export function TransactionTable({
                                             renderDescriptionRobot
                                                 ? (ctx) =>
                                                       renderDescriptionRobot(transaction.id, ctx)
+                                                : undefined
+                                        }
+                                        renderRuleProposal={
+                                            renderRuleProposal
+                                                ? (field, ctx, cell, anchorClassName, style) =>
+                                                      renderRuleProposal(
+                                                          transaction.id,
+                                                          field,
+                                                          ctx,
+                                                          cell,
+                                                          anchorClassName,
+                                                          style
+                                                      )
                                                 : undefined
                                         }
                                         onClick={() => handleRowClick(transaction.id)}

@@ -33,6 +33,7 @@ import {
 } from "@/components/features/transactions";
 import { materializeAllocationRecord } from "@/components/features/transactions/allocation-columns";
 import type { DescriptionAliasEditOrigin } from "@/components/features/transactions/cells/InlineEditableDescriptionAlias";
+import { formatAmountForRuleLabel } from "@/components/features/transactions/field-rule-proposal-state";
 import {
     computeFieldRuleRobotState,
     type RobotCurrentValue
@@ -45,6 +46,7 @@ import {
     revealExistingTransaction,
     type TransactionRevealIntent
 } from "@/components/features/transactions/transaction-reveal-intent";
+import { TransactionRuleProposal } from "@/components/features/transactions/TransactionRuleProposal";
 import { TransactionRuleRobot } from "@/components/features/transactions/TransactionRuleRobot";
 import { useVaultPresenceContext as useVaultPresence } from "@/components/providers/vault-presence-provider";
 import { useToast } from "@/components/ui/toast";
@@ -71,7 +73,7 @@ import { resolveMemberDisplayName, resolvePersonDisplayName } from "@/lib/crdt/p
 import { compareTransactionOrder, filterTransactions } from "@/lib/crdt/queries";
 import type { Account, Person, Status, Tag, Transaction } from "@/lib/crdt/schema";
 import { getNextTagColor } from "@/lib/domain";
-import { type RuleMatchSubject } from "@/lib/domain/automation/rules";
+import { type RuleField, type RuleMatchSubject } from "@/lib/domain/automation/rules";
 import { asMinorUnits } from "@/lib/domain/currency";
 
 // Number of transactions to load per page
@@ -87,6 +89,13 @@ export const SOURCE_TRANSACTION_PARAM = "transaction";
 /** Generate unique ID */
 function generateId(): string {
     return crypto.randomUUID();
+}
+
+/** Order-insensitive tag-set equality, so re-committing the same tags is not treated as a change. */
+function sameTagIds(left: readonly string[], right: readonly string[]): boolean {
+    if (left.length !== right.length) return false;
+    const remaining = new Set(right);
+    return left.every((id) => remaining.delete(id));
 }
 
 function materializeAliasTarget(target: DescriptionAliasTargetIntent): DescriptionAliasTarget {
@@ -413,6 +422,24 @@ function TransactionsPageContent() {
     // manual rows via the matcher; tags/allocation rules include them (frozen `:294-295`). The three
     // per-field current values let each robot compare "implied" against "current". The alias is
     // resolved through symlinks to a final real alias id, matching the id a rule implies.
+    const accountName = useCallback(
+        (accountId: string): string => {
+            const account = accounts[accountId];
+            return typeof account === "object" ? account.name : "this account";
+        },
+        [accounts]
+    );
+
+    const accountCurrency = useCallback(
+        (accountId: string): string => {
+            const account = accounts[accountId];
+            return typeof account === "object" && account.currency != null
+                ? account.currency
+                : "USD";
+        },
+        [accounts]
+    );
+
     const robotContextById = useMemo(() => {
         const byId = new Map<
             string,
@@ -422,6 +449,10 @@ function TransactionsPageContent() {
                 readonly currentTagIds: readonly string[];
                 readonly currentAllocations: Readonly<Record<string, number>>;
                 readonly referenceDate: Temporal.PlainDate;
+                /** This row's amount, formatted for the frozen "only if $x" restriction label. */
+                readonly amountLabel: string;
+                /** This row's account name, for the "only this account" restriction label. */
+                readonly accountLabel: string;
             }
         >();
         for (const tx of displayedTransactions) {
@@ -457,13 +488,34 @@ function TransactionsPageContent() {
                 currentAliasId: resolvedAliasId,
                 currentTagIds: tx.tagIds ?? [],
                 currentAllocations,
-                referenceDate: tx.date
+                referenceDate: tx.date,
+                amountLabel: formatAmountForRuleLabel(tx.amount, accountCurrency(tx.accountId)),
+                accountLabel: accountName(tx.accountId)
             });
         }
         return byId;
-    }, [displayedTransactions, aliasLookup]);
+    }, [accountCurrency, accountName, aliasLookup, displayedTransactions]);
 
     const [autoOpenRobotTxId, setAutoOpenRobotTxId] = useState<string | null>(null);
+
+    /**
+     * The one field the user has just changed, if any (UR-009).
+     *
+     * The frozen text asks for the creation controls to appear when a field IS CHANGED, not for
+     * every row that happens to lack a rule — so this is a single pending edit, cleared once the
+     * user applies or dismisses it. Holding exactly one means a table of any size shows at most one
+     * proposal, and no row carries the surface at rest.
+     */
+    const [pendingRuleEdit, setPendingRuleEdit] = useState<{
+        readonly transactionId: string;
+        readonly field: RuleField;
+    } | null>(null);
+
+    const notePendingRuleEdit = useCallback((transactionId: string, field: RuleField) => {
+        setPendingRuleEdit({ transactionId, field });
+    }, []);
+
+    const clearPendingRuleEdit = useCallback(() => setPendingRuleEdit(null), []);
 
     const renderDescriptionRobot = useCallback(
         (transactionId: string, context: { readonly isEditing: boolean }): React.ReactNode => {
@@ -521,6 +573,66 @@ function TransactionsPageContent() {
             );
         },
         [activeFieldRules, autoOpenRobotTxId, robotContextById]
+    );
+
+    /**
+     * Wrap a rule-backed cell in the creation/update controls when THAT cell is the one the user
+     * just changed (UR-009, frozen `:249-256` and `:287-289`).
+     *
+     * Every other cell renders untouched, so the controls appear next to the edit and nowhere else.
+     * The `subject` and per-field current values are the same projections the robot uses, so both
+     * surfaces agree on what "already matches a rule" means.
+     */
+    const renderRuleProposal = useCallback(
+        (
+            transactionId: string,
+            field: RuleField,
+            context: { readonly isEditing: boolean },
+            cell: React.ReactNode,
+            anchorClassName: string | undefined,
+            style: React.CSSProperties | undefined
+        ): React.ReactNode => {
+            // The unwrapped form renders the SAME element the proposal's anchor does, so a cell's
+            // subtree keeps its shape whether or not the controls are showing and never remounts.
+            const wrapped = (
+                <div className={anchorClassName} style={style}>
+                    {cell}
+                </div>
+            );
+            const entry = robotContextById.get(transactionId);
+            if (
+                entry == null ||
+                pendingRuleEdit == null ||
+                pendingRuleEdit.transactionId !== transactionId ||
+                pendingRuleEdit.field !== field
+            ) {
+                return wrapped;
+            }
+
+            const current: RobotCurrentValue =
+                field === "descriptionAlias"
+                    ? { field: "descriptionAlias", currentAliasId: entry.currentAliasId }
+                    : field === "tags"
+                      ? { field: "tags", currentTagIds: entry.currentTagIds }
+                      : { field: "allocation", currentAllocations: entry.currentAllocations };
+
+            return (
+                <TransactionRuleProposal
+                    accountLabel={entry.accountLabel}
+                    amountLabel={entry.amountLabel}
+                    anchorClassName={anchorClassName}
+                    anchorStyle={style}
+                    current={current}
+                    isEditing={context.isEditing}
+                    onDismiss={clearPendingRuleEdit}
+                    referenceDate={entry.referenceDate}
+                    subject={entry.subject}
+                >
+                    {cell}
+                </TransactionRuleProposal>
+            );
+        },
+        [clearPendingRuleEdit, pendingRuleEdit, robotContextById]
     );
 
     const allocationColumnModel = useMemo(
@@ -807,6 +919,9 @@ function TransactionsPageContent() {
                     // A newly assigned alias may now differ from a matching rule; let the robot
                     // open so the user can update the rule (P17C alias-edit -> update rule).
                     setAutoOpenRobotTxId(txId);
+                    // And, per frozen `:249-252`, offer to CREATE a rule when the row's description
+                    // text matches none yet. The proposal decides which of the two applies.
+                    notePendingRuleEdit(txId, "descriptionAlias");
                     return;
                 case "rename-one":
                     renameDescriptionAlias({ aliasId: intent.aliasId, name: intent.name });
@@ -819,6 +934,7 @@ function TransactionsPageContent() {
                         target: materializeAliasTarget(intent.target)
                     });
                     setAutoOpenRobotTxId(txId);
+                    notePendingRuleEdit(txId, "descriptionAlias");
                     return;
                 case "remove-one":
                     if (!tx.descriptionAliasId) return;
@@ -847,6 +963,7 @@ function TransactionsPageContent() {
             assignDescriptionAlias,
             assignDescriptionAliasByExactName,
             changeOneDescriptionAlias,
+            notePendingRuleEdit,
             removeOneDescriptionAlias,
             renameDescriptionAlias
         ]
@@ -1030,6 +1147,12 @@ function TransactionsPageContent() {
                         ? (updates.tags as unknown as string[])
                         : updates.tags.map((t) => (typeof t === "string" ? t : t.id));
                 transactionUpdates.tagIds = tagIds;
+                // A tag change is exactly the gesture the frozen text offers a rule for. Note it
+                // only when the set really changed, so re-committing an identical set is not
+                // treated as an edit.
+                if (!sameTagIds(tagIds, tx.tagIds ?? [])) {
+                    notePendingRuleEdit(tx.id, "tags");
+                }
             }
 
             // Only call updateTransaction if we have updates
@@ -1046,7 +1169,7 @@ function TransactionsPageContent() {
                 });
             }
         },
-        [transactions, updateTransaction, moveTransaction]
+        [transactions, updateTransaction, moveTransaction, notePendingRuleEdit]
     );
 
     const handleTransactionAllocationUpdate = useCallback(
@@ -1063,8 +1186,14 @@ function TransactionsPageContent() {
                 personId,
                 value
             });
+            // Frozen `:292-293`: an allocation rule covers the WHOLE percentage set, so changing any
+            // one person's column proposes a rule for the row's complete set.
+            const previous = materializeAllocationRecord(transaction.allocations)[personId];
+            if (!(typeof previous === "number" && Object.is(previous, value))) {
+                notePendingRuleEdit(transaction.id, "allocation");
+            }
         },
-        [setTransactionAllocation, transactions]
+        [notePendingRuleEdit, setTransactionAllocation, transactions]
     );
 
     // Tag options for filter/bulk edit (with label for FilterOption)
@@ -1194,6 +1323,7 @@ function TransactionsPageContent() {
                     onTransactionUpdate={handleTransactionUpdate}
                     onTransactionAllocationUpdate={handleTransactionAllocationUpdate}
                     renderDescriptionRobot={renderDescriptionRobot}
+                    renderRuleProposal={renderRuleProposal}
                 />
             </ImportDropTarget>
 

@@ -40,6 +40,11 @@ export interface InlineEditableTagsProps {
     onSave: (newTagIds: string[]) => void;
     /** Callback when a new tag should be created */
     onCreateTag?: (name: string) => Promise<TagOption>;
+    /**
+     * Reports whether the tag dropdown is open, i.e. whether the user is actively editing this
+     * cell. Callers use it to decide when an edit has finished; the tag VALUES are never reported.
+     */
+    onEditingChange?: (isEditing: boolean) => void;
     /** Maximum number of tags to display before showing "+N" */
     maxDisplay?: number;
     /** Additional class names for the container */
@@ -105,6 +110,7 @@ export function InlineEditableTags({
     availableTags,
     onSave,
     onCreateTag,
+    onEditingChange,
     className,
     disabled = false,
     "data-testid": testId
@@ -116,6 +122,12 @@ export function InlineEditableTags({
     const containerRef = useRef<HTMLDivElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+
+    // Report open/closed as "is the user editing this cell". Derived from the single `isOpen` state
+    // rather than tracked separately, so the two can never disagree.
+    useEffect(() => {
+        onEditingChange?.(isOpen);
+    }, [isOpen, onEditingChange]);
 
     // Calculate dropdown position when opening
     useEffect(() => {
