@@ -133,22 +133,26 @@ function PendingRuleProposal(
     const { proposal, draft } = workflow;
     const open = proposal.kind !== "none" && draft != null;
 
-    // Watch for focus genuinely leaving the row. `focusout` bubbles, and `relatedTarget` is where
-    // focus went — inside the row (another cell, the popover) means the user is still working here,
-    // so it does not count. The listener lives on the row element rather than the cell precisely
-    // because the frozen text says "the ROW loses focus".
+    // Watch for focus genuinely leaving the row.
+    //
+    // The listener is on the DOCUMENT, not the row, because several of this row's own controls are
+    // PORTALED to `document.body` — the tag dropdown (`InlineEditableTags`) and this very popover
+    // both are. A row-scoped listener would see focus entering the tag dropdown as "left the row"
+    // and fire an "Updating…" apply while the picker is still open, which is the defect this fix
+    // exists to prevent. So "still in the row" means: inside the row element, OR inside any portaled
+    // surface this row owns.
     useEffect(() => {
-        const row = anchorRef.current?.closest('[data-testid="transaction-row"]');
-        if (row == null) return;
-        const handleFocusOut = (event: Event): void => {
-            // `focusout` is a FocusEvent, but addEventListener types the callback as Event; narrow
-            // with a guard rather than a cast so `relatedTarget` is read type-safely.
-            const next = event instanceof FocusEvent ? event.relatedTarget : null;
-            if (next instanceof Node && row.contains(next)) return;
+        const handleFocusIn = (event: Event): void => {
+            const row = anchorRef.current?.closest('[data-testid="transaction-row"]');
+            if (row == null) return;
+            const target = event.target;
+            if (!(target instanceof Node)) return;
+            if (row.contains(target)) return;
+            if (target instanceof Element && target.closest("[data-owned-by-row]") != null) return;
             setRowLostFocus(true);
         };
-        row.addEventListener("focusout", handleFocusOut);
-        return () => row.removeEventListener("focusout", handleFocusOut);
+        document.addEventListener("focusin", handleFocusIn);
+        return () => document.removeEventListener("focusin", handleFocusIn);
     }, [anchorRef]);
 
     // Frozen `:263-266`: the "Updating…" modes apply automatically once the row loses focus; the
@@ -166,6 +170,7 @@ function PendingRuleProposal(
         <PopoverContent
             align="start"
             className="w-auto max-w-[90vw] p-3"
+            data-owned-by-row="true"
             data-testid="transaction-rule-proposal-popover"
             onOpenAutoFocus={(event) => event.preventDefault()}
             // Radix gives popover content `role="dialog"`, which would announce this as a modal the

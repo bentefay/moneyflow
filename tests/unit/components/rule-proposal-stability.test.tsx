@@ -140,15 +140,17 @@ function AutoApplyHost({
     const anchorRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        const row = anchorRef.current?.closest('[data-testid="transaction-row"]');
-        if (row == null) return;
-        const handleFocusOut = (event: Event): void => {
-            const next = event instanceof FocusEvent ? event.relatedTarget : null;
-            if (next instanceof Node && row.contains(next)) return;
+        const handleFocusIn = (event: Event): void => {
+            const row = anchorRef.current?.closest('[data-testid="transaction-row"]');
+            if (row == null) return;
+            const target = event.target;
+            if (!(target instanceof Node)) return;
+            if (row.contains(target)) return;
+            if (target instanceof Element && target.closest("[data-owned-by-row]") != null) return;
             setRowLostFocus(true);
         };
-        row.addEventListener("focusout", handleFocusOut);
-        return () => row.removeEventListener("focusout", handleFocusOut);
+        document.addEventListener("focusin", handleFocusIn);
+        return () => document.removeEventListener("focusin", handleFocusIn);
     }, []);
 
     useEffect(() => {
@@ -174,6 +176,23 @@ function AutoApplyHost({
     );
 }
 
+/**
+ * A surface this row owns but which is PORTALED outside it — the tag dropdown and the proposal
+ * popover both are. Focus landing here means the user is still editing this row.
+ */
+function PortaledRowSurface(): React.JSX.Element {
+    return (
+        <div data-owned-by-row="true">
+            <input data-testid="portaled-input" />
+        </div>
+    );
+}
+
+/** Somewhere genuinely outside the row, e.g. the page search box. */
+function OutsideTarget(): React.JSX.Element {
+    return <input data-testid="outside-input" />;
+}
+
 describe("F-2 — an Updating mode must not apply without the row losing focus", () => {
     it("does NOT write when the cell merely stops editing", () => {
         const onApply = vi.fn();
@@ -191,30 +210,57 @@ describe("F-2 — an Updating mode must not apply without the row losing focus",
         render(<AutoApplyHost applyMode="updatingAll" onApply={onApply} />);
         fireEvent.click(screen.getByTestId("stop-editing"));
 
-        fireEvent.focusOut(screen.getByTestId("stop-editing"), {
-            relatedTarget: screen.getByTestId("sibling")
-        });
+        fireEvent.focusIn(screen.getByTestId("sibling"));
 
         // The user is still working in this row, so the frozen gesture has not happened.
         expect(onApply).not.toHaveBeenCalled();
     });
 
-    it("DOES write once focus genuinely leaves the row", () => {
+    // The case a row-scoped focus listener gets WRONG. This row's tag dropdown is portaled to
+    // document.body, so by DOM containment it is "outside the row" — but the user is plainly still
+    // editing. Treating it as a row blur would fire an Updating apply with the picker still open,
+    // which is the original defect wearing a different hat.
+    it("does NOT write when focus moves into a PORTALED surface this row owns", () => {
         const onApply = vi.fn();
-        render(<AutoApplyHost applyMode="updatingAll" onApply={onApply} />);
+        render(
+            <>
+                <AutoApplyHost applyMode="updatingAll" onApply={onApply} />
+                <PortaledRowSurface />
+            </>
+        );
         fireEvent.click(screen.getByTestId("stop-editing"));
 
-        fireEvent.focusOut(screen.getByTestId("stop-editing"), { relatedTarget: null });
+        fireEvent.focusIn(screen.getByTestId("portaled-input"));
+
+        expect(onApply).not.toHaveBeenCalled();
+    });
+
+    it("DOES write once focus genuinely leaves the row", () => {
+        const onApply = vi.fn();
+        render(
+            <>
+                <AutoApplyHost applyMode="updatingAll" onApply={onApply} />
+                <OutsideTarget />
+            </>
+        );
+        fireEvent.click(screen.getByTestId("stop-editing"));
+
+        fireEvent.focusIn(screen.getByTestId("outside-input"));
 
         expect(onApply).toHaveBeenCalledTimes(1);
     });
 
     it("never auto-writes under a manual Update mode, even on a real blur", () => {
         const onApply = vi.fn();
-        render(<AutoApplyHost applyMode="updateNew" onApply={onApply} />);
+        render(
+            <>
+                <AutoApplyHost applyMode="updateNew" onApply={onApply} />
+                <OutsideTarget />
+            </>
+        );
         fireEvent.click(screen.getByTestId("stop-editing"));
 
-        fireEvent.focusOut(screen.getByTestId("stop-editing"), { relatedTarget: null });
+        fireEvent.focusIn(screen.getByTestId("outside-input"));
 
         // "Update…" requires the tick; blur alone must never write.
         expect(onApply).not.toHaveBeenCalled();

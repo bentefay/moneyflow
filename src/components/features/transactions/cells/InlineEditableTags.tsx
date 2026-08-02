@@ -307,6 +307,10 @@ export function InlineEditableTags({
                 createPortal(
                     <div
                         ref={dropdownRef}
+                        // Portaled to document.body, so it is outside the row in the DOM while still
+                        // being part of editing that row. Marked so focus-tracking elsewhere can
+                        // tell "the user moved into this row's own dropdown" from "the user left".
+                        data-owned-by-row="true"
                         className="bg-popover fixed z-[9999] w-56 rounded-md border shadow-lg"
                         style={{
                             top: dropdownPosition.top,
