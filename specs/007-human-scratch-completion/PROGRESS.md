@@ -12680,3 +12680,58 @@ config on `:3000`, `--retries=0`: **195/195 three times**; `people-settlement.sp
 1 because `67ea7a2` moved the tree** — the campaign tree-drift discipline this goal requires, applied
 unprompted. `0/70` stated as a **bound, not a clearance** (4.3% rule-of-three), with the 10-green
 bar, crash safety and the residual class all left open and **no cross-campaign rate comparison**.
+
+### 2026-08-03 — CORRECTION: root's line-number "accuracy flag" against rev 10 was ROOT'S ERROR
+
+**Root's previous entry flagged the implementer's citations as not resolving, and asked the reviewer
+to check them. That flag is WITHDRAWN — root compared HEAD references against a BASE tree.**
+
+**MEASURED by root at HEAD `67ea7a2`, where they resolve exactly** — to the barrier calls the
+revision added, which is what the implementer was citing:
+
+```
+passkey.spec.ts:76            await awaitVaultPersistence(page);
+passkey.spec.ts:429           await awaitVaultPersistence(page);
+tab-duplication.spec.ts:132   await awaitVaultPersistence(onboardingDuplicate);
+tab-duplication.spec.ts:134   await awaitVaultPersistence(authenticatedDuplicate);
+invite-redemption.spec.ts:54  await awaitVaultPersistence(member);
+invite-redemption.spec.ts:112 await awaitVaultPersistence(member);
+```
+
+Root had grepped `.goto(` at BASE `9a256fb`, found nothing at those lines, and reported a possible
+accuracy defect. **Both readings were internally consistent; root simply checked the wrong tree**,
+then routed its own error to a reviewer as work. Root has withdrawn it directly so no cycle is spent
+confirming it. Root's own note in the prior entry — that "line numbers have moved under this goal
+repeatedly" — was the reason to check *which tree* before flagging, and root did not take it.
+
+**The same check settles, IN THE IMPLEMENTER'S FAVOUR, the risk root had asked the reviewer to press
+hardest on.** Root warned that a barrier awaiting the **wrong context's seam** would be worse than
+none and would still go green. The lines above show `awaitVaultPersistence(onboardingDuplicate)`,
+`(authenticatedDuplicate)` and `(member)` — **the correct `Page` object at each multi-context site,
+never the ambient `page`**, exactly as the implementer stated. The reviewer is still asked to verify
+across all eleven rather than root's six-line sample.
+
+**A second stale root reference, corrected.** Root cited the false universal at
+`helpers/persistence.ts:22-23`; **at HEAD it is `:12-18`**, the module comment having been rewritten
+in place. **MEASURED: no universal remains** — it now states explicitly that helpers barrier while a
+raw `page.goto`/`page.reload` in a spec does not unless that spec calls `awaitVaultPersistence`
+itself.
+
+**The review subject has NOT moved:** tree still `67ea7a2`, digest
+`850ac6d239fc7b19240f6750fda01b63`, `src` and `tests` clean. **Only the evidence file changed after
+handback**, and both changes improve it: **§4.3 rewritten to LEAD WITH THE ARGUMENT AGAINST ITSELF**
+— no loss is demonstrated at any of the eleven sites (arm F 0/28; the class is not demonstrated
+beyond allocations), so the barriers buy no measured defect — before giving three reasons to keep
+them, with a stated falsification condition and why it does not apply. **§4.4 rewritten to record
+BOTH states of root's delivery gap** rather than leave standing a sentence ("a correction I never
+received") that was true when written and had since decayed. **That is the precise failure mode this
+ledger records against its own authors, handled correctly by a worker.**
+
+**Root's running tally of its own corrected claims this session, kept because the pattern matters
+more than any single item:** the 38-vs-50 loss count (root's filter narrower than its claim); the
+`Saved`-indicator premise (refuted, 350/350); the `awaitLocalPersistence` reachability claim (false
+as written); the `137` call-site figure (transcribed unverified); the `44` teardown count
+(under-inclusive); the "five in-vault" figure (eleven); the F-3 remedy over-specified in root's own
+dispatch; a checkpoint wrongly recorded as skipped; two undelivered messages; and now a
+wrong-tree line-number flag routed to a reviewer as work. **Every one was caught by an agent root
+dispatched or by root re-deriving a figure it had relayed — none by the claim failing a test.**
