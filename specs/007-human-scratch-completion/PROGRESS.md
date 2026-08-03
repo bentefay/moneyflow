@@ -12496,3 +12496,63 @@ correctly, since this goal has measured a 2× between-campaign spread on a fixed
 request claims a hostile origin", `Test timed out in 5000ms`. **Three agents have now independently
 hit it**, and the reviewer confirmed it has **no import path to the rev 09 commit**. Carried forward
 for P21 to route; it is not P20B's.
+
+### 2026-08-03 — CORRECTION: the rev 09 manual checkpoint WAS performed; review re-persisted at `9311261`
+
+**Root's previous entry recording that clause as outstanding is superseded.** Root's authorization
+did land; `p20b-reviewer-09` completed the mandated manual `pnpm exec playwright-cli` checkpoint
+(`PROCESS.md:170-171`) after root had already persisted its review. **The committed copy asserted
+its own incompleteness and was therefore wrong about itself.**
+
+**Root verified the amendment before re-persisting rather than taking the description on trust:**
+`git diff --stat` = **+109 −23**, three hunks at §11, §13 and §14 only; **no verdict line and no
+`### F-` heading changed**; the verdict is still **FAIL** at line 25. Re-persisted at `9311261`.
+Same mechanism as `be50232` — the earlier state stays reachable at `192ba0e`, so both are auditable.
+
+**VERDICT UNCHANGED: FAIL, F-1/F-2/F-3 as written.** Nothing in the browser moved it; the manual
+pass **corroborated all three**.
+
+**The security non-finding is now MEASURED, not argued.** The seam's entire reachable surface on
+`/settings`: `{ present: true, keys: ["awaitLocalPersistence"], type: "function", arity: 0, outcome:
+"persisted", ms: 0 }`; own property names exactly `["awaitLocalPersistence"]`; the function carries
+no own properties; prototype is plain `Object.prototype`; `Object.values(seam)` is one function.
+**Nothing reaches the SyncManager, the Loro document or any key through it.** F-1 remains a
+production-surface and precedent finding. **"No vulnerability here and nobody should record one" is
+now an empirical statement, and root will not let it drift into a security claim.**
+
+**F-2's remedy is proven implementable, not merely proposable.** The route invariant holds: seam
+**present** on `/settings` and `/transactions`, **absent** on `/` and on `/unlock` in a second tab
+with no session. **So the helper really can distinguish "legitimately absent" from "should be here
+and is not"** — which is exactly what rev 10 must build.
+
+**The frozen journey passed by hand, with no probe spec at all:** new identity → person Bob →
+transaction → Bob 50 through the real grid cell (`Explicit: 50%. Effective: 50%. Owner remainder:
+50%.`) → barrier returned `"persisted"` → reload → **`Explicit: 50%.` survived**, seam re-installed.
+**Third independent agreement with the campaign**, after the probe and the mutation probe.
+
+**Console and network clean:** 2 messages, **0 errors, 0 warnings** (React DevTools notice, `[HMR]
+connected` — both dev-server artifacts), no failed request. One `realtime.revoke` shows no status
+because the navigation cancelled it during unload; the commit touches no realtime code and the
+dev-server log shows that call returning 200 every other time.
+
+**Clauses correctly declined rather than manufactured:** accessible-role, contrast, zoom, dark,
+reduced-motion and responsive are **vacuous for this diff**, which changes no component, styling or
+markup, and the checkpoint qualifies those as *task-relevant*. **The two that are relevant —
+refresh/persistence and duplicate tabs — were performed.**
+
+**Two results transcribed elsewhere:** the `beforeunload` measurement, which **bounds Component-2
+exposure to genuinely unaimed teardowns** and is the strongest limit in the record on that risk, and
+the near-misreport where two 60 s `goto` timeouts were caused by that same modal rather than by the
+app — both at `RISKS.md#R-LOSTWRITE-01`, second addendum.
+
+**Hygiene verified by state, not by exit code:** dev server run from the reviewer's own worktree with
+its own `.next`; campaign and manual server never overlapped; session closed and `delete-data` run;
+server killed by pid after `readlink /proc/<pid>/cwd` confirmed ownership, **release confirmed from
+`ss -ltn`**; **`:3001` (pid 818182) alive and untouched before and after**; the recovery phrase was
+never revealed and no seed word rendered; worktree digest restored to
+`745d707342030773eee2746eeb7aba88`.
+
+**The clause was worth completing.** It produced the `beforeunload` measurement and the empirical
+form of the security analysis — neither of which the command-line gates could have produced. **Root
+records this against its own earlier reasoning: root had accepted that the verdict did not rest on
+the clause, which was true, and that is not the same as the clause being worthless.**
