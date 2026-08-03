@@ -3366,3 +3366,27 @@ out of scope for the current revisions.
 - **Basis:** hierarchy 1 (the frozen outcome clause is met), then 4.
 - **Status:** OPEN, non-blocking. **Human review flagged as useful:** whether the harness should
   assert on application structure is a repository-convention call.
+
+## Q-P20B-33 — Is the barrier at `passkey.spec.ts:66` vacuous for entries that race the redirect?
+
+- **Source:** `reviews/P20B-review-12.md` §9 (`Q-PROPOSAL-P20B-12-1`), raised by `p20b-reviewer-12`.
+- **Context, MEASURED:** **3 of 12** entries at that site complete via `persistence.ts:73`'s
+  off-`(app)`-route escape, on `/unlock`, after the seam was absent for **110–283 ms**. **Those
+  entries obtain no durability guarantee at all** — the barrier returns because the page left the
+  vault routes, **not because anything was flushed.** `reviews/P20B-review-11.md` §6 independently
+  measured the same class at **4 of 12**.
+- **The question:** at a site whose caller **deliberately destroys the session immediately before the
+  barrier** (`passkey.spec.ts:152`, `:176`, `:219`, `:263`), is a barrier a redirect can win serving
+  its purpose, or **recording a guarantee it did not obtain?** **This is the silently-vacuous-check
+  class this goal has failed packages for elsewhere** — and it is exactly the shape of the vacuous
+  zero-write barrier recorded at `Q-P20B-28`'s revision.
+- **Explicitly NOT a defect in revision 12:** barrier placement is outside that revision's scope and
+  the reviewer proposes no change to it.
+- **It does bear on the sweep:** it affects **how barriered sites should be counted**, which is the
+  quantity already recorded as a bound (`at least fifteen; the sweep is not complete`) and already
+  known to be **load-dependent** (`Q-P20B-30` addendum).
+- **The reviewer proposes NO removal or simplification of the retry-on-absence branch**, which its
+  own data (3/12, all recovering) confirms load-bearing **for a third independent time**.
+- **Reversible default:** record and leave placement unchanged; fold the counting consequence into
+  `Q-P20B-30`'s lint-rule question rather than re-sweeping by hand.
+- **Status:** OPEN, non-blocking, not assigned to a revision.
