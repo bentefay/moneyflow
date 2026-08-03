@@ -13054,3 +13054,41 @@ the human explicitly, and **every future reviewer brief must carry the mitigatio
 **STATE:** P20B revision 11 → **FAIL** → `changes_requested`; root opens **revision 12**, whose
 entire required change is **one comment line**. No package or requirement row changes state. Frozen
 sources re-verified: scratch `469e98c7…`, FS-001 `0d0e2a14…`.
+
+### 2026-08-03 — A PROCESS clarification root had been stating imprecisely, plus three post-handoff confirmations
+
+**1. The HEAD acceptance test, corrected in root's own framing.** Root has repeatedly written "HEAD
+verified unchanged across the review". **That phrasing is imprecise and `p20b-reviewer-11` was right
+to correct it** — root's own ledger commits legitimately move HEAD during every review, so string
+equality with `git rev-parse HEAD` cannot be the test and root was never actually applying it.
+
+**`PROCESS.md`'s pass-meaning item 2 states the real test:** *"The literal reviewed product/test HEAD
+is unchanged; **or, after review, only root-owned control files/artifacts and an authorized marker
+changed.**"* **The operative check is therefore ancestry PLUS an empty `src tests` delta**, which is
+what root has been running in practice while describing it wrongly.
+
+**MEASURED by root now, for rev 11's acceptance:** `git merge-base --is-ancestor 19160af HEAD` →
+**yes**; `git diff --name-only 19160af..HEAD -- src tests` → **empty**; and the full delta is exactly
+six **root-owned control paths** — `PROGRESS.md`, `QUESTIONS.md`, `RISKS.md`,
+`dispatches/P20B-rev12-fix.md`, and the two persisted artifacts. **Item 2's second clause is
+satisfied exactly.** Future entries and the final audit state the test this way.
+
+**2. `realtime-origin-controls.test.ts` intermittency — THIRD independent observation.** The reviewer
+saw it pass its unit run 1 and fail run 2 on the identical tree, matching rev 11's implementer and
+rev 10's. **Three agents, three trees, same pattern.** Root's corrected register wording —
+intermittent, not a deterministic BASE failure — is confirmed.
+
+**3. The retry branch is load-bearing on TWO INDEPENDENT DATASETS.** Rev 10: 3 of 137 barrier
+entries recovered from an absent seam on an `(app)` route. Rev 11's reviewer, its own
+instrumentation: **7 of 63, every one recovering.** Different trees, different harnesses, same
+conclusion. **"Absent on an app route ⇒ throw immediately" is refuted twice over.**
+
+**4. D-025 citation confirmed post-handoff.** The evidence cites **D-025 twice**
+(`implementation-12.md:186`, `:292`) and its **single** occurrence of "D-021" is inside the
+disambiguation clause at `:292` recording the renumbering. **No live `D-021` citation.** The reviewer
+checked this after handoff and **reported it rather than editing its own immutable file**
+(`PROCESS.md:22`) — the correct handling, recorded here as a post-handoff confirmation.
+
+**Immutability anchors for the audit:** review file md5 `ebfa84fdc1e52f1aea6592def1b2ee29`,
+unmodified since handoff; evidence md5 `82dfe88606c1bab5a46df6b5a5fc005c`, re-checked after handoff
+and unmoved.
