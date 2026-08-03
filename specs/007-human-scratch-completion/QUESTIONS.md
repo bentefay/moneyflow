@@ -3247,3 +3247,31 @@ gaps in P33: correct assertions over inputs that cannot express the failure.
   costs the implementer a wait it was already going to spend.
 - **Basis:** hierarchy 2, then 4. **Reversal:** delete the sentence.
 - **Status:** OPEN. Root is applying the default to the revision 08 dispatch immediately.
+
+## Q-P20B-28 — Is a single false claim in evidence that changes no conclusion a FAIL or a root-recorded correction?
+
+- **Source:** `reviews/P20B-review-08.md` §8 (`Q-PROPOSAL-P20B-08-1`), raised by `p20b-reviewer-08`.
+- **Context:** finding F-D. Evidence `implementation-09.md:111-113` carries a **`MEASURED`-tagged**
+  sentence that is false, inside the very section that remediates F-A. Its conclusion is correct and
+  no figure moves.
+- **Why existing authority does not decide it:** `PROCESS.md:64` makes "any failed check or material
+  finding" a FAIL for **P21**; it gives no calibration for a normal package revision where a claim
+  is wrong but its conclusion is independently verifiable from the same section.
+- **Reversible default selected:** **PASS with the correction stated exactly and recorded by root**,
+  rather than a further revision. Root already has the mechanism — `be50232` recorded a
+  post-handoff correction to a persisted review without opening a revision.
+- **Basis:** hierarchy 4 (smallest reversible step). **Status:** OPEN, applied.
+
+## Q-P20B-29 — Should a campaign directory be identified by its recorded `head=`, never by a completeness marker?
+
+- **Source:** `reviews/P20B-review-08.md` §8 (`Q-PROPOSAL-P20B-08-2`), raised by `p20b-reviewer-08`.
+- **Context:** F-D's substance. **MEASURED and re-verified by root:** of the four candidate
+  directories, **two** end `CAMPAIGN_COMPLETE`, not one — `/tmp/p20b07-c2/` **and**
+  `/tmp/p20b07-final/`. `-final` is a **complete ten-run campaign** (10 `run<N>.log` files) at
+  **`head=6061ef7`**, the **pre-fix** tree whose `:281` step 11 failed in **10 of 10** runs. A future
+  reader applying the completeness rule as written gets two candidates and can select the campaign
+  the goal already paid to discard.
+- **Reversible default selected:** identify a campaign by the `head=` recorded in its own START/END
+  lines. `/tmp/p20b07-c2/` is the campaign whose twenty lines all read **`head=c515173`**, the
+  handback commit. A completeness marker says a loop finished; it says nothing about which tree ran.
+- **Basis:** hierarchy 2, then 4. **Status:** OPEN, adopted going forward.
