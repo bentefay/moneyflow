@@ -11773,3 +11773,58 @@ written after it.
 **Disposition:** the amended file is persisted in the integration-control commit below. The
 `0e08862` version remains reachable in history, so both states are auditable. **No verdict, finding
 or ledger consequence changes.**
+
+### 2026-08-03 — P20B rev 08 HANDBACK at `205ca15`; DISTINCT reviewer dispatched
+
+**`p20b-implementer-08` handed back two commits, two files, no product code.** Root re-derived every
+boundary rather than accepting the report:
+
+- `git diff --name-only c15be12 205ca15` outside the spec directory =
+  `.claude/skills/e2e/SKILL.md`, `playwright.config.ts`, `tests/e2e/helpers/nav.ts`,
+  `tests/e2e/helpers/settlement.ts`, `tests/e2e/people-settlement.spec.ts` — the last two rev 07
+  files carried in from the earlier range, and **`git diff --stat c15be12 205ca15 -- src/` is
+  empty**. No product code.
+- rev 08's own commits: `38c242c` (`people-settlement.spec.ts`, +4 −1) and `205ca15`
+  (`SKILL.md`, +13). Both inside the authorized path list.
+- **Frozen sources re-verified after the handback:** scratch `469e98c7…`, FS-001 `0d0e2a14…`. Both
+  unchanged.
+- Dirty inventory: only the uncommitted `evidence/P20B/implementation-09.md`, which is correct per
+  `PROCESS.md:58`, plus agent-owned `.claude/agent-memory/`.
+
+**AMEND HAZARD, live and caught.** The implementer **amended its final commit**: `5e02607` became
+`205ca15`. **Root had already quoted `5e02607` in this session before re-deriving.** An amended-away
+hash still resolves via `git show` but is **not an ancestor of HEAD**, which is how a reviewer gets
+dispatched onto a dangling commit. The rev 08 review dispatch names the hazard explicitly and
+requires the reviewer to re-derive. Root verified `git merge-base --is-ancestor 205ca15 HEAD`.
+
+**F-B fix, root-verified against the file.** `people-settlement.spec.ts` step 9 now asserts
+`toContainText("Explicit: 50%.")` in place of the substring `"50%"`, with a why-comment recording
+that the bare substring is also satisfied by the derived `Owner remainder: 50%.` that exists
+*because* Bob's allocation is missing.
+
+**The implementer's two-directional control — its load-bearing claim, for the reviewer to attack.**
+It reports building both states in a real browser and **printing the cell**, grading the old and new
+assertions against the same state, with the write dropped via `Escape` so the allocation is
+genuinely absent rather than the assertion doctored:
+
+```
+[PROBE ABSENT]  "—Explicit: not stored. Effective: 0%. Owner remainder: 50%."
+                old "50%" -> PASS      new "Explicit: 50%." -> FAIL
+[PROBE PRESENT] "50%Explicit: 50%. Effective: 50%. Owner remainder: 0%."
+                old "50%" -> PASS      new "Explicit: 50%." -> PASS
+```
+
+The ABSENT string reproduces the rev 07 review's F-B measurement **verbatim and independently**.
+**Root records this as the implementer's claim, not as root's finding** — the reviewer verifies
+whether the ABSENT state is genuinely absent and reachable by a real user, and whether the probe was
+kept out of the tree.
+
+**The implementer does not over-claim.** Its own bottom line: the 10-consecutive-green bar is
+**STILL NOT MET**, the residual settlement class is **"NOT MINE, NOT ADDRESSED, NOT CLOSED"**, and
+its F-B change makes a lost allocation report at the persistence assertion rather than four lines
+later — **"localisation, not a fix."**
+
+**STATE:** P20B revision 08 → `ready_for_review` → `reviewing`. DISTINCT **`p20b-reviewer-08`**
+dispatched (distinct from `p20b-implementer-08` and from `p20b-reviewer-01/-02/-03/-06/-07`), brief
+at `dispatches/P20B-rev08-review.md`, review path `reviews/P20B-review-08.md`. No package or
+requirement row changes state on a handback.
