@@ -1,0 +1,722 @@
+/**
+ * Q-P20B-26 discriminating experiment. WORKTREE-ONLY, never committed.
+ *
+ * Question: when an allocation write is barrier-confirmed in the live DOM and is then missing after
+ * a navigation + reload, is the entry ABSENT from persisted IndexedDB state (a genuine lost write)
+ * or PRESENT in IndexedDB but not applied on rehydration (a rehydration/derivation gap)?
+ *
+ * The probe reads the real IndexedDB directly through the raw IDB API at every checkpoint and
+ * prints the rows. `encrypted_data` is opaque here, but `version_vector` is stored plaintext
+ * (src/lib/sync/persistence.ts:22) and is captured at enqueue time from the doc frontier
+ * (src/lib/sync/manager.ts:303), so an advancing op count with an advancing vv is direct evidence
+ * that a doc change reached storage.
+ */
+
+import { expect, test, type Locator, type Page } from "@playwright/test";
+
+import { createNewIdentity, goToTransactions } from "./helpers";
+import { addPeople, createTransaction, rowById, setAllocation } from "./helpers/settlement";
+
+test.use({ timezoneId: "America/New_York" });
+
+interface OpRow {
+    readonly created_at: number;
+    readonly data_head: string;
+    readonly data_len: number;
+    readonly id: string;
+    readonly pushed: number;
+    readonly vault_id: string;
+    readonly version_vector: string;
+}
+
+interface IdbDump {
+    readonly exists: boolean;
+    readonly ops: readonly OpRow[];
+    readonly snapshots: readonly Record<string, unknown>[];
+    readonly stores: readonly string[];
+    readonly sync_meta: readonly Record<string, unknown>[];
+    readonly t: number;
+}
+
+/** Reads the whole `moneyflow-vault` database through the raw IDB API, without the app's modules. */
+async function dumpIdb(page: Page): Promise<IdbDump> {
+    return page.evaluate(async () => {
+        const empty = { exists: false, ops: [], snapshots: [], stores: [], sync_meta: [], t: 0 };
+        const listed = await indexedDB.databases();
+        const entry = listed.find((d) => d.name === "moneyflow-vault");
+        if (!entry) return { ...empty, t: Date.now() };
+
+        const db = await new Promise<IDBDatabase>((resolve, reject) => {
+            const request = indexedDB.open("moneyflow-vault", entry.version);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error ?? new Error("open failed"));
+            request.onblocked = () => reject(new Error("open blocked"));
+        });
+
+        const names = Array.from(db.objectStoreNames);
+        const readAll = async (store: string): Promise<Record<string, unknown>[]> =>
+            new Promise((resolve, reject) => {
+                const request = db.transaction(store, "readonly").objectStore(store).getAll();
+                request.onsuccess = () => resolve(request.result as Record<string, unknown>[]);
+                request.onerror = () => reject(request.error ?? new Error("getAll failed"));
+            });
+
+        const rawOps = names.includes("ops") ? await readAll("ops") : [];
+        const rawSnapshots = names.includes("snapshots") ? await readAll("snapshots") : [];
+        const rawMeta = names.includes("sync_meta") ? await readAll("sync_meta") : [];
+        db.close();
+
+        const ops = rawOps
+            .map((op) => {
+                const data = String(op.encrypted_data ?? "");
+                return {
+                    created_at: Number(op.created_at),
+                    data_head: data.slice(0, 12),
+                    data_len: data.length,
+                    id: String(op.id),
+                    pushed: Number(op.pushed),
+                    vault_id: String(op.vault_id),
+                    version_vector: String(op.version_vector)
+                };
+            })
+            .sort((a, b) => a.created_at - b.created_at);
+
+        const snapshots = rawSnapshots.map((s) => ({
+            data_len: String(s.encrypted_data ?? "").length,
+            updated_at: Number(s.updated_at),
+            vault_id: String(s.vault_id),
+            version_vector: String(s.version_vector)
+        }));
+
+        return { exists: true, ops, snapshots, stores: names, sync_meta: rawMeta, t: Date.now() };
+    });
+}
+
+/** One line per op, so a checkpoint diff is readable in the raw log. */
+function renderDump(tag: string, dump: IdbDump): string {
+    if (!dump.exists) return `[Q26] ${tag} db=ABSENT`;
+    const lines = [
+        `[Q26] ${tag} ops=${dump.ops.length} snapshots=${dump.snapshots.length} stores=${dump.stores.join(",")}`
+    ];
+    for (const [index, op] of dump.ops.entries()) {
+        lines.push(
+            `[Q26] ${tag}   op[${index}] id=${op.id.slice(0, 8)} vv=${op.version_vector} pushed=${op.pushed} len=${op.data_len} head=${op.data_head} at=${op.created_at}`
+        );
+    }
+    for (const snapshot of dump.snapshots) {
+        lines.push(`[Q26] ${tag}   snapshot ${JSON.stringify(snapshot)}`);
+    }
+    for (const meta of dump.sync_meta) {
+        lines.push(`[Q26] ${tag}   meta ${JSON.stringify(meta)}`);
+    }
+    return lines.join("\n");
+}
+
+/** The visible sync indicator's label: "Saved" for idle, "Saving..." while a push is in flight. */
+async function syncLabel(page: Page): Promise<string> {
+    const labels = await page
+        .locator(
+            "[aria-live='polite'] [aria-label], [aria-label='Saved'], [aria-label='Saving...']"
+        )
+        .evaluateAll((nodes) => nodes.map((node) => node.getAttribute("aria-label") ?? ""));
+    return labels.join("|");
+}
+
+/** Polls the ops table until its row count exceeds `baseline`, returning the wait in ms. */
+async function waitForOpCount(
+    page: Page,
+    baseline: number,
+    budgetMs: number
+): Promise<{ dump: IdbDump; latencyMs: number; reached: boolean }> {
+    const started = Date.now();
+    for (;;) {
+        const dump = await dumpIdb(page);
+        if (dump.ops.length > baseline) {
+            return { dump, latencyMs: Date.now() - started, reached: true };
+        }
+        if (Date.now() - started > budgetMs) {
+            return { dump, latencyMs: Date.now() - started, reached: false };
+        }
+        await page.waitForTimeout(25);
+    }
+}
+
+/** The `Explicit:` clause is the only part of the cell reflecting stored state. */
+async function readCell(page: Page, transactionId: string, person: string): Promise<string> {
+    const cell = rowById(page, transactionId).getByRole("button", {
+        name: `Edit ${person} allocation`
+    });
+    await expect(cell).toBeVisible();
+    return (await cell.textContent()) ?? "<null>";
+}
+
+/**
+ * Writes one allocation, then samples storage at the instant the barrier returns and again once the
+ * op is durable. Returns the ops count after durability so the next write can be measured against
+ * it.
+ */
+async function writeAndMeasure(
+    page: Page,
+    row: Locator,
+    person: string,
+    value: string,
+    baseline: number,
+    tag: string
+): Promise<number> {
+    await setAllocation(row, person, value);
+    // The page's own clock at the instant the barrier returned, so the gap to the op's `created_at`
+    // measures how long after DOM confirmation the row actually reached storage.
+    const barrierAt = await page.evaluate(() => Date.now());
+    const label = await syncLabel(page);
+    const atBarrier = await dumpIdb(page);
+    const durableAtBarrier = atBarrier.ops.length > baseline;
+    console.log(
+        `[Q26] ${tag} person=${person} durableAtBarrier=${durableAtBarrier} ops=${atBarrier.ops.length} baseline=${baseline} syncLabel=${JSON.stringify(label)}`
+    );
+    const settled = await waitForOpCount(page, baseline, 15_000);
+    const newest = settled.dump.ops.at(-1);
+    console.log(
+        `[Q26] ${tag} person=${person} reached=${settled.reached} latency_ms=${settled.latencyMs} ops=${settled.dump.ops.length} barrierToStored_ms=${newest ? newest.created_at - barrierAt : "n/a"}`
+    );
+    console.log(renderDump(`${tag}/${person}-durable`, settled.dump));
+    return settled.dump.ops.length;
+}
+
+/**
+ * Arm A: the natural journey shape that captured the original lost write — two allocations into one
+ * transaction's map, then a nav and a reload, with storage dumped on both sides of the reload.
+ */
+test("Q26 arm A: two writes, natural journey, storage dumped across the reload", async ({
+    page
+}) => {
+    test.setTimeout(240_000);
+
+    await createNewIdentity(page);
+    await addPeople(page, ["Bob"]);
+    const transactionId = await createTransaction(page, {
+        amount: "-100.00",
+        description: "Q26 arm A"
+    });
+    const row = rowById(page, transactionId);
+
+    const dump0 = await dumpIdb(page);
+    console.log(renderDump("A/0-before-any-allocation", dump0));
+
+    const afterMe = await writeAndMeasure(page, row, "Me", "50", dump0.ops.length, "A/1");
+    const afterBob = await writeAndMeasure(page, row, "Bob", "50", afterMe, "A/2");
+
+    console.log(
+        `[Q26] A/pre-reload DOM Me=${JSON.stringify(await readCell(page, transactionId, "Me"))}`
+    );
+    console.log(
+        `[Q26] A/pre-reload DOM Bob=${JSON.stringify(await readCell(page, transactionId, "Bob"))}`
+    );
+
+    await goToTransactions(page);
+    const dumpNav = await dumpIdb(page);
+    console.log(renderDump("A/3-after-nav", dumpNav));
+
+    await page.reload();
+    const meAfter = await readCell(page, transactionId, "Me");
+    const bobAfter = await readCell(page, transactionId, "Bob");
+    const dumpAfter = await dumpIdb(page);
+    console.log(renderDump("A/4-after-reload", dumpAfter));
+    console.log(`[Q26] A/post-reload DOM Me=${JSON.stringify(meAfter)}`);
+    console.log(`[Q26] A/post-reload DOM Bob=${JSON.stringify(bobAfter)}`);
+    console.log(
+        `[Q26] A/VERDICT meLost=${!meAfter.includes("Explicit: 50%.")} bobLost=${!bobAfter.includes("Explicit: 50%.")} opsAfterBobDurable=${afterBob} opsPreReload=${dumpNav.ops.length} opsPostReload=${dumpAfter.ops.length}`
+    );
+});
+
+/**
+ * Arm B: three writes into one allocation map, so a loss can be located by position — first,
+ * second or third — and so a per-key loss can be told apart from losing the whole map.
+ */
+test("Q26 arm B: three writes into one map, to locate a loss by position", async ({ page }) => {
+    test.setTimeout(240_000);
+
+    await createNewIdentity(page);
+    await addPeople(page, ["Bob", "Carol"]);
+    const transactionId = await createTransaction(page, {
+        amount: "-300.00",
+        description: "Q26 arm B"
+    });
+    const row = rowById(page, transactionId);
+
+    const dump0 = await dumpIdb(page);
+    console.log(renderDump("B/0-before-any-allocation", dump0));
+
+    let ops = dump0.ops.length;
+    ops = await writeAndMeasure(page, row, "Me", "30", ops, "B/1");
+    ops = await writeAndMeasure(page, row, "Bob", "40", ops, "B/2");
+    ops = await writeAndMeasure(page, row, "Carol", "20", ops, "B/3");
+
+    await goToTransactions(page);
+    await page.reload();
+
+    const me = await readCell(page, transactionId, "Me");
+    const bob = await readCell(page, transactionId, "Bob");
+    const carol = await readCell(page, transactionId, "Carol");
+    const dumpAfter = await dumpIdb(page);
+    console.log(renderDump("B/4-after-reload", dumpAfter));
+    console.log(`[Q26] B/post-reload DOM Me=${JSON.stringify(me)}`);
+    console.log(`[Q26] B/post-reload DOM Bob=${JSON.stringify(bob)}`);
+    console.log(`[Q26] B/post-reload DOM Carol=${JSON.stringify(carol)}`);
+    console.log(
+        `[Q26] B/VERDICT meLost=${!me.includes("Explicit: 30%.")} bobLost=${!bob.includes("Explicit: 40%.")} carolLost=${!carol.includes("Explicit: 20%.")} opsPostReload=${dumpAfter.ops.length}`
+    );
+});
+
+/**
+ * Arm D: the original captured journey, byte for byte — two allocations, then `goToTransactions`
+ * (which is `page.goto`, a full document teardown) and a reload, with nothing inserted between the
+ * barrier and the navigation. Storage is dumped only after the teardown, so the probe cannot itself
+ * widen the window it is measuring. A losing run is re-read after a settle so a slow rehydration
+ * cannot be mistaken for a permanent loss.
+ */
+test("Q26 arm D: the original journey shape, unperturbed", async ({ page }) => {
+    test.setTimeout(240_000);
+
+    await createNewIdentity(page);
+    await addPeople(page, ["Bob"]);
+    const transactionId = await createTransaction(page, {
+        amount: "-100.00",
+        description: "Q26 arm D"
+    });
+    const row = rowById(page, transactionId);
+
+    await setAllocation(row, "Me", "50");
+    const beforeBob = await dumpIdb(page);
+    console.log(renderDump("D/0-before-bob", beforeBob));
+
+    // Nothing between the barrier and the navigation: this is the captured journey exactly.
+    await setAllocation(row, "Bob", "50");
+    await goToTransactions(page);
+
+    const afterNav = await dumpIdb(page);
+    console.log(renderDump("D/1-after-goto", afterNav));
+
+    await page.reload();
+    const meAfter = await readCell(page, transactionId, "Me");
+    const bobAfter = await readCell(page, transactionId, "Bob");
+    const afterReload = await dumpIdb(page);
+    console.log(renderDump("D/2-after-reload", afterReload));
+    console.log(`[Q26] D/post-reload DOM Me=${JSON.stringify(meAfter)}`);
+    console.log(`[Q26] D/post-reload DOM Bob=${JSON.stringify(bobAfter)}`);
+
+    const bobLost = !bobAfter.includes("Explicit: 50%.");
+    if (bobLost) {
+        // A server pull could still land after the first read. Give it 8s and look again, so
+        // "permanently lost" is measured rather than assumed.
+        await page.waitForTimeout(8_000);
+        const settled = await readCell(page, transactionId, "Bob");
+        const settledDump = await dumpIdb(page);
+        console.log(`[Q26] D/settled-8s DOM Bob=${JSON.stringify(settled)}`);
+        console.log(renderDump("D/3-settled-8s", settledDump));
+        console.log(
+            `[Q26] D/SETTLE bobStillLost=${!settled.includes("Explicit: 50%.")} opsSettled=${settledDump.ops.length}`
+        );
+    }
+    console.log(
+        `[Q26] D/VERDICT meLost=${!meAfter.includes("Explicit: 50%.")} bobLost=${bobLost} opsBeforeBob=${beforeBob.ops.length} opsAfterGoto=${afterNav.ops.length} opsAfterReload=${afterReload.ops.length}`
+    );
+});
+
+/**
+ * Arm E: arm D with the two writes swapped, so the write adjacent to the navigation is `Me` rather
+ * than `Bob`. If the loss follows the adjacency rather than the person or the map position, `Me` is
+ * the one that disappears here.
+ */
+test("Q26 arm E: reversed write order, to separate position from adjacency", async ({ page }) => {
+    test.setTimeout(240_000);
+
+    await createNewIdentity(page);
+    await addPeople(page, ["Bob"]);
+    const transactionId = await createTransaction(page, {
+        amount: "-100.00",
+        description: "Q26 arm E"
+    });
+    const row = rowById(page, transactionId);
+
+    await setAllocation(row, "Bob", "50");
+    const beforeMe = await dumpIdb(page);
+    console.log(renderDump("E/0-before-me", beforeMe));
+
+    await setAllocation(row, "Me", "50");
+    await goToTransactions(page);
+
+    const afterNav = await dumpIdb(page);
+    console.log(renderDump("E/1-after-goto", afterNav));
+
+    await page.reload();
+    const meAfter = await readCell(page, transactionId, "Me");
+    const bobAfter = await readCell(page, transactionId, "Bob");
+    console.log(`[Q26] E/post-reload DOM Me=${JSON.stringify(meAfter)}`);
+    console.log(`[Q26] E/post-reload DOM Bob=${JSON.stringify(bobAfter)}`);
+    console.log(
+        `[Q26] E/VERDICT meLost=${!meAfter.includes("Explicit: 50%.")} bobLost=${!bobAfter.includes("Explicit: 50%.")} opsBeforeMe=${beforeMe.ops.length} opsAfterGoto=${afterNav.ops.length}`
+    );
+});
+
+/**
+ * Arm F: the same shape with no allocation involved at all — a transaction is created and the page
+ * is torn down immediately. This is where the class either does or does not extend beyond
+ * allocations, which decides whether the `51 transactions` observation belongs to it.
+ */
+async function readTransactionFields(
+    page: Page,
+    transactionId: string,
+    tag: string
+): Promise<{ amount: string; appeared: boolean; description: string }> {
+    const toolbar = page.getByTestId("transaction-table-toolbar");
+    await expect(toolbar).toBeVisible();
+    const row = rowById(page, transactionId);
+    const appeared = await row
+        .waitFor({ state: "attached", timeout: 15_000 })
+        .then(() => true)
+        .catch(() => false);
+    if (!appeared) {
+        console.log(
+            `[Q26] ${tag} appeared=false toolbar=${JSON.stringify(await toolbar.textContent())}`
+        );
+        return { amount: "<absent>", appeared: false, description: "<absent>" };
+    }
+    // Description and amount render inside <input> elements, whose values never appear in
+    // textContent — reading the row's text would report every value as missing regardless.
+    const description = await row
+        .getByRole("textbox", { name: "Transaction description" })
+        .inputValue();
+    const amount = await row.getByRole("textbox", { name: /Transaction amount/ }).inputValue();
+    console.log(
+        `[Q26] ${tag} appeared=true description=${JSON.stringify(description)} amount=${JSON.stringify(amount)} toolbar=${JSON.stringify(await toolbar.textContent())}`
+    );
+    return { amount, appeared, description };
+}
+
+test("Q26 arm F: transaction creation followed immediately by a teardown", async ({ page }) => {
+    test.setTimeout(240_000);
+
+    await createNewIdentity(page);
+    const before = await dumpIdb(page);
+
+    const transactionId = await createTransaction(page, {
+        amount: "-77.00",
+        description: "Q26 arm F"
+    });
+    // No barrier beyond createTransaction's own: tear the document down at once.
+    await page.reload();
+
+    const afterNav = await dumpIdb(page);
+    console.log(renderDump("F/1-after-reload", afterNav));
+
+    const fields = await readTransactionFields(page, transactionId, "F/post-reload");
+    console.log(
+        `[Q26] F/VERDICT rowLost=${!fields.appeared} descriptionLost=${fields.description !== "Q26 arm F"} amountLost=${!fields.amount.includes("77")} opsBefore=${before.ops.length} opsAfterReload=${afterNav.ops.length}`
+    );
+});
+
+/**
+ * Arm F-control: arm F with the teardown deferred until storage has stopped growing. Its purpose is
+ * to prove the arm F oracle can read a description and an amount that are genuinely there — without
+ * it, arm F's "lost" readings could be an instrument that never reads those fields at all.
+ */
+test("Q26 arm F-control: the same creation, with durability allowed before the teardown", async ({
+    page
+}) => {
+    test.setTimeout(240_000);
+
+    await createNewIdentity(page);
+    const transactionId = await createTransaction(page, {
+        amount: "-77.00",
+        description: "Q26 arm F"
+    });
+
+    // Let the persistence queue drain: poll until the op count is stable across 1s.
+    let previous = -1;
+    for (let attempt = 0; attempt < 30; attempt++) {
+        const dump = await dumpIdb(page);
+        if (dump.ops.length === previous) break;
+        previous = dump.ops.length;
+        await page.waitForTimeout(1_000);
+    }
+    const settled = await dumpIdb(page);
+    console.log(renderDump("Fc/0-settled-before-reload", settled));
+
+    await page.reload();
+    const afterReload = await dumpIdb(page);
+    console.log(renderDump("Fc/1-after-reload", afterReload));
+
+    const fields = await readTransactionFields(page, transactionId, "Fc/post-reload");
+    console.log(
+        `[Q26] Fc/VERDICT rowLost=${!fields.appeared} descriptionLost=${fields.description !== "Q26 arm F"} amountLost=${!fields.amount.includes("77")} opsSettled=${settled.ops.length} opsAfterReload=${afterReload.ops.length}`
+    );
+});
+
+/**
+ * Arm C: reload as early as possible after the barrier returns, with no intervening work. If the
+ * barrier can return before the op is durable, this is where it shows.
+ */
+test("Q26 arm C: reload immediately after the barrier returns", async ({ page }) => {
+    test.setTimeout(240_000);
+
+    await createNewIdentity(page);
+    await addPeople(page, ["Bob"]);
+    const transactionId = await createTransaction(page, {
+        amount: "-100.00",
+        description: "Q26 arm C"
+    });
+    const row = rowById(page, transactionId);
+
+    await setAllocation(row, "Me", "50");
+    const beforeBob = await dumpIdb(page);
+    console.log(renderDump("C/0-before-bob", beforeBob));
+
+    await setAllocation(row, "Bob", "50");
+    // No dump, no wait: reload on the very next statement after the barrier resolves.
+    await page.reload();
+
+    const dumpAfter = await dumpIdb(page);
+    console.log(renderDump("C/1-after-reload", dumpAfter));
+    const meAfter = await readCell(page, transactionId, "Me");
+    const bobAfter = await readCell(page, transactionId, "Bob");
+    console.log(`[Q26] C/post-reload DOM Me=${JSON.stringify(meAfter)}`);
+    console.log(`[Q26] C/post-reload DOM Bob=${JSON.stringify(bobAfter)}`);
+    if (!bobAfter.includes("Explicit: 50%.")) {
+        await page.waitForTimeout(8_000);
+        const settled = await readCell(page, transactionId, "Bob");
+        const settledDump = await dumpIdb(page);
+        console.log(`[Q26] C/settled-8s DOM Bob=${JSON.stringify(settled)}`);
+        console.log(renderDump("C/2-settled-8s", settledDump));
+        console.log(
+            `[Q26] C/SETTLE bobStillLost=${!settled.includes("Explicit: 50%.")} opsSettled=${settledDump.ops.length}`
+        );
+    }
+    console.log(
+        `[Q26] C/VERDICT meLost=${!meAfter.includes("Explicit: 50%.")} bobLost=${!bobAfter.includes("Explicit: 50%.")} opsBeforeBob=${beforeBob.ops.length} opsAfterReload=${dumpAfter.ops.length}`
+    );
+});
+
+/**
+ * Arm G: the same at-risk write, but the navigation away is a real in-app sidebar click — a Next.js
+ * client-side transition — instead of `page.goto`. A marker planted on `window` before the write is
+ * read back after the navigation: if it survives, no document teardown occurred, and the arm is
+ * measuring what it claims to measure. If it does not survive, the click fell back to a document
+ * load and the arm answers nothing.
+ */
+test("Q26 arm G: navigate away by clicking the in-app sidebar link", async ({ page }) => {
+    test.setTimeout(240_000);
+
+    await createNewIdentity(page);
+    await addPeople(page, ["Bob"]);
+    const transactionId = await createTransaction(page, {
+        amount: "-100.00",
+        description: "Q26 arm G"
+    });
+    const row = rowById(page, transactionId);
+
+    await setAllocation(row, "Me", "50");
+    const beforeBob = await dumpIdb(page);
+    console.log(renderDump("G/0-before-bob", beforeBob));
+
+    // Only a surviving document keeps this property. Planted before the at-risk write so nothing
+    // between the barrier and the click can perturb the window being measured.
+    await page.evaluate(() => {
+        (window as unknown as Record<string, unknown>).__q26DocumentAlive = "alive";
+    });
+
+    const peopleLink = page.getByRole("link", { name: "People", exact: true }).first();
+    await expect(peopleLink).toBeVisible();
+
+    // Nothing between the barrier and the click: the same adjacency arm D has, minus the teardown.
+    await setAllocation(row, "Bob", "50");
+    await peopleLink.click();
+    await expect(page.getByRole("heading", { name: "People", level: 1 })).toBeVisible();
+
+    const marker = await page.evaluate(
+        () => (window as unknown as Record<string, unknown>).__q26DocumentAlive ?? "<gone>"
+    );
+    const afterNav = await dumpIdb(page);
+    console.log(renderDump("G/1-after-client-nav", afterNav));
+    console.log(
+        `[Q26] G/TRANSITION marker=${JSON.stringify(marker)} clientSide=${marker === "alive"} url=${page.url()}`
+    );
+
+    await goToTransactions(page);
+    await page.reload();
+    const meAfter = await readCell(page, transactionId, "Me");
+    const bobAfter = await readCell(page, transactionId, "Bob");
+    console.log(`[Q26] G/post-reload DOM Me=${JSON.stringify(meAfter)}`);
+    console.log(`[Q26] G/post-reload DOM Bob=${JSON.stringify(bobAfter)}`);
+    console.log(
+        `[Q26] G/VERDICT clientSide=${marker === "alive"} meLost=${!meAfter.includes("Explicit: 50%.")} bobLost=${!bobAfter.includes("Explicit: 50%.")} opsBeforeBob=${beforeBob.ops.length} opsAfterClientNav=${afterNav.ops.length}`
+    );
+});
+
+/**
+ * Arm H: the tab is closed outright immediately after the barrier — a forced close, which does not
+ * run `beforeunload`, so this models a crash or a killed tab rather than a user-initiated close.
+ * IndexedDB is scoped to the browser context, not the page, so a fresh tab in the same context can
+ * read the surviving state without needing the vault session that died with the old tab.
+ */
+test("Q26 arm H: tab destroyed immediately after the barrier", async ({ page, context }) => {
+    test.setTimeout(240_000);
+
+    await createNewIdentity(page);
+    await addPeople(page, ["Bob"]);
+    const transactionId = await createTransaction(page, {
+        amount: "-100.00",
+        description: "Q26 arm H"
+    });
+    const row = rowById(page, transactionId);
+
+    await setAllocation(row, "Me", "50");
+    const beforeBob = await dumpIdb(page);
+    console.log(renderDump("H/0-before-bob", beforeBob));
+
+    await setAllocation(row, "Bob", "50");
+    await page.close();
+
+    const survivor = await context.newPage();
+    await survivor.goto("/");
+    const afterClose = await dumpIdb(survivor);
+    console.log(renderDump("H/1-after-tab-close", afterClose));
+    console.log(
+        `[Q26] H/VERDICT opLost=${afterClose.ops.length === beforeBob.ops.length} opsBeforeBob=${beforeBob.ops.length} opsAfterClose=${afterClose.ops.length} transactionId=${transactionId}`
+    );
+});
+
+/**
+ * Arm G2: the latency control for arm G. A Playwright click runs actionability checks before it
+ * dispatches, so arm G's click is inherently slower to reach the navigation than arm D's
+ * `page.goto`. `{ trial: true }` performs exactly those checks and then does *not* click, so this
+ * arm pays arm G's pre-dispatch cost and then tears the document down anyway. If arm G's result is
+ * the absence of a teardown, this arm still loses at arm D's rate; if it is merely the extra
+ * milliseconds, this arm stops losing too.
+ */
+test("Q26 arm G2: arm G's click cost, followed by a real document teardown", async ({ page }) => {
+    test.setTimeout(240_000);
+
+    await createNewIdentity(page);
+    await addPeople(page, ["Bob"]);
+    const transactionId = await createTransaction(page, {
+        amount: "-100.00",
+        description: "Q26 arm G2"
+    });
+    const row = rowById(page, transactionId);
+
+    await setAllocation(row, "Me", "50");
+    const beforeBob = await dumpIdb(page);
+    console.log(renderDump("G2/0-before-bob", beforeBob));
+
+    const peopleLink = page.getByRole("link", { name: "People", exact: true }).first();
+    await expect(peopleLink).toBeVisible();
+
+    await setAllocation(row, "Bob", "50");
+    await peopleLink.click({ trial: true });
+    await page.goto("/people");
+
+    const afterNav = await dumpIdb(page);
+    console.log(renderDump("G2/1-after-goto", afterNav));
+
+    await goToTransactions(page);
+    await page.reload();
+    const meAfter = await readCell(page, transactionId, "Me");
+    const bobAfter = await readCell(page, transactionId, "Bob");
+    console.log(`[Q26] G2/post-reload DOM Bob=${JSON.stringify(bobAfter)}`);
+    console.log(
+        `[Q26] G2/VERDICT meLost=${!meAfter.includes("Explicit: 50%.")} bobLost=${!bobAfter.includes("Explicit: 50%.")} opsBeforeBob=${beforeBob.ops.length} opsAfterGoto=${afterNav.ops.length}`
+    );
+});
+
+/**
+ * Arms J1/J2: the matched pair that arm G could not be.
+ *
+ * Arm G2 showed that merely paying a Playwright click's actionability cost closes the window, so any
+ * comparison where one side is driven by a Playwright call and the other by `page.goto` is
+ * confounded by latency rather than by teardown. Here the navigation is *armed before the write* and
+ * fired from inside the page by a MutationObserver the instant the cell commits — no Playwright
+ * round trip stands between the commit and the navigation, and the two variants are byte-identical
+ * except for the navigation primitive:
+ *
+ *   J1 `client`: clicks the real sidebar `<a href="/people">`, a Next.js client-side transition.
+ *   J2 `full`  : `location.assign("/people")`, a full document load.
+ *
+ * A `window` marker planted before the write reports which actually happened.
+ */
+async function runArmJ(page: Page, mode: "client" | "full"): Promise<void> {
+    const tag = mode === "client" ? "J1" : "J2";
+    await createNewIdentity(page);
+    await addPeople(page, ["Bob"]);
+    const transactionId = await createTransaction(page, {
+        amount: "-100.00",
+        description: `Q26 arm ${tag}`
+    });
+    const row = rowById(page, transactionId);
+
+    await setAllocation(row, "Me", "50");
+    const beforeBob = await dumpIdb(page);
+    console.log(renderDump(`${tag}/0-before-bob`, beforeBob));
+
+    // Type Bob's value but do not commit yet.
+    const cell = row.getByRole("button", { name: "Edit Bob allocation" });
+    await cell.click();
+    const input = row.getByRole("textbox", { name: "Bob allocation percentage" });
+    await input.fill("50");
+
+    await page.evaluate((navMode) => {
+        const globals = window as unknown as Record<string, unknown>;
+        globals.__q26DocumentAlive = "alive";
+        const go = () => {
+            if (navMode === "client") {
+                document.querySelector<HTMLAnchorElement>('a[href="/people"]')?.click();
+            } else {
+                location.assign("/people");
+            }
+        };
+        // Fires in the same task the commit renders in, so no round trip separates the DOM
+        // confirmation from the navigation.
+        const observer = new MutationObserver(() => {
+            const target = document.querySelector('[aria-label="Edit Bob allocation"]');
+            if (target?.textContent?.includes("Explicit: 50%.") === true) {
+                observer.disconnect();
+                go();
+            }
+        });
+        observer.observe(document.body, {
+            characterData: true,
+            childList: true,
+            subtree: true
+        });
+    }, mode);
+
+    await input.press("Enter");
+    await expect(page.getByRole("heading", { name: "People", level: 1 })).toBeVisible();
+
+    const marker = await page.evaluate(
+        () => (window as unknown as Record<string, unknown>).__q26DocumentAlive ?? "<gone>"
+    );
+    const afterNav = await dumpIdb(page);
+    console.log(renderDump(`${tag}/1-after-nav`, afterNav));
+    console.log(
+        `[Q26] ${tag}/TRANSITION marker=${JSON.stringify(marker)} clientSide=${marker === "alive"} url=${page.url()}`
+    );
+
+    await goToTransactions(page);
+    await page.reload();
+    const meAfter = await readCell(page, transactionId, "Me");
+    const bobAfter = await readCell(page, transactionId, "Bob");
+    console.log(`[Q26] ${tag}/post-reload DOM Bob=${JSON.stringify(bobAfter)}`);
+    console.log(
+        `[Q26] ${tag}/VERDICT clientSide=${marker === "alive"} meLost=${!meAfter.includes("Explicit: 50%.")} bobLost=${!bobAfter.includes("Explicit: 50%.")} opsBeforeBob=${beforeBob.ops.length} opsAfterNav=${afterNav.ops.length}`
+    );
+}
+
+test("Q26 arm J1: in-page client-side transition fired at the commit", async ({ page }) => {
+    test.setTimeout(240_000);
+    await runArmJ(page, "client");
+});
+
+test("Q26 arm J2: in-page full document load fired at the commit", async ({ page }) => {
+    test.setTimeout(240_000);
+    await runArmJ(page, "full");
+});
