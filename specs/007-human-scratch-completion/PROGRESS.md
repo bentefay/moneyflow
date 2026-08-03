@@ -13368,3 +13368,77 @@ measured rates of **3-of-4** and **2-of-4** failing, rev 13's single `pnpm test`
 vitest's input is byte-identical across the trees because a `.spec.ts` is never loaded. **Root
 agrees and has told the reviewer that red on those two files is the expected outcome, not a
 regression.**
+
+### 2026-08-03 — P20B rev 13 review **PASS**, no findings; **the D-025 Component 1 remediation chain CLOSES**; P21 reopens
+
+**DISTINCT `p20b-reviewer-13`** (distinct from `p20b-implementer-13` and from every prior P20B
+reviewer) wrote `reviews/P20B-review-13.md` — **PASS, no findings, one flag.** Both artifacts
+persisted at **`13bffbf`** (integration-control commit).
+
+**Root's PASS preconditions, every one re-derived rather than accepted:**
+
+| Check | Result |
+| --- | --- |
+| `git merge-base --is-ancestor 9dba9c0 HEAD` | **exit 0** |
+| `git diff --name-only 9dba9c0..HEAD -- src tests` | **empty** |
+| Full delta since reviewed HEAD | **`PROGRESS.md` only — root-owned** ✓ item 2 |
+| Comment-only (non-comment grep) | **zero lines** |
+| Four preserved clauses, `:60-64`, across `ce355f1`/`d80f0e4`/`9dba9c0` | **all `cf88257ee624cb8bcefb5830474f57f4`** — byte-identical, matching the reviewer exactly |
+| Frozen sources | scratch `469e98c7…`, FS-001 `0d0e2a14…` |
+
+**The reviewer verified both source citations and corroborated one LIVE IN A BROWSER** — an `eval`
+of the `:73` predicate on `/unlock` returned
+`{"segment":"unlock","onVaultRoute":false,"seamPresent":false,"barrierWouldReturnNullAtLine73":true}`.
+**A source citation checked against the running product, not just against the file.**
+
+**It agreed the divergence from its predecessor's suggested wording was an improvement, on
+independent grounds, and added an argument root had not made:** the committed clause **makes no run
+reference and carries no `§` citation**, so **unlike every prior version of this comment it cannot
+be falsified by re-measurement.** That is the strongest argument for the wording, and it is the
+direct answer to the decay problem that produced F11-1 and F12-1.
+
+**THE FLAG — a third exit exists, and root accepts the recommendation not to reopen.** MEASURED: the
+absent-seam branch also terminates at the **15,000 ms budget** (`persistence.ts:92` `break` → throw
+at `:96-98`), which the clause does not name. **Root does not reopen**, on the reviewer's reasoning
+and its own: the omission errs toward **safety** (a reader over-estimates patience, not
+under-estimates danger); **F12-1's harm model is fully blocked**; **exit-completeness was not among
+`reviews/P20B-review-12.md` §7's stated fix criteria**; and **§7's own suggested wording likewise
+omitted the throw.** **Failing a revision on a criterion the failing review neither stated nor
+satisfied would be moving the target.** Recorded as `Q-P20B-34` for a future edit.
+
+**One unit red, reported not dismissed:** `duplicates.test.ts:749`, ratio **4.410539499265076** vs a
+threshold of 4 — consistent with review 12's 4.13/4.18. **Deductively unattributable**:
+`vitest.config.ts:12` includes only `tests/**/*.test.ts(x)`, so a `.spec.ts` is never loaded and
+vitest's input is byte-identical across both trees. `realtime-origin-controls.test.ts` passed. **No
+rate claim from one run**, correctly.
+
+**Manual checkpoint performed**, with the vacuity stated rather than papered over: with zero
+executable lines it cannot distinguish the trees, and **the live `eval` is the non-vacuous part.**
+0 console errors, 0 non-2xx across 83 requests.
+
+**Two environmental findings recorded at `RISKS.md`:** the **12-word phrase scan false-positives on
+the landing page `/`** (marketing prose; the discriminator is the **zero `textbox` roles**, not the
+word run — a mandatory scan that fires on ordinary copy will eventually be escalated as an
+exposure); and **SIGTERM to `pnpm dev` does not release `:3000`** because the `next-server` child
+outlives its parent — the same two-pid shape as the human's `:3001` server.
+
+**STATE — the chain that began with the P21 rev 06 audit FAIL is closed.**
+
+- **P20B revision 13 → PASS.** Integration-control commit `13bffbf`.
+- **D-025 Component 1 is delivered and independently reviewed.** The remediation line P20B rev
+  07→13 — opened when P21 rev 06 FAILed on the E2E stability clause — is **complete**.
+- **No package or requirement row changes state on this PASS**: the reviewed range contains no
+  product code beyond the already-reviewed test seam, **P20B remains `passed` at rev 06**, HS-021's
+  acceptance is untouched, all 34 requirement rows remain `passed`, and **no rollback batch exists
+  or is required.**
+- **P21 remains the only package row not `passed`.**
+
+**NEXT ACTION: re-open P21 from a fresh BASE** — the executable final audit over all feature
+packages plus FS-001, with a fresh DISTINCT collector and reviewer per `PROCESS.md` §P21. **The
+carry-forward set the audit must surface** is larger than at rev 06 and includes: `R-LOSTWRITE-01`
+(out-of-goal by D-025, reproduction preserved **in the repository** because the harness fix removed
+the suite's ability to surface it), `R-SNAPSHOT-PHRASE-01` + its false-positive caveat,
+`R-TMP-INODES-01`, `R-DEVSERVER-ORPHAN-01`, `Q-P20B-21` … `Q-P20B-34`, and **two genuinely red
+tests with no owner** — `realtime-origin-controls.test.ts` (intermittent, measured 3-of-4 at worst,
+five agents) and `duplicates.test.ts` (wall-clock ratio under load, passes 43/43 in isolation). **The
+audit reports these as red, not as a clean bill.**
