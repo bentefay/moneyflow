@@ -343,9 +343,12 @@ test.describe("People page settlement journey", () => {
         await test.step("9. reload and verify allocations and settlement persist", async () => {
             await page.reload();
             const reloaded = rowById(page, transactionId);
+            // `Explicit:` is the only clause in the cell that reflects stored state. A bare "50%"
+            // is also satisfied by the derived `Owner remainder: 50%.` that exists precisely
+            // because Bob's allocation is missing, so it cannot fail on the loss this step names.
             await expect(
                 reloaded.getByRole("button", { name: "Edit Bob allocation" })
-            ).toContainText("50%");
+            ).toContainText("Explicit: 50%.");
 
             await goToPeople(page);
             await expectObligation(page, {
