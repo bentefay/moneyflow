@@ -82,3 +82,32 @@ force-quit inside the window still loses the write. Component 2 remains untouche
 `page.reload()` that bypasses every helper, **MEASURED at 20/70 on the FIXED tree**. Anyone
 revisiting this risk should start there — it is the only remaining route by which the repository can
 demonstrate the defect.
+
+### R-LOSTWRITE-01 second addendum — 2026-08-03: `beforeunload` MEASURED, and it BOUNDS the exposure
+
+**An INFERRED line in the scope ruling is now MEASURED, and it favours the ruling.**
+`adjudications/P21-scope-02.md` §5 inferred — and said explicitly *"I did not measure that"* — that a
+**user-initiated** teardown hits the `beforeunload` handler while `pendingLocalUpdates` is non-empty
+(`manager.ts:437-448`), raising the unsaved-changes dialog rather than silently dropping the write.
+
+**`p20b-reviewer-09` hit it in a real browser, in BOTH directions**, during the manual checkpoint:
+
+- navigating to `/transactions` **immediately after** adding an allocation **raised the dialog and
+  blocked the navigation** until it was accepted;
+- reloading **after** the barrier returned `"persisted"` raised **no** dialog.
+
+**Consequence for this risk, stated precisely.** Component-2 exposure is **bounded to genuinely
+unaimed teardowns** — a crash, an OS kill, a force-quit — which is exactly the class the ruling
+described. **A user who navigates or closes the window deliberately is warned.** This is the
+strongest thing in the record limiting this risk, and it did not exist when D-021 was written.
+
+**It does not close the risk.** A crash or kill still bypasses `beforeunload`, the write is still
+not durable at acknowledgement, and Component 2 remains out-of-goal and unfixed.
+
+**A near-misreport worth keeping, because the failure mode impersonated a serious defect.** Two
+`goto` calls in the manual session died with `TimeoutError: Timeout 60000ms exceeded` while `curl`
+fetched the same route in **121 ms** and the dev-server log showed `GET /transactions 200`. **The
+cause was the `beforeunload` modal, not the app.** Had it been reported, it would have read as a
+severe product failure. **A browser probe failure is a claim about the harness before it is a claim
+about the product** — the tenth instrument failure in this goal whose signature impersonated a
+product break.
