@@ -11930,3 +11930,78 @@ unapplied → rehydration/derivation.** The measurement decides the routing; roo
 ownership before it. If the result implies re-routing the class off P20B, that supersedes the P21
 rev 06 routing decision and root dispatches the **independent fresh-context scope adjudicator**
 rather than deciding it.
+
+### 2026-08-03 — **Q-P20B-26 SETTLED BY MEASUREMENT: it is a genuine LOST WRITE, not a rehydration gap**
+
+**The question that blocked four revisions is answered.** Root dispatched a read-only diagnostician
+to run the single discriminating experiment `Q-P20B-26` names. Report preserved at
+`evidence/P21/diagnostic-Q-P20B-26.md` (source `/tmp/q-p20b-26-experiment.md`); logs at
+`/tmp/q26-logs/`.
+
+**ANSWER: the entry is ABSENT from persisted IndexedDB state. The write never reaches storage** — no
+op row is created for it before the navigation, after the navigation, after the reload, or 8 s
+later. It is not on the server either.
+
+**Root re-derived the headline from the raw logs rather than relaying it.** Over arms C/D/E in
+`campaign{2,3,4,6}`:
+
+```
+$ grep -h VERDICT campaign{2,3,4,6}*.log | grep -E '^\[Q26\] [CDE]/' | wc -l        -> 195
+$ ... | grep -oE '(me|bob)Lost=true' | wc -l                                        ->  50   (38 Bob + 12 Me)
+$ ... | grep 'Lost=true' | awk '{ if (opsAfterReload > opsBeforeBob) print }'        ->  (none)
+```
+
+| Observation | Runs | Losses | Op row created for the at-risk write |
+| --- | --- | --- | --- |
+| Barrier confirmed, value MISSING after reload | 195 | 50 | **never (0/50)** |
+| Barrier confirmed, value PRESENT after reload | 195 | 145 | **always (145/145)** |
+
+**Zero counterexamples. There is no run in which the entry was present in IndexedDB and absent from
+the UI — the rehydration branch never occurred once.**
+
+**Root's own counting error, recorded.** Root first counted only `bobLost=true`, got **38**, and
+stated that as a discrepancy against the report's 50. **The report was right and root's filter was
+narrower than its claim** — the 50 is 38 Bob **+** 12 Me losing writes over the same 195 runs. Same
+shape as the F-D error it had just recorded against someone else: a correct measurement supporting a
+narrower proposition than the sentence written after it.
+
+**MECHANISM — INFERRED by the diagnostician, read from code, NOT measured; recorded in that
+register deliberately.** `setAllocation`'s barrier waits on the cell's `Explicit:` clause, which
+reflects the loro-mirror commit and React re-render. **Persistence is downstream and asynchronous:**
+`subscribeLocalUpdates` enqueues (`manager.ts:292-296`); a queued attempt then **dynamically imports
+the crypto module, encrypts, and only then calls `appendOp`** (`manager.ts:312-345`); the server push
+runs after that (`manager.ts:388-396`) — which is why a lost value never comes back from the server.
+`goToTransactions` is `page.goto("/transactions")` (`nav.ts:9`), a **full document teardown**, and a
+teardown in the window between the barrier and `appendOp` discards the queued work.
+
+**MEASURED, and it explains the intermittency:** the gap between DOM commit and barrier return is
+**bimodal** because `expect().toContainText` polls. Over 200 arm A/B writes, `op.created_at −
+barrierSampleTime` splits into a near cluster of **53 writes at −4 to −8 ms** and a far cluster of
+**147 at −37 to −66 ms**. A teardown beats the write only from the tight cluster.
+
+**The diagnostician retracted its own arm F result against its own interest.** It first reported
+`descriptionLost`/`amountLost` in **35/35** runs; that was an instrument defect — it read
+`row.textContent()`, which never contains an `<input>`'s value, so the oracle would have reported
+those fields lost on a perfectly intact transaction. Rewritten to `inputValue()` and given a control
+arm proving the oracle can see present fields, the result became **0/28**. **The 35/35 figure in
+`campaign{3,4}` logs is void.** Root records this because it is the eighth instrument failure in
+this goal whose failure mode impersonated a finding.
+
+**Consequences for this goal.**
+
+- **This is a product defect, not a test-instrument defect.** A write acknowledged in the UI — and
+  reported `Saved` — is **not durable** for tens of milliseconds. The rev 06 routing of this class
+  to P20B as a test-instrument defect is now refuted by measurement as well as by the rev 07
+  reviewer's structural argument.
+- **It coheres with every prior observation:** the rev 08 reviewer's captured loss (one allocation
+  key persisted, its sibling in the same row did not), and every settlement failure rendering the
+  **terminal** `settled` state on a vault missing exactly one explicit allocation.
+
+**NOT settled, and root is not routing until it is.** The diagnostician's open question 1: **does a
+client-side in-app navigation also lose the write, or is the exposure confined to full teardowns
+(reload, tab close, crash)?** `page.goto` is a teardown; a real user clicking the sidebar link is
+not. **This decides whether a real user can hit it at all, and therefore both the severity and the
+owner.** Arm G is dispatched. Root will not ask an adjudicator to rule on incomplete information.
+Also open: whether the `51 transactions` F-2 case is this class (arm F says transaction creation did
+**not** reproduce it in 28 runs, so assume not until measured), and whether undo/redo shares the
+queue (read, not measured).
