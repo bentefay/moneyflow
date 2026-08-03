@@ -664,3 +664,15 @@ principal's ruling before admission.
   interactive-edit-path fence, built on the existing `awaitLocalPersistence()`
   (`manager.ts:367-377`) rather than a parallel mechanism. If the Component-1 fix is later found to
   have changed allocation product behaviour, `PROCESS.md:128-129` flips ownership to P16A–E.
+
+### D-021 addendum — two load-bearing elements of the ruling, added 2026-08-03 after the adjudicator's closing report
+
+- **The Component-2 ruling rests on a MEASURED negative, not on ambiguity.** A grep across **all
+  five frozen sources** returns **no line using durability / crash / unsaved / data-loss vocabulary
+  at all.** The finding is "the vocabulary is absent", not "the text is unclear".
+- **The HS-021 route to Component 2 is FORECLOSED, not merely unpersuasive.** D-019 upheld
+  `p20b-reviewer-01 §6.1`, which deferred `pruneBuckets` as out of scope **for the HS-021 sweep**.
+  The argument "the sweep converts a discovered engine defect into committed scope" has therefore
+  **already been adjudicated and rejected in this goal**. Component 2 cannot enter through HS-021
+  for the same reason `Q-P20B-00` could not — which is the substance of D-019 being **followed**
+  rather than distinguished.
