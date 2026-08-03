@@ -136,3 +136,47 @@ product break.
   that snapshots taken on or after `/new-user` phrase generation are **filtered before being read or
   quoted**, and that the credential field's accessible value is never echoed. Prefer targeted
   `eval` on a specific element reference over a whole-page `snapshot` on that route.
+
+### R-SNAPSHOT-PHRASE-01 addendum — 2026-08-03: the hazard is NOT limited to manual snapshots, and root found live material
+
+**Extended by `p20b-implementer-12`, and CONFIRMED by root:** **Playwright's automatic
+`test-results/**/error-context.md` embeds the page snapshot**, so it carries the recovery phrase as
+the credential field's accessible value **on any failed test on that route**. The original entry
+described a manual `playwright-cli snapshot`; **no manual command is required — a test simply
+failing is enough.**
+
+**This collides with root's own standing guidance.** Root has repeatedly instructed agents to copy
+`error-context.md` out of the volatile `test-results/` tree before re-running, because the next run
+wipes it. **That guidance and this hazard point in opposite directions**, and both are correct in
+their own terms. The resolution is: preserve them, **but scan and redact before doing anything
+else** with them.
+
+**Root detected live material and removed it.** Scanning the preserved artifacts, root found the
+rev-12 failure's error context contained **two 58-character lowercase tokens** — the concatenated
+shape a space-stripped 12-word phrase takes, which is exactly the mechanism of that failure and
+which **a word-run scan does not catch** (root's first scan returned zero long word-runs and would
+have cleared it). Root **redacted both tokens in place** to
+`[REDACTED-RECOVERY-MATERIAL-BY-ROOT]`, verified **0** remaining tokens of that shape, and confirmed
+the artifact still carries its diagnostic content (the `1 of 12 words entered` counter, the
+`unlock-button` state and the `invalid` marker all intact), so it remains usable as flake evidence.
+
+**Disposition — no exposure of real recovery material, verified rather than assumed:**
+
+- The phrase belonged to a **disposable test vault created by the agent**, not to the human and not
+  to any of the 30,587 real vaults.
+- **Nothing entered the repository.** MEASURED: `test-results/` is gitignored at `.gitignore:39`; no
+  `error-context.md` has **ever** been committed (`git log --all -- '*error-context.md'` is empty);
+  no file under `test-results/` is tracked.
+- The material sat in `/tmp` only, and is now redacted.
+
+**This does not meet this session's halt-and-report bar**, but it is surfaced to the human
+explicitly, because the detection method matters as much as the finding.
+
+**Mitigations, now mandatory in every dispatch that touches E2E:**
+
+1. Scan any preserved `error-context.md` for **both** shapes before reading or copying it — a
+   12-word run **and a single lowercase token of 40+ characters**. The second is the one that
+   evades the obvious check.
+2. Never echo, quote or commit the credential field's accessible value.
+3. Prefer a targeted `eval` on a specific element reference over a whole-page `snapshot` on
+   `/new-user`.
