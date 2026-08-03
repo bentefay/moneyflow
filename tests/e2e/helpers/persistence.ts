@@ -27,8 +27,12 @@ const BARRIER_RETRY_DELAY_MS = 50;
  * First path segment of every route served by `src/app/(app)/`, whose layout mounts `VaultProvider`
  * and therefore the seam. On these routes an absent seam is a defect, not a state; anywhere else —
  * the landing page, `/auth/*`, `/new-user` — no provider mounts and absence is the normal case.
+ *
+ * A route added to `(app)` and not added here would silently return this barrier to the no-op it
+ * used to be, on that route only, so `tests/unit/e2e-harness/vault-route-segments.test.ts` holds the
+ * two in step.
  */
-const VAULT_ROUTE_SEGMENTS = [
+export const VAULT_ROUTE_SEGMENTS = [
     "accounts",
     "automations",
     "dashboard",
