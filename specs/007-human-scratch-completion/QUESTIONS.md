@@ -3318,3 +3318,26 @@ prior PASS — is answered: **the adjudicator found the P20B routing correct on 
 - **Reversible default:** record as a tracked observation, not a further revision. It traces to no
   frozen line and closing it via `nav.ts` would breach condition 1.
 - **Status:** OPEN, pre-existing, not blocking.
+
+## Q-P20B-32 — Should the barrier's route guard key on where `VaultProvider` mounts rather than on the `src/app/(app)/` directories?
+
+- **Source:** `reviews/P20B-review-10.md` §10 (`Q-PROPOSAL-P20B-10-1`), raised by `p20b-reviewer-10`.
+- **Context:** MEASURED — `tests/unit/e2e-harness/vault-route-segments.test.ts` reads
+  `src/app/(app)/` from disk and holds `VAULT_ROUTE_SEGMENTS` in step with it, so it is **a genuine
+  guard and not a restatement**. But the invariant the barrier depends on is "the routes where
+  `VaultProvider` mounts", and the test asserts a **proxy** for that. **MEASURED, the proxy is exact
+  today** — one mount site, `layout.tsx:98`, and `(app)` holds exactly the ten listed directories.
+  **If a second mount site were added outside `(app)`** — the `(onboarding)` group already renders
+  vault-adjacent flows — **the barrier would silently return to a no-op on that route only, with
+  this test still green.** That is precisely the decay mode the helper's own comment says the test
+  exists to prevent.
+- **Why existing authority does not decide it:** D-025 names the mechanism, not its guard, and no
+  frozen `sourceTextLine` commits a harness-internal invariant. FS-001 `:668`/`:705` commit an
+  outcome that is currently met.
+- **Reversible default selected:** **(a) leave it.** The proxy is measured exact, the failure needs
+  a future second mount site nobody has proposed, and the alternative — asserting `VaultProvider`
+  has exactly one mount site by grepping `src/app/**` — is a five-line additive change available at
+  any time.
+- **Basis:** hierarchy 1 (the frozen outcome clause is met), then 4.
+- **Status:** OPEN, non-blocking. **Human review flagged as useful:** whether the harness should
+  assert on application structure is a repository-convention call.
