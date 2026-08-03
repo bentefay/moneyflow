@@ -12943,3 +12943,32 @@ bounded by 168 executions, not argued away** — it relies on the helper's retry
 
 **STATE:** P20B revision 11 → `ready_for_review` → `reviewing`. DISTINCT `p20b-reviewer-11`
 dispatched.
+
+### 2026-08-03 — Rev 11 evidence amended mid-review by one paragraph; retry branch confirmed untouched
+
+**The subject tree did not move.** Root verified: HEAD still `19160af`, digest still
+`6ff7e1198a9fb5f0563a149fe17cef68`, `git status --porcelain src tests` clean. **Only the uncommitted
+evidence file changed**, gaining one paragraph in its §3.2 that records the measurement root had
+passed on — 3 of rev 10's 137 instrumented barrier entries **recovered from an absent seam on an app
+route**, so the tempting "absent on an app route ⇒ throw immediately" simplification is refuted and
+would have turned three real executions red. **Evidence md5 is now
+`82dfe88606c1bab5a46df6b5a5fc005c`.** Root notified `p20b-reviewer-11` so a hash change mid-review
+would not read as tampering.
+
+**The retry branch was never touched — root verified rather than accepting the assurance.**
+`git diff --stat 2284945..19160af -- tests/e2e/helpers/` is **empty**, and a direct `diff` of
+`tests/e2e/helpers/persistence.ts` between BASE and HEAD is **BYTE-IDENTICAL**. The whole range
+remains three files. **Root's warning turned out to be unnecessary** — the implementer had read
+F10-1 correctly from the start as being about the *gate's* detectability, and its evidence contains
+no instance of "fail-fast", "throw immediately", "simplif*" or "padding". **Root records that the
+warning was precautionary and not a correction**, because a warning logged without that
+qualification later reads as a defect that was averted.
+
+**The intermittency of `realtime-origin-controls.test.ts` now has a second independent
+observation**: it passed the 18:02 unit run and failed the 18:36 one on the identical tree, a 5 s
+timeout at `:126`. Combined with rev 10's 6-of-7, **the register entry stands corrected as
+intermittent, and whoever owns it should expect it not to reproduce on demand.**
+
+**`transactions.spec.ts:573` did not fail for this implementer at all** — zero Playwright failure
+markers across three full-suite runs at 195/195 each. It is therefore absent from this handback, and
+a future sighting is the known intermittent rather than a regression.
