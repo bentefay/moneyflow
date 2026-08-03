@@ -3303,6 +3303,31 @@ prior PASS — is answered: **the adjudicator found the P20B routing correct on 
   as part of F-3. The lint-rule question stays open.
 - **Status:** OPEN; the narrow part is being fixed now.
 
+### Q-P20B-30 addendum — 2026-08-03, folded from `Q-PROPOSAL-P20B-11-1` at the reviewer's own suggestion
+
+`p20b-reviewer-11` proposed asking whether the harness should **stop classifying sites as in-vault
+and barrier unconditionally**, and said explicitly that root **may prefer to fold it into this
+question rather than open a new canonical ID**. Root has folded it, because it is the same question
+this entry already asks, now with a measurement behind it.
+
+**The new grounds, MEASURED, and they change the character of the problem.** At
+`passkey.spec.ts:180` the reviewer measured **3/3 `no-active-vault`** where
+`reviews/P20B-review-10.md` §4.4 had measured **`persisted`** at the same site. **So the in-vault
+predicate is not merely partly *unmeasured* — it is partly *load-dependent*.** The consequence for
+the ledger: **the "at least fifteen; the sweep is not complete" bound is a bound on a quantity that
+partly varies with load**, and no static enumeration can be complete for it.
+
+**Why this strengthens the case for the lint-rule option (b) over per-site classification (a):** a
+rule that forbids raw teardowns needs no predicate at all, whereas any per-site sweep is chasing a
+value that moves. **A `no-active-vault` barrier is a no-op**, so unconditional barriering is cheap
+where it is unnecessary — the cost is confined to sites where the seam is *absent*, which is the
+15-second-hang risk `evidence/P20B/implementation-11.md` §4.3 identifies and which the helper's
+retry branch exists to absorb.
+
+**Reversible default unchanged:** the narrow per-site fixes have landed; the lint rule stays OPEN and
+out of scope for the current revisions.
+
+
 ## Q-P20B-31 — Should the harness gain a client-side navigation helper?
 
 - **Source:** `reviews/P20B-review-09.md` §12 (`Q-PROPOSAL-P20B-09-2`).
