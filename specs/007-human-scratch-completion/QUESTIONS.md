@@ -3137,3 +3137,113 @@ component's own file would close it.
 **Generalises:** a mock that hard-codes one value of a discriminating input makes every case in that
 file blind to the discrimination, however many cases there are. Same shape as the F-1 and F-2 fixture
 gaps in P33: correct assertions over inputs that cannot express the failure.
+
+## Q-P20B-21 — Should `expect.timeout: 15_000` be paired with a raised per-test `timeout`?
+
+- **Source:** `evidence/P20B/implementation-08.md` §9 (`Q-P20B-07-01`), endorsed by
+  `reviews/P20B-review-07.md` §9.
+- **Context:** `playwright.config.ts` now sets a 15 s `expect` budget inside a 30 s test budget.
+  MEASURED by the implementer: **156 tests remain on the 30 s default**, and **115 `toHaveCount(0)`
+  absence assertions carry no explicit timeout**. Two failing bare assertions in one test can
+  therefore exhaust the test budget and report a less precise error than the assertion itself would.
+- **Reversible default selected:** leave the pairing unmade. The alternative — leaving `expect` at
+  the 5 s Playwright default — is measurably worse and was the defect this revision closed.
+- **Basis:** hierarchy 4 (smallest reversible change).
+- **Status:** OPEN, non-blocking. Reversal is a one-line config change.
+
+## Q-P20B-22 — The `goToPeople` content wait is defence in depth, not the load-bearing fix
+
+- **Source:** `evidence/P20B/implementation-08.md` §9 (`Q-P20B-07-02`).
+- **Context:** recorded so a later reader does not mistake it for the operative change; the
+  `playwright.config.ts` lever carries the load.
+- **Reviewer correction root carries across rather than transcribing verbatim
+  (`reviews/P20B-review-07.md` §9):** the proposal's premise is **narrower than it reads**. The
+  implementer measured "the vault is already selected when the h1 resolves" **on an idle machine**.
+  The **structural** gap is real — `people/page.tsx` renders the h1 unconditionally and `PeopleTable`
+  only when `activeVault?.id`. **The wait is therefore worth keeping on its own merits**, and this
+  entry must not be read as a licence to remove it.
+- **Status:** OPEN, non-blocking, retain-as-is.
+
+## Q-P20B-23 — `setAllocation`'s old substring barrier: real in principle, REFUTED as the observed cause
+
+- **Source:** `evidence/P20B/implementation-08.md` §9 (`Q-P20B-07-04`).
+- **Transcribed WITH ITS RETRACTION ATTACHED, at the reviewer's explicit request**
+  (`reviews/P20B-review-07.md` §9): the proposal as written states the substring barrier "can pass
+  without the explicit allocation being stored". **The implementer's own §4.3c refutes that for all
+  three failures it examined** — it printed the DOM instead of reasoning about it and found the
+  string the theory required does not exist pre-commit — **and the reviewer's §2.3 measurements
+  agree.** The mechanism is real in principle and **did not occur**.
+- **Why the retraction is attached rather than the entry dropped:** transcribing it unqualified
+  would re-seed a hypothesis this revision paid real time to kill. Recording the killed hypothesis
+  with its refutation is what stops a later reader reviving it.
+- **Status:** CLOSED as a cause; the barrier was nonetheless hardened on narrower grounds with a
+  red-then-green proof (`c515173`).
+
+## Q-P20B-24 — `next-env.d.ts` churns on every dev-server start and breaks naive campaign digests
+
+- **Source:** `evidence/P20B/implementation-08.md` §9 (`Q-P20B-07-05`).
+- **Context:** Next.js rewrites the generated import path whenever `pnpm dev` starts, so a
+  `git diff | md5sum` digest moves every run even when nothing was authored. This aborted one
+  campaign in this revision.
+- **Reversible default:** campaigns exclude that generated path **and additionally hash the files
+  under test directly**. Both are present in `/tmp/p20b07-c2/run.sh` and root re-derived the result.
+- **Status:** OPEN as a method note for future campaigns.
+
+## Q-P20B-25 — `oxfmt` has no ignore configuration and sweeps `specs/**`
+
+- **Source:** `evidence/P20B/implementation-08.md` §9 (`Q-P20B-07-03`).
+- **Context:** a bare `pnpm format` rewrites `specs/**` markdown **including the frozen
+  `specs/human-scratch.md`**. Pre-existing, endorsed by the rev 06 reviewer as a follow-up, and
+  unchanged by this work. It is why `pnpm format:check` is red at this tree with **0 files under
+  `src/` or `tests/` affected**.
+- **Status:** OPEN, pre-existing, carried forward. Agents scope `oxfmt` to their own files.
+
+## Q-P20B-26 — Should the residual settlement failure class be re-routed off P20B?
+
+- **Source:** `reviews/P20B-review-07.md` §9 (`Q-PROPOSAL-P20B-07-1`), raised by `p20b-reviewer-07`.
+- **Context and evidence:** P21 rev 06 routed this class to P20B as a **test-instrument** defect
+  (F-1). Three independent lines of evidence now contradict that classification:
+  1. the failing pages render the **terminal `settled`** state, which `settlement-view.ts:186-193`
+     reaches only when `obligations.length === 0` **and** `qualifyingTransactionCount !== 0`, a
+     counter incremented at `settlement.ts:1227` **after** `commitCalculation` — so the page has
+     **already hydrated and run the settlement engine**. It is a terminal answer, not a transient,
+     and **no timeout can fix it**;
+  2. the arithmetic discriminates a **missing explicit allocation** from every rival explanation;
+  3. the pre-hydration transient rev 06 posited is **≤10 ms wide** against failures that hold for
+     **15,000 ms**.
+  Both instrument defects the routing named are now fixed and **the class persists at 1.10/run
+  (root's 10-run campaign, `/tmp/p20b07-c2/`) and 2.25/run (the reviewer's 4-run campaign,
+  `/tmp/rev07-campaign/`) on the identical tree.**
+- **Why existing authority does not decide it:** `PROCESS.md:130` routes allocation/settlement
+  ownership to P16A–E, or P17A–D for the automation path, and cross-cutting **style** defects to
+  P20B. It gives no rule for a class routed to P20B on a diagnosis that the P20B revision then
+  refuted.
+- **Reversible default selected to continue:** **open it as an unowned tracked risk beside F-2,
+  pending a mechanism measurement** — not re-routed to P16A–E, and not left on P20B by default.
+  F-2's history in this goal shows that **assigning an owner on an unmeasured mechanism is what
+  produces wasted revisions**; two consecutive audit cycles have now been spent that way.
+- **Decision-hierarchy basis:** 2 (the contract's own warning against routing to a default package
+  merely to avoid invalidating a prior PASS), then 4.
+- **The single discriminating experiment that decides it**, named by the reviewer: read the
+  persisted IndexedDB state after a **barrier-confirmed** allocation write and a navigation. **Entry
+  absent → a lost write (P16A–E). Entry present but unapplied → rehydration/derivation.** Root is
+  routing this measurement before any ownership ruling, so the routing is decided by evidence rather
+  than by adjudication in the dark.
+- **Status:** OPEN and BLOCKING for P21. Ownership deliberately unassigned.
+
+## Q-P20B-27 — Should an evidence artifact be forbidden from being frozen before the campaign it reports?
+
+- **Source:** `reviews/P20B-review-07.md` §9 (`Q-PROPOSAL-P20B-07-2`), raised by `p20b-reviewer-07`.
+- **Context:** finding F-A. `implementation-08.md` was last written at **10:17:27**, inside **run 1**
+  of a campaign that ended at **10:59:09**, leaving §4 as the literal token `PLACEHOLDER-CAMPAIGN`,
+  two dangling `§4.2b` references and a "FINAL tree" line that a later section of the same file
+  discards. `PROCESS.md:58` persists the file **unchanged**, and `PROCESS.md:359` makes artifacts —
+  not chat — the recovery source, so the defect is durable.
+- **Why existing authority does not decide it:** `PROCESS.md:153-159` lists what evidence must
+  record but sets **no ordering constraint** between handback and the campaign the evidence depends
+  on.
+- **Reversible default selected:** require the implementer to hand back only after every artifact it
+  cites exists — a one-line addition to the implementer checkpoint, no process restructuring. It
+  costs the implementer a wait it was already going to spend.
+- **Basis:** hierarchy 2, then 4. **Reversal:** delete the sentence.
+- **Status:** OPEN. Root is applying the default to the revision 08 dispatch immediately.

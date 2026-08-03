@@ -11659,3 +11659,91 @@ P20B by this entry.
 `PROGRESS.md` and `dispatches/P20B-rev07-review.md`. **Three authorized test-instrument files,
 +30 −2, no product code.** Confirmed distinct: `6061ef7` (3 files, +26 −2) and `c515173`
 (`settlement.ts` only, +8 −4).
+
+### 2026-08-03 — P20B rev 07 independent review returns **FAIL** on F-A; artifacts persisted at `0e08862`
+
+**DISTINCT reviewer `p20b-reviewer-07`** (distinct from `p20b-implementer-07` and from
+`p20b-reviewer-01/-02/-03/-06`) wrote `reviews/P20B-review-07.md` — **FAIL**. Root verified
+`git rev-parse HEAD` = `c66ddcd5dc4c5a739ebeaf0fd6782c23d8720c5a` **unchanged** across the review,
+`git merge-base --is-ancestor c515173 HEAD` exit 0, and the three reviewed files clean in the shared
+checkout. **Integration-control commit `0e08862`** persists both immutable artifacts by exact
+pathspec: `evidence/P20B/implementation-08.md` (801 lines) and `reviews/P20B-review-07.md`.
+
+**The FAIL is NOT for the unmet 10-green bar, and NOT a rejection of the fix.** Root re-derived the
+reviewer's key structural claims rather than relaying them.
+
+**Both code changes are independently confirmed correct, safe and controlled.** The reviewer
+reproduced the implementer's central self-damaging claim — that it fixed two real instrument defects
+and **neither explains the observed failures** — and found **no place where the evidence
+over-claims**: "its error is omission, not overstatement."
+
+**F-A (BLOCKING) — the evidence does not contain the campaign for the commit being handed back.**
+Root verified each element against the file directly:
+
+- **line 170** is the literal token `PLACEHOLDER-CAMPAIGN` under `## 4. Campaign results`;
+- **`§4.2b` is cross-referenced at lines 247 and 588 and does not exist** (`grep -n '^### 4'` lists
+  no such section);
+- **line 247** names `FINAL tree 5bdd30322604 … (the campaign reported in §4.2b)` while **line 236 of
+  the same file discards that campaign** — the artifact names as FINAL a tree it elsewhere discards,
+  and never names the tree it actually validated (`0a6703e11a28`);
+- **line 649** attributes the static checks to `6061ef7`; the handback commit is `c515173`;
+- the file's mtime is **10:17:27**, inside **run 1** of the campaign it was to report, which ended at
+  **10:59:09**. **The artifact was frozen before its own evidence existed.**
+
+**In fairness to the implementer, and reviewer-verified:** root independently re-derived the whole
+campaign and committed it at `9a1b5e2`, and the reviewer **checked every one of those figures and
+found them correct**. The goal's ledger is sound; the implementer's own artifact — the one thing
+`PROCESS.md:12` grants it — is not.
+
+**F-B (MEDIUM).** `people-settlement.spec.ts:344-347`, the step named *"reload and verify
+allocations and settlement persist"*, asserts `toContainText("50%")` — **the exact substring
+weakness this revision removed from `setAllocation`, left at the one call site whose declared purpose
+is to prove the allocation survived a page load.** The reviewer built the failing state in a real
+browser and **printed the cell** rather than reasoning about it: with Bob's write absent the cell
+reads `— Explicit: not stored. Effective: 0%. Owner remainder: 50%.` — **the assertion passes on a
+vault where Bob's allocation was never persisted**, matching the *owner remainder* that exists
+precisely because the write is missing. Bounded honestly: the next two lines still catch the loss, so
+nothing escapes the suite; **what is lost is localisation** — and that misattribution is what
+produced rev 06's "the settlement helper is at fault" diagnosis and routed this work to P20B.
+
+**F-C (MEDIUM).** A repo-wide E2E default moved 5 s → 15 s and no `.claude` guidance records it,
+against `CLAUDE.md`'s "Keep `.claude/` files updated alongside code changes".
+
+**Two artifact-hygiene bounces root required of the reviewer before accepting the verdict**, both
+the same class as F-A itself: the review was first written with `CAMPAIGN-TABLE-PLACEHOLDER`,
+`FINDINGS-PLACEHOLDER` and `QUESTIONS-PLACEHOLDER` still in it, and then referenced an **`F-D` that
+§6 never defined**. Root declined to paraphrase the findings or invent the missing one and sent it
+back twice; the reviewer filled §3.2/§6/§9 and reconciled the count to three findings. **A review
+that failed a revision for dangling cross-references while carrying its own would not survive being
+quoted back at this goal, and both artifacts are persisted immutably in one commit.**
+
+**Questions transcribed** — root assigned canonical numbers **Q-P20B-21 … Q-P20B-27** (five
+implementer proposals, two reviewer proposals). Two carry corrections the reviewer asked root to
+carry across rather than transcribe verbatim: **Q-P20B-23** is recorded **with its retraction
+attached** (the substring-barrier mechanism is real in principle but was **refuted as the observed
+cause** by the implementer's own §4.3c), and **Q-P20B-22**'s premise is narrowed (the `goToPeople`
+wait is structurally justified and must be retained).
+
+**STATE.** P20B revision 07 → **FAIL**; the revision moves to `changes_requested` and root opens
+**revision 08**. **No package row and no requirement row changes state on this verdict**: the
+reviewed range contains **no product code**, HS-021's acceptance is not contradicted by it, and
+**no P21 rollback batch is prepared or activated.** Scratch SHA re-verified after every write this
+session: `469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a`, unchanged.
+
+**ROUTING — recorded as a deferral, not a ruling (Q-P20B-26).** The reviewer's structural refutation
+of rev 06's F-1 diagnosis is the sharpest result of this revision: `settlement-view.ts:186-193`
+returns `settled` only when `obligations.length === 0` **and** `qualifyingTransactionCount !== 0`,
+and that counter is incremented at `settlement.ts:1227` **after** `commitCalculation`. **A page
+reading "Everyone is settled up" has therefore already hydrated and run the settlement engine — it is
+a terminal answer, not a pre-hydration transient, and no timeout can fix it.** The transient rev 06
+posited is **≤10 ms** wide against failures that hold for **15,000 ms**.
+
+Root is **not** re-routing the class to P16A–E and **not** leaving it on P20B by default. Both would
+be an ownership ruling on an **unmeasured mechanism**, which is exactly what produced two consecutive
+wasted audit cycles. **The class is an unowned tracked risk beside F-2**, and root is running the
+single discriminating experiment the reviewer named **before** any ownership decision: read the
+persisted IndexedDB state after a **barrier-confirmed** allocation write and a navigation — **entry
+absent → lost write (P16A–E); entry present but unapplied → rehydration/derivation.** No prior
+decision is superseded by a deferral, so no scope adjudication is triggered at this point; if the
+measurement then implies a re-route that supersedes the rev 06 routing, root dispatches the
+independent fresh-context scope adjudicator rather than deciding it.
