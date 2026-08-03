@@ -607,3 +607,60 @@ row's expense sacrifices nothing. Had a caller existed, the trade-off would have
 principal's ruling before admission.
 
 **Tally after admission: 27 of 34 requirements `passed`; 26 of 33 feature packages `passed`.**
+
+## D-021 — The lost-write class splits: the E2E harness component is IN-GOAL to P20B; product durability-at-acknowledgement is OUT-OF-GOAL
+
+- **Date:** 2026-08-03
+- **Package / scope:** the residual settlement/E2E failure class blocking P21's stability clause
+- **Status:** accepted (independent scope adjudication)
+- **Evidence:** fresh-context opus-tier ruling `adjudications/P21-scope-02.md` by
+  `p21-scope-adjudicator-07`, distinct from every implementer and reviewer of P16A–E, P20A/B and
+  P21, ruling from frozen `sourceTextLines` per `PROCESS.md:335-347` and defaulting to the block
+  standing. Underlying measurement: `evidence/P21/diagnostic-Q-P20B-26.md` — the write **never
+  reaches storage** (barrier-confirmed + missing after reload → **no op row created, 0/50**; present
+  → op row always created, 145/145; 195 runs, **zero counterexamples**), and the matched pair
+  **J1 client-side `<a>` click 0/70 vs J2 `location.assign` 48/70**, byte-identical but for one
+  line. The adjudicator **re-derived every figure from `/tmp/q26-logs/`** and confirmed the code
+  under test had not drifted (`e7662f03b51f3415fc5ec4b2e1eec062` in both trees).
+- **Alternatives:** (a) Component 2 IN-GOAL to P16A–E on `:649` [rejected: the frozen journey's own
+  ordering places steps 6–8 between the allocation entry and the reload, so the frozen text never
+  asks for a reload adjacent to a write]; (b) Component 2 IN-GOAL to P20B under HS-021 as a
+  correctness defect [rejected]; (c) Component 1 OUT-OF-GOAL as "only a test" [rejected: FS-001
+  `:705`/`:668` make retry-free journey passes a Definition-of-done clause]; (d) root
+  self-adjudicating [barred by `PROCESS.md:336-337`].
+- **Decision and reason:**
+  **Component 1 — E2E harness navigation/durability fidelity: IN-GOAL, owner P20B (HS-021).** It
+  traces to frozen text on two independent anchors: FS-001 `:705` ("Relevant E2E journeys pass
+  repeated runs with retries disabled", repeated at `:668`), currently unmet; and HS-021 `:159` via
+  `tasks/HS-021-code-quality-sweep.md`, which names the E2E skill as part of the style guide and
+  directs the sweep at flakiness and test-quality violations. MEASURED by the adjudicator:
+  `nav.ts:9-73` is `page.goto` throughout — **137 call sites** — while the sidebar is real
+  `next/link` (`layout.tsx:63-72`, `:386-389`), so a user's navigation is the client-side transition
+  arm J1 measured at **0/70**; and the frozen mandatory journey's implementation
+  (`people-settlement.spec.ts:305-312`, `:516-519`) places a full teardown between frozen steps 5
+  and 6. **Root's existing routing to P20B is correct on the merits, not by default** — which
+  answers what `Q-P20B-26` was raised to guard against.
+  **Component 2 — durability-at-acknowledgement (crash safety for the few-ms window after each
+  write): OUT-OF-GOAL.** No frozen `sourceTextLine` commits it. **D-019 is FOLLOWED, not
+  distinguished**; the distinction root offered — that this defect is reachable by an allocation
+  edit whereas `pruneBuckets` is not — is real but does not carry the weight.
+- **Two conditions on the Component-1 fix, from the frozen text rather than preference:** (1) **it
+  must not be a suppression** — deleting, weakening or timing-out the persistence assertions
+  breaches HS-021's contract and does not deliver `:705`; frozen step 9's `page.reload()` (`:649`)
+  must survive, reload-persistence being frozen at `:630` and `:706` too. Legitimate shapes are
+  navigating the way the requirement's user navigates, and/or giving the harness a durability
+  barrier before a deliberate teardown. (2) **If the fix changes allocation product behaviour rather
+  than the harness or a test seam, ownership flips to P16A–E** per `PROCESS.md:128-129`. Exposing
+  the existing `awaitLocalPersistence()` to the harness through a test seam stays within P20B.
+- **Security, data, UX, and compatibility impact:** Component 2 remains a genuine, unfixed, tracked
+  data-loss risk of the same standing as `Q-P20B-00` — recorded in RISKS, **not** closed and **not**
+  spun into a new goal package. Because Component 1's fix removes the suite's ability to surface
+  this class, the risk record carries the reproduction. **Root must record no claim of crash-safe
+  durability.** MEASURED by the adjudicator against `FINAL-AUDIT.md:65`: the only adjacent copy,
+  `FeaturesSection.tsx:78-81` ("Saves locally first … pushed when the network allows"), is true of
+  shipped behaviour and asserts no immediacy or crash safety — **no HS-016 consequence follows.**
+- **Reversal/migration path:** if a future frozen requirement introduces durability-at-acknowledgement
+  or a truthful save barrier, reopen with an independently reviewed ADR owning the
+  interactive-edit-path fence, built on the existing `awaitLocalPersistence()`
+  (`manager.ts:367-377`) rather than a parallel mechanism. If the Component-1 fix is later found to
+  have changed allocation product behaviour, `PROCESS.md:128-129` flips ownership to P16A–E.

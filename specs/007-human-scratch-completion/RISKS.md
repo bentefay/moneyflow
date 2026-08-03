@@ -39,3 +39,33 @@
 Update risk status only with evidence. A package PASS must link mitigation for every applicable
 high-impact risk.
 | R-034 | Accessibility | Row checkbox accessible name degrades to "Select transaction " when a transaction description is empty | P16E/02 review flagged this NON-BLOCKING (explicitly not a P16E finding): `TransactionRow.tsx:274` is P16D-owned and byte-unchanged across the P16E range; the control stays discoverable/focusable/keyboard-operable by role. Route a name fallback (amount/date) for the P21 audit | open      |
+
+## R-LOSTWRITE-01 — a local write is not durable for a few milliseconds after the UI acknowledges it
+
+- **Status:** OPEN, tracked, **out-of-goal by D-021** (same standing as `Q-P20B-00` under D-019).
+  Not closed, not masked, and **not** spun into a goal package.
+- **Substance, MEASURED** (`evidence/P21/diagnostic-Q-P20B-26.md`, logs `/tmp/q26-logs/`): an
+  allocation write confirmed in the DOM is not yet in IndexedDB. Persistence is downstream and
+  asynchronous — `subscribeLocalUpdates` enqueues (`manager.ts:292-296`), a queued attempt
+  dynamically imports crypto, encrypts, then calls `appendOp` (`:312-345`). **A full document
+  teardown in that window discards the queued work and no op row is ever created**, so the value is
+  never pushed to the server either. 195 runs, 50 losses, **zero counterexamples**.
+- **Exposure.** MEASURED: **client-side in-app navigation is safe (arm J1, 0/70)**; full teardowns
+  lose it — `location.assign` **48/70**, `reload()` 21/70, `page.goto` 17/70, killed tab 17/70. Any
+  delay of a few ms closes the window (arm G2 0/52). **INFERRED, not measured on users:** a human
+  cannot aim a reload at a window this narrow, so realistic exposure is an **unaimed** teardown — a
+  crash, OS kill or force-quit — landing in the few-ms window after an individual write. Small per
+  write, not zero.
+- **NOT established, recorded because root asserted it and the adjudicator refuted it:** that the
+  sync indicator reads `Saved` over a non-durable write. In **350/350** samples ~2 ms after the
+  barrier the indicator read **`Saving...`** and the op was **already durable**. `hasUnsavedChanges`
+  is a **2 s poll** (`layout.tsx:161`) and cannot vouch for durability either way.
+- **Reproduction, retained deliberately** — Component 1's fix removes the suite's ability to surface
+  this class: `evidence/P21/diagnostic-Q-P20B-26.md`, probe
+  `evidence/P21/diagnostic-Q-P20B-26-probe.spec.ts.artifact` and its config
+  `evidence/P21/diagnostic-Q-P20B-26-config.ts.artifact` (copied out of `/tmp`, which does not
+  survive).
+- **Future work, out of goal:** fence the interactive edit path on `awaitLocalPersistence()`
+  (`manager.ts:367-377`), or make the acknowledgement wait for it, with regression coverage over the
+  measured arms. **Must be named in the P21 status report for after-the-fact human audit**
+  (`PROCESS.md:344-345`).
