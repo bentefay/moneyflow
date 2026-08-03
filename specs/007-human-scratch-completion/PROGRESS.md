@@ -12823,3 +12823,49 @@ mounts rather than on the `(app)` directories — the guard is real today but as
 **STATE:** P20B revision 10 → **FAIL** → `changes_requested`; root opens **revision 11**. **No
 package or requirement row changes state.** Frozen sources re-verified: scratch `469e98c7…`, FS-001
 `0d0e2a14…`. **The remaining work is one small test and one corrected sentence.**
+
+### 2026-08-03 — Rev 10 review closing details: root's mid-review commits verified harmless, and the retry branch is load-bearing
+
+**1. HEAD moved DURING the review and the reviewer checked whether that invalidated its evidence.**
+Root committed two correction entries mid-review, moving HEAD `c021849` → `e122a7f`. **The reviewer
+verified `git diff --name-only c021849..HEAD -- src tests` is EMPTY, and root re-derived the same:
+empty.** The code digest was constant at `850ac6d239fc7b19240f6750fda01b63` across every run,
+including all six campaign START/END lines. **Its evidence stands.** Root records this because
+root's own ledger commits are the most likely source of an accidental mid-review tree move, and this
+one was checked rather than assumed.
+
+**2. The retry-on-absence branch in `awaitVaultPersistence` is LOAD-BEARING — MEASURED.** Across
+**137 instrumented barrier entries** in nine specs, **three hit an absent seam on an app route and
+recovered**: the seam genuinely was not yet installed when the barrier first looked, and the retry is
+what let those tests proceed. **The plausible simplification — "absent on an app route means the
+bug, so throw immediately" — is refuted by measurement.** Root has warned `p20b-implementer-11`
+directly, because F10-1 invites exactly that reasoning.
+
+**3. `transactions.spec.ts:573` is measurably NOT a lost write.** In the reviewer's campaign
+(194/195, 195/195, 195/195) the single failure was this test, and **the
+`toContainText("52 transactions")` assertion immediately after the reload PASSED** — only the
+virtual row index differed. **This distinguishes it from the lost-write class**, and it is the same
+site whose earlier F-2 reproduction root preserved at `/tmp/p20b07-F2-repro/`. The two are
+different failures at one location; the flake register entry must say so.
+
+**4. F-1's residual: the exact measurement.** `pnpm start -p 3123` on the gated build, six candidate
+URLs for the server source map → **all 404**, while a real `.next/static` asset returned
+**200 / 112,594 bytes**. The INFERRED half of the implementer's disclosure is now MEASURED and
+confirmed. **No CVE-shaped finding anywhere**, stated by the reviewer for the third time in this
+package's history and recorded here so it cannot drift.
+
+**5. A precision check worth keeping as a technique.** Unit totals moved from rev 09 to rev 10 by
+**exactly +2 files and +3 tests — the two new guard files and nothing else.** A delta that small and
+that exactly attributable is stronger evidence that nothing was smuggled in than any assertion about
+scope.
+
+**6. The reviewer judged rev 10's §4.3 on its merits, as root asked:** it "justifies the breadth
+adequately, states the argument against itself first and correctly, and I would not have it undone."
+**Its only over-claim was §4.2's completeness — which its own §7 already contradicted, and §7 is the
+accurate one.** So the barriering breadth root had queried is settled as sound, and only the
+completeness sentence is being fixed in rev 11.
+
+**7. The reviewer verified the F10-1 remedy was feasible BEFORE prescribing it** — a throwaway
+`vi.stubEnv("NODE_ENV", "production")` probe confirmed the branch is reachable from vitest, ~8 lines
+beside the existing seam tests. **A prescribed fix that had not been shown to work would have been
+the same defect the finding is about.**
