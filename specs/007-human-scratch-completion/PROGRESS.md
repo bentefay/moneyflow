@@ -13149,3 +13149,63 @@ entered the repository.
 
 **STATE:** P20B revision 12 → `ready_for_review` → `reviewing`. DISTINCT `p20b-reviewer-12`
 dispatched. Frozen sources re-verified: scratch `469e98c7…`, FS-001 `0d0e2a14…`.
+
+### 2026-08-03 — P20B rev 12 review **FAIL** on F12-1; **root DECLINES the overrule the reviewer offered**
+
+**DISTINCT `p20b-reviewer-12`** wrote `reviews/P20B-review-12.md` — **FAIL, one MEDIUM finding**;
+both artifacts persisted at `69dbee5`. It completed the manual checkpoint and skipped no clause.
+
+**Everything else is confirmed sound:** zero executable changed lines, all static gates clean but
+the two pre-classified pre-existing unit failures, **126 E2E executions with zero failures**, the
+manual checkpoint with zero console errors and zero failed requests, and **each of the comment's
+other four clauses verified against source or against the artifacts it cites** — including that
+"only some have a live vault" matches at **6/12 exactly** across two independent instrumentations.
+
+**F12-1 (MEDIUM) — the closing clause is measurably false for a quarter of entries at the line it
+annotates.** It reads *"where no vault is mounted it resolves as a no-op"*, but **the measured
+behaviour has three cases and the comment offers two**:
+
+- seam present, `readActiveManager()` null → `no-active-vault`, **one iteration, 4–5 ms** — a genuine
+  no-op, **3 of 12**, and its source citation is correct;
+- **seam absent on an `(app)` route → NOT a no-op**: the retry loop iterates **3–6 times over
+  110–283 ms**, and resolves only because the page navigated off the `(app)` routes. **Had the page
+  stayed put, it would throw after the 15,000 ms budget.** **3 of 12** here, **4 of 12** in rev 11.
+
+**ROOT DECLINES THE OVERRULE, and records why.** The reviewer explicitly offered one: *"If root
+judges the narrow reading sufficient, this finding is cheap to overrule."* There **is** a narrow
+reading under which the clause is true — mapping "no vault is mounted" onto the seam's own
+`no-active-vault` outcome literal, as rev 11's reviewer itself did. **Root declines it on three
+grounds:**
+
+1. **The measurement does not bend.** 3 of 12 entries spend 110–283 ms in a retry loop. **No reading
+   makes that a no-op**; the narrow reading only makes the sentence *about a different case*, and
+   the comment does not use the literal token that would signal which.
+2. **The consequence is concrete and this goal has already paid for it twice.** The reviewer's
+   argument: *"a reader who believes the absent case is free is exactly the reader who would
+   simplify away the retry branch this goal has twice ruled load-bearing."* That branch is now
+   confirmed load-bearing on **three** independent datasets — 3/137, 7/63, 3/12, every entry
+   recovering. **This comment annotates the very helper whose 15-second hang was the identified
+   hazard.**
+3. **Root has an interest in unblocking, and that is precisely why root does not get to decide
+   this.** Accepting an offered overrule at revision 13 of a one-line change, on a finding backed by
+   measurement, would be the coordinator resolving a judgement call in the direction that finishes
+   the goal. **`PROCESS.md:336-337` bars root from self-adjudicating for exactly this reason.** The
+   fix is one clause.
+
+**Revision 13 is dispatched with the reviewer's own suggested wording** — scope the no-op to the
+`no-active-vault` outcome, and state that where the seam is not yet installed the barrier **retries
+until it is, which is why that branch stays.**
+
+**Question transcribed as Q-P20B-33, and it is the sharpest open item in this package.** MEASURED:
+**3 of 12** entries at that site complete via the off-`(app)`-route escape **on `/unlock`, after the
+seam was absent for 110–283 ms** — obtaining **no durability guarantee at all**, because the barrier
+returned when the page left the vault routes rather than because anything flushed. Rev 11 measured
+the same class at 4 of 12. **At a site whose caller deliberately destroys the session immediately
+before the barrier, a barrier a redirect can win may be recording a guarantee it did not obtain** —
+the silently-vacuous-check class this goal has failed packages for. **Explicitly NOT a defect in rev
+12**; barrier placement is out of scope and the reviewer proposes no change. It bears on **how
+barriered sites should be counted**, folded toward `Q-P20B-30`'s lint rule.
+
+**STATE:** P20B revision 12 → **FAIL** → `changes_requested`; root opens **revision 13**, whose
+entire required change is **one clause of one comment**. No package or requirement row changes
+state. Frozen sources re-verified: scratch `469e98c7…`, FS-001 `0d0e2a14…`.
