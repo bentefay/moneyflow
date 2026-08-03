@@ -13092,3 +13092,60 @@ checked this after handoff and **reported it rather than editing its own immutab
 **Immutability anchors for the audit:** review file md5 `ebfa84fdc1e52f1aea6592def1b2ee29`,
 unmodified since handoff; evidence md5 `82dfe88606c1bab5a46df6b5a5fc005c`, re-checked after handoff
 and unmoved.
+
+### 2026-08-03 — P20B rev 12 HANDBACK at `d80f0e4`: one comment, verified comment-only; a NEW flake mechanism
+
+**BASE `1eeb380` → HEAD `d80f0e4`, one commit, not amended.** Root's own `69e557e` landed between
+the implementer's BASE read and its commit, **so the review range is `69e557e..d80f0e4`** — the
+implementer identified that itself rather than presenting an unbroken chain.
+
+**Comment-only, verified by root with the implementer's own discriminating check:**
+`git show d80f0e4 -U0 | grep '^[+-]' | grep -v '^[+-][+-]' | grep -vE '^[+-]\s*//'` returns
+**nothing** — **every changed line is a `//` line.** `git diff --name-only 1eeb380..d80f0e4 -- src`
+empty; `-- tests/e2e/helpers/` empty; the whole range under `src tests` is
+`tests/e2e/passkey.spec.ts`. **The retry branch and the barrier are untouched.**
+
+**The new comment claims only what was measured.** It keeps the true half (all four callers reach
+the line on `/settings` — 12/12), states that **only some have a live vault at that instant**, cites
+**both** instrumented samples including rev 10's *before the barrier existed*, and records that
+**the same predicate measured at other lines in this file moved between runs.** No universal, no
+count, no fixed-property claim, no crash-safety claim. The closing clause — that a `no-active-vault`
+barrier resolves as a no-op — is MEASURED from source (`local-persistence-seam.ts:66` returns
+without throwing; `persistence.ts:79-84` treats a non-throwing return as done).
+
+**Validation deliberately NOT padded, and the reasoning is right.** Because the diff has **zero
+non-comment lines, no execution can distinguish this tree from its parent** — so the implementer ran
+the static gates in full plus the two named specs, and **declined to inflate it into a full-suite
+campaign.** `pnpm test` **132 files, 2492 passed / 2 skipped**, with **both** pre-classified
+intermittents passing. E2E from its own worktree on the unmodified config: **315 executions, 1
+failure**, six matching digests.
+
+**A NEW FLAKE MECHANISM — third site for a known signature, and the mechanism is new.**
+`passkey.spec.ts:162` "a passkey added to a recovery identity unlocks the SAME identity", 1 in 315.
+**MEASURED from the preserved error context: the recovery-phrase `fill()` landed as ONE
+space-stripped token in Word 1** (`[invalid]`, counter "1 of 12 words entered"), so eleven fields
+stayed empty and the `unlock-button` never enabled — a 30 s `locator.click` timeout on a **disabled**
+button. **Not at the comment site**: that test's third step, the `unlockWithPasskey()` barrier path,
+**passed**.
+
+The register carries this button signature at two other sites — `implementation-05.md:77-78`
+(`:387`/`:401`) and `PROGRESS.md:6490` (`:148`) — but **MEASURED, no prior sighting of THIS test
+exists**, and **neither prior record states the concatenated-fill mechanism.** The implementer did
+not fix it and **did not attempt reproduction at BASE**, on the ground that at 1-in-315 the run
+count needed is far beyond what a comment-only change warrants. **Root agrees and records the
+non-attempt as a bounded, stated limit rather than a gap.**
+
+**Line-number caveat the implementer surfaced itself.** Its comment shifted every line below `:61`
+down by four, so the review's `:62`/`:180` are now `:66`/`:184`, and the four `unlockWithPasskey`
+call sites are `:153 :177 :220 :264`, not `:149 :173 :216 :260`. **It re-derived both numberings at
+`d80f0e4` and states them explicitly** — the discipline this goal arrived at after line numbers
+misled root twice.
+
+**Its hygiene finding extended a live risk and root acted on it** — see
+`RISKS.md#R-SNAPSHOT-PHRASE-01` addendum: the phrase hazard is **not** limited to manual snapshots,
+Playwright's automatic `error-context.md` carries it too, **root found two 58-character concatenated
+tokens in the preserved artifact and redacted them**, and confirmed nothing of the kind has ever
+entered the repository.
+
+**STATE:** P20B revision 12 → `ready_for_review` → `reviewing`. DISTINCT `p20b-reviewer-12`
+dispatched. Frozen sources re-verified: scratch `469e98c7…`, FS-001 `0d0e2a14…`.
