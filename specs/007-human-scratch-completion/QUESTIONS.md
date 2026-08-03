@@ -3275,3 +3275,14 @@ gaps in P33: correct assertions over inputs that cannot express the failure.
   lines. `/tmp/p20b07-c2/` is the campaign whose twenty lines all read **`head=c515173`**, the
   handback commit. A completeness marker says a loop finished; it says nothing about which tree ran.
 - **Basis:** hierarchy 2, then 4. **Status:** OPEN, adopted going forward.
+
+### Q-P20B-26 — CLOSED as ROUTED 2026-08-03 (D-021)
+
+The discriminating experiment this question named **was run and answered**: the entry is **ABSENT**
+from persisted IndexedDB (195 runs, 50 losses, **no op row ever created**, zero counterexamples) —
+a genuine **lost write**, not a rehydration gap. Evidence
+`evidence/P21/diagnostic-Q-P20B-26.md`. Independent ruling `adjudications/P21-scope-02.md` → D-021:
+the **E2E harness component is IN-GOAL to P20B (HS-021)**; **product
+durability-at-acknowledgement is OUT-OF-GOAL**, tracked at `RISKS.md#R-LOSTWRITE-01`. The concern
+this question was raised to guard against — leaving the class on P20B merely to avoid invalidating a
+prior PASS — is answered: **the adjudicator found the P20B routing correct on the merits.**

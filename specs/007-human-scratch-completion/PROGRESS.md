@@ -12066,3 +12066,54 @@ ruled a genuine CRDT data-loss risk (`Q-P20B-00`) **OUT-OF-GOAL** on the ground 
 `sourceTextLine` required it. Component 2 is the same species of question. A fresh-context
 opus-tier adjudicator, distinct from every implementer and reviewer of P16A–E, P20A/B and P21, is
 dispatched to rule from the frozen text alone.
+
+### 2026-08-03 — D-021 accepted; **two of root's own claims refuted by the adjudicator and corrected here**
+
+**Ruling:** `adjudications/P21-scope-02.md` (`p21-scope-adjudicator-07`, fresh-context opus-tier,
+distinct from every P16A–E / P20A/B / P21 implementer and reviewer), persisted `48dbc45`,
+transcribed as **D-021** with the residual risk at **`RISKS.md#R-LOSTWRITE-01`** in `db255fd`.
+
+- **Component 1 — E2E harness navigation/durability fidelity: IN-GOAL, owner P20B (HS-021).**
+- **Component 2 — product durability-at-acknowledgement: OUT-OF-GOAL**, tracked risk, D-019
+  **FOLLOWED not distinguished.**
+
+**ROOT'S CLAIMS, REFUTED. Both were in root's own ledger entry above, and both are corrected here
+rather than quietly edited.** This is the fourth time this session that a figure or premise root
+wrote has been corrected by an agent root dispatched.
+
+**Correction 1 — "the UI reports `Saved` before the op exists" is NOT ESTABLISHED, and root should
+not have written it.** MEASURED by the diagnostic itself, which root had read and did not weigh: in
+**350/350** samples taken ~2 ms after the barrier returned, the indicator read **`Saving...`** *and*
+the op was **already durable**. The diagnostic's own words: *"I never caught the indicator over a
+non-durable write… Not observed, and I would not claim it."* Root generalised the **single,
+uncontrolled** `Saved` observation in `reviews/P20B-review-08.md` §6 — whose author had explicitly
+written *"one observation licenses no conclusion about a class"* — into a general premise, and then
+put it into a scope-adjudication dispatch where it could have moved a ruling. INFERRED from source:
+`hasUnsavedChanges` is `usePollUnsavedChanges(activeVault?.id ?? null, 2000)` (`layout.tsx:161`), a
+**2 s poll**, so the indicator cannot vouch for durability in either direction. **The established,
+narrower and sufficient statement is: the DOM barrier commits before durability.**
+
+**Correction 2 — "`awaitLocalPersistence()` is surfaced to neither the UI nor tests" is FALSE as
+written.** MEASURED: it is called from `vault-provider.tsx:49` and `:232`, and directly by
+`tests/unit/sync/manager.test.ts` and two integration tests. **The true statement is that it is not
+surfaced to the E2E harness and is not a barrier on the interactive edit path.**
+
+**Why this is recorded at length rather than fixed silently.** Both errors would have misled whoever
+implements from this record, and correction 1 in particular is the failure mode this ledger keeps
+recording against its own authors — a wrong premise attached to correct measurements, in the
+measured voice, which fails no test and therefore survives. **Root wrote it into the adjudicator's
+dispatch; the adjudicator caught it and ruled anyway.**
+
+**`Q-P20B-26` is CLOSED as ROUTED** — the discriminating experiment it named was run and answered
+(entry **absent** → lost write); the harness component goes to P20B, the product component
+out-of-goal.
+
+**NEXT ACTION: P20B revision 09** — the Component-1 fix, under D-021's two binding conditions:
+**(1) it must not be a suppression** — frozen step 9's `page.reload()` survives, reload-persistence
+being frozen at FS-001 `:630`, `:649` and `:706`; legitimate shapes are navigating the way the
+requirement's user navigates (`next/link` client-side, MEASURED 0/70) and/or giving the harness a
+durability barrier before a deliberate teardown. **(2) If the fix changes allocation product
+behaviour rather than the harness or a test seam, ownership flips to P16A–E.** Then a DISTINCT
+reviewer, then re-open P21 from a fresh BASE. **No claim of crash-safe durability may be recorded
+anywhere**, and per the adjudicator's own check of `FINAL-AUDIT.md:65` no HS-016 consequence
+follows: `FeaturesSection.tsx:78-81` asserts no immediacy or crash safety.
