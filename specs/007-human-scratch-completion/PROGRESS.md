@@ -12425,3 +12425,74 @@ covered:** see review §11.
 package or requirement row changes state:** the reviewed range changes no allocation product
 behaviour, P20B remains `passed` at rev 06, HS-021's acceptance is untouched, and no rollback batch
 exists. Frozen sources re-verified: scratch `469e98c7…`, FS-001 `0d0e2a14…`.
+
+### 2026-08-03 — Rev 09 review closing report: goto count resolved AGAINST root, F-3 narrowed, and a reviewer-checkpoint clause NOT performed
+
+**1. The raw-teardown count is resolved, and root's figure was the wrong one.** MEASURED by root at
+HEAD against the reviewer's definition: **53** `.goto(` call sites in `tests/e2e/**/*.spec.ts`,
+exactly one barriered by rev 09, therefore **52 unbarriered**, of which **five have a vault
+mounted** — and root verified each line:
+
+```
+accounts.spec.ts:85              await page.goto("/people");
+vault-settings.spec.ts:421       await page.goto("/dashboard");
+realtime-security.spec.ts:67     await member.goto("/transactions");
+realtime-security.spec.ts:177    await owner.goto("/tags");
+description-aliases.spec.ts:565  await duplicate.goto("/transactions");
+```
+
+**Root's 44 was under-inclusive and the reviewer's 52 is correct.** Root's pattern was `page.goto(`
+and **missed exactly the calls on other page objects** — `member`, `owner`, `duplicate` — which are
+separate `Page` instances in separate browser contexts from the multi-context tests. Root had
+recorded this as an unresolved scope difference "holding under either"; **it is now resolved, and
+not in root's favour.** That distinction is operationally live: each such context has its own
+`window` and therefore its own seam.
+
+**2. F-3's remedy NARROWED, and root corrected its own dispatch mid-revision.** Root's rev 10
+dispatch required barriering the in-vault sites **and** correcting the universal. **That over-states
+the finding.** The reviewer is explicit that it is **not** claiming those five lose writes — **arm F
+lost 0/28** and the diagnostic says the class **is not demonstrated beyond allocations** — and that
+the lighter remedy is to narrow the sentence at `tests/e2e/helpers/persistence.ts:22-23`
+("**Every** deliberate teardown in this harness…"). Root sent `p20b-implementer-10` a correction
+making the barriering **optional but requiring the choice to be justified either way**, and told it
+not to undo work already done to match the message.
+
+**3. A reviewer-checkpoint clause was NOT PERFORMED, and root records its own part in that
+honestly.** `PROCESS.md:170-171` mandates manual `pnpm exec playwright-cli` testing. The reviewer
+recorded it as **not performed**, stating it received **no answer** to its two requests for a dev
+server. **Root did authorize it, twice** — the first authorization crossed with the reviewer's
+status message and the second evidently arrived after it had finished. **Root's authorization was
+correct but did not land in time, and the honest statement is that the clause is outstanding, not
+that it was covered.** The reviewer flagged the gap explicitly rather than omitting it, which is the
+behaviour this process wants.
+
+**Why the verdict nonetheless stands, in the reviewer's own reasoning:** **none of the three findings
+was found in a browser** and all three reproduce from the command line; and the
+accessibility/contrast/zoom matrix is **vacuous for this diff**, which changes no component, styling
+or markup. **Root does not treat that as discharging the clause.** The rev 10 reviewer MUST perform
+the manual checkpoint — rev 10 touches `vault-provider.tsx` and possibly `playwright.config.ts`, and
+a gating change is exactly the kind that can break the app in a browser while every command-line
+gate stays green.
+
+**4. F-1 carries an explicit non-finding root must not let drift.** The reviewer's security analysis
+found the seam **genuinely inert** — same-origin only, no argument, no mutation, no vault data, and
+any caller already has the DOM, IndexedDB and the decrypted document. **Its words: "There is no
+vulnerability here and nobody should record one."** F-1 is a **production-surface and precedent**
+finding: it ships (measured in the bundle), `PROCESS.md:167-168` directs reviewers to reject
+test-only hooks, the gate is provably free, and **MEASURED, no `window.__*` hook existed anywhere in
+`src/` before this**, so it sets the precedent. **D-021 blessed the mechanism while answering an
+ownership question; its silence on gating is not authorisation.**
+
+**5. Corroboration of the rev 09 result, recorded because it is the strongest stability evidence this
+goal has.** The reviewer's own campaign: full suite ×3 on the repo's unmodified config on `:3000`,
+`--retries=0` → **195/195 three times**, plus `people-settlement.spec.ts --repeat-each=5` →
+**95/95**, with digest `e2cc5da363672638d744b26c37662929` in all eight START/END lines — **identical
+to the implementer's campaign digest**. Pooled with the implementer's three, that is **six retry-free
+full-suite runs green on one byte-identical tree.** Counts only; **no cross-campaign rate claim**,
+correctly, since this goal has measured a 2× between-campaign spread on a fixed tree.
+
+**6. Flake register item, needing an owner outside P20B.**
+`tests/integration/realtime-origin-controls.test.ts` — "reads only its own vault's ops even when the
+request claims a hostile origin", `Test timed out in 5000ms`. **Three agents have now independently
+hit it**, and the reviewer confirmed it has **no import path to the rev 09 commit**. Carried forward
+for P21 to route; it is not P20B's.
