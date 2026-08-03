@@ -3143,7 +3143,7 @@ gaps in P33: correct assertions over inputs that cannot express the failure.
 - **Source:** `evidence/P20B/implementation-08.md` §9 (`Q-P20B-07-01`), endorsed by
   `reviews/P20B-review-07.md` §9.
 - **Context:** `playwright.config.ts` now sets a 15 s `expect` budget inside a 30 s test budget.
-  MEASURED by the implementer: **156 tests remain on the 30 s default**, and **115 `toHaveCount(0)`
+  MEASURED by the implementer: **156 tests remain on the 30 s default**, and **113 of 115 `toHaveCount(0)`
   absence assertions carry no explicit timeout**. Two failing bare assertions in one test can
   therefore exhaust the test budget and report a less precise error than the assertion itself would.
 - **Reversible default selected:** leave the pairing unmade. The alternative — leaving `expect` at

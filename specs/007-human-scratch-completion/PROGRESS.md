@@ -12117,3 +12117,67 @@ behaviour rather than the harness or a test seam, ownership flips to P16A–E.**
 reviewer, then re-open P21 from a fresh BASE. **No claim of crash-safe durability may be recorded
 anywhere**, and per the adjudicator's own check of `FINAL-AUDIT.md:65` no HS-016 consequence
 follows: `FeaturesSection.tsx:78-81` asserts no immediacy or crash safety.
+
+### 2026-08-03 — Four corrections to root's record from the agents' closing reports
+
+All four arrive from agents root dispatched, and all four correct root. Recorded rather than
+silently amended.
+
+**1. The `115 toHaveCount(0)` figure root recorded for F-C is WRONG, and root re-derived the
+correction rather than accepting either version.** `p20b-implementer-08` reported that of the 115
+absence assertions, **two carry an explicit timeout** — `passkey.spec.ts:448` and
+`realtime-security.spec.ts:156` — so the count lacking one is **113**, not 115. It wrote 113 into
+the SKILL note and flagged the discrepancy against its own dispatch. **Root verified both sites
+directly at HEAD**: each really is `toHaveCount(0, { … })` with an options argument, and
+`p20b-reviewer-08` independently opened both to confirm the second argument is a timeout.
+`QUESTIONS.md#Q-P20B-21` is corrected in place to "113 of 115".
+
+**Root's own count differs from both and root states that rather than picking one.** Over the spec
+files at HEAD: `toHaveCount(0` appears **109** times with **2** carrying an options argument (107
+without); including `tests/e2e/helpers/` the total is **117**. **The denominators differ by
+collection scope, and root did not resolve which is canonical.** The load-bearing fact is
+independent of that and is confirmed three ways: **two sites do carry an explicit timeout, so any
+claim of the form "N carry no explicit timeout" is wrong as root wrote it.** The severity and the
+argument for F-C are unchanged.
+
+**2. Root's account of the rev 07 `F-D` bounce was less favourable to the reviewer than the facts
+warrant.** Root recorded it as "referenced an `F-D` that §6 never defined" — a dangling reference.
+`p20b-reviewer-07` reports that **`F-D` was a real finding it deliberately WITHDREW on measurement**:
+it was the pre-hydration-transient finding, dropped after the reviewer instrumented hydration from
+document start under CPU throttle and measured the window at **≤10 ms in 1 of 7 cold navigations** —
+far too narrow to report as a defect. It became evidence in §5 (the third refutation of the rev 06
+diagnosis) instead of a finding. **A finding withdrawn because the measurement did not support it is
+a credit, not a clerical error**, and root's framing should not stand.
+
+The reviewer further reports it had already renumbered `F-D` out before root's message landed, and
+that the true residual defects were the stale count ("Three" naming two) and a **genuine `§6`
+collision** — its own §6 is Findings, so a reader following the citation lands on the wrong section
+of the reviewer's own document. **Root's read did show `F-D` present in both verdict sentences at
+the time it read them**, so root does not adopt the "stale read" account of that particular point;
+but the disagreement is about timing only, it changes nothing material, and **the reviewer's own
+diagnosis of the residual defects was sharper than root's**. Those seven lines were persisted at
+`be50232`.
+
+**3. Two elements of the adjudicator's reasoning root did not capture in D-021.**
+- **A MEASURED negative result:** a grep across **all five frozen sources** returns **no line using
+  durability / crash / unsaved / data-loss vocabulary at all.** That is the strongest form the
+  Component-2 ruling could take — not "the text is ambiguous" but "the vocabulary is absent".
+- **Why the HS-021 route to Component 2 is foreclosed, not merely unpersuasive:** D-019 upheld
+  `p20b-reviewer-01 §6.1`, which deferred `pruneBuckets` as out of scope **for the HS-021 sweep**.
+  So the argument "the sweep converts a discovered engine defect into committed scope" **has already
+  been adjudicated and rejected in this goal.** Component 2 cannot enter through HS-021 for the same
+  reason `Q-P20B-00` could not.
+
+**4. A line-number shift that will silently corrupt future campaign inventories.** Rev 08's +3-line
+change moved `people-settlement.spec.ts` **`:596` → `:599`** for "a deleted Person keeps their
+historical balance" — the single most frequent failure site in the 10-run campaign (4 of 11).
+**MEASURED by root at committed HEAD: the test is now at `:599`.** Every `:596` in the campaign
+inventories above refers to the pre-rev-08 tree. `Q-P20B-29`'s discipline extends here: **record the
+test NAME alongside the line number**, since a line number is only valid for the tree that produced
+it. `p20b-implementer-08` raised this itself as `Q-PROPOSAL-P20B-08-2`.
+
+**Also noted, and it strengthens a conclusion root already drew.** `p20b-reviewer-07`'s own 4-run
+campaign measured **2.25 failures/run (9/4)** on the **byte-identical** tree where root's 10-run
+campaign measured **1.10**. **The between-campaign spread on one fixed tree is larger than the whole
+pre-fix/post-fix gap** (1.29/1.60 → 1.10), so that comparison supports nothing in either direction —
+which is why neither root, the implementer nor either reviewer claimed an improvement from it.
