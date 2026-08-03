@@ -54,6 +54,19 @@ coverage complements the automated suite; neither substitutes for the other.
 - **Independent tests** - use `beforeEach`, don't depend on prior test state
 - **No arbitrary waits** - use `toBeEnabled()`, not `waitForTimeout()`
 
+## Timeouts
+
+`playwright.config.ts` sets `expect: { timeout: 15_000 }`, so a bare assertion waits **15 s**, not
+Playwright's 5 s default. An explicit per-assertion timeout still overrides it, so deliberately
+short probes such as `toBeVisible({ timeout: 3_000 })` are unaffected.
+
+The cost falls on assertions that are _meant_ to fail slowly. 113 of the 115 `toHaveCount(0)`
+absence assertions carry no explicit timeout: a passing one still returns as soon as the condition
+holds, but a genuinely failing one now burns 15 s. Two failing bare assertions in one test exhaust
+the 30 s test budget and report a test timeout instead of the assertion's own error, which is a
+worse diagnostic. **Give an absence assertion you expect to be contentious an explicit shorter
+timeout**, or raise the test budget with `test.setTimeout()`.
+
 ## Helpers
 
 Import from `tests/e2e/helpers/`:
