@@ -3390,3 +3390,26 @@ out of scope for the current revisions.
 - **Reversible default:** record and leave placement unchanged; fold the counting consequence into
   `Q-P20B-30`'s lint-rule question rather than re-sweeping by hand.
 - **Status:** OPEN, non-blocking, not assigned to a revision.
+
+## Q-P20B-34 — Should a call-site comment name a helper's FAILURE exit, or only its success exits?
+
+- **Source:** `reviews/P20B-review-13.md` §8 (`Q-PROPOSAL-P20B-13-1`), raised by `p20b-reviewer-13`,
+  held **weakly** by its own author.
+- **Context — the flag that raised it.** The rev 13 clause names two ways the absent-seam branch
+  terminates (the seam appears; the page leaves the `(app)` routes). **MEASURED by the reviewer, a
+  THIRD exit exists**: the 15,000 ms budget — `persistence.ts:92` `break` → throw at `:96-98` —
+  which the clause does not name.
+- **Why the reviewer did NOT make it a finding, and root agrees:** the omission errs toward
+  **safety** — a reader over-estimates the helper's patience rather than under-estimating its
+  danger; **F12-1's harm model is fully blocked** (nobody reading this clause now believes the
+  absent case is free, which was the whole risk); **exit-completeness was not among the fix criteria
+  in `reviews/P20B-review-12.md` §7**; and **§7's own suggested wording likewise omitted the throw.**
+  Failing rev 13 on a criterion the failing review did not state, and did not itself satisfy, would
+  be moving the target.
+- **Minimal close if ever wanted:** append *"and it fails loudly if neither happens before the budget
+  expires."* **Better folded into a future edit than made a fourteenth revision.**
+- **The question proper:** should a call-site comment own a helper's failure contract at all, or
+  should the helper's own docstring own it? **Settling it once stops the next revision re-deciding
+  it.** The reviewer proposes the former, weakly.
+- **Status:** OPEN, non-blocking, **not assigned to a revision.** It and `Q-P20B-33` bear on the same
+  three helper lines; whoever picks either up should read `reviews/P20B-review-13.md` §7.2 first.
