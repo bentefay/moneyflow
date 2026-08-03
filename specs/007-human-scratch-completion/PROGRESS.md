@@ -12181,3 +12181,89 @@ campaign measured **2.25 failures/run (9/4)** on the **byte-identical** tree whe
 campaign measured **1.10**. **The between-campaign spread on one fixed tree is larger than the whole
 pre-fix/post-fix gap** (1.29/1.60 → 1.10), so that comparison supports nothing in either direction —
 which is why neither root, the implementer nor either reviewer claimed an improvement from it.
+
+### 2026-08-03 — P20B rev 09 HANDBACK at `0a94be8`; both D-021 conditions verified by root; **D-021's own `137` figure corrected**
+
+**One commit, not amended, 17 files, +324 −40.** BASE `21f5715` → HEAD `0a94be8`. Evidence at
+`evidence/P20B/implementation-10.md`, correctly uncommitted (`PROCESS.md:58`), **271 lines, zero
+placeholder tokens** — the F-A defect did not recur.
+
+**Shape (b) taken: a durability barrier, not client-side navigation.** D-021 permits either
+("**and/or**"), so this is within the ruling.
+
+**CONDITION 1 — not a suppression. VERIFIED BY ROOT, not accepted.** Frozen step 9 at
+`people-settlement.spec.ts:345-346` still reloads, now via `reloadPage(page)` — which is
+`awaitVaultPersistence()` followed by **the same `page.reload()`** — and rev 08's
+`Explicit: 50%.` assertion is intact directly beneath it. MEASURED by root: **22 reload sites across
+10 spec files remain**, matching the implementer's count. No assertion deleted, weakened or given a
+longer timeout.
+
+**CONDITION 2 — ownership stays P20B, does NOT flip to P16A–E.** `src/` **is** touched — three files
+— and root checked this rather than waving it through, because D-021 flips ownership if the fix
+changes allocation **product behaviour**. It does not. `src/lib/sync/local-persistence-seam.ts` (new,
+67 lines) publishes the **already-existing** `SyncManager.awaitLocalPersistence()` on `window`;
+`vault-provider.tsx` installs it at `:92`, ahead of the manager-creating effect at `:148`, so a live
+manager always implies a live seam. **It schedules no persistence work and alters none — its only
+statement awaits work already in flight.** `SyncManager` is untouched; when a write becomes durable,
+when the indicator changes and what `beforeunload` sees are all unchanged. D-021 explicitly places
+"exposing the existing `awaitLocalPersistence()` to the harness through a test seam" inside P20B's
+remit.
+
+**MEASUREMENT — and the control is what makes it credible.**
+
+| Arm | Pre-fix (BASE) | Post-fix (HEAD) |
+| --- | --- | --- |
+| **C — raw `page.reload()`, bypasses every helper, UNTOUCHED CONTROL** | 11/70 | **20/70** |
+| C2 — reload via `reloadPage()` | n/a | **0/70** |
+| D — `goToTransactions()` then reload | 18/70 | **0/70** |
+
+**Arm C still losing 20/70 on the fixed tree is the load-bearing number:** the probe can still
+reproduce the class, so C2/D's zeros are **not a dead instrument**. This goal has been misled twice
+by instruments that could not fail. Op-count discriminator held **350/350**, zero counterexamples.
+**The implementer refused to read 0/70 as a clearance**, recording it as a **4.3% upper bound**
+while noting C2's zero has probability 5.9e-11 under arm C's own rate.
+
+**Suite:** `people-settlement.spec.ts --retries=0` ×10 → **190/190**; full suite on the repo's own
+unmodified config, `--retries=0`, **three times → 195/195 each**, tree digest identical at every
+START and END.
+
+**ROOT'S OWN FIGURE IN D-021 IS WRONG, and root re-derived it rather than accepting either
+account.** D-021 and root's dispatch state `nav.ts` is `page.goto` at **137 call sites**. The
+implementer re-derived **217** and flagged the divergence without asserting the ruling wrong.
+**MEASURED by root at BASE `21f5715`:** the ten exported `nav.ts` helpers are called **211 times
+across spec files** (`goToTransactions` 81, `goToPeople` 36, `goToImportNew` 27, `goToTags` 20,
+`goToAccounts` 12, `goToTxDescriptions` 10, `goToSettings` 9, `goToImports` 7, `goToAutomations` 6,
+`goToStatuses` 3); **227** counting all `tests/e2e` files, which includes the ten definitions.
+**`137` is not reproducible by any derivation root attempted.** Nothing in D-021's reasoning depends
+on it — it supported the "cross-cutting, therefore P20B" finding, which **211 strengthens rather
+than weakens**. The ruling stands; the figure is corrected here.
+
+**THE FIDELITY GAP IS NOT CLOSED, and the implementer says so plainly.** It did **not** convert
+`nav.ts` to the client-side sidebar click. Its reason, tagged INFERRED and judged sound by root:
+doing so would turn 211+ call sites from a **full document load that re-derives from persisted
+state** into a **client-side transition that reads the in-memory document** — no assertion deleted,
+but **many would begin checking something weaker**, which cuts against condition 1. And shape (a)
+**could not have covered frozen step 9 at all**, since a reload is a teardown by definition.
+**Consequence, recorded rather than glossed: the lost write is gone, but the harness still does not
+navigate the way a user does.** Whether D-021's Component 1 is thereby discharged is a question for
+the reviewer.
+
+**Instrument failure the implementer disclosed against its own interest.** Its first full-suite
+attempt reported **15 failed / 180 passed** — on a config of its own on `:3100`, where **seven specs
+pin `browser.newContext({ baseURL: "http://localhost:3000" })`** and `tab-duplication.spec.ts`
+hardcodes the URL, so exactly the multi-context tests failed with `ERR_CONNECTION_REFUSED`. The
+identical tree on `:3000` gave 195/195 three times. **The misleading log is preserved at
+`/tmp/p20b09-logs/campaign5-full-suite-run1.log` and §3 explains it**, so a later reader who finds
+it does not have to guess. Ninth instrument failure in this goal whose signature impersonated a
+product break.
+
+**`pnpm test` was NOT uniformly green and this is reported, not smoothed.** 4 of 6 runs at HEAD
+passed 2487; two runs had **one failure each**, different files, zero recurrence on re-run:
+`realtime-origin-controls.test.ts` (a 5 s WebSocket timeout; that file imports nothing from
+`@/lib/sync`) and `duplicates.test.ts` (**the wall-clock ratio assertion, load average 5.4–6.5** —
+the known hazard of running unit tests beside a campaign). typecheck clean, lint 0 errors / 1
+pre-existing warning, build succeeded, `format:check` issues all under `specs/**`.
+
+**Frozen sources re-verified after the handback:** scratch `469e98c7…`, FS-001 `0d0e2a14…`.
+
+**STATE:** P20B revision 09 → `ready_for_review` → `reviewing`.

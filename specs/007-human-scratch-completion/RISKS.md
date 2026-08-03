@@ -69,3 +69,16 @@ high-impact risk.
   (`manager.ts:367-377`), or make the acknowledgement wait for it, with regression coverage over the
   measured arms. **Must be named in the P21 status report for after-the-fact human audit**
   (`PROCESS.md:344-345`).
+
+### R-LOSTWRITE-01 addendum — 2026-08-03, after P20B rev 09
+
+**The suite can no longer surface this class by accident.** Rev 09 makes the harness wait for
+durability before every deliberate teardown, so the E2E suite no longer reproduces the lost write.
+**This is the intended fix for the harness and it is NOT a fix for the risk** — a crash, OS kill or
+force-quit inside the window still loses the write. Component 2 remains untouched and out-of-goal.
+
+**The live reproduction is now arm C of the preserved probe**
+(`evidence/P21/diagnostic-Q-P20B-26-probe.spec.ts.artifact`, run with its config alongside): a raw
+`page.reload()` that bypasses every helper, **MEASURED at 20/70 on the FIXED tree**. Anyone
+revisiting this risk should start there — it is the only remaining route by which the repository can
+demonstrate the defect.
