@@ -180,3 +180,33 @@ explicitly, because the detection method matters as much as the finding.
 2. Never echo, quote or commit the credential field's accessible value.
 3. Prefer a targeted `eval` on a specific element reference over a whole-page `snapshot` on
    `/new-user`.
+
+## R-TMP-INODES-01 — `/tmp` inode exhaustion from accumulated agent worktrees (RESOLVED this session, will recur)
+
+- **Status:** RESOLVED now; **structural and will recur** without a disposal convention.
+- **Discovered by `p20b-reviewer-12`**, which hit `pnpm install` failing `ENOSPC` on `mkdir` and
+  correctly diagnosed it as **inodes, not bytes** — `/tmp` had **~15 GB free** at the time. It
+  relocated its own worktree to `/home/ben-agents/` rather than deleting anyone else's, which was
+  the right call.
+- **MEASURED by root on receipt:** `df -i /tmp` → **1,018,353 / 1,048,576 IUsed (98%), 30,223 free**,
+  while `df -h` showed 15 G free. **Each agent worktree with `node_modules` costs ~62,000 inodes**,
+  so **no further worktree could be created** — and P20B rev 13 was mid-flight and would have failed
+  its install.
+- **Root's action, and the checks before it.** Root verified **no process anywhere had a cwd inside
+  any `/tmp` worktree** (scan of `/proc/*/cwd`), and that every owning agent had been stopped. It
+  then removed **13 worktrees from closed revisions/packages only**, via
+  `git worktree remove --force` with `git worktree prune`, leaving `/tmp/mf-p20b-rev12` and the
+  rev-12 reviewer's own tree. **Result: 210,095 IUsed (21%), 838,481 free.**
+- **Nothing evidential was deleted.** Root verified after the prune that every log and artifact
+  directory survives — `/tmp/p20b07-c2`, `/tmp/p20b07-F2-repro`, `/tmp/q26-logs`,
+  `/tmp/rev08-artifacts`, `/tmp/p20b09-logs`, `/tmp/p20b-rev10-review`, `/tmp/p20b-rev11`,
+  `/tmp/p20b-rev11-review`, `/tmp/p20b-rev12-logs` — and that the reproduction probe remains
+  **committed in the repository** at `evidence/P21/diagnostic-Q-P20B-26-probe.spec.ts.artifact`,
+  which is why the lost-write reproduction does not depend on `/tmp` at all.
+- **Why it recurs:** worktrees are created per revision and per review and nobody owns disposal;
+  `~62k inodes` each against a 1,048,576 budget means **roughly sixteen** exhaust it. This goal has
+  run more revisions than that.
+- **Convention to adopt:** an agent removes its own worktree at handback (`git worktree remove
+  --force`), and root prunes closed-revision worktrees at each verdict. **Never delete another
+  agent's worktree without checking `/proc/*/cwd` first** — a vanished pid is a child process, not
+  a dead agent.
