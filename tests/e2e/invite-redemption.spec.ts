@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-import { createNewIdentity, goToPeople, goToSettings, readBrowserIdentity } from "./helpers";
+import {
+    awaitVaultPersistence,
+    createNewIdentity,
+    goToPeople,
+    goToSettings,
+    readBrowserIdentity
+} from "./helpers";
 import { memberHoldsSameVaultKeyAsOwner } from "./helpers/invite";
 import { readActiveVaultId } from "./helpers/realtime";
 
@@ -43,7 +49,9 @@ test("a second user redeems an invite and recovers the real vault key", async ({
 
         const sharedVaultId = await readActiveVaultId(owner);
 
-        // Member opens the link and accepts.
+        // Member opens the link and accepts. The member's own vault creation may still be queued
+        // for encryption in the document this navigation tears down.
+        await awaitVaultPersistence(member);
         await member.goto(inviteUrl);
         const acceptButton = member.getByRole("button", { name: /accept invitation/i });
         await acceptButton.waitFor({ state: "visible", timeout: 15000 });
@@ -99,7 +107,9 @@ test("accepting an invite opens the shared vault and links both members", async 
         const sharedVaultId = await readActiveVaultId(owner);
         const ownerHash = (await readBrowserIdentity(owner)).pubkeyHash;
 
-        // Member accepts.
+        // Member accepts. As above, the member's own vault writes must be durable before this
+        // document is torn down.
+        await awaitVaultPersistence(member);
         await member.goto(inviteUrl);
         const acceptButton = member.getByRole("button", { name: /accept invitation/i });
         await acceptButton.waitFor({ state: "visible", timeout: 15000 });

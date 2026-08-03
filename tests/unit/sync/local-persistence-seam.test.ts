@@ -1,32 +1,30 @@
 /**
  * The durability seam the E2E harness navigates behind.
  *
- * The harness treats an absent seam as "no vault could have queued a write" and proceeds straight
- * to the teardown, so a seam that stopped being installed — or one that resolved without consulting
- * the live manager — would silently restore the lost-write class the harness exists to avoid rather
- * than failing a test. These cover both directions: the seam must delegate, and it must report the
- * no-vault case distinctly instead of pretending it waited.
+ * A seam that resolved without consulting the live manager would silently restore the lost-write
+ * class the harness exists to avoid rather than failing a test. These cover both directions: the
+ * seam must delegate, and it must report the no-vault case distinctly instead of pretending it
+ * waited. That the provider actually installs it is a separate invariant, covered in
+ * `tests/unit/components/vault-provider-persistence-seam.test.tsx`; that its absence is loud is
+ * enforced by `tests/e2e/helpers/persistence.ts`.
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-    installLocalPersistenceSeam,
-    LOCAL_PERSISTENCE_SEAM_KEY
-} from "@/lib/sync/local-persistence-seam";
+import { installLocalPersistenceSeam } from "@/lib/sync/local-persistence-seam";
 
 afterEach(() => {
-    delete window[LOCAL_PERSISTENCE_SEAM_KEY];
+    delete window.__moneyflowLocalPersistence;
 });
 
 describe("installLocalPersistenceSeam", () => {
     it("publishes the barrier on window and removes it on teardown", () => {
         const uninstall = installLocalPersistenceSeam(() => null);
 
-        expect(window[LOCAL_PERSISTENCE_SEAM_KEY]).toBeDefined();
+        expect(window.__moneyflowLocalPersistence).toBeDefined();
 
         uninstall();
-        expect(window[LOCAL_PERSISTENCE_SEAM_KEY]).toBeUndefined();
+        expect(window.__moneyflowLocalPersistence).toBeUndefined();
     });
 
     it("awaits the live manager's local persistence", async () => {
@@ -39,7 +37,7 @@ describe("installLocalPersistenceSeam", () => {
         );
         installLocalPersistenceSeam(() => ({ awaitLocalPersistence }));
 
-        const seam = window[LOCAL_PERSISTENCE_SEAM_KEY];
+        const seam = window.__moneyflowLocalPersistence;
         expect(seam).toBeDefined();
         const barrier = seam?.awaitLocalPersistence();
 
@@ -62,9 +60,9 @@ describe("installLocalPersistenceSeam", () => {
         let active: typeof first | null = first;
         installLocalPersistenceSeam(() => active);
 
-        await window[LOCAL_PERSISTENCE_SEAM_KEY]?.awaitLocalPersistence();
+        await window.__moneyflowLocalPersistence?.awaitLocalPersistence();
         active = second;
-        await window[LOCAL_PERSISTENCE_SEAM_KEY]?.awaitLocalPersistence();
+        await window.__moneyflowLocalPersistence?.awaitLocalPersistence();
 
         expect(first.awaitLocalPersistence).toHaveBeenCalledTimes(1);
         expect(second.awaitLocalPersistence).toHaveBeenCalledTimes(1);
@@ -73,7 +71,7 @@ describe("installLocalPersistenceSeam", () => {
     it("reports the no-vault case distinctly instead of claiming it waited", async () => {
         installLocalPersistenceSeam(() => null);
 
-        await expect(window[LOCAL_PERSISTENCE_SEAM_KEY]?.awaitLocalPersistence()).resolves.toBe(
+        await expect(window.__moneyflowLocalPersistence?.awaitLocalPersistence()).resolves.toBe(
             "no-active-vault"
         );
     });
@@ -84,7 +82,7 @@ describe("installLocalPersistenceSeam", () => {
             awaitLocalPersistence: vi.fn(() => Promise.reject(failure))
         }));
 
-        await expect(window[LOCAL_PERSISTENCE_SEAM_KEY]?.awaitLocalPersistence()).rejects.toThrow(
+        await expect(window.__moneyflowLocalPersistence?.awaitLocalPersistence()).rejects.toThrow(
             failure
         );
     });
@@ -92,12 +90,12 @@ describe("installLocalPersistenceSeam", () => {
     it("leaves a newer installation's seam alone when an older one tears down", () => {
         const uninstallFirst = installLocalPersistenceSeam(() => null);
         const uninstallSecond = installLocalPersistenceSeam(() => null);
-        const secondSeam = window[LOCAL_PERSISTENCE_SEAM_KEY];
+        const secondSeam = window.__moneyflowLocalPersistence;
 
         uninstallFirst();
-        expect(window[LOCAL_PERSISTENCE_SEAM_KEY]).toBe(secondSeam);
+        expect(window.__moneyflowLocalPersistence).toBe(secondSeam);
 
         uninstallSecond();
-        expect(window[LOCAL_PERSISTENCE_SEAM_KEY]).toBeUndefined();
+        expect(window.__moneyflowLocalPersistence).toBeUndefined();
     });
 });

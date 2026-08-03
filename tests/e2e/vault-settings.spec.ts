@@ -14,6 +14,7 @@
 import { expect, type Page, test } from "@playwright/test";
 
 import {
+    awaitVaultPersistence,
     createNewIdentity,
     enterSeedPhrase,
     goToPeople,
@@ -417,7 +418,9 @@ test.describe("Vault Settings", () => {
         test("dashboard should redirect to transactions", async ({ page }) => {
             await createNewIdentity(page);
 
-            // Try to navigate to dashboard
+            // Try to navigate to dashboard. Vault creation's own writes may still be queued for
+            // encryption, and this raw teardown would discard them.
+            await awaitVaultPersistence(page);
             await page.goto("/dashboard");
 
             // Should be redirected to transactions

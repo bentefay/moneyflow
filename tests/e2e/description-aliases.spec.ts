@@ -8,6 +8,7 @@
 import { expect, type Page, test } from "@playwright/test";
 
 import {
+    awaitVaultPersistence,
     createNewIdentity,
     goToImportNew,
     goToTransactions,
@@ -562,6 +563,9 @@ test.describe("Description Aliases", () => {
                 timeout: 15_000
             });
 
+            // The duplicate tab holds the same vault and has been merging the remote renames; its
+            // own local writes must be durable before this raw teardown.
+            await awaitVaultPersistence(duplicate);
             await duplicate.goto("/transactions");
             await expect(duplicate.getByTestId("description-editable").nth(0)).toHaveValue(
                 "Offline novel",

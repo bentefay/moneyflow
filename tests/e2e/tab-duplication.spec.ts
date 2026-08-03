@@ -5,7 +5,7 @@ import path from "node:path";
 
 import { expect, chromium, test } from "@playwright/test";
 
-import { readActiveVaultId } from "./helpers";
+import { awaitVaultPersistence, readActiveVaultId } from "./helpers";
 import { addEmptyTransaction } from "./helpers/settlement";
 
 function countFixtureVaultOps(vaultId: string): number {
@@ -127,7 +127,11 @@ test("a browser-duplicated tab hydrates onboarding and an authenticated vault", 
             }
         });
 
+        // Both tabs sit on Vault Settings with the freshly created vault mounted; neither raw
+        // teardown may discard writes still queued for encryption.
+        await awaitVaultPersistence(onboardingDuplicate);
         await onboardingDuplicate.goto("http://localhost:3000/transactions");
+        await awaitVaultPersistence(authenticatedDuplicate);
         await authenticatedDuplicate.goto("http://localhost:3000/transactions");
         await expect(onboardingDuplicate.getByTestId("transaction-table-toolbar")).toBeVisible({
             timeout: 15_000

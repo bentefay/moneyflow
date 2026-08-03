@@ -12,7 +12,12 @@
 
 import { expect, type Page, test } from "@playwright/test";
 
-import { createNewIdentity, enterSeedPhrase, extractSeedPhrase } from "./helpers";
+import {
+    awaitVaultPersistence,
+    createNewIdentity,
+    enterSeedPhrase,
+    extractSeedPhrase
+} from "./helpers";
 import {
     addSecondAuthenticator,
     addVirtualAuthenticator,
@@ -67,6 +72,8 @@ async function addPasskeyFromSettings(
     seedWords: string[],
     expectedCount: number
 ): Promise<void> {
+    // Callers arrive here straight from account creation, whose vault writes may still be queued.
+    await awaitVaultPersistence(page);
     await page.goto("/settings");
     await page.getByTestId("add-passkey-button").click();
     await page.getByTestId("recovery-phrase-credential").fill(seedWords.join(" "));
@@ -418,6 +425,8 @@ test.describe("Passkey", () => {
     }) => {
         const words = await createAccountWithPasskey(page);
 
+        // Account creation's vault writes may still be queued for encryption.
+        await awaitVaultPersistence(page);
         await page.goto("/settings");
         await expect(page.getByTestId("passkey-credential-row")).toHaveCount(1, { timeout: 20000 });
         await page.getByTestId("revoke-passkey-button").click();

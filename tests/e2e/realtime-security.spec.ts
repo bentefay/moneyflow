@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import {
+    awaitVaultPersistence,
     createNewIdentity,
     goToImportNew,
     goToTransactions,
@@ -64,6 +65,8 @@ test("private vault_ops push synchronizes import, edit and delete and stops afte
 
         await test.step("join the same encrypted vault in two real browser contexts", async () => {
             await goToTransactions(owner);
+            // The member's own vault creation may still be queued for encryption here.
+            await awaitVaultPersistence(member);
             await member.goto("/transactions");
             await expect(member.getByTestId("transaction-table-toolbar")).toBeVisible({
                 timeout: 15_000
@@ -174,6 +177,9 @@ test("private vault_ops push synchronizes import, edit and delete and stops afte
 
         await test.step("remove membership and deny future payloads safely", async () => {
             await removeFixtureMember(fixture.memberHash, fixture.vaultId);
+            // The owner has been writing transactions in this document; do not tear it down while
+            // any of those writes are still queued for encryption.
+            await awaitVaultPersistence(owner);
             await owner.goto("/tags");
             await expect(owner.getByRole("button", { name: /add tag/i })).toBeVisible();
             await owner.getByRole("button", { name: /add tag/i }).click();

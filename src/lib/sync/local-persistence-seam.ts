@@ -15,7 +15,12 @@
  * tears the document down.
  *
  * It is a seam, not a feature: no application code reads it, it exposes no vault data, and it
- * neither schedules nor alters any persistence work — it only awaits work already in flight.
+ * neither schedules nor alters any persistence work — it only awaits work already in flight. It is
+ * also harness-only, so it is gated out of production builds entirely: `process.env.NODE_ENV` is
+ * inlined at build time, which leaves the install below as dead code a production bundle drops.
+ * `playwright.config.ts` runs the harness against `pnpm run dev`, so the gate never closes on it —
+ * and if a future run ever does use a production build, `tests/e2e/helpers/persistence.ts` fails
+ * loudly on the absent seam rather than silently skipping the barrier.
  */
 
 import type { SyncManager } from "./manager";
@@ -33,18 +38,26 @@ declare global {
     }
 }
 
-/** The single `window` property this seam owns; shared with the E2E helper that reads it. */
-export const LOCAL_PERSISTENCE_SEAM_KEY = "__moneyflowLocalPersistence";
+/**
+ * The single `window` property this seam owns; the E2E helper reads it by name.
+ *
+ * Deliberately not exported: the only reference is inside the gated install below, so a production
+ * build eliminates this string along with it and the key never appears in a shipped bundle.
+ */
+const LOCAL_PERSISTENCE_SEAM_KEY = "__moneyflowLocalPersistence";
 
 /**
  * Publishes the barrier and returns its teardown.
  *
  * `readActiveManager` is consulted on every call rather than captured, so the seam always addresses
  * the manager that is live now — a vault switch replaces the manager but not the seam.
+ *
+ * Installs nothing in a production build; see the module comment.
  */
 export function installLocalPersistenceSeam(
     readActiveManager: () => Pick<SyncManager, "awaitLocalPersistence"> | null
 ): () => void {
+    if (process.env.NODE_ENV === "production") return () => undefined;
     if (typeof window === "undefined") return () => undefined;
 
     const seam: LocalPersistenceSeam = {

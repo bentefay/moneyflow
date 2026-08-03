@@ -1,8 +1,5 @@
-export type {
-    LocalPersistenceBarrierOutcome,
-    LocalPersistenceSeam
-} from "./local-persistence-seam";
-export { installLocalPersistenceSeam, LOCAL_PERSISTENCE_SEAM_KEY } from "./local-persistence-seam";
+// `./local-persistence-seam` is deliberately absent from this barrel: it is a harness-only surface
+// with a single install site, and re-exporting it invites application code to depend on it.
 export type { SyncManagerOptions, SyncState } from "./manager";
 export { createSyncManager, SyncManager } from "./manager";
 export type { LocalOp, LocalSnapshot, SyncMeta } from "./persistence";

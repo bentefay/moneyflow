@@ -11,7 +11,7 @@
 
 import { expect, type Page, test } from "@playwright/test";
 
-import { createNewIdentity, goToAccounts } from "./helpers";
+import { awaitVaultPersistence, createNewIdentity, goToAccounts } from "./helpers";
 
 test.use({ timezoneId: "America/New_York" });
 
@@ -82,6 +82,9 @@ test.describe("Accounts Page - Default Person", () => {
 
     test("new vault has default person 'Me'", async ({ page }) => {
         await test.step("navigate to people page", async () => {
+            // Vault creation's own writes may still be queued for encryption; this raw teardown
+            // would discard them.
+            await awaitVaultPersistence(page);
             await page.goto("/people");
             await page
                 .getByRole("heading", { name: "People", level: 1 })

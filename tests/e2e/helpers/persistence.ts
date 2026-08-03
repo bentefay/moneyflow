@@ -9,9 +9,12 @@
  * zero counterexamples, and inserting a durability wait between the write and the teardown removed
  * the loss entirely (0 in 140 runs).
  *
- * Every deliberate teardown in this harness therefore waits for the running vault to acknowledge
- * its local writes first. This is a harness barrier, not a product change: it waits for work the
- * app already had in flight.
+ * Every teardown that goes through these helpers — `reloadPage` here and every `nav.ts` helper —
+ * therefore waits for the running vault to acknowledge its local writes first, as do the individual
+ * `page.goto` teardowns that fire with a vault mounted. A raw `page.goto` or `page.reload` written
+ * directly in a spec does not: it bypasses this barrier, and after a write it is the shape that
+ * loses one. This is a harness barrier, not a product change: it waits for work the app already had
+ * in flight.
  */
 
 import type { Page } from "@playwright/test";
@@ -20,13 +23,32 @@ const BARRIER_BUDGET_MS = 15_000;
 const BARRIER_RETRY_DELAY_MS = 50;
 
 /**
+ * First path segment of every route served by `src/app/(app)/`, whose layout mounts `VaultProvider`
+ * and therefore the seam. On these routes an absent seam is a defect, not a state; anywhere else —
+ * the landing page, `/auth/*`, `/new-user` — no provider mounts and absence is the normal case.
+ */
+const VAULT_ROUTE_SEGMENTS = [
+    "accounts",
+    "automations",
+    "dashboard",
+    "imports",
+    "people",
+    "settings",
+    "statuses",
+    "tags",
+    "transactions",
+    "tx-descriptions"
+] as const;
+
+/**
  * Waits until every local document change the running vault has observed is encrypted and appended
  * to IndexedDB.
  *
- * Resolves immediately when no vault is mounted — on an auth or landing page, or before the first
- * vault opens. The seam is installed by `VaultProvider` ahead of the effect that creates the
- * `SyncManager`, so a manager can never exist without it: an absent seam means nothing was able to
- * queue a write, not that the barrier was missed.
+ * Resolves immediately outside the `(app)` routes — on an auth or landing page nothing can have
+ * queued a write. On an `(app)` route the seam is required: `VaultProvider` installs it ahead of the
+ * effect that creates the `SyncManager`, so a missing seam means the install is gone and the barrier
+ * would otherwise degrade to a silent no-op, which is exactly the failure this helper exists to
+ * prevent. Absence is retried first, because a document that has just loaded has not hydrated yet.
  *
  * `awaitLocalPersistence` rejects when the queue it snapshotted has drained while newer updates are
  * still outstanding, which a write landing mid-call produces routinely. Retrying converges on a
@@ -37,21 +59,31 @@ export async function awaitVaultPersistence(page: Page): Promise<void> {
     let lastFailure = "no failure recorded";
 
     for (;;) {
-        const outcome = await page.evaluate(async () => {
-            const seam = window.__moneyflowLocalPersistence;
-            if (seam == null) return { kind: "no-seam" } as const;
-            try {
-                return { kind: await seam.awaitLocalPersistence() } as const;
-            } catch (error) {
-                return {
-                    kind: "rejected",
-                    message: error instanceof Error ? error.message : String(error)
-                } as const;
-            }
-        });
+        // Resolves to the reason to keep waiting, or null once there is nothing left to wait for.
+        const failure = await page.evaluate(
+            async (vaultRouteSegments: readonly string[]): Promise<string | null> => {
+                const seam = window.__moneyflowLocalPersistence;
+                if (seam == null) {
+                    const path = window.location.pathname;
+                    if (!vaultRouteSegments.includes(path.split("/")[1])) return null;
+                    return (
+                        `no durability seam on ${path}, which VaultProvider must install ` +
+                        `(src/components/providers/vault-provider.tsx, src/lib/sync/local-persistence-seam.ts)`
+                    );
+                }
+                try {
+                    await seam.awaitLocalPersistence();
+                    return null;
+                } catch (error) {
+                    return error instanceof Error ? error.message : String(error);
+                }
+            },
+            VAULT_ROUTE_SEGMENTS
+        );
 
-        if (outcome.kind !== "rejected") return;
-        lastFailure = outcome.message;
+        if (failure == null) return;
+
+        lastFailure = failure;
         if (Date.now() >= deadline) break;
         await page.waitForTimeout(BARRIER_RETRY_DELAY_MS);
     }
@@ -61,7 +93,7 @@ export async function awaitVaultPersistence(page: Page): Promise<void> {
     );
 }
 
-/** `page.reload()` behind the durability barrier every other teardown in this harness uses. */
+/** `page.reload()` behind the durability barrier the helpers in this harness use. */
 export async function reloadPage(page: Page): Promise<void> {
     await awaitVaultPersistence(page);
     await page.reload();
