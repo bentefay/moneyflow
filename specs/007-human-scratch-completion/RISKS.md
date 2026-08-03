@@ -210,3 +210,36 @@ explicitly, because the detection method matters as much as the finding.
   --force`), and root prunes closed-revision worktrees at each verdict. **Never delete another
   agent's worktree without checking `/proc/*/cwd` first** — a vanished pid is a child process, not
   a dead agent.
+
+## R-PHRASE-SCAN-FALSE-POSITIVE-01 — the 12-word hazard scan false-positives on the landing page `/`
+
+- **Status:** OPEN as a **detection-method caveat**, recorded so a future agent does not escalate a
+  non-event.
+- **MEASURED by `p20b-reviewer-13`:** scanning its manual-checkpoint artifacts, the **40+-character
+  token scan returned 0**, but the **12-word lowercase-run scan matched one file** — the
+  accessibility snapshot of the **landing page `/`**. It is **marketing prose**: the page
+  *describes* the recovery-phrase feature.
+- **Established WITHOUT echoing the field**, which is the part worth copying: the snapshot contains
+  **zero `textbox` roles** — so no credential field exists on that page at all — the match sits in a
+  `term`/`definition` pair, and the reviewer **never visited `/new-user`**, so no phrase existed in
+  that context.
+- **Why this matters:** `RISKS.md#R-SNAPSHOT-PHRASE-01` makes both scans mandatory. **A mandatory
+  scan that fires on ordinary marketing copy will eventually be escalated as an exposure**, and the
+  next agent has no way to know it is benign. **The discriminator is the `textbox` role count**, not
+  the word run.
+- **Mitigation for future dispatches:** on a 12-word match, check for `textbox` roles and the route
+  before escalating. **A match on `/` with zero textboxes is prose.** The 40+-char concatenated-token
+  scan remains the one that catches the real hazard, and it did not fire here.
+
+## R-DEVSERVER-ORPHAN-01 — SIGTERM to `pnpm dev` does not release `:3000`
+
+- **Status:** OPEN, environmental; recorded because it defeats the obvious cleanup.
+- **MEASURED by `p20b-reviewer-13`:** SIGTERM to the `pnpm dev` pid **did not release `:3000`** — the
+  `next-server` **child outlived its parent**.
+- **The correct disposal, which it used:** enumerate by `/proc/<pid>/cwd`, SIGKILL only the pids
+  owned by your own worktree, and **confirm release from `ss -ltn` state, not from the kill's exit
+  code.** It killed five pids that way.
+- **Why this belongs beside the port rules:** it is the same shape as the human's `:3001` server,
+  where **two pids (818182 the `next-server` listener, 818156 the `next` parent) both belong to one
+  logical server.** Killing a parent is neither sufficient to release a port nor safe to assume
+  harmless.
