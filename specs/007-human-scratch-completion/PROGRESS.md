@@ -11828,3 +11828,105 @@ later — **"localisation, not a fix."**
 dispatched (distinct from `p20b-implementer-08` and from `p20b-reviewer-01/-02/-03/-06/-07`), brief
 at `dispatches/P20B-rev08-review.md`, review path `reviews/P20B-review-08.md`. No package or
 requirement row changes state on a handback.
+
+### 2026-08-03 — P20B rev 08 review **PASS** (DISTINCT `p20b-reviewer-08`); F-D correction recorded; **a lost write CAPTURED DIRECTLY**
+
+**DISTINCT `p20b-reviewer-08`** (distinct from `p20b-implementer-08` and from
+`p20b-reviewer-01/-02/-03/-06/-07`) wrote `reviews/P20B-review-08.md` — **PASS with one MEDIUM
+finding (F-D)**. Integration-control commit **`fe445a2`** persists both artifacts by exact pathspec.
+
+**Root's PASS preconditions, re-derived:** `git rev-parse HEAD` = `3301b59` unchanged across the
+review; `git merge-base --is-ancestor 205ca15 HEAD` exit 0; working tree clean apart from the two
+artifacts and agent-owned `.claude/agent-memory/`; frozen sources re-verified — scratch
+`469e98c7…`, FS-001 `0d0e2a14…`, both unchanged.
+
+**The reviewer did not take the load-bearing claim on trust.** It re-ran the implementer's preserved
+probe verbatim, **added a mutation control the implementer did not run**, and then rebuilt the same
+state **by hand in a real browser with no probe spec at all**. All three agree. Every campaign
+figure, per-site count, step name and all five retractions reproduce exactly.
+
+#### F-D (MEDIUM) — a `MEASURED`-tagged discriminator in the evidence is false. **Root re-verified it independently.**
+
+`implementation-09.md:111-113` states that `/tmp/p20b07-c2/summary.log` is **the only one of the
+four** candidate directories whose log ends `CAMPAIGN_COMPLETE`. **It is not. MEASURED by root:**
+
+```
+/tmp/p20b07-campaign   : === RUN 3 START digest=2dcac604bc4e … ===
+/tmp/p20b07-campaign2  : === RUN 2 START digest=5bdd30322604 … ===
+/tmp/p20b07-final      : CAMPAIGN_COMPLETE
+/tmp/p20b07-c2         : CAMPAIGN_COMPLETE
+```
+
+**Two of four, not one.** `/tmp/p20b07-final/` is a **complete ten-run campaign** — root counted
+**10 `run<N>.log` files** — at **`head=6061ef7`**, the **pre-fix** tree, i.e. exactly the campaign
+rev 07 discarded and whose `:281` step 11 failed in 10 of 10 runs. **A future reader applying the
+rule as written gets two candidates and can select the one the goal already paid to kill.** The
+sentence is also self-undermining: measuring a property of all four requires reading all four, which
+its own preceding clause disclaims.
+
+**Bounds — stated so this is not over-read.** The conclusion is **correct**, `/tmp/p20b07-c2/` is
+the right directory, and the decisive discriminator is already two paragraphs below it
+(`head=c515173` in the digest triple). **No campaign figure moves.** It costs the artifact a
+sentence, not its conclusion — which is why it is a recorded correction and not a FAIL
+(`Q-P20B-28`).
+
+**PROVENANCE, and the part that matters for this ledger.** The false predicate is **inherited
+verbatim from `reviews/P20B-review-07.md` §3.1** (line 212). The implementer re-derived every
+*figure* it was handed, as it claimed, and caught a 115→113 error doing so — **it did not re-derive
+this *predicate*, and re-tagged an inherited claim as MEASURED.** Root checked whether its own
+ledger carried the same error: **`grep -rn 'CAMPAIGN_COMPLETE'` over `PROGRESS.md` and
+`dispatches/` returns nothing — root never asserted the predicate.** The correction is recorded
+here against `reviews/P20B-review-07.md` §3.1 rather than by editing that immutable file.
+**Going forward a campaign is identified by the `head=` in its own START/END lines, never by a
+completeness marker** (`Q-P20B-29`): a completeness marker says a loop finished and says nothing
+about which tree ran.
+
+#### THE MOST IMPORTANT RESULT OF THIS REVISION — a lost write captured directly
+
+The reviewer's F-B control run **captured a lost write**, recorded it, and **deliberately declined
+to route it**. Root read the preserved artifact directly rather than relaying the summary —
+`/tmp/rev08-artifacts/zz-rev08-fb-control-F-B-PR-52aba-ocation-is-genuinely-stored-chromium/error-context.md`.
+**MEASURED, both cells in the SAME transaction row:**
+
+```
+gridcell "Edit Bob allocation" -> "—"    "Explicit: not stored. Effective: 0%.  Owner remainder: 50%."
+gridcell "Edit Me  allocation" -> "50%"  "Explicit: 50%.       Effective: 100%. Owner remainder: 50%."
+```
+
+**Bob's allocation had already passed `setAllocation`'s hardened `Explicit: 50%.` barrier** — so the
+write was confirmed present in the live DOM — and after `goToTransactions` + `reload()` it reads
+`Explicit: not stored.` **Me's write, made moments earlier through the same helper in the same
+session, survived. Sync reported `Saved`.**
+
+**Why this changes the character of the residual class.** Two writes into the same allocation map,
+in one session, through one helper: **one persisted and one did not.** That is not a timeout, not a
+render race and not a test-instrument defect — **it is user-visible data loss**, and it is the first
+direct capture of the mechanism in this goal. It is consistent with the F-2 reproduction earlier
+this session (a post-`reload()` count one short) and with every settlement failure rendering the
+**terminal** `settled` state on a vault missing exactly one explicit allocation.
+
+**What it does NOT establish, stated explicitly.** It does **not** discriminate *lost write* from
+*rehydration/derivation gap*: a reload rehydrates from IndexedDB, so `not stored` afterwards is
+consistent with the entry being absent from storage **or** present and not applied. `Q-P20B-26`'s
+decisive experiment — reading the persisted IndexedDB state directly — **has still not been run.**
+One observation licenses no conclusion about a class, and the reviewer said so itself.
+
+**Both the implementer and the reviewer refused to over-claim**, each against its own interest: the
+implementer called its F-B change **"localisation, not a fix"**; the reviewer recorded the lost write
+and stopped, declining to route a class that is deliberately unowned. Root records the same
+restraint: **the residual class is NOT closed, and nothing in this revision claims it is.**
+
+**STATE.** P20B revision 08 → **PASS**. This closes the remediation line opened by the P21 rev 06
+audit FAIL. **No requirement row and no package row changes state:** the reviewed range contains no
+product code, P20B was already `passed` at rev 06 and remains so, HS-021's acceptance is untouched,
+and no rollback batch exists. **P21 remains the only package row not `passed`. All 34 requirement
+rows remain `passed`. `FINAL-AUDIT.md` is still `queued` with no verdict.**
+
+**NEXT ACTION.** Opening a new P21 audit revision now would fail on the same E2E stability clause for
+the fourth time, because the residual class is open. Root's next step is **`Q-P20B-26`'s single
+discriminating experiment** — read the persisted IndexedDB state after a barrier-confirmed
+allocation write and a navigation. **Entry absent → a lost write, owned by P16A–E. Entry present but
+unapplied → rehydration/derivation.** The measurement decides the routing; root is not ruling on
+ownership before it. If the result implies re-routing the class off P20B, that supersedes the P21
+rev 06 routing decision and root dispatches the **independent fresh-context scope adjudicator**
+rather than deciding it.
