@@ -9,12 +9,13 @@
  * zero counterexamples, and inserting a durability wait between the write and the teardown removed
  * the loss entirely (0 in 140 runs).
  *
- * Every teardown that goes through these helpers — `reloadPage` here and every `nav.ts` helper —
- * therefore waits for the running vault to acknowledge its local writes first, as do the individual
- * `page.goto` teardowns that fire with a vault mounted. A raw `page.goto` or `page.reload` written
- * directly in a spec does not: it bypasses this barrier, and after a write it is the shape that
- * loses one. This is a harness barrier, not a product change: it waits for work the app already had
- * in flight.
+ * What is covered is the helpers, not the harness as a whole. Every teardown routed through
+ * `reloadPage` below or through a `nav.ts` helper waits for the running vault to acknowledge its
+ * local writes first. A raw `page.goto` or `page.reload` written directly in a spec does not: it
+ * bypasses this barrier unless that spec calls `awaitVaultPersistence` itself, as the raw teardowns
+ * identified as firing with a vault mounted do. Before adding a teardown after a write,
+ * check which of those two you are writing. This is a harness barrier, not a product change: it
+ * waits for work the app already had in flight.
  */
 
 import type { Page } from "@playwright/test";
