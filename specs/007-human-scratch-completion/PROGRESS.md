@@ -13257,3 +13257,74 @@ diff with no changed control. Security: it **never visited `/new-user`**, genera
 **scanned every CLI artifact for BOTH hazard shapes before reading** — 0 twelve-word runs, 0 tokens
 ≥40 chars — then deleted them. **The mitigation root added after the last review was followed
 exactly.**
+
+### 2026-08-03 — P20B rev 13 HANDBACK at `9dba9c0`; the implementer IMPROVED on the reviewer's suggested wording
+
+**BASE `ce355f1` → HEAD `9dba9c0`**, one file, 3 insertions / 1 deletion. **Root verified
+comment-only** with the discriminating check — `git show 9dba9c0 -U0 | grep '^[+-]' | grep -v
+'^[+-][+-]' | grep -vE '^[+-]\s*//'` returns **nothing**. `git diff --name-only ce355f1..9dba9c0 --
+src tests/e2e/helpers/` is **empty**: no product code, no helper change, no barrier moved.
+
+**THE IMPLEMENTER DECLINED TO ADOPT THE REVIEWER'S SUGGESTED WORDING VERBATIM, AND IT WAS RIGHT
+TO.** The review's §7 suggestion ended *"it retries until it is [installed]"* — which names **one**
+of the two ways that branch terminates. **MEASURED in `reviews/P20B-review-12.md` §6: all three
+absent-seam entries at this line terminated by the OTHER way** — the off-`(app)`-route escape on
+`/unlock`. **Adopting it verbatim would have replaced one incomplete clause with another**, in a
+revision whose entire purpose is that a comment must not claim more than is measured.
+
+The committed clause, root-verified in the file, names **both** exits:
+
+```
+// ... where the seam reports no active vault it resolves as a no-op,
+// but an absent seam on an (app) route is not a no-op — it retries until the seam appears or
+// the page leaves those routes, which is why that branch stays.
+```
+
+**And it states them as properties of `tests/e2e/helpers/persistence.ts` SOURCE** (`:73` for the
+off-route exit; `:74-77`/`:92-93` for the retry) **rather than of any run — so it needs no citation
+and cannot decay under re-measurement.** That is the sharpest handling of the decay problem this
+goal has produced: the previous three comment defects were all claims pinned to run-time
+observations that later moved.
+
+It satisfies both of §7's stated conditions literally — the no-op is scoped to the
+`no-active-vault` outcome, and the absent case is explicitly not free — and introduces **no count,
+no universal, no fixed-property claim and no crash-safety claim.** The other four clauses are
+unchanged byte for byte.
+
+**Gates: `pnpm test` 132 files / 2492 passed / 0 failed — INCLUDING both files the dispatch listed
+as expected failures.** The implementer **explicitly refused to read this as a fix**: vitest's input
+is byte-identical across the two trees (`test.include` is `tests/**/*.test.ts(x)`; a `.spec.ts` is
+never loaded), and it tagged the quiet-host explanation **INFERRED**. **One clean observation for
+the register, nothing more** — exactly the right weight, and the opposite of the "one green run
+proves nothing" error this goal has recorded three times.
+
+E2E: **126 executions, 0 failure markers**, digest `a5862da1846536f4ff845c9be80f7cd7` stable at START
+and END — and it explained why that digest differs from rev 12's (**the digest hashes
+`tests/e2e/**`, where the comment lives**) rather than leaving a reader to wonder. **No full-suite
+campaign, deliberately**, on the same argument rev 12's reviewer judged sound: with zero executable
+lines a campaign could only re-measure the tree's background flake rate.
+
+**`:3001` OWNERSHIP — a refinement to root's dispatches, not a correction of them.** The implementer
+reported the live owner as **pid 818156** where root's dispatches have said **818182**. **MEASURED
+by root: `ss -ltnp` names 818182 as the listener**, and **both pids are alive with
+`cwd = /home/ben-agents/Code/moneyflow`.** 818156 is `node .../next`, 818182 is `next-server`.
+**Root could not establish parentage cleanly** — `/proc/<pid>/stat` field indexing is defeated by
+the spaces in `next-server (v16.2.11)`, and root records that rather than asserting a relationship
+it did not measure. **Operationally: both belong to the human's dev server and BOTH must be left
+alone.** Root's dispatches naming only the listener were **under-specifying**, since killing the
+parent would take the server down just as surely. Future dispatches name both.
+
+**Line numbers shifted again** — the `awaitVaultPersistence` call is `:66` at `d80f0e4` and **`:68`
+at `9dba9c0`**; the comment `:60-65` → **`:60-67`**. Any text carrying `:66` is against `d80f0e4`.
+
+**Security clean and the mitigation followed:** both E2E runs produced **zero** `error-context.md`
+artifacts, and it scanned everything under `test-results/` and `playwright-report/` for **both**
+hazard shapes before reading — **0 twelve-word runs, 0 tokens ≥40 chars.** `/tmp` inode exhaustion
+confirmed cleared at 21%; its worktree was outside `/tmp` regardless.
+
+**`Q-P20B-33` deliberately untouched:** the new clause describes only **how** the branch terminates,
+not whether terminating that way obtains a durability guarantee — **so it pre-empts that open
+question in neither direction.**
+
+**STATE:** P20B revision 13 → `ready_for_review` → `reviewing`. DISTINCT `p20b-reviewer-13`
+dispatched. Frozen sources re-verified: scratch `469e98c7…`, FS-001 `0d0e2a14…`.
