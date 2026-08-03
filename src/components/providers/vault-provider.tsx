@@ -27,7 +27,7 @@ import { VaultUndoCoordinator, VaultUndoProvider } from "@/lib/crdt/undo";
 import { base64ToPrivateKey, initCrypto } from "@/lib/crypto";
 import { unwrapKeyFromBase64 } from "@/lib/crypto/keywrap";
 import { getSession } from "@/lib/crypto/session";
-import { createSyncManager, type SyncManager } from "@/lib/sync";
+import { createSyncManager, installLocalPersistenceSeam, type SyncManager } from "@/lib/sync";
 import { trpc } from "@/lib/trpc";
 import { clearPendingPersonLink, hasPendingPersonLink } from "@/lib/vault/pending-person-link";
 
@@ -85,6 +85,11 @@ export function VaultProvider({ children, registerDisconnect }: VaultProviderPro
 
     // Create stable LoroDoc instance
     const syncManagerRef = useRef<SyncManager | null>(null);
+
+    // Publish the durability barrier for the E2E harness. Declared ahead of the initialization
+    // effect below so a live manager always implies a live seam, which is what lets the harness
+    // treat an absent seam as "no vault could have queued a write" rather than as a race.
+    useEffect(() => installLocalPersistenceSeam(() => syncManagerRef.current), []);
 
     // Get tRPC utils for sync manager
     const trpcUtils = trpc.useUtils();

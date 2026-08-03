@@ -4,7 +4,7 @@
 
 import { type Browser, type Page, expect, test } from "@playwright/test";
 
-import { createNewIdentity, goToAccounts, goToSettings, goToTags } from "./helpers";
+import { createNewIdentity, goToAccounts, goToSettings, goToTags, reloadPage } from "./helpers";
 
 test.describe("Onboarding", () => {
     test("creates and selects a vault as part of onboarding", async ({ page }) => {
@@ -254,7 +254,7 @@ test.describe("Currency Detection", () => {
             });
 
             await test.step("the change survives a reload, so it is not silently relocked", async () => {
-                await page.reload();
+                await reloadPage(page);
                 expect(await readDefaultCurrency(page)).toBe("JPY");
             });
         } finally {

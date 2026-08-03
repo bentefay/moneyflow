@@ -20,11 +20,13 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import {
+    awaitVaultPersistence,
     createNewIdentity,
     goToAccounts,
     goToPeople,
     goToStatuses,
-    goToTransactions
+    goToTransactions,
+    reloadPage
 } from "./helpers";
 import {
     addAccount,
@@ -341,7 +343,7 @@ test.describe("People page settlement journey", () => {
         });
 
         await test.step("9. reload and verify allocations and settlement persist", async () => {
-            await page.reload();
+            await reloadPage(page);
             const reloaded = rowById(page, transactionId);
             // `Explicit:` is the only clause in the cell that reflects stored state. A bare "50%"
             // is also satisfied by the derived `Owner remainder: 50%.` that exists precisely
@@ -627,7 +629,7 @@ test.describe("People page settlement matrices", () => {
             await expect(bobRow).toHaveCount(0);
         });
 
-        await page.reload();
+        await reloadPage(page);
         await goToPeople(page);
         // The balance is retained, not dropped, and the label marks the Person as deleted.
         await expectObligation(page, {
@@ -783,6 +785,9 @@ test.describe("People page settlement matrices", () => {
 test.describe("View transaction deep link", () => {
     /** Deep-links to a source transaction the way the People page does and waits for the landing. */
     async function openSourceTransaction(page: Page, transactionId: string): Promise<void> {
+        // A deep link is a full document load like any other, so the writes it is about to leave
+        // behind have to be durable before it fires.
+        await awaitVaultPersistence(page);
         await page.goto(`/transactions?transaction=${encodeURIComponent(transactionId)}`);
         await expect(rowById(page, transactionId)).toHaveAttribute("aria-selected", "true");
     }

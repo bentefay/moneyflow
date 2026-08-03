@@ -16,6 +16,7 @@ import {
     openDuplicateTab,
     readRowId,
     readRowPresenceEditing,
+    reloadPage,
     shareActiveVaultWithMember
 } from "./helpers";
 
@@ -197,7 +198,7 @@ test("presence recovers after a page reload", async ({ browser }) => {
 
         // A reload tears the socket down and re-establishes it with a fresh grant and a new
         // session id. The owner must reappear rather than stay invisible behind stale state.
-        await owner.reload();
+        await reloadPage(owner);
         await expect(owner.getByTestId("transaction-row")).toHaveCount(2, { timeout: 30_000 });
         await focusRow(owner, rowIds[1]);
 

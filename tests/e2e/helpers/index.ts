@@ -27,6 +27,7 @@ export {
     readRowId,
     readRowPresenceEditing
 } from "./presence";
+export { awaitVaultPersistence, reloadPage } from "./persistence";
 export {
     goToAccounts,
     goToAutomations,

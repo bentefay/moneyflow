@@ -9,7 +9,7 @@
 
 import { expect, test } from "@playwright/test";
 
-import { createNewIdentity, createTag, goToTags, goToTransactions } from "./helpers";
+import { createNewIdentity, createTag, goToTags, goToTransactions, reloadPage } from "./helpers";
 
 test.describe("Sync Persistence", () => {
     test.describe("Sync Status Indicator", () => {
@@ -57,7 +57,7 @@ test.describe("Sync Persistence", () => {
             });
 
             await test.step("reload page", async () => {
-                await page.reload();
+                await reloadPage(page);
             });
 
             await test.step("verify tag still exists after reload", async () => {

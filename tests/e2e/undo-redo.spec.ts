@@ -6,7 +6,8 @@ import {
     goToImportNew,
     goToSettings,
     goToTransactions,
-    goToTxDescriptions
+    goToTxDescriptions,
+    reloadPage
 } from "./helpers";
 
 const IMPORT_CSV = `Date,Description,Amount
@@ -174,7 +175,7 @@ test("document history controls group real add, edit, delete, alias and import a
     });
 
     await test.step("reset local history after refresh without reverting document state", async () => {
-        await page.reload();
+        await reloadPage(page);
         await expect(page.getByRole("row", { name: /Undo Import One/i })).toBeVisible();
         await expect(undo).toBeDisabled();
         await expect(redo).toBeDisabled();
@@ -316,7 +317,7 @@ test("a failed offline undo push retries on browser reconnect without another mu
     test.setTimeout(90_000);
     await createNewIdentity(page);
     await expect(page.getByRole("status", { name: "Saved" })).toBeVisible({ timeout: 15_000 });
-    await page.reload();
+    await reloadPage(page);
     await goToSettings(page);
     await expect(page.getByRole("button", { name: "Undo" })).toBeDisabled();
 

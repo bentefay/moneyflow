@@ -7,7 +7,13 @@
 
 import { expect, type Page, test } from "@playwright/test";
 
-import { createNewIdentity, goToImportNew, goToTransactions, goToTxDescriptions } from "./helpers";
+import {
+    createNewIdentity,
+    goToImportNew,
+    goToTransactions,
+    goToTxDescriptions,
+    reloadPage
+} from "./helpers";
 import { addEmptyTransaction } from "./helpers/settlement";
 
 // ============================================================================
@@ -298,7 +304,7 @@ test.describe("Description Aliases", () => {
         });
 
         await test.step("imported and manual alias state survives a hard refresh", async () => {
-            await page.reload();
+            await reloadPage(page);
             await expect(descriptionInputFor(page, /Cafe partial/)).toHaveValue("Coffee Shop");
             await expect(descriptionInputFor(page, /^Select transaction Coffee Shop/)).toHaveValue(
                 "Coffee Shop"
@@ -451,7 +457,7 @@ test.describe("Description Aliases", () => {
             await expect(first).toHaveValue("Original A");
             await expect(second).toHaveValue("Original B");
             await page.getByRole("button", { name: "Undo" }).click();
-            await page.reload();
+            await reloadPage(page);
             await expect(descriptions.nth(0)).toHaveValue("Shared");
             await expect(descriptions.nth(1)).toHaveValue("Shared");
         });
@@ -539,7 +545,7 @@ test.describe("Description Aliases", () => {
             await expect(page.getByRole("status", { name: "Saved" })).toBeVisible({
                 timeout: 15_000
             });
-            await page.reload();
+            await reloadPage(page);
             await expect(second).toHaveValue("Concurrent original B", { timeout: 15_000 });
             await expect(descriptions.nth(0)).toHaveValue("Concurrent original A");
             await expect(duplicate.locator('[data-alias-name="Concurrent Shared"]')).toHaveCount(0);
@@ -567,8 +573,8 @@ test.describe("Description Aliases", () => {
             await page.getByRole("button", { name: "Redo" }).click();
             await expect(first).toHaveValue("Offline novel");
 
-            await page.reload();
-            await duplicate.reload();
+            await reloadPage(page);
+            await reloadPage(duplicate);
             await expect(page.getByTestId("description-editable").nth(0)).toHaveValue(
                 "Offline novel"
             );

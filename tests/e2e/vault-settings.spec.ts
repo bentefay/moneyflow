@@ -20,6 +20,7 @@ import {
     goToSettings,
     goToTransactions,
     readBrowserIdentity,
+    reloadPage,
     shareActiveVaultWithMember
 } from "./helpers";
 import { observeRealtimeLifecycle } from "./helpers/realtime";
@@ -121,7 +122,7 @@ test.describe("Vault Settings", () => {
             });
 
             await test.step("Refresh page and verify persistence", async () => {
-                await page.reload();
+                await reloadPage(page);
                 await page
                     .getByRole("heading", { name: "Vault Settings", level: 1 })
                     .waitFor({ timeout: 10000 });
@@ -280,7 +281,7 @@ test.describe("Vault Settings", () => {
             ).toBeVisible({ timeout: 3000 });
 
             // Verify persistence after refresh
-            await page.reload();
+            await reloadPage(page);
             await page
                 .getByRole("heading", { name: "Vault Settings", level: 1 })
                 .waitFor({ timeout: 10000 });

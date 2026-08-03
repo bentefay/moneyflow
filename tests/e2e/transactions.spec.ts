@@ -22,6 +22,7 @@ import {
     goToTransactions,
     goToTxDescriptions,
     readRowPresenceEditing,
+    reloadPage,
     shareActiveVaultWithMember
 } from "./helpers";
 import { addEmptyTransaction, newlyAddedRow, readSelectedRowIds } from "./helpers/settlement";
@@ -265,7 +266,7 @@ test.describe("Transactions", () => {
         await page.getByRole("button", { name: "Redo" }).click();
         await expect(editorButton).toContainText("-35.125%");
 
-        await page.reload();
+        await reloadPage(page);
         const persistedRow = page.getByTestId("transaction-row").first();
         await expect(
             persistedRow.getByRole("button", {
@@ -348,7 +349,7 @@ test.describe("Transactions", () => {
         await descriptions.nth(2).press("Escape");
         await expect(descriptions.nth(2)).toHaveValue("");
 
-        await page.reload();
+        await reloadPage(page);
         await expect(page.getByTestId("transaction-row")).toHaveCount(3);
         await expect(page.getByTestId("description-editable").nth(1)).toHaveValue(
             "Ordinary empty row"
@@ -560,7 +561,7 @@ test.describe("Transactions", () => {
         await expect(historyRow).toHaveAttribute("aria-selected", "false");
         await expect(page.getByRole("button", { name: /^Clear all/ })).toHaveCount(0);
 
-        await page.reload();
+        await reloadPage(page);
         await expect(historyRow).toBeVisible();
         await expect(page.getByTestId("transaction-row")).toHaveCount(7);
         await expect(page.getByRole("row", { selected: true })).toHaveCount(0);
@@ -650,7 +651,7 @@ test.describe("Transactions", () => {
             await expect(toolbar).not.toContainText("selected");
             await expect(page.getByTestId("bulk-edit-toolbar")).toHaveCount(0);
 
-            await page.reload();
+            await reloadPage(page);
             await expect(toolbar).toContainText("52 transactions");
             await expect(page.getByRole("row", { selected: true })).toHaveCount(0);
             const scrollContainer = page.getByTestId("transaction-table").locator("..");
@@ -703,7 +704,7 @@ test.describe("Transactions", () => {
             await expect(page.getByRole("status", { name: "Saved" })).toBeVisible();
             await expect(duplicate.getByTestId("transaction-row")).toHaveCount(3);
 
-            await page.reload();
+            await reloadPage(page);
             await expect(page.getByTestId("transaction-row")).toHaveCount(3);
             await expect(page.getByRole("row", { selected: true })).toHaveCount(0);
         } finally {
@@ -908,7 +909,7 @@ test.describe("Transactions", () => {
                 timeout: 15_000
             });
 
-            await page.reload();
+            await reloadPage(page);
             await expect(page.getByText("500 transactions", { exact: true })).toBeVisible({
                 timeout: 15_000
             });

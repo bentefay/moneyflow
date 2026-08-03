@@ -20,7 +20,13 @@ import * as path from "path";
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { createNewIdentity, goToImportNew, goToImports, goToTransactions } from "./helpers";
+import {
+    createNewIdentity,
+    goToImportNew,
+    goToImports,
+    goToTransactions,
+    reloadPage
+} from "./helpers";
 import { addEmptyTransaction } from "./helpers/settlement";
 
 const XML_OFX_CONTENT = `<?xml version="1.0" encoding="UTF-8"?>
@@ -834,7 +840,7 @@ test.describe("Import Panel", () => {
                 .getByTestId("amount-editable");
             await expect(uneditedZero).not.toHaveAttribute("aria-description");
 
-            await page.reload();
+            await reloadPage(page);
             row = page.getByRole("row", { name: /P14 CSV negative/i });
             amount = row.getByTestId("amount-editable");
             await expect(amount).toHaveValue("-30.25");

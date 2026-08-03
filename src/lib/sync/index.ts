@@ -1,3 +1,8 @@
+export type {
+    LocalPersistenceBarrierOutcome,
+    LocalPersistenceSeam
+} from "./local-persistence-seam";
+export { installLocalPersistenceSeam, LOCAL_PERSISTENCE_SEAM_KEY } from "./local-persistence-seam";
 export type { SyncManagerOptions, SyncState } from "./manager";
 export { createSyncManager, SyncManager } from "./manager";
 export type { LocalOp, LocalSnapshot, SyncMeta } from "./persistence";

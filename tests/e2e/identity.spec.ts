@@ -7,7 +7,7 @@
 
 import { expect, type Page, test } from "@playwright/test";
 
-import { waitForUnlockHydration } from "./helpers";
+import { reloadPage, waitForUnlockHydration } from "./helpers";
 
 // ============================================================================
 // Test Fixtures
@@ -188,7 +188,7 @@ test.describe("Identity", () => {
                 JSON.stringify({ id: "vault-from-a-different-identity" })
             );
         });
-        await page.reload();
+        await reloadPage(page);
 
         await expect(page.getByRole("heading", { name: "Vault Settings", level: 1 })).toBeVisible({
             timeout: 15000
