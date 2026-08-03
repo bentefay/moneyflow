@@ -11552,3 +11552,110 @@ skipped, matching the evidence exactly.
 **Correction in the package's favour:** the `5b0c441..d7fe06a` range diff shows `table-selection.ts`
 and `index.ts`, but **neither P30 commit touches them** — they arrive from another package in the
 range. **Commit hygiene clean.**
+
+### 2026-08-03 — Session recovery VERIFIED; P20B rev 07 campaign CLOSED at 10/10; F-2 REPRODUCED for the first time
+
+**Recovery procedure, re-derived by root this session (every figure re-measured, none relayed).**
+
+| Check | Result |
+| --- | --- |
+| `git rev-parse HEAD` | `07c38b44e7eabcfe14a9e79b5771d87b3fa23041` |
+| Rolling scratch SHA vs actual `sha256sum specs/human-scratch.md` | `469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a` — **EQUAL** |
+| Scratch metadata | 350 lines, 24,260 bytes |
+| Normalized blocks | **21 parsed, all byte-equal to SCOPE `sourceTextLines`; 21 checked / 0 unchecked** — valid, since all 21 HS rows are `passed` |
+| FS-001 canonical SHA | `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c` — **EQUAL**; **715 lines, 25,441 bytes** — EQUAL |
+| Requirement-ledger rows | **34 rows, 34 `passed`** |
+| Package-ledger rows | **44 rows; all `passed` except P21 = `implementing` (rev 07)** |
+| Prepared/active P21 rollback batch | **none** (`RB-P21-05` completed + cleared) |
+| Open `completion_pending` | **none** |
+| `FINAL-AUDIT.md` | still `queued`, every checkbox unticked, **no verdict** — completion condition NOT met |
+
+**Correction to the session handoff note.** The handoff stated the rev 07 evidence at
+`evidence/P20B/implementation-08.md` should be persisted "per `PROCESS.md:58`". The literal text at
+that line says the opposite: *"Implementation evidence and review output remain uncommitted while
+being independently reviewed. Root persists them in an exact-path control/integration commit after
+FAIL or PASS."* The evidence therefore stays **uncommitted on disk** through the review and is
+persisted with the verdict. No action taken.
+
+**Correction to the session handoff note, second item.** The handoff recorded the campaign as
+stopped at run 9. It was **still running** (driver pid 3520028); root let it finish rather than
+restarting, preserving the single-tree campaign.
+
+**Campaign CLOSED — 10/10 runs, `/tmp/p20b07-c2/` (named explicitly).** Digest re-derived by root in
+`/tmp/mf-p20b07`: `head=c515173 digest=0a6703e11a28 files=65a6ba3389ea`, and
+`grep -o 'digest=… files=…' summary.log | sort -u` returns **exactly one pair** across all ten runs.
+`git merge-base --is-ancestor c515173 HEAD` → **YES**. Tree-drift discipline satisfied.
+
+| run | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| failed | 1 | 1 | 1 | **0** | **0** | 2 | 2 | 2 | 1 | 1 |
+| passed | 194 | 194 | 194 | 195 | 195 | 193 | 193 | 193 | 194 | 194 |
+
+**11 failures / 10 runs = 1.10 per run. Two green runs (4, 5). The 10-consecutive-green bar is NOT
+MET, exactly as `p20b-implementer-07` predicted in its own evidence.** rev 06 measured 1.29 and 1.60
+per run pre-fix; **1.10 is not a demonstrated improvement and root does not claim one — one campaign
+does not establish a trend.**
+
+**Failure inventory, re-derived from the numbered failure blocks only.** A bare grep for the spec
+path matches passing `✓` lines too and inflates this table; root made that error once here and
+corrected it before recording.
+
+| site | count | failing step names observed |
+| --- | --- | --- |
+| `people-settlement.spec.ts:596` | 4 | a deleted Person keeps their historical balance |
+| `people-settlement.spec.ts:166` | 3 | canonical example D |
+| `people-settlement.spec.ts:281` | 2 | `11. restore paid…reversal`; `6. verify Bob owes Me $50` |
+| `people-settlement.spec.ts:525` | 1 | editing an existing transaction's allocation |
+| `transactions.spec.ts:572` | 1 | clear an excluding filter and focus the canonical row |
+
+**F-2 REPRODUCED — the first reproduction of the virtualized-grid class.** Previously **zero** across
+450 diagnostic executions plus a full 10-run campaign. Run 9 produced
+`transactions.spec.ts:572`. Artifacts copied out of the volatile `test-results/` tree **before** run
+10 could overwrite them, to **`/tmp/p20b07-F2-repro/`** (`run9.log` + `artifacts-run9/`).
+
+**The reproduced signature is materially different from what this ledger has recorded for F-2, and
+the difference matters.** The ledger describes "stable wrong `data-index`" and "a stable
+`499 transactions` where 500 is asserted". MEASURED here, at `transactions.spec.ts:654`:
+
+```
+Expected substring: "52 transactions"
+Received string:    "Add transaction51 transactions"
+Timeout: 15000ms
+  29 × locator resolved to <div data-testid="transaction-table-toolbar" …>
+     - unexpected value "Add transaction51 transactions"
+```
+
+**The assertion sits immediately after `await page.reload()` (`:653`).** A reload rebuilds the view
+from persisted storage, so the missing row was **absent from persistence, not merely unrendered**,
+and it stayed absent across **29 re-resolutions over a full 15 s** — a stable wrong value, not a lag
+being outrun.
+
+**The settlement class shows the same shape.** From the preserved run-8 `error-context.md` for
+`:596`, the accessibility snapshot of the People page reads:
+
+```
+- heading "People" [level=1]
+- text: (3)   [Bob, Charlie, Me all present]
+- text: Settlement Summary No outstanding balances between members.
+- paragraph: Everyone is settled up
+- status "Saved"
+```
+
+The page is not mid-load and not erroring — it renders the **`settled`** state while the test's
+transactions and allocations are simply **not in state**, with the sync indicator reading `Saved`.
+`settlement-currency-section-USD` is therefore **absent**, which is exactly the 15 s
+`toBeVisible` timeout at `settlement.ts:412` seen in runs 6, 7 and 8.
+
+**INFERRED, explicitly labelled as inference and not measured:** both classes may be one class —
+writes made during a test not landing in, or not projecting from, persisted state. **This is a
+hypothesis root is recording, not a finding.** It is consistent with the two observations above and
+with the standing "loro-mirror projection lags the CRDT document" note, but the reload evidence
+points further than projection lag, because a reload re-reads storage. **No mechanism has been
+demonstrated. F-2 remains BLOCKING, UNRESOLVED and deliberately UNOWNED** — it is not routed to
+P20B by this entry.
+
+**Range hygiene re-derived.** `git diff --name-only c15be12 HEAD` = `playwright.config.ts`,
+`tests/e2e/helpers/nav.ts`, `tests/e2e/helpers/settlement.ts`, plus root-owned
+`PROGRESS.md` and `dispatches/P20B-rev07-review.md`. **Three authorized test-instrument files,
++30 −2, no product code.** Confirmed distinct: `6061ef7` (3 files, +26 −2) and `c515173`
+(`settlement.ts` only, +8 −4).
