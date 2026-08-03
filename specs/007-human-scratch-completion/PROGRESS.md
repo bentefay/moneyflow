@@ -75,6 +75,55 @@ review evidence.
   `specs/008-transaction-percentage-allocations-settlement/spec.md` at SHA-256
   `0d0e2a141249ecace04b02b4cecbadb25ac5747faa24d59ab297aca509dcfe8c`, 715 lines and 25,441 bytes
 - **Rolling scratch SHA-256:** `469e98c7c8ee842acfc08e0844a47b4bc6495111b0463d8ca14727d3949d2f6a`
+- **SESSION HANDOFF (2026-08-03, root coordinator context exhausted — read this first).**
+  **State: P21 is the ONLY package row not `passed`. All 34 requirement-ledger rows show `passed`.**
+  `FINAL-AUDIT.md` is still `queued` with every checkbox unticked and NO verdict recorded, so the
+  goal's completion condition is NOT met.
+    - **P21 rev 06 FAILED** (`reviews/P21-review-06.md`, unconditional) on the E2E stability clause.
+      Two independent campaigns on one unchanged digest produced DIFFERENT failing sets, and the
+      reviewer's run 4 of 5 was **fully green at 195/195** on a tree that failed four other times.
+      **That is why the rev 07 bar is 10 consecutive runs, not 3.** Three separate agents have now
+      produced a fully green run on a tree known to fail.
+    - **P21 rev 07 is in flight, routed to P20B as a test-instrument fix**
+      (`dispatches/P21-rev07-fix.md`). Implementer `p20b-implementer-07`; commits `6061ef7`
+      (`expect: { timeout: 15_000 }` + a `settlement-summary` wait in `goToPeople` + barrier
+      hardening) and `c515173` (barrier zero-case correction). **Its evidence at
+      `evidence/P20B/implementation-08.md` is UNCOMMITTED on disk — persist it per `PROCESS.md:58`.**
+    - **Its 10-run campaign was at run 9 when this session stopped.** Logs at **`/tmp/p20b07-c2/`**
+      (NOT `p20b07-campaign`, `-campaign2` or `-final`, which are superseded trees). Digest
+      `head=c515173 digest=0a6703e11a28 files=65a6ba3389ea`, one line across every run. Runs 1-8:
+      194/1, 194/1, 194/1, 195/0, 195/0, 193/2, 193/2, 193/2.
+    - **What rev 07 established, and what it did NOT.** Both fixes are real and controlled — the
+      `expect` lever proven both directions (5005ms without, 15006ms with), the barrier proven to
+      fail at its own line on a dropped write. **Neither explains the observed failures.** The
+      implementer killed its own substring hypothesis by PRINTING the DOM rather than reasoning
+      about it. **~1.29 failures/run at 8 runs is exactly rev 06's lower pre-fix figure**, so the 5s
+      default was a real defect that was not the operative one.
+    - **`p20b-reviewer-07` dispatch is drafted and committed** at
+      `dispatches/P20B-rev07-review.md`, distinct from four prior P20B reviewers. Dispatch it after
+      the handback.
+    - **F-2 (virtualized grid) is BLOCKING, UNRESOLVED and deliberately UNOWNED.** `transactions.spec.ts:572`
+      (stable wrong `data-index`), `:726` (row count 0), and a stable `"499 transactions"` where 500
+      is asserted. **450 diagnostic executions plus a full 10-run campaign produced ZERO
+      reproductions**, and every enumerable mechanism is eliminated from source including the rev 06
+      reviewer's own withdrawn GC-shadow hypothesis. Status: **rarer than 1-in-450 at this profile,
+      NOT shown absent.** Do not assign an owner; do not route it to P20B by analogy. Next hypothesis
+      worth testing: loro-mirror state projection lagging the CRDT document by one row under
+      scheduler pressure.
+    - **`Q-P21-06-06` (complete manual product journey) was DISCHARGED** by the rev 06 reviewer.
+      **The ordering trap has cost two revisions: run the manual matrix BEFORE any campaign claims
+      `:3000`.**
+    - **Stale worktrees safe to prune** (all from closed packages, verified superseded by `main`):
+      `/tmp/mf-p28r2-base`, `/tmp/mf-p29`, `/tmp/mf-p30`, `/tmp/mf-p33`. `/tmp/mf-p20b07` is LIVE.
+    - **Instrument hazards measured this session, each of which cost real time:** `git worktree add`
+      does not copy untracked `.env.local` (every journey then fails identically at
+      `createNewIdentity` — if every test fails at the same helper before any product code runs, it
+      is the environment); `cp -a node_modules` carries a stale `.vite/vitest/results.json` that has
+      reported passes for a failed run; `duplicates.test.ts` "performance scales linearly" is a
+      wall-clock ratio assertion that fails under CPU load; a bare `pkill -f` matches your own shell,
+      exits 144 and leaves the target running; `next-env.d.ts` is rewritten on every dev-server start
+      and moves a campaign digest. **Name the log path in every report — root once read a superseded
+      campaign directory and concluded ten runs had not happened.**
 - **KNOWN LIMITATION of the settlement-rotation record (2026-08-03).** Every
   `people-settlement.spec.ts` observation in this ledger records **which test IDs failed**, never
   **at which step**. This note was rewritten three times; only the final statement below is
