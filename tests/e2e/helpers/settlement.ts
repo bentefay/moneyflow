@@ -185,9 +185,11 @@ export function rowById(page: Page, transactionId: string): Locator {
  * can return without the write having landed, and the failure then surfaces at whatever settlement
  * assertion runs next, far from its cause.
  *
- * The `Explicit:` clause is the only part of the cell that reflects stored state, and it is exact
- * for every value the callers use: `0` renders `Explicit: 0%.` while its display shows an em dash,
- * and negatives render `Explicit: -20%.` verbatim.
+ * The `Explicit:` clause is the only part of the cell that reflects stored state. Entering zero is
+ * the one case where the stored outcome is not the typed value: `setTransactionAllocation` treats
+ * zero as removal at the CRDT boundary (`src/lib/crdt/allocations.ts:294-303` deletes the key), so
+ * the committed cell reads `Explicit: not stored.` rather than `Explicit: 0%.`. Negatives store
+ * normally and render `Explicit: -20%.` verbatim.
  */
 export async function setAllocation(
     row: Locator,
@@ -199,7 +201,9 @@ export async function setAllocation(
     const input = row.getByRole("textbox", { name: `${personName} allocation percentage` });
     await input.fill(value);
     await input.press("Enter");
-    await expect(cell).toContainText(`Explicit: ${value}%.`);
+    const committedExplicit =
+        Number(value) === 0 ? "Explicit: not stored." : `Explicit: ${value}%.`;
+    await expect(cell).toContainText(committedExplicit);
 }
 
 /** Sets a transaction's status by name through the real inline status control. */
