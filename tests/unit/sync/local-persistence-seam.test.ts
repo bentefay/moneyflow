@@ -7,6 +7,11 @@
  * waited. That the provider actually installs it is a separate invariant, covered in
  * `tests/unit/components/vault-provider-persistence-seam.test.tsx`; that its absence is loud is
  * enforced by `tests/e2e/helpers/persistence.ts`.
+ *
+ * The production gate is covered here too. Nothing else can see it: the E2E harness runs against
+ * `pnpm run dev`, so the gate is inactive there in both directions, and typecheck, lint and format
+ * are all indifferent to the line. Deleting it would otherwise return the seam to the production
+ * bundle with nothing red.
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -15,6 +20,7 @@ import { installLocalPersistenceSeam } from "@/lib/sync/local-persistence-seam";
 
 afterEach(() => {
     delete window.__moneyflowLocalPersistence;
+    vi.unstubAllEnvs();
 });
 
 describe("installLocalPersistenceSeam", () => {
@@ -85,6 +91,26 @@ describe("installLocalPersistenceSeam", () => {
         await expect(window.__moneyflowLocalPersistence?.awaitLocalPersistence()).rejects.toThrow(
             failure
         );
+    });
+
+    it("installs nothing in a production build", () => {
+        vi.stubEnv("NODE_ENV", "production");
+
+        const uninstall = installLocalPersistenceSeam(() => null);
+
+        expect(window.__moneyflowLocalPersistence).toBeUndefined();
+        // Still a callable teardown, so a caller's cleanup path is identical in both builds.
+        expect(() => {
+            uninstall();
+        }).not.toThrow();
+    });
+
+    it("installs outside a production build", () => {
+        vi.stubEnv("NODE_ENV", "development");
+
+        installLocalPersistenceSeam(() => null);
+
+        expect(window.__moneyflowLocalPersistence).toBeDefined();
     });
 
     it("leaves a newer installation's seam alone when an older one tears down", () => {
