@@ -13209,3 +13209,51 @@ barriered sites should be counted**, folded toward `Q-P20B-30`'s lint rule.
 **STATE:** P20B revision 12 → **FAIL** → `changes_requested`; root opens **revision 13**, whose
 entire required change is **one clause of one comment**. No package or requirement row changes
 state. Frozen sources re-verified: scratch `469e98c7…`, FS-001 `0d0e2a14…`.
+
+### 2026-08-03 — Rev 12 review closing report: an environment blocker caught mid-flight, and a flake rate materially worse than recorded
+
+**1. `/tmp` INODE EXHAUSTION — caught by the reviewer, fixed by root before it broke rev 13.**
+Recorded in full at `RISKS.md#R-TMP-INODES-01`. MEASURED by root: **98% inodes used, 30,223 free,
+with 15 GB of space free** — the failure presents as `ENOSPC` on `mkdir` during `pnpm install`,
+which **reads as "disk full" and is not**. Each worktree costs ~62,000 inodes. **P20B rev 13 was
+mid-flight and would have failed its install.**
+
+Root verified **no process had a cwd inside any `/tmp` worktree** before touching anything, removed
+**13 worktrees from closed revisions only**, and confirmed afterwards that **every log and artifact
+directory survives** and that the reproduction probe remains **committed in the repository**, not in
+`/tmp`. **21% used, 838,481 free.** The reviewer itself relocated rather than deleting anyone else's
+work — the right call, and the reason root had a clean problem to solve rather than a collision.
+
+**2. THE FLAKE RATES ARE MATERIALLY WORSE THAN THIS LEDGER HAS BEEN RECORDING.** Over 4 unit runs
+the reviewer measured **`realtime-origin-controls.test.ts` failing 3 of 4** (`Test timed out in
+5000ms` at `:126`) and **`duplicates.test.ts` failing 2 of 4** (`expected 4.136… to be less than 4`;
+**passes 43/43 in isolation** — the wall-clock ratio assertion under load).
+
+**"Intermittent" understates 3-in-4.** The register is corrected: **expect a red `pnpm test` more
+often than not on this tree.** Root has told rev 13 so it does not read a red unit suite as its own
+regression.
+
+**Both are DEDUCTIVELY unattributable to any P20B revision, and the argument is better than a
+correlation:** `vitest.config.ts`'s `include` is `tests/**/*.test.ts(x)`, so **the `.spec.ts` files
+these revisions edit are never loaded by the unit suite at all.** That is a stronger clearance than
+any number of green runs.
+
+**3. The 1-in-315 flake mechanism CORROBORATED by a positive control.** The reviewer confirmed with
+**dummy non-BIP39 words** that `recovery-phrase-credential.fill()` **does** normally spread across
+all twelve boxes (`12 of 12 words entered`). **So the implementer's concatenated-fill account is
+supported by showing the normal case works**, not merely by observing the abnormal one — the
+discriminating direction.
+
+**4. F12-1's first iteration was pinned DEDUCTIVELY, not just observed.** `iterations=3` means
+iteration 1 returned a failure, and `firstSeamPresent=false` excludes `threw`, so it was
+`absent-on-vault-route`. **And the reviewer explained why rev 11's data contained the refutation but
+did not surface it:** that probe recorded **presence and outcome only**, so "absent" looked like a
+variant of no-op rather than its opposite. **Instrumenting elapsed time and iteration count is what
+made the third case visible** — the same lesson as the arm-G retraction, in a different guise.
+
+**5. Manual checkpoint completed, with vacuous clauses named rather than manufactured.** Zero console
+errors, zero failed requests, reload clean; responsive/dark/zoom/contrast stated **vacuous** for a
+diff with no changed control. Security: it **never visited `/new-user`**, generated no phrase, and
+**scanned every CLI artifact for BOTH hazard shapes before reading** — 0 twelve-word runs, 0 tokens
+≥40 chars — then deleted them. **The mitigation root added after the last review was followed
+exactly.**
