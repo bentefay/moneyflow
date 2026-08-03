@@ -57,6 +57,9 @@ async function createAccountWithPasskey(page: Page): Promise<string[]> {
 
 /** Unlock an existing identity with a registered passkey. */
 async function unlockWithPasskey(page: Page): Promise<void> {
+    // Every caller arrives from a settings page whose vault is still mounted, so this navigation is
+    // a teardown of a live document.
+    await awaitVaultPersistence(page);
     await page.goto("/unlock");
     await page.getByTestId("passkey-unlock-button").click();
 }
@@ -174,6 +177,7 @@ test.describe("Passkey", () => {
 
         await test.step("the recovery phrase still unlocks the same identity too", async () => {
             await page.evaluate(() => sessionStorage.clear());
+            await awaitVaultPersistence(page);
             await page.goto("/unlock");
             await page.getByTestId("recovery-phrase-credential").fill(seedWords.join(" "));
             await page.getByTestId("unlock-button").click();
@@ -229,6 +233,7 @@ test.describe("Passkey", () => {
         await test.step("passkey unlock fails visibly rather than hanging or half-signing-in", async () => {
             // Sign out first, or the unlock page redirects the still-live session away.
             await page.evaluate(() => sessionStorage.clear());
+            await awaitVaultPersistence(page);
             await page.goto("/unlock");
             await page.getByTestId("passkey-unlock-button").click();
             await expect(page.getByTestId("passkey-error")).toBeVisible({ timeout: 20000 });

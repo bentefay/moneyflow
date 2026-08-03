@@ -7,7 +7,7 @@
 
 import { expect, type Page, test } from "@playwright/test";
 
-import { reloadPage, waitForUnlockHydration } from "./helpers";
+import { awaitVaultPersistence, reloadPage, waitForUnlockHydration } from "./helpers";
 
 // ============================================================================
 // Test Fixtures
@@ -170,6 +170,9 @@ test.describe("Identity", () => {
 
         // Start another onboarding flow in the same tab without clearing browser storage.
         // The next identity must not receive the first keypair's persisted vault selection.
+        // Creation lands on settings with the first vault mounted, so this navigation tears down a
+        // live document.
+        await awaitVaultPersistence(page);
         await page.goto("/new-user");
         await expect(page.getByTestId("generate-button")).toBeVisible();
         const secondVaultId = await createAccountFromIntro(page);
