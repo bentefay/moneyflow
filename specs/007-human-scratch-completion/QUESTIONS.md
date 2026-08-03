@@ -3276,12 +3276,12 @@ gaps in P33: correct assertions over inputs that cannot express the failure.
   handback commit. A completeness marker says a loop finished; it says nothing about which tree ran.
 - **Basis:** hierarchy 2, then 4. **Status:** OPEN, adopted going forward.
 
-### Q-P20B-26 — CLOSED as ROUTED 2026-08-03 (D-021)
+### Q-P20B-26 — CLOSED as ROUTED 2026-08-03 (D-025)
 
 The discriminating experiment this question named **was run and answered**: the entry is **ABSENT**
 from persisted IndexedDB (195 runs, 50 losses, **no op row ever created**, zero counterexamples) —
 a genuine **lost write**, not a rehydration gap. Evidence
-`evidence/P21/diagnostic-Q-P20B-26.md`. Independent ruling `adjudications/P21-scope-02.md` → D-021:
+`evidence/P21/diagnostic-Q-P20B-26.md`. Independent ruling `adjudications/P21-scope-02.md` → D-025:
 the **E2E harness component is IN-GOAL to P20B (HS-021)**; **product
 durability-at-acknowledgement is OUT-OF-GOAL**, tracked at `RISKS.md#R-LOSTWRITE-01`. The concern
 this question was raised to guard against — leaving the class on P20B merely to avoid invalidating a
@@ -3308,7 +3308,7 @@ prior PASS — is answered: **the adjudicator found the P20B routing correct on 
 - **Source:** `reviews/P20B-review-09.md` §12 (`Q-PROPOSAL-P20B-09-2`).
 - **Context:** `nav.ts` is **deliberately** staying on full document loads — converting it would
   weaken assertions that currently re-derive state across a document boundary, which condition 1 of
-  D-021 exists to prevent. The consequence is that no *helper* offers a client-side navigation, so a
+  D-025 exists to prevent. The consequence is that no *helper* offers a client-side navigation, so a
   test author who wants one hand-rolls it.
 - **Why this is a convenience matter and not a coverage hole:** MEASURED by the reviewer, the suite
   already performs **16 in-app client-side link navigations across six spec files**, including

@@ -42,7 +42,7 @@ high-impact risk.
 
 ## R-LOSTWRITE-01 — a local write is not durable for a few milliseconds after the UI acknowledges it
 
-- **Status:** OPEN, tracked, **out-of-goal by D-021** (same standing as `Q-P20B-00` under D-019).
+- **Status:** OPEN, tracked, **out-of-goal by D-025** (same standing as `Q-P20B-00` under D-019).
   Not closed, not masked, and **not** spun into a goal package.
 - **Substance, MEASURED** (`evidence/P21/diagnostic-Q-P20B-26.md`, logs `/tmp/q26-logs/`): an
   allocation write confirmed in the DOM is not yet in IndexedDB. Persistence is downstream and
@@ -99,7 +99,7 @@ demonstrate the defect.
 **Consequence for this risk, stated precisely.** Component-2 exposure is **bounded to genuinely
 unaimed teardowns** — a crash, an OS kill, a force-quit — which is exactly the class the ruling
 described. **A user who navigates or closes the window deliberately is warned.** This is the
-strongest thing in the record limiting this risk, and it did not exist when D-021 was written.
+strongest thing in the record limiting this risk, and it did not exist when D-025 was written.
 
 **It does not close the risk.** A crash or kill still bypasses `beforeunload`, the write is still
 not durable at acknowledgement, and Component 2 remains out-of-goal and unfixed.

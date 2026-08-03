@@ -478,6 +478,15 @@ independent scope adjudicator per PROCESS.md:335-347.
 
 ## D-021 — UR-005..UR-008 admitted via a second frozen source; scratch and prior sources untouched
 
+> **ID DISAMBIGUATION (added 2026-08-03).** This is the ONLY `D-021`. Root mistakenly issued a
+> second decision under this number for the lost-write scope split; **that decision is now
+> [D-025](#d-025)**. Any citation of "D-021" dated 2026-08-03 that concerns the lost-write class,
+> the E2E durability barrier, Component 1/Component 2, or `RISKS.md#R-LOSTWRITE-01` **means D-025**
+> — including the ones in the immutable artifacts `reviews/P20B-review-09.md`,
+> `reviews/P20B-review-10.md`, `evidence/P20B/implementation-10.md`,
+> `evidence/P20B/implementation-11.md`, `adjudications/P21-scope-02.md`,
+> `dispatches/P20B-rev09-fix.md` and `dispatches/P20B-rev10-fix.md`, which are not edited.
+
 - **Status:** accepted
 - **Date:** 2026-08-01
 - **Authority:** explicit in-session instruction from the human principal, owner of committed scope.
@@ -608,7 +617,13 @@ principal's ruling before admission.
 
 **Tally after admission: 27 of 34 requirements `passed`; 26 of 33 feature packages `passed`.**
 
-## D-021 — The lost-write class splits: the E2E harness component is IN-GOAL to P20B; product durability-at-acknowledgement is OUT-OF-GOAL
+## D-025 — The lost-write class splits: the E2E harness component is IN-GOAL to P20B; product durability-at-acknowledgement is OUT-OF-GOAL
+
+> **ID CORRECTION (2026-08-03).** Root first issued this decision as `D-021`, which was **already
+> taken** by the UR-005..UR-008 decision above; the highest existing ID was `D-024`. Flagged by
+> `p20b-reviewer-10`, which had to disambiguate by content to verify this decision's two binding
+> conditions. **Renumbered to `D-025`.** Earlier artifacts cite it as "D-021"; those artifacts are
+> immutable and are not edited.
 
 - **Date:** 2026-08-03
 - **Package / scope:** the residual settlement/E2E failure class blocking P21's stability clause
@@ -634,7 +649,7 @@ principal's ruling before admission.
   repeated runs with retries disabled", repeated at `:668`), currently unmet; and HS-021 `:159` via
   `tasks/HS-021-code-quality-sweep.md`, which names the E2E skill as part of the style guide and
   directs the sweep at flakiness and test-quality violations. MEASURED by the adjudicator:
-  `nav.ts:9-73` is `page.goto` throughout — **137 call sites** — while the sidebar is real
+  `nav.ts:9-73` is `page.goto` throughout — **211 call sites in `*.spec.ts`, 217 across `tests/e2e/**/*.ts` excluding the two helper modules; the "137" originally recorded here was root-transcribed without re-derivation and is reproduced by neither scope** — while the sidebar is real
   `next/link` (`layout.tsx:63-72`, `:386-389`), so a user's navigation is the client-side transition
   arm J1 measured at **0/70**; and the frozen mandatory journey's implementation
   (`people-settlement.spec.ts:305-312`, `:516-519`) places a full teardown between frozen steps 5
@@ -665,7 +680,7 @@ principal's ruling before admission.
   (`manager.ts:367-377`) rather than a parallel mechanism. If the Component-1 fix is later found to
   have changed allocation product behaviour, `PROCESS.md:128-129` flips ownership to P16A–E.
 
-### D-021 addendum — two load-bearing elements of the ruling, added 2026-08-03 after the adjudicator's closing report
+### D-025 addendum — two load-bearing elements of the ruling, added 2026-08-03 after the adjudicator's closing report
 
 - **The Component-2 ruling rests on a MEASURED negative, not on ambiguity.** A grep across **all
   five frozen sources** returns **no line using durability / crash / unsaved / data-loss vocabulary
