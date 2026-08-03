@@ -11747,3 +11747,29 @@ absent → lost write (P16A–E); entry present but unapplied → rehydration/de
 decision is superseded by a deferral, so no scope adjudication is triggered at this point; if the
 measurement then implies a re-route that supersedes the rev 06 routing, root dispatches the
 independent fresh-context scope adjudicator rather than deciding it.
+
+### 2026-08-03 — `P20B-review-07.md` amended by its author AFTER persistence; logged, not silently accepted
+
+**`PROCESS.md:26` makes failed review files immutable after handoff, so this is logged rather than
+absorbed.** After root persisted the review at `0e08862`, `p20b-reviewer-07` made three further
+edits to it. Root inspected the full diff before accepting. **The verdict is untouched — still FAIL
+on F-A — and no finding, measurement or severity changed.** All three edits remove exactly the
+ambiguity F-A is about:
+
+1. **A real residual error root had committed.** The verdict sentence read *"**Three** further
+   in-scope findings (F-B, F-C)"* — a count that contradicted its own list. Corrected to "Two".
+2. `§4.3f` → `evidence §4.3f`, disambiguating a cross-file reference.
+3. `§4.3c` → `evidence §4.3c`, and `§6` → `evidence §6 — **not** this review's §6, which is
+   Findings`. That collision was genuinely misleading: both files have a §6.
+
+**Root's own error, recorded because the check looked sufficient and was not.** When root bounced
+the review for citing an `F-D` that §6 never defined, it verified the fix by grepping for `F-D` and
+finding zero matches. **That grep licensed only the narrow claim "the token F-D is gone" — root drew
+the broader claim "the count now matches the list" and committed on it.** The numeral was still
+"Three". The author caught what root's check could not see. This is the same failure shape recorded
+elsewhere in this ledger: a correct check supporting a narrower proposition than the sentence
+written after it.
+
+**Disposition:** the amended file is persisted in the integration-control commit below. The
+`0e08862` version remains reachable in history, so both states are auditable. **No verdict, finding
+or ledger consequence changes.**

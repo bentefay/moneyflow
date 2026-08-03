@@ -28,8 +28,8 @@ such.
 The FAIL rests on **F-A**: the implementer's one assigned artifact does not contain the validation
 campaign for the commit being handed back. §4 "Campaign results" is the literal token
 `PLACEHOLDER-CAMPAIGN`, two sections cross-reference a `§4.2b` that does not exist, and the section
-that does name a "FINAL tree" names one that a later section of the same file discards. Three
-further in-scope findings (F-B, F-C) are cheap and belong in the same revision.
+that does name a "FINAL tree" names one that a later section of the same file discards. Two further
+in-scope findings (F-B, F-C) are cheap and belong in the same revision.
 
 ---
 
@@ -166,8 +166,8 @@ step. Account `Default` owned by Me 100%; Me and Bob each holding explicit 50 be
 
 **Rows 1 and 2 answer the dispatch's question: yes, the corrected barrier still discriminates a
 dropped zero-write, and it fails at its own line.** Row 2 also reproduces the campaign artifact
-string in §4.3f **verbatim**, independently confirming the implementer's lost-vs-cleared analysis
-and its reading that `Owner remainder`, not `Effective`, is the discriminating field.
+string in evidence §4.3f **verbatim**, independently confirming the implementer's lost-vs-cleared
+analysis and its reading that `Owner remainder`, not `Effective`, is the discriminating field.
 
 **Row 3 is the bound on that answer, and it is worth stating precisely.** Writing zero to a person
 who holds no explicit allocation is vacuous — the expected string is already present before the
@@ -421,9 +421,9 @@ instrument correctly reporting that absence at a 15 s budget.
 So the implementer's summary is exactly right, including the parts against its own interest: the 5 s
 defect was real and is closed; the barrier was weak and is now strong; **neither explains the
 failures**; and it killed its own substring hypothesis by printing the DOM instead of reasoning
-about it (§4.3c). It also disclosed an instrument failure of its own (§6) that had pointed the
-convenient way. **I found no place where the evidence over-claims. Its error is omission, not
-overstatement.**
+about it (evidence §4.3c). It also disclosed an instrument failure of its own (evidence §6 — **not**
+this review's §6, which is Findings) that had pointed the convenient way. **I found no place where
+the evidence over-claims. Its error is omission, not overstatement.**
 
 **Consequence root should weigh, stated as a routing observation and not as a finding:** if the
 residual class is not test-instrument, then it is not P20B's. `PROCESS.md:130` routes
