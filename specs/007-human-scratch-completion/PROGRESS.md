@@ -12869,3 +12869,77 @@ completeness sentence is being fixed in rev 11.
 `vi.stubEnv("NODE_ENV", "production")` probe confirmed the branch is reachable from vitest, ~8 lines
 beside the existing seam tests. **A prescribed fix that had not been shown to work would have been
 the same defect the finding is about.**
+
+### 2026-08-03 — P20B rev 11 HANDBACK at `19160af`; an environmental fact that will mislead the next agent; flake-register correction
+
+**Root-verified boundaries.** `git diff --name-only 2284945..19160af -- src` is **empty** — `src/` is
+untouched and the seam file md5 is identical at both ends. Changed set is exactly three test files:
+`tests/unit/sync/local-persistence-seam.test.ts`, `tests/e2e/passkey.spec.ts`,
+`tests/e2e/identity.spec.ts`. **Root inspected the hunks**: barriers landed at
+`identity.spec.ts:~173` and `passkey.spec.ts:~60` (inside `createAccountWithPasskey`), `~177` and
+`~233` — **exactly the four measured in-vault sites** — and **`passkey.spec.ts:406`/`:468` and
+`identity.spec.ts:339`/`:614` appear in no hunk**, as required. Nine added lines and one replaced
+import.
+
+**F10-1 — the mutation proof is stronger than the finding asked for.** Gate present → 8 passed; gate
+line deleted → **1 failed / 7 passed**, the failure being the new *"installs nothing in a production
+build"*; restored → 8 passed. **It then also inverted `===` to `!==` → 7 failed / 1 passed**,
+including the second new case. **That inversion is the part worth keeping: deletion alone never
+exercises the complementary case, so without it the guard pair could have been redundant and nobody
+would have known.** `pnpm build` exit 0 with `grep -rl "__moneyflowLocalPersistence" .next/static` →
+**0 files**.
+
+**F10-2 — it declined to issue a fifth count, which is exactly right.** It did **not** instrument the
+suite and **issues no count of in-vault teardowns**; **the ledger's bounded "at least fifteen; the
+sweep is not complete" stands unchanged.** What it offers instead is grep-decidable and, in its own
+words, **a different quantity**: **57 real `.goto(`/`.reload(` call sites in `tests/e2e` — 53 in
+specs, 4 in helpers** (58 hits minus one comment line) — against **16** `awaitVaultPersistence(`
+sites. **A population of call sites, not of in-vault teardowns.** The specs the rev 10 reviewer did
+not instrument remain unclassified by measurement, and it says so.
+
+**AN ENVIRONMENTAL FACT THAT WILL MISLEAD THE NEXT AGENT — and root verified it.** The implementer's
+first campaign attempt died in **3 seconds**:
+
+```
+⨯ Another next dev server is already running … Local: http://localhost:3001 … PID: 818182
+  Dir: /home/ben-agents/Code/moneyflow
+```
+
+**Next 16's dev lock is project-directory-scoped, not port-scoped.** **MEASURED by root:
+`readlink /proc/818182/cwd` = `/home/ben-agents/Code/moneyflow` — the shared checkout itself.** So
+**the human's dev server blocks any `next dev` launched from the repo directory even when `:3000` is
+completely free**, which means **E2E cannot be run from the shared checkout at all while that server
+is up; every agent must use a git worktree.** **The 3-second failure reads exactly like a port
+collision and is not one.** This is the eleventh instrument/environment failure in this goal whose
+signature impersonates something else, and it belongs in every future E2E dispatch.
+
+The implementer used `/tmp/mf-p20b-rev11-mut` with **the repository's unmodified
+`playwright.config.ts` on `:3000`** — no port override, which is what previously produced a
+15-failure phantom run — and verified its tree digest equals the shared checkout's. **It did not
+touch `:3001`.**
+
+**FLAKE-REGISTER CORRECTION, against root's own earlier entry.**
+`tests/integration/realtime-origin-controls.test.ts` has been recorded here as *"fails at BASE"*,
+which implies determinism. **It is INTERMITTENT.** The implementer measured it **passing in run 1
+and failing in run 2 on the same tree** (`Test timed out in 5000ms`), and the rev 10 implementer had
+measured 6 of 7. **Both are consistent with an intermittent timeout and neither establishes
+determinism.** The register entry is corrected to: *intermittent, observed at BASE and at HEAD by
+five agents, no import path to any P20B change, needs an owner outside P20B.* `duplicates.test.ts`
+passed both runs, in a quiet window.
+
+**Validation.** Probe (md5 verified against `evidence/P21/`) at `--repeat-each=70` on `:3100`: **arm
+C 13/70 lost — the control still bites** — C2 **0/70**, D **0/70**, discriminator **210/210** with no
+counterexample. Then on the repo's own config on `:3000`: `people-settlement --repeat-each=10`
+**190/190**; `passkey`+`identity` `--repeat-each=5` **105/105**; full suite ×3 **195/195 each** —
+**880 executions**, zero failure markers. Tree digest `6ff7e1198a9fb5f0563a149fe17cef68` constant
+across all twelve START/END lines, all code committed before the first run.
+
+**Non-claims stated plainly, and root records them because they are the honest limits:** `0/70` per
+arm and `0/168` for the changed specs are **bounds, not clearances**; the 10-green bar, crash safety
+and the residual class stay open; **no cross-campaign rate comparison** is drawn; **the in-vault
+sweep is still incomplete**; and **the hang risk at the newly barriered `passkey.spec.ts:62` is
+bounded by 168 executions, not argued away** — it relies on the helper's retry branch, which it did
+**not** independently re-measure.
+
+**STATE:** P20B revision 11 → `ready_for_review` → `reviewing`. DISTINCT `p20b-reviewer-11`
+dispatched.
