@@ -12735,3 +12735,91 @@ as written); the `137` call-site figure (transcribed unverified); the `44` teard
 dispatch; a checkpoint wrongly recorded as skipped; two undelivered messages; and now a
 wrong-tree line-number flag routed to a reviewer as work. **Every one was caught by an agent root
 dispatched or by root re-deriving a figure it had relayed — none by the claim failing a test.**
+
+### 2026-08-03 — P20B rev 10 review **FAIL** on two MEDIUM findings; all three rev-09 findings REMEDIATED; a duplicate decision ID corrected
+
+**DISTINCT `p20b-reviewer-10`** (distinct from `p20b-implementer-10` and from
+`p20b-reviewer-01/-02/-03/-06/-07/-08/-09`) wrote `reviews/P20B-review-10.md` — **FAIL, two MEDIUM
+findings**. Both artifacts persisted at `57a2fd8`. **It performed the mandated manual browser
+checkpoint** (§6) — the pre-authorization in its dispatch worked, after root's two message-timing
+failures.
+
+**All three rev-09 findings are genuinely remediated, each reproduced independently in both
+directions:**
+
+- **F-1 fixed.** Three builds on one pipeline: gated → **0** files under `.next/static` match
+  `__moneyflowLocalPersistence`; gate line alone removed → **1**, the same chunk rev 09 named; gate
+  restored → **0**.
+- **F-2 fixed at both levels.** Deleting the install line turns the two new provider guards red
+  **and every barriered E2E spec red with a named error**; restoring turns both green.
+- **F-3's committed text fixed.** The false universal is gone, nothing was deleted, weakened or
+  given a longer timeout, and **all twelve barrier calls target the correct `Page` object.**
+
+**F10-1 (MEDIUM) — the production gate this revision added is itself unguarded.** MEASURED by
+mutation: deleting the gate line at `local-persistence-seam.ts:60` leaves typecheck, lint, format
+and the whole unit suite green **while the seam returns to the production bundle**. **This is
+exactly the defect F-2 named, applied to F-1's own fix** — the revision closed one silent-deletion
+path and opened another. The reviewer measured a guard to be feasible before recommending it.
+
+**F10-2 (MEDIUM) — the in-vault enumeration is incomplete AND the evidence claims otherwise.**
+`implementation-11.md` §4.2 states the criterion was applied "to every `.goto(` in the suite" and
+reports eleven. **MEASURED by runtime instrumentation, at least four further raw teardowns meet the
+criterion unbarriered** — `passkey.spec.ts:60`, `:177`, `:232` and `identity.spec.ts:173` — each
+observing a present seam and `awaitLocalPersistence()` → `"persisted"`, i.e. a live `SyncManager` at
+the teardown. **Three are in `passkey.spec.ts`, a file this revision edited**: it barriered `:76`
+and `:429` while leaving three of identical shape, so the file is now internally inconsistent and a
+future author will infer from the absent barrier that those sites were classified not-in-vault. The
+same document's §7 lists the unenumerated residual as **Open**, which contradicts its own §4.2.
+
+**THE COUNT IS NOW RECORDED AS A BOUND, NOT A FIFTH EXACT NUMBER.** This quantity has taken four
+successive wrong values — root's **44**, the rev-09 reviewer's **52 sites / five in-vault**, the rev-10
+implementer's **eleven**, each correcting the last. **The ledger records: at least fifteen; the sweep
+is not complete.** The reviewer asked for it this way explicitly, because "a fifth wrong number
+entering the ledger as MEASURED is the failure mode `P20B-review-09.md` §10 was written to stop."
+
+**AND THE NAIVE REMEDY IS WRONG — measurement refuted the reviewer's own initial reading.** **Do NOT
+barrier `passkey.spec.ts:406`/`:468` or `identity.spec.ts:339`/`:614`:** MEASURED, the first two
+have **no active vault** and the second two showed an **absent seam** at the teardown instant, so a
+barrier there risks the **15-second hang** the implementer's §4.3 correctly identifies as the failure
+mode to avoid. **F10-2's required fix is therefore the small one — correct §4.2 to state what was
+swept and what was not — with barriering the four measured sites optional.** The durable answer
+remains the lint rule tracked as `Q-P20B-30`.
+
+**Root's "eleven" correction assessed:** better than the "five" it replaced, and root was right to
+withdraw the over-reach framing — **but eleven is itself an under-count by at least four.**
+**Root's specific worry — a barrier awaiting the wrong context's seam — is REFUTED exhaustively
+rather than by root's six-line sample.**
+
+**F-1's INFERRED residual is now MEASURED and confirmed, in the revision's favour.** Root had flagged
+that it could not confirm the implementer's claim that a server-side source map is not browser-served.
+**MEASURED: six candidate URLs for that map return 404 from `next start` while a real `.next/static`
+asset returns 200.**
+
+**A DUPLICATE DECISION ID, ROOT'S ERROR, CORRECTED.** The reviewer found **two decisions numbered
+`D-021`** — `DECISIONS.md:479` (UR-005..UR-008, pre-existing) and root's lost-write split — and had
+to **disambiguate by content** to verify the two binding conditions it was reviewing against. Root
+verified: `D-021` was already taken and the highest existing ID was `D-024`. **The lost-write
+decision is renumbered `D-025`** (`e5079aa`), with disambiguation notes at **both** locations
+recording that every 2026-08-03 citation of "D-021" concerning the lost-write class means D-025.
+Root updated the unambiguous citations in `RISKS.md` and `QUESTIONS.md` and **left
+`QUESTIONS.md:2455` untouched, which cites the older D-021 correctly**. Immutable artifacts
+(`reviews/`, `evidence/`, `adjudications/`, consumed `dispatches/`) are **not edited**; the
+disambiguation note names them.
+
+**The `137` figure is corrected inside the decision itself**, where it had been sitting in an
+*accepted* decision: now "211 call sites in `*.spec.ts`, 217 across `tests/e2e/**/*.ts` excluding the
+two helper modules; the 137 originally recorded here was root-transcribed without re-derivation and
+is reproduced by neither scope."
+
+**Flake register, both needing owners outside P20B and carried to P21:**
+`realtime-origin-controls.test.ts` — **the fifth agent has now hit it**, and it fails at BASE with no
+import path to any change; and `transactions.spec.ts:573`, which the reviewer **MEASURED is not a
+lost write**. Also recorded so it is not later misattributed to the barrier: a **pre-existing
+browser-side unhandled rejection** on the clear-session-then-navigate path (§6).
+
+**Question transcribed** as **Q-P20B-32** (should the route guard key on where `VaultProvider`
+mounts rather than on the `(app)` directories — the guard is real today but asserts a proxy).
+
+**STATE:** P20B revision 10 → **FAIL** → `changes_requested`; root opens **revision 11**. **No
+package or requirement row changes state.** Frozen sources re-verified: scratch `469e98c7…`, FS-001
+`0d0e2a14…`. **The remaining work is one small test and one corrected sentence.**
