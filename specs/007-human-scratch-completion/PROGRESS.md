@@ -12267,3 +12267,66 @@ pre-existing warning, build succeeded, `format:check` issues all under `specs/**
 **Frozen sources re-verified after the handback:** scratch `469e98c7…`, FS-001 `0d0e2a14…`.
 
 **STATE:** P20B revision 09 → `ready_for_review` → `reviewing`.
+
+### 2026-08-03 — The `137` call-site figure RESOLVED, and a dev-server request answered under the no-pause rule
+
+**RESOLUTION of the 137 / 211 / 217 divergence, re-derived by root against the reviewer's
+definition.** `p20b-reviewer-09` reconciled the two competing counts and root reproduced its
+reconciliation exactly at BASE `21f5715`:
+
+| Collection scope | Count |
+| --- | --- |
+| `tests/e2e/**/*.spec.ts` (root's derivation) | **211** |
+| all `tests/e2e/**/*.ts` excluding `helpers/nav.ts` and `helpers/index.ts` (implementer's) | **217** |
+| D-021 / root's dispatch | **137 — reproduced by neither** |
+
+**Both figures are correct under their own definition; they differ only by collection scope.** The
+reviewer's per-helper counts match the implementer's ten numbers exactly. **`137` came from D-021
+and root transcribed it without re-deriving it** — the same failure this ledger records repeatedly
+against its own authors. **Nothing in the ruling depends on it:** the figure supported the
+"cross-cutting helper, therefore P20B" finding, which 211 and 217 both support more strongly than
+137 did. The ruling stands; the figure is corrected.
+
+**Dev-server request answered by root, NOT escalated.** `p20b-reviewer-09` twice asked root to put a
+question to the human: may it start `pnpm dev` on `:3000` for the manual `playwright-cli` checkpoint
+that `PROCESS.md:170-171` **mandates**. **Root authorized it directly under this session's no-pause
+rule, and recorded the basis rather than merely asserting authority:** the repository's own
+`playwright.config.ts:78-82` declares `webServer: { command: "pnpm run dev" }` against
+`baseURL: "http://localhost:3000"`, so **every E2E campaign in this goal has already stood up a dev
+server on that port**; `pnpm dev` is documented in `.claude/CLAUDE.md`; it is non-destructive and
+reversible by killing one pid; and `:3000` was MEASURED free while the human's `:3001` (pid 818182)
+stays untouched. **Skipping a mandated checkpoint to avoid a routine process would have traded a
+required check for nothing.** Root directed it to run from its own worktree so `next-env.d.ts` churn
+and build output stay off the shared tree, and flagged the ordering trap: `reuseExistingServer: false`
+means its in-flight campaign starts its own server on `:3000`, so the manual server must wait for
+the campaign to release the port.
+
+**Reviewer's interim MEASURED results, recorded now because they are load-bearing whatever the
+verdict.**
+
+- **The seam ships to production — CONFIRMED, not inferred.** `pnpm build` succeeds and
+  `__moneyflowLocalPersistence` is **present in the emitted client bundle**
+  (`.next/static/chunks/2kti1-ybxn-5f.js`). Root's earlier note that it ships ungated was an
+  inference from the absence of a gate; **it is now a measurement.**
+- **A non-production gate is provably compatible with the harness:** `webServer.command` is
+  `pnpm run dev` and there are **no `.github/workflows`**, so E2E never runs against a production
+  build. `vault-provider.tsx:390` **already uses `process.env.NODE_ENV === "development"` in the
+  same file.**
+- **MUTATION PROBE — the fix can be deleted silently.** Removing only the install line
+  (`vault-provider.tsx:92`) and its import leaves `pnpm typecheck` 0, `pnpm lint` 0,
+  `oxfmt --check` 0 and **2486 unit tests passing**, with the sole failure the disclosed
+  `duplicates.test.ts` wall-clock flake. On that mutated tree **arm C2 — the arm that goes through
+  `reloadPage()` — lost 2/12** (against 0/70 unmutated), arm C losing 5/12 as same-campaign control,
+  and **`awaitVaultPersistence` raised nothing: it returns silently on `kind === "no-seam"`.**
+- **Condition 1 holds mechanically:** across BASE→HEAD in `tests/e2e`, `expect(` 1408→1408,
+  `toHaveCount(` 180→180, `timeout: N` literals 220→220, `test.setTimeout(` 39→39, and
+  `git diff -- tests/e2e | grep '^[-+].*timeout'` returns **nothing**.
+- The reviewer **independently reproduced** the `realtime-origin-controls.test.ts` 5 s WebSocket
+  timeout the implementer had disclosed — 1 failure in 3 serial `pnpm test` runs.
+
+**The reviewer signals it is heading for FAIL on two COUPLED findings** — the ungated production
+seam, and the fact that nothing detects the fix's removal. **Its coupling argument is one root had
+not seen and should be preserved: gating without first fixing the silent-absence handling would ADD
+a silent failure mode rather than remove one, so the remedy has an order.** Root told it plainly
+that the verdict is its own and that root would not treat the unmet 10-green bar or the untouched
+out-of-goal Component 2 as bearing on it.
