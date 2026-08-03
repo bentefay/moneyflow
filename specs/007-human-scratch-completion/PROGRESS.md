@@ -12330,3 +12330,98 @@ not seen and should be preserved: gating without first fixing the silent-absence
 a silent failure mode rather than remove one, so the remedy has an order.** Root told it plainly
 that the verdict is its own and that root would not treat the unmet 10-green bar or the untouched
 out-of-goal Component 2 as bearing on it.
+
+### 2026-08-03 — P20B rev 09 review **FAIL** on three coupled MEDIUM findings; **Component 1 ruled DISCHARGED**; root's fidelity-gap framing corrected
+
+**DISTINCT `p20b-reviewer-09`** (distinct from `p20b-implementer-09` and from
+`p20b-reviewer-01/-02/-03/-06/-07/-08`) wrote `reviews/P20B-review-09.md` — **FAIL**. Both artifacts
+persisted **unchanged** at `192ba0e`. HEAD `36fbe33` verified unchanged across the review;
+`0a94be8` an ancestor.
+
+**The measurement survived every attack the reviewer made on it.** All five arm counts, the 350/350
+discriminator, the campaign digests, both D-021 conditions, and the reload/nav call-site counts
+re-derived **to the digit**. It re-ran the full suite three more times and the frozen journey
+ninety-five more times, all green. **It verified arm C — the control — is byte-identical between the
+two campaigns, which is what makes the zeros mean anything.** The defect is in what the fix ships
+and in what nothing tests.
+
+**F-1 (MEDIUM) — the test seam ships to real users, ungated.** MEASURED in the **emitted production
+bundle**: after `pnpm build`, `__moneyflowLocalPersistence` is present in
+`.next/static/chunks/…`. `PROCESS.md:167-168` directs reviewers to reject test-only hooks; **D-021
+authorised the mechanism but is silent on shipping it ungated**; and the repository has **no prior
+`window.__*` hook in `src/`**, so this sets a precedent. The reviewer's security analysis found
+**no vulnerability** and it says so. A gate is provably free: `webServer.command` is `pnpm run dev`
+and **no CI workflow runs E2E against a production build**.
+
+**F-2 (MEDIUM) — nothing detects the fix being deleted, and the barrier fails silently.** MEASURED
+**by mutation, not inspection**: removing the single install line at `vault-provider.tsx:92` leaves
+`typecheck` 0, `lint` 0, `oxfmt --check` 0 and **2486 unit tests passing** — and on that tree **arm
+C2, the arm that exercises the barrier, resumed losing 2/12** while `awaitVaultPersistence` **raised
+nothing**, because `if (outcome.kind !== "rejected") return;` treats `"no-seam"` as success. **An
+unrelated refactor dropping one line silently restores the measured lost-write class with every gate
+green.**
+
+**F-3 (MEDIUM) — a committed universal that is false as written.** The commit subject —
+**root verified it: "wait for durable local persistence before *every* E2E document teardown"** —
+and a source comment both assert universality. Raw `page.goto` teardowns remain unbarriered, some
+with a vault mounted. **Count caveat root records rather than resolves:** the reviewer reports 52
+(five in-vault); root's own derivation gives **44** under a narrower scope. Same shape as the
+211/217 case — the finding holds under either and root does not assert one.
+
+**ORDERING CONSTRAINT, and it is load-bearing: F-2 must be fixed first or in the same change as
+F-1.** Gating the seam while `awaitVaultPersistence` still treats an absent seam as success would
+**add** a silent failure mode rather than remove one — every E2E run would pass with the barrier
+inert. Root had not seen this coupling; the reviewer did.
+
+#### Judgement question 2 answered: **Component 1 IS DISCHARGED by shape (b) alone**, and root's framing was wrong
+
+Root recorded, relaying the implementer, that "the harness still does not navigate the way a user
+does — the fidelity gap is not closed". **The reviewer refuted that with a count root did not
+have.** MEASURED at HEAD: the suite already performs **16 in-app client-side link navigations across
+six spec files** — `import.spec.ts` (11 sites), `transactions.spec.ts` (2), `people-settlement.spec.ts`,
+`tags.spec.ts`, `description-aliases.spec.ts`, `vault-settings.spec.ts` — **and one of them is
+frozen step 8 of the mandatory journey itself.** **Root verified that directly:**
+`people-settlement.spec.ts:337`, test step "8. navigate back to that transaction", clicks the real
+`getByRole("link", { name: "View transaction" })`.
+
+**The accurate statement is therefore: the ten `nav.ts` helpers navigate by full document load,
+while the client-side transition a real user gets is separately exercised in six spec files,
+including inside the frozen journey. The helpers are STRONGER than a user's path, not a substitute
+for testing it.** A suite that only ever full-loaded would be a real coverage hole; this is not that
+suite.
+
+The reviewer also reasoned from the frozen text rather than leaning on D-021's "and/or": FS-001
+`:668`/`:705` and HS-021 `:159` are **outcome** clauses about journeys passing repeatedly with
+retries disabled. **"Navigation/durability fidelity" is the adjudicator's name for the defect class,
+not a frozen requirement.** And shape (a) **could not** have discharged Component 1 — it reaches
+none of the 22 reload sites, and frozen step 9 is a reload, which is a teardown by definition.
+**Only shape (b) can cover the frozen journey end to end**, which is why the ruling wrote "and/or".
+
+**Consequence: P21 may reopen on Component 1 once F-1 to F-3 are cleared.** The residual matter —
+that no *helper* offers client-side navigation — is a convenience issue tracing to no frozen line,
+tracked as `Q-P20B-31`, **not** another revision.
+
+**Wording flag handled differently from the reviewer's instruction, deliberately.** It asked root to
+tighten `implementation-10.md` §6's "The lost write is gone" to its bounded form **before**
+persisting. **Root persisted the evidence unchanged instead:** `PROCESS.md:58` has root persist
+these artifacts as handed back, and editing another agent's evidence would break the artifact
+boundary this process depends on. **The correction is recorded here instead, using the same
+mechanism as F-D at `be50232`.** The bounded form, from that file's own §2 and endorsed by the
+reviewer: **0/70 with a 95% rule-of-three upper bound of 4.3% per fixed arm — a bound, not a
+clearance.** The reviewer checked every other section and found **no figure claiming more**, and
+called §7's explicit non-claim of crash safety "exactly right".
+
+**Flake register item, not P20B's.** `tests/integration/realtime-origin-controls.test.ts` ("reads
+only its own vault's ops even when the request claims a hostile origin", `Test timed out in
+5000ms`): **three agents have now independently hit it.** It imports nothing from `@/lib/sync` and
+is unrelated to this work. It needs an owner outside P20B.
+
+**Reviewer-checkpoint clause outstanding, recorded so the gap is visible rather than assumed
+covered:** see review §11.
+
+**Questions transcribed** as **Q-P20B-30** (raw teardowns) and **Q-P20B-31** (client-side helper).
+
+**STATE:** P20B revision 09 → **FAIL** → `changes_requested`; root opens **revision 10**. **No
+package or requirement row changes state:** the reviewed range changes no allocation product
+behaviour, P20B remains `passed` at rev 06, HS-021's acceptance is untouched, and no rollback batch
+exists. Frozen sources re-verified: scratch `469e98c7…`, FS-001 `0d0e2a14…`.
