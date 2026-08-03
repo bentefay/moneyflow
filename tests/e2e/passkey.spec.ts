@@ -57,8 +57,12 @@ async function createAccountWithPasskey(page: Page): Promise<string[]> {
 
 /** Unlock an existing identity with a registered passkey. */
 async function unlockWithPasskey(page: Page): Promise<void> {
-    // Every caller arrives from a settings page whose vault is still mounted, so this navigation is
-    // a teardown of a live document.
+    // All four callers reach this line on /settings, but only some have a live vault at that
+    // instant — both instrumented samples of this line were mixed (§6 of
+    // specs/007-human-scratch-completion/reviews/P20B-review-11.md; §4.4 of
+    // reviews/P20B-review-10.md, before the barrier existed), and the same predicate measured at
+    // other lines in this file moved between those runs. The barrier is in the helper so the live
+    // case is covered on all four; where no vault is mounted it resolves as a no-op.
     await awaitVaultPersistence(page);
     await page.goto("/unlock");
     await page.getByTestId("passkey-unlock-button").click();
