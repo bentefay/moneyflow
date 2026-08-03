@@ -12556,3 +12556,56 @@ never revealed and no seed word rendered; worktree digest restored to
 form of the security analysis — neither of which the command-line gates could have produced. **Root
 records this against its own earlier reasoning: root had accepted that the verdict did not rest on
 the clause, which was true, and that is not the same as the clause being worthless.**
+
+### 2026-08-03 — P20B rev 10 HANDBACK; four commits; F-1 and F-2 proven in both directions
+
+**Four commits** since the rev 10 dispatch: `7bfa4da` (gate the seam out of production + make an
+absent seam loud), `26450db` (assert the seam is present before awaiting it), `76f81b2` (state
+exactly which teardowns the barrier covers — F-3), `67ea7a2` (keep the barrier route list in step
+with the app routes). Evidence `evidence/P20B/implementation-11.md`, uncommitted per `PROCESS.md:58`,
+**zero placeholder tokens**.
+
+**F-1 — root verified the mechanism in source.** The gate is **inside the seam** at
+`local-persistence-seam.ts:60`: `if (process.env.NODE_ENV === "production") return () => undefined;`
+— so the install call at `vault-provider.tsx:95` stays unconditional and the module refuses. The
+barrel re-export is **dropped**, with `src/lib/sync/index.ts:1` carrying an explanatory comment that
+the seam is deliberately absent from it — which takes up the reviewer's suggestion rather than
+ignoring it.
+
+**The implementer measured the bundle in BOTH directions on the same pipeline**, which is the control
+rev 09's finding demanded: HEAD → **0 files** matching `__moneyflowLocalPersistence` under
+`.next/static`; HEAD **with only the gate line removed** → **1 file**
+(`.next/static/chunks/2kti1-ybxn-5f.js`, the same chunk rev 09 measured). All builds exited 0 and
+emitted every route.
+
+**It disclosed a residual rather than claiming a clean sweep:** the string appears once anywhere under
+`.next`, in `sourcesContent` of a **server-side** source map, and it verified by parsing the map that
+the emitted chunk beside it greps 0 and that `.next/static` contains **no** source maps at all. It
+tagged the conclusion — that a server-side build source map is not served to a browser from
+`.next/static` — as **INFERRED**. Root leaves that for the reviewer to confirm.
+
+**F-2 — the mutation proof was re-run by the finding's own method on the final tree** (§2.2, §2.3).
+Before this revision the same mutation left arm C2 **passing while losing 2/12 writes**; the new
+guard is asserted to make it loud. **Root records this as the implementer's claim; the reviewer
+verifies it.**
+
+**F-3 handled under root's mid-revision narrowing.** Root had over-specified this finding and
+corrected itself: the reviewer explicitly does **not** claim the five in-vault sites lose writes
+(arm F lost 0/28), so barriering them was made optional-but-justified and the required work is the
+false universal at `helpers/persistence.ts:22-23`. `76f81b2` states exactly which teardowns are
+covered. The revision also touched `accounts.spec.ts`, `description-aliases.spec.ts`,
+`invite-redemption.spec.ts`, `passkey.spec.ts`, `realtime-security.spec.ts`,
+`tab-duplication.spec.ts` and `vault-settings.spec.ts` — **beyond the five sites root named**, so the
+reviewer must check that breadth is justified and did not weaken anything.
+
+**Root-verified boundaries.** Changed set is entirely within the authorized paths; two new unit tests
+(`vault-provider-persistence-seam.test.tsx`, `e2e-harness/vault-route-segments.test.ts`).
+**Condition 1 holds:** `reloadPage` at 22 sites, frozen step 9 intact at
+`people-settlement.spec.ts:346`. **Frozen sources unchanged:** scratch `469e98c7…`, FS-001
+`0d0e2a14…`.
+
+**STATE:** P20B revision 10 → `ready_for_review` → `reviewing`. DISTINCT `p20b-reviewer-10`
+dispatched — distinct from `p20b-implementer-10` and from `p20b-reviewer-01/-02/-03/-06/-07/-08/-09`.
+**The dev server for the mandated manual checkpoint is PRE-AUTHORIZED in its dispatch**, so it never
+has to ask: rev 09's reviewer completed that clause only after two requests, one of which root
+answered too late.
