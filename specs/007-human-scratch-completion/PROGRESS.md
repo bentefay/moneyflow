@@ -12972,3 +12972,85 @@ intermittent, and whoever owns it should expect it not to reproduce on demand.**
 **`transactions.spec.ts:573` did not fail for this implementer at all** — zero Playwright failure
 markers across three full-suite runs at 195/195 each. It is therefore absent from this handback, and
 a future sighting is the known intermittent rather than a regression.
+
+### 2026-08-03 — P20B rev 11 review **FAIL** on one MEDIUM finding; everything it was asked to fix PASSES
+
+**DISTINCT `p20b-reviewer-11`** (distinct from `p20b-implementer-11` and from every prior P20B
+reviewer) wrote `reviews/P20B-review-11.md` — **FAIL, one MEDIUM finding**, persisted with the
+evidence at `d453f8c`. **It performed the manual checkpoint** and skipped no clause. Ancestry
+re-derived: both commits ancestors of live HEAD, `git diff --name-only 19160af..HEAD -- src tests`
+empty, evidence md5 `82dfe88606c1bab5a46df6b5a5fc005c` **matching root's post-amendment value**.
+
+**F10-1 PASSES — the reviewer re-ran both mutations itself.** Gate present **8 passed** → deleted
+**1 failed** → restored **8 passed** → **inverted `===`→`!==` 7 failed/1 passed** → restored. Three
+of its own builds: gated **0** files under `.next/static` → gate line removed **1** (the same chunk
+every prior review named) → regated **0**.
+
+**A caveat worth more than the pass, and root would not have caught it:** the one test surviving
+inversion survives **vacuously** — `undefined === undefined`. **7/8 must not be read as
+exhaustive.**
+
+**F10-2 PASSES — every number re-derives exactly.** 58 lines / 53 specs / 5 helpers / 1 comment →
+**57 real call sites**, **16** barrier sites, **0** raw `.reload(` in specs. **No sentence drifts
+back into a completeness claim**, no fifth count is issued, the bound is untouched. The four
+barriers sit at exactly `passkey.spec.ts:62/:180/:236` and `identity.spec.ts:175`, and the four
+measured-unsafe sites **appear in no hunk and remain bare `page.goto("/unlock")` at HEAD**. **D-025
+conditions 1 and 2 both hold — no ownership flip.**
+
+**F11-1 (MEDIUM) — a false universal in a comment rev 11 newly committed.**
+`passkey.spec.ts:60-61` claims *"**Every** caller arrives from a settings page whose vault is still
+mounted"*. **MEASURED by the reviewer's own instrumentation at that exact line: of 12 entries (4
+callers × 3 repeats), only 6 observed a mounted vault** — 2 saw the seam installed but
+`awaitLocalPersistence()` → `no-active-vault`, and 4 saw an absent seam. The "arrives from a settings
+page" half **is** true (12/12 on `/settings`).
+
+**This is the same class as rev 09's F-3 — the false universal this package was already failed for,
+and whose removal rev 10 was credited with.** **It is not concealment:** the evidence §3.2 discloses
+the mixed measurement plainly; **the committed comment is simply stronger than the evidence
+justifying it.** Fix is **one comment line**. **Do NOT move or drop the barrier.**
+
+**THE IN-VAULT PREDICATE IS PARTLY LOAD-DEPENDENT — not merely partly unmeasured.** At
+`passkey.spec.ts:180` the reviewer measured **3/3 `no-active-vault`** where rev 10's §4.4 measured
+**`persisted`** at the same site. **So "at least fifteen; the sweep is not complete" is a bound on a
+quantity that partly varies with load, and no static enumeration can be complete for it.** Folded
+into `Q-P20B-30` at the reviewer's own suggestion rather than opened as a new canonical ID; it
+strengthens the lint-rule option over per-site classification, since a rule needs no predicate.
+
+**The retry branch is load-bearing — fresh, stronger measurement.** **7 of 63 barrier entries
+observed an absent seam on an `(app)` route and ALL recovered** — a far higher rate than rev 10's
+3/137. "Throw immediately" stays refuted.
+
+**A minor error inside a MEASURED-tagged sentence, below finding severity.** Evidence §3.1's "the
+twelve revision 10 added" is **eleven**: rev 10's BASE already carried one barrier
+(`people-settlement.spec.ts:790`, from `0a94be8`). **The load-bearing 16 is correct** and the
+sentence root transcribes does not contain the error.
+
+**Validation the reviewer ran:** **690 executions, 0 failure markers** — full suite ×3 at 195/195,
+plus `passkey`+`identity` `--repeat-each=5` at 105/105, digest constant on all 8 START/END lines.
+Probe on `:3100`: **arm C 15/70 lost — the control still bites** — C2 **0/70**, D **0/70**,
+discriminator 210/210. **No cross-campaign rate comparison drawn.** `pnpm test` ×2 both
+**2491 passed / 1 failed / 2 skipped** — **exactly +2 tests over rev 10**, failures being the two
+pre-classified intermittents, one each.
+
+**A clause deliberately not re-run, and the reasoning is right:** it did not repeat rev 10's six-URL
+HTTP probe of the residual server source map, because **`src/` is byte-identical to that revision**
+(md5 `50cc87bb90b7bc781e01b7b4104b2455`); it reproduces that reading rather than extending it, and
+says so.
+
+**A RECOVERY-MATERIAL WORKFLOW HAZARD, recorded at `RISKS.md#R-SNAPSHOT-PHRASE-01`.** MEASURED: a
+bare `pnpm exec playwright-cli snapshot` on `/new-user` after phrase generation prints the
+**recovery phrase in cleartext** — the display shows `•••••` but the **password-manager credential
+field carries the phrase as its accessible value**. **`PROCESS.md` *requires* accessibility
+snapshots, so a reviewer following the checkpoint exactly can print recovery material via the one
+command that looks purely observational.**
+
+**No exposure persisted, and root verified rather than accepting the assurance.** The phrase belonged
+to a **disposable test vault the reviewer created**, not to the human or any real vault; the reviewer
+noticed, filtered its snapshots, reproduced nothing, and deleted the vault state. **Root scanned the
+committed review and evidence for phrase-shaped content and found none.** **This therefore does not
+meet this session's halt-and-report bar for a recovery-material exposure** — but it is surfaced to
+the human explicitly, and **every future reviewer brief must carry the mitigation.**
+
+**STATE:** P20B revision 11 → **FAIL** → `changes_requested`; root opens **revision 12**, whose
+entire required change is **one comment line**. No package or requirement row changes state. Frozen
+sources re-verified: scratch `469e98c7…`, FS-001 `0d0e2a14…`.
