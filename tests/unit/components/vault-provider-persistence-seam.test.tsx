@@ -65,8 +65,8 @@ describe("VaultProvider local-persistence seam", () => {
     it("wires the published seam to the provider's own manager", async () => {
         renderVaultProvider();
 
-        await expect(window.__moneyflowLocalPersistence?.awaitLocalPersistence()).resolves.toBe(
-            "no-active-vault"
-        );
+        const seam = window.__moneyflowLocalPersistence;
+        expect(seam).toBeDefined();
+        await expect(seam?.awaitLocalPersistence()).resolves.toBe("no-active-vault");
     });
 });
