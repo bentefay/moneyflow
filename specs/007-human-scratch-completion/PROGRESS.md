@@ -12609,3 +12609,74 @@ dispatched — distinct from `p20b-implementer-10` and from `p20b-reviewer-01/-0
 **The dev server for the mandated manual checkpoint is PRE-AUTHORIZED in its dispatch**, so it never
 has to ask: rev 09's reviewer completed that clause only after two requests, one of which root
 answered too late.
+
+### 2026-08-03 — Rev 10 closing report: the in-vault set is ELEVEN, a root message failed to deliver, and an authorization conflict surfaced
+
+**1. The in-vault teardown set is ELEVEN, not five — the third successive refinement of this
+number, and every refinement has gone against the earlier count.** The implementer applied the rev-09
+reviewer's own criterion to all 53 `.goto(` sites and found six beyond the five root named.
+**MEASURED by root at BASE `9a256fb`:** those six call sites exist in exactly the three files
+claimed —
+
+```
+passkey.spec.ts:70,:421            await page.goto("/settings");
+tab-duplication.spec.ts:130,:131   await onboardingDuplicate.goto(".../transactions");
+                                   await authenticatedDuplicate.goto(".../transactions");
+invite-redemption.spec.ts:47,:103  await member.goto(inviteUrl);
+```
+
+**This explains the seven-file breadth root had flagged to the reviewer as possible over-reach; root
+has withdrawn that framing.** The lineage of this figure is worth keeping: root's **44**
+(under-inclusive — the pattern missed calls on other page objects), the rev-09 reviewer's **52
+sites / five in-vault**, now **eleven in-vault**. **Root's classification of the six as in-vault is
+INFERRED from reading the call sites, not a measurement of mounted state**, and the reviewer is
+asked to verify it rather than adopt it.
+
+**Accuracy note the reviewer must check:** the implementer's handback message cited these as
+`passkey.spec.ts:76`/`:429`, `tab-duplication.spec.ts:132`/`:134`, `invite-redemption.spec.ts:54`/`:112`.
+**MEASURED: none of those resolves to a `.goto(` at BASE**; the actual lines are the ones above. Its
+evidence §4.2 may be correct with only the message drifting — but line numbers have moved under this
+goal repeatedly, so it is a check and not an assumption.
+
+**Why the multi-context sites matter more than the count:** `tab-duplication` and
+`invite-redemption` barrier **separate `Page` objects in separate browser contexts**, each with its
+own `window` and therefore **its own seam**. A barrier awaiting the wrong context's seam would be
+worse than none **and would still go green.** Root has asked the reviewer to check exactly that.
+
+**2. A ROOT DELIVERY FAILURE, recorded because the outcome being fine does not make the gap
+acceptable.** Root's mid-revision narrowing of F-3 **never reached `p20b-implementer-10`** — it
+found the correction in `PROGRESS.md` via `git log` **after committing**. The outcome matched what
+root asked, and the implementer put the delivery gap on the record in its evidence §4.4 rather than
+papering over it. **This is the second message-timing failure by root this session**, after the rev
+09 dev-server authorization that arrived too late. **Root's mitigation going forward is to put
+standing authorizations and constraints in the DISPATCH FILE, which the worker reads, rather than in
+a follow-up message, which it may not** — already applied to `p20b-reviewer-10`, whose manual-checkpoint
+dev server is pre-authorized in its brief.
+
+**3. An AUTHORIZATION CONFLICT the implementer surfaced instead of resolving unilaterally, and it
+was right to.** `tests/integration/realtime-origin-controls.test.ts` **fails at BASE `9a256fb` too**
+— the implementer measured **6 of 7** unmutated full unit runs failing, with **no import path** to
+anything it changed. It is not this revision's regression.
+
+**The conflict:** `.claude/CLAUDE.md` requires fixing all test issues before committing "even if you
+didn't create them", while root's brief ruled the file out of scope and **did not authorise
+`tests/integration/**`**. **The implementer did neither of the two silent options — it did not fix
+out-of-scope code, and it did not quietly ignore a red test. It reported the conflict and left the
+decision to root.**
+
+**Root's resolution:** `PROCESS.md`'s authorized-paths discipline governs inside this goal — an
+implementer touching unauthorised paths breaks the review boundary the whole process rests on, and
+`.claude/CLAUDE.md`'s rule is repository guidance that the goal's own contract specialises. **The
+file needs an owner outside P20B and root is carrying it to P21 to route**, alongside the flake
+register entry already recorded. **Root notes for the final audit that this is a genuine red test in
+the tree at the time of writing, not a passing one.**
+
+**4. Rev 10's validation, as reported and for the reviewer to verify.** One digest
+`850ac6d239fc7b19240f6750fda01b63` across ten matching START/END lines. Probe at `--repeat-each=70`:
+**arm C (control) 11/70 lost, C2 0/70, D 0/70**, discriminator 140/140 with no counterexample —
+**the control still fails, so the zeros are not a dead instrument.** Full suite on the repo's own
+config on `:3000`, `--retries=0`: **195/195 three times**; `people-settlement.spec.ts
+--repeat-each=5`: **95/95**. An earlier campaign on `26450db` was **discarded and restarted from run
+1 because `67ea7a2` moved the tree** — the campaign tree-drift discipline this goal requires, applied
+unprompted. `0/70` stated as a **bound, not a clearance** (4.3% rule-of-three), with the 10-green
+bar, crash safety and the residual class all left open and **no cross-campaign rate comparison**.
