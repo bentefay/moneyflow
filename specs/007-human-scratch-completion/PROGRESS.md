@@ -13328,3 +13328,43 @@ question in neither direction.**
 
 **STATE:** P20B revision 13 → `ready_for_review` → `reviewing`. DISTINCT `p20b-reviewer-13`
 dispatched. Frozen sources re-verified: scratch `469e98c7…`, FS-001 `0d0e2a14…`.
+
+### 2026-08-03 — Root WITHDRAWS a counterfactual it asserted about the inode fix; rev 13 worktree disposed correctly
+
+**1. ROOT'S COUNTERFACTUAL WAS NOT ESTABLISHED AND IS WITHDRAWN.** Root recorded that P20B rev 13
+"was mid-flight and **would have failed** its install". **MEASURED by the implementer: its
+`install.log` exited 0 in 1.3 s, `df -i` already read 21% when it built, and its worktree was on `/`
+rather than `/tmp` in any case.** Root's cleanup had landed first.
+
+**What remains established:** the exhaustion was real — **98% used, 30,223 free against ~62,000
+needed per worktree** — and **no new `/tmp` worktree could have been created while it persisted.**
+**Whether rev 13 specifically would have hit it, root does not know**, and the ledger no longer says
+otherwise. This is the failure shape this ledger keeps recording against its own authors: a true
+measurement (the exhaustion) with a causal claim attached to it (the rescue) that was never
+measured. **Root wrote it in the same measured register as the figure beside it.**
+
+**2. Worktree disposal done correctly, and it hit the self-match trap root's own notes warn about.**
+The implementer scanned every `/proc/<pid>/cwd` **excluding its own shell pid**, found one hit on an
+earlier scan that **turned out to be the previous Bash call's own shell**, re-checked from a cwd
+outside the worktree, and found none. **That is exactly the "pattern matchers match themselves"
+hazard**, encountered and handled rather than tripped over.
+
+It **preserved the one in-worktree artifact before removing** — `test-results/.last-run.json`
+(`{"status":"passed","failedTests":[]}`) copied out — confirmed **zero `error-context.md`** so
+nothing carried the phrase hazard, then removed only its own tree. **Root verified afterwards that
+`/tmp/mf-p20b-rev12` and `/home/ben-agents/mf-p20b-rev12-review`, the two deliberately retained, are
+both still present.** All seven log files survive outside the repository.
+
+**3. The two `/tmp` readings in the artifact chain are reconciled, not contradictory.**
+`reviews/P20B-review-12.md` §8 records 100% exhaustion; `evidence/P20B/implementation-14.md` §6 item
+5 records it cleared at 21%. **The delta is root's removal of 13 closed-revision worktrees between
+those two measurements.** The implementer measured the post-cleanup state **without knowing a
+cleanup had occurred** and flagged that its own wording does not explain the jump — so the reviewer
+would have found an unexplained discontinuity. Root has supplied the reconciliation directly.
+
+**4. The green unit run is flagged by its own author as the ODD result, not good news.** Against
+measured rates of **3-of-4** and **2-of-4** failing, rev 13's single `pnpm test` was **132 files /
+2492 passed, 0 failed** with both known-bad files green. **n=1 on a quiet host; no fix claimed**;
+vitest's input is byte-identical across the trees because a `.spec.ts` is never loaded. **Root
+agrees and has told the reviewer that red on those two files is the expected outcome, not a
+regression.**
