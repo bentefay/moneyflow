@@ -111,3 +111,28 @@ cause was the `beforeunload` modal, not the app.** Had it been reported, it woul
 severe product failure. **A browser probe failure is a claim about the harness before it is a claim
 about the product** — the tenth instrument failure in this goal whose signature impersonated a
 product break.
+
+## R-SNAPSHOT-PHRASE-01 — a bare `playwright-cli snapshot` can print a recovery phrase in cleartext
+
+- **Status:** OPEN as a **reviewer-workflow hazard**. **Not a product defect** — it is HS-019
+  behaviour working as specified — and **not an exposure event**: see the disposition below.
+- **Substance, MEASURED by `p20b-reviewer-11`:** on `/new-user` after generating a phrase, a bare
+  `pnpm exec playwright-cli snapshot` prints the **recovery phrase in cleartext**. The display shows
+  `•••••`, but the **password-manager credential field carries the phrase as its accessible value**,
+  and the accessibility snapshot reports accessible values.
+- **Why it matters more than an ordinary hazard:** `PROCESS.md`'s reviewer checkpoint **requires**
+  deterministic accessibility snapshots, and `snapshot` is an *observational* command. **A reviewer
+  following the checkpoint exactly, with no intent to reveal anything, can print recovery material
+  by running the command the checkpoint asks for.** It defeats a "never reveal the phrase" rule via
+  the one command that looks safe.
+- **Disposition — no exposure persisted, verified by root.** The phrase belonged to a **disposable
+  test vault the reviewer created**, not to the human or any real vault. The reviewer **noticed and
+  filtered its snapshots**, reproduced nothing in its review file, and deleted the vault's state.
+  **Root scanned the committed review and evidence for any phrase-shaped content and found none**;
+  the only long word-run is ordinary prose and the two "recovery phrase" mentions are this hazard's
+  own description and the hygiene declaration. **No secret or recovery material entered the
+  repository.**
+- **Required mitigation, applied from the next dispatch onward:** every reviewer brief must instruct
+  that snapshots taken on or after `/new-user` phrase generation are **filtered before being read or
+  quoted**, and that the credential field's accessible value is never echoed. Prefer targeted
+  `eval` on a specific element reference over a whole-page `snapshot` on that route.
