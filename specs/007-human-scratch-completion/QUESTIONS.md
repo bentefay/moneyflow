@@ -3286,3 +3286,35 @@ the **E2E harness component is IN-GOAL to P20B (HS-021)**; **product
 durability-at-acknowledgement is OUT-OF-GOAL**, tracked at `RISKS.md#R-LOSTWRITE-01`. The concern
 this question was raised to guard against — leaving the class on P20B merely to avoid invalidating a
 prior PASS — is answered: **the adjudicator found the P20B routing correct on the merits.**
+
+## Q-P20B-30 — Should the remaining in-vault raw `page.goto` teardowns be barriered, or raw teardowns forbidden in specs?
+
+- **Source:** `reviews/P20B-review-09.md` §12 (`Q-PROPOSAL-P20B-09-1`), raised by `p20b-reviewer-09`.
+- **Context:** finding F-3. Raw `page.goto` teardowns remain unbarriered after rev 09, a handful of
+  them with a vault mounted, so they sit in the measured lost-write window. **Count caveat, recorded
+  rather than resolved:** the reviewer reports **52** unbarriered raw `page.goto` (five in-vault);
+  root's own derivation over `tests/e2e/**/*.ts` excluding `helpers/nav.ts` gives **44**. As with
+  the 211/217 case, the derivations differ by collection scope and **the finding holds under
+  either** — root did not resolve which scope is canonical and does not assert one.
+- **Options:** (a) barrier the in-vault sites individually; (b) forbid raw `page.goto` in specs via
+  a lint rule and route all teardowns through the helpers; (c) leave them, since most run with no
+  vault mounted and cannot lose a write.
+- **Reversible default:** the narrow fix — barrier the in-vault sites — is folded into revision 10
+  as part of F-3. The lint-rule question stays open.
+- **Status:** OPEN; the narrow part is being fixed now.
+
+## Q-P20B-31 — Should the harness gain a client-side navigation helper?
+
+- **Source:** `reviews/P20B-review-09.md` §12 (`Q-PROPOSAL-P20B-09-2`).
+- **Context:** `nav.ts` is **deliberately** staying on full document loads — converting it would
+  weaken assertions that currently re-derive state across a document boundary, which condition 1 of
+  D-021 exists to prevent. The consequence is that no *helper* offers a client-side navigation, so a
+  test author who wants one hand-rolls it.
+- **Why this is a convenience matter and not a coverage hole:** MEASURED by the reviewer, the suite
+  already performs **16 in-app client-side link navigations across six spec files**, including
+  **frozen step 8 of the mandatory journey** (`people-settlement.spec.ts:337`, "8. navigate back to
+  that transaction", which clicks the real "View transaction" link — **root verified this
+  directly**).
+- **Reversible default:** record as a tracked observation, not a further revision. It traces to no
+  frozen line and closing it via `nav.ts` would breach condition 1.
+- **Status:** OPEN, pre-existing, not blocking.
