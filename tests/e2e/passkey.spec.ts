@@ -62,7 +62,9 @@ async function unlockWithPasskey(page: Page): Promise<void> {
     // specs/007-human-scratch-completion/reviews/P20B-review-11.md; §4.4 of
     // reviews/P20B-review-10.md, before the barrier existed), and the same predicate measured at
     // other lines in this file moved between those runs. The barrier is in the helper so the live
-    // case is covered on all four; where no vault is mounted it resolves as a no-op.
+    // case is covered on all four; where the seam reports no active vault it resolves as a no-op,
+    // but an absent seam on an (app) route is not a no-op — it retries until the seam appears or
+    // the page leaves those routes, which is why that branch stays.
     await awaitVaultPersistence(page);
     await page.goto("/unlock");
     await page.getByTestId("passkey-unlock-button").click();
