@@ -535,24 +535,92 @@ that themselves call nav helpers are counted. **137 is reproduced by neither**, 
 or in this revision depends on it. Root should correct `adjudications/P21-scope-02.md` §1/§4/§7 and
 `DECISIONS.md#D-021` to a figure with its scope stated, or drop the number.
 
-## 11. Reviewer-checkpoint clauses I could not complete
+## 11. Manual browser verification — PERFORMED, and it changed nothing in the verdict
 
-Stated rather than omitted, per `PROCESS.md:161-185`.
+Root authorised me to start my own dev server, so this clause is **complete**. Session `p20b09rev`,
+unique and disposable, driven with the repository-installed `pnpm exec playwright-cli` — no MCP, no
+`npx`, no ad-hoc script, no temporary spec or config, and no `--headed`/`--debug`/`--ui`/`show`.
+Server: `pnpm dev -p 3000` from my own worktree `/tmp/mf-p20b-rev09` with its own `.next`,
+`SUPABASE_JWT_SECRET` derived from the running Realtime container exactly as `playwright.config.ts`
+derives it, so the app under my hands matched the app the suite runs against. Server log
+`/tmp/p20b-rev09-review/devserver.log`.
 
-- **Manual `pnpm exec playwright-cli` testing (`PROCESS.md:170-171`) — NOT PERFORMED.** MEASURED:
-  `ss -ltnp` shows nothing listening on `:3000`; the only dev server is the human's on `:3001` (pid
-  818182), which the dispatch bars me from touching, and `playwright.config.ts` sets
-  `reuseExistingServer: false` so its webServer exists only during a test run. My standing
-  instruction is to ask rather than start one myself; I asked `team-lead` twice and had no answer
-  before writing. **This clause is outstanding and my verdict does not rest on it** — none of F-1,
-  F-2 or F-3 was found in a browser, and all three reproduce from the command line.
-- **Deterministic accessible role/name/state snapshots, contrast, zoom/reflow, dark/reduced-motion,
-  responsive sizes (`PROCESS.md:172-176`) — VACUOUS for this diff, not skipped.** MEASURED: the
-  commit changes no component that renders a control, no styling, and no markup. There is no changed
-  control to snapshot and no changed colour to measure. The 195-test suite, which covers these
-  matrices for the unchanged UI, passed three times.
-- Everything else in the checkpoint — the literal BASE..HEAD, acceptance mapping, `.claude` rules
-  audit, focused checks, retry-free repeats — is covered in §0 to §5.
+**What the seam actually is, in a real browser — this replaces the reading in §6 with measurement.**
+On `/settings` after vault creation:
+
+```
+{ present: true, keys: ["awaitLocalPersistence"], type: "function", arity: 0,
+  outcome: "persisted", ms: 0 }
+```
+
+and probing the whole reachable surface: `Object.getOwnPropertyNames(seam)` is exactly
+`["awaitLocalPersistence"]`, the function carries no own properties beyond `length`/`name`, the
+prototype is plain `Object.prototype`, and `Object.values(seam)` is one function. **Nothing reaches
+the `SyncManager`, the Loro document, or any key through it.** §6's conclusion — a real but inert
+surface, no vulnerability — is now measured rather than argued.
+
+**The `(app)`-route invariant F-2's fix depends on is real.** MEASURED in one session:
+
+| Route                                                           | `window.__moneyflowLocalPersistence` |
+| --------------------------------------------------------------- | ------------------------------------ |
+| `/settings`, `/transactions` (after reload)                     | **present**                          |
+| `/` (landing)                                                   | **absent**                           |
+| `/unlock` (a second tab, which has no `sessionStorage` session) | **absent**                           |
+
+So `awaitVaultPersistence` can distinguish "legitimately absent" from "should be here and is not" by
+route. F-2's remedy is implementable, not merely proposable.
+
+**The frozen journey's shape, by hand, with no probe spec.** Created an identity, added person Bob,
+added a transaction, set Bob's allocation to 50 through the real grid cell — the cell read
+`Explicit: 50%. Effective: 50%. Owner remainder: 50%.` — then called the barrier (`"persisted"`),
+reloaded, and read the cell again: **`Explicit: 50%.` survived**, and the seam was re-installed
+after the reload. This is the third independent agreement with §2, after the probe campaign and the
+mutation probe.
+
+**An unmeasured claim in the ruling is now measured, and it favours the ruling.**
+`adjudications/P21-scope-02.md` §5 says, tagged INFERRED and explicitly "Not measured", that a
+user-initiated teardown "should hit `beforeunload`, where `hasPendingWorkSync()` is true while
+`pendingLocalUpdates` is non-empty, so that path raises the unsaved-changes dialog rather than
+silently dropping the write". **I hit it.** Navigating to `/transactions` immediately after adding
+Bob raised a `beforeunload` dialog and blocked the navigation until I accepted it. Later, reloading
+_after_ the barrier returned `"persisted"` raised **no** dialog. That is the mechanism behaving
+exactly as the adjudicator inferred, in both directions, and it strengthens
+`RISKS.md#R-LOSTWRITE-01`: the user-initiated path is guarded; only an unaimed teardown loses. Root
+should upgrade that INFERRED line to MEASURED with this citation.
+
+It also explains a timeout I very nearly misread. Two `goto` calls failed with
+`TimeoutError: Timeout 60000ms exceeded` while `curl` fetched the same route in **121 ms** and the
+dev-server log showed `GET /transactions 200`. The cause was the modal, not the app. **A browser
+probe failure is a claim about my harness before it is a claim about the product**, and had I
+reported that timeout it would have impersonated a serious defect.
+
+**Console and network — clean.** `console` reports **2 messages, 0 errors, 0 warnings**: a React
+DevTools info notice and `[HMR] connected`, both dev-server artifacts. No request failed. One
+`POST /api/trpc/realtime.revoke` appears without a status because it was fired during the page's own
+unload as I navigated away and the navigation cancelled it; its `referer` is the page being left,
+the commit touches no realtime code, and the dev-server log shows that call returning `200` on every
+other occasion.
+
+**Cleanup, verified by state rather than by exit code.** Session closed and `delete-data` run; no
+browser process matching the session survives, checked while excluding my own shell from the match.
+Dev server killed by pid after `readlink /proc/<pid>/cwd` confirmed both pids were mine
+(`/tmp/mf-p20b-rev09`); `ss -ltn` then showed `:3000` released. **The human's `:3001` (pid 818182,
+cwd `/home/ben-agents/Code/moneyflow`) was alive and untouched before and after.** My worktree's
+digest is back to `745d707342030773eee2746eeb7aba88` with only the expected `next-env.d.ts` rewrite,
+which `next dev` performs on every start and which I excluded from every digest.
+
+**The one clause that remains vacuous rather than skipped.** Deterministic accessible
+role/name/state snapshots, contrast, zoom/reflow, dark/reduced-motion and responsive sizes
+(`PROCESS.md:172-176`): MEASURED, the commit changes no component that renders a control, no styling
+and no markup, so there is no changed control to snapshot and no changed colour to measure. The
+checkpoint qualifies these as _task-relevant_, and for this diff they are not. I did cover the two
+that are — refresh/persistence and duplicate tabs — above.
+
+Everything else in the checkpoint — the literal BASE..HEAD, acceptance mapping, `.claude` rules
+audit, focused checks, retry-free repeats — is covered in §0 to §5.
+
+**Nothing in the browser changed the verdict.** None of F-1, F-2 or F-3 was found here and all three
+reproduce from the command line; the manual pass corroborated every one of them.
 
 ## 12. Question proposals
 
@@ -619,17 +687,35 @@ Stated rather than omitted, per `PROCESS.md:161-185`.
 4. **The `realtime-origin-controls.test.ts` flake** (§1) — three agents have now hit it; it belongs
    in the goal's flake register with an owner, not in P20B.
 5. **Both question proposals** (§12).
-6. **The outstanding manual-CLI clause** (§11), so the gap is visible in the record rather than
-   assumed covered.
+6. **An INFERRED line in the ruling that is now MEASURED** (§11): `adjudications/P21-scope-02.md`
+   §5's `beforeunload` claim, which it flagged "Not measured", is confirmed in both directions — the
+   dialog fires on a teardown with work pending and does not fire after the barrier returns. It
+   belongs in `RISKS.md#R-LOSTWRITE-01`, since it bounds the Component-2 exposure to unaimed
+   teardowns.
 
 ## 14. Secret safety and hygiene
 
 No vault master key, seed phrase, recovery material, `crypto_box` secret, `SUPABASE_JWT_SECRET`,
 presence key, invite bearer secret or vault plaintext was read, printed or committed; none appears
 in this file. **No database command of any kind was run** — no `db:reset`, no migration, nothing
-destructive. Port `:3001` was never touched; my runs used `:3000` (full suite) and `:3100` (the
-probe config), both from my own worktree. Every run used `env -u CI` and `--retries=0`; no
-`--debug`, `--ui`, `--headed` or `show`.
+destructive. The vault I created in §11 was made through the normal UI, as the suite does, and its
+session data was deleted with the browser.
+
+**Port `:3001` was never touched** — MEASURED before and after the manual session: pid 818182, cwd
+`/home/ben-agents/Code/moneyflow`, alive throughout. My runs used `:3000` (full suite, then the
+manual dev server) and `:3100` (the probe config), both from my own worktree. The two never
+overlapped: the campaign released `:3000` before the manual server started, because
+`reuseExistingServer: false` means Playwright stands up its own. The manual server was stopped by
+pid after `readlink /proc/<pid>/cwd` confirmed both pids were mine — never a bare `pkill -f`, which
+matches its own shell — and release was confirmed from `ss -ltn` state rather than from the kill's
+exit code. Every run used `env -u CI` and `--retries=0`; no `--debug`, `--ui`, `--headed` or `show`.
+
+The `SUPABASE_JWT_SECRET` for the manual server was derived from the running Realtime container by
+the same routine `playwright.config.ts` uses, held only in a shell variable, and never printed —
+only its byte length was. I did not click "Click to reveal" on the seed-phrase step: the recovery
+phrase stayed masked for the whole session and no seed word was ever rendered or captured. The
+`x-pubkey` and `x-signature` request headers I inspected are a public key and a per-request
+signature, and I have not reproduced them here.
 
 In the shared checkout I ran only read-only commands and the three serial gate runs. I never used
 `git stash`, `git checkout --` or `git add`. **I committed nothing and wrote exactly one file: this
