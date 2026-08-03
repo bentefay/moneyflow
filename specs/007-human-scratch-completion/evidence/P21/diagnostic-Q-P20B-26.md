@@ -185,3 +185,138 @@ those two logs should be disregarded.**
 2. Is the `51 transactions` case in `/tmp/p20b07-F2-repro/` this class? Arm F says transaction
    creation does not reproduce it in 28 runs, so assume not until measured.
 3. Does the undo/redo path share the queue? Read, not measured.
+
+---
+
+# 9. Arm G follow-up — client-side navigation vs document teardown
+
+**ANSWER: the teardown is the cause. A Next.js client-side transition does not lose the write —
+0 / 70. A full document load, fired by the identical in-page trigger at the identical instant, loses
+it 48 / 70 (69%).** MEASURED.
+
+**But arm G as originally specified was confounded and its result must not be used.** Details in
+§9.2; the number that answers the question comes from the matched pair in §9.3.
+
+## 9.1 Does the sidebar link produce a client-side transition?
+
+Yes — MEASURED, 70/70. The sidebar items are real `next/link` elements
+(`src/app/(app)/layout.tsx:63-72, 386-389`). A marker planted on `window` before the write
+(`__q26DocumentAlive = "alive"`) is read back after the navigation: it survives a sidebar click and
+is gone after a document load. Every arm reports this, so no arm below is asserting a transition
+type it did not verify:
+
+```
+G/TRANSITION  marker="alive"  clientSide=true   url=http://localhost:3100/people      70/70
+J1/TRANSITION marker="alive"  clientSide=true   url=http://localhost:3100/people      70/70
+J2/TRANSITION marker="<gone>" clientSide=false  url=http://localhost:3100/people      70/70
+```
+
+## 9.2 Arm G is retracted as uninformative
+
+| Arm | Shape | Losses |
+| --- | --- | --- |
+| G | barrier → **Playwright click** on the sidebar `People` link (client-side) | 0 / 70 |
+| G2 | barrier → `click({ trial: true })` on the same link → **`page.goto`** (teardown) | 0 / 52 |
+
+MEASURED (`/tmp/q26-logs/campaign{8-armGH-w4-r18,9-armGH-w4-r52,11-armG2-w4-r52}.log`).
+
+Arm G's clean 0/70 looked like "client-side navigation is safe". It is not evidence for that. A
+Playwright click runs actionability checks before it dispatches, so arm G's navigation starts later
+after the barrier than arm D's `page.goto` does. Arm G2 pays exactly that cost —
+`click({ trial: true })` performs the identical checks and then does *not* click — and then tears the
+document down anyway. **It also stopped losing, 0/52.** So the few milliseconds of click latency
+close the window on their own, and arm G's result is explained by latency rather than by the absence
+of a teardown. Reported alone it would have supported the opposite routing.
+
+## 9.3 The matched pair that does answer it
+
+Both arms arm the navigation **before** the write and fire it from inside the page via a
+`MutationObserver` that triggers the instant the cell's `Explicit: 50%.` text commits — the same
+task as the DOM confirmation, with no Playwright round trip in between. The two are byte-identical
+except for one line: `a[href="/people"].click()` versus `location.assign("/people")`.
+
+| Arm | Navigation primitive | Confirmed | Losses | Op row created? |
+| --- | --- | --- | --- | --- |
+| J1 | sidebar `<a>` click — client-side transition | 70/70 client-side | **0 / 70** | 70/70 grew 6→7 |
+| J2 | `location.assign` — full document load | 70/70 full load | **48 / 70** | 48 absent, 22 grew |
+
+MEASURED (`/tmp/q26-logs/campaign{12,13}-armJ-w4-r35.log`). The op-count discriminator holds exactly
+as in §1: every J2 loss has `opsAfterNav=6`, every survival has `7`, no counterexamples in 140 runs.
+
+One clean serial J2 loss (`/tmp/q26-logs/armJ-smoke.log`, single worker, one vault throughout):
+
+```
+J2/0-before-bob ops=6  snapshot {"vault_id":"2d7e1a7f-942d-40cf-85da-a61533c74988",...}
+J2/1-after-nav  ops=6  snapshot {"vault_id":"2d7e1a7f-942d-40cf-85da-a61533c74988",...}
+J2/TRANSITION marker="<gone>" clientSide=false url=http://localhost:3100/people
+J2/post-reload DOM Bob="—Explicit: not stored. Effective: 0%. Owner remainder: 50%."
+J2/VERDICT clientSide=false meLost=false bobLost=true opsBeforeBob=6 opsAfterNav=6
+```
+
+**On the zero:** 0/70 is a bound, not a clearance. Rule of three puts the 95% upper bound on J1's
+true rate at ≈ 4.3%. What makes it decisive is the paired comparison rather than the zero itself:
+under J2's measured rate of 0.686, the chance of seeing 0 losses in 70 J1 runs is 6.5 × 10⁻³⁶. The
+two arms differ in one line of code, so the navigation primitive is the cause.
+
+## 9.4 Tab destroyed — arm H
+
+| Arm | Shape | Losses |
+| --- | --- | --- |
+| H | barrier → `page.close()` → read IndexedDB from a fresh tab in the same context | **17 / 70** |
+
+MEASURED (`/tmp/q26-logs/campaign{8-armGH-w4-r18,9-armGH-w4-r52}.log`; 2/12 more in the serial
+`campaign10-armH-serial.log`). IndexedDB is scoped to the browser context, so the surviving tab can
+read the state without the vault session that died with the old one. A clean serial loss, same
+`vault_id` and byte-identical op ids on both sides, with no seventh op
+(`/tmp/q26-logs/campaign10-armH-serial.log`):
+
+```
+H/0-before-bob      ops=6  ... snapshot {"vault_id":"2eb54dd4-9e72-4383-b100-dfecc10d74a8",...}
+H/1-after-tab-close ops=6  ... snapshot {"vault_id":"2eb54dd4-9e72-4383-b100-dfecc10d74a8",...}
+H/VERDICT opLost=true opsBeforeBob=6 opsAfterClose=6
+```
+
+Scope caveat, MEASURED-by-construction: Playwright's `page.close()` does **not** run `beforeunload`,
+so arm H models a crash or a killed tab, not a user clicking the window's close button. INFERRED
+from `manager.ts:437-448`: a user-initiated close would hit the `beforeunload` handler, and
+`hasPendingWorkSync()` returns true while `pendingLocalUpdates` is non-empty, so that path should
+raise the unsaved-changes dialog rather than silently drop the write. I did not measure that.
+
+## 9.5 What this means for exposure — the measured part and the inferred part
+
+MEASURED:
+
+- In-app navigation is safe in 70 runs (J1), and the sidebar links really are client-side (70/70).
+- Full document teardowns lose the write: `location.assign` 48/70, `page.goto` 17/70 (arm D),
+  `reload()` 21/70 (arm C), killed tab 17/70 (arm H).
+- Anything that delays the teardown by even a few milliseconds closes the window: arm G2 0/52,
+  arms A/B 0/140.
+
+INFERRED, and flagged as such:
+
+- A human cannot aim a reload at a window this narrow; the realistic user-facing exposure is an
+  *unaimed* teardown — a crash, an OS kill, a force-quit — landing inside the few-millisecond window
+  that follows each individual write. That is a small probability per write, not zero, and it is not
+  something I measured on real users.
+- The E2E failure class is a different matter and is largely a harness property: the navigation
+  helpers use `page.goto` (`tests/e2e/helpers/nav.ts`), which is a full teardown, and no helper
+  offers a way to await durability. J1 versus J2 is exactly that difference.
+- The product-side gap behind both is that `setAllocation`'s DOM barrier is the strongest signal a
+  caller has, and it does not imply durability; `SyncManager.awaitLocalPersistence()`
+  (`manager.ts:367-378`) exists but is not surfaced to the UI or to tests.
+
+I am not routing this — flagging that the two components above have different owners, which is the
+decision the adjudicator has to make.
+
+## 9.6 Provenance for this section
+
+- Same worktree `/tmp/mf-q26` at `10a290d`, dev server on `:3100`, `env -u CI`, `--retries=0`,
+  `--workers=4` except where noted. No database commands. Nothing committed.
+- The main checkout advanced to `HEAD=9d8d2cb` during this work (another agent), but the code under
+  test did not drift: `find src tests/e2e/helpers -type f | sort | xargs md5sum | awk '{print $1}' |
+  md5sum` is `e7662f03b51f3415fc5ec4b2e1eec062` in **both** trees, identical to §7. Every arm in this
+  section ran against that content.
+- Probe (now including arms G, G2, H, J1, J2): `/tmp/q26-logs/zz-q26-idb.spec.ts.artifact`.
+- Logs: `armGH-smoke.log`, `campaign8-armGH-w4-r18.log`, `campaign9-armGH-w4-r52.log`,
+  `campaign10-armH-serial.log`, `campaign11-armG2-w4-r52.log`, `armJ-smoke.log`,
+  `campaign12-armJ-w4-r35.log`, `campaign13-armJ-w4-r35.log` — all under `/tmp/q26-logs/`.

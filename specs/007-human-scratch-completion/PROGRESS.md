@@ -12005,3 +12005,64 @@ owner.** Arm G is dispatched. Root will not ask an adjudicator to rule on incomp
 Also open: whether the `51 transactions` F-2 case is this class (arm F says transaction creation did
 **not** reproduce it in 28 runs, so assume not until measured), and whether undo/redo shares the
 queue (read, not measured).
+
+### 2026-08-03 — Arm J settles exposure: **in-app navigation is SAFE; only full document teardowns lose the write**
+
+Evidence updated in place at `evidence/P21/diagnostic-Q-P20B-26.md` §9; logs `/tmp/q26-logs/`.
+
+**The diagnostician retracted its own first answer before reporting it, and that retraction is the
+most valuable thing in this section.** Arm G (Playwright click on the sidebar link) lost **0/70** and
+"looked like client-side navigation is safe". It then built arm G2 — `click({ trial: true })`, which
+runs the *identical* actionability checks and then does **not** click, followed by a `page.goto`
+teardown anyway. **G2 also lost 0/52.** So the few milliseconds of click latency close the window on
+their own, and **arm G's clean result was explained by latency, not by the absence of a teardown.
+Reported alone it would have supported the opposite routing.**
+
+**The matched pair that does answer it.** Both arms arm the navigation *before* the write and fire it
+from inside the page via a `MutationObserver` that triggers the instant the cell's `Explicit: 50%.`
+text commits — same task as the DOM confirmation, no Playwright round trip. **Byte-identical except
+one line.**
+
+| Arm | Navigation primitive | Losses | Op row |
+| --- | --- | --- | --- |
+| **J1** | sidebar `<a>` click — client-side transition (70/70 confirmed client-side) | **0 / 70** | 70/70 grew 6→7 |
+| **J2** | `location.assign` — full document load | **48 / 70** | 48 absent, 22 grew |
+
+The op-count discriminator holds exactly as before: **every J2 loss shows `opsAfterNav=6`, every
+survival `7`, no counterexamples in 140 runs.**
+
+**Full teardown loss rates, MEASURED:** `location.assign` 48/70 · `reload()` 21/70 (arm C) ·
+`page.goto` 17/70 (arm D) · killed tab 17/70 (arm H). **Anything that delays the teardown by even a
+few ms closes the window:** arm G2 0/52, arms A/B 0/140.
+
+**Arm H scope caveat, stated by the diagnostician against its own result:** Playwright's
+`page.close()` does **not** run `beforeunload`, so arm H models a **crash or killed tab**, not a user
+clicking the window close button. INFERRED from `manager.ts:437-448`: a user-initiated close hits the
+`beforeunload` handler and `hasPendingWorkSync()` is true while `pendingLocalUpdates` is non-empty,
+so that path *should* raise the unsaved-changes dialog rather than drop the write silently. **Not
+measured.**
+
+**Tree-drift discipline:** the main checkout advanced to `9d8d2cb` during this work, but the code
+under test did not drift — `find src tests/e2e/helpers -type f | sort | xargs md5sum | md5sum` is
+`e7662f03b51f3415fc5ec4b2e1eec062` in **both** `/tmp/mf-q26` and the main checkout. Every arm ran
+against that content. Nothing committed; no database command; dev server on `:3100`.
+
+**TWO COMPONENTS WITH DIFFERENT OWNERS — which is exactly why root is not deciding this.**
+
+1. **An E2E harness property.** `tests/e2e/helpers/nav.ts` navigates by `page.goto`, a **full
+   teardown**, where a real user's sidebar link is a **client-side transition**; and no helper offers
+   a way to await durability. **J1 versus J2 is precisely that difference.** On this reading, rev
+   06's routing of the class to P20B was **partly right** for the wrong reason.
+2. **A product durability gap.** `setAllocation`'s DOM barrier is the strongest signal a caller has
+   and **does not imply durability**; the UI reports **`Saved`** before the op exists.
+   `SyncManager.awaitLocalPersistence()` (`manager.ts:367-378`) **exists but is surfaced to neither
+   the UI nor tests.** Realistic user exposure is an **unaimed** teardown — crash, OS kill,
+   force-quit — landing in the few-ms window after an individual write. **Small per write, not zero,
+   and not measured on real users.**
+
+**ROUTING GOES TO INDEPENDENT ADJUDICATION.** Root is barred from self-adjudicating a call that
+supersedes a prior accepted decision (`PROCESS.md:335-347`), and this one touches **D-019**, which
+ruled a genuine CRDT data-loss risk (`Q-P20B-00`) **OUT-OF-GOAL** on the ground that no frozen
+`sourceTextLine` required it. Component 2 is the same species of question. A fresh-context
+opus-tier adjudicator, distinct from every implementer and reviewer of P16A–E, P20A/B and P21, is
+dispatched to rule from the frozen text alone.
